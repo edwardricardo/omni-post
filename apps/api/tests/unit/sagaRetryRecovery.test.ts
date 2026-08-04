@@ -8,6 +8,7 @@
  */
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import {
+  TEST_ACCOUNT_ID,
   createMockPrisma,
   createMockRedis,
   createMockEventService,
@@ -50,6 +51,7 @@ describe("Saga retry recovery (persisted nextRetryAt)", () => {
 
     const before = Date.now();
     const sagaInstance = await manager.startSaga("retry-test-saga", {
+      accountId: TEST_ACCOUNT_ID,
       correlationId: "corr-retry-1",
       userId: "user-1",
     });
@@ -77,6 +79,7 @@ describe("Saga retry recovery (persisted nextRetryAt)", () => {
     });
 
     const sagaInstance = await manager.startSaga("retry-clear-saga", {
+      accountId: TEST_ACCOUNT_ID,
       correlationId: "corr-retry-2",
       userId: "user-2",
     });

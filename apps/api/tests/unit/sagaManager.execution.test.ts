@@ -10,6 +10,7 @@ import {
   MockPrismaClient,
   MockRedis,
   MockEventService,
+  TEST_ACCOUNT_ID,
   createMockPrisma,
   createMockRedis,
   createMockEventService,
@@ -42,7 +43,7 @@ describe("SagaManager - Saga Execution", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
@@ -56,7 +57,7 @@ describe("SagaManager - Saga Execution", () => {
     const definition = createMultiStepSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -74,7 +75,7 @@ describe("SagaManager - Saga Execution", () => {
     const definition = createMultiStepSagaDefinition();
     manager.registerSaga(definition);
 
-    await manager.startSaga(definition.id, {});
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -90,6 +91,7 @@ describe("SagaManager - Saga Execution", () => {
     manager.registerSaga(definition);
 
     const instance = await manager.startSaga(definition.id, {
+      accountId: TEST_ACCOUNT_ID,
       metadata: { testValue: "shared-data" },
     });
 
@@ -105,7 +107,7 @@ describe("SagaManager - Saga Execution", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    await manager.startSaga(definition.id, {});
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
@@ -124,7 +126,7 @@ describe("SagaManager - Saga Execution", () => {
     const metricsBefore = manager.getMetrics();
     const completedBefore = metricsBefore.sagasCompleted;
 
-    await manager.startSaga(definition.id, {});
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
@@ -156,7 +158,7 @@ describe("SagaManager - Saga Failure and Compensation", () => {
     const definition = createFailingSagaDefinition();
     manager.registerSaga(definition);
 
-    await manager.startSaga(definition.id, {});
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     await new Promise((resolve) => setTimeout(resolve, 300));
 
@@ -169,7 +171,7 @@ describe("SagaManager - Saga Failure and Compensation", () => {
     const definition = createFailingSagaDefinition();
     manager.registerSaga(definition);
 
-    await manager.startSaga(definition.id, {});
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     await new Promise((resolve) => setTimeout(resolve, 300));
 
@@ -185,7 +187,7 @@ describe("SagaManager - Saga Failure and Compensation", () => {
     const definition = createFailingSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Wait for the saga to fail (FailingStep causes failure)
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -210,7 +212,7 @@ describe("SagaManager - Saga Failure and Compensation", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     await expect(manager.compensateSaga(instance.id)).rejects.toThrow(/not in a failed state/);
   });
@@ -222,7 +224,7 @@ describe("SagaManager - Saga Failure and Compensation", () => {
     const metricsBefore = manager.getMetrics();
     const failedBefore = metricsBefore.sagasFailed;
 
-    await manager.startSaga(definition.id, {});
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     await new Promise((resolve) => setTimeout(resolve, 300));
 
@@ -253,7 +255,7 @@ describe("SagaManager - Retry Logic", () => {
     const definition = createFailingSagaDefinition();
     manager.registerSaga(definition);
 
-    await manager.startSaga(definition.id, {});
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     await new Promise((resolve) => setTimeout(resolve, 300));
 
@@ -384,7 +386,7 @@ describe("SagaManager - Metrics", () => {
     const metricsBefore = manager.getMetrics();
     const startedBefore = metricsBefore.sagasStarted;
 
-    await manager.startSaga(definition.id, {});
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     const metricsAfter = manager.getMetrics();
     expect(metricsAfter.sagasStarted).toBe(startedBefore + 1);
@@ -396,7 +398,7 @@ describe("SagaManager - Metrics", () => {
 
     const metricsBefore = manager.getMetrics();
 
-    await manager.startSaga(definition.id, {});
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     const metricsAfter = manager.getMetrics();
     expect(metricsAfter.activeInstances >= metricsBefore.activeInstances).toBeTruthy();

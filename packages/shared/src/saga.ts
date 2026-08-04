@@ -47,6 +47,12 @@ export interface SagaContext {
   sagaId: string;
   correlationId: string;
   userId?: string;
+  /**
+   * Account that owns the saga. This is the tenant scope the engine persists
+   * and rehydrates for detached work; `userId` stays the audit identity and is
+   * never a substitute for it.
+   */
+  accountId?: string;
   metadata: Record<string, unknown>;
   stepData: Record<string, unknown>;
   events: EventStoreEvent[];
@@ -982,12 +988,14 @@ export function createSagaContext(
   sagaId: string,
   correlationId: string,
   userId?: string,
-  metadata: Record<string, unknown> = {}
+  metadata: Record<string, unknown> = {},
+  accountId?: string
 ): SagaContext {
   return {
     sagaId,
     correlationId,
     ...(userId && { userId }),
+    ...(accountId && { accountId }),
     metadata,
     stepData: {},
     events: [],

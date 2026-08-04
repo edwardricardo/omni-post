@@ -433,14 +433,23 @@ export class SagaIntegration {
             ...(body.mode === "schedule" && { scheduledAt: new Date(body.scheduledAt) }),
           };
 
-          const context = createSagaContext("", correlationId, customer.id, {
-            mode: body.mode,
-            postData,
-            accountId: customer.accountId,
-            source: "customer-api",
-            userAgent: request.headers["user-agent"],
-            ipAddress: request.ip,
-          });
+          // `accountId` is passed first-class (the tenant scope the engine
+          // persists and rehydrates) AND kept in metadata, which the pivot
+          // step's fail-closed check reads.
+          const context = createSagaContext(
+            "",
+            correlationId,
+            customer.id,
+            {
+              mode: body.mode,
+              postData,
+              accountId: customer.accountId,
+              source: "customer-api",
+              userAgent: request.headers["user-agent"],
+              ipAddress: request.ip,
+            },
+            customer.accountId
+          );
 
           const sagaInstance = await this.sagaManager.startSaga("post-publishing-saga", context);
 
@@ -648,6 +657,14 @@ export class SagaIntegration {
               active: {
                 instances: metrics.activeInstances,
                 definitions: metrics.definitions.length,
+              },
+              // Recovery health: a non-zero counter means the engine lost
+              // visibility of in-flight sagas or skipped work it could not
+              // scope to a tenant. Both are silent without this surface.
+              recovery: {
+                bootLoadFailures: metrics.bootLoadFailures,
+                recoveryScanFailures: metrics.recoveryScanFailures,
+                rehydrationFailures: metrics.rehydrationFailures,
               },
             },
             timestamp: new Date(),

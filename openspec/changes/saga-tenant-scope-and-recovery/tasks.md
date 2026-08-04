@@ -123,53 +123,53 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
 
 ## Phase 2: D2 — column truth threaded end to end → turns 1.2 GREEN
 
-- [ ] 2.1 [GREEN] `packages/shared/src/saga.ts` (`:46-53`): `SagaContext` gains
+- [x] 2.1 [GREEN] `packages/shared/src/saga.ts` (`:46-53`): `SagaContext` gains
       `accountId?: string`; `createSagaContext` (`:981`) gains a 5th optional `accountId`
       param. Keep `userId` (audit trail, event payloads, and the route ownership check
       `SagaIntegration.ts:486` stay keyed on it).
-- [ ] 2.2 [GREEN] `apps/api/src/saga/SagaIntegration.ts` (`:436-443`): pass
+- [x] 2.2 [GREEN] `apps/api/src/saga/SagaIntegration.ts` (`:436-443`): pass
       `customer.accountId` first-class AND **keep** `metadata.accountId` — the pivot's
       fail-closed check (`saga.ts:617-624`) reads metadata; that contract is untouched.
-- [ ] 2.3 [GREEN] `apps/api/src/saga/SagaManagerLifecycle.ts` `startSaga` (`:90-95`): thread
+- [x] 2.3 [GREEN] `apps/api/src/saga/SagaManagerLifecycle.ts` `startSaga` (`:90-95`): thread
       `contextData.accountId` into the constructed context (today unknown fields are
       silently DROPPED — verified).
-- [ ] 2.4 [GREEN] `apps/api/src/saga/SagaManagerExecution.ts` (`:523`, `:537`): both upsert
+- [x] 2.4 [GREEN] `apps/api/src/saga/SagaManagerExecution.ts` (`:523`, `:537`): both upsert
       branches write `accountId: resolveSagaAccountId(context)`; **never `context.userId`**.
       Run VITEST 1.2 → GREEN.
 
 ## Phase 3: D3 — helper + context declaration (C1/C2/S3) → turns 1.1 GREEN
 
-- [ ] 3.1 [GREEN] Create `apps/api/src/saga/sagaTenant.ts` (`@file`/`@description`/
+- [x] 3.1 [GREEN] Create `apps/api/src/saga/sagaTenant.ts` (`@file`/`@description`/
       `@layer infrastructure`): `export const SAGA_SYSTEM_REASON = "system:saga-recovery" as const`
       (the ONLY reason the engine may use — spec fixed set), `resolveSagaAccountId(context)`,
       `runAsSagaTenant(instance, fn)` → `withTenantContext({accountId}, fn)` with fail-loud
       miss handling. No `any`; `Result`-free (infrastructure helper, throws stay inside).
-- [ ] 3.2 [GREEN] `apps/api/src/saga/sagaManagerTypes.ts`: `SagaMetrics` gains
+- [x] 3.2 [GREEN] `apps/api/src/saga/sagaManagerTypes.ts`: `SagaMetrics` gains
       `bootLoadFailures`, `recoveryScanFailures`, `rehydrationFailures` (initialized 0,
       surfaced through `/sagas/metrics` + health; no new Prometheus wiring in this slice).
-- [ ] 3.3 [GREEN] `SagaManagerExecution.ts`: the initial by-id load (`:606`
+- [x] 3.3 [GREEN] `SagaManagerExecution.ts`: the initial by-id load (`:606`
       `sagaInstance.findUnique`) runs inside a QUERY-scoped
       `withSystemContext(SAGA_SYSTEM_REASON, () => …)` — the wrap ends at the load, uniform
       on every trigger path including start. The `executeSaga` step loop + persists and the
       `compensateSagaSteps` body run under `runAsSagaTenant(instance, …)`. The `setImmediate`
       dispatches (`:29-37`) stay lexically OUTSIDE every wrap (C1 — ALS propagates through
       `setImmediate`).
-- [ ] 3.4 [GREEN] `SagaManagerLifecycle.ts` boot load (`:314`):
+- [x] 3.4 [GREEN] `SagaManagerLifecycle.ts` boot load (`:314`):
       `const rows = await withSystemContext(SAGA_SYSTEM_REASON, () => findMany(...))`; the
       deserialize/register for-loop and every re-warm persist run AFTER the wrap, the persist
       under `runAsSagaTenant`.
-- [ ] 3.5 [GREEN] `SagaManagerLifecycle.ts` retry scan (`:388`): `dueRows` fetched under the
+- [x] 3.5 [GREEN] `SagaManagerLifecycle.ts` retry scan (`:388`): `dueRows` fetched under the
       same query-scoped wrap; the dispatch loop (`:397-399`) runs outside it.
-- [ ] 3.6 [GREEN] `SagaManagerLifecycle.ts` timeout-checker `failSaga` (`:425`) and
+- [x] 3.6 [GREEN] `SagaManagerLifecycle.ts` timeout-checker `failSaga` (`:425`) and
       `shutdown` persist (`:290`) run under `runAsSagaTenant` (no dispatch on these paths).
-- [ ] 3.7 [GREEN] Admin `/sagas/:sagaId/continue` + `/compensate`: **NO route-level wrap**
+- [x] 3.7 [GREEN] Admin `/sagas/:sagaId/continue` + `/compensate`: **NO route-level wrap**
       (C1 — `continueSaga`/`compensateSaga` dispatch at `Lifecycle:155`/`:190`). The engine
       methods wrap only their internals: `continueSaga` loads under the query-scoped system
       wrap; `compensateSaga` additionally persists `COMPENSATING` (`:188`) under
       `runAsSagaTenant`; both dispatch outside any wrap. (S3 — necessity, not scope creep:
       `adminAuthMiddleware` binds no tenant context, so post-D1 these loads would throw
       `TenantContextMissingError` without an engine-internal declared context.)
-- [ ] 3.8 [GREEN] Observability (W3a/W3b): KEEP the `:338` / `:404` catches (a scan failure
+- [x] 3.8 [GREEN] Observability (W3a/W3b): KEEP the `:338` / `:404` catches (a scan failure
       must not kill boot or a tick) but make each log at ERROR with the failing loop name,
       the error type, and a per-run correlation id (`saga-recovery-${randomUUID()}`, minted
       once per boot pass / per tick) AND increment `bootLoadFailures` /
@@ -177,7 +177,7 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
 
 ## Phase 4: D1 — put the engine on the guarded client → turns 1.3(d) GREEN
 
-- [ ] 4.1 [GREEN] `apps/api/src/index.ts` (`:687`): construct `SagaIntegration` with
+- [x] 4.1 [GREEN] `apps/api/src/index.ts` (`:687`): construct `SagaIntegration` with
       `container.resolve<PrismaClient>(TOKENS.PrismaClient)` instead of the raw `prisma`
       imported at `:41` (container is configured at `:266` — ordering feasible). No type
       change needed: `setup.ts:63` already casts the extended client
@@ -186,7 +186,7 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
       client). Do NOT resolve `TOKENS.SagaManager` (dead registration,
       `setupServices.ts:937-958` — a second EventService + Redis connection + duplicate
       scheduler taskIds).
-- [ ] 4.2 Verify the six `config.prisma` sites behave per the D1 table:
+- [x] 4.2 Verify the six `config.prisma` sites behave per the D1 table:
       `Execution:509` `$transaction`→`tx.sagaInstance.upsert` (intercepted; where + create
       injection), `Execution:546` `appendEventInTx` (global `StoredEvent` → guard early
       return), `Execution:606` `findUnique` (guarded — Phase 3.3 context),

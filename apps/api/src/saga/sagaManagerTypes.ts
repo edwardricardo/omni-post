@@ -46,6 +46,19 @@ export interface SagaMetrics {
   sagasCompensated: number;
   averageExecutionTime: number;
   activeInstances: number;
+  /**
+   * Boot recovery load failures. A non-zero value means the process started
+   * without knowing which sagas were in flight — the loop must never report a
+   * failed scan as an empty successful one.
+   */
+  bootLoadFailures: number;
+  /** Retry recovery scan ticks that failed to read their due set. */
+  recoveryScanFailures: number;
+  /**
+   * Per-saga tenant rehydration misses. Each one is a saga whose owning account
+   * could not be resolved, so its work was skipped rather than run unscoped.
+   */
+  rehydrationFailures: number;
 }
 
 /**

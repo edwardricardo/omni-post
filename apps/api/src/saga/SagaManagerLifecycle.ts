@@ -5,10 +5,13 @@
  * @layer infrastructure
  */
 
+import { randomUUID } from "node:crypto";
 import type { SagaManager, SagaDefinition, SagaInstance, SagaContext } from "@shared/types/saga.js";
 import { createSagaId, createSagaContext, SAGA_EVENTS } from "@shared/types/saga.js";
 import type { EventStoreEvent } from "@shared/types/events.js";
 import { createEventStoreEvent } from "@shared/types/events.js";
+import { SAGA_SYSTEM_REASON, runAsSagaTenant } from "./sagaTenant.js";
+import { withSystemContext } from "../security/tenantContext.js";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
 import type {
@@ -33,6 +36,9 @@ export class SagaManagerLifecycle implements SagaManager {
     sagasCompensated: 0,
     averageExecutionTime: 0,
     activeInstances: 0,
+    bootLoadFailures: 0,
+    recoveryScanFailures: 0,
+    rehydrationFailures: 0,
   };
   readonly executionTimes: number[] = [];
 
@@ -52,7 +58,24 @@ export class SagaManagerLifecycle implements SagaManager {
     // invoked during full startup, never in schema-only mode).
     await this.config.eventService!.initialize();
 
-    await this.loadActiveSagas();
+    // One correlation id per recovery pass, so an operator can join the load,
+    // whatever it registered, and any failure it hit. A failed load must not
+    // kill boot, but it must never read as an empty successful one either.
+    const correlationId = `saga-recovery-${randomUUID()}`;
+    try {
+      await this.loadActiveSagas(correlationId);
+    } catch (error) {
+      this.metrics.bootLoadFailures++;
+      logger.error(
+        {
+          err: error,
+          loop: "boot-load",
+          errorType: error instanceof Error ? error.name : typeof error,
+          correlationId,
+        },
+        "Failed to load active sagas from PostgreSQL"
+      );
+    }
 
     this.startTimeoutChecker();
     this.startMetricsCollector();
@@ -91,7 +114,8 @@ export class SagaManagerLifecycle implements SagaManager {
       sagaId,
       correlationId,
       contextData.userId,
-      contextData.metadata || {}
+      contextData.metadata || {},
+      contextData.accountId
     );
 
     const instance: SagaInstance = {
@@ -185,7 +209,14 @@ export class SagaManagerLifecycle implements SagaManager {
       }
     );
 
-    await this.executionEngine.persistSagaInstance(instance, [compensationStartedEvent]);
+    // Reached from the admin route, which authenticates an operator and binds
+    // no tenant scope, so the write rehydrates the saga's own account. The
+    // dispatch below stays outside every declared context.
+    await runAsSagaTenant(
+      instance,
+      () => this.executionEngine.persistSagaInstance(instance, [compensationStartedEvent]),
+      this.metrics
+    );
 
     this.executionEngine.compensateSagaAsync(sagaId);
 
@@ -287,7 +318,11 @@ export class SagaManagerLifecycle implements SagaManager {
     for (const instance of this.activeInstances.values()) {
       if (instance.status === "RUNNING") {
         instance.status = "PENDING";
-        await this.executionEngine.persistSagaInstance(instance);
+        await runAsSagaTenant(
+          instance,
+          () => this.executionEngine.persistSagaInstance(instance),
+          this.metrics
+        );
       }
     }
 
@@ -308,36 +343,44 @@ export class SagaManagerLifecycle implements SagaManager {
    * This survives a Redis restart because the durable store is the source
    * of truth. Each loaded saga is also re-warmed into the Redis hot cache
    * via `persistSagaInstance` so subsequent reads are fast.
+   *
+   * The scan itself spans every tenant and runs before any of them is known,
+   * so it declares the saga system boundary — narrowed to the read. The rows it
+   * returns are then re-warmed under each saga's own rehydrated scope.
+   *
+   * @param correlationId - Identifier joining this recovery pass in the logs.
    */
-  private async loadActiveSagas(): Promise<void> {
-    try {
-      const rows = await this.config.prisma.sagaInstance.findMany({
+  private async loadActiveSagas(correlationId: string): Promise<void> {
+    const rows = await withSystemContext(SAGA_SYSTEM_REASON, () =>
+      this.config.prisma.sagaInstance.findMany({
         where: {
           status: { in: ["RUNNING", "PENDING"] },
         },
+      })
+    );
+
+    for (const row of rows) {
+      const instance = this.deserializePrismaRow(row);
+      this.activeInstances.set(instance.id, instance);
+      this.metrics.activeInstances++;
+
+      // Re-warm Redis cache (fire-and-forget)
+      runAsSagaTenant(
+        instance,
+        () => this.executionEngine.persistSagaInstance(instance),
+        this.metrics
+      ).catch((err: unknown) => {
+        logger.warn(
+          { err, sagaId: instance.id, correlationId },
+          "Failed to re-warm Redis cache during recovery"
+        );
       });
-
-      for (const row of rows) {
-        const instance = this.deserializePrismaRow(row);
-        this.activeInstances.set(instance.id, instance);
-        this.metrics.activeInstances++;
-
-        // Re-warm Redis cache (fire-and-forget)
-        this.executionEngine.persistSagaInstance(instance).catch((err: unknown) => {
-          logger.warn(
-            { err, sagaId: instance.id },
-            "Failed to re-warm Redis cache during recovery"
-          );
-        });
-      }
-
-      logger.info(
-        { count: this.activeInstances.size },
-        "Loaded active saga instances from PostgreSQL"
-      );
-    } catch (error) {
-      logger.error({ err: error }, "Failed to load active sagas from PostgreSQL");
     }
+
+    logger.info(
+      { count: this.activeInstances.size, correlationId },
+      "Loaded active saga instances from PostgreSQL"
+    );
   }
 
   /**
@@ -383,26 +426,41 @@ export class SagaManagerLifecycle implements SagaManager {
     this.config.scheduler.register(
       "saga-retry-recovery",
       async () => {
+        const correlationId = `saga-recovery-${randomUUID()}`;
         try {
           const now = new Date();
-          const dueRows = await this.config.prisma.sagaInstance.findMany({
-            where: {
-              status: "RUNNING",
-              nextRetryAt: { lte: now, not: null },
-            },
-            select: { id: true },
-            take: 50,
-          });
+          // Tenant-unknown by construction: the tick asks which sagas are due
+          // across every account. The boundary ends with the read so the
+          // resumes below run under each saga's own rehydrated scope.
+          const dueRows = await withSystemContext(SAGA_SYSTEM_REASON, () =>
+            this.config.prisma.sagaInstance.findMany({
+              where: {
+                status: "RUNNING",
+                nextRetryAt: { lte: now, not: null },
+              },
+              select: { id: true },
+              take: 50,
+            })
+          );
 
           for (const { id: sagaId } of dueRows) {
             this.executionEngine.executeSagaAsync(sagaId);
           }
 
           if (dueRows.length > 0) {
-            logger.info({ count: dueRows.length }, "Resumed sagas with due retries");
+            logger.info({ count: dueRows.length, correlationId }, "Resumed sagas with due retries");
           }
         } catch (err) {
-          logger.error({ err }, "Saga retry recovery scan failed");
+          this.metrics.recoveryScanFailures++;
+          logger.error(
+            {
+              err,
+              loop: "retry-recovery-scan",
+              errorType: err instanceof Error ? err.name : typeof err,
+              correlationId,
+            },
+            "Saga retry recovery scan failed"
+          );
         }
       },
       5000
@@ -422,7 +480,11 @@ export class SagaManagerLifecycle implements SagaManager {
 
           if (elapsed > timeout) {
             logger.warn({ sagaId, elapsedMs: elapsed, timeoutMs: timeout }, "Saga timeout");
-            await this.executionEngine.failSaga(instance, "Saga timeout exceeded");
+            await runAsSagaTenant(
+              instance,
+              () => this.executionEngine.failSaga(instance, "Saga timeout exceeded"),
+              this.metrics
+            );
           }
         }
       },

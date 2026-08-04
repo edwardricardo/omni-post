@@ -16,6 +16,7 @@
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { SagaManagerImpl } from "../../src/saga/SagaManager.js";
 import {
+  TEST_ACCOUNT_ID,
   createMockPrisma,
   createMockRedis,
   createMockEventService,
@@ -58,7 +59,7 @@ describe("SagaManager - Persistence Round-Trip", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // The startSaga method persists the instance internally.
     // Verify it can be retrieved from Redis.
@@ -74,7 +75,7 @@ describe("SagaManager - Persistence Round-Trip", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Wait for the saga to complete
     await new Promise<void>((resolve) => setTimeout(resolve, 300));
@@ -94,7 +95,7 @@ describe("SagaManager - Persistence Round-Trip", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Allow the single-step saga to complete
     await new Promise<void>((resolve) => setTimeout(resolve, 300));
@@ -139,7 +140,7 @@ describe("SagaManager - Cache Lookup Behavior", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // getSaga should find it in the activeInstances map (in-memory)
     const retrieved = await manager.getSaga(instance.id);
@@ -151,7 +152,7 @@ describe("SagaManager - Cache Lookup Behavior", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Wait for completion so it gets removed from activeInstances
     await new Promise<void>((resolve) => setTimeout(resolve, 300));
@@ -195,7 +196,7 @@ describe("SagaManager - Persistence on Status Transitions", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Allow execution to begin
     await new Promise<void>((resolve) => setTimeout(resolve, 50));
@@ -212,7 +213,7 @@ describe("SagaManager - Persistence on Status Transitions", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Wait for the single-step saga to complete
     await new Promise<void>((resolve) => setTimeout(resolve, 300));
@@ -230,7 +231,7 @@ describe("SagaManager - Persistence on Status Transitions", () => {
     const definition = createFailingSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Wait for the failing step to execute
     await new Promise<void>((resolve) => setTimeout(resolve, 300));
@@ -248,7 +249,7 @@ describe("SagaManager - Persistence on Status Transitions", () => {
     const definition = createFailingSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Wait for the failing step
     await new Promise<void>((resolve) => setTimeout(resolve, 300));
@@ -300,9 +301,11 @@ describe("SagaManager - Multiple Saga Instances", () => {
 
     // Start multiple sagas
     const instance1 = await manager.startSaga(definition.id, {
+      accountId: TEST_ACCOUNT_ID,
       metadata: { batch: "first" },
     });
     const instance2 = await manager.startSaga(definition.id, {
+      accountId: TEST_ACCOUNT_ID,
       metadata: { batch: "second" },
     });
 
@@ -329,9 +332,9 @@ describe("SagaManager - Multiple Saga Instances", () => {
     const metricsBefore = manager.getMetrics();
     const startedBefore = metricsBefore.sagasStarted;
 
-    await manager.startSaga(definition.id, {});
-    await manager.startSaga(definition.id, {});
-    await manager.startSaga(definition.id, {});
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     const metricsAfter = manager.getMetrics();
     expect(metricsAfter.sagasStarted).toBe(startedBefore + 3);
@@ -360,7 +363,7 @@ describe("SagaManager - Shutdown Persistence", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Immediately shut down before the saga completes
     await manager.shutdown();
@@ -377,8 +380,8 @@ describe("SagaManager - Shutdown Persistence", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    await manager.startSaga(definition.id, {});
-    await manager.startSaga(definition.id, {});
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Shutdown clears all active instances
     await manager.shutdown();

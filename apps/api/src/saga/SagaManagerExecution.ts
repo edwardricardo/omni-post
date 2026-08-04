@@ -10,6 +10,8 @@ import { SAGA_EVENTS } from "@shared/types/saga.js";
 import { createEventStoreEvent, type EventStoreEvent } from "@shared/types/events.js";
 import type { SagaManagerLifecycle } from "./SagaManagerLifecycle.js";
 import type { SagaManagerConfig } from "./sagaManagerTypes.js";
+import { SAGA_SYSTEM_REASON, resolveSagaAccountId, runAsSagaTenant } from "./sagaTenant.js";
+import { withSystemContext } from "../security/tenantContext.js";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
 
@@ -76,6 +78,26 @@ export class SagaExecutionEngine {
       logger.error({ definitionId: instance.definitionId }, "Saga definition not found");
       return;
     }
+
+    // Every step write and every engine persist below belongs to the saga's own
+    // account. Rehydrating it here keeps the guard's mismatch protection live on
+    // a path that has no request context to inherit.
+    await runAsSagaTenant(
+      instance,
+      () => this.runSagaSteps(instance, definition),
+      this.lifecycle.metrics
+    );
+  }
+
+  /**
+   * @method runSagaSteps
+   * @description Advances the saga through its remaining steps, persisting after
+   *   each one. Runs inside the saga's rehydrated tenant scope.
+   * @param instance - The saga being advanced.
+   * @param definition - The definition whose steps drive the walk.
+   */
+  private async runSagaSteps(instance: SagaInstance, definition: SagaDefinition): Promise<void> {
+    const sagaId = instance.id;
 
     instance.status = "RUNNING";
     await this.persistSagaInstance(instance);
@@ -249,6 +271,26 @@ export class SagaExecutionEngine {
     if (!definition) {
       return;
     }
+
+    await runAsSagaTenant(
+      instance,
+      () => this.runCompensationWalk(instance, definition),
+      this.lifecycle.metrics
+    );
+  }
+
+  /**
+   * @method runCompensationWalk
+   * @description Walks the compensable steps in reverse and marks the saga
+   *   COMPENSATED. Runs inside the saga's rehydrated tenant scope.
+   * @param instance - The saga being compensated.
+   * @param definition - The definition whose steps are walked back.
+   */
+  private async runCompensationWalk(
+    instance: SagaInstance,
+    definition: SagaDefinition
+  ): Promise<void> {
+    const sagaId = instance.id;
 
     for (let stepIndex = instance.currentStep - 1; stepIndex >= 0; stepIndex--) {
       const step = definition.steps[stepIndex];
@@ -494,6 +536,12 @@ export class SagaExecutionEngine {
       ...(instance.nextRetryAt && { nextRetryAt: instance.nextRetryAt.toISOString() }),
     });
 
+    // The tenant column carries the OWNING ACCOUNT, never the acting user. When
+    // no account resolves the key is omitted entirely (not written as
+    // `undefined`) so `exactOptionalPropertyTypes` and Prisma both see an
+    // absent field rather than an explicit null.
+    const accountId = resolveSagaAccountId(instance.context);
+
     // Cast domain types to Prisma-compatible JSON values
     const contextJson = JSON.parse(JSON.stringify(instance.context));
     const stepResultsJson = JSON.parse(JSON.stringify(instance.stepResults));
@@ -520,7 +568,7 @@ export class SagaExecutionEngine {
             retryCount: instance.retryCount,
             startedAt: instance.startedAt,
             ...(instance.error !== undefined && { error: instance.error }),
-            ...(instance.context.userId && { accountId: instance.context.userId }),
+            ...(accountId !== null && { accountId }),
             ...(instance.completedAt && { completedAt: instance.completedAt }),
             ...(instance.nextRetryAt && { nextRetryAt: instance.nextRetryAt }),
           },
@@ -534,7 +582,7 @@ export class SagaExecutionEngine {
             retryCount: instance.retryCount,
             startedAt: instance.startedAt,
             ...(instance.error !== undefined && { error: instance.error }),
-            ...(instance.context.userId && { accountId: instance.context.userId }),
+            ...(accountId !== null && { accountId }),
             ...(instance.completedAt && { completedAt: instance.completedAt }),
             nextRetryAt: instance.nextRetryAt ?? null,
           },
@@ -601,11 +649,17 @@ export class SagaExecutionEngine {
       logger.warn({ err: error, sagaId }, "Redis read failed, falling back to PostgreSQL");
     }
 
-    // Slow path: PostgreSQL
+    // Slow path: PostgreSQL. The engine is triggered detached from any request
+    // (boot, scheduler tick, worker pub/sub), so which tenant owns this id is
+    // exactly what the read is here to discover. The declared system boundary
+    // is therefore scoped to the read itself and ends with it — everything the
+    // caller then does with the row runs under the saga's own rehydrated scope.
     try {
-      const row = await this.config.prisma.sagaInstance.findUnique({
-        where: { id: sagaId },
-      });
+      const row = await withSystemContext(SAGA_SYSTEM_REASON, () =>
+        this.config.prisma.sagaInstance.findUnique({
+          where: { id: sagaId },
+        })
+      );
 
       if (!row) {
         return null;
