@@ -1004,6 +1004,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
       await timeoutScheduler.triggerTask("saga-timeout-checker");
       assert.strictEqual(timeoutLifecycle.metrics.tenantMismatches, mismatchesBefore + 1);
 
+      await base.storedEvent.deleteMany({ where: { streamId: sagaStreamId(stragglerId) } });
       await base.sagaInstance.deleteMany({ where: { id: stragglerId } });
       await redis.del(`saga:${stragglerId}`);
     });

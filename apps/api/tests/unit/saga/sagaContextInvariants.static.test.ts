@@ -252,37 +252,210 @@ const systemBoundaries = SYSTEM_WRAP_FORMS.flatMap((form) => collectCalls(sagaSo
 
 const tenantWrapCalls = collectCalls(sagaSources, TENANT_WRAP);
 
-/** One model operation issued directly on the engine's own Prisma client. */
+/** Start/end offsets of the balanced block that follows `from`, or null. */
+function blockRangeAfter(source: SagaSource, from: number): { start: number; end: number } | null {
+  const open = nextBrace(source.sanitized, from);
+  if (open === -1) return null;
+  const close = findMatching(source.sanitized, open, "{", "}");
+  if (close === -1) return null;
+  return { start: open, end: close };
+}
+
+/** Splits a balanced argument list on its top-level commas. */
+function splitArguments(inner: string): string[] {
+  const args: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < inner.length; i++) {
+    const ch = inner[i];
+    if (ch === "(" || ch === "[" || ch === "{") depth++;
+    else if (ch === ")" || ch === "]" || ch === "}") depth--;
+    else if (ch === "," && depth === 0) {
+      args.push(inner.slice(start, i));
+      start = i + 1;
+    }
+  }
+  args.push(inner.slice(start));
+  return args;
+}
+
+/** The single parameter an arrow-function argument binds, or null. */
+function arrowParameterName(argument: string): string | null {
+  const parenthesised = /^\s*(?:async\s+)?\(\s*([A-Za-z_$][\w$]*)/.exec(argument);
+  if (parenthesised) return parenthesised[1] ?? null;
+  const bare = /^\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*=>/.exec(argument);
+  return bare?.[1] ?? null;
+}
+
+/**
+ * How a transaction client was obtained, which is what fixes the operations it
+ * may legally perform.
+ *
+ * - `system` — the callback parameter of a declared SYSTEM boundary. The tenant
+ *   guard is bypassed inside it, so a WRITE here is an unconstrained cross-tenant
+ *   mutation.
+ * - `tenant` — the callback parameter of `runSagaTenantTransaction`. One account
+ *   bound on both layers; reads and writes are both legal.
+ * - `delegate` — a parameter typed `SagaTransactionClient` on a helper that
+ *   RECEIVES an already-opened transaction. Its own body cannot say how that
+ *   transaction was scoped, so the classification comes from what encloses its
+ *   call sites.
+ */
+type BindingKind = "system" | "tenant" | "delegate";
+
+/** An identifier holding a transaction client, and the region it is bound in. */
+interface TxBinding {
+  source: SagaSource;
+  name: string;
+  start: number;
+  end: number;
+  kind: BindingKind;
+  /** Set for `delegate`: the function whose parameter binds the client. */
+  delegateName: string;
+}
+
+/** Every transaction-client binding a primitive callback or a delegate creates. */
+function collectTxBindings(sources: SagaSource[]): TxBinding[] {
+  const bindings: TxBinding[] = [];
+
+  const primitives: Array<{ form: string; kind: BindingKind }> = [
+    ...SYSTEM_WRAP_FORMS.map((form) => ({ form, kind: "system" as BindingKind })),
+    { form: TENANT_TRANSACTION, kind: "tenant" as BindingKind },
+  ];
+
+  for (const { form, kind } of primitives) {
+    for (const call of collectCalls(sources, form)) {
+      const inner = call.source.sanitized.slice(call.openParen + 1, call.closeParen);
+      const args = splitArguments(inner);
+      const name = arrowParameterName(args[args.length - 1] ?? "");
+      if (name !== null) {
+        bindings.push({
+          source: call.source,
+          name,
+          start: call.openParen,
+          end: call.closeParen,
+          kind,
+          delegateName: "",
+        });
+      }
+    }
+  }
+
+  const delegatePattern =
+    /(?:async\s+)?([A-Za-z_$][\w$]*)\s*\(\s*([A-Za-z_$][\w$]*)\s*:\s*SagaTransactionClient/g;
+  for (const source of sources) {
+    delegatePattern.lastIndex = 0;
+    let match = delegatePattern.exec(source.sanitized);
+    while (match !== null) {
+      const body = blockRangeAfter(source, match.index);
+      if (body !== null) {
+        bindings.push({
+          source,
+          name: match[2] ?? "",
+          start: body.start,
+          end: body.end,
+          kind: "delegate",
+          delegateName: match[1] ?? "",
+        });
+      }
+      match = delegatePattern.exec(source.sanitized);
+    }
+  }
+
+  return bindings;
+}
+
+/** One model operation the engine issues, and how its client was bound. */
 interface ModelOperation {
   source: SagaSource;
   index: number;
   model: string;
   operation: string;
+  /** `null` for a direct `config.prisma` access. */
+  binding: TxBinding | null;
 }
 
-/** Every `config.prisma.<model>.<operation>` in `sources`. */
+/**
+ * Every model operation in `sources`, in BOTH shapes the engine can write:
+ * `config.prisma.<model>.<op>` directly on the injected client, and
+ * `<txBinding>.<model>.<op>` on a transaction client. Matching only the first
+ * shape is how the scan went vacuous once `(tx) => tx.model.op(…)` became the
+ * house idiom: every real operation moved out of its sight, and the one write
+ * that matters — through the READ primitive — moved with them.
+ */
 function collectModelOperations(sources: SagaSource[]): ModelOperation[] {
   const operations: ModelOperation[] = [];
-  const pattern = /config\.prisma\.([A-Za-z][A-Za-z0-9]*)\.([A-Za-z][A-Za-z0-9]*)/g;
+
+  const directPattern = /config\.prisma\.([A-Za-z][A-Za-z0-9]*)\.([A-Za-z][A-Za-z0-9]*)/g;
   for (const source of sources) {
-    pattern.lastIndex = 0;
-    let match = pattern.exec(source.sanitized);
+    directPattern.lastIndex = 0;
+    let match = directPattern.exec(source.sanitized);
     while (match !== null) {
       operations.push({
         source,
         index: match.index,
         model: match[1] ?? "",
         operation: match[2] ?? "",
+        binding: null,
       });
-      match = pattern.exec(source.sanitized);
+      match = directPattern.exec(source.sanitized);
     }
   }
+
+  for (const binding of collectTxBindings(sources)) {
+    const region = binding.source.sanitized.slice(binding.start, binding.end + 1);
+    const pattern = new RegExp(
+      `(?<![A-Za-z0-9_$.])${binding.name}\\.([A-Za-z][A-Za-z0-9]*)\\.([A-Za-z][A-Za-z0-9]*)`,
+      "g"
+    );
+    let match = pattern.exec(region);
+    while (match !== null) {
+      operations.push({
+        source: binding.source,
+        index: binding.start + match.index,
+        model: match[1] ?? "",
+        operation: match[2] ?? "",
+        binding,
+      });
+      match = pattern.exec(region);
+    }
+  }
+
   return operations;
 }
 
+/** True when any `this.<delegateName>(` call site sits inside a system boundary. */
+function delegateReachedFromSystemBoundary(sources: SagaSource[], delegateName: string): boolean {
+  const boundaries = SYSTEM_WRAP_FORMS.flatMap((form) => collectCalls(sources, form));
+  for (const source of sources) {
+    const pattern = new RegExp(`\\.\\s*${delegateName}\\s*\\(`, "g");
+    let match = pattern.exec(source.sanitized);
+    while (match !== null) {
+      const at = match.index;
+      const enclosed = boundaries.some(
+        (call) => call.source.path === source.path && at > call.openParen && at < call.closeParen
+      );
+      if (enclosed) return true;
+      match = pattern.exec(source.sanitized);
+    }
+  }
+  return false;
+}
+
 /**
- * Reports every model operation the engine issues on its own client that is not
- * enclosed by a context strong enough for what the operation DOES.
+ * The ONE system-scoped write the engine is allowed: `failSagaAsSystem` driving
+ * a saga no tenant scope can address to its terminal state. It is named here
+ * rather than inferred so a SECOND system-side write cannot join it silently —
+ * the suite asserts this is the only one.
+ */
+const SANCTIONED_SYSTEM_WRITE = {
+  label: "src/saga/sagaTenant.ts",
+  what: "sagaInstance.update",
+} as const;
+
+/**
+ * Reports every model operation that is not enclosed by a context strong enough
+ * for what the operation DOES.
  *
  * The read/write split is the whole point. A single "must sit inside a declared
  * boundary" rule makes a system wrap the cheapest way to green a new write —
@@ -291,6 +464,13 @@ function collectModelOperations(sources: SagaSource[]): ModelOperation[] {
  * a tenant-scoped transaction; a system boundary makes it FAIL. Reads may be
  * declared either way, because a tenant-unknown read is the one thing the engine
  * legitimately performs across tenants.
+ *
+ * A transaction-body DELEGATE is judged by its call sites: a write inside one is
+ * a violation as soon as any call site is reached from a system boundary. A call
+ * site that opens a bare `$transaction` is deliberately NOT a violation — a bare
+ * transaction declares no system context, so the Prisma guard stays live on it
+ * and an unscoped tenant write fails loudly there rather than being waved
+ * through. That is a different (fail-closed) property, not a bypass.
  */
 function classifyModelOperations(sources: SagaSource[]): string[] {
   const boundaries = SYSTEM_WRAP_FORMS.flatMap((form) => collectCalls(sources, form));
@@ -308,23 +488,83 @@ function classifyModelOperations(sources: SagaSource[]): string[] {
   for (const operation of collectModelOperations(sources)) {
     const where = `${operation.source.label}:${lineOf(operation.source.original, operation.index)}`;
     const what = `${operation.model}.${operation.operation}`;
+    const isWrite = WRITE_OPERATIONS.has(operation.operation);
 
-    if (WRITE_OPERATIONS.has(operation.operation)) {
-      if (!enclosedBy(tenantTransactions, operation)) {
-        violations.push(`${where}: ${what} writes outside a tenant-scoped transaction`);
+    if (!isWrite && !READ_OPERATIONS.has(operation.operation)) continue;
+
+    if (operation.binding === null) {
+      if (isWrite) {
+        if (!enclosedBy(tenantTransactions, operation)) {
+          violations.push(`${where}: ${what} writes outside a tenant-scoped transaction`);
+        }
+        continue;
+      }
+      if (!enclosedBy(boundaries, operation) && !enclosedBy(tenantTransactions, operation)) {
+        violations.push(`${where}: ${what} reads outside any declared context`);
       }
       continue;
     }
 
-    if (!READ_OPERATIONS.has(operation.operation)) continue;
+    if (!isWrite) continue;
 
-    if (!enclosedBy(boundaries, operation) && !enclosedBy(tenantTransactions, operation)) {
-      violations.push(`${where}: ${what} reads outside any declared context`);
+    if (operation.binding.kind === "tenant") continue;
+
+    if (operation.binding.kind === "system") {
+      const sanctioned =
+        operation.source.label === SANCTIONED_SYSTEM_WRITE.label &&
+        what === SANCTIONED_SYSTEM_WRITE.what;
+      if (!sanctioned) {
+        violations.push(`${where}: ${what} writes through a system boundary, bypassing the guard`);
+      }
+      continue;
+    }
+
+    if (delegateReachedFromSystemBoundary(sources, operation.binding.delegateName)) {
+      violations.push(
+        `${where}: ${what} writes in a transaction body reached from a system boundary`
+      );
     }
   }
 
   return violations;
 }
+
+/** Every write the scan finds under a declared system boundary, as `label::op`. */
+function systemScopedWrites(sources: SagaSource[]): string[] {
+  return collectModelOperations(sources)
+    .filter(
+      (operation) =>
+        operation.binding?.kind === "system" && WRITE_OPERATIONS.has(operation.operation)
+    )
+    .map((operation) => `${operation.source.label}::${operation.model}.${operation.operation}`)
+    .sort();
+}
+
+/** Every model operation the scan finds, as a stable `label::model.op` list. */
+function modelOperationInventory(sources: SagaSource[]): string[] {
+  return collectModelOperations(sources)
+    .filter(
+      (operation) =>
+        READ_OPERATIONS.has(operation.operation) || WRITE_OPERATIONS.has(operation.operation)
+    )
+    .map((operation) => `${operation.source.label}::${operation.model}.${operation.operation}`)
+    .sort();
+}
+
+/**
+ * The operations the engine really issues today. Pinned as an exact set so the
+ * scan cannot quietly return to matching nothing: a pattern that stops seeing
+ * the house idiom fails HERE instead of turning the violation assertions
+ * vacuously green.
+ */
+const KNOWN_ENGINE_OPERATIONS = [
+  "src/saga/SagaManagerExecution.ts::sagaInstance.findUnique",
+  "src/saga/SagaManagerExecution.ts::sagaInstance.upsert",
+  "src/saga/SagaManagerLifecycle.ts::sagaInstance.findMany",
+  "src/saga/SagaManagerLifecycle.ts::sagaInstance.findMany",
+  "src/saga/SagaManagerLifecycle.ts::sagaInstance.findUnique",
+  "src/saga/sagaTenant.ts::sagaInstance.update",
+].sort();
 
 /** Builds a scannable source from inline code, for the classifier's own controls. */
 function syntheticSource(code: string): SagaSource {
@@ -508,8 +748,106 @@ describe("saga engine context invariants", () => {
       expect(violations).toEqual([]);
     });
 
+    it("sees every model operation the engine really issues", () => {
+      // Pinned as an exact set on purpose. The violation assertions below are
+      // only worth anything if the scan is actually LOOKING at the engine: a
+      // pattern that stops matching the house idiom would otherwise turn them
+      // vacuously green, which is exactly how this suite went blind before.
+      expect(modelOperationInventory(sagaSources)).toEqual(KNOWN_ENGINE_OPERATIONS);
+    });
+
+    it("never returns to a vacuous scan", () => {
+      expect(modelOperationInventory(sagaSources).length).toBeGreaterThanOrEqual(
+        KNOWN_ENGINE_OPERATIONS.length
+      );
+    });
+
     it("issues no unclassified model operation on the engine client", () => {
       expect(classifyModelOperations(sagaSources)).toEqual([]);
+    });
+
+    it("allows exactly one system-scoped write, and only the sanctioned one", () => {
+      // The terminal write for a saga no tenant scope can address. Naming it
+      // means a SECOND system-side write fails this assertion instead of
+      // inheriting the first one's justification.
+      expect(systemScopedWrites(sagaSources)).toEqual([
+        `${SANCTIONED_SYSTEM_WRITE.label}::${SANCTIONED_SYSTEM_WRITE.what}`,
+      ]);
+    });
+
+    it("rejects a WRITE issued on the READ primitive's own transaction client", () => {
+      // The hazard the house idiom created: `(tx) => tx.model.op(…)` reads as
+      // ordinary, so a write slipped in this way is a cross-tenant mutation
+      // through the primitive whose entire purpose is reading.
+      const probe = syntheticSource(`
+        async terminalize(): Promise<void> {
+          await withSagaSystemRead(this.config.prisma, (tx) =>
+            tx.sagaInstance.update({ where: { id: "x" }, data: {} })
+          );
+        }
+      `);
+
+      expect(classifyModelOperations([probe])).toEqual([
+        "synthetic/SagaEngineProbe.ts:4: sagaInstance.update writes through a system boundary, bypassing the guard",
+      ]);
+    });
+
+    it("accepts a WRITE issued on a tenant transaction's own client", () => {
+      const probe = syntheticSource(`
+        async persist(): Promise<void> {
+          await runSagaTenantTransaction(this.config.prisma, accountId, (tx) =>
+            tx.sagaInstance.upsert({ where: { id: "x" } })
+          );
+        }
+      `);
+
+      expect(classifyModelOperations([probe])).toEqual([]);
+    });
+
+    it("accepts a READ issued on the READ primitive's own transaction client", () => {
+      const probe = syntheticSource(`
+        async load(): Promise<void> {
+          await withSagaSystemRead(this.config.prisma, (tx) =>
+            tx.sagaInstance.findMany({})
+          );
+        }
+      `);
+
+      expect(classifyModelOperations([probe])).toEqual([]);
+    });
+
+    it("rejects a WRITE in a transaction body reached from a system boundary", () => {
+      // A delegate cannot see how its transaction was scoped, so routing the
+      // write through one must not launder it.
+      const probe = syntheticSource(`
+        private async writeThing(tx: SagaTransactionClient): Promise<void> {
+          await tx.sagaInstance.update({ where: { id: "x" }, data: {} });
+        }
+        async terminalize(): Promise<void> {
+          await withSagaSystemRead(this.config.prisma, (client) =>
+            this.writeThing(client)
+          );
+        }
+      `);
+
+      expect(classifyModelOperations([probe])).toEqual([
+        "synthetic/SagaEngineProbe.ts:3: sagaInstance.update writes in a transaction body reached from a system boundary",
+      ]);
+    });
+
+    it("accepts a WRITE in a transaction body reached only from a tenant transaction", () => {
+      const probe = syntheticSource(`
+        private async writeThing(tx: SagaTransactionClient): Promise<void> {
+          await tx.sagaInstance.upsert({ where: { id: "x" } });
+        }
+        async persist(): Promise<void> {
+          await runSagaTenantTransaction(this.config.prisma, accountId, (client) =>
+            this.writeThing(client)
+          );
+        }
+      `);
+
+      expect(classifyModelOperations([probe])).toEqual([]);
     });
 
     it("rejects a WRITE that only a system boundary encloses", () => {

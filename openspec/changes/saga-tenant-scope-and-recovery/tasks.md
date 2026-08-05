@@ -386,6 +386,63 @@ plus three warnings against the reworked operational layer. This phase closes al
 | `prettier --check` (15 changed files)                                                             | —                  | All matched files use Prettier code style!            |
 | fitness #3 / #4 / #5 / #8 / #9 / #10 / #21 / #23                                                  | —                  | 0 / 0 / 0 / 0 / 0 / 0 / 0 / 0                         |
 
+## Phase 7R3: re-verification residuals (2026-08-05)
+
+Both re-verifications returned clean; four named residuals plus one operational
+observation remained.
+
+- [x] 7R3.1 The static classifier now matches BOTH client shapes. It had matched only
+      `config.prisma.<model>.<op>`, of which real sources contain zero — every one of the
+      six real operations had moved to the `(tx) => tx.<model>.<op>(…)` house idiom, so the
+      real-source scan passed vacuously and R1's named hazard
+      (`withSagaSystemRead(prisma, (tx) => tx.sagaInstance.update(…))` — a cross-tenant WRITE
+      through the READ primitive) was invisible to all three invariants. The scan now
+      collects transaction-client bindings (primitive callback parameters and
+      `SagaTransactionClient` delegate parameters) and classifies by which primitive
+      encloses the call: reads legal inside `withSagaSystemRead` or
+      `runSagaTenantTransaction`, writes legal ONLY inside `runSagaTenantTransaction`, with
+      exactly ONE named allowance for `failSagaAsSystem`'s own `tx.sagaInstance.update` —
+      asserted to be the single system-scoped write, so a second one fails the suite.
+      Non-vacuity is self-enforcing: the found operations are pinned as an exact set plus a
+      minimum count, so pattern rot fails loudly instead of returning the scan to zero
+      matches. Verified empirically by injecting the hazard into a real source and
+      confirming three assertions go red at the exact file:line, then reverting.
+- [x] 7R3.2 `terminalizeUnscopableSaga` passes the FRESH row to `failSagaAsSystem`, not the
+      stale in-memory instance the re-read exists to distrust; the audit event's duration
+      and step tallies now come from the state the database actually holds.
+- [x] 7R3.3 `failSagaAsSystem` asserts its event-service collaborator instead of testing for
+      it, matching the ordinary terminal path's reachability exactly. The anomalous
+      transition can no longer be the only one that silently skips its audit event.
+      `lockStore` keeps its warn-and-continue semantics, which are correct.
+- [x] 7R3.4 The straggler isolation test cleans up its `stream:Saga:<id>` events, closing a
+      one-stored-event-per-run leak the orphan test never had.
+- [x] 7R3.5 **Operational residual, documented not closed.** `withSagaSystemRead` now opens
+      an interactive transaction per read — `BEGIN` / `set_config` / query / `COMMIT`, four
+      round trips where there was one, holding a pool connection for the span. This applies
+      to the boot load, the 5s retry scan, and `loadSagaInstance` on EVERY Redis miss (the
+      per-resume read path). `P2024` (pool timeout) and `P2028` (transaction API) are
+      therefore reachable on paths where they were not, they land in
+      `instanceLoadFailures` / `recoveryScanFailures` / `bootLoadFailures`, and a burst can
+      trip `SagaRecoveryLoopFailing`. Recorded in `MULTI_TENANT_GUARDS.md` so those alerts
+      are read as "the engine could not read", pool pressure included. Not closed: the
+      alternative (unscoped single-statement reads) returns zero rows silently under a
+      hardened `NOBYPASSRLS` role, which is strictly worse. Revisit with pool sizing if the
+      alert fires under load.
+
+### Residuals pass — what was actually executed
+
+| Surface                                                | Command            | Result                                                |
+| ------------------------------------------------------ | ------------------ | ----------------------------------------------------- |
+| `tests/unit/saga/sagaContextInvariants.static.test.ts` | VITEST single file | 33 passed (33)                                        |
+| `tests/unit/saga/sagaTenant.test.ts`                   | VITEST single file | 30 passed (30)                                        |
+| saga unit surface (filter)                             | VITEST filter      | 16 files, 188 passed (188)                            |
+| `tests/integration/sagaTenantIsolation.test.ts`        | INT single file    | tests 18 · pass 18 · fail 0 · cancelled 0 · skipped 0 |
+| injected-hazard control (reverted)                     | VITEST single file | 3 failed / 30 passed — caught at the exact file:line  |
+| stored-event leak, before / after                      | DB count           | 72 orphaned `stream:Saga:saga-iso-%` rows → 0         |
+| `tsc -b apps/api`                                      | —                  | exit 0                                                |
+| `eslint --max-warnings 0` (5 changed `.ts`)            | —                  | exit 0                                                |
+| `prettier --check` (7 changed files)                   | —                  | All matched files use Prettier code style!            |
+
 ## Phase 7: Docs + spec sync + PR1 0-defect gate
 
 - [x] 7.1 `docs/security/MULTI_TENANT_GUARDS.md` (W3d): record the saga posture (engine on

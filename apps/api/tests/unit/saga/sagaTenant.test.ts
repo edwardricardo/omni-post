@@ -501,21 +501,43 @@ describe("saga tenant module", () => {
       expect(spy.events[0]?.data).toMatchObject({ reason: "tenant-mismatch" });
     });
 
-    it("still terminalizes when no event or lock collaborator is configured", async () => {
-      // Schema-only and test wirings omit both; a terminal transition must not
-      // depend on optional collaborators being present.
+    it("refuses to commit the terminal row when the event service is absent", async () => {
+      // The ordinary terminal path asserts the same collaborator rather than
+      // testing for it, and both are reachable only after `initialize()`. If
+      // this path degraded to a silent skip instead, the ANOMALOUS transition —
+      // the one whose trail matters most — would be the only one that could
+      // lose its audit event, and nothing would say so.
       const spy = createTransactionSpy();
       const instance = makeInstance(makeContext(), { id: "saga-bare", status: "RUNNING" });
 
-      await failSagaAsSystem({ prisma: spy.prisma }, instance, "unresolvable-account");
+      await expect(
+        failSagaAsSystem({ prisma: spy.prisma }, instance, "unresolvable-account")
+      ).rejects.toThrowError();
+
+      expect(spy.events).toEqual([]);
+      expect(spy.effects).not.toContain("tx:commit");
+    });
+
+    it("still releases the locks path when no lock store is configured", async () => {
+      // The lock release is best-effort by design and stays warn-and-continue.
+      const spy = createTransactionSpy();
+      const instance = makeInstance(makeContext(), { id: "saga-nolock", status: "RUNNING" });
+
+      await failSagaAsSystem(
+        { prisma: spy.prisma, eventService: spy.config.eventService },
+        instance,
+        "unresolvable-account"
+      );
 
       expect(spy.effects).toEqual([
         "tx:open",
         `guc:${SYSTEM_SCOPE}`,
-        "update:saga-bare:FAILED",
+        "update:saga-nolock:FAILED",
+        "event:saga.failed",
         "tx:commit",
       ]);
       expect(instance.status).toBe("FAILED");
+      expect(spy.releasedSagaIds).toEqual([]);
     });
   });
 });

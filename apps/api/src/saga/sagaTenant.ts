@@ -375,9 +375,13 @@ export async function failSagaAsSystem(
         nextRetryAt: null,
       },
     });
-    if (config.eventService) {
-      await config.eventService.appendEventInTx(tx, sagaFailedEvent);
-    }
+    // eventService is guaranteed present wherever this runs: the only caller is
+    // the timeout checker, started by `initialize()`, which requires a full
+    // config — the same reachability the ordinary terminal path relies on. It is
+    // asserted rather than tested for so the two paths fail identically; making
+    // it conditional would let the ANOMALOUS transition skip its audit event
+    // silently while the ordinary one throws.
+    await config.eventService!.appendEventInTx(tx, sagaFailedEvent);
   });
 
   if (config.lockStore) {

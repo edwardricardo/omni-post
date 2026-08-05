@@ -537,6 +537,22 @@ Two invariants make the shape safe rather than merely declared:
   `withSystemContext` callback to be `async` and to `await` its query precisely
   because that form is the one that can get it wrong.
 
+**Operational cost of the read primitive — known and accepted.** Binding the
+transaction-local scope means every tenant-unknown read is now an interactive
+transaction: `BEGIN` → `set_config` → the query → `COMMIT`, four round trips where
+there was one, holding a pool connection for the whole span instead of a single
+statement. That applies to the boot load and the 5s retry scan, and — the one worth
+watching — to `loadSagaInstance` on EVERY Redis miss, which is the per-resume read
+path. The consequences are real, not hypothetical: `P2024` (connection-pool timeout)
+and `P2028` (transaction API error) become reachable on paths where they previously
+were not, they land in `instanceLoadFailures` / `recoveryScanFailures` /
+`bootLoadFailures`, and a burst can therefore trip `SagaRecoveryLoopFailing`. Read
+those alerts as "the engine could not read", which includes pool pressure, not only
+tenant-scoping faults. If they fire under load, size the pool against the saga
+engine's concurrent reads before assuming a scoping defect. The alternative —
+leaving the reads unscoped — is not available: under a hardened `NOBYPASSRLS` role
+they would silently return nothing.
+
 Failures on these paths are observable rather than silent. Every background loop —
 boot load, retry scan, timeout checker, and the by-id instance load — logs at ERROR
 with the failing loop, the error type and a per-run correlation id, and increments

@@ -651,7 +651,11 @@ export class SagaManagerLifecycle implements SagaManager {
       return;
     }
 
-    await failSagaAsSystem(this.config, instance, reason);
+    // The FRESH row is what gets terminalized, not the copy the re-read exists
+    // to distrust: the audit event carries duration and step tallies, and taking
+    // those from a stale in-memory instance would record the transition against
+    // state the database no longer holds.
+    await failSagaAsSystem(this.config, fresh, reason);
 
     this.stopTracking(sagaId);
     this.metrics.sagasFailed++;
