@@ -9,6 +9,7 @@ import {
   MockPrismaClient,
   MockRedis,
   MockEventService,
+  TEST_ACCOUNT_ID,
   createMockPrisma,
   createMockRedis,
   createMockEventService,
@@ -83,6 +84,7 @@ describe("SagaManager - Saga Lifecycle", () => {
     manager.registerSaga(definition);
 
     const instance = await manager.startSaga(definition.id, {
+      accountId: TEST_ACCOUNT_ID,
       correlationId: "test-corr-123",
       userId: "user-456",
       metadata: { source: "test" },
@@ -106,6 +108,7 @@ describe("SagaManager - Saga Lifecycle", () => {
     manager.registerSaga(definition);
 
     await manager.startSaga(definition.id, {
+      accountId: TEST_ACCOUNT_ID,
       correlationId: "test-corr-123",
     });
 
@@ -125,7 +128,7 @@ describe("SagaManager - Saga Lifecycle", () => {
     const metricsBefore = manager.getMetrics();
     const activeInstancesBefore = metricsBefore.activeInstances;
 
-    await manager.startSaga(definition.id, {});
+    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     const metricsAfter = manager.getMetrics();
     expect(metricsAfter.activeInstances).toBe(activeInstancesBefore + 1);
@@ -154,7 +157,7 @@ describe("SagaManager - State Persistence", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     const key = `saga:${instance.id}`;
     const data = await mockRedis.get(key);
@@ -170,7 +173,7 @@ describe("SagaManager - State Persistence", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     const retrieved = await manager.getSaga(instance.id);
 
@@ -214,7 +217,7 @@ describe("SagaManager - Shutdown", () => {
     const definition = createMultiStepSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     await manager.shutdown();
 

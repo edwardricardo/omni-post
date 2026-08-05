@@ -142,11 +142,16 @@ describe("Saga — existing-post path (postId provided)", () => {
       return { success: true, data: { id: cmd.aggregateId, version: 1 } };
     });
 
-    const ctx = createSagaContext("saga-existing-1", "corr-1", "user-1", {
-      mode: "publish-now",
-      postData: {
-        postId: TEST_EXISTING_DRAFT_POST_ID,
-        channelIds: [TEST_CHANNEL_IDS[0]!],
+    const ctx = createSagaContext({
+      sagaId: "saga-existing-1",
+      correlationId: "corr-1",
+      userId: "user-1",
+      metadata: {
+        mode: "publish-now",
+        postData: {
+          postId: TEST_EXISTING_DRAFT_POST_ID,
+          channelIds: [TEST_CHANNEL_IDS[0]!],
+        },
       },
     });
     ctx.stepData["validate-post-data"] = {
@@ -172,9 +177,14 @@ describe("Saga — existing-post path (postId provided)", () => {
       return { success: true, data: {} };
     });
 
-    const ctx = createSagaContext("saga-existing-2", "corr-2", "user-1", {
-      mode: "publish-now",
-      postData: { postId: TEST_EXISTING_DRAFT_POST_ID },
+    const ctx = createSagaContext({
+      sagaId: "saga-existing-2",
+      correlationId: "corr-2",
+      userId: "user-1",
+      metadata: {
+        mode: "publish-now",
+        postData: { postId: TEST_EXISTING_DRAFT_POST_ID },
+      },
     });
 
     const result = await step.compensate?.(ctx, {

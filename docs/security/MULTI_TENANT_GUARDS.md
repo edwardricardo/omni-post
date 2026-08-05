@@ -361,9 +361,9 @@ DataBreachReport
 > suite `tests/integration/rls-tenant-isolation.test.ts` asserts guard↔RLS parity by
 > construction — it exists precisely to block an enrollment without a policy, so honouring
 > the original seam would have required weakening the invariant instead of the plan.
-> Pulling it forward is behaviour-neutral: leg 3/RLS is **INERT deployment-wide today**: the app AND
+> Pulling it forward is behaviour-neutral: the RLS leg is **INERT deployment-wide today**: the app AND
 > worker connection role is `postgres` (`rolsuper=true` / `rolbypassrls=true`, verified
-> against the live DB), so the Prisma `$extends` guard (leg 1) + the app-layer scoping are
+> against the live DB), so the Prisma `$extends` guard + the app-layer scoping are
 > the ACTIVE enforcement. PR2 additionally binds the account GUC (`app.account_id`) in the
 > worker's OWN transaction so a future `NOSUPERUSER NOBYPASSRLS` role does not silently
 > filter worker reads to zero rows (publish breakage).
@@ -461,6 +461,282 @@ The three new `withSystemContext()` reasons (`system:integration-key-auth`,
 account is unknown at that point (key-prefix lookup, gateway-customer→account
 mapping, webhook subscription resolution by provider). They are covered by the
 two-tenant `preAuth*TenantIsolation` integration suites.
+
+### Saga engine — declared system reads, rehydrated per-saga writes
+
+The saga engine runs detached from any HTTP request: it boots, ticks on a
+scheduler, and resumes from worker pub/sub. It therefore cannot inherit a
+request's tenant scope, and until this change it was not even holding a guarded
+client — the bootstrap handed it the raw `@infra/prisma` singleton, so layer 1
+was simply absent from its write path and `context.userId` (a `CustomerUser.id`)
+persisted into `SagaInstance.accountId` unnoticed. The corrective posture has
+three parts.
+
+| Concern                                                                                                | Posture                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Client                                                                                                 | The bootstrap constructs `SagaIntegration` with `container.resolve(TOKENS.PrismaClient)` — the guarded client. No saga-engine construction path takes the raw singleton (enforced by a merge-blocking source scan).                                                                                                                                                                                            |
+| Tenant-unknown reads (boot load, retry scan, by-id instance load)                                      | `withSagaSystemRead(prisma, (tx) => …)` from `apps/api/src/saga/sagaTenant.ts`, which declares `SAGA_SYSTEM_REASON = "system:saga-recovery"` — the single reason the engine may use, one grep-able constant — AND opens its own transaction to bind the system sentinel scope. Each wrap is scoped to the query expression and ends with it.                                                                   |
+| Per-saga work (step loop, every engine persist, compensation, timeout failure, shutdown, boot re-warm) | `runAsSagaTenant(instance, fn)` rehydrates the saga's own `accountId` via `withTenantContext`, so the guard VALIDATES those writes instead of skipping them. A saga with no resolvable account is skipped loudly (ERROR + `rehydrationFailures`), never run unscoped and never downgraded to system context.                                                                                                   |
+| Transactions                                                                                           | `runSagaTenantTransaction` binds the transaction-local `app.account_id` as the transaction's FIRST statement, so the RLS policies govern the same rows the Prisma guard narrowed. Engine transactions previously bound only the guard. A general-purpose cross-tenant transaction is deliberately NOT exported — the two legitimate cross-tenant surfaces are the read primitive above and `failSagaAsSystem`. |
+
+**Account resolution is column-authoritative.** The persisted `SagaInstance.accountId`
+wins; `context.accountId` then `context.metadata.accountId` are the fallback AND a
+cross-check. Both deserializers carry the column onto the instance — a deserializer that
+drops it strands every row repaired through the `CustomerUser` join, whose true account
+exists in the column and nowhere else. When the column and the context both carry a value
+and they DISAGREE, resolution fails closed: that is the cutover-straggler signature (old
+code wrote the acting user into the tenant column while metadata held the account), and it
+is detected at read time rather than colliding on the primary key at write time.
+
+**A saga that cannot be scoped still reaches a terminal state.** `runAsSagaTenant` returns
+a discriminated outcome (`ran: true | false` with a reason) that every caller consumes — an
+admin compensate that could not run answers 409, never a success envelope. The timeout
+checker terminalizes an unresolvable or contradicted row to FAILED through
+`failSagaAsSystem`, the engine's ONLY cross-tenant write: one `update` by primary key plus
+the `SAGA_FAILED` audit event in the SAME transaction and a release of the saga's semantic
+locks, both layers bound to the system scope, no dispatch inside. The audit event and the
+lock release are not extras — an anomalous transition is precisely the one whose durable
+trail must not have a hole, and a lock left held by a dead saga blocks a legitimate one on
+the same aggregate until its TTL expires. Without this path such a row is non-terminal
+forever — an infinite RUNNING state the saga canon forbids — while every tick logs and
+counts it again.
+
+The decision is re-taken against a FRESH read of the row before the write. The in-memory
+copy was loaded at boot and can be arbitrarily old, while the documented repair for this
+row class is re-running the idempotent backfill — which happens underneath a live process.
+A row that has become resolvable in the meantime is REFRESHED in memory, not terminalized.
+
+**What terminalization covers, precisely.** The checker walks `activeInstances`, so it can
+only terminalize sagas THIS process loaded at boot. A row corrupted by an old pod AFTER
+this process started is detected on the scans, counted (`stage="mismatch"` /
+`stage="rehydration"`) and skipped — but not terminalized until this process restarts and
+loads it, or until the operator re-runs the backfill and repairs it in place. The scans
+also order by due time, so a stuck row sorts first and keeps its place at the head of the
+page; the remedy is the runbook's migration re-run, not a wider scan.
+
+Two invariants make the shape safe rather than merely declared:
+
+- **A system wrap never encloses a dispatch.** `executeSagaAsync` /
+  `compensateSagaAsync` use `setImmediate`, through which AsyncLocalStorage
+  propagates. A wrap spanning a dispatch would run the ENTIRE saga — including
+  its CQRS step writes through guarded repositories — under a bypass that has
+  no exit primitive. A source scan rejects any dispatch that sits lexically
+  inside a `withSystemContext` callback.
+- **The wrapped query is awaited INSIDE the boundary, and the PRIMITIVE owns
+  that.** A Prisma call returns a lazy promise that reaches the database only
+  when awaited, so a hand-rolled wrap of the form
+  `withSystemContext(reason, () => prisma.model.findMany(...))` runs its query
+  AFTER the declared context has been released — the declaration silently
+  becomes a no-op and the read fails with `TenantContextMissingError`, which the
+  loop then swallows into its counter. This is the failure mode that turns a
+  background loop dead while the source still reads as correct. It is closed by
+  construction rather than by call-site discipline: `withSagaSystemRead` awaits
+  the callback itself, so writing `withSagaSystemRead(prisma, (tx) => tx.model.findMany(...))`
+  is correct as written. Do NOT "fix" a call site back into a hand-rolled
+  `withSystemContext` wrap — the source scan requires every remaining
+  `withSystemContext` callback to be `async` and to `await` its query precisely
+  because that form is the one that can get it wrong.
+
+**Operational cost of the read primitive — known and accepted.** Binding the
+transaction-local scope means every tenant-unknown read is now an interactive
+transaction: `BEGIN` → `set_config` → the query → `COMMIT`, four round trips where
+there was one, holding a pool connection for the whole span instead of a single
+statement. That applies to the boot load and the 5s retry scan, and — the one worth
+watching — to `loadSagaInstance` on EVERY Redis miss, which is the per-resume read
+path. The consequences are real, not hypothetical: `P2024` (connection-pool timeout)
+and `P2028` (transaction API error) become reachable on paths where they previously
+were not, they land in `instanceLoadFailures` / `recoveryScanFailures` /
+`bootLoadFailures`, and a burst can therefore trip `SagaRecoveryLoopFailing`. Read
+those alerts as "the engine could not read", which includes pool pressure, not only
+tenant-scoping faults. If they fire under load, size the pool against the saga
+engine's concurrent reads before assuming a scoping defect. The alternative —
+leaving the reads unscoped — is not available: under a hardened `NOBYPASSRLS` role
+they would silently return nothing.
+
+Failures on these paths are observable rather than silent. Every background loop —
+boot load, retry scan, timeout checker, and the by-id instance load — logs at ERROR
+with the failing loop, the error type and a per-run correlation id, and increments
+its OWN counter (`bootLoadFailures`, `recoveryScanFailures`, `timeoutCheckFailures`,
+`instanceLoadFailures`, plus `rehydrationFailures` and `tenantMismatches` for the
+resolution misses). The timeout checker and the shutdown drain iterate per saga
+inside their own try/catch, so one poisoned row cannot end the pass for every saga
+behind it. The by-id load distinguishes an infrastructure failure from an absent
+row — both used to answer "not found" to every caller.
+
+A failed boot load is NOT retried in process: the pass runs once, its failure is
+logged, counted and reflected as `degraded` health, and the process then serves
+without recovery coverage until it is RESTARTED. That is deliberate — a retry loop
+around the boot pass would race the schedulers it starts — but it means the remedy
+for a failed boot load is a restart, not waiting.
+
+The same counters leave the process: `saga_recovery_failures_total{stage}` and
+`sagas_failed_total{reason}` are real Prometheus series (`apps/api/src/metrics/
+sagaRecoveryMetrics.ts`), the second being the one `prometheus/alerts/saga.yml`
+already alerts on. The in-process snapshot stays available on `/sagas/metrics`, and
+`healthCheck()` reports **degraded** — not healthy — for a process whose boot
+recovery load failed, because such a process is reachable but does not know what was
+in flight when it started.
+
+#### Enrollment legs — the three, defined once
+
+A tenant-scoped model is fully enrolled when all three hold:
+
+- **leg 1 — schema**: `accountId` is non-null, carries an `Account` relation, and the
+  composite indexes are accountId-led;
+- **leg 2 — guard**: the model is listed in `TENANT_SCOPED_MODELS`, so the Prisma
+  `$extends` guard injects and validates its scope;
+- **leg 3 — RLS**: the table carries the `tenant_isolation` policy.
+
+#### Residual gaps — recorded, NOT closed
+
+1. **`SagaInstance` enrollment is incomplete — leg 1 only.** It satisfies leg 2
+   (`TENANT_SCOPED_MODELS`) AND leg 3: the table has carried the `tenant_isolation`
+   policy since `20260527000000_add_rls_tenant_isolation`, which lists it among the
+   enrolled tables. Leg 1 is the real residual: `accountId` is nullable with NO
+   `Account` relation and no accountId-led composite index tightening. The
+   consequence is specific — a NULL-sentinel row matches NO tenant GUC, so it is
+   reachable only under the `__system__` scope, and nothing at the schema level
+   prevents a future writer from leaving the column empty again. The column CANNOT be
+   flipped non-null while sentinel rows exist (see the backfill below), so completing
+   enrollment is sequenced work, not a rider. Tracked as SMELL-70. Note that leg 3 was
+   INERT for the engine until this change, for a different reason: the engine's
+   statements never bound `app.account_id`, so the policies had no scope to evaluate
+   against. Both halves are now bound: per-saga WRITES go through
+   `runSagaTenantTransaction`, which binds the saga's own account as the transaction's
+   first statement, and tenant-unknown READS go through `withSagaSystemRead`, which
+   opens its own transaction to bind the system sentinel. The read half is not
+   optional — a bare statement outside a transaction binds nothing, so under a
+   hardened `NOBYPASSRLS` role it would return zero rows with no error: a recovery
+   scan that reports "nothing in flight" while everything is.
+2. **The customer saga read is NOT guard-scoped on a cache miss.** The engine's
+   by-id load exists to discover which tenant owns an id, so it declares the
+   system reason; the customer `GET /sagas/:sagaId` cold path (Redis miss →
+   Postgres) therefore runs under that declared system context and the guard
+   injects no `where.accountId`. Its tenant control is the route's ownership
+   check, which compares the saga's `context.userId` against the caller and
+   answers **404** (not 403, to prevent saga-id enumeration). Do not describe
+   this read as guard-scoped. A two-tenant integration test pins the boundary so
+   it cannot widen unnoticed.
+3. **The Redis hot cache is guard-blind.** `loadSagaInstance` returns a cached
+   copy before any guarded read. The app-level ownership check above is the
+   control. Any future saga read that bypasses the route check inherits this
+   gap, so the isolation proofs delete the `saga:{id}` key before asserting.
+4. **The CQRS bus has no command-id dedupe.** The saga canon asserts a
+   deterministic `dedupeKey`, but the bus does not deduplicate by command id, so
+   a replayed pre-pivot create step can produce a duplicate draft. No external
+   side effect is involved; escalated below.
+
+#### Backfill runbook — `SagaInstance.accountId`
+
+The forward migration `20260731000000_backfill_saga_instance_account_id` repairs
+history in one transaction: metadata-first (`context.metadata.accountId` when it
+names a live account, which also repairs rows whose column was never written),
+then the `CustomerUser.id → CustomerUser.accountId` join, then an explicit
+**NULL sentinel** plus a counted `RAISE NOTICE` for unmappable rows in a terminal
+state, and finally a `RAISE EXCEPTION` listing the ids of any unmappable row that
+is still live — a live saga with no true tenant is not safely recoverable and
+must be resolved by an operator instead of guessed. The down migration is a
+documented no-op by design: post-backfill values are true account ids and stay
+correct even if the code reverts.
+
+Every statement is idempotent and re-runnable, which the cutover procedure
+depends on. Deploy the migration BEFORE the application cutover; any process
+still running the old code in that window re-persists its in-memory sagas with
+the acting user id, so **re-run the migration file manually after the cutover
+completes** and confirm the verification query returns zero. This is not
+hypothetical: it was observed live on a development database, where a server
+process started before the change kept restoring the old value on the sagas it
+still held in memory, minutes after the migration had repaired them. The
+engine's fail-loud rehydration catches whatever a straggler leaves behind, and
+the timeout checker terminalizes it rather than retrying it forever.
+
+Verification query (the success criterion):
+
+```sql
+SELECT count(*) FROM "SagaInstance"
+ WHERE "accountId" IS NOT NULL
+   AND "accountId" NOT IN (SELECT id FROM "Account");   -- expect 0
+```
+
+##### If the migration aborts (the non-terminal `RAISE`)
+
+The `RAISE EXCEPTION` is the designed outcome for a live saga with no resolvable
+tenant, and it leaves the deploy blocked with the migration recorded as failed.
+Prisma will refuse every later `migrate deploy` until that record is resolved, so
+the recovery is a three-step procedure, in order:
+
+1. `prisma migrate resolve --rolled-back 20260731000000_backfill_saga_instance_account_id`
+   — tells Prisma the failed attempt committed nothing (it did not: the whole file
+   runs in one transaction). Without this, the next deploy fails with `P3009`
+   instead of running.
+2. Remediate the sagas the `RAISE` named. Each is a live saga whose tenant nobody
+   can infer; decide per saga — set the true `accountId` from operational context,
+   or drive it to a terminal state — and record the decision. Guessing is the one
+   thing the halt exists to prevent.
+3. Re-run `migrate deploy`. The statements are idempotent, so the rows already
+   repaired are untouched.
+
+##### Why the timeouts live here and not in the migration file
+
+The migration is APPLIED, and Prisma records a checksum of its bytes in
+`_prisma_migrations`. Editing the file after the fact — even to add a `SET LOCAL` —
+makes every later `migrate deploy` fail with a checksum mismatch on every database
+that already ran it. So the file is frozen by construction, and the bounding of a
+run belongs to whoever opens the connection. That is this runbook for a manual
+re-run, and the deploy connection itself for the automated first apply.
+
+##### Two properties to know before a manual re-run
+
+- **The statements read committed state, one at a time.** Each runs at READ
+  COMMITTED, so a row inserted by an old-code process BETWEEN the repair steps and
+  the final check can trip the non-terminal `RAISE` even though the repair itself
+  succeeded. That is not a defect in the file — it is the cutover gap being
+  detected. Stop the old writers first, then re-run; a re-run while they are still
+  writing can abort again for the same reason.
+- **Bound the manual form.** The migration rewrites the whole table in one
+  transaction and takes row locks. When re-running by hand, prefix the session so a
+  blocked lock surfaces instead of stalling the table:
+
+  ```sql
+  BEGIN;
+  SET LOCAL lock_timeout = '5s';
+  SET LOCAL statement_timeout = '60s';
+  -- ...the migration statements, in file order...
+  COMMIT;
+  ```
+
+  Raise the numbers deliberately for a large table; do not remove them.
+
+##### Bounding the automated first apply (production)
+
+`migrate deploy` runs the frozen file, so the only place to bound it is the
+connection it runs on. Set the limits at role or session level for the deploy
+principal BEFORE the deploy, so a lock held by application traffic surfaces as a
+failed migration instead of a stalled table:
+
+```sql
+-- Once, on the migration role (persists across deploy connections):
+ALTER ROLE omnipost_migrator SET lock_timeout = '5s';
+ALTER ROLE omnipost_migrator SET statement_timeout = '60s';
+```
+
+Equivalently, per deploy, append the settings to the migration connection string
+(`?options=-c%20lock_timeout%3D5s%20-c%20statement_timeout%3D60s`). Use a
+migration principal distinct from the application role so these limits never apply
+to serving traffic. A migration that aborts on `lock_timeout` is recorded as failed
+and is recovered by the `P3009` procedure above — which is the intended outcome, not
+an incident.
+
+##### Rollback honesty
+
+`down.sql` is a no-op BY DESIGN, and that is not the same as "reverting is safe".
+Post-backfill values are true account ids and stay correct across a code revert, so
+there is nothing to undo in the data. But reverting the CODE re-points the engine at
+the pre-change persistence, which resumes writing the acting user into the tenant
+column for every saga it still holds — continuously, not once. The repair is
+re-running the (idempotent) forward file after cutting back over. Plan a code revert
+as "re-corrupts in-flight sagas until re-cutover, then repair", never as "no data
+impact".
 
 ## Global tables (denylist — guard bypasses)
 
@@ -715,7 +991,22 @@ Recorded here so they cannot be lost; none is a live exploit today.
    Widening the regex touches `CLAUDE.md` and `.github/workflows/fitness.yml`
    together and needs a documented baseline for the seven existing — audited
    benign — hits, so it is its own change, not a rider on this one.
-5. **No database constraint ties `Channel.accountId` to `Project.accountId`**
+5. **`SagaInstance` enrollment leg 1** (SMELL-70). The tenant column is nullable
+   and carries no `Account` relation. Legs 2 and 3 ARE satisfied — the model is
+   guard-enrolled and the table has carried the `tenant_isolation` policy since
+   `20260527000000_add_rls_tenant_isolation`. The live consequence is that a
+   NULL-sentinel row matches no tenant GUC (reachable only under `__system__`) and
+   nothing structural stops a future writer from leaving the column empty. It
+   cannot be flipped non-null while the backfill's NULL sentinel rows exist, so
+   closing it needs a disposition decision for those rows first (retain as sentinel
+   and add a partial constraint, or archive them) and then the relation plus the
+   non-null flip together.
+6. **CQRS bus command-id dedupe** (saga replay). The bus dispatches by handler
+   lookup with no idempotency key, so a resumed saga re-issuing a pre-pivot
+   create step can produce a duplicate draft. The deterministic `dedupeKey` the
+   canon mandates exists at the saga layer and at the BullMQ job layer; the bus
+   is the missing link.
+7. **No database constraint ties `Channel.accountId` to `Project.accountId`**
    (SMELL-69). The two denormalized columns are kept in agreement by the create
    paths, the backfill assertion, and the per-slice integration suite — nothing
    structural. A reparenting write or a future bulk path could diverge them

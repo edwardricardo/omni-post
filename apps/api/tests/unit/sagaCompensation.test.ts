@@ -35,9 +35,15 @@ function makeContext(
   } = {}
 ) {
   const accountId = opts.accountId === undefined ? TEST_ACCOUNT_ID : opts.accountId;
-  const ctx = createSagaContext("saga-test-1", "corr-1", "user-1", {
-    mode: opts.mode ?? "publish-now",
+  const ctx = createSagaContext({
+    sagaId: "saga-test-1",
+    correlationId: "corr-1",
+    userId: "user-1",
     ...(accountId !== null && { accountId }),
+    metadata: {
+      mode: opts.mode ?? "publish-now",
+      ...(accountId !== null && { accountId }),
+    },
   });
   if (opts.stepData) {
     Object.assign(ctx.stepData, opts.stepData);

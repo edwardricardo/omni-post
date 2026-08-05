@@ -55,9 +55,13 @@ describe("Chaos: saga step transient failure → recovery scheduler retries", ()
       steps: [transientStep, new SuccessfulStep()],
     });
 
+    // The owning account is not decoration: a saga without one models a
+    // corrupted row, which the engine refuses to start and never resumes.
     const instance = await harness.manager.startSaga("chaos-retry-saga", {
       correlationId: "corr-chaos-1",
+      accountId: harness.accountId,
       userId: "user-1",
+      metadata: { accountId: harness.accountId },
     });
 
     // After startSaga, the transient step has failed once. Saga is in RUNNING

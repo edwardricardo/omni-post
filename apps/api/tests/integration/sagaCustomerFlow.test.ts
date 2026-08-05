@@ -557,10 +557,12 @@ describe("Saga customer flow integration", () => {
     assert.strictEqual(start.status, 200);
     const sagaId = (start.body as { data: { sagaId: string } }).data.sagaId;
 
-    // 30s gives the worker pipeline + retries time to settle on a terminal
-    // state. publish-now with stubbed creds typically reaches FAILED quickly,
-    // but BullMQ retry policy adds latency.
-    const final = await waitForTerminal(fixture.authHeader, sagaId, 30_000);
+    // The analytic worst case for this flow is the 35s retry envelope
+    // (5 + 10 + 20) plus up to three 5s recovery scan ticks plus worker
+    // latency; an identical publish-now flow measured 49.2s. 30s sat BELOW the
+    // envelope, so the assertion measured the harness rather than the saga.
+    // 90s keeps roughly half the budget in reserve.
+    const final = await waitForTerminal(fixture.authHeader, sagaId, 90_000);
     const compensationResults =
       (final.data.compensationResults as Array<unknown> | undefined) ?? [];
 

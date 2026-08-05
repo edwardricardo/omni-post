@@ -113,6 +113,17 @@
 > model, rather than editing this one. Slice 1's instance is
 > `ExternalNotificationConfig — the three live IDOR routes are closed...` below.
 >
+> **Extended by the saga tenant-scope change** — change
+> `saga-tenant-scope-and-recovery`. This one does NOT extend the enrollment table:
+> `sagaInstance` was ALREADY in `TENANT_SCOPED_MODELS`. It closes a DATA-CORRECTNESS
+> defect on an already-enrolled model — the engine persisted the acting
+> `CustomerUser.id` into `SagaInstance.accountId`, so every saga row was keyed on a
+> value that is not a tenant, and it did so silently because the bootstrap handed the
+> engine the RAW Prisma singleton (layer 1 was never in its write path; there is NO
+> `$transaction` bypass — an explicit mismatch throws in-transaction, verified
+> empirically). Its requirement blocks are appended at the end of this spec, together
+> with the recorded structural gap that stays OPEN.
+>
 > RFC 2119 keywords (MUST / SHALL / SHOULD / MAY) are normative. Requirements marked
 > **[MERGE-BLOCKING]** MUST be proven green before merge. Scenarios marked **[static]**
 > are checkable by inspecting schema/migrations/config; **[integration]** scenarios
@@ -707,3 +718,140 @@ workers, seeds, sagas, or scripts.
 - **GIVEN** the guard is flipped for both `RecurringPost` and `TrackedLink` (Slice 3)
 - **WHEN** the recurrence-scheduler tick runs, an anonymous visitor hits `GET /r/:shortCode`, and the create path runs its short-code uniqueness probe
 - **THEN** each executes inside an explicit `withSystemContext("recurrence-sweep")`, `withSystemContext("public-link-redirect")`, and a `withSystemContext(...)` short-code probe respectively, and none raises `TenantContextMissingError`
+
+---
+
+### Requirement: SagaInstance.accountId carries the TRUE tenant, never a CustomerUser.id [MERGE-BLOCKING]
+
+`SagaContext` SHALL carry `accountId` as a first-class, typed field (not only inside the
+untyped `metadata` bag), populated at saga start from the authenticated customer's
+`accountId`. Every persisted `SagaInstance` row SHALL store that account in the
+`accountId` column on BOTH upsert branches. The engine SHALL NOT write `context.userId`
+into `accountId` under any code path. `context.userId` is RETAINED for the audit trail,
+the event payloads, and the route ownership check, so the product-visible behavior is
+unchanged.
+
+The two identifiers are provably distinct: `customerAuthMiddleware` derives
+`customerUser.id` from the `sub` claim and binds the tenant from a SEPARATE `accountId`
+claim, so a saga row keyed on `userId` is keyed on a non-tenant value and every
+`accountId`-led index lookup, tenant-scoped saga query, and future RLS predicate
+resolves against garbage. A saga started for an account with several users SHALL produce
+rows carrying ONE stable account value, not one value per user.
+
+#### Scenario: the two identifiers are distinct, so the proof cannot pass by coincidence [static]
+
+- **GIVEN** the customer auth boundary and the test fixtures
+- **WHEN** `customerUser.id` and the bound `accountId` are compared
+- **THEN** they come from different claims (`sub` vs `accountId`) and the fixture asserts `customerUser.id !== account.id`, so no isolation proof below can pass by accidental equality
+
+#### Scenario: a started saga persists the account, not the user [integration]
+
+- **GIVEN** an authenticated customer of account A whose user id differs from A
+- **WHEN** the customer starts a post-publishing saga and the first persist completes
+- **THEN** the persisted row's `accountId` equals A's account id, does NOT equal the customer's user id, and no `TenantContextMismatchError` is raised
+
+#### Scenario: two-tenant saga isolation holds through the guarded client [integration]
+
+- **GIVEN** account A and account B each own saga instances and A's tenant context is bound
+- **WHEN** A lists saga instances and reads B's saga instance by id through the guarded client, with B's entry deleted from the Redis hot cache first so the guard-blind fast path cannot satisfy the read
+- **THEN** the list contains ZERO of B's rows and the by-id read resolves NOT_FOUND — never 403, never 500 — and no mutation of B's row is possible under A's context
+
+---
+
+### Requirement: Saga persistence executes on the guarded client so layer 1 is in the write path [MERGE-BLOCKING]
+
+The saga engine SHALL receive the tenant-GUARDED Prisma client. The bootstrap SHALL NOT
+construct the saga integration with the raw `@infra/prisma` singleton, because layer 1
+cannot enforce, inject, or reject on a client it never sees — that absence, not any
+`$transaction` behavior, is why a non-tenant value persisted silently. Consequently a
+saga write whose `accountId` disagrees with the bound context SHALL FAIL LOUDLY
+(`TenantContextMismatchError`) instead of persisting, and a saga write with no bound
+context SHALL fail with `TenantContextMissingError` unless it runs inside an explicit
+`withSystemContext(reason)` wrap.
+
+#### Scenario: no engine construction path takes the raw singleton [static]
+
+- **GIVEN** the change is applied
+- **WHEN** every saga-engine construction site is enumerated (bootstrap and container)
+- **THEN** each is handed the guarded client, and no saga-engine path receives the raw `@infra/prisma` singleton
+
+#### Scenario: a mismatched account fails loudly instead of persisting [integration]
+
+- **GIVEN** tenant A's context is bound and a saga persist is attempted carrying account B
+- **WHEN** the write executes through the engine, including inside its transaction
+- **THEN** it raises `TenantContextMismatchError`, no row is written, and the failure is visible in logs — it SHALL NOT be silently accepted
+
+---
+
+### Requirement: SagaInstance backfill integrity — zero CustomerUser.id values remain [MERGE-BLOCKING]
+
+A forward migration SHALL repair historical rows. For each `SagaInstance` row whose
+`accountId` is not an account: the true tenant SHALL be resolved from
+`context->'metadata'->>'accountId'` when present (authoritative, which also repairs rows
+whose column was never written because a falsy `userId` persisted no value), otherwise
+from the `CustomerUser.id -> CustomerUser.accountId` join. Rows resolvable by either
+source are MAPPABLE and SHALL be corrected. Rows resolvable by neither are UNMAPPABLE and
+SHALL be dispositioned by state:
+
+- an unmappable row in a TERMINAL state (`COMPLETED` / `FAILED` / `COMPENSATED`) SHALL be
+  set to an explicit, documented sentinel value and counted in a migration report — never
+  left holding a `CustomerUser.id`, never silently deleted, never given a fabricated
+  account-looking value;
+- an unmappable row in a NON-TERMINAL state SHALL HALT the migration with a `RAISE`,
+  because a live saga with no true tenant is not safely recoverable and MUST be resolved
+  by an operator rather than guessed.
+
+After the migration, ZERO `SagaInstance` rows SHALL hold a value that matches any
+`CustomerUser.id`, and the pre-migration row count SHALL be preserved. Every statement
+SHALL be idempotent and re-runnable, because a process still running the old code in the
+deploy-to-cutover window re-persists its in-memory sagas with the acting user id; the
+runbook remedy is a manual re-run after cutover. The down migration is a documented no-op
+by design: restoring corrupted user ids is not a rollback goal.
+
+#### Scenario: mappable rows are corrected to the true tenant [integration]
+
+- **GIVEN** historical rows whose `accountId` holds a `CustomerUser.id` or was never written, some also carrying `context.metadata.accountId`
+- **WHEN** the backfill migration runs
+- **THEN** each row's `accountId` becomes the owning account (metadata preferred over the join), the count of rows matching any `CustomerUser.id` is **0**, and the row count is unchanged
+
+#### Scenario: an unmappable terminal row gets the sentinel and is reported [integration]
+
+- **GIVEN** a terminal-state row whose account is resolvable by neither metadata nor the join
+- **WHEN** the backfill migration runs
+- **THEN** the row is set to the documented sentinel, the migration reports the count of sentinel rows, and the row is neither deleted nor left holding a user id
+
+#### Scenario: an unmappable non-terminal row halts the migration [deploy-time]
+
+- **GIVEN** a PENDING or RUNNING row whose account is resolvable by neither source
+- **WHEN** the backfill migration runs
+- **THEN** the in-transaction `RAISE` HALTS the migration with no partial backfill committed and surfaces every offending saga id for operator resolution
+
+#### Scenario: a second run of the migration writes nothing [integration]
+
+- **GIVEN** the backfill has already repaired a set of rows
+- **WHEN** the same statements run again
+- **THEN** no row is written at all, so the cutover runbook's manual re-run is safe
+
+---
+
+### Requirement: SagaInstance's missing structural leg is recorded and escalated, not silently closed
+
+`SagaInstance` satisfies leg 2 (`TENANT_SCOPED_MODELS`) AND leg 3 (the table has carried
+the `tenant_isolation` RLS policy since `20260527000000_add_rls_tenant_isolation`, which
+lists it among the enrolled tables). The residual is leg 1 (non-null + `Account` relation +
+accountId-led index): `accountId` is nullable with no relation, so a NULL-sentinel row
+matches NO tenant GUC — it is reachable only under the system scope — and nothing
+structural prevents a future writer from leaving the column empty. Completing leg 1 is OUT
+OF SCOPE here: the column CANNOT be flipped non-null while the backfill's sentinel rows
+exist, so the sentinel disposition is a prerequisite decision. This change SHALL record the
+residual gap ACCURATELY in `docs/security/MULTI_TENANT_GUARDS.md` and file it as a tracked
+backlog item — it SHALL NOT be presented as closed, SHALL NOT be silently dropped, and
+SHALL NOT overstate itself by naming a leg that is in fact satisfied. The same recording
+obligation covers the guard-blind Redis fast path and the system-scoped engine by-id load
+whose control is the route ownership check.
+
+#### Scenario: the residual structural gap is documented and tracked [static]
+
+- **GIVEN** the change is applied
+- **WHEN** `docs/security/MULTI_TENANT_GUARDS.md` and the backlog are inspected
+- **THEN** the `SagaInstance` leg-1 gap is documented with its reason and its concrete consequence, the RLS policy is NOT reported as missing, the guard-blind cache read and the system-scoped by-id load are recorded as residuals rather than as closed controls, and a tracked backlog item exists for completing the enrollment

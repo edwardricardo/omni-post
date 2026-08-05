@@ -38,7 +38,12 @@ import {
   jsonSchemaTransform,
 } from "fastify-type-provider-zod";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
-import { closeDatabaseConnections, prisma, verifyDatabaseAuth } from "@infra/prisma";
+import {
+  closeDatabaseConnections,
+  prisma,
+  verifyDatabaseAuth,
+  type PrismaClient,
+} from "@infra/prisma";
 import type { QueuePortRegistry } from "@ports/core";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { RealtimeAnalyticsService } from "./analytics/realtimeAnalytics.js";
@@ -684,7 +689,11 @@ async function createApp(): Promise<FastifyInstance> {
   // services start and routes register as before.
   const sagaIntegration = new SagaIntegration({
     fastify: typedApp,
-    prisma,
+    // The saga engine gets the container's tenant-guarded client: every saga
+    // read is scoped and every saga write is validated against the account
+    // bound for that work. The engine declares its own context, since it runs
+    // detached from any request.
+    prisma: container.resolve<PrismaClient>(TOKENS.PrismaClient),
     ...(sagaEventService && { eventService: sagaEventService }),
     ...(sagaCQRSBus && { cqrsBus: sagaCQRSBus }),
     redis,
@@ -1115,6 +1124,21 @@ async function start() {
     // Graceful shutdown — inside start() so we have access to app and outbox references
     const shutdown = async (signal: string): Promise<void> => {
       logger.info({ signal }, "Shutting down gracefully...");
+      try {
+        await drainServices();
+      } catch (err) {
+        // A teardown step that throws must not strand the process: the server
+        // would keep its port and its database pool open until the supervisor
+        // killed it. Report the failed step, then close and exit anyway.
+        logger.error({ err, signal }, "Graceful shutdown step failed; closing the server anyway");
+      }
+
+      await app.close();
+      await closeDatabaseConnections();
+      process.exit(0);
+    };
+
+    const drainServices = async (): Promise<void> => {
       outboxRelay.stop();
       outboxCleaner.stop();
       await repurposeConsumer.close();
@@ -1190,10 +1214,6 @@ async function start() {
       if (analyticsRedis) {
         await analyticsRedis.quit();
       }
-
-      await app.close();
-      await closeDatabaseConnections();
-      process.exit(0);
     };
 
     process.on("SIGINT", () => {

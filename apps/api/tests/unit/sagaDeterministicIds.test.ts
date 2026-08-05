@@ -16,9 +16,14 @@ import {
 import type { Command } from "@shared/types/cqrs.js";
 
 function makeContext(): SagaContext {
-  return createSagaContext("saga-fixed-id", "corr-1", "user-1", {
-    mode: "publish-now",
-    postData: { body: "x", channelIds: ["c1"] },
+  return createSagaContext({
+    sagaId: "saga-fixed-id",
+    correlationId: "corr-1",
+    userId: "user-1",
+    metadata: {
+      mode: "publish-now",
+      postData: { body: "x", channelIds: ["c1"] },
+    },
   });
 }
 

@@ -9,7 +9,20 @@ import type { SagaDefinition, SagaInstance } from "@shared/types/saga.js";
 import { SAGA_EVENTS } from "@shared/types/saga.js";
 import { createEventStoreEvent, type EventStoreEvent } from "@shared/types/events.js";
 import type { SagaManagerLifecycle } from "./SagaManagerLifecycle.js";
-import type { SagaManagerConfig } from "./sagaManagerTypes.js";
+import type { SagaManagerConfig, SagaTransactionClient } from "./sagaManagerTypes.js";
+import {
+  resolveSagaTenant,
+  runAsSagaTenant,
+  runSagaTenantTransaction,
+  withSagaSystemRead,
+} from "./sagaTenant.js";
+import { deserializeSagaInstanceRow, type SagaInstanceRow } from "./sagaInstanceRow.js";
+import {
+  recordSagaFailed,
+  recordSagaRecoveryFailure,
+  type SagaFailureReason,
+} from "../metrics/sagaRecoveryMetrics.js";
+import { captureError } from "../observability/sentryInit.js";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
 
@@ -76,6 +89,35 @@ export class SagaExecutionEngine {
       logger.error({ definitionId: instance.definitionId }, "Saga definition not found");
       return;
     }
+
+    // Every step write and every engine persist below belongs to the saga's own
+    // account. Rehydrating it here keeps the guard's mismatch protection live on
+    // a path that has no request context to inherit. A saga whose tenant cannot
+    // be resolved is left untouched here and terminalized by the timeout
+    // checker — advancing it unscoped is the one thing this must never do.
+    const outcome = await runAsSagaTenant(
+      instance,
+      () => this.runSagaSteps(instance, definition),
+      this.lifecycle.metrics
+    );
+
+    if (!outcome.ran) {
+      logger.warn(
+        { sagaId, reason: outcome.reason },
+        "Saga execution skipped: awaiting terminalization by the timeout checker"
+      );
+    }
+  }
+
+  /**
+   * @method runSagaSteps
+   * @description Advances the saga through its remaining steps, persisting after
+   *   each one. Runs inside the saga's rehydrated tenant scope.
+   * @param instance - The saga being advanced.
+   * @param definition - The definition whose steps drive the walk.
+   */
+  private async runSagaSteps(instance: SagaInstance, definition: SagaDefinition): Promise<void> {
+    const sagaId = instance.id;
 
     instance.status = "RUNNING";
     await this.persistSagaInstance(instance);
@@ -250,6 +292,33 @@ export class SagaExecutionEngine {
       return;
     }
 
+    const outcome = await runAsSagaTenant(
+      instance,
+      () => this.runCompensationWalk(instance, definition),
+      this.lifecycle.metrics
+    );
+
+    if (!outcome.ran) {
+      logger.warn(
+        { sagaId, reason: outcome.reason },
+        "Saga compensation skipped: awaiting terminalization by the timeout checker"
+      );
+    }
+  }
+
+  /**
+   * @method runCompensationWalk
+   * @description Walks the compensable steps in reverse and marks the saga
+   *   COMPENSATED. Runs inside the saga's rehydrated tenant scope.
+   * @param instance - The saga being compensated.
+   * @param definition - The definition whose steps are walked back.
+   */
+  private async runCompensationWalk(
+    instance: SagaInstance,
+    definition: SagaDefinition
+  ): Promise<void> {
+    const sagaId = instance.id;
+
     for (let stepIndex = instance.currentStep - 1; stepIndex >= 0; stepIndex--) {
       const step = definition.steps[stepIndex];
       const stepResult = instance.stepResults[stepIndex];
@@ -399,7 +468,20 @@ export class SagaExecutionEngine {
     }
   }
 
-  async failSaga(instance: SagaInstance, error: string): Promise<void> {
+  /**
+   * @method failSaga
+   * @description Drives a saga to the terminal FAILED state, persisting the
+   *   outcome and its audit event.
+   * @param instance - The saga to fail.
+   * @param error - Operator-facing description of what ended it.
+   * @param reason - Failure class for the alerting series; defaults to a step
+   *   failure, which is what exhausted retries and thrown steps are.
+   */
+  async failSaga(
+    instance: SagaInstance,
+    error: string,
+    reason: SagaFailureReason = "step-failure"
+  ): Promise<void> {
     const completedAt = new Date();
     const executionTime = completedAt.getTime() - instance.startedAt.getTime();
 
@@ -432,8 +514,9 @@ export class SagaExecutionEngine {
 
     this.lifecycle.metrics.sagasFailed++;
     this.lifecycle.metrics.activeInstances--;
+    recordSagaFailed(reason);
 
-    logger.error({ sagaId: instance.id, error }, "Saga failed");
+    logger.error({ sagaId: instance.id, error, reason }, "Saga failed");
 
     await this.releaseAllLocks(instance.id);
   }
@@ -473,6 +556,69 @@ export class SagaExecutionEngine {
   private static readonly REDIS_TTL_SECONDS = 24 * 60 * 60;
 
   /**
+   * @method writeSagaState
+   * @description Writes the saga row and its audit events inside a transaction
+   *   the caller opened and scoped. Extracted so the scoped and the
+   *   account-less paths commit byte-identical state.
+   * @param tx - The open transaction client.
+   * @param instance - The saga being persisted.
+   * @param accountId - Owning account, or `null` when none resolved (key omitted).
+   * @param events - Durable events committing with the state.
+   */
+  private async writeSagaState(
+    tx: SagaTransactionClient,
+    instance: SagaInstance,
+    accountId: string | null,
+    events: EventStoreEvent[]
+  ): Promise<void> {
+    const contextJson = JSON.parse(JSON.stringify(instance.context));
+    const stepResultsJson = JSON.parse(JSON.stringify(instance.stepResults));
+    const compensationResultsJson = JSON.parse(JSON.stringify(instance.compensationResults));
+
+    // The update path explicitly null-clears nextRetryAt when the in-memory
+    // value is undefined, so a successful step (or saga completion) wipes the
+    // pending retry marker instead of leaving the checker to claim it again.
+    await tx.sagaInstance.upsert({
+      where: { id: instance.id },
+      create: {
+        id: instance.id,
+        definitionId: instance.definitionId,
+        status: instance.status,
+        currentStep: instance.currentStep,
+        context: contextJson,
+        stepResults: stepResultsJson,
+        compensationResults: compensationResultsJson,
+        retryCount: instance.retryCount,
+        startedAt: instance.startedAt,
+        ...(instance.error !== undefined && { error: instance.error }),
+        ...(accountId !== null && { accountId }),
+        ...(instance.completedAt && { completedAt: instance.completedAt }),
+        ...(instance.nextRetryAt && { nextRetryAt: instance.nextRetryAt }),
+      },
+      update: {
+        definitionId: instance.definitionId,
+        status: instance.status,
+        currentStep: instance.currentStep,
+        context: contextJson,
+        stepResults: stepResultsJson,
+        compensationResults: compensationResultsJson,
+        retryCount: instance.retryCount,
+        startedAt: instance.startedAt,
+        ...(instance.error !== undefined && { error: instance.error }),
+        ...(accountId !== null && { accountId }),
+        ...(instance.completedAt && { completedAt: instance.completedAt }),
+        nextRetryAt: instance.nextRetryAt ?? null,
+      },
+    });
+
+    for (const event of events) {
+      // eventService is guaranteed present during saga execution (only
+      // reachable after initialize(), which requires a full config).
+      await this.config.eventService!.appendEventInTx(tx, event);
+    }
+  }
+
+  /**
    * Dual-write persistence: PostgreSQL (durable) + Redis (hot cache).
    *
    * Strategy:
@@ -494,59 +640,44 @@ export class SagaExecutionEngine {
       ...(instance.nextRetryAt && { nextRetryAt: instance.nextRetryAt.toISOString() }),
     });
 
-    // Cast domain types to Prisma-compatible JSON values
-    const contextJson = JSON.parse(JSON.stringify(instance.context));
-    const stepResultsJson = JSON.parse(JSON.stringify(instance.stepResults));
-    const compensationResultsJson = JSON.parse(JSON.stringify(instance.compensationResults));
+    // The tenant column carries the OWNING ACCOUNT, never the acting user. A row
+    // whose column contradicts its context is refused here as well as at the
+    // rehydration: writing it would either advance the wrong tenant's saga or
+    // collide on the primary key once the guard narrowed the update away.
+    const resolution = resolveSagaTenant(instance);
+    if (resolution.kind === "tenant-mismatch") {
+      throw AppError.conflict(
+        `Refusing to persist saga '${instance.id}': the persisted account contradicts its context`,
+        {
+          sagaId: instance.id,
+          columnAccountId: resolution.columnAccountId,
+          contextAccountId: resolution.contextAccountId,
+        }
+      );
+    }
+    // When no account resolves the key is omitted entirely (not written as
+    // `undefined`) so `exactOptionalPropertyTypes` and Prisma both see an
+    // absent field rather than an explicit null.
+    const accountId = resolution.kind === "resolved" ? resolution.accountId : null;
 
     // Atomicity gate: saga state + durable event log commit together. Without
-    // the wrapping $transaction, a Postgres lag between sagaInstance.upsert
+    // the wrapping transaction, a Postgres lag between sagaInstance.upsert
     // and eventStore.append could leave the saga advanced but its audit
-    // event missing — OWASP A09 (Logging Failures) gap. Update path explicitly
-    // null-clears nextRetryAt when the in-memory value is undefined so a
-    // successful step (or saga completion) wipes the pending retry marker.
+    // event missing — OWASP A09 (Logging Failures) gap. The tenant variant
+    // additionally binds the transaction-local account scope, so the row-level
+    // policies govern the same rows the Prisma guard narrowed.
     try {
-      await this.config.prisma.$transaction(async (tx) => {
-        await tx.sagaInstance.upsert({
-          where: { id: instance.id },
-          create: {
-            id: instance.id,
-            definitionId: instance.definitionId,
-            status: instance.status,
-            currentStep: instance.currentStep,
-            context: contextJson,
-            stepResults: stepResultsJson,
-            compensationResults: compensationResultsJson,
-            retryCount: instance.retryCount,
-            startedAt: instance.startedAt,
-            ...(instance.error !== undefined && { error: instance.error }),
-            ...(instance.context.userId && { accountId: instance.context.userId }),
-            ...(instance.completedAt && { completedAt: instance.completedAt }),
-            ...(instance.nextRetryAt && { nextRetryAt: instance.nextRetryAt }),
-          },
-          update: {
-            definitionId: instance.definitionId,
-            status: instance.status,
-            currentStep: instance.currentStep,
-            context: contextJson,
-            stepResults: stepResultsJson,
-            compensationResults: compensationResultsJson,
-            retryCount: instance.retryCount,
-            startedAt: instance.startedAt,
-            ...(instance.error !== undefined && { error: instance.error }),
-            ...(instance.context.userId && { accountId: instance.context.userId }),
-            ...(instance.completedAt && { completedAt: instance.completedAt }),
-            nextRetryAt: instance.nextRetryAt ?? null,
-          },
-        });
-
-        for (const event of events) {
-          // eventService is guaranteed present during saga execution (only
-          // reachable after initialize(), which requires a full config).
-          await this.config.eventService!.appendEventInTx(tx, event);
-        }
-      });
+      if (accountId !== null) {
+        await runSagaTenantTransaction(this.config.prisma, accountId, (tx) =>
+          this.writeSagaState(tx, instance, accountId, events)
+        );
+      } else {
+        await this.config.prisma.$transaction((tx) =>
+          this.writeSagaState(tx, instance, accountId, events)
+        );
+      }
     } catch (err: unknown) {
+      captureError(err, { sagaId: instance.id, operation: "persistSagaInstance" });
       logger.error({ err, sagaId: instance.id }, "Failed to persist saga to PostgreSQL");
       throw err;
     }
@@ -601,11 +732,17 @@ export class SagaExecutionEngine {
       logger.warn({ err: error, sagaId }, "Redis read failed, falling back to PostgreSQL");
     }
 
-    // Slow path: PostgreSQL
+    // Slow path: PostgreSQL. The engine is triggered detached from any request
+    // (boot, scheduler tick, worker pub/sub), so which tenant owns this id is
+    // exactly what the read is here to discover. The declared system boundary
+    // is therefore scoped to the read itself and ends with it — everything the
+    // caller then does with the row runs under the saga's own rehydrated scope.
     try {
-      const row = await this.config.prisma.sagaInstance.findUnique({
-        where: { id: sagaId },
-      });
+      const row = await withSagaSystemRead(this.config.prisma, (tx) =>
+        tx.sagaInstance.findUnique({
+          where: { id: sagaId },
+        })
+      );
 
       if (!row) {
         return null;
@@ -627,7 +764,22 @@ export class SagaExecutionEngine {
 
       return instance;
     } catch (error) {
-      logger.error({ err: error, sagaId }, "Failed to load saga instance from PostgreSQL");
+      // An infrastructure failure is NOT an absent row: both used to return
+      // null, so a database outage read to every caller as "this saga does not
+      // exist". Counting it separately is what makes the two distinguishable
+      // from logs and metrics alone.
+      this.lifecycle.metrics.instanceLoadFailures++;
+      recordSagaRecoveryFailure("instance-load");
+      captureError(error, { sagaId, loop: "instance-load" });
+      logger.error(
+        {
+          err: error,
+          sagaId,
+          loop: "instance-load",
+          errorType: error instanceof Error ? error.name : typeof error,
+        },
+        "Failed to load saga instance from PostgreSQL"
+      );
       return null;
     }
   }
@@ -642,6 +794,10 @@ export class SagaExecutionEngine {
       definitionId: parsed.definitionId as string,
       status: parsed.status as SagaInstance["status"],
       currentStep: parsed.currentStep as number,
+      // The tenant column travels with the instance. Dropping it here would
+      // strand every row whose account lives only in the column — exactly the
+      // rows a data repair fixes — because the context alone cannot scope them.
+      ...(typeof parsed.accountId === "string" && { accountId: parsed.accountId }),
       context: parsed.context as SagaInstance["context"],
       stepResults: parsed.stepResults as SagaInstance["stepResults"],
       compensationResults: parsed.compensationResults as SagaInstance["compensationResults"],
@@ -657,33 +813,7 @@ export class SagaExecutionEngine {
     };
   }
 
-  private deserializePrismaRow(row: {
-    id: string;
-    definitionId: string;
-    status: string;
-    currentStep: number;
-    context: unknown;
-    stepResults: unknown;
-    compensationResults: unknown;
-    retryCount: number;
-    error: string | null;
-    startedAt: Date;
-    completedAt: Date | null;
-    nextRetryAt?: Date | null;
-  }): SagaInstance {
-    return {
-      id: row.id,
-      definitionId: row.definitionId,
-      status: row.status as SagaInstance["status"],
-      currentStep: row.currentStep,
-      context: row.context as SagaInstance["context"],
-      stepResults: row.stepResults as SagaInstance["stepResults"],
-      compensationResults: row.compensationResults as SagaInstance["compensationResults"],
-      retryCount: row.retryCount,
-      startedAt: row.startedAt,
-      ...(row.error !== null && { error: row.error }),
-      ...(row.completedAt !== null && { completedAt: row.completedAt }),
-      ...(row.nextRetryAt && { nextRetryAt: row.nextRetryAt }),
-    };
+  private deserializePrismaRow(row: SagaInstanceRow): SagaInstance {
+    return deserializeSagaInstanceRow(row);
   }
 }

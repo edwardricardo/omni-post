@@ -25,9 +25,14 @@ import {
   type MockEventService,
 } from "../unit/sagaManager.test-helpers.js";
 
+/** Account every harness saga is owned by — a saga without one is a corrupted row. */
+const CHAOS_ACCOUNT_ID = "acc-chaos-0000-4000-8000-000000000001";
+
 export interface ChaosHarness {
   manager: SagaManagerImpl;
   scheduler: NoopBackgroundTaskScheduler;
+  /** The tenant every saga started through this harness belongs to. */
+  accountId: string;
   mockPrisma: MockPrismaClient;
   mockRedis: MockRedis;
   mockEventService: MockEventService;
@@ -58,6 +63,7 @@ export async function createChaosHarness(): Promise<ChaosHarness> {
   return {
     manager,
     scheduler,
+    accountId: CHAOS_ACCOUNT_ID,
     mockPrisma,
     mockRedis,
     mockEventService,

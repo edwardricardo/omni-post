@@ -8,6 +8,7 @@
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
+  TEST_ACCOUNT_ID,
   createMockRedis,
   createMockEventService,
   createSimpleSagaDefinition,
@@ -85,7 +86,7 @@ describe("V5: Terminal State Guard", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const saga = await manager.getSaga(instance.id);
@@ -97,7 +98,7 @@ describe("V5: Terminal State Guard", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const sagaBefore = await manager.getSaga(instance.id);
@@ -124,7 +125,7 @@ describe("V5: Terminal State Guard", () => {
     };
     manager.registerSaga(failDef);
 
-    const instance = await manager.startSaga(failDef.id, {});
+    const instance = await manager.startSaga(failDef.id, { accountId: TEST_ACCOUNT_ID });
     await new Promise((resolve) => setTimeout(resolve, 300));
 
     const sagaAfterFail = await manager.getSaga(instance.id);
@@ -145,7 +146,7 @@ describe("V5: Terminal State Guard", () => {
     manager.registerSaga(definition);
 
     // startSaga creates a PENDING saga and then executes it
-    const instance = await manager.startSaga(definition.id, {});
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
     expect(instance).toBeTruthy();
 
     // Wait for async execution

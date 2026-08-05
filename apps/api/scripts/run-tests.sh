@@ -165,6 +165,12 @@ CONCURRENCY=1 run_batch "integration:outbox" \
 CONCURRENCY=1 run_batch "integration:consumers" \
   tests/integration/consumers/workerConnection.integration.test.ts
 
+# Chaos scenarios. They drive the saga engine against in-memory doubles, so no
+# service is required, but they are node:test files and therefore belong to a
+# batch — a suite that no batch lists is a suite that never runs.
+CONCURRENCY=1 run_batch "chaos" \
+  tests/chaos/saga-step-retry-recovery.test.ts
+
 # Two-tenant isolation proofs for the tenant-guard rollout. Each suite seeds
 # two tenants against the real DB and drives the guarded client / in-process
 # routes (app.inject — no live server), so this is a DB-only batch. Bundled
@@ -186,6 +192,8 @@ CONCURRENCY=1 run_batch "integration:tenant-isolation" \
   tests/integration/preAuthSsoTenantIsolation.test.ts \
   tests/integration/preAuthBillingTenantIsolation.test.ts \
   tests/integration/preAuthInboundWebhookTenantIsolation.test.ts \
+  tests/integration/sagaTenantIsolation.test.ts \
+  tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts \
   tests/integration/rls-tenant-isolation.test.ts
 
 fi # run_db_batches
@@ -202,6 +210,14 @@ CONCURRENCY=1 run_batch "integration:flows" \
   tests/auth.test.ts tests/audit.test.ts tests/cache.test.ts \
   tests/security.test.ts \
   tests/integration/publishing/failedWrite.smoke.test.ts
+
+# Saga customer flow against the live API. Its own batch because the file's
+# worst case is ~110s+ (one 60s horizon plus one 90s horizon plus the short
+# tests) and the default 30000 test timeout would cancel them. Listed here to
+# close a blind spot: this suite existed on disk but belonged to no batch, so
+# `test:all` never ran it.
+CONCURRENCY=1 TIMEOUT=180000 run_batch "integration:saga-live" \
+  tests/integration/sagaCustomerFlow.test.ts
 
 CONCURRENCY=1 TIMEOUT=60000 run_batch "flow" \
   tests/publish.flow.test.ts tests/analytics.flow.test.ts tests/media.flow.test.ts tests/schedule.flow.test.ts

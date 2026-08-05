@@ -8,6 +8,14 @@ import { SagaDefinition, SagaStep, SagaContext, SagaStepResult } from "@shared/t
 import { EventStoreEvent } from "@shared/types/events.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 
+/**
+ * Account every test saga belongs to. The engine rehydrates a saga's owning
+ * account before it runs any step or persists any state, and skips work it
+ * cannot scope to a tenant — so a saga started without one models a corrupted
+ * row, not a normal one.
+ */
+export const TEST_ACCOUNT_ID = "acc-11111111-1111-4111-8111-111111111111";
+
 export interface MockPrismaClient {
   $queryRaw: (query: any) => Promise<any>;
   $executeRaw: (query: any) => Promise<any>;

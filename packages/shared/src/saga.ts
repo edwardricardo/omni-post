@@ -47,6 +47,12 @@ export interface SagaContext {
   sagaId: string;
   correlationId: string;
   userId?: string;
+  /**
+   * Account that owns the saga. This is the tenant scope the engine persists
+   * and rehydrates for detached work; `userId` stays the audit identity and is
+   * never a substitute for it.
+   */
+  accountId?: string;
   metadata: Record<string, unknown>;
   stepData: Record<string, unknown>;
   events: EventStoreEvent[];
@@ -253,6 +259,14 @@ export interface SagaInstance {
   definitionId: string;
   status: SagaStatus;
   currentStep: number;
+  /**
+   * Account that owns the persisted row — the tenant column as the database
+   * holds it. It is the AUTHORITATIVE source when the engine resolves which
+   * tenant a detached saga belongs to: a row repaired by a data migration
+   * carries the true account here and nowhere else, so an instance that drops
+   * it can never be scoped again.
+   */
+  accountId?: string;
   context: SagaContext;
   stepResults: SagaStepResult[];
   compensationResults: SagaStepResult[];
@@ -978,17 +992,29 @@ export function createSagaId(definitionId: string): string {
   return `saga-${definitionId}-${randomUUID()}`;
 }
 
-export function createSagaContext(
-  sagaId: string,
-  correlationId: string,
-  userId?: string,
-  metadata: Record<string, unknown> = {}
-): SagaContext {
+/**
+ * Inputs for a saga context. A parameter object rather than a positional list:
+ * `accountId` (the tenant scope) and `userId` (the acting identity) are both
+ * optional strings, so a positional signature let one silently take the other's
+ * slot — the exact confusion that put a user id in the tenant column.
+ */
+export interface CreateSagaContextInput {
+  sagaId: string;
+  correlationId: string;
+  /** Account that owns the saga — the tenant scope for every persisted row. */
+  accountId?: string;
+  /** Customer user that started the saga — audit identity, never a tenant. */
+  userId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export function createSagaContext(input: CreateSagaContextInput): SagaContext {
   return {
-    sagaId,
-    correlationId,
-    ...(userId && { userId }),
-    metadata,
+    sagaId: input.sagaId,
+    correlationId: input.correlationId,
+    ...(input.userId && { userId: input.userId }),
+    ...(input.accountId && { accountId: input.accountId }),
+    metadata: input.metadata ?? {},
     stepData: {},
     events: [],
   };

@@ -9,6 +9,18 @@ import type { SagaManager, SagaDefinition, SagaInstance, SagaContext } from "@sh
 import { createSagaId, createSagaContext, SAGA_EVENTS } from "@shared/types/saga.js";
 import type { EventStoreEvent } from "@shared/types/events.js";
 import { createEventStoreEvent } from "@shared/types/events.js";
+import {
+  failSagaAsSystem,
+  newSagaRecoveryCorrelationId,
+  resolveContextAccountId,
+  resolveSagaTenant,
+  runAsSagaTenant,
+  withSagaSystemRead,
+  type SagaTenantSkipReason,
+} from "./sagaTenant.js";
+import { deserializeSagaInstanceRow } from "./sagaInstanceRow.js";
+import { recordSagaRecoveryFailure } from "../metrics/sagaRecoveryMetrics.js";
+import { captureError } from "../observability/sentryInit.js";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
 import type {
@@ -19,6 +31,23 @@ import type {
 
 // Re-export for consumers that import types from this file.
 export type { SagaManagerConfig, SagaMetrics } from "./sagaManagerTypes.js";
+
+/**
+ * Saga engine health. `degraded` is distinct from `unhealthy` on purpose: the
+ * dependencies answer, but the process could not read what was in flight when it
+ * started, so it is serving without recovery coverage.
+ */
+export interface SagaHealthReport {
+  status: "healthy" | "degraded" | "unhealthy";
+  details: {
+    definitionsRegistered: number;
+    activeInstances: number;
+    database: boolean;
+    redis: boolean;
+    /** False when the boot recovery load failed for this process. */
+    recoveredAtBoot: boolean;
+  };
+}
 
 /**
  * Saga lifecycle management: init, register, start, get, shutdown
@@ -33,6 +62,12 @@ export class SagaManagerLifecycle implements SagaManager {
     sagasCompensated: 0,
     averageExecutionTime: 0,
     activeInstances: 0,
+    bootLoadFailures: 0,
+    recoveryScanFailures: 0,
+    rehydrationFailures: 0,
+    tenantMismatches: 0,
+    timeoutCheckFailures: 0,
+    instanceLoadFailures: 0,
   };
   readonly executionTimes: number[] = [];
 
@@ -52,7 +87,26 @@ export class SagaManagerLifecycle implements SagaManager {
     // invoked during full startup, never in schema-only mode).
     await this.config.eventService!.initialize();
 
-    await this.loadActiveSagas();
+    // One correlation id per recovery pass, so an operator can join the load,
+    // whatever it registered, and any failure it hit. A failed load must not
+    // kill boot, but it must never read as an empty successful one either.
+    const correlationId = newSagaRecoveryCorrelationId();
+    try {
+      await this.loadActiveSagas(correlationId);
+    } catch (error) {
+      this.metrics.bootLoadFailures++;
+      recordSagaRecoveryFailure("boot");
+      captureError(error, { loop: "boot-load", correlationId });
+      logger.error(
+        {
+          err: error,
+          loop: "boot-load",
+          errorType: error instanceof Error ? error.name : typeof error,
+          correlationId,
+        },
+        "Failed to load active sagas from PostgreSQL"
+      );
+    }
 
     this.startTimeoutChecker();
     this.startMetricsCollector();
@@ -87,18 +141,41 @@ export class SagaManagerLifecycle implements SagaManager {
     const sagaId = createSagaId(definitionId);
     const correlationId = contextData.correlationId || `corr-${sagaId}`;
 
-    const context = createSagaContext(
+    const context = createSagaContext({
       sagaId,
       correlationId,
-      contextData.userId,
-      contextData.metadata || {}
-    );
+      ...(contextData.accountId !== undefined && { accountId: contextData.accountId }),
+      ...(contextData.userId !== undefined && { userId: contextData.userId }),
+      metadata: contextData.metadata || {},
+    });
+
+    // Fail CLOSED before anything is written. A saga created without a
+    // resolvable owning account can never be scoped afterwards: every detached
+    // path would skip it and it would sit non-terminal until a timeout. The two
+    // account sources must also agree, because the pivot step's fail-closed
+    // check reads the metadata copy while the engine scopes on the field — a
+    // divergence there would publish under one account and persist under another.
+    const startAccountId = resolveContextAccountId(context);
+    if (startAccountId === null) {
+      throw AppError.badRequest(`Saga '${definitionId}' cannot start without an owning account`, {
+        definitionId,
+      });
+    }
+    const metadataAccountId = context.metadata.accountId;
+    if (typeof metadataAccountId === "string" && metadataAccountId !== startAccountId) {
+      throw AppError.badRequest(`Saga '${definitionId}' declares two different owning accounts`, {
+        definitionId,
+        contextAccountId: startAccountId,
+        metadataAccountId,
+      });
+    }
 
     const instance: SagaInstance = {
       id: sagaId,
       definitionId,
       status: "PENDING",
       currentStep: 0,
+      accountId: startAccountId,
       context,
       stepResults: [],
       compensationResults: [],
@@ -152,6 +229,21 @@ export class SagaManagerLifecycle implements SagaManager {
       );
     }
 
+    // The dispatch below is detached, and the engine SKIPS a saga it cannot
+    // scope to a tenant. Resolving here — through the same rehydration the
+    // engine would use, so the miss is logged and counted once — is the only
+    // point at which the operator who pressed the button can be told. Answering
+    // 200 made a saga that never resumed look resumed, exactly as the sibling
+    // compensate endpoint used to.
+    const outcome = await runAsSagaTenant(instance, async () => undefined, this.metrics);
+
+    if (!outcome.ran) {
+      throw AppError.conflict(
+        `Saga '${sagaId}' cannot be continued: its owning account is unresolvable (${outcome.reason})`,
+        { sagaId, reason: outcome.reason }
+      );
+    }
+
     this.executionEngine.executeSagaAsync(sagaId);
 
     return instance;
@@ -185,7 +277,25 @@ export class SagaManagerLifecycle implements SagaManager {
       }
     );
 
-    await this.executionEngine.persistSagaInstance(instance, [compensationStartedEvent]);
+    // Reached from the admin route, which authenticates an operator and binds
+    // no tenant scope, so the write rehydrates the saga's own account. The
+    // dispatch below stays outside every declared context.
+    const outcome = await runAsSagaTenant(
+      instance,
+      () => this.executionEngine.persistSagaInstance(instance, [compensationStartedEvent]),
+      this.metrics
+    );
+
+    if (!outcome.ran) {
+      // The operator asked for compensation and it did not start. Answering
+      // with a success envelope here is what made an unscopable saga look
+      // compensated to whoever pressed the button.
+      instance.status = "FAILED";
+      throw AppError.conflict(
+        `Saga '${sagaId}' cannot be compensated: its owning account is unresolvable (${outcome.reason})`,
+        { sagaId, reason: outcome.reason }
+      );
+    }
 
     this.executionEngine.compensateSagaAsync(sagaId);
 
@@ -238,15 +348,7 @@ export class SagaManagerLifecycle implements SagaManager {
     };
   }
 
-  async healthCheck(): Promise<{
-    status: "healthy" | "unhealthy";
-    details: {
-      definitionsRegistered: number;
-      activeInstances: number;
-      database: boolean;
-      redis: boolean;
-    };
-  }> {
+  async healthCheck(): Promise<SagaHealthReport> {
     try {
       await this.config.prisma.$queryRaw`SELECT 1`;
       const dbHealthy = true;
@@ -254,16 +356,24 @@ export class SagaManagerLifecycle implements SagaManager {
       const redisResponse = await this.config.redis.ping();
       const redisHealthy = redisResponse === "PONG";
 
+      // A process whose boot load failed is REACHABLE but does not know which
+      // sagas were in flight when it started. Reporting that as healthy is how
+      // a permanently blind engine passes every probe it is asked.
+      const recoveredAtBoot = this.metrics.bootLoadFailures === 0;
+      const dependenciesHealthy = dbHealthy && redisHealthy;
+
       return {
-        status: dbHealthy && redisHealthy ? "healthy" : "unhealthy",
+        status: !dependenciesHealthy ? "unhealthy" : recoveredAtBoot ? "healthy" : "degraded",
         details: {
           definitionsRegistered: this.definitions.size,
           activeInstances: this.activeInstances.size,
           database: dbHealthy,
           redis: redisHealthy,
+          recoveredAtBoot,
         },
       };
     } catch (error) {
+      captureError(error, { operation: "sagaHealthCheck" });
       logger.error({ err: error }, "Saga Manager health check failed");
       return {
         status: "unhealthy",
@@ -272,6 +382,7 @@ export class SagaManagerLifecycle implements SagaManager {
           activeInstances: this.activeInstances.size,
           database: false,
           redis: false,
+          recoveredAtBoot: this.metrics.bootLoadFailures === 0,
         },
       };
     }
@@ -285,9 +396,34 @@ export class SagaManagerLifecycle implements SagaManager {
     logger.info("Shutting down Saga Manager");
 
     for (const instance of this.activeInstances.values()) {
-      if (instance.status === "RUNNING") {
+      if (instance.status !== "RUNNING") continue;
+
+      // One saga that cannot be parked must not stop the others from being
+      // parked, and must not stop the process from shutting down: a drain that
+      // throws here used to abort the whole teardown.
+      try {
         instance.status = "PENDING";
-        await this.executionEngine.persistSagaInstance(instance);
+        const outcome = await runAsSagaTenant(
+          instance,
+          () => this.executionEngine.persistSagaInstance(instance),
+          this.metrics
+        );
+        if (!outcome.ran) {
+          logger.warn(
+            { sagaId: instance.id, reason: outcome.reason },
+            "Saga not parked on shutdown: its owning account is unresolvable"
+          );
+        }
+      } catch (error) {
+        captureError(error, { sagaId: instance.id, operation: "sagaShutdownPark" });
+        logger.error(
+          {
+            err: error,
+            sagaId: instance.id,
+            errorType: error instanceof Error ? error.name : typeof error,
+          },
+          "Failed to park a running saga during shutdown"
+        );
       }
     }
 
@@ -308,69 +444,58 @@ export class SagaManagerLifecycle implements SagaManager {
    * This survives a Redis restart because the durable store is the source
    * of truth. Each loaded saga is also re-warmed into the Redis hot cache
    * via `persistSagaInstance` so subsequent reads are fast.
+   *
+   * The scan itself spans every tenant and runs before any of them is known,
+   * so it declares the saga system boundary — narrowed to the read. The rows it
+   * returns are then re-warmed under each saga's own rehydrated scope.
+   *
+   * @param correlationId - Identifier joining this recovery pass in the logs.
    */
-  private async loadActiveSagas(): Promise<void> {
-    try {
-      const rows = await this.config.prisma.sagaInstance.findMany({
+  private async loadActiveSagas(correlationId: string): Promise<void> {
+    const rows = await withSagaSystemRead(this.config.prisma, (tx) =>
+      tx.sagaInstance.findMany({
         where: {
           status: { in: ["RUNNING", "PENDING"] },
         },
-      });
+      })
+    );
 
-      for (const row of rows) {
-        const instance = this.deserializePrismaRow(row);
-        this.activeInstances.set(instance.id, instance);
-        this.metrics.activeInstances++;
+    let skipped = 0;
+    for (const row of rows) {
+      const instance = deserializeSagaInstanceRow(row);
+      this.activeInstances.set(instance.id, instance);
+      this.metrics.activeInstances++;
 
-        // Re-warm Redis cache (fire-and-forget)
-        this.executionEngine.persistSagaInstance(instance).catch((err: unknown) => {
+      // Re-warm Redis cache (fire-and-forget). The outcome is consumed rather
+      // than discarded: a re-warm that never ran is a saga this process cannot
+      // scope, which the operator needs in the same correlated pass.
+      const rewarm = runAsSagaTenant(
+        instance,
+        () => this.executionEngine.persistSagaInstance(instance),
+        this.metrics
+      );
+      void rewarm
+        .then((outcome) => {
+          if (!outcome.ran) {
+            skipped++;
+            logger.warn(
+              { sagaId: instance.id, reason: outcome.reason, correlationId },
+              "Loaded saga could not be re-warmed: its owning account is unresolvable"
+            );
+          }
+        })
+        .catch((err: unknown) => {
           logger.warn(
-            { err, sagaId: instance.id },
+            { err, sagaId: instance.id, correlationId },
             "Failed to re-warm Redis cache during recovery"
           );
         });
-      }
-
-      logger.info(
-        { count: this.activeInstances.size },
-        "Loaded active saga instances from PostgreSQL"
-      );
-    } catch (error) {
-      logger.error({ err: error }, "Failed to load active sagas from PostgreSQL");
     }
-  }
 
-  /**
-   * Convert a Prisma SagaInstance row into the domain SagaInstance type.
-   */
-  private deserializePrismaRow(row: {
-    id: string;
-    definitionId: string;
-    status: string;
-    currentStep: number;
-    context: unknown;
-    stepResults: unknown;
-    compensationResults: unknown;
-    retryCount: number;
-    error: string | null;
-    startedAt: Date;
-    completedAt: Date | null;
-    nextRetryAt?: Date | null;
-  }): SagaInstance {
-    return {
-      id: row.id,
-      definitionId: row.definitionId,
-      status: row.status as SagaInstance["status"],
-      currentStep: row.currentStep,
-      context: row.context as SagaInstance["context"],
-      stepResults: row.stepResults as SagaInstance["stepResults"],
-      compensationResults: row.compensationResults as SagaInstance["compensationResults"],
-      retryCount: row.retryCount,
-      startedAt: row.startedAt,
-      ...(row.error !== null && { error: row.error }),
-      ...(row.completedAt !== null && { completedAt: row.completedAt }),
-      ...(row.nextRetryAt && { nextRetryAt: row.nextRetryAt }),
-    };
+    logger.info(
+      { count: this.activeInstances.size, skipped, correlationId },
+      "Loaded active saga instances from PostgreSQL"
+    );
   }
 
   /**
@@ -383,26 +508,46 @@ export class SagaManagerLifecycle implements SagaManager {
     this.config.scheduler.register(
       "saga-retry-recovery",
       async () => {
+        const correlationId = newSagaRecoveryCorrelationId();
         try {
           const now = new Date();
-          const dueRows = await this.config.prisma.sagaInstance.findMany({
-            where: {
-              status: "RUNNING",
-              nextRetryAt: { lte: now, not: null },
-            },
-            select: { id: true },
-            take: 50,
-          });
+          // Tenant-unknown by construction: the tick asks which sagas are due
+          // across every account. The boundary ends with the read so the
+          // resumes below run under each saga's own rehydrated scope. Ordering
+          // by due time makes the `take` window deterministic — an unordered
+          // limit lets the same late saga fall off the page on every tick.
+          const dueRows = await withSagaSystemRead(this.config.prisma, (tx) =>
+            tx.sagaInstance.findMany({
+              where: {
+                status: "RUNNING",
+                nextRetryAt: { lte: now, not: null },
+              },
+              select: { id: true },
+              orderBy: { nextRetryAt: "asc" },
+              take: 50,
+            })
+          );
 
           for (const { id: sagaId } of dueRows) {
             this.executionEngine.executeSagaAsync(sagaId);
           }
 
           if (dueRows.length > 0) {
-            logger.info({ count: dueRows.length }, "Resumed sagas with due retries");
+            logger.info({ count: dueRows.length, correlationId }, "Resumed sagas with due retries");
           }
         } catch (err) {
-          logger.error({ err }, "Saga retry recovery scan failed");
+          this.metrics.recoveryScanFailures++;
+          recordSagaRecoveryFailure("retry-scan");
+          captureError(err, { loop: "retry-recovery-scan", correlationId });
+          logger.error(
+            {
+              err,
+              loop: "retry-recovery-scan",
+              errorType: err instanceof Error ? err.name : typeof err,
+              correlationId,
+            },
+            "Saga retry recovery scan failed"
+          );
         }
       },
       5000
@@ -413,21 +558,114 @@ export class SagaManagerLifecycle implements SagaManager {
     this.config.scheduler.register(
       "saga-timeout-checker",
       async () => {
+        const correlationId = newSagaRecoveryCorrelationId();
         for (const [sagaId, instance] of this.activeInstances) {
-          const definition = this.definitions.get(instance.definitionId);
-          if (!definition) continue;
-
-          const timeout = definition.timeout || this.config.defaultTimeout || 30 * 60 * 1000;
-          const elapsed = Date.now() - instance.startedAt.getTime();
-
-          if (elapsed > timeout) {
-            logger.warn({ sagaId, elapsedMs: elapsed, timeoutMs: timeout }, "Saga timeout");
-            await this.executionEngine.failSaga(instance, "Saga timeout exceeded");
+          // Per saga, not per pass: one row that throws used to end the pass,
+          // so every saga after it in the map went unchecked until the next
+          // tick — and forever if the same row threw again.
+          try {
+            await this.checkSagaTimeout(sagaId, instance);
+          } catch (error) {
+            this.metrics.timeoutCheckFailures++;
+            recordSagaRecoveryFailure("timeout");
+            captureError(error, { loop: "timeout-checker", sagaId, correlationId });
+            logger.error(
+              {
+                err: error,
+                loop: "timeout-checker",
+                errorType: error instanceof Error ? error.name : typeof error,
+                sagaId,
+                correlationId,
+              },
+              "Saga timeout check failed"
+            );
           }
         }
       },
       60000
     );
+  }
+
+  /**
+   * Fails one saga that has outlived its timeout. A saga the engine cannot scope
+   * to a tenant is TERMINALIZED instead: no tenant-scoped statement can address
+   * it, so without this it would stay non-terminal forever while every tick
+   * logged and counted it again — the infinite RUNNING state the saga canon
+   * forbids.
+   */
+  private async checkSagaTimeout(sagaId: string, instance: SagaInstance): Promise<void> {
+    const definition = this.definitions.get(instance.definitionId);
+    if (!definition) return;
+
+    const timeout = definition.timeout || this.config.defaultTimeout || 30 * 60 * 1000;
+    const elapsed = Date.now() - instance.startedAt.getTime();
+    if (elapsed <= timeout) return;
+
+    logger.warn({ sagaId, elapsedMs: elapsed, timeoutMs: timeout }, "Saga timeout");
+
+    const outcome = await runAsSagaTenant(
+      instance,
+      () => this.executionEngine.failSaga(instance, "Saga timeout exceeded", "timeout"),
+      this.metrics
+    );
+
+    if (!outcome.ran) {
+      await this.terminalizeUnscopableSaga(sagaId, instance, outcome.reason);
+    }
+  }
+
+  /**
+   * Drives a saga no tenant scope can address to FAILED through the engine's
+   * single system-scoped write, and stops tracking it so the checker cannot
+   * revisit it on the next tick.
+   *
+   * The decision is re-taken against a FRESH row first. The in-memory copy was
+   * loaded at boot and can be arbitrarily old, while the documented repair for
+   * this row class is re-running the idempotent backfill — which happens
+   * underneath a live process. Terminalizing on the stale copy would kill a saga
+   * that had just been made resumable again.
+   */
+  private async terminalizeUnscopableSaga(
+    sagaId: string,
+    instance: SagaInstance,
+    reason: SagaTenantSkipReason
+  ): Promise<void> {
+    const row = await withSagaSystemRead(this.config.prisma, (tx) =>
+      tx.sagaInstance.findUnique({ where: { id: sagaId } })
+    );
+
+    if (!row) {
+      // Nothing left to terminalize; an update by primary key would only throw.
+      this.stopTracking(sagaId);
+      logger.warn({ sagaId }, "Unscopable saga vanished before terminalization; stopped tracking");
+      return;
+    }
+
+    const fresh = deserializeSagaInstanceRow(row);
+    if (resolveSagaTenant(fresh).kind === "resolved") {
+      this.activeInstances.set(sagaId, fresh);
+      logger.info(
+        { sagaId, definitionId: fresh.definitionId, previousReason: reason },
+        "Unscopable saga became resolvable; refreshed instead of terminalized"
+      );
+      return;
+    }
+
+    // The FRESH row is what gets terminalized, not the copy the re-read exists
+    // to distrust: the audit event carries duration and step tallies, and taking
+    // those from a stale in-memory instance would record the transition against
+    // state the database no longer holds.
+    await failSagaAsSystem(this.config, fresh, reason);
+
+    this.stopTracking(sagaId);
+    this.metrics.sagasFailed++;
+  }
+
+  /** Drops a saga from the in-memory set and keeps the gauge consistent. */
+  private stopTracking(sagaId: string): void {
+    if (this.activeInstances.delete(sagaId)) {
+      this.metrics.activeInstances--;
+    }
   }
 
   private startMetricsCollector(): void {

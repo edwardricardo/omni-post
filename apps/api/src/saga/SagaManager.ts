@@ -9,12 +9,13 @@ import type { SagaManager, SagaDefinition, SagaInstance, SagaContext } from "@sh
 import type { EventStoreEvent } from "@shared/types/events.js";
 import {
   SagaManagerLifecycle,
+  type SagaHealthReport,
   type SagaManagerConfig,
   type SagaMetrics,
 } from "./SagaManagerLifecycle.js";
 import { SagaExecutionEngine } from "./SagaManagerExecution.js";
 
-export type { SagaManagerConfig, SagaMetrics };
+export type { SagaManagerConfig, SagaMetrics, SagaHealthReport };
 
 export class SagaManagerImpl implements SagaManager {
   private lifecycle: SagaManagerLifecycle;
@@ -60,15 +61,7 @@ export class SagaManagerImpl implements SagaManager {
     return this.lifecycle.getMetrics();
   }
 
-  async healthCheck(): Promise<{
-    status: "healthy" | "unhealthy";
-    details: {
-      definitionsRegistered: number;
-      activeInstances: number;
-      database: boolean;
-      redis: boolean;
-    };
-  }> {
+  async healthCheck(): Promise<SagaHealthReport> {
     return this.lifecycle.healthCheck();
   }
 
