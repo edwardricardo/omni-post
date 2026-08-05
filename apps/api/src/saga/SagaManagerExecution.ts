@@ -655,10 +655,14 @@ export class SagaExecutionEngine {
     // is therefore scoped to the read itself and ends with it — everything the
     // caller then does with the row runs under the saga's own rehydrated scope.
     try {
-      const row = await withSystemContext(SAGA_SYSTEM_REASON, () =>
-        this.config.prisma.sagaInstance.findUnique({
-          where: { id: sagaId },
-        })
+      // Awaited inside the wrap: a lazy Prisma promise handed back unawaited
+      // would run after the declared context was released.
+      const row = await withSystemContext(
+        SAGA_SYSTEM_REASON,
+        async () =>
+          await this.config.prisma.sagaInstance.findUnique({
+            where: { id: sagaId },
+          })
       );
 
       if (!row) {

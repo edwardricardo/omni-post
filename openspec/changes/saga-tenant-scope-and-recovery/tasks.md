@@ -197,7 +197,7 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
 
 ## Phase 5: D4 — backfill migration [SENSITIVE — token]
 
-- [ ] 5.1 [RED] Create
+- [x] 5.1 [RED] Create
       `apps/api/tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts`
       (node:test, real DB, raw SQL allowed in tests): seed the four disposition classes
       **including W1's NULL class** — (a) metadata-mappable, both `accountId = <CustomerUser.id>`
@@ -208,7 +208,7 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
       `RAISE EXCEPTION` aborts with NO partial commit and surfaces the offending ids. Plus:
       idempotent re-run is a no-op, row count preserved, and the success query returns **0**
       rows whose `accountId` matches any `CustomerUser.id`. RED until 5.2.
-- [ ] 5.2 [SENSITIVE][GREEN] Author
+- [x] 5.2 [SENSITIVE][GREEN] Author
       `infra/prisma/migrations/{ts}_backfill_saga_instance_account_id/migration.sql` —
       data-only, idempotent, re-runnable, in ONE transaction, in this order:
       (1) metadata-first (authoritative) `SET "accountId" = si.context->'metadata'->>'accountId'`
@@ -223,16 +223,16 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
       the ids. Header comment carries the cutover runbook line (old-code writes in the
       migrate-deploy→cutover gap re-corrupt at worst a handful of rows; the statements are
       idempotent — re-run manually; D3's fail-loud rehydration catches the rest).
-- [ ] 5.3 [SENSITIVE][GREEN] `down.sql`: documented **no-op by design** — restoring
+- [x] 5.3 [SENSITIVE][GREEN] `down.sql`: documented **no-op by design** — restoring
       corrupted user ids is not a rollback goal; post-backfill values are true accountIds
       and stay correct even if the code reverts.
-- [ ] 5.4 DBUP + MIGRATE apply → clean; run INT 5.1 → GREEN, 0 cancelled. Verify the
+- [x] 5.4 DBUP + MIGRATE apply → clean; run INT 5.1 → GREEN, 0 cancelled. Verify the
       success criterion on the dev DB: zero rows whose `accountId` matches any
       `CustomerUser.id`; row count preserved.
 
 ## Phase 6: RED→GREEN — two-tenant saga isolation (MERGE-BLOCKING)
 
-- [ ] 6.1 [RED] Create `apps/api/tests/integration/sagaTenantIsolation.test.ts` (node:test,
+- [x] 6.1 [RED] Create `apps/api/tests/integration/sagaTenantIsolation.test.ts` (node:test,
       real DB, `@file`/`@description`/`@layer infrastructure`). Build the production shape
       in-test: own `SagaManagerImpl` on a guarded test client
       (`$extends(tenantGuardExtension)` + the real ALS provider), two accounts A and B, and a
@@ -254,25 +254,25 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
       removed by the harness → an ERROR log naming the loop + error type + correlation id is
       emitted AND the failure counter increments — the tick does NOT report as an empty
       successful scan.
-- [ ] 6.2 [GREEN] `apps/api/scripts/run-tests.sh`: add `tests/integration/sagaTenantIsolation.test.ts`
+- [x] 6.2 [GREEN] `apps/api/scripts/run-tests.sh`: add `tests/integration/sagaTenantIsolation.test.ts`
       and `tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts` to the
       DB-only `integration:tenant-isolation` batch (`:173-189`).
-- [ ] 6.3 Run the batch (DBUP first) → GREEN, 0 failed, 0 cancelled, 0 skipped.
+- [x] 6.3 Run the batch (DBUP first) → GREEN, 0 failed, 0 cancelled, 0 skipped.
 
 ## Phase 7: Docs + spec sync + PR1 0-defect gate
 
-- [ ] 7.1 `docs/security/MULTI_TENANT_GUARDS.md` (W3d): record the saga posture (engine on
+- [x] 7.1 `docs/security/MULTI_TENANT_GUARDS.md` (W3d): record the saga posture (engine on
       the guarded client, `SAGA_SYSTEM_REASON` boundary, rehydrated per-saga tenant context)
       AND the residual gaps per multi-tenant-isolation Req 4 — `SagaInstance` leg 1
       (nullable `accountId`, no `Account` relation, `schema.prisma:2058`; cannot flip
       non-null while NULL sentinel rows exist) and leg 3 (no RLS policy), the Redis
       fast-path guard-blind read, and the CQRSBus dedupe residual. File the tracked backlog
       item for completing enrollment — the gap SHALL NOT be presented as closed.
-- [ ] 7.2 Mirror the PR1 delta requirements into the living
+- [x] 7.2 Mirror the PR1 delta requirements into the living
       `openspec/specs/multi-tenant-isolation/spec.md` and
       `openspec/specs/tenant-context-boundaries/spec.md` (including the Phase-0.3 preamble
       correction and the C1/C2 amended wording).
-- [ ] 7.3 **0-defect gate (PR1)**: `tsc` (@apps/api, @shared/types, @infra/prisma build) = 0;
+- [x] 7.3 **0-defect gate (PR1)**: `tsc` (@apps/api, @shared/types, @infra/prisma build) = 0;
       `eslint --max-warnings 0` on touched files = 0; prettier clean; fitness
       **#3 / #8 / #9 / #10 / #21 / #23 = 0** (`index.ts` is an explicit #21 exemption; #23
       untouched — `Lifecycle:251` is the backtick form, migration SQL is not TS);

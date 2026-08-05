@@ -1,0 +1,806 @@
+/**
+ * @file sagaTenantIsolation.test.ts
+ * @description MERGE-BLOCKING two-tenant isolation proof for the saga engine,
+ *   run against a REAL Postgres and a REAL Redis with the engine wired exactly
+ *   as production wires it: a base client extended with `tenantGuardExtension`
+ *   over the real AsyncLocalStorage provider, handed to a `SagaManagerLifecycle`
+ *   + `SagaExecutionEngine` pair (the composition `SagaManagerImpl` performs).
+ *
+ *   The engine runs detached from any HTTP request, so its isolation rests on
+ *   two mechanisms this suite exercises separately:
+ *
+ *     - REHYDRATION — per-saga work binds the saga's OWN account, so the guard
+ *       validates every write instead of skipping it. Proven by starting a saga
+ *       under a customer's context, by a detached retry resume that records the
+ *       tenant its step observed, and by a persist that disagrees with the bound
+ *       account and is rejected inside the engine's own transaction.
+ *     - DECLARED SYSTEM CONTEXT — the tenant-unknown scans (boot load, retry
+ *       recovery) read across accounts under one fixed reason, scoped to the
+ *       query. Proven by observing the reason and the returned ids at the client
+ *       boundary, and by removing the declared context from the guard's view and
+ *       asserting the loop counts and logs the failure instead of reporting an
+ *       empty successful scan.
+ *
+ *   Two residuals are PINNED here rather than hidden, so a later change cannot
+ *   widen them silently:
+ *
+ *     - the engine's by-id load runs under the declared system context (the read
+ *       exists to discover which tenant owns the id), so a manager-level read is
+ *       NOT guard-scoped; the customer route's ownership check is its control.
+ *       The guard-scoped proof therefore goes through the guarded client
+ *       directly, and the Redis fast path is emptied first so it cannot satisfy
+ *       the assertion by returning a cached row.
+ *     - the Redis hot cache is guard-blind by construction; the suite asserts
+ *       the cached value exists, deletes it, and only then reads.
+ *
+ *   Requires Postgres + Redis up (`pnpm db:up`).
+ *
+ * @layer infrastructure
+ */
+
+import { describe, it, before, after } from "node:test";
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { Redis } from "ioredis";
+import pino from "pino";
+import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
+import {
+  tenantGuardExtension,
+  TenantContextMismatchError,
+  TenantContextMissingError,
+} from "@infra/prisma/extensions/tenantGuard.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import {
+  createSagaContext,
+  defineSaga,
+  type PivotStep,
+  type SagaContext,
+  type SagaDefinition,
+  type SagaInstance,
+  type SagaStepResult,
+} from "@shared/types/saga.js";
+import {
+  getSystemContext,
+  getTenantContext,
+  withTenantContext,
+} from "../../src/security/tenantContext.js";
+import { SagaManagerLifecycle } from "../../src/saga/SagaManagerLifecycle.js";
+import { SagaExecutionEngine } from "../../src/saga/SagaManagerExecution.js";
+import { SAGA_SYSTEM_REASON } from "../../src/saga/sagaTenant.js";
+import { EventService } from "../../src/events/EventService.js";
+import { logger } from "../../src/lib/logger.js";
+
+const TAG = `saga-iso-${Date.now()}`;
+const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
+const PROBE_DEFINITION_ID = `${TAG}-probe-saga`;
+const RETRY_RECOVERY_TASK_ID = "saga-retry-recovery";
+
+/** One `sagaInstance.findMany` seen at the client boundary. */
+interface ScanObservation {
+  /** Declared system reason active when the scan ran, if any. */
+  reason: string | undefined;
+  /** Whether a tenant scope was bound — a scan must need none. */
+  tenantBound: boolean;
+  ids: string[];
+}
+
+/** Tenant scope a probe step observed while the engine executed it. */
+interface StepObservation {
+  sagaId: string;
+  boundAccountId: string | undefined;
+}
+
+interface Tenant {
+  accountId: string;
+  customerUserId: string;
+  /** Terminal row used for the cross-tenant read/mutation proofs. */
+  isolationSagaId: string;
+  /** Non-terminal row with no pending retry — boot-load population. */
+  bootSagaId: string;
+  /** Non-terminal row with an elapsed retry — retry-checker population. */
+  retrySagaId: string;
+}
+
+/** Records the tenant scope the engine bound before running the step. */
+const stepObservations: StepObservation[] = [];
+
+const probeStep: PivotStep = {
+  id: "tenant-probe",
+  name: "Tenant Probe",
+  class: "pivot",
+  async execute(context: SagaContext): Promise<SagaStepResult> {
+    stepObservations.push({
+      sagaId: context.sagaId,
+      boundAccountId: getTenantContext()?.accountId,
+    });
+    return { success: true, data: { observed: true } };
+  },
+};
+
+const probeDefinition: SagaDefinition = defineSaga({
+  id: PROBE_DEFINITION_ID,
+  name: "Tenant Isolation Probe Saga",
+  version: "1.0.0",
+  preCommit: [],
+  pivot: probeStep,
+  postCommit: [],
+});
+
+/** Parses one pino line, returning null when the chunk is not JSON. */
+function safeParseLogLine(raw: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Runs `action` with the shared logger's destination swapped for a recorder.
+ * The engine logs through a module-scoped pino instance, so intercepting its
+ * stream is the only way to assert what an operator would actually see.
+ */
+async function captureLogs(action: () => Promise<void>): Promise<Record<string, unknown>[]> {
+  const streamSymbol = pino.symbols.streamSym;
+  const holder = logger as unknown as Record<symbol, unknown>;
+  const original = holder[streamSymbol];
+  const lines: Record<string, unknown>[] = [];
+
+  holder[streamSymbol] = {
+    write(chunk: string): void {
+      for (const raw of chunk.split("\n")) {
+        if (raw.trim().length === 0) continue;
+        const parsed = safeParseLogLine(raw);
+        if (parsed !== null) {
+          lines.push(parsed);
+        }
+      }
+    },
+  };
+
+  try {
+    await action();
+  } finally {
+    holder[streamSymbol] = original;
+  }
+
+  return lines;
+}
+
+/**
+ * Wraps a client so every `sagaInstance.findMany` records the context it ran
+ * under. The scans are the only engine reads that legitimately span tenants,
+ * so observing them at the client boundary is what proves the declaration.
+ */
+function withScanProbe(client: PrismaClient, sink: ScanObservation[]): PrismaClient {
+  const bindIfCallable = (value: unknown, owner: object): unknown =>
+    typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(owner) : value;
+
+  return new Proxy(client, {
+    get(target, property) {
+      const value = Reflect.get(target, property) as unknown;
+      if (property !== "sagaInstance") {
+        return bindIfCallable(value, target);
+      }
+
+      const model = value as object;
+      return new Proxy(model, {
+        get(modelTarget, modelProperty) {
+          const modelValue = Reflect.get(modelTarget, modelProperty) as unknown;
+          if (modelProperty !== "findMany") {
+            return bindIfCallable(modelValue, modelTarget);
+          }
+
+          const findMany = modelValue as (args?: unknown) => Promise<{ id: string }[]>;
+          return async (args?: unknown): Promise<{ id: string }[]> => {
+            const reason = getSystemContext()?.reason;
+            const tenantBound = getTenantContext() !== undefined;
+            const rows = await findMany.call(modelTarget, args);
+            sink.push({ reason, tenantBound, ids: rows.map((row) => row.id) });
+            return rows;
+          };
+        },
+      });
+    },
+  }) as unknown as PrismaClient;
+}
+
+describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency: 1 }, () => {
+  let base: PrismaClient;
+  let guarded: PrismaClient;
+  let blinded: PrismaClient;
+  let redis: Redis;
+  let eventService: EventService;
+
+  /** Request-shaped manager: starts sagas, persists, never runs a loop. */
+  let requestEngine: SagaExecutionEngine;
+  let requestLifecycle: SagaManagerLifecycle;
+
+  /** Recovery-shaped manager: boots and ticks with no tenant bound. */
+  let recoveryLifecycle: SagaManagerLifecycle;
+  let recoveryScheduler: NoopBackgroundTaskScheduler;
+  const recoveryScans: ScanObservation[] = [];
+
+  /** Same shape as the recovery manager, but the guard sees no declared context. */
+  let blindedLifecycle: SagaManagerLifecycle;
+  let blindedScheduler: NoopBackgroundTaskScheduler;
+
+  let tenantA: Tenant;
+  let tenantB: Tenant;
+
+  function buildInstance(params: {
+    id: string;
+    accountId: string;
+    userId: string;
+    status: SagaInstance["status"];
+    nextRetryAt?: Date;
+  }): SagaInstance {
+    return {
+      id: params.id,
+      definitionId: PROBE_DEFINITION_ID,
+      status: params.status,
+      currentStep: 0,
+      context: createSagaContext(
+        params.id,
+        `corr-${params.id}`,
+        params.userId,
+        { accountId: params.accountId },
+        params.accountId
+      ),
+      stepResults: [],
+      compensationResults: [],
+      startedAt: new Date(),
+      retryCount: 0,
+      ...(params.nextRetryAt !== undefined && { nextRetryAt: params.nextRetryAt }),
+    };
+  }
+
+  async function seedTenant(name: string): Promise<Tenant> {
+    const account = await base.account.create({
+      data: {
+        name: `${TAG}-${name}`,
+        email: `${TAG}-${name}-${randomUUID()}@test.local`,
+        slug: `${TAG}-${name}-${randomUUID()}`,
+      },
+    });
+    const customerUser = await base.customerUser.create({
+      data: {
+        accountId: account.id,
+        email: `${TAG}-${name}-user-${randomUUID()}@test.local`,
+        passwordHash: "ignored-for-test",
+        firstName: "Saga",
+        lastName: `Tenant${name}`,
+      },
+    });
+
+    const tenant: Tenant = {
+      accountId: account.id,
+      customerUserId: customerUser.id,
+      isolationSagaId: `${TAG}-${name}-isolation-${randomUUID()}`,
+      bootSagaId: `${TAG}-${name}-boot-${randomUUID()}`,
+      retrySagaId: `${TAG}-${name}-retry-${randomUUID()}`,
+    };
+
+    // Written through the ENGINE under the tenant's own rehydrated scope, so
+    // every seeded row also proves the guarded write path for that account.
+    const elapsedRetry = new Date(Date.now() - 60_000);
+    await withTenantContext({ accountId: account.id }, async () => {
+      await requestEngine.persistSagaInstance(
+        buildInstance({
+          id: tenant.isolationSagaId,
+          accountId: account.id,
+          userId: customerUser.id,
+          status: "COMPLETED",
+        })
+      );
+      await requestEngine.persistSagaInstance(
+        buildInstance({
+          id: tenant.bootSagaId,
+          accountId: account.id,
+          userId: customerUser.id,
+          status: "RUNNING",
+        })
+      );
+      await requestEngine.persistSagaInstance(
+        buildInstance({
+          id: tenant.retrySagaId,
+          accountId: account.id,
+          userId: customerUser.id,
+          status: "RUNNING",
+          nextRetryAt: elapsedRetry,
+        })
+      );
+    });
+
+    return tenant;
+  }
+
+  function allSagaIds(): string[] {
+    return [tenantA, tenantB].flatMap((tenant) => [
+      tenant.isolationSagaId,
+      tenant.bootSagaId,
+      tenant.retrySagaId,
+    ]);
+  }
+
+  async function waitFor(
+    predicate: () => Promise<boolean>,
+    description: string,
+    timeoutMs = 20_000
+  ): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      if (await predicate()) return;
+      if (Date.now() > deadline) {
+        assert.fail(`timed out after ${timeoutMs}ms waiting for: ${description}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+
+  before(async () => {
+    base = createTestPrismaClient();
+    redis = new Redis(REDIS_URL, { maxRetriesPerRequest: 2, lazyConnect: false });
+
+    guarded = base.$extends(
+      tenantGuardExtension({ getTenantContext, getSystemContext })
+    ) as unknown as PrismaClient;
+
+    // Same guard, but the declared system context is invisible to it — the
+    // harness's way of removing a background loop's declared context.
+    blinded = base.$extends(
+      tenantGuardExtension({ getTenantContext, getSystemContext: () => undefined })
+    ) as unknown as PrismaClient;
+
+    const probedGuarded = withScanProbe(guarded, recoveryScans);
+
+    eventService = new EventService({
+      prisma: guarded,
+      redis,
+      scheduler: new NoopBackgroundTaskScheduler(),
+    });
+    await eventService.initialize();
+
+    const buildManager = (
+      prisma: PrismaClient,
+      scheduler: NoopBackgroundTaskScheduler
+    ): { lifecycle: SagaManagerLifecycle; execution: SagaExecutionEngine } => {
+      const config = { prisma, redis, eventService, scheduler, enableMetrics: true };
+      const lifecycle = new SagaManagerLifecycle(config);
+      const execution = new SagaExecutionEngine(config, lifecycle);
+      lifecycle.executionEngine = execution;
+      lifecycle.registerSaga(probeDefinition);
+      return { lifecycle, execution };
+    };
+
+    const request = buildManager(guarded, new NoopBackgroundTaskScheduler());
+    requestLifecycle = request.lifecycle;
+    requestEngine = request.execution;
+
+    recoveryScheduler = new NoopBackgroundTaskScheduler();
+    recoveryLifecycle = buildManager(probedGuarded, recoveryScheduler).lifecycle;
+
+    blindedScheduler = new NoopBackgroundTaskScheduler();
+    blindedLifecycle = buildManager(blinded, blindedScheduler).lifecycle;
+
+    tenantA = await seedTenant("A");
+    tenantB = await seedTenant("B");
+  });
+
+  after(async () => {
+    const sagaIds = allSagaIds();
+    const accountIds = [tenantA?.accountId, tenantB?.accountId].filter(
+      (id): id is string => typeof id === "string"
+    );
+
+    await base.sagaInstance
+      .deleteMany({ where: { OR: [{ id: { in: sagaIds } }, { accountId: { in: accountIds } }] } })
+      .catch(() => undefined);
+    await base.storedEvent
+      .deleteMany({ where: { streamId: { in: sagaIds.map((id) => `Saga:${id}`) } } })
+      .catch(() => undefined);
+    await base.customerUser
+      .deleteMany({ where: { accountId: { in: accountIds } } })
+      .catch(() => undefined);
+    await base.account.deleteMany({ where: { id: { in: accountIds } } }).catch(() => undefined);
+
+    if (sagaIds.length > 0) {
+      await redis.del(...sagaIds.map((id) => `saga:${id}`)).catch(() => undefined);
+    }
+    await redis.quit();
+    await base.$disconnect();
+  });
+
+  describe("the fixture premise", () => {
+    it("gives each tenant a user id that is not its account id", () => {
+      assert.notStrictEqual(
+        tenantA.customerUserId,
+        tenantA.accountId,
+        "the auth boundary derives the user from `sub` and the tenant from `accountId`; equal values would let every proof below pass by coincidence"
+      );
+      assert.notStrictEqual(tenantB.customerUserId, tenantB.accountId);
+      assert.notStrictEqual(
+        tenantA.accountId,
+        tenantB.accountId,
+        "the two tenants must be distinct accounts"
+      );
+    });
+  });
+
+  describe("a saga started inside a customer request", () => {
+    it("persists the owning account, never the acting user, and raises no mismatch", async () => {
+      const failuresBefore = requestLifecycle.metrics.rehydrationFailures;
+
+      const started = await withTenantContext({ accountId: tenantA.accountId }, () =>
+        requestLifecycle.startSaga(PROBE_DEFINITION_ID, {
+          userId: tenantA.customerUserId,
+          accountId: tenantA.accountId,
+          metadata: { accountId: tenantA.accountId },
+        })
+      );
+
+      await waitFor(async () => {
+        const row = await base.sagaInstance.findUnique({ where: { id: started.id } });
+        return row?.status === "COMPLETED";
+      }, `started saga ${started.id} reaching COMPLETED`);
+
+      const row = await base.sagaInstance.findUniqueOrThrow({ where: { id: started.id } });
+      assert.strictEqual(
+        row.accountId,
+        tenantA.accountId,
+        "the persisted tenant column carries the owning account"
+      );
+      assert.notStrictEqual(
+        row.accountId,
+        tenantA.customerUserId,
+        "the acting user id must never reach the tenant column"
+      );
+      assert.strictEqual(
+        requestLifecycle.metrics.rehydrationFailures,
+        failuresBefore,
+        "a saga started with a resolvable account never falls into the fail-loud path"
+      );
+
+      const observed = stepObservations.find((entry) => entry.sagaId === started.id);
+      assert.ok(observed, "the probe step must have executed");
+      assert.strictEqual(
+        observed.boundAccountId,
+        tenantA.accountId,
+        "the step ran scoped to the saga's own account"
+      );
+
+      await base.sagaInstance.deleteMany({ where: { id: started.id } });
+      await base.storedEvent.deleteMany({ where: { streamId: `Saga:${started.id}` } });
+      await redis.del(`saga:${started.id}`);
+    });
+  });
+
+  describe("cross-tenant access through the guarded client", () => {
+    it("hides the other tenant's saga from a by-id read once the Redis fast path is empty", async () => {
+      const cacheKey = `saga:${tenantB.isolationSagaId}`;
+
+      await waitFor(
+        async () => (await redis.get(cacheKey)) !== null,
+        `Redis hot cache to hold ${cacheKey}`
+      );
+
+      // The fast path returns before any guarded read, so the proof would be
+      // vacuous while the cached copy exists.
+      await redis.del(cacheKey);
+      assert.strictEqual(
+        await redis.get(cacheKey),
+        null,
+        "the cached copy must be gone before the guarded read is exercised"
+      );
+
+      // Every query below is awaited INSIDE its context callback: a Prisma call
+      // is lazy, so returning it unawaited would run it after the scope closed.
+      const readByForeignTenant = await withTenantContext(
+        { accountId: tenantA.accountId },
+        async () =>
+          await guarded.sagaInstance.findUnique({ where: { id: tenantB.isolationSagaId } })
+      );
+
+      assert.strictEqual(
+        readByForeignTenant,
+        null,
+        "the guard scopes the read to A, so B's saga resolves to nothing — a NOT_FOUND, never a 403 and never an error"
+      );
+
+      const ownRead = await withTenantContext(
+        { accountId: tenantB.accountId },
+        async () =>
+          await guarded.sagaInstance.findUnique({ where: { id: tenantB.isolationSagaId } })
+      );
+      assert.strictEqual(
+        ownRead?.id,
+        tenantB.isolationSagaId,
+        "the owning tenant still reads its own saga, so the null above is scoping and not absence"
+      );
+    });
+
+    it("returns none of the other tenant's sagas when listing", async () => {
+      const listed = await withTenantContext(
+        { accountId: tenantA.accountId },
+        async () =>
+          await guarded.sagaInstance.findMany({
+            where: { definitionId: PROBE_DEFINITION_ID },
+            select: { id: true, accountId: true },
+          })
+      );
+
+      assert.ok(listed.length > 0, "A must see its own sagas");
+      assert.ok(
+        listed.some((row) => row.id === tenantA.isolationSagaId),
+        "A's own saga is present, so the list is not empty by accident"
+      );
+      assert.ok(
+        listed.every((row) => row.accountId === tenantA.accountId),
+        "every listed row belongs to A"
+      );
+      for (const foreignId of [tenantB.isolationSagaId, tenantB.bootSagaId, tenantB.retrySagaId]) {
+        assert.ok(
+          !listed.some((row) => row.id === foreignId),
+          `B's saga ${foreignId} must not appear in A's listing`
+        );
+      }
+    });
+
+    it("refuses to mutate the other tenant's saga and leaves the row untouched", async () => {
+      // A scoped bulk update simply matches nothing — the clearest proof that
+      // the guard narrowed the target rather than failing for another reason.
+      const bulk = await withTenantContext(
+        { accountId: tenantA.accountId },
+        async () =>
+          await guarded.sagaInstance.updateMany({
+            where: { id: tenantB.isolationSagaId },
+            data: { status: "FAILED" },
+          })
+      );
+      assert.strictEqual(bulk.count, 0, "a foreign update must match zero rows");
+
+      await assert.rejects(
+        () =>
+          withTenantContext(
+            { accountId: tenantA.accountId },
+            async () =>
+              await guarded.sagaInstance.update({
+                where: { id: tenantB.isolationSagaId },
+                data: { status: "FAILED" },
+              })
+          ),
+        (error: unknown) => {
+          assert.ok(
+            !(error instanceof TenantContextMissingError),
+            "the rejection must come from tenant SCOPING, not from an undeclared context"
+          );
+          return true;
+        }
+      );
+
+      const victim = await base.sagaInstance.findUniqueOrThrow({
+        where: { id: tenantB.isolationSagaId },
+      });
+      assert.strictEqual(victim.status, "COMPLETED", "B's saga keeps its status");
+      assert.strictEqual(victim.accountId, tenantB.accountId, "B's saga keeps its tenant");
+    });
+
+    it("pins the residual: the engine's by-id load is system-scoped, so the route ownership check is the control", async () => {
+      await redis.del(`saga:${tenantB.isolationSagaId}`);
+
+      const loaded = await withTenantContext({ accountId: tenantA.accountId }, () =>
+        requestEngine.loadSagaInstance(tenantB.isolationSagaId)
+      );
+
+      // Documented, accepted residual: the load exists to discover which tenant
+      // owns an id, so it declares the system reason and the guard does not
+      // scope it. The customer route answers 404 on the ownership check instead.
+      assert.ok(
+        loaded,
+        "the engine load is deliberately not guard-scoped — recorded so it cannot widen unnoticed"
+      );
+      assert.notStrictEqual(
+        loaded.context.userId,
+        tenantA.customerUserId,
+        "the route's ownership check compares the saga's userId against the caller and answers NOT_FOUND here"
+      );
+    });
+  });
+
+  describe("a persist that disagrees with the bound tenant", () => {
+    it("is rejected inside the engine transaction, writes no row, and is visible in the logs", async () => {
+      const foreignSagaId = `${TAG}-mismatch-${randomUUID()}`;
+      const ownedByB = buildInstance({
+        id: foreignSagaId,
+        accountId: tenantB.accountId,
+        userId: tenantB.customerUserId,
+        status: "RUNNING",
+      });
+
+      let raised: unknown;
+      const lines = await captureLogs(async () => {
+        await withTenantContext({ accountId: tenantA.accountId }, async () => {
+          try {
+            await requestEngine.persistSagaInstance(ownedByB);
+          } catch (error) {
+            raised = error;
+          }
+        });
+      });
+
+      assert.ok(
+        raised instanceof TenantContextMismatchError,
+        `a saga carrying account B must be rejected under A's scope, got: ${String(raised)}`
+      );
+
+      const written = await base.sagaInstance.findUnique({ where: { id: foreignSagaId } });
+      assert.strictEqual(written, null, "the rejected persist must leave no row behind");
+
+      const persistFailure = lines.find(
+        (line) => line.sagaId === foreignSagaId && line.level === "error"
+      );
+      assert.ok(persistFailure, "the rejection must be logged at ERROR, never swallowed");
+      assert.strictEqual(
+        persistFailure.msg,
+        "Failed to persist saga to PostgreSQL",
+        "the log names the failing operation"
+      );
+    });
+  });
+
+  describe("the background scans with no tenant bound", () => {
+    it("loads both tenants' sagas at boot under the declared system reason", async () => {
+      const before = recoveryScans.length;
+      const failuresBefore = recoveryLifecycle.metrics.bootLoadFailures;
+
+      assert.strictEqual(
+        getTenantContext(),
+        undefined,
+        "the boot path must be exercised with no tenant bound at all"
+      );
+      await recoveryLifecycle.initialize();
+
+      const bootScans = recoveryScans.slice(before);
+      assert.strictEqual(bootScans.length, 1, "boot performs exactly one instance scan");
+
+      const scan = bootScans[0];
+      assert.strictEqual(
+        scan?.reason,
+        SAGA_SYSTEM_REASON,
+        "the scan declares the single saga system reason"
+      );
+      assert.strictEqual(scan?.tenantBound, false, "the scan runs without any tenant scope");
+      for (const expectedId of [
+        tenantA.bootSagaId,
+        tenantA.retrySagaId,
+        tenantB.bootSagaId,
+        tenantB.retrySagaId,
+      ]) {
+        assert.ok(
+          scan?.ids.includes(expectedId),
+          `the boot scan must observe ${expectedId} across both accounts`
+        );
+      }
+      assert.strictEqual(
+        recoveryLifecycle.metrics.bootLoadFailures,
+        failuresBefore,
+        "a declared scan raises no TenantContextMissingError"
+      );
+
+      // Each loaded row is re-warmed under its OWN rehydrated tenant; the cache
+      // entry reappearing is that write completing through the guard.
+      await waitFor(
+        async () => (await redis.get(`saga:${tenantB.bootSagaId}`)) !== null,
+        "the boot re-warm to persist B's saga under B's rehydrated scope"
+      );
+    });
+
+    it("sees both tenants' due retries in one tick and resumes each under its own tenant", async () => {
+      const before = recoveryScans.length;
+      const failuresBefore = recoveryLifecycle.metrics.recoveryScanFailures;
+
+      await recoveryScheduler.triggerTask(RETRY_RECOVERY_TASK_ID);
+
+      const tickScans = recoveryScans.slice(before);
+      assert.strictEqual(tickScans.length, 1, "one tick performs exactly one due-set scan");
+
+      const scan = tickScans[0];
+      assert.strictEqual(scan?.reason, SAGA_SYSTEM_REASON, "the tick declares the same reason");
+      assert.strictEqual(scan?.tenantBound, false, "the tick runs without any tenant scope");
+      assert.ok(
+        scan?.ids.includes(tenantA.retrySagaId) && scan.ids.includes(tenantB.retrySagaId),
+        "one tick observes the due retries of BOTH accounts"
+      );
+      assert.strictEqual(
+        recoveryLifecycle.metrics.recoveryScanFailures,
+        failuresBefore,
+        "a declared scan raises no TenantContextMissingError"
+      );
+
+      await waitFor(async () => {
+        const rows = await base.sagaInstance.findMany({
+          where: { id: { in: [tenantA.retrySagaId, tenantB.retrySagaId] } },
+          select: { id: true, status: true },
+        });
+        return rows.length === 2 && rows.every((row) => row.status === "COMPLETED");
+      }, "both resumed sagas reaching COMPLETED");
+
+      for (const tenant of [tenantA, tenantB]) {
+        const observed = stepObservations.find((entry) => entry.sagaId === tenant.retrySagaId);
+        assert.ok(observed, `the resumed step must have executed for ${tenant.retrySagaId}`);
+        assert.strictEqual(
+          observed.boundAccountId,
+          tenant.accountId,
+          "a detached resume runs under the saga's own rehydrated tenant, not the other account and not unscoped"
+        );
+
+        const row = await base.sagaInstance.findUniqueOrThrow({
+          where: { id: tenant.retrySagaId },
+        });
+        assert.strictEqual(
+          row.accountId,
+          tenant.accountId,
+          "the resumed persist keeps the saga on its owning account"
+        );
+      }
+    });
+  });
+
+  describe("a background loop whose declared context is removed", () => {
+    it("counts and logs the boot-load failure instead of booting as if nothing was in flight", async () => {
+      const failuresBefore = blindedLifecycle.metrics.bootLoadFailures;
+
+      const lines = await captureLogs(async () => {
+        await blindedLifecycle.initialize();
+      });
+
+      assert.strictEqual(
+        blindedLifecycle.metrics.bootLoadFailures,
+        failuresBefore + 1,
+        "the failure is counted, so an operator can tell a broken load from an empty one"
+      );
+
+      const failure = lines.find((line) => line.loop === "boot-load");
+      assert.ok(failure, "the boot load failure must be logged");
+      assert.strictEqual(failure.level, "error", "a swallowed scan failure must surface at ERROR");
+      assert.strictEqual(
+        failure.errorType,
+        "TenantContextMissingError",
+        "the log names the error type"
+      );
+      assert.match(
+        String(failure.correlationId),
+        /^saga-recovery-/,
+        "the log carries the pass correlation id"
+      );
+    });
+
+    it("counts and logs a failing retry tick instead of reporting an empty successful scan", async () => {
+      const failuresBefore = blindedLifecycle.metrics.recoveryScanFailures;
+
+      const lines = await captureLogs(async () => {
+        await blindedScheduler.triggerTask(RETRY_RECOVERY_TASK_ID);
+      });
+
+      assert.strictEqual(
+        blindedLifecycle.metrics.recoveryScanFailures,
+        failuresBefore + 1,
+        "the tick increments the failure counter — an empty successful scan increments nothing"
+      );
+
+      const failure = lines.find((line) => line.loop === "retry-recovery-scan");
+      assert.ok(failure, "the failing tick must be logged");
+      assert.strictEqual(failure.level, "error", "a failing tick must surface at ERROR");
+      assert.strictEqual(
+        failure.errorType,
+        "TenantContextMissingError",
+        "the log names the error type"
+      );
+      assert.match(
+        String(failure.correlationId),
+        /^saga-recovery-/,
+        "the log carries the tick correlation id"
+      );
+    });
+  });
+});

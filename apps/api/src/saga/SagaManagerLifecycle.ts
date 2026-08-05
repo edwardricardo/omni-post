@@ -351,12 +351,17 @@ export class SagaManagerLifecycle implements SagaManager {
    * @param correlationId - Identifier joining this recovery pass in the logs.
    */
   private async loadActiveSagas(correlationId: string): Promise<void> {
-    const rows = await withSystemContext(SAGA_SYSTEM_REASON, () =>
-      this.config.prisma.sagaInstance.findMany({
-        where: {
-          status: { in: ["RUNNING", "PENDING"] },
-        },
-      })
+    // The read is awaited INSIDE the wrap: a Prisma call is lazy and only
+    // reaches the database when awaited, so handing the unawaited promise back
+    // would run the query after the declared context had already been released.
+    const rows = await withSystemContext(
+      SAGA_SYSTEM_REASON,
+      async () =>
+        await this.config.prisma.sagaInstance.findMany({
+          where: {
+            status: { in: ["RUNNING", "PENDING"] },
+          },
+        })
     );
 
     for (const row of rows) {
@@ -432,15 +437,19 @@ export class SagaManagerLifecycle implements SagaManager {
           // Tenant-unknown by construction: the tick asks which sagas are due
           // across every account. The boundary ends with the read so the
           // resumes below run under each saga's own rehydrated scope.
-          const dueRows = await withSystemContext(SAGA_SYSTEM_REASON, () =>
-            this.config.prisma.sagaInstance.findMany({
-              where: {
-                status: "RUNNING",
-                nextRetryAt: { lte: now, not: null },
-              },
-              select: { id: true },
-              take: 50,
-            })
+          // Awaited inside the wrap: a lazy Prisma promise handed back
+          // unawaited would run after the declared context was released.
+          const dueRows = await withSystemContext(
+            SAGA_SYSTEM_REASON,
+            async () =>
+              await this.config.prisma.sagaInstance.findMany({
+                where: {
+                  status: "RUNNING",
+                  nextRetryAt: { lte: now, not: null },
+                },
+                select: { id: true },
+                take: 50,
+              })
           );
 
           for (const { id: sagaId } of dueRows) {

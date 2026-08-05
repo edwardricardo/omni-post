@@ -462,6 +462,102 @@ account is unknown at that point (key-prefix lookup, gateway-customer→account
 mapping, webhook subscription resolution by provider). They are covered by the
 two-tenant `preAuth*TenantIsolation` integration suites.
 
+### Saga engine — declared system reads, rehydrated per-saga writes
+
+The saga engine runs detached from any HTTP request: it boots, ticks on a
+scheduler, and resumes from worker pub/sub. It therefore cannot inherit a
+request's tenant scope, and until this change it was not even holding a guarded
+client — the bootstrap handed it the raw `@infra/prisma` singleton, so layer 1
+was simply absent from its write path and `context.userId` (a `CustomerUser.id`)
+persisted into `SagaInstance.accountId` unnoticed. The corrective posture has
+three parts.
+
+| Concern                                                                                                | Posture                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Client                                                                                                 | The bootstrap constructs `SagaIntegration` with `container.resolve(TOKENS.PrismaClient)` — the guarded client. No saga-engine construction path takes the raw singleton (enforced by a merge-blocking source scan).                                                                                          |
+| Tenant-unknown reads (boot load, retry scan, by-id instance load)                                      | `withSystemContext(SAGA_SYSTEM_REASON)` where `SAGA_SYSTEM_REASON = "system:saga-recovery"` — the single reason the engine may use. Each wrap is scoped to the query expression and ends with it.                                                                                                            |
+| Per-saga work (step loop, every engine persist, compensation, timeout failure, shutdown, boot re-warm) | `runAsSagaTenant(instance, fn)` rehydrates the saga's own `accountId` via `withTenantContext`, so the guard VALIDATES those writes instead of skipping them. A saga with no resolvable account is skipped loudly (ERROR + `rehydrationFailures`), never run unscoped and never downgraded to system context. |
+
+Two invariants make the shape safe rather than merely declared:
+
+- **A system wrap never encloses a dispatch.** `executeSagaAsync` /
+  `compensateSagaAsync` use `setImmediate`, through which AsyncLocalStorage
+  propagates. A wrap spanning a dispatch would run the ENTIRE saga — including
+  its CQRS step writes through guarded repositories — under a bypass that has
+  no exit primitive. A source scan rejects any dispatch that sits lexically
+  inside a `withSystemContext` callback.
+- **The wrapped query is awaited INSIDE the callback.** A Prisma call returns a
+  lazy promise that reaches the database only when awaited, so a callback of the
+  form `() => prisma.model.findMany(...)` runs its query AFTER the declared
+  context has been released — the declaration silently becomes a no-op and the
+  read fails with `TenantContextMissingError`, which the loop then swallows into
+  its counter. This is the failure mode that turns a background loop dead while
+  the source still reads as correct. The same source scan requires every wrap
+  callback to be `async` and to `await` its query.
+
+Failures on these paths are observable rather than silent: the boot load and the
+retry scan each log at ERROR with the failing loop, the error type and a per-run
+correlation id, and increment `bootLoadFailures` / `recoveryScanFailures`
+(exposed through `/sagas/metrics` and the health payload). A tick that fails is
+therefore distinguishable from a tick that found no work.
+
+#### Residual gaps — recorded, NOT closed
+
+1. **`SagaInstance` enrollment is incomplete.** It satisfies leg 2
+   (`TENANT_SCOPED_MODELS`), but `accountId` is nullable with NO `Account`
+   relation and no accountId-led composite index tightening, and there is no RLS
+   policy for the table (leg 1 and leg 3 remain open). The column CANNOT be
+   flipped non-null while sentinel rows exist (see the backfill below), so
+   completing enrollment is sequenced work, not a rider. Tracked as SMELL-70.
+2. **The customer saga read is NOT guard-scoped on a cache miss.** The engine's
+   by-id load exists to discover which tenant owns an id, so it declares the
+   system reason; the customer `GET /sagas/:sagaId` cold path (Redis miss →
+   Postgres) therefore runs under that declared system context and the guard
+   injects no `where.accountId`. Its tenant control is the route's ownership
+   check, which compares the saga's `context.userId` against the caller and
+   answers **404** (not 403, to prevent saga-id enumeration). Do not describe
+   this read as guard-scoped. A two-tenant integration test pins the boundary so
+   it cannot widen unnoticed.
+3. **The Redis hot cache is guard-blind.** `loadSagaInstance` returns a cached
+   copy before any guarded read. The app-level ownership check above is the
+   control. Any future saga read that bypasses the route check inherits this
+   gap, so the isolation proofs delete the `saga:{id}` key before asserting.
+4. **The CQRS bus has no command-id dedupe.** The saga canon asserts a
+   deterministic `dedupeKey`, but the bus does not deduplicate by command id, so
+   a replayed pre-pivot create step can produce a duplicate draft. No external
+   side effect is involved; escalated below.
+
+#### Backfill runbook — `SagaInstance.accountId`
+
+The forward migration `20260731000000_backfill_saga_instance_account_id` repairs
+history in one transaction: metadata-first (`context.metadata.accountId` when it
+names a live account, which also repairs rows whose column was never written),
+then the `CustomerUser.id → CustomerUser.accountId` join, then an explicit
+**NULL sentinel** plus a counted `RAISE NOTICE` for unmappable rows in a terminal
+state, and finally a `RAISE EXCEPTION` listing the ids of any unmappable row that
+is still live — a live saga with no true tenant is not safely recoverable and
+must be resolved by an operator instead of guessed. The down migration is a
+documented no-op by design: post-backfill values are true account ids and stay
+correct even if the code reverts.
+
+Every statement is idempotent and re-runnable, which the cutover procedure
+depends on. Deploy the migration BEFORE the application cutover; any process
+still running the old code in that window re-persists its in-memory sagas with
+the acting user id, so **re-run the migration file manually after the cutover
+completes** and confirm the verification query returns zero. This is not
+hypothetical: it was observed live on a development database, where a server
+process started before the change kept restoring the old value on the sagas it
+still held in memory, minutes after the migration had repaired them. The
+engine's fail-loud rehydration catches whatever a straggler leaves behind.
+
+Verification query (the success criterion):
+
+```sql
+SELECT count(*) FROM "SagaInstance"
+ WHERE "accountId" IS NOT NULL
+   AND "accountId" NOT IN (SELECT id FROM "Account");   -- expect 0
+```
+
 ## Global tables (denylist — guard bypasses)
 
 Tables without `accountId` (or with `accountId` for searchability only —
@@ -715,7 +811,18 @@ Recorded here so they cannot be lost; none is a live exploit today.
    Widening the regex touches `CLAUDE.md` and `.github/workflows/fitness.yml`
    together and needs a documented baseline for the seven existing — audited
    benign — hits, so it is its own change, not a rider on this one.
-5. **No database constraint ties `Channel.accountId` to `Project.accountId`**
+5. **`SagaInstance` enrollment legs 1 and 3** (SMELL-70). The tenant column is
+   nullable, carries no `Account` relation, and has no RLS policy. It cannot be
+   flipped non-null while the backfill's NULL sentinel rows exist, so closing it
+   needs a disposition decision for those rows first (retain as sentinel and add
+   a partial constraint, or archive them) and then the relation, the non-null
+   flip and the policy together.
+6. **CQRS bus command-id dedupe** (saga replay). The bus dispatches by handler
+   lookup with no idempotency key, so a resumed saga re-issuing a pre-pivot
+   create step can produce a duplicate draft. The deterministic `dedupeKey` the
+   canon mandates exists at the saga layer and at the BullMQ job layer; the bus
+   is the missing link.
+7. **No database constraint ties `Channel.accountId` to `Project.accountId`**
    (SMELL-69). The two denormalized columns are kept in agreement by the create
    paths, the backfill assertion, and the per-slice integration suite — nothing
    structural. A reparenting write or a future bulk path could diverge them

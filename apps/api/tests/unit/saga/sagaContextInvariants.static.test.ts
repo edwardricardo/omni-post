@@ -137,6 +137,18 @@ function firstArgument(inner: string): string {
   return inner.trim();
 }
 
+/** Everything after the first argument, or "" when the call takes only one. */
+function argumentsAfterFirst(inner: string): string {
+  let depth = 0;
+  for (let i = 0; i < inner.length; i++) {
+    const ch = inner[i];
+    if (ch === "(" || ch === "[" || ch === "{") depth++;
+    else if (ch === ")" || ch === "]" || ch === "}") depth--;
+    else if (ch === "," && depth === 0) return inner.slice(i + 1).trim();
+  }
+  return "";
+}
+
 interface SagaSource {
   path: string;
   label: string;
@@ -149,6 +161,7 @@ interface WrapCall {
   openParen: number;
   closeParen: number;
   reason: string;
+  callback: string;
 }
 
 const sagaSources: SagaSource[] = getAllTsFiles(sagaDir).map((path) => {
@@ -165,11 +178,13 @@ function collectWrapCalls(sources: SagaSource[]): WrapCall[] {
       const openParen = cursor + SYSTEM_WRAP.length;
       const closeParen = findMatching(text, openParen, "(", ")");
       if (closeParen !== -1) {
+        const inner = text.slice(openParen + 1, closeParen);
         calls.push({
           source,
           openParen,
           closeParen,
-          reason: firstArgument(text.slice(openParen + 1, closeParen)),
+          reason: firstArgument(inner),
+          callback: argumentsAfterFirst(inner),
         });
       }
       cursor = text.indexOf(`${SYSTEM_WRAP}(`, cursor + 1);
@@ -265,6 +280,22 @@ describe("saga engine context invariants", () => {
           (call) =>
             `${call.source.label}:${lineOf(call.source.original, call.openParen)}: ` +
             `reason is \`${call.reason}\``
+        );
+
+      expect(violations).toEqual([]);
+    });
+
+    it("awaits the wrapped query inside an async callback at every call site", () => {
+      // A Prisma call is lazy — it reaches the database only when awaited. A
+      // callback that returns the unawaited promise runs its query AFTER the
+      // declared context has been released, so the declaration silently becomes
+      // a no-op and the guarded read fails with a missing context instead.
+      const violations = wrapCalls
+        .filter((call) => !/^async\b/.test(call.callback) || !call.callback.includes("await"))
+        .map(
+          (call) =>
+            `${call.source.label}:${lineOf(call.source.original, call.openParen)}: ` +
+            `callback must be \`async\` and await its query`
         );
 
       expect(violations).toEqual([]);
