@@ -99,6 +99,12 @@ describe("SagaIntegration - Post Publishing Routes", () => {
     expect(saga).toBeTruthy();
     expect(saga!.context.userId).toBe(TEST_CUSTOMER_ID);
     expect(saga!.context.metadata.source).toBe("customer-api");
+    // The tenant scope the engine rehydrates every detached resume from. It is
+    // pinned in BOTH copies because the engine scopes on the first-class field
+    // while the pivot step's fail-closed check reads the metadata one; a route
+    // that filled only one of them would look correct until a resume.
+    expect(saga!.context.accountId).toBe(TEST_ACCOUNT_ID);
+    expect(saga!.context.metadata.accountId).toBe(TEST_ACCOUNT_ID);
   });
 
   it("should support scheduled post publishing", async () => {
@@ -243,12 +249,29 @@ describe("SagaIntegration - Saga Control Routes", () => {
     expect(continueResult.data.sagaId).toBe(startResult.data.sagaId);
   });
 
-  /** Builds a FAILED saga row in the Redis mock, optionally owned by an account. */
-  const seedFailedSaga = async (sagaId: string, accountId?: string): Promise<void> => {
-    const failedSaga = {
+  it("should refuse continuation of a saga whose owning account is unresolvable", async () => {
+    // Same defect as compensate, on the sibling endpoint: the dispatch is
+    // detached, so an engine that cannot scope the saga silently skips it while
+    // the operator is told the saga was resumed.
+    const unscopableSagaId = "saga-test-unscopable-continue-789";
+    await seedSaga(unscopableSagaId, "RUNNING");
+
+    const continueHandler = routes.get("POST:/sagas/:sagaId/continue");
+
+    await expect(
+      continueHandler({ params: { sagaId: unscopableSagaId } }, passthroughReply)
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining("unresolvable"),
+    });
+  });
+
+  /** Builds a saga row in the Redis mock, optionally owned by an account. */
+  const seedSaga = async (sagaId: string, status: string, accountId?: string): Promise<void> => {
+    const saga = {
       id: sagaId,
       definitionId: "post-publishing-saga",
-      status: "FAILED",
+      status,
       currentStep: 2,
       ...(accountId !== undefined && { accountId }),
       context: {
@@ -265,8 +288,12 @@ describe("SagaIntegration - Saga Control Routes", () => {
       retryCount: 0,
     };
 
-    await mockRedis.setex(`saga:${sagaId}`, 3_600, JSON.stringify(failedSaga));
+    await mockRedis.setex(`saga:${sagaId}`, 3_600, JSON.stringify(saga));
   };
+
+  /** Builds a FAILED saga row in the Redis mock, optionally owned by an account. */
+  const seedFailedSaga = async (sagaId: string, accountId?: string): Promise<void> =>
+    await seedSaga(sagaId, "FAILED", accountId);
 
   it("should handle saga compensation via API", async () => {
     // Inject a pre-built failed saga directly into the Redis mock so we can

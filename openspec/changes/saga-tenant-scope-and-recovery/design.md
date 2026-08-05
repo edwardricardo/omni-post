@@ -84,7 +84,7 @@ SYSTEM_TENANT_SCOPE)` / `setTenantGuc(tx, accountId)`) as the transaction's firs
 >
 > **(4) Observability made real.** The in-process counters are exported as REAL Prometheus
 > metrics through the repo's `getOrCreateCounter` pattern:
-> `saga_recovery_failures_total{loop}` and `sagas_failed_total{reason}` — the latter is the
+> `saga_recovery_failures_total{stage}` and `sagas_failed_total{reason}` — the latter is the
 > series `prometheus/alerts/saga.yml` already alerts on, previously never emitted. The health
 > check degrades when the boot load failed, and every engine catch path reports through the
 > repo's Sentry `captureError` with the real error.
@@ -113,6 +113,18 @@ SYSTEM_TENANT_SCOPE)` / `setTenantGuc(tx, accountId)`) as the transaction's firs
 
 **Alternatives considered**: blanket `withSystemContext` around all engine work — rejected: resumed step executions run CQRS commands (post.create/update) through guarded repositories; system context would run TENANT work guard-bypassed and unscoped — and per the C1 mechanics it is unrecoverable from inside. Rehydration keeps every resumed write scoped to the saga's own tenant and honors `tenantContext.ts:124`.
 **Observability** _(AMENDED AT GATE — W3a/W3b)_: keep the `:338`/`:404` catch blocks (a scan failure must not kill boot/tick); ERROR logs gain a per-run correlation id (`saga-recovery-${randomUUID()}` minted per boot pass / per tick) naming the failing loop + error type, per the spec's observability requirement; add `SagaMetrics` counters `bootLoadFailures`, `recoveryScanFailures`, `rehydrationFailures` (exposed via `/sagas/metrics` + health). The boot pass emits a summary log with `{loaded, resumed, checkerOwned, skipped}` counts and per-row skip reasons (`nextRetryAt-owned-by-checker`, `missing-accountId`, `parked` if the D5 fallback lands). No new Prometheus wiring in this slice.
+
+> **AMENDED AT RE-VERIFY (2026-08-05) — the "no new Prometheus wiring" line is superseded.**
+> In-process `SagaMetrics` is readable only through an authenticated admin endpoint, so a
+> loop failing on every tick stays invisible to alerting — the exact blindness this
+> observability section exists to remove. The slice therefore DOES add Prometheus wiring:
+> `apps/api/src/metrics/sagaRecoveryMetrics.ts` exports `saga_recovery_failures_total{stage}`
+> and `sagas_failed_total{reason}` (the latter is the series the saga alert rules already
+> queried and nothing ever emitted), and `prometheus/alerts/saga.yml` gains
+> `SagaTenantMismatch` (any increase on `stage="mismatch"` — the deploy-window straggler
+> signal) and `SagaRecoveryLoopFailing`. The label is `stage`, not `loop`: two of its six
+> values (`rehydration`, `mismatch`) are per-saga resolution outcomes, not loops, and an
+> operator must not go hunting for a background loop named "mismatch".
 
 ### D4 — Backfill migration: metadata-first, join-second, sentinel/RAISE per Edward's decision
 

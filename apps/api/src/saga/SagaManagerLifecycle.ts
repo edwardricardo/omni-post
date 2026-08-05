@@ -13,6 +13,7 @@ import {
   failSagaAsSystem,
   newSagaRecoveryCorrelationId,
   resolveContextAccountId,
+  resolveSagaTenant,
   runAsSagaTenant,
   withSagaSystemRead,
   type SagaTenantSkipReason,
@@ -228,6 +229,21 @@ export class SagaManagerLifecycle implements SagaManager {
       );
     }
 
+    // The dispatch below is detached, and the engine SKIPS a saga it cannot
+    // scope to a tenant. Resolving here — through the same rehydration the
+    // engine would use, so the miss is logged and counted once — is the only
+    // point at which the operator who pressed the button can be told. Answering
+    // 200 made a saga that never resumed look resumed, exactly as the sibling
+    // compensate endpoint used to.
+    const outcome = await runAsSagaTenant(instance, async () => undefined, this.metrics);
+
+    if (!outcome.ran) {
+      throw AppError.conflict(
+        `Saga '${sagaId}' cannot be continued: its owning account is unresolvable (${outcome.reason})`,
+        { sagaId, reason: outcome.reason }
+      );
+    }
+
     this.executionEngine.executeSagaAsync(sagaId);
 
     return instance;
@@ -436,8 +452,8 @@ export class SagaManagerLifecycle implements SagaManager {
    * @param correlationId - Identifier joining this recovery pass in the logs.
    */
   private async loadActiveSagas(correlationId: string): Promise<void> {
-    const rows = await withSagaSystemRead(() =>
-      this.config.prisma.sagaInstance.findMany({
+    const rows = await withSagaSystemRead(this.config.prisma, (tx) =>
+      tx.sagaInstance.findMany({
         where: {
           status: { in: ["RUNNING", "PENDING"] },
         },
@@ -500,8 +516,8 @@ export class SagaManagerLifecycle implements SagaManager {
           // resumes below run under each saga's own rehydrated scope. Ordering
           // by due time makes the `take` window deterministic — an unordered
           // limit lets the same late saga fall off the page on every tick.
-          const dueRows = await withSagaSystemRead(() =>
-            this.config.prisma.sagaInstance.findMany({
+          const dueRows = await withSagaSystemRead(this.config.prisma, (tx) =>
+            tx.sagaInstance.findMany({
               where: {
                 status: "RUNNING",
                 nextRetryAt: { lte: now, not: null },
@@ -602,17 +618,50 @@ export class SagaManagerLifecycle implements SagaManager {
    * Drives a saga no tenant scope can address to FAILED through the engine's
    * single system-scoped write, and stops tracking it so the checker cannot
    * revisit it on the next tick.
+   *
+   * The decision is re-taken against a FRESH row first. The in-memory copy was
+   * loaded at boot and can be arbitrarily old, while the documented repair for
+   * this row class is re-running the idempotent backfill — which happens
+   * underneath a live process. Terminalizing on the stale copy would kill a saga
+   * that had just been made resumable again.
    */
   private async terminalizeUnscopableSaga(
     sagaId: string,
     instance: SagaInstance,
     reason: SagaTenantSkipReason
   ): Promise<void> {
-    await failSagaAsSystem(this.config.prisma, instance, reason);
+    const row = await withSagaSystemRead(this.config.prisma, (tx) =>
+      tx.sagaInstance.findUnique({ where: { id: sagaId } })
+    );
 
-    this.activeInstances.delete(sagaId);
+    if (!row) {
+      // Nothing left to terminalize; an update by primary key would only throw.
+      this.stopTracking(sagaId);
+      logger.warn({ sagaId }, "Unscopable saga vanished before terminalization; stopped tracking");
+      return;
+    }
+
+    const fresh = deserializeSagaInstanceRow(row);
+    if (resolveSagaTenant(fresh).kind === "resolved") {
+      this.activeInstances.set(sagaId, fresh);
+      logger.info(
+        { sagaId, definitionId: fresh.definitionId, previousReason: reason },
+        "Unscopable saga became resolvable; refreshed instead of terminalized"
+      );
+      return;
+    }
+
+    await failSagaAsSystem(this.config, instance, reason);
+
+    this.stopTracking(sagaId);
     this.metrics.sagasFailed++;
-    this.metrics.activeInstances--;
+  }
+
+  /** Drops a saga from the in-memory set and keeps the gauge consistent. */
+  private stopTracking(sagaId: string): void {
+    if (this.activeInstances.delete(sagaId)) {
+      this.metrics.activeInstances--;
+    }
   }
 
   private startMetricsCollector(): void {

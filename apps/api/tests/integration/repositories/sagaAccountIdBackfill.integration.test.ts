@@ -50,9 +50,12 @@ import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
 /** Directory name of the migration, which is also its `_prisma_migrations` key. */
 const MIGRATION_NAME = "20260731000000_backfill_saga_instance_account_id";
 
+/** Workspace root: this file sits five directories below it (apps/api/tests/integration/repositories). */
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "..");
+
 const MIGRATION_SQL_PATH = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../../../../infra/prisma/migrations",
+  REPO_ROOT,
+  "infra/prisma/migrations",
   MIGRATION_NAME,
   "migration.sql"
 );
@@ -578,53 +581,102 @@ describe("SagaInstance accountId backfill migration", { concurrency: 1 }, () => 
       // `updatedAt` cannot serve here: any later re-persist — including the
       // engine's own boot re-warm, which a sibling suite in this batch triggers
       // over the whole table — moves rows OUT of the window, silently shrinking
-      // what the audit covers instead of failing. While the migration is
-      // unapplied `finished_at` is absent and the window collapses to "now", so
-      // every row counts and the assertion stays RED until it is applied.
-      const [totals] = await base.$queryRaw<
-        { total: bigint; user_valued: bigint; not_an_account: bigint; sentinel: bigint }[]
-      >`SELECT
-          count(*) AS total,
-          count(*) FILTER (WHERE "accountId" IN (SELECT id FROM "CustomerUser")) AS user_valued,
-          count(*) FILTER (
-            WHERE "accountId" IS NOT NULL AND "accountId" NOT IN (SELECT id FROM "Account")
-          ) AS not_an_account,
-          count(*) FILTER (WHERE "accountId" IS NULL) AS sentinel
-        FROM "SagaInstance"
-        WHERE "startedAt" < COALESCE(
-          (SELECT finished_at FROM "_prisma_migrations" WHERE migration_name = ${MIGRATION_NAME}),
-          now()
-        )`;
+      // what the audit covers instead of failing.
+      //
+      // The audited population is ESTABLISHED here rather than assumed. On an
+      // ephemeral database the table is empty when the migration runs and every
+      // later row starts after it, so the window is empty and a non-empty guard
+      // could only ever fail; the audit would then say nothing about databases
+      // that DO carry history. Seeding rows backdated relative to the recorded
+      // `finished_at` puts both audited dispositions inside the window by
+      // construction, while every assertion stays an equality over the WHOLE
+      // window, so a legacy database's own rows are audited alongside them.
+      await inRolledBackTransaction(async (tx) => {
+        const [migration] = await tx.$queryRaw<
+          { finished_at: Date | null }[]
+        >`SELECT finished_at FROM "_prisma_migrations" WHERE migration_name = ${MIGRATION_NAME}`;
 
-      assert.ok(
-        Number(totals?.total) > 0,
-        "the audited population must not be empty — an empty window proves nothing"
-      );
-      assert.strictEqual(
-        Number(totals?.user_valued),
-        0,
-        "zero repaired rows may hold a CustomerUser.id"
-      );
-      assert.strictEqual(
-        Number(totals?.not_an_account),
-        0,
-        "zero repaired rows may hold a value that is not an Account"
-      );
+        const finishedAt = migration?.finished_at;
+        assert.ok(
+          finishedAt instanceof Date,
+          "the audit needs the applied migration's finish time to bound its window"
+        );
 
-      const [mapped] = await base.$queryRaw<
-        { mapped: bigint }[]
-      >`SELECT count(*) FILTER (WHERE "accountId" IN (SELECT id FROM "Account")) AS mapped
+        const account = await tx.account.create({
+          data: {
+            name: `${TAG}-audit`,
+            email: `${TAG}-audit-${randomUUID()}@test.local`,
+            slug: `${TAG}-audit-${randomUUID()}`,
+          },
+        });
+
+        // `@default(now())` only applies when the field is OMITTED, so an
+        // explicit value is what actually lands in the column.
+        const inWindow = new Date(finishedAt.getTime() - 10 * 60_000);
+        await tx.sagaInstance.create({
+          data: {
+            id: `${TAG}-audit-mapped-${randomUUID()}`,
+            definitionId: "post-publishing-saga",
+            status: "COMPLETED",
+            accountId: account.id,
+            startedAt: inWindow,
+            context: buildContext(`user-${randomUUID()}`, account.id),
+          },
+        });
+        await tx.sagaInstance.create({
+          data: {
+            id: `${TAG}-audit-sentinel-${randomUUID()}`,
+            definitionId: "post-publishing-saga",
+            status: "COMPLETED",
+            accountId: null,
+            startedAt: inWindow,
+            context: buildContext(""),
+          },
+        });
+
+        const [totals] = await tx.$queryRaw<
+          { total: bigint; user_valued: bigint; not_an_account: bigint; sentinel: bigint }[]
+        >`SELECT
+            count(*) AS total,
+            count(*) FILTER (WHERE "accountId" IN (SELECT id FROM "CustomerUser")) AS user_valued,
+            count(*) FILTER (
+              WHERE "accountId" IS NOT NULL AND "accountId" NOT IN (SELECT id FROM "Account")
+            ) AS not_an_account,
+            count(*) FILTER (WHERE "accountId" IS NULL) AS sentinel
           FROM "SagaInstance"
-         WHERE "startedAt" < COALESCE(
-           (SELECT finished_at FROM "_prisma_migrations" WHERE migration_name = ${MIGRATION_NAME}),
-           now()
-         )`;
+          WHERE "startedAt" < (
+            SELECT finished_at FROM "_prisma_migrations" WHERE migration_name = ${MIGRATION_NAME}
+          )`;
 
-      assert.strictEqual(
-        Number(mapped?.mapped) + Number(totals?.sentinel),
-        Number(totals?.total),
-        "every repaired row is dispositioned: a real Account or the documented NULL sentinel"
-      );
+        assert.ok(
+          Number(totals?.total) > 0,
+          "the audited population must not be empty — an empty window proves nothing"
+        );
+        assert.strictEqual(
+          Number(totals?.user_valued),
+          0,
+          "zero repaired rows may hold a CustomerUser.id"
+        );
+        assert.strictEqual(
+          Number(totals?.not_an_account),
+          0,
+          "zero repaired rows may hold a value that is not an Account"
+        );
+
+        const [mapped] = await tx.$queryRaw<
+          { mapped: bigint }[]
+        >`SELECT count(*) FILTER (WHERE "accountId" IN (SELECT id FROM "Account")) AS mapped
+            FROM "SagaInstance"
+           WHERE "startedAt" < (
+             SELECT finished_at FROM "_prisma_migrations" WHERE migration_name = ${MIGRATION_NAME}
+           )`;
+
+        assert.strictEqual(
+          Number(mapped?.mapped) + Number(totals?.sentinel),
+          Number(totals?.total),
+          "every repaired row is dispositioned: a real Account or the documented NULL sentinel"
+        );
+      });
     });
   });
 });

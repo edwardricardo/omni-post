@@ -17,3 +17,27 @@ groups:
           description: "El SagaManagerLifecycle.startTimeoutChecker (60s poll) marcó más de 3 sagas como FAILED por timeout en 10min. Esto indica step que cuelga (provider API down, DB deadlock, infinite loop). Inspeccionar Grafana saga-health dashboard + Jaeger traces."
           runbook: docs/runbooks/alert-saga-timeout.md
           slo: docs/observability/SLO.md#saga
+
+      - alert: SagaTenantMismatch
+        expr: increase(saga_recovery_failures_total{stage="mismatch"}[10m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: saga
+        annotations:
+          summary: "A saga's persisted account contradicts its own context"
+          description: "The saga engine refused to run a saga because SagaInstance.accountId names a different tenant than the saga context does. Every such saga is skipped and then driven to FAILED, so ANY increase matters. The expected source is a process still running pre-cutover code that re-writes the acting user into the tenant column: stop the stale writers, then re-run the idempotent backfill (docs/security/MULTI_TENANT_GUARDS.md, backfill runbook). A sustained rate outside a deploy window means a writer is still corrupting rows."
+          runbook: docs/security/MULTI_TENANT_GUARDS.md
+          slo: docs/observability/SLO.md#saga
+
+      - alert: SagaRecoveryLoopFailing
+        expr: increase(saga_recovery_failures_total{stage=~"boot|retry-scan|timeout|instance-load"}[10m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          component: saga
+        annotations:
+          summary: "A saga background loop is failing repeatedly"
+          description: "The boot load, retry scan, timeout checker or by-id instance load failed more than 3 times in 10min. These loops swallow their errors by design so one failure cannot kill the process — this counter is the ONLY external signal that a loop is dead. A failing boot stage also degrades the saga health check. Inspect the ERROR logs carrying the matching `loop` field and its correlation id."
+          runbook: docs/security/MULTI_TENANT_GUARDS.md
+          slo: docs/observability/SLO.md#saga

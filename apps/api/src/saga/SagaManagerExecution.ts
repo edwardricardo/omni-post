@@ -738,8 +738,8 @@ export class SagaExecutionEngine {
     // is therefore scoped to the read itself and ends with it — everything the
     // caller then does with the row runs under the saga's own rehydrated scope.
     try {
-      const row = await withSagaSystemRead(() =>
-        this.config.prisma.sagaInstance.findUnique({
+      const row = await withSagaSystemRead(this.config.prisma, (tx) =>
+        tx.sagaInstance.findUnique({
           where: { id: sagaId },
         })
       );

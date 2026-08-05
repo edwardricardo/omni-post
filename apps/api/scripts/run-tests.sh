@@ -165,6 +165,12 @@ CONCURRENCY=1 run_batch "integration:outbox" \
 CONCURRENCY=1 run_batch "integration:consumers" \
   tests/integration/consumers/workerConnection.integration.test.ts
 
+# Chaos scenarios. They drive the saga engine against in-memory doubles, so no
+# service is required, but they are node:test files and therefore belong to a
+# batch — a suite that no batch lists is a suite that never runs.
+CONCURRENCY=1 run_batch "chaos" \
+  tests/chaos/saga-step-retry-recovery.test.ts
+
 # Two-tenant isolation proofs for the tenant-guard rollout. Each suite seeds
 # two tenants against the real DB and drives the guarded client / in-process
 # routes (app.inject — no live server), so this is a DB-only batch. Bundled

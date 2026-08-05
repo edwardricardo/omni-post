@@ -70,11 +70,23 @@ import type { SagaExecutionEnginePort } from "../../src/saga/sagaManagerTypes.js
 import { SAGA_SYSTEM_REASON } from "../../src/saga/sagaTenant.js";
 import { EventService } from "../../src/events/EventService.js";
 import { logger } from "../../src/lib/logger.js";
+import { ok, type Result } from "@shared/types";
+import type { SemanticLockError, SemanticLockPort } from "@ports/core";
 
 const TAG = `saga-iso-${Date.now()}`;
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
 const PROBE_DEFINITION_ID = `${TAG}-probe-saga`;
 const RETRY_RECOVERY_TASK_ID = "saga-retry-recovery";
+
+/**
+ * The persisted stream key for a saga's durable events. The event store applies
+ * its own `stream:` prefix on top of `<aggregateType>:<aggregateId>`, so the
+ * unprefixed form matches no row at all — a query written without it reads as
+ * "no events" whether or not any were appended.
+ */
+function sagaStreamId(sagaId: string): string {
+  return `stream:Saga:${sagaId}`;
+}
 
 /** One `sagaInstance.findMany` seen at the client boundary. */
 interface ScanObservation {
@@ -104,6 +116,28 @@ interface Tenant {
 
 /** Records the tenant scope the engine bound before running the step. */
 const stepObservations: StepObservation[] = [];
+
+/**
+ * Semantic-lock backend that records releases. A saga driven to a terminal
+ * state must give its locks back; a lock left held by a dead saga blocks a
+ * legitimate one on the same aggregate until the TTL expires.
+ */
+class RecordingLockStore implements SemanticLockPort {
+  readonly releasedSagaIds: string[] = [];
+
+  async acquire(): Promise<Result<boolean, SemanticLockError>> {
+    return ok(true);
+  }
+
+  async release(): Promise<Result<void, SemanticLockError>> {
+    return ok(undefined);
+  }
+
+  async releaseAllForSaga(sagaId: string): Promise<Result<void, SemanticLockError>> {
+    this.releasedSagaIds.push(sagaId);
+    return ok(undefined);
+  }
+}
 
 const probeStep: PivotStep = {
   id: "tenant-probe",
@@ -172,38 +206,57 @@ async function captureLogs(action: () => Promise<void>): Promise<Record<string, 
  * Wraps a client so every `sagaInstance.findMany` records the context it ran
  * under. The scans are the only engine reads that legitimately span tenants,
  * so observing them at the client boundary is what proves the declaration.
+ *
+ * The probe follows the client INTO an interactive transaction, because the
+ * engine's system reads run inside one: binding the transaction-local scope is
+ * the only way the row-level policies see a scope at all, so a probe that only
+ * watched the outer client would observe nothing.
  */
 function withScanProbe(client: PrismaClient, sink: ScanObservation[]): PrismaClient {
   const bindIfCallable = (value: unknown, owner: object): unknown =>
     typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(owner) : value;
 
-  return new Proxy(client, {
-    get(target, property) {
-      const value = Reflect.get(target, property) as unknown;
-      if (property !== "sagaInstance") {
-        return bindIfCallable(value, target);
-      }
+  const probeModel = (model: object): object =>
+    new Proxy(model, {
+      get(modelTarget, modelProperty) {
+        const modelValue = Reflect.get(modelTarget, modelProperty) as unknown;
+        if (modelProperty !== "findMany") {
+          return bindIfCallable(modelValue, modelTarget);
+        }
 
-      const model = value as object;
-      return new Proxy(model, {
-        get(modelTarget, modelProperty) {
-          const modelValue = Reflect.get(modelTarget, modelProperty) as unknown;
-          if (modelProperty !== "findMany") {
-            return bindIfCallable(modelValue, modelTarget);
-          }
+        const findMany = modelValue as (args?: unknown) => Promise<{ id: string }[]>;
+        return async (args?: unknown): Promise<{ id: string }[]> => {
+          const reason = getSystemContext()?.reason;
+          const tenantBound = getTenantContext() !== undefined;
+          const rows = await findMany.call(modelTarget, args);
+          sink.push({ reason, tenantBound, ids: rows.map((row) => row.id) });
+          return rows;
+        };
+      },
+    });
 
-          const findMany = modelValue as (args?: unknown) => Promise<{ id: string }[]>;
-          return async (args?: unknown): Promise<{ id: string }[]> => {
-            const reason = getSystemContext()?.reason;
-            const tenantBound = getTenantContext() !== undefined;
-            const rows = await findMany.call(modelTarget, args);
-            sink.push({ reason, tenantBound, ids: rows.map((row) => row.id) });
-            return rows;
+  const probeClient = <T extends object>(target: T): T =>
+    new Proxy(target, {
+      get(inner, property) {
+        const value = Reflect.get(inner, property) as unknown;
+        if (property === "sagaInstance") {
+          return probeModel(value as object);
+        }
+        if (property === "$transaction") {
+          const original = value as (arg: unknown, options?: unknown) => unknown;
+          return (arg: unknown, options?: unknown): unknown => {
+            if (typeof arg !== "function") {
+              return original.call(inner, arg, options);
+            }
+            const body = arg as (tx: object) => unknown;
+            return original.call(inner, (tx: object) => body(probeClient(tx)), options);
           };
-        },
-      });
-    },
-  }) as unknown as PrismaClient;
+        }
+        return bindIfCallable(value, inner);
+      },
+    }) as T;
+
+  return probeClient(client as unknown as object) as unknown as PrismaClient;
 }
 
 describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency: 1 }, () => {
@@ -230,6 +283,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
   let timeoutLifecycle: SagaManagerLifecycle;
   let timeoutEngine: SagaExecutionEngine;
   let timeoutScheduler: NoopBackgroundTaskScheduler;
+  const timeoutLockStore = new RecordingLockStore();
 
   let tenantA: Tenant;
   let tenantB: Tenant;
@@ -373,7 +427,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
     const buildManager = (
       prisma: PrismaClient,
       scheduler: NoopBackgroundTaskScheduler,
-      overrides: { defaultTimeout?: number } = {}
+      overrides: { defaultTimeout?: number; lockStore?: SemanticLockPort } = {}
     ): { lifecycle: SagaManagerLifecycle; execution: SagaExecutionEngine } => {
       const config = { prisma, redis, eventService, scheduler, enableMetrics: true, ...overrides };
       const lifecycle = new SagaManagerLifecycle(config);
@@ -396,7 +450,10 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
     timeoutScheduler = new NoopBackgroundTaskScheduler();
     // Every saga this manager holds is overdue the moment it is registered, so
     // one triggered tick exercises the checker's whole decision.
-    const timeoutManager = buildManager(guarded, timeoutScheduler, { defaultTimeout: 1 });
+    const timeoutManager = buildManager(guarded, timeoutScheduler, {
+      defaultTimeout: 1,
+      lockStore: timeoutLockStore,
+    });
     timeoutLifecycle = timeoutManager.lifecycle;
     timeoutEngine = timeoutManager.execution;
 
@@ -419,7 +476,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
       .deleteMany({ where: { OR: [{ id: { in: sagaIds } }, { accountId: { in: accountIds } }] } })
       .catch(() => undefined);
     await base.storedEvent
-      .deleteMany({ where: { streamId: { in: sagaIds.map((id) => `Saga:${id}`) } } })
+      .deleteMany({ where: { streamId: { in: sagaIds.map(sagaStreamId) } } })
       .catch(() => undefined);
     await base.customerUser
       .deleteMany({ where: { accountId: { in: accountIds } } })
@@ -492,7 +549,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
       );
 
       await base.sagaInstance.deleteMany({ where: { id: started.id } });
-      await base.storedEvent.deleteMany({ where: { streamId: `Saga:${started.id}` } });
+      await base.storedEvent.deleteMany({ where: { streamId: sagaStreamId(started.id) } });
       await redis.del(`saga:${started.id}`);
     });
   });
@@ -922,6 +979,26 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
         "the terminalized saga stops being tracked"
       );
 
+      // The anomalous transition is exactly the one whose audit trail must not
+      // have a hole: the event commits with the row, not after it.
+      const failedEvents = await base.storedEvent.findMany({
+        where: { streamId: sagaStreamId(stragglerId), eventType: "saga.failed" },
+      });
+      assert.strictEqual(
+        failedEvents.length,
+        1,
+        "the terminal transition appends exactly one SAGA_FAILED event"
+      );
+      assert.match(
+        String(failedEvents[0]?.eventData),
+        /tenant-mismatch/,
+        "the durable event names why the saga could not be scoped"
+      );
+      assert.ok(
+        timeoutLockStore.releasedSagaIds.includes(stragglerId),
+        "the terminalized saga gives its semantic locks back instead of holding them until TTL"
+      );
+
       // The whole point of terminalizing: a second tick has nothing left to do.
       // Before this, every tick logged and counted the same row again forever.
       await timeoutScheduler.triggerTask("saga-timeout-checker");
@@ -954,8 +1031,66 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
       assert.strictEqual(row.status, "FAILED");
       assert.strictEqual(row.accountId, null, "the sentinel stays the sentinel");
 
+      const failedEvents = await base.storedEvent.findMany({
+        where: { streamId: sagaStreamId(orphanId), eventType: "saga.failed" },
+      });
+      assert.strictEqual(failedEvents.length, 1, "the terminal transition is audited durably");
+      assert.ok(
+        timeoutLockStore.releasedSagaIds.includes(orphanId),
+        "the terminalized saga gives its semantic locks back"
+      );
+
+      await base.storedEvent.deleteMany({ where: { streamId: sagaStreamId(orphanId) } });
       await base.sagaInstance.deleteMany({ where: { id: orphanId } });
       await redis.del(`saga:${orphanId}`);
+    });
+
+    it("refreshes instead of terminalizing when a repair made the saga resolvable", async () => {
+      // The documented remedy for this row class is re-running the idempotent
+      // backfill, which happens UNDERNEATH a live process. Deciding on the
+      // in-memory copy would kill a saga that had just been made resumable.
+      const repairedId = `${TAG}-repaired-${randomUUID()}`;
+      await seedRawSaga({
+        id: repairedId,
+        columnAccountId: null,
+        contextAccountId: null,
+        userId: tenantA.customerUserId,
+      });
+
+      await trackForTimeout(repairedId);
+
+      // The repair lands between the load and the tick, exactly as an operator
+      // re-running the backfill would leave it.
+      await base.sagaInstance.update({
+        where: { id: repairedId },
+        data: { accountId: tenantA.accountId },
+      });
+
+      const failedBefore = timeoutLifecycle.metrics.sagasFailed;
+      await timeoutScheduler.triggerTask("saga-timeout-checker");
+
+      const row = await base.sagaInstance.findUniqueOrThrow({ where: { id: repairedId } });
+      assert.notStrictEqual(
+        row.status,
+        "FAILED",
+        "a saga that became resolvable must not be terminalized on the stale copy"
+      );
+      assert.strictEqual(
+        timeoutLifecycle.metrics.sagasFailed,
+        failedBefore,
+        "no terminal failure is recorded for a repaired saga"
+      );
+      const tracked = timeoutLifecycle.activeInstances.get(repairedId);
+      assert.strictEqual(
+        tracked?.accountId,
+        tenantA.accountId,
+        "the in-memory copy is refreshed from the repaired row"
+      );
+
+      timeoutLifecycle.activeInstances.delete(repairedId);
+      await base.storedEvent.deleteMany({ where: { streamId: sagaStreamId(repairedId) } });
+      await base.sagaInstance.deleteMany({ where: { id: repairedId } });
+      await redis.del(`saga:${repairedId}`);
     });
 
     it("keeps checking the remaining sagas after one of them throws", async () => {
@@ -1023,7 +1158,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
       timeoutLifecycle.activeInstances.delete(survivorId);
       await base.sagaInstance.deleteMany({ where: { id: { in: [poisonId, survivorId] } } });
       await base.storedEvent.deleteMany({
-        where: { streamId: { in: [poisonId, survivorId].map((id) => `Saga:${id}`) } },
+        where: { streamId: { in: [poisonId, survivorId].map(sagaStreamId) } },
       });
       await redis.del(`saga:${poisonId}`, `saga:${survivorId}`);
     });

@@ -26,7 +26,10 @@ function getOrCreateCounter(
 }
 
 /**
- * Background loop whose failure is being counted.
+ * Stage of detached saga work whose failure is being counted. Deliberately NOT
+ * called a "loop": only the first four are loops, while `rehydration` and
+ * `mismatch` are per-saga resolution outcomes. An operator paging on
+ * `stage="mismatch"` must not go hunting for a background loop by that name.
  *
  * - `boot` — the crash-recovery load that runs once per process start.
  * - `retry-scan` — the scheduled scan for sagas whose retry is due.
@@ -35,7 +38,7 @@ function getOrCreateCounter(
  * - `rehydration` — a saga whose owning account could not be resolved.
  * - `mismatch` — a saga whose column and context name different accounts.
  */
-export type SagaRecoveryLoop =
+export type SagaRecoveryStage =
   "boot" | "retry-scan" | "timeout" | "instance-load" | "rehydration" | "mismatch";
 
 /** Why a saga reached its terminal FAILED state. */
@@ -44,8 +47,8 @@ export type SagaFailureReason =
 
 const sagaRecoveryFailuresTotal = getOrCreateCounter(
   "saga_recovery_failures_total",
-  "Saga background-loop failures, by loop",
-  ["loop"]
+  "Saga detached-work failures, by stage",
+  ["stage"]
 );
 
 const sagasFailedTotal = getOrCreateCounter(
@@ -56,13 +59,13 @@ const sagasFailedTotal = getOrCreateCounter(
 
 /**
  * @function recordSagaRecoveryFailure
- * @description Counts one failure of a saga background loop. A non-zero rate
+ * @description Counts one failure of the engine's detached work. A non-zero rate
  *   means the engine lost visibility of in-flight sagas or skipped work it could
  *   not scope — neither is distinguishable from an idle loop without this.
- * @param loop - The loop that failed.
+ * @param stage - The stage that failed.
  */
-export function recordSagaRecoveryFailure(loop: SagaRecoveryLoop): void {
-  sagaRecoveryFailuresTotal.inc({ loop });
+export function recordSagaRecoveryFailure(stage: SagaRecoveryStage): void {
+  sagaRecoveryFailuresTotal.inc({ stage });
 }
 
 /**

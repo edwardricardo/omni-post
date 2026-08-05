@@ -30,14 +30,43 @@ const DISPATCHES = ["executeSagaAsync(", "compensateSagaAsync("] as const;
 
 /**
  * Every form that declares the saga system boundary. `withSystemContext` is the
- * primitive; the two saga wrappers own the awaited-inside and GUC-binding
- * details so no engine call site has to repeat them. All three are boundaries a
- * dispatch must stay outside of, and all three satisfy a declared model read.
+ * primitive; the saga wrappers own the awaited-inside and GUC-binding details so
+ * no engine call site has to repeat them (`runSagaSystemTransaction` is
+ * module-private, so it can only appear inside the tenant module itself). All
+ * three are boundaries a dispatch must stay outside of, and all three satisfy a
+ * declared model READ — never a model write.
  */
 const SYSTEM_WRAP_FORMS = [SYSTEM_WRAP, "withSagaSystemRead", "runSagaSystemTransaction"] as const;
 
 /** The tenant rehydration whose discriminated outcome every caller must consume. */
 const TENANT_WRAP = "runAsSagaTenant";
+
+/** The only form that may enclose a model WRITE: one account, both layers bound. */
+const TENANT_TRANSACTION = "runSagaTenantTransaction";
+
+/** Prisma model operations that only read. */
+const READ_OPERATIONS = new Set([
+  "findMany",
+  "findUnique",
+  "findUniqueOrThrow",
+  "findFirst",
+  "findFirstOrThrow",
+  "count",
+  "aggregate",
+  "groupBy",
+]);
+
+/** Prisma model operations that mutate rows. */
+const WRITE_OPERATIONS = new Set([
+  "create",
+  "createMany",
+  "createManyAndReturn",
+  "update",
+  "updateMany",
+  "upsert",
+  "delete",
+  "deleteMany",
+]);
 
 // ---------------------------------------------------------------------------
 // Source helpers
@@ -223,6 +252,104 @@ const systemBoundaries = SYSTEM_WRAP_FORMS.flatMap((form) => collectCalls(sagaSo
 
 const tenantWrapCalls = collectCalls(sagaSources, TENANT_WRAP);
 
+/** One model operation issued directly on the engine's own Prisma client. */
+interface ModelOperation {
+  source: SagaSource;
+  index: number;
+  model: string;
+  operation: string;
+}
+
+/** Every `config.prisma.<model>.<operation>` in `sources`. */
+function collectModelOperations(sources: SagaSource[]): ModelOperation[] {
+  const operations: ModelOperation[] = [];
+  const pattern = /config\.prisma\.([A-Za-z][A-Za-z0-9]*)\.([A-Za-z][A-Za-z0-9]*)/g;
+  for (const source of sources) {
+    pattern.lastIndex = 0;
+    let match = pattern.exec(source.sanitized);
+    while (match !== null) {
+      operations.push({
+        source,
+        index: match.index,
+        model: match[1] ?? "",
+        operation: match[2] ?? "",
+      });
+      match = pattern.exec(source.sanitized);
+    }
+  }
+  return operations;
+}
+
+/**
+ * Reports every model operation the engine issues on its own client that is not
+ * enclosed by a context strong enough for what the operation DOES.
+ *
+ * The read/write split is the whole point. A single "must sit inside a declared
+ * boundary" rule makes a system wrap the cheapest way to green a new write —
+ * and a system wrap on a write is an unconstrained cross-tenant mutation, which
+ * is precisely what the engine must never grow. So a write is satisfied ONLY by
+ * a tenant-scoped transaction; a system boundary makes it FAIL. Reads may be
+ * declared either way, because a tenant-unknown read is the one thing the engine
+ * legitimately performs across tenants.
+ */
+function classifyModelOperations(sources: SagaSource[]): string[] {
+  const boundaries = SYSTEM_WRAP_FORMS.flatMap((form) => collectCalls(sources, form));
+  const tenantTransactions = collectCalls(sources, TENANT_TRANSACTION);
+  const violations: string[] = [];
+
+  const enclosedBy = (calls: WrapCall[], operation: ModelOperation): boolean =>
+    calls.some(
+      (call) =>
+        call.source.path === operation.source.path &&
+        operation.index > call.openParen &&
+        operation.index < call.closeParen
+    );
+
+  for (const operation of collectModelOperations(sources)) {
+    const where = `${operation.source.label}:${lineOf(operation.source.original, operation.index)}`;
+    const what = `${operation.model}.${operation.operation}`;
+
+    if (WRITE_OPERATIONS.has(operation.operation)) {
+      if (!enclosedBy(tenantTransactions, operation)) {
+        violations.push(`${where}: ${what} writes outside a tenant-scoped transaction`);
+      }
+      continue;
+    }
+
+    if (!READ_OPERATIONS.has(operation.operation)) continue;
+
+    if (!enclosedBy(boundaries, operation) && !enclosedBy(tenantTransactions, operation)) {
+      violations.push(`${where}: ${what} reads outside any declared context`);
+    }
+  }
+
+  return violations;
+}
+
+/** Builds a scannable source from inline code, for the classifier's own controls. */
+function syntheticSource(code: string): SagaSource {
+  return {
+    path: "/synthetic/SagaEngineProbe.ts",
+    label: "synthetic/SagaEngineProbe.ts",
+    original: code,
+    sanitized: sanitize(code),
+  };
+}
+
+/** Names bound by a top-level `export` declaration in `source`. */
+function exportedNames(source: string): string[] {
+  const names: string[] = [];
+  const sanitized = sanitize(source);
+  const pattern =
+    /\bexport\s+(?:async\s+)?(?:function|const|let|class|type|interface|enum)\s+([A-Za-z_$][\w$]*)/g;
+  let match = pattern.exec(sanitized);
+  while (match !== null) {
+    names.push(match[1] ?? "");
+    match = pattern.exec(sanitized);
+  }
+  return names;
+}
+
 /** Extracts the balanced body that follows the first `{` at or after `from`. */
 function blockAfter(source: SagaSource, from: number): string {
   const open = nextBrace(source.sanitized, from);
@@ -360,41 +487,96 @@ describe("saga engine context invariants", () => {
     });
   });
 
-  describe("tenant-unknown model reads run inside a declared context", () => {
-    const modelReadPattern = /config\.prisma\.([A-Za-z][A-Za-z0-9]*)\./g;
+  describe("model operations are classified, not merely declared", () => {
+    const systemReads = collectCalls(sagaSources, "withSagaSystemRead");
 
-    const modelReads: Array<{ source: SagaSource; index: number; model: string }> = [];
-    for (const source of sagaSources) {
-      let match = modelReadPattern.exec(source.sanitized);
-      while (match !== null) {
-        modelReads.push({ source, index: match.index, model: match[1] ?? "" });
-        match = modelReadPattern.exec(source.sanitized);
-      }
-      modelReadPattern.lastIndex = 0;
-    }
-
-    it("finds the engine's direct model reads", () => {
-      expect(modelReads.length).toBeGreaterThan(0);
+    it("delegates the engine's tenant-unknown reads to the read primitive", () => {
+      expect(systemReads.length).toBeGreaterThan(0);
     });
 
-    it("wraps every direct model read in a declared system boundary", () => {
-      const violations = modelReads
-        .filter(
-          (read) =>
-            !systemBoundaries.some(
-              (call) =>
-                call.source.path === read.source.path &&
-                read.index > call.openParen &&
-                read.index < call.closeParen
-            )
-        )
+    it("hands that primitive the engine's own injected client at every call site", () => {
+      // The primitive can only bind the transaction-local scope on the client it
+      // is given; a call site that reaches for another one binds nothing.
+      const violations = systemReads
+        .filter((call) => !call.reason.includes("config.prisma"))
         .map(
-          (read) =>
-            `${read.source.label}:${lineOf(read.source.original, read.index)}: ` +
-            `${read.model} read is not inside a declared system boundary`
+          (call) =>
+            `${call.source.label}:${lineOf(call.source.original, call.openParen)}: ` +
+            `client argument is \`${call.reason}\``
         );
 
       expect(violations).toEqual([]);
+    });
+
+    it("issues no unclassified model operation on the engine client", () => {
+      expect(classifyModelOperations(sagaSources)).toEqual([]);
+    });
+
+    it("rejects a WRITE that only a system boundary encloses", () => {
+      // The control that makes the assertion above meaningful: a system wrap is
+      // the cheapest way to green a new write, and it is exactly the wrong fix.
+      const probe = syntheticSource(`
+        async terminalize(): Promise<void> {
+          await withSagaSystemRead(this.config.prisma, async () => {
+            await this.config.prisma.sagaInstance.update({ where: { id: "x" }, data: {} });
+          });
+        }
+      `);
+
+      expect(classifyModelOperations([probe])).toEqual([
+        "synthetic/SagaEngineProbe.ts:4: sagaInstance.update writes outside a tenant-scoped transaction",
+      ]);
+    });
+
+    it("accepts a WRITE inside a tenant-scoped transaction", () => {
+      const probe = syntheticSource(`
+        async persist(): Promise<void> {
+          await runSagaTenantTransaction(this.config.prisma, accountId, async () => {
+            await this.config.prisma.sagaInstance.upsert({ where: { id: "x" } });
+          });
+        }
+      `);
+
+      expect(classifyModelOperations([probe])).toEqual([]);
+    });
+
+    it("accepts a READ inside a declared system boundary", () => {
+      const probe = syntheticSource(`
+        async load(): Promise<void> {
+          await withSagaSystemRead(this.config.prisma, async () => {
+            await this.config.prisma.sagaInstance.findMany({});
+          });
+        }
+      `);
+
+      expect(classifyModelOperations([probe])).toEqual([]);
+    });
+
+    it("rejects a READ that no declared context encloses", () => {
+      const probe = syntheticSource(`
+        async load(): Promise<void> {
+          await this.config.prisma.sagaInstance.findUnique({ where: { id: "x" } });
+        }
+      `);
+
+      expect(classifyModelOperations([probe])).toEqual([
+        "synthetic/SagaEngineProbe.ts:3: sagaInstance.findUnique reads outside any declared context",
+      ]);
+    });
+  });
+
+  describe("the tenant module's export surface", () => {
+    const tenantModule = sourceByName("sagaTenant.ts");
+    const exports = exportedNames(tenantModule.original);
+
+    it("does not export a general-purpose cross-tenant transaction", () => {
+      // Exported, it is the cheapest way for any future engine write to opt out
+      // of tenant scoping — the reuse hazard the narrow surfaces below replace.
+      expect(exports).not.toContain("runSagaSystemTransaction");
+    });
+
+    it("exports only the two narrow cross-tenant surfaces instead", () => {
+      expect(exports).toEqual(expect.arrayContaining(["withSagaSystemRead", "failSagaAsSystem"]));
     });
   });
 
@@ -472,15 +654,19 @@ describe("saga engine context invariants", () => {
     const instanceLoadBody = methodBody(execution, /\basync\s+loadSagaInstance\s*\(/);
 
     it("extracts each scanned body from its own declaration", () => {
+      // The boot-load key states its intent positively: the extracted body must
+      // be the METHOD, not `initialize()`'s call to it. A body that still
+      // mentions `loadActiveSagas` is the caller, and every assertion below
+      // would then pass against the wrong catch block.
       expect({
-        bootLoad: bootLoadBody.includes("loadActiveSagas"),
+        bootLoadBodyIsNotTheCallSite: !bootLoadBody.includes("loadActiveSagas"),
         bootLoadReads: bootLoadBody.includes("findMany"),
         retryScan: retryScanBody.includes("findMany"),
         timeout: timeoutBody.includes("activeInstances"),
         shutdown: shutdownBody.includes("persistSagaInstance"),
         instanceLoad: instanceLoadBody.includes("findUnique"),
       }).toEqual({
-        bootLoad: false,
+        bootLoadBodyIsNotTheCallSite: true,
         bootLoadReads: true,
         retryScan: true,
         timeout: true,

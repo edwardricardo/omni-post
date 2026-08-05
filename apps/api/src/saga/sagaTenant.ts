@@ -6,15 +6,23 @@
  *
  *              The engine runs with no HTTP request to inherit a scope from, so
  *              it resolves the owning account from the saga itself and declares
- *              it explicitly. `withSagaSystemRead` and the two transaction
- *              primitives bind the AsyncLocalStorage context the Prisma guard
- *              reads AND, inside a transaction, the `app.account_id` setting the
- *              row-level policies read. Two failure modes are closed by
- *              construction rather than by convention:
+ *              it explicitly. EVERY primitive here binds BOTH layers: the
+ *              AsyncLocalStorage context the Prisma guard reads AND the
+ *              transaction-local `app.account_id` the row-level policies read.
+ *              That includes the tenant-unknown READS — `withSagaSystemRead`
+ *              opens its own transaction and binds the system scope first,
+ *              because a single statement outside a transaction binds no setting
+ *              at all, and under a role that does not bypass row-level security
+ *              such a read returns ZERO rows with no error: a silently empty
+ *              recovery scan.
+ *
+ *              Two failure modes are closed by construction rather than by
+ *              convention:
  *
  *                - a Prisma call is LAZY, so a wrap that hands the unawaited
  *                  promise back releases its scope before the query runs; every
- *                  primitive here awaits inside its own callback;
+ *                  primitive here awaits inside its own callback, so no call
+ *                  site can reintroduce the shape;
  *                - the transaction-local setting must be the first statement of
  *                  the transaction, before any query the policy should govern.
  *
@@ -29,10 +37,16 @@
 import { randomUUID } from "node:crypto";
 import { SYSTEM_TENANT_SCOPE, setTenantGuc } from "@infra/prisma/extensions/tenantGuc.js";
 import type { SagaContext, SagaInstance } from "@shared/types/saga.js";
+import { SAGA_EVENTS } from "@shared/types/saga.js";
+import { createEventStoreEvent } from "@shared/types/events.js";
 import { withSystemContext, withTenantContext } from "../security/tenantContext.js";
 import { logger } from "../lib/logger.js";
 import { recordSagaFailed, recordSagaRecoveryFailure } from "../metrics/sagaRecoveryMetrics.js";
-import type { SagaEngineClient, SagaTransactionClient } from "./sagaManagerTypes.js";
+import type {
+  SagaEngineClient,
+  SagaManagerConfig,
+  SagaTransactionClient,
+} from "./sagaManagerTypes.js";
 
 /**
  * The only system-context reason the saga engine may use. Every cross-tenant
@@ -155,17 +169,26 @@ export function resolveSagaAccountId(instance: SagaInstance): string | null {
 
 /**
  * @function withSagaSystemRead
- * @description Runs a tenant-UNKNOWN read under the declared saga system
- *   boundary. The callback is awaited INSIDE the declared scope, so a lazy
- *   Prisma promise cannot escape it and run undeclared. Scope this to the query
- *   expression only: the boundary must never span a saga dispatch, because
- *   AsyncLocalStorage propagates through `setImmediate` and the system context
- *   has no exit primitive.
+ * @description Runs a tenant-UNKNOWN read with BOTH isolation layers bound to
+ *   the system scope, and hands the callback the transaction client the read
+ *   must use. The transaction is not incidental: a bare statement binds no
+ *   transaction-local setting, so under a role that does not bypass row-level
+ *   security the read matches nothing and the caller sees an empty result rather
+ *   than an error. The callback is awaited INSIDE the boundary, so a lazy Prisma
+ *   promise cannot escape it and run undeclared.
+ *
+ *   Scope this to the query expression only: the boundary must never span a saga
+ *   dispatch, because AsyncLocalStorage propagates through `setImmediate` and the
+ *   system context has no exit primitive.
+ * @param prisma - The engine's Prisma client.
  * @param fn - The read to run inside the declared boundary.
  * @returns Whatever the read resolves to.
  */
-export async function withSagaSystemRead<T>(fn: () => PromiseLike<T>): Promise<T> {
-  return await withSystemContext(SAGA_SYSTEM_REASON, async () => await fn());
+export async function withSagaSystemRead<T>(
+  prisma: SagaEngineClient,
+  fn: (tx: SagaTransactionClient) => Promise<T>
+): Promise<T> {
+  return await runSagaSystemTransaction(prisma, fn);
 }
 
 /**
@@ -192,20 +215,23 @@ export async function runSagaTenantTransaction<T>(
 }
 
 /**
- * @function runSagaSystemTransaction
- * @description Opens a transaction under the declared saga system boundary on
- *   BOTH layers: the system AsyncLocalStorage context for the Prisma guard and
- *   the system sentinel scope for the row-level policies. Reserved for work
- *   whose whole purpose is to span tenants.
- * @param prisma - The engine's Prisma client.
- * @param fn - The transaction body.
- * @returns Whatever the body resolves to.
+ * Opens a transaction under the declared saga system boundary on BOTH layers:
+ * the system AsyncLocalStorage context for the Prisma guard and the system
+ * sentinel scope for the row-level policies.
+ *
+ * Deliberately NOT exported. A general-purpose cross-tenant transaction is the
+ * reuse hazard this module exists to remove: exported, it is the cheapest way
+ * for any future engine write to opt out of tenant scoping. The two things the
+ * engine legitimately needs across tenants are exposed instead as narrow,
+ * named surfaces — {@link withSagaSystemRead} for tenant-unknown reads and
+ * {@link failSagaAsSystem} for the one terminal write.
  */
-export async function runSagaSystemTransaction<T>(
+async function runSagaSystemTransaction<T>(
   prisma: SagaEngineClient,
   fn: (tx: SagaTransactionClient) => Promise<T>
 ): Promise<T> {
-  return await withSagaSystemRead(
+  return await withSystemContext(
+    SAGA_SYSTEM_REASON,
     async () =>
       await prisma.$transaction(async (tx) => {
         await setTenantGuc(tx, SYSTEM_TENANT_SCOPE);
@@ -276,6 +302,12 @@ export async function runAsSagaTenant<T>(
   return { ran: true, value };
 }
 
+/** The collaborators the terminal system write needs; the engine config satisfies it. */
+export type SagaSystemTerminationConfig = Pick<
+  SagaManagerConfig,
+  "prisma" | "eventService" | "lockStore"
+>;
+
 /**
  * @function failSagaAsSystem
  * @description Drives a saga whose tenant cannot be resolved to the terminal
@@ -285,14 +317,21 @@ export async function runAsSagaTenant<T>(
  *   row stays non-terminal forever while every timeout tick logs and counts it
  *   again — an infinite RUNNING state the saga canon forbids.
  *
- *   The write is narrow by construction: one `update` by primary key, both
- *   layers bound to the system scope, and NO dispatch inside the boundary.
- * @param prisma - The engine's Prisma client.
+ *   The transition is the ORDINARY terminal transition, not a shortcut: the
+ *   `SAGA_FAILED` audit event commits in the SAME transaction as the row (an
+ *   anomalous transition is precisely the one whose durable trail must not have
+ *   a hole), and the saga's semantic locks are released afterwards so a
+ *   legitimate saga is not blocked behind a dead one until the lock TTL expires.
+ *
+ *   The write stays narrow by construction: three bounded operations — one
+ *   `update` by primary key, one event append, one lock release — both layers
+ *   bound to the system scope, and NO dispatch inside the boundary.
+ * @param config - The engine's client and its durable-event / lock collaborators.
  * @param instance - The saga to terminalize; its in-memory state is updated too.
  * @param reason - Why the tenant could not be resolved.
  */
 export async function failSagaAsSystem(
-  prisma: SagaEngineClient,
+  config: SagaSystemTerminationConfig,
   instance: SagaInstance,
   reason: SagaTenantSkipReason
 ): Promise<void> {
@@ -304,7 +343,29 @@ export async function failSagaAsSystem(
   instance.error = message;
   delete instance.nextRetryAt;
 
-  await runSagaSystemTransaction(prisma, async (tx) => {
+  const sagaFailedEvent = createEventStoreEvent(
+    SAGA_EVENTS.SAGA_FAILED,
+    instance.id,
+    "Saga",
+    {
+      sagaId: instance.id,
+      definitionId: instance.definitionId,
+      correlationId: instance.context.correlationId,
+      status: "FAILED",
+      completedAt,
+      duration: completedAt.getTime() - instance.startedAt.getTime(),
+      stepsCompleted: instance.stepResults.filter((r) => r?.success).length,
+      stepsFailed: instance.stepResults.filter((r) => r && !r.success).length,
+      error: message,
+      reason,
+    },
+    {
+      source: "SagaManager",
+      correlationId: instance.context.correlationId,
+    }
+  );
+
+  await runSagaSystemTransaction(config.prisma, async (tx) => {
     await tx.sagaInstance.update({
       where: { id: instance.id },
       data: {
@@ -314,7 +375,20 @@ export async function failSagaAsSystem(
         nextRetryAt: null,
       },
     });
+    if (config.eventService) {
+      await config.eventService.appendEventInTx(tx, sagaFailedEvent);
+    }
   });
+
+  if (config.lockStore) {
+    const released = await config.lockStore.releaseAllForSaga(instance.id);
+    if (!released.ok) {
+      logger.warn(
+        { sagaId: instance.id, err: released.error },
+        "Semantic lock cleanup failed after terminalization; locks will expire via TTL"
+      );
+    }
+  }
 
   recordSagaFailed(reason);
   logger.error(

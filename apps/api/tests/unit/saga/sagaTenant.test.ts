@@ -39,11 +39,12 @@ import {
   resolveSagaAccountId,
   resolveSagaTenant,
   runAsSagaTenant,
-  runSagaSystemTransaction,
   runSagaTenantTransaction,
   withSagaSystemRead,
+  type SagaSystemTerminationConfig,
   type SagaTenantMetrics,
 } from "../../../src/saga/sagaTenant.js";
+import type { EventStoreEvent } from "@shared/types/events.js";
 import type { SagaEngineClient } from "../../../src/saga/sagaManagerTypes.js";
 
 const ACCOUNT_ID = "acc-11111111-1111-4111-8111-111111111111";
@@ -85,10 +86,18 @@ const makeInstance = (
 interface TransactionSpy {
   prisma: SagaEngineClient;
   effects: string[];
+  /** Durable events appended inside the transaction, in order. */
+  events: EventStoreEvent[];
+  /** Sagas whose semantic locks were released. */
+  releasedSagaIds: string[];
+  /** The collaborator bundle the terminal system write receives. */
+  config: SagaSystemTerminationConfig;
 }
 
 function createTransactionSpy(): TransactionSpy {
   const effects: string[] = [];
+  const events: EventStoreEvent[] = [];
+  const releasedSagaIds: string[] = [];
   const tx = {
     $executeRaw: async (_strings: TemplateStringsArray, ...values: unknown[]): Promise<number> => {
       effects.push(`guc:${String(values[0])}`);
@@ -108,8 +117,25 @@ function createTransactionSpy(): TransactionSpy {
       effects.push("tx:commit");
       return result;
     },
-  };
-  return { prisma: prisma as unknown as SagaEngineClient, effects };
+  } as unknown as SagaEngineClient;
+
+  const config = {
+    prisma,
+    eventService: {
+      appendEventInTx: async (_tx: unknown, event: EventStoreEvent): Promise<void> => {
+        effects.push(`event:${event.type}`);
+        events.push(event);
+      },
+    },
+    lockStore: {
+      releaseAllForSaga: async (sagaId: string) => {
+        releasedSagaIds.push(sagaId);
+        return { ok: true as const, value: undefined };
+      },
+    },
+  } as unknown as SagaSystemTerminationConfig;
+
+  return { prisma, effects, events, releasedSagaIds, config };
 }
 
 describe("saga tenant module", () => {
@@ -336,18 +362,44 @@ describe("saga tenant module", () => {
   });
 
   describe("withSagaSystemRead", () => {
-    it("declares the saga system reason for the duration of the read", async () => {
-      const observed = await withSagaSystemRead(async () => getSystemContext()?.reason);
+    it("binds BOTH isolation layers before the read runs", async () => {
+      // A single statement outside a transaction binds no transaction-local
+      // scope at all, so under a role that does not bypass row-level security
+      // the read matches nothing and answers an empty set instead of an error.
+      const spy = createTransactionSpy();
+      const observed: Array<string | undefined> = [];
 
-      expect(observed).toBe(SAGA_SYSTEM_REASON);
+      await withSagaSystemRead(spy.prisma, async () => {
+        observed.push(getSystemContext()?.reason);
+      });
+
+      expect(observed).toEqual([SAGA_SYSTEM_REASON]);
+      expect(spy.effects).toEqual(["tx:open", `guc:${SYSTEM_SCOPE}`, "tx:commit"]);
       expect(getSystemContext()).toBeUndefined();
+    });
+
+    it("hands the callback the transaction client that carries the bound scope", async () => {
+      const spy = createTransactionSpy();
+
+      await withSagaSystemRead(spy.prisma, async (tx) => {
+        await tx.sagaInstance.update({ where: { id: "saga-read" }, data: { status: "FAILED" } });
+      });
+
+      expect(spy.effects).toEqual([
+        "tx:open",
+        `guc:${SYSTEM_SCOPE}`,
+        "update:saga-read:FAILED",
+        "tx:commit",
+      ]);
     });
 
     it("awaits a lazily-executed query INSIDE the declared scope", async () => {
       // A Prisma call returns a lazy promise that only reaches the database when
       // awaited. A wrap that hands the unawaited promise back releases its scope
       // first, so the query runs undeclared. This thenable reproduces that shape:
-      // it reports the context active at await time.
+      // it reports the context active at await time, and the primitive — not the
+      // call site — is what awaits it.
+      const spy = createTransactionSpy();
       const lazyQuery: PromiseLike<string | undefined> = {
         then(onFulfilled) {
           const reason = getSystemContext()?.reason;
@@ -355,23 +407,12 @@ describe("saga tenant module", () => {
         },
       };
 
-      const observed = await withSagaSystemRead(() => lazyQuery);
+      const observed = await withSagaSystemRead(
+        spy.prisma,
+        () => lazyQuery as Promise<string | undefined>
+      );
 
       expect(observed).toBe(SAGA_SYSTEM_REASON);
-    });
-  });
-
-  describe("runSagaSystemTransaction", () => {
-    it("binds the system scope on both layers before the body runs", async () => {
-      const spy = createTransactionSpy();
-      const observed: Array<string | undefined> = [];
-
-      await runSagaSystemTransaction(spy.prisma, async () => {
-        observed.push(getSystemContext()?.reason);
-      });
-
-      expect(observed).toEqual([SAGA_SYSTEM_REASON]);
-      expect(spy.effects).toEqual(["tx:open", `guc:${SYSTEM_SCOPE}`, "tx:commit"]);
     });
   });
 
@@ -401,16 +442,20 @@ describe("saga tenant module", () => {
   });
 
   describe("failSagaAsSystem — the one cross-tenant write", () => {
-    it("terminalizes an unresolvable saga under the declared system scope", async () => {
+    it("commits the terminal row and its audit event in ONE system-scoped transaction", async () => {
+      // The anomalous transition is exactly the one whose durable trail must not
+      // have a hole, and an event appended after the commit can be lost on a
+      // crash between the two.
       const spy = createTransactionSpy();
       const instance = makeInstance(makeContext(), { id: "saga-orphan", status: "RUNNING" });
 
-      await failSagaAsSystem(spy.prisma, instance, "unresolvable-account");
+      await failSagaAsSystem(spy.config, instance, "unresolvable-account");
 
       expect(spy.effects).toEqual([
         "tx:open",
         `guc:${SYSTEM_SCOPE}`,
         "update:saga-orphan:FAILED",
+        "event:saga.failed",
         "tx:commit",
       ]);
       expect(instance.status).toBe("FAILED");
@@ -419,14 +464,58 @@ describe("saga tenant module", () => {
       expect(errorSpy).toHaveBeenCalledTimes(1);
     });
 
+    it("names the saga, the definition and the skip reason on the audit event", async () => {
+      const spy = createTransactionSpy();
+      const instance = makeInstance(makeContext(), { id: "saga-orphan", status: "RUNNING" });
+
+      await failSagaAsSystem(spy.config, instance, "unresolvable-account");
+
+      const [event] = spy.events;
+      expect(event?.aggregateId).toBe("saga-orphan");
+      expect(event?.aggregateType).toBe("Saga");
+      expect(event?.data).toMatchObject({
+        sagaId: "saga-orphan",
+        definitionId: "post-publishing-saga",
+        status: "FAILED",
+        reason: "unresolvable-account",
+      });
+    });
+
+    it("releases the saga's semantic locks so a legitimate saga is not blocked until TTL", async () => {
+      const spy = createTransactionSpy();
+      const instance = makeInstance(makeContext(), { id: "saga-locked", status: "RUNNING" });
+
+      await failSagaAsSystem(spy.config, instance, "tenant-mismatch");
+
+      expect(spy.releasedSagaIds).toEqual(["saga-locked"]);
+    });
+
     it("records the mismatch reason on the terminal row for the operator", async () => {
       const spy = createTransactionSpy();
       const instance = makeInstance(makeContext(), { id: "saga-mismatch", status: "PENDING" });
 
-      await failSagaAsSystem(spy.prisma, instance, "tenant-mismatch");
+      await failSagaAsSystem(spy.config, instance, "tenant-mismatch");
 
       expect(spy.effects).toContain("update:saga-mismatch:FAILED");
       expect(instance.error).toContain("tenant-mismatch");
+      expect(spy.events[0]?.data).toMatchObject({ reason: "tenant-mismatch" });
+    });
+
+    it("still terminalizes when no event or lock collaborator is configured", async () => {
+      // Schema-only and test wirings omit both; a terminal transition must not
+      // depend on optional collaborators being present.
+      const spy = createTransactionSpy();
+      const instance = makeInstance(makeContext(), { id: "saga-bare", status: "RUNNING" });
+
+      await failSagaAsSystem({ prisma: spy.prisma }, instance, "unresolvable-account");
+
+      expect(spy.effects).toEqual([
+        "tx:open",
+        `guc:${SYSTEM_SCOPE}`,
+        "update:saga-bare:FAILED",
+        "tx:commit",
+      ]);
+      expect(instance.status).toBe("FAILED");
     });
   });
 });

@@ -472,12 +472,12 @@ was simply absent from its write path and `context.userId` (a `CustomerUser.id`)
 persisted into `SagaInstance.accountId` unnoticed. The corrective posture has
 three parts.
 
-| Concern                                                                                                | Posture                                                                                                                                                                                                                                                                                                      |
-| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Client                                                                                                 | The bootstrap constructs `SagaIntegration` with `container.resolve(TOKENS.PrismaClient)` — the guarded client. No saga-engine construction path takes the raw singleton (enforced by a merge-blocking source scan).                                                                                          |
-| Tenant-unknown reads (boot load, retry scan, by-id instance load)                                      | `withSagaSystemRead(fn)` from `apps/api/src/saga/sagaTenant.ts`, which declares `SAGA_SYSTEM_REASON = "system:saga-recovery"` — the single reason the engine may use, one grep-able constant. Each wrap is scoped to the query expression and ends with it.                                                  |
-| Per-saga work (step loop, every engine persist, compensation, timeout failure, shutdown, boot re-warm) | `runAsSagaTenant(instance, fn)` rehydrates the saga's own `accountId` via `withTenantContext`, so the guard VALIDATES those writes instead of skipping them. A saga with no resolvable account is skipped loudly (ERROR + `rehydrationFailures`), never run unscoped and never downgraded to system context. |
-| Transactions                                                                                           | `runSagaTenantTransaction` / `runSagaSystemTransaction` bind the transaction-local `app.account_id` as the transaction's FIRST statement, so the RLS policies govern the same rows the Prisma guard narrowed. Engine transactions previously bound only the guard.                                           |
+| Concern                                                                                                | Posture                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Client                                                                                                 | The bootstrap constructs `SagaIntegration` with `container.resolve(TOKENS.PrismaClient)` — the guarded client. No saga-engine construction path takes the raw singleton (enforced by a merge-blocking source scan).                                                                                                                                                                                            |
+| Tenant-unknown reads (boot load, retry scan, by-id instance load)                                      | `withSagaSystemRead(prisma, (tx) => …)` from `apps/api/src/saga/sagaTenant.ts`, which declares `SAGA_SYSTEM_REASON = "system:saga-recovery"` — the single reason the engine may use, one grep-able constant — AND opens its own transaction to bind the system sentinel scope. Each wrap is scoped to the query expression and ends with it.                                                                   |
+| Per-saga work (step loop, every engine persist, compensation, timeout failure, shutdown, boot re-warm) | `runAsSagaTenant(instance, fn)` rehydrates the saga's own `accountId` via `withTenantContext`, so the guard VALIDATES those writes instead of skipping them. A saga with no resolvable account is skipped loudly (ERROR + `rehydrationFailures`), never run unscoped and never downgraded to system context.                                                                                                   |
+| Transactions                                                                                           | `runSagaTenantTransaction` binds the transaction-local `app.account_id` as the transaction's FIRST statement, so the RLS policies govern the same rows the Prisma guard narrowed. Engine transactions previously bound only the guard. A general-purpose cross-tenant transaction is deliberately NOT exported — the two legitimate cross-tenant surfaces are the read primitive above and `failSagaAsSystem`. |
 
 **Account resolution is column-authoritative.** The persisted `SagaInstance.accountId`
 wins; `context.accountId` then `context.metadata.accountId` are the fallback AND a
@@ -492,10 +492,27 @@ is detected at read time rather than colliding on the primary key at write time.
 a discriminated outcome (`ran: true | false` with a reason) that every caller consumes — an
 admin compensate that could not run answers 409, never a success envelope. The timeout
 checker terminalizes an unresolvable or contradicted row to FAILED through
-`failSagaAsSystem`, the engine's ONLY cross-tenant write: one `update` by primary key,
-both layers bound to the system scope, no dispatch inside. Without it such a row is
-non-terminal forever — an infinite RUNNING state the saga canon forbids — while every tick
-logs and counts it again.
+`failSagaAsSystem`, the engine's ONLY cross-tenant write: one `update` by primary key plus
+the `SAGA_FAILED` audit event in the SAME transaction and a release of the saga's semantic
+locks, both layers bound to the system scope, no dispatch inside. The audit event and the
+lock release are not extras — an anomalous transition is precisely the one whose durable
+trail must not have a hole, and a lock left held by a dead saga blocks a legitimate one on
+the same aggregate until its TTL expires. Without this path such a row is non-terminal
+forever — an infinite RUNNING state the saga canon forbids — while every tick logs and
+counts it again.
+
+The decision is re-taken against a FRESH read of the row before the write. The in-memory
+copy was loaded at boot and can be arbitrarily old, while the documented repair for this
+row class is re-running the idempotent backfill — which happens underneath a live process.
+A row that has become resolvable in the meantime is REFRESHED in memory, not terminalized.
+
+**What terminalization covers, precisely.** The checker walks `activeInstances`, so it can
+only terminalize sagas THIS process loaded at boot. A row corrupted by an old pod AFTER
+this process started is detected on the scans, counted (`stage="mismatch"` /
+`stage="rehydration"`) and skipped — but not terminalized until this process restarts and
+loads it, or until the operator re-runs the backfill and repairs it in place. The scans
+also order by due time, so a stuck row sorts first and keeps its place at the head of the
+page; the remedy is the runbook's migration re-run, not a wider scan.
 
 Two invariants make the shape safe rather than merely declared:
 
@@ -505,14 +522,20 @@ Two invariants make the shape safe rather than merely declared:
   its CQRS step writes through guarded repositories — under a bypass that has
   no exit primitive. A source scan rejects any dispatch that sits lexically
   inside a `withSystemContext` callback.
-- **The wrapped query is awaited INSIDE the callback.** A Prisma call returns a
-  lazy promise that reaches the database only when awaited, so a callback of the
-  form `() => prisma.model.findMany(...)` runs its query AFTER the declared
-  context has been released — the declaration silently becomes a no-op and the
-  read fails with `TenantContextMissingError`, which the loop then swallows into
-  its counter. This is the failure mode that turns a background loop dead while
-  the source still reads as correct. The same source scan requires every wrap
-  callback to be `async` and to `await` its query.
+- **The wrapped query is awaited INSIDE the boundary, and the PRIMITIVE owns
+  that.** A Prisma call returns a lazy promise that reaches the database only
+  when awaited, so a hand-rolled wrap of the form
+  `withSystemContext(reason, () => prisma.model.findMany(...))` runs its query
+  AFTER the declared context has been released — the declaration silently
+  becomes a no-op and the read fails with `TenantContextMissingError`, which the
+  loop then swallows into its counter. This is the failure mode that turns a
+  background loop dead while the source still reads as correct. It is closed by
+  construction rather than by call-site discipline: `withSagaSystemRead` awaits
+  the callback itself, so writing `withSagaSystemRead(prisma, (tx) => tx.model.findMany(...))`
+  is correct as written. Do NOT "fix" a call site back into a hand-rolled
+  `withSystemContext` wrap — the source scan requires every remaining
+  `withSystemContext` callback to be `async` and to `await` its query precisely
+  because that form is the one that can get it wrong.
 
 Failures on these paths are observable rather than silent. Every background loop —
 boot load, retry scan, timeout checker, and the by-id instance load — logs at ERROR
@@ -524,7 +547,13 @@ inside their own try/catch, so one poisoned row cannot end the pass for every sa
 behind it. The by-id load distinguishes an infrastructure failure from an absent
 row — both used to answer "not found" to every caller.
 
-The same counters leave the process: `saga_recovery_failures_total{loop}` and
+A failed boot load is NOT retried in process: the pass runs once, its failure is
+logged, counted and reflected as `degraded` health, and the process then serves
+without recovery coverage until it is RESTARTED. That is deliberate — a retry loop
+around the boot pass would race the schedulers it starts — but it means the remedy
+for a failed boot load is a restart, not waiting.
+
+The same counters leave the process: `saga_recovery_failures_total{stage}` and
 `sagas_failed_total{reason}` are real Prometheus series (`apps/api/src/metrics/
 sagaRecoveryMetrics.ts`), the second being the one `prometheus/alerts/saga.yml`
 already alerts on. The in-process snapshot stays available on `/sagas/metrics`, and
@@ -555,8 +584,14 @@ A tenant-scoped model is fully enrolled when all three hold:
    flipped non-null while sentinel rows exist (see the backfill below), so completing
    enrollment is sequenced work, not a rider. Tracked as SMELL-70. Note that leg 3 was
    INERT for the engine until this change, for a different reason: the engine's
-   transactions never bound `app.account_id`, so the policies had no scope to evaluate
-   against. The transaction primitives above close that.
+   statements never bound `app.account_id`, so the policies had no scope to evaluate
+   against. Both halves are now bound: per-saga WRITES go through
+   `runSagaTenantTransaction`, which binds the saga's own account as the transaction's
+   first statement, and tenant-unknown READS go through `withSagaSystemRead`, which
+   opens its own transaction to bind the system sentinel. The read half is not
+   optional — a bare statement outside a transaction binds nothing, so under a
+   hardened `NOBYPASSRLS` role it would return zero rows with no error: a recovery
+   scan that reports "nothing in flight" while everything is.
 2. **The customer saga read is NOT guard-scoped on a cache miss.** The engine's
    by-id load exists to discover which tenant owns an id, so it declares the
    system reason; the customer `GET /sagas/:sagaId` cold path (Redis miss →
@@ -625,6 +660,15 @@ the recovery is a three-step procedure, in order:
 3. Re-run `migrate deploy`. The statements are idempotent, so the rows already
    repaired are untouched.
 
+##### Why the timeouts live here and not in the migration file
+
+The migration is APPLIED, and Prisma records a checksum of its bytes in
+`_prisma_migrations`. Editing the file after the fact — even to add a `SET LOCAL` —
+makes every later `migrate deploy` fail with a checksum mismatch on every database
+that already ran it. So the file is frozen by construction, and the bounding of a
+run belongs to whoever opens the connection. That is this runbook for a manual
+re-run, and the deploy connection itself for the automated first apply.
+
 ##### Two properties to know before a manual re-run
 
 - **The statements read committed state, one at a time.** Each runs at READ
@@ -646,6 +690,26 @@ the recovery is a three-step procedure, in order:
   ```
 
   Raise the numbers deliberately for a large table; do not remove them.
+
+##### Bounding the automated first apply (production)
+
+`migrate deploy` runs the frozen file, so the only place to bound it is the
+connection it runs on. Set the limits at role or session level for the deploy
+principal BEFORE the deploy, so a lock held by application traffic surfaces as a
+failed migration instead of a stalled table:
+
+```sql
+-- Once, on the migration role (persists across deploy connections):
+ALTER ROLE omnipost_migrator SET lock_timeout = '5s';
+ALTER ROLE omnipost_migrator SET statement_timeout = '60s';
+```
+
+Equivalently, per deploy, append the settings to the migration connection string
+(`?options=-c%20lock_timeout%3D5s%20-c%20statement_timeout%3D60s`). Use a
+migration principal distinct from the application role so these limits never apply
+to serving traffic. A migration that aborts on `lock_timeout` is recorded as failed
+and is recovered by the `P3009` procedure above — which is the intended outcome, not
+an incident.
 
 ##### Rollback honesty
 

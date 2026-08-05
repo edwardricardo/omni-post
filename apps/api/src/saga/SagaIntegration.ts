@@ -684,7 +684,7 @@ export class SagaIntegration {
               // Recovery health: a non-zero counter means the engine lost
               // visibility of in-flight sagas or skipped work it could not
               // scope to a tenant. The same events are exported as
-              // `saga_recovery_failures_total{loop}` for alerting; this block is
+              // `saga_recovery_failures_total{stage}` for alerting; this block is
               // the operator-facing snapshot for one process.
               recovery: {
                 bootLoadFailures: metrics.bootLoadFailures,

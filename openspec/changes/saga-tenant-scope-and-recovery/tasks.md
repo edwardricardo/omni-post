@@ -283,7 +283,7 @@ scoping itself held; the operational layer around it was rebuilt. Design D3/D5 c
 - [x] 7R.5 Loops hardened: per-saga try/catch in the timeout checker and the shutdown
       drain with their own counters; by-id load distinguishes infrastructure failure from
       an absent row; the bootstrap's shutdown closure always reaches `app.close()`.
-- [x] 7R.6 Observability made real: `saga_recovery_failures_total{loop}` and
+- [x] 7R.6 Observability made real: `saga_recovery_failures_total{stage}` and
       `sagas_failed_total{reason}` (the series the saga alert rules already query) via the
       repo's `getOrCreateCounter` pattern; `healthCheck()` reports `degraded` when the boot
       load failed; `captureError` on every engine catch path; `/sagas/metrics` recovery
@@ -306,15 +306,98 @@ scoping itself held; the operational layer around it was rebuilt. Design D3/D5 c
       because wiring a knowingly-red suite is not wiring. The live run (10.3) still needs
       a running API and stays pending.
 
+## Phase 7R2: re-verification corrective pass (2026-08-05)
+
+The re-run of the four lenses cleared R2, R4 and most of R1, and returned one new CRITICAL
+plus three warnings against the reworked operational layer. This phase closes all of them.
+
+- [x] 7R2.1 **[CRITICAL]** The backfill audit test now ESTABLISHES its audited population
+      instead of assuming one. The window is `startedAt < finished_at` of the applied
+      migration; on an ephemeral database the table is empty when the migration runs and
+      every later row starts after it, so the window was empty and the `total > 0` guard
+      could only ever fail there. The test seeds its own rows with an explicit `startedAt`
+      backdated relative to the recorded `finished_at`, inside the existing rolled-back
+      harness, covering both audited dispositions. Every assertion stays an equality over
+      the WHOLE window, so a legacy database's own rows are audited alongside the seeded
+      ones. Verified empirically: backdated rows fall inside the window, a row started after
+      the migration does not.
+- [x] 7R2.2 `continueSaga` consumes the rehydration outcome exactly as `compensateSaga`
+      does — 409 with the skip reason instead of a 200 for a saga the engine will silently
+      skip. The two admin endpoints are now symmetric.
+- [x] 7R2.3 The customer start route's tenant scope is PINNED: `context.accountId` and
+      `context.metadata.accountId` are both asserted, closing a coverage claim that had no
+      assertion behind it.
+- [x] 7R2.4 The repaired chaos suite is wired into `run-tests.sh` as its own DB-free
+      `chaos` batch; the previous state left it gated by nothing.
+- [x] 7R2.5 `withSagaSystemRead` binds BOTH layers: it opens its own transaction and binds
+      the system sentinel first, because the boot load, retry scan and by-id load were
+      single statements outside any transaction and would return ZERO rows with no error
+      under a `NOBYPASSRLS` role. `runSagaSystemTransaction` is now module-PRIVATE, leaving
+      `withSagaSystemRead` and `failSagaAsSystem` as the only exported cross-tenant surfaces.
+- [x] 7R2.6 The static invariant classifies the matched operation instead of only requiring
+      a boundary: a READ may be declared either way, a WRITE is satisfied ONLY by
+      `runSagaTenantTransaction`, and a system wrap makes a write FAIL. Non-vacuous by
+      construction — the classifier is exercised against synthetic controls in both
+      directions. An export-surface invariant locks the privatization.
+- [x] 7R2.7 `failSagaAsSystem` reaches parity with the ordinary terminal transition: the
+      `SAGA_FAILED` event commits in the SAME transaction as the row and the saga's semantic
+      locks are released. The containment docstring names the now-three bounded operations.
+- [x] 7R2.8 The timeout checker RE-READS the row before terminalizing and refreshes instead
+      of failing when a repair made it resolvable; `MULTI_TENANT_GUARDS.md` scopes the
+      terminalization guarantee to sagas this process loaded and names the remedy for the
+      rest.
+- [x] 7R2.9 `prometheus/alerts/saga.yml` gains `SagaTenantMismatch` (any increase on
+      `stage="mismatch"`) and `SagaRecoveryLoopFailing`; the recovery-failure series was
+      previously exported and alerted on by nothing.
+- [x] 7R2.10 The metric label `loop` is renamed `stage` (`SagaRecoveryStage`) — two of its
+      six values are per-saga resolution outcomes, not loops. Renamed before deploy, when it
+      is free.
+- [x] 7R2.11 Documentation truth pass: both halves of the RLS binding stated precisely; the
+      "every wrap callback must be `async`" bullet reworded so nobody restores the old call
+      shape; the migration freeze rationale and role/session `lock_timeout` guidance for the
+      automated deploy added to the runbook; the boot load's no-in-process-retry behavior
+      recorded; design D3's stale "no new Prometheus wiring" line amended; the retracted
+      "leg 3 (no RLS policy)" claim corrected in 7.1 above; the backfill test's five-hop
+      path climb named `REPO_ROOT`.
+- [x] 7R2.12 **Evidence, restated honestly.** The previously recorded "full API suite
+      8210/8210" was the VITEST UNIT PHASE only (526 files) — the node:test batches are
+      additional and were not part of that number. The "saga unit 183" figure did not
+      reconcile as a single surface; the real breakdown is below. This pass re-ran only the
+      files it touched plus their suites (LXC memory caps forbid a full local run), so the
+      numbers below are exactly what was executed, nothing inferred:
+
+### Re-verification pass — what was actually executed
+
+| Surface                                                                                           | Command            | Result                                                |
+| ------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------------- |
+| `tests/unit/saga/sagaTenant.test.ts`                                                              | VITEST single file | 29 passed (29)                                        |
+| `tests/unit/saga/sagaContextInvariants.static.test.ts`                                            | VITEST single file | 25 passed (25)                                        |
+| `tests/unit/saga/sagaPersistence.column.test.ts`                                                  | VITEST single file | 9 passed (9)                                          |
+| `tests/unit/sagaIntegration.routes.test.ts`                                                       | VITEST single file | 13 passed (13)                                        |
+| `tests/unit/sagaIntegration.monitoring.test.ts`                                                   | VITEST single file | 7 passed (7)                                          |
+| `tests/unit/security/tenantContext.test.ts`                                                       | VITEST single file | 15 passed (15)                                        |
+| saga unit surface (`tests/unit/saga` + `tests/unit/sagaIntegration*` + `tests/unit/sagaManager*`) | VITEST filter      | 16 files, 179 passed (179)                            |
+| `tests/integration/sagaTenantIsolation.test.ts`                                                   | INT single file    | tests 18 · pass 18 · fail 0 · cancelled 0 · skipped 0 |
+| `tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts`                        | INT single file    | tests 10 · pass 10 · fail 0 · cancelled 0 · skipped 0 |
+| `tests/chaos/saga-step-retry-recovery.test.ts`                                                    | INT single file    | tests 1 · pass 1 · fail 0 · cancelled 0 · skipped 0   |
+| `chaos` batch, invoked exactly as `run-tests.sh` defines it                                       | `run_batch`        | 1 tests · 1 pass · 0 fail · 0 cancel · 0 skip · [OK]  |
+| `tsc -b apps/api`                                                                                 | —                  | exit 0                                                |
+| `eslint --max-warnings 0` (10 changed `.ts`)                                                      | —                  | exit 0                                                |
+| `prettier --check` (15 changed files)                                                             | —                  | All matched files use Prettier code style!            |
+| fitness #3 / #4 / #5 / #8 / #9 / #10 / #21 / #23                                                  | —                  | 0 / 0 / 0 / 0 / 0 / 0 / 0 / 0                         |
+
 ## Phase 7: Docs + spec sync + PR1 0-defect gate
 
 - [x] 7.1 `docs/security/MULTI_TENANT_GUARDS.md` (W3d): record the saga posture (engine on
       the guarded client, `SAGA_SYSTEM_REASON` boundary, rehydrated per-saga tenant context)
-      AND the residual gaps per multi-tenant-isolation Req 4 — `SagaInstance` leg 1
-      (nullable `accountId`, no `Account` relation, `schema.prisma:2058`; cannot flip
-      non-null while NULL sentinel rows exist) and leg 3 (no RLS policy), the Redis
-      fast-path guard-blind read, and the CQRSBus dedupe residual. File the tracked backlog
-      item for completing enrollment — the gap SHALL NOT be presented as closed.
+      AND the residual gaps per multi-tenant-isolation Req 4 — `SagaInstance` leg 1 is the
+      ONLY schema residual (nullable `accountId`, no `Account` relation,
+      `schema.prisma:2058`; cannot flip non-null while NULL sentinel rows exist). Leg 3 is
+      SATISFIED: the table has carried the `tenant_isolation` policy since
+      `20260527000000_add_rls_tenant_isolation`; the earlier "no RLS policy" wording was
+      retracted. Also record the Redis fast-path guard-blind read and the CQRSBus dedupe
+      residual. File the tracked backlog item for completing enrollment — the gap SHALL NOT
+      be presented as closed.
 - [x] 7.2 Mirror the PR1 delta requirements into the living
       `openspec/specs/multi-tenant-isolation/spec.md` and
       `openspec/specs/tenant-context-boundaries/spec.md` (including the Phase-0.3 preamble
