@@ -17,7 +17,8 @@
  *   | Context state            | Model in denylist | Model tenant-scoped | Behavior                                          |
  *   | ------------------------ | ----------------- | ------------------- | ------------------------------------------------- |
  *   | (any)                    | yes               | (n/a)               | bypass — call query unchanged                     |
- *   | SystemContext active     | (any)             | (any)               | bypass — call query unchanged; emit audit hook   |
+ *   | SystemContext active     | (any)             | (any)               | bypass — call query unchanged (no audit event;   |
+ *   |                          |                   |                     | the declared reason is not a runtime audit record)|
  *   | TenantContext bound      | no                | yes; no accountId   | inject `where.accountId = ctx.accountId`         |
  *   | TenantContext bound      | no                | yes; accountId set  | validate matches ctx; mismatch → throw           |
  *   | None                     | no                | yes                 | throw TenantContextMissingError                  |
