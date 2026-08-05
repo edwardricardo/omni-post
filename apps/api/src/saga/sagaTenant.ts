@@ -60,7 +60,7 @@ export const SAGA_SYSTEM_REASON = "system:saga-recovery" as const;
 export type SagaTenantSkipReason = "unresolvable-account" | "tenant-mismatch";
 
 /** Where a resolved account came from, kept for logs and tests. */
-export type SagaTenantSource = "column" | "context" | "metadata";
+type SagaTenantSource = "column" | "context" | "metadata";
 
 /** Outcome of resolving which account owns a saga. */
 export type SagaTenantResolution =
