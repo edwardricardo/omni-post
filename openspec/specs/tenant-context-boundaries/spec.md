@@ -256,13 +256,19 @@ reach, never an unguarded client, never an ambient bypass:
 
 - **Tenant-unknown operations** — the boot load of non-terminal sagas, the
   retry-recovery scan, and the by-id instance load before the row is in hand — SHALL
-  execute inside an explicit `withSystemContext(reason)` wrap using the fixed,
-  guard-audited reason constant. The wrap SHALL be scoped to the query expression only.
+  execute inside an explicit `withSystemContext(reason)` wrap declaring the single
+  saga reason constant. The wrap SHALL be scoped to the query expression only. The
+  constant is a single grep-able declaration point, NOT an audited one: the guard
+  bypasses on system context without emitting any audit event, so the boundary's
+  auditability rests on that one constant and the source scan over its call sites.
 - **Per-saga operations with the instance in hand** — engine persistence detached from
   a request (timeout-checker persistence, shutdown persistence, boot re-warm, resumed
   execution persists) and resumed step execution — SHALL run under the saga's own
-  rehydrated `withTenantContext({ accountId })`; a missing `accountId` SHALL fail loud
-  (ERROR log + counter), never fall back to system context.
+  rehydrated `withTenantContext({ accountId })`; a missing or CONTRADICTED `accountId`
+  SHALL fail loud (ERROR log + counter) and the work SHALL be skipped, never fall back
+  to system context. The skip SHALL be reported to the caller rather than reading as a
+  success, and a saga left unscopable SHALL be driven to a terminal state rather than
+  retried indefinitely.
 - **Dispatch invariant** — a `withSystemContext` callback SHALL NEVER lexically enclose
   an `executeSagaAsync` / `compensateSagaAsync` dispatch. AsyncLocalStorage propagates
   through `setImmediate`, so an enclosed dispatch would run the entire saga

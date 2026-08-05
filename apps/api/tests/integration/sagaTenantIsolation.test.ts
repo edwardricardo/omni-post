@@ -66,6 +66,7 @@ import {
 } from "../../src/security/tenantContext.js";
 import { SagaManagerLifecycle } from "../../src/saga/SagaManagerLifecycle.js";
 import { SagaExecutionEngine } from "../../src/saga/SagaManagerExecution.js";
+import type { SagaExecutionEnginePort } from "../../src/saga/sagaManagerTypes.js";
 import { SAGA_SYSTEM_REASON } from "../../src/saga/sagaTenant.js";
 import { EventService } from "../../src/events/EventService.js";
 import { logger } from "../../src/lib/logger.js";
@@ -225,6 +226,11 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
   let blindedLifecycle: SagaManagerLifecycle;
   let blindedScheduler: NoopBackgroundTaskScheduler;
 
+  /** Timeout-checker manager: everything it holds is already overdue. */
+  let timeoutLifecycle: SagaManagerLifecycle;
+  let timeoutEngine: SagaExecutionEngine;
+  let timeoutScheduler: NoopBackgroundTaskScheduler;
+
   let tenantA: Tenant;
   let tenantB: Tenant;
 
@@ -234,19 +240,22 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
     userId: string;
     status: SagaInstance["status"];
     nextRetryAt?: Date;
+    /** Overrides the tenant column only, to model a row written by old code. */
+    columnAccountId?: string;
   }): SagaInstance {
     return {
       id: params.id,
       definitionId: PROBE_DEFINITION_ID,
       status: params.status,
       currentStep: 0,
-      context: createSagaContext(
-        params.id,
-        `corr-${params.id}`,
-        params.userId,
-        { accountId: params.accountId },
-        params.accountId
-      ),
+      accountId: params.columnAccountId ?? params.accountId,
+      context: createSagaContext({
+        sagaId: params.id,
+        correlationId: `corr-${params.id}`,
+        accountId: params.accountId,
+        userId: params.userId,
+        metadata: { accountId: params.accountId },
+      }),
       stepResults: [],
       compensationResults: [],
       startedAt: new Date(),
@@ -363,9 +372,10 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
 
     const buildManager = (
       prisma: PrismaClient,
-      scheduler: NoopBackgroundTaskScheduler
+      scheduler: NoopBackgroundTaskScheduler,
+      overrides: { defaultTimeout?: number } = {}
     ): { lifecycle: SagaManagerLifecycle; execution: SagaExecutionEngine } => {
-      const config = { prisma, redis, eventService, scheduler, enableMetrics: true };
+      const config = { prisma, redis, eventService, scheduler, enableMetrics: true, ...overrides };
       const lifecycle = new SagaManagerLifecycle(config);
       const execution = new SagaExecutionEngine(config, lifecycle);
       lifecycle.executionEngine = execution;
@@ -382,6 +392,18 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
 
     blindedScheduler = new NoopBackgroundTaskScheduler();
     blindedLifecycle = buildManager(blinded, blindedScheduler).lifecycle;
+
+    timeoutScheduler = new NoopBackgroundTaskScheduler();
+    // Every saga this manager holds is overdue the moment it is registered, so
+    // one triggered tick exercises the checker's whole decision.
+    const timeoutManager = buildManager(guarded, timeoutScheduler, { defaultTimeout: 1 });
+    timeoutLifecycle = timeoutManager.lifecycle;
+    timeoutEngine = timeoutManager.execution;
+
+    // Registers the timeout task WITHOUT booting: `initialize()` would load
+    // every non-terminal saga in the shared database into a manager whose
+    // sagas are all overdue by construction.
+    (timeoutLifecycle as unknown as { startTimeoutChecker(): void }).startTimeoutChecker();
 
     tenantA = await seedTenant("A");
     tenantB = await seedTenant("B");
@@ -743,6 +765,307 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
           "the resumed persist keeps the saga on its owning account"
         );
       }
+    });
+  });
+
+  describe("starting a saga the engine could never scope", () => {
+    /** Ids of every probe saga currently committed, for an exact no-write proof. */
+    async function probeSagaIds(): Promise<string[]> {
+      const rows = await base.sagaInstance.findMany({
+        where: { definitionId: PROBE_DEFINITION_ID },
+        select: { id: true },
+      });
+      return rows.map((row) => row.id).sort();
+    }
+
+    it("refuses a start with no owning account and leaves no row behind", async () => {
+      const before = await probeSagaIds();
+
+      await assert.rejects(
+        () =>
+          withTenantContext({ accountId: tenantA.accountId }, () =>
+            requestLifecycle.startSaga(PROBE_DEFINITION_ID, {
+              userId: tenantA.customerUserId,
+            })
+          ),
+        (error: unknown) => {
+          const status = (error as { statusCode?: number }).statusCode;
+          assert.strictEqual(status, 400, "an unscopable start is a client error, not a 500");
+          assert.match(String((error as Error).message), /owning account/);
+          return true;
+        }
+      );
+
+      assert.deepStrictEqual(
+        await probeSagaIds(),
+        before,
+        "a rejected start must not leave an orphan row the engine can never scope"
+      );
+    });
+
+    it("refuses a start whose two account copies disagree", async () => {
+      const before = await probeSagaIds();
+
+      await assert.rejects(
+        () =>
+          withTenantContext({ accountId: tenantA.accountId }, () =>
+            requestLifecycle.startSaga(PROBE_DEFINITION_ID, {
+              userId: tenantA.customerUserId,
+              accountId: tenantA.accountId,
+              // The pivot step reads the metadata copy while the engine scopes
+              // on the field: a divergence publishes under one account and
+              // persists under another.
+              metadata: { accountId: tenantB.accountId },
+            })
+          ),
+        (error: unknown) => {
+          assert.strictEqual((error as { statusCode?: number }).statusCode, 400);
+          assert.match(String((error as Error).message), /two different owning accounts/);
+          return true;
+        }
+      );
+
+      assert.deepStrictEqual(await probeSagaIds(), before);
+    });
+  });
+
+  describe("the timeout checker meeting a saga it cannot scope", () => {
+    /** Commits a row directly, bypassing the engine, to model history. */
+    async function seedRawSaga(params: {
+      id: string;
+      columnAccountId: string | null;
+      contextAccountId: string | null;
+      userId: string;
+    }): Promise<void> {
+      await base.sagaInstance.create({
+        data: {
+          id: params.id,
+          definitionId: PROBE_DEFINITION_ID,
+          status: "RUNNING",
+          currentStep: 0,
+          accountId: params.columnAccountId,
+          context: {
+            sagaId: params.id,
+            correlationId: `corr-${params.id}`,
+            userId: params.userId,
+            ...(params.contextAccountId !== null && { accountId: params.contextAccountId }),
+            metadata: {
+              ...(params.contextAccountId !== null && { accountId: params.contextAccountId }),
+            },
+            stepData: {},
+            events: [],
+          },
+          stepResults: [],
+          compensationResults: [],
+          retryCount: 0,
+          startedAt: new Date(Date.now() - 60_000),
+        },
+      });
+    }
+
+    /** Loads the row exactly as the engine would and hands it to the checker. */
+    async function trackForTimeout(sagaId: string): Promise<SagaInstance> {
+      await redis.del(`saga:${sagaId}`);
+      const loaded = await timeoutEngine.loadSagaInstance(sagaId);
+      assert.ok(loaded, `the engine must be able to load ${sagaId}`);
+      timeoutLifecycle.activeInstances.set(sagaId, loaded);
+      return loaded;
+    }
+
+    it("terminalizes the cutover straggler whose column holds the acting user id", async () => {
+      const stragglerId = `${TAG}-straggler-${randomUUID()}`;
+      // Exactly what the pre-change engine wrote: the ACTING USER in the tenant
+      // column while the context named the real account.
+      await seedRawSaga({
+        id: stragglerId,
+        columnAccountId: tenantA.customerUserId,
+        contextAccountId: tenantA.accountId,
+        userId: tenantA.customerUserId,
+      });
+
+      const loaded = await trackForTimeout(stragglerId);
+      assert.strictEqual(
+        loaded.accountId,
+        tenantA.customerUserId,
+        "the load carries the persisted column — dropping it is what made the contradiction invisible"
+      );
+
+      const mismatchesBefore = timeoutLifecycle.metrics.tenantMismatches;
+      const failedBefore = timeoutLifecycle.metrics.sagasFailed;
+
+      const lines = await captureLogs(async () => {
+        await timeoutScheduler.triggerTask("saga-timeout-checker");
+      });
+
+      assert.strictEqual(
+        timeoutLifecycle.metrics.tenantMismatches,
+        mismatchesBefore + 1,
+        "the contradiction is counted, not silently skipped"
+      );
+      assert.strictEqual(timeoutLifecycle.metrics.sagasFailed, failedBefore + 1);
+
+      const mismatchLog = lines.find(
+        (line) => line.sagaId === stragglerId && line.reason === "tenant-mismatch"
+      );
+      assert.ok(mismatchLog, "the contradiction must be logged");
+      assert.strictEqual(mismatchLog.level, "error");
+
+      const row = await base.sagaInstance.findUniqueOrThrow({ where: { id: stragglerId } });
+      assert.strictEqual(row.status, "FAILED", "an unscopable saga reaches a terminal state");
+      assert.strictEqual(
+        row.accountId,
+        tenantA.customerUserId,
+        "terminalization does not guess a tenant onto the row"
+      );
+      assert.ok(
+        !timeoutLifecycle.activeInstances.has(stragglerId),
+        "the terminalized saga stops being tracked"
+      );
+
+      // The whole point of terminalizing: a second tick has nothing left to do.
+      // Before this, every tick logged and counted the same row again forever.
+      await timeoutScheduler.triggerTask("saga-timeout-checker");
+      assert.strictEqual(timeoutLifecycle.metrics.tenantMismatches, mismatchesBefore + 1);
+
+      await base.sagaInstance.deleteMany({ where: { id: stragglerId } });
+      await redis.del(`saga:${stragglerId}`);
+    });
+
+    it("terminalizes a saga that carries no account on any source", async () => {
+      const orphanId = `${TAG}-orphan-${randomUUID()}`;
+      await seedRawSaga({
+        id: orphanId,
+        columnAccountId: null,
+        contextAccountId: null,
+        userId: tenantA.customerUserId,
+      });
+
+      await trackForTimeout(orphanId);
+      const rehydrationBefore = timeoutLifecycle.metrics.rehydrationFailures;
+
+      await timeoutScheduler.triggerTask("saga-timeout-checker");
+
+      assert.strictEqual(
+        timeoutLifecycle.metrics.rehydrationFailures,
+        rehydrationBefore + 1,
+        "the unresolvable saga is counted"
+      );
+      const row = await base.sagaInstance.findUniqueOrThrow({ where: { id: orphanId } });
+      assert.strictEqual(row.status, "FAILED");
+      assert.strictEqual(row.accountId, null, "the sentinel stays the sentinel");
+
+      await base.sagaInstance.deleteMany({ where: { id: orphanId } });
+      await redis.del(`saga:${orphanId}`);
+    });
+
+    it("keeps checking the remaining sagas after one of them throws", async () => {
+      const poisonId = `${TAG}-poison-${randomUUID()}`;
+      const survivorId = `${TAG}-survivor-${randomUUID()}`;
+      for (const id of [poisonId, survivorId]) {
+        await seedRawSaga({
+          id,
+          columnAccountId: tenantA.accountId,
+          contextAccountId: tenantA.accountId,
+          userId: tenantA.customerUserId,
+        });
+      }
+
+      // Insertion order matters: the poisoned saga is checked FIRST, so the
+      // survivor proves the pass continued past the throw instead of ending.
+      await trackForTimeout(poisonId);
+      await trackForTimeout(survivorId);
+
+      const realEngine = timeoutLifecycle.executionEngine;
+      const poisonedEngine: SagaExecutionEnginePort = {
+        executeSagaAsync: (id) => realEngine.executeSagaAsync(id),
+        compensateSagaAsync: (id) => realEngine.compensateSagaAsync(id),
+        persistSagaInstance: (instance, events) => realEngine.persistSagaInstance(instance, events),
+        loadSagaInstance: (id) => realEngine.loadSagaInstance(id),
+        failSaga: async (instance, error, reason) => {
+          if (instance.id === poisonId) {
+            throw new Error("poisoned saga: the checker must survive this");
+          }
+          return await realEngine.failSaga(instance, error, reason);
+        },
+      };
+      timeoutLifecycle.executionEngine = poisonedEngine;
+
+      const failuresBefore = timeoutLifecycle.metrics.timeoutCheckFailures;
+      const lines = await captureLogs(async () => {
+        await timeoutScheduler.triggerTask("saga-timeout-checker");
+      });
+      timeoutLifecycle.executionEngine = realEngine;
+
+      assert.strictEqual(
+        timeoutLifecycle.metrics.timeoutCheckFailures,
+        failuresBefore + 1,
+        "the throwing iteration is counted, not swallowed"
+      );
+      const failure = lines.find(
+        (line) => line.loop === "timeout-checker" && line.sagaId === poisonId
+      );
+      assert.ok(failure, "the failing iteration must be logged");
+      assert.strictEqual(failure.level, "error");
+
+      const rows = await base.sagaInstance.findMany({
+        where: { id: { in: [poisonId, survivorId] } },
+        select: { id: true, status: true },
+      });
+      const byId = new Map(rows.map((row) => [row.id, row.status]));
+      assert.strictEqual(byId.get(poisonId), "RUNNING", "the poisoned saga was not advanced");
+      assert.strictEqual(
+        byId.get(survivorId),
+        "FAILED",
+        "the saga AFTER the throw was still checked — one bad row must not end the pass"
+      );
+
+      timeoutLifecycle.activeInstances.delete(poisonId);
+      timeoutLifecycle.activeInstances.delete(survivorId);
+      await base.sagaInstance.deleteMany({ where: { id: { in: [poisonId, survivorId] } } });
+      await base.storedEvent.deleteMany({
+        where: { streamId: { in: [poisonId, survivorId].map((id) => `Saga:${id}`) } },
+      });
+      await redis.del(`saga:${poisonId}`, `saga:${survivorId}`);
+    });
+  });
+
+  describe("shutting down while a saga cannot be parked", () => {
+    it("reports the failure and still finishes the drain", async () => {
+      const scheduler = new NoopBackgroundTaskScheduler();
+      const config = { prisma: guarded, redis, eventService, scheduler, enableMetrics: true };
+      const lifecycle = new SagaManagerLifecycle(config);
+      const engine = new SagaExecutionEngine(config, lifecycle);
+      lifecycle.registerSaga(probeDefinition);
+      lifecycle.executionEngine = {
+        executeSagaAsync: (id) => engine.executeSagaAsync(id),
+        compensateSagaAsync: (id) => engine.compensateSagaAsync(id),
+        persistSagaInstance: async () => {
+          throw new Error("durable store unreachable during shutdown");
+        },
+        loadSagaInstance: (id) => engine.loadSagaInstance(id),
+        failSaga: (instance, error, reason) => engine.failSaga(instance, error, reason),
+      } satisfies SagaExecutionEnginePort;
+
+      const stuckId = `${TAG}-shutdown-${randomUUID()}`;
+      lifecycle.activeInstances.set(
+        stuckId,
+        buildInstance({
+          id: stuckId,
+          accountId: tenantA.accountId,
+          userId: tenantA.customerUserId,
+          status: "RUNNING",
+        })
+      );
+
+      const lines = await captureLogs(async () => {
+        // A drain that rejects here used to abort the whole teardown, leaving
+        // the process holding its port and its pool until it was killed.
+        await lifecycle.shutdown();
+      });
+
+      const failure = lines.find((line) => line.sagaId === stuckId && line.level === "error");
+      assert.ok(failure, "the failed park must surface at ERROR");
+      assert.strictEqual(lifecycle.activeInstances.size, 0, "the drain still completed");
     });
   });
 

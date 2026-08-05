@@ -1124,6 +1124,21 @@ async function start() {
     // Graceful shutdown — inside start() so we have access to app and outbox references
     const shutdown = async (signal: string): Promise<void> => {
       logger.info({ signal }, "Shutting down gracefully...");
+      try {
+        await drainServices();
+      } catch (err) {
+        // A teardown step that throws must not strand the process: the server
+        // would keep its port and its database pool open until the supervisor
+        // killed it. Report the failed step, then close and exit anyway.
+        logger.error({ err, signal }, "Graceful shutdown step failed; closing the server anyway");
+      }
+
+      await app.close();
+      await closeDatabaseConnections();
+      process.exit(0);
+    };
+
+    const drainServices = async (): Promise<void> => {
       outboxRelay.stop();
       outboxCleaner.stop();
       await repurposeConsumer.close();
@@ -1199,10 +1214,6 @@ async function start() {
       if (analyticsRedis) {
         await analyticsRedis.quit();
       }
-
-      await app.close();
-      await closeDatabaseConnections();
-      process.exit(0);
     };
 
     process.on("SIGINT", () => {

@@ -1,10 +1,13 @@
 /**
  * @file sagaTenant.test.ts
- * @description Unit coverage for the saga tenant helpers: the account-resolution
- *              matrix that decides what every persisted `SagaInstance.accountId`
- *              carries, and the fail-loud tenant rehydration wrapper that scopes
- *              detached engine work (boot re-warm, timeout checker, resumed
- *              executions) to the saga's own account.
+ * @description Unit coverage for the saga tenant module — the single place the
+ *              engine's two isolation layers are declared. Three contracts are
+ *              pinned here: the column-authoritative account resolution that
+ *              decides which tenant owns a detached saga (and fails closed when
+ *              the column and the context disagree), the discriminated outcome
+ *              every caller must consume, and the context primitives that bind
+ *              the AsyncLocalStorage scope AND the transaction-local RLS setting
+ *              so neither layer can be forgotten at a call site.
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
@@ -28,18 +31,29 @@ vi.mock("../../../src/lib/logger.js", () => {
 });
 
 import { logger } from "../../../src/lib/logger.js";
-import { getTenantContext } from "../../../src/security/tenantContext.js";
+import { getSystemContext, getTenantContext } from "../../../src/security/tenantContext.js";
 import {
   SAGA_SYSTEM_REASON,
+  failSagaAsSystem,
+  newSagaRecoveryCorrelationId,
   resolveSagaAccountId,
+  resolveSagaTenant,
   runAsSagaTenant,
+  runSagaSystemTransaction,
+  runSagaTenantTransaction,
+  withSagaSystemRead,
+  type SagaTenantMetrics,
 } from "../../../src/saga/sagaTenant.js";
+import type { SagaEngineClient } from "../../../src/saga/sagaManagerTypes.js";
 
 const ACCOUNT_ID = "acc-11111111-1111-4111-8111-111111111111";
 const OTHER_ACCOUNT_ID = "acc-22222222-2222-4222-8222-222222222222";
 const CUSTOMER_USER_ID = "cus-33333333-3333-4333-8333-333333333333";
+const SYSTEM_SCOPE = "__system__";
 
 const errorSpy = logger.error as unknown as Mock;
+
+const makeMetrics = (): SagaTenantMetrics => ({ rehydrationFailures: 0, tenantMismatches: 0 });
 
 const makeContext = (overrides: Partial<SagaContext> = {}): SagaContext => ({
   sagaId: "post-publishing-saga-0001",
@@ -51,7 +65,10 @@ const makeContext = (overrides: Partial<SagaContext> = {}): SagaContext => ({
   ...overrides,
 });
 
-const makeInstance = (context: SagaContext): SagaInstance => ({
+const makeInstance = (
+  context: SagaContext,
+  overrides: Partial<SagaInstance> = {}
+): SagaInstance => ({
   id: context.sagaId,
   definitionId: "post-publishing-saga",
   status: "RUNNING",
@@ -61,9 +78,41 @@ const makeInstance = (context: SagaContext): SagaInstance => ({
   compensationResults: [],
   startedAt: new Date("2026-01-01T00:00:00.000Z"),
   retryCount: 0,
+  ...overrides,
 });
 
-describe("saga tenant helpers", () => {
+/** Records the ordered effects a transaction body produced against the client. */
+interface TransactionSpy {
+  prisma: SagaEngineClient;
+  effects: string[];
+}
+
+function createTransactionSpy(): TransactionSpy {
+  const effects: string[] = [];
+  const tx = {
+    $executeRaw: async (_strings: TemplateStringsArray, ...values: unknown[]): Promise<number> => {
+      effects.push(`guc:${String(values[0])}`);
+      return 1;
+    },
+    sagaInstance: {
+      update: async (args: { where: { id: string }; data: Record<string, unknown> }) => {
+        effects.push(`update:${args.where.id}:${String(args.data.status)}`);
+        return args;
+      },
+    },
+  };
+  const prisma = {
+    $transaction: async <T>(fn: (client: typeof tx) => Promise<T>): Promise<T> => {
+      effects.push("tx:open");
+      const result = await fn(tx);
+      effects.push("tx:commit");
+      return result;
+    },
+  };
+  return { prisma: prisma as unknown as SagaEngineClient, effects };
+}
+
+describe("saga tenant module", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -75,134 +124,309 @@ describe("saga tenant helpers", () => {
     });
   });
 
-  describe("resolveSagaAccountId", () => {
-    it("returns the first-class accountId when the context carries one", () => {
-      const context = makeContext({
+  describe("newSagaRecoveryCorrelationId", () => {
+    it("derives one prefixed identifier per call so two passes never share one", () => {
+      const first = newSagaRecoveryCorrelationId();
+      const second = newSagaRecoveryCorrelationId();
+
+      expect(first).toMatch(/^saga-recovery-[0-9a-f-]{36}$/);
+      expect(second).not.toBe(first);
+    });
+  });
+
+  describe("resolveSagaTenant — the persisted column is authoritative", () => {
+    it("resolves from the column even when the context carries nothing", () => {
+      const instance = makeInstance(makeContext(), { accountId: ACCOUNT_ID });
+
+      expect(resolveSagaTenant(instance)).toEqual({
+        kind: "resolved",
         accountId: ACCOUNT_ID,
-        metadata: { accountId: OTHER_ACCOUNT_ID },
+        source: "column",
+      });
+    });
+
+    it("prefers the column over an agreeing context so one source stays canonical", () => {
+      const instance = makeInstance(makeContext({ accountId: ACCOUNT_ID }), {
+        accountId: ACCOUNT_ID,
       });
 
-      expect(resolveSagaAccountId(context)).toBe(ACCOUNT_ID);
+      expect(resolveSagaTenant(instance)).toEqual({
+        kind: "resolved",
+        accountId: ACCOUNT_ID,
+        source: "column",
+      });
     });
 
-    it("falls back to a valid-string metadata accountId when the field is absent", () => {
-      const context = makeContext({ metadata: { accountId: OTHER_ACCOUNT_ID } });
+    it("falls back to the context when the row carries no column value", () => {
+      const instance = makeInstance(makeContext({ accountId: OTHER_ACCOUNT_ID }));
 
-      expect(resolveSagaAccountId(context)).toBe(OTHER_ACCOUNT_ID);
+      expect(resolveSagaTenant(instance)).toEqual({
+        kind: "resolved",
+        accountId: OTHER_ACCOUNT_ID,
+        source: "context",
+      });
     });
 
-    it("falls back to metadata when the first-class field is an empty string", () => {
-      const context = makeContext({
+    it("falls back to metadata for sagas started before the field existed", () => {
+      const instance = makeInstance(makeContext({ metadata: { accountId: OTHER_ACCOUNT_ID } }));
+
+      expect(resolveSagaTenant(instance)).toEqual({
+        kind: "resolved",
+        accountId: OTHER_ACCOUNT_ID,
+        source: "metadata",
+      });
+    });
+
+    it("fails closed when the column and the context name different accounts", () => {
+      const instance = makeInstance(makeContext({ accountId: OTHER_ACCOUNT_ID }), {
+        accountId: ACCOUNT_ID,
+      });
+
+      expect(resolveSagaTenant(instance)).toEqual({
+        kind: "tenant-mismatch",
+        columnAccountId: ACCOUNT_ID,
+        contextAccountId: OTHER_ACCOUNT_ID,
+      });
+    });
+
+    it("fails closed on the cutover straggler whose column holds the acting user id", () => {
+      // Old code wrote `context.userId` into the tenant column while metadata
+      // held the true account. Detecting it at RESOLUTION time is what keeps a
+      // straggler from colliding on the primary key at write time.
+      const instance = makeInstance(makeContext({ metadata: { accountId: ACCOUNT_ID } }), {
+        accountId: CUSTOMER_USER_ID,
+      });
+
+      expect(resolveSagaTenant(instance)).toEqual({
+        kind: "tenant-mismatch",
+        columnAccountId: CUSTOMER_USER_ID,
+        contextAccountId: ACCOUNT_ID,
+      });
+    });
+
+    it("reports unresolvable when no source carries an account, never the userId", () => {
+      const instance = makeInstance(makeContext({ userId: CUSTOMER_USER_ID, metadata: {} }));
+
+      expect(resolveSagaTenant(instance)).toEqual({ kind: "unresolvable-account" });
+    });
+
+    it("treats empty strings on every source as no value at all", () => {
+      const instance = makeInstance(makeContext({ accountId: "", metadata: { accountId: "" } }), {
         accountId: "",
-        metadata: { accountId: OTHER_ACCOUNT_ID },
       });
 
-      expect(resolveSagaAccountId(context)).toBe(OTHER_ACCOUNT_ID);
+      expect(resolveSagaTenant(instance)).toEqual({ kind: "unresolvable-account" });
     });
 
-    it("returns null when neither source carries an account, never the userId", () => {
-      const context = makeContext({ userId: CUSTOMER_USER_ID, metadata: {} });
+    it("ignores a non-string metadata account rather than coercing it", () => {
+      const instance = makeInstance(makeContext({ metadata: { accountId: 42 } }));
 
-      expect(resolveSagaAccountId(context)).toBeNull();
+      expect(resolveSagaTenant(instance)).toEqual({ kind: "unresolvable-account" });
+    });
+  });
+
+  describe("resolveSagaAccountId", () => {
+    it("returns the resolved account for a persistable row", () => {
+      const instance = makeInstance(makeContext({ accountId: OTHER_ACCOUNT_ID }));
+
+      expect(resolveSagaAccountId(instance)).toBe(OTHER_ACCOUNT_ID);
     });
 
-    it("returns null when the metadata accountId is not a string", () => {
-      const context = makeContext({ metadata: { accountId: 42 } });
+    it("returns null for a mismatched row so no value is guessed onto the write", () => {
+      const instance = makeInstance(makeContext({ accountId: OTHER_ACCOUNT_ID }), {
+        accountId: ACCOUNT_ID,
+      });
 
-      expect(resolveSagaAccountId(context)).toBeNull();
-    });
-
-    it("returns null when both sources are empty strings", () => {
-      const context = makeContext({ accountId: "", metadata: { accountId: "" } });
-
-      expect(resolveSagaAccountId(context)).toBeNull();
+      expect(resolveSagaAccountId(instance)).toBeNull();
     });
   });
 
   describe("runAsSagaTenant", () => {
-    it("runs the callback bound to the saga's own account and returns its value", async () => {
-      const metrics = { rehydrationFailures: 0 };
+    it("runs the callback bound to the saga's own account and returns a ran outcome", async () => {
+      const metrics = makeMetrics();
       const observed: Array<string | undefined> = [];
       const work = vi.fn(async () => {
         observed.push(getTenantContext()?.accountId);
         return "persisted";
       });
 
-      const result = await runAsSagaTenant(
-        makeInstance(makeContext({ accountId: ACCOUNT_ID })),
+      const outcome = await runAsSagaTenant(
+        makeInstance(makeContext(), { accountId: ACCOUNT_ID }),
         work,
         metrics
       );
 
-      expect(result).toBe("persisted");
+      expect(outcome).toEqual({ ran: true, value: "persisted" });
       expect(observed).toEqual([ACCOUNT_ID]);
       expect(metrics.rehydrationFailures).toBe(0);
       expect(errorSpy).not.toHaveBeenCalled();
     });
 
-    it("rehydrates from the metadata fallback when the first-class field is absent", async () => {
-      const metrics = { rehydrationFailures: 0 };
+    it("rehydrates from the metadata fallback when neither column nor field is set", async () => {
+      const metrics = makeMetrics();
       const observed: Array<string | undefined> = [];
       const work = vi.fn(async () => {
         observed.push(getTenantContext()?.accountId);
         return "persisted";
       });
 
-      const result = await runAsSagaTenant(
+      const outcome = await runAsSagaTenant(
         makeInstance(makeContext({ metadata: { accountId: OTHER_ACCOUNT_ID } })),
         work,
         metrics
       );
 
-      expect(result).toBe("persisted");
+      expect(outcome).toEqual({ ran: true, value: "persisted" });
       expect(observed).toEqual([OTHER_ACCOUNT_ID]);
-      expect(metrics.rehydrationFailures).toBe(0);
     });
 
     it("scopes the binding to the callback and leaves no context bound afterwards", async () => {
-      const metrics = { rehydrationFailures: 0 };
-
       await runAsSagaTenant(
-        makeInstance(makeContext({ accountId: ACCOUNT_ID })),
+        makeInstance(makeContext(), { accountId: ACCOUNT_ID }),
         async () => "persisted",
-        metrics
+        makeMetrics()
       );
 
       expect(getTenantContext()).toBeUndefined();
     });
 
-    it("skips the callback, logs at ERROR and counts the failure when no account resolves", async () => {
-      const metrics = { rehydrationFailures: 0 };
+    it("skips the callback and reports unresolvable-account when no account resolves", async () => {
+      const metrics = makeMetrics();
       const work = vi.fn(async () => "persisted");
 
-      const result = await runAsSagaTenant(
-        makeInstance(makeContext({ userId: CUSTOMER_USER_ID, metadata: {} })),
-        work,
-        metrics
-      );
+      const outcome = await runAsSagaTenant(makeInstance(makeContext()), work, metrics);
 
-      expect(result).toBeUndefined();
+      expect(outcome).toEqual({ ran: false, reason: "unresolvable-account" });
       expect(work).not.toHaveBeenCalled();
       expect(metrics.rehydrationFailures).toBe(1);
+      expect(metrics.tenantMismatches).toBe(0);
       expect(errorSpy).toHaveBeenCalledTimes(1);
     });
 
-    it("never falls back to a system-context bypass on a rehydration miss", async () => {
-      const metrics = { rehydrationFailures: 0 };
-      const observed: Array<string | undefined> = [];
-      const work = vi.fn(async () => {
-        observed.push(getTenantContext()?.accountId);
-        return "persisted";
-      });
+    it("skips the callback and reports tenant-mismatch when the two sources disagree", async () => {
+      const metrics = makeMetrics();
+      const work = vi.fn(async () => "persisted");
 
-      await runAsSagaTenant(
-        makeInstance(makeContext({ userId: CUSTOMER_USER_ID, metadata: {} })),
+      const outcome = await runAsSagaTenant(
+        makeInstance(makeContext({ accountId: OTHER_ACCOUNT_ID }), { accountId: ACCOUNT_ID }),
         work,
         metrics
       );
 
+      expect(outcome).toEqual({ ran: false, reason: "tenant-mismatch" });
+      expect(work).not.toHaveBeenCalled();
+      expect(metrics.tenantMismatches).toBe(1);
+      expect(metrics.rehydrationFailures).toBe(0);
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("never falls back to a system-context bypass on a resolution miss", async () => {
+      const observed: Array<string | undefined> = [];
+      const work = vi.fn(async () => {
+        observed.push(getSystemContext()?.reason);
+        return "persisted";
+      });
+
+      await runAsSagaTenant(makeInstance(makeContext()), work, makeMetrics());
+
       expect(observed).toEqual([]);
+      expect(getSystemContext()).toBeUndefined();
       expect(getTenantContext()).toBeUndefined();
+    });
+  });
+
+  describe("withSagaSystemRead", () => {
+    it("declares the saga system reason for the duration of the read", async () => {
+      const observed = await withSagaSystemRead(async () => getSystemContext()?.reason);
+
+      expect(observed).toBe(SAGA_SYSTEM_REASON);
+      expect(getSystemContext()).toBeUndefined();
+    });
+
+    it("awaits a lazily-executed query INSIDE the declared scope", async () => {
+      // A Prisma call returns a lazy promise that only reaches the database when
+      // awaited. A wrap that hands the unawaited promise back releases its scope
+      // first, so the query runs undeclared. This thenable reproduces that shape:
+      // it reports the context active at await time.
+      const lazyQuery: PromiseLike<string | undefined> = {
+        then(onFulfilled) {
+          const reason = getSystemContext()?.reason;
+          return Promise.resolve(onFulfilled ? onFulfilled(reason) : reason) as never;
+        },
+      };
+
+      const observed = await withSagaSystemRead(() => lazyQuery);
+
+      expect(observed).toBe(SAGA_SYSTEM_REASON);
+    });
+  });
+
+  describe("runSagaSystemTransaction", () => {
+    it("binds the system scope on both layers before the body runs", async () => {
+      const spy = createTransactionSpy();
+      const observed: Array<string | undefined> = [];
+
+      await runSagaSystemTransaction(spy.prisma, async () => {
+        observed.push(getSystemContext()?.reason);
+      });
+
+      expect(observed).toEqual([SAGA_SYSTEM_REASON]);
+      expect(spy.effects).toEqual(["tx:open", `guc:${SYSTEM_SCOPE}`, "tx:commit"]);
+    });
+  });
+
+  describe("runSagaTenantTransaction", () => {
+    it("binds the saga's own account as the transaction-local scope first", async () => {
+      const spy = createTransactionSpy();
+
+      await runSagaTenantTransaction(spy.prisma, ACCOUNT_ID, async (tx) => {
+        await tx.sagaInstance.update({ where: { id: "saga-1" }, data: { status: "RUNNING" } });
+      });
+
+      expect(spy.effects).toEqual([
+        "tx:open",
+        `guc:${ACCOUNT_ID}`,
+        "update:saga-1:RUNNING",
+        "tx:commit",
+      ]);
+    });
+
+    it("binds a different account for a different saga rather than a fixed value", async () => {
+      const spy = createTransactionSpy();
+
+      await runSagaTenantTransaction(spy.prisma, OTHER_ACCOUNT_ID, async () => undefined);
+
+      expect(spy.effects).toEqual(["tx:open", `guc:${OTHER_ACCOUNT_ID}`, "tx:commit"]);
+    });
+  });
+
+  describe("failSagaAsSystem — the one cross-tenant write", () => {
+    it("terminalizes an unresolvable saga under the declared system scope", async () => {
+      const spy = createTransactionSpy();
+      const instance = makeInstance(makeContext(), { id: "saga-orphan", status: "RUNNING" });
+
+      await failSagaAsSystem(spy.prisma, instance, "unresolvable-account");
+
+      expect(spy.effects).toEqual([
+        "tx:open",
+        `guc:${SYSTEM_SCOPE}`,
+        "update:saga-orphan:FAILED",
+        "tx:commit",
+      ]);
+      expect(instance.status).toBe("FAILED");
+      expect(instance.error).toContain("unresolvable-account");
+      expect(instance.completedAt).toBeInstanceOf(Date);
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("records the mismatch reason on the terminal row for the operator", async () => {
+      const spy = createTransactionSpy();
+      const instance = makeInstance(makeContext(), { id: "saga-mismatch", status: "PENDING" });
+
+      await failSagaAsSystem(spy.prisma, instance, "tenant-mismatch");
+
+      expect(spy.effects).toContain("update:saga-mismatch:FAILED");
+      expect(instance.error).toContain("tenant-mismatch");
     });
   });
 });

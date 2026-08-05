@@ -28,6 +28,17 @@ const SYSTEM_WRAP = "withSystemContext";
 const REASON_CONSTANT = "SAGA_SYSTEM_REASON";
 const DISPATCHES = ["executeSagaAsync(", "compensateSagaAsync("] as const;
 
+/**
+ * Every form that declares the saga system boundary. `withSystemContext` is the
+ * primitive; the two saga wrappers own the awaited-inside and GUC-binding
+ * details so no engine call site has to repeat them. All three are boundaries a
+ * dispatch must stay outside of, and all three satisfy a declared model read.
+ */
+const SYSTEM_WRAP_FORMS = [SYSTEM_WRAP, "withSagaSystemRead", "runSagaSystemTransaction"] as const;
+
+/** The tenant rehydration whose discriminated outcome every caller must consume. */
+const TENANT_WRAP = "runAsSagaTenant";
+
 // ---------------------------------------------------------------------------
 // Source helpers
 // ---------------------------------------------------------------------------
@@ -158,6 +169,8 @@ interface SagaSource {
 
 interface WrapCall {
   source: SagaSource;
+  /** The declaring form, e.g. `withSystemContext` or `withSagaSystemRead`. */
+  form: string;
   openParen: number;
   closeParen: number;
   reason: string;
@@ -169,31 +182,46 @@ const sagaSources: SagaSource[] = getAllTsFiles(sagaDir).map((path) => {
   return { path, label: relative(apiRoot, path), original, sanitized: sanitize(original) };
 });
 
-function collectWrapCalls(sources: SagaSource[]): WrapCall[] {
+/** Every call to `form` in `sources`, with its balanced argument list split. */
+function collectCalls(sources: SagaSource[], form: string): WrapCall[] {
   const calls: WrapCall[] = [];
   for (const source of sources) {
     const text = source.sanitized;
-    let cursor = text.indexOf(`${SYSTEM_WRAP}(`);
+    let cursor = text.indexOf(`${form}(`);
     while (cursor !== -1) {
-      const openParen = cursor + SYSTEM_WRAP.length;
+      // Skip an identifier that merely ENDS with the form's name.
+      const previous = text[cursor - 1] ?? "";
+      if (/[A-Za-z0-9_$.]/.test(previous)) {
+        cursor = text.indexOf(`${form}(`, cursor + 1);
+        continue;
+      }
+
+      const openParen = cursor + form.length;
       const closeParen = findMatching(text, openParen, "(", ")");
       if (closeParen !== -1) {
         const inner = text.slice(openParen + 1, closeParen);
         calls.push({
           source,
+          form,
           openParen,
           closeParen,
           reason: firstArgument(inner),
           callback: argumentsAfterFirst(inner),
         });
       }
-      cursor = text.indexOf(`${SYSTEM_WRAP}(`, cursor + 1);
+      cursor = text.indexOf(`${form}(`, cursor + 1);
     }
   }
   return calls;
 }
 
-const wrapCalls = collectWrapCalls(sagaSources);
+/** Only the primitive `withSystemContext(` sites — declaration is defined there. */
+const wrapCalls = collectCalls(sagaSources, SYSTEM_WRAP);
+
+/** Every declared system boundary, whichever form declares it. */
+const systemBoundaries = SYSTEM_WRAP_FORMS.flatMap((form) => collectCalls(sagaSources, form));
+
+const tenantWrapCalls = collectCalls(sagaSources, TENANT_WRAP);
 
 /** Extracts the balanced body that follows the first `{` at or after `from`. */
 function blockAfter(source: SagaSource, from: number): string {
@@ -249,20 +277,50 @@ describe("saga engine context invariants", () => {
   });
 
   describe("system-context wraps never enclose a saga dispatch", () => {
-    it("keeps every dispatch lexically outside every system-context callback", () => {
+    it("keeps every dispatch lexically outside every declared system boundary", () => {
       const violations: string[] = [];
 
-      for (const call of wrapCalls) {
+      for (const call of systemBoundaries) {
         const body = call.source.sanitized.slice(call.openParen, call.closeParen + 1);
         for (const dispatch of DISPATCHES) {
           if (body.includes(dispatch)) {
             violations.push(
               `${call.source.label}:${lineOf(call.source.original, call.openParen)}: ` +
-                `${dispatch} sits inside a ${SYSTEM_WRAP} callback`
+                `${dispatch} sits inside a ${call.form} callback`
             );
           }
         }
       }
+
+      expect(violations).toEqual([]);
+    });
+  });
+
+  describe("the tenant rehydration outcome is always consumed", () => {
+    it("finds the engine's rehydration call sites", () => {
+      expect(tenantWrapCalls.length).toBeGreaterThan(0);
+    });
+
+    it("binds or returns every outcome instead of discarding it", () => {
+      // `runAsSagaTenant` reports whether the work RAN. A call used as a bare
+      // statement throws that away, which is how a skipped compensation reached
+      // an operator as a success envelope.
+      const violations = tenantWrapCalls
+        .filter((call) => {
+          let before = call.source.sanitized
+            .slice(0, call.openParen - TENANT_WRAP.length)
+            .trimEnd();
+          if (/\bawait$/.test(before)) {
+            before = before.slice(0, -"await".length).trimEnd();
+          }
+          const consumed = /[=(,:[]$/.test(before) || /\breturn$/.test(before);
+          return !consumed;
+        })
+        .map(
+          (call) =>
+            `${call.source.label}:${lineOf(call.source.original, call.openParen)}: ` +
+            `${TENANT_WRAP} result is discarded`
+        );
 
       expect(violations).toEqual([]);
     });
@@ -319,11 +377,11 @@ describe("saga engine context invariants", () => {
       expect(modelReads.length).toBeGreaterThan(0);
     });
 
-    it("wraps every direct model read in a system-context callback", () => {
+    it("wraps every direct model read in a declared system boundary", () => {
       const violations = modelReads
         .filter(
           (read) =>
-            !wrapCalls.some(
+            !systemBoundaries.some(
               (call) =>
                 call.source.path === read.source.path &&
                 read.index > call.openParen &&
@@ -333,7 +391,7 @@ describe("saga engine context invariants", () => {
         .map(
           (read) =>
             `${read.source.label}:${lineOf(read.source.original, read.index)}: ` +
-            `${read.model} read is not inside a ${SYSTEM_WRAP} callback`
+            `${read.model} read is not inside a declared system boundary`
         );
 
       expect(violations).toEqual([]);
@@ -392,55 +450,126 @@ describe("saga engine context invariants", () => {
 
   describe("background loop failures are observable", () => {
     const lifecycle = sourceByName("SagaManagerLifecycle.ts");
-    const bootLoadBody = blockAfter(lifecycle, lifecycle.sanitized.indexOf("loadActiveSagas("));
+    const execution = sourceByName("SagaManagerExecution.ts");
+
+    /**
+     * Body of the method whose DECLARATION matches `pattern`. Anchoring on the
+     * declaration matters: `initialize()` calls `loadActiveSagas` before
+     * declaring it, so a first-textual-occurrence anchor silently scanned the
+     * caller's catch block and every assertion below passed for the wrong body.
+     */
+    function methodBody(source: SagaSource, pattern: RegExp): string {
+      const match = pattern.exec(source.sanitized);
+      if (match === null) return "";
+      return blockAfter(source, match.index);
+    }
+
+    const bootLoadBody = methodBody(lifecycle, /\basync\s+loadActiveSagas\s*\(/);
+    const bootCatchBody = methodBody(lifecycle, /\basync\s+initialize\s*\(/);
     const retryScanBody = scheduledTaskBody(lifecycle, "saga-retry-recovery");
     const timeoutBody = scheduledTaskBody(lifecycle, "saga-timeout-checker");
+    const shutdownBody = methodBody(lifecycle, /\basync\s+shutdown\s*\(/);
+    const instanceLoadBody = methodBody(execution, /\basync\s+loadSagaInstance\s*\(/);
 
-    it("extracts the three background loop bodies", () => {
-      expect(bootLoadBody).not.toBe("");
-      expect(retryScanBody).not.toBe("");
-      expect(timeoutBody).not.toBe("");
+    it("extracts each scanned body from its own declaration", () => {
+      expect({
+        bootLoad: bootLoadBody.includes("loadActiveSagas"),
+        bootLoadReads: bootLoadBody.includes("findMany"),
+        retryScan: retryScanBody.includes("findMany"),
+        timeout: timeoutBody.includes("activeInstances"),
+        shutdown: shutdownBody.includes("persistSagaInstance"),
+        instanceLoad: instanceLoadBody.includes("findUnique"),
+      }).toEqual({
+        bootLoad: false,
+        bootLoadReads: true,
+        retryScan: true,
+        timeout: true,
+        shutdown: true,
+        instanceLoad: true,
+      });
     });
 
-    it("declares a failure counter for each loop", () => {
+    it("declares a failure counter for every loop that can fail", () => {
       const types = readFileSync(sagaTypesPath, "utf8");
-      const missing = ["bootLoadFailures", "recoveryScanFailures", "rehydrationFailures"].filter(
-        (counter) => !types.includes(counter)
-      );
+      const missing = [
+        "bootLoadFailures",
+        "recoveryScanFailures",
+        "rehydrationFailures",
+        "tenantMismatches",
+        "timeoutCheckFailures",
+        "instanceLoadFailures",
+      ].filter((counter) => !types.includes(counter));
 
       expect(missing).toEqual([]);
     });
 
-    it("logs at ERROR and counts the failure on the boot load", () => {
-      expect({
-        logsError: bootLoadBody.includes("logger.error"),
-        countsFailure: bootLoadBody.includes("bootLoadFailures"),
-      }).toEqual({ logsError: true, countsFailure: true });
+    it("logs at ERROR and counts its own failure in every background loop", () => {
+      // Per loop, and against ITS counter: a shared assertion would pass while
+      // one loop silently reported another's failure.
+      const loops: Array<{ name: string; body: string; counter: string }> = [
+        { name: "boot load", body: bootCatchBody, counter: "bootLoadFailures" },
+        { name: "retry recovery scan", body: retryScanBody, counter: "recoveryScanFailures" },
+        { name: "timeout checker", body: timeoutBody, counter: "timeoutCheckFailures" },
+        { name: "by-id instance load", body: instanceLoadBody, counter: "instanceLoadFailures" },
+      ];
+
+      const violations = loops.flatMap(({ name, body, counter }) => {
+        const problems: string[] = [];
+        if (catchBlocks(body).length === 0) problems.push(`${name}: no catch block at all`);
+        if (!body.includes("logger.error")) problems.push(`${name}: never logs at ERROR`);
+        if (!body.includes(counter)) problems.push(`${name}: never increments ${counter}`);
+        return problems;
+      });
+
+      expect(violations).toEqual([]);
     });
 
-    it("logs at ERROR and counts the failure on the retry recovery scan", () => {
-      expect({
-        logsError: retryScanBody.includes("logger.error"),
-        countsFailure: retryScanBody.includes("recoveryScanFailures"),
-      }).toEqual({ logsError: true, countsFailure: true });
+    it("isolates the timeout checker and the shutdown drain per saga", () => {
+      // One poisoned row must not end the pass: without a try/catch INSIDE the
+      // loop, the first throw skipped every saga after it — forever, if the
+      // same row threw again.
+      const violations: string[] = [];
+      for (const [name, body] of [
+        ["timeout checker", timeoutBody],
+        ["shutdown drain", shutdownBody],
+      ] as Array<[string, string]>) {
+        const loopStart = /\bfor\s*\(/.exec(body)?.index ?? -1;
+        if (loopStart === -1) {
+          violations.push(`${name}: no per-saga loop found`);
+          continue;
+        }
+        const loopBody = body.slice(loopStart);
+        if (catchBlocks(loopBody).length === 0) {
+          violations.push(`${name}: the per-saga loop body has no catch`);
+        }
+      }
+
+      expect(violations).toEqual([]);
     });
 
-    it("routes the timeout checker's persistence through the fail-loud rehydration", () => {
-      expect(timeoutBody).toContain("runAsSagaTenant");
+    it("terminalizes a saga the timeout checker cannot scope to a tenant", () => {
+      // Skipping it forever is an infinite non-terminal saga, which the saga
+      // canon forbids; the checker owns driving it to FAILED instead.
+      expect({
+        rehydrates: timeoutBody.includes("checkSagaTimeout"),
+        terminalizes: lifecycle.sanitized.includes("failSagaAsSystem"),
+      }).toEqual({ rehydrates: true, terminalizes: true });
     });
 
     it("discards no error in any background loop catch block", () => {
       const silent: string[] = [];
       const loops: Array<[string, string]> = [
-        ["boot load", bootLoadBody],
+        ["boot load", bootCatchBody],
         ["retry recovery scan", retryScanBody],
         ["timeout checker", timeoutBody],
+        ["shutdown drain", shutdownBody],
+        ["by-id instance load", instanceLoadBody],
       ];
 
       for (const [name, body] of loops) {
         for (const block of catchBlocks(body)) {
-          if (!block.includes("logger.error")) {
-            silent.push(`${name}: catch block does not log at ERROR`);
+          if (!block.includes("logger.error") && !block.includes("logger.warn")) {
+            silent.push(`${name}: catch block does not log`);
           }
         }
       }

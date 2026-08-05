@@ -29,13 +29,24 @@ interface UpsertArgs {
   update: Record<string, unknown>;
 }
 
-/** Records every `sagaInstance.upsert` issued inside the persistence transaction. */
-function createPrismaSpy(): { prisma: unknown; upserts: UpsertArgs[] } {
+/**
+ * Records every `sagaInstance.upsert` issued inside the persistence transaction,
+ * plus the ordered effects on the transaction client — the transaction-local
+ * tenant scope has to be bound BEFORE the row is written, so the order is part
+ * of the contract, not an implementation detail.
+ */
+function createPrismaSpy(): { prisma: unknown; upserts: UpsertArgs[]; effects: string[] } {
   const upserts: UpsertArgs[] = [];
+  const effects: string[] = [];
   const tx = {
+    $executeRaw: async (_strings: TemplateStringsArray, ...values: unknown[]): Promise<number> => {
+      effects.push(`guc:${String(values[0])}`);
+      return 1;
+    },
     sagaInstance: {
       upsert: async (args: UpsertArgs): Promise<Record<string, unknown>> => {
         upserts.push(args);
+        effects.push(`upsert:${String(args.where.id)}`);
         return { id: args.where.id };
       },
     },
@@ -43,7 +54,7 @@ function createPrismaSpy(): { prisma: unknown; upserts: UpsertArgs[] } {
   const prisma = {
     $transaction: async <T>(fn: (client: typeof tx) => Promise<T>): Promise<T> => fn(tx),
   };
-  return { prisma, upserts };
+  return { prisma, upserts, effects };
 }
 
 const makeContext = (overrides: Partial<SagaContext> = {}): SagaContext => ({
@@ -75,16 +86,20 @@ const makeProvider = (accountId: string): TenantContextProvider => ({
 
 describe("saga instance persistence — accountId column", () => {
   let upserts: UpsertArgs[];
+  let effects: string[];
   let engine: SagaExecutionEngine;
 
   beforeEach(() => {
     const spy = createPrismaSpy();
     upserts = spy.upserts;
+    effects = spy.effects;
     const config = {
       prisma: spy.prisma,
       redis: { setex: async (): Promise<string> => "OK" },
     } as unknown as SagaManagerConfig;
-    engine = new SagaExecutionEngine(config, {} as unknown as SagaManagerLifecycle);
+    engine = new SagaExecutionEngine(config, {
+      metrics: { instanceLoadFailures: 0 },
+    } as unknown as SagaManagerLifecycle);
   });
 
   it("writes the owning account on both upsert branches, never the customer user id", async () => {
@@ -125,6 +140,39 @@ describe("saga instance persistence — accountId column", () => {
 
     const call = upserts[0] as UpsertArgs;
     expect(call.where).toEqual({ id: SAGA_ID });
+  });
+
+  it("writes the persisted column when the context carries no account at all", async () => {
+    // The row a data repair fixed through the CustomerUser join: the true
+    // account exists ONLY in the column, so an engine that reads the context
+    // alone can never scope it again.
+    const instance = makeInstance(makeContext({ userId: CUSTOMER_USER_ID, metadata: {} }));
+    instance.accountId = ACCOUNT_ID;
+
+    await engine.persistSagaInstance(instance);
+
+    const call = upserts[0] as UpsertArgs;
+    expect(call.create.accountId).toBe(ACCOUNT_ID);
+    expect(call.update.accountId).toBe(ACCOUNT_ID);
+    expect(effects).toEqual([`guc:${ACCOUNT_ID}`, `upsert:${SAGA_ID}`]);
+  });
+
+  it("binds the transaction-local tenant scope BEFORE writing the row", async () => {
+    await engine.persistSagaInstance(makeInstance(makeContext({ accountId: ACCOUNT_ID })));
+
+    expect(effects).toEqual([`guc:${ACCOUNT_ID}`, `upsert:${SAGA_ID}`]);
+  });
+
+  it("writes no row when the persisted account contradicts the saga context", async () => {
+    const instance = makeInstance(makeContext({ accountId: OTHER_ACCOUNT_ID }));
+    // The straggler shape: the column holds the acting user id while the
+    // context names the real account.
+    instance.accountId = CUSTOMER_USER_ID;
+
+    await expect(engine.persistSagaInstance(instance)).rejects.toThrowError(/contradicts/);
+
+    expect(upserts).toHaveLength(0);
+    expect(effects).toEqual([]);
   });
 });
 

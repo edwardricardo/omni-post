@@ -46,6 +46,54 @@ Thread the truth (accountId first-class), declare the context (tenant rehydratio
 > withSystemContext"); the delta spec is amended in the same commit to state the stronger
 > form — flagged as a design-driven spec amendment, not silent divergence.
 
+> **AMENDED AT 4R REVIEW (2026-08-05).** All four adversarial lenses returned
+> MERGE-BLOCKING on the first implementation with converging evidence. The core tenant
+> scoping was sound (start path airtight, lazy-promise fix real, guard live in-tx, fixtures
+> honest); the OPERATIONAL layer around it was not. Five structural decisions replace it.
+>
+> **(1) Dual-layer primitives, one module.** `sagaTenant.ts` stops being a pair of
+> helpers and becomes the single module that owns BOTH isolation layers for the engine.
+> `withSagaSystemRead(fn)` binds the ALS system context and awaits `fn` inside its own
+> async callback, so the lazy-promise defect is impossible by construction rather than
+> prevented by a comment repeated at three call sites. `runSagaSystemTransaction` and
+> `runSagaTenantTransaction` additionally bind the RLS GUC (`setTenantGuc(tx,
+SYSTEM_TENANT_SCOPE)` / `setTenantGuc(tx, accountId)`) as the transaction's first
+> statement, mirroring the seam `PrismaUnitOfWork` owns for API transactions and the
+> workers own for theirs. Layer 2 was previously unbound on every engine transaction; the
+> WHY now lives once, in this module.
+>
+> **(2) Column-authoritative resolution.** Resolution reads `SagaInstance.accountId` — the
+> DB column — FIRST; both deserializers now carry it onto the instance (they dropped it, so
+> a row repaired by the backfill's join step was dead forever: its context carries no
+> account and the engine could only ever skip it). Context and metadata become the fallback
+> AND a cross-check: when the column and the context both exist and disagree, resolution
+> fails CLOSED (counted, logged at ERROR, terminalized) BEFORE any write. That disagreement
+> is exactly the cutover-straggler signature — old code wrote `userId` into the column while
+> metadata held the account — so it is caught at read time instead of colliding at write
+> time in an unbounded retry loop.
+>
+> **(3) Discriminated skip with a terminal path.** `runAsSagaTenant` returns
+> `{ ran: true, value } | { ran: false, reason }` and EVERY caller consumes it (a static
+> invariant rejects a discarded result). An admin compensate/continue that could not run
+> answers with a 409-class error naming the reason instead of `{success: true}`. A saga
+> whose tenant cannot be resolved is TERMINALIZED to FAILED by the timeout checker through
+> one narrow, documented system-scoped write path (`failSagaAsSystem`), so it reaches a
+> terminal state per the saga canon instead of being logged and counted forever. `startSaga`
+> fails closed on an unresolvable account: it rejects before persisting rather than creating
+> a row the engine can never scope.
+>
+> **(4) Observability made real.** The in-process counters are exported as REAL Prometheus
+> metrics through the repo's `getOrCreateCounter` pattern:
+> `saga_recovery_failures_total{loop}` and `sagas_failed_total{reason}` — the latter is the
+> series `prometheus/alerts/saga.yml` already alerts on, previously never emitted. The health
+> check degrades when the boot load failed, and every engine catch path reports through the
+> repo's Sentry `captureError` with the real error.
+>
+> **(5) Loops hardened.** The timeout checker and `shutdown()` iterate per-saga inside their
+> own try/catch with a counted, logged failure, so one poisoned row cannot block the rest;
+> the by-id load distinguishes an infrastructure failure from an absent row instead of
+> reporting both as "not found".
+
 **Choice**: new helper `apps/api/src/saga/sagaTenant.ts`:
 
 - `SAGA_SYSTEM_REASON = "system:saga-recovery"` — the ONLY reason string the engine may pass (spec fixed set, `specs/tenant-context-boundaries` MODIFIED block).
@@ -86,6 +134,18 @@ Data-only SQL migration; idempotent, re-runnable. Steps 1 and 4 scoped to `("acc
 `down.sql` = documented no-op-by-design (proposal §Rollback: post-backfill values are TRUE accountIds, correct regardless of code version). **Ordering**: `migrate deploy` before app cutover (standard). Old-code writes in the gap re-corrupt at worst a handful of rows → caught by D3's fail-loud rehydration; runbook line in the migration header: re-run the (idempotent) backfill statements manually. Verification query = success criterion: zero rows whose `accountId` matches a `CustomerUser.id`.
 
 ### D5 — Boot resume: single pass, disjoint from the retry checker; GATED on the crash-replay proof
+
+> **AMENDED AT 4R REVIEW (2026-08-05) — the terminal path is a PR1 prerequisite.** The
+> canon requires every saga to reach `COMPLETED`, `FAILED`, or `COMPENSATED`; an infinite
+> `RUNNING` is a violation the timeout checker exists to close. The first implementation
+> left a hole exactly there: a saga whose tenant cannot be resolved was skipped by the
+> rehydration on EVERY path, including the timeout checker's `failSaga`, so it stayed
+> non-terminal forever while emitting one ERROR and one counter increment per tick. PR1
+> therefore owns the terminal path even though resume behavior stays byte-equivalent: the
+> timeout checker, on an unresolvable or mismatched row, terminalizes it to FAILED through
+> `failSagaAsSystem` — one narrow cross-tenant admin WRITE, system-ALS + system-GUC scoped,
+> used ONLY for terminalization, with no dispatch inside it (C1 holds). PR2's resume pass
+> then inherits a table in which "non-terminal" means "actually resumable".
 
 **Choice**: after `loadActiveSagas`, `initialize()` runs ONE pass: `executeSagaAsync(id)` for every loaded PENDING/RUNNING instance with `nextRetryAt == null`. Rows WITH `nextRetryAt` stay owned by the (now-alive) retry checker — the two selection predicates are disjoint (`nextRetryAt IS NULL` vs `nextRetryAt NOT NULL`), so boot cannot double-execute against the checker. Terminal re-execution is already blocked (`Execution:60-72`).
 

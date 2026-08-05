@@ -834,15 +834,19 @@ by design: restoring corrupted user ids is not a rollback goal.
 
 ---
 
-### Requirement: SagaInstance's missing structural legs are recorded and escalated, not silently closed
+### Requirement: SagaInstance's missing structural leg is recorded and escalated, not silently closed
 
-`SagaInstance` satisfies leg 2 (`TENANT_SCOPED_MODELS`) but its `accountId` is nullable
-with NO `Account` relation, and it is covered by neither leg 1 (non-null + relation +
-accountId-led index) nor a leg 3 RLS policy. Completing those legs is OUT OF SCOPE here:
-the column CANNOT be flipped non-null while the backfill's sentinel rows exist, so the
-sentinel disposition is a prerequisite decision. This change SHALL record the residual
-gap in `docs/security/MULTI_TENANT_GUARDS.md` and file it as a tracked backlog item — it
-SHALL NOT be presented as closed and SHALL NOT be silently dropped. The same recording
+`SagaInstance` satisfies leg 2 (`TENANT_SCOPED_MODELS`) AND leg 3 (the table has carried
+the `tenant_isolation` RLS policy since `20260527000000_add_rls_tenant_isolation`, which
+lists it among the enrolled tables). The residual is leg 1 (non-null + `Account` relation +
+accountId-led index): `accountId` is nullable with no relation, so a NULL-sentinel row
+matches NO tenant GUC — it is reachable only under the system scope — and nothing
+structural prevents a future writer from leaving the column empty. Completing leg 1 is OUT
+OF SCOPE here: the column CANNOT be flipped non-null while the backfill's sentinel rows
+exist, so the sentinel disposition is a prerequisite decision. This change SHALL record the
+residual gap ACCURATELY in `docs/security/MULTI_TENANT_GUARDS.md` and file it as a tracked
+backlog item — it SHALL NOT be presented as closed, SHALL NOT be silently dropped, and
+SHALL NOT overstate itself by naming a leg that is in fact satisfied. The same recording
 obligation covers the guard-blind Redis fast path and the system-scoped engine by-id load
 whose control is the route ownership check.
 
@@ -850,4 +854,4 @@ whose control is the route ownership check.
 
 - **GIVEN** the change is applied
 - **WHEN** `docs/security/MULTI_TENANT_GUARDS.md` and the backlog are inspected
-- **THEN** the `SagaInstance` leg-1 and leg-3 gap is documented with its reason, the guard-blind cache read and the system-scoped by-id load are recorded as residuals rather than as closed controls, and a tracked backlog item exists for completing the enrollment
+- **THEN** the `SagaInstance` leg-1 gap is documented with its reason and its concrete consequence, the RLS policy is NOT reported as missing, the guard-blind cache read and the system-scoped by-id load are recorded as residuals rather than as closed controls, and a tracked backlog item exists for completing the enrollment

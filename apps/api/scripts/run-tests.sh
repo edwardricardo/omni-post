@@ -205,6 +205,14 @@ CONCURRENCY=1 run_batch "integration:flows" \
   tests/security.test.ts \
   tests/integration/publishing/failedWrite.smoke.test.ts
 
+# Saga customer flow against the live API. Its own batch because the file's
+# worst case is ~110s+ (one 60s horizon plus one 90s horizon plus the short
+# tests) and the default 30000 test timeout would cancel them. Listed here to
+# close a blind spot: this suite existed on disk but belonged to no batch, so
+# `test:all` never ran it.
+CONCURRENCY=1 TIMEOUT=180000 run_batch "integration:saga-live" \
+  tests/integration/sagaCustomerFlow.test.ts
+
 CONCURRENCY=1 TIMEOUT=60000 run_batch "flow" \
   tests/publish.flow.test.ts tests/analytics.flow.test.ts tests/media.flow.test.ts tests/schedule.flow.test.ts
 

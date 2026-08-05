@@ -259,6 +259,53 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
       DB-only `integration:tenant-isolation` batch (`:173-189`).
 - [x] 6.3 Run the batch (DBUP first) → GREEN, 0 failed, 0 cancelled, 0 skipped.
 
+## Phase 7R: 4R rework — operational layer (2026-08-05)
+
+All four adversarial lenses returned MERGE-BLOCKING on the Phase 1–7 result. The tenant
+scoping itself held; the operational layer around it was rebuilt. Design D3/D5 carry the
+`AMENDED AT 4R REVIEW` blocks that authorize this phase.
+
+- [x] 7R.1 `sagaTenant.ts` becomes the dual-layer module: `withSagaSystemRead` (awaits
+      inside its own async callback, so the lazy-promise defect is structural, not a
+      comment repeated at three call sites), `runSagaTenantTransaction` /
+      `runSagaSystemTransaction` binding `setTenantGuc` as the transaction's first
+      statement (RLS layer was unbound on every engine transaction).
+- [x] 7R.2 Column-authoritative resolution: `SagaInstance.accountId` first, context then
+      metadata as fallback AND cross-check; both deserializers carry the column (new
+      `sagaInstanceRow.ts`, single definition); a column/context disagreement fails CLOSED
+      before any write, which is the cutover-straggler signature.
+- [x] 7R.3 `runAsSagaTenant` returns `{ran:true,value}|{ran:false,reason}`; every call site
+      consumes it; a static invariant rejects a discarded result.
+- [x] 7R.4 Terminal path: the timeout checker terminalizes an unresolvable/contradicted
+      saga through `failSagaAsSystem` (the engine's one cross-tenant write, no dispatch
+      inside); admin compensate answers 409 with the reason instead of a success envelope;
+      `startSaga` fails closed (400) on an unresolvable or self-contradicting account.
+- [x] 7R.5 Loops hardened: per-saga try/catch in the timeout checker and the shutdown
+      drain with their own counters; by-id load distinguishes infrastructure failure from
+      an absent row; the bootstrap's shutdown closure always reaches `app.close()`.
+- [x] 7R.6 Observability made real: `saga_recovery_failures_total{loop}` and
+      `sagas_failed_total{reason}` (the series the saga alert rules already query) via the
+      repo's `getOrCreateCounter` pattern; `healthCheck()` reports `degraded` when the boot
+      load failed; `captureError` on every engine catch path; `/sagas/metrics` recovery
+      block gains a contract test.
+- [x] 7R.7 Test corrections: static-suite anchor fixed to the method DECLARATION (it was
+      scanning the caller's catch block), per-loop assertions, two new invariants;
+      `createSagaContext` takes a parameter object; correlation-id factory; retry scan
+      ordered by `nextRetryAt`; backfill audit scoped by the immutable `startedAt` with a
+      non-empty-population guard; chaos fixture owns an account; new scenarios for
+      mismatch, straggler terminalization, start fail-closed, per-iteration isolation,
+      shutdown resilience and the metrics contract.
+- [x] 7R.8 Docs corrected: `SagaInstance` HAS the RLS policy (leg 3) since
+      `20260527000000` — the four documents claiming otherwise are fixed and the TRUE leg-1
+      residual is stated with its consequence; legs defined inline once; runbook gains the
+      P3009 recovery procedure, the READ COMMITTED race note, `SET LOCAL` timeouts for the
+      manual re-run and the rollback blast radius; the "guard-audited reason" claim is
+      replaced by what is true.
+- [x] 7R.9 `sagaCustomerFlow` wired into `run-tests.sh` (own live-API batch,
+      `TIMEOUT=180000`) with test 13's horizon raised to 90s. Pulled forward from 10.1/10.2
+      because wiring a knowingly-red suite is not wiring. The live run (10.3) still needs
+      a running API and stays pending.
+
 ## Phase 7: Docs + spec sync + PR1 0-defect gate
 
 - [x] 7.1 `docs/security/MULTI_TENANT_GUARDS.md` (W3d): record the saga posture (engine on
@@ -339,13 +386,13 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
 
 ## Phase 10: D6 — horizon recalibration + runner wiring
 
-- [ ] 10.1 [GREEN] `apps/api/tests/integration/sagaCustomerFlow.test.ts` (`:563`): raise
+- [x] 10.1 [GREEN — landed in 7R.9] `apps/api/tests/integration/sagaCustomerFlow.test.ts` (`:563`): raise
       test 13's `waitForTerminal` horizon **30s → 90s** (W2). Justification to keep in the
       test comment as WHY, not history: the analytic worst case is the 35s retry envelope
       (`saga.ts:912-916`, 5+10+20) + up to 3×5s scan-tick latency + worker latency; the
       gate's empirical run measured 49.2s for test 3's identical flow, so 60s leaves ≈18%
       headroom while 90s holds ≥45%.
-- [ ] 10.2 [GREEN] `apps/api/scripts/run-tests.sh`: add a new live-API batch under the
+- [x] 10.2 [GREEN — landed in 7R.9] `apps/api/scripts/run-tests.sh`: add a new live-API batch under the
       `full-integration` tier (`:195-237`) running `tests/integration/sagaCustomerFlow.test.ts`
       with `CONCURRENCY=1 TIMEOUT=180000` (W2 wall-time: the file's worst case grows to
       ~110s+ — test 3 at 60s + test 13 at up to 90s + the short tests; the 30000 default

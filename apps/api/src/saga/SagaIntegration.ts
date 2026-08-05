@@ -42,6 +42,7 @@ import { createPostPublishingSagaDefinition, createSagaContext } from "@shared/t
 import type { Command } from "@shared/types/cqrs.js";
 import type { Redis } from "ioredis";
 import { AppError } from "../lib/errors/index.js";
+import { captureError } from "../observability/sentryInit.js";
 import { logger } from "../lib/logger.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
@@ -435,12 +436,14 @@ export class SagaIntegration {
 
           // `accountId` is passed first-class (the tenant scope the engine
           // persists and rehydrates) AND kept in metadata, which the pivot
-          // step's fail-closed check reads.
-          const context = createSagaContext(
-            "",
+          // step's fail-closed check reads. Both come from the same authenticated
+          // claim, and the engine rejects a saga whose two copies disagree.
+          const context = createSagaContext({
+            sagaId: "",
             correlationId,
-            customer.id,
-            {
+            accountId: customer.accountId,
+            userId: customer.id,
+            metadata: {
               mode: body.mode,
               postData,
               accountId: customer.accountId,
@@ -448,8 +451,7 @@ export class SagaIntegration {
               userAgent: request.headers["user-agent"],
               ipAddress: request.ip,
             },
-            customer.accountId
-          );
+          });
 
           const sagaInstance = await this.sagaManager.startSaga("post-publishing-saga", context);
 
@@ -467,11 +469,16 @@ export class SagaIntegration {
           if (error instanceof AppError) {
             throw error;
           }
+          captureError(error, { customerId: customer.id, mode: body.mode, operation: "startSaga" });
           logger.error(
             { err: error, customerId: customer.id, mode: body.mode },
             "Failed to start post publishing saga"
           );
-          throw AppError.internal("Failed to start saga");
+          // Chain the original: without it the error tracker only ever sees a
+          // generic internal error and the actionable class is lost.
+          const failure = AppError.internal("Failed to start saga");
+          failure.cause = error;
+          throw failure;
         }
       }
     );
@@ -552,7 +559,15 @@ export class SagaIntegration {
           };
         } catch (error) {
           logger.error({ err: error }, "Failed to continue saga");
-          throw AppError.badRequest("Failed to continue saga");
+          // An AppError already carries the operator-facing reason and its
+          // status; flattening it into a generic 400 hid WHY the saga could not
+          // continue from the only person who could act on it.
+          if (error instanceof AppError) {
+            throw error;
+          }
+          const failure = AppError.badRequest("Failed to continue saga");
+          failure.cause = error;
+          throw failure;
         }
       }
     );
@@ -579,7 +594,15 @@ export class SagaIntegration {
           };
         } catch (error) {
           logger.error({ err: error }, "Failed to compensate saga");
-          throw AppError.badRequest("Failed to compensate saga");
+          // `compensationStarted: true` is only true when the walk actually
+          // started. A saga the engine could not scope raises a conflict here,
+          // which is the honest answer to the operator who requested it.
+          if (error instanceof AppError) {
+            throw error;
+          }
+          const failure = AppError.badRequest("Failed to compensate saga");
+          failure.cause = error;
+          throw failure;
         }
       }
     );
@@ -660,11 +683,16 @@ export class SagaIntegration {
               },
               // Recovery health: a non-zero counter means the engine lost
               // visibility of in-flight sagas or skipped work it could not
-              // scope to a tenant. Both are silent without this surface.
+              // scope to a tenant. The same events are exported as
+              // `saga_recovery_failures_total{loop}` for alerting; this block is
+              // the operator-facing snapshot for one process.
               recovery: {
                 bootLoadFailures: metrics.bootLoadFailures,
                 recoveryScanFailures: metrics.recoveryScanFailures,
                 rehydrationFailures: metrics.rehydrationFailures,
+                tenantMismatches: metrics.tenantMismatches,
+                timeoutCheckFailures: metrics.timeoutCheckFailures,
+                instanceLoadFailures: metrics.instanceLoadFailures,
               },
             },
             timestamp: new Date(),

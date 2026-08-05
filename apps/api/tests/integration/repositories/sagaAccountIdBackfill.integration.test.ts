@@ -29,7 +29,8 @@
  *       migration, names the offending ids, and commits NOTHING — a partial
  *       backfill would leave a live saga silently mis-scoped;
  *     - IDEMPOTENCY: a second run writes nothing at all (proven by unchanged
- *       `updatedAt` values), so the cutover runbook's manual re-run is safe;
+ *       `updatedAt` values on the suite's OWN seeded rows), so the cutover
+ *       runbook's manual re-run is safe;
  *     - ROW COUNT: the repair never adds or removes a row.
  *
  *   Requires Postgres up (`pnpm db:up`); raw SQL is used deliberately — the
@@ -570,15 +571,16 @@ describe("SagaInstance accountId backfill migration", { concurrency: 1 }, () => 
     });
 
     it("leaves every row it repaired either on a real Account or on the NULL sentinel", async () => {
-      // Scoped to the rows the migration is accountable for: those it could
-      // see when it ran. `updatedAt` is set by the Prisma client, never by raw
-      // SQL (verified against the schema — the column has no default and no
-      // trigger), so every row the migration touched or deliberately skipped
-      // still carries a timestamp older than its `finished_at`. Anything newer
-      // was written by application code afterwards — the cutover-gap class the
-      // migration header documents, whose remedy is a manual idempotent re-run,
-      // not a migration defect. While the migration is unapplied `finished_at`
-      // is absent and the window collapses to "now", so every row counts.
+      // Scoped to the rows the migration is accountable for: those that already
+      // existed when it ran. Membership keys on `startedAt`, which is written
+      // once at saga creation and re-written with the SAME value on every
+      // persist, so a row cannot leave this population by being touched again.
+      // `updatedAt` cannot serve here: any later re-persist — including the
+      // engine's own boot re-warm, which a sibling suite in this batch triggers
+      // over the whole table — moves rows OUT of the window, silently shrinking
+      // what the audit covers instead of failing. While the migration is
+      // unapplied `finished_at` is absent and the window collapses to "now", so
+      // every row counts and the assertion stays RED until it is applied.
       const [totals] = await base.$queryRaw<
         { total: bigint; user_valued: bigint; not_an_account: bigint; sentinel: bigint }[]
       >`SELECT
@@ -589,11 +591,15 @@ describe("SagaInstance accountId backfill migration", { concurrency: 1 }, () => 
           ) AS not_an_account,
           count(*) FILTER (WHERE "accountId" IS NULL) AS sentinel
         FROM "SagaInstance"
-        WHERE "updatedAt" < COALESCE(
+        WHERE "startedAt" < COALESCE(
           (SELECT finished_at FROM "_prisma_migrations" WHERE migration_name = ${MIGRATION_NAME}),
           now()
         )`;
 
+      assert.ok(
+        Number(totals?.total) > 0,
+        "the audited population must not be empty — an empty window proves nothing"
+      );
       assert.strictEqual(
         Number(totals?.user_valued),
         0,
@@ -609,7 +615,7 @@ describe("SagaInstance accountId backfill migration", { concurrency: 1 }, () => 
         { mapped: bigint }[]
       >`SELECT count(*) FILTER (WHERE "accountId" IN (SELECT id FROM "Account")) AS mapped
           FROM "SagaInstance"
-         WHERE "updatedAt" < COALESCE(
+         WHERE "startedAt" < COALESCE(
            (SELECT finished_at FROM "_prisma_migrations" WHERE migration_name = ${MIGRATION_NAME}),
            now()
          )`;

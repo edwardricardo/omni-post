@@ -16,9 +16,10 @@
  *     enforces `where.accountId = ctx.accountId` on tenant-scoped tables.
  *   - **SystemContext**: explicit bypass for legitimate cross-tenant
  *     operations (admin impersonation, scheduled retention sweeps, migration
- *     scripts). Carries a `reason: string` for audit. The Prisma guard skips
- *     enforcement and emits an audit event whenever a query runs under this
- *     context.
+ *     scripts). Carries a `reason: string` naming the boundary. The Prisma
+ *     guard skips enforcement for queries running under this context; it emits
+ *     NO audit event, so the reason's value is that every bypass is declared at
+ *     a single grep-able constant rather than that it is recorded at runtime.
  *   - **No context**: any tenant-scoped query throws `TenantContextMissingError`.
  *     Fail-loud is canonical. Global tables (denylist) bypass the guard
  *     regardless.
@@ -113,7 +114,8 @@ export function requireTenantContext(): TenantContext {
  * @function withSystemContext
  * @description Runs `fn` under an explicit "cross-tenant operation"
  *   marker. The Prisma tenant guard skips enforcement for queries running
- *   inside this scope and emits an audit event capturing the `reason`.
+ *   inside this scope. The `reason` is a declaration, not a runtime audit
+ *   record — the guard emits no event for it.
  *
  *   Legitimate uses:
  *   - Admin impersonation flows (`reason: "admin-impersonation:..."`)

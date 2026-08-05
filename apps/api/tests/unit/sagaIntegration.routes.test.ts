@@ -243,18 +243,18 @@ describe("SagaIntegration - Saga Control Routes", () => {
     expect(continueResult.data.sagaId).toBe(startResult.data.sagaId);
   });
 
-  it("should handle saga compensation via API", async () => {
-    // Inject a pre-built failed saga directly into the Redis mock so we can
-    // test the compensate route without actually running a failing saga.
-    const failedSagaId = "saga-test-failed-123";
+  /** Builds a FAILED saga row in the Redis mock, optionally owned by an account. */
+  const seedFailedSaga = async (sagaId: string, accountId?: string): Promise<void> => {
     const failedSaga = {
-      id: failedSagaId,
+      id: sagaId,
       definitionId: "post-publishing-saga",
       status: "FAILED",
       currentStep: 2,
+      ...(accountId !== undefined && { accountId }),
       context: {
-        sagaId: failedSagaId,
-        correlationId: "corr-123",
+        sagaId,
+        correlationId: `corr-${sagaId}`,
+        ...(accountId !== undefined && { accountId }),
         metadata: {},
         stepData: {},
         events: [],
@@ -265,7 +265,16 @@ describe("SagaIntegration - Saga Control Routes", () => {
       retryCount: 0,
     };
 
-    await mockRedis.setex(`saga:${failedSagaId}`, 3_600, JSON.stringify(failedSaga));
+    await mockRedis.setex(`saga:${sagaId}`, 3_600, JSON.stringify(failedSaga));
+  };
+
+  it("should handle saga compensation via API", async () => {
+    // Inject a pre-built failed saga directly into the Redis mock so we can
+    // test the compensate route without actually running a failing saga. It
+    // carries an owning account, because a saga without one cannot be scoped
+    // and the route below proves that case answers differently.
+    const failedSagaId = "saga-test-failed-123";
+    await seedFailedSaga(failedSagaId, "acc-11111111-1111-4111-8111-111111111111");
 
     const compensateHandler = routes.get("POST:/sagas/:sagaId/compensate");
     const compensateResult = await compensateHandler(
@@ -276,5 +285,22 @@ describe("SagaIntegration - Saga Control Routes", () => {
     expect(compensateResult.success).toBeTruthy();
     expect(compensateResult.data.sagaId).toBe(failedSagaId);
     expect(compensateResult.data.compensationStarted).toBeTruthy();
+  });
+
+  it("should refuse compensation of a saga whose owning account is unresolvable", async () => {
+    // A saga the engine cannot scope to a tenant has its compensation SKIPPED.
+    // Answering `{ compensationStarted: true }` there told the operator a
+    // rollback had begun when nothing ran at all.
+    const unscopableSagaId = "saga-test-unscopable-456";
+    await seedFailedSaga(unscopableSagaId);
+
+    const compensateHandler = routes.get("POST:/sagas/:sagaId/compensate");
+
+    await expect(
+      compensateHandler({ params: { sagaId: unscopableSagaId } }, passthroughReply)
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining("unresolvable"),
+    });
   });
 });
