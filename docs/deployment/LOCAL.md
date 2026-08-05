@@ -10,7 +10,7 @@ Complete guide for running OmniPost locally with all services and observability 
 | -------------- | -------- | -------------------------------------------------- |
 | Docker Desktop | 4.x+     | https://docs.docker.com/desktop/                   |
 | Node.js        | 24.x LTS | https://nodejs.org/ or `nvm install 24`            |
-| pnpm           | 11.13.0  | `corepack enable && corepack prepare`              |
+| pnpm           | 11.17.0  | `corepack enable && corepack prepare`              |
 | Git            | 2.x+     | https://git-scm.com/                               |
 | ffmpeg         | 6.x+     | `sudo apt install ffmpeg` or `brew install ffmpeg` |
 
@@ -19,7 +19,7 @@ Verify installations:
 ```bash
 docker --version        # Docker version 27.x+
 node --version          # v24.x.x
-pnpm --version          # 11.13.0
+pnpm --version          # 11.17.0
 git --version           # git version 2.x
 ffmpeg -version         # ffmpeg version 6.x+
 ```
