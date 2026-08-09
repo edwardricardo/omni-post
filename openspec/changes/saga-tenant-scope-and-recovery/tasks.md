@@ -537,14 +537,38 @@ observation remained.
       with `CONCURRENCY=1 TIMEOUT=180000` (W2 wall-time: the file's worst case grows to
       ~110s+ — test 3 at 60s + test 13 at up to 90s + the short tests; the 30000 default
       would cancel them). Closes the N-CI-2 blind spot — the suite has never been listed.
-- [ ] 10.3 Run INT-LONG `tests/integration/sagaCustomerFlow.test.ts` with LIVE-API up →
+- [x] 10.3 Run INT-LONG `tests/integration/sagaCustomerFlow.test.ts` with LIVE-API up →
       **13/13 GREEN**, 0 cancelled. The previously failing post-pivot assertion (saga stuck
       non-terminal past the horizon) must now pass with the terminal status PERSISTED to the
       DB row, not only believed in memory.
+      **Evidence (run against the boot-resume engine):** 13/13 pass, 0 cancelled, suite
+      wall 96.4s (TIMEOUT=180000 holds ≥46% headroom); the post-pivot no-compensation test
+      completed in 49.6s inside the 90s horizon with the terminal status read back from the
+      DB row. **Live-boot recipe (runbook):** the suite signs customer JWTs with the
+      `.env`+`.env.test` pair (`.env.test` overrides `CUSTOMER_JWT_SECRET`), so the API MUST
+      boot with the same pair (`set -a; source .env; source .env.test; set +a; pnpm dev:api`
+      → port 3001 from `.env.test`) and the suite runs with `BASE_URL=http://localhost:3001`.
+      A server booted with plain dev env rejects every suite token with
+      `JsonWebTokenError: invalid signature` — the suite's "start with pnpm dev" hint
+      predates the env split. Kill the server (verify port free) after the run.
 
 ## Phase 11: Docs + spec sync + PR2 0-defect gate
 
-- [ ] 11.1 `docs/security/MULTI_TENANT_GUARDS.md` + the backlog: record the recovery posture
+- [x] 11.0 **Residual #8 — remove the account-less persist fallback**
+      (`SagaManagerExecution.persistSagaInstance`, the `else` branch that opened a bare
+      `prisma.$transaction` when no account resolved). It was the LAST engine write binding
+      neither isolation layer, and it was dead: every caller reaches the method through
+      `runAsSagaTenant`, which returns without running on exactly the two resolutions that
+      would reach it, and if it ever executed the Prisma guard would throw
+      `TenantContextMissingError`. Replaced by an explicit typed refusal (`AppError.internal`,
+      thrown before any transaction opens, mirroring the sibling `AppError.conflict` for the
+      contradicted row); `writeSagaState`'s `accountId` parameter is no longer nullable and
+      the column is written unconditionally. Pinned by two unit assertions (refusal writes
+      nothing and binds no scope; the refusal is classified as an engine defect, not a client
+      error) and by a new static invariant asserting the engine opens NO `$transaction`
+      outside the two tenant primitives. Effect: "every engine write binds both layers" is a
+      statement without an asterisk.
+- [x] 11.1 `docs/security/MULTI_TENANT_GUARDS.md` + the backlog: record the recovery posture
       (single-pass boot resume, checker ownership partition) and the accepted residuals
       carried to change 2 (`saga-engine-terminal-hygiene`): `failSaga` missing
       `activeInstances.delete`, the timeout checker's absent terminal filter,
@@ -553,10 +577,25 @@ observation remained.
       two open backlog items: CQRSBus has NO command-id dedupe (`CQRSBus.ts:91-111`) despite
       `ARCHITECTURE_CANON §Saga DedupeKey`, and the dead `TOKENS.SagaManager` registration
       (`setupServices.ts:937-958`).
-- [ ] 11.2 Mirror the `saga-crash-recovery` delta into a new living
-      `openspec/specs/saga-crash-recovery/spec.md`.
-- [ ] 11.3 **0-defect gate (PR2)**: `tsc` (@apps/api, @shared/types) = 0;
+- [x] 11.2 Mirror the `saga-crash-recovery` delta into a new living
+      `openspec/specs/saga-crash-recovery/spec.md`. The living spec states the SHIPPED
+      behavior: the delta's gated auto-resume requirement is recorded as GATED-AND-REFUSED
+      (parking is the normative path for pivot-interrupted rows), with the revisit condition
+      written as normative for the next change and tied to the evidence test that turns RED
+      when the post-pivot tolerance finally holds.
+- [x] 11.3 **0-defect gate (PR2)**: `tsc` (@apps/api, @shared/types) = 0;
       `eslint --max-warnings 0` on touched files = 0; prettier clean; fitness
       **#3 / #8 / #9 / #10 / #20 / #21 / #23 = 0**; no `.only` / `.skip` committed; no new
       `@ts-ignore` and no new `canon-exception` marker; the full LXC-safe regression set
       green with 0 failed and 0 cancelled; all CI workflows green.
+      **Evidence:** `tsc -b apps/api` = 0, `tsc -b packages/shared` = 0, isolated `tsc` over
+      the PR2 test files = 0; `eslint --max-warnings 0` over the 7 touched `.ts` files = 0;
+      `prettier --check` over all 12 touched files = clean; fitness #3/#8/#9/#10/#20/#21/#23
+      all 0; `.only`/`.skip` = 0; the three `@ts-ignore`/`canon-exception` matches in the
+      diff are the WORDS inside this task text and the living spec's own requirement, not
+      markers in code. Regression set, single-file per the LXC recipe:
+      `sagaCrashRecovery` 9/9, `sagaTenantIsolation` 18/18, `sagaAccountIdBackfill` 10/10,
+      `chaos/saga-step-retry-recovery` 1/1 (all `0 fail / 0 cancelled / 0 skipped`), saga
+      unit set 16 files / 199 tests green, `sagaCustomerFlow` 13/13 from 10.3. Post-run leak
+      check: 0 fixture rows, 0 recent saga rows, 0 `bull:*` keys. CI workflows are the
+      orchestrator's gate after the push.

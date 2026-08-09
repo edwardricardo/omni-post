@@ -684,7 +684,64 @@ A tenant-scoped model is fully enrolled when all three hold:
 4. **The CQRS bus has no command-id dedupe.** The saga canon asserts a
    deterministic `dedupeKey`, but the bus does not deduplicate by command id, so
    a replayed pre-pivot create step can produce a duplicate draft. No external
-   side effect is involved; escalated below.
+   side effect is involved. The producer half is real and pinned by a static
+   invariant (`cmd-{sagaId}-{stepId}[-compensate]`, no clock, no randomness); it
+   is the consumer half that is missing. Tracked as **SMELL-71**.
+5. **A composition-root registration for the saga manager that nothing
+   resolves.** `setupServices.ts:937-958` registers `TOKENS.SagaManager`, while
+   the live engine is built inside `SagaIntegration`. Inert today, but a future
+   consumer resolving that token would get a SECOND engine on the same database
+   and Redis, with its own boot recovery pass and timeout checker. Tracked as
+   **SMELL-72**.
+
+#### Terminal-hygiene residuals — carried to the next change
+
+Found while proving crash recovery, out of scope for it, and deliberately NOT
+patched here. They belong together because they share one root: the engine's
+in-memory instance set and its terminal transitions are not kept in step. The
+follow-up change (`saga-engine-terminal-hygiene`) owns all six.
+
+1. **`failSaga` never removes the saga from `activeInstances`.** `completeSaga`
+   and the compensation walk both delete; the failure path decrements the gauge
+   but leaves the entry. The map therefore accumulates terminal sagas for the
+   life of the process.
+2. **The timeout checker has no terminal filter.** It iterates every entry in
+   that map, so a saga left behind by (1) is re-checked forever and re-failed
+   once past its timeout — re-persisting a terminal row and re-emitting its
+   audit event. The two defects are only harmless in combination by accident.
+3. **`COMPENSATING` rows are not loaded at boot.** The recovery scan filters
+   `status IN (RUNNING, PENDING)`, so a process that died mid-compensation
+   leaves a row no restart picks up; it waits for the timeout that (2) applies
+   only to rows the process happens to hold.
+4. **"Waiting" and "failed" are the same step result.** The wait step returns
+   `success: false` both when publishing genuinely failed and when it is merely
+   still in progress, so a slow worker consumes the saga's retry budget exactly
+   like an error would.
+5. **No in-flight execution guard.** Nothing prevents two triggers (a worker
+   event and a recovery tick, say) from executing the same saga concurrently;
+   the steps are idempotent enough that this has not bitten, which is not the
+   same as being safe.
+6. **`handleEvent` amplification.** Each worker completion event dispatches the
+   saga again, so an N-channel publish produces N dispatches of the same wait
+   step.
+
+#### Live-API saga suite — boot recipe (operator trap)
+
+`tests/integration/sagaCustomerFlow.test.ts` signs its customer JWTs from the
+`.env` + `.env.test` PAIR, and `.env.test` overrides `CUSTOMER_JWT_SECRET`. The
+API under test must boot with the same pair or every suite token is rejected
+with `JsonWebTokenError: invalid signature` — a failure that reads like an auth
+regression and is not one:
+
+```bash
+set -a; source .env; source .env.test; set +a
+pnpm dev:api                 # port 3001 comes from .env.test
+# in another shell
+BASE_URL=http://localhost:3001 <the INT-LONG command for sagaCustomerFlow>
+```
+
+Kill the server and confirm the port is free afterwards. The suite's older
+"start with pnpm dev" hint predates the env split and no longer works.
 
 #### Backfill runbook — `SagaInstance.accountId`
 
