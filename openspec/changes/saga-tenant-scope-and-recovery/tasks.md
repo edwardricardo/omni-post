@@ -472,7 +472,7 @@ observation remained.
 
 ## Phase 8: RED — crash-replay + shutdown-orphan (MERGE-BLOCKING)
 
-- [ ] 8.1 [RED] Create `apps/api/tests/integration/sagaCrashRecovery.test.ts` (node:test,
+- [x] 8.1 [RED] Create `apps/api/tests/integration/sagaCrashRecovery.test.ts` (node:test,
       real DB + Redis + real BullMQ, `@file`/`@description`/`@layer infrastructure`).
       **Crash-replay (THE D5 gate)**: manager A runs a publish-now saga past the pivot;
       rewind the row to `currentStep = 2` and DELETE the `saga:{id}` Redis key
@@ -483,19 +483,19 @@ observation remained.
       the OCC/`expectedVersion` re-application tolerance is verified EMPIRICALLY here, not
       assumed from the step's JSDoc (`saga.ts:762-763`). A tolerance failure is an
       apply-phase finding, never a silent pass.
-- [ ] 8.2 [RED] Same file, **(C3) shutdown-orphan scenario**: manager A schedules a retry
+- [x] 8.2 [RED] Same file, **(C3) shutdown-orphan scenario**: manager A schedules a retry
       (`nextRetryAt` set via `scheduleRetry`, `Execution:185`), then graceful `shutdown()`
       flips RUNNING→PENDING (`Lifecycle:288-290`) while the persist keeps `nextRetryAt`
       non-null (`Execution:539`); manager B boots → the widened checker claims the row →
       terminal within the retry envelope. RED until 9.2.
-- [ ] 8.3 [RED] Same file, **terminal safety**: rows in `COMPLETED` / `FAILED` /
+- [x] 8.3 [RED] Same file, **terminal safety**: rows in `COMPLETED` / `FAILED` /
       `COMPENSATED` before restart change neither status nor `updatedAt`, dispatch no
       command, and run no compensation; a saga interrupted at or past the pivot compensates
       NO pivot/post-pivot step on later terminal failure.
-- [ ] 8.4 [RED] Extend the Phase-1.3 static test: the dedupe key derives ONLY from `sagaId` + `stepId` (+ the compensation suffix), contains no `randomUUID()` / `Math.random()`,
+- [x] 8.4 [RED] Extend the Phase-1.3 static test: the dedupe key derives ONLY from `sagaId` + `stepId` (+ the compensation suffix), contains no `randomUUID()` / `Math.random()`,
       and evaluates identically in two processes; **and** no saga suite exists on disk
       without an explicit entry in `run-tests.sh` (spec static scenario).
-- [ ] 8.5 Run INT 8.1–8.3 (DBUP first) + VITEST 8.4 → expect RED (no resume pass exists;
+- [x] 8.5 Run INT 8.1–8.3 (DBUP first) + VITEST 8.4 → expect RED (no resume pass exists;
       the checker's `where` is `status: "RUNNING"` only).
 
 ## Phase 9: D5 — boot resume + widened checker ownership → turns 8.1–8.3 GREEN

@@ -196,6 +196,15 @@ CONCURRENCY=1 run_batch "integration:tenant-isolation" \
   tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts \
   tests/integration/rls-tenant-isolation.test.ts
 
+# Saga crash-recovery proof. DB-only by dependency (Postgres + Redis + a real
+# BullMQ queue and worker it owns; it never fetches the API), so it belongs to
+# the tier that also runs on pull requests — a merge-blocking gate that only ran
+# after the merge would gate nothing. Its own batch with a raised timeout: the
+# suite boots managers, drives a real queue round trip and walks a retry
+# envelope, so the 30000 default would cancel its waits.
+CONCURRENCY=1 TIMEOUT=120000 run_batch "integration:saga-recovery" \
+  tests/integration/sagaCrashRecovery.test.ts
+
 fi # run_db_batches
 
 # Live-API batches: these fetch http://localhost:3000 (getBaseUrl) and require

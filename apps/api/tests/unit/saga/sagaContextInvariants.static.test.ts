@@ -1101,4 +1101,155 @@ describe("saga engine context invariants", () => {
       expect(silent).toEqual([]);
     });
   });
+
+  describe("dedupe keys derive only from identity the durable row already carries", () => {
+    // Complements the behavioural suite (`tests/unit/sagaDeterministicIds.test.ts`),
+    // which proves a step re-executed IN ONE PROCESS emits the same command id.
+    // That check cannot see a hidden input: a module-scoped nonce, a clock read
+    // or a `randomUUID()` inside the template all survive it as long as two
+    // calls land close enough together. A crash replay compares ids minted by
+    // DIFFERENT processes, so the property that matters is structural — the key
+    // is a pure function of the saga id and the step id, both of which the
+    // persisted row carries — and structure is what this scan reads.
+    const sharedSagaPath = join(apiRoot, "..", "..", "packages", "shared", "src", "saga.ts");
+    const sharedSagaSource = readFileSync(sharedSagaPath, "utf8");
+    const integration = sourceByName("SagaIntegration.ts");
+
+    /** Non-deterministic sources a dedupe key must never read. */
+    const NONDETERMINISM = /randomUUID|Math\.random|Date\.now|new Date\(/;
+
+    /**
+     * Every backtick template captured by `pattern`, verbatim. The ORIGINAL
+     * text is read on purpose: `sanitize()` blanks literals, and here the
+     * literal IS the subject.
+     */
+    function templateLiterals(source: string, pattern: RegExp): string[] {
+      const found: string[] = [];
+      pattern.lastIndex = 0;
+      let match = pattern.exec(source);
+      while (match !== null) {
+        found.push(match[1] ?? "");
+        match = pattern.exec(source);
+      }
+      return found;
+    }
+
+    /** The expressions a template interpolates, in source order. */
+    function interpolations(template: string): string[] {
+      const found: string[] = [];
+      const pattern = /\$\{([^}]*)\}/g;
+      let match = pattern.exec(template);
+      while (match !== null) {
+        found.push((match[1] ?? "").trim());
+        match = pattern.exec(template);
+      }
+      return found;
+    }
+
+    const commandIdTemplates = templateLiterals(sharedSagaSource, /\bid:\s*`([^`]*)`/g).sort();
+    const queueDedupeTemplates = templateLiterals(
+      integration.original,
+      /\bconst\s+dedupeKey\s*=\s*`([^`]*)`/g
+    ).sort();
+
+    it("still sees the command ids the saga steps mint", () => {
+      // Pinned as an exact set: a pattern that stops matching would turn every
+      // assertion below vacuously green, which is how a source scan goes blind.
+      expect(commandIdTemplates).toEqual(
+        [
+          "cmd-${context.sagaId}-${this.id}",
+          "cmd-${context.sagaId}-${this.id}",
+          "cmd-${context.sagaId}-${this.id}-compensate",
+        ].sort()
+      );
+    });
+
+    it("derives every command id from the saga id and the step id alone", () => {
+      const violations = commandIdTemplates
+        .filter((template) =>
+          interpolations(template).some(
+            (expression) => expression !== "context.sagaId" && expression !== "this.id"
+          )
+        )
+        .map((template) => `command id interpolates something else: \`${template}\``);
+
+      expect(violations).toEqual([]);
+    });
+
+    it("distinguishes the compensating command by a literal suffix, never by a fresh value", () => {
+      const compensating = commandIdTemplates.filter((template) =>
+        template.endsWith("-compensate")
+      );
+      expect(compensating.length).toBeGreaterThan(0);
+
+      const forward = commandIdTemplates.filter((template) => !template.endsWith("-compensate"));
+      expect(forward.length).toBeGreaterThan(0);
+      // The forward and the compensating key of the same step must differ, or a
+      // compensation would collide with the command it undoes on the bus.
+      expect(new Set(commandIdTemplates).size).toBeGreaterThan(1);
+    });
+
+    it("reads no clock and no randomness in any dedupe key", () => {
+      const violations = [...commandIdTemplates, ...queueDedupeTemplates]
+        .filter((template) => NONDETERMINISM.test(template))
+        .map((template) => `dedupe key reads a non-deterministic source: \`${template}\``);
+
+      expect(violations).toEqual([]);
+    });
+
+    it("keys the publish job on the post and the channel it targets", () => {
+      // This key becomes the BullMQ job id, which is what makes a replayed
+      // pivot a no-op instead of a second publish. Its inputs must therefore be
+      // the target itself, not the attempt.
+      expect(queueDedupeTemplates).toEqual(["publish-${postId}-${channelId}"]);
+
+      const violations = queueDedupeTemplates
+        .flatMap(interpolations)
+        .filter((expression) => expression !== "postId" && expression !== "channelId");
+
+      expect(violations).toEqual([]);
+    });
+
+    it("hands that key to the queue as the job's dedupe key", () => {
+      // A derivation nothing passes through is decoration; the enqueue call is
+      // where the key becomes the job id.
+      expect(integration.sanitized).toMatch(/enqueue\(\{\s*\n?\s*dedupeKey,/);
+    });
+  });
+
+  describe("every saga suite is wired into the runner", () => {
+    // A suite that belongs to no batch never runs under `test:all` or in CI, so
+    // it protects nothing while reading as coverage. Unit suites are collected
+    // by the Vitest phase from the whole `tests/unit` tree; the node:test
+    // suites are named file by file, which is exactly where one gets forgotten.
+    const runnerPath = join(apiRoot, "scripts", "run-tests.sh");
+    const runner = readFileSync(runnerPath, "utf8");
+    const testsRoot = join(apiRoot, "tests");
+
+    const sagaSuites = getAllTsFiles(testsRoot)
+      .map((path) => relative(apiRoot, path))
+      .filter((path) => path.endsWith(".test.ts"))
+      .filter((path) => /saga/i.test(path))
+      .filter((path) => !path.startsWith(join("tests", "unit")))
+      .sort();
+
+    it("still finds the node:test saga suites on disk", () => {
+      // Minimum + membership rather than an exact set: a NEW suite must fail
+      // the wiring assertion below, not this one.
+      expect(sagaSuites).toEqual(
+        expect.arrayContaining([
+          "tests/chaos/saga-step-retry-recovery.test.ts",
+          "tests/integration/sagaCrashRecovery.test.ts",
+          "tests/integration/sagaCustomerFlow.test.ts",
+          "tests/integration/sagaTenantIsolation.test.ts",
+        ])
+      );
+      expect(sagaSuites.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it("lists every one of them explicitly in run-tests.sh", () => {
+      const unwired = sagaSuites.filter((path) => !runner.includes(path));
+      expect(unwired).toEqual([]);
+    });
+  });
 });
