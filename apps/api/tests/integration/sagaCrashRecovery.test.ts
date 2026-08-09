@@ -42,6 +42,7 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Redis } from "ioredis";
+import pino from "pino";
 import { Queue, Worker, type Job } from "bullmq";
 import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
 import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
@@ -65,6 +66,7 @@ import {
 import { SagaManagerLifecycle } from "../../src/saga/SagaManagerLifecycle.js";
 import { SagaExecutionEngine } from "../../src/saga/SagaManagerExecution.js";
 import { EventService } from "../../src/events/EventService.js";
+import { logger } from "../../src/lib/logger.js";
 import { PrismaPostRepository } from "../../src/infrastructure/repositories/PrismaPostRepository.js";
 import { PrismaChannelRepository } from "../../src/infrastructure/repositories/PrismaChannelRepository.js";
 import { ChannelCredentialsCrypto } from "../../src/security/ChannelCredentialsCrypto.js";
@@ -95,6 +97,54 @@ const TERMINAL_STATES: ReadonlyArray<SagaInstance["status"]> = [
  */
 function sagaStreamId(sagaId: string): string {
   return `stream:Saga:${sagaId}`;
+}
+
+/** Parses one pino line, returning null when the chunk is not JSON. */
+function safeParseLogLine(raw: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Runs `action` with the shared logger's destination swapped for a recorder.
+ * The engine logs through a module-scoped pino instance, so intercepting its
+ * stream is the only way to assert what an operator would actually see — and
+ * for a decision the engine reports rather than acts on, the log IS the output.
+ */
+async function captureLogs(action: () => Promise<void>): Promise<Record<string, unknown>[]> {
+  const streamSymbol = pino.symbols.streamSym;
+  const holder = logger as unknown as Record<symbol, unknown>;
+  const original = holder[streamSymbol];
+  // The configured level filters BEFORE the stream, so a recorder alone sees
+  // nothing an operator would only see with a lower threshold — the routine
+  // boot summary among them. The level is lowered for the capture and put back.
+  const originalLevel = logger.level;
+  logger.level = "trace";
+  const lines: Record<string, unknown>[] = [];
+
+  holder[streamSymbol] = {
+    write(chunk: string): void {
+      for (const raw of chunk.split("\n")) {
+        if (raw.trim().length === 0) continue;
+        const parsed = safeParseLogLine(raw);
+        if (parsed !== null) {
+          lines.push(parsed);
+        }
+      }
+    },
+  };
+
+  try {
+    await action();
+  } finally {
+    holder[streamSymbol] = original;
+    logger.level = originalLevel;
+  }
+
+  return lines;
 }
 
 /** One command the saga issued, recorded at the seam the CQRS bus occupies. */
@@ -571,13 +621,19 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     await base.$disconnect();
   });
 
-  describe("a saga interrupted at the pivot and replayed by a fresh manager", () => {
+  describe("a saga interrupted at the pivot and met by a fresh manager", () => {
     let sagaId: string;
     let postId: string;
     let dedupeKey: string;
     let beforeReplay: PostSnapshot;
     let jobsProcessedBeforeReplay: number;
     let managerB: Manager;
+    /** State of the interrupted row once the fresh manager finished booting. */
+    let afterBoot: SagaSnapshot;
+    let parkedBefore: number;
+    let parkedAfter: number;
+    let commandsBeforeBoot: number;
+    let bootLogLines: Record<string, unknown>[] = [];
 
     before(async () => {
       // 1. A manager runs the saga end to end, so the pivot's side effect (the
@@ -622,39 +678,91 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       });
       await redis.del(`saga:${sagaId}`);
 
-      // 3. A manager with no memory of the saga boots against that row.
+      // 3. A manager with no memory of the saga boots against that row. The
+      //    boot decision is a LOG and a counter, not a mutation, so both are
+      //    captured here rather than reconstructed afterwards.
       managerB = buildManager();
-      await managerB.lifecycle.initialize();
+      commandsBeforeBoot = dispatchedCommands.length;
+      parkedBefore = managerB.lifecycle.metrics.bootParkedSagas;
+      bootLogLines = await captureLogs(async () => {
+        await managerB.lifecycle.initialize();
+      });
+      parkedAfter = managerB.lifecycle.metrics.bootParkedSagas;
+
+      // Boot work is dispatched detached, so a snapshot taken immediately would
+      // observe the row before anything had the chance to touch it.
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      afterBoot = await sagaSnapshot(sagaId);
     });
 
-    it("resumes the interrupted saga to a terminal state", async () => {
+    it("parks the interrupted saga instead of replaying its pivot", async () => {
       // The row is non-terminal with NO pending retry, so the retry checker
-      // never claims it: whatever runs at boot is the only thing that can.
-      const snapshot = await driveToTerminal(
-        sagaId,
-        managerB.scheduler,
-        `the boot of a fresh manager to resume ${sagaId} (a non-terminal row with no pending retry is nobody's until the boot claims it)`
+      // never claims it: the boot pass is the only mechanism that sees it, and
+      // what it does with a pivot-interrupted row is the whole decision.
+      assert.strictEqual(
+        afterBoot.status,
+        "RUNNING",
+        "a parked saga is left exactly as the interruption left it, not terminalized"
       );
-
-      assert.ok(
-        TERMINAL_STATES.includes(snapshot.status as SagaInstance["status"]),
-        `a resumed saga must reach a terminal state, got ${snapshot.status}`
+      assert.strictEqual(afterBoot.currentStep, 2, "and it is left at the step it was cut at");
+      assert.strictEqual(afterBoot.error, null, "parking records no failure on the row");
+      assert.strictEqual(
+        afterBoot.nextRetryAt,
+        null,
+        "parking schedules no retry — a retry would be the replay under another name"
       );
     });
 
-    it("enqueues no second publish job for the replayed pivot", async () => {
+    it("counts the parked saga and names it in the boot summary", async () => {
+      // A row the engine declines to recover is invisible unless it says so:
+      // the counter is what an operator alerts on, the log is what tells them
+      // WHICH saga needs a decision.
+      assert.ok(
+        parkedAfter > parkedBefore,
+        "the boot pass counts every saga it parks, so 'recovered nothing' is distinguishable from 'never ran'"
+      );
+
+      const parkedLine = bootLogLines.find(
+        (line) => line.sagaId === sagaId && line.reason === "parked"
+      );
+      assert.ok(parkedLine, "the parked saga must be named in the logs, not just tallied");
+      assert.strictEqual(parkedLine.level, "warn", "a row awaiting a human is at least a warning");
+      assert.strictEqual(
+        parkedLine.currentStep,
+        2,
+        "the log carries the step it was cut at, which is what makes the pivot boundary auditable"
+      );
+      assert.match(
+        String(parkedLine.msg),
+        /PARKED/,
+        "the message states the decision in the operator's vocabulary"
+      );
+
+      const summary = bootLogLines.find((line) => line.msg === "Saga boot recovery pass complete");
+      assert.ok(summary, "the pass emits a summary an operator can read at a glance");
+      assert.strictEqual(
+        typeof summary.loaded === "number" &&
+          typeof summary.resumed === "number" &&
+          typeof summary.checkerOwned === "number" &&
+          typeof summary.skipped === "number",
+        true,
+        "the summary carries the four counts: loaded, resumed, checkerOwned, skipped"
+      );
+    });
+
+    it("dispatches nothing at all for the parked saga", async () => {
       const byId = await jobsWithId(dedupeKey);
       assert.strictEqual(
         byId.length,
         1,
-        `exactly one job must hold the dedupe key ${dedupeKey} after the replay`
+        `exactly one job must hold the dedupe key ${dedupeKey}: the one the first run enqueued`
       );
 
       const byTarget = await jobsForTarget(postId, deliveringChannelId);
       assert.strictEqual(
         byTarget.length,
         1,
-        "the replayed pivot must not add a second job addressed at the same post and channel"
+        "no second job is addressed at the same post and channel"
       );
 
       const processedAfter = processedJobs.filter(
@@ -663,7 +771,16 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       assert.strictEqual(
         processedAfter,
         jobsProcessedBeforeReplay,
-        "no worker executed the publish a second time — the duplicate side effect the dedupe exists to prevent"
+        "no worker executed the publish a second time"
+      );
+
+      const commandsForSaga = dispatchedCommands
+        .slice(commandsBeforeBoot)
+        .filter((command) => command.id.includes(sagaId));
+      assert.deepStrictEqual(
+        commandsForSaga,
+        [],
+        "a parked saga runs no step, so it issues no command: the command id carries its saga id"
       );
     });
 
@@ -689,22 +806,58 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       );
     });
 
-    it("re-applies the post-pivot status transition without a version conflict", async () => {
-      // The step's own documentation claims the update use case tolerates
-      // re-application of the same transition. That claim is what makes an
-      // automatic resume safe, so it is measured here rather than assumed: the
-      // replayed command carries the version the create step recorded, while
-      // the first run already advanced the persisted one.
-      const snapshot = await sagaSnapshot(sagaId);
+    it("records what a replay actually does: the queue absorbs the pivot, the step after it is rejected", async () => {
+      // This is the evidence the parking decision rests on, kept executable so
+      // it cannot quietly stop being true.
+      //
+      // The post-pivot step's own documentation claims the update use case
+      // TOLERATES re-application of the same transition — the claim that would
+      // make an automatic resume safe. Measured, it does not: the replayed
+      // command carries the version the create step recorded, the first run
+      // already advanced the persisted one, and the use case rejects the stale
+      // token. A saga that genuinely succeeded therefore ends FAILED.
+      //
+      // The replay is triggered the way a human would trigger it after reading
+      // the PARKED log — the continue endpoint — so this also documents what an
+      // operator gets when they take that decision today.
+      await managerB.lifecycle.continueSaga(sagaId);
 
+      const snapshot = await driveToTerminal(
+        sagaId,
+        managerB.scheduler,
+        `the manually resumed saga ${sagaId} to reach a terminal state`
+      );
+
+      // The absorber half of the verdict: the pivot really is replay-safe.
+      const byId = await jobsWithId(dedupeKey);
+      assert.strictEqual(byId.length, 1, "the replayed pivot enqueued no second job");
+      const byTarget = await jobsForTarget(postId, deliveringChannelId);
+      assert.strictEqual(byTarget.length, 1, "and none addressed at the same post and channel");
+      const processedAfter = processedJobs.filter(
+        (job) => job.postId === postId && job.channelId === deliveringChannelId
+      ).length;
+      assert.strictEqual(
+        processedAfter,
+        jobsProcessedBeforeReplay,
+        "no worker published a second time: the deterministic job id absorbed the replay"
+      );
+      const afterManualReplay = await postSnapshot(postId);
+      assert.strictEqual(
+        afterManualReplay.status,
+        beforeReplay.status,
+        "and the post kept its single consistent status"
+      );
+
+      // The half that fails, and therefore the reason boot recovery declines.
       assert.strictEqual(
         snapshot.status,
-        "COMPLETED",
-        `the replayed saga must finish, not fail (error=${String(snapshot.error)})`
+        "FAILED",
+        "the replayed saga ends FAILED — if this ever becomes COMPLETED, the tolerance claim finally holds and the parking decision should be revisited"
       );
-      assert.ok(
-        !/version conflict/i.test(String(snapshot.error ?? "")),
-        `the re-applied status transition was rejected by optimistic concurrency: ${String(snapshot.error)}`
+      assert.match(
+        String(snapshot.error),
+        /version conflict/i,
+        "and it fails for the stale optimistic-concurrency token, not for a queue side effect"
       );
     });
   });

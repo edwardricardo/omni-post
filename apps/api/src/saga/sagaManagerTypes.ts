@@ -86,6 +86,13 @@ export interface SagaMetrics {
    * does not exist: both used to read as "not found" to every caller.
    */
   instanceLoadFailures: number;
+  /**
+   * Sagas boot recovery left alone because they were interrupted at or past
+   * their pivot. Each one is a row waiting on a human decision rather than a
+   * failure: automatic replay past the pivot cannot be shown to be
+   * side-effect-free, so the engine reports instead of guessing.
+   */
+  bootParkedSagas: number;
 }
 
 /**

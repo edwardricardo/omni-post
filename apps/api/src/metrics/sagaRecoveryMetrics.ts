@@ -26,9 +26,9 @@ function getOrCreateCounter(
 }
 
 /**
- * Stage of detached saga work whose failure is being counted. Deliberately NOT
- * called a "loop": only the first four are loops, while `rehydration` and
- * `mismatch` are per-saga resolution outcomes. An operator paging on
+ * Stage of detached saga work the engine did NOT complete. Deliberately NOT
+ * called a "loop": only the first four are loops, while `rehydration`,
+ * `mismatch` and `parked` are per-saga outcomes. An operator paging on
  * `stage="mismatch"` must not go hunting for a background loop by that name.
  *
  * - `boot` — the crash-recovery load that runs once per process start.
@@ -37,9 +37,15 @@ function getOrCreateCounter(
  * - `instance-load` — the by-id read behind every resume trigger.
  * - `rehydration` — a saga whose owning account could not be resolved.
  * - `mismatch` — a saga whose column and context name different accounts.
+ * - `parked` — a saga interrupted at or past its pivot that boot recovery
+ *   deliberately left alone. It is not a malfunction of the engine, it is
+ *   recovery DECLINED: replaying a pivot cannot be proven side-effect-free, so
+ *   the row waits for a human instead of being resumed on a guess. It shares
+ *   this series because the operator question is the same one — "what did
+ *   recovery fail to bring back?" — and every parked row needs an answer.
  */
 export type SagaRecoveryStage =
-  "boot" | "retry-scan" | "timeout" | "instance-load" | "rehydration" | "mismatch";
+  "boot" | "retry-scan" | "timeout" | "instance-load" | "rehydration" | "mismatch" | "parked";
 
 /** Why a saga reached its terminal FAILED state. */
 export type SagaFailureReason =
@@ -47,7 +53,7 @@ export type SagaFailureReason =
 
 const sagaRecoveryFailuresTotal = getOrCreateCounter(
   "saga_recovery_failures_total",
-  "Saga detached-work failures, by stage",
+  "Saga detached work the engine did not complete, by stage",
   ["stage"]
 );
 

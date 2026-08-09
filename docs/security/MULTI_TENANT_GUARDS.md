@@ -577,6 +577,66 @@ already alerts on. The in-process snapshot stays available on `/sagas/metrics`, 
 recovery load failed, because such a process is reachable but does not know what was
 in flight when it started.
 
+#### Crash recovery — who claims a saga after a restart, and the parked pivot
+
+Recovery ownership is partitioned on `nextRetryAt` nullability alone, so a saga is
+claimed exactly once even though both mechanisms come alive from the same
+`initialize()`:
+
+- **the boot pass** (`SagaManagerLifecycle.resumeLoadedSagas`) runs ONCE per process
+  over the rows the boot load returned, and dispatches those with `nextRetryAt` unset;
+- **the retry checker** claims `nextRetryAt` set and due. Its predicate covers
+  `status IN (RUNNING, PENDING)`: a graceful shutdown parks a retry-pending saga by
+  flipping it to PENDING while keeping `nextRetryAt`, and a checker restricted to
+  RUNNING left that row to neither mechanism — it sat non-terminal until the 30-minute
+  timeout force-failed it. `@@index([status, nextRetryAt])` serves the widened shape.
+
+The dispatch loop sits lexically OUTSIDE every declared system boundary. That is not
+style: a dispatch is detached, AsyncLocalStorage propagates through it, and the system
+context has no exit primitive — a loop inside the wrap would run resumed tenant work
+guard-bypassed. A static invariant suite enforces it.
+
+**A saga interrupted AT or PAST its pivot is PARKED, not replayed.** The engine leaves
+the row exactly as the interruption left it (non-terminal, nothing dispatched, nothing
+written), increments `SagaMetrics.bootParkedSagas` and
+`saga_recovery_failures_total{stage="parked"}`, and logs a `PARKED` warning naming the
+saga, its step and its pivot index. The boot pass also emits a summary
+(`{loaded, resumed, checkerOwned, skipped}` plus per-row skip reasons:
+`nextRetryAt-owned-by-checker`, `missing-accountId`, `tenant-mismatch`, `parked`) so an
+operator can tell "recovered nothing" from "never ran".
+
+The decision is empirical, measured end to end against a real Postgres, a real Redis and
+a real BullMQ queue in `apps/api/tests/integration/sagaCrashRecovery.test.ts`:
+
+| Property of an automatic pivot replay              | Measured outcome                                                                                                                                                                                              |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Second publish job for the same `(post, channel)`  | **None.** The queue adapter passes the step's dedupe key through as the BullMQ job id, and an `add` on an existing id is a no-op in every state, including `completed` — verified directly against the queue. |
+| Second worker execution (the external side effect) | **None**, for the same reason.                                                                                                                                                                                |
+| `Post` status after the replay                     | **Unchanged**, single consistent value, one row.                                                                                                                                                              |
+| Saga terminal state after the replay               | **FAILED**, with `Post version conflict: expected 0, found 1`.                                                                                                                                                |
+
+So the absorber works and the step AFTER the pivot does not: `UpdatePostStatusStep`
+re-issues its transition with the version the create step recorded, the first run already
+advanced the persisted one, and `UpdatePostUseCase` rejects the stale token. The step's
+own documentation claims that re-application is tolerated; it is not. An automatic resume
+would therefore drive a saga that genuinely succeeded into a terminal FAILED state and
+tell an operator the publish failed when it did not.
+
+Operator handling of a parked row: read the `PARKED` log line for the saga id and step,
+confirm the external effect (was the post published?), then either resume it by hand
+through `POST /sagas/:sagaId/continue` — a decision taken with the outcome in view — or
+terminalize it. **Revisit condition**: when the post-pivot transition genuinely tolerates
+re-application (an idempotent status transition, or an OCC token re-read at replay time),
+the parking branch can be dropped and the boot pass can resume pivot-interrupted rows.
+The pinning test asserts the FAILED outcome precisely so that day cannot pass unnoticed:
+it turns red when the tolerance finally holds.
+
+The absorber has one honest boundary: the job-id dedupe holds only while the job is
+retained. The production consumer keeps `removeOnComplete {count:100}` /
+`removeOnFail {count:50}`, so a downtime window with more than 100 completions evicts the
+job and the same id is accepted again — measured, not assumed. Parking makes that
+boundary moot for the automatic path, since nothing replays without a human.
+
 #### Enrollment legs — the three, defined once
 
 A tenant-scoped model is fully enrolled when all three hold:

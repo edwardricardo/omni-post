@@ -30,6 +30,18 @@ groups:
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga
 
+      - alert: SagaParkedAtPivot
+        expr: increase(saga_recovery_failures_total{stage="parked"}[10m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: saga
+        annotations:
+          summary: "A saga interrupted at or past its pivot is waiting for a human"
+          description: "Boot recovery found a saga cut at or after its point of no return and deliberately did NOT replay it: the queue absorbs a re-enqueued publish job, but the step after the pivot re-issues its status transition with a stale optimistic-concurrency token and the use case rejects it, so an automatic resume would drive a saga that actually succeeded into FAILED. The row is intact and non-terminal, and NOTHING will pick it up on its own. Find the `PARKED` warning carrying the saga id, step and pivot index, confirm whether the external effect happened, then resume it deliberately via POST /sagas/:sagaId/continue or terminalize it. A non-zero rate outside a restart window means processes are dying mid-pivot."
+          runbook: docs/security/MULTI_TENANT_GUARDS.md
+          slo: docs/observability/SLO.md#saga
+
       - alert: SagaRecoveryLoopFailing
         expr: increase(saga_recovery_failures_total{stage=~"boot|retry-scan|timeout|instance-load"}[10m]) > 3
         for: 5m

@@ -33,6 +33,27 @@ import type {
 export type { SagaManagerConfig, SagaMetrics } from "./sagaManagerTypes.js";
 
 /**
+ * What the boot recovery pass did with one loaded saga.
+ *
+ * The vocabulary carries one member more than a bare "skipped": a saga the
+ * checker owns, one that no scope can address, and one whose column contradicts
+ * its context are three different operator situations with three different
+ * repairs, and a single label would send all of them to the same runbook.
+ *
+ * - `resumed` — dispatched by this pass.
+ * - `nextRetryAt-owned-by-checker` — has a pending retry, so the retry checker
+ *   owns it; dispatching here too would execute the same saga twice.
+ * - `missing-accountId` — carries no resolvable owning account, so every
+ *   tenant-scoped statement would skip it; the timeout checker terminalizes it.
+ * - `tenant-mismatch` — its persisted account contradicts its context; the
+ *   repair is to stop the stale writer and re-run the backfill, not to retry.
+ * - `parked` — interrupted at or past its pivot, so a replay would re-run steps
+ *   whose external effects already happened; it waits for a human.
+ */
+type SagaBootDisposition =
+  "resumed" | "nextRetryAt-owned-by-checker" | "missing-accountId" | "tenant-mismatch" | "parked";
+
+/**
  * Saga engine health. `degraded` is distinct from `unhealthy` on purpose: the
  * dependencies answer, but the process could not read what was in flight when it
  * started, so it is serving without recovery coverage.
@@ -68,6 +89,7 @@ export class SagaManagerLifecycle implements SagaManager {
     tenantMismatches: 0,
     timeoutCheckFailures: 0,
     instanceLoadFailures: 0,
+    bootParkedSagas: 0,
   };
   readonly executionTimes: number[] = [];
 
@@ -91,8 +113,9 @@ export class SagaManagerLifecycle implements SagaManager {
     // whatever it registered, and any failure it hit. A failed load must not
     // kill boot, but it must never read as an empty successful one either.
     const correlationId = newSagaRecoveryCorrelationId();
+    let loaded: SagaInstance[] = [];
     try {
-      await this.loadActiveSagas(correlationId);
+      loaded = await this.loadActiveSagas(correlationId);
     } catch (error) {
       this.metrics.bootLoadFailures++;
       recordSagaRecoveryFailure("boot");
@@ -112,7 +135,138 @@ export class SagaManagerLifecycle implements SagaManager {
     this.startMetricsCollector();
     this.startRetryRecoveryChecker();
 
+    // ONE pass over what this process just loaded, never a sweep and never a
+    // per-tick re-dispatch: a saga interrupted mid-step is only stuck because
+    // the process that held it died, so it needs exactly one nudge from the
+    // process that inherited it. The loop sits outside every declared system
+    // boundary — the load ended with its own — because a dispatch is detached
+    // and the context would propagate into work that must run tenant-scoped.
+    this.resumeLoadedSagas(loaded, correlationId);
+
     logger.info("Saga Manager initialized successfully");
+  }
+
+  /**
+   * Dispatches the sagas this process inherited, and reports what it decided
+   * about every one it did not.
+   *
+   * Ownership is partitioned on `nextRetryAt` nullability alone: this pass takes
+   * the rows with none, the retry checker takes the rows with one that is due.
+   * The two predicates cannot both match a row, so a saga is claimed once even
+   * though both mechanisms are alive from the same `initialize()`.
+   *
+   * Within its own share the pass is deliberately narrower than "everything it
+   * loaded": a saga interrupted at or past its pivot is PARKED rather than
+   * replayed, for the reason spelled out at that branch.
+   *
+   * The summary is the difference between "this process recovered nothing" and
+   * "this process never ran a recovery" — the same distinction the boot-load
+   * failure counter draws, but for the pass rather than the read.
+   *
+   * @param loaded - The non-terminal sagas the boot load returned.
+   * @param correlationId - Identifier joining this recovery pass in the logs.
+   */
+  private resumeLoadedSagas(loaded: SagaInstance[], correlationId: string): void {
+    const tally = new Map<SagaBootDisposition, number>();
+    const record = (disposition: SagaBootDisposition): void => {
+      tally.set(disposition, (tally.get(disposition) ?? 0) + 1);
+    };
+
+    for (const instance of loaded) {
+      if (instance.nextRetryAt !== undefined) {
+        record("nextRetryAt-owned-by-checker");
+        continue;
+      }
+
+      // The dispatch would rehydrate the tenant and skip an unscopable saga
+      // anyway. Deciding here instead keeps the reason in the boot summary
+      // where an operator is already looking, and leaves the counting to the
+      // timeout checker that terminalizes the row, so one row is not reported
+      // as two separate failures.
+      const resolution = resolveSagaTenant(instance);
+      if (resolution.kind !== "resolved") {
+        const disposition: SagaBootDisposition =
+          resolution.kind === "tenant-mismatch" ? "tenant-mismatch" : "missing-accountId";
+        record(disposition);
+        logger.warn(
+          {
+            sagaId: instance.id,
+            definitionId: instance.definitionId,
+            status: instance.status,
+            reason: disposition,
+            correlationId,
+          },
+          "Boot recovery left a saga alone: its owning account is unresolvable"
+        );
+        continue;
+      }
+
+      // The pivot boundary, and the reason this pass is not a blanket resume.
+      //
+      // A saga interrupted at or past its pivot has already had its
+      // point-of-no-return effects accepted by the outside world, so resuming it
+      // re-runs them. The queue absorbs its own share of that — the publish job
+      // carries a deterministic id, so a re-enqueue is a no-op while the job is
+      // retained — but the step AFTER the pivot re-issues its status transition
+      // with the version it read before the interruption, and the use case
+      // rejects a stale version with a conflict. Measured end to end against a
+      // real queue and a real database, the automatic replay therefore ended a
+      // saga that had actually succeeded in the terminal FAILED state, with the
+      // reason "version conflict". An operator reading that would be told the
+      // publish failed when it did not.
+      //
+      // So the engine reports instead of guessing: the row is left exactly as
+      // the interruption left it — non-terminal, nothing dispatched, nothing
+      // written — counted, and logged for a human to resolve. Resuming it by
+      // hand stays available through the continue endpoint, which is a decision
+      // someone takes with the outcome in view rather than one this pass takes
+      // for them.
+      const definition = this.definitions.get(instance.definitionId);
+      const pivotStepIndex = definition?.pivotStepIndex;
+      if (pivotStepIndex === undefined || instance.currentStep >= pivotStepIndex) {
+        record("parked");
+        this.metrics.bootParkedSagas++;
+        recordSagaRecoveryFailure("parked");
+        logger.warn(
+          {
+            sagaId: instance.id,
+            definitionId: instance.definitionId,
+            status: instance.status,
+            currentStep: instance.currentStep,
+            // Null when this process has no definition registered for the row:
+            // its pivot boundary is unknowable here, so it is parked for the
+            // same reason rather than dispatched into a lookup that fails.
+            pivotStepIndex: pivotStepIndex ?? null,
+            reason: "parked",
+            correlationId,
+          },
+          "PARKED a saga interrupted at or past its pivot: boot recovery will not replay it, manual review required"
+        );
+        continue;
+      }
+
+      this.executionEngine.executeSagaAsync(instance.id);
+      record("resumed");
+    }
+
+    const resumed = tally.get("resumed") ?? 0;
+    const checkerOwned = tally.get("nextRetryAt-owned-by-checker") ?? 0;
+
+    logger.info(
+      {
+        loaded: loaded.length,
+        resumed,
+        checkerOwned,
+        // Rows that are neither resumed nor owned by another mechanism: these
+        // are the ones nothing will pick up on its own.
+        skipped: loaded.length - resumed - checkerOwned,
+        skipReasons: Object.fromEntries(
+          [...tally].filter(([disposition]) => disposition !== "resumed")
+        ),
+        correlationId,
+      },
+      "Saga boot recovery pass complete"
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -450,8 +604,11 @@ export class SagaManagerLifecycle implements SagaManager {
    * returns are then re-warmed under each saga's own rehydrated scope.
    *
    * @param correlationId - Identifier joining this recovery pass in the logs.
+   * @returns The instances this load registered, in row order, so the resume
+   *   pass dispatches exactly what this process inherited rather than whatever
+   *   the in-memory set happens to hold.
    */
-  private async loadActiveSagas(correlationId: string): Promise<void> {
+  private async loadActiveSagas(correlationId: string): Promise<SagaInstance[]> {
     const rows = await withSagaSystemRead(this.config.prisma, (tx) =>
       tx.sagaInstance.findMany({
         where: {
@@ -461,8 +618,10 @@ export class SagaManagerLifecycle implements SagaManager {
     );
 
     let skipped = 0;
+    const loaded: SagaInstance[] = [];
     for (const row of rows) {
       const instance = deserializeSagaInstanceRow(row);
+      loaded.push(instance);
       this.activeInstances.set(instance.id, instance);
       this.metrics.activeInstances++;
 
@@ -496,6 +655,8 @@ export class SagaManagerLifecycle implements SagaManager {
       { count: this.activeInstances.size, skipped, correlationId },
       "Loaded active saga instances from PostgreSQL"
     );
+
+    return loaded;
   }
 
   /**
@@ -519,7 +680,16 @@ export class SagaManagerLifecycle implements SagaManager {
           const dueRows = await withSagaSystemRead(this.config.prisma, (tx) =>
             tx.sagaInstance.findMany({
               where: {
-                status: "RUNNING",
+                // PENDING belongs here as much as RUNNING: a graceful shutdown
+                // parks a retry-pending saga by flipping it to PENDING while the
+                // persist keeps `nextRetryAt`, so a predicate restricted to
+                // RUNNING left that row to nobody — the boot pass owns rows with
+                // NO pending retry, and this scan could not see it. It then sat
+                // non-terminal until the timeout force-failed it half an hour
+                // later. The partition is unchanged: this claims a due retry,
+                // the boot pass claims the absence of one, and `@@index([status,
+                // nextRetryAt])` still serves the shape.
+                status: { in: ["RUNNING", "PENDING"] },
                 nextRetryAt: { lte: now, not: null },
               },
               select: { id: true },

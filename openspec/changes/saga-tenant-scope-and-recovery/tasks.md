@@ -500,29 +500,29 @@ observation remained.
 
 ## Phase 9: D5 — boot resume + widened checker ownership → turns 8.1–8.3 GREEN
 
-- [ ] 9.1 [GREEN] `SagaManagerLifecycle.initialize()`: after `loadActiveSagas`, run ONE pass
+- [x] 9.1 [GREEN] `SagaManagerLifecycle.initialize()`: after `loadActiveSagas`, run ONE pass
       (never a repeating sweep, never a per-tick re-dispatch) calling `executeSagaAsync(id)`
       for every loaded PENDING/RUNNING instance with `nextRetryAt == null`. The dispatch
       loop sits OUTSIDE every `withSystemContext` wrap (C1). Terminal re-execution stays
       blocked by the existing guard (`Execution:60-72`).
-- [ ] 9.2 [GREEN] `SagaManagerLifecycle.ts:390` — widen the retry checker's predicate to
+- [x] 9.2 [GREEN] `SagaManagerLifecycle.ts:390` — widen the retry checker's predicate to
       `status: { in: ["RUNNING", "PENDING"] }, nextRetryAt: { lte: now, not: null }` (C3).
       Single-claim proof: the partition key is `nextRetryAt` nullability alone — the boot
       pass claims `IS NULL`, the checker claims `NOT NULL AND lte now`, intersection empty;
       `@@index([status, nextRetryAt])` serves the widened predicate. Coverage now closes all
       four non-terminal load classes: PENDING fresh (boot), RUNNING mid-step (boot), RUNNING
       retry-pending (checker), PENDING retry-pending post-shutdown (checker).
-- [ ] 9.3 [GREEN] Boot summary log: emit `{loaded, resumed, checkerOwned, skipped}` counts
+- [x] 9.3 [GREEN] Boot summary log: emit `{loaded, resumed, checkerOwned, skipped}` counts
       plus per-row skip reasons (`nextRetryAt-owned-by-checker`, `missing-accountId`, and
       `parked` if 9.4 lands) so an operator can tell "recovered nothing" from "never ran".
-- [ ] 9.4 **D5 gate fork — wire EXACTLY ONE path after the 8.1 verdict.** If 8.1 is GREEN
+- [x] 9.4 **D5 gate fork — wire EXACTLY ONE path after the 8.1 verdict.** If 8.1 is GREEN
       (pivot replay absorbed, no second external side effect): ship auto-resume as 9.1.
       If 8.1 cannot be proven green: do NOT ship auto-resume — PARK pivot-interrupted rows
       (exclude them from the boot resume set, leave them non-terminal, log `PARKED` +
       increment a counter, flag for manual review) and RECORD the fallback decision in the
       apply notes and `docs/security/MULTI_TENANT_GUARDS.md`. Silent resume without the
       proof is not acceptable.
-- [ ] 9.5 Run INT 8.1–8.3 → GREEN, 0 cancelled.
+- [x] 9.5 Run INT 8.1–8.3 → GREEN, 0 cancelled.
 
 ## Phase 10: D6 — horizon recalibration + runner wiring
 
