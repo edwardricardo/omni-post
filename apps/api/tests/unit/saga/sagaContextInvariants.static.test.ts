@@ -903,6 +903,46 @@ describe("saga engine context invariants", () => {
     });
   });
 
+  describe("the engine opens no transaction of its own", () => {
+    // Every transaction the engine runs must come from one of the two tenant
+    // primitives, because each of them binds `app.account_id` as the FIRST
+    // statement. A bare `prisma.$transaction` anywhere else is a transaction
+    // that binds neither isolation layer — the shape the persistence path used
+    // to fall back to when no account resolved. The classifier tolerates such a
+    // site by design (an unscoped write fails loudly at the Prisma guard rather
+    // than being waved through), so tolerance is not absence: this asserts the
+    // absence, which is what makes "every engine write binds both layers" hold
+    // without an asterisk.
+    const TRANSACTION_PRIMITIVE_MODULE = "src/saga/sagaTenant.ts";
+
+    const transactionSites = sagaSources.flatMap((source) => {
+      const sites: string[] = [];
+      const pattern = /\$transaction\s*\(/g;
+      let match = pattern.exec(source.sanitized);
+      while (match !== null) {
+        sites.push(`${source.label}:${lineOf(source.original, match.index)}`);
+        match = pattern.exec(source.sanitized);
+      }
+      return sites;
+    });
+
+    it("still sees the transactions the tenant primitives open", () => {
+      // Non-vacuity: a scan that matched nothing would make the assertion below
+      // pass while the engine grew any number of unscoped transactions.
+      const inPrimitiveModule = transactionSites.filter((site) =>
+        site.startsWith(TRANSACTION_PRIMITIVE_MODULE)
+      );
+      expect(inPrimitiveModule.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("opens none anywhere else in the engine", () => {
+      const elsewhere = transactionSites.filter(
+        (site) => !site.startsWith(TRANSACTION_PRIMITIVE_MODULE)
+      );
+      expect(elsewhere).toEqual([]);
+    });
+  });
+
   describe("the tenant module's export surface", () => {
     const tenantModule = sourceByName("sagaTenant.ts");
     const exports = exportedNames(tenantModule.original);
