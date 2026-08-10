@@ -89,15 +89,22 @@ describe("SagaIntegration - Monitoring Routes", () => {
     expect(result.data.active.definitions >= 1).toBeTruthy();
   });
 
-  it("should expose every recovery failure counter in metrics", async () => {
+  it("should expose every recovery counter in metrics", async () => {
     // The engine's detached loops are invisible from the outside; this block is
-    // the operator-facing snapshot for one process. A counter that stops being
-    // published here goes silent without anything failing.
+    // the operator-facing snapshot for one process, and during an incident where
+    // Prometheus is the thing that is down it is the ONLY place to read them. A
+    // counter that stops being published here goes silent without anything
+    // failing — including the two that are DECISIONS rather than failures
+    // (`bootParkedSagas`, `bootLoadDeferred`), which is exactly why they are
+    // pinned as an exact set and not a subset.
     const handler = routes.get("GET:/sagas/metrics");
     const result = await handler({}, passthroughReply);
 
     expect(result.data.recovery).toEqual({
       bootLoadFailures: 0,
+      bootLoadDeferred: 0,
+      bootParkedSagas: 0,
+      bootResumeRowFailures: 0,
       recoveryScanFailures: 0,
       rehydrationFailures: 0,
       tenantMismatches: 0,

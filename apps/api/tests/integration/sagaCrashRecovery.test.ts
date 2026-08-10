@@ -1,28 +1,36 @@
 /**
  * @file sagaCrashRecovery.test.ts
  * @description MERGE-BLOCKING crash-recovery proof for the saga engine, run
- *   against a REAL Postgres, a REAL Redis and a REAL BullMQ queue, with the
- *   engine wired the way production wires it: a base client extended with
- *   `tenantGuardExtension` handed to a `SagaManagerLifecycle` +
- *   `SagaExecutionEngine` pair, driving the REAL post-publishing saga
- *   definition whose commands land on the REAL post command handlers.
+ *   against a REAL Postgres, a REAL Redis and a REAL BullMQ queue, and booted
+ *   through the REAL production composition: every manager here is a
+ *   `SagaIntegration` built the way the API bootstrap builds it — a base client
+ *   extended with `tenantGuardExtension`, a real `CQRSBusImpl` carrying the real
+ *   post command handlers, the real queue adapter, and the real post-publishing
+ *   saga definition. The wrapper owns the ORDER in which definitions are
+ *   registered and the manager initializes, and that order is itself under test:
+ *   a harness that registers first and boots second exercises a wiring
+ *   production does not have and cannot fail on a composition defect.
  *
- *   Three properties are under test, and each one needs a process boundary that
+ *   Four properties are under test, and each one needs a process boundary that
  *   in-memory state cannot fake:
  *
+ *     - RESUME — a saga interrupted BEFORE its pivot must be dispatched exactly
+ *       once by the process that inherits it and must reach a terminal state
+ *       with no operator action. This is the capability the change exists to
+ *       ship, so it is asserted positively, never inferred from the absence of
+ *       failures.
  *     - CRASH REPLAY — a saga whose durable row was written BEFORE the pivot's
- *       side effect reached the queue must resume on a fresh manager, must not
- *       enqueue a second publish job for the same (post, channel) pair, and
- *       must leave the post in ONE consistent status. The absorber is the
- *       BullMQ job id (the queue adapter passes the step's dedupe key straight
- *       through as the job id), and the post-pivot status transition CLAIMS to
- *       tolerate re-application. Both are measured here instead of trusted: a
- *       tolerance that only exists in a comment is not a recovery guarantee.
- *     - SHUTDOWN ORPHAN — a graceful shutdown parks a retry-pending saga as
- *       PENDING while keeping `nextRetryAt` set, so the row belongs to neither
- *       a boot pass that owns `nextRetryAt IS NULL` nor a retry checker that
- *       only claims RUNNING. Some owner has to claim it, or it sits
- *       non-terminal until the 30-minute timeout force-fails it.
+ *       side effect reached the queue must NOT be replayed by the boot pass. The
+ *       absorber is the BullMQ job id (the queue adapter passes the step's
+ *       dedupe key straight through as the job id), and the post-pivot status
+ *       transition CLAIMS to tolerate re-application. Both are measured here
+ *       instead of trusted: a tolerance that only exists in a comment is not a
+ *       recovery guarantee.
+ *     - THE PARKED WINDOW — a parked row is excluded from the ordinary timeout
+ *       sweep and terminalizes only after a full operator window measured from
+ *       the moment of parking, under its own failure class. Both halves are
+ *       fired through the noop scheduler here, because an operator contract
+ *       nothing exercises is a comment.
  *     - TERMINAL SAFETY — a restart must not touch a saga that already reached
  *       a terminal state, and a failure at or past the pivot must compensate
  *       nothing: the pivot is the point of no return, so walking back over it
@@ -30,8 +38,11 @@
  *
  *   Every recovery tick is fired explicitly through the noop scheduler, and the
  *   persisted `nextRetryAt` is moved into the past before each tick. The retry
- *   envelope is 5s + 10s + 20s of wall time otherwise, and a suite that waits
- *   it out measures the clock rather than the engine.
+ *   envelope is 5s + 10s + 20s of wall time otherwise, and a suite that waits it
+ *   out measures the clock rather than the engine. Negative assertions are gated
+ *   on a POSITIVE synchronization point — a canary saga seeded into the same
+ *   boot whose terminal state proves the pass's detached dispatches ran — never
+ *   on a sleep, which a slow runner turns into a false green.
  *
  *   Requires Postgres + Redis up (`pnpm db:up`).
  *
@@ -41,6 +52,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import Fastify, { type FastifyInstance } from "fastify";
 import { Redis } from "ioredis";
 import pino from "pino";
 import { Queue, Worker, type Job } from "bullmq";
@@ -51,10 +63,9 @@ import { createBullMQQueueAdapter, type BullMQQueueAdapter } from "@adapters/que
 import {
   createPostPublishingSagaDefinition,
   createSagaContext,
-  type SagaDefinition,
   type SagaInstance,
 } from "@shared/types/saga.js";
-import type { Command } from "@shared/types/cqrs.js";
+import type { Command, CommandResult } from "@shared/types/cqrs.js";
 import { InMemoryEventDispatcher } from "@core/domain/index.js";
 import { CreatePostUseCase, UpdatePostUseCase, DeletePostUseCase } from "@core/posts/index.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
@@ -63,12 +74,15 @@ import {
   getTenantContext,
   withTenantContext,
 } from "../../src/security/tenantContext.js";
-import { SagaManagerLifecycle } from "../../src/saga/SagaManagerLifecycle.js";
-import { SagaExecutionEngine } from "../../src/saga/SagaManagerExecution.js";
+import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
+import type { SagaManagerImpl } from "../../src/saga/SagaManager.js";
+import type { SagaManagerLifecycle } from "../../src/saga/SagaManagerLifecycle.js";
+import { CQRSBusImpl } from "../../src/cqrs/CQRSBus.js";
 import { EventService } from "../../src/events/EventService.js";
 import { logger } from "../../src/lib/logger.js";
 import { PrismaPostRepository } from "../../src/infrastructure/repositories/PrismaPostRepository.js";
 import { PrismaChannelRepository } from "../../src/infrastructure/repositories/PrismaChannelRepository.js";
+import { PrismaProjectRepository } from "../../src/infrastructure/repositories/PrismaProjectRepository.js";
 import { ChannelCredentialsCrypto } from "../../src/security/ChannelCredentialsCrypto.js";
 import { EncryptionService } from "../../src/security/EncryptionService.js";
 import {
@@ -80,7 +94,26 @@ const TAG = `saga-crash-${Date.now()}`;
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
 const QUEUE_NAME = `${TAG}-publish`;
 const RETRY_RECOVERY_TASK_ID = "saga-retry-recovery";
-const PUBLISHING_SAGA_ID = "post-publishing-saga";
+const TIMEOUT_CHECKER_TASK_ID = "saga-timeout-checker";
+
+/**
+ * The definition's own arithmetic, read once. Every index the scenarios below
+ * seed derives from here rather than from a literal: "this row sits at the
+ * pivot" is the premise the whole suite rests on, and a bare `2` states it only
+ * in prose while the engine reads `definition.pivotStepIndex`. The callbacks are
+ * inert — this instance is never executed, it is consulted.
+ */
+const REFERENCE_DEFINITION = createPostPublishingSagaDefinition(
+  async () => ({ success: true }),
+  async () => "the reference definition is consulted, never executed",
+  async () => ({ completed: 0, failed: 0, pending: 0 }),
+  async () => null
+);
+const PUBLISHING_SAGA_ID = REFERENCE_DEFINITION.id;
+const PIVOT_STEP_INDEX = REFERENCE_DEFINITION.pivotStepIndex;
+const LAST_STEP_INDEX = REFERENCE_DEFINITION.steps.length - 1;
+const MAX_RETRIES = REFERENCE_DEFINITION.retryPolicy?.maxRetries ?? 3;
+const SAGA_TIMEOUT_MS = REFERENCE_DEFINITION.timeout ?? 30 * 60 * 1000;
 
 /** The three states the saga canon accepts as an ending. */
 const TERMINAL_STATES: ReadonlyArray<SagaInstance["status"]> = [
@@ -97,6 +130,21 @@ const TERMINAL_STATES: ReadonlyArray<SagaInstance["status"]> = [
  */
 function sagaStreamId(sagaId: string): string {
   return `stream:Saga:${sagaId}`;
+}
+
+/** The persisted stream key for a post's durable events. */
+function postStreamId(postId: string): string {
+  return `stream:Post:${postId}`;
+}
+
+/**
+ * The publish job's dedupe key, which the queue adapter passes through as the
+ * BullMQ job id. The saga this suite drives is the PRODUCTION definition, so
+ * this expression is the expectation the assertions check production against —
+ * it is never the value production used.
+ */
+function publishDedupeKey(postId: string, channelId: string): string {
+  return `publish-${postId}-${channelId}`;
 }
 
 /** Parses one pino line, returning null when the chunk is not JSON. */
@@ -147,11 +195,10 @@ async function captureLogs(action: () => Promise<void>): Promise<Record<string, 
   return lines;
 }
 
-/** One command the saga issued, recorded at the seam the CQRS bus occupies. */
+/** One command the saga issued, recorded where the CQRS bus hands it to a handler. */
 interface RecordedCommand {
   id: string;
   type: string;
-  aggregateId: string;
 }
 
 /** One BullMQ job a worker actually executed — the external side effect. */
@@ -180,11 +227,21 @@ interface PostSnapshot {
   publishedAt: Date | null;
 }
 
-/** Manager under test: one lifecycle, its engine, and its firing scheduler. */
-interface Manager {
+/** The command-handler shape the recorder wraps, widened to any saga command. */
+interface RecordableCommandHandler {
+  commandType: string;
+  handle(command: Command): Promise<CommandResult<unknown>>;
+}
+
+/** One production composition under test, and the handles the scenarios drive. */
+interface Harness {
+  label: string;
+  integration: SagaIntegration;
+  manager: SagaManagerImpl;
   lifecycle: SagaManagerLifecycle;
-  execution: SagaExecutionEngine;
   scheduler: NoopBackgroundTaskScheduler;
+  fastify: FastifyInstance;
+  subscriber: Redis;
 }
 
 describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
@@ -206,12 +263,23 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   let projectId: string;
   /** Channel whose publish job the worker completes. */
   let deliveringChannelId: string;
-  /** Channel whose publish job the worker rejects, so the wait step exhausts. */
+  /**
+   * Channel whose publish job the worker rejects, so the wait step exhausts.
+   * Seeded with an id no job can carry because the worker closure compares
+   * against it from the moment the queue is live, which is before the channel
+   * fixtures exist.
+   */
   let rejectingChannelId = "";
+
+  let handlerConfig: ConstructorParameters<typeof CreatePostCommandHandler>[0];
+  let projectRepository: PrismaProjectRepository;
+  let channelRepository: PrismaChannelRepository;
+  let postRepository: PrismaPostRepository;
 
   const dispatchedCommands: RecordedCommand[] = [];
   const processedJobs: ProcessedJob[] = [];
   const createdSagaIds: string[] = [];
+  const harnesses: Harness[] = [];
 
   /** Business metrics are counters; the recovery properties do not read them. */
   const businessMetrics: BusinessMetricsPort = {
@@ -219,8 +287,6 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     incrementPostPublished: () => undefined,
     incrementPostDeleted: () => undefined,
   };
-
-  let executeCommand: (command: Command) => Promise<unknown>;
 
   /** The producer adapter, once the harness has built it. */
   function producer(): BullMQQueueAdapter {
@@ -235,77 +301,103 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   }
 
   /**
-   * Builds a saga definition exactly as the API integration builds it: the real
-   * factory, the real queue adapter, and the real post command handlers. Each
-   * manager gets its OWN definition object so nothing but the durable row and
-   * the queue crosses the simulated process boundary.
-   *
-   * The job-queueing closure mirrors the integration's own: the dedupe key is
-   * `publish-<postId>-<channelId>` and the adapter passes it through as the
-   * BullMQ job id. That derivation is pinned in source by the static invariant
-   * suite, so replicating its SHAPE here cannot drift from production silently.
+   * Wraps a real command handler so every command the saga issues is recorded
+   * at the seam the bus hands it over, while the real handler still answers it.
+   * Recording here rather than replacing the executor keeps the OCC token the
+   * post-pivot step passes under evaluation by the real use case.
    */
-  function makePublishingSaga(): SagaDefinition {
-    return createPostPublishingSagaDefinition(
-      async (command: Command) => await executeCommand(command),
-      async (job: Record<string, unknown>) => {
-        const sagaId = job.sagaId as string | undefined;
-        const postId = job.postId as string | undefined;
-        const channelId = job.channelId as string | undefined;
-        const dedupeKey = `publish-${postId}-${channelId}`;
-
-        const result = await producer().enqueue({
-          dedupeKey,
-          payload: {
-            type: "publish-post",
-            ...job,
-            ...(sagaId !== undefined && { sagaId }),
-          },
-        });
-
-        if (!result.ok) {
-          throw new Error(`Queue enqueue failed: ${result.error}`);
-        }
-        return result.value;
+  function recordingHandler(inner: RecordableCommandHandler): RecordableCommandHandler {
+    return {
+      commandType: inner.commandType,
+      handle: async (command: Command): Promise<CommandResult<unknown>> => {
+        dispatchedCommands.push({ id: command.id, type: command.type });
+        return await inner.handle(command);
       },
-      async (jobIds: string[]) => {
-        const result = await producer().getJobStates(jobIds);
-        if (!result.ok) {
-          return { completed: 0, failed: 0, pending: jobIds.length };
-        }
-        return result.value;
-      },
-      async (postIdRaw: string) => {
-        const row = await guarded.post.findUnique({
-          where: { id: postIdRaw },
-          select: { status: true },
-        });
-        return row?.status ?? null;
-      }
-    );
+    };
   }
 
   /**
-   * A manager with no boot: `initialize()` is the behaviour under test, so a
-   * harness that always called it could never tell a resumed saga from one the
-   * harness itself started. The retry checker is registered directly for the
-   * managers whose retries the test drives.
+   * The lifecycle behind the facade. Reached through a documented cast because
+   * the in-memory recovery state the operator contract rests on — which rows the
+   * process tracks, and WHEN each parked row's operator window opened — is
+   * deliberately not public API. A test that could only read the database could
+   * not distinguish "still inside the window" from "the checker never ran".
    */
-  function buildManager(): Manager {
-    const scheduler = new NoopBackgroundTaskScheduler();
-    const config = { prisma: guarded, redis, eventService, scheduler, enableMetrics: true };
-    const lifecycle = new SagaManagerLifecycle(config);
-    const execution = new SagaExecutionEngine(config, lifecycle);
-    lifecycle.executionEngine = execution;
-    lifecycle.registerSaga(makePublishingSaga());
-    return { lifecycle, execution, scheduler };
+  function lifecycleOf(manager: SagaManagerImpl): SagaManagerLifecycle {
+    return (manager as unknown as { lifecycle: SagaManagerLifecycle }).lifecycle;
   }
 
-  /** Registers the retry checker without loading the whole non-terminal table. */
-  function registerRetryChecker(manager: Manager): void {
-    (
-      manager.lifecycle as unknown as { startRetryRecoveryChecker(): void }
-    ).startRetryRecoveryChecker();
+  /**
+   * Builds one production composition WITHOUT booting it.
+   *
+   * Everything the API bootstrap passes to `SagaIntegration` is passed here: the
+   * guarded client, the real event service, a real CQRS bus carrying the real
+   * post handlers, the real queue adapter and the real repositories. What the
+   * wrapper then does with them — in particular WHEN it registers the saga
+   * definitions relative to `sagaManager.initialize()` — is production's own
+   * decision, and it is exactly what these scenarios exercise.
+   */
+  function buildHarness(label: string): Harness {
+    const scheduler = new NoopBackgroundTaskScheduler();
+    const fastify = Fastify({ logger: false });
+    // lazyConnect: the integration calls `.connect()` on this socket itself,
+    // and ioredis rejects a connect() on an already-connecting connection.
+    const subscriber = new Redis(REDIS_URL, { maxRetriesPerRequest: null, lazyConnect: true });
+
+    const cqrsBus = new CQRSBusImpl({
+      eventService,
+      redis,
+      enableMetrics: false,
+      enableQueryCache: false,
+    });
+    cqrsBus.registerCommandHandler(recordingHandler(new CreatePostCommandHandler(handlerConfig)));
+    cqrsBus.registerCommandHandler(recordingHandler(new UpdatePostCommandHandler(handlerConfig)));
+
+    const integration = new SagaIntegration({
+      fastify,
+      prisma: guarded,
+      eventService,
+      cqrsBus,
+      redis,
+      sagaSubscriber: subscriber,
+      queue: producer(),
+      scheduler,
+      projectRepository,
+      channelRepository,
+      postRepository,
+    });
+
+    const manager = integration.getSagaManager();
+    const harness: Harness = {
+      label,
+      integration,
+      manager,
+      lifecycle: lifecycleOf(manager),
+      scheduler,
+      fastify,
+      subscriber,
+    };
+    harnesses.push(harness);
+    return harness;
+  }
+
+  /** Builds a composition and boots it exactly as the API bootstrap boots it. */
+  async function bootHarness(label: string): Promise<{
+    harness: Harness;
+    logLines: Record<string, unknown>[];
+  }> {
+    const harness = buildHarness(label);
+    const logLines = await captureLogs(async () => {
+      await harness.integration.initialize();
+    });
+    return { harness, logLines };
+  }
+
+  /** The boot summary this pass emitted, which is the pass's operator-facing output. */
+  function bootSummary(logLines: Record<string, unknown>[]): Record<string, unknown> {
+    const summary = logLines.find((line) => line.msg === "Saga boot recovery pass complete");
+    assert.ok(summary, "the pass emits a summary an operator can read at a glance");
+    return summary;
   }
 
   async function sagaSnapshot(sagaId: string): Promise<SagaSnapshot> {
@@ -342,6 +434,38 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     return created.postId;
   }
 
+  /** How many publish jobs a worker executed for one (post, channel) pair. */
+  function processedCountFor(postId: string, channelId: string): number {
+    return processedJobs.filter((job) => job.postId === postId && job.channelId === channelId)
+      .length;
+  }
+
+  /** Commands issued by one saga, in order, since a recorded offset. */
+  function commandsForSaga(sagaId: string, since = 0): RecordedCommand[] {
+    return dispatchedCommands.slice(since).filter((command) => command.id.includes(sagaId));
+  }
+
+  /**
+   * Polls `probe` until it answers, or fails with the reason it never did. One
+   * implementation for every wait in the suite, so no scenario invents its own
+   * tick, deadline or failure message.
+   */
+  async function pollUntil<T>(
+    probe: () => Promise<T | null>,
+    describeExpectation: () => string,
+    timeoutMs = 20_000
+  ): Promise<T> {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      const answer = await probe();
+      if (answer !== null) return answer;
+      if (Date.now() > deadline) {
+        assert.fail(`timed out after ${timeoutMs}ms waiting for ${describeExpectation()}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+  }
+
   /**
    * Drives a saga to a terminal state through the mechanism that OWNS it,
    * without spending the retry envelope in wall time.
@@ -355,44 +479,41 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     sagaId: string,
     scheduler: NoopBackgroundTaskScheduler,
     description: string,
-    timeoutMs = 15_000
+    timeoutMs = 20_000
   ): Promise<SagaSnapshot> {
-    const deadline = Date.now() + timeoutMs;
-    for (;;) {
-      const snapshot = await sagaSnapshot(sagaId);
-      if (TERMINAL_STATES.includes(snapshot.status as SagaInstance["status"])) {
-        return snapshot;
-      }
-
-      if (snapshot.nextRetryAt !== null) {
-        await base.sagaInstance.update({
-          where: { id: sagaId },
-          data: { nextRetryAt: new Date(Date.now() - 1_000) },
-        });
-        await scheduler.triggerTask(RETRY_RECOVERY_TASK_ID, { swallowErrors: true });
-      }
-
-      if (Date.now() > deadline) {
-        assert.fail(
-          `timed out after ${timeoutMs}ms waiting for ${description}: the saga is still ` +
-            `${snapshot.status} at step ${snapshot.currentStep} ` +
-            `(nextRetryAt=${String(snapshot.nextRetryAt)}, retryCount=${snapshot.retryCount}, ` +
-            `error=${String(snapshot.error)})`
-        );
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 150));
-    }
+    let last: SagaSnapshot | undefined;
+    return await pollUntil(
+      async () => {
+        const snapshot = await sagaSnapshot(sagaId);
+        last = snapshot;
+        if (TERMINAL_STATES.includes(snapshot.status as SagaInstance["status"])) {
+          return snapshot;
+        }
+        if (snapshot.nextRetryAt !== null) {
+          await base.sagaInstance.update({
+            where: { id: sagaId },
+            data: { nextRetryAt: new Date(Date.now() - 1_000) },
+          });
+          await scheduler.triggerTask(RETRY_RECOVERY_TASK_ID, { swallowErrors: true });
+        }
+        return null;
+      },
+      () =>
+        `${description}: the saga is still ${String(last?.status)} at step ` +
+        `${String(last?.currentStep)} (nextRetryAt=${String(last?.nextRetryAt)}, ` +
+        `retryCount=${String(last?.retryCount)}, error=${String(last?.error)})`,
+      timeoutMs
+    );
   }
 
-  /** Starts one publish-now saga through a manager, under the tenant's scope. */
+  /** Starts one publish-now saga through a harness, under the tenant's scope. */
   async function startPublishNowSaga(
-    manager: Manager,
+    harness: Harness,
     channelId: string,
     label: string
   ): Promise<SagaInstance> {
     const started = await withTenantContext({ accountId }, () =>
-      manager.lifecycle.startSaga(
+      harness.manager.startSaga(
         PUBLISHING_SAGA_ID,
         createSagaContext({
           sagaId: "",
@@ -419,6 +540,99 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     return started;
   }
 
+  /**
+   * Runs one publish-now saga to COMPLETED and rewinds its durable row to the
+   * pivot with the hot-cache copy dropped — the crash-before-persist state: the
+   * row says "about to run the pivot" while the queue, the worker and the post
+   * already carry everything the later steps did.
+   */
+  async function seedPivotInterruptedSaga(
+    harness: Harness,
+    label: string
+  ): Promise<{ sagaId: string; postId: string; dedupeKey: string; postBefore: PostSnapshot }> {
+    const started = await startPublishNowSaga(harness, deliveringChannelId, label);
+    const completed = await driveToTerminal(
+      started.id,
+      harness.scheduler,
+      `the first run of ${started.id} to finish before the simulated crash`
+    );
+    assert.strictEqual(
+      completed.status,
+      "COMPLETED",
+      `the pre-crash run must finish cleanly or the replay proves nothing (error=${String(completed.error)})`
+    );
+
+    const postId = readCreatedPostId(completed.context);
+    const postBefore = await postSnapshot(postId);
+
+    await base.sagaInstance.update({
+      where: { id: started.id },
+      data: {
+        status: "RUNNING",
+        currentStep: PIVOT_STEP_INDEX,
+        completedAt: null,
+        nextRetryAt: null,
+        retryCount: 0,
+        error: null,
+      },
+    });
+    await redis.del(`saga:${started.id}`);
+
+    return {
+      sagaId: started.id,
+      postId,
+      dedupeKey: publishDedupeKey(postId, deliveringChannelId),
+      postBefore,
+    };
+  }
+
+  /**
+   * Seeds a durable row for a saga interrupted BEFORE its pivot — the class the
+   * boot pass exists to rescue. A row is seeded rather than produced by killing
+   * a live run because the state under test is precisely "what the database
+   * holds once the process that owned it is gone", and a live manager cannot
+   * leave that state without also leaving the in-memory copy that hides it.
+   */
+  async function seedPrePivotSaga(label: string, channelId: string): Promise<string> {
+    const sagaId = `${TAG}-prepivot-${label}-${randomUUID()}`;
+    createdSagaIds.push(sagaId);
+    await base.sagaInstance.create({
+      data: {
+        id: sagaId,
+        definitionId: PUBLISHING_SAGA_ID,
+        status: "RUNNING",
+        currentStep: 0,
+        accountId,
+        context: {
+          sagaId,
+          correlationId: `corr-${sagaId}`,
+          accountId,
+          userId: customerUserId,
+          metadata: {
+            mode: "publish-now",
+            postData: {
+              projectId,
+              locale: "en",
+              body: `crash-recovery inherited pre-pivot saga (${label})`,
+              tags: [],
+              mediaIds: [],
+              channelIds: [channelId],
+            },
+            accountId,
+            source: "crash-recovery-harness",
+          },
+          stepData: {},
+          events: [],
+        },
+        stepResults: [],
+        compensationResults: [],
+        retryCount: 0,
+        startedAt: new Date(),
+      },
+    });
+    return sagaId;
+  }
+
   /** Every BullMQ job currently holding the given custom job id. */
   async function jobsWithId(jobId: string): Promise<Job[]> {
     const job = await inspector().getJob(jobId);
@@ -441,11 +655,36 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     });
   }
 
+  /** How many `saga.failed` audit events the durable store holds for one saga. */
+  async function sagaFailedEventCount(sagaId: string): Promise<number> {
+    return await base.storedEvent.count({
+      where: { streamId: sagaStreamId(sagaId), eventType: "saga.failed" },
+    });
+  }
+
   before(async () => {
     base = createTestPrismaClient();
     guarded = base.$extends(
       tenantGuardExtension({ getTenantContext, getSystemContext })
     ) as unknown as PrismaClient;
+
+    // The boot load spans every tenant by design, so a non-terminal row left
+    // behind by ANY other suite would be loaded — and, once the pass resumes
+    // what it loads, EXECUTED — by the managers below, through this suite's own
+    // queue and command bus. Determinism here has to be a property of the suite
+    // rather than of whatever the database happens to hold, so the precondition
+    // is checked and named instead of assumed.
+    const foreignInFlight = await base.sagaInstance.findMany({
+      where: { status: { in: ["RUNNING", "PENDING"] } },
+      select: { id: true, status: true, definitionId: true },
+    });
+    assert.deepStrictEqual(
+      foreignInFlight,
+      [],
+      "this suite boots real saga managers, and a boot loads and dispatches EVERY non-terminal " +
+        "row in the table; the rows listed above predate the run and would be executed by it. " +
+        "Clear them (they are residue from an earlier suite or an interrupted run) and re-run."
+    );
 
     redis = new Redis(REDIS_URL, { maxRetriesPerRequest: 2, lazyConnect: false });
     // BullMQ requires `maxRetriesPerRequest: null` on the connections it blocks
@@ -535,53 +774,47 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     });
     rejectingChannelId = rejecting.id;
 
-    // The commands the saga issues run through the REAL handlers, so the OCC
-    // token the post-pivot step passes is evaluated by the real use case and
-    // the real version-guarded repository update. A harness that answered the
-    // command itself would be asserting its own tolerance, not the engine's.
-    const postRepository = new PrismaPostRepository(guarded);
-    const eventDispatcher = new InMemoryEventDispatcher();
-    const channelRepository = new PrismaChannelRepository(
+    // The commands the saga issues run through the REAL bus and the REAL
+    // handlers, so the OCC token the post-pivot step passes is evaluated by the
+    // real use case and the real version-guarded repository update. A harness
+    // that answered the command itself would be asserting its own tolerance,
+    // not the engine's.
+    postRepository = new PrismaPostRepository(guarded);
+    projectRepository = new PrismaProjectRepository(guarded);
+    channelRepository = new PrismaChannelRepository(
       guarded,
       new ChannelCredentialsCrypto(new EncryptionService())
     );
-    const handlerConfig = {
-      createPostUseCase: new CreatePostUseCase(postRepository, eventDispatcher, businessMetrics),
-      updatePostUseCase: new UpdatePostUseCase(postRepository, eventDispatcher),
+    handlerConfig = {
+      createPostUseCase: new CreatePostUseCase(
+        postRepository,
+        new InMemoryEventDispatcher(),
+        businessMetrics
+      ),
+      updatePostUseCase: new UpdatePostUseCase(postRepository, new InMemoryEventDispatcher()),
       deletePostUseCase: new DeletePostUseCase(postRepository, businessMetrics),
       postRepository,
       channelRepository,
       redis,
     };
-    const createHandler = new CreatePostCommandHandler(handlerConfig);
-    const updateHandler = new UpdatePostCommandHandler(handlerConfig);
-
-    executeCommand = async (command: Command): Promise<unknown> => {
-      dispatchedCommands.push({
-        id: command.id,
-        type: command.type,
-        aggregateId: command.aggregateId,
-      });
-      if (command.type === "post.create") {
-        return await createHandler.handle(command);
-      }
-      if (command.type === "post.update") {
-        return await updateHandler.handle(command);
-      }
-      throw new Error(`the harness received an unrouted command type: ${command.type}`);
-    };
   });
 
   after(async () => {
+    for (const harness of harnesses) {
+      harness.subscriber.disconnect();
+      await harness.fastify.close().catch(() => undefined);
+    }
+
     await worker?.close().catch(() => undefined);
     await inspectQueue?.obliterate({ force: true }).catch(() => undefined);
     await inspectQueue?.close().catch(() => undefined);
     await queueAdapter?.close().catch(() => undefined);
 
+    let postIds: string[] = [];
     if (typeof projectId === "string") {
-      const postIds = (
-        await base.post.findMany({ where: { projectId }, select: { id: true } })
-      ).map((row) => row.id);
+      postIds = (await base.post.findMany({ where: { projectId }, select: { id: true } })).map(
+        (row) => row.id
+      );
       await base.postMedia
         .deleteMany({ where: { postId: { in: postIds } } })
         .catch(() => undefined);
@@ -602,7 +835,11 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       })
       .catch(() => undefined);
     await base.storedEvent
-      .deleteMany({ where: { streamId: { in: createdSagaIds.map(sagaStreamId) } } })
+      .deleteMany({
+        where: {
+          streamId: { in: [...createdSagaIds.map(sagaStreamId), ...postIds.map(postStreamId)] },
+        },
+      })
       .catch(() => undefined);
 
     if (typeof accountId === "string") {
@@ -621,188 +858,232 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     await base.$disconnect();
   });
 
-  describe("a saga interrupted at the pivot and met by a fresh manager", () => {
-    let sagaId: string;
-    let postId: string;
-    let dedupeKey: string;
-    let beforeReplay: PostSnapshot;
-    let jobsProcessedBeforeReplay: number;
-    let managerB: Manager;
-    /** State of the interrupted row once the fresh manager finished booting. */
-    let afterBoot: SagaSnapshot;
-    let parkedBefore: number;
-    let parkedAfter: number;
+  describe("a boot in the production composition order", () => {
+    let parkedSagaId: string;
+    let parkedPostId: string;
+    let parkedDedupeKey: string;
+    let postBeforeBoot: PostSnapshot;
+    let parkedRowBeforeBoot: SagaSnapshot;
+    let parkedRowAfterBoot: SagaSnapshot;
+    let inheritedSagaId: string;
+    let inheritedTerminal: SagaSnapshot;
+    let processedBeforeBoot: number;
     let commandsBeforeBoot: number;
+    let parkedCounterAfter: number;
     let bootLogLines: Record<string, unknown>[] = [];
 
     before(async () => {
-      // 1. A manager runs the saga end to end, so the pivot's side effect (the
-      //    publish job) and everything after it really happened.
-      const managerA = buildManager();
-      registerRetryChecker(managerA);
-      const started = await startPublishNowSaga(managerA, deliveringChannelId, "replay");
-      sagaId = started.id;
+      // 1. A composition runs one saga end to end, so the pivot's side effect
+      //    (the publish job) and everything after it really happened, and then
+      //    the durable row is rewound to the pivot.
+      const { harness: crashed } = await bootHarness("crashed");
+      const interrupted = await seedPivotInterruptedSaga(crashed, "replay");
+      parkedSagaId = interrupted.sagaId;
+      parkedPostId = interrupted.postId;
+      parkedDedupeKey = interrupted.dedupeKey;
+      postBeforeBoot = interrupted.postBefore;
+      processedBeforeBoot = processedCountFor(parkedPostId, deliveringChannelId);
+      parkedRowBeforeBoot = await sagaSnapshot(parkedSagaId);
 
-      const completed = await driveToTerminal(
-        sagaId,
-        managerA.scheduler,
-        `the first run of ${sagaId} to finish before the simulated crash`
-      );
-      assert.strictEqual(
-        completed.status,
-        "COMPLETED",
-        `the pre-crash run must finish cleanly or the replay proves nothing (error=${String(completed.error)})`
-      );
+      // 2. A saga interrupted BEFORE the pivot is inherited by the SAME boot.
+      //    It carries the whole scenario's synchronization: once it reaches a
+      //    terminal state the pass's detached dispatches have demonstrably run,
+      //    so every "nothing happened to the parked row" assertion below is
+      //    measured against a boot that provably DID work, not against a sleep.
+      inheritedSagaId = await seedPrePivotSaga("inherited", deliveringChannelId);
 
-      postId = readCreatedPostId(completed.context);
-      dedupeKey = `publish-${postId}-${deliveringChannelId}`;
-      beforeReplay = await postSnapshot(postId);
-      jobsProcessedBeforeReplay = processedJobs.filter(
-        (job) => job.postId === postId && job.channelId === deliveringChannelId
-      ).length;
-
-      // 2. Rewind the durable row to the pivot and drop the hot cache. This is
-      //    the crash-before-persist state: the row says "about to run the
-      //    pivot" while the queue, the worker and the post already carry
-      //    everything the later steps did.
-      await base.sagaInstance.update({
-        where: { id: sagaId },
-        data: {
-          status: "RUNNING",
-          currentStep: 2,
-          completedAt: null,
-          nextRetryAt: null,
-          retryCount: 0,
-          error: null,
-        },
-      });
-      await redis.del(`saga:${sagaId}`);
-
-      // 3. A manager with no memory of the saga boots against that row. The
-      //    boot decision is a LOG and a counter, not a mutation, so both are
-      //    captured here rather than reconstructed afterwards.
-      managerB = buildManager();
+      // 3. A process with no memory of either row boots through the production
+      //    wrapper. The boot decision is a LOG and a counter, not a mutation, so
+      //    both are captured here rather than reconstructed afterwards.
       commandsBeforeBoot = dispatchedCommands.length;
-      parkedBefore = managerB.lifecycle.metrics.bootParkedSagas;
-      bootLogLines = await captureLogs(async () => {
-        await managerB.lifecycle.initialize();
-      });
-      parkedAfter = managerB.lifecycle.metrics.bootParkedSagas;
+      const booted = await bootHarness("restarted");
+      bootLogLines = booted.logLines;
+      parkedCounterAfter = booted.harness.manager.getMetrics().bootParkedSagas;
 
-      // Boot work is dispatched detached, so a snapshot taken immediately would
-      // observe the row before anything had the chance to touch it.
-      await new Promise((resolve) => setTimeout(resolve, 1_500));
-      afterBoot = await sagaSnapshot(sagaId);
+      inheritedTerminal = await driveToTerminal(
+        inheritedSagaId,
+        booted.harness.scheduler,
+        `the inherited pre-pivot saga ${inheritedSagaId} to terminalize without operator action`
+      );
+      parkedRowAfterBoot = await sagaSnapshot(parkedSagaId);
     });
 
-    it("parks the interrupted saga instead of replaying its pivot", async () => {
+    it("resumes the saga interrupted before its pivot and drives it to a terminal state", async () => {
+      assert.strictEqual(
+        inheritedTerminal.status,
+        "COMPLETED",
+        `the inherited pre-pivot saga must complete with no operator action (error=${String(inheritedTerminal.error)})`
+      );
+      assert.strictEqual(
+        inheritedTerminal.currentStep,
+        LAST_STEP_INDEX + 1,
+        "and it must have walked every remaining step, not stopped part-way"
+      );
+
+      const issued = commandsForSaga(inheritedSagaId, commandsBeforeBoot);
+      assert.deepStrictEqual(
+        issued.map((command) => command.type),
+        ["post.create", "post.update"],
+        "exactly one command per remaining command-issuing step: a second create or a second " +
+          "update would mean the resume replayed a step the row had already passed"
+      );
+    });
+
+    it("reports one resume and one parked row in the boot summary", async () => {
+      const summary = bootSummary(bootLogLines);
+
+      assert.strictEqual(summary.loaded, 2, "the boot inherited exactly the two seeded rows");
+      assert.strictEqual(summary.resumed, 1, "the pre-pivot row is dispatched by the pass");
+      assert.strictEqual(summary.checkerOwned, 0, "neither row carries a pending retry");
+      assert.strictEqual(summary.skipped, 1, "and the pivot-interrupted row is the only skip");
+      assert.deepStrictEqual(
+        summary.skipReasons,
+        { parked: 1 },
+        "the one skip is named as parking, not as an unresolvable account or a checker hand-off"
+      );
+    });
+
+    it("parks the saga interrupted at the pivot instead of replaying it", async () => {
       // The row is non-terminal with NO pending retry, so the retry checker
       // never claims it: the boot pass is the only mechanism that sees it, and
       // what it does with a pivot-interrupted row is the whole decision.
       assert.strictEqual(
-        afterBoot.status,
+        parkedRowAfterBoot.status,
         "RUNNING",
         "a parked saga is left exactly as the interruption left it, not terminalized"
       );
-      assert.strictEqual(afterBoot.currentStep, 2, "and it is left at the step it was cut at");
-      assert.strictEqual(afterBoot.error, null, "parking records no failure on the row");
       assert.strictEqual(
-        afterBoot.nextRetryAt,
+        parkedRowAfterBoot.currentStep,
+        PIVOT_STEP_INDEX,
+        "and it is left at the step it was cut at"
+      );
+      assert.strictEqual(parkedRowAfterBoot.error, null, "parking records no failure on the row");
+      assert.strictEqual(
+        parkedRowAfterBoot.nextRetryAt,
         null,
         "parking schedules no retry — a retry would be the replay under another name"
       );
+      assert.strictEqual(
+        parkedRowAfterBoot.updatedAt.toISOString(),
+        parkedRowBeforeBoot.updatedAt.toISOString(),
+        "and NOTHING was written to the row: a boot that re-warmed it would move updatedAt, " +
+          "which is the only witness separating 'left alone' from 'rewritten identically'"
+      );
     });
 
-    it("counts the parked saga and names it in the boot summary", async () => {
+    it("counts the parked saga and names it in the logs", async () => {
       // A row the engine declines to recover is invisible unless it says so:
       // the counter is what an operator alerts on, the log is what tells them
       // WHICH saga needs a decision.
-      assert.ok(
-        parkedAfter > parkedBefore,
+      assert.strictEqual(
+        parkedCounterAfter,
+        1,
         "the boot pass counts every saga it parks, so 'recovered nothing' is distinguishable from 'never ran'"
       );
 
       const parkedLine = bootLogLines.find(
-        (line) => line.sagaId === sagaId && line.reason === "parked"
+        (line) => line.sagaId === parkedSagaId && line.reason === "parked"
       );
       assert.ok(parkedLine, "the parked saga must be named in the logs, not just tallied");
       assert.strictEqual(parkedLine.level, "warn", "a row awaiting a human is at least a warning");
       assert.strictEqual(
         parkedLine.currentStep,
-        2,
+        PIVOT_STEP_INDEX,
         "the log carries the step it was cut at, which is what makes the pivot boundary auditable"
+      );
+      assert.strictEqual(
+        parkedLine.pivotStepIndex,
+        PIVOT_STEP_INDEX,
+        "and the pivot index it was measured against — a boot with no definition registered could not report it"
       );
       assert.match(
         String(parkedLine.msg),
         /PARKED/,
         "the message states the decision in the operator's vocabulary"
       );
-
-      const summary = bootLogLines.find((line) => line.msg === "Saga boot recovery pass complete");
-      assert.ok(summary, "the pass emits a summary an operator can read at a glance");
-      assert.strictEqual(
-        typeof summary.loaded === "number" &&
-          typeof summary.resumed === "number" &&
-          typeof summary.checkerOwned === "number" &&
-          typeof summary.skipped === "number",
-        true,
-        "the summary carries the four counts: loaded, resumed, checkerOwned, skipped"
-      );
     });
 
     it("dispatches nothing at all for the parked saga", async () => {
-      const byId = await jobsWithId(dedupeKey);
+      const byId = await jobsWithId(parkedDedupeKey);
       assert.strictEqual(
         byId.length,
         1,
-        `exactly one job must hold the dedupe key ${dedupeKey}: the one the first run enqueued`
+        `exactly one job must hold the dedupe key ${parkedDedupeKey}: the one the first run enqueued`
       );
 
-      const byTarget = await jobsForTarget(postId, deliveringChannelId);
+      const byTarget = await jobsForTarget(parkedPostId, deliveringChannelId);
       assert.strictEqual(
         byTarget.length,
         1,
         "no second job is addressed at the same post and channel"
       );
 
-      const processedAfter = processedJobs.filter(
-        (job) => job.postId === postId && job.channelId === deliveringChannelId
-      ).length;
       assert.strictEqual(
-        processedAfter,
-        jobsProcessedBeforeReplay,
+        processedCountFor(parkedPostId, deliveringChannelId),
+        processedBeforeBoot,
         "no worker executed the publish a second time"
       );
 
-      const commandsForSaga = dispatchedCommands
-        .slice(commandsBeforeBoot)
-        .filter((command) => command.id.includes(sagaId));
       assert.deepStrictEqual(
-        commandsForSaga,
+        commandsForSaga(parkedSagaId, commandsBeforeBoot),
         [],
         "a parked saga runs no step, so it issues no command: the command id carries its saga id"
       );
     });
 
-    it("leaves the post in a single consistent status", async () => {
-      const afterReplay = await postSnapshot(postId);
+    it("leaves the parked saga's post in a single consistent state", async () => {
+      const afterBoot = await postSnapshot(parkedPostId);
 
       assert.strictEqual(
-        afterReplay.status,
-        beforeReplay.status,
-        "the replay must not move the post to a second status"
+        afterBoot.status,
+        postBeforeBoot.status,
+        "the parked row moved the post to no second status"
       );
       assert.strictEqual(
-        afterReplay.publishedAt?.toISOString() ?? null,
-        beforeReplay.publishedAt?.toISOString() ?? null,
-        "the replay must not stamp a second publication time"
+        afterBoot.version,
+        postBeforeBoot.version,
+        "and bumped its optimistic-concurrency version no second time"
       );
+      assert.strictEqual(
+        afterBoot.publishedAt?.toISOString() ?? null,
+        postBeforeBoot.publishedAt?.toISOString() ?? null,
+        "and stamped no second publication time"
+      );
+    });
+  });
 
-      const posts = await base.post.count({ where: { projectId } });
-      assert.strictEqual(
-        posts,
-        1,
-        "the replay re-ran the pivot, never the pre-pivot create: a second post row would mean the rewind resumed too far back"
+  describe("the parked saga, resumed deliberately by an operator", () => {
+    let sagaId: string;
+    let postId: string;
+    let dedupeKey: string;
+    let postBefore: PostSnapshot;
+    let processedBefore: number;
+    let terminal: SagaSnapshot;
+
+    before(async () => {
+      // This scenario owns its own interrupted saga rather than consuming the
+      // one the previous describe asserts on: the resume below drives that row
+      // to a terminal state, and a scenario that mutates another scenario's
+      // subject is an ordering dependency nothing in the file states.
+      const { harness: crashed } = await bootHarness("evidence-crashed");
+      const interrupted = await seedPivotInterruptedSaga(crashed, "evidence");
+      sagaId = interrupted.sagaId;
+      postId = interrupted.postId;
+      dedupeKey = interrupted.dedupeKey;
+      postBefore = interrupted.postBefore;
+      processedBefore = processedCountFor(postId, deliveringChannelId);
+
+      // The replay is triggered the way a human would trigger it after reading
+      // the PARKED log — the continue endpoint's engine method — so this also
+      // documents what an operator gets when they take that decision today. It
+      // runs on a process that INHERITED the row, because that is the only one
+      // whose in-memory view matches the rewound durable state.
+      const { harness: restarted } = await bootHarness("evidence-restarted");
+      await restarted.manager.continueSaga(sagaId);
+      terminal = await driveToTerminal(
+        sagaId,
+        restarted.scheduler,
+        `the manually resumed saga ${sagaId} to reach a terminal state`
       );
     });
 
@@ -816,113 +1097,226 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       // command carries the version the create step recorded, the first run
       // already advanced the persisted one, and the use case rejects the stale
       // token. A saga that genuinely succeeded therefore ends FAILED.
-      //
-      // The replay is triggered the way a human would trigger it after reading
-      // the PARKED log — the continue endpoint — so this also documents what an
-      // operator gets when they take that decision today.
-      await managerB.lifecycle.continueSaga(sagaId);
-
-      const snapshot = await driveToTerminal(
-        sagaId,
-        managerB.scheduler,
-        `the manually resumed saga ${sagaId} to reach a terminal state`
-      );
 
       // The absorber half of the verdict: the pivot really is replay-safe.
       const byId = await jobsWithId(dedupeKey);
       assert.strictEqual(byId.length, 1, "the replayed pivot enqueued no second job");
       const byTarget = await jobsForTarget(postId, deliveringChannelId);
       assert.strictEqual(byTarget.length, 1, "and none addressed at the same post and channel");
-      const processedAfter = processedJobs.filter(
-        (job) => job.postId === postId && job.channelId === deliveringChannelId
-      ).length;
       assert.strictEqual(
-        processedAfter,
-        jobsProcessedBeforeReplay,
+        processedCountFor(postId, deliveringChannelId),
+        processedBefore,
         "no worker published a second time: the deterministic job id absorbed the replay"
       );
-      const afterManualReplay = await postSnapshot(postId);
+      const postAfter = await postSnapshot(postId);
       assert.strictEqual(
-        afterManualReplay.status,
-        beforeReplay.status,
+        postAfter.status,
+        postBefore.status,
         "and the post kept its single consistent status"
       );
 
       // The half that fails, and therefore the reason boot recovery declines.
+      // The revisit signal is THIS EXACT transition — FAILED becoming
+      // COMPLETED — not any red in this test: a timeout, a queue change or a
+      // reworded error would also turn it red without the tolerance holding.
       assert.strictEqual(
-        snapshot.status,
+        terminal.status,
         "FAILED",
-        "the replayed saga ends FAILED — if this ever becomes COMPLETED, the tolerance claim finally holds and the parking decision should be revisited"
+        "the replayed saga ends FAILED; only this assertion changing to COMPLETED means the " +
+          "post-pivot tolerance finally holds and the parking decision should be revisited"
       );
       assert.match(
-        String(snapshot.error),
+        String(terminal.error),
         /version conflict/i,
         "and it fails for the stale optimistic-concurrency token, not for a queue side effect"
       );
     });
   });
 
-  describe("a retry-pending saga parked by a graceful shutdown", () => {
+  describe("a parked row and its operator window", () => {
     let sagaId: string;
-    let managerE: Manager;
+    let restarted: Harness;
 
     before(async () => {
-      // A manager schedules a retry (the publish job is rejected, so the
-      // post-pivot wait step fails), then shuts down gracefully. The drain
-      // flips RUNNING to PENDING while the persist keeps the pending retry.
-      const managerD = buildManager();
-      registerRetryChecker(managerD);
-      const started = await startPublishNowSaga(managerD, rejectingChannelId, "orphan");
-      sagaId = started.id;
+      const { harness: crashed } = await bootHarness("window-crashed");
+      const interrupted = await seedPivotInterruptedSaga(crashed, "window");
+      sagaId = interrupted.sagaId;
 
-      const deadline = Date.now() + 15_000;
-      for (;;) {
-        const snapshot = await sagaSnapshot(sagaId);
-        if (snapshot.nextRetryAt !== null && snapshot.status === "RUNNING") break;
-        if (Date.now() > deadline) {
-          assert.fail(
-            `timed out waiting for ${sagaId} to schedule a retry: status=${snapshot.status}, ` +
-              `nextRetryAt=${String(snapshot.nextRetryAt)}, error=${String(snapshot.error)}`
-          );
-        }
-        await new Promise((resolve) => setTimeout(resolve, 150));
-      }
+      const booted = await bootHarness("window-restarted");
+      restarted = booted.harness;
+      assert.ok(
+        booted.logLines.some((line) => line.sagaId === sagaId && line.reason === "parked"),
+        "the scenario's premise: this boot parked the row it is about to time-check"
+      );
 
-      await managerD.lifecycle.shutdown();
-
-      managerE = buildManager();
-      registerRetryChecker(managerE);
-      await managerE.lifecycle.initialize();
+      // The saga was interrupted long ago — which is exactly why the ORDINARY
+      // timeout sweep would already be past its horizon. The parked contract
+      // says the horizon that applies is the one that opened at PARKING, so the
+      // row is aged well past the ordinary one on purpose.
+      const longAgo = new Date(Date.now() - (SAGA_TIMEOUT_MS + 60 * 60 * 1000));
+      await base.sagaInstance.update({ where: { id: sagaId }, data: { startedAt: longAgo } });
+      const tracked = restarted.lifecycle.activeInstances.get(sagaId);
+      assert.ok(tracked, "the timeout checker only sees rows this process is tracking");
+      tracked.startedAt = longAgo;
     });
 
-    it("parks the saga as PENDING while keeping its pending retry", async () => {
-      // The premise of the orphan class. Without it the next assertion could
-      // pass for the wrong reason — a RUNNING row is claimed by today's
-      // checker, so the gap would never be exercised.
-      const snapshot = await sagaSnapshot(sagaId);
+    it("does not terminalize a parked row whose ordinary timeout has already passed", async () => {
+      await restarted.scheduler.triggerTask(TIMEOUT_CHECKER_TASK_ID, { swallowErrors: false });
 
+      const snapshot = await sagaSnapshot(sagaId);
       assert.strictEqual(
         snapshot.status,
-        "PENDING",
-        "the graceful drain parks a running saga as PENDING"
+        "RUNNING",
+        "a parked row is excluded from the ordinary sweep: its operator window opens when it is " +
+          "parked, not when the saga started, or the human is given no window at all"
       );
-      assert.notStrictEqual(
-        snapshot.nextRetryAt,
-        null,
-        "the parked row keeps its pending retry, which is what puts it outside a boot pass that owns rows with none"
+      assert.strictEqual(
+        await sagaFailedEventCount(sagaId),
+        0,
+        "and no terminal audit event was written for it"
       );
     });
 
-    it("is claimed by the retry checker and reaches a terminal state", async () => {
-      const snapshot = await driveToTerminal(
-        sagaId,
-        managerE.scheduler,
-        `the retry checker to claim PENDING saga ${sagaId} (a row this shape is skipped by a boot pass that owns rows with no pending retry, so a checker restricted to RUNNING leaves it to the timeout)`
+    it("terminalizes the parked row once its operator window expires, exactly once and as parked-expired", async () => {
+      const parkedAt = restarted.lifecycle.parkedAt.get(sagaId);
+      assert.ok(
+        typeof parkedAt === "number",
+        "the process records WHEN it parked each row, or the window has no origin"
+      );
+      restarted.lifecycle.parkedAt.set(sagaId, parkedAt - (SAGA_TIMEOUT_MS + 1_000));
+
+      const firstTick = await captureLogs(async () => {
+        await restarted.scheduler.triggerTask(TIMEOUT_CHECKER_TASK_ID, { swallowErrors: false });
+      });
+
+      const snapshot = await sagaSnapshot(sagaId);
+      assert.strictEqual(
+        snapshot.status,
+        "FAILED",
+        "an expired parked row reaches a terminal state: the canon forbids an infinite RUNNING"
+      );
+      assert.match(
+        String(snapshot.error),
+        /parked/i,
+        "and its durable trail says the operator window expired, not that a step hung"
+      );
+      assert.doesNotMatch(
+        String(snapshot.error),
+        /timeout exceeded/i,
+        "the ordinary timeout wording would send the operator to the wrong runbook"
       );
 
-      assert.ok(
-        TERMINAL_STATES.includes(snapshot.status as SagaInstance["status"]),
-        `a parked retry-pending saga must terminalize within its retry envelope, got ${snapshot.status}`
+      const failure = firstTick.find(
+        (line) => line.sagaId === sagaId && line.msg === "Saga failed"
+      );
+      assert.ok(failure, "the terminalization is logged against the saga it ended");
+      assert.strictEqual(
+        failure.reason,
+        "parked-expired",
+        "and it carries its own failure class, so the alerting series does not read it as a timeout"
+      );
+
+      assert.strictEqual(await sagaFailedEventCount(sagaId), 1, "exactly one terminal audit event");
+
+      // The re-fail loop: a terminal row left in the tracked set is re-failed on
+      // every subsequent tick, appending a fresh audit event each time.
+      await restarted.scheduler.triggerTask(TIMEOUT_CHECKER_TASK_ID, { swallowErrors: false });
+      await restarted.scheduler.triggerTask(TIMEOUT_CHECKER_TASK_ID, { swallowErrors: false });
+      assert.strictEqual(
+        await sagaFailedEventCount(sagaId),
+        1,
+        "and still exactly one after two more ticks: a terminal row is neither re-failed nor re-audited"
+      );
+    });
+  });
+
+  describe("an inherited pivot-step retry claimed by the retry checker", () => {
+    let sagaId: string;
+    let postId: string;
+    let dedupeKey: string;
+    let processedBefore: number;
+    let jobIdsBefore: string[];
+    let terminal: SagaSnapshot;
+
+    before(async () => {
+      const { harness: crashed } = await bootHarness("pivot-retry-crashed");
+      const interrupted = await seedPivotInterruptedSaga(crashed, "pivotretry");
+      sagaId = interrupted.sagaId;
+      postId = interrupted.postId;
+      dedupeKey = interrupted.dedupeKey;
+
+      // Standing in for the publish worker's promotion: in production the
+      // worker moves the post out of DRAFT once the provider accepts it, while
+      // this suite's worker double only records the job. The state that makes a
+      // pivot replay dangerous is therefore applied here explicitly.
+      await base.post.update({ where: { id: postId }, data: { status: "PUBLISHED" } });
+
+      // A pivot-step retry that outlived its process: the row carries a due
+      // `nextRetryAt`, so the boot pass hands it to the checker rather than
+      // parking it — the one path by which a pivot step can be re-entered
+      // automatically after a restart. Its retry budget is spent, so the
+      // outcome of this single re-entry is the whole answer.
+      await base.sagaInstance.update({
+        where: { id: sagaId },
+        data: {
+          status: "RUNNING",
+          currentStep: PIVOT_STEP_INDEX,
+          nextRetryAt: new Date(Date.now() - 1_000),
+          retryCount: MAX_RETRIES,
+        },
+      });
+      await redis.del(`saga:${sagaId}`);
+
+      processedBefore = processedCountFor(postId, deliveringChannelId);
+      jobIdsBefore = (await jobsForTarget(postId, deliveringChannelId)).map((job) =>
+        String(job.id)
+      );
+
+      const { harness: restarted } = await bootHarness("pivot-retry-restarted");
+      terminal = await driveToTerminal(
+        sagaId,
+        restarted.scheduler,
+        `the checker to claim the inherited pivot-step retry ${sagaId} and settle it`
+      );
+    });
+
+    it("aborts the pivot re-entry through its reread countermeasure instead of re-enqueueing", async () => {
+      assert.strictEqual(
+        terminal.status,
+        "FAILED",
+        "the pivot is not re-run: the saga settles instead of publishing again"
+      );
+      assert.match(
+        String(terminal.error),
+        /Reread check failed/i,
+        "and it settles because the pivot's RereadCheck refused, which is the countermeasure " +
+          "that makes the checker's claim of a pivot-step row safe"
+      );
+      assert.match(
+        String(terminal.error),
+        /expected DRAFT/i,
+        "naming the aggregate state that no longer matches the plan"
+      );
+    });
+
+    it("produces no second job and no second publish for the same post and channel", async () => {
+      const byId = await jobsWithId(dedupeKey);
+      assert.strictEqual(byId.length, 1, "no second job holds the pivot's deterministic id");
+
+      const jobIdsAfter = (await jobsForTarget(postId, deliveringChannelId)).map((job) =>
+        String(job.id)
+      );
+      assert.deepStrictEqual(
+        jobIdsAfter,
+        jobIdsBefore,
+        "and the queue holds exactly the jobs it held before: the countermeasure aborts BEFORE " +
+          "the enqueue, so the guarantee does not depend on the job-id dedupe surviving retention"
+      );
+
+      assert.strictEqual(
+        processedCountFor(postId, deliveringChannelId),
+        processedBefore,
+        "no worker published a second time"
       );
     });
   });
@@ -941,10 +1335,10 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
             id,
             definitionId: PUBLISHING_SAGA_ID,
             status,
-            // Parked one step short of the end: a boot that resumed this row
-            // would run the post-pivot status step and its command would show
-            // up in the recorder below.
-            currentStep: 4,
+            // One step short of the end: a boot that resumed this row would run
+            // the post-pivot status step and its command would show up in the
+            // recorder below.
+            currentStep: LAST_STEP_INDEX,
             accountId,
             context: {
               sagaId: id,
@@ -966,12 +1360,17 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         seeded.push({ id, status: row.status, updatedAt: row.updatedAt });
       }
 
+      // The canary is the synchronization point: it is loaded by the SAME boot
+      // and it runs to a terminal state, so by the time the assertions below
+      // execute the pass's detached work has demonstrably completed.
+      const canaryId = await seedPrePivotSaga("terminal-canary", deliveringChannelId);
       const commandsBefore = dispatchedCommands.length;
-      const manager = buildManager();
-      await manager.lifecycle.initialize();
-      // The boot work is dispatched detached, so a snapshot taken immediately
-      // would pass before anything had the chance to touch the rows.
-      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      const { harness: restarted } = await bootHarness("terminal-restarted");
+      await driveToTerminal(
+        canaryId,
+        restarted.scheduler,
+        `the canary ${canaryId} to terminalize, which proves this boot's dispatches ran`
+      );
 
       for (const before of seeded) {
         const after = await sagaSnapshot(before.id);
@@ -1003,14 +1402,13 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     });
 
     it("compensates no pivot or post-pivot step when a post-pivot failure ends the saga", async () => {
-      const manager = buildManager();
-      registerRetryChecker(manager);
-      const started = await startPublishNowSaga(manager, rejectingChannelId, "postpivot");
+      const { harness } = await bootHarness("postpivot");
+      const started = await startPublishNowSaga(harness, rejectingChannelId, "postpivot");
       const sagaId = started.id;
 
       const snapshot = await driveToTerminal(
         sagaId,
-        manager.scheduler,
+        harness.scheduler,
         `the post-pivot failure of ${sagaId} to exhaust its retries`
       );
 
@@ -1039,6 +1437,66 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       assert.ok(
         survivor,
         "the post created before the pivot survives a post-pivot failure — a compensation walk would have deleted it"
+      );
+    });
+  });
+
+  describe("a retry-pending saga handed off by a graceful shutdown", () => {
+    let sagaId: string;
+    let restarted: Harness;
+
+    before(async () => {
+      // A composition schedules a retry (the publish job is rejected, so the
+      // post-pivot wait step fails), then shuts down gracefully. The drain flips
+      // RUNNING to PENDING while the persist keeps the pending retry, so the row
+      // is handed off to the retry checker rather than to a boot pass that owns
+      // rows with NO pending retry.
+      const { harness: draining } = await bootHarness("draining");
+      const started = await startPublishNowSaga(draining, rejectingChannelId, "handoff");
+      sagaId = started.id;
+
+      await pollUntil(
+        async () => {
+          const snapshot = await sagaSnapshot(sagaId);
+          return snapshot.nextRetryAt !== null && snapshot.status === "RUNNING" ? snapshot : null;
+        },
+        () => `${sagaId} to schedule a retry before the drain`
+      );
+
+      await draining.integration.shutdown();
+
+      const booted = await bootHarness("handoff-restarted");
+      restarted = booted.harness;
+    });
+
+    it("leaves the saga PENDING with its pending retry intact", async () => {
+      // The premise of the hand-off class. Without it the next assertion could
+      // pass for the wrong reason — a RUNNING row is claimed by today's
+      // checker, so the gap would never be exercised.
+      const snapshot = await sagaSnapshot(sagaId);
+
+      assert.strictEqual(
+        snapshot.status,
+        "PENDING",
+        "the graceful drain hands a running saga off as PENDING"
+      );
+      assert.notStrictEqual(
+        snapshot.nextRetryAt,
+        null,
+        "the row keeps its pending retry, which is what puts it outside a boot pass that owns rows with none"
+      );
+    });
+
+    it("is claimed by the retry checker and reaches a terminal state", async () => {
+      const snapshot = await driveToTerminal(
+        sagaId,
+        restarted.scheduler,
+        `the retry checker to claim PENDING saga ${sagaId} (a row this shape is skipped by a boot pass that owns rows with no pending retry, so a checker restricted to RUNNING leaves it to the timeout)`
+      );
+
+      assert.ok(
+        TERMINAL_STATES.includes(snapshot.status as SagaInstance["status"]),
+        `a handed-off retry-pending saga must terminalize within its retry envelope, got ${snapshot.status}`
       );
     });
   });

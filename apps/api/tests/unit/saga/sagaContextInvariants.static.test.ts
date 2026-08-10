@@ -26,7 +26,13 @@ const sagaTypesPath = join(sagaDir, "sagaManagerTypes.ts");
 
 const SYSTEM_WRAP = "withSystemContext";
 const REASON_CONSTANT = "SAGA_SYSTEM_REASON";
-const DISPATCHES = ["executeSagaAsync(", "compensateSagaAsync("] as const;
+/**
+ * Every way the engine hands a saga to the execution engine. The awaited form
+ * belongs here as much as the detached ones: AsyncLocalStorage propagates into
+ * awaited work exactly as it propagates through `setImmediate`, so a system wrap
+ * enclosing it would run the whole saga guard-bypassed just the same.
+ */
+const DISPATCHES = ["executeSagaAsync(", "executeSaga(", "compensateSagaAsync("] as const;
 
 /**
  * Every form that declares the saga system boundary. `withSystemContext` is the
@@ -560,6 +566,10 @@ function modelOperationInventory(sources: SagaSource[]): string[] {
 const KNOWN_ENGINE_OPERATIONS = [
   "src/saga/SagaManagerExecution.ts::sagaInstance.findUnique",
   "src/saga/SagaManagerExecution.ts::sagaInstance.upsert",
+  // The boot load's page AND the count that tells an operator how many rows it
+  // had to defer — both inside the ONE declared read boundary, so the figure and
+  // the page describe the same snapshot.
+  "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.findMany",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.findMany",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.findUnique",
@@ -1254,6 +1264,42 @@ describe("saga engine context invariants", () => {
       // A derivation nothing passes through is decoration; the enqueue call is
       // where the key becomes the job id.
       expect(integration.sanitized).toMatch(/enqueue\(\{\s*\n?\s*dedupeKey,/);
+    });
+  });
+
+  describe("the production composition wires recovery in a usable order", () => {
+    const integration = sourceByName("SagaIntegration.ts");
+
+    it("registers the saga definitions BEFORE the manager initializes", () => {
+      // The boot recovery pass runs inside `sagaManager.initialize()` and asks
+      // each inherited row's definition where its pivot is. Registering
+      // afterwards left that map empty for the whole pass, so every inherited
+      // saga was declined and recovery was inert in the deployed composition —
+      // while every harness that registered first passed. The order is the
+      // contract; this pins it where it cannot be re-inverted silently.
+      const registerAt = integration.sanitized.indexOf("this.registerSagaDefinitions()");
+      const initializeAt = integration.sanitized.indexOf("this.sagaManager.initialize()");
+
+      expect(registerAt).toBeGreaterThanOrEqual(0);
+      expect(initializeAt).toBeGreaterThanOrEqual(0);
+      expect(registerAt).toBeLessThan(initializeAt);
+    });
+
+    it("wires the pivot's reread countermeasure, which is what makes a pivot re-entry safe", () => {
+      // The retry checker legitimately claims a row whose last persist scheduled
+      // a retry, and such a row can sit ON the pivot. What keeps that re-entry
+      // from publishing twice is the pivot's RereadCheck, which aborts before
+      // the enqueue when the aggregate has moved on — measured in
+      // `tests/integration/sagaCrashRecovery.test.ts`, "an inherited pivot-step
+      // retry claimed by the retry checker". The countermeasure only exists when
+      // the composition passes the reread implementation, so a composition that
+      // stopped passing it would silently remove the guarantee.
+      const factoryCall = integration.sanitized.indexOf("createPostPublishingSagaDefinition(");
+      expect(factoryCall).toBeGreaterThanOrEqual(0);
+
+      expect(integration.sanitized).toMatch(/PostId\.fromString\(postIdRaw\)/);
+      expect(integration.sanitized).toMatch(/postRepository\.findById/);
+      expect(integration.sanitized).toMatch(/post\.value\.status\.value/);
     });
   });
 

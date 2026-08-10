@@ -523,8 +523,12 @@ describe("saga tenant module", () => {
       const spy = createTransactionSpy();
       const instance = makeInstance(makeContext(), { id: "saga-nolock", status: "RUNNING" });
 
+      // Spread conditionally: `eventService` is optional on the config and
+      // `exactOptionalPropertyTypes` rejects an explicit `undefined` for it, so
+      // handing the property over unconditionally would not compile.
+      const { eventService } = spy.config;
       await failSagaAsSystem(
-        { prisma: spy.prisma, eventService: spy.config.eventService },
+        { prisma: spy.prisma, ...(eventService !== undefined && { eventService }) },
         instance,
         "unresolvable-account"
       );
