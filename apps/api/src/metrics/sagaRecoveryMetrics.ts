@@ -27,34 +27,57 @@ function getOrCreateCounter(
 
 /**
  * Stage of detached saga work the engine did NOT complete. Deliberately NOT
- * called a "loop": only the first four are loops, while `rehydration`,
- * `mismatch` and `parked` are per-saga outcomes. An operator paging on
- * `stage="mismatch"` must not go hunting for a background loop by that name.
+ * called a "loop": only the first four are loops, while `rehydration` and
+ * `mismatch` are per-saga outcomes. An operator paging on `stage="mismatch"`
+ * must not go hunting for a background loop by that name.
  *
  * - `boot` — the crash-recovery load that runs once per process start.
  * - `retry-scan` — the scheduled scan for sagas whose retry is due.
  * - `timeout` — the scheduled timeout checker, per saga it inspects.
  * - `instance-load` — the by-id read behind every resume trigger.
+ * - `resume-row` — one row the boot resume pass could not even dispatch a
+ *   decision about, because inspecting it threw. Its neighbours still ran.
  * - `rehydration` — a saga whose owning account could not be resolved.
  * - `mismatch` — a saga whose column and context name different accounts.
- * - `parked` — a saga interrupted at or past its pivot that boot recovery
- *   deliberately left alone. It is not a malfunction of the engine, it is
- *   recovery DECLINED: replaying a pivot cannot be proven side-effect-free, so
- *   the row waits for a human instead of being resumed on a guess. It shares
- *   this series because the operator question is the same one — "what did
- *   recovery fail to bring back?" — and every parked row needs an answer.
+ *
+ * Parking is NOT here. It is a decision the engine takes deliberately, not work
+ * it failed to complete, and a series that mixes the two makes any unfiltered
+ * sum of this counter report a designed outcome as a malfunction. It has its own
+ * counter below.
  */
 export type SagaRecoveryStage =
-  "boot" | "retry-scan" | "timeout" | "instance-load" | "rehydration" | "mismatch" | "parked";
+  "boot" | "retry-scan" | "timeout" | "instance-load" | "resume-row" | "rehydration" | "mismatch";
 
-/** Why a saga reached its terminal FAILED state. */
+/**
+ * Why boot recovery declined to resume a row it loaded.
+ *
+ * - `pivot` — the row was interrupted at or past its pivot, so a replay would
+ *   re-run steps whose external effects already happened.
+ * - `definition-unregistered` — this process has no definition for the row, so
+ *   its pivot boundary is unknowable here and the decision cannot be taken.
+ */
+export type SagaParkReason = "pivot" | "definition-unregistered";
+
+/**
+ * Why a saga reached its terminal FAILED state.
+ *
+ * `parked-expired` is deliberately distinct from `timeout`: a parked row is
+ * terminalized because the HUMAN window opened at parking ran out, not because a
+ * step hung, and the two send an operator to different runbooks.
+ */
 export type SagaFailureReason =
-  "step-failure" | "timeout" | "unresolvable-account" | "tenant-mismatch";
+  "step-failure" | "timeout" | "parked-expired" | "unresolvable-account" | "tenant-mismatch";
 
 const sagaRecoveryFailuresTotal = getOrCreateCounter(
   "saga_recovery_failures_total",
   "Saga detached work the engine did not complete, by stage",
   ["stage"]
+);
+
+const sagaRecoveryParkedTotal = getOrCreateCounter(
+  "saga_recovery_parked_total",
+  "Sagas boot recovery deliberately declined to resume, by reason",
+  ["reason"]
 );
 
 const sagasFailedTotal = getOrCreateCounter(
@@ -72,6 +95,18 @@ const sagasFailedTotal = getOrCreateCounter(
  */
 export function recordSagaRecoveryFailure(stage: SagaRecoveryStage): void {
   sagaRecoveryFailuresTotal.inc({ stage });
+}
+
+/**
+ * @function recordSagaParked
+ * @description Counts one saga boot recovery declined to resume. Its own series,
+ *   not a failure stage: parking is the engine reporting instead of guessing,
+ *   and an operator asking "is recovery broken?" must not be answered with the
+ *   count of decisions it took correctly.
+ * @param reason - Why the row was declined.
+ */
+export function recordSagaParked(reason: SagaParkReason): void {
+  sagaRecoveryParkedTotal.inc({ reason });
 }
 
 /**

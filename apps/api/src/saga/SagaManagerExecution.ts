@@ -63,7 +63,15 @@ export class SagaExecutionEngine {
   // Step Execution
   // ---------------------------------------------------------------------------
 
-  private async executeSaga(sagaId: string): Promise<void> {
+  /**
+   * @method executeSaga
+   * @description Advances one saga under its own rehydrated tenant scope, and
+   *   resolves when it has either reached a terminal state or parked itself on a
+   *   scheduled retry. Public because the boot resume pass counts what is in
+   *   flight in order to cap it; every other trigger uses the detached form.
+   * @param sagaId - The saga to advance.
+   */
+  async executeSaga(sagaId: string): Promise<void> {
     const instance = await this.lifecycle.getSaga(sagaId);
     if (!instance) {
       logger.error({ sagaId }, "Saga not found during execution");
@@ -390,8 +398,7 @@ export class SagaExecutionEngine {
     await this.persistSagaInstance(instance, [compensationCompletedEvent]);
 
     this.lifecycle.metrics.sagasCompensated++;
-    this.lifecycle.metrics.activeInstances--;
-    this.lifecycle.activeInstances.delete(sagaId);
+    this.lifecycle.stopTracking(sagaId);
 
     logger.info({ sagaId }, "Saga compensation completed");
 
@@ -432,8 +439,7 @@ export class SagaExecutionEngine {
     await this.persistSagaInstance(instance, [sagaCompletedEvent]);
 
     this.lifecycle.metrics.sagasCompleted++;
-    this.lifecycle.metrics.activeInstances--;
-    this.lifecycle.activeInstances.delete(instance.id);
+    this.lifecycle.stopTracking(instance.id);
 
     this.lifecycle.executionTimes.push(executionTime);
     if (this.lifecycle.executionTimes.length > 100) {
@@ -512,8 +518,13 @@ export class SagaExecutionEngine {
 
     await this.persistSagaInstance(instance, [sagaFailedEvent]);
 
+    // Stop tracking it, exactly as the completion and compensation paths do. A
+    // terminal saga left in the tracked set is re-visited by the timeout checker
+    // on every tick, and once past its horizon re-failed — re-persisting a
+    // terminal row and appending a FRESH audit event every minute for the life
+    // of the process.
+    this.lifecycle.stopTracking(instance.id);
     this.lifecycle.metrics.sagasFailed++;
-    this.lifecycle.metrics.activeInstances--;
     recordSagaFailed(reason);
 
     logger.error({ sagaId: instance.id, error, reason }, "Saga failed");
@@ -558,8 +569,9 @@ export class SagaExecutionEngine {
   /**
    * @method writeSagaState
    * @description Writes the saga row and its audit events inside a transaction
-   *   the caller opened and scoped. Extracted so the scoped and the
-   *   account-less paths commit byte-identical state.
+   *   the caller opened and scoped. Kept separate from the refusal checks and
+   *   the post-commit cache work above it so the durable write is one readable
+   *   unit with exactly one shape.
    * @param tx - The open transaction client.
    * @param instance - The saga being persisted.
    * @param accountId - The owning account, resolved by the caller. Not nullable:
