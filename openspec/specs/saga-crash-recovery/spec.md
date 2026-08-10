@@ -34,7 +34,40 @@
 
 ## Requirements
 
-### Requirement: Recovery ownership is partitioned so every non-terminal saga has exactly one owner [MERGE-BLOCKING]
+### Requirement: The composition registers saga definitions BEFORE the manager initializes [MERGE-BLOCKING]
+
+The boot recovery pass runs inside `sagaManager.initialize()` and resolves each inherited
+row's pivot boundary from the registered definitions. The composition root
+(`SagaIntegration.initialize()`) SHALL therefore register the saga definitions BEFORE
+calling `sagaManager.initialize()`. Registration SHALL have no dependency on an
+initialized manager.
+
+The engine SHALL additionally fail loudly on the wiring defect this order prevents: when
+EVERY loaded row is declined for want of a registered definition, the pass SHALL count a
+boot-load failure and log at ERROR (degrading the saga health check), rather than
+reporting a fleet of ordinary parked rows. A row whose definition this process has not
+registered SHALL carry its OWN disposition (`definition-unregistered`), distinct from
+pivot parking.
+
+Test harnesses SHALL boot through the production composition. A harness that registers
+definitions before initializing exercises a wiring production does not have and is
+structurally unable to fail on this defect.
+
+#### Scenario: the source order is pinned [static] [MERGE-BLOCKING]
+
+- **GIVEN** the composition root
+- **WHEN** the positions of `registerSagaDefinitions()` and `sagaManager.initialize()` are compared
+- **THEN** registration precedes initialization
+
+#### Scenario: a boot that inherits only unregistered rows reports a composition defect [unit]
+
+- **GIVEN** non-terminal rows exist and this process has registered no matching definition
+- **WHEN** initialization completes
+- **THEN** every row is parked as `definition-unregistered`, a boot-load failure is counted, and the health check reports `degraded`
+
+---
+
+### Requirement: Recovery ownership is partitioned so every non-terminal saga has exactly one owner PER PROCESS [MERGE-BLOCKING]
 
 On initialization the engine SHALL load the non-terminal (`PENDING` / `RUNNING`) saga rows
 and SHALL run a SINGLE resume pass over exactly what it loaded — never a repeating sweep,
@@ -48,17 +81,26 @@ Ownership SHALL be partitioned on `nextRetryAt` nullability alone:
 
 The two predicates SHALL NOT intersect, so a row is claimed by exactly one owner even
 though both mechanisms come alive from the same initialization. The `PENDING` half of the
-scan predicate is load-bearing: a graceful shutdown parks a retry-pending saga by flipping
-it to `PENDING` while the persist keeps `nextRetryAt`, and a scan restricted to `RUNNING`
-left that row to no owner at all.
+scan predicate is load-bearing: a graceful shutdown HANDS OFF a retry-pending saga by
+flipping it to `PENDING` while the persist keeps `nextRetryAt`, and a scan restricted to
+`RUNNING` left that row to no owner at all.
 
-#### Scenario: an interrupted pre-pivot saga resumes after restart and terminates [integration]
+**Scope, stated as a constraint rather than implied:** the partition is disjoint WITHIN
+ONE PROCESS. No row is marked as claimed — there is no lease, no claim column and no
+`SELECT … FOR UPDATE SKIP LOCKED` — so two processes reading the same table both claim the
+same rows. Running MORE THAN ONE API replica with the saga engine enabled is therefore NOT
+SUPPORTED until row claims land (tracked as SMELL-73; the follow-up change
+`saga-engine-terminal-hygiene` owns it, using the `OutboxClaimService` primitive the repo
+already has). A rolling deploy is the same hazard in miniature: the draining process is
+still advancing rows the new one inherits.
+
+#### Scenario: an interrupted pre-pivot saga resumes after restart and terminates [integration] [MERGE-BLOCKING]
 
 - **GIVEN** a saga is non-terminal with no `nextRetryAt`, interrupted BEFORE its pivot step
-- **WHEN** a process with no memory of it completes initialization
-- **THEN** the boot pass dispatches it exactly once and it reaches a terminal state without operator action
+- **WHEN** a process with no memory of it completes initialization through the production composition
+- **THEN** the boot pass dispatches it exactly once, it reaches a terminal state without operator action, and it issues exactly one command per remaining command-issuing step
 
-#### Scenario: a retry-pending saga parked by a graceful shutdown is claimed by the scan [integration]
+#### Scenario: a retry-pending saga handed off by a graceful shutdown is claimed by the scan [integration]
 
 - **GIVEN** a saga scheduled a retry and a graceful shutdown left it `PENDING` with `nextRetryAt` still set
 - **WHEN** a new process boots and the retry-recovery scan ticks
@@ -70,6 +112,50 @@ left that row to no owner at all.
 - **WHEN** the boot pass runs and the scan subsequently ticks
 - **THEN** the boot pass skips the row, the scan resumes it once its retry is due, and the row is executed by exactly one owner
 
+#### Scenario: a pivot-step retry the scan claims is refused by the pivot's countermeasure [integration] [MERGE-BLOCKING]
+
+- **GIVEN** an inherited row whose due `nextRetryAt` sits ON the pivot step, and whose post has already moved out of `DRAFT`
+- **WHEN** the retry-recovery scan claims and re-enters it
+- **THEN** the pivot's `RereadCheck` aborts BEFORE the enqueue, no second job and no second publish is produced, and the saga settles `FAILED` naming the reread refusal
+
+---
+
+### Requirement: The boot pass is BOUNDED and CONTAINED [MERGE-BLOCKING]
+
+Recovery is a best-effort part of startup and SHALL NOT be able to stop the process from
+serving.
+
+- **Per-row containment**: each loaded row SHALL be classified inside its own error
+  boundary. A row that cannot be read SHALL be counted
+  (`saga_recovery_failures_total{stage="resume-row"}`), logged with its saga id, and
+  skipped; the rows behind it SHALL still be recovered.
+- **Pass containment**: the pass SHALL NOT be able to reject `initialize()`. A durable
+  malformed row must not exit the bootstrap on every subsequent boot.
+- **Bounded load**: the boot load SHALL read at most `bootLoadLimit` rows, oldest first,
+  and SHALL report the deferred remainder in the log, in `SagaMetrics.bootLoadDeferred`
+  and on `/sagas/metrics`. Deferred rows SHALL NOT be silently truncated; they remain
+  owned by the retry checker once they schedule a retry, and by the next boot otherwise.
+- **Bounded fan-out**: the pass SHALL advance at most `maxConcurrentSagas` sagas at a
+  time. A configured concurrency knob that nothing reads SHALL NOT exist.
+
+#### Scenario: one unreadable row costs one saga's recovery [unit] [MERGE-BLOCKING]
+
+- **GIVEN** three inherited rows, the middle one carrying a persisted context without its `metadata` object
+- **WHEN** initialization completes
+- **THEN** initialization resolves, the two readable rows are advanced, exactly one per-row failure is counted, and the boot is NOT reported as blind
+
+#### Scenario: the fan-out honours the configured ceiling [unit]
+
+- **GIVEN** more inherited rows than the configured `maxConcurrentSagas`
+- **WHEN** the pass advances them
+- **THEN** the number in flight never exceeds the ceiling, and every row is still advanced
+
+#### Scenario: the load ceiling defers rather than truncates [unit]
+
+- **GIVEN** more non-terminal rows than `bootLoadLimit`
+- **WHEN** the boot load runs
+- **THEN** exactly `bootLoadLimit` rows are loaded and the remainder is counted as deferred
+
 ---
 
 ### Requirement: A saga interrupted at or past its pivot SHALL be PARKED, not replayed [MERGE-BLOCKING]
@@ -79,9 +165,13 @@ definition's `pivotStepIndex`, nor one whose definition this process has not reg
 row whose pivot boundary is unknowable here). Such a row SHALL be:
 
 - **left exactly as the interruption left it** — non-terminal, nothing dispatched, no
-  command issued, nothing written to it by the pass;
+  command issued, nothing written to it at all. Parked rows SHALL be excluded from the
+  boot re-warm, so `updatedAt` remains a witness that nothing touched the row;
 - **counted**, in process (`SagaMetrics.bootParkedSagas`) and on the scrape endpoint
-  (`saga_recovery_failures_total{stage="parked"}`);
+  (`saga_recovery_parked_total{reason}`). Parking SHALL NOT be recorded on
+  `saga_recovery_failures_total`: it is a decision the engine takes correctly, and a
+  series that mixes the two makes any unfiltered sum report a designed outcome as a
+  malfunction;
 - **logged** at WARNING, naming the saga, its step and its pivot index, in the operator's
   vocabulary (`PARKED`), and reported in the pass summary;
 - **resolvable by a human** — the continue endpoint remains available, so a replay is a
@@ -89,6 +179,27 @@ row whose pivot boundary is unknowable here). Such a row SHALL be:
 
 Silently resuming such a row is NOT acceptable, and neither is parking without an
 executable test pinning it.
+
+**The word `parked` SHALL carry exactly one meaning.** The graceful-shutdown drain HANDS
+OFF a running saga (benign, self-recovering, claimed by the retry checker on the next
+process); it does not park it. The two are opposite operational states and SHALL NOT share
+a term in code, logs, tests, specs or runbooks.
+
+**A parked row SHALL still reach a terminal state.** The saga canon forbids an infinite
+non-terminal state, so the promise made about a parked row is bounded and SHALL be stated
+as such:
+
+- it SHALL be excluded from the ORDINARY timeout sweep, which measures from `startedAt`
+  and would therefore terminalize a crash-inherited row on the first tick after boot;
+- its operator window SHALL open at the moment of PARKING and last one full saga horizon;
+- when that window expires the timeout checker SHALL terminalize it under its OWN failure
+  reason, `parked-expired`, never `timeout`, EXACTLY ONCE — the terminal transition stops
+  tracking the saga and the checker SHALL refuse to re-visit a terminal row, so no second
+  `SAGA_FAILED` audit event is appended;
+- parking SHALL NOT be persisted (the row must stay byte-identical), so it is PER-PROCESS:
+  a restart re-derives the parking and RE-OPENS the window. A process that restarts more
+  often than the horizon keeps re-opening it; that is a restart-loop incident, and the
+  runbook SHALL say so rather than leave the operator to infer it.
 
 **Why**, measured end to end and NOT assumed: a replayed pivot enqueues no second publish
 job and causes no second worker execution — the queue adapter passes the step's
@@ -115,7 +226,19 @@ to revisit, not a regression.
 #### Scenario: the parked saga is counted and named [integration]
 
 - **GIVEN** the same boot
-- **THEN** the parked counter increases, a WARNING names the saga id, its step and the `PARKED` decision, and the pass summary reports `loaded`, `resumed`, `checkerOwned` and `skipped`
+- **THEN** the parked counter increases, a WARNING names the saga id, its step and the `PARKED` decision, and the pass summary reports `loaded`, `resumed`, `checkerOwned`, `skipped` and the per-reason skip breakdown
+
+#### Scenario: the ordinary timeout sweep does not terminalize a parked row [integration] [MERGE-BLOCKING]
+
+- **GIVEN** a parked row whose `startedAt` is already older than the saga horizon
+- **WHEN** the timeout checker ticks inside the row's operator window
+- **THEN** the row is still non-terminal and no terminal audit event was written
+
+#### Scenario: an expired operator window terminalizes the parked row once, as parked-expired [integration] [MERGE-BLOCKING]
+
+- **GIVEN** a parked row whose operator window has run out
+- **WHEN** the timeout checker ticks, and ticks again
+- **THEN** the row is `FAILED` under the reason `parked-expired` with an error naming the expired window, and exactly ONE `saga.failed` event exists for it however many further ticks run
 
 #### Scenario: the replay evidence stays executable [integration] [MERGE-BLOCKING]
 
@@ -223,6 +346,18 @@ that is not listed never runs. Every saga suite outside the Vitest-collected uni
 appear in that list, in the batch matching its dependencies and with a timeout that fits its
 worst case. A saga suite SHALL NOT be left discoverable-but-unwired, and no suite SHALL be
 committed with `.only` or `.skip`.
+
+**The runner SHALL be able to go red on its own setup.** A CANCELLED test is a test that
+did not run, and Node reports a broken `before` hook as cancelled subtests with
+`# fail 0`. The runner SHALL therefore fail the run when any test is cancelled, and SHALL
+capture the runner's exit code rather than discarding it. A gate that cannot fail on its
+setup gates nothing, which matters most for the batches this spec calls merge-blocking.
+
+#### Scenario: a batch whose setup collapses fails the run [static] [MERGE-BLOCKING]
+
+- **GIVEN** a merge-blocking batch pointed at a database that is not reachable
+- **WHEN** the runner executes it
+- **THEN** the batch is reported FAILED, its output is dumped, and the run exits non-zero — never OK with `0 fail`
 
 #### Scenario: every saga suite appears in the runner list [static]
 

@@ -21,6 +21,20 @@ before merge. **[static]** scenarios are checkable by inspecting source or confi
 **[unit]** scenarios are proven by an isolated test; **[integration]** scenarios require a
 real-DB run including a process restart.
 
+> **AMENDED AT 4R REVIEW (PR2) (2026-08-10).** The SHIPPED contract is stated in the
+> cumulative living spec, `openspec/specs/saga-crash-recovery/spec.md`; this delta is
+> amended below where the rework changed what is being proposed. Five additions are
+> normative and did not exist in the original delta: (1) the composition MUST register
+> saga definitions BEFORE the manager initializes, and the engine MUST report the wiring
+> defect when every inherited row is declined for want of one; (2) the boot pass MUST be
+> bounded (load ceiling, fan-out ceiling) and contained (per-row and pass-level error
+> boundaries); (3) a PARKED row MUST still reach a terminal state — excluded from the
+> ordinary timeout sweep, terminalized as `parked-expired` one full horizon after
+> PARKING, exactly once — and `parked` MUST NOT also name the graceful-shutdown drain,
+> which HANDS OFF; (4) ownership is per-process and multi-replica operation is
+> UNSUPPORTED until row claims land; (5) the runner MUST fail on cancelled tests.
+> Parking moved off `saga_recovery_failures_total` onto `saga_recovery_parked_total`.
+
 ## Requirements
 
 ### Requirement: Non-terminal sagas resume at boot, once per process start [MERGE-BLOCKING]
@@ -29,12 +43,20 @@ On initialization the engine SHALL load the non-terminal (`PENDING` / `RUNNING`)
 and SHALL resume those WITHOUT a persisted `nextRetryAt` by dispatching asynchronous
 execution. Rows WITH a persisted `nextRetryAt` SHALL remain owned by the retry-recovery
 scan and SHALL NOT also be resumed by the boot pass, so a row is claimed by exactly one
-owner. The boot resume SHALL be a SINGLE pass per process start — never a repeating sweep,
-and never a per-tick re-dispatch of the same row.
+owner **within one process** — there is no row claim, so multi-replica operation is
+unsupported (see the living spec). The boot resume SHALL be a SINGLE pass per process
+start — never a repeating sweep, and never a per-tick re-dispatch of the same row.
+
+The pass SHALL be BOUNDED and CONTAINED: at most `bootLoadLimit` rows read (deferred
+remainder counted and logged), at most `maxConcurrentSagas` sagas advanced at once, each
+row classified inside its own error boundary, and the pass itself unable to reject
+`initialize()`.
 
 Recovery SHALL be observable: the boot pass SHALL log the number of rows loaded, resumed,
 and skipped (with the skip reason), so an operator can tell "recovered nothing" apart from
-"never ran".
+"never ran". The skip reasons SHALL use the same words as the rehydration warnings and the
+failure series (`unresolvable-account`, `tenant-mismatch`), so the summary and the per-saga
+warnings correlate without a translation step.
 
 #### Scenario: an interrupted saga resumes after restart and terminates [integration]
 
