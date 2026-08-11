@@ -220,10 +220,19 @@ export class SagaIntegration {
    *     so no long-lived connections are opened and `process.exit(0)` can fire.
    *
    * When `schemaOnly=false` (normal operation):
-   *   1. Initialize saga manager (loads active sagas, starts timeout checker)
-   *   2. Register saga definitions (post-publishing workflow)
-   *   3. Register API routes for saga management
-   *   4. Set up Redis pub/sub event handling for worker notifications
+   *   1. Register saga definitions (post-publishing workflow)
+   *   2. Initialize saga manager (loads active sagas, resumes them, starts the
+   *      timeout checker)
+   *   3. Set up Redis pub/sub event handling for worker notifications
+   *
+   * The ORDER of the first two is load-bearing, not cosmetic.
+   * `sagaManager.initialize()` runs the crash-recovery pass, and that pass asks
+   * each inherited row's definition where its pivot is. Registering afterwards
+   * left the map empty for the whole pass, so every inherited saga looked like
+   * one whose pivot boundary is unknowable and was declined — recovery was inert
+   * in the deployed composition while every test that registered first passed.
+   * Registration is pure map population with no dependency on an initialized
+   * manager, so it belongs first.
    */
   async initialize(): Promise<void> {
     // Routes always register — required for a complete OpenAPI schema regardless
@@ -235,11 +244,11 @@ export class SagaIntegration {
       return;
     }
 
-    // Full startup path (normal operation only).
-    await this.sagaManager.initialize();
-
-    // Register saga definitions
+    // Full startup path (normal operation only). Definitions FIRST — the boot
+    // recovery pass inside initialize() reads them.
     this.registerSagaDefinitions();
+
+    await this.sagaManager.initialize();
 
     // Set up event handling via Redis pub/sub
     await this.setupEventHandling();
@@ -681,13 +690,21 @@ export class SagaIntegration {
                 instances: metrics.activeInstances,
                 definitions: metrics.definitions.length,
               },
-              // Recovery health: a non-zero counter means the engine lost
-              // visibility of in-flight sagas or skipped work it could not
-              // scope to a tenant. The same events are exported as
-              // `saga_recovery_failures_total{stage}` for alerting; this block is
-              // the operator-facing snapshot for one process.
+              // Recovery health: a non-zero failure counter means the engine
+              // lost visibility of in-flight sagas or skipped work it could not
+              // scope to a tenant, while `parkedSagas` and `loadDeferred` are
+              // DECISIONS this process took about rows it could see. The same
+              // events are exported as `saga_recovery_failures_total{stage}` and
+              // `saga_recovery_parked_total{reason}` for alerting; this block is
+              // the operator-facing snapshot for one process, and it carries
+              // every one of them — during an incident where Prometheus is the
+              // thing that is down, this is the only place to read them.
               recovery: {
                 bootLoadFailures: metrics.bootLoadFailures,
+                bootLoadDeferred: metrics.bootLoadDeferred,
+                bootParkedSagas: metrics.bootParkedSagas,
+                bootResumeRowFailures: metrics.bootResumeRowFailures,
+                compensatingOrphans: metrics.compensatingOrphans,
                 recoveryScanFailures: metrics.recoveryScanFailures,
                 rehydrationFailures: metrics.rehydrationFailures,
                 tenantMismatches: metrics.tenantMismatches,

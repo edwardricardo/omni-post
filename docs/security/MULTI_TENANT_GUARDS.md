@@ -577,6 +577,281 @@ already alerts on. The in-process snapshot stays available on `/sagas/metrics`, 
 recovery load failed, because such a process is reachable but does not know what was
 in flight when it started.
 
+#### Crash recovery — who claims a saga after a restart, and the parked pivot
+
+**Composition order is part of the contract.** `SagaIntegration.initialize()`
+registers the saga definitions BEFORE `sagaManager.initialize()`, because the boot
+recovery pass runs inside the latter and asks each inherited row's definition where
+its pivot is. Registering afterwards leaves that map empty for the whole pass, so
+every inherited saga looks like one whose pivot boundary is unknowable and is
+declined — recovery inert in the deployed composition, while a test harness that
+registers first passes. Two guards keep it that way: a static invariant asserts the
+order in the source, and the crash-recovery suite boots through the real
+`SagaIntegration` rather than a pre-registered lifecycle. Defence in depth in the
+engine itself: if EVERY loaded row is declined for want of a registered definition,
+the pass counts a boot-load failure and logs at ERROR, so the wiring defect can never
+present as a fleet of ordinary parked sagas.
+
+Recovery ownership is partitioned on `nextRetryAt` nullability alone, so a saga is
+claimed exactly once **within one process** (see the ownership scope below) even
+though both mechanisms come alive from the same `initialize()`:
+
+- **the boot pass** (`SagaManagerLifecycle.resumeLoadedSagas`) runs ONCE per process
+  over the rows the boot load returned, and dispatches those with `nextRetryAt` unset;
+- **the retry checker** claims `nextRetryAt` set and due. Its predicate covers
+  `status IN (RUNNING, PENDING)`: a graceful shutdown HANDS OFF a retry-pending saga by
+  flipping it to PENDING while keeping `nextRetryAt`, and a checker restricted to
+  RUNNING left that row to neither mechanism — it sat non-terminal until the 30-minute
+  timeout force-failed it. `@@index([status, nextRetryAt])` serves the widened shape.
+
+> **Vocabulary.** The graceful-shutdown drain HANDS OFF; it does not park. A
+> handed-off row is benign and self-recovering — the retry checker claims it on the
+> next process. A PARKED row is stuck at its pivot and needs a human. They are
+> opposite operational states and no longer share a word, in the code, the logs, the
+> tests or this document.
+
+The retry checker can legitimately claim a row sitting ON the pivot (its last persist
+scheduled a retry there). Two absorbers stand between that re-entry and a second
+publish, and they cover DIFFERENT windows — stating only the stronger one would
+overclaim:
+
+- **Post already promoted out of `DRAFT`** → the pivot's own `RereadCheck`
+  countermeasure aborts BEFORE the enqueue. This one is retention-independent: it holds
+  even after the queue evicted the original job. Measured in
+  `apps/api/tests/integration/sagaCrashRecovery.test.ts` ("an inherited pivot-step retry
+  claimed by the retry checker"), and the composition that supplies the countermeasure
+  is pinned by a static invariant (it only exists when `SagaIntegration` passes the
+  reread implementation).
+- **Post still `DRAFT`** → the countermeasure PASSES and the pivot is genuinely
+  re-entered. The only absorber left is the deterministic BullMQ job id, which is
+  retention-bounded. Also measured, in the sibling scenario "an inherited pivot-step
+  retry whose post is still `DRAFT`", which asserts the saga walks PAST the pivot and
+  dies on the post-pivot OCC token — so the re-entry is proven, not assumed.
+
+**Which window applies, honestly.** The ONLY production code that writes
+`Post.status = "PUBLISHED"` is the inbound provider webhook processors —
+`apps/api/src/webhooks/processors/{x,instagram,facebook,youtube,tiktok}WebhookProcessor.ts`,
+each `post.update({ where: { id: postId }, data: { status: "PUBLISHED" } })` on the
+correlated post. **Neither the saga nor the publish worker ever writes that column**:
+the saga's post-pivot `UpdatePostStatusStep` issues `post.update`, and
+`UpdatePostCommandHandler` explicitly IGNORES `data.status` (it logs
+"contains status which is not supported by the use case — ignored"); `PostAggregate.markAsPublished`
+has no production caller at all. So promotion is asynchronous, provider-driven and NOT
+guaranteed — for a provider whose webhook never arrives, the post stays `DRAFT`
+indefinitely.
+
+**Residual, stated as such:** in the still-`DRAFT` window — which is every post
+immediately after publish, and permanently for un-webhooked providers — pivot re-entry
+by the retry checker is protected ONLY by the retention-bounded job id. Parking keeps
+the BOOT path away from it; the checker path is exposed. Closing it means either a
+synchronous promotion on the saga's own path or a claim on the row, and both belong to
+`saga-engine-terminal-hygiene`.
+
+The dispatch loop sits lexically OUTSIDE every declared system boundary. That is not
+style: a dispatch is detached, AsyncLocalStorage propagates through it, and the system
+context has no exit primitive — a loop inside the wrap would run resumed tenant work
+guard-bypassed. A static invariant suite enforces it, for the awaited dispatch form as
+well as the detached ones.
+
+**The pass is bounded and contained.** Three properties, each because its absence had
+a named failure mode:
+
+- **Bounded load.** `loadActiveSagas` reads at most `bootLoadLimit` rows (default 500),
+  oldest first, and reports `deferred` — the rows it did NOT read — in the log, in
+  `SagaMetrics.bootLoadDeferred`, on `/sagas/metrics`, and as the Prometheus gauge
+  `saga_recovery_deferred_rows` behind the `SagaBootLoadDeferred` alert. A GAUGE, not a
+  counter: it is a level each process re-measures at boot, so `max()` across replicas is
+  the honest read. Deferred rows are still owned: by the retry checker once they schedule
+  a retry, and by the next boot otherwise. But a row with NO pending retry that did not
+  make the page is advanced by nothing until then, which is exactly what the alert exists
+  to say out loud after a long outage.
+- **Bounded fan-out.** The pass advances at most `maxConcurrentSagas` sagas at a time
+  (100 in both composition roots). The knob was previously read nowhere, which is worse
+  than absent: an operator would reasonably believe it capped exactly this. An
+  unbounded pass after a provider outage fires the whole backlog at a connection pool
+  the HTTP layer shares, so the restart that was meant to drain the backlog becomes the
+  second incident.
+- **Per-row containment.** Each row is classified inside its own `try/catch`, and the
+  pass as a whole inside another. A row whose persisted `context` lost its `metadata`
+  object throws while its tenant is resolved; that costs exactly one saga's recovery
+  (counted as `saga_recovery_failures_total{stage="resume-row"}`, logged with the saga
+  id), never the pass, and never the process. Without it one durable bad row rejects
+  `initialize()`, the bootstrap exits, and — because the row is durable — it exits on
+  every subsequent boot.
+
+**A saga interrupted AT or PAST its pivot is PARKED, not replayed.** The engine leaves
+the row exactly as the interruption left it (non-terminal, nothing dispatched, nothing
+written — parked rows are excluded from the boot re-warm precisely so `updatedAt` still
+witnesses that), increments `SagaMetrics.bootParkedSagas` and
+`saga_recovery_parked_total{reason="pivot"}`, and logs a `PARKED` warning naming the
+saga, its step and its pivot index. A row whose definition this process has not
+registered is declined the same way under `reason="definition-unregistered"`, because
+its pivot boundary is unknowable here. The boot pass also emits a summary
+(`{loaded, resumed, checkerOwned, skipped, deferred}` plus per-row skip reasons:
+`nextRetryAt-owned-by-checker`, `unresolvable-account`, `tenant-mismatch`, `parked`,
+`definition-unregistered`, `row-failed`) so an operator can tell "recovered nothing"
+from "never ran". The skip reasons use the SAME words as the rehydration warnings and
+the failure series, so a boot summary and a per-saga ERROR can be correlated without a
+translation step.
+
+**The boot also DETECTS the rows nothing claims.** In the same declared read boundary it
+counts the `COMPENSATING` sagas it deliberately never loads — that status is excluded by
+the boot predicate, excluded by the retry scan, and invisible to the timeout checker
+(which only inspects tracked rows), so such a row accrues silently in the infinite
+non-terminal state the canon forbids. It is published as `SagaMetrics.compensatingOrphans`,
+on `/sagas/metrics`, and as the gauge `saga_compensating_orphans` behind the
+`SagaCompensatingOrphans` alert, plus a boot WARN naming the count. **Detection only, on
+purpose**: resuming a compensation walk without a row claim is a SECOND walk over
+compensating steps a dead process may already have applied. The fix — claiming and
+resuming them — is owned by `saga-engine-terminal-hygiene`.
+
+**The ownership constraint is in the process's own output.** Every boot logs one INFO
+line stating that recovery owns rows per-process and that multi-replica operation is
+unsupported until claims land (SMELL-73). A limit that lives only in a document is one
+nobody reads while scaling out.
+
+Parking is counted on its own series, NOT on `saga_recovery_failures_total`: it is a
+decision the engine takes correctly, and a series that mixes the two makes any
+unfiltered sum report a designed outcome as a malfunction.
+
+The decision is empirical, measured end to end against a real Postgres, a real Redis and
+a real BullMQ queue in `apps/api/tests/integration/sagaCrashRecovery.test.ts`:
+
+| Property of an automatic pivot replay              | Measured outcome                                                                                                                                                                                              |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Second publish job for the same `(post, channel)`  | **None.** The queue adapter passes the step's dedupe key through as the BullMQ job id, and an `add` on an existing id is a no-op in every state, including `completed` — verified directly against the queue. |
+| Second worker execution (the external side effect) | **None**, for the same reason.                                                                                                                                                                                |
+| `Post` status after the replay                     | **Unchanged**, single consistent value, one row.                                                                                                                                                              |
+| Saga terminal state after the replay               | **FAILED**, with `Post version conflict: expected 0, found 1`.                                                                                                                                                |
+
+So the absorber works and the step AFTER the pivot does not: `UpdatePostStatusStep`
+re-issues its transition with the version the create step recorded, the first run already
+advanced the persisted one, and `UpdatePostUseCase` rejects the stale token. The step's
+own documentation claims that re-application is tolerated; it is not. An automatic resume
+would therefore drive a saga that genuinely succeeded into a terminal FAILED state and
+tell an operator the publish failed when it did not.
+
+#### The parked lifecycle — what an operator is actually promised
+
+A parked row is **not** waiting forever, and the engine does not pretend it is: the
+saga canon forbids an infinite non-terminal state. The promise is narrower and
+truthful:
+
+1. **No automatic mechanism advances it.** Not the boot pass, not the retry checker
+   (the row carries no `nextRetryAt`), not `handleEvent`.
+2. **It is excluded from the ordinary timeout sweep.** A crash-inherited saga is
+   normally already older than the 30-minute horizon, so measuring from `startedAt`
+   would terminalize it on the FIRST tick after boot — an operator window of at most
+   sixty seconds, reported as `timeout`, which is the wrong story and the wrong runbook.
+3. **Its window opens at PARKING and lasts one full saga horizon** (the definition's
+   `timeout`, 30 minutes for post-publishing). When it expires the timeout checker
+   terminalizes the row to `FAILED` under its OWN reason — `parked-expired`, never
+   `timeout` — with the error text saying the operator window expired. Exactly once:
+   the terminal transition stops tracking the saga, and the checker refuses to
+   re-visit a terminal row, so there is no re-fail loop appending a fresh `SAGA_FAILED`
+   audit event every tick.
+4. **Parking is per-process and is NOT persisted.** The row is left byte-identical, so
+   there is nowhere to record it. A process restart therefore RE-DERIVES the parking
+   and RE-OPENS a full window. Stated plainly: a service that restarts more often than
+   the horizon can keep re-opening the window indefinitely, and such a row will read as
+   perpetually parked rather than ever expiring. If that is happening, the restart loop
+   is the incident, not the saga.
+
+**Operator procedure.**
+
+1. Find the row. The `PARKED` warning carries the saga id, its step and its pivot index;
+   `saga_recovery_parked_total` is the alert. Because parking is not persisted, after
+   log rotation enumerate the CANDIDATES from the database instead — every non-terminal
+   row at or past the pivot of the post-publishing saga (`pivotStepIndex = 2`):
+
+   ```sql
+   SELECT id, "definitionId", status, "currentStep", "accountId", "startedAt", "updatedAt"
+   FROM   "SagaInstance"
+   WHERE  status IN ('RUNNING', 'PENDING')
+     AND  "nextRetryAt" IS NULL
+     AND  "currentStep" >= 2
+   ORDER  BY "startedAt";
+   ```
+
+   Read it as a candidate list, not a parked list: a row this query returns is parked
+   by any process that has loaded it, and a row the current process loaded after its
+   own boot ceiling (`bootLoadDeferred > 0`) is not being covered at all.
+
+2. Confirm the external effect — was the post actually published? The pivot's job may
+   have run.
+3. Resume it deliberately: `POST /sagas/:sagaId/continue`, a decision taken with the
+   outcome in view. Note what that does TODAY: the pivot replay is absorbed, but the
+   step after it is rejected on the stale OCC token, so the saga ends `FAILED` with a
+   version conflict. That is the recorded justification for parking, not a surprise.
+4. Or terminalize it: `POST /sagas/:sagaId/compensate` is NOT the tool (a pivot is past
+   the compensation boundary by canon). Either let the operator window expire — the row
+   becomes `FAILED / parked-expired` on its own — or, if the outcome is already known
+   and the audit trail should say so, mark the row terminal directly under a documented
+   maintenance change. Do NOT re-drive it through the engine to "make it finish".
+
+**Revisit condition**: when the post-pivot transition genuinely tolerates re-application
+(an idempotent status transition, or an OCC token re-read at replay time), the parking
+branch can be dropped and the boot pass can resume pivot-interrupted rows. The pinning
+test asserts the `FAILED` outcome precisely so that day cannot pass unnoticed — and the
+signal is that EXACT transition (`FAILED` becoming `COMPLETED`), not any red in that
+test: a timeout, a queue change or a reworded error would also turn it red without the
+tolerance holding.
+
+The absorber has one honest boundary: the job-id dedupe holds only while the job is
+retained. What IS measured is the retained case — the suite keeps every job precisely so
+the dedupe is the thing under test, and it shows an `add` on an existing custom id is a
+no-op in every state including `completed`. The EVICTION side is READ FROM THE CONSUMER
+CONFIG, not exercised: `removeOnComplete {count:100}` / `removeOnFail {count:50}`
+(`consumer-adapter.ts`) means a downtime window with more than 100 completions evicts the
+job, after which the same id is accepted again. Treat that as a documented boundary, not
+as a measured one.
+
+Parking makes that boundary moot for the BOOT path, since nothing replays without a
+human. On the automatic path that CAN re-enter a pivot — the retry checker claiming a due
+pivot-step row — the `RereadCheck` removes the dependency on retention ONLY once the post
+has been promoted out of `DRAFT`; in the still-`DRAFT` window the retention bound is the
+whole protection. Both halves are measured; see the two pivot-retry scenarios above.
+
+#### Recovery ownership is PER-PROCESS — multi-replica is not supported yet
+
+The ownership partition above is disjoint **within one process**. Nothing marks a row
+as claimed: the boot load and the retry scan are plain reads followed by a detached
+dispatch, with no lease, no claim column and no `SKIP LOCKED`.
+
+**Running more than one API replica with the saga engine enabled is NOT supported**
+until row claims land. Two replicas booting against the same database both load the
+same non-terminal rows and both dispatch them; a rolling deploy has the draining
+process still advancing rows the new one is inheriting. The pre-pivot create step is
+the concrete blast radius — the CQRS bus has no command-id dedupe (**SMELL-71**), so a
+duplicated create makes a SECOND post with a different publish dedupe key, and the
+job-id absorber the whole parking rationale rests on is bypassed because the keys
+differ.
+
+The absence of a claim has a second, single-process consequence worth naming because it
+is easy to mistake for a tuning problem: **the retry scan can starve its own tail.** It
+selects `take: 50` ordered by `nextRetryAt asc`, and a dispatched retry does NOT clear
+`nextRetryAt` at claim time — the marker is only deleted after a step SUCCEEDS. So under
+a backlog of more than 50 due rows whose steps take longer than the 5s tick, every tick
+re-selects the same oldest 50 (dispatching them again, concurrently) while rows 51 and
+beyond are never reached. `orderBy` makes the page deterministic, which is what the
+comment there says; determinism without a claim is precisely what turns into starvation.
+
+Note the asymmetry the reader should NOT read as an inconsistency: the boot ceiling
+(`bootLoadLimit`, default 500) DEFERS its overflow and says so — the rows it skipped are
+reported and picked up later — while the scan's `take: 50` re-selects the same head every
+tick. The boot bound protects the connection pool from a one-shot fan-out; the scan bound
+was written for a deterministic window and is load-bearing in a way a claim would make
+harmless. Both close the same way.
+
+This is a deployment constraint, not a footnote: the constraint is what makes the
+single-process partition sound. The repo already has the right primitive for the fix —
+`apps/api/src/infrastructure/outbox/OutboxClaimService.ts` claims with
+`FOR UPDATE … SKIP LOCKED`, which is what `ARCHITECTURE_CANON.md §Event-Driven` means by
+"no double-dispatch". Tracked as **SMELL-73**; owned by the follow-up change
+`saga-engine-terminal-hygiene`, which also owns the in-flight execution guard the same
+seam needs. Every boot logs the constraint as one INFO line, so it is visible in the
+process's own output and not only here.
+
 #### Enrollment legs — the three, defined once
 
 A tenant-scoped model is fully enrolled when all three hold:
@@ -624,7 +899,73 @@ A tenant-scoped model is fully enrolled when all three hold:
 4. **The CQRS bus has no command-id dedupe.** The saga canon asserts a
    deterministic `dedupeKey`, but the bus does not deduplicate by command id, so
    a replayed pre-pivot create step can produce a duplicate draft. No external
-   side effect is involved; escalated below.
+   side effect is involved. The producer half is real and pinned by a static
+   invariant (`cmd-{sagaId}-{stepId}[-compensate]`, no clock, no randomness); it
+   is the consumer half that is missing. Tracked as **SMELL-71**.
+5. **A composition-root registration for the saga manager that nothing
+   resolves.** `setupServices.ts:937-958` registers `TOKENS.SagaManager`, while
+   the live engine is built inside `SagaIntegration`. Inert today, but a future
+   consumer resolving that token would get a SECOND engine on the same database
+   and Redis, with its own boot recovery pass and timeout checker. Tracked as
+   **SMELL-72**.
+
+#### Terminal-hygiene residuals — carried to the next change
+
+Found while proving crash recovery, out of scope for it, and deliberately NOT
+patched here. They belong together because they share one root: the engine's
+in-memory instance set and its terminal transitions are not kept in step. The
+follow-up change (`saga-engine-terminal-hygiene`) owns all six.
+
+> **Two former entries were PROMOTED into this change, not carried.** `failSaga`
+> now removes the saga from `activeInstances` through the same `stopTracking`
+> helper the completion and compensation paths use, and the timeout checker now
+> refuses to re-visit a terminal row. They stopped being deferrable the moment
+> parking made a non-terminal row wait deliberately: a parked row that expires is
+> failed BY the checker, so leaving it tracked meant re-failing it — and
+> appending a fresh `SAGA_FAILED` audit event — every sixty seconds for the life
+> of the process.
+
+1. **`COMPENSATING` rows are not loaded at boot — now DETECTED, still not
+   fixed.** The recovery scan filters `status IN (RUNNING, PENDING)`, so a
+   process that died mid-compensation leaves a row no restart picks up, and the
+   timeout checker only sees rows the process happens to hold. This change adds
+   the missing VISIBILITY (`saga_compensating_orphans`, the boot WARN,
+   `/sagas/metrics`) and stops there on purpose: resuming a compensation walk
+   without a row claim is a second walk over steps a dead process may already
+   have applied, so the fix is sequenced behind the claims of **SMELL-73**.
+2. **"Waiting" and "failed" are the same step result.** The wait step returns
+   `success: false` both when publishing genuinely failed and when it is merely
+   still in progress, so a slow worker consumes the saga's retry budget exactly
+   like an error would.
+3. **No in-flight execution guard.** Nothing prevents two triggers (a worker
+   event and a recovery tick, say) from executing the same saga concurrently;
+   the steps are idempotent enough that this has not bitten, which is not the
+   same as being safe. Same seam as the row claims (**SMELL-73**) the
+   multi-replica constraint above depends on.
+4. **`handleEvent` amplification.** Each worker completion event dispatches the
+   saga again, so an N-channel publish produces N dispatches of the same wait
+   step.
+5. **The parked window does not survive a restart.** Parking is per-process and
+   deliberately not persisted (the row must stay byte-identical), so the operator
+   window is re-derived — and RE-OPENED in full — on every boot. A pod that
+   crash-loops faster than the 30-minute horizon therefore re-opens the window
+   indefinitely and the row never reaches `parked-expired`: the terminal
+   guarantee holds per stable process, not per row. Closing it needs the parked
+   decision to become durable state, which is the same schema conversation as the
+   claim column.
+6. **The retry scan can starve its own tail.** `take: 50` ordered by
+   `nextRetryAt asc`, with `nextRetryAt` cleared only AFTER a step succeeds, so a
+   backlog of more than 50 slow due rows re-selects the same head every tick
+   while rows 51+ are never reached (see the ownership section above). A claim at
+   selection time is the fix, which is why it travels with **SMELL-73** rather
+   than as a `take` tweak.
+
+#### Live-API saga suite — boot recipe
+
+The `sagaCustomerFlow` suite needs the API booted with the `.env` + `.env.test`
+pair or every token it signs is rejected. That is a DEVELOPER instruction, not an
+operator one, so it lives with the other developer guides:
+[docs/development/saga-test-suites.md](../development/saga-test-suites.md).
 
 #### Backfill runbook — `SagaInstance.accountId`
 

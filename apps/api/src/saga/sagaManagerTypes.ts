@@ -39,7 +39,23 @@ export interface SagaManagerConfig {
   scheduler: BackgroundTaskScheduler;
   enableMetrics?: boolean;
   defaultTimeout?: number;
+  /**
+   * Ceiling on how many inherited sagas the boot resume pass advances at once.
+   * The pass is the heaviest fan-out the engine has — every dispatch opens its
+   * own transactions and CQRS work on the client the HTTP layer shares — so an
+   * unbounded burst after a long outage would exhaust the connection pool for
+   * saga work AND for inbound requests. Sagas beyond the ceiling are not
+   * dropped; they wait for a slot.
+   */
   maxConcurrentSagas?: number;
+  /**
+   * Ceiling on how many non-terminal rows one boot load reads. Rows past it are
+   * DEFERRED, counted and named in the log — never silently truncated — and are
+   * picked up by the retry checker once they schedule a retry or by the next
+   * boot. Without it a backlog of thousands of rows is materialized into memory
+   * and re-warmed in one burst.
+   */
+  bootLoadLimit?: number;
   /**
    * Optional semantic-lock backend (Azure §15-20). When provided, steps
    * that declare a `semanticLock` countermeasure are gated through
@@ -86,6 +102,37 @@ export interface SagaMetrics {
    * does not exist: both used to read as "not found" to every caller.
    */
   instanceLoadFailures: number;
+  /**
+   * Sagas boot recovery declined to resume — interrupted at or past their pivot,
+   * or carrying a definition this process has not registered. Each one is a row
+   * holding an operator window rather than a failure: automatic replay past the
+   * pivot cannot be shown to be side-effect-free, so the engine reports instead
+   * of guessing. The window is finite — see the timeout checker — so a parked
+   * row still reaches a terminal state if nobody acts.
+   */
+  bootParkedSagas: number;
+  /**
+   * Non-terminal rows the boot load left unread because the process hit its
+   * load ceiling. They are still owned — by the retry checker once they schedule
+   * a retry, and by the next boot otherwise — but this process is not covering
+   * them, which is what an operator needs to know after a long outage.
+   */
+  bootLoadDeferred: number;
+  /**
+   * Rows the resume pass could not decide about because inspecting them threw.
+   * Counted per row, never per pass: one unreadable row must cost exactly one
+   * saga's recovery, not the whole pass and not the process.
+   */
+  bootResumeRowFailures: number;
+  /**
+   * Sagas sitting in `COMPENSATING` at the last boot. NOBODY claims that status:
+   * the boot load and the retry scan both filter `RUNNING`/`PENDING`, and the
+   * timeout checker only inspects rows the process tracks. Detection only — the
+   * engine deliberately does not resume them, because a compensation walk
+   * resumed without a claim is a second walk over the same steps. Recovery for
+   * them belongs to `saga-engine-terminal-hygiene`.
+   */
+  compensatingOrphans: number;
 }
 
 /**
@@ -96,6 +143,15 @@ export interface SagaMetrics {
  */
 export interface SagaExecutionEnginePort {
   executeSagaAsync(sagaId: string): void;
+  /**
+   * The awaitable form of {@link SagaExecutionEnginePort.executeSagaAsync}. The
+   * boot resume pass needs it: a fire-and-forget dispatch cannot be counted, so
+   * it cannot be capped, and an uncapped pass is the fan-out the ceiling exists
+   * to prevent. Callers MUST keep it outside every declared system boundary for
+   * the same reason the detached form must — the context would propagate into
+   * tenant work.
+   */
+  executeSaga(sagaId: string): Promise<void>;
   compensateSagaAsync(sagaId: string): void;
   persistSagaInstance(instance: SagaInstance, events?: EventStoreEvent[]): Promise<void>;
   loadSagaInstance(sagaId: string): Promise<SagaInstance | null>;

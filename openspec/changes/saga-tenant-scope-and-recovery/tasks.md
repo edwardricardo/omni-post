@@ -7,11 +7,12 @@
 > horizon + crash-replay proof + runner wiring). Branch
 > `workstream/saga-tenant-scope-and-recovery`.
 >
-> **The design's `AMENDED AT GATE` blocks (C1, C2, C3, S1, S3, W1–W4) are AUTHORITATIVE**
+> **The design's `AMENDED AT GATE` and `AMENDED AT 4R REVIEW` blocks are AUTHORITATIVE**
 > over any conflicting original prose. Hard invariant threaded through every task below
-> (C1): a `withSystemContext` callback SHALL NEVER lexically enclose an
-> `executeSagaAsync` / `compensateSagaAsync` dispatch — system wraps are QUERY-scoped,
-> per-saga work runs under rehydrated `withTenantContext`.
+> (C1): a `withSystemContext` callback SHALL NEVER lexically enclose a saga dispatch —
+> `executeSagaAsync`, `compensateSagaAsync`, or the awaited `executeSaga` the bounded boot
+> pass uses. System wraps are QUERY-scoped; per-saga work runs under rehydrated
+> `withTenantContext`.
 
 ## Sensitive-edit gate
 
@@ -64,10 +65,10 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
 
 ### Suggested Work Units
 
-| Unit | Goal                                                                                                                                                                                | Likely PR | Focused test command                                                                                     | Runtime harness                                                                                                                                                                                                | Rollback boundary                                                                                                                                                             |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Column truth + declared context + guarded client: every saga write carries the TRUE account and is guard-validated; scans alive under query-scoped system context; history repaired | PR 1      | VITEST `tests/unit/saga/`; INT `tests/integration/sagaTenantIsolation.test.ts`                           | DBUP + two-tenant real-DB run (A cannot read/load/mutate B's saga through the guarded client; scans see both accounts; induced context failure logs + counts)                                                  | revert branch pre-merge; post-merge revert re-points `index.ts:687` to the raw singleton (backfilled values stay valid); migration `down.sql` is a documented no-op by design |
-| 2    | Recovery: single-pass boot resume disjoint from the widened retry checker, crash-replay dedupe proven, post-pivot failures terminal within the horizon, suites wired                | PR 2      | INT `tests/integration/sagaCrashRecovery.test.ts`; INT-LONG `tests/integration/sagaCustomerFlow.test.ts` | DBUP + Redis + real BullMQ two-manager harness (manager A past pivot → rewind → manager B `initialize()` → exactly one job per `publish-${postId}-${channelId}`, one consistent `Post.status`, terminal state) | revert removes the resume pass, the checker predicate widening, the horizon bump and the runner batch — PR1's scope/wiring untouched                                          |
+| Unit | Goal                                                                                                                                                                                | Likely PR | Focused test command                                                                                     | Runtime harness                                                                                                                                                                                                                               | Rollback boundary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Column truth + declared context + guarded client: every saga write carries the TRUE account and is guard-validated; scans alive under query-scoped system context; history repaired | PR 1      | VITEST `tests/unit/saga/`; INT `tests/integration/sagaTenantIsolation.test.ts`                           | DBUP + two-tenant real-DB run (A cannot read/load/mutate B's saga through the guarded client; scans see both accounts; induced context failure logs + counts)                                                                                 | revert branch pre-merge; post-merge revert re-points `index.ts:687` to the raw singleton (backfilled values stay valid); migration `down.sql` is a documented no-op by design                                                                                                                                                                                                                                                                                                                           |
+| 2    | Recovery: single-pass boot resume disjoint from the widened retry checker, crash-replay dedupe proven, post-pivot failures terminal within the horizon, suites wired                | PR 2      | INT `tests/integration/sagaCrashRecovery.test.ts`; INT-LONG `tests/integration/sagaCustomerFlow.test.ts` | DBUP + Redis + real BullMQ harness booting the REAL `SagaIntegration` (composition A past pivot → rewind → composition B `initialize()` → exactly one job per `publish-${postId}-${channelId}`, one consistent `Post.status`, terminal state) | revert removes the boot resume pass and its bounds, the checker predicate widening, the parked lifecycle (window + `parked-expired` + the two promoted terminal-hygiene fixes), the composition-order swap, the runner's cancel gate and the runner batch — AND restores the account-less persist fallback removed in 11.0, which is the one PR2 item that rewrites a PR1 code path. The horizon bump is NOT in this revert surface: it landed in PR1 (7R.9). PR1's scope/wiring is otherwise untouched |
 
 ## Phase 0: Artifact reconciliation — BEFORE any code (gate residuals)
 
@@ -472,7 +473,7 @@ observation remained.
 
 ## Phase 8: RED — crash-replay + shutdown-orphan (MERGE-BLOCKING)
 
-- [ ] 8.1 [RED] Create `apps/api/tests/integration/sagaCrashRecovery.test.ts` (node:test,
+- [x] 8.1 [RED] Create `apps/api/tests/integration/sagaCrashRecovery.test.ts` (node:test,
       real DB + Redis + real BullMQ, `@file`/`@description`/`@layer infrastructure`).
       **Crash-replay (THE D5 gate)**: manager A runs a publish-now saga past the pivot;
       rewind the row to `currentStep = 2` and DELETE the `saga:{id}` Redis key
@@ -483,46 +484,50 @@ observation remained.
       the OCC/`expectedVersion` re-application tolerance is verified EMPIRICALLY here, not
       assumed from the step's JSDoc (`saga.ts:762-763`). A tolerance failure is an
       apply-phase finding, never a silent pass.
-- [ ] 8.2 [RED] Same file, **(C3) shutdown-orphan scenario**: manager A schedules a retry
+- [x] 8.2 [RED] Same file, **(C3) shutdown-orphan scenario**: manager A schedules a retry
       (`nextRetryAt` set via `scheduleRetry`, `Execution:185`), then graceful `shutdown()`
       flips RUNNING→PENDING (`Lifecycle:288-290`) while the persist keeps `nextRetryAt`
       non-null (`Execution:539`); manager B boots → the widened checker claims the row →
       terminal within the retry envelope. RED until 9.2.
-- [ ] 8.3 [RED] Same file, **terminal safety**: rows in `COMPLETED` / `FAILED` /
+- [x] 8.3 [RED] Same file, **terminal safety**: rows in `COMPLETED` / `FAILED` /
       `COMPENSATED` before restart change neither status nor `updatedAt`, dispatch no
       command, and run no compensation; a saga interrupted at or past the pivot compensates
       NO pivot/post-pivot step on later terminal failure.
-- [ ] 8.4 [RED] Extend the Phase-1.3 static test: the dedupe key derives ONLY from `sagaId` + `stepId` (+ the compensation suffix), contains no `randomUUID()` / `Math.random()`,
+- [x] 8.4 [RED] Extend the Phase-1.3 static test: the dedupe key derives ONLY from `sagaId` + `stepId` (+ the compensation suffix), contains no `randomUUID()` / `Math.random()`,
       and evaluates identically in two processes; **and** no saga suite exists on disk
       without an explicit entry in `run-tests.sh` (spec static scenario).
-- [ ] 8.5 Run INT 8.1–8.3 (DBUP first) + VITEST 8.4 → expect RED (no resume pass exists;
+- [x] 8.5 Run INT 8.1–8.3 (DBUP first) + VITEST 8.4 → expect RED (no resume pass exists;
       the checker's `where` is `status: "RUNNING"` only).
 
 ## Phase 9: D5 — boot resume + widened checker ownership → turns 8.1–8.3 GREEN
 
-- [ ] 9.1 [GREEN] `SagaManagerLifecycle.initialize()`: after `loadActiveSagas`, run ONE pass
+- [x] 9.1 [GREEN] `SagaManagerLifecycle.initialize()`: after `loadActiveSagas`, run ONE pass
       (never a repeating sweep, never a per-tick re-dispatch) calling `executeSagaAsync(id)`
       for every loaded PENDING/RUNNING instance with `nextRetryAt == null`. The dispatch
       loop sits OUTSIDE every `withSystemContext` wrap (C1). Terminal re-execution stays
       blocked by the existing guard (`Execution:60-72`).
-- [ ] 9.2 [GREEN] `SagaManagerLifecycle.ts:390` — widen the retry checker's predicate to
+- [x] 9.2 [GREEN] `SagaManagerLifecycle.ts:390` — widen the retry checker's predicate to
       `status: { in: ["RUNNING", "PENDING"] }, nextRetryAt: { lte: now, not: null }` (C3).
       Single-claim proof: the partition key is `nextRetryAt` nullability alone — the boot
       pass claims `IS NULL`, the checker claims `NOT NULL AND lte now`, intersection empty;
       `@@index([status, nextRetryAt])` serves the widened predicate. Coverage now closes all
       four non-terminal load classes: PENDING fresh (boot), RUNNING mid-step (boot), RUNNING
       retry-pending (checker), PENDING retry-pending post-shutdown (checker).
-- [ ] 9.3 [GREEN] Boot summary log: emit `{loaded, resumed, checkerOwned, skipped}` counts
+- [x] 9.3 [GREEN] Boot summary log: emit `{loaded, resumed, checkerOwned, skipped}` counts
       plus per-row skip reasons (`nextRetryAt-owned-by-checker`, `missing-accountId`, and
       `parked` if 9.4 lands) so an operator can tell "recovered nothing" from "never ran".
-- [ ] 9.4 **D5 gate fork — wire EXACTLY ONE path after the 8.1 verdict.** If 8.1 is GREEN
+      **SUPERSEDED BY 9R.8** on two points: `missing-accountId` is now
+      `unresolvable-account` (one name across the summary, the rehydration warnings and
+      the failure reasons), and the summary carries `deferred` plus the two dispositions
+      added by the rework (`definition-unregistered`, `row-failed`).
+- [x] 9.4 **D5 gate fork — wire EXACTLY ONE path after the 8.1 verdict.** If 8.1 is GREEN
       (pivot replay absorbed, no second external side effect): ship auto-resume as 9.1.
       If 8.1 cannot be proven green: do NOT ship auto-resume — PARK pivot-interrupted rows
       (exclude them from the boot resume set, leave them non-terminal, log `PARKED` +
       increment a counter, flag for manual review) and RECORD the fallback decision in the
       apply notes and `docs/security/MULTI_TENANT_GUARDS.md`. Silent resume without the
       proof is not acceptable.
-- [ ] 9.5 Run INT 8.1–8.3 → GREEN, 0 cancelled.
+- [x] 9.5 Run INT 8.1–8.3 → GREEN, 0 cancelled.
 
 ## Phase 10: D6 — horizon recalibration + runner wiring
 
@@ -537,14 +542,38 @@ observation remained.
       with `CONCURRENCY=1 TIMEOUT=180000` (W2 wall-time: the file's worst case grows to
       ~110s+ — test 3 at 60s + test 13 at up to 90s + the short tests; the 30000 default
       would cancel them). Closes the N-CI-2 blind spot — the suite has never been listed.
-- [ ] 10.3 Run INT-LONG `tests/integration/sagaCustomerFlow.test.ts` with LIVE-API up →
+- [x] 10.3 Run INT-LONG `tests/integration/sagaCustomerFlow.test.ts` with LIVE-API up →
       **13/13 GREEN**, 0 cancelled. The previously failing post-pivot assertion (saga stuck
       non-terminal past the horizon) must now pass with the terminal status PERSISTED to the
       DB row, not only believed in memory.
+      **Evidence (run against the boot-resume engine):** 13/13 pass, 0 cancelled, suite
+      wall 96.4s (TIMEOUT=180000 holds ≥46% headroom); the post-pivot no-compensation test
+      completed in 49.6s inside the 90s horizon with the terminal status read back from the
+      DB row. **Live-boot recipe (runbook):** the suite signs customer JWTs with the
+      `.env`+`.env.test` pair (`.env.test` overrides `CUSTOMER_JWT_SECRET`), so the API MUST
+      boot with the same pair (`set -a; source .env; source .env.test; set +a; pnpm dev:api`
+      → port 3001 from `.env.test`) and the suite runs with `BASE_URL=http://localhost:3001`.
+      A server booted with plain dev env rejects every suite token with
+      `JsonWebTokenError: invalid signature` — the suite's "start with pnpm dev" hint
+      predates the env split. Kill the server (verify port free) after the run.
 
 ## Phase 11: Docs + spec sync + PR2 0-defect gate
 
-- [ ] 11.1 `docs/security/MULTI_TENANT_GUARDS.md` + the backlog: record the recovery posture
+- [x] 11.0 **Residual #8 — remove the account-less persist fallback**
+      (`SagaManagerExecution.persistSagaInstance`, the `else` branch that opened a bare
+      `prisma.$transaction` when no account resolved). It was the LAST engine write binding
+      neither isolation layer, and it was dead: every caller reaches the method through
+      `runAsSagaTenant`, which returns without running on exactly the two resolutions that
+      would reach it, and if it ever executed the Prisma guard would throw
+      `TenantContextMissingError`. Replaced by an explicit typed refusal (`AppError.internal`,
+      thrown before any transaction opens, mirroring the sibling `AppError.conflict` for the
+      contradicted row); `writeSagaState`'s `accountId` parameter is no longer nullable and
+      the column is written unconditionally. Pinned by two unit assertions (refusal writes
+      nothing and binds no scope; the refusal is classified as an engine defect, not a client
+      error) and by a new static invariant asserting the engine opens NO `$transaction`
+      outside the two tenant primitives. Effect: "every engine write binds both layers" is a
+      statement without an asterisk.
+- [x] 11.1 `docs/security/MULTI_TENANT_GUARDS.md` + the backlog: record the recovery posture
       (single-pass boot resume, checker ownership partition) and the accepted residuals
       carried to change 2 (`saga-engine-terminal-hygiene`): `failSaga` missing
       `activeInstances.delete`, the timeout checker's absent terminal filter,
@@ -553,10 +582,175 @@ observation remained.
       two open backlog items: CQRSBus has NO command-id dedupe (`CQRSBus.ts:91-111`) despite
       `ARCHITECTURE_CANON §Saga DedupeKey`, and the dead `TOKENS.SagaManager` registration
       (`setupServices.ts:937-958`).
-- [ ] 11.2 Mirror the `saga-crash-recovery` delta into a new living
-      `openspec/specs/saga-crash-recovery/spec.md`.
-- [ ] 11.3 **0-defect gate (PR2)**: `tsc` (@apps/api, @shared/types) = 0;
+- [x] 11.2 Mirror the `saga-crash-recovery` delta into a new living
+      `openspec/specs/saga-crash-recovery/spec.md`. The living spec states the SHIPPED
+      behavior: the delta's gated auto-resume requirement is recorded as GATED-AND-REFUSED
+      (parking is the normative path for pivot-interrupted rows), with the revisit condition
+      written as normative for the next change and tied to the evidence test that turns RED
+      when the post-pivot tolerance finally holds.
+- [x] 11.3 **0-defect gate (PR2)**: `tsc` (@apps/api, @shared/types) = 0;
       `eslint --max-warnings 0` on touched files = 0; prettier clean; fitness
       **#3 / #8 / #9 / #10 / #20 / #21 / #23 = 0**; no `.only` / `.skip` committed; no new
       `@ts-ignore` and no new `canon-exception` marker; the full LXC-safe regression set
       green with 0 failed and 0 cancelled; all CI workflows green.
+      **Evidence:** `tsc -b apps/api` = 0, `tsc -b packages/shared` = 0, isolated `tsc` over
+      the PR2 test files = 0; `eslint --max-warnings 0` over the 7 touched `.ts` files = 0;
+      `prettier --check` over all 12 touched files = clean; fitness #3/#8/#9/#10/#20/#21/#23
+      all 0; `.only`/`.skip` = 0; the three `@ts-ignore`/`canon-exception` matches in the
+      diff are the WORDS inside this task text and the living spec's own requirement, not
+      markers in code. Regression set, single-file per the LXC recipe:
+      `sagaCrashRecovery` 9/9, `sagaTenantIsolation` 18/18, `sagaAccountIdBackfill` 10/10,
+      `chaos/saga-step-retry-recovery` 1/1 (all `0 fail / 0 cancelled / 0 skipped`), saga
+      unit set 16 files / 199 tests green, `sagaCustomerFlow` 13/13 from 10.3. Post-run leak
+      check: 0 fixture rows, 0 recent saga rows, 0 `bull:*` keys. CI workflows are the
+      orchestrator's gate after the push.
+
+## Phase 9R: 4R rework — the recovery layer (2026-08-10)
+
+Three of the four adversarial lenses returned MERGE-BLOCKING on PR2. The tenant-isolation
+core was verified CLEAN by all four and is untouched; what failed was the recovery layer's
+wiring and its operator contract. The design's `AMENDED AT 4R REVIEW (PR2)` block is
+AUTHORITATIVE for the decisions below.
+
+- [x] 9R.1 **[W1] Composition order.** `SagaIntegration.initialize()` registers the saga
+      definitions BEFORE `sagaManager.initialize()`. Verified first that
+      `registerSagaDefinitions()` has no dependency on an initialized manager (it is pure
+      map population over config the constructor already holds), so no restructuring into
+      phases was needed. Defence in depth in `resumeLoadedSagas`: a row whose definition
+      is unregistered gets its OWN disposition (`definition-unregistered`), and a boot in
+      which EVERY loaded row lands there counts a boot-load FAILURE and logs at ERROR —
+      the wiring defect can never present as a fleet of ordinary parked sagas.
+- [x] 9R.2 **[W2] Production-faithful harness + the missing happy path.**
+      `sagaCrashRecovery.test.ts` now boots real `SagaIntegration` instances (real
+      `CQRSBusImpl` with the real post handlers, real queue adapter, real repositories,
+      real Fastify + subscriber). RED first, in production order: `resumed=0`, the
+      inherited pre-pivot row still `RUNNING at step 0` after 20s. New happy path: seeded
+      `RUNNING` / `nextRetryAt=null` / `currentStep < pivotStepIndex` / resolvable account
+      → boot → `summary.resumed === 1` → COMPLETED with no operator action → exactly
+      `["post.create", "post.update"]` for that saga id. The two fixed 1.5s sleeps are
+      replaced by that canary's terminal state as a POSITIVE synchronization point. Every
+      index derives from `definition.pivotStepIndex` / `steps.length`. The suite refuses
+      to run when the table holds foreign non-terminal rows, naming them.
+- [x] 9R.3 **[W3] Parked contract, canon-coherent.** Parked rows leave the ordinary
+      timeout sweep; their window opens at PARKING (`SagaManagerLifecycle.parkedAt`) and
+      lasts one full saga horizon, after which the checker terminalizes them as
+      `parked-expired` (its own `SagaFailureReason`, its own error text, its own alert).
+      Residuals #1 and #2 were PROMOTED into this change and their entries DELETED from
+      the carried list: `failSaga` now goes through `stopTracking` like the completion and
+      compensation paths, and `checkSagaTimeout` refuses to re-visit a terminal row —
+      without both, an expired parked row was re-failed and re-audited every 60s forever.
+      Alert, runbook and spec state the REAL contract, including that a restart re-derives
+      the parking and re-opens the window.
+- [x] 9R.4 **[W4] Checker pivot claim — ADJUDICATED EMPIRICALLY, closed as
+      guarded-by-countermeasure.** Test: an inherited pivot-step retry sitting on the
+      pivot index, with a due `nextRetryAt` and its retry budget spent, whose post has
+      already left `DRAFT`. Measured: the pivot's `RereadCheck` aborts BEFORE
+      `step.execute()`, so the saga settles `FAILED` with the reread refusal naming
+      `PUBLISHED` where `DRAFT` was expected, the queue holds exactly the jobs it held
+      before, and no worker publishes
+      again. The guarantee is STRONGER than the job-id absorber because it is upstream of
+      the enqueue and therefore retention-independent, so the checker does NOT need to
+      park inherited pivot rows and the `nextRetryAt` partition stands. Pinned by the
+      integration test plus a static invariant that the composition still passes the
+      reread implementation (the countermeasure exists only when it does).
+- [x] 9R.5 **[W5] Bounded, contained boot.** Per-row `try/catch` in the pass (counted as
+      `stage="resume-row"`, logged with the saga id) plus a pass-level `try/catch` so no
+      synchronous throw can reject `initialize()`. `maxConcurrentSagas` is now REAL — it
+      caps how many inherited sagas advance at once, which required an awaitable
+      `executeSaga` on the execution port. `loadActiveSagas` gained `bootLoadLimit`
+      (default 500), oldest-first, with the deferred count measured in the SAME
+      transaction as the page. Re-warm moved out of the load and into the pass, skipping
+      parked rows — which makes "nothing written to it" true and lets the suite assert it
+      on `updatedAt`.
+- [x] 9R.6 **[W6] Ownership honesty.** No claims machinery in this change. The per-process
+      scope is stated as a DEPLOYMENT CONSTRAINT — more than one API replica with the saga
+      engine enabled is unsupported until row claims land — in the living spec, the delta,
+      `MULTI_TENANT_GUARDS.md` and a new backlog entry **SMELL-73** with the
+      `OutboxClaimService` (`FOR UPDATE … SKIP LOCKED`) pointer.
+- [x] 9R.7 **[W7] Gate integrity.** `run-tests.sh` fails the run on `TOTAL_CANCEL > 0` and
+      captures the runner's exit code instead of discarding it; a cancelled or non-zero
+      batch is marked FAILED and its output dumped. Reproduced against R3's scenario: the
+      `integration:saga-recovery` batch with a dead `DATABASE_URL` reports
+      `15 tests / 0 pass / 0 fail / 15 cancelled` and now exits 1 with the batch named —
+      the same tallies exited 0 and printed OK before.
+- [x] 9R.8 **[W8] Vocabulary + observability truth.** `parked` keeps one meaning; the
+      shutdown drain HANDS OFF (code, logs, tests, docs, spec). New
+      `saga_recovery_parked_total{reason}` replaces the old parked stage on the failures
+      series; `SagaParkedAtPivot` moves to it with deploy-window dedup
+      (`for: 15m`) and a new `SagaParkedWindowExpired` covers the terminal side. The
+      runbook gained the unpark/terminalize procedure and the SQL that enumerates
+      CANDIDATE parked rows (parking is not persisted). `/sagas/metrics` carries the
+      parked, deferred and per-row-failure counters. One log line per disposition, with
+      `tenant-mismatch` given its own sentence and runbook pointer, and one name —
+      `unresolvable-account` — across summary, warnings and failure reasons. The stale
+      `writeSagaState` JSDoc ("account-less paths") is corrected, the pre-replay assertion
+      messages and `beforeReplay` fixtures are gone with the scenario split, manager
+      fixtures carry role names, the parking branch carries its `see` line and a revisit
+      trigger narrowed to the exact FAILED→COMPLETED transition, and the live-boot recipe
+      moved to `docs/development/saga-test-suites.md` with a pointer left behind. The SLO
+      doc gained the two SLIs its `#saga` anchor was being cited for.
+- [x] 9R.9 **[W9] Spec + design sync.** Living spec states the SHIPPED contract
+      (composition order normative, happy path covered, parked lifecycle, per-process
+      ownership + constraint, cancel gate); the delta carries its own amendment block for
+      this rework; `design.md` D5 carries the nine-decision amendment; the Unit-2
+      rollback boundary is corrected (the horizon bump landed in PR1; the persist-fallback
+      removal IS part of PR2's revert surface).
+- [x] 9R.10 **Rework gate.** RED evidence captured for every behavioural fix before its
+      GREEN, in the production-faithful harness, failing for the named mechanism.
+
+## Phase 9R2: 4R re-verification — advisory closures (2026-08-10)
+
+All four lenses re-verified the 9R rework and returned nothing merge-blocking (R1
+advisory-clear, R2 PASS, R3 PASS, R4 advisory). This phase closes the convergent
+advisories before push.
+
+- [x] 9R2.1 **[M1] `bootLoadDeferred` is alertable.** New Prometheus GAUGE
+      `saga_recovery_deferred_rows` (a level each process re-measures at boot — a counter
+      would sum the same backlog once per restart), emitted where the ceiling defers, with
+      the `SagaBootLoadDeferred` alert and an SLO row. The `/sagas/metrics` exact-set pin
+      was updated with it.
+- [x] 9R2.2 **[M2] COMPENSATING orphans are DETECTED.** The boot counts them inside the
+      SAME declared read boundary as the load — never loading, tracking or dispatching
+      them — and publishes the count in `SagaMetrics.compensatingOrphans`, on
+      `/sagas/metrics`, as the gauge `saga_compensating_orphans` and as a boot WARN, with
+      the `SagaCompensatingOrphans` alert. Detection only, said so in the code, the alert,
+      the guards doc and the living spec: resuming a compensation walk without a row claim
+      is a second walk over steps a dead process may already have applied. The FIX stays
+      with `saga-engine-terminal-hygiene`.
+- [x] 9R2.3 **[M3] The single-replica constraint is in the process's own output.** One
+      INFO line per boot naming per-process ownership, `multiReplicaSupported: false` and
+      SMELL-73.
+- [x] 9R2.4 **[M4] `stopTracking` releases the parked window.** A stale `parkedAt` entry
+      outlived the row it described, so a saga an operator resumed by hand could later be
+      terminalized as `parked-expired` while actively retrying. `continueSaga` also
+      releases it explicitly — that endpoint IS the unpark — and logs the release. Pinned
+      by a unit test.
+- [x] 9R2.5 **[M5] The last drain-sense "parks".** The retry-checker predicate comment now
+      says the graceful shutdown HANDS OFF a retry-pending saga. No drain-sense use of the
+      word survives in the repo.
+- [x] 9R2.6 **[M6] Docs honesty.** (a) The eviction boundary no longer claims to be
+      "measured": the RETAINED case is measured, the eviction side is read from the
+      consumer config and labelled as such. (b) SMELL-73 gained the retry-scan
+      head-of-line starvation (`take: 50` + `nextRetryAt` cleared only after success ⇒ the
+      same oldest page re-selected every tick, rows 51+ starved) and the
+      take:50-vs-boot-ceiling asymmetry, both also stated in the guards doc. (c) The
+      successor carry-list now names the parked-window-does-not-survive-restart edge, so a
+      crash-looping pod re-opening the window indefinitely is owned, not folklore.
+- [x] 9R2.7 **[M7] Pivot re-entry residual — ADJUDICATED and stated honestly.** The only
+      production code that promotes a post out of `DRAFT` is the inbound provider webhook
+      processors (`apps/api/src/webhooks/processors/*WebhookProcessor.ts`, each writing
+      `status: "PUBLISHED"`). Neither the saga nor the publish worker ever writes that
+      column: `UpdatePostCommandHandler` explicitly IGNORES `data.status`, and
+      `PostAggregate.markAsPublished` has NO production caller. So the RereadCheck's
+      retention-independence holds ONLY once a webhook has arrived; in the still-`DRAFT`
+      window the countermeasure passes and the retention-bounded job id is the whole
+      protection. A new integration scenario proves the re-entry really happens there (the
+      saga walks past the pivot and dies on the post-pivot OCC token, not on a reread
+      refusal) and that the retained job id absorbs it. The guards doc states both windows
+      and cites the promoting path precisely.
+- [x] 9R2.8 **[M8] Static-suite and harness nits.** The `>= 2` transaction-opener floor is
+      named and explained; the duplicated command-id literal carries its multiplicity
+      rationale (two steps mint a forward id from the same expression); the describe title
+      no longer contradicts its first `it`; `ProcessedJob.jobId` is now load-bearing (the
+      DRAFT-window scenario asserts every recorded execution carries the one original job
+      id, so a second publish shows up as a second id rather than as a count).

@@ -26,7 +26,13 @@ const sagaTypesPath = join(sagaDir, "sagaManagerTypes.ts");
 
 const SYSTEM_WRAP = "withSystemContext";
 const REASON_CONSTANT = "SAGA_SYSTEM_REASON";
-const DISPATCHES = ["executeSagaAsync(", "compensateSagaAsync("] as const;
+/**
+ * Every way the engine hands a saga to the execution engine. The awaited form
+ * belongs here as much as the detached ones: AsyncLocalStorage propagates into
+ * awaited work exactly as it propagates through `setImmediate`, so a system wrap
+ * enclosing it would run the whole saga guard-bypassed just the same.
+ */
+const DISPATCHES = ["executeSagaAsync(", "executeSaga(", "compensateSagaAsync("] as const;
 
 /**
  * Every form that declares the saga system boundary. `withSystemContext` is the
@@ -560,6 +566,14 @@ function modelOperationInventory(sources: SagaSource[]): string[] {
 const KNOWN_ENGINE_OPERATIONS = [
   "src/saga/SagaManagerExecution.ts::sagaInstance.findUnique",
   "src/saga/SagaManagerExecution.ts::sagaInstance.upsert",
+  // The boot load's page AND its two counts — how many rows it had to defer, and
+  // how many COMPENSATING orphans exist that it deliberately never loads. All
+  // three sit inside the ONE declared read boundary, so the figures and the page
+  // describe the same snapshot. The multiplicity is load-bearing: two `count`
+  // entries means two DISTINCT reads, and losing either would silence a signal
+  // while this pin still passed.
+  "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
+  "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.findMany",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.findMany",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.findUnique",
@@ -903,6 +917,55 @@ describe("saga engine context invariants", () => {
     });
   });
 
+  describe("the engine opens no transaction outside the tenant primitives", () => {
+    // Every transaction the engine runs must come from one of the two tenant
+    // primitives, because each of them binds `app.account_id` as the FIRST
+    // statement. A bare `prisma.$transaction` anywhere else is a transaction
+    // that binds neither isolation layer — the shape the persistence path used
+    // to fall back to when no account resolved. The classifier tolerates such a
+    // site by design (an unscoped write fails loudly at the Prisma guard rather
+    // than being waved through), so tolerance is not absence: this asserts the
+    // absence, which is what makes "every engine write binds both layers" hold
+    // without an asterisk.
+    const TRANSACTION_PRIMITIVE_MODULE = "src/saga/sagaTenant.ts";
+
+    const transactionSites = sagaSources.flatMap((source) => {
+      const sites: string[] = [];
+      const pattern = /\$transaction\s*\(/g;
+      let match = pattern.exec(source.sanitized);
+      while (match !== null) {
+        sites.push(`${source.label}:${lineOf(source.original, match.index)}`);
+        match = pattern.exec(source.sanitized);
+      }
+      return sites;
+    });
+
+    it("still sees the transactions the tenant primitives open", () => {
+      // Non-vacuity: a scan that matched nothing would make the assertion below
+      // pass while the engine grew any number of unscoped transactions.
+      //
+      // The floor is TWO because the module owns exactly two transaction
+      // openers, one per direction of scope: `runSagaTenantTransaction` (the
+      // saga's own account) and `runSagaSystemTransaction` (the system
+      // sentinel, behind the narrow read and terminal-write surfaces). Fewer
+      // than two means the pattern stopped seeing one of them.
+      const TRANSACTION_OPENERS_IN_PRIMITIVE_MODULE = 2;
+      const inPrimitiveModule = transactionSites.filter((site) =>
+        site.startsWith(TRANSACTION_PRIMITIVE_MODULE)
+      );
+      expect(inPrimitiveModule.length).toBeGreaterThanOrEqual(
+        TRANSACTION_OPENERS_IN_PRIMITIVE_MODULE
+      );
+    });
+
+    it("opens none anywhere else in the engine", () => {
+      const elsewhere = transactionSites.filter(
+        (site) => !site.startsWith(TRANSACTION_PRIMITIVE_MODULE)
+      );
+      expect(elsewhere).toEqual([]);
+    });
+  });
+
   describe("the tenant module's export surface", () => {
     const tenantModule = sourceByName("sagaTenant.ts");
     const exports = exportedNames(tenantModule.original);
@@ -1099,6 +1162,199 @@ describe("saga engine context invariants", () => {
       }
 
       expect(silent).toEqual([]);
+    });
+  });
+
+  describe("dedupe keys derive only from identity the durable row already carries", () => {
+    // Complements the behavioural suite (`tests/unit/sagaDeterministicIds.test.ts`),
+    // which proves a step re-executed IN ONE PROCESS emits the same command id.
+    // That check cannot see a hidden input: a module-scoped nonce, a clock read
+    // or a `randomUUID()` inside the template all survive it as long as two
+    // calls land close enough together. A crash replay compares ids minted by
+    // DIFFERENT processes, so the property that matters is structural — the key
+    // is a pure function of the saga id and the step id, both of which the
+    // persisted row carries — and structure is what this scan reads.
+    const sharedSagaPath = join(apiRoot, "..", "..", "packages", "shared", "src", "saga.ts");
+    const sharedSagaSource = readFileSync(sharedSagaPath, "utf8");
+    const integration = sourceByName("SagaIntegration.ts");
+
+    /** Non-deterministic sources a dedupe key must never read. */
+    const NONDETERMINISM = /randomUUID|Math\.random|Date\.now|new Date\(/;
+
+    /**
+     * Every backtick template captured by `pattern`, verbatim. The ORIGINAL
+     * text is read on purpose: `sanitize()` blanks literals, and here the
+     * literal IS the subject.
+     */
+    function templateLiterals(source: string, pattern: RegExp): string[] {
+      const found: string[] = [];
+      pattern.lastIndex = 0;
+      let match = pattern.exec(source);
+      while (match !== null) {
+        found.push(match[1] ?? "");
+        match = pattern.exec(source);
+      }
+      return found;
+    }
+
+    /** The expressions a template interpolates, in source order. */
+    function interpolations(template: string): string[] {
+      const found: string[] = [];
+      const pattern = /\$\{([^}]*)\}/g;
+      let match = pattern.exec(template);
+      while (match !== null) {
+        found.push((match[1] ?? "").trim());
+        match = pattern.exec(template);
+      }
+      return found;
+    }
+
+    const commandIdTemplates = templateLiterals(sharedSagaSource, /\bid:\s*`([^`]*)`/g).sort();
+    const queueDedupeTemplates = templateLiterals(
+      integration.original,
+      /\bconst\s+dedupeKey\s*=\s*`([^`]*)`/g
+    ).sort();
+
+    it("still sees the command ids the saga steps mint", () => {
+      // Pinned as an exact set: a pattern that stops matching would turn every
+      // assertion below vacuously green, which is how a source scan goes blind.
+      //
+      // The forward template appears TWICE and the multiplicity is load-bearing,
+      // not a copy-paste slip: two different steps mint a forward command id
+      // from the same expression (the create step and the post-pivot status
+      // step). Collapsing this to a unique set would let one of them stop
+      // deriving its id deterministically while the pin still passed.
+      expect(commandIdTemplates).toEqual(
+        [
+          "cmd-${context.sagaId}-${this.id}",
+          "cmd-${context.sagaId}-${this.id}",
+          "cmd-${context.sagaId}-${this.id}-compensate",
+        ].sort()
+      );
+    });
+
+    it("derives every command id from the saga id and the step id alone", () => {
+      const violations = commandIdTemplates
+        .filter((template) =>
+          interpolations(template).some(
+            (expression) => expression !== "context.sagaId" && expression !== "this.id"
+          )
+        )
+        .map((template) => `command id interpolates something else: \`${template}\``);
+
+      expect(violations).toEqual([]);
+    });
+
+    it("distinguishes the compensating command by a literal suffix, never by a fresh value", () => {
+      const compensating = commandIdTemplates.filter((template) =>
+        template.endsWith("-compensate")
+      );
+      expect(compensating.length).toBeGreaterThan(0);
+
+      const forward = commandIdTemplates.filter((template) => !template.endsWith("-compensate"));
+      expect(forward.length).toBeGreaterThan(0);
+      // The forward and the compensating key of the same step must differ, or a
+      // compensation would collide with the command it undoes on the bus.
+      expect(new Set(commandIdTemplates).size).toBeGreaterThan(1);
+    });
+
+    it("reads no clock and no randomness in any dedupe key", () => {
+      const violations = [...commandIdTemplates, ...queueDedupeTemplates]
+        .filter((template) => NONDETERMINISM.test(template))
+        .map((template) => `dedupe key reads a non-deterministic source: \`${template}\``);
+
+      expect(violations).toEqual([]);
+    });
+
+    it("keys the publish job on the post and the channel it targets", () => {
+      // This key becomes the BullMQ job id, which is what makes a replayed
+      // pivot a no-op instead of a second publish. Its inputs must therefore be
+      // the target itself, not the attempt.
+      expect(queueDedupeTemplates).toEqual(["publish-${postId}-${channelId}"]);
+
+      const violations = queueDedupeTemplates
+        .flatMap(interpolations)
+        .filter((expression) => expression !== "postId" && expression !== "channelId");
+
+      expect(violations).toEqual([]);
+    });
+
+    it("hands that key to the queue as the job's dedupe key", () => {
+      // A derivation nothing passes through is decoration; the enqueue call is
+      // where the key becomes the job id.
+      expect(integration.sanitized).toMatch(/enqueue\(\{\s*\n?\s*dedupeKey,/);
+    });
+  });
+
+  describe("the production composition wires recovery in a usable order", () => {
+    const integration = sourceByName("SagaIntegration.ts");
+
+    it("registers the saga definitions BEFORE the manager initializes", () => {
+      // The boot recovery pass runs inside `sagaManager.initialize()` and asks
+      // each inherited row's definition where its pivot is. Registering
+      // afterwards left that map empty for the whole pass, so every inherited
+      // saga was declined and recovery was inert in the deployed composition —
+      // while every harness that registered first passed. The order is the
+      // contract; this pins it where it cannot be re-inverted silently.
+      const registerAt = integration.sanitized.indexOf("this.registerSagaDefinitions()");
+      const initializeAt = integration.sanitized.indexOf("this.sagaManager.initialize()");
+
+      expect(registerAt).toBeGreaterThanOrEqual(0);
+      expect(initializeAt).toBeGreaterThanOrEqual(0);
+      expect(registerAt).toBeLessThan(initializeAt);
+    });
+
+    it("wires the pivot's reread countermeasure, which is what makes a pivot re-entry safe", () => {
+      // The retry checker legitimately claims a row whose last persist scheduled
+      // a retry, and such a row can sit ON the pivot. What keeps that re-entry
+      // from publishing twice is the pivot's RereadCheck, which aborts before
+      // the enqueue when the aggregate has moved on — measured in
+      // `tests/integration/sagaCrashRecovery.test.ts`, "an inherited pivot-step
+      // retry claimed by the retry checker". The countermeasure only exists when
+      // the composition passes the reread implementation, so a composition that
+      // stopped passing it would silently remove the guarantee.
+      const factoryCall = integration.sanitized.indexOf("createPostPublishingSagaDefinition(");
+      expect(factoryCall).toBeGreaterThanOrEqual(0);
+
+      expect(integration.sanitized).toMatch(/PostId\.fromString\(postIdRaw\)/);
+      expect(integration.sanitized).toMatch(/postRepository\.findById/);
+      expect(integration.sanitized).toMatch(/post\.value\.status\.value/);
+    });
+  });
+
+  describe("every saga suite is wired into the runner", () => {
+    // A suite that belongs to no batch never runs under `test:all` or in CI, so
+    // it protects nothing while reading as coverage. Unit suites are collected
+    // by the Vitest phase from the whole `tests/unit` tree; the node:test
+    // suites are named file by file, which is exactly where one gets forgotten.
+    const runnerPath = join(apiRoot, "scripts", "run-tests.sh");
+    const runner = readFileSync(runnerPath, "utf8");
+    const testsRoot = join(apiRoot, "tests");
+
+    const sagaSuites = getAllTsFiles(testsRoot)
+      .map((path) => relative(apiRoot, path))
+      .filter((path) => path.endsWith(".test.ts"))
+      .filter((path) => /saga/i.test(path))
+      .filter((path) => !path.startsWith(join("tests", "unit")))
+      .sort();
+
+    it("still finds the node:test saga suites on disk", () => {
+      // Minimum + membership rather than an exact set: a NEW suite must fail
+      // the wiring assertion below, not this one.
+      expect(sagaSuites).toEqual(
+        expect.arrayContaining([
+          "tests/chaos/saga-step-retry-recovery.test.ts",
+          "tests/integration/sagaCrashRecovery.test.ts",
+          "tests/integration/sagaCustomerFlow.test.ts",
+          "tests/integration/sagaTenantIsolation.test.ts",
+        ])
+      );
+      expect(sagaSuites.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it("lists every one of them explicitly in run-tests.sh", () => {
+      const unwired = sagaSuites.filter((path) => !runner.includes(path));
+      expect(unwired).toEqual([]);
     });
   });
 });

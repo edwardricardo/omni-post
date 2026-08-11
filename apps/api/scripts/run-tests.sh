@@ -62,6 +62,11 @@ run_batch() {
   local extra_flags="${EXTRA_FLAGS:-}"
 
   local result
+  # The runner's own exit code is CAPTURED, not discarded. A batch can end
+  # non-zero while reporting "# fail 0" — a crash after the summary, an
+  # unhandled rejection, a failed hook whose subtests are cancelled — and a gate
+  # that reads only the counts calls all of those green.
+  local runner_exit=0
   # Pin the TAP reporter: the summary parser below greps "# tests N" (TAP
   # format). Node's default reporter is version/TTY-dependent (spec emits
   # "ℹ tests N"), which silently parses as 0 tests.
@@ -69,7 +74,7 @@ run_batch() {
   # bare workspace specifiers resolve from src against an unbuilt tree (the flag
   # is on the command, NOT NODE_OPTIONS — GitHub Actions restricts NODE_OPTIONS
   # from GITHUB_ENV). See change dev-prod-resolution-model.
-  result=$(node --conditions development --import tsx --test --test-reporter=tap --test-reporter-destination=stdout --test-force-exit --test-concurrency="$concurrency" --test-timeout="$timeout" $extra_flags "$@" 2>&1) || true
+  result=$(node --conditions development --import tsx --test --test-reporter=tap --test-reporter-destination=stdout --test-force-exit --test-concurrency="$concurrency" --test-timeout="$timeout" $extra_flags "$@" 2>&1) || runner_exit=$?
 
   local tests=$(echo "$result" | grep "^# tests " | tail -1 | awk '{print $3}')
   local pass=$(echo "$result" | grep "^# pass " | tail -1 | awk '{print $3}')
@@ -84,18 +89,22 @@ run_batch() {
   TOTAL_CANCEL=$((TOTAL_CANCEL + cancel))
   TOTAL_SKIP=$((TOTAL_SKIP + skip))
 
+  # A CANCELLED test is a test that did not run, and Node reports a broken
+  # `before` hook as cancelled subtests with "# fail 0" — so a batch whose whole
+  # setup collapsed used to print OK. A gate that cannot go red on its own setup
+  # gates nothing, which matters most for the batches called merge-blocking.
   local status="OK"
-  if [ "$fail" -gt 0 ]; then
+  if [ "$fail" -gt 0 ] || [ "$cancel" -gt 0 ] || [ "$runner_exit" -ne 0 ]; then
     status="FAIL"
     FAILED_BATCHES="$FAILED_BATCHES $name"
   fi
 
-  printf "  %-25s %4s tests  %4s pass  %s fail  %s cancel  %s skip  [%s]\n" \
-    "$name" "$tests" "$pass" "$fail" "$cancel" "$skip" "$status"
+  printf "  %-25s %4s tests  %4s pass  %s fail  %s cancel  %s skip  exit %s  [%s]\n" \
+    "$name" "$tests" "$pass" "$fail" "$cancel" "$skip" "$runner_exit" "$status"
 
   # A failing (or zero-collected) batch must never be silent — dump the runner
   # output so CI logs show WHY, not just the count.
-  if [ "$fail" -gt 0 ] || [ "$tests" -eq 0 ]; then
+  if [ "$status" = "FAIL" ] || [ "$tests" -eq 0 ]; then
     echo "── output of failing batch '$name' (last 200 lines) ──"
     echo "$result" | tail -200
     echo "── end of '$name' output ──"
@@ -196,6 +205,15 @@ CONCURRENCY=1 run_batch "integration:tenant-isolation" \
   tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts \
   tests/integration/rls-tenant-isolation.test.ts
 
+# Saga crash-recovery proof. DB-only by dependency (Postgres + Redis + a real
+# BullMQ queue and worker it owns; it never fetches the API), so it belongs to
+# the tier that also runs on pull requests — a merge-blocking gate that only ran
+# after the merge would gate nothing. Its own batch with a raised timeout: the
+# suite boots managers, drives a real queue round trip and walks a retry
+# envelope, so the 30000 default would cancel its waits.
+CONCURRENCY=1 TIMEOUT=120000 run_batch "integration:saga-recovery" \
+  tests/integration/sagaCrashRecovery.test.ts
+
 fi # run_db_batches
 
 # Live-API batches: these fetch http://localhost:3000 (getBaseUrl) and require
@@ -258,8 +276,12 @@ printf "TOTAL: %d tests, %d pass, %d fail, %d cancel, %d skip\n" \
   "$TOTAL_TESTS" "$TOTAL_PASS" "$TOTAL_FAIL" "$TOTAL_CANCEL" "$TOTAL_SKIP"
 echo "========================================"
 
-if [ "$TOTAL_FAIL" -gt 0 ]; then
+if [ "$TOTAL_FAIL" -gt 0 ] || [ "$TOTAL_CANCEL" -gt 0 ]; then
   echo "FAILED batches:$FAILED_BATCHES"
+  if [ "$TOTAL_FAIL" -eq 0 ]; then
+    echo "ERROR: $TOTAL_CANCEL test(s) were CANCELLED — a cancelled test never ran."
+    echo "       Node reports a broken before/after hook this way, with '# fail 0'."
+  fi
   exit 1
 fi
 

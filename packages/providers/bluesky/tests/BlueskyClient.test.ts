@@ -270,7 +270,11 @@ describe("BlueskyClient", () => {
   // =========================================================================
 
   describe("publishWithImages", () => {
+    // A valid-JPEG-magic buffer: the dimension probe admits only the formats
+    // Bluesky accepts (jpeg/png/gif/webp) before handing bytes to image-size,
+    // so fixtures that should reach the parser must carry a real signature.
     const smallBuffer = new Uint8Array(100);
+    smallBuffer.set([0xff, 0xd8, 0xff]);
     const altTexts = ["Alt text 1"];
 
     beforeEach(() => {
@@ -392,6 +396,50 @@ describe("BlueskyClient", () => {
       const images = postCall?.embed?.images;
       assert.ok(Array.isArray(images));
       assert.equal(Object.prototype.hasOwnProperty.call(images[0], "aspectRatio"), false);
+    });
+
+    it("never hands a buffer with an unaccepted format signature to image-size", async () => {
+      const client = makeClient();
+      // ICNS ("icns"), JXL codestream (FF 0A), and HEIF (ftyp heic at offset 4):
+      // the three parser families a crafted buffer can drive into an infinite
+      // loop (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq). The gate must refuse
+      // them before image-size ever sees the bytes — a hung parser cannot be
+      // caught, so not-calling is the only effective containment.
+      const icns = new Uint8Array(100);
+      icns.set([0x69, 0x63, 0x6e, 0x73]);
+      const jxl = new Uint8Array(100);
+      jxl.set([0xff, 0x0a]);
+      const heif = new Uint8Array(100);
+      heif.set([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]);
+
+      await client.publishWithImages("crafted", [icns, jxl, heif], ["a", "b", "c"]);
+
+      expect(mockedImageSize).not.toHaveBeenCalled();
+      const postCall = mockPost.mock.calls[0]?.[0];
+      const images = postCall?.embed?.images;
+      assert.ok(Array.isArray(images));
+      for (const image of images) {
+        assert.equal(Object.prototype.hasOwnProperty.call(image, "aspectRatio"), false);
+      }
+    });
+
+    it("measures every format Bluesky accepts", async () => {
+      const client = makeClient();
+      mockedImageSize.mockReturnValue({ width: 10, height: 10 } as ReturnType<typeof imageSize>);
+      const png = new Uint8Array(100);
+      png.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      const gif = new Uint8Array(100);
+      gif.set([0x47, 0x49, 0x46, 0x38]);
+      const webp = new Uint8Array(100);
+      webp.set([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]);
+
+      await client.publishWithImages(
+        "accepted",
+        [smallBuffer, png, gif, webp],
+        ["jpeg", "png", "gif", "webp"]
+      );
+
+      expect(mockedImageSize).toHaveBeenCalledTimes(4);
     });
 
     it("uses correct alt text per image, defaults to empty string", async () => {

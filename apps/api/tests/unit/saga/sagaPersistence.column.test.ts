@@ -2,9 +2,11 @@
  * @file sagaPersistence.column.test.ts
  * @description Pins the value the saga engine writes into `SagaInstance.accountId`
  *              on both upsert branches: the account that owns the saga, never the
- *              customer user id, and the key omitted entirely when no account can
- *              be resolved. Also pins the shape the tenant guard produces for that
- *              upsert so the persisted row is scoped as well as truthful.
+ *              customer user id — and pins that there is NO write at all when no
+ *              account resolves, because the engine has no account-less
+ *              persistence shape left to fall back to. Also pins the shape the
+ *              tenant guard produces for that upsert so the persisted row is
+ *              scoped as well as truthful.
  * @layer infrastructure
  */
 import { describe, it, expect, beforeEach } from "vitest";
@@ -124,15 +126,38 @@ describe("saga instance persistence — accountId column", () => {
     expect(call.update.accountId).toBe(OTHER_ACCOUNT_ID);
   });
 
-  it("omits the key on both branches when no account can be resolved", async () => {
-    await engine.persistSagaInstance(
-      makeInstance(makeContext({ userId: CUSTOMER_USER_ID, metadata: {} }))
-    );
+  it("refuses to write at all when no account can be resolved", async () => {
+    // There is no account-less write shape left. A transaction opened without a
+    // resolved account would bind NEITHER isolation layer — no tenant scope for
+    // the Prisma guard, no `app.account_id` for the row-level policies — so the
+    // engine refuses instead of persisting a row nothing can address. Every
+    // caller reaches this through the tenant rehydration, which returns without
+    // running on exactly this resolution, so arriving here is a caller defect
+    // and the error says so rather than degrading quietly.
+    await expect(
+      engine.persistSagaInstance(
+        makeInstance(makeContext({ userId: CUSTOMER_USER_ID, metadata: {} }))
+      )
+    ).rejects.toThrowError(/no resolvable owning account/);
 
-    expect(upserts).toHaveLength(1);
-    const call = upserts[0] as UpsertArgs;
-    expect("accountId" in call.create).toBe(false);
-    expect("accountId" in call.update).toBe(false);
+    expect(upserts).toHaveLength(0);
+    expect(effects).toEqual([]);
+  });
+
+  it("classifies the refusal as an engine defect, not a client error", async () => {
+    // The two refusals are deliberately different: a contradicted row is real
+    // data (conflict), while an unscopable persist is a code path that should be
+    // unreachable. Collapsing them would hide a broken caller behind a 409 an
+    // operator would read as ordinary tenant noise.
+    const rejection = await engine
+      .persistSagaInstance(makeInstance(makeContext({ userId: CUSTOMER_USER_ID, metadata: {} })))
+      .then(
+        () => null,
+        (error: unknown) => error as { statusCode?: number; isOperational?: boolean }
+      );
+
+    expect(rejection?.statusCode).toBe(500);
+    expect(rejection?.isOperational).toBe(false);
   });
 
   it("keeps the saga id as the upsert selector so the guard can scope it", async () => {

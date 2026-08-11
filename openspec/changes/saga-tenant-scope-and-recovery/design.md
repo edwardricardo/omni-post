@@ -191,6 +191,109 @@ AND lte now`, intersection empty; `@@index([status, nextRetryAt])` serves the wi
 | wait                 | idempotent read; evicted jobs count as failed, never silently PUBLISHED (`queue-adapter.ts:204-208`) | —                                                                                                                                                                                                                                                                                                                                                                                                         |
 | update-status        | re-issues same command id + OCC `expectedVersion`                                                    | _(AMENDED AT GATE — S1)_ expected per the step's JSDoc claim (`saga.ts:762-763`) — a comment, not proof; verified EMPIRICALLY inside the crash-replay test (assert a single consistent `Post.status` outcome and no duplicate side-effect after resume; if tolerance fails, that is an apply-phase finding, not a silent pass)                                                                            |
 
+> **AMENDED AT 4R REVIEW (PR2) (2026-08-10).** Three of the four adversarial lenses
+> returned MERGE-BLOCKING on the first recovery implementation. The tenant-isolation
+> core they were pointed at was verified CLEAN by all four (`sagaTenant.ts` primitives,
+> the account-less persist removal, the static classifier) and is untouched here. What
+> failed was the recovery layer's WIRING and its operator CONTRACT. Nine decisions
+> replace it.
+>
+> **(W1) Composition order is part of the design, not an implementation detail.**
+> `SagaIntegration.initialize()` ran `sagaManager.initialize()` — which contains the
+> boot resume pass — BEFORE `registerSagaDefinitions()`. The pass reads
+> `definitions.get(row.definitionId)` synchronously, so the map was empty for its whole
+> duration and EVERY inherited saga took the "pivot boundary unknowable" branch: the
+> shipped recovery capability was inert in the deployed composition. Registration is
+> pure map population with no dependency on an initialized manager, so it moves FIRST.
+> Two guards, not one: a static invariant asserts the order in source, and defence in
+> depth inside the engine — a boot where EVERY loaded row is declined for want of a
+> definition counts a boot-load FAILURE and logs at ERROR (which also degrades the
+> health check), because a wiring defect must never present as a fleet of ordinary
+> parked sagas. Unregistered-definition parking is also its own disposition
+> (`definition-unregistered`), distinct from pivot parking.
+>
+> **(W2) The harness boots the production composition.** The suite constructed a bare
+> `SagaManagerLifecycle` and registered the definition BEFORE `initialize()` — the
+> inverse of production — so 9/9 green was evidence for a wiring that does not exist.
+> It now boots real `SagaIntegration` instances (real CQRS bus, real handlers, real
+> queue adapter, real repositories) and gained the missing HAPPY PATH: a seeded
+> pre-pivot row, inherited by a boot, dispatched exactly once, reaching a terminal
+> state with no operator action and issuing exactly one command per remaining
+> command-issuing step. That test also serves as the POSITIVE synchronization point
+> that replaced the two fixed 1.5s sleeps the negative assertions were gated on. Step
+> indices derive from `definition.pivotStepIndex`, never a literal. The suite refuses
+> to run on a database holding foreign non-terminal rows, because a boot loads and
+> DISPATCHES every one of them.
+>
+> **(W3) The parked contract, made canon-coherent and honest.** The canon forbids an
+> infinite non-terminal state, so parked rows DO terminalize — but exactly once and
+> under their own name. A parked row is excluded from the ORDINARY timeout sweep (a
+> crash-inherited saga is normally already past `startedAt + timeout`, so the sweep gave
+> the operator a window of at most one tick and labelled the outcome `timeout`).
+> Instead its window opens at the moment of PARKING — tracked in memory,
+> `SagaManagerLifecycle.parkedAt` — and lasts one full saga horizon, after which the
+> checker fails it as `parked-expired`. Two residuals were PROMOTED into this change
+> because parking made them load-bearing: `failSaga` now stops tracking the saga
+> (through the same `stopTracking` the completion and compensation paths use), and
+> `checkSagaTimeout` refuses to re-visit a terminal row — without both, an expired
+> parked row was re-failed and re-audited every 60s forever. Parking is per-process and
+> deliberately NOT persisted (the row must stay byte-identical), so a restart re-derives
+> it and RE-OPENS the window; that edge is stated plainly in the runbook rather than
+> hidden.
+>
+> **(W4) The checker's pivot claim: ADJUDICATED EMPIRICALLY, closed as
+> guarded-by-countermeasure.** R1 argued the retry checker replays a pivot-step row
+> after the BullMQ retention window has evicted the job, producing a duplicate publish.
+> Measured: it does not. The pivot's `RereadCheck` runs BEFORE `step.execute()`
+> (`SagaManagerExecution.ts`) and aborts unless the post is still `DRAFT`, so an
+> inherited pivot-step retry whose post has moved on settles as `FAILED` with
+> `Reread check failed: Post.status is PUBLISHED, expected DRAFT`, enqueues nothing and
+> publishes nothing. That guarantee is STRONGER than the job-id absorber because it is
+> upstream of the enqueue and therefore retention-independent. Pinned by an integration
+> test plus a static invariant asserting the composition still passes the reread
+> implementation (the countermeasure exists only when it does). The
+> `nextRetryAt`-nullability partition therefore stands unchanged, including post-pivot
+> forward recovery.
+>
+> **(W5) The pass is bounded and contained.** Per-row `try/catch` (a persisted context
+> without its `metadata` object throws during tenant resolution; that must cost one
+> saga, not the pass) plus a pass-level `try/catch` so no synchronous throw can reject
+> `initialize()` and exit the bootstrap on every subsequent boot. `maxConcurrentSagas`
+> becomes REAL — it caps how many inherited sagas advance at once, which required an
+> awaitable `executeSaga` on the execution port (a fire-and-forget dispatch cannot be
+> counted, so it cannot be capped). `loadActiveSagas` gains `bootLoadLimit` (default
+> 500), oldest-first, with the deferred count measured in the same transaction and
+> reported. Re-warming moved OUT of the load and INTO the pass, skipping parked rows —
+> which is what makes "nothing written to it" true, and lets the suite assert it on
+> `updatedAt`.
+>
+> **(W6) Ownership honesty instead of a claims layer.** The partition is disjoint
+> within ONE process. Row claims are NOT built here; instead the constraint is stated
+> loudly — more than one API replica with the saga engine enabled is unsupported until
+> claims land — in the spec, in `MULTI_TENANT_GUARDS.md`, and as **SMELL-73** with the
+> `OutboxClaimService` (`FOR UPDATE … SKIP LOCKED`) pointer. Fixing W1 activates this
+> risk, so the constraint is a merge condition of this change, not a footnote.
+>
+> **(W7) Gate integrity.** `run-tests.sh` now fails on `TOTAL_CANCEL > 0` and captures
+> the runner's exit code instead of discarding it. Node reports a broken `before` hook
+> as cancelled subtests with `# fail 0`, so the batch this change promotes to
+> merge-blocking previously printed OK with its entire setup collapsed.
+>
+> **(W8) Vocabulary and observability tell the truth.** `parked` keeps ONE meaning
+> (pivot / manual review); the graceful-shutdown drain HANDS OFF. Parking leaves the
+> failure series for its own `saga_recovery_parked_total{reason}`, with alert rules,
+> deploy-window dedup semantics, a `SagaParkedWindowExpired` alert on the new
+> `parked-expired` reason, an unpark/terminalize procedure and the SQL that enumerates
+> candidate parked rows (parking is not persisted — the query is over non-terminal rows
+> at or past the pivot). One log line per disposition, `tenant-mismatch` with its own
+> sentence and runbook pointer, and one name — `unresolvable-account` — across the boot
+> summary, the rehydration warnings and the failure reasons. `/sagas/metrics` carries
+> the parked, deferred and per-row-failure counters.
+>
+> **(W9) Spec and design state the SHIPPED contract**, including the composition order
+> as normative, the happy path as covered, the parked lifecycle, per-process ownership
+> with its deployment constraint, and the W4 adjudication.
+
 **Gate (Edward's decision)**: auto-resume ships ONLY if the two-manager crash-replay integration test proves pivot absorption (Testing Strategy). Fallback if unprovable: park pivot-interrupted rows (log `PARKED` + counter, no auto-execute); tasks wire exactly one path after the test verdict. **Seam with change 2** (`saga-engine-terminal-hygiene`): this change delivers truth + context + alive scans + boot resume; change 2 owns `failSaga` `activeInstances.delete`, timeout terminal filter, waiting≠failed step contract, in-flight execution guard, and `handleEvent` amplification. Known accepted noise until change 2: timeout checker may re-fail an already-FAILED in-memory instance (pre-existing, now merely persisted correctly); `COMPENSATING` orphans are not loaded (`Lifecycle:315` filter) → not resumed (pre-existing, carried to change 2).
 
 ### D6 — Test 13 root cause CORRECTED: horizon arithmetic today; dead scan only post-fix

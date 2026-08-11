@@ -63,7 +63,15 @@ export class SagaExecutionEngine {
   // Step Execution
   // ---------------------------------------------------------------------------
 
-  private async executeSaga(sagaId: string): Promise<void> {
+  /**
+   * @method executeSaga
+   * @description Advances one saga under its own rehydrated tenant scope, and
+   *   resolves when it has either reached a terminal state or parked itself on a
+   *   scheduled retry. Public because the boot resume pass counts what is in
+   *   flight in order to cap it; every other trigger uses the detached form.
+   * @param sagaId - The saga to advance.
+   */
+  async executeSaga(sagaId: string): Promise<void> {
     const instance = await this.lifecycle.getSaga(sagaId);
     if (!instance) {
       logger.error({ sagaId }, "Saga not found during execution");
@@ -390,8 +398,7 @@ export class SagaExecutionEngine {
     await this.persistSagaInstance(instance, [compensationCompletedEvent]);
 
     this.lifecycle.metrics.sagasCompensated++;
-    this.lifecycle.metrics.activeInstances--;
-    this.lifecycle.activeInstances.delete(sagaId);
+    this.lifecycle.stopTracking(sagaId);
 
     logger.info({ sagaId }, "Saga compensation completed");
 
@@ -432,8 +439,7 @@ export class SagaExecutionEngine {
     await this.persistSagaInstance(instance, [sagaCompletedEvent]);
 
     this.lifecycle.metrics.sagasCompleted++;
-    this.lifecycle.metrics.activeInstances--;
-    this.lifecycle.activeInstances.delete(instance.id);
+    this.lifecycle.stopTracking(instance.id);
 
     this.lifecycle.executionTimes.push(executionTime);
     if (this.lifecycle.executionTimes.length > 100) {
@@ -512,8 +518,13 @@ export class SagaExecutionEngine {
 
     await this.persistSagaInstance(instance, [sagaFailedEvent]);
 
+    // Stop tracking it, exactly as the completion and compensation paths do. A
+    // terminal saga left in the tracked set is re-visited by the timeout checker
+    // on every tick, and once past its horizon re-failed — re-persisting a
+    // terminal row and appending a FRESH audit event every minute for the life
+    // of the process.
+    this.lifecycle.stopTracking(instance.id);
     this.lifecycle.metrics.sagasFailed++;
-    this.lifecycle.metrics.activeInstances--;
     recordSagaFailed(reason);
 
     logger.error({ sagaId: instance.id, error, reason }, "Saga failed");
@@ -558,17 +569,19 @@ export class SagaExecutionEngine {
   /**
    * @method writeSagaState
    * @description Writes the saga row and its audit events inside a transaction
-   *   the caller opened and scoped. Extracted so the scoped and the
-   *   account-less paths commit byte-identical state.
+   *   the caller opened and scoped. Kept separate from the refusal checks and
+   *   the post-commit cache work above it so the durable write is one readable
+   *   unit with exactly one shape.
    * @param tx - The open transaction client.
    * @param instance - The saga being persisted.
-   * @param accountId - Owning account, or `null` when none resolved (key omitted).
+   * @param accountId - The owning account, resolved by the caller. Not nullable:
+   *   a saga with no resolvable account is refused before a transaction opens.
    * @param events - Durable events committing with the state.
    */
   private async writeSagaState(
     tx: SagaTransactionClient,
     instance: SagaInstance,
-    accountId: string | null,
+    accountId: string,
     events: EventStoreEvent[]
   ): Promise<void> {
     const contextJson = JSON.parse(JSON.stringify(instance.context));
@@ -591,7 +604,7 @@ export class SagaExecutionEngine {
         retryCount: instance.retryCount,
         startedAt: instance.startedAt,
         ...(instance.error !== undefined && { error: instance.error }),
-        ...(accountId !== null && { accountId }),
+        accountId,
         ...(instance.completedAt && { completedAt: instance.completedAt }),
         ...(instance.nextRetryAt && { nextRetryAt: instance.nextRetryAt }),
       },
@@ -605,7 +618,7 @@ export class SagaExecutionEngine {
         retryCount: instance.retryCount,
         startedAt: instance.startedAt,
         ...(instance.error !== undefined && { error: instance.error }),
-        ...(accountId !== null && { accountId }),
+        accountId,
         ...(instance.completedAt && { completedAt: instance.completedAt }),
         nextRetryAt: instance.nextRetryAt ?? null,
       },
@@ -629,7 +642,15 @@ export class SagaExecutionEngine {
    *    because the durable Postgres write is what guarantees saga recovery
    *    after a crash or Redis restart.
    *
+   * The durable write has exactly ONE shape: a transaction scoped to the saga's
+   * owning account on both isolation layers. There is no account-less variant to
+   * fall back to, so no engine write can reach the database unscoped.
+   *
    * @param instance - The saga instance to persist
+   * @param events - Durable events committing in the same transaction.
+   * @throws AppError conflict when the persisted account contradicts the saga
+   *   context, and AppError internal when no owning account resolves at all —
+   *   both before any transaction opens, so a refused persist writes nothing.
    */
   async persistSagaInstance(instance: SagaInstance, events: EventStoreEvent[] = []): Promise<void> {
     const key = `saga:${instance.id}`;
@@ -655,27 +676,32 @@ export class SagaExecutionEngine {
         }
       );
     }
-    // When no account resolves the key is omitted entirely (not written as
-    // `undefined`) so `exactOptionalPropertyTypes` and Prisma both see an
-    // absent field rather than an explicit null.
-    const accountId = resolution.kind === "resolved" ? resolution.accountId : null;
+    // A saga with no resolvable owning account cannot be written at all. Every
+    // caller reaches this method through the tenant rehydration, which returns
+    // without running on exactly the two resolutions that are not `resolved`,
+    // so arriving here with one is a caller that skipped it — a defect in the
+    // engine, not a state the database should absorb. Writing it anyway would
+    // open a transaction that binds NEITHER isolation layer: no tenant scope for
+    // the guard and no `app.account_id` for the row-level policies. Refusing
+    // makes "every engine write binds both layers" true without an asterisk.
+    if (resolution.kind === "unresolvable-account") {
+      throw AppError.internal(
+        `Refusing to persist saga '${instance.id}': it carries no resolvable owning account`,
+        { sagaId: instance.id, definitionId: instance.definitionId }
+      );
+    }
+    const accountId = resolution.accountId;
 
     // Atomicity gate: saga state + durable event log commit together. Without
     // the wrapping transaction, a Postgres lag between sagaInstance.upsert
     // and eventStore.append could leave the saga advanced but its audit
-    // event missing — OWASP A09 (Logging Failures) gap. The tenant variant
-    // additionally binds the transaction-local account scope, so the row-level
-    // policies govern the same rows the Prisma guard narrowed.
+    // event missing — OWASP A09 (Logging Failures) gap. The transaction also
+    // binds the account scope as its first statement, so the row-level policies
+    // govern the same rows the Prisma guard narrowed.
     try {
-      if (accountId !== null) {
-        await runSagaTenantTransaction(this.config.prisma, accountId, (tx) =>
-          this.writeSagaState(tx, instance, accountId, events)
-        );
-      } else {
-        await this.config.prisma.$transaction((tx) =>
-          this.writeSagaState(tx, instance, accountId, events)
-        );
-      }
+      await runSagaTenantTransaction(this.config.prisma, accountId, (tx) =>
+        this.writeSagaState(tx, instance, accountId, events)
+      );
     } catch (err: unknown) {
       captureError(err, { sagaId: instance.id, operation: "persistSagaInstance" });
       logger.error({ err, sagaId: instance.id }, "Failed to persist saga to PostgreSQL");

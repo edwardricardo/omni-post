@@ -14,8 +14,20 @@ groups:
           component: saga
         annotations:
           summary: "More than 3 sagas timed out in 10min"
-          description: "El SagaManagerLifecycle.startTimeoutChecker (60s poll) marcó más de 3 sagas como FAILED por timeout en 10min. Esto indica step que cuelga (provider API down, DB deadlock, infinite loop). Inspeccionar Grafana saga-health dashboard + Jaeger traces."
+          description: "El SagaManagerLifecycle.startTimeoutChecker (60s poll) marcó más de 3 sagas como FAILED por timeout en 10min. Esto indica step que cuelga (provider API down, DB deadlock, infinite loop). Inspeccionar Grafana saga-health dashboard + Jaeger traces. NO incluye las filas parkeadas: esas terminan con reason='parked-expired' y tienen su propia alerta, porque su causa (nadie actuó dentro de la ventana del operador) y su runbook son distintos."
           runbook: docs/runbooks/alert-saga-timeout.md
+          slo: docs/observability/SLO.md#saga
+
+      - alert: SagaParkedWindowExpired
+        expr: increase(sagas_failed_total{reason="parked-expired"}[10m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: saga
+        annotations:
+          summary: "A parked saga was terminalized because nobody acted inside its operator window"
+          description: "Una saga cortada en (o pasado) su pivot quedó PARKED y nadie la resolvió: el timeout checker la llevó a FAILED una ventana completa (30min por defecto) después del momento del parking. La saga canon prohíbe un RUNNING infinito, así que la fila SÍ termina — pero el efecto externo del pivot pudo haber ocurrido, así que este FAILED no significa 'no se publicó'. Cotejar contra el proveedor antes de reintentar nada. Si esto se repite, o el volumen de parking excede lo que un humano puede revisar (SagaParkedAtPivot), o la ventana es demasiado corta para el turno de guardia."
+          runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga
 
       - alert: SagaTenantMismatch
@@ -30,14 +42,66 @@ groups:
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga
 
+      # Deliberately NOT on the failures series: parking is a decision the
+      # engine takes correctly, and `saga_recovery_parked_total` keeps it out of
+      # any unfiltered sum of `saga_recovery_failures_total`.
+      #
+      # Deploy-window semantics: every restart with in-flight pivot work parks
+      # rows, so this fires on ordinary deploys BY DESIGN — the row really is
+      # waiting on a human, and the window is finite. The `for: 15m` is the
+      # dedup: a restart's parked rows are normally resolved or terminalized
+      # inside it, so what survives to page is a BACKLOG rather than a blip. Pair
+      # it with a silence for planned deploy windows; do NOT lower `for` without
+      # one, or the alert stops being read exactly when it matters.
+      - alert: SagaParkedAtPivot
+        expr: increase(saga_recovery_parked_total[10m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+          component: saga
+        annotations:
+          summary: "Sagas cut at or past their pivot are holding an operator window"
+          description: "Boot recovery found sagas cut at or after their point of no return (reason=pivot) or carrying a definition the process has not registered (reason=definition-unregistered) and deliberately did NOT replay them: the queue absorbs a re-enqueued publish job, but the step after the pivot re-issues its status transition with a stale optimistic-concurrency token and the use case rejects it, so an automatic resume would drive a saga that actually succeeded into FAILED. The row is intact and non-terminal and NO automatic mechanism will advance it — but it is NOT waiting forever: the timeout checker terminalizes it as reason='parked-expired' one full saga horizon (30min) after the moment it was PARKED, and a process restart re-derives the parking and re-opens that window. Act inside it: find the `PARKED` warning carrying the saga id, step and pivot index, confirm whether the external effect happened, then resume it deliberately via POST /sagas/:sagaId/continue or terminalize it. See the runbook for the enumeration query — parking is per-process and is NOT persisted. A sustained non-zero rate OUTSIDE a restart window means processes are dying mid-pivot. reason='definition-unregistered' on every inherited row is a COMPOSITION defect, not a data one, and is also reported as a boot-load failure."
+          runbook: docs/security/MULTI_TENANT_GUARDS.md
+          slo: docs/observability/SLO.md#saga
+
+      # A GAUGE, not a counter: it is a level each process re-measures at boot,
+      # so `max` across replicas is the honest read and a rate would be
+      # meaningless. Deferral is a BOUND doing its job — never a malfunction —
+      # which is why it is on neither the failures nor the parked series.
+      - alert: SagaBootLoadDeferred
+        expr: max(saga_recovery_deferred_rows) > 0
+        for: 10m
+        labels:
+          severity: warning
+          component: saga
+        annotations:
+          summary: "Inherited sagas are uncovered: a boot hit its load ceiling"
+          description: "A process started with MORE non-terminal sagas in the table than its boot load ceiling (`bootLoadLimit`, default 500), so the rows beyond it were not read and this process is not covering them. They are not lost: the retry checker claims them once they schedule a retry, and the next boot reads a fresh oldest-first page. But nothing advances a row that has NO pending retry and did not make the page, so a sustained non-zero value means a backlog is aging toward its 30-minute horizon with no owner. Check `/sagas/metrics` -> recovery.bootLoadDeferred per process, drain the backlog (or restart once it shrinks), and if this is steady state rather than an outage tail, raise `bootLoadLimit` deliberately — the ceiling exists to protect the shared connection pool, so raise it together with pool sizing, never alone."
+          runbook: docs/security/MULTI_TENANT_GUARDS.md
+          slo: docs/observability/SLO.md#saga
+
+      # Also a gauge, and also DETECTION ONLY: the engine does not resume these.
+      - alert: SagaCompensatingOrphans
+        expr: max(saga_compensating_orphans) > 0
+        for: 10m
+        labels:
+          severity: warning
+          component: saga
+        annotations:
+          summary: "Sagas are stuck in COMPENSATING with no mechanism to finish them"
+          description: 'A process died mid-compensation and left rows in COMPENSATING. NOBODY claims that status: the boot load and the retry scan both filter `status IN (RUNNING, PENDING)`, and the timeout checker only inspects rows the process is tracking — so these rows sit in the infinite non-terminal state ARCHITECTURE_CANON §Saga forbids, and they will not age out. The engine only DETECTS them (this gauge, the boot WARN and `/sagas/metrics` -> recovery.compensatingOrphans); it deliberately does not resume them, because a compensation walk resumed without a row claim is a second walk over the same compensating steps. Handling: identify the rows (`SELECT id, "definitionId", "currentStep", "startedAt" FROM "SagaInstance" WHERE status = ''COMPENSATING''`), establish from the step results how far the walk got, and finish or terminalize them under a documented maintenance change. The automatic fix is owned by saga-engine-terminal-hygiene.'
+          runbook: docs/security/MULTI_TENANT_GUARDS.md
+          slo: docs/observability/SLO.md#saga
+
       - alert: SagaRecoveryLoopFailing
-        expr: increase(saga_recovery_failures_total{stage=~"boot|retry-scan|timeout|instance-load"}[10m]) > 3
+        expr: increase(saga_recovery_failures_total{stage=~"boot|retry-scan|timeout|instance-load|resume-row|rehydration"}[10m]) > 3
         for: 5m
         labels:
           severity: warning
           component: saga
         annotations:
           summary: "A saga background loop is failing repeatedly"
-          description: "The boot load, retry scan, timeout checker or by-id instance load failed more than 3 times in 10min. These loops swallow their errors by design so one failure cannot kill the process — this counter is the ONLY external signal that a loop is dead. A failing boot stage also degrades the saga health check. Inspect the ERROR logs carrying the matching `loop` field and its correlation id."
+          description: "The boot load, boot resume pass, retry scan, timeout checker or by-id instance load failed more than 3 times in 10min, or the engine could not resolve the owning account of more than 3 sagas. These loops swallow their errors by design so one failure cannot kill the process — this counter is the ONLY external signal that a loop is dead. stage='resume-row' is per-ROW: the pass could not even classify a saga (a persisted context without its metadata object is the known shape), the row was skipped and its neighbours still recovered. stage='boot' additionally means this process has NO recovery coverage: it also degrades the saga health check, and the remedy is a RESTART, not waiting. Inspect the ERROR logs carrying the matching `loop` field and its correlation id."
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga

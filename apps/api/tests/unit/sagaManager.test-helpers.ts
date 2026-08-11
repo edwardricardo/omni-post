@@ -22,6 +22,8 @@ export interface MockPrismaClient {
   $transaction: <T>(fn: (tx: MockPrismaClient) => Promise<T>) => Promise<T>;
   sagaInstance: {
     upsert: (args: any) => Promise<any>;
+    /** The boot load counts before it pages, so it can report what it deferred. */
+    count: (args?: any) => Promise<number>;
     findMany: (args?: any) => Promise<any[]>;
     findUnique: (args: any) => Promise<any>;
   };
@@ -45,6 +47,20 @@ export interface MockEventService {
 export function createMockPrisma(): MockPrismaClient {
   const store = new Map<string, any>();
 
+  /**
+   * The rows a status predicate selects. Shared by `count` and `findMany` so the
+   * deferred figure the boot load reports is computed against the same set it
+   * pages — which is the property the real read gets from doing both inside one
+   * transaction.
+   */
+  const matching = (args?: any): any[] => {
+    if (!args?.where) return Array.from(store.values());
+    const statuses: string[] = args.where.status?.in ?? [];
+    return Array.from(store.values()).filter((v: any) =>
+      statuses.length ? statuses.includes(v.status) : true
+    );
+  };
+
   const mock: MockPrismaClient = {
     $queryRaw: async () => [{ result: 1 }],
     $executeRaw: async () => 1,
@@ -55,12 +71,16 @@ export function createMockPrisma(): MockPrismaClient {
         store.set(args.where.id, data);
         return data;
       },
+      // The boot load counts twice inside its ONE read boundary: the rows it
+      // is about to page, and the COMPENSATING rows it deliberately never
+      // loads. Routed by the predicate so the two cannot be confused.
+      count: async (args?: any) =>
+        args?.where?.status === "COMPENSATING"
+          ? Array.from(store.values()).filter((v: any) => v.status === "COMPENSATING").length
+          : matching(args).length,
       findMany: async (args?: any) => {
-        if (!args?.where) return Array.from(store.values());
-        const statuses: string[] = args.where.status?.in ?? [];
-        return Array.from(store.values()).filter((v: any) =>
-          statuses.length ? statuses.includes(v.status) : true
-        );
+        const rows = matching(args);
+        return typeof args?.take === "number" ? rows.slice(0, args.take) : rows;
       },
       findUnique: async (args: any) => {
         return store.get(args.where.id) ?? null;
