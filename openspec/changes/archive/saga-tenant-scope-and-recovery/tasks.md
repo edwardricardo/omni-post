@@ -604,6 +604,18 @@ observation remained.
       unit set 16 files / 199 tests green, `sagaCustomerFlow` 13/13 from 10.3. Post-run leak
       check: 0 fixture rows, 0 recent saga rows, 0 `bull:*` keys. CI workflows are the
       orchestrator's gate after the push.
+      **Evidence note (post-9R/9R2, added at archive-time reconciliation):** the table
+      above is the PR2 0-defect gate snapshot recorded BEFORE the 9R and 9R2 rework phases
+      landed, so it understates the shipped tree — the task checkbox is correct (the work
+      it gates is complete), but its counts are historical, not final. The tree that
+      actually shipped, independently re-measured at verification, is: `sagaCrashRecovery`
+      17/17 · `sagaBootResume.test.ts` (unit) 8 passed · `sagaContextInvariants.static.test.ts`
+      45 passed · saga unit surface 17 files / 209 tests · `sagaTenantIsolation` 18/18 ·
+      `sagaAccountIdBackfill` 10/10 · `chaos/saga-step-retry-recovery` 1/1 ·
+      `sagaCustomerFlow` 13/13 (live API) · cancel-gate reproduction
+      (`integration:saga-recovery` run against an unreachable `DATABASE_URL`) now exits 1
+      with the batch named FAILED, where it previously printed `[OK]` with `0 fail`. Full
+      breakdown: `sdd/saga-tenant-scope-and-recovery/verify-report` (engram obs 456).
 
 ## Phase 9R: 4R rework — the recovery layer (2026-08-10)
 
