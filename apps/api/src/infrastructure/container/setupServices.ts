@@ -80,7 +80,6 @@ import { RedisCacheManager, RedisCacheAdapter, createCacheManager } from "@adapt
 import type { CachePort } from "@ports/core";
 import { getRedisUrl } from "../../lib/redis.js";
 import { dbLogger, createLogger } from "../../lib/logger.js";
-import { SagaManagerImpl } from "../../saga/SagaManager.js";
 import type { IntegrationEventPublisher } from "../integration-events/IntegrationEventPort.js";
 import { EventSchemaRegistry } from "../integration-events/EventSchemaRegistry.js";
 import { EncryptionService } from "../../security/EncryptionService.js";
@@ -933,29 +932,13 @@ export function setupServices(
     true
   );
 
-  // Register SagaManager
-  container.register<SagaManagerImpl>(
-    TOKENS.SagaManager,
-    () => {
-      const redis = createRedisConnection();
-      redis.on("error", () => {});
-      const eventService = new EventService({
-        prisma: container.resolve(TOKENS.PrismaClient),
-        redis,
-        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
-      });
-      return new SagaManagerImpl({
-        prisma: container.resolve(TOKENS.PrismaClient),
-        redis,
-        eventService,
-        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
-        enableMetrics: true,
-        defaultTimeout: 30 * 60 * 1000,
-        maxConcurrentSagas: 100,
-      });
-    },
-    true
-  );
+  // The saga engine is NOT registered here. `SagaIntegration` constructs the one
+  // engine the process has, from the config the bootstrap hands it. A second
+  // registration used to sit at this spot, unresolved by anything: inert, but one
+  // accidental resolution away from a second engine on the same database and
+  // Redis, with its own boot recovery pass, its own retry scan, its own timeout
+  // checker and a duplicate set of scheduler task ids — and it was also the wrong
+  // answer for the reader who greps here for where the engine is wired.
 
   // Register Platform Encryption Services
   // AuditService singleton (registered earlier in this setup) is reused as

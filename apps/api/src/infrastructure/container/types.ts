@@ -184,9 +184,6 @@ export const TOKENS = {
   // Provider Registry
   ProviderRegistry: Symbol.for("ProviderRegistry"),
 
-  // Saga Orchestration (publish flow integration)
-  SagaManager: Symbol.for("SagaManager"),
-
   // Repositories (link tracking)
   TrackedLinkRepository: Symbol.for("TrackedLinkRepository"),
 

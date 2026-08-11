@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # Run API tests: Vitest for unit tests, node:test for integration/flow tests.
 #
-# All 283 unit tests (tests/unit/**) have been migrated to Vitest.
-# Integration/flow tests (tests/*.test.ts, tests/integration/) remain on node:test
-# because they depend on real services (PostgreSQL, Redis, running API).
+# Unit tests (tests/unit/**) run on Vitest, which collects them from the tree
+# itself (vitest.config.ts). Integration/flow tests (tests/*.test.ts,
+# tests/integration/) remain on node:test because they depend on real services
+# (PostgreSQL, Redis, a running API), and they are selected here by EXPLICIT file
+# list — the batch lists below are the inventory, so a suite no batch names never
+# runs. No total is stated on purpose: a count in a comment is wrong the day
+# after it is written, and the one that used to sit here was.
 
 set -e
 export NODE_ENV=test
@@ -119,7 +123,13 @@ echo ""
 # ─────────────────────────────────────────────────────────────────────────────
 if run_vitest_phase; then
 echo "── Unit tests (Vitest) ──"
-VITEST_RESULT=$(npx vitest run 2>&1) || true
+# The Vitest runner's own exit is CAPTURED, exactly as run_batch captures the
+# node:test runner's. Discarding it with `|| true` left the parsed summary as the
+# only evidence, so a Vitest process that died before writing one — a crash, an
+# unhandled rejection, an OOM-killed fork — read as "0 failed" and the phase went
+# green on a run that never finished.
+VITEST_EXIT=0
+VITEST_RESULT=$(npx vitest run 2>&1) || VITEST_EXIT=$?
 echo "$VITEST_RESULT" | tail -5
 echo ""
 
@@ -133,6 +143,14 @@ TOTAL_PASS=$((TOTAL_PASS + VITEST_PASSED))
 TOTAL_FAIL=$((TOTAL_FAIL + VITEST_FAILED))
 
 if [ "$VITEST_FAILED" -gt 0 ]; then
+  FAILED_BATCHES="$FAILED_BATCHES vitest-unit"
+fi
+
+# The runner exit is an INDEPENDENT signal from the parsed count, not a refinement
+# of it: a non-zero exit reddens the phase on its own. Guarded on a zero count so
+# a run that failed both ways is not listed twice.
+if [ "$VITEST_EXIT" -ne 0 ] && [ "$VITEST_FAILED" -eq 0 ]; then
+  echo "  [FAIL] vitest-unit: runner exited $VITEST_EXIT with 0 parsed failures"
   FAILED_BATCHES="$FAILED_BATCHES vitest-unit"
 fi
 fi
@@ -276,9 +294,21 @@ printf "TOTAL: %d tests, %d pass, %d fail, %d cancel, %d skip\n" \
   "$TOTAL_TESTS" "$TOTAL_PASS" "$TOTAL_FAIL" "$TOTAL_CANCEL" "$TOTAL_SKIP"
 echo "========================================"
 
-if [ "$TOTAL_FAIL" -gt 0 ] || [ "$TOTAL_CANCEL" -gt 0 ]; then
+# ONE source of failure truth. A batch lands in FAILED_BATCHES on a parsed
+# failure, on a cancellation AND on a non-zero runner exit, so aggregating its
+# non-emptiness is what makes the per-batch capture reach the gate. Without the
+# third term a batch could print [FAIL], dump its output, be named in the failed
+# list — and the run still exit zero: a gate that reports a failure and then
+# succeeds is worse than one that never noticed, because everything downstream
+# believes it.
+if [ "$TOTAL_FAIL" -gt 0 ] || [ "$TOTAL_CANCEL" -gt 0 ] || [ -n "$FAILED_BATCHES" ]; then
   echo "FAILED batches:$FAILED_BATCHES"
-  if [ "$TOTAL_FAIL" -eq 0 ]; then
+  if [ "$TOTAL_FAIL" -eq 0 ] && [ "$TOTAL_CANCEL" -eq 0 ]; then
+    echo "ERROR: every test that ran reported passing, yet a batch runner exited"
+    echo "       non-zero. A crash after the summary, an unhandled rejection, or a"
+    echo "       batch whose listed file no longer exists all end the process this"
+    echo "       way — with nothing in the counts to show for it."
+  elif [ "$TOTAL_FAIL" -eq 0 ]; then
     echo "ERROR: $TOTAL_CANCEL test(s) were CANCELLED — a cancelled test never ran."
     echo "       Node reports a broken before/after hook this way, with '# fail 0'."
   fi

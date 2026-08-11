@@ -113,7 +113,7 @@ Every later "the tests pass" claim in this change depends on this PR.
 
 ## Phase 0: RED — the gate cannot see a runner crash
 
-- [ ] 0.1 [RED] **[MERGE-BLOCKING]** Create `apps/api/tests/unit/saga/runTestsGate.static.test.ts`
+- [x] 0.1 [RED] **[MERGE-BLOCKING]** Create `apps/api/tests/unit/saga/runTestsGate.static.test.ts`
       (vitest, `@file`/`@description`/`@layer infrastructure`) — parses
       `apps/api/scripts/run-tests.sh` as text and asserts: (a) the FINAL gate condition (`:279`)
       references `FAILED_BATCHES` (or the aggregated runner exit) so no path exists on which a
@@ -121,7 +121,13 @@ Every later "the tests pass" claim in this change depends on this PR.
       discard its runner exit with `|| true`, and a non-zero vitest exit appends `vitest-unit` to
       `FAILED_BATCHES` even with 0 parsed failures; (c) the header comment (`:4`) carries no rotted
       test count. RED at main on all three.
-- [ ] 0.2 [RED] Create the two reproduction fixtures under
+      **Evidence:** VITEST `tests/unit/saga/runTestsGate.static.test.ts` at main → **7 failed / 3
+      passed (10)**. The 3 green are the non-vacuity anchor plus the two halves that already
+      shipped (`run_batch` records a failed batch on `runner_exit != 0`; the count-based
+      `vitest-unit` append). RED for the named mechanisms: `finalGateCondition()` lacked
+      `FAILED_BATCHES`; the vitest line ended `|| true`; the header read
+      `# All 283 unit tests (tests/unit/**) have been migrated to Vitest.`
+- [x] 0.2 [RED] Create the two reproduction fixtures under
       `apps/api/tests/fixtures/run-tests-gate/` (`.fixture.ts` suffix — outside vitest's
       `tests/unit/**` include at `vitest.config.ts:45` and outside every explicit node:test batch
       list, so neither collector ever picks them up): (a) `cleanExitNonZero.fixture.ts` — one
@@ -130,47 +136,124 @@ Every later "the tests pass" claim in this change depends on this PR.
       names and the current gate cannot see); (b) `brokenHook.fixture.ts` — a throwing `before`
       hook (cancelled subtests with `# fail 0`, the shape 9R.7 already covers, kept as the
       control that must stay red).
-- [ ] 0.3 [RED] GATE-SELFTEST both shapes and record the exit codes as evidence: shape (a) must
+      **DIVERGENCE from the task's fixture mechanics, reported not patched around.** Shape (a) as
+      written is UNREACHABLE: node:test isolates every file in a child process and reports a child
+      that ends non-zero as a FAILED file-level test, so a hook inside the fixture yields
+      `# fail 1` — measured: `# tests 2 / # pass 1 / # fail 1 / # cancelled 0`, runner exit 1 —
+      which is the shape the gate ALREADY caught. Only the runner process itself can end non-zero
+      with clean counts, which is what "crashed after the summary" means. Two `--import`-based
+      attempts to reach the parent were also refuted (node does not apply user `--import` to the
+      test-runner parent: the module loaded once, with `NODE_TEST_CONTEXT=child-v8`). The design
+      point D1 is UNAFFECTED and in fact strengthened — the class is reachable by more routes than
+      the fixture assumed. Shipped: `cleanExitNonZero.fixture.ts` is the clean-counts PASSING half,
+      and the non-zero runner exit is injected at the runner in the two ways that really occur
+      (a batch listing a path that no longer exists; a `node` shim that turns a zero exit
+      non-zero). `crashAfterSummary.fixture.ts` was authored and DELETED once refuted.
+- [x] 0.3 [RED] GATE-SELFTEST both shapes and record the exit codes as evidence: shape (a) must
       currently print `[FAIL]` for its batch and still exit **0** (the defect); shape (b) must
       already exit 1 (the control). Also re-run the previous change's dead-`DATABASE_URL`
       reproduction against `integration:saga-recovery` (`run-tests.sh:214`) to confirm the
       cancelled path is unaffected by this slice. Run VITEST 0.1 → RED for the right reasons.
+      **Evidence (BEFORE, `TIER=full-integration`, derived copies whose `run_batch` and final gate
+      are byte-identical to the real script — only the batch inventory is substituted):**
+      **A1** `gate-selftest-clean` `1 tests 1 pass 0 fail 0 cancel exit 0 [OK]` +
+      `gate-selftest-missing` `0 tests 0 pass 0 fail 0 cancel exit 1 [FAIL]` →
+      `TOTAL: 1 tests, 1 pass, 0 fail, 0 cancel` → **SCRIPT_EXIT=0** (the defect).
+      **A2** `gate-selftest-clean` `1 tests 1 pass 0 fail 0 cancel exit 3 [FAIL]` →
+      `TOTAL: 1 tests, 1 pass, 0 fail, 0 cancel` → **SCRIPT_EXIT=0** (the defect).
+      **B** `gate-selftest-brokenhook` `2 tests 0 pass 0 fail 2 cancel exit 1 [FAIL]` →
+      **SCRIPT_EXIT=1** (control, already red). **C** healthy `exit 0 [OK]` → **SCRIPT_EXIT=0**.
+      **E** vitest phase forced to `exit 4` while printing `12 passed` → **SCRIPT_EXIT=0** (the
+      defect). **D** `integration:saga-recovery` against an unreachable `DATABASE_URL` →
+      `17 tests 0 pass 0 fail 17 cancel exit 1 [FAIL]` → **SCRIPT_EXIT=1**.
+      Neither A1 nor A2 printed `FAILED batches:` at all before the fix — the gate never fired. D
+      reproduces the previous change's recorded numbers verbatim (17 cancelled, exit 1).
 
 ## Phase 1: D1 — GREEN, one source of failure truth
 
-- [ ] 1.1 [GREEN] `apps/api/scripts/run-tests.sh:279` — final gate becomes
+- [x] 1.1 [GREEN] `apps/api/scripts/run-tests.sh:279` — final gate becomes
       `if [ "$TOTAL_FAIL" -gt 0 ] || [ "$TOTAL_CANCEL" -gt 0 ] || [ -n "$FAILED_BATCHES" ]`.
       `FAILED_BATCHES` is already populated on `runner_exit != 0` (`:97-100`), so no second
       accumulator is introduced (a `TOTAL_RUNNER_EXIT` integer was rejected in D1: it duplicates
       state and hides WHICH batch failed). Print a dedicated ERROR line when the gate fires with
       `fail=0 cancel=0` so CI logs say why.
-- [ ] 1.2 [GREEN] `run-tests.sh:122` — capture the vitest runner exit (`|| vitest_exit=$?`
+      **Shipped verbatim** as the three-term condition; no `TOTAL_RUNNER_EXIT` accumulator. The
+      dedicated line fires on `TOTAL_FAIL -eq 0 && TOTAL_CANCEL -eq 0`; the pre-existing cancelled
+      message moves to the `elif` and is unchanged.
+- [x] 1.2 [GREEN] `run-tests.sh:122` — capture the vitest runner exit (`|| vitest_exit=$?`
       instead of `|| true`) and append `vitest-unit` to `FAILED_BATCHES` when it is non-zero,
       independently of `VITEST_FAILED` (`:135-137` keeps its count-based append).
-- [ ] 1.3 [GREEN] `run-tests.sh:4` — replace the rotted "All 283 unit tests" header comment with a
+      **Shipped** as `VITEST_EXIT=0` + `|| VITEST_EXIT=$?`; the count-based append is untouched and
+      the new branch is guarded on `VITEST_FAILED -eq 0` so a doubly-failing run is not listed
+      twice. It also prints `[FAIL] vitest-unit: runner exited N with 0 parsed failures`.
+      **Evidence:** vitest phase forced to exit 4 while printing `12 passed` → BEFORE `SCRIPT_EXIT=0`
+      (silent), AFTER `SCRIPT_EXIT=1` with `FAILED batches: vitest-unit`; clean control
+      (exit 0, `12 passed`) → `SCRIPT_EXIT=0` both ways.
+- [x] 1.3 [GREEN] `run-tests.sh:4` — replace the rotted "All 283 unit tests" header comment with a
       statement that does not carry a count (counts rot; the batch lists are the truth).
-- [ ] 1.4 [GREEN] Delete the dead second-engine registration:
+      **Shipped**: the header now points at `vitest.config.ts` for unit collection and at the batch
+      lists as the node:test inventory, and states why no total appears. Pinned by the static
+      assertion "states no test count" (rejects any 2+ digit run in the header block).
+- [x] 1.4 [GREEN] Delete the dead second-engine registration:
       `apps/api/src/infrastructure/container/setupServices.ts:936-958` (the whole
       `container.register<SagaManagerImpl>(TOKENS.SagaManager, …)` block) + the now-orphaned
       import `setupServices.ts:83` + the token `apps/api/src/infrastructure/container/types.ts:188`.
       Blast radius re-verified before deleting: zero resolvers repo-wide; `createRedisConnection`
       and `EventService` imports have other users and STAY.
-- [ ] 1.5 Run VITEST 0.1 → GREEN; re-run GATE-SELFTEST 0.3 shape (a) → the script now exits **1**
+      **Blast radius re-verified before deleting (own grep, never assumed):**
+      `rg 'TOKENS\.SagaManager\b|SagaManager:\s*Symbol' apps packages infra --type ts` → exactly
+      **2 hits**, the declaration (`types.ts:188`) and the registration (`setupServices.ts:938`);
+      **zero resolvers**. `SagaManagerImpl` appeared only in the dead block (3 hits, all deleted);
+      `createRedisConnection` has 10 other call sites and `EventService` 3, so both imports STAY.
+      After deletion: `rg 'TOKENS\.SagaManager|Symbol\.for\("SagaManager"\)'` repo-wide (excluding
+      `openspec/`) → 0. A comment at the deleted registration's spot states where the one engine
+      IS constructed, so the next reader does not re-add it.
+- [x] 1.5 Run VITEST 0.1 → GREEN; re-run GATE-SELFTEST 0.3 shape (a) → the script now exits **1**
       with the batch named, shape (b) still exits 1, and a fully green run still exits 0
       (no false positive).
+      **Evidence (AFTER, same derived copies, same commands):**
+      **A1** → **SCRIPT_EXIT=1**, `FAILED batches: gate-selftest-missing`, plus the new
+      `ERROR: every test that ran reported passing, yet a batch runner exited non-zero. …`.
+      **A2** → **SCRIPT_EXIT=1**, `FAILED batches: gate-selftest-clean` (1 pass, 0 fail, 0 cancel,
+      runner exit 3), same ERROR line. **B** → **SCRIPT_EXIT=1**,
+      `ERROR: 2 test(s) were CANCELLED …` (control unchanged). **C** → **SCRIPT_EXIT=0** (no false
+      positive). **G** the REAL DB-free `chaos` batch `1 tests 1 pass 0 fail 0 cancel exit 0 [OK]`
+      → **SCRIPT_EXIT=0** (no false positive on real work). **E** vitest crash → **SCRIPT_EXIT=1**,
+      `FAILED batches: vitest-unit`; the clean vitest control still **SCRIPT_EXIT=0**.
+      **D** → **SCRIPT_EXIT=1**, 17 cancelled, message byte-identical to BEFORE (this slice does
+      not touch the cancelled path).
+      VITEST `runTestsGate.static.test.ts` → **10 passed / 0 failed**; `bash -n run-tests.sh` → 0.
 
 ## Phase 2: docs + PR1 gate
 
-- [ ] 2.1 `docs/product/MASTER_PLAN_ES.md:159` (and the paired `:164`) — record N-COR-2(b) as
+- [x] 2.1 `docs/product/MASTER_PLAN_ES.md:159` (and the paired `:164`) — record N-COR-2(b) as
       CLOSED at main; the code and the planning record must stop disagreeing (delta requirement
       "the planning record states the closed item as closed").
-- [ ] 2.2 `docs/security/MULTI_TENANT_GUARDS.md:906` — closure note on the carried-list entry for
+      **Verified against the code before writing the correction**, never taken from the doc:
+      `failSaga` drops the saga from the tracked set through the shared `stopTracking` helper
+      (`apps/api/src/saga/SagaManagerExecution.ts:526`) and `checkSagaTimeout` refuses a terminal
+      row (`apps/api/src/saga/SagaManagerLifecycle.ts:1127`). `:159` now records (b) CLOSED at main
+      with both citations and narrows the carry to (c) + `handleEvent` amplification + the
+      in-flight guard; `:164` stops listing `activeInstances.delete` and the terminal filter as
+      carried and states they were PROMOTED into `saga-tenant-scope-and-recovery`.
+- [x] 2.2 `docs/security/MULTI_TENANT_GUARDS.md:906` — closure note on the carried-list entry for
       the dead `TOKENS.SagaManager` registration (deleted in 1.4); leave every other carried
       residual open and pointing at PR2/PR3/PR4.
-- [ ] 2.3 **0-defect gate (PR1)**: `tsc -b apps/api` = 0; `eslint --max-warnings 0` on touched
+      **Done**; residuals 1-4 and the whole terminal-hygiene carry list are untouched. The paired
+      backlog entry **SMELL-72** in `docs/reports/roadmap-detected-smells-backlog.md:125` moved
+      `PENDING → RESOLVED` in the same PR (one cell, one changed line after prettier) — leaving it
+      PENDING would have been the same doc-drift class this slice exists to close. SMELL-71 and
+      SMELL-73 stay PENDING.
+- [x] 2.3 **0-defect gate (PR1)**: `tsc -b apps/api` = 0; `eslint --max-warnings 0` on touched
       `.ts` = 0; `prettier --check` clean (including the shell script's neighbours); fitness
       **#8 / #9 / #10 / #21 / #23 = 0**; `bash -n run-tests.sh` clean; the affected unit set green
       with 0 failed / 0 cancelled.
+      **Measured:** `bash -n run-tests.sh` 0 · `tsc -b apps/api` 0 · `eslint --max-warnings 0` over
+      the 5 touched `.ts` 0 · `prettier --check` over the 5 `.ts` + 3 `.md` clean · fitness
+      **#8 = 0 · #9 = 0 · #10 = 0 · #21 = 0 · #23 = 0** (plus #5 = 0, 0 `canon-exception` markers,
+      0 `.only`/`.skip`) · saga unit surface **18 files / 219 tests, 0 failed, 0 cancelled**
+      (was 17/209 — this PR adds the 10th-to-19th assertions in one new file) · the four
+      container-composing route suites **4 files / 116 tests, 0 failed**.
 - [ ] 2.4 **4R full-tier adversarial review** (risk · resilience · readability · reliability) on
       the PR1 diff BEFORE push — publish hot path per the repo trigger rules — then push and
       require every CI workflow green before merge to main.
@@ -424,7 +507,7 @@ Every later "the tests pass" claim in this change depends on this PR.
 - [ ] 12.2 [GREEN] **Producers** (full inventory from D6): step classes at
       `packages/shared/src/saga.ts:376`, `:415`, `:449`, `:527`, `:595`, and the wait step at
       `:694` — `pending > 0` becomes `{outcome:"waiting", reason:"publishing jobs still in
-    progress"}` while `failed > 0` stays `failed` (`:746-751`); engine-synthesized countermeasure
+progress"}` while `failed > 0` stays `failed` (`:746-751`); engine-synthesized countermeasure
       results at `SagaManagerExecution.ts:170-179`, `:187-190`, `:198-201` → `failed`; catch
       wrappers `:197-202` and `:369-375`.
 - [ ] 12.3 [GREEN] **Consumers**: event-type pick `SagaManagerExecution.ts:206`; failure branch
@@ -620,9 +703,9 @@ Both slices share ADR-1 and one migration slot per the design's rollout note.
       `workerId = ${hostname()}-${process.pid}` (the `setupCrisisUseCases` precedent).
 - [ ] 19.3 [GREEN] **[C3]** The file docblock states the EXACT call syntax
       (`tx.$queryRaw<SagaInstanceRow[]>(Prisma.sql\`UPDATE …\`)`) and notes that fitness **#23 is
-    BLIND to it** — the regex requires the paren immediately after the method name, so it
-    matches neither the generic-parameter form nor tagged templates. **No CLAUDE.md and no
-    `.github/workflows/fitness.yml` edit in this change**: the planned exclusion would install a
+BLIND to it** — the regex requires the paren immediately after the method name, so it
+matches neither the generic-parameter form nor tagged templates. **No CLAUDE.md and no
+`.github/workflows/fitness.yml` edit in this change**: the planned exclusion would install a
       permanently dead exclusion satisfying the delta's merge-blocking scenario cosmetically while
       the gate stays blind.
 - [ ] 19.4 [GREEN] Construction wired in `SagaManagerLifecycle` (no DI token needed, per the
