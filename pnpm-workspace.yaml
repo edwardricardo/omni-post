@@ -159,6 +159,7 @@ catalog:
   "@storybook/addon-docs": 10.4.6
   "@storybook/nextjs": 10.4.6
   "@types/opossum": 8.1.9
+  image-size: 2.0.2
 
 catalogs:
   # OTel set: a named catalog documents the independent release train (the 0.NNN
@@ -221,7 +222,7 @@ overrides:
   "@tootallnate/once": 3.0.1
   bn.js: 5.2.3
   defu: 6.1.7
-  dompurify: 3.4.12
+  dompurify: 3.4.13
   fast-xml-builder: 1.2.0
   fast-xml-parser: 5.8.0
   flatted: 3.4.2
@@ -231,7 +232,7 @@ overrides:
   googleapis-common: 8.0.2
   hono: 4.12.34
   icu-minify: 4.13.0
-  js-yaml: 4.3.0
+  js-yaml: 4.3.1
   jws: 4.0.1
   lodash: 4.18.1
   markdown-it: 14.2.0
@@ -251,6 +252,17 @@ auditConfig:
     - GHSA-p8p7-x288-28g6
     - GHSA-848j-6mx2-7j84
     - GHSA-q7cg-457f-vx79
+    # image-size ICNS/JXL/HEIF parser infinite-loop DoS (added 2026-08-11). The
+    # advisories name >=2.0.3 as patched but npm has no release above 2.0.2 —
+    # there is nothing to pin to. The one production caller
+    # (packages/providers/bluesky BlueskyClient.getImageDimensions) now gates
+    # buffers by magic bytes and admits only jpeg/png/gif/webp — the vulnerable
+    # parsers are unreachable by construction, pinned by unit tests asserting
+    # image-size is never invoked for crafted ICNS/JXL/HEIF signatures. The
+    # remaining path (@storybook/nextjs) is dev-only tooling. Remove when
+    # image-size publishes >=2.0.3 and the tree resolves it.
+    - GHSA-w3rx-r6r6-pgpr
+    - GHSA-5p2g-fcmc-qvqq
 
 # Patched dependency (migrated from package.json `pnpm` field, ADR-0019).
 patchedDependencies:

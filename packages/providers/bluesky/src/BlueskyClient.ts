@@ -49,10 +49,61 @@ export interface BlueskySearchResult {
 const BSKY_SERVICE = new URL("https://bsky.social");
 
 /**
+ * Formats Bluesky accepts for image blobs. The magic-byte gate below admits
+ * ONLY these into image-size: its ICNS/JXL/HEIF parsers can be driven into an
+ * infinite loop by a crafted buffer (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq
+ * — no patched release exists), and a hung parser blocks the event loop, which
+ * a try/catch cannot contain. Restricting by leading bytes makes the
+ * vulnerable parsers unreachable regardless of what the upload claims to be.
+ */
+function isAcceptedImageFormat(buffer: Uint8Array): boolean {
+  if (buffer.length < 12) return false;
+  // JPEG: FF D8 FF
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return true;
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    return true;
+  }
+  // GIF: "GIF8"
+  if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) {
+    return true;
+  }
+  // WebP: "RIFF"....  "WEBP"
+  if (
+    buffer[0] === 0x52 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x46 &&
+    buffer[8] === 0x57 &&
+    buffer[9] === 0x45 &&
+    buffer[10] === 0x42 &&
+    buffer[11] === 0x50
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Reads image dimensions from a Uint8Array buffer without loading the full image.
- * Returns undefined if dimensions cannot be determined (format not recognized).
+ * Returns undefined if dimensions cannot be determined — either because the
+ * buffer is not one of the formats Bluesky accepts (see the magic-byte gate)
+ * or because the accepted-format parse fails. The aspectRatio hint is optional
+ * on Bluesky uploads, so declining to measure is always safe.
  */
 function getImageDimensions(buffer: Uint8Array): { width: number; height: number } | undefined {
+  if (!isAcceptedImageFormat(buffer)) {
+    return undefined;
+  }
   try {
     const result = imageSize(buffer);
     if (result.width !== undefined && result.height !== undefined) {
