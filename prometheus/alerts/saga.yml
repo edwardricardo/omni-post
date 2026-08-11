@@ -65,6 +65,35 @@ groups:
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga
 
+      # A GAUGE, not a counter: it is a level each process re-measures at boot,
+      # so `max` across replicas is the honest read and a rate would be
+      # meaningless. Deferral is a BOUND doing its job — never a malfunction —
+      # which is why it is on neither the failures nor the parked series.
+      - alert: SagaBootLoadDeferred
+        expr: max(saga_recovery_deferred_rows) > 0
+        for: 10m
+        labels:
+          severity: warning
+          component: saga
+        annotations:
+          summary: "Inherited sagas are uncovered: a boot hit its load ceiling"
+          description: "A process started with MORE non-terminal sagas in the table than its boot load ceiling (`bootLoadLimit`, default 500), so the rows beyond it were not read and this process is not covering them. They are not lost: the retry checker claims them once they schedule a retry, and the next boot reads a fresh oldest-first page. But nothing advances a row that has NO pending retry and did not make the page, so a sustained non-zero value means a backlog is aging toward its 30-minute horizon with no owner. Check `/sagas/metrics` -> recovery.bootLoadDeferred per process, drain the backlog (or restart once it shrinks), and if this is steady state rather than an outage tail, raise `bootLoadLimit` deliberately — the ceiling exists to protect the shared connection pool, so raise it together with pool sizing, never alone."
+          runbook: docs/security/MULTI_TENANT_GUARDS.md
+          slo: docs/observability/SLO.md#saga
+
+      # Also a gauge, and also DETECTION ONLY: the engine does not resume these.
+      - alert: SagaCompensatingOrphans
+        expr: max(saga_compensating_orphans) > 0
+        for: 10m
+        labels:
+          severity: warning
+          component: saga
+        annotations:
+          summary: "Sagas are stuck in COMPENSATING with no mechanism to finish them"
+          description: 'A process died mid-compensation and left rows in COMPENSATING. NOBODY claims that status: the boot load and the retry scan both filter `status IN (RUNNING, PENDING)`, and the timeout checker only inspects rows the process is tracking — so these rows sit in the infinite non-terminal state ARCHITECTURE_CANON §Saga forbids, and they will not age out. The engine only DETECTS them (this gauge, the boot WARN and `/sagas/metrics` -> recovery.compensatingOrphans); it deliberately does not resume them, because a compensation walk resumed without a row claim is a second walk over the same compensating steps. Handling: identify the rows (`SELECT id, "definitionId", "currentStep", "startedAt" FROM "SagaInstance" WHERE status = ''COMPENSATING''`), establish from the step results how far the walk got, and finish or terminalize them under a documented maintenance change. The automatic fix is owned by saga-engine-terminal-hygiene.'
+          runbook: docs/security/MULTI_TENANT_GUARDS.md
+          slo: docs/observability/SLO.md#saga
+
       - alert: SagaRecoveryLoopFailing
         expr: increase(saga_recovery_failures_total{stage=~"boot|retry-scan|timeout|instance-load|resume-row|rehydration"}[10m]) > 3
         for: 5m

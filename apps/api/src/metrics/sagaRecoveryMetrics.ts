@@ -1,11 +1,18 @@
 /**
  * @file sagaRecoveryMetrics.ts
- * @description Prometheus counters for the saga engine's detached work. The
+ * @description Prometheus series for the saga engine's detached work. The
  *              engine's in-process `SagaMetrics` object is readable only through
  *              an authenticated admin endpoint, so a background loop that fails
- *              on every tick is invisible to alerting. These counters put the
- *              same events on the scrape endpoint, including the
- *              `sagas_failed_total` series the saga alert rules already query.
+ *              on every tick is invisible to alerting. These series put the same
+ *              events on the scrape endpoint, including the `sagas_failed_total`
+ *              series the saga alert rules already query.
+ *
+ *              Two shapes on purpose. EVENTS are counters: something happened,
+ *              once, and the total only grows. STATES are gauges: a re-observed
+ *              level that a restart re-measures — how many rows this process is
+ *              not covering, how many orphans exist right now. Recording a state
+ *              as a counter would sum the same rows once per boot and report a
+ *              backlog of two as six after three restarts.
  * @layer infrastructure
  */
 import client from "prom-client";
@@ -23,6 +30,13 @@ function getOrCreateCounter(
   const existing = client.register.getSingleMetric(name);
   if (existing) return existing as client.Counter;
   return new client.Counter({ name, help, labelNames });
+}
+
+/** The gauge equivalent of {@link getOrCreateCounter}, for re-observed levels. */
+function getOrCreateGauge(name: string, help: string): client.Gauge {
+  const existing = client.register.getSingleMetric(name);
+  if (existing) return existing as client.Gauge;
+  return new client.Gauge({ name, help });
 }
 
 /**
@@ -86,6 +100,16 @@ const sagasFailedTotal = getOrCreateCounter(
   ["reason"]
 );
 
+const sagaRecoveryDeferredRows = getOrCreateGauge(
+  "saga_recovery_deferred_rows",
+  "Non-terminal sagas this process did NOT load at boot because it hit its load ceiling"
+);
+
+const sagaCompensatingOrphans = getOrCreateGauge(
+  "saga_compensating_orphans",
+  "Sagas left in COMPENSATING that no mechanism currently loads, scans or tracks"
+);
+
 /**
  * @function recordSagaRecoveryFailure
  * @description Counts one failure of the engine's detached work. A non-zero rate
@@ -118,4 +142,35 @@ export function recordSagaParked(reason: SagaParkReason): void {
  */
 export function recordSagaFailed(reason: SagaFailureReason): void {
   sagasFailedTotal.inc({ reason });
+}
+
+/**
+ * @function recordSagaBootLoadDeferred
+ * @description Publishes how many non-terminal rows this process left unread at
+ *   boot. A GAUGE, not a counter: it is a level this process re-measures on every
+ *   start, and summing it across restarts would report the same backlog again and
+ *   again. Deferral is a BOUND doing its job, not a malfunction — it belongs on
+ *   neither the failure series nor the parked one — but "N inherited sagas are
+ *   uncovered by this process" is exactly the thing an operator must be able to
+ *   alert on after a long outage.
+ * @param deferred - Rows matching the load predicate that this boot did not read.
+ */
+export function recordSagaBootLoadDeferred(deferred: number): void {
+  sagaRecoveryDeferredRows.set(deferred);
+}
+
+/**
+ * @function recordSagaCompensatingOrphans
+ * @description Publishes how many sagas sit in `COMPENSATING`. Also a gauge, for
+ *   the same reason. These rows are currently claimed by NOBODY — the boot load
+ *   and the retry scan both filter `status IN (RUNNING, PENDING)`, and the timeout
+ *   checker only inspects rows the process is tracking — so the count is a
+ *   standing backlog of the infinite non-terminal state the saga canon forbids.
+ *   Detection only: the engine deliberately does not resume them, because a
+ *   compensation walk resumed without a claim is a second walk over the same
+ *   steps.
+ * @param orphans - Rows currently in `COMPENSATING`.
+ */
+export function recordSagaCompensatingOrphans(orphans: number): void {
+  sagaCompensatingOrphans.set(orphans);
 }

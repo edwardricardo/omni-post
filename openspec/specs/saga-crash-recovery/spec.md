@@ -137,6 +137,22 @@ serving.
   owned by the retry checker once they schedule a retry, and by the next boot otherwise.
 - **Bounded fan-out**: the pass SHALL advance at most `maxConcurrentSagas` sagas at a
   time. A configured concurrency knob that nothing reads SHALL NOT exist.
+- **Alertable bounds**: the deferred remainder SHALL be published as a Prometheus GAUGE
+  (a level each process re-measures at boot, not an event), so "N inherited sagas are
+  uncovered by this process" is an alertable condition and not only a log line.
+
+Recovery SHALL also DETECT the rows no mechanism claims. In the same declared read
+boundary the boot SHALL count the `COMPENSATING` sagas it does not load, publish the
+count in process, on `/sagas/metrics` and as a gauge, and log it at WARNING. It SHALL
+NOT load, track, resume or compensate them: a compensation walk resumed without a row
+claim is a second walk over steps a dead process may already have applied. Recovery for
+that class belongs to the follow-up change.
+
+#### Scenario: COMPENSATING orphans are counted, never resumed [unit] [MERGE-BLOCKING]
+
+- **GIVEN** rows exist in `COMPENSATING` alongside a resumable non-terminal row
+- **WHEN** initialization completes
+- **THEN** the orphan count is published, and the `COMPENSATING` rows are neither loaded into the tracked set nor dispatched
 
 #### Scenario: one unreadable row costs one saga's recovery [unit] [MERGE-BLOCKING]
 

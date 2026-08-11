@@ -566,9 +566,13 @@ function modelOperationInventory(sources: SagaSource[]): string[] {
 const KNOWN_ENGINE_OPERATIONS = [
   "src/saga/SagaManagerExecution.ts::sagaInstance.findUnique",
   "src/saga/SagaManagerExecution.ts::sagaInstance.upsert",
-  // The boot load's page AND the count that tells an operator how many rows it
-  // had to defer — both inside the ONE declared read boundary, so the figure and
-  // the page describe the same snapshot.
+  // The boot load's page AND its two counts — how many rows it had to defer, and
+  // how many COMPENSATING orphans exist that it deliberately never loads. All
+  // three sit inside the ONE declared read boundary, so the figures and the page
+  // describe the same snapshot. The multiplicity is load-bearing: two `count`
+  // entries means two DISTINCT reads, and losing either would silence a signal
+  // while this pin still passed.
+  "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.findMany",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.findMany",
@@ -913,7 +917,7 @@ describe("saga engine context invariants", () => {
     });
   });
 
-  describe("the engine opens no transaction of its own", () => {
+  describe("the engine opens no transaction outside the tenant primitives", () => {
     // Every transaction the engine runs must come from one of the two tenant
     // primitives, because each of them binds `app.account_id` as the FIRST
     // statement. A bare `prisma.$transaction` anywhere else is a transaction
@@ -939,10 +943,19 @@ describe("saga engine context invariants", () => {
     it("still sees the transactions the tenant primitives open", () => {
       // Non-vacuity: a scan that matched nothing would make the assertion below
       // pass while the engine grew any number of unscoped transactions.
+      //
+      // The floor is TWO because the module owns exactly two transaction
+      // openers, one per direction of scope: `runSagaTenantTransaction` (the
+      // saga's own account) and `runSagaSystemTransaction` (the system
+      // sentinel, behind the narrow read and terminal-write surfaces). Fewer
+      // than two means the pattern stopped seeing one of them.
+      const TRANSACTION_OPENERS_IN_PRIMITIVE_MODULE = 2;
       const inPrimitiveModule = transactionSites.filter((site) =>
         site.startsWith(TRANSACTION_PRIMITIVE_MODULE)
       );
-      expect(inPrimitiveModule.length).toBeGreaterThanOrEqual(2);
+      expect(inPrimitiveModule.length).toBeGreaterThanOrEqual(
+        TRANSACTION_OPENERS_IN_PRIMITIVE_MODULE
+      );
     });
 
     it("opens none anywhere else in the engine", () => {
@@ -1205,6 +1218,12 @@ describe("saga engine context invariants", () => {
     it("still sees the command ids the saga steps mint", () => {
       // Pinned as an exact set: a pattern that stops matching would turn every
       // assertion below vacuously green, which is how a source scan goes blind.
+      //
+      // The forward template appears TWICE and the multiplicity is load-bearing,
+      // not a copy-paste slip: two different steps mint a forward command id
+      // from the same expression (the create step and the post-pivot status
+      // step). Collapsing this to a unique set would let one of them stop
+      // deriving its id deterministically while the pin still passed.
       expect(commandIdTemplates).toEqual(
         [
           "cmd-${context.sagaId}-${this.id}",

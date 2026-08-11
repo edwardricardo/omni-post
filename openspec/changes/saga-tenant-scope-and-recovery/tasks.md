@@ -697,3 +697,60 @@ AUTHORITATIVE for the decisions below.
       removal IS part of PR2's revert surface).
 - [x] 9R.10 **Rework gate.** RED evidence captured for every behavioural fix before its
       GREEN, in the production-faithful harness, failing for the named mechanism.
+
+## Phase 9R2: 4R re-verification — advisory closures (2026-08-10)
+
+All four lenses re-verified the 9R rework and returned nothing merge-blocking (R1
+advisory-clear, R2 PASS, R3 PASS, R4 advisory). This phase closes the convergent
+advisories before push.
+
+- [x] 9R2.1 **[M1] `bootLoadDeferred` is alertable.** New Prometheus GAUGE
+      `saga_recovery_deferred_rows` (a level each process re-measures at boot — a counter
+      would sum the same backlog once per restart), emitted where the ceiling defers, with
+      the `SagaBootLoadDeferred` alert and an SLO row. The `/sagas/metrics` exact-set pin
+      was updated with it.
+- [x] 9R2.2 **[M2] COMPENSATING orphans are DETECTED.** The boot counts them inside the
+      SAME declared read boundary as the load — never loading, tracking or dispatching
+      them — and publishes the count in `SagaMetrics.compensatingOrphans`, on
+      `/sagas/metrics`, as the gauge `saga_compensating_orphans` and as a boot WARN, with
+      the `SagaCompensatingOrphans` alert. Detection only, said so in the code, the alert,
+      the guards doc and the living spec: resuming a compensation walk without a row claim
+      is a second walk over steps a dead process may already have applied. The FIX stays
+      with `saga-engine-terminal-hygiene`.
+- [x] 9R2.3 **[M3] The single-replica constraint is in the process's own output.** One
+      INFO line per boot naming per-process ownership, `multiReplicaSupported: false` and
+      SMELL-73.
+- [x] 9R2.4 **[M4] `stopTracking` releases the parked window.** A stale `parkedAt` entry
+      outlived the row it described, so a saga an operator resumed by hand could later be
+      terminalized as `parked-expired` while actively retrying. `continueSaga` also
+      releases it explicitly — that endpoint IS the unpark — and logs the release. Pinned
+      by a unit test.
+- [x] 9R2.5 **[M5] The last drain-sense "parks".** The retry-checker predicate comment now
+      says the graceful shutdown HANDS OFF a retry-pending saga. No drain-sense use of the
+      word survives in the repo.
+- [x] 9R2.6 **[M6] Docs honesty.** (a) The eviction boundary no longer claims to be
+      "measured": the RETAINED case is measured, the eviction side is read from the
+      consumer config and labelled as such. (b) SMELL-73 gained the retry-scan
+      head-of-line starvation (`take: 50` + `nextRetryAt` cleared only after success ⇒ the
+      same oldest page re-selected every tick, rows 51+ starved) and the
+      take:50-vs-boot-ceiling asymmetry, both also stated in the guards doc. (c) The
+      successor carry-list now names the parked-window-does-not-survive-restart edge, so a
+      crash-looping pod re-opening the window indefinitely is owned, not folklore.
+- [x] 9R2.7 **[M7] Pivot re-entry residual — ADJUDICATED and stated honestly.** The only
+      production code that promotes a post out of `DRAFT` is the inbound provider webhook
+      processors (`apps/api/src/webhooks/processors/*WebhookProcessor.ts`, each writing
+      `status: "PUBLISHED"`). Neither the saga nor the publish worker ever writes that
+      column: `UpdatePostCommandHandler` explicitly IGNORES `data.status`, and
+      `PostAggregate.markAsPublished` has NO production caller. So the RereadCheck's
+      retention-independence holds ONLY once a webhook has arrived; in the still-`DRAFT`
+      window the countermeasure passes and the retention-bounded job id is the whole
+      protection. A new integration scenario proves the re-entry really happens there (the
+      saga walks past the pivot and dies on the post-pivot OCC token, not on a reread
+      refusal) and that the retained job id absorbs it. The guards doc states both windows
+      and cites the promoting path precisely.
+- [x] 9R2.8 **[M8] Static-suite and harness nits.** The `>= 2` transaction-opener floor is
+      named and explained; the duplicated command-id literal carries its multiplicity
+      rationale (two steps mint a forward id from the same expression); the describe title
+      no longer contradicts its first `it`; `ProcessedJob.jobId` is now load-bearing (the
+      DRAFT-window scenario asserts every recorded execution carries the one original job
+      id, so a second publish shows up as a second id rather than as a count).

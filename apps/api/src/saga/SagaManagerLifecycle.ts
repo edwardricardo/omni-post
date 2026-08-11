@@ -19,7 +19,12 @@ import {
   type SagaTenantSkipReason,
 } from "./sagaTenant.js";
 import { deserializeSagaInstanceRow } from "./sagaInstanceRow.js";
-import { recordSagaParked, recordSagaRecoveryFailure } from "../metrics/sagaRecoveryMetrics.js";
+import {
+  recordSagaBootLoadDeferred,
+  recordSagaCompensatingOrphans,
+  recordSagaParked,
+  recordSagaRecoveryFailure,
+} from "../metrics/sagaRecoveryMetrics.js";
 import { captureError } from "../observability/sentryInit.js";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
@@ -128,6 +133,7 @@ export class SagaManagerLifecycle implements SagaManager {
     bootParkedSagas: 0,
     bootLoadDeferred: 0,
     bootResumeRowFailures: 0,
+    compensatingOrphans: 0,
   };
   readonly executionTimes: number[] = [];
 
@@ -214,6 +220,20 @@ export class SagaManagerLifecycle implements SagaManager {
         "Saga boot recovery pass failed; the process is serving without recovery coverage"
       );
     }
+
+    // The recovery ownership constraint, in the process's OWN output. It is a
+    // real limit on how this service may be deployed, and a limit that exists
+    // only in a document is one nobody reads at 3am while scaling out: no row is
+    // marked as claimed, so a second replica loads and dispatches the same rows.
+    logger.info(
+      {
+        recoveryOwnership: "per-process",
+        multiReplicaSupported: false,
+        tracking: "SMELL-73",
+      },
+      "Saga recovery owns rows PER PROCESS: there is no row claim, so running more than " +
+        "one replica with the saga engine enabled is not supported until claims land"
+    );
 
     logger.info("Saga Manager initialized successfully");
   }
@@ -684,6 +704,18 @@ export class SagaManagerLifecycle implements SagaManager {
       );
     }
 
+    // This endpoint IS the unpark: a human looked at the outcome and decided to
+    // advance the row, so the operator window it was holding is over. Leaving
+    // the entry would let the timeout checker terminalize an ACTIVELY RETRYING
+    // saga as `parked-expired` — the wrong reason on a row nobody parked any
+    // more.
+    if (this.parkedAt.delete(sagaId)) {
+      logger.info(
+        { sagaId, definitionId: instance.definitionId },
+        "Operator resumed a parked saga: its parked window is released"
+      );
+    }
+
     this.executionEngine.executeSagaAsync(sagaId);
 
     return instance;
@@ -902,6 +934,14 @@ export class SagaManagerLifecycle implements SagaManager {
    * happens LATER, in the resume pass, under each saga's own rehydrated scope
    * and only for the rows the pass leaves in play.
    *
+   * It also COUNTS the `COMPENSATING` rows it deliberately does not load. That
+   * status is claimed by nobody — this predicate excludes it, the retry scan
+   * excludes it, and the timeout checker only inspects rows the process tracks —
+   * so such a row accrues silently in the infinite non-terminal state the saga
+   * canon forbids. Counting is DETECTION only, and deliberately so: resuming a
+   * compensation walk without a claim is a second walk over the same steps. The
+   * fix belongs to `saga-engine-terminal-hygiene`.
+   *
    * @param correlationId - Identifier joining this recovery pass in the logs.
    * @returns The instances this load registered, in row order, so the resume
    *   pass dispatches exactly what this process inherited rather than whatever
@@ -911,18 +951,22 @@ export class SagaManagerLifecycle implements SagaManager {
     const limit = Math.max(1, this.config.bootLoadLimit ?? DEFAULT_BOOT_LOAD_LIMIT);
     const where = { status: { in: ["RUNNING", "PENDING"] } };
 
-    // Both statements share the ONE declared boundary and its transaction, so
-    // the count and the page describe the same snapshot — a deferred figure
+    // All three statements share the ONE declared boundary and its transaction,
+    // so the counts and the page describe the same snapshot — a deferred figure
     // computed against a different one would be noise at exactly the moment an
     // operator needs it to be exact.
-    const { total, rows } = await withSagaSystemRead(this.config.prisma, async (tx) => ({
-      total: await tx.sagaInstance.count({ where }),
-      rows: await tx.sagaInstance.findMany({
-        where,
-        orderBy: { startedAt: "asc" },
-        take: limit,
-      }),
-    }));
+    const { total, compensating, rows } = await withSagaSystemRead(
+      this.config.prisma,
+      async (tx) => ({
+        total: await tx.sagaInstance.count({ where }),
+        compensating: await tx.sagaInstance.count({ where: { status: "COMPENSATING" } }),
+        rows: await tx.sagaInstance.findMany({
+          where,
+          orderBy: { startedAt: "asc" },
+          take: limit,
+        }),
+      })
+    );
 
     const loaded: SagaInstance[] = [];
     for (const row of rows) {
@@ -934,6 +978,7 @@ export class SagaManagerLifecycle implements SagaManager {
 
     const deferred = Math.max(0, total - loaded.length);
     this.metrics.bootLoadDeferred = deferred;
+    recordSagaBootLoadDeferred(deferred);
     if (deferred > 0) {
       logger.warn(
         { total, loaded: loaded.length, deferred, limit, correlationId },
@@ -942,8 +987,19 @@ export class SagaManagerLifecycle implements SagaManager {
       );
     }
 
+    this.metrics.compensatingOrphans = compensating;
+    recordSagaCompensatingOrphans(compensating);
+    if (compensating > 0) {
+      logger.warn(
+        { compensating, correlationId },
+        "Sagas are stuck in COMPENSATING: no boot load, no retry scan and no timeout check " +
+          "claims that status, so they cannot reach a terminal state on their own. Detection " +
+          "only — recovery for them is owned by saga-engine-terminal-hygiene"
+      );
+    }
+
     logger.info(
-      { count: loaded.length, total, deferred, correlationId },
+      { count: loaded.length, total, deferred, compensating, correlationId },
       "Loaded active saga instances from PostgreSQL"
     );
 
@@ -972,8 +1028,8 @@ export class SagaManagerLifecycle implements SagaManager {
             tx.sagaInstance.findMany({
               where: {
                 // PENDING belongs here as much as RUNNING: a graceful shutdown
-                // parks a retry-pending saga by flipping it to PENDING while the
-                // persist keeps `nextRetryAt`, so a predicate restricted to
+                // HANDS OFF a retry-pending saga by flipping it to PENDING while
+                // the persist keeps `nextRetryAt`, so a predicate restricted to
                 // RUNNING left that row to nobody — the boot pass owns rows with
                 // NO pending retry, and this scan could not see it. It then sat
                 // non-terminal until the timeout force-failed it half an hour
@@ -1070,7 +1126,6 @@ export class SagaManagerLifecycle implements SagaManager {
     // a fresh audit event each time and re-persisting a row nothing changed.
     if (TERMINAL_SAGA_STATES.includes(instance.status)) {
       this.stopTracking(sagaId);
-      this.parkedAt.delete(sagaId);
       return;
     }
 
@@ -1099,6 +1154,9 @@ export class SagaManagerLifecycle implements SagaManager {
       if (!parkedOutcome.ran) {
         await this.terminalizeUnscopableSaga(sagaId, instance, parkedOutcome.reason);
       }
+      // Both branches above stop tracking the saga, which releases the window;
+      // deleted here as well so the map cannot outlive the row on a path that
+      // ever stops doing so.
       this.parkedAt.delete(sagaId);
       return;
     }
@@ -1174,9 +1232,17 @@ export class SagaManagerLifecycle implements SagaManager {
    *   compensation and failure alike — so the tracked set and the counter cannot
    *   drift apart, and the timeout checker cannot find a saga that already
    *   ended.
+   *
+   *   The parked window is released with it, because the window belongs to a row
+   *   nobody is advancing. A saga an operator resumed BY HAND leaves this method
+   *   through the ordinary terminal path, and a stale entry would then outlive
+   *   the row it described: the next non-terminal saga to advance past it would
+   *   be terminalized as `parked-expired` — a wrong reason, on a row that was
+   *   actively retrying.
    * @param sagaId - The saga to stop tracking.
    */
   stopTracking(sagaId: string): void {
+    this.parkedAt.delete(sagaId);
     if (this.activeInstances.delete(sagaId)) {
       this.metrics.activeInstances--;
     }

@@ -1245,10 +1245,14 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       postId = interrupted.postId;
       dedupeKey = interrupted.dedupeKey;
 
-      // Standing in for the publish worker's promotion: in production the
-      // worker moves the post out of DRAFT once the provider accepts it, while
-      // this suite's worker double only records the job. The state that makes a
-      // pivot replay dangerous is therefore applied here explicitly.
+      // Standing in for the ONE production path that promotes a post out of
+      // DRAFT: the inbound provider webhook processors
+      // (`apps/api/src/webhooks/processors/*WebhookProcessor.ts`, each writing
+      // `status: "PUBLISHED"` on the correlated post). NOT the publish worker
+      // and NOT the saga — neither of those ever writes the column, which is
+      // why the promotion is applied here explicitly and why the window in which
+      // the post is still DRAFT is a real residual rather than a test artefact.
+      // The sibling scenario below covers that window.
       await base.post.update({ where: { id: postId }, data: { status: "PUBLISHED" } });
 
       // A pivot-step retry that outlived its process: the row carries a due
@@ -1310,13 +1314,111 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         jobIdsAfter,
         jobIdsBefore,
         "and the queue holds exactly the jobs it held before: the countermeasure aborts BEFORE " +
-          "the enqueue, so the guarantee does not depend on the job-id dedupe surviving retention"
+          "the enqueue, so FOR A PROMOTED POST the guarantee does not depend on the job-id " +
+          "dedupe surviving retention"
       );
 
       assert.strictEqual(
         processedCountFor(postId, deliveringChannelId),
         processedBefore,
         "no worker published a second time"
+      );
+    });
+  });
+
+  describe("an inherited pivot-step retry whose post is still DRAFT", () => {
+    let sagaId: string;
+    let postId: string;
+    let dedupeKey: string;
+    let processedBefore: number;
+    let jobIdBefore: string;
+    let terminal: SagaSnapshot;
+
+    before(async () => {
+      // The other half of the pivot re-entry story, and the honest one: the
+      // RereadCheck only refuses once SOMETHING has moved the post out of DRAFT,
+      // and on the saga's own path nothing does — the promotion is the inbound
+      // provider webhook, which is asynchronous and may never arrive. In that
+      // window the countermeasure PASSES and the pivot really is re-entered, so
+      // the only thing standing between a restart and a second publish is the
+      // retention-bounded job-id dedupe. This pins WHICH absorber is load-bearing
+      // here, rather than letting the stronger claim cover both cases.
+      const { harness: crashed } = await bootHarness("draft-retry-crashed");
+      const interrupted = await seedPivotInterruptedSaga(crashed, "draftretry");
+      sagaId = interrupted.sagaId;
+      postId = interrupted.postId;
+      dedupeKey = interrupted.dedupeKey;
+
+      assert.strictEqual(
+        interrupted.postBefore.status,
+        "DRAFT",
+        "the premise: a full saga run leaves the post in DRAFT, because neither the saga's " +
+          "post-pivot step nor the publish worker ever writes the status column"
+      );
+
+      await base.sagaInstance.update({
+        where: { id: sagaId },
+        data: {
+          status: "RUNNING",
+          currentStep: PIVOT_STEP_INDEX,
+          nextRetryAt: new Date(Date.now() - 1_000),
+          retryCount: MAX_RETRIES,
+        },
+      });
+      await redis.del(`saga:${sagaId}`);
+
+      processedBefore = processedCountFor(postId, deliveringChannelId);
+      const before = await jobsForTarget(postId, deliveringChannelId);
+      assert.strictEqual(before.length, 1, "one job addressed at this post and channel");
+      jobIdBefore = String(before[0]?.id);
+
+      const { harness: restarted } = await bootHarness("draft-retry-restarted");
+      terminal = await driveToTerminal(
+        sagaId,
+        restarted.scheduler,
+        `the checker to claim the still-DRAFT pivot-step retry ${sagaId} and settle it`
+      );
+    });
+
+    it("really re-enters the pivot: the reread countermeasure does NOT refuse a DRAFT post", async () => {
+      // Without this the scenario would be indistinguishable from the promoted
+      // one — a refused replay also leaves the queue untouched. The saga walking
+      // PAST the pivot and dying on the post-pivot OCC token is the proof that
+      // the pivot itself ran.
+      assert.doesNotMatch(
+        String(terminal.error),
+        /Reread check failed/i,
+        "the countermeasure passes while the post is still DRAFT, which is exactly the window " +
+          "in which it protects nothing"
+      );
+      assert.match(
+        String(terminal.error),
+        /version conflict/i,
+        "the saga advanced past the re-entered pivot and settled on the post-pivot conflict"
+      );
+    });
+
+    it("re-enters the pivot, and the retained job id is what absorbs it", async () => {
+      const byId = await jobsWithId(dedupeKey);
+      assert.strictEqual(byId.length, 1, "still exactly one job holds the deterministic id");
+      assert.strictEqual(
+        String(byId[0]?.id),
+        jobIdBefore,
+        "and it is the SAME job: an add on an existing custom id is a no-op, which is the " +
+          "absorber — and it is bounded by the consumer's retention window, so this is the " +
+          "residual the RereadCheck does NOT cover"
+      );
+
+      assert.strictEqual(
+        processedCountFor(postId, deliveringChannelId),
+        processedBefore,
+        "no worker published a second time while the original job is retained"
+      );
+      assert.deepStrictEqual(
+        processedJobs.filter((job) => job.postId === postId).map((job) => job.jobId),
+        [jobIdBefore],
+        "and every execution recorded for this post carries that one job id, so a second " +
+          "publish would be visible here as a second id rather than inferred from a count"
       );
     });
   });

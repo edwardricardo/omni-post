@@ -704,6 +704,7 @@ export class SagaIntegration {
                 bootLoadDeferred: metrics.bootLoadDeferred,
                 bootParkedSagas: metrics.bootParkedSagas,
                 bootResumeRowFailures: metrics.bootResumeRowFailures,
+                compensatingOrphans: metrics.compensatingOrphans,
                 recoveryScanFailures: metrics.recoveryScanFailures,
                 rehydrationFailures: metrics.rehydrationFailures,
                 tenantMismatches: metrics.tenantMismatches,

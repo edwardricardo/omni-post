@@ -71,7 +71,13 @@ export function createMockPrisma(): MockPrismaClient {
         store.set(args.where.id, data);
         return data;
       },
-      count: async (args?: any) => matching(args).length,
+      // The boot load counts twice inside its ONE read boundary: the rows it
+      // is about to page, and the COMPENSATING rows it deliberately never
+      // loads. Routed by the predicate so the two cannot be confused.
+      count: async (args?: any) =>
+        args?.where?.status === "COMPENSATING"
+          ? Array.from(store.values()).filter((v: any) => v.status === "COMPENSATING").length
+          : matching(args).length,
       findMany: async (args?: any) => {
         const rows = matching(args);
         return typeof args?.take === "number" ? rows.slice(0, args.take) : rows;

@@ -124,6 +124,15 @@ export interface SagaMetrics {
    * saga's recovery, not the whole pass and not the process.
    */
   bootResumeRowFailures: number;
+  /**
+   * Sagas sitting in `COMPENSATING` at the last boot. NOBODY claims that status:
+   * the boot load and the retry scan both filter `RUNNING`/`PENDING`, and the
+   * timeout checker only inspects rows the process tracks. Detection only — the
+   * engine deliberately does not resume them, because a compensation walk
+   * resumed without a claim is a second walk over the same steps. Recovery for
+   * them belongs to `saga-engine-terminal-hygiene`.
+   */
+  compensatingOrphans: number;
 }
 
 /**

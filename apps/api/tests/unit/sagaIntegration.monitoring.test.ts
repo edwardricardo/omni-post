@@ -105,11 +105,12 @@ describe("SagaIntegration - Monitoring Routes", () => {
       bootLoadDeferred: 0,
       bootParkedSagas: 0,
       bootResumeRowFailures: 0,
+      compensatingOrphans: 0,
       recoveryScanFailures: 0,
       rehydrationFailures: 0,
       tenantMismatches: 0,
-      timeoutCheckFailures: 0,
       instanceLoadFailures: 0,
+      timeoutCheckFailures: 0,
     });
   });
 

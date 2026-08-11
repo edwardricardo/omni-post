@@ -13,7 +13,6 @@
 import { describe, it, expect } from "vitest";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { SagaDefinition, SagaInstance } from "@shared/types/saga.js";
-import type { EventStoreEvent } from "@shared/types/events.js";
 import { SagaManagerLifecycle } from "../../../src/saga/SagaManagerLifecycle.js";
 import type {
   SagaExecutionEnginePort,
@@ -137,12 +136,17 @@ function createLifecycle(
     definitions?: SagaDefinition[];
     bootLoadLimit?: number;
     maxConcurrentSagas?: number;
+    compensating?: number;
   } = {}
 ): { lifecycle: SagaManagerLifecycle; engine: EngineSpy } {
   const tx = {
     $executeRaw: async (): Promise<number> => 1,
     sagaInstance: {
-      count: async (): Promise<number> => rows.length,
+      // The load counts twice inside its ONE read boundary: the non-terminal
+      // rows it is about to page, and the COMPENSATING rows it deliberately
+      // never loads. Routed by the predicate so the two cannot be confused.
+      count: async (args?: { where?: { status?: unknown } }): Promise<number> =>
+        args?.where?.status === "COMPENSATING" ? (options.compensating ?? 0) : rows.length,
       findMany: async (args: { take?: number }): Promise<SeededRow[]> =>
         rows.slice(0, args.take ?? rows.length),
     },
@@ -181,9 +185,6 @@ async function until(probe: () => boolean, description: string): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
 }
-
-/** Silences the durable event append the terminal paths would attempt. */
-const noEvents: EventStoreEvent[] = [];
 
 describe("saga boot recovery pass", () => {
   describe("containment", () => {
@@ -271,6 +272,43 @@ describe("saga boot recovery pass", () => {
     });
   });
 
+  describe("rows nothing claims", () => {
+    it("counts the COMPENSATING orphans without loading or dispatching them", async () => {
+      const { lifecycle, engine } = createLifecycle([makeRow("saga-running")], {
+        compensating: 4,
+      });
+
+      await lifecycle.initialize();
+      await until(() => engine.executed.length === 1, "the non-terminal row to advance");
+
+      expect(lifecycle.metrics.compensatingOrphans).toBe(4);
+      // Detection ONLY. Loading them would put them in the tracked set and the
+      // resume pass would dispatch them, which is a SECOND walk over
+      // compensating steps that a first process may already have applied.
+      expect(lifecycle.activeInstances.size).toBe(1);
+      expect(engine.executed).toEqual(["saga-running"]);
+    });
+  });
+
+  describe("the parked window follows the row, not the process", () => {
+    it("releases the window when the saga stops being tracked", () => {
+      const { lifecycle } = createLifecycle([]);
+      lifecycle.parkedAt.set("saga-parked", Date.now());
+      lifecycle.activeInstances.set("saga-parked", {
+        id: "saga-parked",
+      } as unknown as SagaInstance);
+
+      lifecycle.stopTracking("saga-parked");
+
+      // A stale entry outlives the row it described: the next saga to reach that
+      // id — or the same row after an operator resumed it by hand — would be
+      // terminalized as `parked-expired`, a reason nobody earned, on a row that
+      // was actively retrying.
+      expect(lifecycle.parkedAt.has("saga-parked")).toBe(false);
+      expect(lifecycle.activeInstances.has("saga-parked")).toBe(false);
+    });
+  });
+
   describe("what the pass writes", () => {
     it("re-warms the rows it leaves in play and writes nothing to the ones it parks", async () => {
       const { lifecycle, engine } = createLifecycle([
@@ -287,7 +325,6 @@ describe("saga boot recovery pass", () => {
       // the interruption left. A re-warm goes through the ordinary persist, so
       // it would rewrite the row and move `updatedAt`.
       expect(engine.persisted).not.toContain("saga-parked");
-      expect(noEvents).toEqual([]);
     });
   });
 });
