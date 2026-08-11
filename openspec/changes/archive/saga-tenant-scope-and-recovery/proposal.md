@@ -91,13 +91,19 @@ Revert branch pre-merge (no merge until green). Post-merge: code changes revert 
 
 ## Success Criteria
 
-- [ ] `SagaContext` carries `accountId` first-class; every new saga row stores `customer.accountId` in the column.
-- [ ] Zero rows with a `CustomerUser.id` in `accountId` post-backfill; unmappable rows dispositioned per the agreed rule, count reported.
-- [ ] Two-tenant isolation proof green: cross-tenant saga get/list denied; scoping keys on the true tenant.
-- [ ] Boot-resume proof green: kill mid-saga → restart → saga reaches a terminal state; boot load + retry checker demonstrably alive (no swallowed context errors; error path logs + metrics).
-- [ ] The live 13th test (post-pivot terminal) green and `sagaCustomerFlow.test.ts` wired into `run-tests.sh`.
-- [ ] $transaction bypass question answered empirically and recorded (escalated if general).
-- [ ] 0-defect gate: lint 0/0, tsc 0, fitness greps green, CI green.
+- [x] `SagaContext` carries `accountId` first-class; every new saga row stores `customer.accountId` in the column.
+- [x] Zero rows with a `CustomerUser.id` in `accountId` post-backfill; unmappable rows dispositioned per the agreed rule, count reported.
+- [x] Two-tenant isolation proof green: cross-tenant saga get/list denied; scoping keys on the true tenant.
+- [x] Boot-resume proof green: kill mid-saga → restart → saga reaches a terminal state; boot load + retry checker demonstrably alive (no swallowed context errors; error path logs + metrics).
+- [x] The live 13th test (post-pivot terminal) green and `sagaCustomerFlow.test.ts` wired into `run-tests.sh`.
+- [x] $transaction bypass question answered empirically and recorded (escalated if general).
+- [x] 0-defect gate: lint 0/0, tsc 0, fitness greps green, CI green.
+
+**Closed at archive** (verify-report, engram obs 456, PASS WITH WARNINGS — 17/17
+requirements, 46/46 scenarios COMPLIANT, 0 CRITICAL): all seven criteria verified with
+runtime evidence. The `$transaction` bypass hypothesis was REFUTED empirically (design D1)
+— the guard DOES intercept in-tx writes; the real mechanism was the bootstrap handing the
+engine the raw Prisma singleton, corrected by D1. No security escalation was needed.
 
 ## Proposal question round (assumptions needing user review)
 

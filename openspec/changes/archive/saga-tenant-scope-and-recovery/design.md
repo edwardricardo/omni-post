@@ -341,32 +341,83 @@ PR1 = D1+D2+D3+D4 + two-tenant/column-truth tests (inseparable block: guarded cl
 
 ## Interfaces / Contracts
 
+> **NOTE (updated at archive-time reconciliation, 2026-08-11).** The block below was
+> never refreshed after the 4R reworks and drifted from the shipped signatures — it
+> stated `resolveSagaAccountId(context: SagaContext)` where the shipped function takes
+> a `SagaInstance` (D3's 7R.2 column-authoritative resolution needs the persisted
+> column, not just the context), and `runAsSagaTenant(...): Promise<T | undefined>`
+> where the shipped function returns the discriminated `SagaWorkOutcome<T>` (7R.3 — a
+> caller cannot mistake "skipped" for "ran and returned nothing"). The D3
+> `AMENDED AT 4R REVIEW` prose above already states both of these; this code block now
+> agrees with it and with the source. It is the exact surface the successor change
+> `saga-engine-terminal-hygiene` reads first.
+
 ```typescript
 // packages/shared/src/saga.ts
 export interface SagaContext {
   /* … */ accountId?: string;
 }
-export function createSagaContext(
-  sagaId: string,
-  correlationId: string,
-  userId?: string,
-  metadata: Record<string, unknown> = {},
-  accountId?: string
-): SagaContext;
+// AMENDED AT 4R REVIEW (7R.7): a parameter object, not a positional list — a
+// positional signature let accountId and userId silently swap slots.
+export interface CreateSagaContextInput {
+  sagaId: string;
+  correlationId: string;
+  /** Account that owns the saga — the tenant scope for every persisted row. */
+  accountId?: string;
+  /** Customer user that started the saga — audit identity, never a tenant. */
+  userId?: string;
+  metadata?: Record<string, unknown>;
+}
+export function createSagaContext(input: CreateSagaContextInput): SagaContext;
 
 // apps/api/src/saga/sagaTenant.ts
 /** The ONLY system-context reason the saga engine may use (spec fixed set). */
 export const SAGA_SYSTEM_REASON = "system:saga-recovery" as const;
-export function resolveSagaAccountId(context: SagaContext): string | null;
+
+/** Why per-saga work could not run under the saga's own tenant. */
+export type SagaTenantSkipReason = "unresolvable-account" | "tenant-mismatch";
+
+/**
+ * Outcome of tenant-scoped saga work (7R.3). Discriminated on purpose: a caller
+ * cannot mistake "skipped because the tenant is unknown" for "ran and returned
+ * nothing", which is how a skip used to reach an API client as a success.
+ */
+export type SagaWorkOutcome<T> =
+  | { readonly ran: true; readonly value: T }
+  | { readonly ran: false; readonly reason: SagaTenantSkipReason };
+
+// resolveSagaTenant/resolveSagaAccountId are COLUMN-AUTHORITATIVE (7R.2): the
+// persisted accountId wins, context/metadata are the fallback AND cross-check, and a
+// disagreement fails CLOSED (never guessed) — hence the SagaInstance parameter.
+export function resolveSagaAccountId(instance: SagaInstance): string | null;
 export function runAsSagaTenant<T>(
   instance: SagaInstance,
-  fn: () => Promise<T>
-): Promise<T | undefined>;
+  fn: () => Promise<T>,
+  metrics?: SagaTenantMetrics
+): Promise<SagaWorkOutcome<T>>;
 
-// apps/api/src/saga/sagaManagerTypes.ts — SagaMetrics gains
+// The engine's ONE cross-tenant write (7R.4/7R2.7): terminalizes a saga whose
+// tenant cannot be resolved, through the ordinary terminal transition (audit event
+// in the same transaction, locks released after), never module-exported as a
+// general-purpose cross-tenant transaction.
+export function failSagaAsSystem(
+  config: SagaSystemTerminationConfig,
+  instance: SagaInstance,
+  reason: SagaTenantSkipReason
+): Promise<void>;
+
+// apps/api/src/saga/sagaManagerTypes.ts — SagaMetrics gains (ten fields, not three;
+// see 7R.6 observability + 9R2.1/9R2.2 additions):
 bootLoadFailures: number;
 recoveryScanFailures: number;
 rehydrationFailures: number;
+tenantMismatches: number;
+timeoutCheckFailures: number;
+instanceLoadFailures: number;
+bootParkedSagas: number;
+bootLoadDeferred: number;
+bootResumeRowFailures: number;
+compensatingOrphans: number;
 ```
 
 ## Testing Strategy

@@ -1165,7 +1165,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
     });
   });
 
-  describe("shutting down while a saga cannot be parked", () => {
+  describe("shutting down while a saga cannot be handed off", () => {
     it("reports the failure and still finishes the drain", async () => {
       const scheduler = new NoopBackgroundTaskScheduler();
       const config = { prisma: guarded, redis, eventService, scheduler, enableMetrics: true };
@@ -1200,7 +1200,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
       });
 
       const failure = lines.find((line) => line.sagaId === stuckId && line.level === "error");
-      assert.ok(failure, "the failed park must surface at ERROR");
+      assert.ok(failure, "the failed handoff must surface at ERROR");
       assert.strictEqual(lifecycle.activeInstances.size, 0, "the drain still completed");
     });
   });
