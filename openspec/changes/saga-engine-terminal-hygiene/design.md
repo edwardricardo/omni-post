@@ -8,6 +8,32 @@ Make the truth durable first, then hand out ownership of it. S0 makes the proof 
 
 **Status: authored + line-traced, NOT executed.** This design executor ran without a shell tool, so the mandated probes could not be run here. Both probe scripts are carried verbatim in Appendix A/B and are designated the **first RED step of slices 2 and 1 respectively** (strict TDD makes them the failing tests anyway). Spec assertions that depend on exact arithmetic MUST NOT freeze until they run. The traces below are branch-by-branch, file:line-cited; two findings REFINE the exploration.
 
+> **AMENDED AT GATE (2026-08-11) — M2 + probe adjudication.** **P1 WAS EXECUTED at the
+> fresh-context gate** (corrected fixture, real engine, in-memory doubles, zero timers) and
+> the arithmetic is **CONFIRMED, not refuted**:
+>
+> ```
+> B0  rc=1 step=3 wait   nextRetryAt +4969ms    (initial, pending=4)
+> J1  rc=2 step=3 wait   nextRetryAt +9970ms    (pending 3)
+> J2  rc=3 step=3 wait   nextRetryAt +19970ms   (pending 2)
+> J3  status=FAILED rc=3  err="Publishing jobs still in progress"  (pending 1)
+> J4  status=FAILED       (all 4 channels published)
+> waitCallsSeq = [4,3,2,1]
+> ```
+>
+> `1 + (N−1)` burns; N ≥ 4 ⇒ deterministic FAILED on sibling events alone with every channel
+> published. The original probe run stalled for a FIXTURE defect, not a design one: it put
+> `channelIds` at the metadata ROOT, while `ValidatePostDataStep` reads
+> `context.metadata.postData.channelIds` (`readPostData`, `packages/shared/src/saga.ts:330-333`;
+> check at `:391-395`) — the saga died at step 0. The mechanism that then gated re-execution is
+> **`handleEvent`'s STEP-IDENTITY filter (`SagaManagerLifecycle.ts:803`)**: step 0's id is not
+> `wait-publishing-completion`, so `executeSagaAsync` was never called. There is **no
+> `nextRetryAt` guard anywhere** on the `executeSagaAsync → executeSaga → runSagaSteps` dispatch
+> path. Also observed: `nextRetryAt` is overwritten on every event-driven re-execution and stays
+> SET on the FAILED row — corroborating P2's stale-`nextRetryAt` finding. `createChaosHarness`
+> is the RIGHT harness; Appendix A carries the corrected fixture. D7 depends on no refuted
+> claim; **P2 remains unexecuted** and stays the slice-1 RED gate.
+
 ### P1 trace — amplification arithmetic (slice 2)
 
 Budget = 4 failing attempts total: initial + `maxRetries: 3` (`packages/shared/src/saga.ts:926-930`; `shouldRetryStep` at `SagaManagerExecution.ts:539-546`). For an N-channel publish where the initial wait attempt precedes all completions: attempt 1 = initial arrival at the wait step (pending=N → `success:false`, `:731-733` → retryCount 1); each sibling `publish.job.completed` re-dispatches via `handleEvent` (`SagaManagerLifecycle.ts:794-810`) and finds pending>0. **Attempts consumed by events alone = 1 + (N−1)** (the Nth event finds pending=0). Exhaustion at the 4th failing attempt ⇒ **N ≥ 4 reaches FAILED deterministically with zero timer involvement**: rc 1 (initial, pending=4) → 2 (J1) → 3 (J2) → J3's event exhausts (`:229-246`, then `:253-262` → `failSaga`, step class `retryable`). J4's event lands on a terminal row and is ignored (`:795-799` status check; terminal guard `:82-93`). N = 3 survives pure event flow but still dies when 5 s retry ticks (`:1070`) interleave. Also traced: concurrent `executeSagaAsync` dispatches share ONE in-memory instance (`getSaga` returns the `activeInstances` object, `SagaManagerLifecycle.ts:781-788`) — concurrent walkers mutate shared `currentStep`/`retryCount`, the in-flight guard's second justification.
@@ -46,6 +72,48 @@ Crash shape at the durable layer (auto path `SagaManagerExecution.ts:253-263`, w
 
 ### D5 (S1) — Failed compensation ⇒ stays `COMPENSATING`; gauge + re-drive + alert move
 
+> **AMENDED AT GATE (2026-08-11) — C1 + minors. The ordinary-horizon backstop below is
+> SUPERSEDED: COMPENSATING gets its OWN horizon, anchored at durable compensation liveness.**
+> The original text sent COMPENSATING rows to the ordinary `startedAt` sweep — which, for a
+> row inherited after an outage longer than the 30-min saga timeout, terminalizes it on the
+> FIRST tick (+60 s) with the wrong reason (`"timeout"`), ZERO operator re-drive window (a
+> terminal row is refused at `:730-732`), and a write race against the in-flight walk on the
+> same shared in-memory instance — the exact hazard the parked branch documents at
+> `:1109-1115`, applied to parking and not to COMPENSATING. Corrected mechanism (token-free):
+>
+> 1. `SagaInstanceRow` + `deserializeSagaInstanceRow` (and `SagaInstance` as an optional
+>    field) carry **`updatedAt`**. The row IS written at the COMPENSATING transition (D2) and
+>    after every step (D3), so `updatedAt` tracks WALK LIVENESS — a live walk never expires,
+>    only a stalled one does. Using `updatedAt` is safe HERE, unlike the parked case where
+>    byte-identity forced its rejection: a compensating row makes no byte-identity promise,
+>    it is written by design.
+> 2. `checkSagaTimeout` branches on `status === "COMPENSATING"` BEFORE the parked and
+>    ordinary branches. Suspicion forms on the carried (possibly stale, therefore
+>    conservative) `updatedAt`; before terminalizing, the checker re-reads the FRESH row via
+>    `withSagaSystemRead` — the established distrust-the-stale-copy pattern of
+>    `terminalizeUnscopableSaga` (`:1191-1226`) — and only an elapsed fresh horizon fails it.
+> 3. Terminalization uses a **NEW `SagaFailureReason` member `"compensation-expired"`**,
+>    added to the closed union at `sagaRecoveryMetrics.ts:82-83` (the original prose promised
+>    the reason without adding it). The `prometheus/alerts/saga.yml` changes ship in the same
+>    PR: the `SagaCompensatingOrphans` description (":84 — the engine does not resume these")
+>    becomes FALSE after D4 and is rewritten; the `SagaRecoveryLoopFailing` `stage=~` regex
+>    (`:98`) gains the new **`SagaRecoveryStage` member `"compensation"`** that D5's
+>    silent-exit counters emit; thresholds re-tuned per Edward's decision 3. `SLO.md` and the
+>    `MULTI_TENANT_GUARDS.md` compensating-orphan runbook section update with it, as does the
+>    boot WARN at `loadActiveSagas:992-999` (its "detection only" text becomes false).
+> 4. **Rejected alternative**: an in-memory `compensatingAt` map mirroring `parkedAt` — a
+>    crash loop re-opens the window on every reboot, the exact hazard D11 closes for parking;
+>    a durable anchor the walk already maintains costs nothing and survives restarts.
+>
+> Minor corrections to the prose below: the silent exits at `compensateSagaSteps` are TWO
+> returns (`:294-296`, `:299-301`) plus the `!outcome.ran` path (`:309-314`) which logs but
+> does not count — all three get counters under the new `"compensation"` stage. Concrete
+> producer note for the resume-before-claims caveat (adjudicated SOUND — D3 bounds the
+> overlap to one in-flight step and canon requires idempotent `compensate()`): `shutdown()`
+> (`:875-876`) skips non-RUNNING rows, so it does NOT hand off a COMPENSATING row — a
+> draining process's detached walk keeps writing past teardown; accepted and stated, the
+> lease (S3) and the liveness horizon (this amendment) bound it.
+
 **Choice**: the rebuilt walk no longer marks `COMPENSATED` when a step's `compensate()` failed (today `:363-368` logs and the saga still terminalizes as COMPENSATED — dishonest). A walk ending with any non-succeeded eligible step leaves the row `COMPENSATING`; the ordinary timeout horizon (`checkSagaTimeout`, measured from `startedAt`) remains the canon backstop that terminalizes it to FAILED (`compensation-expired` reason) — no infinite COMPENSATING. The three silent-return exits (`compensateSagaSteps` `:293-301`) each get a log + `recordSagaRecoveryFailure` counter. `compensateSaga` (admin) accepts `status ∈ {FAILED, COMPENSATING}` (`:730-732`); for COMPENSATING it dispatches the walk, which resumes from durable progress per D3 — Edward's decision (never restarts from step 0; restart falls out naturally as "no persisted successes yet"). `compensatingOrphans` keeps its boot-count semantics but now measures the production path (the auto walk writes the status); its alert threshold moves INSIDE slice 1's PR (Edward's decision 3), re-tuned from "any > 0 is admin-endpoint leakage" to "COMPENSATING count that does not drain across two boot observations".
 **Alternatives**: dedicated compensation retry policy with its own backoff — deferred: adds a second retry state machine; the timeout backstop + admin re-drive + boot resume already bound the state. Named in ADR-1 as a revisit trigger if `compensation-expired` fires in production.
 **Rationale**: honest terminal states; every exit is counted; the operator can always re-drive.
@@ -61,11 +129,38 @@ export type SagaStepResult =
   | { outcome: "waiting"; reason: string; data?: unknown };
 ```
 
-Full consumer inventory (repo grep, `SagaStepResult` + `.success` on results): **producers** — `packages/shared/src/saga.ts` step classes (`:376`, `:415`, `:449`, `:527`, `:595`, `:694` wait step — `pending>0` becomes `{outcome:"waiting", reason:"publishing jobs still in progress"}`; `failed>0` stays `failed` — `:789`), engine-synthesized countermeasure results (`SagaManagerExecution.ts:170-179`, `:187-190`, `:198-201` → `failed`), catch-wrappers (`:197-202`, `:369-375`); **consumers** — engine event-type pick `:206`, failure branch `:229`, walk eligibility `:349` (`stepResult?.outcome === "succeeded"`), compensation result checks `:363`, `:389`, terminal-event tallies `:430-431`, `:509-510`; **type surfaces** — `SagaStep.execute/compensate` signatures (`saga.ts:135`, `:148`), `SagaInstance.stepResults/compensationResults` (`:271-272`); **persistence seams** — `deserializeSagaInstanceRow` (`sagaInstanceRow.ts:50-51`, casts) and the Redis-cache deserializer (`SagaManagerExecution.ts:828-829`): both gain `normalizeLegacyStepResults` mapping `{success:true,…}→succeeded` / `{success:false,…}→failed` so pre-deploy rows keep replaying; **frontend view** — `apps/client/lib/api/clients/sagaClient.ts:83-88` `SagaStepResultView` (knip-baselined unused, updated to the union view in the same PR); **tests/helpers** — `chaos-helpers.ts`, `sagaManager.test-helpers.ts`, `sagaTenantIsolation.test.ts:146`, boot-resume/crash-recovery fixtures; **docs** — `docs/api/saga.md:34-46`.
+Full consumer inventory (repo grep, `SagaStepResult` + `.success` on results): **producers** — `packages/shared/src/saga.ts` step classes (`:376`, `:415`, `:449`, `:527`, `:595`, `:694` wait step — `pending>0` becomes `{outcome:"waiting", reason:"publishing jobs still in progress"}`; `failed>0` stays `failed` — `:746-751` [cite corrected at gate; `:789` is `UpdatePostStatusStep.execute`]), engine-synthesized countermeasure results (`SagaManagerExecution.ts:170-179`, `:187-190`, `:198-201` → `failed`), catch-wrappers (`:197-202`, `:369-375`); **consumers** — engine event-type pick `:206`, failure branch `:229`, walk eligibility `:349` (`stepResult?.outcome === "succeeded"`), compensation result checks `:363`, `:389`, terminal-event tallies `:430-431`, `:509-510`; **type surfaces** — `SagaStep.execute/compensate` signatures (`saga.ts:135`, `:148`), `SagaInstance.stepResults/compensationResults` (`:271-272`); **persistence seams** — `deserializeSagaInstanceRow` (`sagaInstanceRow.ts:50-51`, casts) and the Redis-cache deserializer (`SagaManagerExecution.ts:828-829`): both gain `normalizeLegacyStepResults` mapping `{success:true,…}→succeeded` / `{success:false,…}→failed` so pre-deploy rows keep replaying; **frontend view** — `apps/client/lib/api/clients/sagaClient.ts:83-88` `SagaStepResultView` (knip-baselined unused, updated to the union view in the same PR); **tests/helpers** — `chaos-helpers.ts`, `sagaManager.test-helpers.ts`, `sagaTenantIsolation.test.ts:146`, boot-resume/crash-recovery fixtures; **docs** — `docs/api/saga.md:34-46`.
 **Alternatives**: `waiting?: boolean` flag on the current shape — rejected by the approved verdict (type-level modelling error stays); parallel `WaitOutcome` type only for the wait step — rejected: every consumer of the boolean would still guess.
 **Rationale**: three domain states, compiler-enforced; the union straightens the `runSagaSteps` countermeasure control flow (`:153-196`) that used result-truthiness as flow control.
 
 ### D7 (S2) — De-amplification: `waiting` consumes no retry budget + in-flight guard with trailing rerun (coalescing)
+
+> **AMENDED AT GATE (2026-08-11) — C2 + M5.**
+>
+> **(C2) Cross-slice MERGE-BLOCKING invariant — tasks MUST codify it verbatim:**
+> **`executeSaga` SHALL REFUSE a row whose persisted status is `COMPENSATING`** (log +
+> `recordSagaRecoveryFailure("compensation")`, never a forward run), **and D7b's trailing
+> rerun SHALL RE-READ the persisted status before re-entering.** Why: `runSagaSteps:130-131`
+> unconditionally sets `RUNNING` + persists, and `executeSaga`'s refusal set (`:82-86`) is
+> only the three terminal states. Five of the six dispatch paths are safe after D2/D4
+> (`handleEvent` requires RUNNING `:799`; the retry scan needs a due `nextRetryAt`, which D2
+> nulls; `continueSaga` requires RUNNING/PENDING `:686`; boot routes COMPENSATING to the
+> walk; `startSaga` is new) — **the one hole is the trailing rerun itself**: a sibling event
+> arriving during the final failing attempt sets `rerun = true`, the `finally` re-enters
+> after D2 persisted COMPENSATING, and forward execution would overwrite it with RUNNING and
+> re-run the failed step over partially-undone state — slice 1's headline defect,
+> reintroduced by slice 2 in the same file. The refusal is slice 2's; slice 1's boot
+> disposition relies on it from the moment both are on main.
+>
+> **(M5) The `waiting` re-arm cadence is a dedicated `waitPollMs`, default 30 000 ms** —
+> deliberately slower than the 5 s scan tick, NOT the definition's `backoffMs` (5 s) the
+> original prose named. Sizing: with a flat 5 s re-arm, `waiting` turns the wait step from
+> ≤ 4 executions ever into up to **360 per saga** over the 30-min horizon (each a `getSaga` +
+> real job-status read + persist, each re-entering the 5 s retry-scan page). At 30 s the
+> worst case is **≤ 60 polls per saga**, and events remain the PRIMARY advance (the guard's
+> trailing rerun delivers completion promptness); the poll is the safety net for a lost
+> event. Config: `waitPollMs` on `SagaManagerConfig` + forwarded through
+> `SagaIntegrationConfig` alongside D10's fields.
 
 **Choice**: two cooperating mechanisms.
 (a) **Budget exemption**: in `runSagaSteps`, `outcome === "waiting"` takes a NEW branch: `retryCount` untouched, `nextRetryAt = now + retryPolicy.backoffMs` (flat — a poll cadence, not an error backoff), persist without a step event (no audit spam per poll; DEBUG log), return. The wait step's overall bound becomes the saga horizon (30 min timeout) — a never-completing job set still terminalizes honestly via the ordinary sweep. `failed` keeps today's budget path untouched.
@@ -76,10 +171,36 @@ Full consumer inventory (repo grep, `SagaStepResult` + `.success` on results): *
 ### D8 (S2) — Parking-evidence-test collision: split the assertion so CI cannot confuse the two flip reasons
 
 The risk: `sagaCrashRecovery.test.ts:1122-1127` asserts the operator-resumed parked saga ends `FAILED` + `/version conflict/i`, and `SagaManagerLifecycle.ts:441-446` names "this assertion changing to COMPLETED" as the drop-the-parking-branch signal. Trace under S2: the replayed row's wait step finds jobs already completed (`pending=0` → `succeeded` — same as today's `success:true`), then `UpdatePostStatusStep` fails on the stale OCC token with a hard CONFLICT → `failed` (never `waiting`) → budget path → FAILED. **S2 does not flip the status**, but it can lawfully change failure-reason TEXT and retry timing, and a reason-only red would masquerade as the revisit trigger.
-**Choice**: in slice 2's PR, restructure the evidence test into two independently-labeled assertions: (1) `assert.notStrictEqual(terminal.status, "COMPLETED", …)` — ONLY this failing is the parking revisit trigger; (2) `assert.strictEqual(terminal.status, "FAILED")` + the `/version conflict/i` match — slice-owned mechanics allowed to evolve with the union. Update the `:441-446` comment to name assertion (1) as the signal.
+**Choice**: in slice 2's PR, restructure the evidence test into two independently-labeled assertions: (1) `assert.notStrictEqual(terminal.status, "COMPLETED", …)` — ONLY this failing is the parking revisit trigger; (2) `assert.strictEqual(terminal.status, "FAILED")` + the `/version conflict/i` match — slice-owned mechanics allowed to evolve with the union. Assertion (1) is evaluated BEFORE (2), so the FIRST failure message a red run prints is the revisit trigger, never the mechanics drift (gate minor). Update the `:441-446` comment to name assertion (1) as the signal.
 **Rationale**: the trigger becomes machine-distinguishable; a mechanics regression reddens (2) without touching (1), and only genuine post-pivot tolerance flips (1).
 
 ### D9 (S3) — Claims: `SagaClaimService` reusing the EXISTING system boundary; claim at selection in BOTH readers; release at guard exit; lease 10 min
+
+> **AMENDED AT GATE (2026-08-11) — M6 + M1.**
+>
+> **(M6) The claim boundary is a NEW narrow named surface, `withSagaSystemClaim`, exported
+> from `sagaTenant.ts`** and delegating to the same unexported `runSagaSystemTransaction` —
+> chosen over routing the claim UPDATE through `withSagaSystemRead`, whose docblock
+> (`sagaTenant.ts:170-192`) and non-export rationale (`:222-228`) promise "reads" plus
+> exactly ONE terminal write (`failSagaAsSystem`); a write through the read surface would
+> make both sentences false. The module's own extension pattern (narrow, named,
+> purpose-limited surfaces) is followed; `sagaTenant.ts` is EXTENDED, never modified, and
+> `runSagaSystemTransaction` stays unexported. The docblock at `:222-228` gains the third
+> named surface in the same edit. Both readers run their SELECT+claim inside
+> `withSagaSystemClaim`; the same-snapshot count queries of `loadActiveSagas` ride the same
+> transaction.
+>
+> **(M1) — decided NOW: S3 ships a scoped `multi-tenant-isolation` MODIFIED delta.** The
+> living spec's "Saga persistence executes on the guarded client" requirement states that a
+> saga write whose `accountId` disagrees with the bound context SHALL FAIL LOUDLY; the raw
+> claim UPDATE is a saga write outside layer 1's `$extends` reach, so leaving the capability
+> untouched would archive a contradiction. The delta records the claim UPDATE as the SECOND
+> named cross-tenant write surface (after `failSagaAsSystem`), normatively constrained to
+> the claim columns ONLY (`claimedAt`, `claimedBy`) — it can never express an `accountId`,
+> a context, or any payload column, so the FAIL-LOUDLY clause remains true by construction;
+> layer 2 still evaluates it (the RLS policy's `USING` + `WITH CHECK` both admit the
+> `__system__` sentinel — gate-verified against migration `20260527000000`). ADR-1 (D12)
+> carries the same statement.
 
 **Choice**: new `apps/api/src/saga/SagaClaimService.ts` holding the `OutboxClaimService` SQL SHAPE (`UPDATE "SagaInstance" SET "claimedAt"=now,"claimedBy"=worker WHERE id IN (SELECT id … FOR UPDATE SKIP LOCKED LIMIT n) RETURNING *` — `OutboxClaimService.ts:87-102` pattern, columns included so the claim returns the full row and the reader loses its second read). It executes inside the readers' EXISTING `withSagaSystemRead` boundary (`sagaTenant.ts:187-192`), which already delegates to the unexported `runSagaSystemTransaction` and binds `setTenantGuc(tx,'__system__')` as the FIRST statement (`:229-241`) — the sentinel is the RLS bypass the raw SQL needs, and `sagaTenant.ts` is extended only by the new service's use, never modified; `runSagaSystemTransaction` stays unexported. Boot reader (`loadActiveSagas`) claim predicate: `status IN ('RUNNING','PENDING','COMPENSATING') AND ("claimedAt" IS NULL OR "claimedAt" < leaseExpiry) ORDER BY "startedAt" LIMIT bootLoadLimit` (counts stay Prisma-typed in the same tx). Retry scan: `status IN ('RUNNING','PENDING') AND "nextRetryAt" <= now AND "nextRetryAt" IS NOT NULL AND (claim-free-or-expired) ORDER BY "nextRetryAt" LIMIT retryScanPageSize`. The `nextRetryAt` partition is untouched — the claim is an ADDITIONAL orthogonal predicate. **Starvation closes by construction**: a claimed slow head is skipped on the next tick, so the page reaches rows 51+. **Release** = `claimedAt/claimedBy → NULL` at the in-flight guard's exit (D7b) when the saga went dormant (terminal, retry-scheduled, waiting-scheduled) — one release point because the guard is the one funnel; crash release is lease expiry. `workerId = ${hostname()}-${process.pid}` (setupCrisisUseCases precedent).
 **Lease = 10 min, config `claimLeaseMs`.** Justification: it must exceed the worst legitimate hold — a boot batch of `bootLoadLimit` (500) rows draining through `maxConcurrentSagas` (100) with multi-second steps (measured saga suites put a step round-trip in seconds; 5 waves × worst-case tens of seconds ≪ 10 min) — and stay well under the 30-min saga horizon minus one recovery cycle, so an expired claim can still be re-claimed and completed before the timeout sweep terminalizes the row. The outbox's 5 min is tuned to single-event dispatch; saga holds are batch-drain-shaped → 2×.
@@ -87,6 +208,27 @@ The risk: `sagaCrashRecovery.test.ts:1122-1127` asserts the operator-resumed par
 **Alternatives**: claiming at dispatch (`executeSaga` entrance) — rejected: the double-read already happened, starvation is a SELECT property; a new exported general system-transaction — rejected: the exact reuse hazard `sagaTenant.ts:222-228` exists to prevent; extending claims to event dispatches — deferred to the SMELL-71 conversation (ADR-1 notes it).
 
 ### D10 (S3) — Claim columns, index posture, fitness #23 three-part edit, config wiring
+
+> **AMENDED AT GATE (2026-08-11) — C3 (factual). The "fitness #23 three-part edit" below is
+> SUPERSEDED: there is NO exclusion to add, because #23 never fires on the claim SQL.**
+> Empirical reality (the gate ran the exact CLAUDE.md #23 command): **count = 0 today**, with
+> 8 raw-SQL files under `apps/api/src` in the tree. #23's regex
+> `\.\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe)\(` requires the paren
+> IMMEDIATELY after the method name — it matches neither the generic-parameter form
+> `this.prisma.$queryRaw<Array<{…}>>(Prisma.sql\`…\`)`(the exact`OutboxClaimService.ts:75-87`syntax the claim service copies:`tx.$queryRaw<SagaInstanceRow[]>(Prisma.sql\`UPDATE …\`)`)
+nor tagged templates (`SagaManagerLifecycle.ts:825`). Adding the planned exclusion would
+> install a PERMANENT DEAD EXCLUSION satisfying the delta's MERGE-BLOCKING scenario
+> cosmetically while the gate stays blind. Corrected disposition:
+>
+> 1. **No CLAUDE.md / fitness.yml edit in this change.** The claim service states its exact
+>    call syntax in its file docblock and notes #23's blindness to it.
+> 2. **ADR-1 carries the baseline decision**: #23 is blind to `$queryRaw<T>(` and
+>    tagged-template forms; the pre-existing raw-SQL files (8 found; 4 outside the current
+>    exception comments) are the baseline; whether #23's regex gets fixed is a HOUSE-LEVEL
+>    canon change, out of this change's scope.
+> 3. **New SMELL backlog entry recommended** (`docs/reports/roadmap-detected-smells-backlog.md`):
+>    "fitness #23 regex blind to generic/tagged-template raw-query forms" — with the 8-file
+>    baseline attached, so the ramp-down starts from measured reality.
 
 **Choice**: `claimedAt DateTime? @db.Timestamptz(6)` + `claimedBy String?` on `SagaInstance` — additive, nullable, NO default (SMELL-70 nullability flip stays out, per constraint). **No new index**: both claim SELECTs are served by the existing `@@index([status, startedAt])` / `@@index([status, nextRetryAt])`; the claim predicate is a residual filter over an already-paged candidate set (≤ 500 rows), and an index on a column that is NULL for the entire steady-state table buys nothing. Fitness **#23** coordinated three-part edit in slice 3's PR: (1) CLAUDE.md #23 gains `grep -vE "/saga/SagaClaimService\.ts"` with an audited-safe comment (system boundary + `__system__` GUC first statement + lease claim SQL, ADR-1-linked); (2) byte-identical mirror in `.github/workflows/fitness.yml`; (3) ADR-1 records the exception — regex drift between doc and workflow is the named failure mode, so the edit is one copy-paste. Config: `SagaIntegrationConfig` (`SagaIntegration.ts:61-98`) gains optional `bootLoadLimit`, `retryScanPageSize`, `claimLeaseMs`, forwarded into the `SagaManagerImpl` config at `:200-211` (conditional spread, `exactOptionalPropertyTypes` pattern); `sagaManagerTypes.ts` gains `retryScanPageSize` + `claimLeaseMs` (`bootLoadLimit` exists at `:58` — the unwired-knob defect closes at the seam it recurred on); the lifecycle reads `this.config.retryScanPageSize ?? 50`.
 
@@ -110,6 +252,16 @@ GLOBAL table (like `OutboxEvent`/`StoredEvent`): no `accountId`, not added to `T
 
 ### D12 — ADR-1 skeleton: "Saga recovery row ownership and the durable park record" (lands with slice 3's PR)
 
+> **AMENDED AT GATE (2026-08-11) — C3 + M1 + M6 propagation.** The skeleton's item (3)
+> "fitness #23 exception (three-part coordinated edit)" is REPLACED by: (3') record that
+> fitness #23 is BLIND to the claim SQL's syntax (`$queryRaw<T>(Prisma.sql…)`) and to tagged
+> templates — no exclusion is added because none would ever fire; the 8-file raw-SQL
+> baseline is recorded and the regex fix is delegated to a house-level canon change (new
+> SMELL backlog entry). The ADR additionally records: the claim boundary is the named
+> surface `withSagaSystemClaim` (third narrow surface of `sagaTenant.ts`, per D9's M6
+> amendment), and the scoped `multi-tenant-isolation` MODIFIED delta constraining the claim
+> UPDATE to `claimedAt`/`claimedBy` only (per D9's M1 amendment).
+
 Status Proposed → Accepted; Deciders Edward. **Context**: recovery readers had no ownership (SMELL-73); the parked window was per-process. **Decision**: (1) lease-based row claims (`claimedAt`/`claimedBy`, additive nullable) taken at selection time in both readers via `SagaClaimService` inside the saga system boundary; (2) lease 10 min = 2× outbox default, bounded by batch-drain worst case below and the 30-min saga horizon above; (3) fitness #23 exception for the one raw claim statement (three-part coordinated edit); (4) `SagaParkedWindow` as the durable park record (option C — byte-identity preserved); (5) ownership reporting downgraded to at-least-once, pending SMELL-71. **Rejected**: per-process ownership (status quo), `nextRetryAt`-as-pseudo-lease (breaks the boot partition), park column on the saga row, updatedAt-derived window. **Revisit if**: SMELL-71 lands (claims may extend to event dispatches; multi-replica statement re-opens); `compensation-expired` fires in production (dedicated compensation retry policy). One conversation, not four — per the approved exploration.
 
 ## Data Flow — the rebuilt compensation machine
@@ -127,30 +279,45 @@ Status Proposed → Accepted; Deciders Edward. **Context**: recovery readers had
             │                        │
             │ boot: disposition compensation-resumed → walk resumes   ← D4
             │ admin: compensateSaga accepts COMPENSATING → walk resumes ← D5
-            └ backstop: ordinary timeout horizon → FAILED (compensation-expired)
+            └ backstop: COMPENSATING liveness horizon (fresh updatedAt re-read)
+                        → FAILED (compensation-expired)          ← D5 as AMENDED (C1)
+
+    INVARIANT (C2, MERGE-BLOCKING): executeSaga REFUSES persisted COMPENSATING
+    (log + failure counter, never a forward run); the in-flight guard's trailing
+    rerun re-reads persisted status before re-entering. Forward execution and the
+    walk can never both own a COMPENSATING row.
 
 ## File Changes
 
-| File                                                            | Action        | Slice | Description                                                                                                                                                                                                                                                                                    |
-| --------------------------------------------------------------- | ------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/api/scripts/run-tests.sh`                                 | Modify        | S0    | Final gate keys on `FAILED_BATCHES`; vitest exit captured; header comment fixed (D1)                                                                                                                                                                                                           |
-| `apps/api/src/infrastructure/container/setupServices.ts`        | Modify        | S0    | Delete dead registration `:936-958` + orphaned `SagaManagerImpl` import `:83`                                                                                                                                                                                                                  |
-| `apps/api/src/infrastructure/container/types.ts`                | Modify        | S0    | Delete `SagaManager` token `:188`                                                                                                                                                                                                                                                              |
-| `docs/product/MASTER_PLAN_ES.md`                                | Modify        | S0    | N-COR-2(b) drift correction (`:159`, `:164`)                                                                                                                                                                                                                                                   |
-| `apps/api/src/saga/SagaManagerExecution.ts`                     | Modify        | S1+S2 | Compensation walk REBUILD (D2-D5); union handling + waiting branch + countermeasure flow straightened (D6-D7); in-flight guard + trailing rerun (D7b)                                                                                                                                          |
-| `apps/api/src/saga/SagaManagerLifecycle.ts`                     | Modify        | S1-S4 | Boot predicate + `compensation-resumed` disposition (D4); `compensateSaga` accepts COMPENSATING (D5); `handleEvent` reworked (guard-coalesced, typed sagaId read); claim-aware readers + page config (D9-D10); park window write-through + hydration + GC sweep (D11); ownership log downgrade |
-| `packages/shared/src/saga.ts`                                   | Modify        | S2    | `SagaStepResult` union REBUILD; step classes emit `outcome`; wait step returns `waiting` (D6)                                                                                                                                                                                                  |
-| `apps/api/src/saga/sagaInstanceRow.ts`                          | Modify        | S2    | `normalizeLegacyStepResults` at the row seam (D6)                                                                                                                                                                                                                                              |
-| `apps/api/src/saga/SagaClaimService.ts`                         | Create        | S3    | Claim SQL shape inside the existing system boundary (D9)                                                                                                                                                                                                                                       |
-| `apps/api/src/saga/SagaIntegration.ts`                          | Modify        | S3    | `bootLoadLimit` / `retryScanPageSize` / `claimLeaseMs` forwarded (D10)                                                                                                                                                                                                                         |
-| `apps/api/src/saga/sagaManagerTypes.ts`                         | Modify        | S3    | New config fields (D10)                                                                                                                                                                                                                                                                        |
-| `infra/prisma/schema.prisma` + migration                        | Modify/Create | S3    | `claimedAt`/`claimedBy` additive nullable — SENSITIVE (D10)                                                                                                                                                                                                                                    |
-| `infra/prisma/schema.prisma` + migration                        | Modify/Create | S4    | `SagaParkedWindow` table — SENSITIVE (D11)                                                                                                                                                                                                                                                     |
-| `CLAUDE.md` + `.github/workflows/fitness.yml`                   | Modify        | S3    | Fitness #23 exception, byte-identical pair (D10)                                                                                                                                                                                                                                               |
-| `docs/technical/ADR-NNNN-saga-row-ownership-and-park-record.md` | Create        | S3    | ADR-1 per D12 skeleton                                                                                                                                                                                                                                                                         |
-| `apps/client/lib/api/clients/sagaClient.ts`                     | Modify        | S2    | `SagaStepResultView` → union view (D6)                                                                                                                                                                                                                                                         |
-| `docs/api/saga.md` + `docs/security/MULTI_TENANT_GUARDS.md`     | Modify        | S2/S0 | Contract + carry-list closure notes                                                                                                                                                                                                                                                            |
-| `apps/api/tests/**` (chaos, unit/saga, integration)             | Create/Modify | all   | P1/P2 RED tests (Appendix A/B), walk-resume proofs, claim contention, parked-window restart survival, evidence-test split (D8)                                                                                                                                                                 |
+| File                                                                                 | Action        | Slice | Description                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------------------------------ | ------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/scripts/run-tests.sh`                                                      | Modify        | S0    | Final gate keys on `FAILED_BATCHES`; vitest exit captured; header comment fixed (D1)                                                                                                                                                                                                                                                                                                      |
+| `apps/api/scripts/run-tests.sh`                                                      | Modify        | S1-S4 | AMENDED AT GATE (M4): every new node:test suite appended to its batch's explicit list — an unlisted suite never runs                                                                                                                                                                                                                                                                      |
+| `apps/api/src/infrastructure/container/setupServices.ts`                             | Modify        | S0    | Delete dead registration `:936-958` + orphaned `SagaManagerImpl` import `:83`                                                                                                                                                                                                                                                                                                             |
+| `apps/api/src/infrastructure/container/types.ts`                                     | Modify        | S0    | Delete `SagaManager` token `:188`                                                                                                                                                                                                                                                                                                                                                         |
+| `docs/product/MASTER_PLAN_ES.md`                                                     | Modify        | S0    | N-COR-2(b) drift correction (`:159`, `:164`)                                                                                                                                                                                                                                                                                                                                              |
+| `apps/api/src/saga/SagaManagerExecution.ts`                                          | Modify        | S1+S2 | Compensation walk REBUILD (D2-D5); union handling + waiting branch + countermeasure flow straightened (D6-D7); in-flight guard + trailing rerun with status re-read + COMPENSATING refusal in `executeSaga` (D7b as amended, C2)                                                                                                                                                          |
+| `apps/api/src/saga/SagaManagerLifecycle.ts`                                          | Modify        | S1-S4 | Boot predicate + `compensation-resumed` disposition (D4); `compensateSaga` accepts COMPENSATING (D5); COMPENSATING liveness branch in `checkSagaTimeout` + boot WARN rewrite `:992-999` (C1/M3); `handleEvent` reworked (guard-coalesced, typed sagaId read); claim-aware readers + page config (D9-D10); park window write-through + hydration + GC sweep (D11); ownership log downgrade |
+| `packages/shared/src/saga.ts`                                                        | Modify        | S2    | `SagaStepResult` union REBUILD; step classes emit `outcome`; wait step returns `waiting` (D6); `SagaInstance` gains optional `updatedAt` (C1)                                                                                                                                                                                                                                             |
+| `apps/api/src/saga/sagaInstanceRow.ts`                                               | Modify        | S1+S2 | `updatedAt` carried on row + deserializer (C1); `normalizeLegacyStepResults` at the row seam (D6)                                                                                                                                                                                                                                                                                         |
+| `apps/api/src/saga/sagaTenant.ts`                                                    | Extend        | S3    | AMENDED AT GATE (M6): new exported narrow surface `withSagaSystemClaim` (third named surface; delegates to the unexported `runSagaSystemTransaction`); docblock `:222-228` names it                                                                                                                                                                                                       |
+| `apps/api/src/saga/SagaClaimService.ts`                                              | Create        | S3    | Claim SQL shape inside `withSagaSystemClaim` (D9 as amended); file docblock states the exact `$queryRaw<T>(Prisma.sql…)` syntax + #23 blindness note (C3)                                                                                                                                                                                                                                 |
+| `apps/api/src/saga/SagaIntegration.ts`                                               | Modify        | S2+S3 | `waitPollMs` (M5) + `bootLoadLimit` / `retryScanPageSize` / `claimLeaseMs` forwarded (D10)                                                                                                                                                                                                                                                                                                |
+| `apps/api/src/saga/sagaManagerTypes.ts`                                              | Modify        | S2+S3 | New config fields incl. `waitPollMs` (D10, M5)                                                                                                                                                                                                                                                                                                                                            |
+| `apps/api/src/metrics/sagaRecoveryMetrics.ts`                                        | Modify        | S1    | AMENDED AT GATE (M3): `SagaFailureReason` += `"compensation-expired"`; `SagaRecoveryStage` += `"compensation"`; gauge docblock `:163-172` rewritten (detection-only text becomes false)                                                                                                                                                                                                   |
+| `prometheus/alerts/saga.yml`                                                         | Modify        | S1    | AMENDED AT GATE (M3): `SagaCompensatingOrphans` description fixed (`:84` "engine does not resume these" false post-D4); `SagaRecoveryLoopFailing` `stage=~` regex `:98` gains `compensation`; thresholds move with the slice (Edward decision 3)                                                                                                                                          |
+| `docs/observability/SLO.md`                                                          | Modify        | S1    | AMENDED AT GATE (M3): saga section reflects the resumed-COMPENSATING lifecycle                                                                                                                                                                                                                                                                                                            |
+| `docs/security/MULTI_TENANT_GUARDS.md`                                               | Modify        | S1    | AMENDED AT GATE (M3): compensating-orphan runbook section rewritten for the resume + re-drive path                                                                                                                                                                                                                                                                                        |
+| `infra/prisma/schema.prisma` + migration                                             | Modify/Create | S3    | `claimedAt`/`claimedBy` additive nullable — SENSITIVE (D10)                                                                                                                                                                                                                                                                                                                               |
+| `infra/prisma/schema.prisma` + migration                                             | Modify/Create | S4    | `SagaParkedWindow` table — SENSITIVE (D11)                                                                                                                                                                                                                                                                                                                                                |
+| `openspec/changes/saga-engine-terminal-hygiene/specs/multi-tenant-isolation/spec.md` | Create        | S3    | AMENDED AT GATE (M1): scoped MODIFIED delta — claim UPDATE as second named cross-tenant write surface, claim-columns-only constraint                                                                                                                                                                                                                                                      |
+| `docs/reports/roadmap-detected-smells-backlog.md`                                    | Modify        | S3    | AMENDED AT GATE (C3): new SMELL — fitness #23 blind to generic/tagged-template raw-query forms (8-file baseline)                                                                                                                                                                                                                                                                          |
+| `docs/technical/ADR-NNNN-saga-row-ownership-and-park-record.md`                      | Create        | S3    | ADR-1 per D12 skeleton as amended (no #23 exclusion; blindness + baseline recorded)                                                                                                                                                                                                                                                                                                       |
+| `apps/client/lib/api/clients/sagaClient.ts`                                          | Modify        | S2    | `SagaStepResultView` → union view (D6)                                                                                                                                                                                                                                                                                                                                                    |
+| `docs/api/saga.md` + `docs/security/MULTI_TENANT_GUARDS.md`                          | Modify        | S2/S0 | Contract + carry-list closure notes                                                                                                                                                                                                                                                                                                                                                       |
+| `apps/api/tests/**` (chaos, unit/saga, integration)                                  | Create/Modify | all   | P1/P2 RED tests (Appendix A/B), walk-resume proofs, claim contention, parked-window restart survival, evidence-test split (D8), C2-invariant refusal test                                                                                                                                                                                                                                 |
+
+SUPERSEDED AT GATE (C3): the former `CLAUDE.md` + `.github/workflows/fitness.yml` row (fitness #23 exception pair) is REMOVED — the regex never fires on the claim syntax, so the exclusion would be permanently dead (see D10 amendment).
 
 ## Interfaces / Contracts
 
@@ -169,7 +336,18 @@ export class SagaClaimService {
 }
 ```
 
-(Executes against the tx the readers' existing `withSagaSystemRead` boundary provides — the service opens no boundary of its own; construction wired in `SagaManagerLifecycle`, no DI token needed.) `SagaIntegrationConfig` additions: `bootLoadLimit?: number; retryScanPageSize?: number; claimLeaseMs?: number`. Prisma: claim columns + `SagaParkedWindow` per D10/D11.
+(Executes against the tx the readers' boundary provides — the service opens no boundary of its own; construction wired in `SagaManagerLifecycle`, no DI token needed.) `SagaIntegrationConfig` additions: `bootLoadLimit?: number; retryScanPageSize?: number; claimLeaseMs?: number; waitPollMs?: number` (last one per M5). Prisma: claim columns + `SagaParkedWindow` per D10/D11.
+
+> **AMENDED AT GATE (2026-08-11) — M6.** The boundary the readers hand to the claim service
+> is `withSagaSystemClaim` (the new third named surface of `sagaTenant.ts`, per D9's
+> amendment), NOT `withSagaSystemRead` — the read surface keeps its read-only promise:
+>
+> ```typescript
+> export async function withSagaSystemClaim<T>(
+>   prisma: SagaEngineClient,
+>   fn: (tx: SagaTransactionClient) => Promise<T>
+> ): Promise<T>; // delegates to the unexported runSagaSystemTransaction
+> ```
 
 ## Testing Strategy
 
@@ -179,7 +357,7 @@ export class SagaClaimService {
 | Unit (Vitest + node:test unit/saga)                       | Union exhaustiveness (tsc), legacy normalization, waiting branch budget-untouched, in-flight guard coalescing (rerun-once), walk resume predicate, disposition table incl. `compensation-resumed`, claim predicate SQL shape                                                               | Existing `sagaBootResume` harness + mock doubles; P2 (Appendix B) is the S1 RED test                                          |
 | Chaos (node:test, no services)                            | P1 amplification (Appendix A) as S2 RED → post-fix asserts COMPLETED with rc unchanged by sibling events; concurrent-dispatch guard proof                                                                                                                                                  | `createChaosHarness` + real `createPostPublishingSagaDefinition`                                                              |
 | Integration (DB+Redis, `integration:saga-recovery` batch) | Crash-mid-walk resume against real Postgres (kill between per-step persists → boot → walk completes, no forward step); claim contention (two managers, one row advanced once — at-least-once documented); parked-window restart survival + crash-loop non-reopen; evidence-test split (D8) | `sagaCrashRecovery` harness patterns; `TIMEOUT=120000`; fixtures cleaned per suite (0-leak)                                   |
-| Static/invariant                                          | Fitness greps (#23 pair byte-identical, #8, #21), `sagaDeterministicIds` untouched, boot-log ownership downgrade pinned                                                                                                                                                                    | Existing static-test pattern from the archived change                                                                         |
+| Static/invariant                                          | Fitness greps (#8, #21; #23 stays 0 by blindness — C3, no pair edit), C2 refusal invariant pinned, `sagaDeterministicIds` untouched, boot-log ownership downgrade pinned                                                                                                                   | Existing static-test pattern from the archived change                                                                         |
 
 ## Threat Matrix
 
@@ -191,7 +369,8 @@ S0-S2: code-only, clean reverts. S3, S4: additive migrations (`omnipost-allow se
 
 ## Open Questions
 
-- [ ] P1/P2 execution results (scripts below) — must run before slice 1/2 spec assertions freeze; any divergence from the traces reopens D2/D7.
+- [x] ~~P1 execution~~ — RESOLVED AT GATE (2026-08-11): executed with the corrected fixture, arithmetic CONFIRMED (see the amended Empirical Evidence section). D7 rests on evidence, not inference.
+- [ ] P2 execution — remains the slice-1 RED gate; divergence from the trace reopens D2.
 - [ ] `claimLeaseMs` production value confirmation once boot-drain timings exist from the S3 integration suite (design default 10 min).
 
 ## Appendix A — Probe P1 (slice 2 RED test; place at `apps/api/tests/chaos/sagaWaitAmplification.test.ts`)
@@ -232,8 +411,16 @@ describe("P1 - sibling completion events burn the wait step's retry budget", () 
         accountId: harness.accountId,
         mode: "publish-now",
         projectId: "proj-p1",
-        channelIds: ["ch-1", "ch-2", "ch-3", "ch-4"],
-        postData: { locale: "en", body: "probe body", tags: [], mediaIds: [] },
+        // channelIds MUST live inside postData: readPostData reads
+        // context.metadata.postData.channelIds (saga.ts:330-333, check :391-395).
+        // Fixture corrected at gate — root-level channelIds killed step 0.
+        postData: {
+          locale: "en",
+          body: "probe body",
+          tags: [],
+          mediaIds: [],
+          channelIds: ["ch-1", "ch-2", "ch-3", "ch-4"],
+        },
       },
     });
     await flushDispatch();
@@ -268,21 +455,21 @@ describe("P1 - sibling completion events burn the wait step's retry budget", () 
 
 Post-fix (GREEN) expectation: rc stays 0 across sibling events (`waiting` exempt), terminal COMPLETED after the last event's trailing rerun.
 
-**EXECUTED AT DESIGN REVIEW (orchestrator, real engine, in-memory doubles): the
-probe AS AUTHORED is fixture-broken and is NOT evidence.** Observed: the saga
-never advanced past step 0 (`status=RUNNING rc=1 step=0` after every sibling
-event) — the harness wiring diverges from the real
-`createPostPublishingSagaDefinition` signature, so the wait step was never
-reached. Two consequences for slice 2: (1) the "N >= 4 reaches FAILED on events
-alone, zero timers" arithmetic remains a LINE-TRACED HYPOTHESIS, neither
-confirmed nor refuted — the slice-2 RED test must rebuild this fixture on the
-proven `saga-step-retry-recovery.test.ts` harness shape before any
-de-amplification assertion freezes; (2) an unexplained observation to resolve
-in that RED: re-dispatches against a row with a pending `nextRetryAt` neither
-burned a retry nor refreshed the schedule — something gates re-execution that
-the trace did not identify, and the de-amplification mechanism must be designed
-against the OBSERVED gate, not the traced one. The waiting-exemption decision
-(D7) stands on its own merits regardless of the exact burn arithmetic.
+**REPLACED AT GATE (2026-08-11, M2) — the earlier review annotation misdiagnosed
+the break; this is the CONFIRMED diagnosis.** The signature matched and
+`createChaosHarness` is the RIGHT harness; only the metadata shape was wrong:
+`channelIds` sat at the metadata ROOT, while `ValidatePostDataStep` reads
+`context.metadata.postData.channelIds` (`readPostData`, saga.ts:330-333; check
+at :391-395) — the saga died at step 0. What gated re-execution was
+**`handleEvent`'s step-identity filter (`SagaManagerLifecycle.ts:803`)**: step
+0's id is not `wait-publishing-completion`, so `executeSagaAsync` was never
+called. It is NOT a `nextRetryAt` guard — none exists anywhere on the dispatch
+path. With the corrected fixture (now above) the gate CONFIRMED the arithmetic:
+rc 1→2→3, FAILED on J3's event, all 4 channels published, zero timers;
+`nextRetryAt` overwritten per event and left SET on the FAILED row
+(corroborating P2). The de-amplification assertions of slice 2 may freeze on
+this evidence. Do NOT rebuild on `saga-step-retry-recovery.test.ts` — that
+instruction is withdrawn.
 
 ## Appendix B — Probe P2 (slice 1 RED test; extend `apps/api/tests/unit/saga/sagaBootResume.test.ts` harness)
 
