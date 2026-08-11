@@ -157,7 +157,7 @@ catalog:
   storybook: 10.4.6
   "@storybook/addon-a11y": 10.4.6
   "@storybook/addon-docs": 10.4.6
-  "@storybook/nextjs": 10.4.6
+  "@storybook/nextjs": 10.5.7
   "@types/opossum": 8.1.9
   image-size: 2.0.2
 
