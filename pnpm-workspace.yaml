@@ -136,7 +136,7 @@ catalog:
   postcss-load-config: 6.0.1
   webpack: 5.106.2
   vite: 8.0.16 # single version — the former vite-7 hold was a workaround for apps/client missing @vitejs/plugin-react (apps/admin had it). Adding the plugin to client (ADR-0019) lets it parse JSX under vite 8's rolldown SSR transform, collapsing the vite 7/8 split. Verified: client 510/510 + admin 106/106 on vite 8.
-  eslint: 9.36.0 # held — eslint 10 has no peer in eslint-plugin-react/jsx-a11y (both already latest)
+  eslint: 10.8.1 # held — eslint 10 has no peer in eslint-plugin-react/jsx-a11y (both already latest)
   "@playwright/test": 1.61.1
   "@axe-core/playwright": 4.10.2
   "@formatjs/icu-messageformat-parser": 3.5.9
