@@ -309,7 +309,7 @@ _(NEW.)_
 
 - **GIVEN** the change diff
 - **WHEN** the claim's tenancy boundary and the repository's compliance gate are inspected
-- **THEN** the claim runs under the already-declared saga recovery reason with no new reason added, and any query-level guard bypass it introduces is catalogued, mirrored in the CI gate and justified by an architecture decision record in the same change
+- **THEN** the claim runs under the already-declared saga recovery reason with no new reason added, and any query-level guard bypass it introduces is catalogued and justified by an architecture decision record in the same change — mirrored in the CI gate where the gate's pattern can match the statement's syntax, or, where the gate's pattern provably cannot match it (verified empirically against the exact call form), the blindness and its pre-existing baseline recorded in that same architecture decision record
 
 ---
 
