@@ -694,16 +694,108 @@ from "never ran". The skip reasons use the SAME words as the rehydration warning
 the failure series, so a boot summary and a per-saga ERROR can be correlated without a
 translation step.
 
-**The boot also DETECTS the rows nothing claims.** In the same declared read boundary it
-counts the `COMPENSATING` sagas it deliberately never loads — that status is excluded by
-the boot predicate, excluded by the retry scan, and invisible to the timeout checker
-(which only inspects tracked rows), so such a row accrues silently in the infinite
-non-terminal state the canon forbids. It is published as `SagaMetrics.compensatingOrphans`,
-on `/sagas/metrics`, and as the gauge `saga_compensating_orphans` behind the
-`SagaCompensatingOrphans` alert, plus a boot WARN naming the count. **Detection only, on
-purpose**: resuming a compensation walk without a row claim is a SECOND walk over
-compensating steps a dead process may already have applied. The fix — claiming and
-resuming them — is owned by `saga-engine-terminal-hygiene`.
+**The boot RESUMES the rows a crash left mid-undo.** `COMPENSATING` is in the boot
+predicate, and such a row is dispatched into the compensation WALK — never into forward
+execution — under its own disposition, `compensation-resumed`. It is its own word because
+"this process is finishing an interrupted undo" and "this process is finishing an
+interrupted publish" send an operator to different runbooks. The status decision is taken
+BEFORE the retry marker, so a legacy row carrying both `COMPENSATING` and a stale
+`nextRetryAt` still resumes backwards instead of being handed to the retry scan, which
+would drive it forward.
+
+The walk it resumes is a durable state machine, and the four guarantees are worth knowing
+before touching one of these rows:
+
+- **status honesty** — `COMPENSATING` is persisted, awaited, BEFORE any `compensate()`
+  runs, with the triggering error on the row and `nextRetryAt` cleared;
+- **monotonic durable progress** — the row is written after EVERY step and merged BY
+  INDEX against what the row already holds, so a recorded success can never be erased,
+  the crash window is exactly ONE in-flight step, and `compensationResults` is a truthful
+  record of what is already undone;
+- **no re-execution of recorded work** — a step whose compensation is recorded as
+  succeeded is never dispatched again, by a resume or by an operator;
+- **terminal honesty** — `COMPENSATED` means every eligible step holds a persisted
+  success. A walk that could not finish leaves the row `COMPENSATING` instead of claiming
+  a rollback that did not happen.
+
+**The orphan gauge now measures the production path**, since the automatic walk is what
+writes the status, and it is measured AT SCRAPE TIME: the gauge carries a `collect`
+callback that runs the count while `/metrics` is rendered, so the series tracks the real
+level continuously instead of freezing whatever a process last published at boot.
+`SagaCompensatingOrphans` fires on `min_over_time(saga_compensating_orphans[10m]) > 0`
+held for a further 5 minutes — a level that never drained for about fifteen minutes. A
+walk that starts and finishes puts a zero in the series and does not page. What remains
+is a walk nothing could finish; every such exit is also counted as
+`saga_recovery_failures_total{stage="compensation"}` and logged at ERROR.
+
+**One walk per saga, per process.** The engine claims a saga while its walk runs: the
+re-drive endpoint answers **409 Conflict** while one is in flight, and the boot pass skips
+a claimed id. Press the button twice and the second press is refused rather than run — two
+walks would interleave read-modify-write on ONE `compensationResults` array, and canon
+idempotency is a promise about repeated invocation, not concurrent invocation. The claim
+is per PROCESS; the cross-process case is the residual below.
+
+**Runbook — a COMPENSATING row that is not draining.**
+
+1. Read the rows and, crucially, HOW FAR each walk got:
+   `SELECT id, "definitionId", "currentStep", "compensationResults", "error", "updatedAt" FROM "SagaInstance" WHERE status = 'COMPENSATING' ORDER BY "updatedAt";`
+   An index holding a recorded success is already undone and will NOT be re-dispatched;
+   an index holding a recorded failure was attempted and failed; a hole was never
+   attempted. The three are deliberately distinguishable.
+2. Fix the cause named in the ERROR log (`stage="compensation"`): a `compensate()` that
+   keeps failing, a definition this process has not registered, an account that cannot be
+   resolved.
+3. Re-drive with `POST /sagas/:sagaId/compensate` (admin auth + `SYSTEM_CONFIGURE`). The
+   endpoint accepts `COMPENSATING` as well as `FAILED`, and it **RESUMES from the durable
+   record** — it is the same walk the engine runs, not a second code path, so recorded
+   steps stay untouched. It answers **409** while a walk is already in flight, so a second
+   press waits instead of doubling the undo. Terminal sagas remain refused; a row already
+   terminalized as `compensation-expired` is a hand-repair, not a re-drive.
+4. If nothing advances the row, **two horizons** terminalize it, and either one is
+   enough. The LIVENESS horizon measures a COMPENSATING row from its last write
+   (`updatedAt`, which the walk moves at the transition and after every step) rather than
+   from `startedAt`, and re-reads the FRESH row before acting so a live walk is never
+   killed. The ABSOLUTE deadline measures from the rollback's BIRTH — the durable
+   `saga.compensation.started` event, written in the same transaction as the transition —
+   and fires at three horizons however recently the walk last wrote; without it, a process
+   that restarts more often than the horizon re-attempts a permanently failing
+   `compensate()`, rewrites the row, and defers the terminal guarantee one restart at a
+   time. Both apply whether or not this process has the saga's definition registered.
+   Terminalization uses the reason `compensation-expired` — never `timeout`. **Read that
+   terminal state as "the rollback did not finish", not "the publish failed": some
+   pre-pivot effects may still stand.** `SagaCompensationExpired` alerts on it.
+
+   **Scope, stated:** the horizons only see rows this process TRACKS. A COMPENSATING row
+   deferred past the boot load ceiling is neither dispatched nor bounded by this process —
+   `SagaBootLoadDeferred` is the signal for that class, and the next boot's oldest-first
+   page picks it up. Related and worth knowing during an incident: COMPENSATING rows are
+   older than in-flight ones by construction, so they sort to the FRONT of the
+   `bootLoadLimit` page and can push newer forward-resumable rows past the ceiling. If the
+   deferred gauge is non-zero while a compensation backlog exists, drain or raise the
+   ceiling deliberately (together with pool sizing) rather than waiting.
+
+**Two residuals are STATED rather than implied.**
+
+(1) **Cross-process concurrency.** The in-flight claim is per process, and this resume
+ships BEFORE row claims, so a rolling deploy in which a draining process is still walking
+a row can produce a SECOND walk in another process. What that costs, stated precisely
+rather than optimistically: each walk re-reads the row before it decides and merges its
+own outcome BY INDEX, so a recorded SUCCESS can never be erased and a step already
+recorded is not re-dispatched — but the two walks can still invoke the SAME step's
+`compensate()` concurrently, because each decides from a read the other has not yet
+written. The bound is therefore "no recorded success is lost, and a step is repeated at
+most once per concurrent walk", NOT "at most one step repeated in total". Related:
+`shutdown()` skips non-RUNNING rows, so it does not hand off a COMPENSATING row at all —
+a draining process's detached walk keeps writing past teardown. Both close with the row
+claims (**SMELL-73**) and are bounded meanwhile by the two horizons.
+
+(2) **Pre-change crash shape.** A row left `RUNNING` mid-walk by a PRE-CHANGE process
+carries nothing that distinguishes it from a saga interrupted mid-step, so it is still
+resumed forward exactly as before. Two operator-visible consequences, named: the failed
+step is RE-EXECUTED (side effects included), and pre-pivot effects the dead walk already
+reverted are undone a second time. It is a bounded, one-off class (rows crashed mid-walk
+at the moment of the deploy), pinned in
+`apps/api/tests/unit/saga/sagaBootResume.test.ts` so it cannot be mistaken for closed.
 
 **The ownership constraint is in the process's own output.** Every boot logs one INFO
 line stating that recovery owns rows per-process and that multi-replica operation is
@@ -928,14 +1020,17 @@ follow-up change (`saga-engine-terminal-hygiene`) owns all six.
 > appending a fresh `SAGA_FAILED` audit event — every sixty seconds for the life
 > of the process.
 
-1. **`COMPENSATING` rows are not loaded at boot — now DETECTED, still not
-   fixed.** The recovery scan filters `status IN (RUNNING, PENDING)`, so a
-   process that died mid-compensation leaves a row no restart picks up, and the
-   timeout checker only sees rows the process happens to hold. This change adds
-   the missing VISIBILITY (`saga_compensating_orphans`, the boot WARN,
-   `/sagas/metrics`) and stops there on purpose: resuming a compensation walk
-   without a row claim is a second walk over steps a dead process may already
-   have applied, so the fix is sequenced behind the claims of **SMELL-73**.
+1. ~~**`COMPENSATING` rows are not loaded at boot.**~~ **CLOSED by
+   `saga-engine-terminal-hygiene` (S1).** The automatic path now persists
+   `COMPENSATING` before it undoes anything, the boot predicate includes that
+   status, the row resumes as a WALK under the `compensation-resumed`
+   disposition, per-step progress is durable in `compensationResults`, the
+   operator endpoint accepts and RESUMES such a row, and a stalled one is
+   terminalized by the compensation liveness horizon as `compensation-expired`.
+   See the resume + re-drive runbook above. The ownership residual it was
+   sequenced behind is stated there rather than silently inherited: the resume
+   ships BEFORE row claims (**SMELL-73**), bounded by the durable per-step
+   record and by canon `compensate()` idempotency.
 2. **"Waiting" and "failed" are the same step result.** The wait step returns
    `success: false` both when publishing genuinely failed and when it is merely
    still in progress, so a slow worker consumes the saga's retry budget exactly

@@ -30,6 +30,13 @@ export interface SagaInstanceRow {
   startedAt: Date;
   completedAt: Date | null;
   nextRetryAt?: Date | null;
+  /**
+   * Last write to the row, applied by the database on every persist. It is the
+   * LIVENESS anchor for a compensating saga: the walk writes at its transition
+   * and after every step, so a horizon measured from here separates a walk that
+   * is running from one that stopped — which `startedAt` cannot do.
+   */
+  updatedAt?: Date | null;
 }
 
 /**
@@ -54,5 +61,6 @@ export function deserializeSagaInstanceRow(row: SagaInstanceRow): SagaInstance {
     ...(row.error !== null && { error: row.error }),
     ...(row.completedAt !== null && { completedAt: row.completedAt }),
     ...(row.nextRetryAt && { nextRetryAt: row.nextRetryAt }),
+    ...(row.updatedAt && { updatedAt: row.updatedAt }),
   };
 }

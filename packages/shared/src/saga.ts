@@ -275,6 +275,18 @@ export interface SagaInstance {
   error?: string;
   retryCount: number;
   nextRetryAt?: Date;
+  /**
+   * Last write to the persisted row (`@updatedAt`), when the instance came from
+   * one. OPTIONAL because an in-process instance has not been read back: a
+   * freshly started saga carries no value here at all.
+   *
+   * It is the LIVENESS anchor of a compensating saga — the walk writes at its
+   * transition and after every step — so the engine's compensation horizon is
+   * measured from it. Absence therefore means "unknown", never "fresh": the
+   * engine treats a missing value as SUSPICIOUS and re-reads the row rather
+   * than judging the saga on a value it does not have.
+   */
+  updatedAt?: Date;
 }
 
 export interface SagaManager {

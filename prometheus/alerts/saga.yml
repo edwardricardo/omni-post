@@ -65,7 +65,8 @@ groups:
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga
 
-      # A GAUGE, not a counter: it is a level each process re-measures at boot,
+      # A GAUGE, not a counter: it is a level read at scrape time by the metric's
+      # collect provider (a live COUNT of COMPENSATING rows),
       # so `max` across replicas is the honest read and a rate would be
       # meaningless. Deferral is a BOUND doing its job — never a malfunction —
       # which is why it is on neither the failures nor the parked series.
@@ -81,27 +82,54 @@ groups:
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga
 
-      # Also a gauge, and also DETECTION ONLY: the engine does not resume these.
+      # The gauge is measured AT SCRAPE TIME (a prom-client collect callback runs
+      # the COUNT), so this series tracks the real level continuously rather
+      # than whatever a process last published at boot. `min_over_time` is the
+      # FLOOR of the window: a walk that starts and finishes puts a 0 into the
+      # series, so the floor is 0 and this stays silent; a rollback nothing can
+      # finish keeps every sample non-zero. `max(...) > 0` would page on every
+      # inherited compensation the engine correctly completed.
+      #
+      # The threshold, stated honestly: the expression is true at T when NO
+      # sample in [T-10m, T] was zero, and `for: 5m` requires that to hold
+      # continuously — so this pages after roughly 15 minutes of a level
+      # that never drains, of which the first ten are the lookback. That is
+      # comfortably inside the compensation liveness horizon (one saga horizon,
+      # 30 min) and the absolute deadline (three), so an operator hears about a
+      # stuck rollback well before the engine terminalizes it as
+      # `compensation-expired`.
       - alert: SagaCompensatingOrphans
-        expr: max(saga_compensating_orphans) > 0
-        for: 10m
+        expr: min_over_time(saga_compensating_orphans[10m]) > 0
+        for: 5m
         labels:
           severity: warning
           component: saga
         annotations:
-          summary: "Sagas are stuck in COMPENSATING with no mechanism to finish them"
-          description: 'A process died mid-compensation and left rows in COMPENSATING. NOBODY claims that status: the boot load and the retry scan both filter `status IN (RUNNING, PENDING)`, and the timeout checker only inspects rows the process is tracking — so these rows sit in the infinite non-terminal state ARCHITECTURE_CANON §Saga forbids, and they will not age out. The engine only DETECTS them (this gauge, the boot WARN and `/sagas/metrics` -> recovery.compensatingOrphans); it deliberately does not resume them, because a compensation walk resumed without a row claim is a second walk over the same compensating steps. Handling: identify the rows (`SELECT id, "definitionId", "currentStep", "startedAt" FROM "SagaInstance" WHERE status = ''COMPENSATING''`), establish from the step results how far the walk got, and finish or terminalize them under a documented maintenance change. The automatic fix is owned by saga-engine-terminal-hygiene.'
+          summary: "A compensation walk is STUCK: the COMPENSATING level is not draining"
+          description: 'Sagas have been sitting in COMPENSATING for about 15 minutes without the level ever returning to zero (a 10-minute lookback that never saw a zero, held for a further 5), so this is not a walk in progress: the engine loads COMPENSATING rows at boot and resumes their WALKS from the durable per-step record in `compensationResults`, and the gauge reports the live level at every scrape, so a backlog that accrues between boots is visible and a drained one reads zero. What is left is a walk this process could not finish — a `compensate()` that keeps failing, a definition this process has not registered, or an account it cannot resolve. Each such exit is also counted as `saga_recovery_failures_total{stage="compensation"}` and logged at ERROR. Handling: identify the rows (`SELECT id, "definitionId", "currentStep", "compensationResults", "updatedAt" FROM "SagaInstance" WHERE status = ''COMPENSATING''`), read `compensationResults` to see exactly which steps are already undone (a resumed walk will not repeat them), fix the cause, then re-drive with `POST /sagas/:sagaId/compensate` — which RESUMES rather than restarts. If nothing advances the row, the compensation liveness horizon terminalizes it as reason=`compensation-expired` one full saga horizon after its last write, and SOME OF ITS EFFECTS MAY STILL STAND.'
+          runbook: docs/security/MULTI_TENANT_GUARDS.md
+          slo: docs/observability/SLO.md#saga
+
+      - alert: SagaCompensationExpired
+        expr: increase(sagas_failed_total{reason="compensation-expired"}[10m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: saga
+        annotations:
+          summary: "A saga's ROLLBACK was terminalized unfinished"
+          description: "A saga in COMPENSATING stopped making progress for a full saga horizon and was terminalized FAILED under reason='compensation-expired'. Read this as 'the rollback did not finish', NOT as 'the publish failed': the saga's forward work had already failed, and what ran out is the undo — so one or more of its pre-pivot effects are still standing (a created post, an external record). Distinct from reason='timeout' (a step hung) and from reason='parked-expired' (a human window ran out), and it goes to a different runbook: read `compensationResults` on the row to see which steps ARE undone, undo the remainder by hand, and record why the walk stalled. A recurrence means the compensation itself is broken, which the retry policy cannot fix."
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga
 
       - alert: SagaRecoveryLoopFailing
-        expr: increase(saga_recovery_failures_total{stage=~"boot|retry-scan|timeout|instance-load|resume-row|rehydration"}[10m]) > 3
+        expr: increase(saga_recovery_failures_total{stage=~"boot|retry-scan|timeout|instance-load|resume-row|compensation|rehydration"}[10m]) > 3
         for: 5m
         labels:
           severity: warning
           component: saga
         annotations:
           summary: "A saga background loop is failing repeatedly"
-          description: "The boot load, boot resume pass, retry scan, timeout checker or by-id instance load failed more than 3 times in 10min, or the engine could not resolve the owning account of more than 3 sagas. These loops swallow their errors by design so one failure cannot kill the process — this counter is the ONLY external signal that a loop is dead. stage='resume-row' is per-ROW: the pass could not even classify a saga (a persisted context without its metadata object is the known shape), the row was skipped and its neighbours still recovered. stage='boot' additionally means this process has NO recovery coverage: it also degrades the saga health check, and the remedy is a RESTART, not waiting. Inspect the ERROR logs carrying the matching `loop` field and its correlation id."
+          description: "The boot load, boot resume pass, retry scan, timeout checker or by-id instance load failed more than 3 times in 10min, the engine could not resolve the owning account of more than 3 sagas, or more than 3 compensation walks did not complete. These loops swallow their errors by design so one failure cannot kill the process — this counter is the ONLY external signal that a loop is dead. stage='resume-row' is per-ROW: the pass could not even classify a saga (a persisted context without its metadata object is the known shape), the row was skipped and its neighbours still recovered. stage='compensation' is per-WALK: an undo that could not start or could not finish, or a forward dispatch refused because the walk owns the row — pair it with SagaCompensatingOrphans, which says whether the level is draining. stage='boot' additionally means this process has NO recovery coverage: it also degrades the saga health check, and the remedy is a RESTART, not waiting. Inspect the ERROR logs carrying the matching `loop` field and its correlation id."
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga

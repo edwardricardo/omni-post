@@ -27,6 +27,15 @@ export interface MockPrismaClient {
     findMany: (args?: any) => Promise<any[]>;
     findUnique: (args: any) => Promise<any>;
   };
+  /**
+   * The durable event log. The engine reads ONE event type out of it — the
+   * compensation-started marker, which is the absolute birth of a rollback and
+   * therefore the only anchor a restart loop cannot reset.
+   */
+  storedEvent: {
+    findFirst: (args?: any) => Promise<any>;
+    create: (args: any) => Promise<any>;
+  };
 }
 
 export interface MockRedis {
@@ -46,6 +55,7 @@ export interface MockEventService {
 
 export function createMockPrisma(): MockPrismaClient {
   const store = new Map<string, any>();
+  const storedEvents: any[] = [];
 
   /**
    * The rows a status predicate selects. Shared by `count` and `findMany` so the
@@ -67,7 +77,11 @@ export function createMockPrisma(): MockPrismaClient {
     $transaction: async <T>(fn: (tx: MockPrismaClient) => Promise<T>) => fn(mock),
     sagaInstance: {
       upsert: async (args: any) => {
-        const data = args.create ?? args.update;
+        // `@updatedAt` is applied by the database on every write, so the double
+        // applies it too: the COMPENSATING liveness horizon is measured from
+        // this column, and a double that froze it would make a stalled walk and
+        // a live one indistinguishable.
+        const data = { ...(args.create ?? args.update), updatedAt: new Date() };
         store.set(args.where.id, data);
         return data;
       },
@@ -84,6 +98,17 @@ export function createMockPrisma(): MockPrismaClient {
       },
       findUnique: async (args: any) => {
         return store.get(args.where.id) ?? null;
+      },
+    },
+    storedEvent: {
+      findFirst: async (args?: any) =>
+        storedEvents.find(
+          (event: any) =>
+            event.streamId === args?.where?.streamId && event.eventType === args?.where?.eventType
+        ) ?? null,
+      create: async (args: any) => {
+        storedEvents.push(args.data);
+        return args.data;
       },
     },
   };

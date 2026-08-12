@@ -581,7 +581,9 @@ export class SagaIntegration {
       }
     );
 
-    // Compensate Failed Saga
+    // Compensate a saga: starts the rollback for a FAILED one and RESUMES an
+    // interrupted rollback for a COMPENSATING one, from the durable per-step
+    // record. Answers 409 while a walk is already in flight.
     fastify.post<{
       Params: { sagaId: string };
     }>(
@@ -704,6 +706,11 @@ export class SagaIntegration {
                 bootLoadDeferred: metrics.bootLoadDeferred,
                 bootParkedSagas: metrics.bootParkedSagas,
                 bootResumeRowFailures: metrics.bootResumeRowFailures,
+                // The COMPENSATING level, refreshed by the same count the
+                // Prometheus gauge runs at every scrape — so this number and
+                // the series cannot drift into two vintages. A value that never
+                // drains is a rollback nothing can finish; the ones the engine
+                // resumed successfully are already gone from the count.
                 compensatingOrphans: metrics.compensatingOrphans,
                 recoveryScanFailures: metrics.recoveryScanFailures,
                 rehydrationFailures: metrics.rehydrationFailures,

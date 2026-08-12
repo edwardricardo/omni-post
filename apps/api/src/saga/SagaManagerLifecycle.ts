@@ -24,6 +24,7 @@ import {
   recordSagaCompensatingOrphans,
   recordSagaParked,
   recordSagaRecoveryFailure,
+  setSagaCompensatingOrphansProvider,
 } from "../metrics/sagaRecoveryMetrics.js";
 import { captureError } from "../observability/sentryInit.js";
 import { logger } from "../lib/logger.js";
@@ -58,6 +59,30 @@ const PARKED_WINDOW_EXPIRED_ERROR =
   "Saga parked at its pivot was terminalized: its operator window expired";
 
 /**
+ * How many saga horizons a rollback may stay open before it is terminalized
+ * regardless of how recently its walk wrote.
+ *
+ * Three, because the liveness horizon (ONE) already catches a walk that stopped
+ * writing; this second bound exists only for the walk that keeps writing and
+ * keeps failing. It has to leave room for a legitimately long undo — several
+ * steps, each a provider round trip, re-attempted across a deploy — while still
+ * being short enough that a crash loop cannot defer the canon's terminal
+ * guarantee indefinitely. Three horizons is 90 minutes at the default.
+ */
+const COMPENSATION_ABSOLUTE_HORIZONS = 3;
+
+/**
+ * The operator-facing text a compensating row carries once its walk stops
+ * writing. Deliberately says COMPENSATION rather than "timeout": the saga's
+ * forward work already failed, and what ran out here is the undo — some of the
+ * saga's effects may still be standing, which sends the operator to a different
+ * runbook than a hung step does.
+ */
+const COMPENSATION_EXPIRED_ERROR =
+  "Saga compensation was terminalized: its walk stopped making progress, so some effects " +
+  "may still stand";
+
+/**
  * What the boot recovery pass did with one loaded saga.
  *
  * The vocabulary carries more members than a bare "skipped": a saga the checker
@@ -67,6 +92,11 @@ const PARKED_WINDOW_EXPIRED_ERROR =
  * would send all of them to the same runbook.
  *
  * - `resumed` — dispatched by this pass.
+ * - `compensation-resumed` — inherited mid-UNDO. Its own word, not a flavour of
+ *   `resumed`: "this process is finishing an interrupted undo" and "this
+ *   process is finishing an interrupted publish" are different operator
+ *   situations with different runbooks, and its dispatch is the compensation
+ *   walk, never forward execution.
  * - `nextRetryAt-owned-by-checker` — has a pending retry, so the retry checker
  *   owns it; dispatching here too would execute the same saga twice.
  * - `unresolvable-account` — carries no resolvable owning account, so every
@@ -87,6 +117,7 @@ const PARKED_WINDOW_EXPIRED_ERROR =
  */
 type SagaBootDisposition =
   | "resumed"
+  | "compensation-resumed"
   | "nextRetryAt-owned-by-checker"
   | "unresolvable-account"
   | "tenant-mismatch"
@@ -150,6 +181,17 @@ export class SagaManagerLifecycle implements SagaManager {
    */
   readonly parkedAt = new Map<string, number>();
 
+  /**
+   * When each compensation was BORN, remembered per saga.
+   *
+   * Read from the durable compensation-started event the first time a row is
+   * bounded and kept because the value cannot change. It is the anchor a
+   * restart loop cannot reset — unlike `updatedAt`, which every re-attempt
+   * moves — so it is what makes "every saga reaches a terminal state" true for
+   * a walk that keeps failing across restarts.
+   */
+  private readonly compensationStartedAt = new Map<string, number>();
+
   /** Set by SagaManagerImpl facade after construction */
   executionEngine!: SagaExecutionEnginePort;
 
@@ -191,6 +233,13 @@ export class SagaManagerLifecycle implements SagaManager {
     this.startTimeoutChecker();
     this.startMetricsCollector();
     this.startRetryRecoveryChecker();
+
+    // The COMPENSATING level is measured AT SCRAPE TIME from here on. A level
+    // published only at boot cannot see the rows that appear between boots —
+    // which, now that the automatic path writes that status, is the population
+    // the alert exists for — and latches a stale non-zero value for the life of
+    // the process once it has published one.
+    setSagaCompensatingOrphansProvider(() => this.countCompensatingRows());
 
     // ONE pass over what this process just loaded, never a sweep and never a
     // per-tick re-dispatch: a saga interrupted mid-step is only stuck because
@@ -265,6 +314,7 @@ export class SagaManagerLifecycle implements SagaManager {
     };
 
     const resumable: SagaInstance[] = [];
+    const compensating: SagaInstance[] = [];
 
     for (const instance of loaded) {
       // Per row, not per pass. The row's persisted context is deserialized with
@@ -276,6 +326,9 @@ export class SagaManagerLifecycle implements SagaManager {
         record(disposition);
         if (disposition === "resumed") {
           resumable.push(instance);
+        }
+        if (disposition === "compensation-resumed") {
+          compensating.push(instance);
         }
         if (disposition === "resumed" || disposition === "nextRetryAt-owned-by-checker") {
           this.rewarmLoadedSaga(instance, correlationId);
@@ -300,6 +353,7 @@ export class SagaManagerLifecycle implements SagaManager {
     }
 
     const resumed = tally.get("resumed") ?? 0;
+    const compensationResumed = tally.get("compensation-resumed") ?? 0;
     const checkerOwned = tally.get("nextRetryAt-owned-by-checker") ?? 0;
     const unregistered = tally.get("definition-unregistered") ?? 0;
 
@@ -328,11 +382,18 @@ export class SagaManagerLifecycle implements SagaManager {
       {
         loaded: loaded.length,
         resumed,
+        // Counted apart from `resumed` on purpose: these rows are being UNDONE.
+        compensationResumed,
         checkerOwned,
         // Rows that are neither resumed nor owned by another mechanism.
-        skipped: loaded.length - resumed - checkerOwned,
+        skipped: loaded.length - resumed - compensationResumed - checkerOwned,
+        // Neither RESUMED disposition is a skip reason. Filing one here put a
+        // resumed row in the same list as the rows nothing advanced, next to a
+        // `skipped` count that had already subtracted it.
         skipReasons: Object.fromEntries(
-          [...tally].filter(([disposition]) => disposition !== "resumed")
+          [...tally].filter(
+            ([disposition]) => disposition !== "resumed" && disposition !== "compensation-resumed"
+          )
         ),
         deferred: this.metrics.bootLoadDeferred,
         correlationId,
@@ -340,7 +401,7 @@ export class SagaManagerLifecycle implements SagaManager {
       "Saga boot recovery pass complete"
     );
 
-    this.dispatchResumableSagas(resumable, correlationId);
+    this.dispatchResumableSagas(resumable, compensating, correlationId);
   }
 
   /**
@@ -354,7 +415,16 @@ export class SagaManagerLifecycle implements SagaManager {
    * @returns The disposition the summary tallies.
    */
   private disposeLoadedSaga(instance: SagaInstance, correlationId: string): SagaBootDisposition {
-    if (instance.nextRetryAt !== undefined) {
+    // STATUS FIRST, ahead of the retry marker. A row written by this engine
+    // carries no `nextRetryAt` once it enters compensation — the transition
+    // clears it — but a row written by an OLDER process, or by the operator
+    // endpoint before this change, can still carry a stale one, and the
+    // checker-owned branch would hand such a row to the retry scan, which
+    // drives it FORWARD over state a partial undo already reverted. The
+    // direction of travel outranks the retry marker.
+    const compensating = instance.status === "COMPENSATING";
+
+    if (!compensating && instance.nextRetryAt !== undefined) {
       return "nextRetryAt-owned-by-checker";
     }
 
@@ -415,6 +485,50 @@ export class SagaManagerLifecycle implements SagaManager {
           "here, so it is left alone rather than dispatched into a lookup that fails"
       );
       return "definition-unregistered";
+    }
+
+    // Scoped and resolvable, and this process knows its definition: the walk
+    // can be resumed — but only from a row that is PRE-PIVOT.
+    //
+    // "A compensating saga is pre-pivot by construction" is false, and it was
+    // the justification for skipping this check. The operator door accepts a
+    // FAILED saga at ANY step, including one cut after its point of no return,
+    // so a post-pivot row can and does sit in COMPENSATING. Auto-resuming it
+    // would roll back pre-pivot steps that a COMMITTED pivot depends on, on
+    // every boot, unattended — and past the very human gate the pivot-parking
+    // branch exists to impose. A human opened that rollback; a human decides
+    // whether to continue it.
+    if (compensating && instance.currentStep >= definition.pivotStepIndex) {
+      this.park(instance, "pivot");
+      logger.warn(
+        {
+          sagaId: instance.id,
+          definitionId: instance.definitionId,
+          status: instance.status,
+          currentStep: instance.currentStep,
+          pivotStepIndex: definition.pivotStepIndex,
+          reason: "parked",
+          correlationId,
+        },
+        "PARKED a COMPENSATING saga cut at or past its pivot: an unattended rollback of a " +
+          "saga whose point of no return already fired needs a human, not a boot pass"
+      );
+      return "parked";
+    }
+
+    if (compensating) {
+      logger.info(
+        {
+          sagaId: instance.id,
+          definitionId: instance.definitionId,
+          status: instance.status,
+          currentStep: instance.currentStep,
+          reason: "compensation-resumed",
+          correlationId,
+        },
+        "Resuming an interrupted compensation walk: this row is being UNDONE, not advanced"
+      );
+      return "compensation-resumed";
     }
 
     // The pivot boundary, and the reason this pass is not a blanket resume.
@@ -479,12 +593,22 @@ export class SagaManagerLifecycle implements SagaManager {
   /**
    * Re-warms one loaded saga into the Redis hot cache.
    *
-   * Only rows this pass leaves in play are re-warmed. A parked row is
-   * DELIBERATELY not: the promise made about it is that the interruption's state
-   * is what an operator will find, and a re-warm goes through the ordinary
-   * persist, which rewrites the row and moves `updatedAt` — so the one witness
-   * that separates "left alone" from "rewritten identically" would be spent on a
-   * cache warm nobody asked for.
+   * Only rows this pass leaves in play are re-warmed, and only rows it does not
+   * itself write.
+   *
+   * A PARKED row is DELIBERATELY not: the promise made about it is that the
+   * interruption's state is what an operator will find, and a re-warm goes
+   * through the ordinary persist, which rewrites the row and moves `updatedAt` —
+   * so the one witness that separates "left alone" from "rewritten identically"
+   * would be spent on a cache warm nobody asked for.
+   *
+   * A COMPENSATION-RESUMED row is not re-warmed for a sharper reason: the
+   * compensation horizon is measured from `updatedAt`, so a re-warm would reset
+   * the liveness anchor of a walk that has made no progress — and a
+   * crash-looping process would then defer that row's terminal guarantee
+   * indefinitely, one restart at a time. The walk this pass dispatches warms
+   * the cache with its own writes when it actually advances, which is the only
+   * time the anchor should move.
    *
    * @param instance - The saga to re-warm.
    * @param correlationId - Identifier joining this recovery pass in the logs.
@@ -527,33 +651,85 @@ export class SagaManagerLifecycle implements SagaManager {
    * than absent because an operator would reasonably believe it capped exactly
    * this.
    *
+   * The bound is real but it is NOT sized against the pool: the shipped default
+   * admits far more concurrent sagas than the default pool has connections, and
+   * a compensation walk opens one transaction per step rather than one per
+   * saga. A walk dispatched by a forward step's own failure is detached from
+   * here entirely, so it is not counted against this ceiling at all. Under a
+   * post-outage restart the pool is the real limiter and the excess surfaces as
+   * request latency plus walks that abort and retry on the next pass — bounded
+   * and self-healing, never lost work, but the ceiling must be tuned together
+   * with the pool size rather than trusted on its own.
+   *
    * The runner sits outside every declared system boundary, for the same reason
    * the loop above it does: AsyncLocalStorage propagates into awaited work, and
    * a resumed step must run under the saga's OWN rehydrated tenant scope.
    *
+   * A compensating row rides the SAME runner and the same ceiling, dispatched
+   * into the WALK rather than into forward execution. Two lists, one bound:
+   * an undo opens the same transactions a forward step does, so exempting it
+   * from the ceiling would reintroduce exactly the burst the ceiling exists to
+   * prevent. Each dispatch is counted so a walk that cannot finish surfaces as
+   * `saga_recovery_failures_total{stage="compensation"}`; the COMPENSATING
+   * LEVEL itself is read at Prometheus scrape time by the gauge's collect
+   * provider, not re-measured by this pass.
+   *
    * @param resumable - The sagas the pass decided to advance, in row order.
+   * @param compensating - The sagas the pass decided to UNDO, in row order.
    * @param correlationId - Identifier joining this recovery pass in the logs.
    */
-  private dispatchResumableSagas(resumable: SagaInstance[], correlationId: string): void {
-    if (resumable.length === 0) return;
+  private dispatchResumableSagas(
+    resumable: SagaInstance[],
+    compensating: SagaInstance[],
+    correlationId: string
+  ): void {
+    const work: { sagaId: string; direction: "forward" | "compensation" }[] = [
+      ...resumable.map((instance) => ({ sagaId: instance.id, direction: "forward" as const })),
+      ...compensating.map((instance) => ({
+        sagaId: instance.id,
+        direction: "compensation" as const,
+      })),
+    ];
+    if (work.length === 0) return;
 
     const limit = Math.max(1, this.config.maxConcurrentSagas ?? DEFAULT_BOOT_DISPATCH_CONCURRENCY);
-    const ids = resumable.map((instance) => instance.id);
     let cursor = 0;
 
     const advanceNext = async (): Promise<void> => {
       for (;;) {
-        const sagaId = ids[cursor++];
-        if (sagaId === undefined) return;
+        const item = work[cursor++];
+        if (item === undefined) return;
         try {
-          await this.executionEngine.executeSaga(sagaId);
+          if (item.direction === "compensation") {
+            if (this.executionEngine.isCompensationWalkInFlight(item.sagaId)) {
+              logger.warn(
+                { sagaId: item.sagaId, correlationId },
+                "Skipped a compensation resume: a walk for this saga is already in flight"
+              );
+              continue;
+            }
+            await this.executionEngine.resumeCompensationWalk(item.sagaId);
+          } else {
+            await this.executionEngine.executeSaga(item.sagaId);
+          }
         } catch (error) {
-          captureError(error, { loop: "boot-resume-dispatch", sagaId, correlationId });
+          if (item.direction === "compensation") {
+            // A rollback that died on dispatch is exactly what the
+            // compensation stage exists to count; logging it alone leaves the
+            // operator's own signal blind to it.
+            recordSagaRecoveryFailure("compensation");
+          }
+          captureError(error, {
+            loop: "boot-resume-dispatch",
+            sagaId: item.sagaId,
+            correlationId,
+          });
           logger.error(
             {
               err: error,
               loop: "boot-resume-dispatch",
-              sagaId,
+              sagaId: item.sagaId,
+              direction: item.direction,
               errorType: error instanceof Error ? error.name : typeof error,
               correlationId,
             },
@@ -563,10 +739,15 @@ export class SagaManagerLifecycle implements SagaManager {
       }
     };
 
-    void Promise.all(Array.from({ length: Math.min(limit, ids.length) }, advanceNext))
-      .then(() => {
+    void Promise.all(Array.from({ length: Math.min(limit, work.length) }, advanceNext))
+      .then(async () => {
         logger.info(
-          { dispatched: ids.length, concurrency: limit, correlationId },
+          {
+            dispatched: work.length,
+            compensationResumed: compensating.length,
+            concurrency: limit,
+            correlationId,
+          },
           "Saga boot recovery dispatch drained"
         );
       })
@@ -727,34 +908,35 @@ export class SagaManagerLifecycle implements SagaManager {
       throw AppError.notFound(`Saga '${sagaId}'`);
     }
 
-    if (instance.status !== "FAILED") {
+    // COMPENSATING is accepted alongside FAILED: a row a crashed walk left
+    // mid-undo is exactly the row an operator needs to re-drive, and answering
+    // "not FAILED" to that request is how a human was sent to the database
+    // with an UPDATE statement. Terminal sagas stay refused — the re-drive is
+    // not a way around the canon re-execution guard.
+    const previousStatus = instance.status;
+    if (previousStatus !== "FAILED" && previousStatus !== "COMPENSATING") {
       throw AppError.badRequest(`Saga '${sagaId}' is not in a failed state: ${instance.status}`);
     }
 
-    instance.status = "COMPENSATING";
-
-    const compensationStartedEvent = createEventStoreEvent(
-      SAGA_EVENTS.SAGA_COMPENSATION_STARTED,
-      sagaId,
-      "Saga",
-      {
-        sagaId,
-        definitionId: instance.definitionId,
-        failedAt: instance.completedAt,
-        stepsToCompensate: instance.currentStep,
-      },
-      {
-        source: "SagaManager",
-        correlationId: instance.context.correlationId,
-      }
-    );
+    // A walk already in flight is not re-driven. The alert fires minutes before
+    // the horizon, so the runbook actively invites a re-drive while the first
+    // walk may still be running; obliging it would run two walks over one
+    // in-memory instance and one `compensationResults` array.
+    if (this.executionEngine.isCompensationWalkInFlight(sagaId)) {
+      throw AppError.conflict(
+        `Saga '${sagaId}' is already being compensated by a walk in flight; wait for it to ` +
+          `finish or expire before re-driving`,
+        { sagaId }
+      );
+    }
 
     // Reached from the admin route, which authenticates an operator and binds
     // no tenant scope, so the write rehydrates the saga's own account. The
-    // dispatch below stays outside every declared context.
+    // transition itself is the SAME one the automatic path takes — one shape,
+    // two doors — and the dispatch below stays outside every declared context.
     const outcome = await runAsSagaTenant(
       instance,
-      () => this.executionEngine.persistSagaInstance(instance, [compensationStartedEvent]),
+      () => this.executionEngine.beginCompensation(instance),
       this.metrics
     );
 
@@ -762,14 +944,18 @@ export class SagaManagerLifecycle implements SagaManager {
       // The operator asked for compensation and it did not start. Answering
       // with a success envelope here is what made an unscopable saga look
       // compensated to whoever pressed the button.
-      instance.status = "FAILED";
+      instance.status = previousStatus;
       throw AppError.conflict(
         `Saga '${sagaId}' cannot be compensated: its owning account is unresolvable (${outcome.reason})`,
         { sagaId, reason: outcome.reason }
       );
     }
 
-    this.executionEngine.compensateSagaAsync(sagaId);
+    // The walk RESUMES from the durable per-step record: steps already
+    // recorded as compensated are not re-dispatched, whether the previous walk
+    // was automatic or operator-driven. "Restart" is not a second code path —
+    // it falls out of this one as "no persisted successes yet".
+    this.executionEngine.resumeCompensationWalkAsync(sagaId);
 
     return instance;
   }
@@ -904,8 +1090,11 @@ export class SagaManagerLifecycle implements SagaManager {
       }
     }
 
+    setSagaCompensatingOrphansProvider(undefined);
+
     this.activeInstances.clear();
     this.parkedAt.clear();
+    this.compensationStartedAt.clear();
     this.definitions.clear();
 
     logger.info("Saga Manager shutdown complete");
@@ -934,13 +1123,13 @@ export class SagaManagerLifecycle implements SagaManager {
    * happens LATER, in the resume pass, under each saga's own rehydrated scope
    * and only for the rows the pass leaves in play.
    *
-   * It also COUNTS the `COMPENSATING` rows it deliberately does not load. That
-   * status is claimed by nobody — this predicate excludes it, the retry scan
-   * excludes it, and the timeout checker only inspects rows the process tracks —
-   * so such a row accrues silently in the infinite non-terminal state the saga
-   * canon forbids. Counting is DETECTION only, and deliberately so: resuming a
-   * compensation walk without a claim is a second walk over the same steps. The
-   * fix belongs to `saga-engine-terminal-hygiene`.
+   * `COMPENSATING` is IN the predicate. A row mid-undo is inherited exactly
+   * like a row mid-publish — the pass then dispatches it into the compensation
+   * walk rather than forward — because a status nothing loads is a status
+   * nothing can finish, and the saga canon forbids an unbounded non-terminal
+   * state. The orphan gauge does NOT read from this load: it counts the
+   * COMPENSATING level at Prometheus scrape time via its collect provider, so
+   * a backlog accruing between boots is visible and a drained one reads zero.
    *
    * @param correlationId - Identifier joining this recovery pass in the logs.
    * @returns The instances this load registered, in row order, so the resume
@@ -949,7 +1138,7 @@ export class SagaManagerLifecycle implements SagaManager {
    */
   private async loadActiveSagas(correlationId: string): Promise<SagaInstance[]> {
     const limit = Math.max(1, this.config.bootLoadLimit ?? DEFAULT_BOOT_LOAD_LIMIT);
-    const where = { status: { in: ["RUNNING", "PENDING"] } };
+    const where = { status: { in: ["RUNNING", "PENDING", "COMPENSATING"] } };
 
     // All three statements share the ONE declared boundary and its transaction,
     // so the counts and the page describe the same snapshot — a deferred figure
@@ -992,9 +1181,10 @@ export class SagaManagerLifecycle implements SagaManager {
     if (compensating > 0) {
       logger.warn(
         { compensating, correlationId },
-        "Sagas are stuck in COMPENSATING: no boot load, no retry scan and no timeout check " +
-          "claims that status, so they cannot reach a terminal state on their own. Detection " +
-          "only — recovery for them is owned by saga-engine-terminal-hygiene"
+        "Sagas were inherited mid-COMPENSATION: this process RESUMES their walks from the " +
+          "durable per-step record rather than replaying them forward. The orphan gauge " +
+          "reflects the live level at scrape time; what stays COMPENSATING is a walk this " +
+          "process could not finish (docs/security/MULTI_TENANT_GUARDS.md)"
       );
     }
 
@@ -1004,6 +1194,32 @@ export class SagaManagerLifecycle implements SagaManager {
     );
 
     return loaded;
+  }
+
+  /**
+   * Counts the rows currently mid-rollback, for the scrape-time gauge.
+   *
+   * It also refreshes the in-process snapshot `/sagas/metrics` serves, so the
+   * operator-facing number and the Prometheus series cannot drift into two
+   * different vintages.
+   *
+   * @returns Rows whose persisted status is `COMPENSATING`.
+   */
+  private async countCompensatingRows(): Promise<number> {
+    try {
+      const compensating = await withSagaSystemRead(this.config.prisma, (tx) =>
+        tx.sagaInstance.count({ where: { status: "COMPENSATING" } })
+      );
+      this.metrics.compensatingOrphans = compensating;
+      return compensating;
+    } catch (error) {
+      recordSagaRecoveryFailure("compensation");
+      logger.error(
+        { err: error, loop: "compensating-level" },
+        "Failed to measure the COMPENSATING level for the orphan gauge"
+      );
+      throw error;
+    }
   }
 
   /**
@@ -1106,13 +1322,15 @@ export class SagaManagerLifecycle implements SagaManager {
   /**
    * Fails one saga that has outlived the horizon that applies to it.
    *
-   * Two horizons, because two situations. An ORDINARY row is measured from
+   * THREE horizons, because three situations. An ORDINARY row is measured from
    * `startedAt`: it has been advancing (or hanging) since then. A PARKED row is
    * measured from the moment this process parked it, because that is when the
    * operator was told — measuring it from `startedAt` would terminalize a row
    * that was inherited already older than the horizon on the FIRST tick after
    * boot, which is a window of at most sixty seconds and reads to the operator
-   * as "a step hung" rather than "you had time and it ran out".
+   * as "a step hung" rather than "you had time and it ran out". A COMPENSATING
+   * row is measured from its own LIVENESS, for the reason spelled out at that
+   * branch, and is checked FIRST so neither of the other two can claim it.
    *
    * A saga the engine cannot scope to a tenant is TERMINALIZED through the
    * system path instead: no tenant-scoped statement can address it, so without
@@ -1130,6 +1348,21 @@ export class SagaManagerLifecycle implements SagaManager {
     }
 
     const definition = this.definitions.get(instance.definitionId);
+
+    // A COMPENSATING row is bounded whether or not THIS process knows its
+    // definition. "A definition this process has not registered" is one of the
+    // causes the alert and the runbook name for a stuck rollback, and the
+    // definition-gated early return below made the promised backstop false for
+    // exactly that class: the boot pass parks such a row, nothing else claims
+    // it, and it would sit non-terminal forever. The horizon needs a duration,
+    // not a definition — the configured default is one.
+    const compensationTimeout =
+      definition?.timeout || this.config.defaultTimeout || DEFAULT_SAGA_TIMEOUT_MS;
+    if (instance.status === "COMPENSATING") {
+      await this.checkCompensationLiveness(sagaId, instance, compensationTimeout);
+      return;
+    }
+
     if (!definition) return;
 
     const timeout = definition.timeout || this.config.defaultTimeout || DEFAULT_SAGA_TIMEOUT_MS;
@@ -1174,6 +1407,178 @@ export class SagaManagerLifecycle implements SagaManager {
 
     if (!outcome.ran) {
       await this.terminalizeUnscopableSaga(sagaId, instance, outcome.reason);
+    }
+  }
+
+  /**
+   * Bounds a COMPENSATING row by the LIVENESS of its walk.
+   *
+   * The ordinary `startedAt` horizon is the wrong instrument here. A row
+   * inherited after an outage longer than the saga horizon would be
+   * terminalized on the FIRST tick after boot — under the reason `timeout`,
+   * with ZERO re-drive window (a terminal row is refused at the re-drive
+   * endpoint), and racing the walk this same process just resumed. So the
+   * anchor is `updatedAt`, which a live walk keeps moving: the transition
+   * writes it, and so does every step. A live walk therefore never expires; a
+   * stalled one does.
+   *
+   * Suspicion forms on the CARRIED copy, which may be arbitrarily old — the
+   * conservative direction, since old means "look closer". `undefined` is
+   * suspicious for the same reason: an in-process instance built by `startSaga`
+   * carries no `updatedAt` at all, and reading that absence as "fresh" would
+   * hide a stalled walk. Nothing is terminalized on the strength of a stale or
+   * missing value: the decision is re-taken against a FRESH row, the same
+   * distrust-the-stale-copy pattern the unscopable path uses. When even the
+   * fresh row carries no `updatedAt`, `startedAt` is the fallback anchor — a
+   * real one, so the canon's "every saga terminates" still holds without ever
+   * resting on an absent value.
+   *
+   * LIVENESS ALONE IS NOT ENOUGH, and this is the second anchor. A walk whose
+   * `compensate()` fails records that failure and persists it, which moves
+   * `updatedAt`; a process that restarts more often than the horizon therefore
+   * re-attempts, rewrites, and resets the anchor forever — the very hazard the
+   * re-warm exclusion closes, reopened by the walk's own honesty. So the
+   * compensation also has an ABSOLUTE deadline measured from its BIRTH: the
+   * durable `SAGA_COMPENSATION_STARTED` event written in the same transaction
+   * as the transition. Nothing a later process does can move it.
+   * `COMPENSATION_ABSOLUTE_HORIZONS` × the saga horizon is the bound; when the
+   * event cannot be found (a row that predates it), the row's `startedAt` is
+   * the fallback birth, which is always older and therefore never lenient.
+   *
+   * @param sagaId - The saga being checked.
+   * @param instance - The tracked (possibly stale) copy.
+   * @param timeout - The horizon that applies to this saga.
+   */
+  private async checkCompensationLiveness(
+    sagaId: string,
+    instance: SagaInstance,
+    timeout: number
+  ): Promise<void> {
+    const carried = instance.updatedAt;
+    const livenessSuspicious = carried === undefined || Date.now() - carried.getTime() > timeout;
+    // The absolute deadline is checked on EVERY tick, not only a suspicious
+    // one: its whole purpose is to bound a row whose liveness anchor keeps
+    // being reset, which by definition never looks suspicious.
+    const bornAt = await this.compensationBornAt(sagaId, instance);
+    const absoluteExpired =
+      bornAt !== undefined && Date.now() - bornAt > timeout * COMPENSATION_ABSOLUTE_HORIZONS;
+    if (!livenessSuspicious && !absoluteExpired) return;
+
+    const row = await withSagaSystemRead(this.config.prisma, (tx) =>
+      tx.sagaInstance.findUnique({ where: { id: sagaId } })
+    );
+
+    if (!row) {
+      this.stopTracking(sagaId);
+      logger.warn({ sagaId }, "Compensating saga vanished before its horizon; stopped tracking");
+      return;
+    }
+
+    const fresh = deserializeSagaInstanceRow(row);
+
+    if (TERMINAL_SAGA_STATES.includes(fresh.status)) {
+      this.stopTracking(sagaId);
+      return;
+    }
+
+    if (fresh.status !== "COMPENSATING") {
+      // Another process moved it on. Refresh the copy rather than acting on a
+      // classification the database has already contradicted.
+      this.activeInstances.set(sagaId, fresh);
+      return;
+    }
+
+    const anchor = fresh.updatedAt ?? fresh.startedAt;
+    const stalledFor = Date.now() - anchor.getTime();
+    if (stalledFor <= timeout && !absoluteExpired) {
+      // The walk IS alive — it wrote inside the horizon. Take the fresh copy so
+      // the next tick judges the same row the database holds.
+      this.activeInstances.set(sagaId, fresh);
+      return;
+    }
+
+    logger.warn(
+      {
+        sagaId,
+        stalledForMs: stalledFor,
+        windowMs: timeout,
+        anchor: anchor.toISOString(),
+        expiredBy: absoluteExpired ? "absolute-deadline" : "liveness",
+        ...(bornAt !== undefined && { compensationAgeMs: Date.now() - bornAt }),
+      },
+      absoluteExpired
+        ? "Compensating saga expired its ABSOLUTE deadline: its rollback has been open for " +
+            "several full horizons, however recently the walk last wrote"
+        : "Compensating saga expired its liveness horizon: no step of its walk has written " +
+            "inside a full horizon, so nothing is advancing it"
+    );
+
+    // Scope is bound from the FRESH row, which is also the row being written.
+    // Binding it from the copy this method exists to distrust makes the two
+    // isolation layers name two different tenants on one write whenever a
+    // backfill repaired the column underneath a live process — the guard then
+    // refuses the write, the checker swallows the throw, and the row never
+    // terminalizes at all.
+    const outcome = await runAsSagaTenant(
+      fresh,
+      () =>
+        this.executionEngine.failSaga(fresh, COMPENSATION_EXPIRED_ERROR, "compensation-expired"),
+      this.metrics
+    );
+
+    if (!outcome.ran) {
+      await this.terminalizeUnscopableSaga(sagaId, fresh, outcome.reason);
+      return;
+    }
+
+    // `failSaga` stops tracking, so a later tick has nothing to revisit: the
+    // row is terminalized EXACTLY once however many ticks run.
+    this.stopTracking(sagaId);
+  }
+
+  /**
+   * When this saga's rollback was BORN, as milliseconds since the epoch.
+   *
+   * Read once per saga and remembered: the compensation-started event is
+   * written exactly once and never moves, so re-reading it every minute would
+   * be a query per COMPENSATING row per tick for a value that cannot change.
+   * A row with no such event predates the durable transition; its own
+   * `startedAt` is then the birth, which is always earlier and therefore never
+   * grants a longer deadline than the truth.
+   *
+   * @param sagaId - The saga being bounded.
+   * @param instance - The tracked copy, for the fallback anchor.
+   * @returns The birth timestamp, or `undefined` when it cannot be established.
+   */
+  private async compensationBornAt(
+    sagaId: string,
+    instance: SagaInstance
+  ): Promise<number | undefined> {
+    const remembered = this.compensationStartedAt.get(sagaId);
+    if (remembered !== undefined) return remembered;
+
+    try {
+      const event = await withSagaSystemRead(this.config.prisma, (tx) =>
+        tx.storedEvent.findFirst({
+          where: {
+            streamId: `stream:Saga:${sagaId}`,
+            eventType: SAGA_EVENTS.SAGA_COMPENSATION_STARTED,
+          },
+          orderBy: { timestamp: "asc" },
+          select: { timestamp: true },
+        })
+      );
+      const bornAt = event?.timestamp?.getTime() ?? instance.startedAt.getTime();
+      this.compensationStartedAt.set(sagaId, bornAt);
+      return bornAt;
+    } catch (error) {
+      // Unknown, never "young": the liveness anchor still governs this tick.
+      logger.warn(
+        { err: error, sagaId },
+        "Could not read when this compensation started; the absolute deadline is not applied " +
+          "on this tick"
+      );
+      return undefined;
     }
   }
 
@@ -1243,6 +1648,7 @@ export class SagaManagerLifecycle implements SagaManager {
    */
   stopTracking(sagaId: string): void {
     this.parkedAt.delete(sagaId);
+    this.compensationStartedAt.delete(sagaId);
     if (this.activeInstances.delete(sagaId)) {
       this.metrics.activeInstances--;
     }

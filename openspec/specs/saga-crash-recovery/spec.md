@@ -141,18 +141,60 @@ serving.
   (a level each process re-measures at boot, not an event), so "N inherited sagas are
   uncovered by this process" is an alertable condition and not only a log line.
 
-Recovery SHALL also DETECT the rows no mechanism claims. In the same declared read
+> **REVERSED by `saga-engine-terminal-hygiene` (S1).** The paragraph below deferred
+> `COMPENSATING` rows to a follow-up change on the grounds that a walk resumed without a
+> row claim is a second walk. That deferral no longer holds, and the reason it was made
+> was itself the larger hazard: while the class was only DETECTED, the automatic path
+> never wrote `COMPENSATING` at all, so a crash mid-undo left a `RUNNING` row that the
+> next boot drove FORWARD over state the partial walk had already reverted — a
+> data-integrity hole, not a liveness one. The superseding text follows the struck
+> paragraph.
+
+~~Recovery SHALL also DETECT the rows no mechanism claims. In the same declared read
 boundary the boot SHALL count the `COMPENSATING` sagas it does not load, publish the
 count in process, on `/sagas/metrics` and as a gauge, and log it at WARNING. It SHALL
 NOT load, track, resume or compensate them: a compensation walk resumed without a row
 claim is a second walk over steps a dead process may already have applied. Recovery for
-that class belongs to the follow-up change.
+that class belongs to the follow-up change.~~
 
-#### Scenario: COMPENSATING orphans are counted, never resumed [unit] [MERGE-BLOCKING]
+Recovery SHALL INHERIT the rows a crash left mid-undo. The boot load predicate SHALL
+include `COMPENSATING`, and such a row SHALL be dispatched into the compensation WALK —
+never into forward execution — under its OWN disposition, distinct from the forward
+`resumed` and NOT reported as a skip reason. The status SHALL be read BEFORE the retry
+marker, so a row carrying both `COMPENSATING` and a stale `nextRetryAt` resumes backwards
+rather than being handed to the retry checker. A row whose recorded step is at or past its
+pivot SHALL be PARKED instead: the operator door compensates FAILED sagas at any step, so
+"a compensating saga is pre-pivot by construction" is false, and an unattended rollback of
+a saga whose point of no return already fired belongs behind the same human gate as a
+forward replay. The orphan count SHALL be published in process, on `/sagas/metrics` and as
+a gauge measured AT SCRAPE TIME, so a walk that started and finished between boots is
+neither invisible nor reported forever after as a stuck row. The behavior of the walk itself — durability, resume semantics,
+terminal honesty, the operator re-drive and the liveness horizon — belongs to the
+`saga-compensation-integrity` capability.
 
-- **GIVEN** rows exist in `COMPENSATING` alongside a resumable non-terminal row
+#### Scenario: an inherited COMPENSATING row resumes the WALK [unit] [MERGE-BLOCKING]
+
+- **GIVEN** a `COMPENSATING` row exists at boot alongside a forward-resumable row and a parked row
 - **WHEN** initialization completes
-- **THEN** the orphan count is published, and the `COMPENSATING` rows are neither loaded into the tracked set nor dispatched
+- **THEN** the row is loaded, reported under its own disposition, and dispatched into the compensation walk, while no forward step executes for it
+
+#### Scenario: a stale retry marker cannot claim a compensating row [unit] [MERGE-BLOCKING]
+
+- **GIVEN** an inherited `COMPENSATING` row that also carries an elapsed `nextRetryAt`
+- **WHEN** initialization completes and the retry scan ticks
+- **THEN** the boot pass resumes its walk, and the retry scan does not dispatch it forward
+
+#### Scenario: a post-pivot COMPENSATING row is parked rather than resumed [unit]
+
+- **GIVEN** an inherited `COMPENSATING` row whose recorded step is at or past its pivot
+- **WHEN** initialization completes
+- **THEN** it is parked and no compensation is dispatched for it
+
+#### Scenario: the orphan level is measured at scrape time [unit]
+
+- **GIVEN** a boot that inherits COMPENSATING rows and finishes their walks
+- **WHEN** the metrics endpoint is scraped afterwards
+- **THEN** the published level reflects what is STILL compensating, not what was inherited
 
 #### Scenario: one unreadable row costs one saga's recovery [unit] [MERGE-BLOCKING]
 
