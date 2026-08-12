@@ -48,6 +48,10 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/unit/setup.ts"],
     globals: true,
+    // A committed `.only()` silently reduces the suite to one test and still
+    // exits 0, so CI reports green on a run that proved almost nothing. Fail the
+    // run instead (canon: "Zero .only() committed"); apps/api sets the same flag.
+    forbidOnly: true,
     exclude: [
       "**/node_modules/**",
       "**/e2e/**",

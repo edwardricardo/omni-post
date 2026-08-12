@@ -39,11 +39,34 @@ const FAILED_BATCHES = "FAILED_BATCHES";
 const VITEST_BATCH_NAME = "vitest-unit";
 
 /**
+ * Line budgets for the three block scans below. Each is the block's CURRENT length
+ * measured from its anchor line; `WINDOW_SLACK` is the room for an extra branch or
+ * diagnostic line before the constant has to be raised. They are named rather than
+ * inlined because a bare `+ 14` forces the reader to count lines in a shell script
+ * to find out what it assumes, and because a too-small window fails with a message
+ * about the wrong thing.
+ */
+const GATE_BLOCK_LINES = 18;
+const VITEST_GUARD_BLOCK_LINES = 7;
+const COUNT_APPEND_BLOCK_LINES = 3;
+const WINDOW_SLACK = 3;
+
+/**
  * Returns a copy of `source` in which the interior of `#` comments is replaced by
  * spaces, preserving length and newline positions so every index stays valid in
  * both copies. A `#` inside a single- or double-quoted string is left alone: the
  * script greps for `"^# tests "` and friends, and blanking those would hide real
  * code from the scan.
+ *
+ * Two bash behaviours it deliberately does NOT model, written down because both
+ * would blank real code and turn an assertion silently green:
+ *   - bash starts a comment only at a word boundary, so `${VAR#prefix}`, `$#` and
+ *     `array[#]` are code; this blanks from the `#` to end of line;
+ *   - here-documents (`<<EOF`) are literal text in which `#` is not a comment and
+ *     a lone quote does not open one; there are none in the script today.
+ * The sanity assertion in the suite below is the tripwire: it checks that a known
+ * code token survives and a known comment token does not, so the day either
+ * construct appears the scan reports it instead of quietly reading blanks.
  */
 function stripComments(source: string): string {
   const chars = source.split("");
@@ -120,12 +143,38 @@ function headerComment(): string {
 }
 
 describe("run-tests.sh is a gate that can go red", () => {
-  it("finds the runner script and its final gate", () => {
+  it("finds the runner script and every region the assertions read", () => {
     // Non-vacuity: every assertion below reads one of these, so a scan that
     // stopped locating them would turn the suite green while the gate rotted.
+    // `headerComment()` belongs here as much as the others — it collects leading
+    // `#` lines from the second line on, so moving `set -e` up or inserting one
+    // blank line makes it return "" and the anti-rot assertion passes having read
+    // nothing at all.
     expect(runner.length).toBeGreaterThan(0);
     expect(finalGateCondition()).not.toBe("");
     expect(vitestInvocation()).not.toBe("");
+    expect(headerComment()).not.toBe("");
+  });
+
+  it("blanks comments without blanking code", () => {
+    // The scan reads `code`, not `runner`. A stripper that blanked too much would
+    // make every "the code does NOT contain X" assertion vacuously true, and one
+    // that blanked too little would let a comment satisfy an assertion about code.
+    // Cheap tripwire in both directions, plus the offset invariant every
+    // line-indexed lookup depends on.
+    expect({
+      lengthPreserved: code.length === runner.length,
+      lineCountPreserved: codeLines.length === runnerLines.length,
+      keepsCode: code.includes("run_batch()"),
+      keepsQuotedHash: code.includes('grep "^# tests "'),
+      dropsCommentProse: !code.includes("Load .env if DATABASE_URL is not already set"),
+    }).toEqual({
+      lengthPreserved: true,
+      lineCountPreserved: true,
+      keepsCode: true,
+      keepsQuotedHash: true,
+      dropsCommentProse: true,
+    });
   });
 
   describe("the final gate acts on the captured runner exit", () => {
@@ -149,6 +198,13 @@ describe("run-tests.sh is a gate that can go red", () => {
     it("leaves no path on which a batch is recorded failed and the script exits zero", () => {
       // Stated as the invariant rather than as a shape: whatever the condition
       // becomes, a non-empty accumulator must reach it.
+      //
+      // All three terms are pinned on purpose even though the two count terms are
+      // currently subsumed by the third (every path that raises a count also
+      // appends a batch name). That redundancy is the defence-in-depth half: if a
+      // future edit narrows `run_batch`'s append condition, a run with real
+      // failures must still go red on the counts alone. The script says the same
+      // thing at the gate, so neither can be "simplified" without the other.
       const condition = finalGateCondition();
       const testsFailedTerm = condition.includes("$TOTAL_FAIL");
       const testsCancelledTerm = condition.includes("$TOTAL_CANCEL");
@@ -168,12 +224,25 @@ describe("run-tests.sh is a gate that can go red", () => {
       const gateIndex = codeLines.findIndex((line) =>
         line.includes(`FAILED batches:$${FAILED_BATCHES}`)
       );
-      const gateBlock = codeLines.slice(gateIndex, gateIndex + 14).join("\n");
+      // Window = the gate block from its anchor to `exit 1`, plus slack. The block
+      // is GATE_BLOCK_LINES long today; the slack absorbs one more `echo` or one
+      // more branch before the window has to grow. Too small and this assertion
+      // reddens with a message about the ERROR line while the real change was an
+      // added branch, which sends the reader to the wrong place.
+      const gateBlock = codeLines
+        .slice(gateIndex, gateIndex + GATE_BLOCK_LINES + WINDOW_SLACK)
+        .join("\n");
 
-      const cancelExplained = /TOTAL_CANCEL.*-eq 0|-eq 0.*TOTAL_CANCEL/.test(gateBlock);
+      // Named for what it checks: that the clean-count branch is GUARDED on
+      // `TOTAL_CANCEL -eq 0`, which is what separates it from the cancelled
+      // branch. It does not check that the cancelled case is explained.
+      const zeroCancelBranchGuard = /TOTAL_CANCEL.*-eq 0|-eq 0.*TOTAL_CANCEL/.test(gateBlock);
       const errorLine = /echo "ERROR:.*(runner|exit)/i.test(gateBlock);
 
-      expect({ cancelExplained, errorLine }).toEqual({ cancelExplained: true, errorLine: true });
+      expect({ zeroCancelBranchGuard, errorLine }).toEqual({
+        zeroCancelBranchGuard: true,
+        errorLine: true,
+      });
     });
   });
 
@@ -200,7 +269,11 @@ describe("run-tests.sh is a gate that can go red", () => {
       );
       expect(guardIndex).toBeGreaterThanOrEqual(0);
 
-      const guardBlock = codeLines.slice(guardIndex, guardIndex + 6).join("\n");
+      // Window = the `if` line, its body (the marker echo, the output dump, the
+      // append) and its `fi`, plus slack for one more diagnostic line.
+      const guardBlock = codeLines
+        .slice(guardIndex, guardIndex + VITEST_GUARD_BLOCK_LINES + WINDOW_SLACK)
+        .join("\n");
       expect(guardBlock).toContain(FAILED_BATCHES);
       expect(guardBlock).toContain(VITEST_BATCH_NAME);
     });
@@ -211,7 +284,10 @@ describe("run-tests.sh is a gate that can go red", () => {
       );
       expect(countIndex).toBeGreaterThanOrEqual(0);
 
-      const countBlock = codeLines.slice(countIndex, countIndex + 4).join("\n");
+      // Window = `if` + the single append + `fi`, plus slack.
+      const countBlock = codeLines
+        .slice(countIndex, countIndex + COUNT_APPEND_BLOCK_LINES + WINDOW_SLACK)
+        .join("\n");
       expect(countBlock).toContain(`${FAILED_BATCHES}="$${FAILED_BATCHES} ${VITEST_BATCH_NAME}"`);
     });
   });
@@ -221,9 +297,15 @@ describe("run-tests.sh is a gate that can go red", () => {
       // A count in a comment is wrong the day after it is written, and this one
       // was: it named a total the suite left behind long ago. The batch lists
       // below it are the inventory; the header points at them instead.
+      //
+      // Targeted at the rot CLASS — a number followed by what it counts, with at
+      // most one adjective between them ("283 unit tests", "21 such suites") —
+      // rather than at any digit run. A blanket digit ban also rejects tracker
+      // ids, dates and line references, which do not rot, and pushes the next
+      // author into paraphrasing a real reference instead of dropping a count.
       const countClaims = headerComment()
         .split("\n")
-        .filter((line) => /\b\d{2,}\b/.test(line));
+        .filter((line) => /\b\d+\s+(?:\w+\s+)?(?:tests?|suites?|specs?|files?)\b/i.test(line));
 
       expect(countClaims).toEqual([]);
     });

@@ -932,13 +932,10 @@ export function setupServices(
     true
   );
 
-  // The saga engine is NOT registered here. `SagaIntegration` constructs the one
-  // engine the process has, from the config the bootstrap hands it. A second
-  // registration used to sit at this spot, unresolved by anything: inert, but one
-  // accidental resolution away from a second engine on the same database and
-  // Redis, with its own boot recovery pass, its own retry scan, its own timeout
-  // checker and a duplicate set of scheduler task ids — and it was also the wrong
-  // answer for the reader who greps here for where the engine is wired.
+  // The saga engine is deliberately NOT registered here: `SagaIntegration`
+  // constructs the one engine the process has. A second construction path, even
+  // an unresolved one, is one accidental resolve away from a duplicate boot
+  // recovery pass, retry scan and timeout checker over the same database.
 
   // Register Platform Encryption Services
   // AuditService singleton (registered earlier in this setup) is reused as
