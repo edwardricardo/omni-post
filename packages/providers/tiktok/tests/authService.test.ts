@@ -6,7 +6,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import assert from "node:assert/strict";
 
 // Mock external dependencies before importing source
@@ -180,6 +180,20 @@ describe("TikTokAuthService", () => {
   // shouldRefreshToken
   // =========================================================================
   describe("shouldRefreshToken", () => {
+    // Every case here is a distance from "now", and the method reads the clock
+    // AGAIN inside itself. With a real clock the two reads differ by however long
+    // the call took, so the 1 ms boundary case below is decided by scheduling
+    // jitter — it was failing roughly one CI run in fifteen. Freezing the clock
+    // makes the boundary exact, which is the whole point of testing a boundary.
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it("returns true when token expires in less than 1 hour", () => {
       const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 

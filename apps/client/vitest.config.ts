@@ -52,6 +52,10 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./lib/api/__tests__/setup.ts"],
     globals: true,
+    // A committed `.only()` silently reduces the suite to one test and still
+    // exits 0, so CI reports green on a run that proved almost nothing. Fail the
+    // run instead (canon: "Zero .only() committed"); apps/api sets the same flag.
+    forbidOnly: true,
     exclude: ["**/node_modules/**", "**/dist/**", "**/tests/e2e/**"],
     // Cap parallel workers (default is one per CPU). jsdom workers are heavy;
     // running the whole suite that wide OOM-collapses the memory-constrained dev

@@ -903,11 +903,14 @@ A tenant-scoped model is fully enrolled when all three hold:
    invariant (`cmd-{sagaId}-{stepId}[-compensate]`, no clock, no randomness); it
    is the consumer half that is missing. Tracked as **SMELL-71**.
 5. **A composition-root registration for the saga manager that nothing
-   resolves.** `setupServices.ts:937-958` registers `TOKENS.SagaManager`, while
-   the live engine is built inside `SagaIntegration`. Inert today, but a future
-   consumer resolving that token would get a SECOND engine on the same database
-   and Redis, with its own boot recovery pass and timeout checker. Tracked as
-   **SMELL-72**.
+   resolves — CLOSED.** `setupServices.ts` used to register `TOKENS.SagaManager`
+   while the live engine was built inside `SagaIntegration`. Inert, but a future
+   consumer resolving that token would have got a SECOND engine on the same
+   database and Redis, with its own boot recovery pass and timeout checker.
+   Tracked as **SMELL-72**; the registration, its now-orphaned `SagaManagerImpl`
+   import and the token itself were deleted by `saga-engine-terminal-hygiene`
+   after re-verifying zero resolvers repo-wide. `SagaIntegration` is now the only
+   construction site, so a second engine is unreachable by construction.
 
 #### Terminal-hygiene residuals — carried to the next change
 
