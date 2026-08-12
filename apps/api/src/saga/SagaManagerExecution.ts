@@ -5,7 +5,12 @@
  * @layer infrastructure
  */
 
-import type { SagaDefinition, SagaInstance } from "@shared/types/saga.js";
+import type {
+  CompensableStep,
+  SagaDefinition,
+  SagaInstance,
+  SagaStepResult,
+} from "@shared/types/saga.js";
 import { SAGA_EVENTS } from "@shared/types/saga.js";
 import { createEventStoreEvent, type EventStoreEvent } from "@shared/types/events.js";
 import type { SagaManagerLifecycle } from "./SagaManagerLifecycle.js";
@@ -26,14 +31,117 @@ import { captureError } from "../observability/sentryInit.js";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
 
+/** The three states the saga canon accepts as an ending. */
+const TERMINAL_SAGA_STATUSES: ReadonlyArray<SagaInstance["status"]> = [
+  "COMPLETED",
+  "FAILED",
+  "COMPENSATED",
+];
+
+/**
+ * Whether a recorded compensation counts as DONE for the resume predicate.
+ *
+ * A resumed walk decides whether to re-invoke a step's `compensate()` from this
+ * answer, so a recorded success misread as "not done" is a second undo of an
+ * effect already reverted.
+ *
+ * @param result - The recorded compensation outcome, if any.
+ * @returns True only for a recorded SUCCESS; a hole and a recorded failure are
+ *   both "not done", and are distinguished by the caller, not here.
+ */
+function compensationSucceeded(result: SagaStepResult | undefined): boolean {
+  return result?.success === true;
+}
+
+/**
+ * Merges a durable compensation record into an in-memory one, BY INDEX.
+ *
+ * Persisting the whole array wholesale is a lost update: a walk holding a copy
+ * taken before another process recorded step N erases that success on its next
+ * write, and the runbook drives irreversible human action off exactly that
+ * record ("undo whatever it says is still missing"). Per index, a recorded
+ * SUCCESS always wins — it describes an effect that is already reverted, which
+ * no later observation can undo.
+ *
+ * @param durable - The record as the row currently holds it.
+ * @param inMemory - This walk's record, mutated in place.
+ */
+function mergeCompensationResults(
+  durable: SagaStepResult[] | undefined,
+  inMemory: SagaStepResult[]
+): void {
+  if (!durable) return;
+  for (let index = 0; index < durable.length; index++) {
+    const durableResult = durable[index];
+    if (durableResult === undefined || durableResult === null) continue;
+    if (compensationSucceeded(durableResult) || inMemory[index] === undefined) {
+      inMemory[index] = durableResult;
+    }
+  }
+}
+
 /**
  * Saga step execution, compensation, and persistence engine
  */
 export class SagaExecutionEngine {
+  /**
+   * Sagas whose compensation walk this process is running right now.
+   *
+   * One walk per saga, at a time. Two walks obtain the SAME in-memory instance
+   * from the tracked set and interleave read-modify-write on one
+   * `compensationResults` array, so both can observe "not recorded" for the
+   * same step and invoke `compensate()` concurrently — and canon idempotency is
+   * a promise about REPEATED invocation, not about CONCURRENT invocation.
+   *
+   * Deliberately in-process: it is the single-replica sibling of the row claims
+   * that close the cross-process case. Not a cache (fitness #14 is about
+   * cross-pod cached STATE); this is coordination state whose whole meaning is
+   * "this process, right now".
+   */
+  private readonly walksInFlight = new Set<string>();
+
   constructor(
     private config: SagaManagerConfig,
     private lifecycle: SagaManagerLifecycle
   ) {}
+
+  /**
+   * @method isCompensationWalkInFlight
+   * @description Whether this process is already walking `sagaId` backwards.
+   *   Read by the operator endpoint, which answers a conflict rather than
+   *   starting a second walk, and by the boot pass, which skips claimed ids.
+   * @param sagaId - The saga being asked about.
+   * @returns True while a walk holds the saga.
+   */
+  isCompensationWalkInFlight(sagaId: string): boolean {
+    return this.walksInFlight.has(sagaId);
+  }
+
+  /**
+   * The saga's status as the DATABASE holds it, bypassing every cache.
+   *
+   * One indexed primary-key read of one column. It exists because two
+   * decisions must never be taken on a best-effort copy: refusing forward
+   * execution for a row the walk owns, and refusing to write over a row that
+   * already reached a terminal state.
+   *
+   * @param sagaId - The saga being asked about.
+   * @returns The persisted status, `null` when the row is gone, or `undefined`
+   *   when it could not be read — which callers MUST treat as "unknown", never
+   *   as "fine".
+   */
+  private async readPersistedStatus(sagaId: string): Promise<string | null | undefined> {
+    try {
+      const row = await withSagaSystemRead(this.config.prisma, (tx) =>
+        tx.sagaInstance.findUnique({ where: { id: sagaId }, select: { status: true } })
+      );
+      return row === null ? null : row.status;
+    } catch (error) {
+      captureError(error, { sagaId, operation: "readPersistedStatus" });
+      logger.error({ err: error, sagaId }, "Failed to read the persisted saga status");
+      return undefined;
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Async Entry Points
@@ -49,11 +157,24 @@ export class SagaExecutionEngine {
     });
   }
 
-  compensateSagaAsync(sagaId: string): void {
+  /**
+   * @method resumeCompensationWalkAsync
+   * @description The detached form of {@link resumeCompensationWalk}. Named for
+   *   what it does — resume the WALK — because the operator-facing
+   *   `compensateSaga` on the lifecycle is a different operation (validate the
+   *   status, take the durable transition, hand off) and one name for two
+   *   operations is how a future dispatcher gets an early return where it
+   *   expected a completed rollback.
+   * @param sagaId - The saga whose compensation walk is (re-)driven.
+   */
+  resumeCompensationWalkAsync(sagaId: string): void {
     setImmediate(async () => {
       try {
-        await this.compensateSagaSteps(sagaId);
+        await this.loadAndRunCompensationWalk(sagaId);
       } catch (error) {
+        // Counted, not only logged: a detached walk that dies here is a
+        // rollback nobody is waiting on and nothing else would notice.
+        recordSagaRecoveryFailure("compensation");
         logger.error({ err: error, sagaId }, "Saga compensation failed");
       }
     });
@@ -79,15 +200,55 @@ export class SagaExecutionEngine {
     }
 
     // Guard: prevent re-execution of sagas already in a terminal state
-    const TERMINAL_STATES: ReadonlyArray<SagaInstance["status"]> = [
-      "COMPLETED",
-      "FAILED",
-      "COMPENSATED",
-    ];
-    if (TERMINAL_STATES.includes(instance.status)) {
+    if (TERMINAL_SAGA_STATUSES.includes(instance.status)) {
       logger.warn(
         { sagaId, status: instance.status },
         "Attempted to execute saga in terminal state, ignoring"
+      );
+      return;
+    }
+
+    // A row the WALK owns is never advanced forward. `runSagaSteps` sets
+    // RUNNING unconditionally and re-executes the step whose failure triggered
+    // the compensation — over state a partial walk may already have undone —
+    // so the refusal has to sit ahead of it rather than inside it.
+    //
+    // It decides on the DURABLE row, never on the copy above it. `getSaga`
+    // answers from the tracked set or from the Redis hot cache, which is
+    // written fire-and-forget and which the engine is explicitly designed to
+    // survive losing — so a pre-transition `RUNNING` copy would let exactly the
+    // defect this guard exists to close through, and every statement of the
+    // invariant says "persisted".
+    //
+    // Which dispatch paths this closes: `handleEvent` requires RUNNING and
+    // `continueSaga` requires RUNNING/PENDING, the retry scan needs a due
+    // `nextRetryAt` (nulled by the COMPENSATING transition), the boot pass
+    // routes a COMPENSATING row into the walk, and `startSaga` writes a new
+    // row. This branch is the backstop for all of them and the primary guard
+    // for any dispatcher added later — including the in-flight guard's
+    // trailing rerun, whose own status re-read lands with the step-outcome
+    // union.
+    const persistedStatus = await this.readPersistedStatus(sagaId);
+    if (persistedStatus === undefined) {
+      // The durable status could not be established, so "this row is not being
+      // compensated" cannot be established either. Refusing costs one deferred
+      // advance, which the retry checker re-drives; advancing costs the
+      // guarantee.
+      recordSagaRecoveryFailure("instance-load");
+      logger.error(
+        { sagaId },
+        "Refused to advance a saga whose persisted status could not be read: the compensation " +
+          "guard decides on the durable row, and an unreadable one is not a safe RUNNING"
+      );
+      return;
+    }
+    if (persistedStatus === "COMPENSATING") {
+      recordSagaRecoveryFailure("compensation");
+      logger.error(
+        { sagaId, status: persistedStatus, cachedStatus: instance.status },
+        "Refused to advance a saga whose persisted status is COMPENSATING: the compensation " +
+          "walk owns this row, and forward execution would re-run a failed step over " +
+          "partially-undone state"
       );
       return;
     }
@@ -254,8 +415,30 @@ export class SagaExecutionEngine {
           const errMsg = stepResult.error || "Step execution failed";
 
           if (step.class === "compensable") {
-            instance.error = errMsg;
-            this.compensateSagaAsync(instance.id);
+            // Write-ahead intent: the decision to compensate and the durable
+            // record of it are not separated by a dispatch. A process that
+            // dies from here on leaves a COMPENSATING row, never a RUNNING one
+            // that the next boot would drive FORWARD.
+            //
+            // The transition ORDERS the undo; it never GATES it. A durable
+            // write can fail — the pool it competes for is the one this very
+            // situation is straining — and a rollback that is skipped because
+            // its bookkeeping failed is strictly worse than one whose
+            // bookkeeping is late: the walk's first per-step persist
+            // re-establishes the status, while a saga terminalized here would
+            // leave its pre-pivot effects standing under a reason
+            // indistinguishable from an ordinary step failure.
+            try {
+              await this.beginCompensation(instance, errMsg);
+            } catch (error) {
+              recordSagaRecoveryFailure("compensation");
+              logger.error(
+                { err: error, sagaId, currentStep: instance.currentStep },
+                "The compensation transition could not be persisted; dispatching the walk anyway " +
+                  "— its first per-step persist re-establishes the durable status"
+              );
+            }
+            this.resumeCompensationWalkAsync(instance.id);
           } else {
             // Pivot or retryable: no compensation by canon
             await this.failSaga(instance, errMsg);
@@ -289,14 +472,133 @@ export class SagaExecutionEngine {
   // Compensation
   // ---------------------------------------------------------------------------
 
-  private async compensateSagaSteps(sagaId: string): Promise<void> {
+  /**
+   * @method beginCompensation
+   * @description Makes the decision to compensate DURABLE before anything acts
+   *   on it: writes `COMPENSATING`, carries the triggering error onto the row,
+   *   clears the retry marker, and commits the `SAGA_COMPENSATION_STARTED`
+   *   event in the same transaction — awaited, never dispatched.
+   *
+   *   ONE transition, every entry point: the automatic path, the operator
+   *   re-drive and the walk's own defensive check all come through here, so the
+   *   two doors cannot drift into two shapes.
+   *
+   *   Clearing `nextRetryAt` is load-bearing rather than tidy. It is what
+   *   removes the row from the retry scan's predicate and from the boot pass's
+   *   checker-owned branch, so no reader can convert a compensation into a
+   *   forward retry. Runs inside the saga's rehydrated tenant scope, which the
+   *   caller has already bound.
+   * @param instance - The saga entering compensation.
+   * @param error - The failure that triggered it, when there is one.
+   */
+  async beginCompensation(instance: SagaInstance, error?: string): Promise<void> {
+    instance.status = "COMPENSATING";
+    if (error !== undefined) {
+      instance.error = error;
+    }
+    delete instance.nextRetryAt;
+
+    const compensationStartedEvent = createEventStoreEvent(
+      SAGA_EVENTS.SAGA_COMPENSATION_STARTED,
+      instance.id,
+      "Saga",
+      {
+        sagaId: instance.id,
+        definitionId: instance.definitionId,
+        failedAt: instance.completedAt ?? new Date(),
+        stepsToCompensate: instance.currentStep,
+        ...(instance.error !== undefined && { error: instance.error }),
+      },
+      {
+        source: "SagaManager",
+        correlationId: instance.context.correlationId,
+      }
+    );
+
+    await this.persistSagaInstance(instance, [compensationStartedEvent]);
+  }
+
+  /**
+   * @method resumeCompensationWalk
+   * @description The awaitable form of
+   *   {@link resumeCompensationWalkAsync}. The boot resume pass needs it for
+   *   the same reason it needs the awaitable forward dispatch: a
+   *   fire-and-forget walk cannot be counted, so it cannot be capped.
+   * @param sagaId - The saga whose compensation walk is (re-)driven.
+   */
+  async resumeCompensationWalk(sagaId: string): Promise<void> {
+    await this.loadAndRunCompensationWalk(sagaId);
+  }
+
+  /**
+   * Loads, scopes and runs one compensation walk.
+   *
+   * Every exit is LOUD. The caller is a detached dispatch with nobody waiting
+   * on it, so a silent return here produces a saga that simply never gets
+   * undone — no log line, no metric and no row change to notice it by.
+   */
+  private async loadAndRunCompensationWalk(sagaId: string): Promise<void> {
+    // ONE walk per saga at a time, claimed before anything is loaded so a
+    // second dispatch cannot slip past while the first is still reading.
+    if (this.walksInFlight.has(sagaId)) {
+      logger.warn(
+        { sagaId },
+        "A compensation walk for this saga is already in flight in this process; the second " +
+          "dispatch is refused rather than run concurrently over the same record"
+      );
+      return;
+    }
+    this.walksInFlight.add(sagaId);
+    try {
+      await this.claimedCompensationWalk(sagaId);
+    } finally {
+      this.walksInFlight.delete(sagaId);
+    }
+  }
+
+  /** The walk proper, with the in-flight claim already held. */
+  private async claimedCompensationWalk(sagaId: string): Promise<void> {
+    // On the DURABLE status, for the same reason the forward guard is: the
+    // horizon may have terminalized this row while a previous walk was inside a
+    // long `compensate()`, and the defensive transition below would then
+    // RESURRECT it — COMPENSATING again, then COMPENSATED, both after
+    // `SAGA_FAILED`. A terminal row already says the rollback did not finish.
+    const persistedStatus = await this.readPersistedStatus(sagaId);
+    if (persistedStatus === undefined || persistedStatus === null) {
+      recordSagaRecoveryFailure("compensation");
+      logger.error(
+        { sagaId, persistedStatus },
+        "Saga compensation could not start: its persisted status could not be established"
+      );
+      return;
+    }
+    if (TERMINAL_SAGA_STATUSES.includes(persistedStatus as SagaInstance["status"])) {
+      recordSagaRecoveryFailure("compensation");
+      logger.error(
+        { sagaId, status: persistedStatus },
+        "Saga compensation refused: the row already reached a terminal state, and a walk never " +
+          "writes over one"
+      );
+      return;
+    }
+
     const instance = await this.lifecycle.getSaga(sagaId);
     if (!instance) {
+      recordSagaRecoveryFailure("compensation");
+      logger.error(
+        { sagaId },
+        "Saga compensation could not start: the instance could not be loaded"
+      );
       return;
     }
 
     const definition = this.lifecycle.definitions.get(instance.definitionId);
     if (!definition) {
+      recordSagaRecoveryFailure("compensation");
+      logger.error(
+        { sagaId, definitionId: instance.definitionId },
+        "Saga compensation could not start: this process has no definition registered for it"
+      );
       return;
     }
 
@@ -307,6 +609,7 @@ export class SagaExecutionEngine {
     );
 
     if (!outcome.ran) {
+      recordSagaRecoveryFailure("compensation");
       logger.warn(
         { sagaId, reason: outcome.reason },
         "Saga compensation skipped: awaiting terminalization by the timeout checker"
@@ -315,9 +618,99 @@ export class SagaExecutionEngine {
   }
 
   /**
+   * Persists one step's compensation outcome, against the row as it stands.
+   *
+   * Two things stand between "record what I just did" and a lost update:
+   *
+   *   - the row may have gone TERMINAL while this walk was inside a long
+   *     `compensate()` — the liveness horizon fails a walk that has not written
+   *     inside its window, and nothing else stops this walk from resurrecting
+   *     that row (COMPENSATING again, then COMPENSATED, both AFTER
+   *     `SAGA_FAILED`). Abandoning is the honest end: the terminal row already
+   *     says the rollback did not finish;
+   *   - another walk may have recorded a success this copy predates. The merge
+   *     is BY INDEX so a success can never be erased by an older array.
+   *
+   * @param instance - The saga being walked, mutated with anything it learns.
+   * @returns False when the walk must stop.
+   */
+  private async persistWalkProgress(instance: SagaInstance): Promise<boolean> {
+    if (!(await this.syncWalkRecord(instance))) return false;
+    await this.persistSagaInstance(instance);
+    return true;
+  }
+
+  /**
+   * Brings this walk's record up to date with the row, and says whether it may
+   * continue.
+   *
+   * Called BEFORE the walk decides what to dispatch and again before every
+   * write, because both decisions are wrong on a stale copy: the instance can
+   * come from the Redis hot cache (best-effort by design), and another walk may
+   * have recorded a step since it was cached.
+   *
+   * @param instance - The saga being walked, mutated with anything it learns.
+   * @returns False when the walk must stop.
+   */
+  private async syncWalkRecord(instance: SagaInstance): Promise<boolean> {
+    const sagaId = instance.id;
+    try {
+      const row = await withSagaSystemRead(this.config.prisma, (tx) =>
+        tx.sagaInstance.findUnique({ where: { id: sagaId } })
+      );
+
+      if (row === null) {
+        recordSagaRecoveryFailure("compensation");
+        logger.error({ sagaId }, "Saga compensation stopped: its row no longer exists");
+        return false;
+      }
+
+      const fresh = deserializeSagaInstanceRow(row);
+      if (TERMINAL_SAGA_STATUSES.includes(fresh.status)) {
+        recordSagaRecoveryFailure("compensation");
+        logger.error(
+          { sagaId, status: fresh.status },
+          "Saga compensation stopped: the row reached a terminal state while this walk was " +
+            "running, and a walk never writes over a terminal row"
+        );
+        return false;
+      }
+
+      mergeCompensationResults(fresh.compensationResults, instance.compensationResults);
+    } catch (error) {
+      // A read failure is not permission to write over an unknown row.
+      recordSagaRecoveryFailure("compensation");
+      logger.error(
+        { err: error, sagaId },
+        "Saga compensation stopped: the row could not be re-read before recording progress"
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
    * @method runCompensationWalk
-   * @description Walks the compensable steps in reverse and marks the saga
-   *   COMPENSATED. Runs inside the saga's rehydrated tenant scope.
+   * @description Walks the eligible compensable steps in reverse, persisting
+   *   after every one, and settles the saga COMPENSATED only when all of them
+   *   hold a recorded success. Runs inside the saga's rehydrated tenant scope.
+   *
+   *   What the machine guarantees, beyond the canon obligation that every
+   *   `compensate()` be idempotent and retryable:
+   *
+   *     - STATUS HONESTY — `COMPENSATING` is durable before any undo runs, and
+   *       a walk that could not finish leaves it that way rather than claiming
+   *       a rollback that did not happen.
+   *     - MONOTONIC DURABLE PROGRESS — the row is written after every step, so
+   *       the crash window is exactly ONE in-flight step. Idempotency is relied
+   *       on for at most one re-invocation, never for the whole walk.
+   *     - NO RE-EXECUTION OF RECORDED WORK — a step whose compensation is
+   *       recorded as succeeded is never dispatched again, by an automatic
+   *       resume or by an operator re-drive.
+   *     - TERMINAL HONESTY — `COMPENSATED` means every eligible step holds a
+   *       persisted success; anything else stays `COMPENSATING` for the boot
+   *       resume, the operator, and finally the liveness horizon.
    * @param instance - The saga being compensated.
    * @param definition - The definition whose steps are walked back.
    */
@@ -327,6 +720,19 @@ export class SagaExecutionEngine {
   ): Promise<void> {
     const sagaId = instance.id;
 
+    // The record this walk decides on is the DURABLE one, not the copy it was
+    // handed: the resume predicate skips steps another walk already recorded,
+    // and deciding that from a cached array re-runs an undo that is done.
+    if (!(await this.syncWalkRecord(instance))) return;
+
+    // Defensive, and the reason the static invariant holds for every site: a
+    // walk never starts from a row whose persisted status still says the saga
+    // is moving forward, whichever door it came through.
+    if (instance.status !== "COMPENSATING") {
+      await this.beginCompensation(instance);
+    }
+
+    const eligible: { stepIndex: number; step: CompensableStep; stepResult: SagaStepResult }[] = [];
     for (let stepIndex = instance.currentStep - 1; stepIndex >= 0; stepIndex--) {
       const step = definition.steps[stepIndex];
       const stepResult = instance.stepResults[stepIndex];
@@ -347,6 +753,20 @@ export class SagaExecutionEngine {
         continue;
       }
       if (!stepResult?.success) {
+        continue;
+      }
+
+      eligible.push({ stepIndex, step, stepResult });
+    }
+
+    for (const { stepIndex, step, stepResult } of eligible) {
+      // The resume predicate. A recorded success is work this walk — or the
+      // walk of a process that no longer exists — already did.
+      if (compensationSucceeded(instance.compensationResults[stepIndex])) {
+        logger.info(
+          { sagaId, stepName: step.name, stepIndex },
+          "Skipping a saga step whose compensation is already recorded as succeeded"
+        );
         continue;
       }
 
@@ -373,6 +793,31 @@ export class SagaExecutionEngine {
           error: error instanceof Error ? error.message : "Compensation failed",
         };
       }
+
+      // Per step, not once at the end. A failed compensation is persisted too:
+      // a resumed walk must be able to tell "attempted and failed" from "never
+      // attempted", and only a recorded outcome carries that difference.
+      if (!(await this.persistWalkProgress(instance))) {
+        return;
+      }
+    }
+
+    const unfinished = eligible
+      .filter(({ stepIndex }) => !compensationSucceeded(instance.compensationResults[stepIndex]))
+      .map(({ stepIndex }) => stepIndex);
+
+    if (unfinished.length > 0) {
+      // The row keeps saying COMPENSATING, which is the truth: something this
+      // saga did is still standing. The boot resume, the operator re-drive and
+      // the liveness horizon all act on that status, so the saga still reaches
+      // a terminal state — it just does not LIE about having reached one.
+      recordSagaRecoveryFailure("compensation");
+      logger.error(
+        { sagaId, definitionId: instance.definitionId, unfinished },
+        "Saga compensation did not finish: the row stays COMPENSATING for a resume, an " +
+          "operator re-drive, or the compensation liveness horizon"
+      );
+      return;
     }
 
     instance.status = "COMPENSATED";
@@ -386,7 +831,11 @@ export class SagaExecutionEngine {
         sagaId,
         definitionId: instance.definitionId,
         compensatedAt: instance.completedAt,
-        stepsCompensated: instance.compensationResults.filter((r) => r?.success).length,
+        // The same predicate the walk itself decides on, so the audit tally and
+        // the resume predicate can never disagree about what "compensated" is.
+        stepsCompensated: instance.compensationResults.filter((result) =>
+          compensationSucceeded(result)
+        ).length,
         totalSteps: instance.currentStep,
       },
       {
@@ -836,6 +1285,11 @@ export class SagaExecutionEngine {
       ...(typeof parsed.nextRetryAt === "string"
         ? { nextRetryAt: new Date(parsed.nextRetryAt) }
         : {}),
+      // Symmetric with the write path, which serializes the whole instance.
+      // Dropping it here made every cached COMPENSATING row look like one with
+      // no liveness anchor at all, so the timeout checker paid a full-row
+      // re-read for it on every tick, forever.
+      ...(typeof parsed.updatedAt === "string" ? { updatedAt: new Date(parsed.updatedAt) } : {}),
     };
   }
 

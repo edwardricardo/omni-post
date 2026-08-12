@@ -125,12 +125,14 @@ export interface SagaMetrics {
    */
   bootResumeRowFailures: number;
   /**
-   * Sagas sitting in `COMPENSATING` at the last boot. NOBODY claims that status:
-   * the boot load and the retry scan both filter `RUNNING`/`PENDING`, and the
-   * timeout checker only inspects rows the process tracks. Detection only — the
-   * engine deliberately does not resume them, because a compensation walk
-   * resumed without a claim is a second walk over the same steps. Recovery for
-   * them belongs to `saga-engine-terminal-hygiene`.
+   * Sagas mid-ROLLBACK, as of the last measurement this process took.
+   *
+   * The boot load counts them and the Prometheus gauge re-measures the same
+   * level at every scrape, which also refreshes this field — so a non-zero
+   * value here is current, not a boot-time fossil. The engine RESUMES these
+   * rows (boot disposition `compensation-resumed`) and an operator can re-drive
+   * them, so a value that never drains is a rollback nothing can finish, not a
+   * class nobody claims.
    */
   compensatingOrphans: number;
 }
@@ -152,7 +154,36 @@ export interface SagaExecutionEnginePort {
    * tenant work.
    */
   executeSaga(sagaId: string): Promise<void>;
-  compensateSagaAsync(sagaId: string): void;
+  /**
+   * Resumes the compensation WALK, detached.
+   *
+   * Named for the walk rather than for the saga because the lifecycle's
+   * `compensateSaga` is a DIFFERENT operation — validate the status, take the
+   * durable transition, hand off — and one name for two operations is how a
+   * future dispatcher gets an early return where it expected a rollback.
+   */
+  resumeCompensationWalkAsync(sagaId: string): void;
+  /**
+   * The awaitable form of
+   * {@link SagaExecutionEnginePort.resumeCompensationWalkAsync}, needed for the
+   * same reason the awaitable forward dispatch is: the boot resume pass caps
+   * what it advances at once, and a fire-and-forget walk cannot be counted.
+   */
+  resumeCompensationWalk(sagaId: string): Promise<void>;
+  /**
+   * Whether this process is already walking `sagaId` backwards. One walk per
+   * saga: two of them interleave read-modify-write on one compensation record,
+   * and canon idempotency is a promise about repeated invocation, not
+   * concurrent invocation.
+   */
+  isCompensationWalkInFlight(sagaId: string): boolean;
+  /**
+   * Makes the decision to compensate durable — `COMPENSATING`, the triggering
+   * error and a cleared retry marker, committed with the compensation-started
+   * event — before anything acts on it. ONE transition shared by the automatic
+   * path and the operator re-drive, so the two doors cannot drift apart.
+   */
+  beginCompensation(instance: SagaInstance, error?: string): Promise<void>;
   persistSagaInstance(instance: SagaInstance, events?: EventStoreEvent[]): Promise<void>;
   loadSagaInstance(sagaId: string): Promise<SagaInstance | null>;
   failSaga(instance: SagaInstance, error: string, reason?: SagaFailureReason): Promise<void>;
