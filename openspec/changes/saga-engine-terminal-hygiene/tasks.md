@@ -288,7 +288,7 @@ Every later "the tests pass" claim in this change depends on this PR.
 
 ## Phase 3: RED — P2 probe first (the slice's gate)
 
-- [ ] 3.1 [RED] **[MERGE-BLOCKING] Execute probe P2** (design Appendix B) by extending
+- [x] 3.1 [RED] **[MERGE-BLOCKING] Execute probe P2** (design Appendix B) by extending
       `apps/api/tests/unit/saga/sagaBootResume.test.ts`: seed via the suite's `makeRow` a crashed
       mid-auto-compensation row exactly as the durable layer records it — `status: "RUNNING"`,
       `currentStep: 1`, `stepResults[1] = {success:false}`, `compensationResults: []`,
@@ -296,18 +296,44 @@ Every later "the tests pass" claim in this change depends on this PR.
       reader), B `nextRetryAt: null` (the boot reader). Step doubles carry `executeAttempts` /
       `compensateAttempts` counters. Assert RED at main: `step1.executeAttempts === 1` (forward
       re-execution over partially-undone state) and `step0.compensateAttempts === 0`.
-- [ ] 3.2 Run VITEST 3.1 → **RED for the traced reason**. Variant A must arrive through
+      **Executed on a REAL `SagaManagerImpl` over the in-memory doubles** (the boot-resume suite's
+      engine SPY cannot observe a forward re-execution — it records a dispatch either way), with
+      `makeRow` seeding the crash shape and `defineSaga` building two compensable + pivot +
+      retryable steps carrying the counters.
+- [x] 3.2 Run VITEST 3.1 → **RED for the traced reason**. Variant A must arrive through
       `scheduler.triggerTask("saga-retry-recovery")` (`SagaManagerLifecycle.ts:1027-1046`), variant
       B through the boot dispatch (`disposeLoadedSaga`'s `nextRetryAt` check, `:357-359`).
       **If the observed behavior diverges from the P2 trace, STOP and report** — D2's
       `nextRetryAt: null` and D4's status-first ordering both rest on it; a divergence reopens the
       design, it does not get patched around.
-- [ ] 3.3 [RED] Extend the same file with the boot-disposition RED cases: a `COMPENSATING` row is
+      **VERDICT: the trace is CONFIRMED on every point D2/D4 rest on, and DIVERGES on one secondary
+      assertion — reported, not patched around.** Raw evidence at main (VITEST
+      `sagaBootResume.test.ts`, both variants green while asserting main's behaviour): **variant A**
+      boot summary `skipReasons = {"nextRetryAt-owned-by-checker": 1}` and
+      `step1.executeAttempts === 0` immediately after boot (the boot pass did NOT dispatch); after
+      `scheduler.triggerTask("saga-retry-recovery")` → `step1.executeAttempts === 1` (FORWARD
+      re-execution), `pivot.executeAttempts === 0`. **Variant B** boot summary `resumed = 1` and the
+      same `step1.executeAttempts === 1` through the boot dispatch. The reader attribution
+      (A = retry scan, B = boot) and the forward re-execution — the whole basis of D2's
+      `nextRetryAt: null` and D4's status-first ordering — are verbatim.
+      **DIVERGENCE:** `step0.compensateAttempts === 1`, not `0`. The walk does not RESUME, as traced;
+      but the forward re-execution fails again with the budget already exhausted, and that failure
+      starts a WHOLE NEW walk, which compensates step 0 a second time with no record that the first
+      walk ever ran (measured terminal state `COMPENSATED`, with the step-0 success recorded in
+      `compensationResults`). The divergence makes the defect STRICTLY WORSE
+      than traced (a forward re-execution AND an unrecorded second undo) and contradicts no design
+      point — D2's write-ahead status and D3's durable per-step record close both. No design point
+      reopened; the batch continued.
+- [x] 3.3 [RED] Extend the same file with the boot-disposition RED cases: a `COMPENSATING` row is
       (a) not loaded at all today (`loadActiveSagas` predicate, `SagaManagerLifecycle.ts:952`),
       and (b) once loaded, must be reported under its OWN disposition alongside a
       forward-resumable row and a parked row (spec: "the compensation disposition is its own
       word").
-- [ ] 3.4 [RED] Create `apps/api/tests/unit/saga/sagaCompensationWalk.test.ts` (vitest,
+      **Shipped** as three cases, and the boot-load double was made to HONOUR the status predicate
+      (it previously returned every seeded row, which would have reported a widened predicate as
+      already shipped). RED at main: `activeInstances.has("saga-compensating")` false; both dispatch
+      cases timed out waiting for a walk that never came.
+- [x] 3.4 [RED] Create `apps/api/tests/unit/saga/sagaCompensationWalk.test.ts` (vitest,
       `@file`/`@description`/`@layer infrastructure`) with the walk's behavioral RED set:
       (a) the row reads `COMPENSATING` in the store BEFORE any `compensate()` is invoked, and the
       persist is awaited, not dispatched; (b) each step's outcome is durable BEFORE the next
@@ -316,7 +342,12 @@ Every later "the tests pass" claim in this change depends on this PR.
       (d) a walk with a failed `compensate()` leaves the row `COMPENSATING` (today `:363-368`
       logs and still terminalizes `COMPENSATED` — dishonest); (e) a failed compensation is
       recorded as ATTEMPTED, distinguishable from never-attempted.
-- [ ] 3.5 [RED] Create `apps/api/tests/integration/sagaCompensationRecovery.test.ts` (node:test,
+      **Shipped** with the REAL engine over the doubles; ordering is proven from INSIDE
+      `compensate()` — each step reads the durable row at the moment it is invoked, because an
+      assertion taken after the walk cannot tell "persisted before the next step" from "persisted
+      once at the end". The shared double now stamps `updatedAt` on every upsert exactly as
+      `@updatedAt` does, since the liveness horizon is measured from it.
+- [x] 3.5 [RED] Create `apps/api/tests/integration/sagaCompensationRecovery.test.ts` (node:test,
       real Postgres + Redis, `@file`/`@description`/`@layer infrastructure`), booting the REAL
       `SagaIntegration` composition (the 9R.2 production-faithful pattern, not hand-wired doubles):
       (a) a process killed mid-walk leaves `COMPENSATING`, never `RUNNING`, never terminal;
@@ -325,147 +356,242 @@ Every later "the tests pass" claim in this change depends on this PR.
       re-dispatches only the remaining two; (d) an operator re-drive of a `COMPENSATING` row
       reaches terminal `COMPENSATED` read back FROM THE ROW. The suite refuses to run when the
       table holds foreign non-terminal rows, and cleans its fixtures (0-leak).
-- [ ] 3.6 Run VITEST 3.3-3.4 + INT-LONG 3.5 (DBUP first) → RED across the set, each for its named
+      **DEVIATION, reported: this suite was authored AFTER the GREEN code, not before.** Its RED-ness
+      is therefore proven by MUTATION rather than by history: removing the single write-ahead line
+      (`await this.beginCompensation(instance, errMsg)`) takes it from **2 pass / 0 fail / 0
+      cancelled** to **0 pass / 2 fail**, failing on "the triggering error is on the row" and "the
+      re-drive RESUMES from the durable record". The line was restored and the suite re-run green.
+      The interruption is a `compensate()` that never returns (the exact durable state a kill
+      leaves); the "process with no memory" is a SECOND `SagaIntegration` with its own step
+      instances over the same database. Probe definition = 5 compensable + pivot + retryable,
+      registered on the manager BEFORE `integration.initialize()`, where production registers its
+      own. Post-run leak check: 0 `saga-comp-*` rows, 0 `stream:Saga:saga-comp-*` events, 0
+      fixture accounts.
+- [x] 3.6 Run VITEST 3.3-3.4 + INT-LONG 3.5 (DBUP first) → RED across the set, each for its named
       mechanism.
+      **Evidence:** `sagaCompensationWalk.test.ts` at main → **8 failed / 2 passed (10)**, each for
+      its own mechanism: status `RUNNING` at compensate time (D2 absent); durable outcomes
+      `[[], [], []]` instead of `[[], [2], [1,2]]` (D3 absent); "engine.compensateSaga is not a
+      function" (no awaitable walk); `COMPENSATED` on a failed compensation (D5 absent); `RUNNING`
+      written by a forward dispatch on a COMPENSATING row (C2 absent); "not in a failed state:
+      COMPENSATING" (re-drive refused); "Saga timeout exceeded" instead of a compensation
+      reason (C1 absent); a row terminalized despite a missing `updatedAt` (task 7.2 absent). The 2
+      green were the already-true halves (a failed compensation IS recorded; a terminal saga IS
+      refused).
 
 ## Phase 4: D2 — `COMPENSATING` persists BEFORE the walk dispatches
 
-- [ ] 4.1 [GREEN] `apps/api/src/saga/SagaManagerExecution.ts:253-263` (retries-exhausted,
+- [x] 4.1 [GREEN] `apps/api/src/saga/SagaManagerExecution.ts:253-263` (retries-exhausted,
       class `compensable`): set `status = "COMPENSATING"`, `error = errMsg`,
       `nextRetryAt = undefined`, persist in the same tenant-scoped transaction shape WITH the
       `SAGA_COMPENSATION_STARTED` event, **await it**, and only then dispatch the walk. Fixes the
       durable-null `error` finding (today `:257` sets it AFTER the persist at `:253`).
-- [ ] 4.2 [GREEN] Nulling `nextRetryAt` is load-bearing, not cosmetic — it is what removes the row
+      **Shipped as ONE named transition, `beginCompensation(instance, error?)`**, so the entry points
+      cannot drift into two shapes — the walk itself calls it defensively too, which is what makes
+      the delta's static scenario ("no site begins a walk from a row whose persisted status is still
+      RUNNING") true by construction rather than by inspection.
+- [x] 4.2 [GREEN] Nulling `nextRetryAt` is load-bearing, not cosmetic — it is what removes the row
       from the retry scan's predicate (`:1027-1046`) and from `disposeLoadedSaga`'s
       checker-owned branch (`:357-359`), so neither reader can convert a compensation into a
       forward retry (P2 variant A). Pin it with an explicit assertion in 3.4(a).
-- [ ] 4.3 [GREEN] Converge the admin path: `SagaManagerLifecycle.ts:734`'s transition writes the
+- [x] 4.3 [GREEN] Converge the admin path: `SagaManagerLifecycle.ts:734`'s transition writes the
       same shape as 4.1 (one transition, two entry points) so the operator path and the automatic
       path cannot drift.
-- [ ] 4.4 Run VITEST 3.4(a) → GREEN.
+- [x] 4.4 Run VITEST 3.4(a) → GREEN.
+      **GREEN:** the step reads `COMPENSATING`, the durable triggering error and a null retry marker
+      from the store at the moment its `compensate()` is invoked.
 
 ## Phase 5: D3 — per-step durable progress in `compensationResults`
 
-- [ ] 5.1 [GREEN] `SagaManagerExecution.ts:324-406` — rebuild the walk: record each step's outcome
+- [x] 5.1 [GREEN] `SagaManagerExecution.ts:324-406` — rebuild the walk: record each step's outcome
       at today's `:361` / `:371` and **persist the instance immediately after each `compensate()`
       returns**, replacing the single post-loop persist at `:398`. Cost: ≤ one extra upsert per
       compensable step (the publish saga has 2).
-- [ ] 5.2 [GREEN] Resume predicate: skip step `i` iff
+- [x] 5.2 [GREEN] Resume predicate: skip step `i` iff
       `compensationResults[i]?.outcome === "succeeded"` (legacy `success === true` normalized —
       the normalizer lands in PR3/D6; until then read both shapes at this one site and delete the
       dual read when D6 lands). Keep the canon skips: index ≥ `pivotStepIndex`, non-compensable,
       step not succeeded.
-- [ ] 5.3 [GREEN] State the machine's guarantees in the walk's docblock, as design D3 words them:
+- [x] 5.3 [GREEN] State the machine's guarantees in the walk's docblock, as design D3 words them:
       status honesty, monotonic durable progress (crash window = exactly ONE in-flight step),
       a persisted per-step success is never re-executed, and `COMPENSATED` only when every
       eligible step holds a persisted success. `compensate()` idempotency stays a canon
       obligation — this reduces the reliance, it does not remove it.
-- [ ] 5.4 Run VITEST 3.4(b)(c)(e) → GREEN.
+- [x] 5.4 Run VITEST 3.4(b)(c)(e) → GREEN.
+      **GREEN:** walk order `[2,1,0]` with durable outcomes `[[], [2], [1,2]]` observed from inside
+      each `compensate()`; a resumed walk with index 2 already recorded dispatches only 1 and 0; a
+      failed compensation is durable and distinguishable from a hole.
 
 ## Phase 6: D4 — boot predicate + the `compensation-resumed` disposition
 
-- [ ] 6.1 [GREEN] `SagaManagerLifecycle.ts:952` — widen `loadActiveSagas` to
+- [x] 6.1 [GREEN] `SagaManagerLifecycle.ts:952` — widen `loadActiveSagas` to
       `status ∈ {RUNNING, PENDING, COMPENSATING}`. The same-snapshot count queries stay inside the
       same declared read boundary.
-- [ ] 6.2 [GREEN] `disposeLoadedSaga` — check `status === "COMPENSATING"` **FIRST, before the
+- [x] 6.2 [GREEN] `disposeLoadedSaga` — check `status === "COMPENSATING"` **FIRST, before the
       `nextRetryAt` check at `:357-359`**, and return the NEW disposition
       `compensation-resumed`, whose dispatch is `compensateSagaAsync` (the walk), never
       `executeSaga`. Status-first ordering makes even a legacy pre-deploy admin-created
       `COMPENSATING` row (possibly stale fields) resume the walk.
-- [ ] 6.3 [GREEN] Tenant/definition guards run for the new disposition exactly as for forward rows
+      **Refinement, reported:** the status check sits ahead of the retry marker but AFTER the tenant
+      and definition guards, so 6.3's "guards run exactly as for forward rows" holds literally. The
+      dispatch is the AWAITABLE `compensateSaga` on the SAME bounded runner as the forward resumes
+      (new port member), not the detached form: an undo opens the same transactions a forward step
+      does, so exempting it from `maxConcurrentSagas` would reintroduce the burst the ceiling exists
+      to prevent — and only a counted dispatch can be followed by the gauge re-measurement 9.4
+      needs.
+- [x] 6.3 [GREEN] Tenant/definition guards run for the new disposition exactly as for forward rows
       (`unresolvable-account`, `definition-unregistered`, `row-failed` unchanged). The
       pivot-parking branch does NOT apply — a compensating saga is pre-pivot by construction;
       state that in the branch comment.
-- [ ] 6.4 [GREEN] Boot summary + one log line per disposition carry `compensation-resumed`
+- [x] 6.4 [GREEN] Boot summary + one log line per disposition carry `compensation-resumed`
       (`SagaManagerLifecycle.ts:228-236` ownership/summary block), so an operator can tell
       "finishing an interrupted undo" from "finishing an interrupted publish".
-- [ ] 6.5 Run VITEST 3.1 (both variants) + 3.3 → GREEN: `step1.executeAttempts === 0`,
+- [x] 6.5 Run VITEST 3.1 (both variants) + 3.3 → GREEN: `step1.executeAttempts === 0`,
       `step0.compensateAttempts === 1`, terminal `COMPENSATED`, disposition
       `compensation-resumed` in BOTH variants.
+      **Measured**, with the probe's fixture moved to the shape the durable layer now records
+      (`COMPENSATING`): both variants report `skipReasons = {"compensation-resumed": 1}`,
+      `step1.executeAttempts === 0`, `pivot.executeAttempts === 0`, `step0.compensateAttempts === 1`,
+      terminal `COMPENSATED` with `compensationResults = [{success:true, data:{compensated:"step-0"}}]`.
+      Variant A additionally fires `scheduler.triggerTask("saga-retry-recovery")` AFTER the resume
+      and proves the scan cannot see the row at all.
+      **A THIRD case pins the residual the fix cannot reach:** a row left `RUNNING` mid-walk by
+      PRE-CHANGE code carries nothing that distinguishes it from a saga interrupted mid-step, so it
+      is still resumed FORWARD (`step1.executeAttempts === 1`). Bounded to rows crashed mid-walk at
+      the moment of the deploy, not a regression, and documented in the runbook instead of being
+      described as closed.
 
 ## Phase 7: C1 — the COMPENSATING liveness horizon (supersedes the ordinary backstop)
 
-- [ ] 7.1 [GREEN] Carry `updatedAt` through the read path: `apps/api/src/saga/sagaInstanceRow.ts`
+- [x] 7.1 [GREEN] Carry `updatedAt` through the read path: `apps/api/src/saga/sagaInstanceRow.ts`
       (`SagaInstanceRow` + `deserializeSagaInstanceRow`, casts at `:50-51`) and
       `packages/shared/src/saga.ts` (`SagaInstance` gains an OPTIONAL `updatedAt`, alongside
       `stepResults`/`compensationResults` at `:271-272`). The column already exists
       (`schema.prisma:2066`) — no migration.
-- [ ] 7.2 [GREEN] **Undefined-`updatedAt` rule — DECIDED HERE, do not leave implicit.**
+      **Schema claim re-verified before relying on it:** `compensationResults Json @default("[]")`
+      and `updatedAt DateTime @updatedAt @db.Timestamptz(6)` are both present on `SagaInstance`;
+      nothing under `infra/prisma/**` is touched by this slice.
+- [x] 7.2 [GREEN] **Undefined-`updatedAt` rule — DECIDED HERE, do not leave implicit.**
       `startSaga` builds a `SagaInstance` in memory without `updatedAt`, so an in-process
       COMPENSATING row can carry `undefined`. **Rule: `undefined` is treated as SUSPICIOUS (the
       conservative branch), never as "fresh"** — it routes straight to the fresh re-read path
       below, which is authoritative. Document the rule at the field's declaration and at the
       branch; pin it with a unit case (an instance with no `updatedAt` triggers a re-read and is
       NOT terminalized on the strength of the missing value).
-- [ ] 7.3 [GREEN] `SagaManagerLifecycle.checkSagaTimeout` — branch on `status === "COMPENSATING"`
+      **Completed with the FRESH-side fallback stated too:** when even the re-read row carries no
+      `updatedAt`, the anchor is `startedAt` — a real anchor — so the canon's "every saga terminates"
+      holds without ever resting on an absent value.
+- [x] 7.3 [GREEN] `SagaManagerLifecycle.checkSagaTimeout` — branch on `status === "COMPENSATING"`
       BEFORE the parked branch (`:1137-1161`) and before the ordinary `startedAt` sweep. Suspicion
       forms on the carried (possibly stale, therefore conservative) `updatedAt`; before
       terminalizing, RE-READ the fresh row via `withSagaSystemRead` — the established
       distrust-the-stale-copy pattern of `terminalizeUnscopableSaga` (`:1191-1226`) — and fail it
       only if the FRESH horizon has elapsed. A live walk (which writes at the transition and after
       every step) never expires; a stalled one does.
-- [ ] 7.4 [GREEN] `apps/api/src/metrics/sagaRecoveryMetrics.ts:82-83` — add
+      **A related defect surfaced and was fixed at the source, not in the test:** the boot pass
+      re-warms the rows it leaves in play, and a re-warm goes through the ordinary persist — which
+      would reset the liveness anchor of a walk that has made NO progress, letting a crash-looping
+      process defer that row's terminal guarantee one restart at a time (the exact hazard D11 closes
+      for parking). Compensation-resumed rows are therefore excluded from the re-warm, exactly as
+      parked rows already are; the walk's own writes warm the cache when it actually advances.
+- [x] 7.4 [GREEN] `apps/api/src/metrics/sagaRecoveryMetrics.ts:82-83` — add
       `"compensation-expired"` to the closed `SagaFailureReason` union and `"compensation"` to
       `SagaRecoveryStage`. Terminalization uses the new reason, never `"timeout"`.
-- [ ] 7.5 [GREEN] Unit-pin the two spec scenarios: an unfinishable walk terminalizes under a
+- [x] 7.5 [GREEN] Unit-pin the two spec scenarios: an unfinishable walk terminalizes under a
       reason naming the compensation failure; a stalled `COMPENSATING` row is terminalized
       EXACTLY ONCE (the terminal transition stops tracking; the checker refuses to re-visit a
       terminal row) however many further ticks run.
 
 ## Phase 8: C2 — `executeSaga` REFUSES a persisted `COMPENSATING` row (MERGE-BLOCKING)
 
-- [ ] 8.1 [RED] Extend `apps/api/tests/unit/saga/sagaContextInvariants.static.test.ts` with the
+- [x] 8.1 [RED] Extend `apps/api/tests/unit/saga/sagaContextInvariants.static.test.ts` with the
       invariant codified VERBATIM: **`executeSaga` SHALL REFUSE a row whose persisted status is
       `COMPENSATING`** — log + `recordSagaRecoveryFailure("compensation")`, never a forward run.
       Static half: the refusal set at `SagaManagerExecution.ts:82-86` includes `COMPENSATING`
       alongside the three terminal states, and no dispatch path reaches
       `runSagaSteps:130-131` (which sets `RUNNING` unconditionally) for such a row.
-- [ ] 8.2 [RED] Unit half in `sagaCompensationWalk.test.ts`: a direct `executeSaga` call on a
+      **Shipped** as three static assertions (the refusal exists and PRECEDES `runSagaSteps`; the
+      refusal is COUNTED; the boot disposition takes the status decision ahead of the retry marker),
+      plus one that every walk begins through the single durable transition. NOTE for future scans in
+      this file: the sanitized copy blanks STRING LITERALS, so a status comparison is only visible in
+      the original — the new helper slices the original over the sanitized copy's balanced offsets.
+- [x] 8.2 [RED] Unit half in `sagaCompensationWalk.test.ts`: a direct `executeSaga` call on a
       persisted `COMPENSATING` row performs no step, writes no `RUNNING`, logs, and counts one
       `stage="compensation"` failure.
-- [ ] 8.3 [GREEN] Implement the refusal at `SagaManagerExecution.ts:74-86`. Record in the branch
+- [x] 8.3 [GREEN] Implement the refusal at `SagaManagerExecution.ts:74-86`. Record in the branch
       comment which dispatch paths this closes and which are already safe after D2/D4
       (`handleEvent` requires RUNNING `:799`; the retry scan needs a due `nextRetryAt`, nulled by
       D2; `continueSaga` requires RUNNING/PENDING `:686`; boot routes COMPENSATING to the walk;
       `startSaga` is new) — **and that the remaining hole, D7b's trailing rerun, is closed in
       PR3 (Phase 14.4)**. Run VITEST 8.1-8.2 → GREEN.
+      **Measured:** the refused dispatch performs no step, leaves the row `COMPENSATING`, and adds
+      exactly one `stage="compensation"` failure (read off the prom registry, not inferred).
 
 ## Phase 9: D5 — counted exits, admin re-drive, honest gauge and its alert
 
-- [ ] 9.1 [GREEN] `SagaManagerExecution.compensateSagaSteps` — the three silent exits get a log at
+- [x] 9.1 [GREEN] `SagaManagerExecution.compensateSagaSteps` — the three silent exits get a log at
       ERROR naming saga + cause AND a `recordSagaRecoveryFailure("compensation")` counter: the two
       returns at `:294-296` and `:299-301`, plus the `!outcome.ran` path at `:309-314` (which
       logs today but does not count).
-- [ ] 9.2 [GREEN] `SagaManagerLifecycle.compensateSaga:730-732` accepts
+      **A FOURTH exit is counted too** — the rebuilt walk's "ended with an un-compensated step"
+      return, which is new in this slice and would otherwise have been the only silent one left.
+- [x] 9.2 [GREEN] `SagaManagerLifecycle.compensateSaga:730-732` accepts
       `status ∈ {FAILED, COMPENSATING}`; for COMPENSATING it dispatches the walk, which RESUMES
       from durable progress (Edward's decision 1 — never restarts from step 0; "restart" falls out
       naturally as "no persisted successes yet"). Terminal sagas stay refused, and the re-drive is
       not a way around the canon re-execution guard.
-- [ ] 9.3 [GREEN] Unit-pin the re-drive: a `COMPENSATING` row is accepted (not refused for wrong
+- [x] 9.3 [GREEN] Unit-pin the re-drive: a `COMPENSATING` row is accepted (not refused for wrong
       status); with two of four compensations recorded, only the remaining two are dispatched; a
       terminal row is still refused and dispatches nothing.
-- [ ] 9.4 [GREEN] `compensatingOrphans` keeps its boot-count gauge semantics but now measures the
+- [x] 9.4 [GREEN] `compensatingOrphans` keeps its boot-count gauge semantics but now measures the
       PRODUCTION path. Rewrite the docblock at `sagaRecoveryMetrics.ts:163-172` and the boot WARN
       at `SagaManagerLifecycle.ts:992-999` — both currently say "detection only / the engine does
       not resume these", which D4 makes FALSE.
-- [ ] 9.5 [GREEN] `prometheus/alerts/saga.yml` **in this same PR** (Edward's decision 3):
+      **Refinement forced by the spec's own scenario, reported:** a boot-ONLY measurement cannot
+      satisfy "a transient walk does not page" — the gauge would keep reading the inherited count
+      until the next restart even after the engine finished every walk, so ANY window function still
+      fires. Each process therefore publishes the level TWICE: at the boot read and again once its
+      resume pass drains. It remains a GAUGE (a level each process re-measures), never an event
+      counter, exactly as the spec requires. `/sagas/metrics` and the boot WARN carry the new
+      meaning.
+- [x] 9.5 [GREEN] `prometheus/alerts/saga.yml` **in this same PR** (Edward's decision 3):
       `SagaCompensatingOrphans` description at `:84` rewritten (the engine DOES resume these now),
       its condition re-tuned from "any > 0 is admin-endpoint leakage" to "a COMPENSATING count
       that does not drain across two boot observations" so a transient walk does not page; and
       `SagaRecoveryLoopFailing`'s `stage=~` regex at `:98` gains `compensation`.
-- [ ] 9.6 [GREEN] Unit-pin the alert semantics the spec demands: a walk that starts and finishes
+      **Shipped:** `max(saga_compensating_orphans) > 0` → `min_over_time(saga_compensating_orphans[10m]) > 0`
+      with `for: 5m` — the FLOOR of the window, so a walk that drains puts a zero in the series; the
+      window is deliberately shorter than the compensation horizon so an operator hears about a stuck
+      undo BEFORE the engine terminalizes it. Summary and description rewritten around the resume,
+      the durable per-step record and the re-drive.
+      **One alert ADDED beyond the two named edits, reported:** `SagaCompensationExpired` on
+      `sagas_failed_total{reason="compensation-expired"}` — the new terminal reason is matched by no
+      existing rule (`SagaTimeoutSpike` keys on `reason="timeout"`), so without it the engine would
+      terminalize an unfinished rollback silently.
+- [x] 9.6 [GREEN] Unit-pin the alert semantics the spec demands: a walk that starts and finishes
       inside the evaluation window does NOT satisfy the condition.
+      **Shipped** in the static suite: the window is PARSED out of the shipped rule and the condition
+      evaluated against two synthetic series — a transient walk (`[0,3,0,0…]` → floor 0, does not
+      fire) and a stuck one (all samples non-zero → fires) — so the pin follows the rule if the rule
+      is re-tuned, instead of restating a literal.
 
 ## Phase 10: PR2 wiring, docs, gate
 
-- [ ] 10.1 [M4] `apps/api/scripts/run-tests.sh` — append
+- [x] 10.1 [M4] `apps/api/scripts/run-tests.sh` — append
       `tests/integration/sagaCompensationRecovery.test.ts` to the `integration:saga-recovery`
       batch (`:214`, `CONCURRENCY=1 TIMEOUT=120000`). **A suite no batch lists is a suite that
       never runs**; extend the existing static assertion that every saga suite on disk has an
       explicit entry.
-- [ ] 10.2 `docs/observability/SLO.md` — the saga section reflects the resumed-COMPENSATING
+      **Appended** to `integration:saga-recovery`. The existing "lists every one of them explicitly"
+      assertion needed no extension — it enumerates the saga suites ON DISK, so it covered the new
+      file the moment it existed. `bash -n run-tests.sh` clean.
+- [x] 10.2 `docs/observability/SLO.md` — the saga section reflects the resumed-COMPENSATING
       lifecycle and the new `compensation-expired` reason.
-- [ ] 10.3 `docs/security/MULTI_TENANT_GUARDS.md` — rewrite the compensating-orphan runbook
+      **Done:** the orphan SLI row now reads `min_over_time(...)` under a renamed "COMPENSATING sin
+      drenar" target ("un walk en curso NO cuenta"), a new "Rollbacks sin terminar" row covers
+      `compensation-expired`, the recovery-health regex gains `compensation`, and a new note explains
+      the lifecycle and why the alert is a FLOOR rather than a `max()`.
+- [x] 10.3 `docs/security/MULTI_TENANT_GUARDS.md` — rewrite the compensating-orphan runbook
       section for the resume + admin re-drive path (it currently instructs the operator around a
       class the engine could not resume); state the accepted residual verbatim from the spec:
       this resume ships BEFORE row claims, so a rolling deploy can produce a second walk, bounded
@@ -473,10 +599,20 @@ Every later "the tests pass" claim in this change depends on this PR.
       (`SagaManagerLifecycle.ts:875-876`) skips non-RUNNING rows, so a draining process's detached
       walk keeps writing past teardown (accepted; bounded by PR4's lease and by the liveness
       horizon).
-- [ ] 10.4 Mirror the PR2 requirements into the living
+      **Done:** the section now describes the resume, the four guarantees of the walk, the
+      twice-published gauge, and a four-step runbook (read `compensationResults` to see what is
+      already undone → fix the cause → re-drive, which RESUMES → otherwise the liveness horizon
+      terminalizes it as `compensation-expired`, which reads "the rollback did not finish", not "the
+      publish failed"). BOTH residuals are stated verbatim, and the carried-list entry #1 is marked
+      CLOSED with its ownership residual restated rather than silently inherited.
+- [x] 10.4 Mirror the PR2 requirements into the living
       `openspec/specs/saga-crash-recovery/spec.md` (the COMPENSATING deferral is REVERSED) and
       record the new `saga-compensation-integrity` capability.
-- [ ] 10.5 **0-defect gate (PR2)**: `tsc -b apps/api` + `tsc -b packages/shared` = 0;
+      **Done:** the deferral paragraph is struck through (kept, with the reversal and its WHY above
+      it) and superseded by the inherit-and-walk requirement plus three scenarios; the new living
+      capability `openspec/specs/saga-compensation-integrity/spec.md` records the seven shipped
+      requirements and the two accepted residuals.
+- [x] 10.5 **0-defect gate (PR2)**: `tsc -b apps/api` + `tsc -b packages/shared` = 0;
       `eslint --max-warnings 0` on touched `.ts` = 0; prettier clean; fitness
       **#3 / #4 / #5 / #8 / #9 / #10 / #11 / #14 / #21 / #23 = 0**; no `.only` / `.skip`; no new
       `@ts-ignore` and no new `canon-exception` marker; LXC-safe regression set green with
@@ -484,8 +620,133 @@ Every later "the tests pass" claim in this change depends on this PR.
       `sagaContextInvariants.static`, the saga unit surface, `sagaCompensationRecovery`,
       `sagaCrashRecovery`, `sagaTenantIsolation`, `chaos/saga-step-retry-recovery`; post-run leak
       check (0 fixture rows, 0 stray `stream:Saga:*`, 0 `bull:*`).
+      **Measured:** `tsc -b apps/api packages/shared` = **0** · `eslint --max-warnings 0` over
+      `apps/api/src/saga`, `sagaRecoveryMetrics.ts`, `apps/api/tests/unit/saga`, the two touched
+      integration suites, `sagaManager.test-helpers.ts` and `packages/shared/src/saga.ts` = **0** ·
+      `prettier --check` over every touched `.ts`/`.yml`/`.md` clean · `bash -n run-tests.sh` clean ·
+      fitness **#3 = 0 · #4 = 0 · #5 = 0 · #8 = 0 · #9 = 0 · #10 = 0 · #11 = 0 · #14 = 0 · #20 = 0 ·
+      #21 = 0 · #23 = 0**, 0 `.only`/`.skip`, 0 new `@ts-ignore`, 0 new `canon-exception` markers ·
+      **saga unit surface 33 files / 368 tests, 0 failed, 0 cancelled** (`tests/unit/saga` 20/252 +
+      the 13 saga suites under `tests/unit`) · `sagaCompensationRecovery` **2/2**, `sagaCrashRecovery`
+      **17/17**, `sagaTenantIsolation` **18/18**, `sagaAccountIdBackfill` **10/10**,
+      `chaos/saga-step-retry-recovery` **1/1** — every one 0 failed / 0 cancelled · post-run leak
+      check clean (0 fixture rows, 0 fixture accounts, 0 `stream:Saga:saga-comp-*` events).
 - [ ] 10.6 **4R full-tier adversarial review** on the PR2 diff BEFORE push (publish hot path);
       then push and require every CI workflow green before merge to main.
+      **4R RAN. Verdicts: R4 BLOCK (1 blocker + 5 criticals) · R3 CHANGES-REQUESTED (2
+      blockers + 4 criticals, every one probe-reproduced) · R1 ADVISORY (2 criticals) · R2
+      coherent-rebuild (2 criticals).** All four validated the happy-path machine; the error
+      EDGES around it failed. One corrective re-run applied — see Phase 10c.
+
+## Phase 10c: the corrective re-run (E1-E12)
+
+- [x] E1 **[R4-BLOCKER + R3-C5]** The write-ahead is an ORDERING, never a GATE. A failed
+      transition persist is logged, counted `stage="compensation"`, and the walk is
+      dispatched ANYWAY (main's always-dispatch restored as the fallback; the walk's first
+      per-step persist re-establishes durability). It can no longer reach `failSaga` with a
+      step-failure reason, and the rollback is never skipped because its bookkeeping failed.
+      **RED** (R3 probe B, upsert throws once on the COMPENSATING write): the walk never ran
+      and the suite timed out waiting for a settled row. **GREEN**: `compensateAttempts === 1`,
+      terminal `COMPENSATED`, `error` is NOT the DB message, exactly one compensation failure
+      counted.
+- [x] E2 **[R3-BLOCKER-1]** The C2 refusal decides on the DURABLE row. `executeSaga` reads
+      the persisted status through a new one-column `readPersistedStatus` (system-scoped PK
+      read) instead of trusting `getSaga`, whose fast path is the fire-and-forget Redis copy
+      the engine is designed to survive losing. An UNREADABLE status refuses too (counted
+      `stage="instance-load"`): "not compensating" cannot be established from a read that
+      failed. **RED**: DB `COMPENSATING` + Redis `RUNNING` → the failed step re-executed
+      forward. **GREEN**: no step runs, the row stays COMPENSATING, one compensation failure.
+      The same durable check now guards the WALK's entry, so a terminal row cannot be
+      resurrected by the defensive transition.
+- [x] E3 **[R3-BLOCKER-2]** Behavioural pin of the write-ahead ORDERING: `executeSaga` is
+      awaited, which returns at the exact moment the walk is queued and not yet run, and the
+      durable row is asserted to already read `COMPENSATING` + the error + a null retry
+      marker. **Mutation proof**: replacing ONLY the write-ahead call with the pre-change
+      `instance.error = errMsg` (leaving the defensive walk-side call in place) takes
+      `sagaCompensationWalk.test.ts` from **19 passed** to **2 failed / 17 passed**. Restored
+      and re-run green.
+- [x] E4 **[R3-C3]** Post-pivot rollbacks are OPERATOR-owned. The boot pass checks the pivot
+      for a COMPENSATING row and PARKS it (`reason=pivot`, operator window) instead of
+      auto-walking it. The false invariant ("a compensating saga is pre-pivot by
+      construction") is corrected in place with the refutation: the operator door compensates
+      FAILED sagas at ANY step. **RED**: a COMPENSATING row at `pivot+1` was walked by the
+      boot pass. **GREEN**: parked, `bootParkedSagas === 1`, nothing dispatched.
+- [x] E5 **[R4-C3 + R3-C4]** The orphans gauge is a prom-client `collect()` callback that
+      runs the COUNT at SCRAPE time (a provider the engine installs at `initialize` and
+      detaches at `shutdown`). The double-publish machinery is deleted, and its five doc
+      statements are rewritten to the collect semantics. The `min_over_time` window keeps its
+      shape and its rationale is re-derived honestly against `for: 5m` — the rule pages after
+      ~15 minutes (10m lookback that never saw a zero, held for 5), and the description now
+      says so. Throw paths counted: `resumeCompensationWalkAsync`'s catch and the boot
+      dispatch catch both record `stage="compensation"`. **Test**: the gauge is read the way
+      Prometheus reads it (`register.getMetricsAsJSON()`, which awaits collect) — 1 at boot,
+      0 once the walk drains, 2 while a walk cannot finish.
+- [x] E6 **[R4-C5 + R3-C6 + R1-F2 aggravation]** In-process walk claim, promoted into this
+      slice. A per-sagaId in-flight set on the engine; the operator endpoint answers **409**
+      while a walk is in flight; the boot pass skips claimed ids. **RED**: a second
+      `resumeCompensationWalk` ran the hanging step again (`compensateAttempts 2`) and the
+      operator re-drive was accepted mid-walk. **GREEN**: the second walk is refused and the
+      endpoint rejects with a conflict.
+- [x] E7 **[R4-C1 + R4-C2 + R3-W7 + R1-F4]** The horizon gains an ABSOLUTE anchor: the
+      durable `saga.compensation.started` event (written in the transition's own transaction)
+      is the rollback's birth, read once per saga and remembered, with the row's `startedAt`
+      as the fallback for pre-change rows. Terminalization fires when EITHER liveness stalls
+      OR the age exceeds **3 × timeout** — chosen because the liveness horizon (1×) already
+      catches a walk that stopped writing, so this bound exists only for the walk that keeps
+      writing and keeps failing; it must survive a legitimately long multi-step undo across a
+      deploy while still bounding a crash loop (90 min at the default). The
+      definition-unregistered early return no longer skips COMPENSATING rows (the horizon
+      needs a duration, not a definition — `defaultTimeout` supplies it), which was the one
+      class the alert surfaces most. R1-F4: the walk re-reads the durable status before its
+      own writes and ABANDONS rather than resurrect a terminal row. **RED**: both the
+      restart-loop row and the unregistered-definition row stayed COMPENSATING forever.
+      **GREEN**: both terminalize under `compensation-expired`.
+- [x] E8 **[R1-F1]** `runAsSagaTenant(fresh, …)` in `checkCompensationLiveness` — the scope
+      is bound from the row being written, not from the copy the method exists to distrust.
+      Covered by the new two-tenant scenarios (E11).
+- [x] E9 **[R1-F2]** Per-step progress is merged BY INDEX against a fresh read (a recorded
+      SUCCESS always wins), before the walk decides AND before every write — so a walk
+      holding an older array can neither re-dispatch a step another walk recorded nor erase
+      it. The residual's stated bound is corrected in the runbook and the spec: it is NOT "at
+      most one step repeated", it is "no recorded success is lost, and a step may be repeated
+      once per concurrent walk". **RED**: the older copy re-compensated a step already
+      recorded. **GREEN**: skipped, and the record survives.
+- [x] E10 **[R2-C1/C2 + R2 warnings + R1-F5/F6 + R3-S12/S13/S14]** Vocabulary and honesty:
+      the gauge HELP and the `SagaMetrics.compensatingOrphans` JSDoc now say what the engine
+      does; the engine port's `compensateSaga`/`compensateSagaAsync` become
+      `resumeCompensationWalk`/`resumeCompensationWalkAsync` (the private step is
+      `loadAndRunCompensationWalk`), leaving ONE meaning per name and the operator door
+      keeping `compensateSaga`; the dead `outcome` cast branch is deleted (the union lands in
+      S2 with its normalizer) and the terminal audit tally now uses the same predicate as the
+      walk; the Redis deserializer carries `updatedAt` symmetrically with the writer;
+      `skipReasons` no longer files `compensation-resumed` (it has its own summary field);
+      the `P2`/diff-relative test names are behavioural; the "publishes twice" claim is gone
+      everywhere with E5; and every count below carries its exact command.
+- [x] E11 **[R1-F3 + R3 coverage]** New tests: two-tenant COMPENSATING scenarios in the
+      isolation suite (the transition writes under the saga's OWN account and leaves the
+      other tenant untouched; a contradicted row is refused before a transaction opens), the
+      stale-cache guard, the post-pivot park, the persist-failure fallback, the concurrent
+      walk and its 409, the absolute deadline, the unregistered-definition horizon, and the
+      by-index merge. `sagaCompensationRecovery` now states its clean-table precondition and
+      WHY it is a precondition rather than tidiness.
+- [x] E12 **[R4-W1 + R3-W11]** Docs are honest about the boot page: COMPENSATING rows sort to
+      the FRONT of the `bootLoadLimit` page (they are older by construction) and can defer
+      forward rows past the ceiling, and the runbook's horizon promise is scoped to rows the
+      process TRACKS — deferred rows are covered by `SagaBootLoadDeferred` and the next boot.
+- [x] E-gate **0-defect gate (corrective)**: `tsc -b apps/api packages/shared` = **0** ·
+      `eslint --max-warnings 0` over `apps/api/src/saga`, `sagaRecoveryMetrics.ts`,
+      `apps/api/tests/unit/saga`, both touched integration suites,
+      `sagaManager.test-helpers.ts`, `packages/shared/src/saga.ts` = **0** ·
+      `prettier --check` clean · `bash -n run-tests.sh` clean · fitness
+      **#3/#4/#5/#8/#9/#10/#11/#14/#20/#21/#23 = 0**, 0 `.only`/`.skip`, 0 new
+      `canon-exception` · `pnpm exec vitest run tests/unit/saga` → **20 files / 268 tests**,
+      0 failed, 0 cancelled · the 13 saga suites under `tests/unit` (named explicitly on the
+      command line) → **13 files / 116 tests** · node:test, each single-file with
+      `--test-timeout=120000`: `sagaCompensationRecovery` **2/2** · `sagaCrashRecovery`
+      **17/17** · `sagaTenantIsolation` **20/20** (was 18 — two tenant scenarios added) ·
+      `sagaAccountIdBackfill` **10/10** · `chaos/saga-step-retry-recovery` **1/1** — all
+      0 failed / 0 cancelled · post-run leak check: **0** non-terminal saga rows, 0
+      `saga-comp-*` rows, 0 `stream:Saga:saga-comp-*` events.
 
 ---
 
