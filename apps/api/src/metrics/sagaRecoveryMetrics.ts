@@ -32,11 +32,21 @@ function getOrCreateCounter(
   return new client.Counter({ name, help, labelNames });
 }
 
-/** The gauge equivalent of {@link getOrCreateCounter}, for re-observed levels. */
-function getOrCreateGauge(name: string, help: string): client.Gauge {
+/**
+ * The gauge equivalent of {@link getOrCreateCounter}, for re-observed levels.
+ *
+ * `collect` makes the level SCRAPE-TIME: prom-client invokes it while rendering
+ * `/metrics`, so the value an alert evaluates is measured then, not whenever
+ * some code path last remembered to publish it.
+ */
+function getOrCreateGauge(
+  name: string,
+  help: string,
+  collect?: (this: client.Gauge) => void | Promise<void>
+): client.Gauge {
   const existing = client.register.getSingleMetric(name);
   if (existing) return existing as client.Gauge;
-  return new client.Gauge({ name, help });
+  return new client.Gauge({ name, help, ...(collect && { collect }) });
 }
 
 /**
@@ -51,6 +61,12 @@ function getOrCreateGauge(name: string, help: string): client.Gauge {
  * - `instance-load` — the by-id read behind every resume trigger.
  * - `resume-row` — one row the boot resume pass could not even dispatch a
  *   decision about, because inspecting it threw. Its neighbours still ran.
+ * - `compensation` — an UNDO that did not complete: a walk that could not
+ *   start (no instance, no registered definition, no resolvable account), a
+ *   walk that ended with a step still un-compensated, or a forward dispatch
+ *   refused because the walk owns the row. Its own stage because the operator
+ *   question it answers is different from every loop above: not "is recovery
+ *   running?" but "is something this saga did still standing?".
  * - `rehydration` — a saga whose owning account could not be resolved.
  * - `mismatch` — a saga whose column and context name different accounts.
  *
@@ -60,7 +76,14 @@ function getOrCreateGauge(name: string, help: string): client.Gauge {
  * counter below.
  */
 export type SagaRecoveryStage =
-  "boot" | "retry-scan" | "timeout" | "instance-load" | "resume-row" | "rehydration" | "mismatch";
+  | "boot"
+  | "retry-scan"
+  | "timeout"
+  | "instance-load"
+  | "resume-row"
+  | "compensation"
+  | "rehydration"
+  | "mismatch";
 
 /**
  * Why boot recovery declined to resume a row it loaded.
@@ -78,9 +101,19 @@ export type SagaParkReason = "pivot" | "definition-unregistered";
  * `parked-expired` is deliberately distinct from `timeout`: a parked row is
  * terminalized because the HUMAN window opened at parking ran out, not because a
  * step hung, and the two send an operator to different runbooks.
+ *
+ * `compensation-expired` is distinct from both: the saga's forward work had
+ * ALREADY failed and its undo is what stopped making progress, so some of its
+ * effects may still be standing. A FAILED row under this reason is not "the
+ * publish did not happen"; it is "the rollback did not finish".
  */
 export type SagaFailureReason =
-  "step-failure" | "timeout" | "parked-expired" | "unresolvable-account" | "tenant-mismatch";
+  | "step-failure"
+  | "timeout"
+  | "parked-expired"
+  | "compensation-expired"
+  | "unresolvable-account"
+  | "tenant-mismatch";
 
 const sagaRecoveryFailuresTotal = getOrCreateCounter(
   "saga_recovery_failures_total",
@@ -105,10 +138,49 @@ const sagaRecoveryDeferredRows = getOrCreateGauge(
   "Non-terminal sagas this process did NOT load at boot because it hit its load ceiling"
 );
 
+/**
+ * Answers "how many sagas are mid-rollback right now?", installed by the engine.
+ *
+ * A module-level hook rather than an import: this file publishes series and
+ * must not learn about Prisma, tenancy or the saga engine's boundaries.
+ */
+let compensatingOrphansProvider: (() => Promise<number>) | undefined;
+
 const sagaCompensatingOrphans = getOrCreateGauge(
   "saga_compensating_orphans",
-  "Sagas left in COMPENSATING that no mechanism currently loads, scans or tracks"
+  "Sagas currently mid-rollback (status COMPENSATING). The engine RESUMES these at boot and " +
+    "an operator can re-drive them; a level that never drains is a rollback nothing can finish",
+  async function collectCompensatingOrphans(this: client.Gauge): Promise<void> {
+    if (!compensatingOrphansProvider) return;
+    try {
+      this.set(await compensatingOrphansProvider());
+    } catch {
+      // A scrape must not fail because one level could not be measured. The
+      // previous sample stays, and the read failure is already counted and
+      // logged where it happened.
+    }
+  }
 );
+
+/**
+ * @function setSagaCompensatingOrphansProvider
+ * @description Installs (or removes) the scrape-time source for the
+ *   COMPENSATING level. Publishing the level only at boot made the gauge blind
+ *   to every row that appears BETWEEN boots — which, now that the automatic
+ *   path writes the status, is the population it exists to watch — and made a
+ *   non-zero value latch until the next restart, long after the engine or an
+ *   operator had resolved it.
+ * @param provider - Counts rows currently in `COMPENSATING`, or `undefined` to
+ *   detach on shutdown.
+ */
+export function setSagaCompensatingOrphansProvider(
+  provider: (() => Promise<number>) | undefined
+): void {
+  compensatingOrphansProvider = provider;
+  if (provider === undefined) {
+    sagaCompensatingOrphans.set(0);
+  }
+}
 
 /**
  * @function recordSagaRecoveryFailure
@@ -161,14 +233,17 @@ export function recordSagaBootLoadDeferred(deferred: number): void {
 
 /**
  * @function recordSagaCompensatingOrphans
- * @description Publishes how many sagas sit in `COMPENSATING`. Also a gauge, for
- *   the same reason. These rows are currently claimed by NOBODY — the boot load
- *   and the retry scan both filter `status IN (RUNNING, PENDING)`, and the timeout
- *   checker only inspects rows the process is tracking — so the count is a
- *   standing backlog of the infinite non-terminal state the saga canon forbids.
- *   Detection only: the engine deliberately does not resume them, because a
- *   compensation walk resumed without a claim is a second walk over the same
- *   steps.
+ * @description Publishes an already-measured COMPENSATING level — the boot
+ *   read, which happens before the scrape-time provider can be useful.
+ *
+ *   It measures the PRODUCTION path: the automatic walk persists that status
+ *   before it undoes anything, so a pre-pivot step exhausting its retries is
+ *   visible here, where previously only the admin endpoint could ever move this
+ *   number. The engine also RESUMES these rows, so a non-zero value during a
+ *   resume pass is work in progress rather than a stuck backlog — which is why
+ *   the series is re-measured at every scrape (see
+ *   {@link setSagaCompensatingOrphansProvider}) and the alert keys on a level
+ *   that never drains.
  * @param orphans - Rows currently in `COMPENSATING`.
  */
 export function recordSagaCompensatingOrphans(orphans: number): void {
