@@ -1114,7 +1114,11 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
       const realEngine = timeoutLifecycle.executionEngine;
       const poisonedEngine: SagaExecutionEnginePort = {
         executeSagaAsync: (id) => realEngine.executeSagaAsync(id),
-        compensateSagaAsync: (id) => realEngine.compensateSagaAsync(id),
+        executeSaga: (id) => realEngine.executeSaga(id),
+        resumeCompensationWalkAsync: (id) => realEngine.resumeCompensationWalkAsync(id),
+        resumeCompensationWalk: (id) => realEngine.resumeCompensationWalk(id),
+        isCompensationWalkInFlight: (id) => realEngine.isCompensationWalkInFlight(id),
+        beginCompensation: (instance, error) => realEngine.beginCompensation(instance, error),
         persistSagaInstance: (instance, events) => realEngine.persistSagaInstance(instance, events),
         loadSagaInstance: (id) => realEngine.loadSagaInstance(id),
         failSaga: async (instance, error, reason) => {
@@ -1165,6 +1169,130 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
     });
   });
 
+  describe("compensation writes stay inside the saga's own tenant", () => {
+    /**
+     * The three durable writes the compensation machine added — the transition,
+     * the per-step record and the terminal `compensation-expired` — each go
+     * through `persistSagaInstance`, so the static scanner can prove the WRAP
+     * exists. It cannot prove the wrap binds the RIGHT account, which is what
+     * separates a tenant defect from a tidy one.
+     */
+    async function compensatingRowFor(tenant: Tenant, label: string): Promise<string> {
+      const sagaId = `${TAG}-${label}-${randomUUID()}`;
+      await base.sagaInstance.create({
+        data: {
+          id: sagaId,
+          definitionId: PROBE_DEFINITION_ID,
+          status: "FAILED",
+          currentStep: 0,
+          accountId: tenant.accountId,
+          context: {
+            sagaId,
+            correlationId: `corr-${sagaId}`,
+            accountId: tenant.accountId,
+            userId: tenant.customerUserId,
+            metadata: { accountId: tenant.accountId },
+            stepData: {},
+            events: [],
+          },
+          stepResults: [],
+          compensationResults: [],
+          retryCount: 0,
+          startedAt: new Date(),
+        },
+      });
+      return sagaId;
+    }
+
+    it("writes the transition under the saga's account, and leaves the other tenant untouched", async () => {
+      const sagaIdA = await compensatingRowFor(tenantA, "compensating-a");
+      const sagaIdB = await compensatingRowFor(tenantB, "compensating-b");
+
+      const instanceA = await requestEngine.loadSagaInstance(sagaIdA);
+      assert.ok(instanceA, "the seeded row must load");
+      await withTenantContext({ accountId: tenantA.accountId }, () =>
+        requestEngine.beginCompensation(instanceA, "isolation probe")
+      );
+
+      const rows = await base.sagaInstance.findMany({
+        where: { id: { in: [sagaIdA, sagaIdB] } },
+        select: { id: true, status: true, accountId: true },
+      });
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      assert.strictEqual(byId.get(sagaIdA)?.status, "COMPENSATING");
+      assert.strictEqual(
+        byId.get(sagaIdA)?.accountId,
+        tenantA.accountId,
+        "the transition writes under the saga's OWN account, never the acting one"
+      );
+      assert.strictEqual(
+        byId.get(sagaIdB)?.status,
+        "FAILED",
+        "the other tenant's row is not touched by a compensation in this one"
+      );
+
+      // The durable birth marker is the anchor the absolute deadline reads.
+      const started = await base.storedEvent.count({
+        where: { streamId: sagaStreamId(sagaIdA), eventType: "saga.compensation.started" },
+      });
+      assert.strictEqual(started, 1, "the transition commits its event in the same transaction");
+
+      await base.sagaInstance.deleteMany({ where: { id: { in: [sagaIdA, sagaIdB] } } });
+      await base.storedEvent.deleteMany({
+        where: { streamId: { in: [sagaIdA, sagaIdB].map(sagaStreamId) } },
+      });
+      await redis.del(`saga:${sagaIdA}`, `saga:${sagaIdB}`);
+    });
+
+    it("refuses a compensation whose column and context name different tenants", async () => {
+      const sagaId = `${TAG}-compensating-mismatch-${randomUUID()}`;
+      await base.sagaInstance.create({
+        data: {
+          id: sagaId,
+          definitionId: PROBE_DEFINITION_ID,
+          status: "COMPENSATING",
+          currentStep: 0,
+          // Written by pre-cutover code: the column names B, the context A.
+          accountId: tenantB.accountId,
+          context: {
+            sagaId,
+            correlationId: `corr-${sagaId}`,
+            accountId: tenantA.accountId,
+            userId: tenantA.customerUserId,
+            metadata: { accountId: tenantA.accountId },
+            stepData: {},
+            events: [],
+          },
+          stepResults: [],
+          compensationResults: [],
+          retryCount: 0,
+          startedAt: new Date(),
+        },
+      });
+
+      const instance = await requestEngine.loadSagaInstance(sagaId);
+      assert.ok(instance, "the seeded row must load");
+      await assert.rejects(
+        () =>
+          withTenantContext({ accountId: tenantA.accountId }, () =>
+            requestEngine.beginCompensation(instance, "isolation probe")
+          ),
+        /contradicts its context/,
+        "a contradicted row is refused BEFORE a transaction opens, not written under a guess"
+      );
+
+      const row = await base.sagaInstance.findUniqueOrThrow({
+        where: { id: sagaId },
+        select: { status: true, accountId: true },
+      });
+      assert.strictEqual(row.status, "COMPENSATING", "the refused write changed nothing");
+      assert.strictEqual(row.accountId, tenantB.accountId);
+
+      await base.sagaInstance.deleteMany({ where: { id: sagaId } });
+      await redis.del(`saga:${sagaId}`);
+    });
+  });
+
   describe("shutting down while a saga cannot be handed off", () => {
     it("reports the failure and still finishes the drain", async () => {
       const scheduler = new NoopBackgroundTaskScheduler();
@@ -1174,7 +1302,11 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
       lifecycle.registerSaga(probeDefinition);
       lifecycle.executionEngine = {
         executeSagaAsync: (id) => engine.executeSagaAsync(id),
-        compensateSagaAsync: (id) => engine.compensateSagaAsync(id),
+        executeSaga: (id) => engine.executeSaga(id),
+        resumeCompensationWalkAsync: (id) => engine.resumeCompensationWalkAsync(id),
+        resumeCompensationWalk: (id) => engine.resumeCompensationWalk(id),
+        isCompensationWalkInFlight: (id) => engine.isCompensationWalkInFlight(id),
+        beginCompensation: (instance, error) => engine.beginCompensation(instance, error),
         persistSagaInstance: async () => {
           throw new Error("durable store unreachable during shutdown");
         },

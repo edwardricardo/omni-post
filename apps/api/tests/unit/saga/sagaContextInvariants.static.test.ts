@@ -564,19 +564,35 @@ function modelOperationInventory(sources: SagaSource[]): string[] {
  * vacuously green.
  */
 const KNOWN_ENGINE_OPERATIONS = [
+  // The by-id load, plus the two DURABLE-status reads that exist because a
+  // best-effort cache must never decide a safety question: the forward-refusal
+  // guard, and the walk's own refusal to write over a terminal row.
+  "src/saga/SagaManagerExecution.ts::sagaInstance.findUnique",
+  "src/saga/SagaManagerExecution.ts::sagaInstance.findUnique",
   "src/saga/SagaManagerExecution.ts::sagaInstance.findUnique",
   "src/saga/SagaManagerExecution.ts::sagaInstance.upsert",
   // The boot load's page AND its two counts — how many rows it had to defer, and
-  // how many COMPENSATING orphans exist that it deliberately never loads. All
-  // three sit inside the ONE declared read boundary, so the figures and the page
-  // describe the same snapshot. The multiplicity is load-bearing: two `count`
-  // entries means two DISTINCT reads, and losing either would silence a signal
-  // while this pin still passed.
+  // what the COMPENSATING level is. All three sit inside the ONE declared read
+  // boundary, so the figures and the page describe the same snapshot. The
+  // multiplicity is load-bearing: three `count` entries means three DISTINCT
+  // reads, and losing any of them would silence a signal while this pin still
+  // passed. The THIRD count is the re-measurement of that level after the
+  // resume pass drains, which is what keeps the orphan gauge honest now that
+  // the engine actually resumes those walks.
+  "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.findMany",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.findMany",
+  // Two by-id re-reads, both distrusting a stale in-memory copy before a
+  // TERMINAL decision: the unscopable path's, and the compensation liveness
+  // horizon's.
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.findUnique",
+  "src/saga/SagaManagerLifecycle.ts::sagaInstance.findUnique",
+  // The compensation's BIRTH, read from the durable event written in the same
+  // transaction as the transition. It is the one anchor a restart loop cannot
+  // reset, which is what bounds a walk that keeps failing across restarts.
+  "src/saga/SagaManagerLifecycle.ts::storedEvent.findFirst",
   "src/saga/sagaTenant.ts::sagaInstance.update",
 ].sort();
 
@@ -611,6 +627,23 @@ function blockAfter(source: SagaSource, from: number): string {
   const close = findMatching(source.sanitized, open, "{", "}");
   if (close === -1) return "";
   return source.sanitized.slice(open, close + 1);
+}
+
+/**
+ * The body of `declaration`, with STRING LITERALS INTACT.
+ *
+ * The balanced scan runs over the sanitized copy — which is what makes the
+ * delimiters trustworthy — and the offsets it yields are valid in the original
+ * because sanitizing preserves length. Status comparisons are string
+ * comparisons, so they are only visible in the original.
+ */
+function bodyWithLiterals(source: SagaSource, declaration: string): string {
+  const at = source.sanitized.indexOf(declaration);
+  if (at === -1) return "";
+  const open = nextBrace(source.sanitized, at);
+  const close = findMatching(source.sanitized, open, "{", "}");
+  if (close === -1) return "";
+  return source.original.slice(open, close + 1);
 }
 
 function sourceByName(name: string): SagaSource {
@@ -1319,6 +1352,237 @@ describe("saga engine context invariants", () => {
       expect(integration.sanitized).toMatch(/PostId\.fromString\(postIdRaw\)/);
       expect(integration.sanitized).toMatch(/postRepository\.findById/);
       expect(integration.sanitized).toMatch(/post\.value\.status\.value/);
+    });
+  });
+
+  describe("forward execution and the compensation walk never both own a row", () => {
+    const execution = sourceByName("SagaManagerExecution.ts");
+    const lifecycle = sourceByName("SagaManagerLifecycle.ts");
+
+    it("refuses a persisted COMPENSATING row inside executeSaga, ahead of every step", () => {
+      // The invariant, verbatim: `executeSaga` SHALL REFUSE a row whose
+      // persisted status is COMPENSATING — log + a counted compensation
+      // failure, never a forward run. It has to be structural because the
+      // consequence is silent: `runSagaSteps` sets RUNNING unconditionally and
+      // re-runs the step whose failure triggered the undo, over state a partial
+      // walk already reverted.
+      const body = bodyWithLiterals(execution, "async executeSaga(");
+
+      // On the DURABLE status, never on the instance in hand: `getSaga` answers
+      // from the tracked set or from the Redis hot cache, which is written
+      // fire-and-forget and which the engine is designed to survive losing — so
+      // a pre-transition copy would let the refusal through.
+      const readAt = body.indexOf("await this.readPersistedStatus(sagaId)");
+      expect(readAt).toBeGreaterThanOrEqual(0);
+      const refusalAt = body.indexOf('persistedStatus === "COMPENSATING"');
+      expect(refusalAt).toBeGreaterThan(readAt);
+      expect(body).not.toMatch(/if \(instance\.status === "COMPENSATING"\)/);
+
+      // …and the refusal must sit BEFORE the only call that can advance it.
+      const runAt = body.indexOf("this.runSagaSteps(");
+      expect(runAt).toBeGreaterThan(refusalAt);
+
+      // The refusal is counted, not merely logged: a saga nobody advances and
+      // nobody counts is invisible on every dashboard.
+      const refusalBlockEnd = body.indexOf("}", refusalAt);
+      const refusalBlock = body.slice(refusalAt, refusalBlockEnd + 1);
+      expect(refusalBlock).toContain('recordSagaRecoveryFailure("compensation")');
+    });
+
+    it("takes the status decision ahead of the retry marker in the boot disposition", () => {
+      // A legacy row can carry BOTH a COMPENSATING status and a stale
+      // `nextRetryAt`. Reading the marker first hands it to the retry scan,
+      // which drives it FORWARD — the same defect through the other reader.
+      const body = bodyWithLiterals(lifecycle, "private disposeLoadedSaga(");
+      const statusAt = body.indexOf('instance.status === "COMPENSATING"');
+      const retryAt = body.indexOf("instance.nextRetryAt !== undefined");
+
+      expect(statusAt).toBeGreaterThanOrEqual(0);
+      expect(retryAt).toBeGreaterThan(statusAt);
+    });
+
+    it("begins every compensation walk through the ONE durable transition", () => {
+      // Every site that starts a walk is preceded by an awaited persist of
+      // COMPENSATING, so no walk ever begins from a row whose persisted status
+      // still says the saga is moving forward.
+      expect(execution.sanitized).toMatch(/await this\.beginCompensation\(instance, errMsg\)/);
+      expect(execution.sanitized).toMatch(/await this\.beginCompensation\(instance\)/);
+      expect(lifecycle.sanitized).toMatch(/this\.executionEngine\.beginCompensation\(instance\)/);
+
+      const transition = bodyWithLiterals(execution, "async beginCompensation(");
+      expect(transition).toContain('instance.status = "COMPENSATING"');
+      expect(transition).toContain("delete instance.nextRetryAt");
+      expect(transition).toContain("await this.persistSagaInstance(");
+    });
+  });
+
+  describe("the vocabulary an operator routes on says what the engine does", () => {
+    const metricsPath = join(apiRoot, "src", "metrics", "sagaRecoveryMetrics.ts");
+    const metrics = readFileSync(metricsPath, "utf8");
+    const types = sourceByName("sagaManagerTypes.ts");
+    const execution = sourceByName("SagaManagerExecution.ts");
+    const lifecycle = sourceByName("SagaManagerLifecycle.ts");
+
+    it("does not tell a scraper that nothing loads these rows", () => {
+      // The HELP string renders on /metrics and in every metric browser. It
+      // asserted the exact claim this engine disproves, which sends an operator
+      // to the manual repair the engine already performed.
+      const help = metrics.slice(
+        metrics.indexOf('"saga_compensating_orphans"'),
+        metrics.indexOf("collectCompensatingOrphans")
+      );
+      expect(help).not.toMatch(/no mechanism|does not resume|deliberately does not/i);
+      expect(help).toMatch(/RESUMES|mid-rollback/i);
+    });
+
+    it("does not tell a reader of the metrics type that recovery is somebody else's", () => {
+      const field = types.original.slice(
+        types.original.indexOf("bootResumeRowFailures: number;"),
+        types.original.indexOf("compensatingOrphans: number;")
+      );
+      expect(field).not.toMatch(
+        /Detection only|deliberately does not resume|belongs to `saga-engine-terminal-hygiene`/i
+      );
+      expect(field).toMatch(/RESUMES/);
+    });
+
+    it("measures the level at scrape time rather than publishing it at boot", () => {
+      // A level published only at boot cannot see the rows that appear between
+      // boots — the population the automatic transition creates — and latches a
+      // stale non-zero value for the life of the process.
+      expect(metrics).toContain("setSagaCompensatingOrphansProvider");
+      expect(lifecycle.sanitized).toContain("setSagaCompensatingOrphansProvider(");
+      expect(lifecycle.sanitized).not.toContain("remeasureCompensatingOrphans");
+    });
+
+    it("gives the walk and the operator door one name each", () => {
+      // `compensateSaga` meant two different operations on two collaborating
+      // objects: a future dispatcher calling the wrong one gets an early return
+      // where it expected a completed rollback.
+      expect(execution.sanitized).toContain("async resumeCompensationWalk(");
+      expect(execution.sanitized).toContain("resumeCompensationWalkAsync(");
+      expect(execution.sanitized).not.toMatch(/\basync compensateSaga\(/);
+      expect(execution.sanitized).not.toMatch(/\bcompensateSagaAsync\(/);
+      // The operator-facing name stays where the operator's door is.
+      expect(lifecycle.sanitized).toContain("async compensateSaga(");
+    });
+
+    it("keeps one walk per saga and says so to the operator", () => {
+      expect(execution.sanitized).toContain("walksInFlight");
+      const redrive = bodyWithLiterals(lifecycle, "async compensateSaga(");
+      expect(redrive).toContain("isCompensationWalkInFlight(sagaId)");
+      expect(redrive).toContain("AppError.conflict(");
+    });
+
+    it("discriminates a recorded compensation on a field the type system has", () => {
+      // A cast-guarded branch on a field `SagaStepResult` does not declare was
+      // dead code that tsc could not check, and a silent semantic switch the
+      // day the union lands.
+      expect(execution.sanitized).not.toContain("outcome?: string");
+      expect(execution.sanitized).toContain("result?.success === true");
+    });
+  });
+
+  describe("the orphan alert ships with the code that changed its meaning", () => {
+    const alertsPath = join(apiRoot, "..", "..", "prometheus", "alerts", "saga.yml");
+    const alerts = readFileSync(alertsPath, "utf8");
+
+    /** The YAML block belonging to one alert, up to the next `- alert:`. */
+    function alertBlock(name: string): string {
+      const start = alerts.indexOf(`- alert: ${name}`);
+      expect(start).toBeGreaterThanOrEqual(0);
+      const next = alerts.indexOf("- alert:", start + 1);
+      return alerts.slice(start, next === -1 ? alerts.length : next);
+    }
+
+    it("no longer claims the engine cannot resume these rows", () => {
+      const block = alertBlock("SagaCompensatingOrphans");
+      // The premise the old rule rested on is exactly what this change
+      // removed. Leaving the sentence would send an operator to a manual
+      // repair the engine already performed.
+      expect(block).not.toMatch(/does not resume|only DETECTS|no mechanism to finish/i);
+      expect(block).toMatch(/resumes their walks|RESUMES/i);
+    });
+
+    it("distinguishes a stuck row from a walk in progress", () => {
+      const block = alertBlock("SagaCompensatingOrphans");
+      // `max(...) > 0` fires on any level, including the transient one a
+      // correct resume produces; the FLOOR over a window is what needs the
+      // level to have never drained.
+      expect(block).toMatch(/min_over_time\(saga_compensating_orphans\[\d+m\]\) > 0/);
+      expect(block).not.toContain("max(saga_compensating_orphans)");
+    });
+
+    it("is not satisfied by a walk that starts and finishes inside its window", () => {
+      const block = alertBlock("SagaCompensatingOrphans");
+      const windowMatch = /min_over_time\(saga_compensating_orphans\[(\d+)m\]\) > 0/.exec(block);
+      const forMatch = /\n\s+for:\s*(\d+)m/.exec(block);
+      expect(windowMatch).not.toBeNull();
+      expect(forMatch).not.toBeNull();
+      const windowMinutes = Number(windowMatch![1]);
+      const forMinutes = Number(forMatch![1]);
+
+      /** `min_over_time(series[window]) > 0` at the sample `endsAt`. */
+      const expressionAt = (series: number[], endsAt: number): boolean =>
+        Math.min(...series.slice(Math.max(0, endsAt - windowMinutes + 1), endsAt + 1)) > 0;
+
+      /**
+       * The rule as Prometheus evaluates it: the expression must hold at EVERY
+       * sample of the `for` clause, not merely at the last one. Modelling the
+       * window without the clause reports a firing threshold this rule does not
+       * have.
+       */
+      const fires = (series: number[]): boolean => {
+        for (let at = series.length - forMinutes; at < series.length; at++) {
+          if (at < 0 || !expressionAt(series, at)) return false;
+        }
+        return true;
+      };
+
+      // A boot inherits three mid-undo rows and finishes all three: the scrape
+      // that follows reports 0, and the floor of the window is 0 from then on.
+      const transient = [0, 3, 0, ...Array<number>(windowMinutes + forMinutes).fill(0)];
+      expect(fires(transient)).toBe(false);
+
+      // A level that drains only once inside the window is still not a stuck
+      // rollback, and this is the case a window-only model cannot see.
+      const drainedOnce = [
+        ...Array<number>(windowMinutes).fill(2),
+        0,
+        ...Array<number>(forMinutes).fill(2),
+      ];
+      expect(fires(drainedOnce)).toBe(false);
+
+      // A rollback nobody can finish: no sample in the lookback OR the hold is
+      // ever zero, which takes window + for minutes to establish.
+      const stuck = Array<number>(windowMinutes + forMinutes).fill(2);
+      expect(fires(stuck)).toBe(true);
+    });
+
+    it("states the threshold the rule really has, lookback included", () => {
+      const block = alertBlock("SagaCompensatingOrphans");
+      const windowMinutes = Number(
+        /min_over_time\(saga_compensating_orphans\[(\d+)m\]\) > 0/.exec(block)![1]
+      );
+      const forMinutes = Number(/\n\s+for:\s*(\d+)m/.exec(block)![1]);
+
+      // A description that quotes only the `for` clause understates the delay,
+      // and one that quotes only the window overstates it. The rule pages after
+      // both.
+      expect(block).toContain(`${windowMinutes + forMinutes} minutes`);
+    });
+
+    it("carries the new failure stage into the loop alert", () => {
+      const block = alertBlock("SagaRecoveryLoopFailing");
+      expect(block).toMatch(/stage=~"[^"]*\bcompensation\b[^"]*"/);
+    });
+
+    it("alerts on a rollback that was terminalized unfinished", () => {
+      // `compensation-expired` is a NEW terminal reason, and the timeout alert
+      // matches `reason="timeout"` only — without its own rule the engine
+      // would terminalize an unfinished rollback silently.
+      const block = alertBlock("SagaCompensationExpired");
+      expect(block).toContain('sagas_failed_total{reason="compensation-expired"}');
     });
   });
 
