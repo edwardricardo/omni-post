@@ -65,7 +65,8 @@ groups:
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga
 
-      # A GAUGE, not a counter: it is a level each process re-measures at boot,
+      # A GAUGE, not a counter: it is a level read at scrape time by the metric's
+      # collect provider (a live COUNT of COMPENSATING rows),
       # so `max` across replicas is the honest read and a rate would be
       # meaningless. Deferral is a BOUND doing its job — never a malfunction —
       # which is why it is on neither the failures nor the parked series.
@@ -105,7 +106,7 @@ groups:
           component: saga
         annotations:
           summary: "A compensation walk is STUCK: the COMPENSATING level is not draining"
-          description: 'Sagas have been sitting in COMPENSATING for about 15 minutes without the level ever returning to zero (a 10-minute lookback that never saw a zero, held for a further 5), so this is not a walk in progress: the engine loads COMPENSATING rows at boot and resumes their WALKS from the durable per-step record in `compensationResults`, and it re-measures the level once that pass drains. What is left is a walk this process could not finish — a `compensate()` that keeps failing, a definition this process has not registered, or an account it cannot resolve. Each such exit is also counted as `saga_recovery_failures_total{stage="compensation"}` and logged at ERROR. Handling: identify the rows (`SELECT id, "definitionId", "currentStep", "compensationResults", "updatedAt" FROM "SagaInstance" WHERE status = ''COMPENSATING''`), read `compensationResults` to see exactly which steps are already undone (a resumed walk will not repeat them), fix the cause, then re-drive with `POST /sagas/:sagaId/compensate` — which RESUMES rather than restarts. If nothing advances the row, the compensation liveness horizon terminalizes it as reason=`compensation-expired` one full saga horizon after its last write, and SOME OF ITS EFFECTS MAY STILL STAND.'
+          description: 'Sagas have been sitting in COMPENSATING for about 15 minutes without the level ever returning to zero (a 10-minute lookback that never saw a zero, held for a further 5), so this is not a walk in progress: the engine loads COMPENSATING rows at boot and resumes their WALKS from the durable per-step record in `compensationResults`, and the gauge reports the live level at every scrape, so a backlog that accrues between boots is visible and a drained one reads zero. What is left is a walk this process could not finish — a `compensate()` that keeps failing, a definition this process has not registered, or an account it cannot resolve. Each such exit is also counted as `saga_recovery_failures_total{stage="compensation"}` and logged at ERROR. Handling: identify the rows (`SELECT id, "definitionId", "currentStep", "compensationResults", "updatedAt" FROM "SagaInstance" WHERE status = ''COMPENSATING''`), read `compensationResults` to see exactly which steps are already undone (a resumed walk will not repeat them), fix the cause, then re-drive with `POST /sagas/:sagaId/compensate` — which RESUMES rather than restarts. If nothing advances the row, the compensation liveness horizon terminalizes it as reason=`compensation-expired` one full saga horizon after its last write, and SOME OF ITS EFFECTS MAY STILL STAND.'
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga
 

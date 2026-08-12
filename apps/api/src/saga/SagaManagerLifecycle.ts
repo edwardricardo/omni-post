@@ -651,6 +651,16 @@ export class SagaManagerLifecycle implements SagaManager {
    * than absent because an operator would reasonably believe it capped exactly
    * this.
    *
+   * The bound is real but it is NOT sized against the pool: the shipped default
+   * admits far more concurrent sagas than the default pool has connections, and
+   * a compensation walk opens one transaction per step rather than one per
+   * saga. A walk dispatched by a forward step's own failure is detached from
+   * here entirely, so it is not counted against this ceiling at all. Under a
+   * post-outage restart the pool is the real limiter and the excess surfaces as
+   * request latency plus walks that abort and retry on the next pass — bounded
+   * and self-healing, never lost work, but the ceiling must be tuned together
+   * with the pool size rather than trusted on its own.
+   *
    * The runner sits outside every declared system boundary, for the same reason
    * the loop above it does: AsyncLocalStorage propagates into awaited work, and
    * a resumed step must run under the saga's OWN rehydrated tenant scope.
@@ -659,8 +669,10 @@ export class SagaManagerLifecycle implements SagaManager {
    * into the WALK rather than into forward execution. Two lists, one bound:
    * an undo opens the same transactions a forward step does, so exempting it
    * from the ceiling would reintroduce exactly the burst the ceiling exists to
-   * prevent — and only a counted dispatch can be followed by a re-measurement
-   * of what is still compensating once the pass has drained.
+   * prevent. Each dispatch is counted so a walk that cannot finish surfaces as
+   * `saga_recovery_failures_total{stage="compensation"}`; the COMPENSATING
+   * LEVEL itself is read at Prometheus scrape time by the gauge's collect
+   * provider, not re-measured by this pass.
    *
    * @param resumable - The sagas the pass decided to advance, in row order.
    * @param compensating - The sagas the pass decided to UNDO, in row order.
@@ -1115,8 +1127,9 @@ export class SagaManagerLifecycle implements SagaManager {
    * like a row mid-publish — the pass then dispatches it into the compensation
    * walk rather than forward — because a status nothing loads is a status
    * nothing can finish, and the saga canon forbids an unbounded non-terminal
-   * state. The same read still counts the COMPENSATING level for the orphan
-   * gauge, which the resume pass re-measures once it has drained.
+   * state. The orphan gauge does NOT read from this load: it counts the
+   * COMPENSATING level at Prometheus scrape time via its collect provider, so
+   * a backlog accruing between boots is visible and a drained one reads zero.
    *
    * @param correlationId - Identifier joining this recovery pass in the logs.
    * @returns The instances this load registered, in row order, so the resume
@@ -1169,8 +1182,8 @@ export class SagaManagerLifecycle implements SagaManager {
       logger.warn(
         { compensating, correlationId },
         "Sagas were inherited mid-COMPENSATION: this process RESUMES their walks from the " +
-          "durable per-step record rather than replaying them forward. The level is " +
-          "re-measured once the resume pass drains; what remains after that is a walk this " +
+          "durable per-step record rather than replaying them forward. The orphan gauge " +
+          "reflects the live level at scrape time; what stays COMPENSATING is a walk this " +
           "process could not finish (docs/security/MULTI_TENANT_GUARDS.md)"
       );
     }

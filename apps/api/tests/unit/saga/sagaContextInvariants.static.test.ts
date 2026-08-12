@@ -576,9 +576,9 @@ const KNOWN_ENGINE_OPERATIONS = [
   // boundary, so the figures and the page describe the same snapshot. The
   // multiplicity is load-bearing: three `count` entries means three DISTINCT
   // reads, and losing any of them would silence a signal while this pin still
-  // passed. The THIRD count is the re-measurement of that level after the
-  // resume pass drains, which is what keeps the orphan gauge honest now that
-  // the engine actually resumes those walks.
+  // passed. The THIRD count is the gauge's scrape-time provider, which reads
+  // the live COMPENSATING level whenever Prometheus asks — that is what keeps
+  // the orphan gauge honest between boots now that the engine resumes walks.
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
