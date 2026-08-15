@@ -65,6 +65,7 @@ import {
   createSagaContext,
   type SagaInstance,
 } from "@shared/types/saga.js";
+import { ok } from "@shared/types";
 import type { Command, CommandResult } from "@shared/types/cqrs.js";
 import { InMemoryEventDispatcher } from "@core/domain/index.js";
 import { CreatePostUseCase, UpdatePostUseCase, DeletePostUseCase } from "@core/posts/index.js";
@@ -106,7 +107,7 @@ const TIMEOUT_CHECKER_TASK_ID = "saga-timeout-checker";
 const REFERENCE_DEFINITION = createPostPublishingSagaDefinition(
   async () => ({ success: true }),
   async () => "the reference definition is consulted, never executed",
-  async () => ({ completed: 0, failed: 0, pending: 0 }),
+  async () => ok({ completed: 0, failed: 0, pending: 0 }),
   async () => null
 );
 const PUBLISHING_SAGA_ID = REFERENCE_DEFINITION.id;
@@ -1115,15 +1116,31 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         "and the post kept its single consistent status"
       );
 
-      // The half that fails, and therefore the reason boot recovery declines.
-      // The revisit signal is THIS EXACT transition — FAILED becoming
-      // COMPLETED — not any red in this test: a timeout, a queue change or a
-      // reworded error would also turn it red without the tolerance holding.
+      // The half that fails, and therefore the reason boot recovery declines —
+      // split into the SIGNAL and the MECHANICS, in that order, so a red run
+      // prints the signal first and the two can never be confused.
+      //
+      // (1) THE PARKING REVISIT TRIGGER. Only this assertion failing means the
+      // post-pivot step finally tolerates re-application and the parking branch
+      // should be revisited. It is deliberately about the row NOT reaching
+      // COMPLETED, so a reworded failure reason, a retry-timing change or a
+      // step-outcome contract change cannot fabricate the signal.
+      assert.notStrictEqual(
+        terminal.status,
+        "COMPLETED",
+        "THE PARKING REVISIT TRIGGER: the deliberately replayed post-pivot saga reached " +
+          "COMPLETED, which means re-applying the post-pivot transition is now safe and the " +
+          "boot-recovery parking branch should be revisited. No other assertion in this test " +
+          "carries that meaning"
+      );
+
+      // (2) The mechanics this slice owns. They are allowed to evolve — the
+      // failure reason's text and the retry timing are not the evidence, they
+      // are how the evidence currently reads.
       assert.strictEqual(
         terminal.status,
         "FAILED",
-        "the replayed saga ends FAILED; only this assertion changing to COMPLETED means the " +
-          "post-pivot tolerance finally holds and the parking decision should be revisited"
+        "the replayed saga ends FAILED (mechanics, not the revisit trigger)"
       );
       assert.match(
         String(terminal.error),

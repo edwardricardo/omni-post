@@ -582,6 +582,11 @@ const KNOWN_ENGINE_OPERATIONS = [
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
+  // The FOURTH count is the waiting population's scrape-time provider: rows
+  // RUNNING with a scheduled re-entry. It exists because a step that has not
+  // finished no longer converts into a failure inside its retry budget, so
+  // without it that population is invisible until it times out en masse.
+  "src/saga/SagaManagerLifecycle.ts::sagaInstance.count",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.findMany",
   "src/saga/SagaManagerLifecycle.ts::sagaInstance.findMany",
   // Two by-id re-reads, both distrusting a stale in-memory copy before a
@@ -1366,7 +1371,17 @@ describe("saga engine context invariants", () => {
       // consequence is silent: `runSagaSteps` sets RUNNING unconditionally and
       // re-runs the step whose failure triggered the undo, over state a partial
       // walk already reverted.
-      const body = bodyWithLiterals(execution, "async executeSaga(");
+      //
+      // `executeSaga` is the guarded FUNNEL and one pass is `advanceSagaOnce`,
+      // so the refusal is scanned where the pass lives — and the funnel is
+      // pinned to have no other way to reach a step, which is what keeps this
+      // assertion about the entry point rather than about one method name.
+      const funnel = bodyWithLiterals(execution, "async executeSaga(");
+      expect(funnel).toContain("this.advanceSagaOnce(sagaId)");
+      expect(funnel).not.toContain("this.runSagaSteps(");
+      expect(execution.sanitized.match(/this\.runSagaSteps\(/g) ?? []).toHaveLength(1);
+
+      const body = bodyWithLiterals(execution, "private async advanceSagaOnce(");
 
       // On the DURABLE status, never on the instance in hand: `getSaga` answers
       // from the tracked set or from the Redis hot cache, which is written
@@ -1468,18 +1483,25 @@ describe("saga engine context invariants", () => {
     });
 
     it("keeps one walk per saga and says so to the operator", () => {
-      expect(execution.sanitized).toContain("walksInFlight");
+      expect(execution.sanitized).toContain("this.inFlight");
       const redrive = bodyWithLiterals(lifecycle, "async compensateSaga(");
-      expect(redrive).toContain("isCompensationWalkInFlight(sagaId)");
+      // ANY advancer, not only a walk: a forward holder would turn the walk
+      // this endpoint dispatches away, and the operator would have been
+      // answered with a success envelope for a rollback that never started.
+      expect(redrive).toContain("isAdvancerInFlight(sagaId)");
       expect(redrive).toContain("AppError.conflict(");
+      // The walk-specific question still exists, for the boot pass.
+      expect(execution.sanitized).toContain("isCompensationWalkInFlight(");
     });
 
     it("discriminates a recorded compensation on a field the type system has", () => {
       // A cast-guarded branch on a field `SagaStepResult` does not declare was
-      // dead code that tsc could not check, and a silent semantic switch the
-      // day the union lands.
+      // dead code that tsc could not check. The discriminator the walk reads is
+      // now the declared one, so the compiler checks the branch.
       expect(execution.sanitized).not.toContain("outcome?: string");
-      expect(execution.sanitized).toContain("result?.success === true");
+      // A string comparison is only visible in the original: sanitizing blanks
+      // every literal.
+      expect(execution.original).toContain('result?.outcome === "succeeded"');
     });
   });
 
@@ -1619,6 +1641,376 @@ describe("saga engine context invariants", () => {
     it("lists every one of them explicitly in run-tests.sh", () => {
       const unwired = sagaSuites.filter((path) => !runner.includes(path));
       expect(unwired).toEqual([]);
+    });
+  });
+
+  describe("the step outcome contract admits exactly three cases", () => {
+    const contractPath = join(apiRoot, "..", "..", "packages", "shared", "src", "saga.ts");
+    const contract = readFileSync(contractPath, "utf8");
+    const execution = sourceByName("SagaManagerExecution.ts");
+    const lifecycle = sourceByName("SagaManagerLifecycle.ts");
+    const row = sourceByName("sagaInstanceRow.ts");
+
+    /**
+     * The `SagaStepResult` declaration, up to the next exported declaration.
+     * Empty when the type is not declared as a union at all, which the
+     * scenarios below then report as the missing contract rather than as a
+     * collection error that hides every other invariant in this file.
+     */
+    const declaration = ((): string => {
+      const start = contract.indexOf("export type SagaStepResult");
+      if (start === -1) return "";
+      const next = contract.indexOf("export ", start + 1);
+      return contract.slice(start, next === -1 ? contract.length : next);
+    })();
+
+    it("declares succeeded, failed and waiting as mutually exclusive cases", () => {
+      // A flag bolted onto the failure case would let a step be "failed" and
+      // "waiting" at once, which is the modelling error this replaces.
+      expect(declaration).toMatch(/outcome:\s*"succeeded"/);
+      expect(declaration).toMatch(/outcome:\s*"failed"/);
+      expect(declaration).toMatch(/outcome:\s*"waiting"/);
+      expect(declaration).not.toMatch(/success\s*:\s*boolean/);
+      expect(declaration).not.toMatch(/waiting\?\s*:/);
+    });
+
+    it("carries the cause on the case that has one, and nowhere else", () => {
+      // `error` on the succeeded case, or an optional `error` on all three,
+      // would restore exactly the guessing the discriminator removes.
+      const failed = /\{\s*outcome:\s*"failed";[^}]*\}/.exec(declaration)?.[0] ?? "";
+      const waiting = /\{\s*outcome:\s*"waiting";[^}]*\}/.exec(declaration)?.[0] ?? "";
+      const succeeded = /\{\s*outcome:\s*"succeeded";[^}]*\}/.exec(declaration)?.[0] ?? "";
+      expect(failed).toMatch(/error:\s*string/);
+      expect(waiting).toMatch(/reason:\s*string/);
+      expect(waiting).not.toContain("error");
+      expect(succeeded).not.toContain("error");
+    });
+
+    it("branches the engine on the discriminator instead of on truthiness", () => {
+      // Every place the engine decides what a step outcome MEANS reads the
+      // discriminator. A boolean read here is the fall-through that turned a
+      // step which had not finished into a failed one.
+      // Status and outcome comparisons are STRING comparisons, so they are only
+      // visible in the original: the sanitized copy blanks every literal.
+      expect(execution.original).toMatch(/outcome === "waiting"/);
+      expect(execution.original).toMatch(/outcome === "succeeded"/);
+      expect(execution.original).toMatch(/outcome === "failed"/);
+      expect(execution.sanitized).not.toMatch(/stepResult\.success/);
+      expect(execution.sanitized).not.toMatch(/result\?\.success/);
+      expect(execution.sanitized).not.toMatch(/!r\.success|r\?\.success/);
+    });
+
+    it("infers nothing about pending work from an error string", () => {
+      // The wait step's error text was the only thing separating "still going"
+      // from "failed", and reading it back would rebuild that inference under
+      // a new name.
+      for (const source of [execution, lifecycle]) {
+        expect(source.original).not.toMatch(/still in progress/i);
+        expect(source.sanitized).not.toMatch(/error[^\n]*\.(includes|match|startsWith)\(/);
+      }
+    });
+
+    it("normalizes pre-change rows at BOTH deserialization seams", () => {
+      // Rows written before the contract keep replaying, so the boolean shape
+      // is translated on the way in — at the row seam and at the hot-cache
+      // seam, or one of the two paths hands the engine a shape it cannot
+      // branch on.
+      expect(row.sanitized).toContain("normalizeLegacyStepResults");
+      expect(execution.sanitized).toContain("normalizeLegacyStepResults");
+      const cacheRead = bodyWithLiterals(execution, "private deserializeSagaInstance(");
+      expect(cacheRead).toContain("normalizeLegacyStepResults");
+    });
+
+    it("makes the cadence settable by an operator, not only by a test", () => {
+      // A knob whose only callers are tests is not a knob. The tail this value
+      // controls is user-visible, so it has to be reachable from the one
+      // validated env surface and passed by the composition root.
+      const envConfig = readFileSync(join(apiRoot, "src", "config", "env.ts"), "utf8");
+      expect(envConfig).toMatch(/SAGA_WAIT_POLL_MS:\s*z\.coerce\.number\(\)/);
+      const bootstrap = readFileSync(bootstrapPath, "utf8");
+      expect(bootstrap).toContain("waitPollMs: env.SAGA_WAIT_POLL_MS");
+    });
+
+    it("re-arms a waiting step on its own dedicated cadence, wired through both config surfaces", () => {
+      // A waiting step is not failing, so the error backoff is the wrong knob:
+      // it would grow with a retry count that never moves, and at the retry
+      // policy's own 5 s it would poll the job store hundreds of times per saga
+      // over the saga horizon.
+      const types = readFileSync(sagaTypesPath, "utf8");
+      expect(types).toMatch(/waitPollMs\?:\s*number/);
+      const integration = sourceByName("SagaIntegration.ts");
+      expect(integration.sanitized).toContain("waitPollMs");
+      expect(execution.sanitized).toContain("waitPollMs");
+      expect(execution.sanitized).not.toMatch(/waiting[\s\S]{0,200}calculateRetryDelay/);
+    });
+  });
+
+  describe("one advancer per saga, and its scope is stated as in-process", () => {
+    const execution = sourceByName("SagaManagerExecution.ts");
+    const lifecycle = sourceByName("SagaManagerLifecycle.ts");
+
+    it("funnels every dispatcher through the guarded entry point", () => {
+      // The guard is only a guard if nothing advances a saga around it: the
+      // boot pass, the retry scan, the worker event, the operator endpoint and
+      // the start path all reach the engine through `executeSaga`.
+      expect(execution.sanitized).toMatch(/private readonly inFlight = new Map</);
+      const entry = bodyWithLiterals(execution, "async executeSaga(");
+      expect(entry).toContain("this.inFlight");
+      expect(lifecycle.sanitized).not.toMatch(/this\.executionEngine\.runSagaSteps\(/);
+    });
+
+    it("releases the guard on every exit, including the throwing one", () => {
+      const entry = bodyWithLiterals(execution, "async executeSaga(");
+      expect(entry).toContain("finally");
+      expect(entry).toMatch(/this\.inFlight\.delete\(/);
+    });
+
+    it("re-reads the persisted status before the trailing rerun re-enters", () => {
+      // A sibling event arriving during the last failing attempt would
+      // otherwise re-enter AFTER the compensation transition persisted
+      // COMPENSATING, and forward execution would overwrite it. The rerun goes
+      // through the SAME pass as the first entry, whose first act is the
+      // durable read — so the re-read is structural rather than a second check
+      // someone could forget to add.
+      const funnel = bodyWithLiterals(execution, "async executeSaga(");
+      expect(funnel).toMatch(/claim\.rerun = false/);
+      expect(funnel).toMatch(/while \(claim\.rerun\)/);
+      expect(funnel).toContain("this.advanceSagaOnce(sagaId)");
+
+      const pass = bodyWithLiterals(execution, "private async advanceSagaOnce(");
+      const readAt = pass.indexOf("await this.readPersistedStatus(sagaId)");
+      const refusalAt = pass.indexOf('persistedStatus === "COMPENSATING"');
+      const runAt = pass.indexOf("this.runSagaSteps(");
+      expect(readAt).toBeGreaterThanOrEqual(0);
+      expect(refusalAt).toBeGreaterThan(readAt);
+      expect(runAt).toBeGreaterThan(refusalAt);
+    });
+
+    it("counts only the refusals that LOSE something", () => {
+      // The compensation series is what an operator pages on for "something
+      // this saga did is still standing". A coalescing refusal loses nothing —
+      // the event is answered by the trailing pass, and a walk is handed to the
+      // holder's release — so counting them would dilute the one signal that
+      // means a rollback is really stuck.
+      const funnel = bodyWithLiterals(execution, "async executeSaga(");
+      expect(funnel).not.toContain("recordSagaRecoveryFailure(");
+      const walkClaim = bodyWithLiterals(execution, "private async loadAndRunCompensationWalk(");
+      expect(walkClaim).not.toContain("recordSagaRecoveryFailure(");
+      expect(walkClaim).toContain("pendingWalk = true");
+    });
+
+    it("hands a refused walk to the holder's release instead of dropping it", () => {
+      // Nothing else re-drives it in-process: the compensation transition nulls
+      // the retry marker, boot only runs at startup, and the liveness horizon
+      // terminalizes rather than rolls back.
+      const funnel = bodyWithLiterals(execution, "async executeSaga(");
+      expect(funnel).toContain("claim.pendingWalk");
+      expect(funnel).toContain("resumeCompensationWalkAsync(sagaId)");
+    });
+
+    it("lets only an EVENT coalesce into a pass already running", () => {
+      const funnel = bodyWithLiterals(execution, "async executeSaga(");
+      expect(funnel).toMatch(/trigger === "event"/);
+      // …and every dispatcher says which it is, so the default can never be the
+      // one that coalesces.
+      expect(lifecycle.original).toContain('executeSagaAsync(rawSagaId, "event")');
+      expect(lifecycle.original).toContain('executeSagaAsync(sagaId, "scan")');
+      expect(lifecycle.original).toContain('executeSaga(item.sagaId, "boot")');
+    });
+
+    it("terminalizes past the horizon on the advance path, not only in the checker", () => {
+      // The checker walks the TRACKED set; a waiting row this process merely
+      // loaded by id is not in it, and a waiting step spends no budget — so the
+      // horizon had to stop depending on bookkeeping.
+      const pass = bodyWithLiterals(execution, "private async advanceSagaOnce(");
+      const horizonAt = pass.indexOf("terminalizeIfPastHorizon");
+      const runAt = pass.indexOf("this.runSagaSteps(");
+      expect(horizonAt).toBeGreaterThanOrEqual(0);
+      expect(runAt).toBeGreaterThan(horizonAt);
+      // ONE implementation of the horizon, shared with the checker.
+      expect(lifecycle.sanitized).toContain("async terminalizeIfPastHorizon(");
+      expect(lifecycle.sanitized).toMatch(/checkSagaTimeout\(sagaId, instance\)/);
+    });
+
+    it("moves the in-memory copy to FAILED only once the row is", () => {
+      // A copy that says FAILED while the row says RUNNING is dropped from the
+      // tracked set by the checker's terminal guard — the only sweep that could
+      // still terminalize it.
+      const failure = bodyWithLiterals(execution, "async failSaga(");
+      const persistAt = failure.indexOf(
+        "await this.persistSagaInstance(instance, [sagaFailedEvent])"
+      );
+      const restoreAt = failure.indexOf("instance.status = previous.status");
+      expect(persistAt).toBeGreaterThanOrEqual(0);
+      expect(restoreAt).toBeGreaterThan(persistAt);
+    });
+
+    it("says in-process wherever the guard's scope is stated", () => {
+      // Read as a cross-process guarantee, this guard would be taken as
+      // lifting the single-replica constraint that saga crash recovery owns.
+      // The docblock the guard carries, which is where its scope is stated: the
+      // class body up to and including the field it documents.
+      const guardDoc = execution.original.slice(
+        execution.original.indexOf("export class SagaExecutionEngine"),
+        execution.original.indexOf("constructor(")
+      );
+      expect(guardDoc).toMatch(/in-process|this process/i);
+      expect(guardDoc).not.toMatch(/across processes|cross-process guarantee|every replica/i);
+
+      const apiDocs = readFileSync(join(apiRoot, "..", "..", "docs", "api", "saga.md"), "utf8");
+      const guardsDoc = readFileSync(
+        join(apiRoot, "..", "..", "docs", "security", "MULTI_TENANT_GUARDS.md"),
+        "utf8"
+      );
+      for (const doc of [apiDocs, guardsDoc]) {
+        expect(doc).not.toMatch(/the in-flight guard makes concurrent replicas safe/i);
+      }
+      expect(apiDocs).toMatch(/in-process/i);
+    });
+  });
+
+  describe("the population and the latency this change creates are observable", () => {
+    const metricsPath = join(apiRoot, "src", "metrics", "sagaRecoveryMetrics.ts");
+    const metrics = readFileSync(metricsPath, "utf8");
+    const lifecycle = sourceByName("SagaManagerLifecycle.ts");
+    const execution = sourceByName("SagaManagerExecution.ts");
+    const alertsPath = join(apiRoot, "..", "..", "prometheus", "alerts", "saga.yml");
+    const alerts = readFileSync(alertsPath, "utf8");
+
+    it("publishes the waiting population as a scrape-time level", () => {
+      // Without a series for it, a stalled dependency is invisible until the
+      // sagas it stalled time out together half an hour later: a waiting step
+      // no longer converts into failures within its retry budget.
+      expect(metrics).toContain("saga_waiting_rows");
+      expect(metrics).toContain("setSagaWaitingRowsProvider");
+      expect(lifecycle.sanitized).toContain("setSagaWaitingRowsProvider(");
+      // The predicate is the checker-owned partition, served by the same index
+      // the retry scan uses.
+      const counter = bodyWithLiterals(lifecycle, "private async countWaitingRows(");
+      expect(counter).toContain('status: "RUNNING"');
+      expect(counter).toContain("nextRetryAt");
+    });
+
+    it("measures saga duration where sagas actually end", () => {
+      // The SLO named this series long before anything implemented it, so the
+      // budget it states was unmeasurable — including by the change that moved
+      // the number.
+      expect(metrics).toContain("sagas_duration_seconds");
+      const completion = bodyWithLiterals(execution, "private async completeSaga(");
+      const failure = bodyWithLiterals(execution, "async failSaga(");
+      expect(completion).toContain("recordSagaDuration(");
+      expect(failure).toContain("recordSagaDuration(");
+    });
+
+    it("alerts on every failure stage the engine can record", () => {
+      // A stage the engine counts and no rule matches is a counter nobody pages
+      // on, which is indistinguishable from a stage that never fires.
+      const declared = [
+        ...metrics
+          .slice(
+            metrics.indexOf("export type SagaRecoveryStage"),
+            metrics.indexOf("/**", metrics.indexOf("export type SagaRecoveryStage"))
+          )
+          .matchAll(/"([a-z-]+)"/g),
+      ].map((match) => match[1]);
+      expect(declared.length).toBeGreaterThanOrEqual(9);
+
+      // Coverage by ANY rule counts: `mismatch` has its own dedicated alert
+      // precisely because it is a tenant defect rather than a loop failure.
+      const matched = new Set<string>();
+      for (const alternation of alerts.matchAll(/stage=~"([^"]+)"/g)) {
+        for (const stage of (alternation[1] ?? "").split("|")) matched.add(stage);
+      }
+      for (const exact of alerts.matchAll(/stage="([^"]+)"/g)) {
+        matched.add(exact[1] ?? "");
+      }
+      const unmatched = declared.filter((stage) => stage !== undefined && !matched.has(stage));
+      expect(unmatched).toEqual([]);
+    });
+
+    it("gives the waiting population its own rule, keyed on a floor like its sibling", () => {
+      const block = alerts.slice(
+        alerts.indexOf("- alert: SagaWaitingRowsAccumulating"),
+        alerts.indexOf("- alert:", alerts.indexOf("- alert: SagaWaitingRowsAccumulating") + 1)
+      );
+      expect(block).toMatch(/min_over_time\(saga_waiting_rows\[\d+m\]\)/);
+      expect(block).toMatch(/\n\s+for:\s*\d+m/);
+      expect(block).toContain("runbook:");
+    });
+  });
+
+  describe("the corrected outcome introduces no new customer message", () => {
+    const changedSources = [
+      join(sagaDir, "SagaManagerExecution.ts"),
+      join(sagaDir, "SagaManagerLifecycle.ts"),
+      join(sagaDir, "SagaIntegration.ts"),
+      join(sagaDir, "sagaInstanceRow.ts"),
+      join(sagaDir, "sagaManagerTypes.ts"),
+      join(apiRoot, "..", "..", "packages", "shared", "src", "saga.ts"),
+    ];
+
+    it("dispatches no notification, email, push or in-app message on the transition", () => {
+      // The publish that now COMPLETES was always succeeding; telling the
+      // customer about the correction would be new product behavior, and this
+      // change ships none.
+      const offenders: string[] = [];
+      for (const path of changedSources) {
+        const sanitized = sanitize(readFileSync(path, "utf8"));
+        const pattern =
+          /\b(sendEmail|sendNotification|notifyCustomer|notificationService|pushNotification|sendPush|inAppMessage|emailService)\b/;
+        if (pattern.test(sanitized)) offenders.push(relative(apiRoot, path));
+      }
+      expect(offenders).toEqual([]);
+    });
+
+    it("leaves the corrected outcome on the surfaces that already carry it", () => {
+      // The status endpoint is where the wrong outcome was read, so it is where
+      // the right one has to appear — with no new surface to discover.
+      const integration = sourceByName("SagaIntegration.ts");
+      expect(integration.original).toContain('"/sagas/:sagaId"');
+      const handler = integration.original.slice(
+        integration.original.indexOf('"/sagas/:sagaId"'),
+        integration.original.indexOf('"/sagas/:sagaId/continue"')
+      );
+      expect(handler).toContain("stepResults");
+      expect(handler).toContain("outcome");
+    });
+  });
+
+  describe("the parked-replay evidence keeps the two flip causes apart", () => {
+    const evidencePath = join(apiRoot, "tests", "integration", "sagaCrashRecovery.test.ts");
+    const evidence = readFileSync(evidencePath, "utf8");
+    const lifecycle = sourceByName("SagaManagerLifecycle.ts");
+
+    it("evaluates the revisit trigger BEFORE the mechanics it may outlive", () => {
+      // A reworded failure reason or a retry-timing change may lawfully redden
+      // the mechanics half; only the row ceasing to be non-COMPLETED means the
+      // post-pivot tolerance finally holds.
+      // Whitespace-tolerant: the formatter decides whether these fit on one
+      // line, and the ORDER is the invariant, not the layout.
+      const trigger = evidence.search(/assert\.notStrictEqual\(\s*terminal\.status,\s*"COMPLETED"/);
+      const mechanics = evidence.search(/assert\.strictEqual\(\s*terminal\.status,\s*"FAILED"/);
+      expect(trigger).toBeGreaterThanOrEqual(0);
+      expect(mechanics).toBeGreaterThan(trigger);
+    });
+
+    it("names that assertion — not the whole test — in the parking branch", () => {
+      const branch = lifecycle.original.slice(
+        lifecycle.original.indexOf("The pivot boundary, and the reason this pass is not a blanket"),
+        lifecycle.original.indexOf(
+          'this.park(instance, "pivot");',
+          lifecycle.original.indexOf(
+            "The pivot boundary, and the reason this pass is not a blanket"
+          )
+        )
+      );
+      expect(branch).toMatch(/notStrictEqual/);
+    });
+
+    it("keeps the parking branch in force", () => {
+      // The outcome correction this change ships must never be mistaken for an
+      // independent demonstration that a post-pivot replay is safe.
+      expect(lifecycle.original).toMatch(/this\.park\(instance, "pivot"\)/);
     });
   });
 });

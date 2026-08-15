@@ -109,7 +109,7 @@ describe("SagaManager - Persistence Round-Trip", () => {
     // After completion, the single step should have a result
     if (parsed.status === "COMPLETED") {
       expect(parsed.stepResults.length).toBe(1);
-      expect(parsed.stepResults[0].success).toBe(true);
+      expect(parsed.stepResults[0].outcome).toBe("succeeded");
     }
   });
 });

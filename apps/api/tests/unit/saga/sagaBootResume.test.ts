@@ -338,13 +338,13 @@ class CountingCompensableStep implements CompensableStep {
   async execute(): Promise<SagaStepResult> {
     this.executeAttempts += 1;
     return this.succeeds
-      ? { success: true, data: { stepId: this.id }, compensationData: { stepId: this.id } }
-      : { success: false, error: "retries exhausted" };
+      ? { outcome: "succeeded", data: { stepId: this.id }, compensationData: { stepId: this.id } }
+      : { outcome: "failed", error: "retries exhausted" };
   }
 
   async compensate(_context: SagaContext, _compensationData?: unknown): Promise<SagaStepResult> {
     this.compensateAttempts += 1;
-    return { success: true, data: { compensated: this.id } };
+    return { outcome: "succeeded", data: { compensated: this.id } };
   }
 }
 
@@ -357,7 +357,7 @@ class CountingPivotStep implements PivotStep {
 
   async execute(): Promise<SagaStepResult> {
     this.executeAttempts += 1;
-    return { success: true, data: { stepId: this.id } };
+    return { outcome: "succeeded", data: { stepId: this.id } };
   }
 }
 
@@ -370,7 +370,7 @@ class CountingRetryableStep implements RetryableStep {
 
   async execute(): Promise<SagaStepResult> {
     this.executeAttempts += 1;
-    return { success: true, data: { stepId: this.id } };
+    return { outcome: "succeeded", data: { stepId: this.id } };
   }
 }
 
@@ -470,11 +470,17 @@ async function createRealHarness(seeded: SeededRow[]): Promise<RealHarness> {
 function makeCrashedCompensationRow(
   id: string,
   nextRetryAt: Date | null,
-  status: "COMPENSATING" | "RUNNING" = "COMPENSATING"
+  status: "COMPENSATING" | "RUNNING" = "COMPENSATING",
+  startedAt?: Date
 ): SeededRow {
   return makeRow(id, {
     status,
+    ...(startedAt !== undefined && { startedAt }),
     currentStep: 1,
+    // DELIBERATELY the pre-change boolean shape: this row models one a
+    // process wrote before the three-state contract, so the seam that
+    // normalizes it is exercised end to end by the boot path rather than only
+    // by its own unit test.
     stepResults: [
       { success: true, compensationData: { stepId: "step-0" } },
       { success: false, error: "retries exhausted" },
@@ -725,7 +731,7 @@ describe("saga boot recovery pass", () => {
         const row = await harness.row();
         expect(row.status).toBe("COMPENSATED");
         expect(row.compensationResults).toEqual([
-          { success: true, data: { compensated: "step-0" } },
+          { outcome: "succeeded", data: { compensated: "step-0" } },
         ]);
       } finally {
         await harness.teardown();
@@ -753,8 +759,13 @@ describe("saga boot recovery pass", () => {
     });
 
     it("is still run forward when a pre-change process left it RUNNING (accepted residual)", async () => {
+      // Started moments ago, not months: every advancer now checks the saga's
+      // horizon before moving it, so a row from the shared fixture's fixed date
+      // would be terminalized here — correctly, but it would stop testing the
+      // residual. A process that crashed mid-walk and restarted immediately is
+      // the shape this residual is about.
       const harness = await createRealHarness([
-        makeCrashedCompensationRow("saga-p2-legacy", null, "RUNNING"),
+        makeCrashedCompensationRow("saga-p2-legacy", null, "RUNNING", new Date()),
       ]);
       try {
         await harness.manager.initialize();

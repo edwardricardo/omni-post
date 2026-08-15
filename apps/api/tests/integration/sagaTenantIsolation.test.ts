@@ -148,7 +148,7 @@ const probeStep: PivotStep = {
       sagaId: context.sagaId,
       boundAccountId: getTenantContext()?.accountId,
     });
-    return { success: true, data: { observed: true } };
+    return { outcome: "succeeded", data: { observed: true } };
   },
 };
 

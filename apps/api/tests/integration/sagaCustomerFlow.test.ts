@@ -320,11 +320,78 @@ describe("Saga customer flow integration", () => {
     // both COMPLETED and FAILED terminal states are valid signals here. The
     // assertion is that the saga DOES reach a terminal state, not that the
     // dev provider creds happen to be wired.
-    const final = await waitForTerminal(fixture.authHeader, startBody.data.sagaId, 60_000);
+    //
+    // The budget is 120 s rather than 60 s because the terminal state now
+    // arrives on the saga's own timing rather than on its retry budget: a
+    // waiting step re-arms on the 30 s poll cadence, so when the worker's
+    // completion event races BullMQ's state update the saga waits one poll
+    // before it can see the outcome. Measured on this environment: ~60 s to
+    // FAILED with the real cause. The old 60 s budget was calibrated to the
+    // amplification-era behavior, where the saga gave up after burning three
+    // retries — which is exactly the defect this suite must no longer rely on.
+    const final = await waitForTerminal(fixture.authHeader, startBody.data.sagaId, 120_000);
     assert.ok(
       ["COMPLETED", "FAILED"].includes(final.status),
       `expected terminal COMPLETED or FAILED, got ${final.status}`
     );
+  });
+
+  it("reports a multi-channel publish on the existing status surface, in the three-state contract", async () => {
+    // The customer-facing correction, asserted where the WRONG outcome used to
+    // be read: this endpoint. Two channels, so the saga's wait step is
+    // re-entered by a sibling's completion event — the exact shape that used to
+    // spend the retry budget until a fully-published post reported FAILED.
+    const start = await startSaga(fixture.authHeader, {
+      mode: "publish-now",
+      projectId: fixture.projectId,
+      locale: "en",
+      body: "multi-channel outcome body",
+      channelIds: [fixture.channelIds[0]!, fixture.channelIds[1]!],
+    });
+    assert.strictEqual(start.status, 200);
+    const startBody = start.body as { data: { sagaId: string } };
+
+    // A longer budget than the single-channel scenario above, and the reason is
+    // the change itself: a step that has not finished re-arms on the poll
+    // cadence (30 s) instead of spending a retry, so when a completion event
+    // races BullMQ's own state update — the job's last attempt has failed but
+    // the job is not yet in the failed set — the saga waits one poll before it
+    // sees the outcome. Measured here: ~60 s to a terminal FAILED carrying "2
+    // out of 2 publishing jobs failed", of which one poll interval is the tail.
+    // That latency is the designed cost of never spending budget on a step that
+    // is merely waiting; events remain the primary advance.
+    const final = await waitForTerminal(fixture.authHeader, startBody.data.sagaId, 120_000);
+
+    // Whatever the dev provider credentials do, ONE outcome is now impossible:
+    // a saga ended because its own siblings were still publishing. Without real
+    // credentials the jobs genuinely fail, so a FAILED terminal is still valid
+    // here — it just may never carry the amplification reason again.
+    assert.doesNotMatch(
+      String(final.data.error ?? ""),
+      /still in progress/i,
+      "no publish may end because its own channels had not finished yet"
+    );
+
+    // The corrected outcome is visible on the EXISTING surface: step results
+    // carry the three-state discriminator, and a step still waiting on the
+    // channels is reported as waiting rather than as one that failed. No new
+    // surface, and no new customer message, was introduced for it.
+    const stepResults = (final.data.stepResults ?? []) as {
+      outcome?: string;
+      success?: unknown;
+    }[];
+    assert.ok(stepResults.length > 0, "the status surface reports the steps it ran");
+    for (const result of stepResults) {
+      assert.ok(
+        ["succeeded", "failed", "waiting"].includes(String(result.outcome)),
+        `every step outcome is one of the three states, got ${String(result.outcome)}`
+      );
+      assert.strictEqual(
+        result.success,
+        undefined,
+        "and the boolean that could not tell 'waiting' from 'failed' is gone"
+      );
+    }
   });
 
   // -----------------------------------------------------------------------
@@ -557,12 +624,14 @@ describe("Saga customer flow integration", () => {
     assert.strictEqual(start.status, 200);
     const sagaId = (start.body as { data: { sagaId: string } }).data.sagaId;
 
-    // The analytic worst case for this flow is the 35s retry envelope
-    // (5 + 10 + 20) plus up to three 5s recovery scan ticks plus worker
-    // latency; an identical publish-now flow measured 49.2s. 30s sat BELOW the
-    // envelope, so the assertion measured the harness rather than the saga.
-    // 90s keeps roughly half the budget in reserve.
-    const final = await waitForTerminal(fixture.authHeader, sagaId, 90_000);
+    // That 35s retry envelope (5 + 10 + 20) NO LONGER EXISTS: a step waiting on
+    // its publish jobs spends no retry budget, so this flow now ends on the
+    // saga's own timing — the completion event, or one 30s poll interval behind
+    // it when that event races the queue's state update. Measured on this
+    // environment: ~60s to a terminal state. 120s, the same budget and the same
+    // reason as the two publish-now scenarios above, keeps a full poll interval
+    // of headroom; 90s left barely one, which is a flake waiting to happen.
+    const final = await waitForTerminal(fixture.authHeader, sagaId, 120_000);
     const compensationResults =
       (final.data.compensationResults as Array<unknown> | undefined) ?? [];
 
@@ -570,7 +639,7 @@ describe("Saga customer flow integration", () => {
     // appear with a real compensation result. Steps 2-4 must NOT have been
     // compensated regardless of saga outcome.
     for (let i = 2; i < compensationResults.length; i++) {
-      const result = compensationResults[i] as { success?: boolean } | undefined;
+      const result = compensationResults[i] as { outcome?: string } | undefined;
       assert.ok(
         result === undefined || result === null,
         `step ${i} (pivot/retryable) must not have a compensation result, got: ${JSON.stringify(result)}`

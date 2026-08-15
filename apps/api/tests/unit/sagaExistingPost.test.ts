@@ -160,7 +160,7 @@ describe("Saga — existing-post path (postId provided)", () => {
 
     const result = await step.execute(ctx);
 
-    expect(result.success).toBeTruthy();
+    expect(result.outcome).toBe("succeeded");
     expect(executedCommands).toHaveLength(0);
     const stepData = ctx.stepData["create-post"] as {
       postId: string;
@@ -192,7 +192,7 @@ describe("Saga — existing-post path (postId provided)", () => {
       skippedCreation: true,
     });
 
-    expect(result?.success).toBeTruthy();
+    expect(result?.outcome).toBe("succeeded");
     // Most importantly: NO post.delete command issued.
     const deleteCommands = executedCommands.filter((c) => c.type === "post.delete");
     expect(deleteCommands).toHaveLength(0);

@@ -76,7 +76,7 @@ export async function createChaosHarness(): Promise<ChaosHarness> {
 /**
  * @class TransientFailingStep
  * @description Saga step que falla las primeras `failuresBeforeSuccess`
- *   veces y luego succeeds. Cada falla retorna `success: false` con un
+ *   veces y luego succeeds. Cada falla retorna el outcome `failed` con un
  *   error message — el saga manager debería persistir `nextRetryAt` y
  *   esperar el recovery scheduler para reintentar.
  *
@@ -96,20 +96,20 @@ export class TransientFailingStep implements SagaStep {
     this.attempts += 1;
     if (this.attempts <= this.failuresBeforeSuccess) {
       return {
-        success: false,
+        outcome: "failed",
         error: `Transient failure ${this.attempts}/${this.failuresBeforeSuccess}`,
       };
     }
     context.stepData[this.id] = { executed: true, attempts: this.attempts };
     return {
-      success: true,
+      outcome: "succeeded",
       data: { stepId: this.id, attempts: this.attempts },
       compensationData: { stepId: this.id },
     };
   }
 
   async compensate(_context: SagaContext, _compensationData?: unknown): Promise<SagaStepResult> {
-    return { success: true, data: { compensated: true } };
+    return { outcome: "succeeded", data: { compensated: true } };
   }
 }
 

@@ -109,10 +109,10 @@ function buildProbeDefinition(journal: StepJournal, options: { hangAt?: number }
       async execute(_context: SagaContext): Promise<SagaStepResult> {
         journal.executed.push(index);
         if (index === FAILING_INDEX) {
-          return { success: false, error: `probe step ${index} failed` };
+          return { outcome: "failed", error: `probe step ${index} failed` };
         }
         return {
-          success: true,
+          outcome: "succeeded",
           data: { stepId: `probe-step-${index}` },
           compensationData: { stepId: `probe-step-${index}` },
         };
@@ -125,7 +125,7 @@ function buildProbeDefinition(journal: StepJournal, options: { hangAt?: number }
           // it and no in-memory copy to hide it.
           await new Promise(() => undefined);
         }
-        return { success: true, data: { compensated: index } };
+        return { outcome: "succeeded", data: { compensated: index } };
       },
     })
   );
@@ -136,7 +136,7 @@ function buildProbeDefinition(journal: StepJournal, options: { hangAt?: number }
     name: "Probe Pivot",
     async execute(): Promise<SagaStepResult> {
       journal.executed.push(COMPENSABLE_COUNT);
-      return { success: true };
+      return { outcome: "succeeded" };
     },
   };
 
@@ -146,7 +146,7 @@ function buildProbeDefinition(journal: StepJournal, options: { hangAt?: number }
     name: "Probe Post Pivot",
     async execute(): Promise<SagaStepResult> {
       journal.executed.push(COMPENSABLE_COUNT + 1);
-      return { success: true };
+      return { outcome: "succeeded" };
     },
   };
 
@@ -267,7 +267,7 @@ describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () =
   /** Indices whose compensation outcome is DURABLE right now, in index order. */
   function recordedCompensations(snapshot: SagaSnapshot): number[] {
     const results = (snapshot.compensationResults ?? []) as (
-      { success?: boolean } | null | undefined
+      { outcome?: string } | null | undefined
     )[];
     return results
       .map((result, index) => (result ? index : -1))
@@ -315,12 +315,12 @@ describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () =
     createdSagaIds.push(sagaId);
     const stepResults = Array.from({ length: COMPENSABLE_COUNT }, (_unused, index) =>
       index === FAILING_INDEX
-        ? { success: false, error: `probe step ${index} failed` }
-        : { success: true, compensationData: { stepId: `probe-step-${index}` } }
+        ? { outcome: "failed", error: `probe step ${index} failed` }
+        : { outcome: "succeeded", compensationData: { stepId: `probe-step-${index}` } }
     );
     const compensationResults: (SagaStepResult | null)[] = Array.from(
       { length: COMPENSABLE_COUNT },
-      (_unused, index) => (recorded.includes(index) ? { success: true } : null)
+      (_unused, index) => (recorded.includes(index) ? { outcome: "succeeded" } : null)
     );
 
     await base.sagaInstance.create({

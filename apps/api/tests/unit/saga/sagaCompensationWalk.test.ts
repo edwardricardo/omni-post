@@ -92,8 +92,8 @@ class ObservingCompensableStep implements CompensableStep {
   async execute(): Promise<SagaStepResult> {
     this.executeAttempts += 1;
     return this.options.executeSucceeds
-      ? { success: true, data: { stepId: this.id }, compensationData: { stepId: this.id } }
-      : { success: false, error: `step ${this.id} failed` };
+      ? { outcome: "succeeded", data: { stepId: this.id }, compensationData: { stepId: this.id } }
+      : { outcome: "failed", error: `step ${this.id} failed` };
   }
 
   async compensate(_context: SagaContext, _compensationData?: unknown): Promise<SagaStepResult> {
@@ -116,8 +116,8 @@ class ObservingCompensableStep implements CompensableStep {
       await new Promise(() => undefined);
     }
     return this.options.behavior === "succeed"
-      ? { success: true, data: { compensated: this.id } }
-      : { success: false, error: `compensation for ${this.id} failed` };
+      ? { outcome: "succeeded", data: { compensated: this.id } }
+      : { outcome: "failed", error: `compensation for ${this.id} failed` };
   }
 }
 
@@ -130,7 +130,7 @@ class ProbePivotStep implements PivotStep {
 
   async execute(): Promise<SagaStepResult> {
     this.executeAttempts += 1;
-    return { success: true, data: { stepId: this.id } };
+    return { outcome: "succeeded", data: { stepId: this.id } };
   }
 }
 
@@ -143,7 +143,7 @@ class ProbeRetryableStep implements RetryableStep {
 
   async execute(): Promise<SagaStepResult> {
     this.executeAttempts += 1;
-    return { success: true, data: { stepId: this.id } };
+    return { outcome: "succeeded", data: { stepId: this.id } };
   }
 }
 
@@ -351,7 +351,7 @@ async function startProbeSaga(harness: WalkHarness): Promise<SagaInstance> {
 
 /** A step result recording a successful compensation of `stepId`. */
 function succeededCompensation(stepId: string): SagaStepResult {
-  return { success: true, data: { compensated: stepId } };
+  return { outcome: "succeeded", data: { compensated: stepId } };
 }
 
 /** Waits until `probe` holds, so a detached walk is observed, never guessed. */
@@ -435,10 +435,10 @@ describe("the compensation walk", () => {
       status: "COMPENSATING",
       currentStep: 3,
       stepResults: [
-        { success: true, compensationData: { stepId: "step-0" } },
-        { success: true, compensationData: { stepId: "step-1" } },
-        { success: true, compensationData: { stepId: "step-2" } },
-        { success: false, error: "step step-3 failed" },
+        { outcome: "succeeded", compensationData: { stepId: "step-0" } },
+        { outcome: "succeeded", compensationData: { stepId: "step-1" } },
+        { outcome: "succeeded", compensationData: { stepId: "step-2" } },
+        { outcome: "failed", error: "step step-3 failed" },
       ],
       compensationResults: [
         undefined as unknown as SagaStepResult,
@@ -491,7 +491,7 @@ describe("the compensation walk", () => {
     const row = await harness.row(started.id);
     // A resumed walk must be able to tell "tried and failed" from "not yet
     // tried"; a hole in the array means the latter.
-    expect(row?.compensationResults?.[1]?.success).toBe(false);
+    expect(row?.compensationResults?.[1]?.outcome).toBe("failed");
     expect(row?.compensationResults?.[2]).toBeUndefined();
   });
 });
@@ -504,7 +504,7 @@ describe("the write-ahead transition is an ORDERING, never a gate on the undo", 
       id: sagaId,
       status: "RUNNING",
       currentStep: 1,
-      stepResults: [{ success: true, compensationData: { stepId: "step-0" } }],
+      stepResults: [{ outcome: "succeeded", compensationData: { stepId: "step-0" } }],
       nextRetryAt: new Date(Date.now() - 60_000),
     });
 
@@ -552,8 +552,8 @@ describe("forward execution and the walk never both own a row", () => {
       status: "COMPENSATING",
       currentStep: 1,
       stepResults: [
-        { success: true, compensationData: { stepId: "step-0" } },
-        { success: false, error: "step step-1 failed" },
+        { outcome: "succeeded", compensationData: { stepId: "step-0" } },
+        { outcome: "failed", error: "step step-1 failed" },
       ],
     });
     // The cache is written fire-and-forget and the engine is designed to
@@ -576,7 +576,7 @@ describe("forward execution and the walk never both own a row", () => {
           stepData: {},
           events: [],
         },
-        stepResults: [{ success: true, compensationData: { stepId: "step-0" } }],
+        stepResults: [{ outcome: "succeeded", compensationData: { stepId: "step-0" } }],
         compensationResults: [],
         startedAt: new Date().toISOString(),
         retryCount: 0,
@@ -599,8 +599,8 @@ describe("forward execution and the walk never both own a row", () => {
       status: "COMPENSATING",
       currentStep: 1,
       stepResults: [
-        { success: true, compensationData: { stepId: "step-0" } },
-        { success: false, error: "step step-1 failed" },
+        { outcome: "succeeded", compensationData: { stepId: "step-0" } },
+        { outcome: "failed", error: "step step-1 failed" },
       ],
     });
     const before = await compensationFailureCount();
@@ -631,9 +631,9 @@ describe("one walk per saga at a time", () => {
       status: "COMPENSATING",
       currentStep: 2,
       stepResults: [
-        { success: true, compensationData: { stepId: "step-0" } },
-        { success: true, compensationData: { stepId: "step-1" } },
-        { success: false, error: "step step-2 failed" },
+        { outcome: "succeeded", compensationData: { stepId: "step-0" } },
+        { outcome: "succeeded", compensationData: { stepId: "step-1" } },
+        { outcome: "failed", error: "step step-2 failed" },
       ],
     });
 
@@ -664,9 +664,9 @@ describe("one walk per saga at a time", () => {
       status: "COMPENSATING",
       currentStep: 2,
       stepResults: [
-        { success: true, compensationData: { stepId: "step-0" } },
-        { success: true, compensationData: { stepId: "step-1" } },
-        { success: false, error: "step step-2 failed" },
+        { outcome: "succeeded", compensationData: { stepId: "step-0" } },
+        { outcome: "succeeded", compensationData: { stepId: "step-1" } },
+        { outcome: "failed", error: "step step-2 failed" },
       ],
     });
 
@@ -693,9 +693,9 @@ describe("a concurrent walk cannot regress the durable record", () => {
       status: "COMPENSATING",
       currentStep: 2,
       stepResults: [
-        { success: true, compensationData: { stepId: "step-0" } },
-        { success: true, compensationData: { stepId: "step-1" } },
-        { success: false, error: "step step-2 failed" },
+        { outcome: "succeeded", compensationData: { stepId: "step-0" } },
+        { outcome: "succeeded", compensationData: { stepId: "step-1" } },
+        { outcome: "failed", error: "step step-2 failed" },
       ],
     });
     // Another process recorded step 1 while this one was holding an older copy
@@ -709,21 +709,21 @@ describe("a concurrent walk cannot regress the durable record", () => {
       status: "COMPENSATING",
       currentStep: 2,
       stepResults: [
-        { success: true, compensationData: { stepId: "step-0" } },
-        { success: true, compensationData: { stepId: "step-1" } },
-        { success: false, error: "step step-2 failed" },
+        { outcome: "succeeded", compensationData: { stepId: "step-0" } },
+        { outcome: "succeeded", compensationData: { stepId: "step-1" } },
+        { outcome: "failed", error: "step step-2 failed" },
       ],
       compensationResults: [
         undefined as unknown as SagaStepResult,
-        { success: true, data: { compensated: "by another walk" } },
+        { outcome: "succeeded", data: { compensated: "by another walk" } },
       ],
     });
 
     await harness.engine.resumeCompensationWalk(sagaId);
 
     const row = await harness.row(sagaId);
-    expect(row?.compensationResults?.[1]?.success).toBe(true);
-    expect(row?.compensationResults?.[0]?.success).toBe(true);
+    expect(row?.compensationResults?.[1]?.outcome).toBe("succeeded");
+    expect(row?.compensationResults?.[0]?.outcome).toBe("succeeded");
     expect(row?.status).toBe("COMPENSATED");
     // The step another process already undid is not undone twice.
     expect(harness.steps[1]!.compensateAttempts).toBe(0);
@@ -741,9 +741,9 @@ describe("a concurrent walk cannot regress the durable record", () => {
       status: "COMPENSATING",
       currentStep: 2,
       stepResults: [
-        { success: true, compensationData: { stepId: "step-0" } },
-        { success: true, compensationData: { stepId: "step-1" } },
-        { success: false, error: "step step-2 failed" },
+        { outcome: "succeeded", compensationData: { stepId: "step-0" } },
+        { outcome: "succeeded", compensationData: { stepId: "step-1" } },
+        { outcome: "failed", error: "step step-2 failed" },
       ],
       compensationResults: [
         undefined as unknown as SagaStepResult,
@@ -770,10 +770,10 @@ describe("the operator re-drive", () => {
       status: "COMPENSATING",
       currentStep: 3,
       stepResults: [
-        { success: true, compensationData: { stepId: "step-0" } },
-        { success: true, compensationData: { stepId: "step-1" } },
-        { success: true, compensationData: { stepId: "step-2" } },
-        { success: false, error: "step step-3 failed" },
+        { outcome: "succeeded", compensationData: { stepId: "step-0" } },
+        { outcome: "succeeded", compensationData: { stepId: "step-1" } },
+        { outcome: "succeeded", compensationData: { stepId: "step-2" } },
+        { outcome: "failed", error: "step step-3 failed" },
       ],
       compensationResults: [
         undefined as unknown as SagaStepResult,
@@ -819,8 +819,8 @@ describe("the COMPENSATING liveness horizon", () => {
       status: "COMPENSATING",
       currentStep: 1,
       stepResults: [
-        { success: true, compensationData: { stepId: "step-0" } },
-        { success: false, error: "step step-1 failed" },
+        { outcome: "succeeded", compensationData: { stepId: "step-0" } },
+        { outcome: "failed", error: "step step-1 failed" },
       ],
       startedAt: stale,
     } as Partial<StoredRow> & { id: string });
@@ -875,8 +875,8 @@ describe("the COMPENSATING liveness horizon", () => {
       status: "COMPENSATING",
       currentStep: 1,
       stepResults: [
-        { success: true, compensationData: { stepId: "step-0" } },
-        { success: false, error: "step step-1 failed" },
+        { outcome: "succeeded", compensationData: { stepId: "step-0" } },
+        { outcome: "failed", error: "step step-1 failed" },
       ],
     });
     // The rollback was born four horizons ago. Every restart re-attempts the
@@ -968,8 +968,8 @@ describe("the COMPENSATING liveness horizon", () => {
       status: "COMPENSATING",
       currentStep: 1,
       stepResults: [
-        { success: true, compensationData: { stepId: "step-0" } },
-        { success: false, error: "step step-1 failed" },
+        { outcome: "succeeded", compensationData: { stepId: "step-0" } },
+        { outcome: "failed", error: "step step-1 failed" },
       ],
     });
     // An in-process instance built by `startSaga` carries no `updatedAt` at

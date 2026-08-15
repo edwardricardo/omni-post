@@ -78,7 +78,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
 
     const result = await step.execute(ctx);
 
-    expect(result.success).toBe(true);
+    expect(result.outcome).toBe("succeeded");
     expect(queueJob).toHaveBeenCalledTimes(3);
     const data = result.data as ScheduleStepData;
     expect(data.channelCount).toBe(3);
@@ -106,7 +106,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
 
     const result = await step.execute(ctx);
 
-    expect(result.success).toBe(true);
+    expect(result.outcome).toBe("succeeded");
     expect(enqueued.length).toBe(1);
     expect(enqueued[0]!.scheduledAt).toEqual(futureDate);
     expect(enqueued[0]!.postId).toBe("post-abc");
@@ -125,7 +125,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
 
     const result = await step.execute(ctx);
 
-    expect(result.success).toBe(true);
+    expect(result.outcome).toBe("succeeded");
     expect(queueJob).not.toHaveBeenCalled();
     const data = result.data as Record<string, unknown>;
     expect(data.skipped).toBe(true);
@@ -144,12 +144,12 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
 
     const result = await step.execute(ctx);
 
-    expect(result.success).toBe(false);
+    expect(result.outcome).toBe("failed");
     expect(result.error).toMatch(/Post ID not found/i);
     expect(queueJob).not.toHaveBeenCalled();
   });
 
-  it("execute returns success: false when queueJob throws (no rollback — pivot semantics)", async () => {
+  it("execute returns the failed outcome when queueJob throws (no rollback — pivot semantics)", async () => {
     const queueJob = vi.fn(async () => {
       throw new Error("Queue unreachable");
     });
@@ -166,7 +166,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
 
     // Pivots do not roll back. The step reports failure, but no compensate()
     // exists — the engine treats this as terminal FAILED per canon Azure §5.
-    expect(result.success).toBe(false);
+    expect(result.outcome).toBe("failed");
     expect(result.error).toMatch(/Queue unreachable/);
     expect((step as unknown as { compensate?: unknown }).compensate).toBeUndefined();
   });
@@ -192,7 +192,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
     // This step is the ONLY producer of publish jobs; if the tenant stops
     // reaching the payload, every worker lookup silently falls back to the
     // deploy-compat owner path. Assert it on every emitted job.
-    expect(result.success).toBe(true);
+    expect(result.outcome).toBe("succeeded");
     expect(enqueued.map((job) => job.accountId)).toStrictEqual([TEST_ACCOUNT_ID, TEST_ACCOUNT_ID]);
   });
 
@@ -213,7 +213,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
     // Emitting an unscoped job would put a FRESH job on the deploy-compat
     // fallback, making that fallback unbounded and permanent. The pivot is the
     // last place with authoritative tenant knowledge, so it must refuse.
-    expect(result.success).toBe(false);
+    expect(result.outcome).toBe("failed");
     expect(result.error).toMatch(/accountId/i);
     expect(queueJob).not.toHaveBeenCalled();
   });
@@ -232,7 +232,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
 
     const result = await step.execute(ctx);
 
-    expect(result.success).toBe(false);
+    expect(result.outcome).toBe("failed");
     expect(result.error).toMatch(/accountId/i);
     expect(queueJob).not.toHaveBeenCalled();
   });

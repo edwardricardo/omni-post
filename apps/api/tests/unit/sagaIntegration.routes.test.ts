@@ -209,6 +209,53 @@ describe("SagaIntegration - Saga Status Routes", () => {
     expect(Array.isArray(statusResult.data.stepResults)).toBeTruthy();
   });
 
+  it("maps every step outcome onto the response contract, including a step nobody reached", async () => {
+    // The HTTP contract changed shape — `stepResults[].success` became an
+    // `outcome` discriminator — and a breaking response change needs a
+    // deterministic, PR-tier assertion. The only behavioural proof of it used
+    // to live in a LIVE-API suite that runs on a different tier, which is also
+    // why the consumer's own fixtures could drift to red without anything
+    // noticing.
+    const startHandler = routes.get("POST:/sagas/post-publishing/start");
+    const startResult = await startHandler(makeStartRequest(), passthroughReply);
+    const sagaId = startResult.data.sagaId;
+
+    // The four cases, written straight onto the instance the endpoint reads, so
+    // the assertion is about the MAPPING and not about step timing. The hole is
+    // a real hole: an index the saga never wrote.
+    const instance = await (
+      integration as unknown as {
+        sagaManager: { getSaga: (id: string) => Promise<{ stepResults: unknown[] } | null> };
+      }
+    ).sagaManager.getSaga(sagaId);
+    expect(instance).toBeTruthy();
+    const stepResults: unknown[] = [];
+    stepResults[0] = { outcome: "succeeded", data: { postId: "post-1" } };
+    stepResults[1] = { outcome: "failed", error: "the provider rejected it" };
+    stepResults[2] = { outcome: "waiting", reason: "publishing jobs still in progress" };
+    stepResults[4] = { outcome: "succeeded" };
+    instance!.stepResults = stepResults;
+
+    const statusHandler = routes.get("GET:/sagas/:sagaId");
+    const statusResult = await statusHandler(makeAuthedStatusRequest(sagaId), passthroughReply);
+
+    expect(statusResult.data.stepResults).toEqual([
+      { stepIndex: 0, outcome: "succeeded", data: { postId: "post-1" } },
+      { stepIndex: 1, outcome: "failed", error: "the provider rejected it" },
+      { stepIndex: 2, outcome: "waiting", reason: "publishing jobs still in progress" },
+      // Never written, never reached — and never reported as "waiting", which
+      // would claim the saga is blocked on work that was never started.
+      { stepIndex: 3, outcome: "not-reached" },
+      { stepIndex: 4, outcome: "succeeded" },
+    ]);
+    // The boolean the client used to read is gone from the wire.
+    for (const result of statusResult.data.stepResults) {
+      expect("success" in result).toBe(false);
+    }
+    // Progress counts only what really succeeded: two of five.
+    expect(statusResult.data.progress).toBe(40);
+  });
+
   it("should throw error for non-existent saga", async () => {
     const handler = routes.get("GET:/sagas/:sagaId");
 
