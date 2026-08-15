@@ -63,12 +63,27 @@ function getOrCreateGauge(
  *   decision about, because inspecting it threw. Its neighbours still ran.
  * - `compensation` — an UNDO that did not complete: a walk that could not
  *   start (no instance, no registered definition, no resolvable account), a
- *   walk that ended with a step still un-compensated, or a forward dispatch
- *   refused because the walk owns the row. Its own stage because the operator
- *   question it answers is different from every loop above: not "is recovery
- *   running?" but "is something this saga did still standing?".
+ *   walk that ended with a step still un-compensated, a forward dispatch
+ *   refused because the walk owns the DURABLE row, or a detached walk that
+ *   died on dispatch. Its own stage because the operator question it answers is
+ *   different from every loop above: not "is recovery running?" but "is
+ *   something this saga did still standing?".
+ *
+ *   Deliberately NOT here: the in-process claim's refusals. A walk that arrives
+ *   while a forward pass holds the saga is HANDED OFF to that pass's release,
+ *   and a second walk is turned away while the first is still running — both
+ *   are the guard working, nothing is lost, and counting them would dilute the
+ *   one series an operator pages on for a rollback that really is stuck.
  * - `rehydration` — a saga whose owning account could not be resolved.
  * - `mismatch` — a saga whose column and context name different accounts.
+ * - `event-dispatch` — a worker event the engine could not route: it carries no
+ *   usable saga identity, so it advances nothing. Counted rather than dropped
+ *   because a silent discard here reads exactly like a publish that never
+ *   emitted an event at all.
+ * - `wait-poll` — a step that has not finished could not have its poll re-armed
+ *   (the durable write failed). The saga is NOT terminalized for it — bookkeeping
+ *   never ends a saga — so without this series a degraded database is invisible
+ *   on the one path that now runs up to sixty times per saga.
  *
  * Parking is NOT here. It is a decision the engine takes deliberately, not work
  * it failed to complete, and a series that mixes the two makes any unfiltered
@@ -83,7 +98,9 @@ export type SagaRecoveryStage =
   | "resume-row"
   | "compensation"
   | "rehydration"
-  | "mismatch";
+  | "mismatch"
+  | "event-dispatch"
+  | "wait-poll";
 
 /**
  * Why boot recovery declined to resume a row it loaded.
@@ -139,6 +156,20 @@ const sagaRecoveryDeferredRows = getOrCreateGauge(
 );
 
 /**
+ * The histogram equivalent of {@link getOrCreateCounter}, for distributions.
+ */
+function getOrCreateHistogram(
+  name: string,
+  help: string,
+  labelNames: readonly string[],
+  buckets: number[]
+): client.Histogram {
+  const existing = client.register.getSingleMetric(name);
+  if (existing) return existing as client.Histogram;
+  return new client.Histogram({ name, help, labelNames, buckets });
+}
+
+/**
  * Answers "how many sagas are mid-rollback right now?", installed by the engine.
  *
  * A module-level hook rather than an import: this file publishes series and
@@ -161,6 +192,78 @@ const sagaCompensatingOrphans = getOrCreateGauge(
     }
   }
 );
+
+/**
+ * Answers "how many sagas are parked on a poll right now?", installed by the
+ * engine for the same reason the orphans provider is: this file publishes
+ * series and must not learn about Prisma or tenancy.
+ */
+let waitingRowsProvider: (() => Promise<number>) | undefined;
+
+const sagaWaitingRows = getOrCreateGauge(
+  "saga_waiting_rows",
+  "Sagas parked on a step that has not finished (RUNNING with a scheduled re-entry). A step " +
+    "that waits spends no retry budget, so this population drains on its own work rather than " +
+    "on a failure — a level that keeps climbing is work nothing is finishing",
+  async function collectWaitingRows(this: client.Gauge): Promise<void> {
+    if (!waitingRowsProvider) return;
+    try {
+      this.set(await waitingRowsProvider());
+    } catch {
+      // A scrape must not fail because one level could not be measured.
+    }
+  }
+);
+
+/**
+ * @function setSagaWaitingRowsProvider
+ * @description Installs (or removes) the scrape-time source for the WAITING
+ *   population. It exists because the budget exemption changed the shape of
+ *   this population without changing any series: a step that waits no longer
+ *   converts into a failure in ~35 s, it sits on a poll for as long as the
+ *   horizon allows, and nothing published a number for it — so a worker outage
+ *   was invisible until a burst of timeouts half an hour later.
+ * @param provider - Counts rows currently waiting on a scheduled re-entry, or
+ *   `undefined` to detach on shutdown.
+ */
+export function setSagaWaitingRowsProvider(provider: (() => Promise<number>) | undefined): void {
+  waitingRowsProvider = provider;
+  if (provider === undefined) {
+    sagaWaitingRows.set(0);
+  }
+}
+
+const sagasDurationSeconds = getOrCreateHistogram(
+  "sagas_duration_seconds",
+  "End-to-end saga lifetime, from start to terminal state, by definition and outcome",
+  ["definition_id", "status"],
+  // Sized for what this engine really produces: a publish that advances on
+  // worker events settles in seconds, while one whose completion event races
+  // the queue's own state update waits a poll interval (30 s) — so the buckets
+  // straddle 30 s and 60 s rather than clustering under a second, and the top
+  // bucket sits above the 30-minute horizon so a terminalized saga still lands
+  // in a bucket instead of only in +Inf.
+  [1, 5, 15, 30, 45, 60, 120, 300, 900, 1800, 2400]
+);
+
+/**
+ * @function recordSagaDuration
+ * @description Observes one saga's total lifetime at the moment it reaches a
+ *   terminal state. The SLO table named this series long before anything
+ *   implemented it, so the budget it states was unmeasurable in production —
+ *   and the one change that moved the number (a waiting step no longer giving
+ *   up on its retry budget) could not be seen at all.
+ * @param definitionId - Which saga definition ran.
+ * @param status - The terminal state it reached.
+ * @param durationMs - Milliseconds from `startedAt` to that terminal state.
+ */
+export function recordSagaDuration(
+  definitionId: string,
+  status: "COMPLETED" | "FAILED" | "COMPENSATED",
+  durationMs: number
+): void {
+  sagasDurationSeconds.observe({ definition_id: definitionId, status }, durationMs / 1000);
+}
 
 /**
  * @function setSagaCompensatingOrphansProvider

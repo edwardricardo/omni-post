@@ -79,9 +79,9 @@ function mockSuccessfulSchedule(postId: string, projectId = "project-1", sagaId 
           retryCount: 0,
           startedAt: new Date().toISOString(),
           stepResults: [
-            { stepIndex: 0, success: true },
-            { stepIndex: 1, success: true, data: { postId } },
-            { stepIndex: 2, success: true },
+            { stepIndex: 0, outcome: "succeeded" },
+            { stepIndex: 1, outcome: "succeeded", data: { postId } },
+            { stepIndex: 2, outcome: "succeeded" },
           ],
         },
       })

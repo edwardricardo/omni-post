@@ -80,12 +80,26 @@ export interface StartPostPublishingSagaResponse {
   startedAt: string;
 }
 
-export interface SagaStepResultView {
-  stepIndex: number;
-  success: boolean;
-  error?: string;
-  data?: unknown;
-}
+/**
+ * One step's outcome as the saga status endpoint reports it.
+ *
+ * FOUR cases, and the fourth is the endpoint's alone. Three mirror the engine's
+ * step-outcome contract — a step that has not finished is `waiting`, never a
+ * failure with a message that happens to read like one. `not-reached` is the
+ * VIEW's word for an index the saga never wrote: a step that has not been
+ * reached is a different fact from a step blocked on external work, and giving
+ * them one word here would rebuild, at the boundary, the ambiguity the contract
+ * deletes. The engine has no such case, because a step that never ran produces
+ * no result at all.
+ *
+ * Rendering must branch on `outcome`; a falsy check on a boolean is what made a
+ * publish still in flight look like a publish that failed.
+ */
+export type SagaStepResultView =
+  | { stepIndex: number; outcome: "succeeded"; data?: unknown }
+  | { stepIndex: number; outcome: "failed"; error: string }
+  | { stepIndex: number; outcome: "waiting"; reason: string }
+  | { stepIndex: number; outcome: "not-reached" };
 
 export interface SagaStatusDetails {
   id: string;
@@ -191,8 +205,14 @@ export async function runSagaAndAwaitTerminal(
       // create-post is step index 1 (Validate=0, Create=1). The step's data
       // payload carries `postId` whether it created a new aggregate or reused
       // an existing one (skippedCreation case).
+      // Only a step that SUCCEEDED carries a data payload; the compiler now
+      // enforces that, where the boolean shape let a failed step be read for a
+      // `postId` it could never have.
       const createStep = status.stepResults[1];
-      const stepData = createStep?.data as { postId?: string } | undefined;
+      const stepData =
+        createStep?.outcome === "succeeded"
+          ? (createStep.data as { postId?: string } | undefined)
+          : undefined;
       const postId = stepData?.postId;
       if (typeof postId !== "string" || postId.length === 0) {
         throw new Error("Saga completed but no postId in step data");

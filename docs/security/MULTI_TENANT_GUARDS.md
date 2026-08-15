@@ -802,6 +802,22 @@ line stating that recovery owns rows per-process and that multi-replica operatio
 unsupported until claims land (SMELL-73). A limit that lives only in a document is one
 nobody reads while scaling out.
 
+**Capacity of the poll cadence, since it shares the scan with everything else.** A step
+that has not finished re-arms `nextRetryAt` every `SAGA_WAIT_POLL_MS` (default 30 s) and
+can do so for as long as the saga horizon allows (30 min), so a waiting saga now occupies
+the retry scan's page repeatedly instead of dying inside a ~35 s retry envelope. The scan
+takes **50 rows every 5 s** ⇒ **~600 re-entries per minute**, i.e. roughly **300
+concurrently-waiting sagas** before the page can no longer serve every due row within its
+own cadence. Past that the ordering (`nextRetryAt asc`) means added LATENCY, not loss —
+no row is starved — but genuine retries and operator re-drives queue behind poll traffic
+in the SAME page, which is the head-of-line residual **SMELL-73** names and which row
+claims close. Two things make this observable rather than inferred: `saga_waiting_rows`
+publishes the population at every scrape (alert `SagaWaitingRowsAccumulating`), and a
+re-arm that cannot be persisted is counted as
+`saga_recovery_failures_total{stage="wait-poll"}` while the row keeps the marker it
+already has — a degraded database does not get to terminalize sagas that are merely
+waiting, and the engine does not pretend it rescheduled work it did not.
+
 Parking is counted on its own series, NOT on `saga_recovery_failures_total`: it is a
 decision the engine takes correctly, and a series that mixes the two makes any
 unfiltered sum report a designed outcome as a malfunction.
@@ -1031,18 +1047,43 @@ follow-up change (`saga-engine-terminal-hygiene`) owns all six.
    sequenced behind is stated there rather than silently inherited: the resume
    ships BEFORE row claims (**SMELL-73**), bounded by the durable per-step
    record and by canon `compensate()` idempotency.
-2. **"Waiting" and "failed" are the same step result.** The wait step returns
-   `success: false` both when publishing genuinely failed and when it is merely
-   still in progress, so a slow worker consumes the saga's retry budget exactly
-   like an error would.
-3. **No in-flight execution guard.** Nothing prevents two triggers (a worker
-   event and a recovery tick, say) from executing the same saga concurrently;
-   the steps are idempotent enough that this has not bitten, which is not the
-   same as being safe. Same seam as the row claims (**SMELL-73**) the
-   multi-replica constraint above depends on.
-4. **`handleEvent` amplification.** Each worker completion event dispatches the
-   saga again, so an N-channel publish produces N dispatches of the same wait
-   step.
+2. ~~**"Waiting" and "failed" are the same step result.**~~ **CLOSED by
+   `saga-engine-terminal-hygiene` (S2).** A step outcome is now one of three
+   states — `succeeded`, `failed`, `waiting` — discriminated on `outcome`, and
+   the publish wait step returns `waiting` while any channel job is still
+   pending. A waiting outcome spends NO retry budget, records no error on the
+   saga, advances nothing, and writes no step event; it re-arms a dedicated poll
+   cadence (`waitPollMs`, default 30 s) and stays bounded by the saga's ordinary
+   timeout horizon. Rows written before the contract are normalized read-side at
+   BOTH deserialization seams, so there is no data migration and pre-change rows
+   keep replaying.
+3. ~~**No in-flight execution guard.**~~ **CLOSED by
+   `saga-engine-terminal-hygiene` (S2), IN-PROCESS.** Every dispatcher — the boot
+   pass, the retry scan, worker events, the operator endpoints and the start
+   path — funnels through one entry point that admits a single execution per
+   saga at a time. A dispatch arriving mid-run is COALESCED into one trailing
+   pass rather than dropped, and that pass re-reads the DURABLE status before it
+   re-enters, so a saga whose last attempt handed the row to the compensation
+   walk is never driven forward again. The guard releases on every exit —
+   normal, terminal, refused and throwing — and leaves nothing durable behind.
+   **Its scope is this process.** It does NOT make concurrent replicas safe; the
+   cross-process case is still the row claims (**SMELL-73**) the multi-replica
+   constraint above depends on.
+4. ~~**`handleEvent` amplification.**~~ **CLOSED by
+   `saga-engine-terminal-hygiene` (S2).** Each worker completion event still
+   dispatches the saga — that is what makes a publish finish promptly — but the
+   dispatch no longer costs anything: the wait step reports `waiting`, which
+   spends no budget, and the in-flight guard turns a burst of sibling events
+   into one execution plus at most one trailing pass. The measured defect it
+   closes: a four-channel publish burned `1 + (N-1)` retries on its own siblings
+   and reached `FAILED` with all four channels published, telling the customer
+   their post had failed when it had not. An event whose saga identity is absent
+   or unusable is now discarded observably (counted as
+   `saga_recovery_failures_total{stage="event-dispatch"}`) instead of being
+   coerced into an identifier and dispatched.
+   **No new customer notification accompanies the corrected outcome** — the
+   existing saga and post status surfaces report it, and messaging about the
+   correction belongs to the separate client-experience change.
 5. **The parked window does not survive a restart.** Parking is per-process and
    deliberately not persisted (the row must stay byte-identical), so the operator
    window is re-derived — and RE-OPENED in full — on every boot. A pod that

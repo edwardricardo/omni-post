@@ -202,8 +202,8 @@ describe("API Hooks", () => {
           startedAt: new Date().toISOString(),
           retryCount: 0,
           stepResults: [
-            { stepIndex: 0, success: true },
-            { stepIndex: 1, success: true, data: { postId } },
+            { stepIndex: 0, outcome: "succeeded" },
+            { stepIndex: 1, outcome: "succeeded", data: { postId } },
           ],
         },
       });
@@ -346,8 +346,8 @@ describe("API Hooks", () => {
           id: sagaId,
           status: "COMPLETED",
           stepResults: [
-            { stepIndex: 0, success: true },
-            { stepIndex: 1, success: true, data: { postId } },
+            { stepIndex: 0, outcome: "succeeded" },
+            { stepIndex: 1, outcome: "succeeded", data: { postId } },
           ],
           progress: 100,
           currentStep: 2,

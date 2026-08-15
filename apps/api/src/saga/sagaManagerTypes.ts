@@ -57,6 +57,20 @@ export interface SagaManagerConfig {
    */
   bootLoadLimit?: number;
   /**
+   * How long a step that has NOT FINISHED waits before the engine asks it
+   * again, in milliseconds. Defaults to 30 000.
+   *
+   * A POLL cadence, and deliberately not the definition's retry backoff: a
+   * waiting step is not failing, so an interval that grows with a retry count
+   * which never moves would be meaningless. Sizing is the reason it is its own
+   * knob — at the retry policy's 5 s a waiting step is re-entered up to 360
+   * times per saga over the 30-minute horizon, each one a saga load, a real
+   * job-status read and a persist; at 30 s the worst case is 60. Worker
+   * completion events remain the PRIMARY advance, so this only has to bound how
+   * long a lost event can stall a saga.
+   */
+  waitPollMs?: number;
+  /**
    * Optional semantic-lock backend (Azure §15-20). When provided, steps
    * that declare a `semanticLock` countermeasure are gated through
    * lockStore.acquire() and released on terminal-state transitions.
@@ -138,13 +152,21 @@ export interface SagaMetrics {
 }
 
 /**
+ * Where a forward dispatch came from. Only an EVENT carries news, so only an
+ * event may coalesce into a pass already running; the retry scan re-selects the
+ * same due row every tick and would otherwise turn one slow pass into a chain
+ * of them.
+ */
+export type SagaDispatchTrigger = "event" | "scan" | "boot" | "operator" | "start";
+
+/**
  * Interface for the execution engine used by SagaManagerLifecycle.
  * Defined here (in sagaManagerTypes.ts) so that SagaManagerLifecycle.ts
  * does NOT need to import SagaManagerExecution.ts directly, breaking the
  * mutual import cycle between those two files.
  */
 export interface SagaExecutionEnginePort {
-  executeSagaAsync(sagaId: string): void;
+  executeSagaAsync(sagaId: string, trigger?: SagaDispatchTrigger): void;
   /**
    * The awaitable form of {@link SagaExecutionEnginePort.executeSagaAsync}. The
    * boot resume pass needs it: a fire-and-forget dispatch cannot be counted, so
@@ -153,7 +175,7 @@ export interface SagaExecutionEnginePort {
    * the same reason the detached form must — the context would propagate into
    * tenant work.
    */
-  executeSaga(sagaId: string): Promise<void>;
+  executeSaga(sagaId: string, trigger?: SagaDispatchTrigger): Promise<void>;
   /**
    * Resumes the compensation WALK, detached.
    *
@@ -177,6 +199,13 @@ export interface SagaExecutionEnginePort {
    * concurrent invocation.
    */
   isCompensationWalkInFlight(sagaId: string): boolean;
+  /**
+   * Whether this process is advancing the saga at all, in either direction. The
+   * operator re-drive asks THIS one: a forward holder would turn its walk away
+   * just as a walk would, and answering success for a rollback that never
+   * started is the failure mode the endpoint exists to avoid.
+   */
+  isAdvancerInFlight(sagaId: string): boolean;
   /**
    * Makes the decision to compensate durable — `COMPENSATING`, the triggering
    * error and a cleared retry marker, committed with the compensation-started

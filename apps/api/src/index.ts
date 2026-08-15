@@ -704,6 +704,10 @@ async function createApp(): Promise<FastifyInstance> {
     channelRepository: container.resolve(TOKENS.ChannelRepository),
     postRepository: container.resolve(TOKENS.PostRepository),
     ...(sagaLockStore && { lockStore: sagaLockStore }),
+    // The poll cadence a waiting step re-arms on. Passed from the ONE validated
+    // env constant rather than left to the engine default, so the value an
+    // operator sets is the value the engine actually uses.
+    waitPollMs: env.SAGA_WAIT_POLL_MS,
     schemaOnly: env.SCHEMA_ONLY,
   });
   await sagaIntegration.initialize();

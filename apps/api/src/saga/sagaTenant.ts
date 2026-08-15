@@ -41,7 +41,12 @@ import { SAGA_EVENTS } from "@shared/types/saga.js";
 import { createEventStoreEvent } from "@shared/types/events.js";
 import { withSystemContext, withTenantContext } from "../security/tenantContext.js";
 import { logger } from "../lib/logger.js";
-import { recordSagaFailed, recordSagaRecoveryFailure } from "../metrics/sagaRecoveryMetrics.js";
+import {
+  recordSagaDuration,
+  recordSagaFailed,
+  recordSagaRecoveryFailure,
+} from "../metrics/sagaRecoveryMetrics.js";
+import { countStepOutcomes } from "./sagaInstanceRow.js";
 import type {
   SagaEngineClient,
   SagaManagerConfig,
@@ -336,7 +341,9 @@ export async function failSagaAsSystem(
   reason: SagaTenantSkipReason
 ): Promise<void> {
   const completedAt = new Date();
+  const executionTime = completedAt.getTime() - instance.startedAt.getTime();
   const message = `Saga terminalized without a resolvable tenant: ${reason}`;
+  const tally = countStepOutcomes(instance.stepResults);
 
   instance.status = "FAILED";
   instance.completedAt = completedAt;
@@ -353,9 +360,9 @@ export async function failSagaAsSystem(
       correlationId: instance.context.correlationId,
       status: "FAILED",
       completedAt,
-      duration: completedAt.getTime() - instance.startedAt.getTime(),
-      stepsCompleted: instance.stepResults.filter((r) => r?.success).length,
-      stepsFailed: instance.stepResults.filter((r) => r && !r.success).length,
+      duration: executionTime,
+      stepsCompleted: tally.completed,
+      stepsFailed: tally.failed,
       error: message,
       reason,
     },
@@ -375,14 +382,23 @@ export async function failSagaAsSystem(
         nextRetryAt: null,
       },
     });
-    // eventService is guaranteed present wherever this runs: the only caller is
-    // the timeout checker, started by `initialize()`, which requires a full
-    // config — the same reachability the ordinary terminal path relies on. It is
-    // asserted rather than tested for so the two paths fail identically; making
-    // it conditional would let the ANOMALOUS transition skip its audit event
-    // silently while the ordinary one throws.
+    // eventService is guaranteed present wherever this runs. The reachability is
+    // wider than one loop — every dispatcher can arrive here, because the horizon
+    // check that leads to this write is asked by whoever is about to advance a
+    // saga — but they all share ONE precondition: an engine that dispatches at
+    // all has completed `initialize()`, and `initialize()` requires a full config.
+    // It is asserted rather than tested for so this path and the ordinary
+    // terminal path fail identically; making it conditional would let the
+    // ANOMALOUS transition skip its audit event silently while the ordinary one
+    // throws.
     await config.eventService!.appendEventInTx(tx, sagaFailedEvent);
   });
+
+  // After the commit, exactly like the ordinary terminal path: a lifetime is
+  // observed only for a row that really ended. This ending is the anomalous one,
+  // and it is also the one an operator most wants in the series — it ran until a
+  // horizon rather than until a step said no.
+  recordSagaDuration(instance.definitionId, "FAILED", executionTime);
 
   if (config.lockStore) {
     const released = await config.lockStore.releaseAllForSaga(instance.id);

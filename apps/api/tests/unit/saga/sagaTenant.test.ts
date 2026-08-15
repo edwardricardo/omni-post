@@ -30,6 +30,7 @@ vi.mock("../../../src/lib/logger.js", () => {
   return { logger, createLogger: () => logger };
 });
 
+import client from "prom-client";
 import { logger } from "../../../src/lib/logger.js";
 import { getSystemContext, getTenantContext } from "../../../src/security/tenantContext.js";
 import {
@@ -55,6 +56,19 @@ const SYSTEM_SCOPE = "__system__";
 const errorSpy = logger.error as unknown as Mock;
 
 const makeMetrics = (): SagaTenantMetrics => ({ rehydrationFailures: 0, tenantMismatches: 0 });
+
+/** How many lifetimes `sagas_duration_seconds` has observed for one ending. */
+async function durationObservations(status: string): Promise<number> {
+  const metric = client.register.getSingleMetric("sagas_duration_seconds");
+  if (!metric) return 0;
+  const collected = await metric.get();
+  return collected.values
+    .filter(
+      (value) =>
+        value.metricName === "sagas_duration_seconds_count" && value.labels.status === status
+    )
+    .reduce((total, value) => total + value.value, 0);
+}
 
 const makeContext = (overrides: Partial<SagaContext> = {}): SagaContext => ({
   sagaId: "post-publishing-saga-0001",
@@ -516,6 +530,21 @@ describe("saga tenant module", () => {
 
       expect(spy.events).toEqual([]);
       expect(spy.effects).not.toContain("tx:commit");
+    });
+
+    it("observes the saga's lifetime on the duration series, as the ordinary path does", async () => {
+      // A row terminalized here ended as durably as one the ordinary path fails,
+      // and it is the class whose lifetime an operator most wants to see: it ran
+      // until a horizon rather than until a step said no. Recording only at the
+      // two ordinary endings made the series under-count exactly the anomalous
+      // tail the SLO exists to bound.
+      const spy = createTransactionSpy();
+      const instance = makeInstance(makeContext(), { id: "saga-timed", status: "RUNNING" });
+      const before = await durationObservations("FAILED");
+
+      await failSagaAsSystem(spy.config, instance, "unresolvable-account");
+
+      expect(await durationObservations("FAILED")).toBe(before + 1);
     });
 
     it("still releases the locks path when no lock store is configured", async () => {

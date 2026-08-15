@@ -220,7 +220,8 @@ CONCURRENCY=1 run_batch "integration:consumers" \
 # service is required, but they are node:test files and therefore belong to a
 # batch — a suite that no batch lists is a suite that never runs.
 CONCURRENCY=1 run_batch "chaos" \
-  tests/chaos/saga-step-retry-recovery.test.ts
+  tests/chaos/saga-step-retry-recovery.test.ts \
+  tests/chaos/sagaWaitAmplification.test.ts
 
 # Two-tenant isolation proofs for the tenant-guard rollout. Each suite seeds
 # two tenants against the real DB and drives the guarded client / in-process

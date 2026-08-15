@@ -172,7 +172,7 @@ export class SuccessfulStep implements SagaStep {
   async execute(context: SagaContext, data?: any): Promise<SagaStepResult> {
     context.stepData[this.id] = { executed: true, timestamp: new Date() };
     return {
-      success: true,
+      outcome: "succeeded",
       data: { stepId: this.id, ...data },
       compensationData: { stepId: this.id },
     };
@@ -180,7 +180,7 @@ export class SuccessfulStep implements SagaStep {
 
   async compensate(context: SagaContext, _compensationData?: any): Promise<SagaStepResult> {
     context.stepData[`${this.id}-compensated`] = true;
-    return { success: true, data: { compensated: true } };
+    return { outcome: "succeeded", data: { compensated: true } };
   }
 }
 
@@ -190,7 +190,7 @@ export class FailingStep implements SagaStep {
 
   async execute(_context: SagaContext, _data?: any): Promise<SagaStepResult> {
     return {
-      success: false,
+      outcome: "failed",
       error: "Intentional step failure for testing",
     };
   }
@@ -205,7 +205,7 @@ export class DelayedStep implements SagaStep {
   async execute(context: SagaContext, _data?: any): Promise<SagaStepResult> {
     await new Promise((resolve) => setTimeout(resolve, this.delayMs));
     context.stepData[this.id] = { executed: true };
-    return { success: true, data: { delayed: true } };
+    return { outcome: "succeeded", data: { delayed: true } };
   }
 }
 
@@ -215,12 +215,12 @@ export class CompensationFailingStep implements SagaStep {
 
   async execute(context: SagaContext, _data?: any): Promise<SagaStepResult> {
     context.stepData[this.id] = { executed: true };
-    return { success: true, compensationData: { stepId: this.id } };
+    return { outcome: "succeeded", compensationData: { stepId: this.id } };
   }
 
   async compensate(_context: SagaContext, _compensationData?: any): Promise<SagaStepResult> {
     return {
-      success: false,
+      outcome: "failed",
       error: "Compensation failed for testing",
     };
   }
