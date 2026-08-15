@@ -46,6 +46,13 @@ interface SagaStep<TData = unknown, TCompensationData = unknown> {
   compensate?(context: SagaContext, compensationData?: TCompensationData): Promise<SagaStepResult>;
 }
 
+// A step has THREE possible outcomes, and the discriminator is `outcome`.
+// `waiting` means "not decided yet" — the step is waiting on external work.
+type SagaStepResult =
+  | { outcome: "succeeded"; data?: unknown; compensationData?: unknown }
+  | { outcome: "failed"; error: string; compensationData?: unknown }
+  | { outcome: "waiting"; reason: string };
+
 interface SagaContext {
   sagaId: string;
   correlationId: string;
@@ -55,6 +62,62 @@ interface SagaContext {
   events: DomainEvent[];
 }
 ```
+
+---
+
+## Step Outcomes — succeeded, failed, waiting
+
+A step answers one of three things, and the engine treats each differently:
+
+| Outcome     | Meaning                                     | What the engine does                                                                                                |
+| ----------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `succeeded` | The step's effect landed                    | Advances to the next step, clears the retry bookkeeping                                                             |
+| `failed`    | The step will not succeed as it stands      | Spends one retry; when the budget runs out, compensates (pre-pivot) or fails (pivot/post-pivot)                     |
+| `waiting`   | The step is not decided YET (external work) | Spends NO retry, records no error, stays on the same step, re-arms the poll (`SAGA_WAIT_POLL_MS`, default **30 s**) |
+
+Why `waiting` is its own outcome and not a failure with a friendly message: the
+publish wait step reports "the channels are still going" every time a sibling
+channel's completion event re-enters it. While that shared the failure value, an
+N-channel publish spent one retry per sibling event — measured, a four-channel
+publish reached `FAILED` with all four channels successfully published, and the
+customer was told their post failed. `waiting` removes the retry budget as the
+bound on a waiting step; the saga's own timeout horizon remains the bound, so a
+step that never stops waiting still terminalizes.
+
+`waiting` writes no step event: one audit line per channel check is noise, not
+history. It is also never persisted as a step FAILURE, so a saga in flight never
+reads as a saga that failed.
+
+**"Could not observe" is `failed`, never `waiting`.** An unreadable queue is not
+evidence that work is still in progress, so a job-status read that fails ends
+the step with a cause and the retry policy bounds it — the ~35 s envelope it
+always had — instead of parking the saga on a poll for half an hour.
+
+**What this costs the caller, stated rather than discovered.** The happy path is
+unchanged: a worker completion event advances the saga as soon as it arrives.
+But when that event races the queue's own state update — the job's last attempt
+has failed and the job is not yet in the failed set — the saga waits up to ONE
+poll interval before it can observe the outcome. Measured on this repo's dev
+environment: ~60 s to a terminal FAILED carrying the real cause, of which ~30 s
+is that interval. A publish whose event never arrives at all is bounded by the
+saga horizon (30 min) and terminalizes there under `reason="timeout"`.
+Deployments whose publish jobs are fast can lower `SAGA_WAIT_POLL_MS`; the trade
+is more queue reads per waiting saga.
+
+A status reader sees the same vocabulary per step — `succeeded`, `failed`,
+`waiting` — plus `not-reached` for an index the saga never wrote.
+`not-reached` is the ENDPOINT's word only: a step that never ran produces no
+engine-side result to classify, and giving it the same word as `waiting` would
+rebuild at the boundary the ambiguity this contract deletes.
+
+**One advancer per saga, IN-PROCESS.** The boot pass, the retry scan, worker
+events, the operator endpoints and the start path all funnel through the same
+entry point, which allows only one execution of a given saga at a time in THIS
+process. A dispatch arriving mid-run is coalesced into a single trailing pass,
+so an event is never lost and N simultaneous events never become N executions.
+This guard is in-process by construction and says nothing about concurrent
+replicas: the deployment remains single-replica, and cross-process ownership is
+the row-claim work that `saga-crash-recovery` owns.
 
 ---
 
@@ -231,9 +294,10 @@ The post-publishing saga orchestrates end-to-end post publication across social 
 1. Client calls `POST /api/sagas/post-publishing/start` with post data.
 2. SagaManager creates a `SagaInstance` (status `PENDING`), persists it, publishes `SAGA_STARTED` event.
 3. Steps execute sequentially. Each successful step advances `currentStep`.
-4. **On success:** Status becomes `COMPLETED`.
-5. **On failure:** Status becomes `FAILED`, then `COMPENSATING`. Compensation runs in reverse order for all completed steps that have a `compensate` method. Final status: `COMPENSATED`.
-6. Terminal statuses (`COMPLETED`, `FAILED`, `COMPENSATED`) are guarded against re-execution.
+4. **On `waiting`:** the saga stays on the same step with its retry budget intact and re-arms the poll; a worker completion event advances it sooner.
+5. **On success:** Status becomes `COMPLETED`.
+6. **On failure:** retries are spent per the retry policy; when the budget runs out the saga transitions to `COMPENSATING` (pre-pivot) and finally `COMPENSATED`, or to `FAILED` at or after the pivot, where forward recovery is the only canon-valid direction.
+7. Terminal statuses (`COMPLETED`, `FAILED`, `COMPENSATED`) are guarded against re-execution.
 
 ---
 

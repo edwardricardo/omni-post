@@ -754,18 +754,30 @@ Every later "the tests pass" claim in this change depends on this PR.
 
 ## Phase 11: RED — the corrected P1 probe
 
-- [ ] 11.1 [RED] **[MERGE-BLOCKING]** Create `apps/api/tests/chaos/sagaWaitAmplification.test.ts`
+- [x] 11.1 [RED] **[MERGE-BLOCKING]** Create `apps/api/tests/chaos/sagaWaitAmplification.test.ts`
       **verbatim from design Appendix A** (corrected fixture: `channelIds` INSIDE
       `metadata.postData`, because `ValidatePostDataStep` reads
       `context.metadata.postData.channelIds` — `readPostData`, `packages/shared/src/saga.ts:330-333`,
       check `:391-395`; a root-level `channelIds` kills the saga at step 0 and the probe proves
       nothing). Harness: `createChaosHarness` + the real `createPostPublishingSagaDefinition`.
-- [ ] 11.2 Run CHAOS 11.1 → RED reproducing the CONFIRMED arithmetic: `rc=1` on the initial wait
+      **Shipped verbatim** (plus the `@file`/`@description`/`@layer infrastructure` header fitness
+      #9/#10 require), then converted to its post-fix assertions once the arithmetic was recorded —
+      the measured pre-fix trace lives in the file's docblock so the evidence cannot be lost.
+- [x] 11.2 Run CHAOS 11.1 → RED reproducing the CONFIRMED arithmetic: `rc=1` on the initial wait
       (pending=4) → `rc=2` (J1) → `rc=3` (J2) → **FAILED on J3's event** with
       `/still in progress/i` → J4 lands on the terminal row while all four channels published.
       Zero timers. If the run diverges from this trace, STOP and report (the gate executed it;
       a divergence means the harness, not the design, changed).
-- [ ] 11.3 [RED] Create `apps/api/tests/unit/saga/sagaStepOutcome.test.ts` (vitest) with the
+      **NO DIVERGENCE — the trace is CONFIRMED verbatim at the branch point.** The probe as written
+      in Appendix A passed on first run (it asserts the DEFECT), and an instrumented copy recorded
+      the per-event trace: `B0 rc=1 step=3 RUNNING nextRetryAt +5009ms` → `J1 rc=2 +10035ms` →
+      `J2 rc=3 +20060ms` → `J3 FAILED rc=3 err="Publishing jobs still in progress"` →
+      `J4 FAILED` (all four channels published), `waitCallsSeq = [4,3,2,1]`. Identical to the
+      gate's numbers up to the backoff's millisecond noise (design: +4969/+9970/+19970).
+      The file was then rewritten to assert the CORRECTED contract → **RED**: `1 !== 0` on
+      "waiting for the channels is not an attempt", while its sibling scenario (one channel
+      genuinely errors → FAILED carrying the real cause) was **already green** and must stay so.
+- [x] 11.3 [RED] Create `apps/api/tests/unit/saga/sagaStepOutcome.test.ts` (vitest) with the
       contract RED set: (a) the wait step returns `waiting` while any sibling job is pending and
       `failed` only for a real failure (`packages/shared/src/saga.ts:694`, `:731-733`, `:746-751`);
       (b) repeated `waiting` leaves `retryCount`, `error` and `currentStep` untouched and the saga
@@ -774,130 +786,269 @@ Every later "the tests pass" claim in this change depends on this PR.
       deserialization seams; (e) three dispatch sources firing at once advance the saga exactly
       once, and the saga is advanceable again after an execution ends normally, terminally, and by
       throwing.
-- [ ] 11.4 [RED] Extend `sagaContextInvariants.static.test.ts`: no consumer infers "still pending"
+      **Shipped as 17 scenarios** over the REAL engine and in-memory doubles, including the
+      13.3 terminalization pin and the 14.4 trailing-rerun pair. Two scenarios were re-modelled
+      after their first RED exposed a TEST defect rather than an engine one, reported not
+      papered over: (c) asserted the cause on the SAGA row, but the engine records a step cause on
+      the step's own outcome while a retry is still available (the row's `error` is written when
+      the budget runs out) — re-pointed at `stepResults[2]`; and the trailing-rerun scenario first
+      mutated the stored status by hand, which the pass's own persist immediately overwrote — it
+      now uses the REAL shape of the hole (a pre-pivot step exhausting its budget mid-run, which
+      persists COMPENSATING and hands the row to the walk).
+- [x] 11.4 [RED] Extend `sagaContextInvariants.static.test.ts`: no consumer infers "still pending"
       from an error string or a boolean; every `SagaStepResult` consumer branches on the
       discriminator exhaustively; the in-flight guard is described as IN-PROCESS in code, logs and
       docs and never as a cross-process guarantee; **no notification / email / push / in-app
       message dispatch is added on the outcome transition** (Edward's decision 2 — the
       static scenario "no notification path is added on this transition").
-- [ ] 11.5 Run VITEST 11.3-11.4 → RED for the named mechanisms.
+      **Shipped as 14 new static assertions in four describes** (the three-case contract, one
+      advancer per saga, the no-new-message scan over every source this slice touches, and the
+      parked-evidence split). The S1 assertion `result?.success === true` was RESTATED to the
+      declared discriminator rather than deleted, since D6 is exactly what makes the branch
+      compiler-checked.
+- [x] 11.5 Run VITEST 11.3-11.4 → RED for the named mechanisms.
+      **Measured:** `sagaStepOutcome.test.ts` → **17 failed / 0 passed**, each for its own
+      mechanism (`expected undefined to be 'waiting'`; the scripted step never reached because a
+      union outcome read as a failure under the boolean engine; the row seam returning
+      `{success:true}`; `maxInFlight` 0 because nothing funnelled). `sagaContextInvariants.static`
+      → **13 failed / 62 passed**, the 62 being every pre-existing invariant, still true.
+      One collection-time `expect` inside a describe body was replaced by a tolerant read after it
+      turned the whole file into "no tests" — a RED that HIDES the other invariants is not a
+      usable RED.
 
 ## Phase 12: D6 — `SagaStepResult` union REBUILD (compile-wide)
 
-- [ ] 12.1 [GREEN] `packages/shared/src/saga.ts:34-39` — replace the boolean shape with the
+- [x] 12.1 [GREEN] `packages/shared/src/saga.ts:34-39` — replace the boolean shape with the
       discriminated union on `outcome`: `{outcome:"succeeded", data?, compensationData?}` |
       `{outcome:"failed", error, compensationData?}` | `{outcome:"waiting", reason, data?}`.
       Update the `SagaStep.execute` / `compensate` signatures (`:135`, `:148`) so a fourth outcome
       would be a compile-time obligation on every consumer.
-- [ ] 12.2 [GREEN] **Producers** (full inventory from D6): step classes at
+      **Shipped verbatim.** The signatures needed no edit — they already return `SagaStepResult`,
+      so the union propagates to every implementor by construction.
+- [x] 12.2 [GREEN] **Producers** (full inventory from D6): step classes at
       `packages/shared/src/saga.ts:376`, `:415`, `:449`, `:527`, `:595`, and the wait step at
       `:694` — `pending > 0` becomes `{outcome:"waiting", reason:"publishing jobs still in
 progress"}` while `failed > 0` stays `failed` (`:746-751`); engine-synthesized countermeasure
       results at `SagaManagerExecution.ts:170-179`, `:187-190`, `:198-201` → `failed`; catch
       wrappers `:197-202` and `:369-375`.
-- [ ] 12.3 [GREEN] **Consumers**: event-type pick `SagaManagerExecution.ts:206`; failure branch
+      **All five step classes plus both compensations converted.** Two producers had to GAIN a
+      cause rather than translate one: `CreatePostStep` and `UpdatePostStatusStep` forwarded the
+      command bus's optional `error` through a conditional spread, which the `failed` case
+      (`error: string`) does not admit — they now state the rejection explicitly.
+- [x] 12.3 [GREEN] **Consumers**: event-type pick `SagaManagerExecution.ts:206`; failure branch
       `:229`; walk eligibility `:349` (`stepResult?.outcome === "succeeded"`); compensation result
       checks `:363` and `:389` (retire the PR2 dual read from task 5.2); terminal-event tallies
       `:430-431` and `:509-510`. Straighten the `runSagaSteps` countermeasure control flow
       (`:153-196`) that used result-truthiness as flow control.
-- [ ] 12.4 [GREEN] **Persistence seams** — `normalizeLegacyStepResults` mapping
+      **Done, and the dual read is gone** (`compensationSucceeded` now reads the declared
+      discriminator). The countermeasure flow became a named `runCountermeasures(...)` returning
+      the BLOCKING outcome or `undefined`, so the step's result is one assignment instead of a
+      half-assigned variable used as flow control. Two consumers outside the design's inventory
+      were found by the compiler and converted: `sagaTenant.failSagaAsSystem`'s tally and the
+      status endpoint's progress computation.
+- [x] 12.4 [GREEN] **Persistence seams** — `normalizeLegacyStepResults` mapping
       `{success:true,…} → succeeded` / `{success:false,…} → failed` at BOTH:
       `apps/api/src/saga/sagaInstanceRow.ts:50-51` (row deserializer) and the Redis-cache
       deserializer at `SagaManagerExecution.ts:828-829`. Read-side forever — **no data
       migration**; pre-deploy rows keep replaying.
-- [ ] 12.5 [GREEN] Peripheral surfaces in the same PR: `SagaInstance.stepResults` /
+      **Shipped in `sagaInstanceRow.ts` and imported by the cache seam**, so the two cannot drift.
+      It REBUILDS each entry instead of casting, and preserves HOLES at their own indices: an
+      index no step ever wrote is not a step that failed, and the walk's resume predicate reads
+      exactly that difference.
+- [x] 12.5 [GREEN] Peripheral surfaces in the same PR: `SagaInstance.stepResults` /
       `compensationResults` types (`packages/shared/src/saga.ts:271-272`);
       `apps/client/lib/api/clients/sagaClient.ts:83-88` `SagaStepResultView` → union view;
       `docs/api/saga.md:34-46` contract; the test helpers `chaos-helpers.ts`,
       `sagaManager.test-helpers.ts`, `sagaTenantIsolation.test.ts:146` and the boot-resume /
       crash-recovery fixtures.
-- [ ] 12.6 Run VITEST 11.3(a)(d) + `tsc -b packages/shared` + `tsc -b apps/api` → GREEN /
+      **All converted**, plus two the inventory did not name: `SagaStepCompletedEventSchema` (the
+      audit payload now carries the same discriminator, with `waiting` absent by construction
+      because a waiting step writes no step event) and `startPostPublishingSagaAndAwaitPost` in
+      the client, where the union made the compiler reject reading `data` off a step that failed.
+      The boot-resume fixture KEEPS its boolean seed deliberately, with a comment saying why: it
+      models a row a pre-change process wrote, so the normalizer is exercised end to end by the
+      boot path.
+- [x] 12.6 Run VITEST 11.3(a)(d) + `tsc -b packages/shared` + `tsc -b apps/api` → GREEN /
       exhaustiveness enforced by the compiler.
+      **Measured:** `tsc -b packages/shared` = 0, `tsc -b apps/api packages/shared` = 0,
+      `tsc --noEmit` in `apps/client` = 0 (after the union rejected the `data`-off-a-failure read).
 
 ## Phase 13: D7a — `waiting` consumes no retry budget
 
-- [ ] 13.1 [GREEN] `SagaManagerExecution.runSagaSteps` — NEW branch for `outcome === "waiting"`:
+- [x] 13.1 [GREEN] `SagaManagerExecution.runSagaSteps` — NEW branch for `outcome === "waiting"`:
       `retryCount` untouched, no error recorded on the saga, `currentStep` unchanged,
       `nextRetryAt = now + waitPollMs`, persist WITHOUT a step event (no audit spam per poll;
       DEBUG log), return. `failed` keeps today's budget path (`shouldRetryStep`, `:539-546`)
       untouched.
-- [ ] 13.2 [GREEN] **[M5]** `waitPollMs` is a DEDICATED config field, **default 30000 ms** — NOT
+      **Shipped verbatim.** The branch sits BEFORE the step event is built, so a waiting outcome
+      cannot produce one by accident.
+- [x] 13.2 [GREEN] **[M5]** `waitPollMs` is a DEDICATED config field, **default 30000 ms** — NOT
       the definition's `backoffMs` (5 s) the original D7 prose named. Add it to
       `apps/api/src/saga/sagaManagerTypes.ts` and forward it from
       `apps/api/src/saga/SagaIntegration.ts:61-98` into the manager config at `:200-211`
       (conditional spread, `exactOptionalPropertyTypes`). Record the sizing WHY in the field's
       docblock: a flat 5 s re-arm turns the wait step into up to 360 polls per saga over the
       30-min horizon; 30 s bounds it at ≤ 60, and events remain the primary advance.
-- [ ] 13.3 [GREEN] The wait step's bound becomes the saga horizon: a never-completing job set
+      **Both surfaces wired**, with the default owned by the engine (`DEFAULT_WAIT_POLL_MS`) and
+      the integration forwarding conditionally, so `undefined` is never a second source of truth.
+      A static assertion pins both surfaces and that the cadence is not the error backoff.
+- [x] 13.3 [GREEN] The wait step's bound becomes the saga horizon: a never-completing job set
       still terminalizes honestly through the ordinary sweep. Unit-pin the spec scenario "a step
       that never stops waiting still terminalizes" under a reason naming the timeout.
-- [ ] 13.4 Run VITEST 11.3(b)(c) → GREEN.
+      **Pinned and measured:** a saga parked on a permanently waiting step, aged past its horizon,
+      is terminalized by `saga-timeout-checker` as FAILED with `/timeout/i`.
+- [x] 13.4 Run VITEST 11.3(b)(c) → GREEN.
+      **Measured:** three consecutive waiting outcomes leave `retryCount = 0`, the row's `error`
+      null, `currentStep` unchanged and the saga RUNNING; the audit stream holds exactly the two
+      step events the compensable step and the pivot produced, and none for the polls; the failure
+      that follows the waits spends exactly ONE retry.
 
 ## Phase 14: D7b — in-flight guard, coalescing, trailing rerun with the C2 status re-read
 
-- [ ] 14.1 [GREEN] `SagaManagerExecution.ts:74` — `private readonly inFlight = new Map<string, { rerun: boolean }>()`
+- [x] 14.1 [GREEN] `SagaManagerExecution.ts:74` — `private readonly inFlight = new Map<string, { rerun: boolean }>()`
       at the `executeSaga` entrance, the single funnel every dispatcher uses (boot dispatch `:549`,
       retry scan, `handleEvent`, continue endpoint, `startSaga`). Entry present ⇒ set
       `rerun = true` and return (the event is COALESCED, not lost).
-- [ ] 14.2 [GREEN] `compensateSagaSteps` shares the SAME map — one saga, one advancer, either
+      **Shipped with one extra field, reported:** the entry carries a `direction`
+      (`forward | compensation`) as well as `rerun`, because 14.2 shares the map with the WALK and
+      a single `rerun` flag has no direction — coalescing a walk into a forward pass would run the
+      saga forwards, which is the defect PR2 exists to close.
+- [x] 14.2 [GREEN] `compensateSagaSteps` shares the SAME map — one saga, one advancer, either
       direction. This is also PR2's walk re-entry guard, now made structural.
-- [ ] 14.3 [GREEN] `finally`: if `rerun`, execute once more; else delete the entry. Fail-safe, never
+      **Shipped**: `walksInFlight` (the PR2 Set) is REPLACED by the shared map, and
+      `isCompensationWalkInFlight` now answers from `direction === "compensation"`, so the
+      operator 409 and the boot skip keep their exact meaning. A walk that finds the saga held is
+      refused, logged and COUNTED (`stage="compensation"`) rather than coalesced; the row keeps
+      its COMPENSATING status, so the boot resume, the re-drive and the liveness horizon still own
+      it. Reachability of that refusal is bounded: the automatic walk is dispatched through
+      `setImmediate`, so the forward claim is always released before it runs.
+- [x] 14.3 [GREEN] `finally`: if `rerun`, execute once more; else delete the entry. Fail-safe, never
       deadlock — normal, terminal and throwing exits all release. Not a `*Cache` map (fitness #14
       unaffected): per-process coordination state matching the documented single-replica
       deployment; PR4's claims are its cross-process sibling.
-- [ ] 14.4 [GREEN] **[C2, MERGE-BLOCKING]** The trailing rerun **RE-READS the persisted status
+      **Shipped as a `do { … } while (claim.rerun)` loop with the delete in `finally`.** The flag
+      is cleared BEFORE each pass, so a dispatch arriving during a pass schedules the next one
+      instead of being absorbed by it, and the loop cannot lose an event: the condition and the
+      `finally` run in the same synchronous turn, so nothing can set `rerun` between them.
+      A pass that REFUSES (terminal row, unreadable status, COMPENSATING, unscopable) returns
+      false and ends the loop — a pending event must not be answered by re-entering a row that
+      just refused. Fitness #14 = 0.
+- [x] 14.4 [GREEN] **[C2, MERGE-BLOCKING]** The trailing rerun **RE-READS the persisted status
       before re-entering** — a sibling event arriving during the final failing attempt would
       otherwise re-enter after PR2's D2 persisted `COMPENSATING`, and forward execution would
       overwrite it with `RUNNING` and re-run the failed step over partially-undone state (PR2's
       headline defect, reintroduced by PR3 in the same file). PR2's refusal (task 8.3) is the
       backstop; this re-read is the primary. Unit-pin BOTH halves.
-- [ ] 14.5 [GREEN] `SagaManagerLifecycle.handleEvent:794-810` — rework onto the guard: no
+      **Structural rather than duplicated, and reported as such.** The loop re-enters through the
+      SAME pass (`advanceSagaOnce`) whose first act is the durable read, so the re-read cannot be
+      forgotten by a later editor — there is no second check to keep in sync. **Unit-pinned both
+      ways:** a dispatch coalesced during a pre-pivot step's final failing attempt does NOT
+      re-execute the step (`attempts === 1`, row COMPENSATING/COMPENSATED), and the same
+      coalesced dispatch on a saga still moving forward DOES re-enter (`attempts === 2`, row
+      RUNNING). The S1 static assertion moved with the structure and got STRICTER: the funnel is
+      now pinned to contain no `runSagaSteps` call at all, and the engine to have exactly ONE.
+- [x] 14.5 [GREEN] `SagaManagerLifecycle.handleEvent:794-810` — rework onto the guard: no
       per-event budget burn, and an event whose saga identity is absent or not a usable value is
       ignored EXPLICITLY and observably (typed `sagaId` read, counted), never coerced into an
       identifier and dispatched. Keep the step-identity filter at `:803`.
-- [ ] 14.6 [GREEN] Concurrent dispatches share ONE in-memory instance (`getSaga` returns the
+      **Shipped** as an early-return chain with the typed read first; the discard is counted on a
+      NEW recovery stage `event-dispatch` (added to the closed `SagaRecoveryStage` union with its
+      docblock entry), because a silent discard reads exactly like a publish that never emitted an
+      event at all. The step-identity filter is unchanged.
+- [x] 14.6 [GREEN] Concurrent dispatches share ONE in-memory instance (`getSaga` returns the
       `activeInstances` object, `:781-788`), so the guard is also the fix for concurrent walkers
       mutating shared `currentStep` / `retryCount` — state that in the guard's docblock as the
       second justification (P1 trace).
-- [ ] 14.7 Run CHAOS 11.1 → **GREEN**: `retryCount` stays 0 across sibling events, terminal
+      **Stated in the field's docblock**, along with the in-process scope, the coalescing rule and
+      why compensation never coalesces. A static assertion rejects any wording that would read as
+      a cross-process guarantee.
+- [x] 14.7 [GREEN] Run CHAOS 11.1 → **GREEN**: `retryCount` stays 0 across sibling events, terminal
       COMPLETED after the last event's trailing rerun, all four channels published. Run VITEST
       11.3(e) + 11.4 → GREEN.
+      **Measured:** CHAOS **2/2, 0 failed, 0 cancelled** — `rc` stays 0 through J1/J2/J3 with the
+      saga RUNNING on step 3 throughout, then COMPLETED on J4 with `error` absent and all four
+      channels published; the sibling scenario (one channel genuinely errors) still spends 1-2-3
+      and ends FAILED with "publishing jobs failed", so the correction masks no real failure.
+      VITEST `sagaStepOutcome` **17/17**; `sagaContextInvariants.static` **75/75**.
 
 ## Phase 15: D8 — evidence-test split + the outcome correction
 
-- [ ] 15.1 [GREEN] `apps/api/tests/integration/sagaCrashRecovery.test.ts:1122-1127` — restructure
+- [x] 15.1 [GREEN] `apps/api/tests/integration/sagaCrashRecovery.test.ts:1122-1127` — restructure
       the parked-replay evidence into TWO independently labeled assertions, with **(1) evaluated
       BEFORE (2)** so the FIRST failure message a red run prints is the revisit trigger:
       (1) `assert.notStrictEqual(terminal.status, "COMPLETED", …)` — ONLY this failing is the
       parking revisit trigger; (2) `assert.strictEqual(terminal.status, "FAILED")` plus the
       `/version conflict/i` match — slice-owned mechanics, allowed to evolve with the union.
-- [ ] 15.2 [GREEN] `apps/api/src/saga/SagaManagerLifecycle.ts:441-446` — update the parking
+      **Shipped verbatim**, with the trigger's message naming itself as THE PARKING REVISIT
+      TRIGGER so a red run says what it means without the reader consulting the design.
+- [x] 15.2 [GREEN] `apps/api/src/saga/SagaManagerLifecycle.ts:441-446` — update the parking
       branch's revisit comment to name assertion (1) as the signal, so a mechanics regression can
       never masquerade as the post-pivot tolerance holding.
-- [ ] 15.3 [GREEN] Record the derived outcome in the PR description and in the living spec: under
+      **Done**, and it also records the derived outcome under this change (the replayed wait step
+      finds nothing pending and succeeds; the step after it is rejected for the stale OCC token),
+      so the next reader does not have to re-derive it.
+- [x] 15.3 [GREEN] Record the derived outcome in the PR description and in the living spec: under
       this change the replayed row's wait step finds `pending=0` (`succeeded`), then
       `UpdatePostStatusStep` fails on the stale OCC token with a hard CONFLICT → `failed` → budget
       path → FAILED. **PR3 does NOT flip the status**; it may lawfully change failure-reason text
       and retry timing.
-- [ ] 15.4 [GREEN] The customer-facing correction: a multi-channel publish whose channels all
+      **Recorded in `openspec/specs/saga-crash-recovery/spec.md`** (revisit condition restated with
+      the two causes separated and the two assertions named) and **PROVEN**: `sagaCrashRecovery`
+      **17/17** with the parked-replay scenario still ending FAILED on the version conflict —
+      assertion (1) did not flip.
+- [x] 15.4 [GREEN] The customer-facing correction: a multi-channel publish whose channels all
       succeed reaches terminal SUCCESS on the EXISTING status surfaces, and **no new
       notification, email, push or in-app message is introduced** (Edward's decision 2). Prove it
       with the 11.4 static scenario plus an integration assertion on the existing saga status
       surface (`tests/integration/sagaCustomerFlow.test.ts`, LIVE-API evidence run).
-- [ ] 15.5 Run INT-LONG `sagaCrashRecovery.test.ts` (DBUP first) → GREEN, 0 cancelled; run
+      **Shipped:** the status endpoint reports step outcomes in the three-state vocabulary (a step
+      still waiting reads as waiting, not as one that failed), the static scan finds no
+      notification/email/push/in-app dispatch in any source this slice touches, and a NEW
+      two-channel LIVE-API scenario asserts on that existing surface that every step outcome is
+      one of the three states, that the boolean is gone, and that **no publish ends because its
+      own channels had not finished**. The all-channels-succeed COMPLETED outcome itself is proven
+      by the chaos probe (14.7) — the live environment has no provider credentials, so its jobs
+      genuinely fail and a fabricated success there would prove nothing.
+- [x] 15.5 Run INT-LONG `sagaCrashRecovery.test.ts` (DBUP first) → GREEN, 0 cancelled; run
       `sagaCustomerFlow.test.ts` under LIVE-API → GREEN, 0 cancelled, and record the wall time.
+      **Measured:** `sagaCrashRecovery` **17/17, 0 failed, 0 cancelled**. `sagaCustomerFlow` under
+      LIVE-API (API + workers on the `.env` + `.env.test` pair, port 3001) **14/14, 0 failed, 0
+      cancelled, wall 181 s**; port verified free afterwards.
+      **A REAL consequence surfaced and is reported, not hidden:** the two publish-now scenarios
+      now take ~60 s to reach a terminal state in an environment with no provider credentials,
+      where they previously took ~35 s — because the saga no longer gives up on its retry budget
+      but waits for the jobs, and when the worker's completion event races BullMQ's own state
+      update the saga waits one poll interval (30 s, M5) before it can see the outcome. Both
+      scenarios' budgets were widened to 120 s with the reason recorded in the test; the first run
+      caught this as a real timeout rather than a flake, and the saga's terminal error was the
+      honest one ("2 out of 2 publishing jobs failed"), never the amplification reason.
 
 ## Phase 16: PR3 wiring, docs, gate
 
-- [ ] 16.1 [M4] `run-tests.sh` — append `tests/chaos/sagaWaitAmplification.test.ts` to the
+- [x] 16.1 [M4] `run-tests.sh` — append `tests/chaos/sagaWaitAmplification.test.ts` to the
       DB-free `chaos` batch (`:180-181`). Re-run the static "every saga suite is listed"
       assertion.
-- [ ] 16.2 `docs/api/saga.md` + `docs/security/MULTI_TENANT_GUARDS.md` — the three-state contract,
+      **Appended**; `bash -n run-tests.sh` clean; the static wiring assertion (which enumerates the
+      saga suites ON DISK) is green, and was RED before the append — the honest gate PR1 shipped
+      is what makes that assertion mean anything.
+- [x] 16.2 `docs/api/saga.md` + `docs/security/MULTI_TENANT_GUARDS.md` — the three-state contract,
       the in-process scope of the guard (never a cross-process guarantee), and the closure of the
       carried residuals (waiting≠failed, in-flight guard, `handleEvent` amplification).
-- [ ] 16.3 Mirror the `saga-step-outcome-contract` capability into the living specs and record the
+      **Done:** `docs/api/saga.md` gains the union in Core Types, a "Step Outcomes" section with
+      the per-outcome engine behavior, the measured defect it closes, and the in-process scope of
+      the guard; the execution flow now names the waiting branch. In `MULTI_TENANT_GUARDS.md`
+      carried residuals **2, 3 and 4 are struck through and CLOSED** with what shipped, the
+      guard's scope is stated as this-process-only twice, and Edward's decision 2 (no new
+      customer notification) is recorded where an operator reads it.
+- [x] 16.3 Mirror the `saga-step-outcome-contract` capability into the living specs and record the
       parked-evidence restatement in `openspec/specs/saga-crash-recovery/spec.md`.
-- [ ] 16.4 **0-defect gate (PR3)**: `tsc` over `@apps/api`, `@shared/types`, `@apps/client` = 0;
+      **Done:** new living capability `openspec/specs/saga-step-outcome-contract/spec.md` (six
+      requirements: the three-state contract, the budget exemption with `waitPollMs`, the
+      no-amplification invariant, one advancer per saga with the trailing re-read, the corrected
+      outcome with no new notification, and read-side normalization at both seams). The crash
+      recovery living spec's revisit condition now names the two assertions and separates the two
+      causes that can flip them.
+- [x] 16.4 **0-defect gate (PR3)**: `tsc` over `@apps/api`, `@shared/types`, `@apps/client` = 0;
       `eslint --max-warnings 0` on touched files = 0; prettier clean; fitness
       **#3 / #4 / #5 / #8 / #9 / #10 / #14 / #21 / #23 / #26 = 0** (#26 because
       `apps/client/lib/**` is a bundler-compiled frontend dir — no `.js`-on-`.ts` relative
@@ -905,8 +1056,146 @@ progress"}` while `failed > 0` stays `failed` (`:746-751`); engine-synthesized c
       `sagaWaitAmplification`, the saga unit surface, `sagaContextInvariants.static`,
       `sagaCrashRecovery`, `sagaCompensationRecovery`, `chaos/saga-step-retry-recovery`,
       `sagaCustomerFlow` (LIVE-API).
-- [ ] 16.5 **4R full-tier adversarial review** on the PR3 diff BEFORE push; then push and require
+      **Measured:** `tsc -b packages/shared apps/api` = **0** · `tsc --noEmit` in `apps/client` =
+      **0** · `eslint --max-warnings 0` over all 24 touched `.ts` = **0** · `prettier --check`
+      over every touched `.ts`/`.md` clean · `bash -n run-tests.sh` clean · fitness
+      **#3 = 0 · #4 = 0 · #5 = 0 · #8 = 0 · #9 = 0 · #10 = 0 · #11 = 0 · #14 = 0 · #20 = 0 ·
+      #21 = 0 · #23 = 0 · #26 = 0**, 0 `.only`/`.skip`, 0 new `canon-exception` markers ·
+      **saga unit surface 21 files / 300 tests, 0 failed, 0 cancelled** · `sagaWaitAmplification`
+      **2/2** · `sagaCrashRecovery` **17/17** · `sagaCompensationRecovery` **2/2** ·
+      `sagaTenantIsolation` **20/20** · `sagaAccountIdBackfill` **10/10** ·
+      `chaos/saga-step-retry-recovery` **1/1** · `sagaCustomerFlow` **14/14** (LIVE-API) — every
+      one 0 failed / 0 cancelled · post-run leak check: **0** non-terminal saga rows, 0 probe
+      fixture rows.
+- [x] 16.5 **4R full-tier adversarial review** on the PR3 diff BEFORE push; then push and require
       every CI workflow green before merge to main.
+      **4R RAN on the 5-commit diff. Verdicts: R4 BLOCK (2 blockers + 3 criticals) · R3 BLOCK
+      (1 blocker + 2 criticals) · R1 MERGE-BLOCKING (1 blocker + 1 critical) · R2
+      coherent-rebuild-but-unfinished (1 blocker + 1 critical).** All four validated the engine
+      core — R3 reproduced every number the slice reported (unit 21/300, crash 17/17, chaos 2/2 and
+      1/1, compensation 2/2, isolation 20/20, backfill 10/10, tsc 0/0/0), reproduced the historic
+      amplification trace under a reverted mutation, and mutation-killed seven counterfactuals
+      (the waiting exemption, the hot-cache normalizer, the C2 durable re-read, the in-flight
+      guard). What failed was the EDGES. One corrective re-run — see Phase 16c.
+
+## Phase 16c: the corrective re-run (E1-E15)
+
+- [x] E1 **[R4-BLOCKER-1]** COULD-NOT-OBSERVE is not PENDING. The job-status reader returns the
+      queue port's own `Result` unchanged instead of fabricating an all-pending aggregate for a
+      `CONNECTION_ERROR`, and the wait step maps a failed observation to `failed` — budget-driven
+      retry, ~35 s to a terminal state on a dead queue, exactly the pre-change semantics for that
+      class. `waiting` is now returned ONLY on OBSERVED pending. The now-false comment ("so the
+      step retries") is gone, and the authoring rule is stated at the union: `waiting` is what
+      becomes decidable by asking again; everything else, including "I could not read", is
+      `failed`. **RED**: the `err("CONNECTION_ERROR")` shape read as healthy — with the old
+      fabrication it read as `waiting`, and with a bare aggregate it read as SUCCEEDED. **GREEN**:
+      `failed` carrying the cause.
+- [x] E2 **[R4-BLOCKER-2]** Horizon coverage is now STRUCTURAL: `advanceSagaOnce` asks
+      `terminalizeIfPastHorizon` BEFORE advancing, so any advancer is also a terminalizer and an
+      UNTRACKED row (deferred past the boot ceiling, or loaded by id) is covered without depending
+      on `activeInstances`. ONE implementation — the timeout checker calls the same method, which
+      keeps the parked window and the compensation liveness horizon intact. Plus the ordering fix:
+      `failSaga` moves the in-memory copy to FAILED only after the row does, restoring it on a
+      failed persist, so the checker's terminal guard can no longer silently stop tracking a row
+      that is durably RUNNING. `SagaBootLoadDeferred`'s claim corrected. **RED**: both shapes —
+      the strand (`tracked.status === "FAILED"` while the row said RUNNING) and the untracked
+      waiting row advanced forever. **GREEN**: FAILED with `/timeout/i` and no further step; the
+      strand no longer occurs. **Mutation-checked**: disabling the in-pass horizon reddens 1 test.
+- [x] E3 **[R1-BLOCKER + R4-S9]** The walk HAND-OFF. A walk refused because a FORWARD claim holds
+      the saga sets `pendingWalk` on that claim, and the forward release dispatches it — nothing
+      else re-drives it in-process (the transition nulls `nextRetryAt`, boot runs only at startup,
+      and the liveness horizon terminalizes rather than rolls back). AND scan re-selections no
+      longer set `rerun`: only a `trigger === "event"` dispatch coalesces, which kills both the hot
+      loop and the refusal trigger R1 traced. Every dispatcher now names its trigger.
+      **RED**, deterministic (a delayed durable read makes the race decidable rather than
+      microtask-lucky): the walk was refused and never ran — the suite timed out waiting for the
+      rollback. **GREEN**: `compensated.attempts === 1` and the row settles COMPENSATED.
+      **Mutation-checked**: `pendingWalk = false` reddens 2 tests.
+- [x] E4 **[R1-CRITICAL + R3-W5]** The operator re-drive's conflict gate blocks on ANY holder
+      (`isAdvancerInFlight`), not only a walk, so it can no longer answer a success envelope for a
+      rollback the shared claim would turn away. The walk-specific question stays for the boot
+      pass. **RED**: `compensateSaga` resolved while a forward pass held the saga. **GREEN**: it
+      rejects with a conflict; the walk-holder direction stays pinned in the walk suite.
+- [x] E5 **[R2-BLOCKER + R3-BLOCKER-1 + R3-C2]** The consumer seam. The three client fixtures speak
+      the union payload, and a DETERMINISTIC PR-tier route test now asserts the mapped
+      `stepResults` (`outcome`/`error`/`reason`, the hole, and the absence of `success`) plus the
+      progress arithmetic — the assertion that was living only in a LIVE-API-tier suite.
+      **RED**: `hooks.test.tsx` 2 failed + `useSchedulePostViaSaga` 1 failed ("Saga completed but
+      no postId in step data"). **GREEN**: **14/14** across those two suites, 42 files / 538 tests
+      across the client.
+- [x] E6 **[R2-CRITICAL + R3-W7]** A hole gets its OWN view word: `not-reached`, endpoint
+      vocabulary only — the engine's step-result union stays three-state, because a step that never
+      ran produces no result to classify. The client type mirrors it and `reason` is required only
+      on `waiting`. **A second defect surfaced while pinning it, and was fixed rather than
+      asserted around**: the mapping used `Array.prototype.map`, which SKIPS holes, so the wire
+      carried a literal `null` for the one case the mapping exists to name. It is built by index
+      now.
+- [x] E7 **[R4-C3]** `SagaRecoveryLoopFailing`'s regex gains `event-dispatch` and `wait-poll`; the
+      SLO recovery row matches. NEW `saga_waiting_rows` gauge (scrape-time `collect()`, counting
+      the checker-owned partition `RUNNING` + scheduled re-entry, served by the existing index) so
+      the population this change creates is observable, with `SagaWaitingRowsAccumulating` keyed on
+      the window FLOOR — the same convention as the orphan alert, for the same reason. Static pin:
+      every declared stage is matched by SOME rule (`mismatch` has its own).
+- [x] E8 **[R4-C4]** `sagas_duration_seconds` implemented for real: a prom-client histogram
+      observed at BOTH centralized terminal writes, with buckets straddling 30 s / 60 s and a top
+      bucket above the 30-minute horizon. The SLO row states the honest budget — event-driven happy
+      path unchanged, the failure tail one poll interval — instead of a single "< 30s" the branch
+      already did not meet.
+- [x] E9 **[R4-C5]** Back-pressure honesty: a re-arm whose persist fails keeps the marker the ROW
+      already holds, is counted `stage="wait-poll"`, and does NOT fall into the step loop's catch —
+      a degraded database no longer terminalizes sagas that are merely waiting. The ~300
+      concurrently-waiting scan capacity (50 rows / 5 s) is documented beside SMELL-73 with what it
+      costs (latency, never loss) and what observes it. **RED**: the failure propagated and the
+      saga was failed. **GREEN**: row RUNNING, marker unchanged, counter +1.
+- [x] E10 **[R3-C3]** The third publish-now scenario (pivot semantics) widened to 120 s with the
+      same recorded reason as its two siblings; its stale "35s retry envelope (5 + 10 + 20)"
+      comment corrected, and its compensation-result reader moved off the removed boolean.
+      **Measured live**: 59.7 s — it was running at two thirds of its old 90 s budget.
+- [x] E11 **[R1-W + R3-W4b]** The normalizer checks `outcome` FIRST at both seams, so a mixed
+      `{outcome:"waiting", success:true}` row resolves by the field with three states rather than
+      by the boolean beside it — the ordering IS the guarantee for a function documented as
+      read-side forever. An entry with NEITHER key is a HOLE, and the tally consequence is written
+      at the code: the pre-change predicate counted a keyless entry as FAILED, which is an
+      assertion the row does not support. Invalid, mixed, empty and non-array shapes are pinned.
+- [x] E12 **[R1-W + R2-W]** Benign refusals are no longer counted as `stage="compensation"`: a
+      coalescing refusal loses nothing, and a walk refused by a forward holder is HANDED OFF rather
+      than dropped (E3 fixed the one refusal that really lost work). The stage docblock enumerates
+      the fourth real cause and states explicitly which refusals are deliberately absent; the
+      in-flight forward-refusal mirror is treated consistently with its durable twin.
+- [x] E13 **[R3-W6]** `waitPollMs` is genuinely settable: `SAGA_WAIT_POLL_MS` through the Zod env
+      surface (optional, default 30000, bounded 1s-300s), passed by the composition root, and in
+      `.env.example`. Static pin asserts both the env declaration and the bootstrap wiring, so a
+      knob whose only callers are tests cannot come back.
+- [x] E14 **[R2 warnings + R4-W6]** Operator vocabulary: the `nextRetryAt` dual meaning is
+      acknowledged where the disposition is documented (`retryCount` is the tell, and it says so);
+      `chaos-saga-step-retry.md` rewritten to the union contract (the `success: false` and
+      `handleStepFailure()` instructions are gone, with an outcome table and a "the amplification
+      came back" case); `alert-saga-timeout.md` gains the waiting-population query, the gauge,
+      `SAGA_WAIT_POLL_MS`, the new dominant-cause note and corrected source pointers;
+      `docs/api/saga.md` gains the 30 s default, the user-visible tail with its measured number,
+      the observe-vs-wait rule and the `not-reached` view case; and the compensation docblock now
+      says what the walk really does with an unfinished compensation instead of promising a
+      distinction the code does not make.
+- [x] E15 Worthy suggestions taken: the claim type is DISCRIMINATED (a forward claim carries
+      `rerun` and `pendingWalk`; a compensation claim carries neither), so the asymmetry is
+      compiler-checked instead of comment-checked;
+      `waiting`'s producer-less `data?` is dropped; `countStepOutcomes` replaces the four
+      duplicated tally sites; the `>=1 && <=2` lower bound is removed with a comment naming the
+      deterministic sibling that really pins coalescing; and the tolerant
+      `COMPENSATING|COMPENSATED` assertion is narrowed to COMPENSATED, which E3 now guarantees.
+- [x] E-gate **0-defect gate (corrective), on a tree clean of review artifacts.** `git status`
+      carries only this change's files — no `zz-probe-amplification.ts`, no `if (false as boolean)`
+      mutation left behind. **Measured:** `tsc -b packages/shared apps/api` = **0** ·
+      `tsc --noEmit` in `apps/client` = **0** · in `apps/workers` = **0** ·
+      `eslint --max-warnings 0` over all 20 touched `.ts`/`.tsx` = **0** · `prettier --check` over
+      every touched `.ts`/`.tsx`/`.md`/`.yml` clean · fitness **#3/#4/#5/#8/#9/#10/#11/#14/#16/#20/
+      #21/#23/#26 = 0**, 0 `.only`/`.skip` in the diff, 0 new `canon-exception`, 0 new
+      `@ts-ignore` · **saga unit surface 21 files / 323 tests** · the WHOLE api unit suite
+      **531 files / 8365 tests** · `sagaWaitAmplification` **2/2** · `chaos/saga-step-retry-recovery`
+      **1/1** · `sagaCrashRecovery` **17/17** · `sagaCompensationRecovery` **2/2** ·
+      `sagaTenantIsolation` **20/20** · `sagaAccountIdBackfill` **10/10** · client **42 files / 538
+      tests** (the two suites R3 named: **14/14**) · `sagaCustomerFlow` LIVE-API **14/14, wall
+      180 s** — every one 0 failed / 0 cancelled.
 
 ---
 

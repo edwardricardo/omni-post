@@ -271,9 +271,28 @@ failure.
 **Revisit condition (normative for the next change that touches this):** when the
 post-pivot transition genuinely tolerates re-application — an idempotent status transition,
 or an OCC token re-read at replay time — the parking branch SHALL be removed and the boot
-pass SHALL resume pivot-interrupted rows. The evidence test asserts the current `FAILED`
-outcome precisely so that it turns RED the day the tolerance holds; that red is the signal
-to revisit, not a regression.
+pass SHALL resume pivot-interrupted rows.
+
+**The evidence SHALL distinguish the two causes that can flip it** (restated by
+`saga-engine-terminal-hygiene` S2, which is a change that could flip the outcome for an
+UNRELATED reason). It is therefore split into two independently labelled assertions,
+evaluated in this order:
+
+1. `assert.notStrictEqual(terminal.status, "COMPLETED")` — **THE PARKING REVISIT TRIGGER.**
+   Only this failing means the post-pivot tolerance holds and the branch should be revisited.
+   It is evaluated FIRST so a red run prints the signal before any mechanics.
+2. `assert.strictEqual(terminal.status, "FAILED")` plus the version-conflict match — the
+   MECHANICS, which may lawfully evolve: the failure reason's wording and the retry timing
+   are how the evidence currently reads, not what it means.
+
+The parking branch's own comment SHALL name assertion (1) as the signal, so a mechanics
+regression can never masquerade as the tolerance holding. The parking branch SHALL NOT be
+removed on the strength of an assertion another change flipped for an unrelated reason.
+
+**Measured under the three-state step-outcome contract:** the replayed row's wait step finds
+nothing pending and SUCCEEDS, then the step after it is rejected for the stale
+optimistic-concurrency token — so the outcome is unchanged and assertion (1) does not flip.
+The step-outcome correction is not a demonstration of post-pivot re-application tolerance.
 
 #### Scenario: a pivot-interrupted saga is left untouched at boot [integration] [MERGE-BLOCKING]
 
@@ -302,7 +321,7 @@ to revisit, not a regression.
 
 - **GIVEN** the parked saga is resumed deliberately, the way an operator would resume it
 - **WHEN** it runs to a terminal state
-- **THEN** exactly one job holds its dedupe key, no worker published a second time, the post keeps a single consistent status — AND the saga ends `FAILED` with a version conflict, which is the recorded justification for parking
+- **THEN** exactly one job holds its dedupe key, no worker published a second time, the post keeps a single consistent status — AND, in this order, the row is NOT `COMPLETED` (the parking revisit trigger) and it ends `FAILED` with a version conflict (the mechanics), which together are the recorded justification for parking
 
 ---
 
