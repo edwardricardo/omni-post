@@ -26,6 +26,7 @@ import {
   withSagaSystemRead,
 } from "./sagaTenant.js";
 import {
+  countStepOutcomes,
   deserializeSagaInstanceRow,
   normalizeLegacyStepResults,
   type SagaInstanceRow,
@@ -62,31 +63,6 @@ const DEFAULT_WAIT_POLL_MS = 30_000;
 
 /** A step outcome the engine may compensate or count as progress. */
 type SucceededStepResult = Extract<SagaStepResult, { outcome: "succeeded" }>;
-
-/**
- * How many steps of a saga reached each recordable outcome.
- *
- * One implementation, because the audit event, the terminal event and the
- * status endpoint must never disagree about what "completed" counts — and a
- * fourth outcome must be a single edit rather than four.
- *
- * @param stepResults - The saga's recorded step outcomes, holes included.
- * @returns Completed and failed counts. A HOLE is neither: an index no step
- *   wrote says nothing about that step, and counting it as a failure asserts
- *   something the row does not.
- */
-export function countStepOutcomes(stepResults: ReadonlyArray<SagaStepResult | undefined>): {
-  completed: number;
-  failed: number;
-} {
-  let completed = 0;
-  let failed = 0;
-  for (const result of stepResults) {
-    if (result?.outcome === "succeeded") completed++;
-    else if (result?.outcome === "failed") failed++;
-  }
-  return { completed, failed };
-}
 
 /**
  * The right to advance ONE saga, and what the holder learned while it did.
@@ -1129,8 +1105,9 @@ export class SagaExecutionEngine {
       return;
     }
 
+    const compensatedAt = new Date();
     instance.status = "COMPENSATED";
-    instance.completedAt = new Date();
+    instance.completedAt = compensatedAt;
 
     const compensationCompletedEvent = createEventStoreEvent(
       SAGA_EVENTS.SAGA_COMPENSATION_COMPLETED,
@@ -1154,6 +1131,16 @@ export class SagaExecutionEngine {
     );
 
     await this.persistSagaInstance(instance, [compensationCompletedEvent]);
+
+    // The third ending, measured where it happens. A rolled-back saga is the
+    // LONGEST lifetime the engine produces — a forward run plus an undo walk —
+    // so a series that carried only COMPLETED and FAILED under-reported exactly
+    // the tail the SLO budget is stated against.
+    recordSagaDuration(
+      instance.definitionId,
+      "COMPENSATED",
+      compensatedAt.getTime() - instance.startedAt.getTime()
+    );
 
     this.lifecycle.metrics.sagasCompensated++;
     this.lifecycle.stopTracking(sagaId);

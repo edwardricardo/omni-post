@@ -152,12 +152,6 @@ export interface SagaMetrics {
 }
 
 /**
- * Interface for the execution engine used by SagaManagerLifecycle.
- * Defined here (in sagaManagerTypes.ts) so that SagaManagerLifecycle.ts
- * does NOT need to import SagaManagerExecution.ts directly, breaking the
- * mutual import cycle between those two files.
- */
-/**
  * Where a forward dispatch came from. Only an EVENT carries news, so only an
  * event may coalesce into a pass already running; the retry scan re-selects the
  * same due row every tick and would otherwise turn one slow pass into a chain
@@ -165,6 +159,12 @@ export interface SagaMetrics {
  */
 export type SagaDispatchTrigger = "event" | "scan" | "boot" | "operator" | "start";
 
+/**
+ * Interface for the execution engine used by SagaManagerLifecycle.
+ * Defined here (in sagaManagerTypes.ts) so that SagaManagerLifecycle.ts
+ * does NOT need to import SagaManagerExecution.ts directly, breaking the
+ * mutual import cycle between those two files.
+ */
 export interface SagaExecutionEnginePort {
   executeSagaAsync(sagaId: string, trigger?: SagaDispatchTrigger): void;
   /**

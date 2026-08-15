@@ -36,7 +36,7 @@ import type { PrismaClient } from "@infra/prisma";
 import type { QueuePort } from "@ports/core";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { SagaManagerImpl } from "./SagaManager.js";
-import { countStepOutcomes } from "./SagaManagerExecution.js";
+import { countStepOutcomes } from "./sagaInstanceRow.js";
 import type { EventService } from "../events/EventService.js";
 import type { CQRSBusImpl } from "../cqrs/CQRSBus.js";
 import { createPostPublishingSagaDefinition, createSagaContext } from "@shared/types/saga.js";

@@ -354,6 +354,19 @@ async function failureCount(stage: string): Promise<number> {
     .reduce((total, value) => total + value.value, 0);
 }
 
+/** How many lifetimes `sagas_duration_seconds` has observed for one ending. */
+async function durationObservations(status: string): Promise<number> {
+  const metric = client.register.getSingleMetric("sagas_duration_seconds");
+  if (!metric) return 0;
+  const collected = await metric.get();
+  return collected.values
+    .filter(
+      (value) =>
+        value.metricName === "sagas_duration_seconds_count" && value.labels.status === status
+    )
+    .reduce((total, value) => total + value.value, 0);
+}
+
 /** A context shaped the way the publish saga hands one to its wait step. */
 function publishContext(jobIds: string[]): SagaContext {
   const context = createSagaContext({
@@ -931,6 +944,84 @@ describe("the dispatch that coalesces is the one that carries news", () => {
     await settle();
 
     expect(await failureCount("compensation")).toBe(before);
+  });
+});
+
+describe("every ending a saga can reach is measured on the duration series", () => {
+  it("observes the lifetime of a saga that ends COMPENSATED", async () => {
+    // The series carried two of the three endings. A rolled-back saga is the
+    // LONGEST of them — a forward run plus an undo walk — so leaving it out did
+    // not merely lose a label: it removed the tail the SLO budget is stated
+    // against, and the p95 an operator reads went DOWN when rollbacks went up.
+    const before = await durationObservations("COMPENSATED");
+    const harness = createCompensableOutcomeHarness(async () => ({
+      outcome: "failed",
+      error: "the pre-pivot step failed",
+    }));
+
+    const sagaId = await startProbeSaga(harness);
+    await until(
+      async () => (await harness.row(sagaId))?.status === "COMPENSATED",
+      "the compensation walk to settle the row"
+    );
+
+    expect(await durationObservations("COMPENSATED")).toBe(before + 1);
+  });
+});
+
+describe("a worker event that carries no usable saga identity", () => {
+  it("counts the discard on the event-dispatch stage", async () => {
+    // This counter is the ONLY external signal that events are arriving and
+    // advancing nothing: the handler returns quietly, so a producer that stopped
+    // stamping the saga id is indistinguishable from an idle publish queue —
+    // every publish it belonged to just finishes a poll interval late.
+    const harness = createOutcomeHarness({
+      script: async () => ({ outcome: "waiting", reason: "still going" }),
+    });
+    const before = await failureCount("event-dispatch");
+
+    await harness.lifecycle.handleEvent({
+      id: "evt-without-saga",
+      type: "publish.job.completed",
+      version: 1,
+      timestamp: new Date(),
+      aggregateId: "job-1",
+      aggregateType: "PublishJob",
+      data: {},
+      metadata: { source: "publish-worker" },
+    });
+
+    expect(await failureCount("event-dispatch")).toBe(before + 1);
+  });
+});
+
+describe("the waiting population is a level an operator can read", () => {
+  it("collects it from the engine's own predicate once the engine has started", async () => {
+    // The gauge was pinned only by the SHAPE of the source that installs it. A
+    // provider that never gets installed, and a predicate widened to every
+    // RUNNING row, both leave that pin green while the number an operator pages
+    // on stops meaning "parked on a step that has not finished".
+    const harness = createOutcomeHarness({
+      script: async () => ({ outcome: "waiting", reason: "still going" }),
+    });
+    await harness.lifecycle.initialize();
+
+    const predicates: unknown[] = [];
+    harness.prisma.sagaInstance.count = async (args?: { where?: unknown }): Promise<number> => {
+      predicates.push(args?.where);
+      return 7;
+    };
+
+    const gauge = client.register.getSingleMetric("saga_waiting_rows");
+    expect(gauge).toBeDefined();
+    const collected = await gauge!.get();
+
+    // Scrape-time, from the checker-owned partition: RUNNING rows holding a
+    // scheduled re-entry, served by the index the retry scan already uses.
+    expect(predicates).toEqual([{ status: "RUNNING", nextRetryAt: { not: null } }]);
+    expect(collected.values[0]?.value).toBe(7);
+
+    await harness.lifecycle.shutdown();
   });
 });
 

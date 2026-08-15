@@ -1,9 +1,10 @@
 /**
  * @file sagaInstanceRow.ts
  * @description Single conversion from a persisted `SagaInstance` row to the
- *              domain type, shared by the by-id load and the boot scan. It lives
- *              in its own module so the lifecycle and the execution engine can
- *              both use it without importing each other.
+ *              domain type, plus the single tally over the outcomes it yields.
+ *              Shared by the by-id load and the boot scan. It lives in its own
+ *              module so the lifecycle, the execution engine and the tenant
+ *              module can all use it without importing each other.
  *
  *              The tenant column is load-bearing here: it is the AUTHORITATIVE
  *              source of the account that owns a detached saga, so a
@@ -132,6 +133,37 @@ export function normalizeLegacyStepResults(value: unknown): SagaStepResult[] {
     if (normalized !== undefined) results[index] = normalized;
   }
   return results;
+}
+
+/**
+ * @function countStepOutcomes
+ * @description How many steps of a saga reached each recordable outcome.
+ *
+ *   One implementation, because the audit event, the terminal event and the
+ *   status endpoint must never disagree about what "completed" counts — and a
+ *   fourth outcome must be a single edit rather than four.
+ *
+ *   It lives beside the normalizer that decides what a persisted entry MEANS,
+ *   for two reasons: the tally reads the same three-state contract the
+ *   normalizer produces, and this module imports nothing from the engine — so
+ *   every counting site can reach it without any of them importing an engine
+ *   that imports them back.
+ * @param stepResults - The saga's recorded step outcomes, holes included.
+ * @returns Completed and failed counts. A HOLE is neither: an index no step
+ *   wrote says nothing about that step, and counting it as a failure asserts
+ *   something the row does not.
+ */
+export function countStepOutcomes(stepResults: ReadonlyArray<SagaStepResult | undefined>): {
+  completed: number;
+  failed: number;
+} {
+  let completed = 0;
+  let failed = 0;
+  for (const result of stepResults) {
+    if (result?.outcome === "succeeded") completed++;
+    else if (result?.outcome === "failed") failed++;
+  }
+  return { completed, failed };
 }
 
 /**

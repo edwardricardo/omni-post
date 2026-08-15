@@ -1407,6 +1407,31 @@ export class SagaManagerLifecycle implements SagaManager {
   }
 
   /**
+   * @method terminalizeIfPastHorizon
+   * @description The horizon, asked as a question by whoever is about to
+   *   advance a saga. A caller-vocabulary alias over {@link checkSagaTimeout}:
+   *   one rule, two names, because a dispatcher does not ask "did the timeout
+   *   checker's sweep visit this row" — it asks "may I advance this saga". The
+   *   alias exists so that question can be asked without the answer being
+   *   re-implemented anywhere, which is how the three horizons stay one
+   *   implementation.
+   *
+   *   It is public because the timeout checker is not the only place the answer
+   *   matters: the checker walks the TRACKED set, and a row this process merely
+   *   loaded by id is not in it. While every step spent retry budget, an
+   *   untracked saga still ended on its own; a step that waits spends none, so
+   *   the horizon became the only bound and had to stop depending on
+   *   bookkeeping.
+   * @param sagaId - The saga being checked.
+   * @param instance - The copy in hand, tracked or not.
+   * @returns True when the saga is terminal or was just terminalized, so the
+   *   caller must not advance it.
+   */
+  async terminalizeIfPastHorizon(sagaId: string, instance: SagaInstance): Promise<boolean> {
+    return await this.checkSagaTimeout(sagaId, instance);
+  }
+
+  /**
    * Fails one saga that has outlived the horizon that applies to it.
    *
    * THREE horizons, because three situations. An ORDINARY row is measured from
@@ -1424,29 +1449,6 @@ export class SagaManagerLifecycle implements SagaManager {
    * that it would stay non-terminal forever while every tick logged and counted
    * it again — the infinite RUNNING state the saga canon forbids.
    */
-  /**
-   * @method terminalizeIfPastHorizon
-   * @description The horizon, asked as a question by whoever is about to
-   *   advance a saga. ONE implementation of "has this saga outlived the window
-   *   that applies to it" — parked rows keep their operator window, compensating
-   *   rows keep their liveness horizon, and an ordinary row is measured from
-   *   `startedAt`.
-   *
-   *   It is public because the timeout checker is not the only place the answer
-   *   matters: the checker walks the TRACKED set, and a row this process merely
-   *   loaded by id is not in it. While every step spent retry budget, an
-   *   untracked saga still ended on its own; a step that waits spends none, so
-   *   the horizon became the only bound and had to stop depending on
-   *   bookkeeping.
-   * @param sagaId - The saga being checked.
-   * @param instance - The copy in hand, tracked or not.
-   * @returns True when the saga is terminal or was just terminalized, so the
-   *   caller must not advance it.
-   */
-  async terminalizeIfPastHorizon(sagaId: string, instance: SagaInstance): Promise<boolean> {
-    return await this.checkSagaTimeout(sagaId, instance);
-  }
-
   private async checkSagaTimeout(sagaId: string, instance: SagaInstance): Promise<boolean> {
     // A saga that already ended is never re-failed. It should not be here at
     // all — every terminal transition stops tracking — but a tracked terminal
