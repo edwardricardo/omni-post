@@ -78,7 +78,7 @@ groups:
           component: saga
         annotations:
           summary: "Inherited sagas are uncovered: a boot hit its load ceiling"
-          description: "A process started with MORE non-terminal sagas in the table than its boot load ceiling (`bootLoadLimit`, default 500), so the rows beyond it were not read and this process is not covering them. They are not lost: the retry checker claims them once they schedule a retry, and the next boot reads a fresh oldest-first page. But nothing advances a row that has NO pending retry and did not make the page, so a sustained non-zero value means a backlog is aging toward its 30-minute horizon with no owner. Check `/sagas/metrics` -> recovery.bootLoadDeferred per process, drain the backlog (or restart once it shrinks), and if this is steady state rather than an outage tail, raise `bootLoadLimit` deliberately — the ceiling exists to protect the shared connection pool, so raise it together with pool sizing, never alone."
+          description: "A process started with MORE non-terminal sagas in the table than its boot load ceiling (`bootLoadLimit`, default 500), so the rows beyond it were not read and this process is not covering them. They are not lost: the retry checker claims them once they schedule a retry, and the next boot reads a fresh oldest-first page — and since every advancer is also a terminalizer, a deferred row the scan picks up is ALSO checked against its horizon and terminalized there if it has outlived it, rather than depending on this process tracking it. But nothing advances a row that has NO pending retry and did not make the page, so a sustained non-zero value means a backlog is aging toward its 30-minute horizon with no owner. Check `/sagas/metrics` -> recovery.bootLoadDeferred per process, drain the backlog (or restart once it shrinks), and if this is steady state rather than an outage tail, raise `bootLoadLimit` deliberately — the ceiling exists to protect the shared connection pool, so raise it together with pool sizing, never alone."
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga
 
@@ -122,14 +122,26 @@ groups:
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga
 
+      - alert: SagaWaitingRowsAccumulating
+        expr: min_over_time(saga_waiting_rows[15m]) > 50
+        for: 10m
+        labels:
+          severity: warning
+          component: saga
+        annotations:
+          summary: "The population of sagas waiting on external work is not draining"
+          description: 'More than 50 sagas have been parked on a step that has not finished, continuously, for about 25 minutes (a 15-minute lookback whose FLOOR never dropped to 50, held for a further 10) — so this is a backlog, not a busy minute. A step that waits spends no retry budget by design: it re-arms on the poll cadence (SAGA_WAIT_POLL_MS, default 30s) and is bounded only by the saga horizon, which means a stalled dependency no longer converts into a burst of step failures within ~35s — it accumulates here instead, quietly, until the horizon terminalizes the whole cohort at once as reason=''timeout''. Read this as ''work is being started and not finished'': publish workers down or not consuming, a provider outage, or a queue the workers cannot reach. Handling: check the publish workers are alive and draining (`bull:publish:*`), check `SagaTimeoutSpike` for the cohort about to expire, and enumerate the population with `SELECT id, "definitionId", "currentStep", "nextRetryAt" FROM "SagaInstance" WHERE status = ''''RUNNING'''' AND "nextRetryAt" IS NOT NULL ORDER BY "nextRetryAt"`. The retry scan pages 50 due rows every 5s, so a population far above ~300 also means poll latency is growing (see SMELL-73).'
+          runbook: docs/runbooks/alert-saga-timeout.md
+          slo: docs/observability/SLO.md#saga
+
       - alert: SagaRecoveryLoopFailing
-        expr: increase(saga_recovery_failures_total{stage=~"boot|retry-scan|timeout|instance-load|resume-row|compensation|rehydration"}[10m]) > 3
+        expr: increase(saga_recovery_failures_total{stage=~"boot|retry-scan|timeout|instance-load|resume-row|compensation|rehydration|event-dispatch|wait-poll"}[10m]) > 3
         for: 5m
         labels:
           severity: warning
           component: saga
         annotations:
           summary: "A saga background loop is failing repeatedly"
-          description: "The boot load, boot resume pass, retry scan, timeout checker or by-id instance load failed more than 3 times in 10min, the engine could not resolve the owning account of more than 3 sagas, or more than 3 compensation walks did not complete. These loops swallow their errors by design so one failure cannot kill the process — this counter is the ONLY external signal that a loop is dead. stage='resume-row' is per-ROW: the pass could not even classify a saga (a persisted context without its metadata object is the known shape), the row was skipped and its neighbours still recovered. stage='compensation' is per-WALK: an undo that could not start or could not finish, or a forward dispatch refused because the walk owns the row — pair it with SagaCompensatingOrphans, which says whether the level is draining. stage='boot' additionally means this process has NO recovery coverage: it also degrades the saga health check, and the remedy is a RESTART, not waiting. Inspect the ERROR logs carrying the matching `loop` field and its correlation id."
+          description: "The boot load, boot resume pass, retry scan, timeout checker or by-id instance load failed more than 3 times in 10min, the engine could not resolve the owning account of more than 3 sagas, or more than 3 compensation walks did not complete. These loops swallow their errors by design so one failure cannot kill the process — this counter is the ONLY external signal that a loop is dead. stage='resume-row' is per-ROW: the pass could not even classify a saga (a persisted context without its metadata object is the known shape), the row was skipped and its neighbours still recovered. stage='compensation' is per-WALK: an undo that could not start or could not finish, or a forward dispatch refused because the walk owns the row — pair it with SagaCompensatingOrphans, which says whether the level is draining. stage='event-dispatch' is per-EVENT: a worker completion event carried no usable saga identity, so it advanced nothing — every publish it belonged to falls back to the poll cadence and finishes a poll interval later than it should. stage='wait-poll' is per-RE-ARM: a step that had not finished could not have its next poll persisted, which means a degraded database, not a broken saga — the saga is deliberately NOT terminalized for it. stage='boot' additionally means this process has NO recovery coverage: it also degrades the saga health check, and the remedy is a RESTART, not waiting. Inspect the ERROR logs carrying the matching `loop` field and its correlation id."
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga

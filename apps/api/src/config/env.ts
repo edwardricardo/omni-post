@@ -252,6 +252,19 @@ const serverSchema = {
   // usage with headroom; raise for ops-heavy accounts after capacity review.
   MAX_STREAMS_PER_ACCOUNT: z.coerce.number().int().min(1).max(100).default(10),
 
+  // ── Saga wait-step poll cadence ─────────────────────────────────────
+  // How long a saga step that has NOT FINISHED waits before the engine asks it
+  // again, in milliseconds. It is a POLL cadence for work happening elsewhere
+  // (publish jobs on the queue), never an error backoff: a waiting step spends
+  // no retry budget, so nothing about it grows with a retry count. Worker
+  // completion events remain the primary advance; this bounds how long a LOST
+  // event can stall a saga, and it is therefore also the tail a publish pays
+  // when its completion event races the queue's own state update. Default
+  // 30 000 — at the retry policy's 5 s a waiting step would be re-entered up to
+  // 360 times per saga across the 30-minute horizon; at 30 s the worst case is
+  // 60. Lower it where publish jobs are fast and the queue is cheap to read.
+  SAGA_WAIT_POLL_MS: z.coerce.number().int().min(1000).max(300_000).default(30_000),
+
   // ── Trusted reverse-proxy hop count (rate-limit / IP-allowlist keying) ──
   // The number of TRUSTED reverse proxies between the public internet and this
   // app. `resolveClientIp` counts this many hops from the RIGHT of
