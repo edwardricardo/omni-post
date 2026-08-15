@@ -14,15 +14,24 @@ import type {
 import { SAGA_EVENTS } from "@shared/types/saga.js";
 import { createEventStoreEvent, type EventStoreEvent } from "@shared/types/events.js";
 import type { SagaManagerLifecycle } from "./SagaManagerLifecycle.js";
-import type { SagaManagerConfig, SagaTransactionClient } from "./sagaManagerTypes.js";
+import type {
+  SagaDispatchTrigger,
+  SagaManagerConfig,
+  SagaTransactionClient,
+} from "./sagaManagerTypes.js";
 import {
   resolveSagaTenant,
   runAsSagaTenant,
   runSagaTenantTransaction,
   withSagaSystemRead,
 } from "./sagaTenant.js";
-import { deserializeSagaInstanceRow, type SagaInstanceRow } from "./sagaInstanceRow.js";
 import {
+  deserializeSagaInstanceRow,
+  normalizeLegacyStepResults,
+  type SagaInstanceRow,
+} from "./sagaInstanceRow.js";
+import {
+  recordSagaDuration,
   recordSagaFailed,
   recordSagaRecoveryFailure,
   type SagaFailureReason,
@@ -39,6 +48,66 @@ const TERMINAL_SAGA_STATUSES: ReadonlyArray<SagaInstance["status"]> = [
 ];
 
 /**
+ * How long a step that has NOT finished waits before the engine asks it again.
+ *
+ * A poll cadence, deliberately slower than the 5 s retry scan, and NOT the
+ * definition's error backoff: the step is not failing, so an interval that
+ * grows with a retry count that never moves would be meaningless. At the retry
+ * policy's own 5 s a waiting step would be re-entered up to 360 times per saga
+ * across the 30-minute horizon, each one a saga load, a real job-status read
+ * and a persist. At 30 s the worst case is 60, and the poll is only the safety
+ * net: worker completion events remain the primary advance.
+ */
+const DEFAULT_WAIT_POLL_MS = 30_000;
+
+/** A step outcome the engine may compensate or count as progress. */
+type SucceededStepResult = Extract<SagaStepResult, { outcome: "succeeded" }>;
+
+/**
+ * How many steps of a saga reached each recordable outcome.
+ *
+ * One implementation, because the audit event, the terminal event and the
+ * status endpoint must never disagree about what "completed" counts — and a
+ * fourth outcome must be a single edit rather than four.
+ *
+ * @param stepResults - The saga's recorded step outcomes, holes included.
+ * @returns Completed and failed counts. A HOLE is neither: an index no step
+ *   wrote says nothing about that step, and counting it as a failure asserts
+ *   something the row does not.
+ */
+export function countStepOutcomes(stepResults: ReadonlyArray<SagaStepResult | undefined>): {
+  completed: number;
+  failed: number;
+} {
+  let completed = 0;
+  let failed = 0;
+  for (const result of stepResults) {
+    if (result?.outcome === "succeeded") completed++;
+    else if (result?.outcome === "failed") failed++;
+  }
+  return { completed, failed };
+}
+
+/**
+ * The right to advance ONE saga, and what the holder learned while it did.
+ *
+ * Discriminated on direction because the two cases genuinely differ: a forward
+ * holder can coalesce a dispatch and can inherit a walk to hand off, while a
+ * compensation holder does neither. A shared `rerun` flag on both would be a
+ * field bolted onto a case with no use for it — the same modelling error the
+ * step-outcome union deleted.
+ */
+type SagaAdvanceClaim =
+  | {
+      direction: "forward";
+      /** An EVENT arrived mid-pass: run one more pass before releasing. */
+      rerun: boolean;
+      /** A compensation walk was refused mid-pass: dispatch it on release. */
+      pendingWalk: boolean;
+    }
+  | { direction: "compensation" };
+
+/**
  * Whether a recorded compensation counts as DONE for the resume predicate.
  *
  * A resumed walk decides whether to re-invoke a step's `compensate()` from this
@@ -46,11 +115,16 @@ const TERMINAL_SAGA_STATUSES: ReadonlyArray<SagaInstance["status"]> = [
  * effect already reverted.
  *
  * @param result - The recorded compensation outcome, if any.
- * @returns True only for a recorded SUCCESS; a hole and a recorded failure are
- *   both "not done", and are distinguished by the caller, not here.
+ * @returns True only for a recorded SUCCESS. A hole, a recorded failure and a
+ *   compensation that has not finished are all NOT DONE, and the walk treats
+ *   them alike ON PURPOSE: each one leaves the row `COMPENSATING` for a resume,
+ *   an operator re-drive or the liveness horizon, which is the honest answer to
+ *   all three. What they must never share is the word "compensated" — that is
+ *   the distinction the three-state contract buys here, and it is enforced by
+ *   this predicate rather than by four separate branches that could drift.
  */
 function compensationSucceeded(result: SagaStepResult | undefined): boolean {
-  return result?.success === true;
+  return result?.outcome === "succeeded";
 }
 
 /**
@@ -85,20 +159,34 @@ function mergeCompensationResults(
  */
 export class SagaExecutionEngine {
   /**
-   * Sagas whose compensation walk this process is running right now.
+   * The sagas this process is advancing right now, and which way.
    *
-   * One walk per saga, at a time. Two walks obtain the SAME in-memory instance
-   * from the tracked set and interleave read-modify-write on one
-   * `compensationResults` array, so both can observe "not recorded" for the
-   * same step and invoke `compensate()` concurrently — and canon idempotency is
-   * a promise about REPEATED invocation, not about CONCURRENT invocation.
+   * ONE advancer per saga, in either direction. The boot pass, the retry scan,
+   * a worker completion event, the operator endpoints and the start path are
+   * five independent dispatch sources for one row, and concurrent executions
+   * obtain the SAME in-memory instance from the tracked set: they interleave
+   * read-modify-write on one `currentStep`, one `retryCount` and one
+   * `compensationResults` array, so two walks can both observe "not recorded"
+   * for the same step and invoke `compensate()` concurrently — and canon
+   * idempotency is a promise about REPEATED invocation, not about CONCURRENT
+   * invocation.
    *
-   * Deliberately in-process: it is the single-replica sibling of the row claims
-   * that close the cross-process case. Not a cache (fitness #14 is about
-   * cross-pod cached STATE); this is coordination state whose whole meaning is
-   * "this process, right now".
+   * A forward dispatch arriving while a forward execution holds the saga is
+   * COALESCED rather than dropped: it raises `rerun`, and the holder runs one
+   * more pass when its current one ends, which is what makes the wait step
+   * answer the last channel's event promptly without a second execution.
+   * Compensation never coalesces — an undo is not a repeat of a forward
+   * advance — so a walk that finds the saga held is refused, logged and
+   * counted, and the row keeps its `COMPENSATING` status for the boot resume,
+   * the operator re-drive and the liveness horizon.
+   *
+   * Deliberately IN-PROCESS: it is the single-replica sibling of the row claims
+   * that close the cross-process case, and it states nothing about concurrent
+   * replicas. Not a cache (fitness #14 is about cross-pod cached STATE); this
+   * is coordination state whose whole meaning is "this process, right now",
+   * and a crashed process leaves nothing durable behind by construction.
    */
-  private readonly walksInFlight = new Set<string>();
+  private readonly inFlight = new Map<string, SagaAdvanceClaim>();
 
   constructor(
     private config: SagaManagerConfig,
@@ -108,13 +196,26 @@ export class SagaExecutionEngine {
   /**
    * @method isCompensationWalkInFlight
    * @description Whether this process is already walking `sagaId` backwards.
-   *   Read by the operator endpoint, which answers a conflict rather than
-   *   starting a second walk, and by the boot pass, which skips claimed ids.
+   *   Read by the boot pass, which skips a saga whose walk is already running
+   *   rather than dispatching a second one.
    * @param sagaId - The saga being asked about.
-   * @returns True while a walk holds the saga.
+   * @returns True while a WALK holds the saga.
    */
   isCompensationWalkInFlight(sagaId: string): boolean {
-    return this.walksInFlight.has(sagaId);
+    return this.inFlight.get(sagaId)?.direction === "compensation";
+  }
+
+  /**
+   * @method isAdvancerInFlight
+   * @description Whether this process is advancing `sagaId` at all, in either
+   *   direction. Read by the operator re-drive, which must not answer success
+   *   for a walk the shared claim would turn away — a forward holder
+   *   disqualifies a re-drive exactly as a walk does.
+   * @param sagaId - The saga being asked about.
+   * @returns True while any execution holds the saga.
+   */
+  isAdvancerInFlight(sagaId: string): boolean {
+    return this.inFlight.has(sagaId);
   }
 
   /**
@@ -147,10 +248,10 @@ export class SagaExecutionEngine {
   // Async Entry Points
   // ---------------------------------------------------------------------------
 
-  executeSagaAsync(sagaId: string): void {
+  executeSagaAsync(sagaId: string, trigger: SagaDispatchTrigger = "scan"): void {
     setImmediate(async () => {
       try {
-        await this.executeSaga(sagaId);
+        await this.executeSaga(sagaId, trigger);
       } catch (error) {
         logger.error({ err: error, sagaId }, "Saga execution failed");
       }
@@ -190,13 +291,94 @@ export class SagaExecutionEngine {
    *   resolves when it has either reached a terminal state or parked itself on a
    *   scheduled retry. Public because the boot resume pass counts what is in
    *   flight in order to cap it; every other trigger uses the detached form.
+   *
+   *   THE SINGLE FUNNEL. Every dispatcher arrives here, which is what makes the
+   *   in-flight claim below a real guarantee rather than a convention: a saga
+   *   already being advanced by this process is not advanced a second time
+   *   concurrently. A dispatch that arrives mid-run is COALESCED into one
+   *   trailing pass, so an event is never lost and N simultaneous events never
+   *   become N executions.
+   *
+   *   Each pass re-reads the DURABLE status before it touches the saga, which
+   *   is also what closes the trailing rerun's own hole: an event arriving
+   *   during the final failing attempt would otherwise re-enter after the
+   *   compensation transition persisted `COMPENSATING`, and forward execution
+   *   would overwrite it with `RUNNING` and re-run the failed step over
+   *   partially-undone state.
    * @param sagaId - The saga to advance.
    */
-  async executeSaga(sagaId: string): Promise<void> {
+  async executeSaga(sagaId: string, trigger: SagaDispatchTrigger = "scan"): Promise<void> {
+    const holder = this.inFlight.get(sagaId);
+    if (holder) {
+      if (holder.direction === "forward" && trigger === "event") {
+        // Coalesced, not dropped: the holder runs one more pass, so the event
+        // that arrived while it was inside the step is still answered. ONLY an
+        // event does this — a scan re-selection would schedule a pass carrying
+        // no new information, and the scan will re-select the row on its next
+        // tick anyway if it is still due.
+        holder.rerun = true;
+        logger.debug(
+          { sagaId, trigger },
+          "A saga execution is already in flight in this process; the event is coalesced into " +
+            "its trailing pass"
+        );
+        return;
+      }
+      // Benign by design, so it is logged at DEBUG and NOT counted: the failure
+      // series exists for work the engine could not complete, and a dispatch
+      // that arrives while the saga is already being advanced has lost nothing.
+      logger.debug(
+        { sagaId, trigger, heldBy: holder.direction },
+        "A dispatch arrived for a saga this process is already advancing; it is dropped rather " +
+          "than run alongside the holder"
+      );
+      return;
+    }
+
+    const claim: SagaAdvanceClaim = { direction: "forward", rerun: false, pendingWalk: false };
+    this.inFlight.set(sagaId, claim);
+    try {
+      do {
+        // Cleared BEFORE the pass, so an event arriving during it schedules the
+        // NEXT pass instead of being absorbed by this one.
+        claim.rerun = false;
+        if (!(await this.advanceSagaOnce(sagaId))) return;
+      } while (claim.rerun);
+    } finally {
+      // Every exit releases: normal, terminal, refused and throwing alike. An
+      // entry that outlived its execution would block the saga for the life of
+      // the process, which is worse than the concurrency it prevents.
+      this.inFlight.delete(sagaId);
+
+      // A walk this pass turned away is dispatched now that the saga is free.
+      // Without the hand-off the rollback is simply LOST: the compensation
+      // transition nulls `nextRetryAt` so the retry scan cannot see the row,
+      // boot recovery only runs at startup, and the liveness horizon
+      // terminalizes rather than rolls back — the pre-pivot effects would be
+      // left standing under a reason that reads like an ordinary failure.
+      if (claim.pendingWalk) {
+        logger.info(
+          { sagaId },
+          "Dispatching the compensation walk this execution turned away while it held the saga"
+        );
+        this.resumeCompensationWalkAsync(sagaId);
+      }
+    }
+  }
+
+  /**
+   * One forward pass over a saga, with the in-flight claim already held.
+   *
+   * @param sagaId - The saga to advance.
+   * @returns False when nothing further should be attempted for this saga —
+   *   a refusal, a terminal row or an unloadable one — so a pending trailing
+   *   dispatch is not answered by re-entering a row that just refused.
+   */
+  private async advanceSagaOnce(sagaId: string): Promise<boolean> {
     const instance = await this.lifecycle.getSaga(sagaId);
     if (!instance) {
       logger.error({ sagaId }, "Saga not found during execution");
-      return;
+      return false;
     }
 
     // Guard: prevent re-execution of sagas already in a terminal state
@@ -205,7 +387,7 @@ export class SagaExecutionEngine {
         { sagaId, status: instance.status },
         "Attempted to execute saga in terminal state, ignoring"
       );
-      return;
+      return false;
     }
 
     // A row the WALK owns is never advanced forward. `runSagaSteps` sets
@@ -224,10 +406,9 @@ export class SagaExecutionEngine {
     // `continueSaga` requires RUNNING/PENDING, the retry scan needs a due
     // `nextRetryAt` (nulled by the COMPENSATING transition), the boot pass
     // routes a COMPENSATING row into the walk, and `startSaga` writes a new
-    // row. This branch is the backstop for all of them and the primary guard
-    // for any dispatcher added later — including the in-flight guard's
-    // trailing rerun, whose own status re-read lands with the step-outcome
-    // union.
+    // row. It is the backstop for all of them AND the primary guard for the
+    // trailing rerun, which re-enters here and therefore re-reads the durable
+    // status before it can touch the saga again.
     const persistedStatus = await this.readPersistedStatus(sagaId);
     if (persistedStatus === undefined) {
       // The durable status could not be established, so "this row is not being
@@ -240,7 +421,7 @@ export class SagaExecutionEngine {
         "Refused to advance a saga whose persisted status could not be read: the compensation " +
           "guard decides on the durable row, and an unreadable one is not a safe RUNNING"
       );
-      return;
+      return false;
     }
     if (persistedStatus === "COMPENSATING") {
       recordSagaRecoveryFailure("compensation");
@@ -250,13 +431,26 @@ export class SagaExecutionEngine {
           "walk owns this row, and forward execution would re-run a failed step over " +
           "partially-undone state"
       );
-      return;
+      return false;
+    }
+
+    // EVERY ADVANCER IS ALSO A TERMINALIZER. The timeout checker walks the
+    // tracked set, and nothing tracks a row this process merely loaded by id —
+    // a row deferred past the boot ceiling, or one whose tracked copy was
+    // dropped. While the retry budget bounded every step, that gap was
+    // invisible: an untracked saga still died of exhausted retries. A waiting
+    // step spends no budget, so the horizon is now the ONLY bound, and a bound
+    // that only covers tracked rows is not the guarantee the canon requires.
+    // Checking it here — on the one path every dispatcher funnels through —
+    // makes the coverage structural instead of dependent on bookkeeping.
+    if (await this.lifecycle.terminalizeIfPastHorizon(sagaId, instance)) {
+      return false;
     }
 
     const definition = this.lifecycle.definitions.get(instance.definitionId);
     if (!definition) {
       logger.error({ definitionId: instance.definitionId }, "Saga definition not found");
-      return;
+      return false;
     }
 
     // Every step write and every engine persist below belongs to the saga's own
@@ -275,7 +469,9 @@ export class SagaExecutionEngine {
         { sagaId, reason: outcome.reason },
         "Saga execution skipped: awaiting terminalization by the timeout checker"
       );
+      return false;
     }
+    return true;
   }
 
   /**
@@ -309,7 +505,7 @@ export class SagaExecutionEngine {
         );
 
         const stepStartTime = Date.now();
-        let stepResult;
+        let stepResult: SagaStepResult;
 
         try {
           // Countermeasures (Azure §15-20) — activated in canonical order
@@ -318,55 +514,72 @@ export class SagaExecutionEngine {
           //   2. RereadCheck — guards against dirty reads.
           //   3. VersionCheck — enforced inside the use case layer via
           //      expectedVersion in the command.
-          const cm = step.countermeasures;
-
-          if (cm?.semanticLock && this.config.lockStore) {
-            const key = cm.semanticLock.acquireKey(instance.context);
-            if (key) {
-              const ttl = cm.semanticLock.ttlMs ?? definition.timeout ?? 30 * 60 * 1000;
-              const acquireResult = await this.config.lockStore.acquire(key, instance.id, ttl);
-              if (!acquireResult.ok) {
-                // CONNECTION_ERROR — fail this step rather than running
-                // unguarded. Saga will retry per canon retry policy.
-                stepResult = {
-                  success: false,
-                  error: "Semantic lock acquire failed (lock store unreachable)",
-                };
-              } else if (!acquireResult.value) {
-                // Held by another saga — concurrent execution rejected.
-                stepResult = {
-                  success: false,
-                  error: `Semantic lock held by another saga: ${key}`,
-                };
-              }
-            }
-          }
-
-          if (!stepResult && cm?.rereadCheck) {
-            const reread = await cm.rereadCheck.rereadBeforeUpdate(instance.context);
-            if (!reread.stillValid) {
-              stepResult = {
-                success: false,
-                error: `Reread check failed: ${reread.reason ?? "aggregate state changed"}`,
-              };
-            }
-          }
-
-          if (!stepResult) {
-            stepResult = await step.execute(instance.context);
-          }
+          //
+          // A countermeasure that blocks the step produces the step's outcome
+          // itself, so the decision is one named value rather than the
+          // truthiness of a half-assigned variable.
+          const blocked = await this.runCountermeasures(step, instance, definition);
+          stepResult = blocked ?? (await step.execute(instance.context));
         } catch (error) {
           stepResult = {
-            success: false,
+            outcome: "failed",
             error: error instanceof Error ? error.message : "Step execution failed",
           };
         }
 
         instance.stepResults[instance.currentStep] = stepResult;
 
-        const stepEventType = stepResult.success
-          ? SAGA_EVENTS.SAGA_STEP_COMPLETED
-          : SAGA_EVENTS.SAGA_STEP_FAILED;
+        // A step that has NOT FINISHED is not an attempt, so it neither spends
+        // budget nor writes an audit line. It re-arms the poll and returns: the
+        // completion event is the primary advance and this is the safety net
+        // for one that never arrives. The saga stays on the same step, keeps
+        // its retry count, records no error, and remains bounded by the
+        // ordinary timeout horizon — which is what stops "ask again later" from
+        // meaning "ask forever".
+        if (stepResult.outcome === "waiting") {
+          // The re-arm is bookkeeping, and bookkeeping never terminalizes a
+          // saga. A DB blip here used to fall into the step loop's catch, which
+          // calls `failSaga` — so a degraded database would end sagas that were
+          // merely waiting, and it now runs up to sixty times per saga instead
+          // of three. The in-memory marker also stays honest: claiming a re-arm
+          // that did not land would make the engine believe it rescheduled work
+          // the row does not carry.
+          const armedBefore = instance.nextRetryAt;
+          instance.nextRetryAt = new Date(Date.now() + this.waitPollMs());
+          try {
+            await this.persistSagaInstance(instance);
+          } catch (error) {
+            if (armedBefore === undefined) {
+              delete instance.nextRetryAt;
+            } else {
+              instance.nextRetryAt = armedBefore;
+            }
+            recordSagaRecoveryFailure("wait-poll");
+            captureError(error, { sagaId, operation: "waitPollRearm" });
+            logger.error(
+              { err: error, sagaId, stepName: step.name },
+              "The waiting step's poll could not be re-armed; the saga keeps the marker the row " +
+                "already holds and is re-selected on the existing schedule"
+            );
+            return;
+          }
+          logger.debug(
+            {
+              sagaId,
+              stepName: step.name,
+              stepIndex: instance.currentStep,
+              reason: stepResult.reason,
+              nextPollAt: instance.nextRetryAt.toISOString(),
+            },
+            "Saga step has not finished yet; re-armed without spending retry budget"
+          );
+          return;
+        }
+
+        const stepEventType =
+          stepResult.outcome === "succeeded"
+            ? SAGA_EVENTS.SAGA_STEP_COMPLETED
+            : SAGA_EVENTS.SAGA_STEP_FAILED;
 
         const stepEvent = createEventStoreEvent(
           stepEventType,
@@ -387,7 +600,7 @@ export class SagaExecutionEngine {
           }
         );
 
-        if (!stepResult.success) {
+        if (stepResult.outcome === "failed") {
           if (this.shouldRetryStep(definition, instance)) {
             instance.retryCount++;
             const retryDelay = this.calculateRetryDelay(definition, instance.retryCount);
@@ -412,7 +625,7 @@ export class SagaExecutionEngine {
           //   - pivot step (point of no return): FAILED, no rollback (Azure §5)
           //   - retryable step (post-pivot): FAILED, forward-recovery exhausted
           await this.persistSagaInstance(instance, [stepEvent]);
-          const errMsg = stepResult.error || "Step execution failed";
+          const errMsg = stepResult.error;
 
           if (step.class === "compensable") {
             // Write-ahead intent: the decision to compensate and the durable
@@ -452,13 +665,14 @@ export class SagaExecutionEngine {
         delete instance.nextRetryAt;
         await this.persistSagaInstance(instance, [stepEvent]);
 
-        // Note: external-event suspension is handled by the retry mechanism,
+        // Note: external-event suspension is expressed by the step's OUTCOME,
         // not by special-casing step.id here. A RetryableStep waiting on a
-        // worker event returns success:false → schedules retry → worker
-        // emits publish.job.completed → SagaIntegration.handleEvent calls
-        // executeSagaAsync → engine re-runs the step which now succeeds.
-        // This avoids hard-coding step ids in the engine and keeps the
-        // canon flow uniform across step classes.
+        // worker event returns `waiting` → the branch above re-arms the poll
+        // without spending budget → the worker emits publish.job.completed →
+        // SagaIntegration.handleEvent calls executeSagaAsync → the engine
+        // re-runs the step, which now succeeds. This avoids hard-coding step
+        // ids in the engine and keeps the canon flow uniform across step
+        // classes.
       }
 
       await this.completeSaga(instance);
@@ -466,6 +680,68 @@ export class SagaExecutionEngine {
       logger.error({ err: error, sagaId }, "Saga execution error");
       await this.failSaga(instance, error instanceof Error ? error.message : "Unknown error");
     }
+  }
+
+  /**
+   * How long a step that has not finished waits before it is asked again.
+   *
+   * @returns The configured poll cadence, or the engine default.
+   */
+  private waitPollMs(): number {
+    return this.config.waitPollMs ?? DEFAULT_WAIT_POLL_MS;
+  }
+
+  /**
+   * Runs a step's countermeasures and reports whether one of them BLOCKS it.
+   *
+   * Returning the blocking outcome, rather than half-assigning the step's
+   * result, is what keeps the caller's control flow on the discriminator: a
+   * blocked step failed for a stated reason, and an unblocked one has no
+   * outcome at all until it executes.
+   *
+   * @param step - The step about to run.
+   * @param instance - The saga being advanced.
+   * @param definition - Its definition, for the lock's default lifetime.
+   * @returns The failure that blocks the step, or `undefined` to proceed.
+   */
+  private async runCountermeasures(
+    step: SagaDefinition["steps"][number],
+    instance: SagaInstance,
+    definition: SagaDefinition
+  ): Promise<SagaStepResult | undefined> {
+    const cm = step.countermeasures;
+
+    if (cm?.semanticLock && this.config.lockStore) {
+      const key = cm.semanticLock.acquireKey(instance.context);
+      if (key) {
+        const ttl = cm.semanticLock.ttlMs ?? definition.timeout ?? 30 * 60 * 1000;
+        const acquireResult = await this.config.lockStore.acquire(key, instance.id, ttl);
+        if (!acquireResult.ok) {
+          // CONNECTION_ERROR — fail this step rather than running unguarded.
+          // Saga will retry per canon retry policy.
+          return {
+            outcome: "failed",
+            error: "Semantic lock acquire failed (lock store unreachable)",
+          };
+        }
+        if (!acquireResult.value) {
+          // Held by another saga — concurrent execution rejected.
+          return { outcome: "failed", error: `Semantic lock held by another saga: ${key}` };
+        }
+      }
+    }
+
+    if (cm?.rereadCheck) {
+      const reread = await cm.rereadCheck.rereadBeforeUpdate(instance.context);
+      if (!reread.stillValid) {
+        return {
+          outcome: "failed",
+          error: `Reread check failed: ${reread.reason ?? "aggregate state changed"}`,
+        };
+      }
+    }
+
+    return undefined;
   }
 
   // ---------------------------------------------------------------------------
@@ -538,21 +814,41 @@ export class SagaExecutionEngine {
    * undone — no log line, no metric and no row change to notice it by.
    */
   private async loadAndRunCompensationWalk(sagaId: string): Promise<void> {
-    // ONE walk per saga at a time, claimed before anything is loaded so a
-    // second dispatch cannot slip past while the first is still reading.
-    if (this.walksInFlight.has(sagaId)) {
-      logger.warn(
+    // ONE advancer per saga, claimed before anything is loaded so a second
+    // dispatch cannot slip past while the first is still reading.
+    const holder = this.inFlight.get(sagaId);
+    if (holder) {
+      if (holder.direction === "forward") {
+        // HANDED OFF, not dropped. A forward pass releasing the saga dispatches
+        // this walk, which is what keeps an automatic rollback automatic: the
+        // walk is deferred by a macrotask, so a trailing pass doing real I/O
+        // routinely wins the race to the claim, and there is no other in-process
+        // re-driver — the transition already nulled the retry marker.
+        holder.pendingWalk = true;
+        logger.info(
+          { sagaId },
+          "A compensation walk arrived while a forward execution held the saga; it is handed to " +
+            "that execution's release rather than run alongside it"
+        );
+        return;
+      }
+      // A second WALK is refused outright: two walks interleave
+      // read-modify-write over one durable record, and canon idempotency is a
+      // promise about repeated invocation, not concurrent invocation. Benign
+      // and therefore uncounted — the row keeps its COMPENSATING status, so the
+      // first walk, the boot resume, the operator re-drive and the liveness
+      // horizon all still own it.
+      logger.debug(
         { sagaId },
-        "A compensation walk for this saga is already in flight in this process; the second " +
-          "dispatch is refused rather than run concurrently over the same record"
+        "A compensation walk was refused: this process is already walking that saga"
       );
       return;
     }
-    this.walksInFlight.add(sagaId);
+    this.inFlight.set(sagaId, { direction: "compensation" });
     try {
       await this.claimedCompensationWalk(sagaId);
     } finally {
-      this.walksInFlight.delete(sagaId);
+      this.inFlight.delete(sagaId);
     }
   }
 
@@ -732,7 +1028,11 @@ export class SagaExecutionEngine {
       await this.beginCompensation(instance);
     }
 
-    const eligible: { stepIndex: number; step: CompensableStep; stepResult: SagaStepResult }[] = [];
+    const eligible: {
+      stepIndex: number;
+      step: CompensableStep;
+      stepResult: SucceededStepResult;
+    }[] = [];
     for (let stepIndex = instance.currentStep - 1; stepIndex >= 0; stepIndex--) {
       const step = definition.steps[stepIndex];
       const stepResult = instance.stepResults[stepIndex];
@@ -752,7 +1052,9 @@ export class SagaExecutionEngine {
       if (step.class !== "compensable") {
         continue;
       }
-      if (!stepResult?.success) {
+      // Only an effect that really landed is undone. A step that failed, or one
+      // that never finished, left nothing for a compensation to revert.
+      if (stepResult?.outcome !== "succeeded") {
         continue;
       }
 
@@ -780,16 +1082,23 @@ export class SagaExecutionEngine {
 
         instance.compensationResults[stepIndex] = compensationResult;
 
-        if (!compensationResult.success) {
+        if (compensationResult.outcome !== "succeeded") {
           logger.error(
-            { stepName: step.name, error: compensationResult.error },
-            "Compensation failed for step"
+            {
+              stepName: step.name,
+              outcome: compensationResult.outcome,
+              cause:
+                compensationResult.outcome === "failed"
+                  ? compensationResult.error
+                  : compensationResult.reason,
+            },
+            "Compensation did not succeed for step"
           );
         }
       } catch (error) {
         logger.error({ err: error, stepName: step.name }, "Compensation error for step");
         instance.compensationResults[stepIndex] = {
-          success: false,
+          outcome: "failed",
           error: error instanceof Error ? error.message : "Compensation failed",
         };
       }
@@ -861,6 +1170,7 @@ export class SagaExecutionEngine {
   private async completeSaga(instance: SagaInstance): Promise<void> {
     const completedAt = new Date();
     const executionTime = completedAt.getTime() - instance.startedAt.getTime();
+    const tally = countStepOutcomes(instance.stepResults);
 
     instance.status = "COMPLETED";
     instance.completedAt = completedAt;
@@ -876,8 +1186,8 @@ export class SagaExecutionEngine {
         status: "COMPLETED",
         completedAt,
         duration: executionTime,
-        stepsCompleted: instance.stepResults.filter((r) => r?.success).length,
-        stepsFailed: instance.stepResults.filter((r) => r && !r.success).length,
+        stepsCompleted: tally.completed,
+        stepsFailed: tally.failed,
       },
       {
         source: "SagaManager",
@@ -886,6 +1196,10 @@ export class SagaExecutionEngine {
     );
 
     await this.persistSagaInstance(instance, [sagaCompletedEvent]);
+
+    // Observed at the ONE place a saga can end successfully, so the series
+    // cannot silently miss a terminal path.
+    recordSagaDuration(instance.definitionId, "COMPLETED", executionTime);
 
     this.lifecycle.metrics.sagasCompleted++;
     this.lifecycle.stopTracking(instance.id);
@@ -940,9 +1254,21 @@ export class SagaExecutionEngine {
     const completedAt = new Date();
     const executionTime = completedAt.getTime() - instance.startedAt.getTime();
 
+    // The in-memory copy is NOT moved to FAILED until the row is. The timeout
+    // checker's first act is to stop tracking a terminal-looking instance, so a
+    // copy that says FAILED while the row still says RUNNING silently removes
+    // the saga from the only sweep that could terminalize it — a durable
+    // RUNNING row nobody owns, out of one failed write.
+    const previous = {
+      status: instance.status,
+      completedAt: instance.completedAt,
+      error: instance.error,
+    };
     instance.status = "FAILED";
     instance.completedAt = completedAt;
     instance.error = error;
+
+    const tally = countStepOutcomes(instance.stepResults);
 
     const sagaFailedEvent = createEventStoreEvent(
       SAGA_EVENTS.SAGA_FAILED,
@@ -955,8 +1281,8 @@ export class SagaExecutionEngine {
         status: "FAILED",
         completedAt,
         duration: executionTime,
-        stepsCompleted: instance.stepResults.filter((r) => r?.success).length,
-        stepsFailed: instance.stepResults.filter((r) => r && !r.success).length,
+        stepsCompleted: tally.completed,
+        stepsFailed: tally.failed,
         error,
       },
       {
@@ -965,7 +1291,22 @@ export class SagaExecutionEngine {
       }
     );
 
-    await this.persistSagaInstance(instance, [sagaFailedEvent]);
+    try {
+      await this.persistSagaInstance(instance, [sagaFailedEvent]);
+    } catch (persistError) {
+      // The row did not move, so neither does the copy. Restoring lets the
+      // timeout checker keep tracking a saga that is still durably non-terminal
+      // and terminalize it on a later tick, instead of dropping it from the
+      // only sweep that covers it.
+      instance.status = previous.status;
+      if (previous.completedAt === undefined) delete instance.completedAt;
+      else instance.completedAt = previous.completedAt;
+      if (previous.error === undefined) delete instance.error;
+      else instance.error = previous.error;
+      throw persistError;
+    }
+
+    recordSagaDuration(instance.definitionId, "FAILED", executionTime);
 
     // Stop tracking it, exactly as the completion and compensation paths do. A
     // terminal saga left in the tracked set is re-visited by the timeout checker
@@ -1274,8 +1615,12 @@ export class SagaExecutionEngine {
       // rows a data repair fixes — because the context alone cannot scope them.
       ...(typeof parsed.accountId === "string" && { accountId: parsed.accountId }),
       context: parsed.context as SagaInstance["context"],
-      stepResults: parsed.stepResults as SagaInstance["stepResults"],
-      compensationResults: parsed.compensationResults as SagaInstance["compensationResults"],
+      // The SAME normalization the row seam applies. A cached copy written
+      // before the three-state contract carries the boolean shape, and a
+      // normalization present at only one seam hands the engine a shape it
+      // cannot branch on through the other.
+      stepResults: normalizeLegacyStepResults(parsed.stepResults),
+      compensationResults: normalizeLegacyStepResults(parsed.compensationResults),
       startedAt: new Date(parsed.startedAt as string),
       retryCount: parsed.retryCount as number,
       ...(typeof parsed.completedAt === "string"

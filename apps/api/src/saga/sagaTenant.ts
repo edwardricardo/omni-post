@@ -42,6 +42,7 @@ import { createEventStoreEvent } from "@shared/types/events.js";
 import { withSystemContext, withTenantContext } from "../security/tenantContext.js";
 import { logger } from "../lib/logger.js";
 import { recordSagaFailed, recordSagaRecoveryFailure } from "../metrics/sagaRecoveryMetrics.js";
+import { countStepOutcomes } from "./SagaManagerExecution.js";
 import type {
   SagaEngineClient,
   SagaManagerConfig,
@@ -337,6 +338,7 @@ export async function failSagaAsSystem(
 ): Promise<void> {
   const completedAt = new Date();
   const message = `Saga terminalized without a resolvable tenant: ${reason}`;
+  const tally = countStepOutcomes(instance.stepResults);
 
   instance.status = "FAILED";
   instance.completedAt = completedAt;
@@ -354,8 +356,8 @@ export async function failSagaAsSystem(
       status: "FAILED",
       completedAt,
       duration: completedAt.getTime() - instance.startedAt.getTime(),
-      stepsCompleted: instance.stepResults.filter((r) => r?.success).length,
-      stepsFailed: instance.stepResults.filter((r) => r && !r.success).length,
+      stepsCompleted: tally.completed,
+      stepsFailed: tally.failed,
       error: message,
       reason,
     },

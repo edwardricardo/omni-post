@@ -14,6 +14,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { EventStoreEvent } from "./events.js";
+import type { Result } from "./types.js";
 import { Command } from "./cqrs.js";
 
 // ============================================================================
@@ -30,13 +31,49 @@ export type SagaStatus =
 
 /**
  * Outcome of a single step execution or compensation.
+ *
+ * THREE states, because a step has three answers: it succeeded, it failed, or
+ * it has not finished yet. A boolean models two, so a step that was still
+ * waiting on external work reported it with the same value it uses for a
+ * failure — and every consumer had to guess which meaning a falsy value
+ * carried. The publish wait step guessed wrong on the engine's behalf: each
+ * sibling channel's completion event spent one retry on a step that had not
+ * failed, and a four-channel publish reached FAILED with every channel
+ * published.
+ *
+ * The discriminator is `outcome`, so the compiler decides which fields exist:
+ * a cause belongs only to `failed`, a reason only to `waiting`, and adding a
+ * fourth state later is a compile-time obligation on every consumer rather
+ * than a silent fall-through into the failure branch.
+ *
+ * **AUTHORING RULE — how a step CHOOSES between `waiting` and `failed`:**
+ *
+ *   `waiting` means the step BECOMES DECIDABLE BY ASKING AGAIN: nothing about
+ *   it is wrong, external work simply has not finished. It costs NO retry
+ *   budget, records no error on the saga and writes no audit event, so it is
+ *   bounded only by the saga's timeout horizon — the engine re-asks on its poll
+ *   cadence (`waitPollMs`, default 30 s) and on any event that advances the
+ *   saga.
+ *
+ *   `failed` means the step CANNOT become decidable by asking again as things
+ *   stand: a job that ended in error, data that was never recorded, a
+ *   dependency that could not be read. It spends one retry, and when the budget
+ *   runs out the saga compensates (pre-pivot) or fails (pivot and after).
+ *
+ *   "I could not observe the outside world" is therefore `failed`, never
+ *   `waiting`: an unreadable dependency is not evidence that work is still in
+ *   progress, and reporting it as waiting makes an outage byte-identical to
+ *   healthy in-flight work.
+ *
+ * Compensations use the same contract, so a rollback that has not finished is
+ * never recorded as one that failed. The walk treats a `waiting` compensation
+ * as UNFINISHED — the row stays `COMPENSATING` for a resume, an operator
+ * re-drive or the liveness horizon — never as a rollback that succeeded.
  */
-export interface SagaStepResult {
-  success: boolean;
-  data?: unknown;
-  error?: string;
-  compensationData?: unknown;
-}
+export type SagaStepResult =
+  | { outcome: "succeeded"; data?: unknown; compensationData?: unknown }
+  | { outcome: "failed"; error: string; compensationData?: unknown }
+  | { outcome: "waiting"; reason: string };
 
 /**
  * Mutable saga context passed to every step. `stepData` carries cross-step
@@ -365,6 +402,18 @@ interface ScheduleStepData {
   scheduledAt?: Date;
 }
 
+/**
+ * The publish jobs' state, as the wait step is allowed to learn it.
+ *
+ * A `Result` rather than a bare aggregate because the THIRD answer matters as
+ * much as the counts: "I could not read the queue" is not "nothing has finished
+ * yet", and a reader that fabricates an all-pending aggregate for an outage
+ * hands the step the one shape it cannot tell from healthy in-flight work.
+ */
+export type PublishJobsStatusReader = (
+  jobIds: string[]
+) => Promise<Result<{ completed: number; failed: number; pending: number }, string>>;
+
 interface CompletionStepData {
   publishingComplete?: boolean;
   [key: string]: unknown;
@@ -393,21 +442,21 @@ export class ValidatePostDataStep implements CompensableStep<StepExecuteData> {
       const operatesOnExisting = typeof postData?.postId === "string" && postData.postId.length > 0;
 
       if (operatesOnExisting && mode === "draft") {
-        return { success: false, error: "postId is not valid for mode=draft" };
+        return { outcome: "failed", error: "postId is not valid for mode=draft" };
       }
 
       if (!operatesOnExisting && !postData?.body) {
-        return { success: false, error: "Post body is required" };
+        return { outcome: "failed", error: "Post body is required" };
       }
 
       if (mode === "schedule" || mode === "publish-now") {
         if (!postData?.channelIds || postData.channelIds.length === 0) {
-          return { success: false, error: "At least one channel must be selected" };
+          return { outcome: "failed", error: "At least one channel must be selected" };
         }
       }
 
       if (mode === "schedule" && !postData.scheduledAt) {
-        return { success: false, error: "scheduledAt is required for scheduled publishing" };
+        return { outcome: "failed", error: "scheduledAt is required for scheduled publishing" };
       }
 
       context.stepData[this.id] = {
@@ -415,10 +464,10 @@ export class ValidatePostDataStep implements CompensableStep<StepExecuteData> {
         validatedAt: new Date(),
       };
 
-      return { success: true, data: { validated: true, mode } };
+      return { outcome: "succeeded", data: { validated: true, mode } };
     } catch (error) {
       return {
-        success: false,
+        outcome: "failed",
         error: error instanceof Error ? error.message : "Validation failed",
       };
     }
@@ -426,7 +475,7 @@ export class ValidatePostDataStep implements CompensableStep<StepExecuteData> {
 
   async compensate(): Promise<SagaStepResult> {
     // No external state mutated by validation.
-    return { success: true };
+    return { outcome: "succeeded" };
   }
 }
 
@@ -475,7 +524,7 @@ export class CreatePostStep implements CompensableStep<StepExecuteData, CreateSt
           skippedCreation: true,
         };
         return {
-          success: true,
+          outcome: "succeeded",
           data: { postId: existingPostId, initialStatus, skippedCreation: true },
         };
       }
@@ -499,9 +548,12 @@ export class CreatePostStep implements CompensableStep<StepExecuteData, CreateSt
       const result = (await this.executeCommand(createCommand)) as CommandResult;
 
       if (!result.success) {
+        // The command bus answers with its own boolean envelope; a failure with
+        // no message still has to carry a cause, because the outcome's whole
+        // point is that "failed" is never ambiguous.
         return {
-          success: false,
-          ...(result.error !== undefined && { error: result.error }),
+          outcome: "failed",
+          error: result.error ?? "Post creation was rejected",
         };
       }
 
@@ -521,13 +573,13 @@ export class CreatePostStep implements CompensableStep<StepExecuteData, CreateSt
       };
 
       return {
-        success: true,
+        outcome: "succeeded",
         data: { postId: persistedPostId, initialStatus },
         compensationData: { postId: persistedPostId, initialStatus },
       };
     } catch (error) {
       return {
-        success: false,
+        outcome: "failed",
         error: error instanceof Error ? error.message : "Failed to create post",
       };
     }
@@ -543,12 +595,12 @@ export class CreatePostStep implements CompensableStep<StepExecuteData, CreateSt
       const postId = compData?.postId;
 
       if (!postId) {
-        return { success: true };
+        return { outcome: "succeeded" };
       }
 
       // Idempotency: a reused-existing-draft (caller-owned) is never deleted.
       if (compData?.skippedCreation === true) {
-        return { success: true, data: { skippedCompensation: true, postId } };
+        return { outcome: "succeeded", data: { skippedCompensation: true, postId } };
       }
 
       const deleteCommand: Command = {
@@ -567,10 +619,10 @@ export class CreatePostStep implements CompensableStep<StepExecuteData, CreateSt
 
       await this.executeCommand(deleteCommand);
 
-      return { success: true, data: { compensated: true, postId } };
+      return { outcome: "succeeded", data: { compensated: true, postId } };
     } catch (error) {
       return {
-        success: false,
+        outcome: "failed",
         error: error instanceof Error ? error.message : "Compensation failed",
       };
     }
@@ -611,7 +663,7 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
       if (mode === "draft") {
         context.stepData[this.id] = { jobIds: [], channelCount: 0 };
         return {
-          success: true,
+          outcome: "succeeded",
           data: { skipped: true, reason: "draft-mode", jobIds: [], channelCount: 0 },
         };
       }
@@ -620,7 +672,7 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
       const postId = createData?.postId || data?.postId;
 
       if (!postId) {
-        return { success: false, error: "Post ID not found from previous step" };
+        return { outcome: "failed", error: "Post ID not found from previous step" };
       }
 
       const validationData = context.stepData["validate-post-data"] as ValidateStepData | undefined;
@@ -643,7 +695,7 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
       const rawAccountId = context.metadata.accountId;
       if (typeof rawAccountId !== "string" || rawAccountId.length === 0) {
         return {
-          success: false,
+          outcome: "failed",
           error: "Saga metadata carries no accountId: refusing to enqueue an unscoped publish job",
         };
       }
@@ -668,12 +720,12 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
       context.stepData[this.id] = { jobIds, channelCount: channelIds.length, scheduledAt };
 
       return {
-        success: true,
+        outcome: "succeeded",
         data: { jobIds, channelCount: channelIds.length },
       };
     } catch (error) {
       return {
-        success: false,
+        outcome: "failed",
         error: error instanceof Error ? error.message : "Failed to schedule publishing jobs",
       };
     }
@@ -685,9 +737,13 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
  *
  * Polls / waits for worker job completion via Redis pub/sub event resumption.
  * Idempotent by construction (re-checking job status produces the same
- * answer). On pending state returns success:false to schedule a retry; the
- * worker's publish.job.completed event short-circuits the wait by triggering
- * SagaIntegration.handleEvent → executeSagaAsync.
+ * answer). While any job is OBSERVED still pending it returns the WAITING
+ * outcome — "ask me again", which costs the saga no retry budget — and reserves
+ * the failed outcome for a job that really ended in error, for scheduling data
+ * that was never recorded, and for a queue whose state it could not read at
+ * all. The worker's publish.job.completed event short-circuits the wait by
+ * triggering SagaIntegration.handleEvent → executeSagaAsync; the engine's own
+ * poll cadence is the safety net for an event that never arrives.
  *
  * For mode="draft" / "schedule", short-circuits with success (no jobs to
  * wait on). The canon class remains "retryable" structurally.
@@ -697,11 +753,7 @@ export class WaitForPublishingCompletionStep implements RetryableStep {
   readonly name = "Wait for Publishing Completion";
   readonly class = "retryable" as const;
 
-  constructor(
-    private checkJobsStatus: (
-      jobIds: string[]
-    ) => Promise<{ completed: number; failed: number; pending: number }>
-  ) {}
+  constructor(private checkJobsStatus: PublishJobsStatusReader) {}
 
   async execute(context: SagaContext): Promise<SagaStepResult> {
     try {
@@ -716,7 +768,7 @@ export class WaitForPublishingCompletionStep implements RetryableStep {
           publishingComplete: true,
         };
         return {
-          success: true,
+          outcome: "succeeded",
           data: {
             skipped: true,
             reason: `${mode}-mode`,
@@ -730,18 +782,37 @@ export class WaitForPublishingCompletionStep implements RetryableStep {
       const schedulingData = context.stepData["schedule-publishing-jobs"] as
         ScheduleStepData | undefined;
       if (!schedulingData) {
-        return { success: false, error: "No scheduling data found from scheduling step" };
+        // A real failure, not an unfinished wait: this step cannot become
+        // decidable by asking again, because the data it needs was never
+        // recorded.
+        return { outcome: "failed", error: "No scheduling data found from scheduling step" };
       }
       const { jobIds } = schedulingData;
 
       if (!jobIds || jobIds.length === 0) {
-        return { success: false, error: "No jobs found from scheduling step" };
+        return { outcome: "failed", error: "No jobs found from scheduling step" };
       }
 
-      const status = await this.checkJobsStatus(jobIds);
+      const observation = await this.checkJobsStatus(jobIds);
+
+      if (!observation.ok) {
+        // COULD NOT OBSERVE is not "nothing has finished yet". Reporting an
+        // unreadable queue as waiting would make an outage byte-identical to
+        // four channels healthily publishing, and waiting spends no budget — so
+        // the first external signal would be a timeout half an hour later
+        // instead of a step failure the retry policy already bounds.
+        return {
+          outcome: "failed",
+          error: `Publishing job status could not be read: ${observation.error}`,
+        };
+      }
+      const status = observation.value;
 
       if (status.pending > 0) {
-        return { success: false, error: "Publishing jobs still in progress" };
+        // Not decided yet. The channels are still publishing, and each sibling
+        // that finishes re-enters this step — which is why this outcome must
+        // never be an attempt against the retry budget.
+        return { outcome: "waiting", reason: "Publishing jobs still in progress" };
       }
 
       context.stepData[this.id] = {
@@ -757,13 +828,13 @@ export class WaitForPublishingCompletionStep implements RetryableStep {
 
       if (status.failed > 0) {
         return {
-          success: false,
+          outcome: "failed",
           error: `${status.failed} out of ${jobIds.length} publishing jobs failed`,
         };
       }
 
       return {
-        success: true,
+        outcome: "succeeded",
         data: {
           publishingComplete: true,
           completedJobs: status.completed,
@@ -772,7 +843,7 @@ export class WaitForPublishingCompletionStep implements RetryableStep {
       };
     } catch (error) {
       return {
-        success: false,
+        outcome: "failed",
         error: error instanceof Error ? error.message : "Failed to check publishing status",
       };
     }
@@ -803,7 +874,7 @@ export class UpdatePostStatusStep implements RetryableStep {
       const mode = readMode(context);
 
       if (mode === "draft" || mode === "schedule") {
-        return { success: true, data: { skipped: true, reason: `${mode}-mode` } };
+        return { outcome: "succeeded", data: { skipped: true, reason: `${mode}-mode` } };
       }
 
       const createData = context.stepData["create-post"] as CreateStepData | undefined;
@@ -814,7 +885,7 @@ export class UpdatePostStatusStep implements RetryableStep {
       const publishingSuccess = completionData?.publishingComplete;
 
       if (!postId) {
-        return { success: false, error: "Post ID not found" };
+        return { outcome: "failed", error: "Post ID not found" };
       }
 
       const newStatus = publishingSuccess ? "PUBLISHED" : "FAILED";
@@ -851,8 +922,8 @@ export class UpdatePostStatusStep implements RetryableStep {
 
       if (!result.success) {
         return {
-          success: false,
-          ...(result.error !== undefined && { error: result.error }),
+          outcome: "failed",
+          error: result.error ?? "The post status update was rejected",
         };
       }
 
@@ -862,12 +933,12 @@ export class UpdatePostStatusStep implements RetryableStep {
       };
 
       return {
-        success: true,
+        outcome: "succeeded",
         data: { status: newStatus, postId },
       };
     } catch (error) {
       return {
-        success: false,
+        outcome: "failed",
         error: error instanceof Error ? error.message : "Failed to update post status",
       };
     }
@@ -892,9 +963,7 @@ export class UpdatePostStatusStep implements RetryableStep {
 export function createPostPublishingSagaDefinition(
   executeCommand: (command: Command) => Promise<unknown>,
   queueJob: (job: Record<string, unknown>) => Promise<string>,
-  checkJobsStatus: (
-    jobIds: string[]
-  ) => Promise<{ completed: number; failed: number; pending: number }>,
+  checkJobsStatus: PublishJobsStatusReader,
   /**
    * Optional reread implementation for the pivot step. Returns the current
    * Post.status (or null if missing). When provided, the pivot step gains a
@@ -979,11 +1048,14 @@ export const SagaStepCompletedEventSchema = z.object({
   stepId: z.string(),
   stepName: z.string(),
   stepIndex: z.number(),
-  result: z.object({
-    success: z.boolean(),
-    data: z.unknown().optional(),
-    error: z.string().optional(),
-  }),
+  // The audit record carries the same discriminator the engine branched on.
+  // `waiting` is absent by construction: a step that has not finished writes
+  // no step event at all, because one event per channel check is audit noise,
+  // not audit history.
+  result: z.discriminatedUnion("outcome", [
+    z.object({ outcome: z.literal("succeeded"), data: z.unknown().optional() }),
+    z.object({ outcome: z.literal("failed"), error: z.string() }),
+  ]),
   completedAt: z.date(),
 });
 export type SagaStepCompletedEvent = z.infer<typeof SagaStepCompletedEventSchema>;

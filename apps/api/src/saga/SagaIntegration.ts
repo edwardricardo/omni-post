@@ -36,6 +36,7 @@ import type { PrismaClient } from "@infra/prisma";
 import type { QueuePort } from "@ports/core";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { SagaManagerImpl } from "./SagaManager.js";
+import { countStepOutcomes } from "./SagaManagerExecution.js";
 import type { EventService } from "../events/EventService.js";
 import type { CQRSBusImpl } from "../cqrs/CQRSBus.js";
 import { createPostPublishingSagaDefinition, createSagaContext } from "@shared/types/saga.js";
@@ -90,6 +91,14 @@ interface SagaIntegrationConfig {
    * execution through this store. Omit in tests that do not exercise the
    * concurrency check. */
   lockStore?: SemanticLockPort;
+  /**
+   * How long a step that has NOT FINISHED waits before the engine asks it
+   * again, in milliseconds. Forwarded to the manager, which defaults it to
+   * 30 000 — a poll cadence for a step that is waiting on external work, never
+   * an error backoff. Settable here because the right value depends on how long
+   * this deployment's publish jobs really take.
+   */
+  waitPollMs?: number;
   /** When true: only register API routes (for OpenAPI schema generation) without
    *  starting background services (EventService, Redis pub/sub, BullMQ). This
    *  keeps all saga paths present in the generated OpenAPI schema while avoiding
@@ -207,6 +216,10 @@ export class SagaIntegration {
       enableMetrics: true,
       defaultTimeout: 30 * 60 * 1000, // 30 minutes
       maxConcurrentSagas: 100,
+      // Conditional rather than defaulted here: the manager owns the default,
+      // and passing `undefined` under exactOptionalPropertyTypes would be a
+      // second, silent source of truth for it.
+      ...(config.waitPollMs !== undefined && { waitPollMs: config.waitPollMs }),
       ...(config.lockStore && { lockStore: config.lockStore }),
     });
   }
@@ -306,15 +319,14 @@ export class SagaIntegration {
       // the saga is resumed by the recovery scheduler instead of by an
       // event. Without it, a worker crash between publish and event emit
       // would silently mark posts as PUBLISHED that never published.
-      async (jobIds: string[]) => {
-        const result = await queue.getJobStates(jobIds);
-        if (!result.ok) {
-          // CONNECTION_ERROR — surface as all-pending so the step retries
-          // (canon retryable behavior) instead of fabricating success.
-          return { completed: 0, failed: 0, pending: jobIds.length };
-        }
-        return result.value;
-      },
+      //
+      // The port's own Result is forwarded UNCHANGED. Translating a
+      // CONNECTION_ERROR into an all-pending aggregate used to be safe when the
+      // step read every non-success as a failure and the retry policy bounded
+      // it; under the three-state contract that same translation asserts
+      // "observed: nothing has finished", which is the one thing a failed
+      // observation cannot support.
+      async (jobIds: string[]) => await queue.getJobStates(jobIds),
       // Reread implementation for the pivot step's RereadCheck countermeasure.
       // Confirms Post.status is still DRAFT immediately before enqueueing
       // jobs — prevents the dirty-read window where a manual Update or a
@@ -514,8 +526,9 @@ export class SagaIntegration {
         }
 
         const totalSteps = sagaInstance.stepResults.length || 1;
-        const completedSteps = sagaInstance.stepResults.filter((r) => r?.success).length;
-        const progress = Math.round((completedSteps / totalSteps) * 100);
+        const progress = Math.round(
+          (countStepOutcomes(sagaInstance.stepResults).completed / totalSteps) * 100
+        );
 
         return {
           success: true,
@@ -529,12 +542,40 @@ export class SagaIntegration {
             completedAt: sagaInstance.completedAt,
             error: sagaInstance.error,
             retryCount: sagaInstance.retryCount,
-            stepResults: sagaInstance.stepResults.map((result, index) => ({
-              stepIndex: index,
-              success: result?.success || false,
-              error: result?.error,
-              data: result?.data,
-            })),
+            // The corrected outcome appears HERE, on the surface that already
+            // carried the wrong one — a publish whose channels are still going
+            // reads as `waiting`, not as a step that failed, and no new surface
+            // is needed to discover it.
+            //
+            // A HOLE gets its OWN word. An index no step ever wrote is "not
+            // reached", which is a different fact from "blocked on external
+            // work" — collapsing the two into `waiting` would reintroduce, one
+            // layer out, exactly the two-facts-one-word error this contract
+            // deletes. The extra case is VIEW vocabulary only: the step-result
+            // union the engine branches on stays three-state, because a step
+            // that never ran produces no result to classify.
+            //
+            // Built by INDEX, not with `map`: the array is sparse by
+            // construction (the engine writes `stepResults[currentStep]`), and
+            // `map` skips holes — leaving literal `null`s on the wire for the
+            // one case this mapping exists to name.
+            stepResults: Array.from(sagaInstance.stepResults, (_unused, index) => {
+              const result = sagaInstance.stepResults[index];
+              if (result === undefined || result === null) {
+                return { stepIndex: index, outcome: "not-reached" as const };
+              }
+              if (result.outcome === "failed") {
+                return { stepIndex: index, outcome: result.outcome, error: result.error };
+              }
+              if (result.outcome === "waiting") {
+                return { stepIndex: index, outcome: result.outcome, reason: result.reason };
+              }
+              return {
+                stepIndex: index,
+                outcome: result.outcome,
+                ...(result.data !== undefined && { data: result.data }),
+              };
+            }),
           },
         };
       } catch (error) {
