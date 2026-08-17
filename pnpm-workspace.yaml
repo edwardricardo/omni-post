@@ -63,10 +63,10 @@ catalogMode: strict
 
 catalog:
   # ── React family (move atomically: react + react-dom + @types) ──
-  react: 19.2.7 # latest stable (taze -l --maturity-period 7); was 19.2.4
-  react-dom: 19.2.7 # latest stable; was 19.2.4
-  "@types/react": 19.2.17 # latest stable; was 19.2.14
-  "@types/react-dom": 19.2.3 # already latest stable
+  react: 19.2.8 # latest stable (taze -l --maturity-period 7); was 19.2.4
+  react-dom: 19.2.8 # latest stable; was 19.2.4
+  "@types/react": 19.2.18 # latest stable; was 19.2.14
+  "@types/react-dom": 19.2.4 # already latest stable
 
   # ── Tiptap + prosemirror family (atomic) ──
   # already latest stable (7d candidate 3.26.1 is older; never pin lower)
