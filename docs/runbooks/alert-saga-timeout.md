@@ -42,6 +42,32 @@ ORDER BY "startedAt";
 
 La misma población está en Prometheus como `saga_waiting_rows` (gauge medido en el scrape). Un nivel que sube y no drena es trabajo que se empieza y no se termina; el scan pagina 50 filas cada 5 s, así que por encima de ~300 sagas en espera la latencia del poll también empieza a crecer.
 
+## Sin consumidor en la cola `publish` (`PublishQueueUnattended`)
+
+> Reglas: `PublishQueueUnattended` (critical) y su acompañante `PublishQueueSignalMissing` (warning), en `prometheus/alerts/saga.yml`.
+> **Routing pending §4.2.b**: hoy TODAS las reglas de este repo se EVALÚAN pero no se entregan — el bloque `alertmanagers:` de `prometheus/prometheus.yml` está comentado. Nadie recibe una notificación push por esto; hay que mirarlo.
+
+Esta es la señal temprana del pico de timeouts descrito arriba, y llega antes del daño.
+
+**Qué dice exactamente.** Durante 5 minutos continuos hubo trabajo encolado en `publish` y el broker no reportó NI UNA VEZ un consumidor registrado para esa cola. Los dos términos son obligatorios: sólo consumidores dispararía ante un scale-to-zero deliberado con la cola vacía, y sólo profundidad de cola dispararía ante cualquier ráfaga normal.
+
+**Ventana.** Lookback 5m + `for: 5m` = la regla se satisface a los **10 minutos**, un tercio del horizonte de 30 minutos. La latencia extremo-a-extremo es MAYOR y no es ese número: scrape y evaluación suman ~25 s, y el registro de clientes del broker puede arrastrar un proceso desaparecido hasta su reap de socket (~5 min con los defaults habituales). Peor caso medido: **~15 minutos**, todavía la mitad del horizonte.
+
+**Qué NO prueba.** Registro no es throughput. Un consumidor trabado (loop bloqueado, lock retenido) o pausado sigue registrado, así que esta regla no lo ve. Tampoco dice nada sobre si ese consumidor logra publicar: sólo que hay algo escuchando.
+
+**`-1` no es cero.** `publish_queue_consumers` publica `-1` cuando la cuenta NO se pudo leer (el broker rechaza `CLIENT LIST`, el puerto falló, o el proveedor no está instalado). Un gauge de Prometheus no tiene null, y la regla dispara con `== 0`: el centinela negativo falla ese predicado a propósito, para que una pregunta sin respuesta nunca pagine como una caída. Si ves `-1`, el problema es de observabilidad, no de consumo.
+
+**Lectura para el operador — leer antes de tocar nada.** Las sagas afectadas quedan NO terminales hasta el horizonte y después terminalizan bajo `reason="timeout"`. **Un fallo terminal bajo esa razón NO prueba que no se haya publicado nada**: el pivot ya encoló los jobs, y un worker que vuelve puede haberlos drenado, o el provider puede haber recibido el post antes de que se perdiera el evento de completado. Verificá en el provider ANTES de reintentar cualquier cosa; un reintento a ciegas publica dos veces.
+
+**Handling.**
+
+1. `curl -s localhost:3000/health/dependency/queue | jq .details` — `consumers: 0` confirma la caída; `null` significa desconocido, no cero.
+2. Verificá que el proceso de workers esté vivo y con `/health/ready` en 200 (puerto `METRICS_PORT`, default 3300). Su readiness ya exige un consumidor por cada cola del pipeline de publish, así que un 503 nombra cuál falta.
+3. Si los workers están caídos: levantalos (`pnpm dev:workers`) y observá `publish_queue_waiting` drenar. Las sagas parkeadas retoman en un intervalo de poll más un tick de scan — no hace falta re-dispararlas a mano.
+4. Recién después, para las sagas que YA terminalizaron bajo `reason="timeout"`, seguí el paso 1 de "Remediation" con la verificación en el provider primero.
+
+Si la regla que falta es `PublishQueueSignalMissing`, el problema es el OBSERVADOR, no la cola: la API que publica la serie está caída o su target de scrape está mal configurado. `PublishQueueUnattended` deja de evaluarse en silencio en ese estado, que es justo el momento más cercano al incidente.
+
 ## Diagnóstico paso-a-paso
 
 1. **Identificar las sagas afectadas**: query DB:

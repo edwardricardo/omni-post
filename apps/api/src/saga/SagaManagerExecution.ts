@@ -522,20 +522,35 @@ export class SagaExecutionEngine {
           // the row does not carry.
           const armedBefore = instance.nextRetryAt;
           instance.nextRetryAt = new Date(Date.now() + this.waitPollMs());
-          try {
-            await this.persistSagaInstance(instance);
-          } catch (error) {
+          const rearmFailure = await this.persistWaitPollRearm(instance, armedBefore === undefined);
+          if (rearmFailure) {
             if (armedBefore === undefined) {
               delete instance.nextRetryAt;
             } else {
               instance.nextRetryAt = armedBefore;
             }
             recordSagaRecoveryFailure("wait-poll");
-            captureError(error, { sagaId, operation: "waitPollRearm" });
+            captureError(rearmFailure.error, { sagaId, operation: "waitPollRearm" });
+            // Two outcomes, not one. A row that already carries a marker is
+            // still selected by the retry scan on the schedule it holds, so the
+            // refused write costs a cadence. A row that carries none is OUTSIDE
+            // that scan's predicate, and reporting the first case for the second
+            // sent an operator away from a saga that had just stopped being
+            // reachable.
             logger.error(
-              { err: error, sagaId, stepName: step.name },
-              "The waiting step's poll could not be re-armed; the saga keeps the marker the row " +
-                "already holds and is re-selected on the existing schedule"
+              {
+                err: rearmFailure.error,
+                sagaId,
+                stepName: step.name,
+                durableSchedule: armedBefore === undefined ? "none" : "preserved",
+              },
+              armedBefore === undefined
+                ? "The waiting step's poll could not be re-armed and the row carries no scheduled " +
+                    "re-entry, so the retry scan cannot select this saga: it advances only if the " +
+                    "completion event arrives or the next boot resumes it, and is otherwise bounded " +
+                    "by the timeout horizon"
+                : "The waiting step's poll could not be re-armed; the saga keeps the marker the row " +
+                    "already holds and is re-selected on the existing schedule"
             );
             return;
           }
@@ -665,6 +680,51 @@ export class SagaExecutionEngine {
    */
   private waitPollMs(): number {
     return this.config.waitPollMs ?? DEFAULT_WAIT_POLL_MS;
+  }
+
+  /**
+   * @method persistWaitPollRearm
+   * @description Writes the re-armed poll marker, spending a second attempt
+   *   only when the row holds no schedule of its own to fall back on.
+   *
+   *   The retry scan selects on `nextRetryAt` being set and due, so a re-arm
+   *   that never lands on the FIRST entry to a waiting step takes the saga out
+   *   of that scan entirely: the step before it cleared the marker on its way
+   *   forward, and nothing on a running process puts one back — the row waits
+   *   for the completion event, the next boot, or the timeout horizon. A LATER
+   *   re-arm has no such cliff, because the row keeps the marker it already
+   *   holds, so the extra attempt is spent only where the loss is durable.
+   *
+   *   Repeating the write is safe rather than merely tolerable: the re-arm
+   *   carries no events, so the second attempt is the same idempotent upsert
+   *   and not a second append. It is deliberately immediate and bounded to one
+   *   — it exists for the write-scoped failures (a serialization conflict with
+   *   the HTTP layer, a momentarily exhausted pool), and a database that is
+   *   actually gone is answered by the branch that reports the saga has no
+   *   durable schedule rather than by waiting inside the step loop.
+   * @param instance - The saga carrying the freshly armed marker.
+   * @param withoutDurableSchedule - Whether the row holds no marker to fall
+   *   back on, which is what buys the second attempt.
+   * @returns The error that defeated the write, or undefined once it lands.
+   */
+  private async persistWaitPollRearm(
+    instance: SagaInstance,
+    withoutDurableSchedule: boolean
+  ): Promise<{ error: unknown } | undefined> {
+    try {
+      await this.persistSagaInstance(instance);
+      return undefined;
+    } catch (error) {
+      if (!withoutDurableSchedule) {
+        return { error };
+      }
+      try {
+        await this.persistSagaInstance(instance);
+        return undefined;
+      } catch (retryError) {
+        return { error: retryError };
+      }
+    }
   }
 
   /**

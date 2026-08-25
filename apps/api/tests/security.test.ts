@@ -6,16 +6,19 @@
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
 import { signCustomerAccessToken } from "../src/auth/customerJwt.js";
+import { checkApiAvailable, getBaseUrl } from "./testUtils.js";
 
 /**
  * Security Features Test Suite
  * Tests enhanced rate limiting, input validation, and security metrics
  *
- * NOTE: These tests require the API server to be running on http://localhost:3000
- * If the API is not available, tests will be skipped gracefully
+ * These tests require a running API server. They do NOT require workers or a
+ * queue consumer: every case here drives `/health`, `/accounts` and `/metrics`
+ * over HTTP and asserts on the response, with nothing enqueued and no saga
+ * started. The precondition below therefore checks for the API and nothing else.
  */
 
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = getBaseUrl();
 
 /**
  * The `/accounts` endpoint sits behind `requireClientAuth`. The Account model
@@ -40,32 +43,25 @@ async function sleep(ms: number): Promise<void> {
   });
 }
 
-async function checkAPIAvailability(): Promise<boolean> {
-  try {
-    const response = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(3000) });
-    // 429 means rate limited but API IS available
-    return response.ok || response.status === 429;
-  } catch {
-    return false;
-  }
-}
-
 describe("Security Features", { concurrency: 1 }, () => {
-  let apiAvailable = false;
-
+  // Fail loud, naming the missing thing. Skipping instead left every case in
+  // this suite reported as "passing" while none of them had ever executed, which
+  // is the failure mode a security suite can least afford: the run is green
+  // precisely when the server it was meant to attack is absent.
   before(async () => {
-    apiAvailable = await checkAPIAvailability();
-    if (!apiAvailable) {
-      console.log(`\nSkipping security tests - API not available at ${BASE_URL}`);
-    }
+    if (await checkApiAvailable()) return;
+
+    throw new Error(
+      `No API is answering at ${BASE_URL}, so no security assertion in this suite can be ` +
+        `evaluated. These cases drive rate limiting, input validation, the metrics endpoint ` +
+        `and error handling against a live server. This suite needs the API only — no workers ` +
+        `and no queue consumer — so start it with 'pnpm dev:api' (with 'pnpm db:up' first for ` +
+        `PostgreSQL and Redis), or point BASE_URL at a running instance.`
+    );
   });
 
   describe("Advanced Rate Limiting", { concurrency: 1 }, () => {
-    it("should accept requests within rate limit", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should accept requests within rate limit", async () => {
       // Send a small batch of requests with delay to test rate limiting behavior.
       // If rate limit is already exhausted (from previous tests), we accept 429 too.
       const responses: Response[] = [];
@@ -80,11 +76,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       assert.equal(validResponses, 5, "All 5 requests should receive valid responses");
     });
 
-    it("should enforce rate limiting on rapid bursts", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should enforce rate limiting on rapid bursts", async () => {
       const batchSize = 10;
       const totalRequests = 120;
       const responses: Response[] = [];
@@ -111,11 +103,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       );
     });
 
-    it("should include rate limit headers in responses", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should include rate limit headers in responses", async () => {
       const response = await fetch(`${BASE_URL}/health`);
 
       const hasRemainingHeader = response.headers.has("X-RateLimit-Remaining");
@@ -139,11 +127,7 @@ describe("Security Features", { concurrency: 1 }, () => {
   });
 
   describe("Input Validation", { concurrency: 1 }, () => {
-    it("should handle SQL injection attempts", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should handle SQL injection attempts", async () => {
       const sqlPayload = {
         email: `test${Date.now()}@test.com`,
         name: "Test'; DROP TABLE accounts; --",
@@ -163,11 +147,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       );
     });
 
-    it("should handle XSS attempts", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should handle XSS attempts", async () => {
       const xssPayload = {
         email: `test${Date.now()}@test.com`,
         name: "<script>alert('xss')</script>Test User",
@@ -186,11 +166,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       );
     });
 
-    it("should handle path traversal attempts", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should handle path traversal attempts", async () => {
       const pathTraversalPayload = {
         email: `test${Date.now()}@test.com`,
         name: "../../etc/passwd",
@@ -209,11 +185,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       );
     });
 
-    it("should handle command injection attempts", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should handle command injection attempts", async () => {
       const cmdPayload = {
         email: `test${Date.now()}@test.com`,
         name: "test; ls -la /",
@@ -232,11 +204,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       );
     });
 
-    it("should reject excessively long input", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should reject excessively long input", async () => {
       const longPayload = {
         email: `test${Date.now()}@test.com`,
         name: "A".repeat(20000), // Exceeds reasonable name length
@@ -255,11 +223,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       );
     });
 
-    it("should accept valid input", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should accept valid input", async () => {
       const validPayload = {
         email: `validtest${Date.now()}@example.com`,
         name: "Valid Test User",
@@ -280,11 +244,7 @@ describe("Security Features", { concurrency: 1 }, () => {
   });
 
   describe("Account Validation", { concurrency: 1 }, () => {
-    it("should reject malicious email formats", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should reject malicious email formats", async () => {
       const badEmailPayload = {
         email: "user+'; DROP TABLE accounts; --@evil.com",
         name: "Test User",
@@ -301,11 +261,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       assert.equal(response.status, 400, "Malicious email format should be rejected by validation");
     });
 
-    it("should handle names with special characters", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should handle names with special characters", async () => {
       const specialNamePayload = {
         email: `test${Date.now()}@example.com`,
         name: "<script>alert('name')</script>",
@@ -327,11 +283,7 @@ describe("Security Features", { concurrency: 1 }, () => {
   });
 
   describe("Security Metrics", { concurrency: 1 }, () => {
-    it("should expose security metrics", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should expose security metrics", async () => {
       const response = await fetch(`${BASE_URL}/metrics`);
 
       assert.ok(response.ok, "Metrics endpoint should be accessible");
@@ -340,11 +292,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       assert.ok(metricsText.length > 0, "Metrics should return data");
     });
 
-    it("should include rate limit metrics", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should include rate limit metrics", async () => {
       const response = await fetch(`${BASE_URL}/metrics`);
       const metricsText = await response.text();
 
@@ -355,11 +303,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       );
     });
 
-    it("should include security validation metrics", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should include security validation metrics", async () => {
       const response = await fetch(`${BASE_URL}/metrics`);
       const metricsText = await response.text();
 
@@ -374,11 +318,7 @@ describe("Security Features", { concurrency: 1 }, () => {
   });
 
   describe("Security Headers", { concurrency: 1 }, () => {
-    it("should include security headers in responses", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should include security headers in responses", async () => {
       const response = await fetch(`${BASE_URL}/health`);
 
       // Verify response is valid and content-type is set properly
@@ -394,11 +334,7 @@ describe("Security Features", { concurrency: 1 }, () => {
   });
 
   describe("Error Handling", { concurrency: 1 }, () => {
-    it("should handle malformed JSON gracefully", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should handle malformed JSON gracefully", async () => {
       const response = await fetch(`${BASE_URL}/accounts`, {
         method: "POST",
         headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
@@ -411,11 +347,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       );
     });
 
-    it("should handle missing required fields", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should handle missing required fields", async () => {
       const response = await fetch(`${BASE_URL}/accounts`, {
         method: "POST",
         headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
@@ -425,11 +357,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       assert.equal(response.status, 400, "Missing required fields should return 400");
     });
 
-    it("should handle invalid HTTP methods", async (t) => {
-      if (!apiAvailable) {
-        t.skip();
-        return;
-      }
+    it("should handle invalid HTTP methods", async () => {
       const response = await fetch(`${BASE_URL}/health`, {
         method: "DELETE",
       });

@@ -106,14 +106,6 @@ export interface DatabaseTestSummary {
     errorCount: number;
     issues: string[];
   };
-  redis: {
-    status: "pass" | "warning" | "fail";
-    operationCount: number;
-    averageResponseTime: number;
-    throughput: number;
-    cacheHitRate: number;
-    issues: string[];
-  };
 }
 
 export interface MemoryTestSummary {

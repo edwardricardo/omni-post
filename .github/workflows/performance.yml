@@ -7,13 +7,17 @@ on:
         description: "k6 scenario to run"
         required: false
         default: "api-performance"
+        # One entry per file in performance/k6/scenarios. The list used to offer
+        # `stress-test`, which has no scenario file, so picking it guaranteed a
+        # "file not found" run, and it omitted two scenarios that do exist.
         type: choice
         options:
           - api-performance
           - auth-flow
           - posting-workflow
           - analytics-dashboard
-          - stress-test
+          - provider-integration
+          - user-journey
   push:
     branches: [main]
     paths:
@@ -32,7 +36,9 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        # pgvector-enabled image — the glossary/style-guide migrations CREATE
+        # EXTENSION vector, which plain postgres images don't ship.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_PASSWORD: password123
           POSTGRES_USER: postgres
@@ -63,25 +69,46 @@ jobs:
         uses: ./.github/actions/setup-node-pnpm-cache
 
       - name: Setup environment
+        # Per-app env files were consolidated into the repo root, so the
+        # apps/api/.env.example this step used to copy no longer exists and the
+        # job died at its first command — which is why the k6 job below, gated on
+        # this one, has never executed.
         run: |
-          cp apps/api/.env.example apps/api/.env
-          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> apps/api/.env
-          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env
+          cp .env.example .env
+          export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
+          export REDIS_URL="redis://localhost:6379"
+          bash scripts/ci-setup-test-env.sh
+
+      - name: Generate Prisma client
+        run: pnpm --filter @infra/prisma exec prisma generate
 
       - name: Run database migrations
-        run: pnpm --filter @infra/prisma db:migrate
+        # `migrate` is the script defined on @infra/prisma (`prisma migrate
+        # deploy`); the `db:migrate` alias only exists in the ROOT package, so
+        # `--filter @infra/prisma db:migrate` matches no script and pnpm exits 0
+        # WITHOUT applying anything — the schema never lands, and the run reports
+        # a migration it did not perform.
+        env:
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+        run: pnpm --filter @infra/prisma run migrate
 
+      # The threshold steps below assert. They used to carry continue-on-error,
+      # which made this workflow structurally incapable of reporting a
+      # regression: a breached threshold and a clean run were the same green.
       - name: Run PostgreSQL stress test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          REDIS_URL: redis://localhost:6379
         run: pnpm perf:db
-        # Performance benchmarks are reporting-only: threshold regressions are
-        # surfaced in the report (see "Generate performance report"), but a
-        # single run should not block merges due to CI runner variance.
-        continue-on-error: true
 
       - name: Run memory leak detection
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          REDIS_URL: redis://localhost:6379
         run: pnpm perf:memory
-        # See rationale above — memory leak heuristics are informational.
-        continue-on-error: true
 
   k6-load:
     name: k6 Load Test (${{ github.event.inputs.scenario || 'api-performance' }})
@@ -91,7 +118,9 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        # pgvector-enabled image — the glossary/style-guide migrations CREATE
+        # EXTENSION vector, which plain postgres images don't ship.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_PASSWORD: password123
           POSTGRES_USER: postgres
@@ -122,29 +151,58 @@ jobs:
         uses: ./.github/actions/setup-node-pnpm-cache
 
       - name: Setup environment
+        # See the db-stress job: the per-app env file this used to copy was
+        # consolidated into the repo root and no longer exists.
         run: |
-          cp apps/api/.env.example apps/api/.env
-          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> apps/api/.env
-          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env
-          echo "NODE_ENV=test" >> apps/api/.env
+          cp .env.example .env
+          export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
+          export REDIS_URL="redis://localhost:6379"
+          bash scripts/ci-setup-test-env.sh
+
+      - name: Generate Prisma client
+        run: pnpm --filter @infra/prisma exec prisma generate
 
       - name: Run database migrations
-        run: pnpm --filter @infra/prisma db:migrate
+        # See the db-stress job for why `run migrate`, not `db:migrate`.
+        env:
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+        run: pnpm --filter @infra/prisma run migrate
 
       - name: Start API server
+        # dev:test rather than dev:api: dev:api reads the repo .env, which in CI
+        # holds only the placeholders copied from .env.example, while dev:test
+        # sets NODE_ENV=test so the API loads the synthesized .env.test.
+        env:
+          NODE_ENV: test
+          PORT: "3000"
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          REDIS_URL: redis://localhost:6379
         run: |
-          pnpm dev:api &
-          echo "API_PID=$!" >> $GITHUB_ENV
-          # Wait for API to be ready
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
-              echo "API is ready after ${i}s"
-              break
+          pnpm --filter @apps/api dev:test > "$RUNNER_TEMP/api.log" 2>&1 &
+          API_PID=$!
+          echo "API_PID=$API_PID" >> "$GITHUB_ENV"
+          # The 30 one-second attempts this replaced were shorter than a cold
+          # boot on a shared runner, so the job proceeded to load-test a server
+          # that was not listening yet. Liveness is checked in the loop so a
+          # process that died is named as dead instead of as slow.
+          gate=0
+          timeout 90s bash -c '
+            until curl -fsS http://localhost:3000/health >/dev/null; do
+              kill -0 "$1" 2>/dev/null || exit 1
+              sleep 2
+            done' _ "$API_PID" || gate=$?
+          if [ "$gate" -ne 0 ]; then
+            if [ "$gate" -eq 124 ]; then
+              echo "::error title=API never became ready::/health on :3000 did not answer within 90s"
+            else
+              echo "::error title=API exited during boot::the process is gone"
             fi
-            echo "Waiting for API... (${i}/30)"
-            sleep 1
-          done
-          curl -sf http://localhost:3000/health || (echo "API failed to start" && exit 1)
+            echo "::group::api.log"
+            cat "$RUNNER_TEMP/api.log"
+            echo "::endgroup::"
+            exit 1
+          fi
 
       - name: Pull k6 Docker image
         run: docker pull grafana/k6:latest
@@ -152,6 +210,11 @@ jobs:
       - name: Run k6 load test
         run: |
           SCENARIO="${{ github.event.inputs.scenario || 'api-performance' }}"
+          # k6's json output does not create intermediate directories, and this
+          # one is not tracked (it only ever holds run output). Now that k6's
+          # exit code gates the step, a missing directory would fail the job for
+          # a reason that has nothing to do with the thresholds.
+          mkdir -p performance/k6/results performance/k6/reports
           docker run --rm \
             --network host \
             -v ${{ github.workspace }}/performance/k6:/scripts \
@@ -159,17 +222,17 @@ jobs:
             grafana/k6 run \
               --out json=/scripts/results/results.json \
               /scripts/scenarios/${SCENARIO}.js
-        # k6 load test may flag threshold breaches in its exit code; we capture
-        # the JSON results and generate a report regardless so the run is always
-        # informational (not a merge-blocking check).
-        continue-on-error: true
+        # k6's exit code IS the threshold verdict. Swallowing it made a breached
+        # p95 and a clean run report the same result, so the scenario's
+        # thresholds asserted nothing.
 
       - name: Generate performance report
+        # always(): the report is most useful precisely when the load test
+        # failed. It is not exempt from failing, though — the artifact is the
+        # observable signal, so a report that could not be produced is a real
+        # loss and must not read as a completed run.
         if: always()
         run: pnpm perf:report
-        # Report generation should never fail the workflow even if the underlying
-        # results are incomplete — the uploaded artifact is the observable signal.
-        continue-on-error: true
 
       - name: Upload k6 results
         if: always()

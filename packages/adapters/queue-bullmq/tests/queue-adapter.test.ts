@@ -17,6 +17,11 @@ const mockQueueGetWaiting = vi.fn(async () => []);
 const mockQueueGetActive = vi.fn(async () => []);
 const mockQueueGetCompleted = vi.fn(async () => []);
 const mockQueueGetFailed = vi.fn(async () => []);
+const mockQueueGetWaitingCount = vi.fn(async () => 0);
+const mockQueueGetActiveCount = vi.fn(async () => 0);
+const mockQueueGetCompletedCount = vi.fn(async () => 0);
+const mockQueueGetFailedCount = vi.fn(async () => 0);
+const mockQueueGetWorkers = vi.fn(async (): Promise<{ name?: string }[]> => []);
 const mockQueueGetJob = vi.fn(async (_id: string) => null);
 const queueConstructor = vi.fn();
 
@@ -31,6 +36,11 @@ vi.mock("bullmq", () => {
         getActive: mockQueueGetActive,
         getCompleted: mockQueueGetCompleted,
         getFailed: mockQueueGetFailed,
+        getWaitingCount: mockQueueGetWaitingCount,
+        getActiveCount: mockQueueGetActiveCount,
+        getCompletedCount: mockQueueGetCompletedCount,
+        getFailedCount: mockQueueGetFailedCount,
+        getWorkers: mockQueueGetWorkers,
         getJob: mockQueueGetJob,
       };
     }),
@@ -53,7 +63,11 @@ vi.mock("ioredis", () => {
   };
 });
 
-import { createBullMQQueueAdapter, type BullMQQueueAdapterOptions } from "../src/queue-adapter.js";
+import {
+  createBullMQQueueAdapter,
+  GCP_CLIENT_LIST_SENTINEL,
+  type BullMQQueueAdapterOptions,
+} from "../src/queue-adapter.js";
 
 /**
  * A minimal Redis double — the adapter forwards it to the BullMQ Queue and
@@ -166,10 +180,10 @@ describe("createBullMQQueueAdapter", () => {
   });
 
   it("health() returns counts from BullMQ getters when reachable", async () => {
-    mockQueueGetWaiting.mockResolvedValueOnce([1, 2, 3]);
-    mockQueueGetActive.mockResolvedValueOnce([{}]);
-    mockQueueGetCompleted.mockResolvedValueOnce([]);
-    mockQueueGetFailed.mockResolvedValueOnce([{}, {}]);
+    mockQueueGetWaitingCount.mockResolvedValueOnce(3);
+    mockQueueGetActiveCount.mockResolvedValueOnce(1);
+    mockQueueGetCompletedCount.mockResolvedValueOnce(0);
+    mockQueueGetFailedCount.mockResolvedValueOnce(2);
     const adapter = createBullMQQueueAdapter({
       queueName: "publish",
       connection: makeConnectionDouble(),
@@ -181,6 +195,81 @@ describe("createBullMQQueueAdapter", () => {
       expect(result.value.active).toBe(1);
       expect(result.value.failed).toBe(2);
       expect(result.value.connected).toBe(true);
+    }
+  });
+
+  it("health() reads counts without fetching job objects", async () => {
+    // The list getters return every job object and the caller takes `.length`.
+    // The publish queue sets no `removeOnComplete`, so `completed` grows without
+    // bound; on the scrape path this health call runs every 10s inside a 5s
+    // breaker timeout, so an unbounded fetch is a scheduled outage waiting to
+    // happen. The counts are O(1) Redis commands.
+    const adapter = createBullMQQueueAdapter({
+      queueName: "publish",
+      connection: makeConnectionDouble(),
+    });
+    await adapter.health();
+
+    expect({
+      waitingList: mockQueueGetWaiting.mock.calls.length,
+      activeList: mockQueueGetActive.mock.calls.length,
+      completedList: mockQueueGetCompleted.mock.calls.length,
+      failedList: mockQueueGetFailed.mock.calls.length,
+      waitingCount: mockQueueGetWaitingCount.mock.calls.length,
+    }).toEqual({
+      waitingList: 0,
+      activeList: 0,
+      completedList: 0,
+      failedList: 0,
+      waitingCount: 1,
+    });
+  });
+
+  it("health() reports the consumers the broker has registered for this queue", async () => {
+    mockQueueGetWorkers.mockResolvedValueOnce([
+      { name: "bull:cHVibGlzaA==" },
+      { name: "worker-2" },
+    ]);
+    const adapter = createBullMQQueueAdapter({
+      queueName: "publish",
+      connection: makeConnectionDouble(),
+    });
+    const result = await adapter.health();
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.consumers).toBe(2);
+    }
+  });
+
+  it("health() reports consumers as 0 when no client is registered for this queue", async () => {
+    mockQueueGetWorkers.mockResolvedValueOnce([]);
+    const adapter = createBullMQQueueAdapter({
+      queueName: "publish",
+      connection: makeConnectionDouble(),
+    });
+    const result = await adapter.health();
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.consumers).toBe(0);
+    }
+  });
+
+  it("health() reports consumers as null when the broker cannot answer CLIENT LIST", async () => {
+    // BullMQ swallows `ERR unknown command 'client'` and substitutes a
+    // one-element sentinel array, so `getWorkersCount()` — which is
+    // `(await getWorkers()).length` — returns the integer 1 from a broker that
+    // answered nothing. Reading `.length` discards the only field that reveals
+    // it. Unknown must never be reported as "there is a consumer", and it must
+    // never be reported as zero either.
+    mockQueueGetWorkers.mockResolvedValueOnce([{ name: GCP_CLIENT_LIST_SENTINEL }]);
+    const adapter = createBullMQQueueAdapter({
+      queueName: "publish",
+      connection: makeConnectionDouble(),
+    });
+    const result = await adapter.health();
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.consumers).toBeNull();
     }
   });
 

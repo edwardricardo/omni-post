@@ -5,6 +5,7 @@
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
     "dev": "tsx --conditions development src/bootstrap.ts",
+    "dev:test": "cross-env NODE_ENV=test node --conditions development --import tsx src/bootstrap.ts",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:watch": "vitest",
@@ -48,6 +49,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "cross-env": "10.0.0",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

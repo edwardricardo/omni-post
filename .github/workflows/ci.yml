@@ -233,9 +233,10 @@ jobs:
   test-integration:
     name: Integration Tests
     runs-on: ubuntu-latest
-    # PR tier (DB-only batches) targets <=10m; the main-push full tier boots the
-    # API and runs all batches, so it gets a wider budget.
-    timeout-minutes: ${{ github.event_name == 'push' && 25 || 12 }}
+    # One budget for both events, because both now run the same tier. Flat 15
+    # rather than the old push value of 25: the measured worst case is ~640s, and
+    # a wider budget only doubles the time it takes a hung run to go red.
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -315,29 +316,21 @@ jobs:
           export PLATFORM_ENCRYPTION_KEY="$(head -c 32 /dev/zero | tr '\0' 'c' | base64 | tr -d '\n')"
           pnpm --filter @infra/prisma run seed
 
-      # Pull-request tier: DB-only integration batches (repositories, sync,
-      # outbox). No live API server is needed — these exercise Prisma against
-      # the postgres service directly. The Vitest unit phase is owned by the
-      # Test Suite job and is skipped here via TIER.
-      - name: Run integration tests (PR tier, DB-only)
-        if: github.event_name != 'push'
-        env:
-          NODE_OPTIONS: "--max-old-space-size=6144"
-          TIER: pr-integration
-          # Explicit DB/Redis env so run-tests.sh never falls back to sourcing
-          # the repo .env (dotenv files are not valid bash).
-          NODE_ENV: test
-          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
-          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
-          REDIS_URL: redis://localhost:6379
-        run: pnpm --filter @apps/api run test:integration
-
-      # Main-push tier: full integration suite, including live-API batches that
-      # call http://localhost:3000. Boot the API on port 3000 (process env wins
-      # over .env.test's PORT) and health-poll before running the batches.
-
+      # Both events run the SAME tier. Pull requests used to run a DB-only tier
+      # that boots no server and executes no live publish batch, so a change to
+      # the saga engine was approved by evidence that structurally could not see
+      # it and the first signal arrived on the trunk, after the merge. The tier
+      # that exercises an area must be the tier that can still block the merge.
+      #
+      # No path filter: a change can break the publish path without touching any
+      # saga file (the poll-interval config, the container that hands the engine
+      # its queue port, the SagaInstance row shape, the test runner itself), and
+      # a hand-maintained list of paths would reproduce the exact blind spot this
+      # is fixing. The cost is bounded instead: the added critical path is
+      # budgeted at 60s, and the reduced variant is the escape if it is exceeded.
+      #
+      # The API listens on port 3000 (process env wins over .env.test's PORT).
       - name: Start API in background
-        if: github.event_name == 'push'
         env:
           NODE_ENV: test
           PORT: "3000"
@@ -350,20 +343,115 @@ jobs:
           # boot re-enables it (process env wins over the dotenv file).
           ENABLE_RATE_LIMITING: "true"
         run: |
-          pnpm --filter @apps/api dev:test &
-          echo "API_PID=$!" >> "$GITHUB_ENV"
-          timeout 90s bash -c 'until curl -fsS http://localhost:3000/health >/dev/null; do sleep 2; done'
+          pnpm --filter @apps/api dev:test > "$RUNNER_TEMP/api.log" 2>&1 &
+          API_PID=$!
+          echo "API_PID=$API_PID" >> "$GITHUB_ENV"
+          # The server's output goes to a file so the whole failure window is
+          # readable after the fact (it used to stop appearing in the job log the
+          # moment this step ended, leaving zero server-side telemetry for the
+          # test window). Because the output is no longer live, the readiness
+          # loop carries its own liveness term: a boot that dies must be named
+          # immediately instead of spinning the full budget and reporting "not
+          # ready" when the truth is "exited".
+          gate=0
+          timeout 90s bash -c '
+            until curl -fsS http://localhost:3000/health >/dev/null; do
+              kill -0 "$1" 2>/dev/null || exit 1
+              sleep 2
+            done' _ "$API_PID" || gate=$?
+          if [ "$gate" -ne 0 ]; then
+            if [ "$gate" -eq 124 ]; then
+              echo "::error title=API never became ready::/health on :3000 did not answer within 90s — see the api.log group at the end of this job"
+            else
+              echo "::error title=API exited during boot::the process is gone — see the api.log group at the end of this job"
+            fi
+            exit 1
+          fi
+
+      # The publish pipeline's jobs need a consumer or the saga's wait step parks
+      # until the 30-minute saga horizon and every publish case burns its full
+      # per-test budget. The workers must share this job's Redis with the API,
+      # which is why they boot here rather than in a job of their own.
+      - name: Start workers in background
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+          REDIS_URL: redis://localhost:6379
+        run: |
+          # Same deterministic test-only key ci-setup-test-env.sh writes to
+          # .env.test, so the workers decrypt channel credentials with the key
+          # the API encrypted them under (no secret-shaped literal in this file).
+          export PLATFORM_ENCRYPTION_KEY="$(head -c 32 /dev/zero | tr '\0' 'c' | base64 | tr -d '\n')"
+          # METRICS_PORT is left unset: the worker health server defaults to 3300,
+          # which does not clash with the API on 3000.
+          pnpm --filter @apps/workers dev:test > "$RUNNER_TEMP/workers.log" 2>&1 &
+          WORKERS_PID=$!
+          echo "WORKERS_PID=$WORKERS_PID" >> "$GITHUB_ENV"
+          # Readiness is proven on the workers' OWN surface, and /health/ready is
+          # only ready once a consumer is registered on the publish queue in the
+          # broker's client registry — a process that started, or datastores that
+          # are reachable, do not satisfy this gate. 120s (wider than the API's
+          # 90s) because the worker boot initialises telemetry, verifies database
+          # auth and constructs every provider adapter on a runner that is already
+          # hosting the API, Postgres and Redis.
+          gate=0
+          timeout 120s bash -c '
+            until curl -fsS http://localhost:3300/health/ready >/dev/null; do
+              kill -0 "$1" 2>/dev/null || exit 1
+              sleep 2
+            done' _ "$WORKERS_PID" || gate=$?
+          if [ "$gate" -ne 0 ]; then
+            if [ "$gate" -eq 124 ]; then
+              echo "::error title=publish workers never became ready::/health/ready on :3300 did not report ready within 120s — see the workers.log group at the end of this job"
+            else
+              echo "::error title=publish workers exited during boot::the process is gone — see the workers.log group at the end of this job"
+            fi
+            exit 1
+          fi
 
       - name: Run integration tests (full tier)
-        if: github.event_name == 'push'
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
           TIER: full-integration
+          # Explicit DB/Redis env so run-tests.sh never falls back to sourcing
+          # the repo .env (dotenv files are not valid bash).
           NODE_ENV: test
           DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
           SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
           REDIS_URL: redis://localhost:6379
         run: pnpm --filter @apps/api run test:integration
+
+      # Both halves of the pipeline are read together after the fact. Without
+      # this the last incident had no server-side output at all for the failing
+      # window and had to be diagnosed by reproducing it on a developer machine.
+      - name: Dump server logs and report process liveness
+        if: always()
+        run: |
+          for proc in api workers; do
+            log="$RUNNER_TEMP/$proc.log"
+            if [ -f "$log" ]; then
+              echo "::group::$proc.log"
+              cat "$log"
+              echo "::endgroup::"
+            fi
+          done
+          # A process that is gone by the end explains failures the test output
+          # alone attributes to the code under test.
+          liveness=0
+          if [ -n "${API_PID:-}" ] && ! kill -0 "$API_PID" 2>/dev/null; then
+            echo "::error title=API is no longer running::any batch that ran after it exited was talking to a dead server"
+            liveness=1
+          fi
+          if [ -n "${WORKERS_PID:-}" ] && ! kill -0 "$WORKERS_PID" 2>/dev/null; then
+            echo "::error title=publish workers are no longer running::any publish case that ran after they exited had no consumer"
+            liveness=1
+          fi
+          # An annotation colours a line in the log and leaves the job green, so
+          # a run whose suites all passed against a server that died halfway
+          # would still report success — the exact shape this tier exists to
+          # remove. The liveness verdict is therefore the step's exit status.
+          exit "$liveness"
 
   build:
     name: Build Check

@@ -17,8 +17,9 @@
 import { describe, it, before } from "node:test";
 import * as assert from "node:assert/strict";
 import { signCustomerAccessToken } from "../src/auth/customerJwt.js";
+import { checkApiAvailable, getBaseUrl } from "./testUtils.js";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = getBaseUrl();
 
 /**
  * Mints a customer Bearer token bound to `accountId`. Account-scoped routes
@@ -68,17 +69,9 @@ describe("Multi-Project Flow Tests", () => {
   let apiAvailable = false;
 
   before(async () => {
-    try {
-      const response = await fetch("http://localhost:3000/health", {
-        signal: AbortSignal.timeout(3000),
-      });
-      apiAvailable = response.ok;
-      if (!apiAvailable) {
-        console.warn("API not available - multi-project flow tests will be skipped");
-      }
-    } catch {
+    apiAvailable = await checkApiAvailable();
+    if (!apiAvailable) {
       console.warn("API not available - multi-project flow tests will be skipped");
-      apiAvailable = false;
     }
 
     timestamp = Date.now();

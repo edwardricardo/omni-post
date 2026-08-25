@@ -164,19 +164,17 @@ const createMockHealthCheckManager = (status: "healthy" | "degraded" | "unhealth
           },
         };
       }
-      return { ok: false, error: "Not found" };
+      // The real HealthCheckManager.checkDependency distinguishes these two,
+      // and the route now answers them differently, so the mock has to speak
+      // the same contract instead of a lookalike string.
+      if (name === "exploding") {
+        return { ok: false, error: "CHECK_FAILED" };
+      }
+      return { ok: false, error: "NOT_FOUND" };
     }),
     register: vi.fn(),
     start: vi.fn(),
     stop: vi.fn(),
-    checkers: new Map([
-      ["database", {}],
-      ["redis", {}],
-      ["cache", {}],
-      ["queue", {}],
-      ["storage", {}],
-      ["providers", {}],
-    ]),
   };
 };
 
@@ -251,7 +249,7 @@ describe("healthRoutes - Unit Tests", () => {
       enqueueBulk: vi.fn(async () => ({ ok: true as const, value: [] as string[] })),
       health: vi.fn(async () => ({
         ok: true as const,
-        value: { connected: true, waiting: 0, active: 0, completed: 0, failed: 0 },
+        value: { connected: true, waiting: 0, active: 0, completed: 0, failed: 0, consumers: 1 },
       })),
       remove: vi.fn(async () => ({ ok: true as const, value: true })),
       getJobStates: vi.fn(async () => ({
@@ -470,19 +468,40 @@ describe("healthRoutes - Unit Tests", () => {
       expect(response.statusCode).toBe(404);
 
       const body = JSON.parse(response.body);
+      expect(body.ok).toBe(false);
+      expect(body.dependency).toBe("unknown");
       expect(body.error).toBeTruthy();
-      expect(Array.isArray(body.availableDependencies)).toBeTruthy();
     });
 
-    it("should return available dependencies on 404", async () => {
+    it("should not enumerate registered dependencies to an unauthenticated caller", async () => {
       const response = await app.inject({
         method: "GET",
         url: "/health/dependency/invalid",
       });
 
+      // The route is public. Any field here that lists what IS registered hands
+      // the caller the internal dependency topology it could not otherwise
+      // discover, so the 404 body must never grow one back.
       const body = JSON.parse(response.body);
-      expect(Array.isArray(body.availableDependencies)).toBeTruthy();
-      expect(body.availableDependencies.length > 0).toBeTruthy();
+      expect(body.availableDependencies).toBeUndefined();
+      expect(JSON.stringify(body)).not.toContain("database");
+      expect(JSON.stringify(body)).not.toContain("storage");
+    });
+
+    it("should return 503 rather than 404 when a registered dependency's check fails", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/health/dependency/exploding",
+      });
+
+      // A failing checker means the dependency EXISTS and is down. Reporting it
+      // as 404 sends the reader to check their spelling during an outage.
+      expect(response.statusCode).toBe(503);
+
+      const body = JSON.parse(response.body);
+      expect(body.ok).toBe(false);
+      expect(body.dependency).toBe("exploding");
+      expect(body.status).toBe("unhealthy");
     });
   });
 });

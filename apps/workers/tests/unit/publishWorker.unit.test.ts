@@ -173,8 +173,11 @@ vi.mock("prom-client", () => {
 });
 
 vi.mock("../../src/metrics/workerMetrics.js", () => {
+  // The worker constructs this and hands it to the job handler, which this suite
+  // mocks, so nothing on it is invoked here. Keeping names the real class no
+  // longer declares would let the mock vouch for a contract that is gone.
   function WorkerMetrics() {
-    return { setHealthy: vi.fn(), setUnhealthy: vi.fn() };
+    return {};
   }
   return { WorkerMetrics };
 });

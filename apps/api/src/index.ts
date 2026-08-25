@@ -62,6 +62,7 @@ import { createRedisConnection, getRedisUrl } from "./lib/redis.js";
 import type { Redis } from "ioredis";
 import { logger } from "./lib/logger.js";
 import { ApiMetrics } from "./metrics/apiMetrics.js";
+import { setPublishQueueHealthProvider } from "./metrics/sagaRecoveryMetrics.js";
 import { createMetricsMiddleware } from "./middleware/metricsMiddleware.js";
 import { createCircuitBreakerMonitor } from "@monitoring/circuit-breaker";
 import { createDeadLetterQueue } from "@adapters/dead-letter-queue";
@@ -316,6 +317,13 @@ async function createApp(): Promise<FastifyInstance> {
   const queueRegistry = container.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry);
   const queueAdapter = queueRegistry.forQueue(QUEUE_NAMES.PUBLISH);
   const storageAdapter = createStorageAdapter();
+
+  // Publish-queue attendance, published by the API because the observer has to
+  // survive the outage: a worker-side gauge goes absent exactly when the workers
+  // die, and absence is ambiguous with a broken scrape. This process holds the
+  // same queue as a producer and is up precisely when the consumers are not.
+  // Observation only — nothing here participates in any saga decision.
+  setPublishQueueHealthProvider(() => queueAdapter.health());
 
   // Initialize dead letter queue
   const _deadLetterQueue = createDeadLetterQueue({
@@ -1201,6 +1209,10 @@ async function start() {
       if (shutdownResult.timedOut) {
         logger.warn({ shutdownResult }, "BackgroundTaskScheduler shutdown timed out");
       }
+
+      // Detach the attendance provider BEFORE the queues close, so a scrape
+      // racing shutdown reads UNKNOWN rather than erroring on a closed queue.
+      setPublishQueueHealthProvider(undefined);
 
       // Close all BullMQ queue adapters via the registry — closes every
       // Queue and the shared Redis connection in one shot.

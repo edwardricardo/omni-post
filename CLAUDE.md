@@ -302,7 +302,9 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all checks — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest.) Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the single live ratchet**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work.) Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+
+A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
 ```bash
 # 1. No Prisma singleton imports in routes. Hard-zero.
@@ -310,21 +312,64 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 # every PascalCase *Routes.ts, so this guard silently passed on admin routes.
 grep -rn "import { prisma" apps/api/src/ --include="*[Rr]outes*" | wc -l
 
-# 2. Domain layer is framework-free
-grep -rn "prisma\|fastify\|redis\|bullmq" apps/api/src/domain/ --include="*.ts" | wc -l
+# 2. Domain + application core is framework-free.
+# Scope repointed: `apps/api/src/domain/` no longer exists — the layers moved to
+# `packages/core/` in the relocation fitness #22 enforces. A `grep -r` on an
+# absent directory exits 2, prints nothing, and `| wc -l` renders that as 0, so
+# this guard reported a clean domain over code it never opened. The scope is the
+# whole `packages/core` tree because the canon forbids concrete infrastructure in
+# BOTH layers it holds (application imports domain only, never an adapter), and
+# because a per-context package is added by creating a directory — a scope that
+# names them one by one goes stale the same way the old path did. Tests are out:
+# they are `@layer infrastructure` and legitimately name the technologies they
+# replace with doubles.
+grep -rn "prisma\|fastify\|redis\|bullmq" packages/core --include="*.ts" | \
+  grep -vE "/dist/|/node_modules/|/tests/|\.test\.ts:" | wc -l
 
-# 3. No `any` in domain/application/infrastructure.
+# 3. No `any` in the core (domain + application) or in apps/api infrastructure.
+# Same repoint as #2: two of the three original path arguments were gone, so
+# grep errored on them and the surviving `infrastructure` arm carried the whole
+# check while the annotation still claimed all three layers.
 # Refined regex: `\bas any\b` (word boundary before `as`) avoids matching
 # "h*as any*" in JSDoc prose like "Check if project has any channels".
-# Also exclude lines that start with `*` (JSDoc) or `//` (line comment).
+# Also exclude lines that start with `*` (JSDoc) or `//` (line comment), plus
+# tests — a negative test may need `as any` to construct invalid state, which is
+# the `test-fixture` scenario in §Pragmatic Exceptions.
 grep -rnE "(:\s+any\b|\bas any\b|<any>)" \
-  apps/api/src/domain/ apps/api/src/application/ apps/api/src/infrastructure/ \
+  packages/core apps/api/src/infrastructure \
   --include="*.ts" | \
+  grep -vE "/dist/|/node_modules/|/tests/|\.test\.ts:" | \
   grep -vE "//.*any|^[^:]+:[0-9]+:\s*\*" | wc -l
 
-# 4. No raw throws in domain/application
-grep -rn "throw " apps/api/src/domain/ apps/api/src/application/ \
-  --include="*.ts" | wc -l
+# 4. No raw throws in the core (domain + application).
+# Same repoint as #2/#3, and the most misleading of the three: BOTH of its path
+# arguments were gone, so it scanned nothing at all. Canon: fallible operations
+# return `Result<T, DomainError>` and a throw never crosses a layer boundary.
+# Excludes dist, node_modules, tests, and comment lines — `MAY throw` in JSDoc
+# prose is documentation, not a statement.
+# The four excepted files each hold a real `throw`. They are named here, with a
+# remove-when apiece, so the debt is attributable rather than absorbed by a path
+# that reads as green:
+#   - GatewayBillingService.ts + TrialManagementService.ts: the throw is the
+#     rollback signal inside `unitOfWork.executeInTransaction()` — an interactive
+#     Prisma transaction aborts only by throwing — and the method's own
+#     try/catch converts it to `err(...)`. It never leaves the service.
+#     Remove-when: UnitOfWork exposes an explicit abort so a callback can signal
+#     rollback without throwing.
+#   - DeletePostUseCase.ts: exhaustiveness guard on a `never`, unreachable by
+#     construction; deleting it would make a new caller kind fall through in
+#     silence. Remove-when: the caller union is closed by a compiler-checked
+#     schema that makes the default arm impossible to write.
+#   - ComplianceService.ts: NOT audited-safe, and the reason this exception list
+#     is explicit. `getGdprSettings()` / `getSecuritySettings()` are typed
+#     `Promise<GdprSettings>` / `Promise<SecuritySettings>`, so their throws DO
+#     escape the application layer — a live canon violation the dead scope was
+#     concealing. Remove-when: both getters return `Result<T, DomainError>` and
+#     every caller narrows on `.ok`.
+grep -rn "throw " packages/core --include="*.ts" | \
+  grep -vE "/dist/|/node_modules/|/tests/|\.test\.ts:" | \
+  grep -vE "^[^:]+:[0-9]+:\s*(\*|//)" | \
+  grep -vE "/GatewayBillingService\.ts|/TrialManagementService\.ts|/ComplianceService\.ts|/DeletePostUseCase\.ts" | wc -l
 
 # 5. No @ts-ignore in production source
 grep -rn "@ts-ignore\|@ts-nocheck" apps/api/src/ packages/*/src/ \
@@ -570,12 +615,18 @@ grep -rnE 'from "\.\.?/[^"]*\.js"' \
 # `development`->src conditional export, and Next builds must build @shared/types
 # dist first.
 #
-# Part A: every source-mode `node --import tsx` test/seed invocation (which
-# resolves BARE workspace specifiers via Node `exports`, NOT tsconfig paths) MUST
-# pass `--conditions development`, else it lands on the unbuilt dist.
+# Part A: every source-mode `node --import tsx` test/seed/service invocation
+# (which resolves BARE workspace specifiers via Node `exports`, NOT tsconfig
+# paths) MUST pass `--conditions development`, else it lands on the unbuilt dist.
+# `apps/workers/package.json` + `src/bootstrap.ts` are in scope because CI now
+# boots the workers from source in the integration job: without the condition the
+# worker resolves ~12 workspace packages to a dist CI never builds, dies during
+# boot, and the readiness gate reports "not ready" for a reason that has nothing
+# to do with the queue it exists to prove.
 grep -rnE "node ([^|&]*)--import tsx" \
-  apps/api/package.json apps/api/scripts/run-tests.sh infra/prisma/package.json | \
-  grep -E -- "--test|security/tests|seed\.ts" | \
+  apps/api/package.json apps/api/scripts/run-tests.sh infra/prisma/package.json \
+  apps/workers/package.json | \
+  grep -E -- "--test|security/tests|seed\.ts|src/bootstrap\.ts" | \
   grep -v -- "--conditions development" | \
   grep -vE '"dev":|dump:openapi' | wc -l  # expect 0
 #
@@ -605,6 +656,67 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
   apps/api/src apps/workers/src --include="*.ts" | \
   grep -vE "resolveClientIp|/tests/|\.test\." | wc -l   # expect 0
 
+# 30. Every committed test file must be reachable by a collector. RATCHET, not
+# hard-zero — the only check in this suite that is not. Vitest collects
+# `apps/api/tests/unit/**` and `tests/eval/**` from the tree via the `include`
+# globs in apps/api/vitest.config.ts, so those are reachable by construction.
+# Every OTHER node:test file under apps/api/tests is selected by an EXPLICIT
+# file list in apps/api/scripts/run-tests.sh, and a suite that no `run_batch`
+# names never executes anywhere — while still reading as coverage in the tree,
+# in review, and in a coverage report that only counts what ran.
+# Baseline: 21 unreached suites, measured, listed in
+# docs/reports/roadmap-detected-smells-backlog.md as SMELL-75. Wiring them is
+# its own body of work (each needs a tier, services, and a runtime budget), so
+# the gate gives that work a floor instead of blocking on it: the count may fall
+# and must never rise. Raise the baseline ONLY together with an entry explaining
+# which suite stopped being collected and why that was the right call.
+for f in $(find apps/api/tests -name "*.test.ts" \
+    -not -path "*/tests/unit/*" -not -path "*/tests/eval/*"); do
+  grep -qF "${f#apps/api/}" apps/api/scripts/run-tests.sh || echo "UNREACHED: $f"
+done | wc -l   # ratchet baseline: 21
+
+# 31. No vacuous-pass escape hatch in a test entry point. Two parts, hard-zero.
+# Threat: a suite that collects ZERO tests and still exits 0. The nightly chaos
+# job ran `vitest run tests/chaos/` for the life of that workflow against
+# node:test files vitest's `include` globs never covered, collected nothing, and
+# reported green over scenarios it never executed.
+#
+# Part A: no `passWithNoTests` anywhere. Vitest defaults it to false — zero
+# collected is exit 1 — so every occurrence is an explicit opt-OUT of the one
+# default that notices an empty run, and it keeps reporting green forever once a
+# rename or an `include` change breaks collection.
+grep -rn "passWithNoTests" apps/ packages/ infra/ \
+  --include="package.json" --include="*.ts" --include="*.json" | \
+  grep -vE "node_modules|/dist/" | wc -l   # expect 0
+#
+# Part B: the node:test runner must KEEP its zero-collection guards. node:test
+# has no equivalent default: a crashed or empty run prints a 0/0/0 TAP summary
+# that parses as success, so apps/api/scripts/run-tests.sh carries the check
+# itself — once per batch and once on the total. Both terms are pinned because
+# deleting either restores the silent green with nothing left to notice it.
+grep -c '\[ "\$tests" -eq 0 \]' apps/api/scripts/run-tests.sh          # expect >= 1
+grep -c '\[ "\$TOTAL_TESTS" -eq 0 \]' apps/api/scripts/run-tests.sh    # expect >= 1
+
+# 32. No committed skipped or focused test. CODING_STANDARDS §Zero Cancelled
+# Tests states this as canon; nothing enforced it mechanically. A committed
+# `.only(` is the sharper harm of the two: the runner then executes ONLY that
+# test and every sibling in the file reports green without running.
+# `forbidOnly: true` catches `.only` at RUNTIME, but only in the 5 of 83 vitest
+# configs that set it; this catches both forms statically, in every package and
+# both frameworks, before a runner is even chosen.
+# Two deliberate non-matches:
+#   - `.todo(` marks a test that was never written — a declared gap, not a
+#     written test switched off. The canon forbids `.skip` and `.only`, not the
+#     backlog marker.
+#   - The runtime form `t.skip("...")` inside a node:test body is a conditional
+#     skip decided at execution time, which a static grep cannot tell from a
+#     legitimate one. It has its own gate: run-tests.sh fails any TIER-driven
+#     batch that reports a non-zero skip count, which is the only place the
+#     distinction (was the service supposed to be there?) is actually knowable.
+grep -rnE "\b(it|test|describe|suite)\.(skip|only)\(" \
+  apps/ packages/ --include="*.test.ts" --include="*.test.tsx" | \
+  grep -vE "node_modules|/dist/|\.stryker" | wc -l   # expect 0
+
 # 33. Every ROOT-level tsconfig reached by an `extends` from a workspace tsconfig
 # MUST be listed in turbo.json `globalDependencies`. Threat: turbo hashes
 # per-package inputs plus globalDependencies and NOTHING else, so a root config a
@@ -623,9 +735,7 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 # into node_modules and change only with the lockfile, which turbo already hashes
 # on its own; targets that resolve inside a workspace directory stay covered by
 # that package's own input hash — in-tree today every relative target resolves to
-# a root config, so this second skip currently matches nothing. Numbering: #30-32
-# are reserved by workstream/ci-live-tier-integrity; delete this note once that
-# branch merges and #30-32 appear above. Hard-zero.
+# a root config, so this second skip currently matches nothing. Hard-zero.
 set -uo pipefail
 GLOBALS=$(tr -d ' \n' < turbo.json | grep -oE '"globalDependencies":\[[^]]*\]' | \
   grep -oE '"[^"]*"' | tr -d '"' | grep -v '^globalDependencies$' || true)

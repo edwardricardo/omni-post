@@ -12,7 +12,7 @@ import type {
   Alert,
 } from "./report-types.js";
 import { generateHtmlReport, generateTextSummary } from "./generate-reports-renderers.js";
-import { parsePostgresResults, parseRedisResults } from "./generate-reports-parsers.js";
+import { parsePostgresResults } from "./generate-reports-parsers.js";
 
 class PerformanceReportGenerator {
   private outputDir: string;
@@ -126,7 +126,6 @@ class PerformanceReportGenerator {
    */
   private async collectDatabaseResults(): Promise<{
     postgres?: DatabaseTestResult;
-    redis?: any;
   }> {
     const databaseDir = path.join(this.outputDir, "database");
     const results: any = {};
@@ -141,8 +140,6 @@ class PerformanceReportGenerator {
         // Parse database test logs for metrics
         if (file.includes("postgres")) {
           results.postgres = parsePostgresResults(content);
-        } else if (file.includes("redis")) {
-          results.redis = parseRedisResults(content);
         }
       }
     } catch (error) {
@@ -212,9 +209,10 @@ class PerformanceReportGenerator {
       }
     });
 
-    // Database tests
-    if (databaseResults.postgres || databaseResults.redis) {
-      totalTests += 2;
+    // Database tests. The count tracks the database stages that actually run, so a
+    // stage that is not part of the suite can never be scored as a failed test.
+    if (databaseResults.postgres) {
+      totalTests += 1;
 
       if (
         databaseResults.postgres?.errorCount === 0 &&
@@ -226,15 +224,6 @@ class PerformanceReportGenerator {
         if (databaseResults.postgres?.p95ResponseTime > 1000) {
           criticalIssues++;
         }
-      }
-
-      if (
-        databaseResults.redis?.errorCount === 0 &&
-        databaseResults.redis?.averageResponseTime < 50
-      ) {
-        passedTests++;
-      } else {
-        failedTests++;
       }
     }
 
@@ -468,33 +457,7 @@ class PerformanceReportGenerator {
           issues: ["No PostgreSQL test results available"],
         };
 
-    const redis = databaseResults.redis
-      ? {
-          status:
-            databaseResults.redis.averageResponseTime < 50 && databaseResults.redis.errorCount === 0
-              ? ("pass" as const)
-              : ("warning" as const),
-          operationCount: databaseResults.redis.operationCount,
-          averageResponseTime: databaseResults.redis.averageResponseTime,
-          throughput: databaseResults.redis.throughput,
-          cacheHitRate: databaseResults.redis.cacheHitRate,
-          issues: [
-            ...(databaseResults.redis.cacheHitRate < 80 ? ["Low cache hit rate"] : []),
-            ...(databaseResults.redis.averageResponseTime > 100
-              ? ["Slow cache response time"]
-              : []),
-          ],
-        }
-      : {
-          status: "fail" as const,
-          operationCount: 0,
-          averageResponseTime: 0,
-          throughput: 0,
-          cacheHitRate: 0,
-          issues: ["No Redis test results available"],
-        };
-
-    return { postgres, redis };
+    return { postgres };
   }
 
   /**
@@ -591,12 +554,6 @@ class PerformanceReportGenerator {
     if (databaseResults.postgres?.deadlockCount > 0) {
       recommendations.push(
         "🔒 Address database deadlocks - review transaction isolation levels and query ordering"
-      );
-    }
-
-    if (databaseResults.redis?.cacheHitRate < 80) {
-      recommendations.push(
-        "📦 Improve cache strategy - review cache keys, TTL settings, and cache warming"
       );
     }
 

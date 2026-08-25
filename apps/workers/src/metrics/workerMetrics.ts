@@ -32,8 +32,6 @@ export interface WorkerMetricsCollector {
   jobProcessingDuration: client.Histogram<string>;
 
   // System metrics
-  queueDepth: client.Gauge<string>;
-  workerHealth: client.Gauge<string>;
   correlationTracker: client.Gauge<string>;
 
   // Detailed operation metrics
@@ -178,18 +176,6 @@ export class WorkerMetrics {
       }),
 
       // System metrics
-      queueDepth: new client.Gauge({
-        name: "worker_queue_depth",
-        help: "Number of jobs waiting in queue",
-        registers: [registry],
-      }),
-
-      workerHealth: new client.Gauge({
-        name: "worker_health_status",
-        help: "Worker health status (1=healthy, 0=unhealthy)",
-        registers: [registry],
-      }),
-
       correlationTracker: new client.Gauge({
         name: "worker_correlation_requests_active",
         help: "Number of requests being tracked with correlation IDs",
@@ -272,9 +258,6 @@ export class WorkerMetrics {
         registers: [registry],
       }),
     };
-
-    // Set initial healthy state
-    this.metrics.workerHealth.set(1);
   }
 
   /**
@@ -426,31 +409,6 @@ export class WorkerMetrics {
    */
   recordProviderPublishFailure(provider: string): void {
     this.metrics.providerPublishFailureTotal.inc({ provider });
-  }
-
-  /**
-   * @method setHealthy
-   * @description Flip the worker-health gauge to 1.
-   */
-  setHealthy(): void {
-    this.metrics.workerHealth.set(1);
-  }
-
-  /**
-   * @method setUnhealthy
-   * @description Flip the worker-health gauge to 0.
-   */
-  setUnhealthy(): void {
-    this.metrics.workerHealth.set(0);
-  }
-
-  /**
-   * @method updateQueueDepth
-   * @description Set the queue-depth gauge to the observed waiting-job count.
-   * @param depth - Current number of jobs waiting in the queue.
-   */
-  updateQueueDepth(depth: number): void {
-    this.metrics.queueDepth.set(depth);
   }
 
   /**

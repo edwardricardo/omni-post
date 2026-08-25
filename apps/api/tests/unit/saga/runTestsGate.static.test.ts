@@ -46,7 +46,7 @@ const VITEST_BATCH_NAME = "vitest-unit";
  * to find out what it assumes, and because a too-small window fails with a message
  * about the wrong thing.
  */
-const GATE_BLOCK_LINES = 18;
+const GATE_BLOCK_LINES = 23;
 const VITEST_GUARD_BLOCK_LINES = 7;
 const COUNT_APPEND_BLOCK_LINES = 3;
 const WINDOW_SLACK = 3;
@@ -208,13 +208,53 @@ describe("run-tests.sh is a gate that can go red", () => {
       const condition = finalGateCondition();
       const testsFailedTerm = condition.includes("$TOTAL_FAIL");
       const testsCancelledTerm = condition.includes("$TOTAL_CANCEL");
+      const testsSkippedTerm = condition.includes("$TOTAL_SKIP");
       const batchTerm = /-n\s+"\$FAILED_BATCHES"/.test(condition);
 
-      expect({ testsFailedTerm, testsCancelledTerm, batchTerm }).toEqual({
+      expect({ testsFailedTerm, testsCancelledTerm, testsSkippedTerm, batchTerm }).toEqual({
         testsFailedTerm: true,
         testsCancelledTerm: true,
+        testsSkippedTerm: true,
         batchTerm: true,
       });
+    });
+
+    it("records a failed batch on a SKIPPED test in a tier-driven run", () => {
+      // The term the author stopped one short of. A skipped test in a tier-driven
+      // run is a service the tier was supposed to provide and did not: the counts
+      // stay clean, the batch prints OK, and the run reports green over tests that
+      // never executed. `TOTAL_SKIP` was already accumulated and already printed —
+      // it simply gated nothing, in the very tier this gate is load-bearing for.
+      //
+      // Tier-scoped like the zero-collect term, so a developer trimming a batch
+      // locally (TIER unset) is not blocked by their own choice.
+      const skipIndex = codeLines.findIndex(
+        (line) => line.includes("$skip") && line.includes("-gt 0")
+      );
+      expect(skipIndex).toBeGreaterThanOrEqual(0);
+
+      const skipBlock = codeLines
+        .slice(skipIndex, skipIndex + COUNT_APPEND_BLOCK_LINES + WINDOW_SLACK)
+        .join("\n");
+
+      expect({
+        tierScoped: /-n\s+"\$\{TIER:-\}"/.test(codeLines[skipIndex] ?? ""),
+        recordsTheBatch: skipBlock.includes(FAILED_BATCHES),
+      }).toEqual({ tierScoped: true, recordsTheBatch: true });
+    });
+
+    it("says WHY when the gate fires on skipped tests alone", () => {
+      // Without its own line, a run that goes red purely on skips sends the reader
+      // hunting for a failed test that does not exist — the same misdirection the
+      // cancelled branch already has a message for.
+      const gateIndex = codeLines.findIndex((line) =>
+        line.includes(`FAILED batches:$${FAILED_BATCHES}`)
+      );
+      const gateBlock = codeLines
+        .slice(gateIndex, gateIndex + GATE_BLOCK_LINES + WINDOW_SLACK)
+        .join("\n");
+
+      expect(gateBlock).toMatch(/echo "ERROR:.*SKIPPED/i);
     });
 
     it("says WHY when the gate fires with zero failed and zero cancelled tests", () => {

@@ -25,7 +25,9 @@ function makeMockQueue() {
     enqueue: vi.fn().mockResolvedValue(ok("job-id")),
     health: vi
       .fn()
-      .mockResolvedValue(ok({ connected: true, waiting: 0, active: 0, completed: 0, failed: 0 })),
+      .mockResolvedValue(
+        ok({ connected: true, waiting: 0, active: 0, completed: 0, failed: 0, consumers: 1 })
+      ),
     remove: vi.fn().mockResolvedValue(ok(true)),
   };
 }

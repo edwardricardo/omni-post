@@ -46,7 +46,7 @@ export function makeStubQueue(options?: { failWith?: QueueError }): {
       return ok(batch.map((_, i) => `bulk-job-${i}`));
     },
     health: async (): Promise<Result<QueueHealth, "CONNECTION_ERROR">> =>
-      ok({ connected: true, waiting: 0, active: 0, completed: 0, failed: 0 }),
+      ok({ connected: true, waiting: 0, active: 0, completed: 0, failed: 0, consumers: 1 }),
     remove: async (): Promise<Result<boolean, "CONNECTION_ERROR" | "NOT_FOUND">> => ok(true),
     getJobStates: async (): Promise<Result<JobStatesAggregate, "CONNECTION_ERROR">> =>
       ok({ completed: 0, failed: 0, pending: 0 }),

@@ -179,7 +179,6 @@ ${Object.values(report.k6Results)
 
 Database Results:
 - PostgreSQL: ${report.databaseResults.postgres.status} (P95: ${report.databaseResults.postgres.p95ResponseTime.toFixed(2)}ms)
-- Redis: ${report.databaseResults.redis.status} (Avg: ${report.databaseResults.redis.averageResponseTime.toFixed(2)}ms, Hit Rate: ${report.databaseResults.redis.cacheHitRate.toFixed(1)}%)
 
 Memory Results:
 - Status: ${report.memoryResults.status}

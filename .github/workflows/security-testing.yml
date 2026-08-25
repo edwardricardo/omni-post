@@ -130,29 +130,154 @@ jobs:
         # roles + permissions before the auth suites run.
         run: pnpm --filter @infra/prisma run seed
 
+      # tests/security.test.ts fetches a live API on :3000 and, finding none,
+      # skipped all 18 of its cases while this job reported success — a security
+      # tier answering for a service it never had. It is the only one of the five
+      # suites below that needs a server (auth/rbac/mfa contain no fetch; the
+      # rate-limit suite is Vitest unit files), so exactly one API boots here.
+      - name: Start API in background
+        env:
+          # .env.test carries PORT=3001 and ENABLE_RATE_LIMITING=false; both are
+          # overridden because the suite addresses :3000 and asserts that a
+          # 120-request burst is throttled, which is vacuous with the limiter off.
+          PORT: "3000"
+          ENABLE_RATE_LIMITING: "true"
+        run: |
+          pnpm --filter @apps/api dev:test > "$RUNNER_TEMP/api.log" 2>&1 &
+          API_PID=$!
+          echo "API_PID=$API_PID" >> "$GITHUB_ENV"
+          # The readiness loop carries its own liveness term so a boot that dies
+          # is named immediately instead of spinning the whole budget and then
+          # reporting "not ready" when the truth is "exited".
+          gate=0
+          timeout 90s bash -c '
+            until curl -fsS http://localhost:3000/health >/dev/null; do
+              kill -0 "$1" 2>/dev/null || exit 1
+              sleep 2
+            done' _ "$API_PID" || gate=$?
+          if [ "$gate" -ne 0 ]; then
+            if [ "$gate" -eq 124 ]; then
+              echo "::error title=API never became ready::/health on :3000 did not answer within 90s — see the api.log group at the end of this job"
+            else
+              echo "::error title=API exited during boot::the process is gone — see the api.log group at the end of this job"
+            fi
+            exit 1
+          fi
+
       # `if: always()` on each suite so a failure in one doesn't short-circuit
       # the others — every push surfaces every broken suite at once instead
       # of revealing them incrementally across runs.
 
       - name: Run authentication suite
         if: always()
-        run: pnpm --filter @apps/api test:auth
+        # Same counter gate as the input-validation suite below, for the same
+        # reason: these are node:test suites, and a node:test suite that skips or
+        # cancels every case still exits 0. Without this, three of the four
+        # node:test suites in this job could report a security tier they never
+        # exercised — the exact condition the input-validation suite was found in.
+        run: |
+          set -o pipefail
+          pnpm --filter @apps/api test:auth 2>&1 | tee "$RUNNER_TEMP/auth-suite.log"
+          counter() {
+            grep -E "^(ℹ|#) $1 [0-9]+$" "$RUNNER_TEMP/auth-suite.log" | tail -1 | awk '{print $3}' || true
+          }
+          passed=$(counter pass); passed=${passed:-0}
+          skipped=$(counter skipped); skipped=${skipped:-0}
+          cancelled=$(counter cancelled); cancelled=${cancelled:-0}
+          if [ "$passed" -eq 0 ] || [ "$skipped" -gt 0 ] || [ "$cancelled" -gt 0 ]; then
+            echo "::error title=the authentication suite did not fully execute::$passed passed, $skipped skipped, $cancelled cancelled — a suite that did not run every case cannot answer for authentication"
+            exit 1
+          fi
 
       - name: Run RBAC suite
         if: always()
-        run: pnpm --filter @apps/api test:rbac
+        run: |
+          set -o pipefail
+          pnpm --filter @apps/api test:rbac 2>&1 | tee "$RUNNER_TEMP/rbac-suite.log"
+          counter() {
+            grep -E "^(ℹ|#) $1 [0-9]+$" "$RUNNER_TEMP/rbac-suite.log" | tail -1 | awk '{print $3}' || true
+          }
+          passed=$(counter pass); passed=${passed:-0}
+          skipped=$(counter skipped); skipped=${skipped:-0}
+          cancelled=$(counter cancelled); cancelled=${cancelled:-0}
+          if [ "$passed" -eq 0 ] || [ "$skipped" -gt 0 ] || [ "$cancelled" -gt 0 ]; then
+            echo "::error title=the RBAC suite did not fully execute::$passed passed, $skipped skipped, $cancelled cancelled — a suite that did not run every case cannot answer for authorization"
+            exit 1
+          fi
 
       - name: Run input validation suite
         if: always()
-        run: pnpm --filter @apps/api test:security
+        # The counters node:test prints are read back, because this suite's
+        # failure mode is not a failing assertion — it is not asserting at all.
+        # A run that executed nothing, or that skipped or cancelled a case, is a
+        # service this job did not provide, and reporting it green is what let
+        # 0 pass / 18 skipped stand as a passing security gate.
+        run: |
+          set -o pipefail
+          pnpm --filter @apps/api test:security 2>&1 | tee "$RUNNER_TEMP/security-suite.log"
+          # Node's default (spec) reporter writes "ℹ pass 1"; the tap reporter
+          # writes "# pass 1". Both prefixes are accepted so the gate keeps
+          # reading real numbers if the reporter is ever switched. `|| true`
+          # keeps a crashed run — which prints no counters at all — on the named
+          # error below instead of aborting the step on grep's empty result.
+          counter() {
+            grep -E "^(ℹ|#) $1 [0-9]+$" "$RUNNER_TEMP/security-suite.log" | tail -1 | awk '{print $3}' || true
+          }
+          passed=$(counter pass); passed=${passed:-0}
+          skipped=$(counter skipped); skipped=${skipped:-0}
+          cancelled=$(counter cancelled); cancelled=${cancelled:-0}
+          if [ "$passed" -eq 0 ]; then
+            echo "::error title=the security suite executed nothing::0 cases passed, so this job proved nothing about the API it is meant to probe"
+            exit 1
+          fi
+          if [ "$skipped" -gt 0 ]; then
+            echo "::error title=the security suite skipped $skipped case(s)::a skip here is a dependency this job did not provide, not a passing case"
+            exit 1
+          fi
+          if [ "$cancelled" -gt 0 ]; then
+            echo "::error title=the security suite cancelled $cancelled case(s)::a cancelled case never ran, and the project treats cancelled tests as bugs"
+            exit 1
+          fi
 
       - name: Run MFA suite
         if: always()
-        run: pnpm --filter @apps/api test:mfa
+        run: |
+          set -o pipefail
+          pnpm --filter @apps/api test:mfa 2>&1 | tee "$RUNNER_TEMP/mfa-suite.log"
+          counter() {
+            grep -E "^(ℹ|#) $1 [0-9]+$" "$RUNNER_TEMP/mfa-suite.log" | tail -1 | awk '{print $3}' || true
+          }
+          passed=$(counter pass); passed=${passed:-0}
+          skipped=$(counter skipped); skipped=${skipped:-0}
+          cancelled=$(counter cancelled); cancelled=${cancelled:-0}
+          if [ "$passed" -eq 0 ] || [ "$skipped" -gt 0 ] || [ "$cancelled" -gt 0 ]; then
+            echo "::error title=the MFA suite did not fully execute::$passed passed, $skipped skipped, $cancelled cancelled — a suite that did not run every case cannot answer for MFA"
+            exit 1
+          fi
 
       - name: Run rate-limit suite
         if: always()
         run: pnpm --filter @apps/api test:ratelimit
+
+      - name: Dump API log and stop the API
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/api.log" ]; then
+            echo "::group::api.log"
+            cat "$RUNNER_TEMP/api.log"
+            echo "::endgroup::"
+          fi
+          liveness=0
+          if [ -n "${API_PID:-}" ] && ! kill -0 "$API_PID" 2>/dev/null; then
+            echo "::error title=the API is no longer running::any suite that ran after it exited was talking to a dead server"
+            liveness=1
+          fi
+          kill "${API_PID:-}" 2>/dev/null || true
+          # An annotation leaves the job green. A security tier reporting green
+          # over a target that died mid-run is the same "answered for a service
+          # it never had" result the API boot above exists to prevent, so the
+          # liveness verdict is the step's exit status. Teardown still runs first.
+          exit "$liveness"
 
   # ──────────────────────────────────────────────────────────────────────
   # 3. OWASP ZAP DAST — runtime scan against the spun-up API.
@@ -217,18 +342,53 @@ jobs:
 
       - name: Start API in background
         run: |
-          pnpm --filter @apps/api dev:test &
-          echo "API_PID=$!" >> $GITHUB_ENV
-          timeout 90s bash -c 'until curl -fsS http://localhost:3000/health >/dev/null; do sleep 2; done'
+          pnpm --filter @apps/api dev:test > "$RUNNER_TEMP/api.log" 2>&1 &
+          API_PID=$!
+          echo "API_PID=$API_PID" >> "$GITHUB_ENV"
+          # Same liveness term and log capture as the custom-security-tests boot:
+          # a scan target that died during boot must be named as "exited", not
+          # reported as a 90-second readiness timeout.
+          gate=0
+          timeout 90s bash -c '
+            until curl -fsS http://localhost:3000/health >/dev/null; do
+              kill -0 "$1" 2>/dev/null || exit 1
+              sleep 2
+            done' _ "$API_PID" || gate=$?
+          if [ "$gate" -ne 0 ]; then
+            if [ "$gate" -eq 124 ]; then
+              echo "::error title=API never became ready::/health on :3000 did not answer within 90s — see the api.log group at the end of this job"
+            else
+              echo "::error title=API exited during boot::the process is gone — see the api.log group at the end of this job"
+            fi
+            exit 1
+          fi
 
       - name: Run OWASP ZAP baseline scan
         uses: zaproxy/action-baseline@v0.15.0
         with:
           target: "http://localhost:3000"
-          rules_file_name: ".zap/rules.tsv"
           cmd_options: "-a"
-          fail_action: false
+          # A scan that cannot fail the job is a scan nobody has to read. The
+          # findings this turns red are the work list; they are answered by
+          # fixing the finding, never by adding a suppression file that hides
+          # it before anyone has looked at it.
+          fail_action: true
 
-      - name: Stop API
+      - name: Dump API log and stop the API
         if: always()
-        run: kill "$API_PID" 2>/dev/null || true
+        run: |
+          if [ -f "$RUNNER_TEMP/api.log" ]; then
+            echo "::group::api.log"
+            cat "$RUNNER_TEMP/api.log"
+            echo "::endgroup::"
+          fi
+          liveness=0
+          if [ -n "${API_PID:-}" ] && ! kill -0 "$API_PID" 2>/dev/null; then
+            echo "::error title=the API is no longer running::the scan that just ran was talking to a dead server"
+            liveness=1
+          fi
+          kill "${API_PID:-}" 2>/dev/null || true
+          # ZAP reports no findings against a target that stopped answering, and
+          # an annotation would leave that empty result green. The liveness
+          # verdict is the step's exit status. Teardown still runs first.
+          exit "$liveness"

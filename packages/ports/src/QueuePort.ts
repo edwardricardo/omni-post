@@ -19,6 +19,22 @@ export type QueueHealth = {
   active: number;
   completed: number;
   failed: number;
+  /**
+   * Consumers registered for THIS queue in the broker's own client registry —
+   * a fact the broker holds, not a process self-report, so it is false when a
+   * consumer points at a different broker, when its connection never opened,
+   * and when the process is gone.
+   *
+   * `null` means the broker cannot answer (no `CLIENT LIST`): that is UNKNOWN,
+   * never zero. Every reader MUST fail closed on `null` rather than treat it
+   * as "no consumer" or as "there is one" — conflating unavailability with
+   * absence is what turns a probe into a misdirection.
+   *
+   * Registration is not throughput: a wedged or paused consumer still holds a
+   * registration, and the registry can lag a vanished host until the broker
+   * reaps the socket.
+   */
+  consumers: number | null;
 };
 
 /**

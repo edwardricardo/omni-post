@@ -65,3 +65,17 @@ export const QUEUE_NAMES = {
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
+
+/**
+ * Every queue the post-publishing pipeline enqueues to. THE source of the
+ * required-consumer set: worker readiness, the live publish suite's precondition
+ * and the environment's boot gate all iterate this, so adding a queue to the
+ * pipeline adds a consumer requirement BY CONSTRUCTION rather than by anyone
+ * remembering to update a second list.
+ *
+ * Most of `QUEUE_NAMES` has no worker-process consumer at all, which is why the
+ * requirement is stated over this narrow set and not over every queue.
+ */
+export const PUBLISH_PIPELINE_QUEUES = [QUEUE_NAMES.PUBLISH] as const;
+
+export type PublishPipelineQueue = (typeof PUBLISH_PIPELINE_QUEUES)[number];
