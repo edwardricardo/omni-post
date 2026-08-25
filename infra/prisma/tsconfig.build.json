@@ -4,6 +4,15 @@
     "noEmit": false,
     "outDir": "./dist",
     "rootDir": ".",
+    // rootDir stays "." because src/*.ts imports the Prisma-generated client
+    // from ../generated/**, which sits outside src/ (narrowing rootDir to
+    // "./src" fails with TS6059). Without an explicit tsBuildInfoFile, tsc
+    // derives the buildinfo path from outDir and drops it INSIDE dist/ — i.e.
+    // inside turbo's cached `outputs`. A restored cache then hands tsc a
+    // buildinfo that declares an incomplete dist up to date, so the build emits
+    // nothing and exits 0. Pinning the buildinfo at the package root (where the
+    // other 79 packages keep theirs) keeps it out of the cached payload.
+    "tsBuildInfoFile": "./tsconfig.build.tsbuildinfo",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ES2023",

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // Load-bearing override, not boilerplate. This package's `build` script is
+    // `tsc --noEmit`: it type-checks and writes no files. The root `build` task
+    // declares `outputs: ["dist/**", ".next/**", "!.next/cache/**"]`, so without
+    // this override turbo logs `no output files found for task` and still exits
+    // 0. The Build Check job in .github/workflows/ci.yml greps that exact string
+    // out of the build log and fails the job, because for every OTHER package it
+    // means an empty artifact was about to be cached under a green build.
+    // Declaring `outputs: []` states the truth for this package, so the warning
+    // stays a real missing-artifact signal instead of permanent noise the gate
+    // would have to tolerate (and, tolerating it, stop catching the real case).
+    //
+    // The discriminator is the BUILD SCRIPT, not how the package is consumed:
+    // any package whose `build` emits nothing needs this override, and if this
+    // package's `build` ever starts emitting (a real `tsc -b` or a bundler
+    // step), delete this override in the same change — otherwise the emitted
+    // artifact stops being cached and the gate stops watching this package.
+    "build": {
+      "outputs": []
+    }
+  }
+}

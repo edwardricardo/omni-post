@@ -8,6 +8,7 @@
     "prisma": "prisma",
     "generate": "prisma generate",
     "build": "prisma generate && tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist tsconfig.build.tsbuildinfo",
     "migrate": "prisma migrate deploy",
     "studio": "prisma studio",
     "seed": "tsx --conditions development seed.ts"

@@ -24,3 +24,13 @@ Thumbs.db
 # Runtime files
 *.pid
 *.log
+
+# scripts/stryker-full.sh writes its runtime output here: stryker-full.log,
+# stryker-full.pid, and a generated stryker-full.config.mjs. The root .gitignore
+# used to cover this directory with an unanchored `logs/`, but that rule also
+# swallowed an App Router segment and is now anchored to the repo root (/logs/),
+# so this package has to declare its own. `*.log` / `*.pid` above happen to catch
+# two of the three files; the generated .mjs config had no cover at all, and a
+# fourth file of any other extension would have none either — hence the whole
+# directory, anchored to the package root so no nested source dir can match it.
+/logs/
