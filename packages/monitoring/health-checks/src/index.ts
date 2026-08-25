@@ -55,7 +55,12 @@ export type {
 } from "./types.js";
 
 export class HealthCheckManager {
-  private checkers = new Map<
+  // ECMAScript-private rather than TypeScript-private: `private` is erased at
+  // runtime and index access (`manager["checkers"]`) slips past it at compile
+  // time, which is exactly how the public dependency route came to publish the
+  // registered dependency map. `#` makes that reach a syntax error, so the
+  // registry can only be read through the methods that decide what to expose.
+  readonly #checkers = new Map<
     string,
     {
       checker: HealthChecker;
@@ -96,7 +101,7 @@ export class HealthCheckManager {
       config?: Partial<HealthCheckConfig>;
     }
   ): void {
-    this.checkers.set(name, {
+    this.#checkers.set(name, {
       checker,
       config: {
         ...this.globalConfig,
@@ -117,7 +122,7 @@ export class HealthCheckManager {
   async checkDependency(
     name: string
   ): Promise<Result<DependencyHealth, "NOT_FOUND" | "CHECK_FAILED">> {
-    const entry = this.checkers.get(name);
+    const entry = this.#checkers.get(name);
     if (!entry) {
       return err("NOT_FOUND");
     }
@@ -158,7 +163,7 @@ export class HealthCheckManager {
     });
     const startTime = Date.now();
 
-    const checks = Array.from(this.checkers.entries()).map(async ([name, entry]) => {
+    const checks = Array.from(this.#checkers.entries()).map(async ([name, entry]) => {
       try {
         const result = await this.executeHealthCheck(name, entry.checker, entry.config);
         this.results.set(name, result);
@@ -528,6 +533,7 @@ export function getHealthCheckManager(): HealthCheckManager | null {
 export { DatabaseHealthChecker, DatabaseConnectionPoolHealthChecker } from "./checkers/database.js";
 export { RedisHealthChecker, CacheHealthChecker } from "./checkers/redis.js";
 export { QueueHealthChecker } from "./checkers/queue.js";
+export { ConsumerPresenceHealthChecker } from "./checkers/consumerPresence.js";
 export { CircuitBreakerHealthChecker } from "./checkers/circuitBreaker.js";
 export { StorageHealthChecker } from "./checkers/storage.js";
 export { ProviderHealthChecker } from "./checkers/provider.js";

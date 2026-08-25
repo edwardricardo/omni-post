@@ -4,9 +4,20 @@ name: Architectural Fitness Functions
 # Checks to CI (the step summary enumerates the current set). Any new
 # occurrence of any pattern fails the workflow and is annotated on the PR diff.
 #
-# Strategy: hard-zero for every check (each returns count = 0). #1 and #21 ran
-# as ratchets during the prisma->DI remediation; that workstream is complete, so
-# both are now hard-zero like the rest.
+# Strategy: hard-zero for every check but one (each returns count = 0). #1 and
+# #21 ran as ratchets during the prisma->DI remediation; that workstream is
+# complete, so both are now hard-zero like the rest. #30 is the single live
+# ratchet, at a measured baseline of 21, because its violations are unrun test
+# suites whose wiring is a separate body of work.
+#
+# A check whose scope path does not exist is WORSE than no check: `grep -r` on
+# an absent directory exits 2, prints nothing, and `| wc -l` renders that as 0 —
+# a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent
+# the whole post-relocation period in exactly that state, which is why each of
+# them now asserts its scope directories exist BEFORE running its grep, and
+# fails loudly when one is missing rather than passing quietly. The former
+# `2>/dev/null` on those three greps is gone for the same reason: it hid the
+# exit-2 that was the only remaining evidence.
 #
 # Canon: Ford & Parsons "Building Evolutionary Architectures" (2nd ed) —
 # hard-zero is the correct mode for invariants in a clean codebase; ratchets
@@ -56,44 +67,98 @@ jobs:
             exit 1
           fi
 
-      - name: "#2 Domain layer is framework-free"
+      - name: "#2 Domain + application core is framework-free"
         if: always()
         run: |
           set -uo pipefail
-          MATCHES=$(grep -rn "prisma\|fastify\|redis\|bullmq" apps/api/src/domain/ --include="*.ts" 2>/dev/null || true)
+          # Scope repointed: `apps/api/src/domain/` no longer exists — the layers
+          # moved to `packages/core/` in the relocation fitness #22 enforces. A
+          # `grep -r` on an absent directory exits 2, prints nothing, and
+          # `| wc -l` renders that as 0, so this guard reported a clean domain
+          # over code it never opened. The scope is the whole `packages/core`
+          # tree because the canon forbids concrete infrastructure in BOTH layers
+          # it holds (application imports domain only, never an adapter), and
+          # because a per-context package is added by creating a directory — a
+          # scope that names them one by one goes stale the same way the old path
+          # did. Tests are out: they are @layer infrastructure and legitimately
+          # name the technologies they replace with doubles. Mirrors CLAUDE.md #2.
+          for d in packages/core; do
+            [ -d "$d" ] || { echo "::error title=Fitness #2 scope missing::'$d' does not exist, so this check would scan nothing and pass. Repoint the scope to where the layer lives now."; exit 1; }
+          done
+          MATCHES=$(grep -rn "prisma\|fastify\|redis\|bullmq" packages/core --include="*.ts" | \
+            grep -vE "/dist/|/node_modules/|/tests/|\.test\.ts:" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
-            echo "::error title=Fitness #2 violation::$COUNT framework references found in domain layer (expected 0). Domain must import nothing external — no Prisma, Fastify, Redis, BullMQ."
+            echo "::error title=Fitness #2 violation::$COUNT framework references found in the domain/application core (expected 0). Domain must import nothing external — no Prisma, Fastify, Redis, BullMQ — and application imports domain only."
             printf "%s\n" "$MATCHES" | head -20
             exit 1
           fi
 
-      - name: "#3 No `any` in domain/application/infrastructure"
+      - name: "#3 No `any` in the core or in apps/api infrastructure"
         if: always()
         run: |
           set -uo pipefail
+          # Same repoint as #2: two of the three original path arguments were
+          # gone, so grep errored on them and the surviving `infrastructure` arm
+          # carried the whole check while the annotation still claimed all three
+          # layers. Excludes JSDoc/comment lines and tests — a negative test may
+          # need `as any` to construct invalid state, which is the `test-fixture`
+          # scenario in CLAUDE.md §Pragmatic Exceptions. Mirrors CLAUDE.md #3.
+          for d in packages/core apps/api/src/infrastructure; do
+            [ -d "$d" ] || { echo "::error title=Fitness #3 scope missing::'$d' does not exist, so this check would scan nothing and pass. Repoint the scope to where the layer lives now."; exit 1; }
+          done
           MATCHES=$(grep -rnE "(:\s+any\b|\bas any\b|<any>)" \
-            apps/api/src/domain/ apps/api/src/application/ apps/api/src/infrastructure/ \
-            --include="*.ts" 2>/dev/null | \
+            packages/core apps/api/src/infrastructure \
+            --include="*.ts" | \
+            grep -vE "/dist/|/node_modules/|/tests/|\.test\.ts:" | \
             grep -vE "//.*any|^[^:]+:[0-9]+:\s*\*" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
-            echo "::error title=Fitness #3 violation::$COUNT \`any\` usages in domain/application/infrastructure (expected 0). Use proper interfaces, generics, or \`unknown\` + type guard."
+            echo "::error title=Fitness #3 violation::$COUNT \`any\` usages in the domain/application core or apps/api infrastructure (expected 0). Use proper interfaces, generics, or \`unknown\` + type guard."
             printf "%s\n" "$MATCHES" | head -20
             exit 1
           fi
 
-      - name: "#4 No raw throws in domain/application"
+      - name: "#4 No raw throws in the core (domain + application)"
         if: always()
         run: |
           set -uo pipefail
-          MATCHES=$(grep -rn "throw " apps/api/src/domain/ apps/api/src/application/ --include="*.ts" 2>/dev/null || true)
+          # Same repoint as #2/#3, and the most misleading of the three: BOTH of
+          # its path arguments were gone, so it scanned nothing at all. Canon:
+          # fallible operations return Result<T, DomainError> and a throw never
+          # crosses a layer boundary. Excludes dist, node_modules, tests, and
+          # comment lines (`MAY throw` in JSDoc prose is documentation, not a
+          # statement). The four excepted files each hold a real throw and are
+          # named so the debt is attributable rather than absorbed by a path that
+          # reads as green:
+          #   - GatewayBillingService.ts + TrialManagementService.ts: the throw is
+          #     the rollback signal inside unitOfWork.executeInTransaction() — an
+          #     interactive Prisma transaction aborts only by throwing — and the
+          #     method's own try/catch converts it to err(...). Never leaves the
+          #     service. Remove-when: UnitOfWork exposes an explicit abort.
+          #   - DeletePostUseCase.ts: exhaustiveness guard on a `never`,
+          #     unreachable by construction. Remove-when: the caller union is
+          #     closed by a compiler-checked schema.
+          #   - ComplianceService.ts: NOT audited-safe, and the reason this list
+          #     is explicit. getGdprSettings()/getSecuritySettings() are typed
+          #     Promise<GdprSettings>/Promise<SecuritySettings>, so their throws
+          #     DO escape the application layer — a live canon violation the dead
+          #     scope was concealing. Remove-when: both getters return
+          #     Result<T, DomainError> and every caller narrows on .ok.
+          # Mirrors CLAUDE.md #4.
+          for d in packages/core; do
+            [ -d "$d" ] || { echo "::error title=Fitness #4 scope missing::'$d' does not exist, so this check would scan nothing and pass. Repoint the scope to where the layer lives now."; exit 1; }
+          done
+          MATCHES=$(grep -rn "throw " packages/core --include="*.ts" | \
+            grep -vE "/dist/|/node_modules/|/tests/|\.test\.ts:" | \
+            grep -vE "^[^:]+:[0-9]+:\s*(\*|//)" | \
+            grep -vE "/GatewayBillingService\.ts|/TrialManagementService\.ts|/ComplianceService\.ts|/DeletePostUseCase\.ts" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
-            echo "::error title=Fitness #4 violation::$COUNT raw \`throw\` statements in domain/application (expected 0). Use Result<T, DomainError> for fallible operations."
+            echo "::error title=Fitness #4 violation::$COUNT raw \`throw\` statements in the domain/application core (expected 0). Use Result<T, DomainError> for fallible operations."
             printf "%s\n" "$MATCHES" | head -20
             exit 1
           fi
@@ -547,13 +612,19 @@ jobs:
         run: |
           set -uo pipefail
           # The dev-prod-resolution-model contract (ADR-0017 §1c). Part A: source-mode
-          # node:test/seed invocations must pass --conditions development (else they
-          # resolve workspace packages to the unbuilt dist via Node exports). Part B:
-          # the size-limit job must build the Next apps via turbo (^build -> @shared/types
-          # dist first), not a bare pnpm --filter. Mirrors CLAUDE.md #27.
+          # node:test/seed/service invocations must pass --conditions development (else
+          # they resolve workspace packages to the unbuilt dist via Node exports).
+          # apps/workers/package.json + src/bootstrap.ts are in scope because CI boots
+          # the workers from source in the integration job: without the condition the
+          # worker resolves ~12 workspace packages to a dist CI never builds and dies
+          # during boot, so the readiness gate reports "not ready" for a reason that has
+          # nothing to do with the queue it exists to prove. Part B: the size-limit job
+          # must build the Next apps via turbo (^build -> @shared/types dist first), not
+          # a bare pnpm --filter. Mirrors CLAUDE.md #27.
           A=$(grep -rnE "node ([^|&]*)--import tsx" \
-                apps/api/package.json apps/api/scripts/run-tests.sh infra/prisma/package.json 2>/dev/null | \
-                grep -E -- "--test|security/tests|seed\.ts" | \
+                apps/api/package.json apps/api/scripts/run-tests.sh infra/prisma/package.json \
+                apps/workers/package.json 2>/dev/null | \
+                grep -E -- "--test|security/tests|seed\.ts|src/bootstrap\.ts" | \
                 grep -v -- "--conditions development" | \
                 grep -vE '"dev":|dump:openapi' || true)
           ACOUNT=$(printf "%s" "$A" | grep -c . || true); ACOUNT=${ACOUNT:-0}
@@ -610,6 +681,113 @@ jobs:
             exit 1
           fi
 
+      - name: "#30 Every committed test file is reachable by a collector (ratchet)"
+        if: always()
+        run: |
+          set -uo pipefail
+          # RATCHET, not hard-zero — the only such check in this suite. Vitest
+          # collects apps/api/tests/unit/** and tests/eval/** from the tree via
+          # the `include` globs in apps/api/vitest.config.ts, so those are
+          # reachable by construction. Every OTHER node:test file under
+          # apps/api/tests is selected by an EXPLICIT file list in
+          # apps/api/scripts/run-tests.sh, and a suite that no `run_batch` names
+          # never executes anywhere — while still reading as coverage in the
+          # tree, in review, and in a coverage report that only counts what ran.
+          # Baseline 21, measured, tracked as SMELL-75 in
+          # docs/reports/roadmap-detected-smells-backlog.md. Wiring them is its
+          # own body of work (each needs a tier, services, and a runtime budget),
+          # so the gate gives that work a floor instead of blocking on it: the
+          # count may fall and must never rise. Mirrors CLAUDE.md #30.
+          BASELINE=21
+          for p in apps/api/tests apps/api/scripts/run-tests.sh; do
+            [ -e "$p" ] || { echo "::error title=Fitness #30 scope missing::'$p' does not exist, so this check would scan nothing and pass."; exit 1; }
+          done
+          UNREACHED=$(for f in $(find apps/api/tests -name "*.test.ts" \
+              -not -path "*/tests/unit/*" -not -path "*/tests/eval/*"); do
+            grep -qF "${f#apps/api/}" apps/api/scripts/run-tests.sh || echo "UNREACHED: $f"
+          done || true)
+          COUNT=$(printf "%s" "$UNREACHED" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          echo "Unreached suites: $COUNT (ratchet baseline $BASELINE)"
+          printf "%s\n" "$UNREACHED" | head -40
+          if [ "$COUNT" -gt "$BASELINE" ]; then
+            echo "::error title=Fitness #30 violation::$COUNT test suites are named by no run_batch and by no collector glob, above the ratchet baseline of $BASELINE. A suite nothing collects never runs while still reading as coverage. Name it in a run_batch in apps/api/scripts/run-tests.sh, or delete it."
+            exit 1
+          fi
+          if [ "$COUNT" -lt "$BASELINE" ]; then
+            echo "::notice title=Fitness #30 ratchet::$COUNT unreached suites, below the baseline of $BASELINE. Lower BASELINE here and in CLAUDE.md #30 to lock the gain in."
+          fi
+
+      - name: "#31 No vacuous-pass escape hatch in a test entry point (two-part hard-zero)"
+        if: always()
+        run: |
+          set -uo pipefail
+          # Threat: a suite that collects ZERO tests and still exits 0. The
+          # nightly chaos job ran `vitest run tests/chaos/` for the life of that
+          # workflow against node:test files vitest's `include` globs never
+          # covered, collected nothing, and reported green over scenarios it
+          # never executed.
+          # Part A: no `passWithNoTests` anywhere. Vitest defaults it to false —
+          # zero collected is exit 1 — so every occurrence is an explicit opt-OUT
+          # of the one default that notices an empty run, and it keeps reporting
+          # green forever once a rename or an `include` change breaks collection.
+          # Part B: the node:test runner must KEEP its zero-collection guards.
+          # node:test has no equivalent default: a crashed or empty run prints a
+          # 0/0/0 TAP summary that parses as success, so run-tests.sh carries the
+          # check itself, once per batch and once on the total. Both terms are
+          # pinned because deleting either restores the silent green with nothing
+          # left to notice it. Mirrors CLAUDE.md #31.
+          A=$(grep -rn "passWithNoTests" apps/ packages/ infra/ \
+                --include="package.json" --include="*.ts" --include="*.json" | \
+                grep -vE "node_modules|/dist/" || true)
+          ACOUNT=$(printf "%s" "$A" | grep -c . || true); ACOUNT=${ACOUNT:-0}
+          BATCH_PIN=$(grep -c '\[ "\$tests" -eq 0 \]' apps/api/scripts/run-tests.sh || true)
+          TOTAL_PIN=$(grep -c '\[ "\$TOTAL_TESTS" -eq 0 \]' apps/api/scripts/run-tests.sh || true)
+          BATCH_PIN=${BATCH_PIN:-0}; TOTAL_PIN=${TOTAL_PIN:-0}
+          if [ "$ACOUNT" -gt 0 ]; then
+            echo "::error title=Fitness #31 violation::$ACOUNT test entry point(s) declare passWithNoTests — that opts out of the only default that fails an empty run, so the suite reports green the day collection breaks"
+            printf "%s\n" "$A" | head -20
+          fi
+          if [ "$BATCH_PIN" -lt 1 ] || [ "$TOTAL_PIN" -lt 1 ]; then
+            echo "::error title=Fitness #31 violation::apps/api/scripts/run-tests.sh lost a zero-collection guard (per-batch found=$BATCH_PIN, total found=$TOTAL_PIN, each must be >= 1). node:test reports a crashed or empty run as a 0/0/0 TAP summary that parses as success; without these terms the runner passes over tests nobody executed."
+          fi
+          if [ "$ACOUNT" -gt 0 ] || [ "$BATCH_PIN" -lt 1 ] || [ "$TOTAL_PIN" -lt 1 ]; then
+            exit 1
+          fi
+
+      - name: "#32 No committed skipped or focused test"
+        if: always()
+        run: |
+          set -uo pipefail
+          # CODING_STANDARDS §Zero Cancelled Tests states this as canon; nothing
+          # enforced it mechanically. A committed `.only(` is the sharper harm of
+          # the two: the runner then executes ONLY that test and every sibling in
+          # the file reports green without running. `forbidOnly: true` catches
+          # `.only` at RUNTIME, but only in the 5 of 83 vitest configs that set
+          # it; this catches both forms statically, in every package and both
+          # frameworks, before a runner is even chosen.
+          # Two deliberate non-matches:
+          #   - `.todo(` marks a test that was never written — a declared gap,
+          #     not a written test switched off. The canon forbids .skip and
+          #     .only, not the backlog marker.
+          #   - The runtime form `t.skip("...")` inside a node:test body is a
+          #     conditional skip decided at execution time, which a static grep
+          #     cannot tell from a legitimate one. It has its own gate:
+          #     run-tests.sh fails any TIER-driven batch reporting a non-zero
+          #     skip count, which is the only place the distinction (was the
+          #     service supposed to be there?) is actually knowable.
+          # Mirrors CLAUDE.md #32.
+          MATCHES=$(grep -rnE "\b(it|test|describe|suite)\.(skip|only)\(" \
+            apps/ packages/ --include="*.test.ts" --include="*.test.tsx" | \
+            grep -vE "node_modules|/dist/|\.stryker" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #32 violation::$COUNT committed .skip/.only test declaration(s) (expected 0). A skipped test is a test that never ran; a committed .only silently drops every sibling in its file. Delete the marker and fix or remove the test."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
       - name: "#33 Every extended root tsconfig listed in turbo.json globalDependencies"
         if: always()
         run: |
@@ -634,9 +812,7 @@ jobs:
           # targets that resolve inside a workspace directory stay covered by
           # that package's own input hash — in-tree today every relative target
           # resolves to a root config, so this second skip currently matches
-          # nothing. Numbering: #30-32 are reserved by
-          # workstream/ci-live-tier-integrity; delete this note once that branch
-          # merges and #30-32 appear above. Hard-zero. Mirrors CLAUDE.md #33.
+          # nothing. Hard-zero. Mirrors CLAUDE.md #33.
           GLOBALS=$(tr -d ' \n' < turbo.json | grep -oE '"globalDependencies":\[[^]]*\]' | \
             grep -oE '"[^"]*"' | tr -d '"' | grep -v '^globalDependencies$' || true)
           listed() {
@@ -749,8 +925,9 @@ jobs:
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "32 architectural invariants (#1-#29, #33-#35) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
-          echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
+          echo "35 architectural invariants (#1-#35) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "Hard-zero threshold for every check but #30, which is a ratchet at a measured baseline of 21." >> $GITHUB_STEP_SUMMARY
+          echo "Any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY
 

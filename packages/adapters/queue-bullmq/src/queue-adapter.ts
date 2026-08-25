@@ -22,6 +22,16 @@ import type { QueueName } from "./constants.js";
 
 const logger = createLogger("adapter:queue-bullmq");
 
+/**
+ * The single-element name BullMQ substitutes when the broker rejects
+ * `CLIENT LIST` (`queue-getters.js` `baseGetClients`). It is returned as a
+ * normal one-entry array, so `getWorkersCount()` — which is
+ * `(await getWorkers()).length` — answers the integer 1 for a broker that
+ * answered nothing. Matching the name is the only way to tell that reply apart
+ * from a genuinely registered consumer.
+ */
+export const GCP_CLIENT_LIST_SENTINEL = "GCP does not support client list";
+
 export interface BullMQQueueAdapterOptions {
   queueName: QueueName | string;
   /**
@@ -113,19 +123,24 @@ export function createBullMQQueueAdapter(options: BullMQQueueAdapterOptions): Bu
     }
   );
 
-  const healthBreaker = createCircuitBreaker(async () => {
+  const healthBreaker = createCircuitBreaker(async (): Promise<QueueHealth> => {
     await connection.ping();
-    const waiting = await queue.getWaiting();
-    const active = await queue.getActive();
-    const completed = await queue.getCompleted();
-    const failed = await queue.getFailed();
-    return {
-      connected: true,
-      waiting: waiting.length,
-      active: active.length,
-      completed: completed.length,
-      failed: failed.length,
-    };
+    // O(1) counts, not list fetches. `getWaiting()` and friends default to
+    // (start = 0, end = -1) — every job object, then `.length`. The publish
+    // queue configures no `removeOnComplete`, so its completed set grows
+    // without bound, and this call sits on the metrics scrape path (every 10s,
+    // inside a 5s breaker timeout): an unbounded fetch there is a scheduled
+    // failure, not a slow query.
+    const [waiting, active, completed, failed] = await Promise.all([
+      queue.getWaitingCount(),
+      queue.getActiveCount(),
+      queue.getCompletedCount(),
+      queue.getFailedCount(),
+    ]);
+    const workers = await queue.getWorkers();
+    const consumers =
+      workers.length === 1 && workers[0]?.name === GCP_CLIENT_LIST_SENTINEL ? null : workers.length;
+    return { connected: true, waiting, active, completed, failed, consumers };
   });
 
   const removeBreaker = createCircuitBreaker(async (jobId: string) => {

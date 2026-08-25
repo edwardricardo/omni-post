@@ -55,6 +55,8 @@ interface StubShape {
   pass: number;
   fail: number;
   cancel: number;
+  /** Defaults to 0 so every pre-existing scenario keeps its exact shape. */
+  skip?: number;
   exit: number;
 }
 
@@ -78,8 +80,8 @@ beforeAll(() => {
     stubPath,
     [
       "#!/usr/bin/env bash",
-      "printf '# tests %s\\n# suites 1\\n# pass %s\\n# fail %s\\n# cancelled %s\\n# skipped 0\\n# todo 0\\n' \\",
-      '  "$GATE_STUB_TESTS" "$GATE_STUB_PASS" "$GATE_STUB_FAIL" "$GATE_STUB_CANCEL"',
+      "printf '# tests %s\\n# suites 1\\n# pass %s\\n# fail %s\\n# cancelled %s\\n# skipped %s\\n# todo 0\\n' \\",
+      '  "$GATE_STUB_TESTS" "$GATE_STUB_PASS" "$GATE_STUB_FAIL" "$GATE_STUB_CANCEL" "$GATE_STUB_SKIP"',
       'exit "$GATE_STUB_EXIT"',
       "",
     ].join("\n"),
@@ -107,6 +109,7 @@ function runGate(shape: StubShape): RunResult {
       GATE_STUB_PASS: String(shape.pass),
       GATE_STUB_FAIL: String(shape.fail),
       GATE_STUB_CANCEL: String(shape.cancel),
+      GATE_STUB_SKIP: String(shape.skip ?? 0),
       GATE_STUB_EXIT: String(shape.exit),
     },
   });
@@ -200,6 +203,28 @@ describe("run-tests.sh exits non-zero when a batch is recorded failed", () => {
       cancelledMessage: /ERROR: \d+ test\(s\) were CANCELLED/.test(run.stdout),
       notTheCleanCountMessage: !run.stdout.includes("every test that ran reported passing"),
     }).toEqual({ exitCode: 1, cancelledMessage: true, notTheCleanCountMessage: true });
+  });
+
+  it("exits 1 when a batch reports a skipped test in a tier-driven run", () => {
+    // The reproduction that was LIVE on the trunk: a batch prints
+    // `… 0 fail  0 cancel  3 skip  exit 0  [OK]`, the totals print the same three
+    // skips, and the run exits 0. Three service-dependent tests were reported
+    // green without executing. A tier run provides the services its batches name;
+    // a test that skipped for want of one is a service the tier did not provide,
+    // which is a tier failure, not a test's own business.
+    const run = runGate({ tests: 3, pass: 2, fail: 0, cancel: 0, skip: 1, exit: 0 });
+
+    expect({
+      exitCode: run.exitCode,
+      cleanFailureCounts: /TOTAL: \d+ tests, \d+ pass, 0 fail, 0 cancel/.test(run.stdout),
+      namesTheBatches: reportedFailedBatches(run.stdout).length > 1,
+      saysWhy: /ERROR: \d+ test\(s\) were SKIPPED/.test(run.stdout),
+    }).toEqual({
+      exitCode: 1,
+      cleanFailureCounts: true,
+      namesTheBatches: true,
+      saysWhy: true,
+    });
   });
 
   it("exits 1 when a batch collects nothing at all", () => {

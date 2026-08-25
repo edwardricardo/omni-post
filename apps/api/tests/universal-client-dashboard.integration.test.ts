@@ -17,8 +17,9 @@
 
 import { describe, it, before } from "node:test";
 import * as assert from "node:assert/strict";
+import { checkApiAvailable, getBaseUrl } from "./testUtils.js";
 
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = getBaseUrl();
 const CLIENT_BASE_URL = "http://localhost:3200";
 
 interface TestResult {
@@ -42,17 +43,9 @@ describe("Universal Client Dashboard Integration Tests", () => {
   let clientAvailable = false;
 
   before(async () => {
-    try {
-      const apiHealth = await fetch(`${API_BASE_URL}/health`, {
-        signal: AbortSignal.timeout(3000),
-      });
-      apiAvailable = apiHealth.ok;
-      if (!apiAvailable) {
-        console.warn("API not available - API integration tests will be skipped");
-      }
-    } catch {
+    apiAvailable = await checkApiAvailable();
+    if (!apiAvailable) {
       console.warn("API not available - API integration tests will be skipped");
-      apiAvailable = false;
     }
 
     try {

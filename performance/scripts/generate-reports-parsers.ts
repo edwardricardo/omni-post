@@ -25,29 +25,3 @@ export function parsePostgresResults(logContent: string): DatabaseTestResult {
     longRunningQueries: longQueryMatch ? parseInt(longQueryMatch[1]) : 0,
   };
 }
-
-/**
- * Parse Redis test results from logs
- */
-export function parseRedisResults(logContent: string): {
-  operationCount: number;
-  averageResponseTime: number;
-  throughput: number;
-  cacheHitRate: number;
-  errorCount: number;
-} {
-  // Simple parsing for Redis results
-  const operationCountMatch = logContent.match(/Total operations: (\d+)/);
-  const avgTimeMatch = logContent.match(/Average response time: ([\d.]+)ms/);
-  const throughputMatch = logContent.match(/Throughput: ([\d.]+) ops\/sec/);
-  const hitRateMatch = logContent.match(/Cache hit rate: ([\d.]+)%/);
-  const errorCountMatch = logContent.match(/Error count: (\d+)/);
-
-  return {
-    operationCount: operationCountMatch ? parseInt(operationCountMatch[1]) : 0,
-    averageResponseTime: avgTimeMatch ? parseFloat(avgTimeMatch[1]) : 0,
-    throughput: throughputMatch ? parseFloat(throughputMatch[1]) : 0,
-    cacheHitRate: hitRateMatch ? parseFloat(hitRateMatch[1]) : 0,
-    errorCount: errorCountMatch ? parseInt(errorCountMatch[1]) : 0,
-  };
-}

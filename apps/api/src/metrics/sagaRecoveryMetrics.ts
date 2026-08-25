@@ -233,6 +233,98 @@ export function setSagaWaitingRowsProvider(provider: (() => Promise<number>) | u
   }
 }
 
+/**
+ * The value `publish_queue_consumers` carries when the consumer count could NOT
+ * be read — the broker refused its client registry, the port errored, or no
+ * provider is installed.
+ *
+ * A Prometheus gauge has no null, and the alert fires on `== 0`, so unknown MUST
+ * NOT be published as zero: that would page for an outage nobody observed. A
+ * negative sentinel is outside every legitimate count, so it fails the alert's
+ * predicate and stays silent on its own.
+ */
+export const PUBLISH_QUEUE_UNKNOWN_CONSUMERS = -1;
+
+/**
+ * Reads the publish queue's health at scrape time. Installed by the composition
+ * root; this file publishes series and must not learn about BullMQ or Redis.
+ *
+ * The API publishes these rather than the workers on purpose: the observer has
+ * to survive the outage, and a worker-side gauge goes ABSENT exactly when the
+ * workers die — absence being ambiguous with a scrape misconfiguration. The API
+ * holds the same publish queue as a producer and is up precisely when the
+ * consumers are not.
+ */
+let publishQueueHealthProvider:
+  | (() => Promise<
+      | { ok: true; value: { consumers: number | null; waiting: number } }
+      | { ok: false; error: unknown }
+    >)
+  | undefined;
+
+/** Last snapshot read, shared by both gauges so one scrape costs one round trip. */
+async function readPublishQueue(): Promise<{ consumers: number; waiting: number } | undefined> {
+  if (!publishQueueHealthProvider) return undefined;
+  const result = await publishQueueHealthProvider();
+  if (!result.ok) return undefined;
+  const { consumers, waiting } = result.value;
+  return {
+    consumers: consumers === null ? PUBLISH_QUEUE_UNKNOWN_CONSUMERS : consumers,
+    waiting,
+  };
+}
+
+const publishQueueConsumers = getOrCreateGauge(
+  "publish_queue_consumers",
+  "Consumers the broker has registered for the publish queue. -1 means the count could NOT be " +
+    "read (no client registry, port error, or no provider installed) — UNKNOWN, never zero, so " +
+    "an alert keyed on zero cannot fire on an unanswered question",
+  async function collectPublishQueueConsumers(this: client.Gauge): Promise<void> {
+    try {
+      const snapshot = await readPublishQueue();
+      this.set(snapshot?.consumers ?? PUBLISH_QUEUE_UNKNOWN_CONSUMERS);
+    } catch {
+      // A scrape must not fail because one level could not be measured. Unknown
+      // is the honest value here, and it is the value that keeps the alert quiet.
+      this.set(PUBLISH_QUEUE_UNKNOWN_CONSUMERS);
+    }
+  }
+);
+
+const publishQueueWaiting = getOrCreateGauge(
+  "publish_queue_waiting",
+  "Publish jobs enqueued and not yet taken. Paired with publish_queue_consumers: work queued AND " +
+    "nobody taking it is the outage; either term alone is an ordinary burst or an idle system",
+  async function collectPublishQueueWaiting(this: client.Gauge): Promise<void> {
+    try {
+      const snapshot = await readPublishQueue();
+      if (snapshot) this.set(snapshot.waiting);
+    } catch {
+      // Previous sample stands; the consumers gauge carries the unknown.
+    }
+  }
+);
+
+/**
+ * @function setPublishQueueHealthProvider
+ * @description Installs (or removes) the scrape-time source for publish-queue
+ *   attendance. It exists because a consumer outage now converts into sagas that
+ *   WAIT rather than into terminal failures within ~35 s — more correct, and much
+ *   quieter: nothing published a number for "work is queued and nobody is taking
+ *   it", so the outage was invisible for a full horizon and then arrived as a
+ *   cohort of timeouts.
+ * @param provider - Reads the publish queue's health, or `undefined` to detach on
+ *   shutdown. Detaching resets the count to UNKNOWN rather than to zero, so a
+ *   stopped process cannot leave a stale "attended" reading behind either.
+ */
+export function setPublishQueueHealthProvider(provider: typeof publishQueueHealthProvider): void {
+  publishQueueHealthProvider = provider;
+  if (provider === undefined) {
+    publishQueueConsumers.set(PUBLISH_QUEUE_UNKNOWN_CONSUMERS);
+    publishQueueWaiting.set(0);
+  }
+}
+
 const sagasDurationSeconds = getOrCreateHistogram(
   "sagas_duration_seconds",
   "End-to-end saga lifetime, from start to terminal state, by definition and outcome",

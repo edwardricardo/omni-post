@@ -18,8 +18,9 @@
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
 import { signCustomerAccessToken } from "../src/auth/customerJwt.js";
+import { checkApiAvailable, getBaseUrl } from "./testUtils.js";
 
-const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
+const BASE_URL = getBaseUrl();
 
 /**
  * Mints a customer Bearer token. The gated `/providers/*` endpoints sit behind
@@ -40,18 +41,11 @@ describe("Provider Registry System", () => {
   let authHeader: string;
 
   before(async () => {
-    // Check if API is available
-    try {
-      const response = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(3000) });
-      apiAvailable = response.ok;
-      if (!apiAvailable) {
-        console.warn("⚠️  API not available - integration tests will be skipped");
-      } else {
-        console.log("✅ API is available - running integration tests");
-      }
-    } catch {
+    apiAvailable = await checkApiAvailable();
+    if (apiAvailable) {
+      console.log("✅ API is available - running integration tests");
+    } else {
       console.warn("⚠️  API not available - integration tests will be skipped");
-      apiAvailable = false;
     }
 
     authHeader = bearer("prod-registry-account");

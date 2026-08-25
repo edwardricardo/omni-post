@@ -15,9 +15,6 @@
  * @layer infrastructure
  */
 
-import dotenv from "dotenv";
-dotenv.config({ path: "../../.env" });
-
 import { Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { createLogger } from "@observability/logger";

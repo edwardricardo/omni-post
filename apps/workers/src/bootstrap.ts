@@ -37,9 +37,6 @@
  * @layer infrastructure
  */
 
-import dotenv from "dotenv";
-dotenv.config({ path: "../../.env" });
-
 import http from "http";
 import client from "prom-client";
 import { Redis } from "ioredis";
@@ -47,13 +44,16 @@ import { createLogger } from "@observability/logger";
 import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   createHealthCheckManager,
+  ConsumerPresenceHealthChecker,
   DatabaseHealthChecker,
   RedisHealthChecker,
 } from "@monitoring/health-checks";
+import { BullMQQueuePortRegistry, PUBLISH_PIPELINE_QUEUES } from "@adapters/queue-bullmq";
 import { workerPrisma } from "./container/workerContainer.js";
 import { startPublishWorker } from "./publishWorker.js";
 import { startMentionIngestWorker } from "./mentionIngestWorker.js";
 import { env } from "./config/env.js";
+import { evaluateReadiness, publishConsumerDependencyName } from "./health/readiness.js";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 
 const logger = createLogger("workers-bootstrap");
@@ -106,6 +106,31 @@ async function main(): Promise<void> {
     critical: true,
   });
 
+  // Consumer-presence probes, one per queue the publish pipeline enqueues to.
+  // The set comes from PUBLISH_PIPELINE_QUEUES rather than from a literal here,
+  // so a queue added to that pipeline adds a readiness requirement by
+  // construction. Built on `healthRedis` — finite retries and a 5s command
+  // timeout are exactly the failure semantics a probe wants, and sharing the
+  // publish worker's own connection would make the probe depend on the thing it
+  // is supposed to observe.
+  const healthQueueRegistry = new BullMQQueuePortRegistry({ connection: healthRedis });
+  const publishConsumerDependencies = PUBLISH_PIPELINE_QUEUES.map((queueName) => {
+    const dependencyName = publishConsumerDependencyName(queueName);
+    healthManager.register(
+      dependencyName,
+      new ConsumerPresenceHealthChecker(queueName, healthQueueRegistry.forQueue(queueName)),
+      { type: "queue", critical: true }
+    );
+    return dependencyName;
+  });
+
+  /**
+   * Every dependency whose absence makes this process unable to do its job. The
+   * consumer entries are what turn "the process started" into "the process is
+   * attached to the queue" — the distinction a readiness gate exists to draw.
+   */
+  const criticalDependencies = ["database", "redis", ...publishConsumerDependencies];
+
   // Aggregate prom-client registries: publish worker's default+worker metrics
   // + the global registry used by `@monitoring/health-checks` for its own
   // gauges/histograms.
@@ -137,14 +162,18 @@ async function main(): Promise<void> {
       }
 
       if (url === "/health/ready") {
-        const report = await healthManager.checkAll();
-        const criticalDeps = ["database", "redis"];
-        const unhealthyDependencies = report.dependencies
-          .filter((d) => criticalDeps.includes(d.name) && d.status !== "healthy")
-          .map((d) => d.name);
+        // Asked one name at a time, NOT by filtering a whole-report scan: a
+        // critical name with no registered checker contributes zero entries to
+        // such a filter, and zero unhealthy entries reads as ready — a 200 over
+        // a dependency nobody checked. Per-name lookup makes that a NOT_FOUND,
+        // so the gate fails closed on its own wiring mistakes.
+        const { ready, unhealthyDependencies } = await evaluateReadiness(
+          healthManager,
+          criticalDependencies
+        );
 
         res.setHeader("Content-Type", "application/json");
-        if (unhealthyDependencies.length === 0) {
+        if (ready) {
           res.statusCode = 200;
           res.end(
             JSON.stringify({
@@ -236,6 +265,9 @@ async function main(): Promise<void> {
     afterTeardown: async (): Promise<void> => {
       healthManager.stop();
       await new Promise<void>((resolve) => healthServer.close(() => resolve()));
+      // Closes the probe's BullMQ queues before `healthRedis` is quit; the
+      // registry never owns the connection it was handed.
+      await healthQueueRegistry.close();
       const schedulerResult = await healthScheduler.shutdownAll();
       if (schedulerResult.timedOut) {
         logger.warn({ schedulerResult }, "Health scheduler shutdown timed out");

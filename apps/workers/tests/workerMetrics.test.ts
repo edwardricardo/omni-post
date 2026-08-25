@@ -35,8 +35,6 @@ describe("WorkerMetrics", { sequential: true }, () => {
       assert.ok(m.jobsFailed, "jobsFailed counter should exist");
       assert.ok(m.jobsSkipped, "jobsSkipped counter should exist");
       assert.ok(m.jobProcessingDuration, "jobProcessingDuration histogram should exist");
-      assert.ok(m.queueDepth, "queueDepth gauge should exist");
-      assert.ok(m.workerHealth, "workerHealth gauge should exist");
       assert.ok(m.correlationTracker, "correlationTracker gauge should exist");
       assert.ok(m.renderDuration, "renderDuration histogram should exist");
       assert.ok(m.dbOperationDuration, "dbOperationDuration histogram should exist");
@@ -46,11 +44,6 @@ describe("WorkerMetrics", { sequential: true }, () => {
       assert.ok(m.circuitBreakerTrips, "circuitBreakerTrips counter should exist");
     });
 
-    it("should set initial health status to 1 (healthy)", async () => {
-      const value = await metrics.metrics.workerHealth.get();
-      assert.strictEqual(value.values[0]?.value, 1);
-    });
-
     it("should register metrics on the provided registry", async () => {
       const registeredMetrics = await registry.getMetricsAsJSON();
       const metricNames = registeredMetrics.map((m) => m.name);
@@ -58,7 +51,6 @@ describe("WorkerMetrics", { sequential: true }, () => {
       assert.ok(metricNames.includes("worker_publish_success_total"));
       assert.ok(metricNames.includes("worker_publish_errors_total"));
       assert.ok(metricNames.includes("worker_publish_duration_seconds"));
-      assert.ok(metricNames.includes("worker_health_status"));
     });
   });
 
@@ -235,40 +227,6 @@ describe("WorkerMetrics", { sequential: true }, () => {
     it("should return '20+' for counts above 20", () => {
       assert.strictEqual(metrics.getTweetCountRange(21), "20+");
       assert.strictEqual(metrics.getTweetCountRange(100), "20+");
-    });
-  });
-
-  describe("setHealthy / setUnhealthy", { sequential: true }, () => {
-    it("should set health gauge to 1 when healthy", async () => {
-      metrics.setUnhealthy(); // first set unhealthy
-      metrics.setHealthy();
-
-      const value = await metrics.metrics.workerHealth.get();
-      assert.strictEqual(value.values[0]?.value, 1);
-    });
-
-    it("should set health gauge to 0 when unhealthy", async () => {
-      metrics.setUnhealthy();
-
-      const value = await metrics.metrics.workerHealth.get();
-      assert.strictEqual(value.values[0]?.value, 0);
-    });
-  });
-
-  describe("updateQueueDepth", { sequential: true }, () => {
-    it("should set queue depth gauge to given value", async () => {
-      metrics.updateQueueDepth(42);
-
-      const value = await metrics.metrics.queueDepth.get();
-      assert.strictEqual(value.values[0]?.value, 42);
-    });
-
-    it("should update to new values", async () => {
-      metrics.updateQueueDepth(10);
-      metrics.updateQueueDepth(5);
-
-      const value = await metrics.metrics.queueDepth.get();
-      assert.strictEqual(value.values[0]?.value, 5);
     });
   });
 

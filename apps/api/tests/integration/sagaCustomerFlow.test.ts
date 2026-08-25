@@ -11,9 +11,11 @@
  *   - status endpoint ownership (anti-IDOR)
  *
  * The dev environment (`pnpm dev`) MUST be up — API on 3000, workers
- * consuming the publish queue. Tests fail loud if anything is missing
- * (rather than skipping) per the canon "Never skip tests because services
- * are down — start them."
+ * consuming the publish queue. Both halves are ENFORCED in `before`, not
+ * merely documented here: a missing API and a queue with no consumer each
+ * fail the suite in seconds, naming themselves. Tests fail loud rather than
+ * skipping, per the canon "Never skip tests because services are down —
+ * start them."
  *
  * @file sagaCustomerFlow.test.ts
  * @description Tests for the customer-facing saga endpoint
@@ -25,7 +27,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
-import { checkApiAvailable, getBaseUrl } from "../testUtils.js";
+import { assertPublishConsumers, checkApiAvailable, getBaseUrl } from "../testUtils.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
 
 const API_URL = getBaseUrl();
@@ -93,11 +95,26 @@ describe("Saga customer flow integration", () => {
   let fixture: Fixture;
 
   before(async () => {
-    const apiAvailable = await checkApiAvailable();
+    // Both preconditions, concurrently and BEFORE the first fixture row: the two
+    // share one setup budget, and a suite that creates rows before knowing its
+    // environment leaves them behind when the environment turns out to be wrong.
+    const [apiAvailable, consumers] = await Promise.all([
+      checkApiAvailable(),
+      assertPublishConsumers(),
+    ]);
+
     assert.ok(
       apiAvailable,
       `API not reachable at ${API_URL} — start the dev environment with 'pnpm dev' before running this suite`
     );
+
+    // The publish cases below start a saga and wait for a terminal state. With
+    // nothing consuming the publish queue the saga correctly PARKS, and its only
+    // remaining terminalizer is the 30-minute horizon — so every one of them
+    // burns its full per-test budget and then reports "did not reach terminal
+    // state", which is a symptom several inference steps away from the cause.
+    // Failing here instead states the cause, in seconds.
+    assert.ok(consumers.ok, consumers.message);
 
     prisma = createTestPrismaClient();
     const tag = `saga-int-${Date.now()}`;

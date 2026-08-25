@@ -250,6 +250,7 @@ export function createMockQueue(): MockQueue {
         active: 0,
         completed: 0,
         failed: 0,
+        consumers: 1,
       });
     },
     async remove(_jobId: string): Promise<Result<boolean, "CONNECTION_ERROR" | "NOT_FOUND">> {

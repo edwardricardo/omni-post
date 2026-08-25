@@ -15,9 +15,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
+    # Least privilege, and both entries are load-bearing: declaring this block
+    # replaces the default token scopes wholesale, so `contents: read` must be
+    # restated for checkout. Without `issues: write` the "Notify on failure"
+    # step below died with "Resource not accessible by integration", which is
+    # why no nightly failure has ever produced an issue.
+    permissions:
+      contents: read
+      issues: write
+
     services:
       postgres:
-        image: postgres:15
+        # pgvector-enabled image — the glossary/style-guide migrations CREATE
+        # EXTENSION vector, which plain postgres images don't ship.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_PASSWORD: password123
           POSTGRES_USER: postgres
@@ -50,13 +61,32 @@ jobs:
           node-version: "24"
 
       - name: Setup test environment
+        # Per-app env files were consolidated into the repo root, so the
+        # apps/api/.env.example this step used to copy no longer exists and the
+        # job died at its first command. Same synthesis as every other job:
+        # env.ts loads `.env.test` when NODE_ENV=test, the tracked file was
+        # removed for credential hygiene, and DB/Redis are passed in rather than
+        # hardcoded in the script.
         run: |
-          cp apps/api/.env.example apps/api/.env
-          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> apps/api/.env
-          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env
+          cp .env.example .env
+          export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
+          export REDIS_URL="redis://localhost:6379"
+          bash scripts/ci-setup-test-env.sh
+
+      - name: Generate Prisma client
+        run: pnpm --filter @infra/prisma exec prisma generate
 
       - name: Run database migrations
-        run: pnpm --filter @infra/prisma db:migrate
+        # `migrate` is the script defined on @infra/prisma (`prisma migrate
+        # deploy`); the `db:migrate` alias only exists in the ROOT package, so
+        # `--filter @infra/prisma db:migrate` matches no script and pnpm exits 0
+        # WITHOUT applying anything — the schema never lands, and the run reports
+        # a migration it did not perform. Explicit DB env so prisma.config.ts
+        # targets the postgres service on the `public` schema.
+        env:
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+        run: pnpm --filter @infra/prisma run migrate
 
       - name: Build (cache bypassed)
         run: pnpm turbo run build --force
@@ -67,8 +97,10 @@ jobs:
       - name: Run mutation testing (incremental)
         run: pnpm turbo run mutation --force
         # Mutation testing is a long, variable-runtime health check that runs
-        # nightly for trend analysis; treated as informational (the Stryker
-        # reports uploaded below are the observable signal).
+        # nightly for trend analysis; the SCORE is treated as informational (the
+        # Stryker reports uploaded below are the observable signal). This
+        # tolerance covers the score only — it does not extend to the report,
+        # which the upload step below requires.
         continue-on-error: true
 
       - name: Upload mutation reports
@@ -78,14 +110,26 @@ jobs:
           name: mutation-reports-${{ github.run_id }}
           path: "**/reports/mutation/index.html"
           retention-days: 30
-          if-no-files-found: warn
+          # The step above is continue-on-error because the mutation SCORE is a
+          # trend signal, not a gate — that rationale holds and is unchanged.
+          # It does not extend to the report itself: with `warn`, a mutation run
+          # that crashed before writing anything produced no report, no artifact
+          # and no red, which leaves the trend the score is meant to feed silently
+          # empty. Absence of the report is the one outcome that means the health
+          # check did not run at all. (Path verified against
+          # apps/api/stryker.config.mjs -> htmlReporter.fileName.)
+          if-no-files-found: error
 
       - name: Notify on failure
         if: failure()
         uses: actions/github-script@v9
         with:
           script: |
-            github.rest.issues.create({
+            // await, not fire-and-forget: github-script awaits what the body
+            // returns, so an unawaited promise can leave the action exiting
+            // before the issue is created — and a rejection would be swallowed
+            // as an unhandled rejection instead of failing this step.
+            await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `Nightly test suite failed — ${new Date().toISOString().split('T')[0]}`,

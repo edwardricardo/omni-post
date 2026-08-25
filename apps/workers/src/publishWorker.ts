@@ -214,7 +214,6 @@ export async function startPublishWorker(
     logger.error({ jobId: job?.id, error: error.message }, "Publish job failed");
   });
 
-  workerMetrics.setHealthy();
   logger.info(
     { providers: Object.keys(providerRegistry) },
     "Worker subscribed. Awaiting jobs in 'publish'."

@@ -1,7 +1,7 @@
 /**
  * Comprehensive Production Integration Test
  * Tests the complete flow from account creation to content publication
- * Covers both admin and client functionality
+ * Covers the customer-facing API surface end to end
  *
  * @file production.integration.test.ts
  * @description Tests for Comprehensive Production Integration Test
@@ -12,10 +12,17 @@ import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
 import { faker } from "@faker-js/faker";
 import { signCustomerAccessToken } from "../src/auth/customerJwt.js";
+import { checkApiAvailable, getBaseUrl } from "./testUtils.js";
 
-const PRODUCTION_API = "http://localhost:3000";
-const ADMIN_APP = "http://localhost:3100";
-const WORKERS_METRICS = "http://localhost:9100";
+const PRODUCTION_API = getBaseUrl();
+/**
+ * The workers process serves its health + metrics on `METRICS_PORT`, defaulting
+ * to 3300. This was hardcoded to 9100 — a port the workers have never listened
+ * on (9100 is node_exporter's, per the Prometheus scrape config) — so the
+ * availability probe below always failed and the one test that reads this
+ * endpoint always skipped, including in a run that had just started the workers.
+ */
+const WORKERS_METRICS = `http://localhost:${process.env.METRICS_PORT ?? 3300}`;
 const _CLIENT_APP = "http://localhost:3000"; // Will need to be adjusted when client runs
 
 /**
@@ -133,7 +140,6 @@ describe("Comprehensive Production Integration Test", () => {
   // Token bound to the created account — threads through every tenant-scoped op.
   let accountToken: string;
   let apiAvailable = false;
-  let adminAvailable = false;
   let workerAvailable = false;
 
   before(async () => {
@@ -142,32 +148,9 @@ describe("Comprehensive Production Integration Test", () => {
     console.log("Starting Comprehensive Production Integration Test");
     console.log("=".repeat(60));
 
-    try {
-      const response = await fetch(`${PRODUCTION_API}/health`, {
-        signal: AbortSignal.timeout(3000),
-      });
-      apiAvailable = response.ok;
-      if (!apiAvailable) {
-        console.warn("API not available - API integration tests will be skipped");
-      }
-    } catch {
+    apiAvailable = await checkApiAvailable();
+    if (!apiAvailable) {
       console.warn("API not available - API integration tests will be skipped");
-      apiAvailable = false;
-    }
-
-    try {
-      const response = await fetch(ADMIN_APP, {
-        signal: AbortSignal.timeout(3000),
-        redirect: "manual",
-      });
-      // Admin is available if it responds at all (even redirects to login)
-      adminAvailable = response.status < 500;
-      if (!adminAvailable) {
-        console.warn("Admin app not available - admin tests will be skipped");
-      }
-    } catch {
-      console.warn("Admin app not available - admin tests will be skipped");
-      adminAvailable = false;
     }
 
     try {
@@ -187,14 +170,6 @@ describe("Comprehensive Production Integration Test", () => {
   const skipIfApiUnavailable = (t: any): boolean => {
     if (!apiAvailable) {
       t.skip("API not available");
-      return true;
-    }
-    return false;
-  };
-
-  const skipIfAdminUnavailable = (t: any): boolean => {
-    if (!adminAvailable) {
-      t.skip("Admin app not available");
       return true;
     }
     return false;
@@ -505,36 +480,10 @@ describe("Comprehensive Production Integration Test", () => {
     });
   });
 
-  describe("Admin Interface Verification", () => {
-    it("should check admin dashboard access", async (t) => {
-      if (skipIfAdminUnavailable(t)) return;
-      console.log("\nPHASE 6: Admin Interface Verification");
-      console.log("-".repeat(40));
-
-      // Admin redirects to /auth/login (307) for unauthenticated users — expected behavior
-      const adminResponse = await fetch(ADMIN_APP, { redirect: "manual" });
-      assert.ok(
-        adminResponse.status < 500,
-        `Admin dashboard accessible at ${ADMIN_APP} (status: ${adminResponse.status})`
-      );
-      console.log(`Admin dashboard accessible at ${ADMIN_APP} (status: ${adminResponse.status})`);
-    });
-
-    it("should verify admin responds with HTML content", async (t) => {
-      if (skipIfAdminUnavailable(t)) return;
-      // Follow redirect to login page to verify HTML content
-      const adminResponse = await fetch(ADMIN_APP);
-      const _contentType = adminResponse.headers.get("content-type") || "";
-      // Login page may return HTML or a redirect — both are valid
-      const body = await adminResponse.text();
-      assert.ok(body.length > 0, "Admin dashboard should return non-empty response");
-    });
-  });
-
   describe("Client Interface Verification", () => {
     it("should verify client interface features", async (t) => {
       if (skipIfApiUnavailable(t)) return;
-      console.log("\nPHASE 7: Client Interface Verification");
+      console.log("\nPHASE 6: Client Interface Verification");
       console.log("-".repeat(40));
 
       // Verify the API health endpoint exposes expected fields for client consumption
@@ -547,7 +496,7 @@ describe("Comprehensive Production Integration Test", () => {
   describe("Background Workers & Queues", () => {
     it("should check worker metrics", async (t) => {
       if (skipIfWorkerUnavailable(t)) return;
-      console.log("\nPHASE 8: Background Workers & Queues");
+      console.log("\nPHASE 7: Background Workers & Queues");
       console.log("-".repeat(40));
 
       const metricsResponse = await fetch(`${WORKERS_METRICS}/metrics`);
@@ -568,7 +517,7 @@ describe("Comprehensive Production Integration Test", () => {
   describe("Error Handling & Edge Cases", () => {
     it("should test duplicate account email", async (t) => {
       if (skipIfApiUnavailable(t)) return;
-      console.log("\nPHASE 9: Error Handling & Edge Cases");
+      console.log("\nPHASE 8: Error Handling & Edge Cases");
       console.log("-".repeat(40));
 
       const duplicateResponse = await apiCall(
@@ -626,7 +575,7 @@ describe("Comprehensive Production Integration Test", () => {
   describe("Cleanup", () => {
     it("should delete post", async (t) => {
       if (skipIfApiUnavailable(t)) return;
-      console.log("\nPHASE 10: Cleanup");
+      console.log("\nPHASE 9: Cleanup");
       console.log("-".repeat(40));
 
       const deletePostResponse = await apiCall(

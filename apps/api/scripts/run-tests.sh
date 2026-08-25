@@ -106,6 +106,18 @@ run_batch() {
     FAILED_BATCHES="$FAILED_BATCHES $name"
   fi
 
+  # A SKIPPED test is a test that did not run either, and the reason it did not
+  # run in a tier-driven batch is almost always a service the tier was supposed
+  # to provide. The counts stay clean, so without this term the batch prints OK
+  # and the run exits zero over tests nobody executed — the same class the cancel
+  # and zero-collect terms already close, one term short. Tier-scoped like the
+  # zero-collect term below: a developer trimming a batch locally is exercising
+  # their own choice, not a missing service.
+  if [ -n "${TIER:-}" ] && [ "$skip" -gt 0 ] && [ "$status" = "OK" ]; then
+    status="FAIL"
+    FAILED_BATCHES="$FAILED_BATCHES $name"
+  fi
+
   # A batch that collected NOTHING is a failure too. Every batch below names at
   # least one suite, so zero collected means a suite stopped being found: a
   # renamed path the list still carries, an emptied file, a suite-wide skip, or a
@@ -276,6 +288,43 @@ CONCURRENCY=1 run_batch "integration:flows" \
   tests/security.test.ts \
   tests/integration/publishing/failedWrite.smoke.test.ts
 
+# Early warning for the batch that follows. The saga suite carries its own
+# authoritative precondition (assertPublishConsumers in tests/testUtils.ts); this
+# runs IMMEDIATELY BEFORE that batch so a consumer that died during the ~2-3
+# minutes of live-API batches above is named here rather than three 120s budget
+# burns later. Placing it near wait_for_api below would put it AFTER the batch it
+# protects, which is no protection at all.
+#
+# An UNKNOWN answer is reported as unknown and does not redden the run: the queue
+# being unreadable is not the same fact as nothing consuming it, and a check that
+# conflates them sends the reader to restart workers that are running. Only a
+# decisive zero is treated as an outage.
+assert_publish_consumers() {
+  local body consumers
+  body=$(curl -s --max-time 5 "http://localhost:3000/health/dependency/queue" 2>/dev/null || true)
+  consumers=$(echo "$body" | grep -o '"consumers":[^,}]*' | head -1 | cut -d: -f2 | tr -d ' "')
+
+  case "$consumers" in
+    "")
+      echo "  publish-consumers          could not be read from the API — UNKNOWN, not zero"
+      echo "                             (the saga suite's own precondition reports the exact cause)"
+      ;;
+    null)
+      echo "  publish-consumers          broker cannot answer CLIENT LIST — UNKNOWN, not zero"
+      ;;
+    0)
+      echo "  publish-consumers  no process is consuming the 'publish' queue  [FAIL]"
+      echo "       Every publish case in the next batch will park until the 30-minute saga"
+      echo "       horizon and burn its full budget. Start the workers before rerunning."
+      FAILED_BATCHES="$FAILED_BATCHES publish-consumers"
+      ;;
+    *)
+      echo "  publish-consumers          $consumers attached"
+      ;;
+  esac
+}
+assert_publish_consumers
+
 # Saga customer flow against the live API. Its own batch because the file's
 # worst case is ~110s+ (one 60s horizon plus one 90s horizon plus the short
 # tests) and the default 30000 test timeout would cancel them. Listed here to
@@ -294,26 +343,49 @@ CONCURRENCY=1 run_batch "remaining" \
   tests/threading.xprovider.test.ts tests/planPublication.test.ts tests/adapters.test.ts \
   tests/schemaUtils.test.ts
 
-# Wait for API rate limiter to reset after integration:flows batch
-# (security.test.ts's rate-limiting suite exhausts the rate limit window)
+# The rate-limiting suite in `integration:flows` deliberately exhausts the
+# /health window, so the last live batch has to wait for it to reopen. That
+# batch asserts on real response bodies: run it against a still-limited API and
+# every assertion fails on a 429 body, which reads as a broken API rather than
+# as a window that never reopened.
+API_READY_MAX_ATTEMPTS=30
+API_READY_INTERVAL_S=2
+
 wait_for_api() {
-  local max_attempts=30
   local attempt=0
-  while [ $attempt -lt $max_attempts ]; do
+  while [ "$attempt" -lt "$API_READY_MAX_ATTEMPTS" ]; do
     local status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health 2>/dev/null)
     if [ "$status" = "200" ]; then
       return 0
     fi
-    sleep 2
+    sleep "$API_READY_INTERVAL_S"
     attempt=$((attempt + 1))
   done
-  echo "  [WARN] API rate limiter did not reset after ${max_attempts}x2s"
+  return 1
 }
-wait_for_api
 
-CONCURRENCY=1 run_batch "production" \
-  tests/production.integration.test.ts tests/multiproject.flow.test.ts \
-  tests/providerRegistry.test.ts
+# A precondition that warns and proceeds is not a precondition. On exhaustion the
+# batch is NOT run and the run goes red here instead: its suites would report a
+# screenful of assertion failures whose single cause is named on this line, and
+# burying that cause is how a limiter artifact gets read as an outage.
+#
+# The message names the OBSERVATION, not a root cause. A /health that never
+# answers 200 is a window that did not reopen, an API that died during the ~2-3
+# minutes of live batches above, or an API that was never reachable — three
+# different repairs, and asserting the first one sends the reader to wait out a
+# window on a process that is not running.
+if wait_for_api; then
+  CONCURRENCY=1 run_batch "production" \
+    tests/production.integration.test.ts tests/multiproject.flow.test.ts \
+    tests/providerRegistry.test.ts
+else
+  echo "  api-ready  /health never returned 200 in $((API_READY_MAX_ATTEMPTS * API_READY_INTERVAL_S))s  [FAIL]"
+  echo "       The 'production' batch was NOT run: against a rate-limited or absent"
+  echo "       API its assertions fail on responses the server never produced, and"
+  echo "       those failures would name every suite except the one thing that broke."
+  echo "       Check the API is still up before concluding the limiter is the cause."
+  FAILED_BATCHES="$FAILED_BATCHES api-ready"
+fi
 
 fi # run_live_api_batches
 
@@ -330,15 +402,22 @@ echo "========================================"
 # list — and the run still exit zero, which is worse than never noticing, because
 # everything downstream believes the gate.
 #
-# The two count terms are therefore REDUNDANT today (every path that raises them
+# The three count terms are therefore REDUNDANT today (every path that raises them
 # also appends a batch name), and they are kept deliberately: they are the
 # defence-in-depth half. Should a future edit narrow run_batch's append condition,
 # a run with real failures must still go red on the counts alone. Do not "simplify"
-# the disjunction back to one term — the static suite pins all three for this
-# reason.
-if [ "$TOTAL_FAIL" -gt 0 ] || [ "$TOTAL_CANCEL" -gt 0 ] || [ -n "$FAILED_BATCHES" ]; then
+# the disjunction back to one term — the static suite pins all four for this
+# reason. The skip term is tier-scoped for the same reason run_batch's is.
+if [ "$TOTAL_FAIL" -gt 0 ] || [ "$TOTAL_CANCEL" -gt 0 ] || { [ -n "${TIER:-}" ] && [ "$TOTAL_SKIP" -gt 0 ]; } || [ -n "$FAILED_BATCHES" ]; then
   echo "FAILED batches:$FAILED_BATCHES"
-  if [ "$TOTAL_FAIL" -eq 0 ] && [ "$TOTAL_CANCEL" -eq 0 ]; then
+  if [ -n "${TIER:-}" ] && [ "$TOTAL_SKIP" -gt 0 ] && [ "$TOTAL_FAIL" -eq 0 ] && [ "$TOTAL_CANCEL" -eq 0 ]; then
+    echo "ERROR: $TOTAL_SKIP test(s) were SKIPPED — a skipped test never ran, and in"
+    echo "       a TIER-driven run the reason is a service the tier was supposed to"
+    echo "       provide. Start the service the batch names; do not skip past it."
+    echo "       A batch runner may ALSO have exited non-zero here — read the 'exit'"
+    echo "       column and the dumped output before concluding skips were the whole"
+    echo "       story."
+  elif [ "$TOTAL_FAIL" -eq 0 ] && [ "$TOTAL_CANCEL" -eq 0 ]; then
     echo "ERROR: every test that ran reported passing, yet a batch runner exited"
     echo "       non-zero, or a batch collected nothing. A crash after the summary,"
     echo "       an unhandled rejection, an OOM-killed Vitest fork (that phase"

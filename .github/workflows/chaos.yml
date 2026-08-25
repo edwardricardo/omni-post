@@ -1,17 +1,19 @@
 name: Chaos Test Suite (Saga + Outbox)
 
-# Runs the chaos test harness on a nightly schedule.
+# Runs the chaos scenarios on a nightly schedule, through the same test runner
+# CI uses, so the nightly verdict and the merge-gate verdict mean the same thing.
 #
-# Scope (today): saga retry-recovery scenario; the harness is in
-# `apps/api/tests/chaos/` and grows additively as new scenarios are
-# added under that directory (no workflow edit required).
+# Scope: the runner's DB-only tier, which owns the `chaos` batch
+# (`apps/api/scripts/run-tests.sh`). The chaos files are node:test files, so the
+# previous `vitest run tests/chaos/` collected ZERO tests — vitest's include
+# globs cover only `tests/unit/**` and `tests/eval/**` — and the job reported
+# green without ever executing a scenario. Naming the files again here would add
+# a second hand-maintained list; the runner's batch is the one source, and it is
+# also the only entry point whose gate can go red on a collapsed setup.
 #
-# Failure handling: if any chaos test fails, the job fails AND a GitHub
-# issue is opened (via the "Notify on failure" step at the bottom) so an
-# operator picks it up the next morning. Chaos failures are correctness
-# signals, not noise — treat as P1.
-#
-# Workstream: NORMALIZATION_ROADMAP §4.1 (DoD third item "nightly").
+# Failure handling: if the tier fails, the job fails AND a GitHub issue is
+# opened (via the "Notify on failure" step at the bottom) so an operator picks it
+# up the next morning. These are correctness signals, not noise — treat as P1.
 
 on:
   schedule:
@@ -30,9 +32,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # Least privilege, and both entries are load-bearing: declaring this block
+    # replaces the default token scopes wholesale, so `contents: read` must be
+    # restated for checkout. Without `issues: write` the "Notify on failure"
+    # step below died with "Resource not accessible by integration", which is
+    # why no chaos failure has ever produced an issue.
+    permissions:
+      contents: read
+      issues: write
+
     services:
       postgres:
-        image: postgres:15
+        # pgvector-enabled image — the glossary/style-guide migrations CREATE
+        # EXTENSION vector, which plain postgres images don't ship.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_PASSWORD: password123
           POSTGRES_USER: postgres
@@ -65,9 +78,12 @@ jobs:
           node-version: "24"
 
       - name: Setup test environment
+        # `public`, not `test`: the migrations and the adapter-pg test client
+        # both target `public`, so a `test` schema left the suites reading an
+        # empty database.
         run: |
           cp .env.example .env
-          export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=test"
+          export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
           export REDIS_URL="redis://localhost:6379"
           bash scripts/ci-setup-test-env.sh
 
@@ -75,10 +91,41 @@ jobs:
         run: pnpm --filter @infra/prisma exec prisma generate
 
       - name: Run database migrations
-        run: pnpm --filter @infra/prisma db:migrate
+        # `migrate` is the script defined on @infra/prisma (`prisma migrate
+        # deploy`); the `db:migrate` alias only exists in the ROOT package, so
+        # `--filter @infra/prisma db:migrate` matches no script and pnpm exits 0
+        # WITHOUT applying anything — the schema never lands, and the run reports
+        # a migration it did not perform.
+        env:
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+        run: pnpm --filter @infra/prisma run migrate
 
-      - name: Run chaos scenarios
-        run: pnpm --filter @apps/api exec vitest run tests/chaos/
+      - name: Seed roles + permissions
+        # The DB-only batches assume the seeded baseline (roles/permissions and
+        # reference rows) the local dev database always has. The seed is
+        # idempotent. seed.ts requires PLATFORM_ENCRYPTION_KEY (32 bytes,
+        # base64) — the same deterministic test-only key ci-setup-test-env.sh
+        # writes to .env.test (no secret-shaped literal stored in the workflow).
+        env:
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+        run: |
+          export PLATFORM_ENCRYPTION_KEY="$(head -c 32 /dev/zero | tr '\0' 'c' | base64 | tr -d '\n')"
+          pnpm --filter @infra/prisma run seed
+
+      - name: Run chaos scenarios (DB-only tier)
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          # The DB-only tier is the slice that owns the `chaos` batch and needs
+          # no live server. Explicit DB/Redis env so run-tests.sh never falls
+          # back to sourcing the repo .env (dotenv files are not valid bash).
+          TIER: pr-integration
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+          REDIS_URL: redis://localhost:6379
+        run: pnpm --filter @apps/api run test:integration
 
       - name: Notify on failure
         if: failure()
@@ -87,7 +134,7 @@ jobs:
           script: |
             const title = `Chaos test failure ${new Date().toISOString().slice(0,10)}`;
             const body = [
-              `One or more chaos scenarios failed in run \`${context.runId}\`.`,
+              `The nightly DB-only integration tier, which owns the chaos batch, failed in run \`${context.runId}\`.`,
               '',
               `Logs: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
               '',

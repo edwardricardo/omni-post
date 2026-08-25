@@ -15,6 +15,8 @@ interface QueueAdapter {
       active: number;
       completed: number;
       failed: number;
+      /** Broker-registered consumers; `null` = the broker cannot answer. */
+      consumers: number | null;
     };
     error?: string;
   }>;
@@ -78,6 +80,11 @@ export class QueueHealthChecker implements HealthChecker {
           completed: queueData.completed,
           failed: queueData.failed,
           connected: queueData.connected,
+          // Reported, never acted on HERE. A process holding this queue may be
+          // a producer, for which zero consumers is a normal deployment fact,
+          // not an incident — so the policy belongs to each reader (worker
+          // readiness fails closed on it, the API's readiness must not).
+          consumers: queueData.consumers,
         },
       };
     } catch (error: unknown) {

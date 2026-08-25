@@ -8,6 +8,7 @@
  */
 export {
   createBullMQQueueAdapter,
+  GCP_CLIENT_LIST_SENTINEL,
   type BullMQQueueAdapter,
   type BullMQQueueAdapterOptions,
 } from "./queue-adapter.js";
@@ -25,4 +26,9 @@ export {
   BullMQDeadLetterQueueAdapter,
   type BullMQDeadLetterQueueAdapterOptions,
 } from "./dead-letter-queue-adapter.js";
-export { QUEUE_NAMES, type QueueName } from "./constants.js";
+export {
+  QUEUE_NAMES,
+  PUBLISH_PIPELINE_QUEUES,
+  type QueueName,
+  type PublishPipelineQueue,
+} from "./constants.js";

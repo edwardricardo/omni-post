@@ -1308,6 +1308,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 25.9.3
+      cross-env:
+        specifier: 10.0.0
+        version: 10.0.0
       tsx:
         specifier: 'catalog:'
         version: 4.22.4

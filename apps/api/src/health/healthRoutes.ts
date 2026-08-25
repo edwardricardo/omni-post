@@ -304,9 +304,29 @@ export async function healthRoutes(
         const result = await healthManager.checkDependency(name);
 
         if (!result.ok) {
-          return reply.status(404).send({
-            error: `Dependency '${name}' not found`,
-            availableDependencies: Array.from(healthManager["checkers"].keys()),
+          // This route is public so infrastructure probes and the CI consumer
+          // gate can reach it without credentials, which means it must answer
+          // only about the name the caller already supplied. Listing every
+          // registered dependency handed any anonymous caller the process's
+          // full internal topology in one request, for no consumer: the probes,
+          // the saga runbook and `tests/testUtils.ts` all ask by name and none
+          // of them read such a list.
+          if (result.error === "NOT_FOUND") {
+            return reply.status(404).send({
+              ok: false,
+              dependency: name,
+              error: `Dependency '${name}' not found`,
+            });
+          }
+
+          // A checker that threw describes a dependency that EXISTS and is
+          // failing. Answering 404 for it told the caller to correct a spelling
+          // while the dependency was down, so the two errors get two answers.
+          return reply.status(503).send({
+            ok: false,
+            dependency: name,
+            status: "unhealthy",
+            error: `Health check for dependency '${name}' failed`,
           });
         }
 

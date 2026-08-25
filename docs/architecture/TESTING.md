@@ -155,7 +155,7 @@ pnpm --filter @apps/api test:schema-utils         # Schema validation
 pnpm --filter @apps/api test:provider-registry    # Provider registration
 
 # Integration tests
-pnpm --filter @apps/api test:phase4c-integration  # Phase 4C integration tests
+pnpm --filter @apps/api test:category:integration # Multi-project + production API flows
 ```
 
 #### Client Tests (Frontend)
