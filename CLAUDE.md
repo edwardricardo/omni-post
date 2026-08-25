@@ -604,13 +604,124 @@ grep -rnE "trustProxy:\s*true" apps/api/src apps/workers/src --include="*.ts" | 
 grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-real-ip' \
   apps/api/src apps/workers/src --include="*.ts" | \
   grep -vE "resolveClientIp|/tests/|\.test\." | wc -l   # expect 0
+
+# 33. Every ROOT-level tsconfig reached by an `extends` from a workspace tsconfig
+# MUST be listed in turbo.json `globalDependencies`. Threat: turbo hashes
+# per-package inputs plus globalDependencies and NOTHING else, so a root config a
+# package merely extends is invisible to that package's hash. Editing it
+# invalidates ZERO cache entries and every dependent task replays a `dist`
+# compiled with the PREVIOUS compiler settings (target, module, declaration,
+# skipLibCheck) under a green exit code — a false green, reproduced end-to-end in
+# docs/reports/CI_CACHE_INTEGRITY_AUDIT.md. Membership is a shell-pattern match
+# because turbo accepts glob entries in globalDependencies — a literal compare
+# would flag configs a glob already covers. The second pass walks ONE extends hop
+# from every root config that is listed or demanded by the first pass: a
+# root->root chain link (live today: tsconfig.build.base.json extends
+# tsconfig.base.json) is equally invisible to every per-package hash, and since
+# each properly listed link becomes checkable itself, longer chains are covered
+# link by link. Two skips, both justified: non-relative extends targets resolve
+# into node_modules and change only with the lockfile, which turbo already hashes
+# on its own; targets that resolve inside a workspace directory stay covered by
+# that package's own input hash — in-tree today every relative target resolves to
+# a root config, so this second skip currently matches nothing. Numbering: #30-32
+# are reserved by workstream/ci-live-tier-integrity; delete this note once that
+# branch merges and #30-32 appear above. Hard-zero.
+set -uo pipefail
+GLOBALS=$(tr -d ' \n' < turbo.json | grep -oE '"globalDependencies":\[[^]]*\]' | \
+  grep -oE '"[^"]*"' | tr -d '"' | grep -v '^globalDependencies$' || true)
+listed() {
+  # set -f keeps glob entries as case patterns instead of expanding them
+  # against the working directory; restored on every return path.
+  set -f
+  for entry in $GLOBALS; do
+    case "$1" in $entry) set +f; return 0;; esac
+  done
+  set +f
+  return 1
+}
+MISSING=""
+REACHED=""
+for cfg in $(find apps packages infra -name 'tsconfig*.json' \
+    -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/.next/*' \
+    -not -path '*/.turbo/*' -not -path '*/.stryker-tmp/*' 2>/dev/null); do
+  for target in $(grep -oE '"extends"[[:space:]]*:[[:space:]]*(\[[^]]*\]|"[^"]*")' "$cfg" 2>/dev/null | \
+      grep -oE '"[^"]*"' | tr -d '"' | grep -v '^extends$' || true); do
+    case "$target" in ./*|../*) ;; *) continue;; esac
+    resolved=$(realpath -m --relative-to="$PWD" "$(dirname "$cfg")/$target" 2>/dev/null || true)
+    case "$resolved" in "" | */*) continue;; esac
+    REACHED="$REACHED $resolved"
+    listed "$resolved" || MISSING="$MISSING$cfg -> $resolved\n"
+  done
+done
+for cfg in tsconfig*.json; do
+  [ -f "$cfg" ] || continue
+  if ! listed "$cfg"; then case " $REACHED " in *" $cfg "*) ;; *) continue;; esac; fi
+  for target in $(grep -oE '"extends"[[:space:]]*:[[:space:]]*(\[[^]]*\]|"[^"]*")' "$cfg" 2>/dev/null | \
+      grep -oE '"[^"]*"' | tr -d '"' | grep -v '^extends$' || true); do
+    case "$target" in ./*|../*) ;; *) continue;; esac
+    resolved=$(realpath -m --relative-to="$PWD" "$(dirname "$cfg")/$target" 2>/dev/null || true)
+    case "$resolved" in "" | */*) continue;; esac
+    listed "$resolved" || MISSING="$MISSING$cfg -> $resolved\n"
+  done
+done
+COUNT=$(printf "%b" "$MISSING" | grep -c . || true)
+COUNT=${COUNT:-0}
+echo "$COUNT"   # expect 0
+
+# 34. Every `::error` emitted from a workflow step MUST pair with a real failure
+# mechanism (`exit <n>`, `exit "$VAR"`, `core.setFailed`) in the SAME step.
+# `echo "::error..."` only ANNOTATES — the step still exits 0 and the run stays
+# green, so an unpaired ::error is a failure that fails nothing. Pairing is
+# per-STEP, not per-file: every ::error in fitness.yml pairs with an exit 1 in
+# its own step and passes. `::warning` is out of scope — advisory by design
+# (audit.yml carries intentional ones). Residual limits, stated honestly: this is
+# a line-based tripwire, not a YAML parser — an emission not written as
+# `echo "::error` (printf, github-script core.error) is invisible to it, and a
+# mechanism named only in a comment inside the step satisfies the pairing.
+# Hard-zero.
+set -uo pipefail
+VIOLATIONS=$(for wf in .github/workflows/*.yml; do
+  awk -v f="$wf" '
+    /^[[:space:]]*-[[:space:]]+(name|uses):/ {
+      if (in_step && has_err && !has_fail) print f " line " start ": step emits ::error without exit/core.setFailed";
+      in_step=1; has_err=0; has_fail=0; start=NR;
+    }
+    /echo "::error/ { has_err=1 }
+    /exit[[:space:]]+[1-9]|exit[[:space:]]+"?\$[A-Za-z_]|core\.setFailed/ { has_fail=1 }
+    END { if (in_step && has_err && !has_fail) print f " line " start ": step emits ::error without exit/core.setFailed" }
+  ' "$wf"
+done)
+COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
+COUNT=${COUNT:-0}
+echo "$COUNT"   # expect 0
+
+# 35. Every per-package turbo.json that declares `"outputs": []` for build MUST
+# belong to a package whose build script is verdict-only (`tsc --noEmit`).
+# Threat: an EMITTING build paired with `outputs: []` earns a green cache entry
+# that restores NOTHING — every later cache hit replays "built" while the dist
+# is missing (the silent-cache-of-nothing defect, the converse of ci.yml's
+# no-output-files gate). The override is legitimate ONLY while the build writes
+# no files; a build that starts emitting must delete the override in the same
+# change. Hard-zero.
+set -uo pipefail
+VIOLATIONS=""
+for tj in $(find apps packages infra -name 'turbo.json' -not -path '*/node_modules/*' 2>/dev/null); do
+  tr -d ' \n' < "$tj" | grep -q '"build":{[^}]*"outputs":\[\]' || continue
+  pkg="$(dirname "$tj")/package.json"
+  script=$([ -f "$pkg" ] && tr -d '\n' < "$pkg" | grep -oE '"build":[[:space:]]*"[^"]*"' | head -1 || true)
+  printf '%s' "$script" | grep -qE 'tsc[^"]*--noEmit' || VIOLATIONS="$VIOLATIONS$tj -> ${script:-no build script}\n"
+done
+COUNT=$(printf "%b" "$VIOLATIONS" | grep -c . || true)
+COUNT=${COUNT:-0}
+echo "$COUNT"   # expect 0
 ```
 
-**Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:
+**Extending the suite.** Adding a new fitness check requires four coordinated steps, in order:
 
 1. Add the regex here with a one-line description of the threat being prevented and a comment justifying any exclusions.
 2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode).
-3. Verify `count = 0` on `main` before merging the wire. If the count is non-zero on existing code, document the baseline + ramp-down plan as a backlog entry rather than locking in non-zero noise.
+3. Prove the red path — mandatory for every NEW or MODIFIED check or CI gate, fitness or otherwise: plant the violation, run the gate, and observe a REAL failure (non-zero exit / `core.setFailed`; an `::error` annotation alone leaves the job green and proves nothing), then restore the tree byte-exact (verify with `cmp` or a checksum) and re-confirm the count is 0. A gate whose red path was never demonstrated does not merge.
+4. Verify `count = 0` on `main` before merging the wire. If the count is non-zero on existing code, document the baseline + ramp-down plan as a backlog entry rather than locking in non-zero noise.
 
 The regex in this file IS the regex in CI — keep them in sync.
 

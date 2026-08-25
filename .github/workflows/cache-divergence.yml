@@ -1,0 +1,276 @@
+name: Cache Divergence Probe
+
+# Standing detector for the cache-poisoning entry point
+# docs/reports/CI_CACHE_INTEGRITY_AUDIT.md could not reproduce: a Turborepo
+# cache hit that replays artifacts which do NOT correspond to the commit being
+# built (observed once as a months-stale @core/domain dist accepted as valid
+# on a PR that touched nothing under packages/). The probe builds the same
+# commit twice — once consuming the restored CI Turborepo cache, once with
+# cache reads disabled — and fails if the emitted dist trees differ.
+#
+# HONEST REACH — what this probe observes and what it structurally cannot:
+# - GitHub Actions cache scoping lets a run restore only caches created on its
+#   own branch or on the default branch. Scheduled runs execute on the default
+#   branch, so they observe ONLY main-scoped cache entries.
+# - PR-branch cache entries are therefore structurally out of reach: this
+#   probe detects the corruption CLASS on main and is NOT a detector for
+#   PR-branch instances like the #189 incident, which lived in cache state a
+#   default-branch run can never restore.
+# - Scope is deliberately narrowed to what is deterministic and therefore
+#   assertable: the tsc-emitted `dist/**` trees (the incident class),
+#   excluding `*.tsbuildinfo` (incremental-state files, legitimately
+#   non-reproducible). Next.js `.next/**` output embeds a per-build BUILD_ID
+#   and is excluded — including it would make every run a false alarm, and a
+#   permanently red gate reads as noise, which is the same failure mode as a
+#   permanently green one.
+
+on:
+  schedule:
+    # Daily is proportionate: the defect class is rare and a day-old signal is
+    # still actionable, while hourly would spend ~40 runner-minutes/day for no
+    # added diagnostic value. Off-hour minute per GitHub's guidance to avoid
+    # the top-of-hour scheduling spike.
+    - cron: "17 4 * * *"
+  # Manual trigger for on-demand reproduction while investigating an incident.
+  # A dispatch run on a repository whose caches were just purged is the ONE
+  # case where an empty restore is legitimate; see the gate step below.
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Cached vs cold build comparison
+    runs-on: ubuntu-latest
+    # Budget reasoning: a local clean build is ~60 s, but hosted runners are
+    # slower and this job pays for TWO full builds — the cold pass includes
+    # two cold `next build`s, which dominate wall time — plus a pnpm install
+    # and up to three `prisma generate` passes (the explicit step, then
+    # @infra/prisma's build task on each cache miss). The previous 20 was
+    # extrapolated from the single 10-minute CI build budget and left no
+    # headroom for the next-build-heavy cold pass; 35 keeps roughly 2x
+    # worst-case slack without letting a hung build burn an hour of runner
+    # time.
+    timeout-minutes: 35
+
+    defaults:
+      run:
+        # Explicit bash so GitHub applies `-o pipefail`: the build steps pipe
+        # through tee, and without pipefail a failing build would be masked by
+        # tee's exit 0.
+        shell: bash
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      # Restore-only: the probe must observe the cache CI consumes and never
+      # write back to it, so a divergent artifact cannot be laundered into a
+      # fresh cache entry by the probe itself.
+      #
+      # COUPLING — this key expression MUST stay identical to the "Setup
+      # Turborepo cache" steps in ci.yml. GitHub Actions cannot import an
+      # expression across workflow files, so the coupling holds by convention
+      # only: the fitness #34-family checks do NOT cover it, and drift makes
+      # this probe permanently blind (restoring nothing, or a key space CI
+      # does not actually consume). ci.yml carries the mirror of this note.
+      #
+      # The bare `${{ runner.os }}-turbo-` catch-all prefix is deliberately
+      # absent, mirroring ci.yml: it matched caches produced under other
+      # lockfiles, the cross-lockfile poisoning path the audit removed there.
+      # Honest residual (same as ci.yml): the prefix restore-key below still
+      # matches any commit sharing the same pnpm-lock.yaml + turbo.json hash,
+      # so removing the catch-all closes only the lockfile-change subset of
+      # stale-cache transport.
+      - name: Restore Turborepo cache (read-only)
+        id: turbo-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
+
+      - name: Gate on restored cache identity
+        # On a scheduled run against the default branch there is always a
+        # predecessor cache entry: the last push to main saved one under this
+        # key scheme. An empty restore is therefore a probe malfunction (key
+        # drift from ci.yml, purged caches, or a cache-service failure) — NOT
+        # an empty universe to check. Proceeding would compare two cold builds
+        # and certify nothing while looking green, so a scheduled run fails
+        # here. workflow_dispatch is exempted: an operator may legitimately
+        # run the probe right after a cache purge; that run continues as a
+        # loudly-labeled determinism-only check (cold vs cold) and the replay
+        # assertion below is skipped for it.
+        env:
+          CACHE_MATCHED_KEY: ${{ steps.turbo-cache.outputs.cache-matched-key }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ -n "$CACHE_MATCHED_KEY" ]; then
+            echo "Probing cache entry: $CACHE_MATCHED_KEY"
+          elif [ "$EVENT_NAME" = "schedule" ]; then
+            echo "::error::Probe malfunction: no cache restored — the probe observed nothing. A scheduled run on the default branch always has a predecessor cache entry from the last main push; an empty restore means the restore key drifted from ci.yml, the caches were purged, or the cache service failed. Refusing to degrade into a meaningless cold-vs-cold green."
+            exit 1
+          else
+            echo "::warning::No Turborepo cache entry restored. This manual run proceeds as a DETERMINISM-ONLY check (cold vs cold): a green result proves the build is deterministic for this commit but says nothing about the CI cache, which was not observed."
+          fi
+
+      - name: Generate Prisma client
+        # Run once, before either build, so `generated/**` is an identical
+        # input to both builds. @infra/prisma's own build task re-runs generate
+        # on a cache miss, which is idempotent.
+        run: pnpm --filter @infra/prisma exec prisma generate
+
+      - name: Build with Turborepo cache
+        run: pnpm build 2>&1 | tee "$RUNNER_TEMP/build-cached.log"
+
+      - name: Assert the cached build actually replayed from cache
+        # Closes the cold-vs-cold blind spot: a restored cache entry whose
+        # task hashes match nothing in this commit replays zero tasks, and the
+        # comparison silently degenerates into two cold builds. Requiring
+        # `Cached: N cached` with N > 0 makes a green probe certify an actual
+        # REPLAY, not merely a restore.
+        env:
+          CACHE_MATCHED_KEY: ${{ steps.turbo-cache.outputs.cache-matched-key }}
+        run: |
+          if [ -z "$CACHE_MATCHED_KEY" ]; then
+            echo "Skipping replay assertion: no cache entry was restored (determinism-only manual run)."
+            exit 0
+          fi
+          # `|| true` moves the verdict out of the capture: under `bash -eo
+          # pipefail` a log without a Cached: line would kill the step at this
+          # assignment and the diagnostic below would never print. The
+          # explicit test right after is the real gate — nothing is swallowed.
+          cached_tasks=$(grep -oE "Cached:[[:space:]]+[0-9]+ cached" "$RUNNER_TEMP/build-cached.log" | grep -oE "[0-9]+" | head -1 || true)
+          if [ -z "$cached_tasks" ] || [ "$cached_tasks" -eq 0 ]; then
+            echo "::error::Probe malfunction: a cache entry was restored ($CACHE_MATCHED_KEY) but the build replayed ${cached_tasks:-an unreported number of} tasks from it. This run degenerated into cold-vs-cold and cannot certify the CI cache."
+            exit 1
+          fi
+          echo "Cached build replayed $cached_tasks tasks from the restored cache entry"
+
+      - name: Hash cached-build dist trees
+        run: |
+          find apps packages infra \
+            \( -type d \( -name node_modules -o -name .next -o -name .turbo \) -prune \) -o \
+            \( -type f -path '*/dist/*' ! -name '*.tsbuildinfo' -print0 \) \
+            | LC_ALL=C sort -z \
+            | xargs -0 -r sha256sum > "$RUNNER_TEMP/manifest-cached.txt"
+          count=$(wc -l < "$RUNNER_TEMP/manifest-cached.txt")
+          echo "Cached build: hashed $count files under dist trees"
+          if [ "$count" -eq 0 ]; then
+            echo "::error::Cached build produced ZERO dist files with a green exit — the false-green class the audit documented (turbo replay leaving empty output trees)"
+            exit 1
+          fi
+
+      - name: Remove emitted outputs and tsc incremental state between builds
+        # Two deletions, both load-bearing:
+        # 1. Every dist tree — so a file the cached build materialized but the
+        #    cold build would NOT emit cannot survive into the second hash and
+        #    mask its own divergence.
+        # 2. Every *.tsbuildinfo — tsc's incremental state lives OUTSIDE dist,
+        #    and `tsc --build` consults it before emitting: with dist deleted
+        #    but the state intact, tsc reports up-to-date and emits NOTHING
+        #    (empirically reproduced — 80 "no output files found" warnings and
+        #    a hard downstream failure). The cold build must start from zero
+        #    incremental state or it is not a rebuild at all.
+        run: |
+          find apps packages infra \
+            \( -type d \( -name node_modules -o -name .next -o -name .turbo \) -prune \) -o \
+            \( -type d -name dist -prune -print0 \) \
+            | xargs -0 -r rm -rf
+          find apps packages infra \
+            \( -type d \( -name node_modules -o -name .next -o -name .turbo \) -prune \) -o \
+            \( -type f -name '*.tsbuildinfo' -print0 \) \
+            | xargs -0 -r rm -f
+
+      - name: Build cold (cache reads disabled)
+        run: pnpm exec turbo run build --force 2>&1 | tee "$RUNNER_TEMP/build-cold.log"
+
+      - name: Assert the cold build was actually cold and equivalent in scope
+        run: |
+          if ! grep -qE "Cached:[[:space:]]+0 cached" "$RUNNER_TEMP/build-cold.log"; then
+            echo "::error::The forced build reported cache hits — the probe did not obtain a genuine cold rebuild and cannot certify this run"
+            exit 1
+          fi
+          # `|| true` moves the verdict out of the capture: under `bash -eo
+          # pipefail` a log without a Tasks: line would kill the step at the
+          # assignment and the diagnostic below would never print. The
+          # explicit emptiness test right after is the real gate — nothing is
+          # swallowed.
+          total_cached=$(grep -E "Tasks:" "$RUNNER_TEMP/build-cached.log" | tail -1 | grep -oE "[0-9]+ total" | grep -oE "[0-9]+" || true)
+          total_cold=$(grep -E "Tasks:" "$RUNNER_TEMP/build-cold.log" | tail -1 | grep -oE "[0-9]+ total" | grep -oE "[0-9]+" || true)
+          echo "Task totals — cached build: ${total_cached:-unknown}, cold build: ${total_cold:-unknown}"
+          if [ -z "$total_cached" ] || [ -z "$total_cold" ] || [ "$total_cached" -ne "$total_cold" ]; then
+            echo "::error::The two builds did not run the same task set, so their outputs are not comparable"
+            exit 1
+          fi
+
+      - name: Hash cold-build dist trees
+        run: |
+          find apps packages infra \
+            \( -type d \( -name node_modules -o -name .next -o -name .turbo \) -prune \) -o \
+            \( -type f -path '*/dist/*' ! -name '*.tsbuildinfo' -print0 \) \
+            | LC_ALL=C sort -z \
+            | xargs -0 -r sha256sum > "$RUNNER_TEMP/manifest-cold.txt"
+          count=$(wc -l < "$RUNNER_TEMP/manifest-cold.txt")
+          echo "Cold build: hashed $count files under dist trees"
+          if [ "$count" -eq 0 ]; then
+            echo "::error::Cold build produced ZERO dist files with a green exit"
+            exit 1
+          fi
+
+      - name: Compare cached vs cold output manifests
+        run: |
+          # diff's exit code is tri-state: 0 = identical, 1 = divergent,
+          # >= 2 = trouble (missing manifest, I/O error). Only 1 is a
+          # divergence verdict; >= 2 is a probe malfunction and must not
+          # masquerade as one. `|| status=$?` keeps `-e` from killing the step
+          # before the branch below can classify the exit code.
+          status=0
+          diff -u "$RUNNER_TEMP/manifest-cached.txt" "$RUNNER_TEMP/manifest-cold.txt" > "$RUNNER_TEMP/divergence.diff" || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "No divergence: cached and cold builds emitted byte-identical dist trees for ${{ github.sha }}"
+          elif [ "$status" -eq 1 ]; then
+            echo "::error::Turborepo cache divergence: the cached build's dist trees do not match a cold rebuild of the same commit — the cache served content that does not correspond to ${{ github.sha }}"
+            echo ""
+            echo "Diverging packages ('-' = cached build, '+' = cold rebuild; a file on only one side exists in only that build):"
+            awk '/^[+-]/ && !/^(\+\+\+|---)/ {print $2}' "$RUNNER_TEMP/divergence.diff" | awk -F'/dist/' '{print $1}' | sort -u
+            echo ""
+            echo "Per-file sha256 diff:"
+            cat "$RUNNER_TEMP/divergence.diff"
+            echo ""
+            echo "NEXT STEPS — treat this as live cache poisoning, not probe noise:"
+            echo "  1. Treat every green CI run since the last clean probe run as UNVERIFIED — any of them may have replayed the same corrupt artifacts."
+            echo "  2. Purge the Actions caches to stop propagation: gh cache delete --all --repo ${{ github.repository }}"
+            echo "  3. File the divergence against docs/reports/CI_CACHE_INTEGRITY_AUDIT.md with this run's cache-divergence-evidence artifact (logs, manifests, diff) as evidence."
+            exit 1
+          else
+            echo "::error::Probe malfunction: diff exited with status $status (tooling trouble — missing manifest or I/O error), which is NOT a divergence verdict. Fix the probe before trusting its next green."
+            exit 1
+          fi
+
+      - name: Upload probe evidence
+        # The divergence message above points investigators at this artifact;
+        # keep the evidence beyond the runner's lifetime. Gated on failure()
+        # because malfunction paths need evidence too; failures before any
+        # file exists upload whatever subset is present (ignore the rest).
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cache-divergence-evidence
+          path: |
+            ${{ runner.temp }}/build-cached.log
+            ${{ runner.temp }}/build-cold.log
+            ${{ runner.temp }}/manifest-cached.txt
+            ${{ runner.temp }}/manifest-cold.txt
+            ${{ runner.temp }}/divergence.diff
+          if-no-files-found: ignore
+          retention-days: 30
