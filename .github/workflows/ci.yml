@@ -16,7 +16,9 @@ jobs:
   lint-and-format:
     name: Lint and Format Check
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 15m: a fully cold run (no restored turbo cache) measured 6m56s, so the
+    # previous 10m budget left too little headroom for a cache-miss run.
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -25,14 +27,35 @@ jobs:
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
 
-      - name: Setup Turborepo cache
-        uses: actions/cache@v6
+      - name: Restore Turborepo cache (read-only)
+        # Restore-only on purpose: this job's typecheck executes build tasks,
+        # but only the gated Build Check job may PERSIST cache entries — its
+        # no-output gate vets every entry that reaches the cache (see the key
+        # rationale below).
+        uses: actions/cache/restore@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
+          # Canonical restore-key rationale — the other turbo cache steps in
+          # this file point here; full evidence in
+          # docs/reports/CI_CACHE_INTEGRITY_AUDIT.md (AC-1):
+          # - The bare os-turbo- catch-all restore-key is intentionally absent:
+          #   it matched a .turbo cache from ANY commit, branch, or lockfile,
+          #   and served a months-stale dist that produced the TS2724 false red
+          #   on PR #189.
+          # - Honest residual limitation: the key below still matches any commit
+          #   sharing the same pnpm-lock.yaml + turbo.json hash, so removing the
+          #   catch-all closes only the lockfile-or-turbo.json-change subset of
+          #   stale-cache transport.
+          # - Entries also flow BETWEEN jobs of the same run under this shared
+          #   key — which is why only the gated Build Check job saves and every
+          #   other turbo job restores read-only.
+          # - Coupled expression: .github/workflows/cache-divergence.yml probes
+          #   this exact key scheme read-only; changing the scheme here without
+          #   changing it there leaves the probe observing a cache CI no longer
+          #   uses.
           restore-keys: |
             ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
-            ${{ runner.os }}-turbo-
 
       - name: Check formatting
         run: pnpm format:check
@@ -90,14 +113,8 @@ jobs:
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
 
-      - name: Setup Turborepo cache
-        uses: actions/cache@v6
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
-            ${{ runner.os }}-turbo-
+      # No turbo cache step here on purpose: this job never invokes turbo, so
+      # restoring .turbo cost ~46 MB/run and only entered (and lost) the save race.
 
       - name: Setup test environment
         run: |
@@ -254,14 +271,8 @@ jobs:
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
 
-      - name: Setup Turborepo cache
-        uses: actions/cache@v6
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
-            ${{ runner.os }}-turbo-
+      # No turbo cache step here on purpose: this job never invokes turbo, so
+      # restoring .turbo cost ~46 MB/run and only entered (and lost) the save race.
 
       - name: Setup test environment
         run: |
@@ -367,16 +378,44 @@ jobs:
         uses: ./.github/actions/setup-node-pnpm-cache
 
       - name: Setup Turborepo cache
+        # The ONLY turbo cache step in this file with save enabled: every entry
+        # that reaches the cache is minted by this job, under the no-output
+        # gate below. Key + restore-key rationale: see the canonical comment on
+        # the Lint job's restore step (docs/reports/CI_CACHE_INTEGRITY_AUDIT.md
+        # AC-1).
         uses: actions/cache@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
-            ${{ runner.os }}-turbo-
 
       - name: Build all packages
-        run: pnpm build
+        # Turbo 2.9.16 has no --fail-on-warning flag, so a task that declares
+        # dist/** outputs but writes nothing logs "no output files found for
+        # task" as a WARNING and exits 0. This gate turns that warning into a
+        # job failure. Honest scope: turbo emits the warning only when a task
+        # EXECUTES — a cache hit replays the stored logs without re-emitting
+        # it, so a warning baked into an existing cache entry is invisible
+        # here. That replay blindness is acceptable ONLY because this is the
+        # sole job that saves .turbo (the others restore read-only): every
+        # persisted entry was minted under a run where this gate watched the
+        # task execute. Exemptions: @packages/api-errors and @packages/ui
+        # declare `outputs: []` in per-package turbo.json files. The
+        # discriminator is the BUILD SCRIPT: those two are the only packages
+        # whose build is verdict-only (`tsc --noEmit` — type-checks, emits
+        # nothing); other source-consumed packages have no build script at all.
+        run: |
+          set -o pipefail
+          pnpm build 2>&1 | tee "$RUNNER_TEMP/turbo-build.log"
+          # grep exits 1 on a clean log; running the extraction as the `if`
+          # condition keeps that from tripping the shell's -e mode. The sed
+          # strips the message prefix and the sentence-ending period turbo
+          # appends after the task id.
+          if offenders="$(grep -oE 'no output files found for task [^ ]+' "$RUNNER_TEMP/turbo-build.log" | sed 's/.*task //; s/\.$//' | sort -u | paste -sd, -)" && [ -n "$offenders" ]; then
+            echo "::error title=Turbo task produced no output files::${offenders} declared outputs but wrote none. Either make the package's build emit its declared outputs, or — if the build is verdict-only (tsc --noEmit) — declare 'outputs: []' in that package's own turbo.json (see packages/ui/turbo.json)."
+            exit 1
+          fi
 
       - name: Build admin app
         run: pnpm --filter @apps/admin build
@@ -436,14 +475,17 @@ jobs:
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
 
-      - name: Setup Turborepo cache
-        uses: actions/cache@v6
+      - name: Restore Turborepo cache (read-only)
+        # Restore-only on purpose: `turbo run test` executes build tasks for
+        # the dependency closure, but only the gated Build Check job may
+        # persist cache entries. Key + restore-key rationale: see the
+        # canonical comment on the Lint job's restore step.
+        uses: actions/cache/restore@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
-            ${{ runner.os }}-turbo-
 
       - name: Setup test environment
         # Some package suites (e.g. fallback-strategies) self-skip without env

@@ -1,8 +1,8 @@
 name: Architectural Fitness Functions
 
-# Wires the 21 fitness greps documented in CLAUDE.md §Automated Compliance
-# Checks to CI. Any new occurrence of any pattern fails the workflow and is
-# annotated on the PR diff.
+# Wires the fitness greps documented in CLAUDE.md §Automated Compliance
+# Checks to CI (the step summary enumerates the current set). Any new
+# occurrence of any pattern fails the workflow and is annotated on the PR diff.
 #
 # Strategy: hard-zero for every check (each returns count = 0). #1 and #21 ran
 # as ratchets during the prisma->DI remediation; that workstream is complete, so
@@ -12,12 +12,10 @@ name: Architectural Fitness Functions
 # hard-zero is the correct mode for invariants in a clean codebase; ratchets
 # are only correct when a non-zero baseline cannot be eliminated immediately.
 #
-# Design: single job + 13 named steps with `if: always()` so a violation in
-# one step does NOT mask later violations — every PR sees every check.
+# Design: single job + one named step per check with `if: always()` so a
+# violation in one step does NOT mask later violations — every PR sees every check.
 # Annotations are aggregated to one `::error` per check (bypasses the
 # 10-errors-per-step / 50-per-job silent cap of GitHub Actions).
-#
-# Reference: docs/audits/REMEDIATION_ROADMAP.md §T4-P.
 
 on:
   push:
@@ -612,12 +610,146 @@ jobs:
             exit 1
           fi
 
+      - name: "#33 Every extended root tsconfig listed in turbo.json globalDependencies"
+        if: always()
+        run: |
+          set -uo pipefail
+          # Turbo hashes per-package inputs plus globalDependencies and NOTHING
+          # else, so a ROOT-level tsconfig a workspace package merely extends is
+          # invisible to that package's hash. Editing it invalidates ZERO cache
+          # entries and every dependent task replays a dist compiled with the
+          # PREVIOUS compiler settings (target, module, declaration, skipLibCheck)
+          # under a green exit code — a false green, reproduced end-to-end in
+          # docs/reports/CI_CACHE_INTEGRITY_AUDIT.md. Membership is a
+          # shell-pattern match because turbo accepts glob entries in
+          # globalDependencies — a literal compare would flag configs a glob
+          # already covers. The second pass walks ONE extends hop from every root
+          # config that is listed or demanded by the first pass: a root->root
+          # chain link (live today: tsconfig.build.base.json extends
+          # tsconfig.base.json) is equally invisible to every per-package hash,
+          # and since each properly listed link becomes checkable itself, longer
+          # chains are covered link by link. Two skips, both justified:
+          # non-relative extends targets resolve into node_modules and change
+          # only with the lockfile, which turbo already hashes on its own;
+          # targets that resolve inside a workspace directory stay covered by
+          # that package's own input hash — in-tree today every relative target
+          # resolves to a root config, so this second skip currently matches
+          # nothing. Numbering: #30-32 are reserved by
+          # workstream/ci-live-tier-integrity; delete this note once that branch
+          # merges and #30-32 appear above. Hard-zero. Mirrors CLAUDE.md #33.
+          GLOBALS=$(tr -d ' \n' < turbo.json | grep -oE '"globalDependencies":\[[^]]*\]' | \
+            grep -oE '"[^"]*"' | tr -d '"' | grep -v '^globalDependencies$' || true)
+          listed() {
+            # set -f keeps glob entries as case patterns instead of expanding them
+            # against the working directory; restored on every return path.
+            set -f
+            for entry in $GLOBALS; do
+              case "$1" in $entry) set +f; return 0;; esac
+            done
+            set +f
+            return 1
+          }
+          MISSING=""
+          REACHED=""
+          for cfg in $(find apps packages infra -name 'tsconfig*.json' \
+              -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/.next/*' \
+              -not -path '*/.turbo/*' -not -path '*/.stryker-tmp/*' 2>/dev/null); do
+            for target in $(grep -oE '"extends"[[:space:]]*:[[:space:]]*(\[[^]]*\]|"[^"]*")' "$cfg" 2>/dev/null | \
+                grep -oE '"[^"]*"' | tr -d '"' | grep -v '^extends$' || true); do
+              case "$target" in ./*|../*) ;; *) continue;; esac
+              resolved=$(realpath -m --relative-to="$PWD" "$(dirname "$cfg")/$target" 2>/dev/null || true)
+              case "$resolved" in "" | */*) continue;; esac
+              REACHED="$REACHED $resolved"
+              listed "$resolved" || MISSING="$MISSING$cfg -> $resolved\n"
+            done
+          done
+          for cfg in tsconfig*.json; do
+            [ -f "$cfg" ] || continue
+            if ! listed "$cfg"; then case " $REACHED " in *" $cfg "*) ;; *) continue;; esac; fi
+            for target in $(grep -oE '"extends"[[:space:]]*:[[:space:]]*(\[[^]]*\]|"[^"]*")' "$cfg" 2>/dev/null | \
+                grep -oE '"[^"]*"' | tr -d '"' | grep -v '^extends$' || true); do
+              case "$target" in ./*|../*) ;; *) continue;; esac
+              resolved=$(realpath -m --relative-to="$PWD" "$(dirname "$cfg")/$target" 2>/dev/null || true)
+              case "$resolved" in "" | */*) continue;; esac
+              listed "$resolved" || MISSING="$MISSING$cfg -> $resolved\n"
+            done
+          done
+          COUNT=$(printf "%b" "$MISSING" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #33 violation::$COUNT root tsconfig(s) reached by a workspace extends but missing from turbo.json globalDependencies — edits to them invalidate zero turbo cache entries and dependent tasks replay a stale dist as a false green. Add each listed file to globalDependencies."
+            printf "%b\n" "$MISSING" | head -20
+            exit 1
+          fi
+
+      - name: "#34 Every ::error in a workflow step pairs with a real failure in the same step"
+        if: always()
+        run: |
+          set -uo pipefail
+          # echo "::error..." only ANNOTATES — the step still exits 0 and the run
+          # stays green, so an unpaired ::error is a failure that fails nothing.
+          # Pairing is per-STEP, not per-file: a step counts as paired only when
+          # the SAME step carries a real failure mechanism (exit <n>, exit "$VAR",
+          # core.setFailed). ::warning is out of scope — advisory by design
+          # (audit.yml carries intentional ones). Residual limits, stated
+          # honestly: this is a line-based tripwire, not a YAML parser — an
+          # emission not written as `echo "::error` (printf, github-script
+          # core.error) is invisible to it, and a mechanism named only in a
+          # comment inside the step satisfies the pairing. Hard-zero.
+          # Mirrors CLAUDE.md #34.
+          VIOLATIONS=$(for wf in .github/workflows/*.yml; do
+            awk -v f="$wf" '
+              /^[[:space:]]*-[[:space:]]+(name|uses):/ {
+                if (in_step && has_err && !has_fail) print f " line " start ": step emits ::error without exit/core.setFailed";
+                in_step=1; has_err=0; has_fail=0; start=NR;
+              }
+              /echo "::error/ { has_err=1 }
+              /exit[[:space:]]+[1-9]|exit[[:space:]]+"?\$[A-Za-z_]|core\.setFailed/ { has_fail=1 }
+              END { if (in_step && has_err && !has_fail) print f " line " start ": step emits ::error without exit/core.setFailed" }
+            ' "$wf"
+          done)
+          COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #34 violation::$COUNT workflow step(s) emit ::error without a real failure mechanism in the same step — the annotation leaves the job green. Pair every ::error with exit 1 / exit \"\$CODE\" / core.setFailed in its step."
+            printf "%s\n" "$VIOLATIONS" | head -20
+            exit 1
+          fi
+
+      - name: "#35 outputs:[] build overrides bound to verdict-only build scripts"
+        if: always()
+        run: |
+          set -uo pipefail
+          # A per-package turbo.json declaring "outputs": [] for build tells
+          # turbo the task writes nothing. Paired with an EMITTING build script
+          # it earns a green cache entry that restores NOTHING — every later
+          # cache hit replays "built" while the dist is missing (the
+          # silent-cache-of-nothing defect, the converse of ci.yml's
+          # no-output-files gate). The override is legitimate ONLY while the
+          # build is verdict-only (tsc --noEmit); a build that starts emitting
+          # must delete the override in the same change. Hard-zero.
+          # Mirrors CLAUDE.md #35.
+          VIOLATIONS=""
+          for tj in $(find apps packages infra -name 'turbo.json' -not -path '*/node_modules/*' 2>/dev/null); do
+            tr -d ' \n' < "$tj" | grep -q '"build":{[^}]*"outputs":\[\]' || continue
+            pkg="$(dirname "$tj")/package.json"
+            script=$([ -f "$pkg" ] && tr -d '\n' < "$pkg" | grep -oE '"build":[[:space:]]*"[^"]*"' | head -1 || true)
+            printf '%s' "$script" | grep -qE 'tsc[^"]*--noEmit' || VIOLATIONS="$VIOLATIONS$tj -> ${script:-no build script}\n"
+          done
+          COUNT=$(printf "%b" "$VIOLATIONS" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #35 violation::$COUNT per-package turbo.json outputs:[] override(s) whose build script is not verdict-only (tsc --noEmit) — turbo would cache a green entry that restores nothing. Make the build verdict-only or delete the override so real outputs get cached."
+            printf "%b\n" "$VIOLATIONS" | head -20
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "29 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "32 architectural invariants (#1-#29, #33-#35) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY

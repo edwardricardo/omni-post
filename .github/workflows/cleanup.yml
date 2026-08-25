@@ -24,6 +24,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Default-deny for GITHUB_TOKEN: every job re-declares exactly the scopes it
+# needs. Jobs without their own permissions block (cleanup-report) get none.
+permissions: {}
+
 env:
   RETENTION_DAYS_ARTIFACTS: 30
   RETENTION_DAYS_IMAGES: 60
@@ -36,6 +40,15 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.cleanup_type == 'artifacts' || github.event.inputs.cleanup_type == 'all' || github.event.inputs.cleanup_type == ''
 
+    # Largest backlog of the three deletion jobs (~1900 artifacts on first
+    # real run): pagination + 250ms delete pacing + backoff headroom.
+    timeout-minutes: 60
+
+    # The repo default workflow permission is read-only; artifact deletion
+    # needs actions: write or every DELETE returns 403.
+    permissions:
+      actions: write
+
     steps:
       - name: Cleanup old workflow artifacts
         uses: actions/github-script@v9
@@ -45,40 +58,108 @@ jobs:
             const cutoffDate = new Date();
             cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
+            const PAGE_SIZE = 100;
+            // Hard ceiling so the listing loop can never spin unbounded
+            // against the API; 50 pages = 5000 items per run. Hitting it
+            // fails the run loudly, but the collected prefix is still
+            // cleaned so the backlog shrinks run over run.
+            const MAX_PAGES = 50;
+            const MAX_ATTEMPTS = 3;
+            const MAX_BACKOFF_MS = 30000;
+            // Pacing between DELETE calls so the first run over a large
+            // backlog does not trip GitHub's secondary rate limits.
+            const DELETE_PACING_MS = 250;
+
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            // Retryable = transient: secondary-rate-limit responses (403
+            // WITH a Retry-After header, or 429) and 5xx server faults. A
+            // 403 without Retry-After is a permissions problem retrying
+            // cannot fix, so it must surface as a real failure instead.
+            const isRetryable = (error) => {
+              const status = error.status ?? 0;
+              if (status === 429 || status >= 500) return true;
+              return status === 403 && error.response?.headers?.['retry-after'] !== undefined;
+            };
+
+            // Per-request backoff implemented inline on purpose: the
+            // github-script `retries` input re-runs the WHOLE script on
+            // failure, which would repeat every already-completed deletion
+            // instead of retrying the one failed request.
+            const requestWithBackoff = async (fn) => {
+              for (let attempt = 1; ; attempt++) {
+                try {
+                  return await fn();
+                } catch (error) {
+                  if (attempt >= MAX_ATTEMPTS || !isRetryable(error)) throw error;
+                  const retryAfterSec = Number(error.response?.headers?.['retry-after']);
+                  const backoffMs = retryAfterSec > 0 ? retryAfterSec * 1000 : 1000 * 2 ** (attempt - 1);
+                  const waitMs = Math.min(backoffMs, MAX_BACKOFF_MS);
+                  console.log(`Transient error (HTTP ${error.status}), attempt ${attempt}/${MAX_ATTEMPTS}, retrying in ${waitMs}ms: ${error.message}`);
+                  await sleep(waitMs);
+                }
+              }
+            };
+
             console.log(`Cleaning up artifacts older than ${retentionDays} days (before ${cutoffDate.toISOString()})`);
 
             let totalDeleted = 0;
             let totalSizeFreed = 0;
+            let failed = 0;
+            let pageCeilingHit = false;
 
-            // Get all artifacts
-            const artifacts = await github.rest.actions.listArtifactsForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              per_page: 100
-            });
+            // Collect ALL pages before deleting anything: deleting while
+            // paginating shifts the result set and silently skips one item
+            // per deletion.
+            const allArtifacts = [];
+            let page = 1;
+            for (; page <= MAX_PAGES; page++) {
+              const response = await requestWithBackoff(() => github.rest.actions.listArtifactsForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: PAGE_SIZE,
+                page
+              }));
+              allArtifacts.push(...response.data.artifacts);
+              if (response.data.artifacts.length < PAGE_SIZE) break;
+            }
+            if (page > MAX_PAGES) {
+              pageCeilingHit = true;
+              core.error(`Artifact listing stopped at the ${MAX_PAGES}-page ceiling (${allArtifacts.length} items collected); the remainder stays untouched this run and the job will be marked failed. Raise MAX_PAGES deliberately if the backlog is genuinely this large.`);
+            }
 
-            for (const artifact of artifacts.data.artifacts) {
+            console.log(`Found ${allArtifacts.length} artifacts across ${Math.ceil(allArtifacts.length / PAGE_SIZE)} page(s)`);
+
+            for (const artifact of allArtifacts) {
               const artifactDate = new Date(artifact.created_at);
 
               if (artifactDate < cutoffDate) {
                 try {
-                  await github.rest.actions.deleteArtifact({
+                  await requestWithBackoff(() => github.rest.actions.deleteArtifact({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
                     artifact_id: artifact.id
-                  });
+                  }));
 
                   console.log(`Deleted artifact: ${artifact.name} (${artifact.size_in_bytes} bytes)`);
                   totalDeleted++;
                   totalSizeFreed += artifact.size_in_bytes;
                 } catch (error) {
-                  console.log(`Failed to delete artifact ${artifact.name}: ${error.message}`);
+                  if (error.status === 404) {
+                    // Already gone (expired or deleted concurrently): the
+                    // desired end state is reached, so not a failure.
+                    console.log(`Artifact ${artifact.name} already gone (404) — nothing to delete`);
+                  } else {
+                    console.log(`Failed to delete artifact ${artifact.name}: ${error.message}`);
+                    failed++;
+                  }
                 }
+                await sleep(DELETE_PACING_MS);
               }
             }
 
             const sizeMB = (totalSizeFreed / 1024 / 1024).toFixed(2);
-            console.log(`Cleanup complete: ${totalDeleted} artifacts deleted, ${sizeMB} MB freed`);
+            console.log(`Cleanup complete: ${totalDeleted} artifacts deleted, ${sizeMB} MB freed, ${failed} failed`);
 
             // Update job summary
             await core.summary
@@ -89,16 +170,29 @@ jobs:
                   { data: 'Value', header: true }
                 ],
                 ['Artifacts Deleted', totalDeleted.toString()],
+                ['Deletions Failed', failed.toString()],
                 ['Storage Freed', `${sizeMB} MB`],
                 ['Retention Period', `${retentionDays} days`]
               ])
               .write();
+
+            // A cleanup job that cannot delete must go red, not report
+            // success. Only permanent errors count as failed; 404s and
+            // exhausted-retry transients that finally succeeded do not.
+            const failureReasons = [];
+            if (failed > 0) failureReasons.push(`${failed} artifact deletion(s) failed`);
+            if (pageCeilingHit) failureReasons.push(`listing hit the ${MAX_PAGES}-page ceiling`);
+            if (failureReasons.length > 0) {
+              core.setFailed(failureReasons.join('; '));
+            }
 
   # ===== CLEANUP CONTAINER IMAGES =====
   cleanup-images:
     name: Cleanup Container Images
     runs-on: ubuntu-latest
     if: github.event.inputs.cleanup_type == 'images' || github.event.inputs.cleanup_type == 'all' || github.event.inputs.cleanup_type == ''
+
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false
@@ -117,55 +211,167 @@ jobs:
             const cutoffDate = new Date();
             cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
-            const packageName = `${{ github.repository }}/${{ matrix.service }}`.toLowerCase();
+            const PAGE_SIZE = 100;
+            // Hard ceiling so the listing loop can never spin unbounded
+            // against the API; 50 pages = 5000 items per run. Hitting it
+            // fails the run loudly, but the collected prefix is still
+            // cleaned so the backlog shrinks run over run.
+            const MAX_PAGES = 50;
+            const MAX_ATTEMPTS = 3;
+            const MAX_BACKOFF_MS = 30000;
+            // Pacing between DELETE calls so the first run over a large
+            // backlog does not trip GitHub's secondary rate limits.
+            const DELETE_PACING_MS = 250;
+            const KEEP_RECENT_VERSIONS = 10;
+
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            // Retryable = transient: secondary-rate-limit responses (403
+            // WITH a Retry-After header, or 429) and 5xx server faults. A
+            // 403 without Retry-After is a permissions problem retrying
+            // cannot fix, so it must surface as a real failure instead.
+            const isRetryable = (error) => {
+              const status = error.status ?? 0;
+              if (status === 429 || status >= 500) return true;
+              return status === 403 && error.response?.headers?.['retry-after'] !== undefined;
+            };
+
+            // Per-request backoff implemented inline on purpose: the
+            // github-script `retries` input re-runs the WHOLE script on
+            // failure, which would repeat every already-completed deletion
+            // instead of retrying the one failed request.
+            const requestWithBackoff = async (fn) => {
+              for (let attempt = 1; ; attempt++) {
+                try {
+                  return await fn();
+                } catch (error) {
+                  if (attempt >= MAX_ATTEMPTS || !isRetryable(error)) throw error;
+                  const retryAfterSec = Number(error.response?.headers?.['retry-after']);
+                  const backoffMs = retryAfterSec > 0 ? retryAfterSec * 1000 : 1000 * 2 ** (attempt - 1);
+                  const waitMs = Math.min(backoffMs, MAX_BACKOFF_MS);
+                  console.log(`Transient error (HTTP ${error.status}), attempt ${attempt}/${MAX_ATTEMPTS}, retrying in ${waitMs}ms: ${error.message}`);
+                  await sleep(waitMs);
+                }
+              }
+            };
+
+            // GHCR package names exclude the owner namespace: the image
+            // ghcr.io/<owner>/<repo>/<service> is the package "<repo>/<service>".
+            const packageName = `${context.repo.repo}/${{ matrix.service }}`.toLowerCase();
             console.log(`Cleaning up images for ${packageName} older than ${retentionDays} days`);
 
             let totalDeleted = 0;
+            let failed = 0;
+            let pageCeilingHit = false;
 
+            // The repository owner is a User account, so only the *ForUser
+            // package endpoints work; the *ForOrg variants 404 unconditionally.
+            // Collect ALL pages before deleting anything: deleting while
+            // paginating shifts the result set and silently skips one item
+            // per deletion.
+            const allVersions = [];
             try {
-              // Get package versions
-              const versions = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
-                package_type: 'container',
-                package_name: packageName,
-                org: context.repo.owner,
-                per_page: 100
-              });
-
-              for (const version of versions.data) {
-                const versionDate = new Date(version.created_at);
-
-                // Keep latest 10 versions and tagged releases
-                const isTagged = version.metadata?.container?.tags?.some(tag =>
-                  tag.match(/^v?\d+\.\d+\.\d+$/) || tag === 'latest'
-                );
-
-                if (versionDate < cutoffDate && !isTagged && versions.data.indexOf(version) > 10) {
-                  try {
-                    await github.rest.packages.deletePackageVersionForOrg({
-                      package_type: 'container',
-                      package_name: packageName,
-                      org: context.repo.owner,
-                      package_version_id: version.id
-                    });
-
-                    console.log(`Deleted image version: ${version.name || version.id}`);
-                    totalDeleted++;
-                  } catch (error) {
-                    console.log(`Failed to delete version ${version.name}: ${error.message}`);
-                  }
-                }
+              let page = 1;
+              for (; page <= MAX_PAGES; page++) {
+                const response = await requestWithBackoff(() => github.rest.packages.getAllPackageVersionsForPackageOwnedByUser({
+                  package_type: 'container',
+                  package_name: packageName,
+                  username: context.repo.owner,
+                  per_page: PAGE_SIZE,
+                  page
+                }));
+                allVersions.push(...response.data);
+                if (response.data.length < PAGE_SIZE) break;
+              }
+              if (page > MAX_PAGES) {
+                pageCeilingHit = true;
+                core.error(`Version listing for ${packageName} stopped at the ${MAX_PAGES}-page ceiling (${allVersions.length} items collected); the remainder stays untouched this run and the job will be marked failed. Raise MAX_PAGES deliberately if the backlog is genuinely this large.`);
               }
             } catch (error) {
-              console.log(`Failed to cleanup images for ${packageName}: ${error.message}`);
+              if (error.status === 404) {
+                // A package that was never published is not a cleanup failure —
+                // log it explicitly and finish green.
+                console.log(`Package ${packageName} does not exist — nothing to clean up`);
+                return;
+              }
+              core.setFailed(`Failed to list versions for ${packageName}: ${error.message}`);
+              return;
             }
 
-            console.log(`Cleanup complete for ${{ matrix.service }}: ${totalDeleted} versions deleted`);
+            console.log(`Found ${allVersions.length} version(s) for ${packageName}`);
+
+            // Newest-first before the keep-N walk: the REST API does not
+            // document a stable ordering, so the keep window MUST NOT
+            // depend on it. After this sort, index 0 is the newest version.
+            allVersions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            for (const [index, version] of allVersions.entries()) {
+              const versionDate = new Date(version.created_at);
+
+              // Tag policy — production-ci.yml is the source of truth for
+              // emitted tag shapes: `main`, `latest`, `sha-<short>`,
+              // `pr-<n>` (docker/metadata-action: ref/branch on main only,
+              // ref/pr, sha, raw latest). Protected unconditionally:
+              // `latest`, `main`, and semver release tags (none emitted
+              // today; kept so a future release tag is never deleted by
+              // default). `sha-*` / `pr-*` are per-commit / per-PR tags
+              // that MUST age out under the same cutoff + keep-N rules as
+              // untagged versions, or the registry grows without bound.
+              const isProtected = (version.metadata?.container?.tags ?? []).some(tag =>
+                tag === 'latest' || tag === 'main' || /^v?\d+\.\d+\.\d+$/.test(tag)
+              );
+
+              // Keep the KEEP_RECENT_VERSIONS newest versions regardless of
+              // age — correct only because of the newest-first sort above.
+              if (versionDate < cutoffDate && !isProtected && index >= KEEP_RECENT_VERSIONS) {
+                try {
+                  await requestWithBackoff(() => github.rest.packages.deletePackageVersionForUser({
+                    package_type: 'container',
+                    package_name: packageName,
+                    username: context.repo.owner,
+                    package_version_id: version.id
+                  }));
+
+                  console.log(`Deleted image version: ${version.name || version.id}`);
+                  totalDeleted++;
+                } catch (error) {
+                  if (error.status === 404) {
+                    // Already gone (deleted concurrently): the desired end
+                    // state is reached, so not a failure.
+                    console.log(`Image version ${version.name || version.id} already gone (404) — nothing to delete`);
+                  } else {
+                    console.log(`Failed to delete version ${version.name || version.id}: ${error.message}`);
+                    failed++;
+                  }
+                }
+                await sleep(DELETE_PACING_MS);
+              }
+            }
+
+            console.log(`Cleanup complete for ${{ matrix.service }}: ${totalDeleted} versions deleted, ${failed} failed`);
+
+            // A cleanup job that cannot delete must go red, not report
+            // success. Only permanent errors count as failed; 404s and
+            // exhausted-retry transients that finally succeeded do not.
+            const failureReasons = [];
+            if (failed > 0) failureReasons.push(`${failed} image version deletion(s) failed for ${packageName}`);
+            if (pageCeilingHit) failureReasons.push(`listing hit the ${MAX_PAGES}-page ceiling`);
+            if (failureReasons.length > 0) {
+              core.setFailed(failureReasons.join('; '));
+            }
 
   # ===== CLEANUP BUILD CACHES =====
   cleanup-caches:
     name: Cleanup Build Caches
     runs-on: ubuntu-latest
     if: github.event.inputs.cleanup_type == 'caches' || github.event.inputs.cleanup_type == 'all' || github.event.inputs.cleanup_type == ''
+
+    timeout-minutes: 30
+
+    # The repo default workflow permission is read-only; cache deletion
+    # needs actions: write or every DELETE returns 403.
+    permissions:
+      actions: write
 
     steps:
       - name: Cleanup GitHub Actions caches
@@ -176,43 +382,128 @@ jobs:
             const cutoffDate = new Date();
             cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
+            const PAGE_SIZE = 100;
+            // Hard ceiling so the listing loop can never spin unbounded
+            // against the API; 50 pages = 5000 items per run. Hitting it
+            // fails the run loudly, but the collected prefix is still
+            // cleaned so the backlog shrinks run over run.
+            const MAX_PAGES = 50;
+            const MAX_ATTEMPTS = 3;
+            const MAX_BACKOFF_MS = 30000;
+            // Pacing between DELETE calls so the first run over a large
+            // backlog does not trip GitHub's secondary rate limits.
+            const DELETE_PACING_MS = 250;
+
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            // Retryable = transient: secondary-rate-limit responses (403
+            // WITH a Retry-After header, or 429) and 5xx server faults. A
+            // 403 without Retry-After is a permissions problem retrying
+            // cannot fix, so it must surface as a real failure instead.
+            const isRetryable = (error) => {
+              const status = error.status ?? 0;
+              if (status === 429 || status >= 500) return true;
+              return status === 403 && error.response?.headers?.['retry-after'] !== undefined;
+            };
+
+            // Per-request backoff implemented inline on purpose: the
+            // github-script `retries` input re-runs the WHOLE script on
+            // failure, which would repeat every already-completed deletion
+            // instead of retrying the one failed request.
+            const requestWithBackoff = async (fn) => {
+              for (let attempt = 1; ; attempt++) {
+                try {
+                  return await fn();
+                } catch (error) {
+                  if (attempt >= MAX_ATTEMPTS || !isRetryable(error)) throw error;
+                  const retryAfterSec = Number(error.response?.headers?.['retry-after']);
+                  const backoffMs = retryAfterSec > 0 ? retryAfterSec * 1000 : 1000 * 2 ** (attempt - 1);
+                  const waitMs = Math.min(backoffMs, MAX_BACKOFF_MS);
+                  console.log(`Transient error (HTTP ${error.status}), attempt ${attempt}/${MAX_ATTEMPTS}, retrying in ${waitMs}ms: ${error.message}`);
+                  await sleep(waitMs);
+                }
+              }
+            };
+
             console.log(`Cleaning up caches older than ${retentionDays} days`);
 
             let totalDeleted = 0;
+            let failed = 0;
+            let pageCeilingHit = false;
 
-            // Get all caches
-            const caches = await github.rest.actions.getActionsCacheList({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              per_page: 100
-            });
+            // Collect ALL pages before deleting anything: deleting while
+            // paginating shifts the result set and silently skips one item
+            // per deletion.
+            const allCaches = [];
+            let page = 1;
+            for (; page <= MAX_PAGES; page++) {
+              const response = await requestWithBackoff(() => github.rest.actions.getActionsCacheList({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: PAGE_SIZE,
+                page
+              }));
+              allCaches.push(...response.data.actions_caches);
+              if (response.data.actions_caches.length < PAGE_SIZE) break;
+            }
+            if (page > MAX_PAGES) {
+              pageCeilingHit = true;
+              core.error(`Cache listing stopped at the ${MAX_PAGES}-page ceiling (${allCaches.length} items collected); the remainder stays untouched this run and the job will be marked failed. Raise MAX_PAGES deliberately if the backlog is genuinely this large.`);
+            }
 
-            for (const cache of caches.data.actions_caches) {
+            console.log(`Found ${allCaches.length} caches across ${Math.ceil(allCaches.length / PAGE_SIZE)} page(s)`);
+
+            for (const cache of allCaches) {
               const cacheDate = new Date(cache.created_at);
 
               if (cacheDate < cutoffDate) {
                 try {
-                  await github.rest.actions.deleteActionsCacheById({
+                  await requestWithBackoff(() => github.rest.actions.deleteActionsCacheById({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
                     cache_id: cache.id
-                  });
+                  }));
 
                   console.log(`Deleted cache: ${cache.key}`);
                   totalDeleted++;
                 } catch (error) {
-                  console.log(`Failed to delete cache ${cache.key}: ${error.message}`);
+                  if (error.status === 404) {
+                    // Already gone (evicted or deleted concurrently): the
+                    // desired end state is reached, so not a failure.
+                    console.log(`Cache ${cache.key} already gone (404) — nothing to delete`);
+                  } else {
+                    console.log(`Failed to delete cache ${cache.key}: ${error.message}`);
+                    failed++;
+                  }
                 }
+                await sleep(DELETE_PACING_MS);
               }
             }
 
-            console.log(`Cache cleanup complete: ${totalDeleted} caches deleted`);
+            console.log(`Cache cleanup complete: ${totalDeleted} caches deleted, ${failed} failed`);
+
+            // A cleanup job that cannot delete must go red, not report
+            // success. Only permanent errors count as failed; 404s and
+            // exhausted-retry transients that finally succeeded do not.
+            const failureReasons = [];
+            if (failed > 0) failureReasons.push(`${failed} cache deletion(s) failed`);
+            if (pageCeilingHit) failureReasons.push(`listing hit the ${MAX_PAGES}-page ceiling`);
+            if (failureReasons.length > 0) {
+              core.setFailed(failureReasons.join('; '));
+            }
 
   # ===== CLEANUP PREVIEW ENVIRONMENTS =====
   cleanup-preview-environments:
     name: Cleanup Preview Environments
     runs-on: ubuntu-latest
     if: github.event.inputs.cleanup_type == 'preview-envs' || github.event.inputs.cleanup_type == 'all' || github.event.inputs.cleanup_type == ''
+
+    timeout-minutes: 15
+
+    # The PR-state lookup is the only GITHUB_TOKEN use in this job; AWS and
+    # kubectl authenticate through their own credentials.
+    permissions:
+      pull-requests: read
 
     steps:
       - name: Configure AWS credentials
@@ -227,6 +518,10 @@ jobs:
           aws eks update-kubeconfig --name omni-post-preview
 
       - name: Cleanup stale preview environments
+        env:
+          # Bound as env instead of interpolated into the script body so the
+          # secret never becomes part of the generated shell text.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🧹 Cleaning up stale preview environments..."
 
@@ -239,7 +534,7 @@ jobs:
               echo "Checking PR #${PR_NUMBER}..."
 
               # Check if PR still exists and is open
-              PR_STATE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              PR_STATE=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" \
                 "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}" \
                 | jq -r '.state // "closed"')
 
@@ -277,6 +572,8 @@ jobs:
     needs: [cleanup-artifacts, cleanup-images, cleanup-caches, cleanup-preview-environments]
     if: always()
 
+    timeout-minutes: 10
+
     steps:
       - name: Generate cleanup report
         run: |
@@ -299,6 +596,20 @@ jobs:
           echo "- Cleaner resource management" >> $GITHUB_STEP_SUMMARY
           echo "- Automated maintenance" >> $GITHUB_STEP_SUMMARY
 
+      - name: Compute aggregate cleanup outcome
+        id: outcome
+        env:
+          # Aggregated across ALL needed jobs so the notification cannot
+          # report green while any cleanup job failed or was cancelled.
+          ANY_FAILED: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && 'true' || 'false' }}
+        run: |
+          echo "any_failed=${ANY_FAILED}" >> "$GITHUB_OUTPUT"
+          echo "completed_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      # Fires only on the weekly schedule (manual dispatches are watched by
+      # whoever dispatched them) but reports the TRUE aggregate outcome:
+      # danger color + failure header when any needed job failed or was
+      # cancelled, instead of unconditionally announcing green.
       - name: Notify team about cleanup
         if: github.event_name == 'schedule'
         uses: 8398a7/action-slack@v3
@@ -309,20 +620,20 @@ jobs:
               "channel": "#devops",
               "attachments": [
                 {
-                  "color": "good",
+                  "color": "${{ steps.outcome.outputs.any_failed == 'true' && 'danger' || 'good' }}",
                   "blocks": [
                     {
                       "type": "header",
                       "text": {
                         "type": "plain_text",
-                        "text": "🧹 Weekly Cleanup Completed"
+                        "text": "${{ steps.outcome.outputs.any_failed == 'true' && 'Cleanup FAILED — inspect run' || '🧹 Weekly Cleanup Completed' }}"
                       }
                     },
                     {
                       "type": "section",
                       "text": {
                         "type": "mrkdwn",
-                        "text": "Automated cleanup has been performed on the repository."
+                        "text": "${{ steps.outcome.outputs.any_failed == 'true' && 'At least one cleanup job failed or was cancelled — open the run below and inspect it.' || 'Automated cleanup has been performed on the repository.' }}"
                       }
                     },
                     {
@@ -334,7 +645,7 @@ jobs:
                         },
                         {
                           "type": "mrkdwn",
-                          "text": "*Completed:*\n$(date -u)"
+                          "text": "*Completed:*\n${{ steps.outcome.outputs.completed_at }}"
                         }
                       ]
                     },
