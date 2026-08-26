@@ -13,7 +13,9 @@ name: Pre-merge Audit Toolkit
 #   - Semgrep CE          (TS/Node SAST, ERROR-level fail)
 #   - OSV-Scanner         (dep vulnerabilities, report-only baseline)
 #   - gitleaks            (secret scanning, hard fail on NEW secrets)
-#   - Squawk              (DB migration safety, fail on critical rules)
+#   - Squawk              (DB migration safety, hard fail on ANY finding in
+#                          changed migrations; per-file/per-rule exceptions
+#                          adjudicated inline in the lint step)
 #   - size-limit          (bundle regression, fail on threshold breach)
 #   - TruffleHog          (verified secrets, NIGHTLY schedule)
 
@@ -208,10 +210,47 @@ jobs:
         run: |
           set +e
           CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep "infra/prisma/migrations/.*\.sql" || true)
-          if [ -n "$CHANGED_FILES" ]; then
-            echo "$CHANGED_FILES" | xargs squawk --config .squawk.toml || \
-              echo "::warning::Squawk found warnings in changed migrations (review output above)"
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "::notice::No migration files in the diff on re-check — nothing to lint"
+            exit 0
           fi
+          # Per-file, per-rule exceptions. Squawk's config has no per-file rule
+          # scoping, and an already-applied migration cannot carry an inline
+          # `-- squawk-ignore` comment: Prisma records each applied migration's
+          # checksum in _prisma_migrations, so any byte change makes
+          # `prisma migrate dev` flag the file on every existing database. The
+          # exception therefore lives here: the named file is linted with only
+          # the named rule excluded — every other rule stays enforced on it.
+          # Adding an entry requires the same written adjudication as the one
+          # below (what the finding is, why the SQL cannot change).
+          #
+          #   20260527000000_add_rls_tenant_isolation/migration.sql
+          #     rule: require-timeout-settings (2 findings: missing
+          #     lock_timeout + statement_timeout before DROP POLICY). Real
+          #     finding, but the migration is applied and checksum-pinned; the
+          #     lock-contention window it warns about is behind us, and the
+          #     only future replays are fresh-database bootstraps with no
+          #     concurrent traffic. New migrations must SET both timeouts
+          #     instead of extending this list.
+          RLS_EXCEPTION="infra/prisma/migrations/20260527000000_add_rls_tenant_isolation/migration.sql"
+
+          FAIL=0
+          STRICT_FILES=$(echo "$CHANGED_FILES" | grep -vxF "$RLS_EXCEPTION" || true)
+          if [ -n "$STRICT_FILES" ]; then
+            echo "$STRICT_FILES" | xargs squawk --config .squawk.toml
+            CODE=$?
+            if [ "$CODE" -ne 0 ]; then FAIL="$CODE"; fi
+          fi
+          if echo "$CHANGED_FILES" | grep -qxF "$RLS_EXCEPTION"; then
+            squawk --config .squawk.toml --exclude=require-timeout-settings "$RLS_EXCEPTION"
+            CODE=$?
+            if [ "$CODE" -ne 0 ]; then FAIL="$CODE"; fi
+          fi
+          if [ "$FAIL" -ne 0 ]; then
+            echo "::error::Squawk found migration-safety violations (exit $FAIL). Fix the SQL, or add a per-file/per-rule exception with its adjudication in this step."
+            exit "$FAIL"
+          fi
+          echo "::notice::Squawk lint passed for all changed migrations"
 
   # ──────────────────────────────────────────────────────────────────────
   # 6. size-limit — Next.js bundle regression

@@ -25,6 +25,9 @@ name: Architectural Fitness Functions
 #
 # Design: single job + one named step per check with `if: always()` so a
 # violation in one step does NOT mask later violations — every PR sees every check.
+# One exception: #37 gates the delta against the PR base, which only exists on
+# pull_request events — its `if` adds that event condition and the step is
+# skipped (visibly, not silently green) on push runs.
 # Annotations are aggregated to one `::error` per check (bypasses the
 # 10-errors-per-step / 50-per-job silent cap of GitHub Actions).
 
@@ -49,6 +52,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+
+      # Fitness #36 expands scope globs via node's fs.glob (node >= 22; stable on
+      # 24). The runner's default node is not version-pinned, so pin it here —
+      # no install/cache: the fitness job runs zero package code.
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
 
       - name: "#1 No Prisma singleton imports in routes"
         if: always()
@@ -920,13 +931,151 @@ jobs:
             exit 1
           fi
 
+      - name: "#36 Every positive scope glob in a coverage/mutation config matches a file"
+        if: always()
+        run: |
+          # Dead scope = infallible gate (the #2/#3/#4 class): a POSITIVE glob
+          # matching zero files makes the gate report green over code it never
+          # touched. Scope: mutate arrays of apps/api/stryker*.config.mjs (minus
+          # the quarantined pre-consolidation configs) + include arrays of
+          # apps/api/vitest.config.ts. Negations (!...) are deliberately out of
+          # scope: an empty negation is inert protection (SMELL-84), and flagging
+          # it pushes authors to delete real exclusions. Textual extraction, not
+          # a JS parser — runtime-assembled globs, spread-inherited mutate
+          # arrays, and block-comment contents are invisible to it. Hard-zero.
+          # Mirrors CLAUDE.md #36.
+          set -uo pipefail
+          VIOLATIONS=$(node --input-type=module <<'EOF'
+          import { readFileSync } from "node:fs";
+          import { glob } from "node:fs/promises";
+
+          // Quarantine: 14 ad-hoc slicing configs predating the packages/core relocation,
+          // holding 45 dead positive globs between them (expanded 2026-08-26). They are
+          // one-off local run shells, not the config the mutation pipeline executes
+          // (stryker.config.mjs). Delete each name here when the Stryker consolidation
+          // (SMELL-84 remediation) rewrites or deletes the file it names.
+          const quarantined = new Set([
+            "stryker-batch-7.config.mjs",
+            "stryker-batch-8.config.mjs",
+            "stryker-domain-targeted.config.mjs",
+            "stryker-inbox.config.mjs",
+            "stryker-micro-A6.config.mjs",
+            "stryker-micro-E1.config.mjs",
+            "stryker-micro-E2.config.mjs",
+            "stryker-micro-E3.config.mjs",
+            "stryker-micro-E4.config.mjs",
+            "stryker-micro-F1.config.mjs",
+            "stryker-micro-F2.config.mjs",
+            "stryker-micro-F3.config.mjs",
+            "stryker-micro-F4.config.mjs",
+            "stryker-session-c.config.mjs",
+          ]);
+          const cwd = "apps/api";
+          const scanned = [];
+          for await (const f of glob("stryker*.config.mjs", { cwd })) {
+            if (!quarantined.has(f)) scanned.push([f, "mutate"]);
+          }
+          scanned.sort();
+          if (scanned.length === 0) {
+            console.error(`fitness #36 scope error: no non-quarantined stryker*.config.mjs under ${cwd}`);
+            process.exit(1);
+          }
+          scanned.push(["vitest.config.ts", "include"]);
+          const extract = (source, key) => {
+            const found = [];
+            const re = new RegExp(`\\b${key}\\s*:\\s*\\[`, "g");
+            let m;
+            while ((m = re.exec(source)) !== null) {
+              let i = re.lastIndex;
+              let depth = 1;
+              const start = i;
+              while (i < source.length && depth > 0) {
+                if (source[i] === "[") depth += 1;
+                if (source[i] === "]") depth -= 1;
+                i += 1;
+              }
+              const body = source.slice(start, i - 1).replace(/\/\/[^\n]*/g, "");
+              for (const q of body.matchAll(/"([^"]*)"|'([^']*)'/g)) found.push(q[1] ?? q[2]);
+            }
+            return found;
+          };
+          const dead = [];
+          for (const [file, key] of scanned) {
+            const patterns = extract(readFileSync(`${cwd}/${file}`, "utf8"), key);
+            if (file === "vitest.config.ts" && patterns.length === 0) {
+              console.error(`fitness #36 scope error: zero include arrays extracted from ${cwd}/${file} — the extraction went stale against the file's current shape`);
+              process.exit(1);
+            }
+            for (const pattern of patterns) {
+              if (pattern.startsWith("!")) continue;
+              let live = false;
+              for await (const _ of glob(pattern, { cwd })) { live = true; break; }
+              if (!live) dead.push(`${cwd}/${file}: dead positive glob "${pattern}"`);
+            }
+          }
+          console.log(dead.join("\n"));
+          EOF
+          ) || { echo "fitness #36: expansion crashed or scope is invalid — failing closed (needs node >= 22 for fs.glob)"; exit 1; }
+          COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #36 violation::$COUNT dead positive scope glob(s) in coverage/mutation configs — each names a scope the gate reports on without measuring. Repoint or delete the glob; if the scope moved (e.g. into packages/core), measuring it there is a separate scope, not a repoint."
+            printf "%s\n" "$VIOLATIONS" | head -20
+            exit 1
+          fi
+
+      - name: "#37 Coverage threshold floors never descend vs the PR base"
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        env:
+          FITNESS_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # The four literal thresholds in apps/api/vitest.config.ts are a
+          # ratchet (autoUpdate raises them in the commit that earns them); the
+          # only hand-written move to reject is a LOWERED number. pull_request
+          # only: the subject is the PR's delta against its base — on push there
+          # is no base and this step is skipped by its `if`. Absent-on-base
+          # passes by metric (pre-ratchet base format has no comparable floor).
+          # Fail-closed on blind spots: unresolvable base ref or invisible HEAD
+          # literals exit 1 instead of passing. Mirrors CLAUDE.md #37.
+          set -uo pipefail
+          BASE_REF="${FITNESS_BASE_REF:-origin/main}"
+          if [ -n "${FITNESS_BASE_REF:-}" ]; then git fetch --quiet --depth=1 origin "$FITNESS_BASE_REF" || true; fi
+          if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
+            echo "fitness #37: base ref $BASE_REF is not resolvable — cannot compare floors, failing closed"
+            exit 1
+          fi
+          BASE_SRC=$(git show "$BASE_REF:apps/api/vitest.config.ts" 2>/dev/null || true)
+          VIOLATIONS=""
+          for metric in lines functions branches statements; do
+            HEAD_V=$(grep -E "^[[:space:]]*$metric:[[:space:]]*[0-9]+(\.[0-9]+)?,?[[:space:]]*$" apps/api/vitest.config.ts | grep -oE "[0-9]+(\.[0-9]+)?" || true)
+            HEAD_N=$(printf "%s" "$HEAD_V" | grep -c . || true)
+            if [ "${HEAD_N:-0}" -ne 1 ]; then
+              echo "fitness #37: expected exactly one literal '$metric:' threshold line in apps/api/vitest.config.ts, found ${HEAD_N:-0} — the guard cannot see the floor, failing closed"
+              exit 1
+            fi
+            BASE_V=$(printf "%s" "$BASE_SRC" | grep -E "^[[:space:]]*$metric:[[:space:]]*[0-9]+(\.[0-9]+)?,?[[:space:]]*$" | grep -oE "[0-9]+(\.[0-9]+)?" || true)
+            BASE_N=$(printf "%s" "$BASE_V" | grep -c . || true)
+            [ "${BASE_N:-0}" -eq 1 ] || continue
+            if awk -v base="$BASE_V" -v head="$HEAD_V" 'BEGIN { exit !(head + 0 < base + 0) }'; then
+              VIOLATIONS="${VIOLATIONS}coverage.thresholds.$metric lowered: $BASE_V (base) -> $HEAD_V (head)\n"
+            fi
+          done
+          COUNT=$(printf "%b" "$VIOLATIONS" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #37 violation::$COUNT coverage threshold floor(s) lowered vs the PR base. The floor is a ratchet: autoUpdate raises it in the commit that earns it, and a regression below it goes red. A legitimate descent exists — deleting covered code can lower aggregate coverage — but it ships with a canon-exception marker + ADR per CLAUDE.md §Pragmatic Exceptions and a HUMAN approves the lowered literal in review; this guard never auto-accepts one."
+            printf "%b\n" "$VIOLATIONS"
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "35 architectural invariants (#1-#35) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "37 architectural invariants (#1-#37) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold for every check but #30, which is a ratchet at a measured baseline of 21." >> $GITHUB_STEP_SUMMARY
+          echo "#37 compares against the PR base, so it runs on pull_request events only and skips cleanly on push." >> $GITHUB_STEP_SUMMARY
           echo "Any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY

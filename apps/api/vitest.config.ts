@@ -9,11 +9,11 @@
  * @layer infrastructure
  */
 import { defineConfig } from "vitest/config";
-import { buildCoverageThresholds } from "./vitest.coverage-thresholds.js";
+import { shardedThresholdOverride } from "./vitest.coverage-thresholds.js";
 import { buildWorkspaceAliases, findMonorepoRoot } from "../../vitest.shared.js";
 
 // When CI shards the suite across jobs, each shard runs only part of the tests,
-// so coverage thresholds are skipped per shard and enforced once on the merged
+// so coverage thresholds are neutralised per shard and enforced once on the merged
 // blobs in the coverage-merge job. Local and merge runs keep the full thresholds.
 const sharded = process.env.VITEST_SHARDED === "true";
 
@@ -61,14 +61,34 @@ export default defineConfig({
       exclude: ["src/**/*.test.ts", "src/**/*.spec.ts", "src/**/index.ts", "src/index.ts"],
       reporter: ["text", "html", "json-summary"],
       reportsDirectory: "./coverage",
-      // Coverage thresholds enforced for unit tests only (tests/unit/**);
-      // integration tests run via node:test and contribute additional coverage
-      // not captured here. Mutation score via Stryker is the primary quality
-      // gate. Sharded runs skip thresholds (see buildCoverageThresholds); the
-      // merge step gates the merged data against the 55/45 floor.
-      ...(buildCoverageThresholds(sharded) !== undefined && {
-        thresholds: buildCoverageThresholds(sharded),
-      }),
+      // Coverage thresholds are enforced for unit tests only (tests/unit/** +
+      // tests/eval/**); the node:test integration suites contribute coverage this
+      // run never sees. Sharded runs neutralise the floor (see
+      // shardedThresholdOverride); the merge step re-runs this same config without
+      // VITEST_SHARDED and gates the combined blobs once.
+      //
+      // THE FOUR NUMBERS BELOW MUST STAY LITERALS ON THEIR OWN LINES. Two mechanisms
+      // depend on it: `autoUpdate` rewrites this file through an AST parse and throws
+      // on any `thresholds` that is not a literal object node (a helper call fails the
+      // run outright — reproduced on vitest 4.1.10), and the PR diff guard reads these
+      // lines to reject a lowered floor. Extracting them into a helper "for tidiness"
+      // silently breaks both.
+      //
+      // The floor is the MEASURED value of this suite, floored to one decimal
+      // (baseline 2026-08-26: statements 56.38, branches 47.93, functions 57.40,
+      // lines 56.95 over 539 files / 8421 tests, merged run). It is a ratchet, not an
+      // aspiration: `autoUpdate` raises each number to the new measurement in the very
+      // commit that earns it, so a later regression below what was already achieved
+      // goes red. Lowering a number by hand is the one move the diff guard rejects.
+      thresholds: {
+        perFile: false,
+        lines: 56.9,
+        functions: 57.4,
+        branches: 47.9,
+        statements: 56.3,
+        autoUpdate: (n: number) => Math.floor(n * 10) / 10,
+        ...shardedThresholdOverride(sharded),
+      },
     },
   },
 });

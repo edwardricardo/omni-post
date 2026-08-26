@@ -302,7 +302,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the single live ratchet**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work.) Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the single live ratchet**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work.) Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -820,6 +820,146 @@ for tj in $(find apps packages infra -name 'turbo.json' -not -path '*/node_modul
   pkg="$(dirname "$tj")/package.json"
   script=$([ -f "$pkg" ] && tr -d '\n' < "$pkg" | grep -oE '"build":[[:space:]]*"[^"]*"' | head -1 || true)
   printf '%s' "$script" | grep -qE 'tsc[^"]*--noEmit' || VIOLATIONS="$VIOLATIONS$tj -> ${script:-no build script}\n"
+done
+COUNT=$(printf "%b" "$VIOLATIONS" | grep -c . || true)
+COUNT=${COUNT:-0}
+echo "$COUNT"   # expect 0
+
+# 36. Every POSITIVE scope glob in a coverage/mutation config MUST match at least
+# one existing file. Closes the CLASS "dead scope = infallible gate", third
+# occurrence: fitness #2/#3/#4 grepped relocated directories, the per-glob
+# coverage thresholds kept "gating" `src/domain/**` + `src/application/**` after
+# both layers moved to packages/core, and stryker.config.mjs carried 13 mutate
+# entries for those same absent layers while its report read as covered scope.
+# Scope: the `mutate` arrays of apps/api/stryker*.config.mjs (minus the
+# quarantine below) plus the `include` arrays (test.include + coverage.include)
+# of apps/api/vitest.config.ts — the coverage scope globs live THERE since the
+# threshold-literal rework retired the glob keys vitest.coverage-thresholds.ts
+# used to hold. POSITIVE globs only, deliberately: a negation (`!...`) matching
+# zero files is inert PROTECTION (SMELL-84 measured 29 such lines — harmless
+# fat), and flagging it would push authors to delete real exclusions to get
+# green; a positive glob matching zero files is a gate reporting green over code
+# it never touched. Residual limits, stated honestly: textual extraction, not a
+# JS parser — a glob assembled at runtime, a `mutate` array inherited via object
+# spread from another config, and block-comment contents are invisible to it
+# (line comments inside the arrays ARE stripped); a config with no `mutate` of
+# its own is skipped. Needs node >= 22 (fs.glob); the CI job pins node 24.
+# Hard-zero.
+set -uo pipefail
+VIOLATIONS=$(node --input-type=module <<'EOF'
+import { readFileSync } from "node:fs";
+import { glob } from "node:fs/promises";
+
+// Quarantine: 14 ad-hoc slicing configs predating the packages/core relocation,
+// holding 45 dead positive globs between them (expanded 2026-08-26). They are
+// one-off local run shells, not the config the mutation pipeline executes
+// (stryker.config.mjs). Delete each name here when the Stryker consolidation
+// (SMELL-84 remediation) rewrites or deletes the file it names.
+const quarantined = new Set([
+  "stryker-batch-7.config.mjs",
+  "stryker-batch-8.config.mjs",
+  "stryker-domain-targeted.config.mjs",
+  "stryker-inbox.config.mjs",
+  "stryker-micro-A6.config.mjs",
+  "stryker-micro-E1.config.mjs",
+  "stryker-micro-E2.config.mjs",
+  "stryker-micro-E3.config.mjs",
+  "stryker-micro-E4.config.mjs",
+  "stryker-micro-F1.config.mjs",
+  "stryker-micro-F2.config.mjs",
+  "stryker-micro-F3.config.mjs",
+  "stryker-micro-F4.config.mjs",
+  "stryker-session-c.config.mjs",
+]);
+const cwd = "apps/api";
+const scanned = [];
+for await (const f of glob("stryker*.config.mjs", { cwd })) {
+  if (!quarantined.has(f)) scanned.push([f, "mutate"]);
+}
+scanned.sort();
+if (scanned.length === 0) {
+  console.error(`fitness #36 scope error: no non-quarantined stryker*.config.mjs under ${cwd}`);
+  process.exit(1);
+}
+scanned.push(["vitest.config.ts", "include"]);
+const extract = (source, key) => {
+  const found = [];
+  const re = new RegExp(`\\b${key}\\s*:\\s*\\[`, "g");
+  let m;
+  while ((m = re.exec(source)) !== null) {
+    let i = re.lastIndex;
+    let depth = 1;
+    const start = i;
+    while (i < source.length && depth > 0) {
+      if (source[i] === "[") depth += 1;
+      if (source[i] === "]") depth -= 1;
+      i += 1;
+    }
+    const body = source.slice(start, i - 1).replace(/\/\/[^\n]*/g, "");
+    for (const q of body.matchAll(/"([^"]*)"|'([^']*)'/g)) found.push(q[1] ?? q[2]);
+  }
+  return found;
+};
+const dead = [];
+for (const [file, key] of scanned) {
+  const patterns = extract(readFileSync(`${cwd}/${file}`, "utf8"), key);
+  if (file === "vitest.config.ts" && patterns.length === 0) {
+    console.error(`fitness #36 scope error: zero include arrays extracted from ${cwd}/${file} — the extraction went stale against the file's current shape`);
+    process.exit(1);
+  }
+  for (const pattern of patterns) {
+    if (pattern.startsWith("!")) continue;
+    let live = false;
+    for await (const _ of glob(pattern, { cwd })) { live = true; break; }
+    if (!live) dead.push(`${cwd}/${file}: dead positive glob "${pattern}"`);
+  }
+}
+console.log(dead.join("\n"));
+EOF
+) || { echo "fitness #36: expansion crashed or scope is invalid — failing closed (needs node >= 22 for fs.glob)"; exit 1; }
+COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
+COUNT=${COUNT:-0}
+echo "$COUNT"   # expect 0
+
+# 37. Coverage threshold floors never descend vs the PR base. The four literal
+# thresholds in apps/api/vitest.config.ts (lines/functions/branches/statements)
+# are a RATCHET: `autoUpdate` raises each number to the measured value in the
+# commit that earns it, so the only hand-written move this guard must reject is
+# a LOWERED number. Runs on `pull_request` only — its subject is the PR's delta
+# against its base, which a push run does not have (the CI step skips cleanly
+# there; locally it compares against origin/main, or set FITNESS_BASE_REF to any
+# ref/sha — CI passes the PR base sha through that same env var). Absent-on-base
+# passes BY METRIC: a base without exactly one literal line per metric is the
+# pre-ratchet format (thresholds built by a helper call), which has no comparable
+# floor; every base after this change carries exactly one. Fail-closed on its own
+# blind spots: an unresolvable base ref, or a HEAD file whose literals the
+# extraction cannot see (the "MUST STAY LITERALS" contract broken), exits 1
+# instead of passing. The legitimate descent path, stated honestly: deleting
+# covered code can lower aggregate coverage; that descent ships as a
+# canon-exception marker + ADR per §Pragmatic Exceptions and a HUMAN approves the
+# lowered literal in review — this guard never auto-accepts a descent. Hard-zero.
+set -uo pipefail
+BASE_REF="${FITNESS_BASE_REF:-origin/main}"
+if [ -n "${FITNESS_BASE_REF:-}" ]; then git fetch --quiet --depth=1 origin "$FITNESS_BASE_REF" || true; fi
+if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
+  echo "fitness #37: base ref $BASE_REF is not resolvable — cannot compare floors, failing closed"
+  exit 1
+fi
+BASE_SRC=$(git show "$BASE_REF:apps/api/vitest.config.ts" 2>/dev/null || true)
+VIOLATIONS=""
+for metric in lines functions branches statements; do
+  HEAD_V=$(grep -E "^[[:space:]]*$metric:[[:space:]]*[0-9]+(\.[0-9]+)?,?[[:space:]]*$" apps/api/vitest.config.ts | grep -oE "[0-9]+(\.[0-9]+)?" || true)
+  HEAD_N=$(printf "%s" "$HEAD_V" | grep -c . || true)
+  if [ "${HEAD_N:-0}" -ne 1 ]; then
+    echo "fitness #37: expected exactly one literal '$metric:' threshold line in apps/api/vitest.config.ts, found ${HEAD_N:-0} — the guard cannot see the floor, failing closed"
+    exit 1
+  fi
+  BASE_V=$(printf "%s" "$BASE_SRC" | grep -E "^[[:space:]]*$metric:[[:space:]]*[0-9]+(\.[0-9]+)?,?[[:space:]]*$" | grep -oE "[0-9]+(\.[0-9]+)?" || true)
+  BASE_N=$(printf "%s" "$BASE_V" | grep -c . || true)
+  [ "${BASE_N:-0}" -eq 1 ] || continue
+  if awk -v base="$BASE_V" -v head="$HEAD_V" 'BEGIN { exit !(head + 0 < base + 0) }'; then
+    VIOLATIONS="${VIOLATIONS}coverage.thresholds.$metric lowered: $BASE_V (base) -> $HEAD_V (head)\n"
+  fi
 done
 COUNT=$(printf "%b" "$VIOLATIONS" | grep -c . || true)
 COUNT=${COUNT:-0}

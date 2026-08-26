@@ -1,58 +1,48 @@
 /**
  * @file vitest.coverage-thresholds.ts
- * @description Builds the v8 coverage threshold object for apps/api unit tests.
- *              When the suite is sharded across CI jobs each shard runs only a
- *              fraction of the tests, so applying thresholds per shard would fail
- *              on partial coverage. In that mode this returns `undefined` (no
- *              gating) and the merged run enforces the floor instead. The default
- *              (merge step + local runs) keeps the global floor: lines/functions
- *              55, statements 54, branches 45.
+ * @description Supplies the shard-mode override for the coverage thresholds declared
+ *              in vitest.config.ts. The threshold NUMBERS deliberately do NOT live
+ *              here: `coverage.thresholds.autoUpdate` rewrites the vitest config file
+ *              in place through an AST parse, and it refuses any config whose
+ *              `test.coverage.thresholds` is not a literal object node — a value
+ *              produced by a helper call throws
+ *              "Unable to parse thresholds from configuration file" and fails the run
+ *              (reproduced against vitest 4.1.10). This module therefore owns only the
+ *              conditional half, applied as a trailing spread the AST rewrite ignores.
  * @layer infrastructure
  */
 
-interface CoverageScopeThresholds {
-  lines: number;
-  functions: number;
-  branches: number;
-  statements: number;
+/**
+ * Threshold values that make the gate unfalsifiable, plus the autoUpdate kill switch.
+ * Used ONLY under sharding.
+ */
+interface ShardThresholdOverride {
+  lines: 0;
+  functions: 0;
+  branches: 0;
+  statements: 0;
+  autoUpdate: false;
 }
-
-interface CoverageThresholds extends CoverageScopeThresholds {
-  perFile: boolean;
-  "src/domain/**/*.ts": CoverageScopeThresholds;
-  "src/application/**/*.ts": CoverageScopeThresholds;
-}
-
-const GLOBAL_FLOOR: CoverageScopeThresholds = {
-  // Global floor — fails CI on any regression below the current baseline.
-  lines: 55,
-  functions: 55,
-  branches: 45,
-  // Re-baselined 55 -> 54: removing the never-wired CQRSIntegration scaffolding and
-  // its ~2160 lines of tests (PR #128) stripped artificial statement coverage that had
-  // padded this floor; 54.98% is the real live-code figure. Raise this back as
-  // live-code coverage improves (re-baseline authorized by Edward, 2026-07-19).
-  statements: 54,
-};
 
 /**
- * @method buildCoverageThresholds
- * @description Returns the coverage thresholds for the unit suite, or `undefined`
- *              when sharding is active so per-shard partial coverage is not gated.
+ * @method shardedThresholdOverride
+ * @description Returns the override that neutralises the coverage gate for a single
+ *              shard, or an empty object for the merged/local run that gates for real.
+ *              A shard executes only a fraction of the suite, so its coverage is
+ *              partial by construction and any floor above 0 would fail on work the
+ *              shard was never asked to do; the merge job re-runs the same config
+ *              without `VITEST_SHARDED` and enforces the real floor once on the
+ *              combined blobs. `autoUpdate: false` is part of the override because a
+ *              shard must never write a ratcheted floor derived from partial data.
  * @param sharded - True when the run covers only one shard of the suite.
- * @returns The threshold object for the merged/local run, or `undefined` per shard.
+ * @returns The neutralising override per shard, or `{}` for the gating run.
  */
-export function buildCoverageThresholds(sharded: boolean): CoverageThresholds | undefined {
-  if (sharded) {
-    return undefined;
+export function shardedThresholdOverride(
+  sharded: boolean
+): ShardThresholdOverride | Record<string, never> {
+  if (!sharded) {
+    return {};
   }
 
-  return {
-    ...GLOBAL_FLOOR,
-    // Per-scope override keys keep the per-scope structure in place ready for the
-    // ratchet (domain 90 / application 85 / infra 70) without breaking CI today.
-    perFile: false,
-    "src/domain/**/*.ts": { ...GLOBAL_FLOOR },
-    "src/application/**/*.ts": { ...GLOBAL_FLOOR },
-  };
+  return { lines: 0, functions: 0, branches: 0, statements: 0, autoUpdate: false };
 }
