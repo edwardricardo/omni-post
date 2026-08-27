@@ -14,7 +14,10 @@
 
 /**
  * Threshold values that make the gate unfalsifiable, plus the autoUpdate kill switch.
- * Used ONLY under sharding.
+ * Used ONLY under sharding, where that is the correct answer rather than a hole: a
+ * shard executes a fraction of the suite, so its coverage is partial by construction
+ * and any floor above 0 would fail on work the shard was never asked to run. The
+ * merged run re-reads the same config without VITEST_SHARDED and gates for real.
  */
 interface ShardThresholdOverride {
   lines: 0;

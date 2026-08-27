@@ -2,8 +2,12 @@
  * API Security Test Suite - Injection Attacks
  * SQL, NoSQL, XSS, Command, LDAP, and XXE injection prevention
  *
- * NOTE: These tests require a running API server with a database.
- * Tier 1 test: requires PostgreSQL.
+ * DO NOT WIRE THIS SUITE INTO CI. It cannot pass: every URL it targets is
+ * under an `/api/*` prefix the application never registers, so the `before`
+ * hook 404s and every test skips. A database does NOT fix this — the run is
+ * byte-identical with Postgres up and down. Read ./README.md and SMELL-83 in
+ * docs/reports/roadmap-detected-smells-backlog.md before adding a tier, a job,
+ * or a script for it.
  */
 
 import { describe, it, before, after } from "node:test";

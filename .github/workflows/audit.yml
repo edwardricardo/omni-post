@@ -14,8 +14,12 @@ name: Pre-merge Audit Toolkit
 #   - OSV-Scanner         (dep vulnerabilities, report-only baseline)
 #   - gitleaks            (secret scanning, hard fail on NEW secrets)
 #   - Squawk              (DB migration safety, hard fail on ANY finding in
-#                          changed migrations; per-file/per-rule exceptions
-#                          adjudicated inline in the lint step)
+#                          changed migrations, one file per invocation. It also
+#                          hard-fails on a diff that EDITS an already-applied
+#                          migration, which no lint result can make safe. There
+#                          are currently no per-file/per-rule waivers: adding one
+#                          requires its adjudication, a trigger and a remove-when
+#                          inline in the lint step)
 #   - size-limit          (bundle regression, fail on threshold breach)
 #   - TruffleHog          (verified secrets, NIGHTLY schedule)
 
@@ -191,64 +195,153 @@ jobs:
       - name: Detect changed migrations
         id: changed
         run: |
-          set +e
-          if git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -q "infra/prisma/migrations/.*\.sql"; then
+          set -uo pipefail
+          LIST="$RUNNER_TEMP/changed-migrations.lst"
+          : > "$LIST"
+          # The changed set is collected ONCE, here, and handed to the lint step
+          # as a NUL-delimited file — the old shape recomputed it with a second,
+          # slightly different expression and called that a "re-check".
+          #
+          # Fail closed on a missing base: without HEAD~1 there is no changed set
+          # to compute, and reporting "no migration changes" for that is a gate
+          # that saw nothing and said everything was fine.
+          if ! git rev-parse --verify --quiet HEAD~1 >/dev/null; then
+            echo "::error title=Squawk has no base commit::HEAD~1 does not resolve, so the changed-migration set cannot be computed. The checkout needs fetch-depth >= 2."
+            exit 1
+          fi
+          # Three properties this collection must hold, each of which the previous
+          # expression got wrong:
+          #
+          #  - `--diff-filter=d` EXCLUDES deletions. A deleted path is not a
+          #    migration to lint, and squawk answers a path that no longer exists
+          #    with `Failed to find files for provided patterns` and exit 1 —
+          #    which the old step reported as `Squawk found migration-safety
+          #    violations`, a violation that does not exist. Measured against
+          #    squawk 2.49.0: the false red needs an ALL-DELETIONS changed set;
+          #    a canonical squash (two deletions plus one baseline) still linted
+          #    the surviving file and exited 0. The filter is correct either way,
+          #    and an all-deletions set now skips the lint instead of failing it.
+          #  - `-z` plus `read -d ''` keeps every path whole. `git diff
+          #    --name-only` prints a path containing a space UNQUOTED, and the old
+          #    `echo "$FILES" | xargs` split it on that space.
+          #  - The match is ANCHORED at both ends (`case` patterns match the WHOLE
+          #    string). The old unanchored `grep "infra/prisma/migrations/.*\.sql"`
+          #    accepted any path merely CONTAINING that text and — combined with
+          #    the xargs split above — every extra token it admitted reached squawk
+          #    as an ARGUMENT. An empty file committed alongside a real migration
+          #    as `.../migration.sql --exclude=<rule>,<rule>` therefore turned
+          #    those rules off for the whole invocation, and a `DROP TABLE`
+          #    migration linted clean under a gate that is required to merge.
+          #    Anchoring rejects that name (it does not end in `.sql`); the `--`
+          #    in the lint step is the second, independent guard. A legitimate
+          #    path that happens to contain a space is still matched and still
+          #    linted — the shape of the path is the discriminator, not whitespace.
+          while IFS= read -r -d '' f; do
+            case "$f" in
+              infra/prisma/migrations/*/*.sql) printf '%s\0' "$f" >> "$LIST" ;;
+            esac
+          done < <(git diff -z --name-only --diff-filter=d HEAD~1 HEAD)
+          if [ -s "$LIST" ]; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
             echo "::notice::Migration files changed — running Squawk lint"
+            tr '\0' '\n' < "$LIST"
           else
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             echo "::notice::No migration changes detected — skipping Squawk"
           fi
       - name: Install Squawk
         if: steps.changed.outputs.has_changes == 'true'
+        env:
+          # Pinned version AND pinned artifact. This binary decides whether a
+          # migration may merge, and it used to arrive over `curl -sSL` with no
+          # `--fail`, no checksum and no retry: a 404 or an outage writes the
+          # error page to the binary path and the step dies with "cannot execute
+          # binary file", while a substituted artifact silently changes what the
+          # gate enforces. `--fail` turns an HTTP error into a non-zero exit, the
+          # digest below is the sha256 of the pinned release asset, and `set -e`
+          # makes a mismatch fail the step.
+          SQUAWK_VERSION: v2.49.0
+          SQUAWK_SHA256: bd17dddfe22ca3db7705ab5d990a85563dda53864bfacb0c9d5c0bc104c1da88
         run: |
-          curl -sSL "https://github.com/sbdchd/squawk/releases/download/v2.49.0/squawk-linux-x64" -o /usr/local/bin/squawk
+          set -euo pipefail
+          curl -fsSL --retry 3 --retry-all-errors \
+            "https://github.com/sbdchd/squawk/releases/download/${SQUAWK_VERSION}/squawk-linux-x64" \
+            -o /usr/local/bin/squawk
+          echo "${SQUAWK_SHA256}  /usr/local/bin/squawk" | sha256sum -c -
           chmod +x /usr/local/bin/squawk
           squawk --version
       - name: Lint changed migrations
         if: steps.changed.outputs.has_changes == 'true'
         run: |
-          set +e
-          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep "infra/prisma/migrations/.*\.sql" || true)
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "::notice::No migration files in the diff on re-check — nothing to lint"
-            exit 0
-          fi
-          # Per-file, per-rule exceptions. Squawk's config has no per-file rule
-          # scoping, and an already-applied migration cannot carry an inline
-          # `-- squawk-ignore` comment: Prisma records each applied migration's
-          # checksum in _prisma_migrations, so any byte change makes
-          # `prisma migrate dev` flag the file on every existing database. The
-          # exception therefore lives here: the named file is linted with only
-          # the named rule excluded — every other rule stays enforced on it.
-          # Adding an entry requires the same written adjudication as the one
-          # below (what the finding is, why the SQL cannot change).
+          set -uo pipefail
+          LIST="$RUNNER_TEMP/changed-migrations.lst"
+
+          # An APPLIED migration must never change. Prisma records each applied
+          # migration's checksum in `_prisma_migrations`, so a byte change makes
+          # every database that already ran it report `The following migrations
+          # have been modified since they were applied` (Prisma ORM docs,
+          # "Migration histories — do not edit or delete migrations that have been
+          # applied"). The sanctioned fix for a schema change is a NEW migration,
+          # never an edit of an old one.
           #
-          #   20260527000000_add_rls_tenant_isolation/migration.sql
-          #     rule: require-timeout-settings (2 findings: missing
-          #     lock_timeout + statement_timeout before DROP POLICY). Real
-          #     finding, but the migration is applied and checksum-pinned; the
-          #     lock-contention window it warns about is behind us, and the
-          #     only future replays are fresh-database bootstraps with no
-          #     concurrent traffic. New migrations must SET both timeouts
-          #     instead of extending this list.
-          RLS_EXCEPTION="infra/prisma/migrations/20260527000000_add_rls_tenant_isolation/migration.sql"
+          # This lane used to be the opposite: it WAIVED `require-timeout-settings`
+          # on the migration below, arguing the file is applied and checksum-pinned
+          # and therefore cannot change. Taken seriously, that argument says the
+          # lane is only ever reached by a change that must not happen — so the
+          # waiver was dormant in the case it described and live in the case it did
+          # not cover: a PR APPENDING DDL to that file got the rule waived for the
+          # NEW statements too, under a comment stating the findings had been
+          # adjudicated as historical.
+          #
+          # Inverted: the file appearing in the changed set at all IS the failure,
+          # and the author gets the correct diagnosis instead of a stale-finding
+          # lint report.
+          # TRIGGER: `git diff --diff-filter=d HEAD~1 HEAD` lists the path below as
+          # added or modified (a deletion is filtered out one step earlier, because
+          # removing old migrations is exactly what a sanctioned baseline squash
+          # does).
+          # REMOVE-WHEN: a baseline squash removes this migration from the tree —
+          # from then on the path can only appear in a diff as a deletion and this
+          # branch is dead code, so delete it in that same change.
+          # SCOPE, honestly: this guards ONE named file, not every applied
+          # migration, because the diff base is HEAD~1 — a PR that adds a migration
+          # in one commit and amends it in the next shows that new file as MODIFIED,
+          # and a blanket rule would red on a legitimate in-branch fixup.
+          RLS_MIGRATION="infra/prisma/migrations/20260527000000_add_rls_tenant_isolation/migration.sql"
 
           FAIL=0
-          STRICT_FILES=$(echo "$CHANGED_FILES" | grep -vxF "$RLS_EXCEPTION" || true)
-          if [ -n "$STRICT_FILES" ]; then
-            echo "$STRICT_FILES" | xargs squawk --config .squawk.toml
-            CODE=$?
-            if [ "$CODE" -ne 0 ]; then FAIL="$CODE"; fi
-          fi
-          if echo "$CHANGED_FILES" | grep -qxF "$RLS_EXCEPTION"; then
-            squawk --config .squawk.toml --exclude=require-timeout-settings "$RLS_EXCEPTION"
-            CODE=$?
-            if [ "$CODE" -ne 0 ]; then FAIL="$CODE"; fi
-          fi
+          OFFENDERS=""
+          RULES_FILE="$RUNNER_TEMP/squawk-rules.txt"
+          : > "$RULES_FILE"
+          while IFS= read -r -d '' f; do
+            if [ "$f" = "$RLS_MIGRATION" ]; then
+              echo "::error title=Applied migration changed::$f is applied on every existing database and Prisma pins its checksum in _prisma_migrations — editing it makes each of those databases report the migration as modified. Revert this file and express the schema change as a NEW migration."
+              FAIL=1
+              continue
+            fi
+            OUT="$RUNNER_TEMP/squawk-out.txt"
+            # `--` ends option parsing, so nothing after it can be read as a flag
+            # no matter what the file is named. One file per invocation, so the
+            # captured status is SQUAWK's: the old `echo ... | xargs squawk`
+            # captured xargs' own 123 and reported it as squawk's exit code, which
+            # told the author nothing about what squawk actually found.
+            CODE=0
+            squawk --config .squawk.toml -- "$f" > "$OUT" 2>&1 || CODE=$?
+            cat "$OUT"
+            if [ "$CODE" -ne 0 ]; then
+              FAIL=1
+              OFFENDERS="$OFFENDERS $f"
+              grep -oE '(warning|error)\[[a-z0-9-]+\]' "$OUT" \
+                | sed 's/^[a-z]*\[//; s/\]$//' >> "$RULES_FILE" || true
+            fi
+          done < "$LIST"
+
           if [ "$FAIL" -ne 0 ]; then
-            echo "::error::Squawk found migration-safety violations (exit $FAIL). Fix the SQL, or add a per-file/per-rule exception with its adjudication in this step."
-            exit "$FAIL"
+            RULES=$(sort -u "$RULES_FILE" | paste -sd, - || true)
+            if [ -n "$OFFENDERS" ]; then
+              echo "::error title=Squawk migration-safety violations::Rule(s) ${RULES:-see the squawk output above} fired in:${OFFENDERS}. Two sanctioned paths, both inside the NEW migration: (1) fix the SQL — for require-timeout-settings that means prepending 'set lock_timeout = ...;' and 'set statement_timeout = ...;' to the migration, which Prisma never emits, so it is a hand edit on every new migration that touches an existing table; (2) if the finding genuinely cannot be fixed, add a per-file/per-rule exception in this step with its written adjudication, a trigger statement and a remove-when."
+            fi
+            exit 1
           fi
           echo "::notice::Squawk lint passed for all changed migrations"
 
