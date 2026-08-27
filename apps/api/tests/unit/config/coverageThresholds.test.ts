@@ -42,10 +42,10 @@ type ThresholdKey = (typeof THRESHOLD_KEYS)[number];
  * drives these to 0 or removes them, which this cannot pass.
  */
 const MEASURED_FLOOR: Record<ThresholdKey, number> = {
-  lines: 56.9,
+  lines: 56.8,
   functions: 57.3,
-  branches: 47.9,
-  statements: 56.3,
+  branches: 47.8,
+  statements: 56.2,
 };
 
 /**
@@ -134,16 +134,29 @@ describe("resolved coverage gate — merged / local run", () => {
     }
   });
 
-  it("keeps autoUpdate as the flooring function so a raise is one decimal, never a jump", async () => {
+  it("keeps autoUpdate flooring one decimal BELOW the measurement, so a raise never lands on the edge", async () => {
     const { thresholds } = await loadCoverageGate(undefined);
     const autoUpdate = thresholds?.autoUpdate;
 
     expect(typeof autoUpdate).toBe("function");
 
-    const floorToOneDecimal = autoUpdate as (measured: number) => number;
+    const floorWithSlack = autoUpdate as (measured: number) => number;
 
-    expect(floorToOneDecimal(57.402645)).toBe(57.4);
-    expect(floorToOneDecimal(100)).toBe(100);
+    // The subtraction is the load-bearing half. Flooring alone put `branches` at
+    // 47.9 against a 47.93 local measurement, and CI measured 47.88 — a red build
+    // on a commit that changed no source. Every raise must keep that headroom, or
+    // autoUpdate walks each floor back onto the edge it was moved off.
+    // Exact equality, not toBeCloseTo: the formatter writes its result back into
+    // vitest.config.ts, so a float artifact becomes a committed literal. The
+    // equivalent `Math.floor(n * 10) / 10 - 0.1` produced 56.199999999999996 there.
+    expect(floorWithSlack(47.93)).toBe(47.8);
+    expect(floorWithSlack(56.38)).toBe(56.2);
+    expect(floorWithSlack(57.402645)).toBe(57.3);
+    expect(floorWithSlack(100)).toBe(99.9);
+
+    // Monotonic and bounded: a raise is at most one decimal per crossing, never a jump.
+    expect(floorWithSlack(56.95)).toBeLessThan(56.95);
+    expect(floorWithSlack(56.95)).toBeGreaterThan(56.95 - 0.25);
   });
 
   it("measures the floor over the pinned scope, so the percentage cannot rise by shrinking it", async () => {

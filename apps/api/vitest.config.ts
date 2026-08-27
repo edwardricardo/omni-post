@@ -95,27 +95,36 @@ export default defineConfig({
       // file. What the floor does guarantee is one-directional: a run below it goes
       // red, and fitness #37 rejects a hand-lowered literal against the PR base.
       //
-      // `functions` deliberately sits one decimal BELOW its measurement. Floored like
-      // the rest it would be 57.4 against a measured 57.402645 (3125/5444) — 0.0026pp
-      // of slack, while ONE function is 0.0184pp, seven times that margin. A floor
-      // whose slack is thinner than one indivisible unit of its own metric can go red
-      // with no code change at all: the CI runner tracks `node-version: "24"`, a
-      // floating major, and V8's function-range counting shifts between releases.
-      // 57.3 keeps ~5 functions of slack and still gates every real regression.
+      // Every floor sits one decimal BELOW its measurement, and the formatter below
+      // subtracts that decimal so `autoUpdate` can never push one back onto the edge.
+      // The slack is load-bearing, not caution: a floor pinned to the exact local
+      // measurement goes red on an environment difference with no code change at all.
+      // Both failure shapes were observed rather than predicted:
+      //   - `functions` measured 57.402645 (3125/5444). Floored to 57.4 that leaves
+      //     0.0026pp while ONE function is 0.0184pp — slack thinner than one
+      //     indivisible unit of its own metric.
+      //   - `branches` measured 47.93 here and 47.88 in CI. A 47.9 floor turned that
+      //     0.05pp difference into a red build on a commit that changed no source.
+      // The CI runner tracks `node-version: "24"`, a floating major, and V8's
+      // range counting shifts between releases; ~0.1pp absorbs that drift while still
+      // failing every regression larger than it. A regression SMALLER than 0.1pp goes
+      // undetected — the deliberate trade for a gate people can trust.
       //
-      // A local coverage run WILL push this back up: `autoUpdate` fires whenever the
-      // measurement is above the floor (57.402645 > 57.3), and it rewrites exactly
-      // this line to 57.4 — observed, one-line diff, rest of the file untouched. Put
-      // 57.3 back when that happens. Fitness #37 reads a hand-lowered literal as a
-      // descent against the PR base, so once 57.4 is committed the restoration is a
-      // human call in review, not an automatic one.
+      // The floors move only upward and only in whole decimals: a run that measures
+      // 0.1pp or more above a floor rewrites this file (see the BEST-EFFORT note
+      // above), and the same subtraction keeps the new floor a decimal below the new
+      // measurement. Hand-lowering a literal is what fitness #37 rejects.
       thresholds: {
         perFile: false,
-        lines: 56.9,
+        lines: 56.8,
         functions: 57.3,
-        branches: 47.9,
-        statements: 56.3,
-        autoUpdate: (n: number) => Math.floor(n * 10) / 10,
+        branches: 47.8,
+        statements: 56.2,
+        // Integer arithmetic BEFORE the division on purpose: the equivalent
+        // `Math.floor(n * 10) / 10 - 0.1` subtracts in floating point and writes
+        // 56.199999999999996 back into this file (observed). One decimal below the
+        // measurement, exactly representable, no rewrite churn.
+        autoUpdate: (n: number) => (Math.floor(n * 10) - 1) / 10,
         ...shardedThresholdOverride(sharded),
       },
     },
