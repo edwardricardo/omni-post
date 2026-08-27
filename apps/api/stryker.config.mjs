@@ -21,24 +21,16 @@ export default {
   // Concurrency inherited from root (2) — overriding to 4 exceeded WSL2 16GB ceiling
   // 43K mutants — initial test run needs more time for perTest coverage analysis
   dryRunTimeoutMinutes: 30,
+  // Every POSITIVE glob below must resolve to at least one file on disk (fitness
+  // #36 enforces exactly that; negations that match nothing are inert protection
+  // and deliberately out of its scope — see SMELL-84). A positive glob whose
+  // directory no longer exists mutates nothing and produces no signal, while the
+  // report still reads as if the scope were covered: the 13 `src/domain/**` and
+  // `src/application/**` entries removed here survived the relocation of both
+  // layers to `packages/core/` and had the self-declared "primary quality gate"
+  // mutating zero domain files. Measuring `packages/core` is a separate scope,
+  // not a repoint of these globs.
   mutate: [
-    // Domain layer — pure logic, no infrastructure dependencies
-    "src/domain/**/*.ts",
-    "!src/domain/**/*.test.ts",
-    "!src/domain/**/*.spec.ts",
-
-    // Application layer
-    "src/application/apiKeys/**/*.ts",
-    "!src/application/apiKeys/**/*.test.ts",
-    "src/application/analytics/**/*.ts",
-    "!src/application/analytics/**/*.test.ts",
-    "src/application/crisis/**/*.ts",
-    "!src/application/crisis/**/*.test.ts",
-    "src/application/events/**/*.ts",
-    "!src/application/events/**/*.test.ts",
-    "src/application/links/**/*.ts",
-    "!src/application/links/**/*.test.ts",
-
     // Auth & security layer
     "src/auth/**/*.ts",
     "!src/auth/**/*.test.ts",

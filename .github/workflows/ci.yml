@@ -149,6 +149,11 @@ jobs:
           # Per-shard runs cover only half the suite, so coverage thresholds must
           # not gate here — they are enforced once on merged blobs in coverage-merge.
           # vitest.config.ts reads this flag to drop the thresholds for shard runs.
+          # The same override also sets `autoUpdate: false`, and that half is
+          # load-bearing in the opposite direction: autoUpdate REWRITES the
+          # committed floors from whatever the run measured, so a shard left with
+          # it on would ratchet the gate down to the coverage of half a suite.
+          # Neutralising the floor and disabling the rewrite are one decision.
           VITEST_SHARDED: "true"
         run: pnpm --filter @apps/api exec vitest run --shard=${{ matrix.shard }}/2 --reporter=blob --coverage.enabled
 
@@ -214,12 +219,52 @@ jobs:
           merge-multiple: true
 
       - name: Merge blobs and enforce coverage thresholds
-        # No VITEST_SHARDED here: vitest.config.ts keeps the 55/45 thresholds, so
-        # coverage is gated once against the merged data from both shards.
+        # No VITEST_SHARDED here, so vitest.config.ts keeps its committed floors
+        # instead of the shard override's zeros: coverage is gated once, against
+        # the merged data from both shards. The numbers themselves are NOT quoted
+        # here on purpose — they are a ratchet that moves, and a copy of them in
+        # this comment is a second source of truth that goes stale silently. The
+        # floors live in apps/api/vitest.config.ts and nowhere else.
         # --mergeReports (camelCase) reconstructs the full run from the blobs.
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
         run: pnpm --filter @apps/api exec vitest run --mergeReports --coverage.enabled
+
+      - name: Surface a risen coverage floor
+        if: always()
+        run: |
+          set -uo pipefail
+          # `coverage.thresholds.autoUpdate` REWRITES apps/api/vitest.config.ts in
+          # place with the measured values whenever the run covered the whole suite
+          # — and --mergeReports IS such a run (vitest 4.1.10:
+          # CoverageProvider.mergeReports -> generateReports(map, true) ->
+          # reportThresholds(map, allTestsRun=true) -> writeFileSync of the config
+          # file). In CI that rewrite lands in a container that is then discarded,
+          # so the ratchet only advances when a human commits the new literals, and
+          # the only trace it leaves is a log line nobody reads. Left like that the
+          # floors go stale exactly the way the ones they replaced did.
+          #
+          # This step makes the discarded raise visible and hands over the exact
+          # literals to paste. It FAILS NOTHING, deliberately: a risen floor is good
+          # news, not a violation. Fitness #34 requires a real failure mechanism
+          # beside every `::error` and governs `::error` only — a `::warning` is the
+          # correct instrument here, and this is the one place in this file where a
+          # non-failing annotation is the right answer.
+          if git diff --quiet -- apps/api/vitest.config.ts; then
+            echo "Coverage floors unchanged by this run."
+            exit 0
+          fi
+          echo "::warning title=Coverage floor rose — commit the new literals::autoUpdate measured a higher floor than the one committed in apps/api/vitest.config.ts. The rewrite is discarded with this container, so the ratchet does not move until someone commits it — the exact literals are in this job's summary."
+          {
+            echo "### Coverage floor rose"
+            echo ""
+            echo "\`autoUpdate\` measured a higher floor than the one committed in \`apps/api/vitest.config.ts\`."
+            echo "This container is discarded, so the raise is lost unless it is committed. Exact new literals:"
+            echo ""
+            echo '```diff'
+            git diff -- apps/api/vitest.config.ts
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload merged coverage report
         if: always()

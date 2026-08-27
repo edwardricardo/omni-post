@@ -1,29 +1,52 @@
 # 🛡️ Security Testing Framework
 
-This directory contains comprehensive security testing infrastructure for the Social Media CMS platform, implementing enterprise-grade security automation to achieve zero critical vulnerabilities.
+This document describes the security testing infrastructure for the Social Media CMS platform.
+
+> ## ⚠️ Status — read before running anything here
+>
+> **Most of the `security/tests` suite described below does not execute, and
+> cannot pass.** Its 7 suites target an `/api/*` prefix the application never
+> registers, so every `before` hook 404s and every test skips. The run is
+> measured identically with Postgres up and with Postgres down: of 65 tests,
+> only 3 pass, 6 fail and 56 skip. The 5 `pnpm test:*-security` scripts that
+> used to invoke it exited 0 over that, and were **deleted** for exactly that
+> reason.
+>
+> - Disposition of the suite is tracked as **SMELL-83** in
+>   [`docs/reports/roadmap-detected-smells-backlog.md`](../reports/roadmap-detected-smells-backlog.md);
+>   the in-tree warning is [`security/tests/README.md`](../../security/tests/README.md).
+> - Sections 1–4 below (§"Security Test Categories") describe **intent**, not
+>   verified behaviour. Nothing in them has ever been observed to run green.
+> - The commands that DO run today are in §"Running Security Tests" — that list
+>   is the live one.
+>
+> Do not restore the deleted scripts, and do not wire the suite into a job,
+> without reading SMELL-83 first: a naive wiring lands either a permanently-red
+> required job or a green one with 56 of 65 tests skipped.
 
 ## 📁 Directory Structure
 
 ```
 security/
-├── README.md                          # This documentation
 ├── config/
-│   ├── security-policies.json         # Security policies and thresholds
-│   └── scan-configurations.yml        # Scan configuration settings
+│   └── security-policies.json                      # Security policies and thresholds
 ├── scripts/
-│   ├── security-scan.sh              # Main security scanning script
-│   ├── vulnerability-report.ts        # Automated vulnerability reporting
-│   └── remediation-guide.ts          # Security remediation guidance
-├── tests/
-│   ├── auth-security.test.ts          # Authentication security tests
-│   ├── api-security.test.ts           # API security tests
-│   ├── injection-tests.test.ts        # Injection attack prevention tests
-│   └── infrastructure-security.test.ts # Infrastructure security tests
-├── zap/
-│   ├── zap-config.conf               # OWASP ZAP configuration
-│   ├── authentication.js             # ZAP authentication script
-│   └── scan-policies/                # ZAP scanning policies
-└── reports/                          # Generated security reports (gitignored)
+│   ├── security-scan.sh                            # Main security scanning script
+│   ├── vulnerability-report.ts                     # Automated vulnerability reporting
+│   ├── vulnerability-report-renderer.ts            # Report rendering
+│   └── vulnerability-report-types.ts               # Report types
+├── tests/                                          # ⚠️ VACUOUS — see SMELL-83 + tests/README.md
+│   ├── README.md                                   # Why this suite must not be wired yet
+│   ├── auth-security.test.ts
+│   ├── api-security.injection.test.ts
+│   ├── api-security.validation-auth.test.ts
+│   ├── injection-tests.sql-nosql.test.ts
+│   ├── injection-tests.xss-command.test.ts
+│   ├── injection-tests.ldap-xml-template-header.test.ts
+│   ├── injection-tests.test-helpers.ts             # Shared (broken) bootstrap
+│   └── infrastructure-security.test.ts
+└── zap/
+    └── zap-config.conf                             # OWASP ZAP configuration
 ```
 
 ## 🔧 Quick Start
@@ -42,22 +65,33 @@ brew install trivy hadolint
 
 ### Running Security Tests
 
+Every command below is a script that exists. They are all workspace-scoped —
+`security:scan`, `security:report` and the `test:*` suites live in
+`apps/api/package.json`, so running them without `--filter @apps/api` from the
+repo root fails with `Command "…" not found`.
+
 ```bash
-# Run comprehensive security scan
-pnpm security:scan
+# The security suites that actually execute (same ones CI runs)
+pnpm --filter @apps/api test:auth        # tests/auth.test.ts
+pnpm --filter @apps/api test:rbac        # tests/rbac.test.ts
+pnpm --filter @apps/api test:security    # tests/security.test.ts
+pnpm --filter @apps/api test:mfa         # tests/mfa.test.ts
+pnpm --filter @apps/api test:ratelimit   # rate-limit unit suites (vitest)
 
-# Run specific security test categories
-pnpm test:auth-security              # Authentication security
-pnpm test:api-security               # API security tests
-pnpm test:injection-security         # Injection attack tests
-pnpm test:infrastructure-security    # Infrastructure security
+# The four above minus ratelimit, as one batch
+pnpm --filter @apps/api test:category:security
 
-# Run all security tests
-pnpm test:security-comprehensive
+# Comprehensive scan (SAST + deps + container + DAST, per scan type)
+pnpm --filter @apps/api security:scan
 
 # Generate vulnerability report
-pnpm security:report
+pnpm --filter @apps/api security:report
 ```
+
+> **Deleted, do not use:** `test:auth-security`, `test:api-security`,
+> `test:injection-security`, `test:infrastructure-security`,
+> `test:security-comprehensive`. They were the only invokers of the vacuous
+> `security/tests` suite and exited 0 without running it. See SMELL-83.
 
 ### GitHub Actions Integration
 
@@ -69,6 +103,11 @@ Security tests run automatically on:
 - Manual workflow dispatch
 
 ## 🛡️ Security Test Categories
+
+> **These four sections describe the `security/tests` suite, which does not
+> run.** Read them as the suite's stated intent — a specification of what a
+> rewrite would need to cover — not as coverage the repo has. See the status
+> banner at the top and SMELL-83.
 
 ### 1. Authentication Security Tests (`auth-security.test.ts`)
 
@@ -97,7 +136,7 @@ Security tests run automatically on:
 - Session security validation
 ```
 
-### 2. API Security Tests (`api-security.test.ts`)
+### 2. API Security Tests (`api-security.injection.test.ts`, `api-security.validation-auth.test.ts`)
 
 **Purpose**: Comprehensive API vulnerability testing and security control validation
 
@@ -115,20 +154,25 @@ Security tests run automatically on:
 - Input validation and data type enforcement
 - Authorization security (RBAC testing)
 
-**OWASP Top 10 Coverage**:
+**OWASP Top 10 — categories this suite was written to address**:
 
-- A01:2021 – Broken Access Control ✅
-- A02:2021 – Cryptographic Failures ✅
-- A03:2021 – Injection ✅
-- A04:2021 – Insecure Design ✅
-- A05:2021 – Security Misconfiguration ✅
-- A06:2021 – Vulnerable Components ✅
-- A07:2021 – Identification and Authentication Failures ✅
-- A08:2021 – Software and Data Integrity Failures ✅
-- A09:2021 – Security Logging and Monitoring Failures ✅
-- A10:2021 – Server-Side Request Forgery ✅
+The ticks this list used to carry asserted verified coverage. They are removed:
+the suite has never produced a green assertion against any of these categories,
+so a tick here would be a claim no run supports. Treat the list as scope-of-
+intent for the SMELL-83 rewrite.
 
-### 3. Injection Attack Tests (`injection-tests.test.ts`)
+- A01:2021 – Broken Access Control
+- A02:2021 – Cryptographic Failures
+- A03:2021 – Injection
+- A04:2021 – Insecure Design
+- A05:2021 – Security Misconfiguration
+- A06:2021 – Vulnerable Components
+- A07:2021 – Identification and Authentication Failures
+- A08:2021 – Software and Data Integrity Failures
+- A09:2021 – Security Logging and Monitoring Failures
+- A10:2021 – Server-Side Request Forgery
+
+### 3. Injection Attack Tests (`injection-tests.sql-nosql`, `.xss-command`, `.ldap-xml-template-header`)
 
 **Purpose**: Comprehensive testing for all types of injection vulnerabilities
 
@@ -371,33 +415,43 @@ pnpm db:migrate
 
 ### Individual Test Execution
 
+The suites below use `app.inject()` — they build the Fastify app in-process, so
+no separately running API server is needed.
+
 ```bash
-# Authentication security
-pnpm test:auth-security
+# Authentication
+pnpm --filter @apps/api test:auth
 
-# API security (requires running API server)
-pnpm dev:test &
-pnpm test:api-security
+# Authorization / RBAC
+pnpm --filter @apps/api test:rbac
 
-# Injection tests
-pnpm test:injection-security
+# General security suite
+pnpm --filter @apps/api test:security
 
-# Infrastructure security
-pnpm test:infrastructure-security
+# MFA
+pnpm --filter @apps/api test:mfa
+
+# Rate limiting
+pnpm --filter @apps/api test:ratelimit
 ```
 
 ### Debugging Tests
 
 ```bash
 # Verbose output
-NODE_ENV=test DEBUG=* pnpm test:auth-security
+NODE_ENV=test DEBUG=* pnpm --filter @apps/api test:auth
 
-# Coverage report
-NODE_ENV=test pnpm test:coverage
+# Coverage report (unit suites; the script is test:unit:coverage, not test:coverage)
+pnpm --filter @apps/api test:unit:coverage
 
-# Specific test file
-NODE_ENV=test tsx security/tests/auth-security.test.ts
+# Specific node:test file
+cd apps/api && NODE_ENV=test node --conditions development --import tsx --test tests/auth.test.ts
 ```
+
+> There is deliberately no debug recipe for `security/tests/*` here. Running one
+> of those files directly reproduces the 404 bootstrap described in the status
+> banner — it skips its way to a useless result rather than telling you
+> anything. Start from [`security/tests/README.md`](../../security/tests/README.md).
 
 ## 📚 Security Best Practices
 

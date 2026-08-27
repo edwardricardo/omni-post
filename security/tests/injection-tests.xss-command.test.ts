@@ -1,8 +1,13 @@
 /**
  * Injection Attack Test Suite - XSS and Command Injection
  *
- * NOTE: These tests require a running API server with a database.
- * Tier 1 test: requires PostgreSQL.
+ * DO NOT WIRE THIS SUITE INTO CI. It cannot pass: the shared bootstrap in
+ * ./injection-tests.test-helpers.ts posts to `/api/auth/register`, a prefix the
+ * application never registers, so the `before` hook 404s and every test skips.
+ * A database does NOT fix this — the run is byte-identical with Postgres up and
+ * down. Read ./README.md and SMELL-83 in
+ * docs/reports/roadmap-detected-smells-backlog.md before adding a tier, a job,
+ * or a script for it.
  */
 
 import { describe, it, before, after } from "node:test";

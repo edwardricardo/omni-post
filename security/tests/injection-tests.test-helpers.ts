@@ -1,3 +1,20 @@
+/**
+ * Shared bootstrap and payload fixtures for the injection test suites.
+ *
+ * THIS FILE IS WHY THOSE SUITES CANNOT PASS. `setupInjectionTestContext()`
+ * posts to `/api/auth/register`, `/api/auth/login` and `/api/projects` — an
+ * `/api/*` prefix the application never registers. All three 404, so every
+ * consuming suite's `before` hook fails and every test skips. A database does
+ * NOT fix this: the run is byte-identical with Postgres up and down. The only
+ * account-creation route that exists is `POST /auth/customer/register`, whose
+ * payload contract this bootstrap does not satisfy.
+ *
+ * Read ./README.md and SMELL-83 in
+ * docs/reports/roadmap-detected-smells-backlog.md before repointing these URLs
+ * — the rewrite needs a rate-limit-aware login and per-endpoint status
+ * expectations, not just a new path.
+ */
+
 import type { FastifyInstance } from "fastify";
 
 export interface InjectionTestContext {

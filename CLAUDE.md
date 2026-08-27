@@ -302,7 +302,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the single live ratchet**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work.) Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the single live ratchet**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work.) Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -822,6 +822,352 @@ for tj in $(find apps packages infra -name 'turbo.json' -not -path '*/node_modul
   printf '%s' "$script" | grep -qE 'tsc[^"]*--noEmit' || VIOLATIONS="$VIOLATIONS$tj -> ${script:-no build script}\n"
 done
 COUNT=$(printf "%b" "$VIOLATIONS" | grep -c . || true)
+COUNT=${COUNT:-0}
+echo "$COUNT"   # expect 0
+
+# 36. Every POSITIVE scope glob in a coverage/mutation config MUST match at least
+# one existing file. Closes the CLASS "dead scope = infallible gate", third
+# occurrence: fitness #2/#3/#4 grepped relocated directories, the per-glob
+# coverage thresholds kept "gating" `src/domain/**` + `src/application/**` after
+# both layers moved to packages/core, and stryker.config.mjs carried 13 mutate
+# entries for those same absent layers while its report read as covered scope.
+# Scope: the `mutate` arrays of apps/api/stryker*.config.mjs (minus the
+# quarantine below) plus the `include` arrays (test.include + coverage.include)
+# of apps/api/vitest.config.ts — the coverage scope globs live THERE since the
+# threshold-literal rework retired the glob keys vitest.coverage-thresholds.ts
+# used to hold. POSITIVE globs only, deliberately: a negation (`!...`) matching
+# zero files is inert PROTECTION (SMELL-84 measured 29 such lines — harmless
+# fat), and flagging it would push authors to delete real exclusions to get
+# green; a positive glob matching zero files is a gate reporting green over code
+# it never touched.
+#
+# FAIL-CLOSED PER FILE. Extracting zero globs from a scanned config is not a
+# clean scan, it is a blind one: renaming `mutate:` in stryker.config.mjs — the
+# config the mutation pipeline actually executes — made the first form of this
+# check print nothing and exit 0 over 26 live globs it never read, and an array
+# assembled at runtime or inherited by object spread reads identically from the
+# outside. Every scanned config must now yield at least one glob or the check
+# fails; the 14 quarantined configs are skipped entirely, not scanned leniently.
+#
+# Residual limits, stated honestly. (1) Textual extraction, not a JS parser: a
+# runtime-assembled or spread-inherited array is still unreadable to it — but it
+# now fails closed instead of passing silently. (2) Comments inside the scanned
+# arrays are dropped, line AND block, so a glob named INSIDE a comment is
+# neither extracted nor reported — documenting a scope removal in the array is
+# safe (the first form extracted those strings and red-lined CI for exactly the
+# note this file told authors to write). (3) Discovery is top-level only:
+# `apps/api/stryker*.config.mjs` plus `apps/api/vitest.config.ts`. A config
+# nested deeper (`apps/api/mutation/stryker-slice.config.mjs`) is not scanned at
+# all, so a new mutation config belongs at the top level or this scope grows
+# with it. (4) Bracket counting skips string literals, so a picomatch class
+# (`src/api[Vv]2/**`) neither ends the array early nor runs past it into the
+# next key. Needs node >= 22 (fs.glob); the CI job pins node 24. Hard-zero.
+set -uo pipefail
+VIOLATIONS=$(node --input-type=module <<'EOF'
+import { existsSync, readFileSync } from "node:fs";
+import { glob } from "node:fs/promises";
+
+// Quarantine: 14 ad-hoc slicing configs predating the packages/core relocation,
+// holding 45 dead positive globs between them (SMELL-85 owns that debt; SMELL-84
+// is a different one — the 29 empty NEGATIONS inside stryker.config.mjs). They
+// are one-off local run shells, not the config the mutation pipeline executes
+// (stryker.config.mjs). The list is a RATCHET, not a permanent carve-out: it may
+// shrink and never grow, and every name must still name an existing file — a
+// name that outlives its file would silently exempt a NEW config re-created
+// under it. Delete each name in the same change that fixes or deletes the file
+// it names (the Stryker consolidation, SMELL-85).
+const quarantined = new Set([
+  "stryker-batch-7.config.mjs",
+  "stryker-batch-8.config.mjs",
+  "stryker-domain-targeted.config.mjs",
+  "stryker-inbox.config.mjs",
+  "stryker-micro-A6.config.mjs",
+  "stryker-micro-E1.config.mjs",
+  "stryker-micro-E2.config.mjs",
+  "stryker-micro-E3.config.mjs",
+  "stryker-micro-E4.config.mjs",
+  "stryker-micro-F1.config.mjs",
+  "stryker-micro-F2.config.mjs",
+  "stryker-micro-F3.config.mjs",
+  "stryker-micro-F4.config.mjs",
+  "stryker-session-c.config.mjs",
+]);
+const QUARANTINE_FLOOR = 14;
+const cwd = "apps/api";
+if (quarantined.size > QUARANTINE_FLOOR) {
+  console.error(`fitness #36 scope error: the quarantine holds ${quarantined.size} names against a floor of ${QUARANTINE_FLOOR} — the exemption list may only shrink. A new config that needs exempting is a config that needs fixing (SMELL-85).`);
+  process.exit(1);
+}
+for (const name of [...quarantined].sort()) {
+  if (existsSync(`${cwd}/${name}`)) continue;
+  console.error(`fitness #36 scope error: quarantined config ${cwd}/${name} no longer exists — delete the name from the quarantine, or a config re-created under it inherits the exemption unscanned.`);
+  process.exit(1);
+}
+const scanned = [];
+for await (const f of glob("stryker*.config.mjs", { cwd })) {
+  if (!quarantined.has(f)) scanned.push([f, "mutate"]);
+}
+scanned.sort();
+if (scanned.length === 0) {
+  console.error(`fitness #36 scope error: no non-quarantined stryker*.config.mjs under ${cwd}`);
+  process.exit(1);
+}
+scanned.push(["vitest.config.ts", "include"]);
+// Walk to the array's closing bracket while IGNORING brackets that live inside
+// string literals or comments. Picomatch character classes (`src/api[Vv]2/**`)
+// are legitimate glob syntax, and counting them either ends the array early —
+// every glob after it goes unchecked — or runs past its end and pulls values out
+// of the next key. Comment bytes are dropped with the brackets they contain, so
+// a glob named inside a comment is neither extracted nor reported.
+const sliceArray = (source, from) => {
+  let i = from;
+  let depth = 1;
+  let body = "";
+  while (i < source.length) {
+    const c = source[i];
+    if (c === '"' || c === "'" || c === "`") {
+      let j = i + 1;
+      while (j < source.length && source[j] !== c) j += source[j] === "\\" ? 2 : 1;
+      body += source.slice(i, j + 1);
+      i = j + 1;
+      continue;
+    }
+    if (c === "/" && source[i + 1] === "/") {
+      const nl = source.indexOf("\n", i);
+      i = nl === -1 ? source.length : nl;
+      continue;
+    }
+    if (c === "/" && source[i + 1] === "*") {
+      const end = source.indexOf("*/", i + 2);
+      i = end === -1 ? source.length : end + 2;
+      continue;
+    }
+    if (c === "[") depth += 1;
+    if (c === "]" && --depth === 0) return { body, end: i + 1 };
+    i += 1;
+  }
+  return null;
+};
+const extract = (source, key) => {
+  const found = [];
+  const re = new RegExp(`\\b${key}\\s*:\\s*\\[`, "g");
+  while (re.exec(source) !== null) {
+    const slice = sliceArray(source, re.lastIndex);
+    if (slice === null) return null;
+    for (const q of slice.body.matchAll(/"([^"]*)"|'([^']*)'/g)) found.push(q[1] ?? q[2]);
+    re.lastIndex = slice.end;
+  }
+  return found;
+};
+const dead = [];
+for (const [file, key] of scanned) {
+  const patterns = extract(readFileSync(`${cwd}/${file}`, "utf8"), key);
+  if (patterns === null) {
+    console.error(`fitness #36 scope error: unbalanced '${key}' array in ${cwd}/${file} — the extraction cannot see where the scope ends, failing closed`);
+    process.exit(1);
+  }
+  if (patterns.length === 0) {
+    console.error(`fitness #36 scope error: zero '${key}' globs extracted from ${cwd}/${file} — the key was renamed, or the array is assembled at runtime or inherited by spread. Either way the gate would report green over a scope it never read, so it fails closed. Give the config a literal '${key}' array, or quarantine it with an owning backlog entry.`);
+    process.exit(1);
+  }
+  for (const pattern of patterns) {
+    if (pattern.startsWith("!")) continue;
+    let live = false;
+    for await (const _ of glob(pattern, { cwd })) { live = true; break; }
+    if (!live) dead.push(`${cwd}/${file}: dead positive glob "${pattern}"`);
+  }
+}
+console.log(dead.join("\n"));
+EOF
+) || { echo "fitness #36: expansion crashed or scope is invalid — failing closed (needs node >= 22 for fs.glob)"; exit 1; }
+COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
+COUNT=${COUNT:-0}
+echo "$COUNT"   # expect 0
+
+# 37. Coverage threshold floors never descend vs the PR base. The four literal
+# thresholds in apps/api/vitest.config.ts (lines/functions/branches/statements)
+# are a RATCHET: `autoUpdate` raises each number to the measured value in the
+# commit that earns it, so the only hand-written move this guard must reject is
+# a LOWERED number. Runs on `pull_request` only — its subject is the PR's delta
+# against its base, which a push run does not have (the CI step skips cleanly
+# there; locally it compares against origin/main, or set FITNESS_BASE_REF to any
+# ref/sha — CI passes the PR base sha through that same env var).
+#
+# WHAT IT READS: the GLOBAL `thresholds: {` block only, with block-comment bytes
+# dropped and per-scope blocks (nested one level deeper) ignored. Both matter. A
+# `/* */` wrapped around the live block left the four literals byte-identical to
+# a line scanner, so the first form of this guard kept comparing numbers that no
+# longer configured anything; and a per-scope block — which CODING_STANDARDS
+# §Coverage Targets requires (Domain 90 / Application 85 / Infrastructure 70) —
+# made it see two `lines:` and refuse to run, which reads as a broken check and
+# teaches the author to edit the guard instead of the coverage.
+#
+# FAIL-CLOSED ON BOTH SIDES. Head: no global block, or more than one literal per
+# metric at its top level, exits 1. Base: absent-on-base still passes BY METRIC
+# (a base with ZERO literals for a metric is the pre-ratchet format and has no
+# comparable floor), but TWO or more is ambiguity and exits 1 as well — while the
+# base side merely `continue`d, a base of 90/90/90/90 carrying a per-scope block
+# let a descent to 56.9 through on all four metrics at once. An unresolvable base
+# ref exits 1 after 3 bounded fetch retries, and the message names the transient
+# possibility so a network blip is not read as a violation.
+#
+# THE LEGITIMATE DESCENT, implemented rather than only named: deleting covered
+# code can lower aggregate coverage. That descent ships with a
+# `// canon-exception: <scenario>` marker — scenario from the §Pragmatic
+# Exceptions allowed list — on the lowered literal's own line or the line
+# directly above it, and the guard accepts THAT metric while logging what it
+# accepted and why. The marker rides in the diff, so a human still approves it in
+# review. The first form named this path in its `::error` without implementing
+# it: the step is a REQUIRED context, so the only real exit was an admin
+# override, and a guard whose stated remedy does not work teaches people to
+# delete the guard. Hard-zero.
+set -uo pipefail
+BASE_REF="${FITNESS_BASE_REF:-origin/main}"
+if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
+  for attempt in 1 2 3; do
+    git fetch --quiet --depth=1 origin "$BASE_REF" && break
+    [ "$attempt" -eq 3 ] || sleep $((attempt * 3))
+  done
+fi
+if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
+  echo "fitness #37: base ref $BASE_REF did not resolve after 3 fetch attempts — either the base commit is genuinely gone (force-push, deleted branch) or the fetch hit a transient network failure. Failing closed rather than comparing against nothing; re-run the job if the network was the cause."
+  exit 1
+fi
+VIOLATIONS=$(FITNESS_BASE_SRC="$(git show "$BASE_REF:apps/api/vitest.config.ts" 2>/dev/null || true)" node --input-type=module <<'EOF'
+import { readFileSync } from "node:fs";
+
+const HEAD_FILE = "apps/api/vitest.config.ts";
+const METRICS = ["lines", "functions", "branches", "statements"];
+// Scenarios from CLAUDE.md §Pragmatic Exceptions. A descent marked with anything
+// else is not a canon exception, it is an unlabelled one.
+const SCENARIOS = new Set(["migration", "prototype", "hotfix", "spike", "test-fixture"]);
+
+// Split every line into its code half and its line-comment half: block-comment
+// bytes are dropped (a commented-out block must not keep answering for a floor
+// that no longer exists) and string literals are preserved verbatim (a glob key
+// like "src/**/*.ts" holds the exact byte pairs that a naive comment strip eats).
+// The canon-exception markers live in the comment half, which is why comments are
+// separated rather than discarded.
+const scanLines = (source) => {
+  const lines = [];
+  let code = "";
+  let comment = "";
+  let state = "code";
+  let i = 0;
+  while (i < source.length) {
+    const c = source[i];
+    if (c === "\n") {
+      lines.push({ code, comment });
+      code = "";
+      comment = "";
+      if (state === "line") state = "code";
+      i += 1;
+      continue;
+    }
+    if (state === "block") {
+      if (c === "*" && source[i + 1] === "/") { state = "code"; i += 2; continue; }
+      i += 1;
+      continue;
+    }
+    if (state === "line") { comment += c; i += 1; continue; }
+    if (c === '"' || c === "'" || c === "`") {
+      let j = i + 1;
+      while (j < source.length && source[j] !== c && source[j] !== "\n") j += source[j] === "\\" ? 2 : 1;
+      code += source.slice(i, j + 1);
+      i = j + 1;
+      continue;
+    }
+    if (c === "/" && source[i + 1] === "/") { state = "line"; comment = "//"; i += 2; continue; }
+    if (c === "/" && source[i + 1] === "*") { state = "block"; i += 2; continue; }
+    code += c;
+    i += 1;
+  }
+  lines.push({ code, comment });
+  return lines;
+};
+const markerOf = (comment) => {
+  const m = /canon-exception:\s*([a-z-]+)/.exec(comment ?? "");
+  if (m === null) return null;
+  return { scenario: m[1], valid: SCENARIOS.has(m[1]) };
+};
+// Reads the GLOBAL thresholds block only. A metric is accepted only at the top
+// level of `thresholds: {`, so a per-scope block — which CODING_STANDARDS
+// §Coverage Targets requires (Domain 90 / Application 85 / Infrastructure 70) —
+// nests one level deeper and coexists instead of reading as ambiguity.
+const floorsOf = (source) => {
+  const lines = scanLines(source);
+  const found = new Map(METRICS.map((metric) => [metric, []]));
+  let started = false;
+  let depth = 0;
+  for (let n = 0; n < lines.length; n += 1) {
+    const { code, comment } = lines[n];
+    const braces = code.replace(/"[^"]*"|'[^']*'|`[^`]*`/g, '""');
+    if (!started) {
+      if (/(^|[^A-Za-z0-9_$])thresholds\s*:\s*\{/.test(braces)) {
+        started = true;
+        depth = 1;
+      }
+      continue;
+    }
+    if (depth === 1) {
+      const m = /^\s*(lines|functions|branches|statements)\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*,?\s*$/.exec(code);
+      if (m !== null) {
+        found.get(m[1]).push({
+          value: m[2],
+          marker: markerOf(comment) ?? markerOf(n > 0 ? lines[n - 1].comment : ""),
+        });
+      }
+    }
+    for (const ch of braces) {
+      if (ch === "{") depth += 1;
+      else if (ch === "}") depth -= 1;
+    }
+    if (depth <= 0) break;
+  }
+  return started ? found : null;
+};
+const head = floorsOf(readFileSync(HEAD_FILE, "utf8"));
+if (head === null) {
+  console.error(`fitness #37: no global 'thresholds: {' block found in ${HEAD_FILE} — the floor is missing, renamed, or commented out. The guard cannot see it, failing closed.`);
+  process.exit(1);
+}
+const baseSource = process.env.FITNESS_BASE_SRC ?? "";
+const base = baseSource.trim() === "" ? null : floorsOf(baseSource);
+const violations = [];
+for (const metric of METRICS) {
+  const headHits = head.get(metric);
+  if (headHits.length !== 1) {
+    const why = headHits.length === 0
+      ? "the literal is missing, commented out, or built by a helper call"
+      : "the GLOBAL block declares it more than once (a per-scope block nested deeper is ignored on purpose and is not this)";
+    console.error(`fitness #37: expected exactly one literal '${metric}:' at the top level of the global thresholds block in ${HEAD_FILE}, found ${headHits.length} — ${why}; the guard cannot see the floor, failing closed.`);
+    process.exit(1);
+  }
+  const baseHits = base === null ? [] : base.get(metric);
+  // Absent on base passes BY METRIC: a base with no literal for it is the
+  // pre-ratchet format, which has no comparable floor. TWO or more is ambiguity,
+  // and ambiguity fails closed on this side exactly as it does on the head side —
+  // an open base side let a 90 -> 56.9 descent through on all four metrics.
+  if (baseHits.length === 0) continue;
+  if (baseHits.length > 1) {
+    console.error(`fitness #37: the base declares '${metric}:' ${baseHits.length} times at the top level of its global thresholds block — the guard cannot tell which value is the floor, failing closed (the head side fails closed on the same ambiguity).`);
+    process.exit(1);
+  }
+  if (Number(headHits[0].value) >= Number(baseHits[0].value)) continue;
+  const marker = headHits[0].marker;
+  if (marker !== null && marker.valid) {
+    console.error(`fitness #37: coverage.thresholds.${metric} lowered ${baseHits[0].value} -> ${headHits[0].value}, ACCEPTED under the 'canon-exception: ${marker.scenario}' marker on or above that line. The marker ships in the diff for a human to approve and carries its own follow-up per CLAUDE.md §Pragmatic Exceptions.`);
+    continue;
+  }
+  if (marker !== null) {
+    console.error(`fitness #37: coverage.thresholds.${metric} carries 'canon-exception: ${marker.scenario}', which is not a scenario from the CLAUDE.md §Pragmatic Exceptions allowed list (${[...SCENARIOS].join(", ")}) — not honoured.`);
+  }
+  violations.push(`coverage.thresholds.${metric} lowered: ${baseHits[0].value} (base) -> ${headHits[0].value} (head)`);
+}
+console.log(violations.join("\n"));
+EOF
+) || { echo "fitness #37: the threshold extraction could not see a floor it must compare — failing closed (see the scope error above)"; exit 1; }
+COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
 COUNT=${COUNT:-0}
 echo "$COUNT"   # expect 0
 ```
