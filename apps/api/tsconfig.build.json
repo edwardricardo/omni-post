@@ -29,6 +29,9 @@
       "path": "../../packages/adapters/storage-s3/tsconfig.build.json"
     },
     {
+      "path": "../../packages/core/accounts/tsconfig.build.json"
+    },
+    {
       "path": "../../packages/core/ai/tsconfig.build.json"
     },
     {
@@ -135,6 +138,9 @@
     },
     {
       "path": "../../packages/core/posts/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/projects/tsconfig.build.json"
     },
     {
       "path": "../../packages/core/providers/tsconfig.build.json"

@@ -5,10 +5,40 @@
  * @layer infrastructure
  */
 
+import type { FastifyRequest } from "fastify";
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 
+// The account whose token the mocked auth middleware binds. Set once the test
+// account exists; the DELETE route is ownership-gated, so an unauthenticated
+// request (the previous no-op mock) is no longer a meaningful stand-in for a
+// signed-in customer.
+const authContext: { accountId: string } = { accountId: "" };
+
 vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
-  requireClientAuth: async () => {},
+  requireClientAuth: async (request: FastifyRequest) => {
+    request.customerUser = {
+      id: "customer-user-1",
+      accountId: authContext.accountId,
+      roleId: "role-1",
+      roleName: "OWNER",
+      permissions: [],
+    };
+  },
+}));
+
+// Admin surface for DELETE /projects/:projectId/hard. Only the two
+// symbols projectRoutes imports are replaced; nothing else in this route's
+// module graph pulls from either middleware.
+vi.mock("../../src/admin/auth/adminAuthMiddleware.js", () => ({
+  requireAdminAuth: async (request: FastifyRequest) => {
+    (request as FastifyRequest & { adminUser?: { id: string } }).adminUser = {
+      id: "admin-user-1",
+    };
+  },
+}));
+
+vi.mock("../../src/auth/rbacMiddleware.js", () => ({
+  requirePermission: () => async () => {},
 }));
 
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
@@ -20,23 +50,55 @@ import type { FastifyInstance } from "fastify";
 
 const { mockPrisma, stores } = createMockPrismaModule();
 
-// Patch account.findUnique to resolve include: { _count: { select: { projects: true } } }
+// Resolve include: { _count: { select: { projects: { where: { deletedAt: null } } } } }
+// and include: { projects: ... }. The nested `where` is honoured rather than
+// ignored: the routes now count only live projects toward quota, and a mock that
+// counted soft-deleted rows would hide exactly the behaviour under test.
+type ProjectCountSelect = { projects?: boolean | { where?: Record<string, unknown> } };
+function resolveAccountIncludes(
+  result: Record<string, unknown>,
+  include: Record<string, unknown> | undefined
+): Record<string, unknown> {
+  if (!include) return result;
+  const liveProjects = stores.project
+    .all()
+    .filter((p) => p.accountId === result.id && (p.deletedAt ?? null) === null);
+  const countSelect = (include._count as { select?: ProjectCountSelect } | undefined)?.select;
+  if (include._count) {
+    const scoped = typeof countSelect?.projects === "object";
+    result._count = {
+      projects: scoped
+        ? liveProjects.length
+        : stores.project.all().filter((p) => p.accountId === result.id).length,
+    };
+  }
+  if (include.projects) {
+    const scoped = typeof include.projects === "object";
+    result.projects = scoped
+      ? liveProjects
+      : stores.project.all().filter((p) => p.accountId === result.id);
+  }
+  return result;
+}
+
 const origAccountFindUnique = mockPrisma.prisma.account.findUnique;
 mockPrisma.prisma.account.findUnique = vi.fn(async (args: Record<string, unknown>) => {
   const result = await origAccountFindUnique(args);
   if (!result) return null;
-  const include = args.include as Record<string, unknown> | undefined;
-  if (include?._count) {
-    (result as Record<string, unknown>)._count = {
-      projects: stores.project.all().filter((p) => p.accountId === result.id).length,
-    };
-  }
-  if (include?.projects) {
-    (result as Record<string, unknown>).projects = stores.project
-      .all()
-      .filter((p) => p.accountId === result.id);
-  }
-  return result;
+  return resolveAccountIncludes(
+    result as Record<string, unknown>,
+    args.include as Record<string, unknown> | undefined
+  );
+});
+
+const origAccountFindFirst = mockPrisma.prisma.account.findFirst;
+mockPrisma.prisma.account.findFirst = vi.fn(async (args: Record<string, unknown>) => {
+  const result = await origAccountFindFirst(args);
+  if (!result) return null;
+  return resolveAccountIncludes(
+    result as Record<string, unknown>,
+    args.include as Record<string, unknown> | undefined
+  );
 });
 
 // Patch project.findUnique to support compound unique key accountId_name
@@ -60,14 +122,38 @@ mockPrisma.prisma.project.findUnique = vi.fn(
   }
 );
 
-// Add models used by delete handler (postContent, postMedia, post, channel)
+// Models the mock module does not define but the container's repositories may
+// reach for. The DELETE route no longer touches them (it soft-deletes the
+// project row and leaves its children alone) — they remain so that any
+// repository resolved from setupContainer finds a callable accessor.
 const noopDeleteMany = vi.fn(async () => ({ count: 0 }));
 const prismaAny = mockPrisma.prisma as Record<string, unknown>;
 prismaAny.postContent = { deleteMany: noopDeleteMany };
 prismaAny.postMedia = { deleteMany: noopDeleteMany };
-prismaAny.post = { deleteMany: noopDeleteMany };
+prismaAny.post = { deleteMany: noopDeleteMany, findMany: vi.fn(async () => []) };
 prismaAny.channel = { deleteMany: noopDeleteMany };
-prismaAny.publishLog = { findMany: vi.fn(async () => []) };
+prismaAny.publishLog = { findMany: vi.fn(async () => []), deleteMany: noopDeleteMany };
+// The hard delete's own tombstone write (see PrismaProjectRepository.hardDelete):
+// a `DeletionRecord` row is inserted in the same transaction as the delete, so
+// the double has to offer it or the route fails with an INTERNAL_ERROR.
+prismaAny.deletionRecord = { createMany: vi.fn(async () => ({ count: 1 })) };
+// Models other repositories resolved from setupContainer may reach for. Named
+// one by one rather than proxied: a model that is reached but this list forgets
+// must surface as a failure, not be papered over by a catch-all.
+for (const model of [
+  "analytics",
+  "contentVersion",
+  "tweet",
+  "thread",
+  "contentTemplate",
+  "instagramStoryProject",
+  "videoProcessingJob",
+  "instagramAnalytics",
+  "schedulingRule",
+  "template",
+]) {
+  prismaAny[model] = { deleteMany: vi.fn(async () => ({ count: 0 })) };
+}
 
 vi.mock("@infra/prisma", async (importOriginal) => {
   const original = await importOriginal<Record<string, unknown>>();
@@ -141,6 +227,9 @@ describe("projectRoutes - Unit Tests", () => {
       },
     });
     createdAccountId = testAccount.id;
+    // The DELETE route is ownership-gated: the caller's token must carry the
+    // account that owns the project.
+    authContext.accountId = createdAccountId;
   });
 
   afterAll(async () => {
@@ -459,7 +548,7 @@ describe("projectRoutes - Unit Tests", () => {
   });
 
   describe("DELETE /projects/:projectId", () => {
-    it("should delete a project successfully", async () => {
+    it("soft-deletes the project: the row survives with deletedAt set", async () => {
       // Create project to delete
       const projectToDelete = await prisma.project.create({
         data: {
@@ -480,11 +569,97 @@ describe("projectRoutes - Unit Tests", () => {
       expect(body.ok).toBe(true);
       expect(body.data?.message).toBeTruthy();
 
-      // Verify project is deleted
+      // H12 Soft Delete Universal: the row is NOT destroyed. It stays in the
+      // table, stamped with deletedAt, so the data is recoverable and the audit
+      // trail survives. This assertion replaces a `toBe(null)` that encoded the
+      // old destructive implementation, not a requirement.
       const deletedProject = await prisma.project.findUnique({
         where: { id: projectToDelete.id },
       });
-      expect(deletedProject).toBe(null);
+      expect(deletedProject).not.toBe(null);
+      expect(deletedProject?.deletedAt).toBeInstanceOf(Date);
+    });
+
+    it("makes the deleted project disappear from reads", async () => {
+      const projectToDelete = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: `Vanishes From Reads ${Date.now()}`,
+          locale: "en",
+        },
+      });
+
+      const before = await app.inject({
+        method: "GET",
+        url: `/projects/${projectToDelete.id}`,
+      });
+      expect(before.statusCode).toBe(200);
+
+      await app.inject({ method: "DELETE", url: `/projects/${projectToDelete.id}` });
+
+      const after = await app.inject({
+        method: "GET",
+        url: `/projects/${projectToDelete.id}`,
+      });
+      expect(after.statusCode).toBe(404);
+
+      const list = await app.inject({
+        method: "GET",
+        url: `/accounts/${createdAccountId}/projects`,
+      });
+      const listed = JSON.parse(list.body).data as { id: string }[];
+      expect(listed.some((p) => p.id === projectToDelete.id)).toBe(false);
+    });
+
+    it("returns 404 without deleting when the caller belongs to a different account", async () => {
+      const victimAccount = await prisma.account.create({
+        data: {
+          email: `victim-project-${Date.now()}@example.com`,
+          name: "Victim Account",
+          subscription: "BASIC",
+          maxProjects: 5,
+        },
+      });
+      const victimProject = await prisma.project.create({
+        data: {
+          accountId: victimAccount.id,
+          name: `Not Yours ${Date.now()}`,
+          locale: "en",
+        },
+      });
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/projects/${victimProject.id}`,
+      });
+
+      expect(response.statusCode).toBe(404);
+
+      const survivor = await prisma.project.findUnique({ where: { id: victimProject.id } });
+      expect(survivor).not.toBe(null);
+      expect(survivor?.deletedAt ?? null).toBe(null);
+    });
+
+    it("returns 404 on a second delete of the same project", async () => {
+      const projectToDelete = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: `Delete Twice ${Date.now()}`,
+          locale: "en",
+        },
+      });
+
+      const first = await app.inject({
+        method: "DELETE",
+        url: `/projects/${projectToDelete.id}`,
+      });
+      expect(first.statusCode).toBe(200);
+
+      const second = await app.inject({
+        method: "DELETE",
+        url: `/projects/${projectToDelete.id}`,
+      });
+      expect(second.statusCode).toBe(404);
     });
 
     it("should return 404 for non-existent project", async () => {
@@ -530,29 +705,120 @@ describe("projectRoutes - Unit Tests", () => {
       expect(body.data?.message).toBe("Project deleted successfully");
     });
 
-    it("should handle cascade deletion properly", async () => {
-      // Create project with related data
-      const projectWithData = await prisma.project.create({
+    it("frees the project's quota slot so the account can create another", async () => {
+      // The account allows 5 projects. Deleting one must return the slot: a
+      // soft-deleted project is invisible to every read, so counting it toward
+      // quota would strand the tenant below its own limit permanently.
+      const filler = await prisma.project.create({
         data: {
           accountId: createdAccountId,
-          name: `Cascade Test ${Date.now()}`,
+          name: `Quota Slot ${Date.now()}`,
           locale: "en",
         },
       });
 
-      // Delete project
+      const before = await app.inject({
+        method: "GET",
+        url: `/accounts/${createdAccountId}/projects`,
+      });
+      const countBefore = (JSON.parse(before.body).data as unknown[]).length;
+
+      await app.inject({ method: "DELETE", url: `/projects/${filler.id}` });
+
+      const after = await app.inject({
+        method: "GET",
+        url: `/accounts/${createdAccountId}/projects`,
+      });
+      expect((JSON.parse(after.body).data as unknown[]).length).toBe(countBefore - 1);
+    });
+  });
+
+  describe("DELETE /projects/:projectId/hard", () => {
+    it("destroys the project row, unlike the soft path", async () => {
+      const doomed = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: `Hard Delete ${Date.now()}`,
+          locale: "en",
+        },
+      });
+
       const response = await app.inject({
         method: "DELETE",
-        url: `/projects/${projectWithData.id}`,
+        url: `/projects/${doomed.id}/hard`,
+        payload: { reason: "GDPR erasure request" },
       });
 
       expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body).data?.deleted).toBe(true);
 
-      // Verify project is deleted
-      const deletedProject = await prisma.project.findUnique({
-        where: { id: projectWithData.id },
+      const gone = await prisma.project.findUnique({ where: { id: doomed.id } });
+      expect(gone).toBe(null);
+    });
+
+    it("refuses without a written reason, so the audit record can never be empty", async () => {
+      const survivor = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: `Needs Reason ${Date.now()}`,
+          locale: "en",
+        },
       });
-      expect(deletedProject).toBe(null);
+
+      const noBody = await app.inject({
+        method: "DELETE",
+        url: `/projects/${survivor.id}/hard`,
+      });
+      expect(noBody.statusCode).toBe(400);
+
+      const tooShort = await app.inject({
+        method: "DELETE",
+        url: `/projects/${survivor.id}/hard`,
+        payload: { reason: "oops" },
+      });
+      expect(tooShort.statusCode).toBe(400);
+
+      // Neither rejected request touched the row.
+      const still = await prisma.project.findUnique({ where: { id: survivor.id } });
+      expect(still).not.toBe(null);
+    });
+
+    it("returns 404 for an unknown project", async () => {
+      const response = await app.inject({
+        method: "DELETE",
+        url: "/projects/a0000000-0000-4000-8000-000000000000/hard",
+        payload: { reason: "GDPR erasure request" },
+      });
+
+      expect(response.statusCode).toBe(404);
+    });
+
+    it("writes an audit record naming the admin and the reason", async () => {
+      const doomed = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: `Audited Hard Delete ${Date.now()}`,
+          locale: "en",
+        },
+      });
+
+      await app.inject({
+        method: "DELETE",
+        url: `/projects/${doomed.id}/hard`,
+        payload: { reason: "Support escalation 4821" },
+      });
+
+      const entry = stores.auditLog.all().find((row) => row.resourceId === doomed.id) as
+        { userId?: string; action?: string; success?: boolean; details?: unknown } | undefined;
+
+      expect(entry).toBeTruthy();
+      expect(entry?.action).toBe("PROJECT_DELETED");
+      expect(entry?.userId).toBe("admin-user-1");
+      expect(entry?.success).toBe(true);
+      expect((entry?.details as { reason?: string; mode?: string })?.reason).toBe(
+        "Support escalation 4821"
+      );
+      expect((entry?.details as { mode?: string })?.mode).toBe("hard");
     });
   });
 

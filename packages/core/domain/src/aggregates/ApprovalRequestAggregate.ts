@@ -28,7 +28,13 @@ import { BaseDomainEvent } from "../events/DomainEvent.js";
  */
 export interface Review {
   readonly id: string;
-  readonly reviewerId: string;
+  /**
+   * `null` when the reviewer's user row was hard-deleted: the FK is
+   * `ON DELETE SET NULL` so the decision survives as approval history.
+   * A review added through {@link ApprovalRequestAggregate.addReview} always
+   * names its reviewer — only a reconstituted one can have lost it.
+   */
+  readonly reviewerId: string | null;
   readonly decision: ReviewDecision;
   readonly comment?: string;
   readonly level: number;
@@ -186,7 +192,13 @@ export interface CreateApprovalRequestInput {
 export interface ApprovalRequestState {
   id: ApprovalRequestId;
   postId: string;
-  submitterId: string;
+  /**
+   * `null` when the submitter's user row was hard-deleted: the FK is
+   * `ON DELETE SET NULL` so the request survives as approval history. Creation
+   * still requires a submitter (see {@link CreateApprovalRequestInput}) — only
+   * a reconstituted request can have lost one.
+   */
+  submitterId: string | null;
   status: ApprovalStatus;
   comment?: string;
   workflowId?: string;
@@ -221,7 +233,7 @@ export interface ApprovalRequestState {
  */
 export class ApprovalRequestAggregate extends AggregateRoot<ApprovalRequestId> {
   private readonly _postId: string;
-  private readonly _submitterId: string;
+  private readonly _submitterId: string | null;
   private _status: ApprovalStatus;
   private readonly _comment: string | undefined;
   private readonly _workflowId: string | undefined;
@@ -256,8 +268,11 @@ export class ApprovalRequestAggregate extends AggregateRoot<ApprovalRequestId> {
     return this._postId;
   }
 
-  /** @description The team member who submitted the request */
-  get submitterId(): string {
+  /**
+   * @description The team member who submitted the request, or `null` when
+   *   that user has been erased and the request survives as approval history.
+   */
+  get submitterId(): string | null {
     return this._submitterId;
   }
 

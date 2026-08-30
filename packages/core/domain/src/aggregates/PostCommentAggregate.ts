@@ -119,7 +119,13 @@ export interface CreateCommentProps {
 export interface PostCommentState {
   id: CommentId;
   postId: string;
-  authorId: string;
+  /**
+   * `null` when the author's user row was hard-deleted: the FK is
+   * `ON DELETE SET NULL` so the comment survives as thread history. Creation
+   * still requires an author (see {@link CreateCommentProps}) — only a
+   * reconstituted comment can have lost one.
+   */
+  authorId: string | null;
   body: string;
   mentions: string[];
   isEdited: boolean;
@@ -179,7 +185,7 @@ function extractMentions(text: string): string[] {
  */
 export class PostCommentAggregate extends AggregateRoot<CommentId> {
   private readonly _postId: string;
-  private readonly _authorId: string;
+  private readonly _authorId: string | null;
   private readonly _parentId: string | undefined;
   private _body: string;
   private _mentions: string[];
@@ -218,8 +224,11 @@ export class PostCommentAggregate extends AggregateRoot<CommentId> {
     return this._postId;
   }
 
-  /** @description The team member who authored this comment */
-  get authorId(): string {
+  /**
+   * @description The team member who authored this comment, or `null` when
+   *   that user has been erased and the comment survives as thread history.
+   */
+  get authorId(): string | null {
     return this._authorId;
   }
 
@@ -335,7 +344,10 @@ export class PostCommentAggregate extends AggregateRoot<CommentId> {
       return err(new InvariantViolationError("Cannot edit a deleted comment"));
     }
 
-    if (editorId !== this._authorId) {
+    // An erased author means nobody is the author, so no editor can match:
+    // the comment freezes as history rather than becoming editable by anyone.
+    const authorId = this._authorId;
+    if (authorId === null || editorId !== authorId) {
       return err(new InvariantViolationError("Only the comment author can edit the comment"));
     }
 
@@ -359,7 +371,7 @@ export class PostCommentAggregate extends AggregateRoot<CommentId> {
     this._editedAt = new Date();
     this.markUpdated();
 
-    this.addDomainEvent(new CommentEdited(this._id.value, this._authorId));
+    this.addDomainEvent(new CommentEdited(this._id.value, authorId));
 
     return ok(undefined);
   }
@@ -376,7 +388,8 @@ export class PostCommentAggregate extends AggregateRoot<CommentId> {
       return err(new InvariantViolationError("Comment is already deleted"));
     }
 
-    if (deleterId !== this._authorId && !isAdmin) {
+    // An erased author leaves only moderation as a way to remove the comment.
+    if ((this._authorId === null || deleterId !== this._authorId) && !isAdmin) {
       return err(
         new InvariantViolationError("Only the comment author or an admin can delete the comment")
       );

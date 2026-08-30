@@ -6,6 +6,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
+import { Prisma } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import {
   Project,
@@ -15,12 +16,17 @@ import {
   PostId,
   EntityNotFoundError,
 } from "@core/domain/index.js";
+import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 import type { ContentLocale } from "@core/domain/value-objects/Content.js";
 import type {
   ProjectRepositoryPort,
   PublishLogView,
 } from "@core/domain/repositories/ProjectRepository.js";
+import type { HardDeleteContext } from "@core/domain/repositories/Repository.js";
 import type { CrisisModeEntry } from "@core/domain/entities/Project.js";
+
+/** Local type alias for Prisma transaction client */
+type TxClient = Prisma.TransactionClient;
 
 /**
  * Minimal Prisma project row shape used by the mapper
@@ -187,61 +193,69 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Hard-delete a project and all related data in the correct cascade order.
-   * SUPER_ADMIN only — irreversible.
+   * Hard-delete a project. SUPER_ADMIN only — irreversible.
    *
-   * Infrastructure-layer responsibility: manages FK constraint ordering so
-   * callers do not need to know the database topology.
+   * The delete order lives in the schema, not here. Every owned child —
+   * posts with their content, media, threads, versions, comments and
+   * approvals; channels with their inbox and analytics history; the
+   * project-scoped Cascade children — is removed by `ON DELETE CASCADE`,
+   * and every reference with its own lifetime (tasks, content templates,
+   * webhook events, custom reports, media assets) detaches via
+   * `ON DELETE SET NULL` (see docs/architecture/schema-conventions.md,
+   * "Choosing the ON DELETE action").
+   *
+   * A tombstone (`DeletionRecord`) is written FIRST, from a snapshot read inside
+   * the same transaction, so the only durable trace of the destroyed tenant data
+   * cannot describe a row other than the one deleted. No tombstone, no delete:
+   * a failed insert rolls the delete back with it.
+   *
+   * ATOMIC: two statements in one transaction, so a failure (e.g. the deliberate
+   * RecurringPost.templatePost RESTRICT interlock) rolls everything back.
+   * UoW-aware: an outer `executeInTransaction` is joined rather than nested.
    */
-  async hardDelete(id: ProjectId): Promise<Result<void, EntityNotFoundError>> {
-    // Use findFirst to detect the project even if it was soft-deleted
-    const project = await this.prisma.project.findFirst({
-      where: { id: id.value },
-      select: { id: true },
-    });
-    if (!project) {
+  async hardDelete(
+    id: ProjectId,
+    context: HardDeleteContext
+  ): Promise<Result<void, EntityNotFoundError>> {
+    // The existence probe lives INSIDE the transaction and doubles as the
+    // tombstone snapshot: one read that cannot go stale between the check and
+    // the delete. `findFirst` without `deletedAt` so an already soft-deleted
+    // project is still reachable by the irreversible path.
+    const doHardDelete = async (tx: TxClient): Promise<boolean> => {
+      const snapshot = await tx.project.findFirst({
+        where: { id: id.value },
+        select: { id: true, accountId: true, name: true, createdAt: true },
+      });
+      if (!snapshot) {
+        return false;
+      }
+
+      await tx.deletionRecord.createMany({
+        data: [
+          {
+            entityType: "PROJECT",
+            entityId: snapshot.id,
+            name: snapshot.name,
+            accountId: snapshot.accountId,
+            clientSince: snapshot.createdAt,
+            clientUntil: new Date(),
+            deletedBy: context.deletedBy,
+          },
+        ],
+      });
+
+      await tx.project.delete({ where: { id: id.value } });
+      return true;
+    };
+
+    const activeTx = PrismaUnitOfWork.getTransactionClient();
+    const deleted = activeTx
+      ? await doHardDelete(activeTx)
+      : await this.prisma.$transaction(doHardDelete);
+
+    if (!deleted) {
       return err(new EntityNotFoundError("Project", id.value));
     }
-
-    const projectId = id.value;
-
-    // Collect post IDs first for tweet/thread deletion
-    const posts = await this.prisma.post.findMany({
-      where: { projectId },
-      select: { id: true },
-    });
-    const postIds = posts.map((p) => p.id);
-
-    // 1. PublishLogs (references posts + channels)
-    await this.prisma.publishLog.deleteMany({ where: { post: { projectId } } });
-    // 2. Analytics (references posts + channels)
-    await this.prisma.analytics.deleteMany({ where: { post: { projectId } } });
-    // 3. PostMedia
-    await this.prisma.postMedia.deleteMany({ where: { post: { projectId } } });
-    // 4. PostContent
-    await this.prisma.postContent.deleteMany({ where: { post: { projectId } } });
-    // 5. ContentVersions
-    await this.prisma.contentVersion.deleteMany({ where: { post: { projectId } } });
-    // 6. Tweets → Threads
-    if (postIds.length > 0) {
-      await this.prisma.tweet.deleteMany({ where: { thread: { postId: { in: postIds } } } });
-      await this.prisma.thread.deleteMany({ where: { postId: { in: postIds } } });
-    }
-    // 7. Posts
-    await this.prisma.post.deleteMany({ where: { projectId } });
-    // 8. Channels
-    await this.prisma.channel.deleteMany({ where: { projectId } });
-    // 9. Other project-level records
-    await this.prisma.contentTemplate.deleteMany({ where: { projectId } });
-    await this.prisma.instagramStoryProject.deleteMany({ where: { projectId } });
-    await this.prisma.videoProcessingJob.deleteMany({ where: { projectId } });
-    await this.prisma.instagramAnalytics.deleteMany({ where: { projectId } });
-    await this.prisma.schedulingRule.deleteMany({ where: { projectId } });
-    await this.prisma.webhookEvent.deleteMany({ where: { projectId } });
-    await this.prisma.webhookSubscription.deleteMany({ where: { projectId } });
-    await this.prisma.template.deleteMany({ where: { projectId } });
-    // 10. Project itself
-    await this.prisma.project.delete({ where: { id: projectId } });
 
     return ok(undefined);
   }

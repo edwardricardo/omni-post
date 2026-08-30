@@ -22,7 +22,12 @@ export interface ConvertReferralOutput {
 export interface ConvertReferralRepository {
   findPendingByAccountId(accountId: string): Promise<{
     id: string;
-    referralCodeId: string;
+    /**
+     * `null` once the referral code has been hard-deleted: the FK is
+     * `ON DELETE SET NULL` so the referral survives as history after the
+     * referrer's account is erased.
+     */
+    referralCodeId: string | null;
     status: string;
   } | null>;
   setConverted(referralId: string, convertedAt: Date): Promise<void>;
@@ -51,7 +56,12 @@ export class ConvertReferralUseCase implements UseCase<
       }
 
       await this.repo.setConverted(referral.id, new Date());
-      await this.repo.incrementConversions(referral.referralCodeId);
+      // The conversion is a fact about the referred account, so it is recorded
+      // even when the code is gone. The counter, however, lives on the code
+      // row: with the code erased there is nothing left to increment.
+      if (referral.referralCodeId !== null) {
+        await this.repo.incrementConversions(referral.referralCodeId);
+      }
 
       if (this.grantReward) {
         await this.grantReward.execute({ referralId: referral.id });

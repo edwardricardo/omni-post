@@ -76,6 +76,15 @@ export const TOKENS = {
   HardDeletePostsBatchUseCase: Symbol.for("HardDeletePostsBatchUseCase"),
   DuplicatePostsBatchUseCase: Symbol.for("DuplicatePostsBatchUseCase"),
 
+  // Use Cases (project + account lifecycle). The soft-delete pair is the normal
+  // path (H12 Soft Delete Universal); the HardDelete pair is the admin-only,
+  // irreversible exception and is registered under a separate token so a
+  // customer-facing call site cannot resolve it by mistake.
+  DeleteProjectUseCase: Symbol.for("DeleteProjectUseCase"),
+  HardDeleteProjectUseCase: Symbol.for("HardDeleteProjectUseCase"),
+  DeleteAccountUseCase: Symbol.for("DeleteAccountUseCase"),
+  HardDeleteAccountUseCase: Symbol.for("HardDeleteAccountUseCase"),
+
   // Use Cases (post scheduling)
   SchedulePostUseCase: Symbol.for("SchedulePostUseCase"),
   GetPostWithThreadQuery: Symbol.for("GetPostWithThreadQuery"),

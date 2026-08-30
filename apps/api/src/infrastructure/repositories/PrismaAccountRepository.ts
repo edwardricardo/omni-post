@@ -6,9 +6,15 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
+import { Prisma } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import { Account, AccountId, EntityNotFoundError } from "@core/domain/index.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
+import type { HardDeleteContext } from "@core/domain/repositories/Repository.js";
+import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+
+/** Local type alias for Prisma transaction client */
+type TxClient = Prisma.TransactionClient;
 
 /**
  * Maps a Prisma Account row to the Account domain entity
@@ -170,99 +176,103 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   }
 
   /**
-   * Hard-delete an account and all related data in the correct cascade order.
-   * SUPER_ADMIN only — irreversible.
+   * Hard-delete an account and everything it owns. SUPER_ADMIN only —
+   * irreversible.
    *
-   * Infrastructure-layer responsibility: manages FK constraint ordering so
-   * callers do not need to know the database topology.
+   * The delete order lives in the schema, not here: every owned child
+   * cascades from Account (projects and their subtrees, channels, users,
+   * subscriptions with their price history, api keys, templates, ...), and
+   * survivor records detach via `ON DELETE SET NULL` (invoices, billing
+   * events, DSAR requests, admin role history, referral usage rows — see
+   * docs/architecture/schema-conventions.md, "Choosing the ON DELETE
+   * action").
+   *
+   * The one explicit step left is GDPR erasure of inbound webhook payloads
+   * (tenant social data): their FKs are SET NULL so they survive narrower
+   * deletions as audit records, but account erasure keeps destroying them.
+   *
+   * Tombstones (`DeletionRecord`) are written FIRST — one for the account and
+   * one for every project the cascade drags along — from snapshots read inside
+   * the same transaction. The projects have to be captured BEFORE the delete:
+   * afterwards there is nothing left to read them from. No tombstone, no
+   * delete: a failed insert rolls the destruction back with it.
+   *
+   * ATOMIC: runs inside one transaction. UoW-aware: an outer
+   * `executeInTransaction` is joined rather than nested.
    */
-  async hardDelete(id: AccountId): Promise<Result<void, EntityNotFoundError>> {
-    // Use findFirst to detect the account even if it was soft-deleted
-    const account = await this.prisma.account.findFirst({
-      where: { id: id.value },
-      select: { id: true },
-    });
-    if (!account) {
-      return err(new EntityNotFoundError("Account", id.value));
-    }
-
+  async hardDelete(
+    id: AccountId,
+    context: HardDeleteContext
+  ): Promise<Result<void, EntityNotFoundError>> {
     const accountId = id.value;
 
-    // Gather project IDs for cascading into project-scoped tables
-    const projects = await this.prisma.project.findMany({
-      where: { accountId },
-      select: { id: true },
-    });
-    const projectIds = projects.map((p) => p.id);
-
-    if (projectIds.length > 0) {
-      // 1. PublishLogs (references posts + channels)
-      await this.prisma.publishLog.deleteMany({
-        where: { post: { projectId: { in: projectIds } } },
+    // The existence probe lives INSIDE the transaction and doubles as the
+    // tombstone snapshot: one read that cannot go stale between the check and
+    // the delete. `findFirst` without `deletedAt` so an already soft-deleted
+    // account is still reachable by the irreversible path.
+    const doHardDelete = async (tx: TxClient): Promise<boolean> => {
+      const account = await tx.account.findFirst({
+        where: { id: accountId },
+        select: { id: true, name: true, createdAt: true },
       });
-      // 2. Analytics
-      await this.prisma.analytics.deleteMany({
-        where: { post: { projectId: { in: projectIds } } },
-      });
-      // 3. PostMedia
-      await this.prisma.postMedia.deleteMany({
-        where: { post: { projectId: { in: projectIds } } },
-      });
-      // 4. PostContent
-      await this.prisma.postContent.deleteMany({
-        where: { post: { projectId: { in: projectIds } } },
-      });
-      // 5. ContentVersions
-      await this.prisma.contentVersion.deleteMany({
-        where: { post: { projectId: { in: projectIds } } },
-      });
-      // 6. Threads + Tweets
-      const posts = await this.prisma.post.findMany({
-        where: { projectId: { in: projectIds } },
-        select: { id: true },
-      });
-      const postIds = posts.map((p) => p.id);
-      if (postIds.length > 0) {
-        await this.prisma.tweet.deleteMany({
-          where: { thread: { postId: { in: postIds } } },
-        });
-        await this.prisma.thread.deleteMany({
-          where: { postId: { in: postIds } },
-        });
+      if (!account) {
+        return false;
       }
-      // 7. Posts
-      await this.prisma.post.deleteMany({ where: { projectId: { in: projectIds } } });
-      // 8. Channels (single connection model — covers tokens + display state)
-      await this.prisma.channel.deleteMany({ where: { projectId: { in: projectIds } } });
-      // 9. Misc project-scoped tables
-      await this.prisma.contentTemplate.deleteMany({ where: { projectId: { in: projectIds } } });
-      await this.prisma.instagramStoryProject.deleteMany({
-        where: { projectId: { in: projectIds } },
+
+      // Soft-deleted projects are included on purpose: the cascade destroys
+      // them too, so a tombstone owes them the same record.
+      const projects = await tx.project.findMany({
+        where: { accountId },
+        select: { id: true, name: true, createdAt: true },
       });
-      await this.prisma.videoProcessingJob.deleteMany({ where: { projectId: { in: projectIds } } });
-      await this.prisma.instagramAnalytics.deleteMany({ where: { projectId: { in: projectIds } } });
-      await this.prisma.schedulingRule.deleteMany({ where: { projectId: { in: projectIds } } });
-      await this.prisma.webhookEvent.deleteMany({ where: { projectId: { in: projectIds } } });
-      await this.prisma.webhookSubscription.deleteMany({
-        where: { projectId: { in: projectIds } },
+      const projectIds = projects.map((p) => p.id);
+
+      const clientUntil = new Date();
+      await tx.deletionRecord.createMany({
+        data: [
+          {
+            entityType: "ACCOUNT",
+            entityId: account.id,
+            name: account.name,
+            accountId,
+            clientSince: account.createdAt,
+            clientUntil,
+            deletedBy: context.deletedBy,
+          },
+          ...projects.map((project) => ({
+            entityType: "PROJECT",
+            entityId: project.id,
+            name: project.name,
+            accountId,
+            clientSince: project.createdAt,
+            clientUntil,
+            deletedBy: context.deletedBy,
+          })),
+        ],
       });
-      await this.prisma.template.deleteMany({ where: { projectId: { in: projectIds } } });
-      // 10. Projects
-      await this.prisma.project.deleteMany({ where: { id: { in: projectIds } } });
+
+      await tx.webhookEvent.deleteMany({
+        where: {
+          OR: [
+            { accountId },
+            ...(projectIds.length > 0 ? [{ projectId: { in: projectIds } }] : []),
+          ],
+        },
+      });
+
+      await tx.account.delete({ where: { id: accountId } });
+      return true;
+    };
+
+    const activeTx = PrismaUnitOfWork.getTransactionClient();
+    const deleted = activeTx
+      ? await doHardDelete(activeTx)
+      : await this.prisma.$transaction(doHardDelete);
+
+    if (!deleted) {
+      return err(new EntityNotFoundError("Account", accountId));
     }
 
-    // Account-level records
-    await this.prisma.apiKey.deleteMany({ where: { accountId } });
-    await this.prisma.contentTemplate.deleteMany({ where: { accountId } });
-    await this.prisma.instagramStoryProject.deleteMany({ where: { accountId } });
-    await this.prisma.videoProcessingJob.deleteMany({ where: { accountId } });
-    await this.prisma.instagramAnalytics.deleteMany({ where: { accountId } });
-    await this.prisma.schedulingRule.deleteMany({ where: { accountId } });
-    await this.prisma.webhookEvent.deleteMany({ where: { accountId } });
-    await this.prisma.webhookSubscription.deleteMany({ where: { accountId } });
-    await this.prisma.template.deleteMany({ where: { accountId } });
-
-    await this.prisma.account.delete({ where: { id: accountId } });
     return ok(undefined);
   }
 

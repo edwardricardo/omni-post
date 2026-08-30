@@ -29,7 +29,13 @@ export interface ReferralRewardEmailContext {
 export interface GrantRewardRepository {
   findReferralById(referralId: string): Promise<{
     id: string;
-    referralCodeId: string;
+    /**
+     * `null` once the referral code has been hard-deleted: the FK is
+     * `ON DELETE SET NULL` so the referral survives as history after the
+     * referrer's account is erased. A referral with no code has no referrer
+     * left to reward.
+     */
+    referralCodeId: string | null;
     rewardGranted: boolean;
     status: string;
   } | null>;
@@ -73,8 +79,23 @@ export class GrantReferralRewardUseCase implements UseCase<
 
       if (referral.rewardGranted) {
         alreadyRewarded = true;
-        const accountId = await this.repo.findReferrerAccountId(referral.referralCodeId);
+        const accountId =
+          referral.referralCodeId === null
+            ? null
+            : await this.repo.findReferrerAccountId(referral.referralCodeId);
         return ok({ rewardedAccountId: accountId ?? "", newExpiry: new Date() });
+      }
+
+      // An erased code leaves no id to resolve a referrer with, so the reward
+      // is refused instead of being granted to nobody. Same outcome as a code
+      // whose account is gone, reported before the pointless lookup.
+      if (referral.referralCodeId === null) {
+        return err(
+          new UseCaseError(
+            "Referrer account not found: the referral code no longer exists",
+            USE_CASE_ERRORS.NOT_FOUND
+          )
+        );
       }
 
       const referrerAccountId = await this.repo.findReferrerAccountId(referral.referralCodeId);

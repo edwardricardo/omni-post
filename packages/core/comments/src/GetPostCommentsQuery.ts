@@ -26,7 +26,12 @@ export interface GetPostCommentsQueryParams {
 export interface CommentDTO {
   id: string;
   postId: string;
-  authorId: string;
+  /**
+   * `null` when the author's user row was hard-deleted (`ON DELETE SET NULL`)
+   * and the comment survives as thread history. Readers must render an
+   * anonymous author rather than assume an id is always present.
+   */
+  authorId: string | null;
   body: string;
   mentions: string[];
   isEdited: boolean;

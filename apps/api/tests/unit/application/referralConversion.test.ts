@@ -9,9 +9,10 @@ import assert from "node:assert/strict";
 import { ConvertReferralUseCase } from "@core/referral/ConvertReferralUseCase.js";
 import { GrantReferralRewardUseCase } from "@core/referral/GrantReferralRewardUseCase.js";
 import { ok } from "@shared/types";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 function makeMockConvertRepo(
-  pending: { id: string; referralCodeId: string; status: string } | null = {
+  pending: { id: string; referralCodeId: string | null; status: string } | null = {
     id: "ref-1",
     referralCodeId: "code-1",
     status: "PENDING",
@@ -83,6 +84,22 @@ describe("ConvertReferralUseCase", () => {
 
     assert.ok(result.ok);
     assert.strictEqual(result.value.converted, false);
+  });
+
+  it("still converts when the referral code was erased, without touching its counter", async () => {
+    // `Referral.referralCodeId` is nullable + SET NULL: hard-deleting the
+    // referrer's account destroys the code but the referral survives as
+    // history. The conversion is a fact about the referred account, so it
+    // still happens; the counter it would have incremented no longer exists.
+    repo = makeMockConvertRepo({ id: "ref-1", referralCodeId: null, status: "PENDING" });
+    useCase = new ConvertReferralUseCase(repo, grantReward);
+
+    const result = await useCase.execute({ accountId: "acc-new" });
+
+    assert.ok(result.ok);
+    assert.strictEqual(result.value.converted, true);
+    expect(repo.setConverted).toHaveBeenCalledWith("ref-1", expect.any(Date));
+    expect(repo.incrementConversions).not.toHaveBeenCalled();
   });
 });
 
@@ -176,6 +193,22 @@ describe("GrantReferralRewardUseCase", () => {
     const result = await useCase.execute({ referralId: "nope" });
 
     assert.ok(!result.ok);
+  });
+
+  it("returns NOT_FOUND without a lookup when the referral code was erased", async () => {
+    // `Referral.referralCodeId` is nullable + SET NULL: the code (and with it
+    // the referrer it pointed at) can be hard-deleted while the referral row
+    // survives. There is no referrer left to reward, and no id to look one up
+    // with, so the reward is refused rather than granted to nobody.
+    const grantRepo = makeMockGrantRepo({ referralCodeId: null });
+    const useCase = new GrantReferralRewardUseCase(grantRepo);
+
+    const result = await useCase.execute({ referralId: "ref-1" });
+
+    assert.ok(!result.ok);
+    assert.strictEqual(result.error.code, USE_CASE_ERRORS.NOT_FOUND);
+    expect(grantRepo.findReferrerAccountId).not.toHaveBeenCalled();
+    expect(grantRepo.setRewardGranted).not.toHaveBeenCalled();
   });
 
   describe("email notification", () => {

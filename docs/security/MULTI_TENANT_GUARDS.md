@@ -218,6 +218,58 @@ Notification       NotificationPreference
 DataBreachReport
 ```
 
+### Promoting one of these is a MIGRATION, never a one-line edit to the Set
+
+`TENANT_SCOPED_MODELS` is not a policy switch. Every name in it is an
+**assertion that the row carries an `accountId` column** for the guard to filter
+on. Adding a name whose model has no such column does not tighten isolation — it
+takes the model OFFLINE. Measured against the committed guard and the generated
+client (`Post`, `PostContent` and `PostMedia` contain zero occurrences of
+`accountId`, versus 45 in `Channel`):
+
+| Bound context                        | What the guard does at `tenantGuardCheck` | Result on a column-less model                                                                       |
+| ------------------------------------ | ----------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| tenant (a normal logged-in customer) | injects `where.accountId`                 | ``PrismaClientValidationError: Unknown argument `accountId` `` — every read, write AND create fails |
+| none                                 | throws before reaching Prisma             | `TenantContextMissingError`                                                                         |
+| system (`withSystemContext()`)       | bypasses the guard entirely               | the query runs UNSCOPED                                                                             |
+
+Two consequences invert the intent and are the reason this note exists:
+
+1. **The failure lands on the HAPPY path.** It is the bound-tenant request — an
+   ordinary authenticated customer read — that dies, not the context-less one.
+   A premature enrollment reads like a stricter guard and behaves like an outage.
+2. **`withSystemContext()` is not the migration path.** It silences the error by
+   skipping isolation, which is the opposite of enrolling. Wrapping callers to
+   make the error go away converts every query on that model to cross-tenant.
+
+The only path is the one every Slice note below took. Required, in this order —
+the `Channel` pair is the template (`20260723000000_add_channel_account_id`, then
+`20260723000100_add_rls_channel`):
+
+1. **Audit the out-of-context callers FIRST**, because step 4 is what makes them
+   throw. Include the `apps/workers` executable: it runs the raw client with no
+   `$extends` (see §"Worker tenant scoping"), so it will NOT throw — it will
+   silently read zero rows once step 3 lands under a non-`BYPASSRLS` role.
+2. **Migration A** — `ADD COLUMN "accountId" TEXT` nullable, backfill over the FK
+   to the owning tenant-scoped parent, `RAISE EXCEPTION` if any row is still
+   NULL, `SET NOT NULL`, then the FK and a composite index. A model that reaches
+   its tenant-scoped ancestor only through an intermediate (`PostContent` and
+   `PostMedia` carry `postId`, not `projectId`) needs a multi-hop backfill.
+3. **Migration B** — the `tenant_isolation` RLS policy, sorting strictly AFTER
+   migration A, whose column the policy references.
+4. **The Set** — append the lowerCamel accessor to `TENANT_SCOPED_MODELS`.
+
+Steps 3 and 4 are not independently landable: `rls-tenant-isolation.test.ts`
+asserts a strict 1:1 between `getTenantScopedModels()` and the `tenant_isolation`
+rows in `pg_policies`, in BOTH directions, so the Set and the policies move in the
+same change or the suite goes red.
+
+`Post`, `PostContent` and `PostMedia` are owned by Slice 8 of
+`openspec/changes/project-scoped-tenant-guard/rollout-plan.md` (tier 4, gated by
+the Slice 6 out-of-context caller audit). Until that slice runs they stay on the
+transitively-scoped list above and are protected by the explicit
+`project: { accountId }` predicate, not by the guard.
+
 > **Note (Slice 1, 2026-07-14):** `ExternalNotificationConfig` was PROMOTED
 > from this transitively-scoped list to the tenant-scoped list above — it now
 > carries a non-null `accountId` (denormalized from `Project`) and is enrolled

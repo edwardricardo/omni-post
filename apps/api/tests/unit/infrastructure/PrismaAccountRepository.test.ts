@@ -37,7 +37,7 @@ function baseRow() {
 }
 
 function makeMockPrisma() {
-  return {
+  const models = {
     account: {
       findFirst: vi.fn(async () => baseRow()),
       findMany: vi.fn(async () => [baseRow()]),
@@ -47,8 +47,9 @@ function makeMockPrisma() {
       delete: vi.fn(async () => baseRow()),
     },
     project: {
-      findMany: vi.fn(async () => [] as { id: string }[]),
+      findMany: vi.fn(async () => [] as { id: string; name: string; createdAt: Date }[]),
     },
+    deletionRecord: { createMany: vi.fn(async () => ({ count: 1 })) },
     post: {
       findMany: vi.fn(async () => [] as { id: string }[]),
       deleteMany: vi.fn(async () => ({ count: 0 })),
@@ -71,6 +72,14 @@ function makeMockPrisma() {
     template: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     apiKey: { deleteMany: vi.fn(async () => ({ count: 0 })) },
   };
+  // `hardDelete` runs its whole FK-ordered cascade inside ONE transaction, so
+  // the double has to model `$transaction` like the real client does: hand the
+  // callback a transaction client. Handing back the same double keeps every
+  // per-model spy observable, and the spy on `$transaction` itself is what lets
+  // a test assert the cascade was atomic rather than a loose sequence of writes.
+  return Object.assign(models, {
+    $transaction: vi.fn(async (fn: (tx: typeof models) => Promise<unknown>) => fn(models)),
+  });
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -216,23 +225,135 @@ describe("PrismaAccountRepository", () => {
   });
 
   describe("hardDelete", () => {
+    const CONTEXT = { deletedBy: "admin-1" };
+    const PROJECT_ROWS = [
+      {
+        id: "b0000000-0000-4000-8000-000000000001",
+        name: "Alpha",
+        createdAt: new Date("2026-02-01"),
+      },
+      {
+        id: "b0000000-0000-4000-8000-000000000002",
+        name: "Beta",
+        createdAt: new Date("2026-03-01"),
+      },
+    ];
+
     it("returns ok and calls delete when account exists (even if soft-deleted)", async () => {
       const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
-      const result = await repo.hardDelete(id);
+      const result = await repo.hardDelete(id, CONTEXT);
 
       expect(result.ok).toBeTruthy();
       // Hard delete: calls the actual DB delete
       expect(prisma.account.delete.mock.calls.length).toBe(1);
     });
 
+    it("runs the whole cascade inside a single transaction", async () => {
+      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
+      await repo.hardDelete(id, CONTEXT);
+
+      // Atomicity is the point: without one transaction, a failure partway
+      // through leaves the tenant half-destroyed — its posts and channels
+      // already gone, the account row still there. A RESTRICT interlock
+      // elsewhere in the graph can still refuse the delete after the tombstones
+      // are written, so that failure is real.
+      expect(prisma.$transaction.mock.calls.length).toBe(1);
+    });
+
+    it("writes a tombstone for the account itself", async () => {
+      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
+      const before = Date.now();
+      await repo.hardDelete(id, CONTEXT);
+
+      expect(prisma.deletionRecord.createMany.mock.calls.length).toBe(1);
+      const args = prisma.deletionRecord.createMany.mock.calls[0]?.[0] as {
+        data: Array<Record<string, unknown>>;
+      };
+      const record = args.data.find((r) => r.entityType === "ACCOUNT") as Record<string, unknown>;
+      expect(record).toBeTruthy();
+      expect(record.entityId).toBe("a0000000-0000-4000-8000-000000000001");
+      // For an ACCOUNT record the owning account IS the entity.
+      expect(record.accountId).toBe("a0000000-0000-4000-8000-000000000001");
+      expect(record.name).toBe("Alice");
+      expect(record.clientSince).toEqual(new Date("2026-01-01"));
+      expect((record.clientUntil as Date).getTime()).toBeGreaterThanOrEqual(before);
+      expect(record.deletedBy).toBe("admin-1");
+    });
+
+    it("writes one extra tombstone per project the account drags along", async () => {
+      // The projects are destroyed by the database cascade, so their identity
+      // has to be captured from inside the transaction BEFORE the delete — after
+      // it there is nothing left to read.
+      prisma.project.findMany.mockResolvedValue(PROJECT_ROWS);
+      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
+      await repo.hardDelete(id, CONTEXT);
+
+      const args = prisma.deletionRecord.createMany.mock.calls[0]?.[0] as {
+        data: Array<Record<string, unknown>>;
+      };
+      expect(args.data.length).toBe(3); // 1 account + 2 projects
+      const projectRecords = args.data.filter((r) => r.entityType === "PROJECT");
+      expect(projectRecords.length).toBe(2);
+      expect(projectRecords.map((r) => r.entityId)).toEqual([
+        "b0000000-0000-4000-8000-000000000001",
+        "b0000000-0000-4000-8000-000000000002",
+      ]);
+      expect(projectRecords.map((r) => r.name)).toEqual(["Alpha", "Beta"]);
+      expect(projectRecords.map((r) => r.clientSince)).toEqual([
+        new Date("2026-02-01"),
+        new Date("2026-03-01"),
+      ]);
+      // A project tombstone still names the account it belonged to.
+      for (const record of projectRecords) {
+        expect(record.accountId).toBe("a0000000-0000-4000-8000-000000000001");
+        expect(record.deletedBy).toBe("admin-1");
+      }
+    });
+
+    it("writes the tombstones inside the same transaction as the delete", async () => {
+      prisma.project.findMany.mockResolvedValue(PROJECT_ROWS);
+      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
+      let txCallbackRan = false;
+      prisma.$transaction.mockImplementation(
+        async (fn: (tx: typeof prisma) => Promise<unknown>) => {
+          expect(prisma.deletionRecord.createMany.mock.calls.length).toBe(0);
+          expect(prisma.account.delete.mock.calls.length).toBe(0);
+          const out = await fn(prisma);
+          expect(prisma.deletionRecord.createMany.mock.calls.length).toBe(1);
+          expect(prisma.account.delete.mock.calls.length).toBe(1);
+          txCallbackRan = true;
+          return out;
+        }
+      );
+
+      await repo.hardDelete(id, CONTEXT);
+      expect(txCallbackRan).toBe(true);
+    });
+
+    it("does not delete the account when the tombstone write fails", async () => {
+      // No tombstone, no delete: a destruction with no durable record of what
+      // was destroyed is the exact outcome these records exist to prevent.
+      // Post-cascade-reduction this is also the only remaining write that can
+      // fail before the delete, so it is where a mid-transaction failure is
+      // planted (the hand-written FK cascade it replaced is gone — the database
+      // performs it now).
+      prisma.project.findMany.mockResolvedValue(PROJECT_ROWS);
+      prisma.deletionRecord.createMany.mockRejectedValue(new Error("tombstone write failed"));
+      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
+
+      await expect(repo.hardDelete(id, CONTEXT)).rejects.toThrow("tombstone write failed");
+      expect(prisma.account.delete.mock.calls.length).toBe(0);
+    });
+
     it("returns err(EntityNotFoundError) when account is not found at all", async () => {
       prisma.account.findFirst.mockImplementation(async () => null);
       const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
-      const result = await repo.hardDelete(id);
+      const result = await repo.hardDelete(id, CONTEXT);
 
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/Account/);
       expect(prisma.account.delete.mock.calls.length).toBe(0);
+      expect(prisma.deletionRecord.createMany.mock.calls.length).toBe(0);
     });
   });
 

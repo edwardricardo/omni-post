@@ -5,7 +5,7 @@
  */
 
 import { type Result } from "@shared/types";
-import { type Repository } from "./Repository.js";
+import { type HardDeleteContext, type Repository } from "./Repository.js";
 import { type Account } from "../entities/Account.js";
 import { type AccountId } from "../value-objects/EntityId.js";
 import { type EntityNotFoundError } from "../errors/index.js";
@@ -61,8 +61,13 @@ export interface AccountRepositoryPort {
   /**
    * Hard-delete an account and all its data (irreversible).
    * Only callable by SUPER_ADMIN. Cascades to projects, channels, posts, etc.
+   *
+   * Implementations MUST write the tombstones (`DeletionRecord`) — one for the
+   * account and one for every project it drags along — in the same transaction
+   * as the delete: no tombstone, no delete. `context` carries the acting
+   * principal, which nothing left behind by the delete could supply.
    */
-  hardDelete(id: AccountId): Promise<Result<void, EntityNotFoundError>>;
+  hardDelete(id: AccountId, context: HardDeleteContext): Promise<Result<void, EntityNotFoundError>>;
 
   /**
    * Check if an account exists (excludes soft-deleted accounts)

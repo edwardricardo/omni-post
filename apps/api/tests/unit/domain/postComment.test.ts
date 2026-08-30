@@ -220,3 +220,42 @@ describe("PostCommentAggregate predicates", () => {
     expect(comment.isReply()).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// PostCommentAggregate — comment whose author was erased
+// ---------------------------------------------------------------------------
+
+describe("PostCommentAggregate with an erased author", () => {
+  // `PostComment.authorId` is nullable + SET NULL: hard-deleting a customer
+  // user leaves the comment standing as thread history with no author. The
+  // aggregate has to be able to REPRESENT that — a comment that cannot be
+  // loaded is a comment silently missing from every thread.
+  const orphaned = (): PostCommentAggregate =>
+    PostCommentAggregate.reconstitute({
+      id: CommentId.fromStringUnsafe(VALID_UUID),
+      postId: "post-uuid-001",
+      authorId: null,
+      body: "Written by someone who no longer exists",
+      mentions: [],
+      isEdited: false,
+      createdAt: new Date("2026-01-01"),
+      updatedAt: new Date("2026-01-01"),
+      version: 1,
+    });
+
+  it("reconstitutes with a null author instead of inventing one", () => {
+    expect(orphaned().authorId).toBe(null);
+  });
+
+  it("refuses every edit, because nobody is the author any more", () => {
+    const comment = orphaned();
+    const result = comment.editBody("Rewritten body", OTHER_USER);
+    expect(result.ok).toBeFalsy();
+    expect(comment.body).toBe("Written by someone who no longer exists");
+  });
+
+  it("refuses a non-admin delete but still allows moderation", () => {
+    expect(orphaned().softDelete(OTHER_USER, false).ok).toBeFalsy();
+    expect(orphaned().softDelete(OTHER_USER, true).ok).toBeTruthy();
+  });
+});

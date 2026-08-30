@@ -57,6 +57,23 @@ export interface WriteRepository<T, TId extends EntityId> {
 }
 
 /**
+ * Caller context required by every irreversible `hardDelete`.
+ *
+ * A hard delete destroys the rows that carried an entity's identity, so the
+ * operation also writes a tombstone (`DeletionRecord`) recording what was
+ * destroyed and by whom, inside the same transaction as the delete. The
+ * principal cannot be recovered afterwards from anything the delete leaves
+ * behind, so it travels with the call rather than being looked up later.
+ *
+ * Required, not optional: an optional field would let a call site forget it and
+ * still compile, and the resulting tombstone would name nobody.
+ */
+export interface HardDeleteContext {
+  /** Admin principal executing the destruction; recorded on the tombstone. */
+  deletedBy: string;
+}
+
+/**
  * Pagination parameters
  */
 export interface PaginationParams {

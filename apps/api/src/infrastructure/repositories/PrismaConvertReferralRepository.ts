@@ -17,7 +17,7 @@ export class PrismaConvertReferralRepository implements ConvertReferralRepositor
    */
   async findPendingByAccountId(
     accountId: string
-  ): Promise<{ id: string; referralCodeId: string; status: string } | null> {
+  ): Promise<{ id: string; referralCodeId: string | null; status: string } | null> {
     const referral = await this.prisma.referral.findFirst({
       where: {
         referredAccountId: accountId,
