@@ -71,7 +71,7 @@ describe("PrismaThreadReadRepository", () => {
     const arg = prisma.thread.findMany.mock.calls[0]?.[0];
     expect(arg.where).toEqual({
       createdAt: { gte: start, lt: end },
-      post: { projectId: "proj-1" },
+      post: { projectId: "proj-1", deletedAt: null },
     });
     expect(arg.orderBy).toEqual({ createdAt: "desc" });
   });
@@ -84,7 +84,7 @@ describe("PrismaThreadReadRepository", () => {
     const arg = prisma.thread.findMany.mock.calls[0]?.[0];
     expect(arg.where).toEqual({
       createdAt: { gte: start, lt: end },
-      post: { project: { accountId: "acc-1" } },
+      post: { deletedAt: null, project: { accountId: "acc-1", deletedAt: null } },
     });
   });
 
@@ -92,7 +92,7 @@ describe("PrismaThreadReadRepository", () => {
     prisma.thread.findMany.mockResolvedValue([]);
     await repo.getByProjectId("proj-1");
     const arg = prisma.thread.findMany.mock.calls[0]?.[0];
-    expect(arg.where).toEqual({ post: { projectId: "proj-1" } });
+    expect(arg.where).toEqual({ post: { projectId: "proj-1", deletedAt: null } });
     expect(arg.include.tweets.orderBy).toEqual({ sequenceNumber: "asc" });
     expect(arg.include.post).toBeUndefined();
   });
@@ -101,7 +101,9 @@ describe("PrismaThreadReadRepository", () => {
     prisma.thread.findMany.mockResolvedValue([]);
     await repo.getByAccountId("acc-1");
     const arg = prisma.thread.findMany.mock.calls[0]?.[0];
-    expect(arg.where).toEqual({ post: { project: { accountId: "acc-1" } } });
+    expect(arg.where).toEqual({
+      post: { deletedAt: null, project: { accountId: "acc-1", deletedAt: null } },
+    });
   });
 
   it("countByProjectId counts threads filtered by post.projectId", async () => {
@@ -109,7 +111,7 @@ describe("PrismaThreadReadRepository", () => {
     const count = await repo.countByProjectId("proj-1");
     expect(count).toBe(7);
     expect(prisma.thread.count).toHaveBeenCalledWith({
-      where: { post: { projectId: "proj-1" } },
+      where: { post: { projectId: "proj-1", deletedAt: null } },
     });
   });
 });

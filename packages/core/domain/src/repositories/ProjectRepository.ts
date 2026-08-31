@@ -57,6 +57,15 @@ export interface ProjectRepositoryPort {
   findById(id: ProjectId): Promise<Result<Project, EntityNotFoundError>>;
 
   /**
+   * Find a project by its ID INCLUDING soft-deleted rows (no `deletedAt: null`
+   * filter). The deliberate counterpart to {@link findById}: the restore path
+   * needs the project's stored `accountId` for its ownership gate, and the row
+   * it is trying to restore is by definition soft-deleted, so the standard
+   * finder would never return it. Reserved for the restore use case.
+   */
+  findByIdIncludingDeleted(id: ProjectId): Promise<Result<Project, EntityNotFoundError>>;
+
+  /**
    * Find all projects belonging to an account
    */
   findByAccountId(accountId: AccountId): Promise<Project[]>;
@@ -73,6 +82,18 @@ export interface ProjectRepositoryPort {
   delete(id: ProjectId): Promise<Result<void, EntityNotFoundError>>;
 
   /**
+   * Restore a soft-deleted project (clears deletedAt = null), reversing the soft
+   * delete. Like {@link findByIdIncludingDeleted}, this is a deliberate exception
+   * to the `deletedAt: null` sweep — it exists to act on a soft-deleted row.
+   *
+   * Succeeds only when the row exists AND is currently soft-deleted. Returns
+   * EntityNotFoundError when the project is absent (never existed or was
+   * hard-deleted) OR is already active, so "restore a non-deleted row" is
+   * indistinguishable from "restore a row that does not exist" (anti-enumeration).
+   */
+  restore(id: ProjectId): Promise<Result<void, EntityNotFoundError>>;
+
+  /**
    * Hard-delete a project and all its data (irreversible).
    * Only callable by SUPER_ADMIN. Cascades to channels, posts, etc.
    *
@@ -81,6 +102,15 @@ export interface ProjectRepositoryPort {
    * the acting principal, which nothing left behind by the delete could supply.
    */
   hardDelete(id: ProjectId, context: HardDeleteContext): Promise<Result<void, EntityNotFoundError>>;
+
+  /**
+   * Estimate the blast radius of a hard delete: the number of posts the cascade
+   * would destroy for this project. Posts are the dominant per-row cascade cost,
+   * so this count is the pre-flight signal the hard-delete use case uses to
+   * refuse a project too large to remove in one transaction, before any
+   * destructive work begins. Cheap: a single aggregate, no rows materialized.
+   */
+  countHardDeleteImpact(id: ProjectId): Promise<number>;
 
   /**
    * Check if a project exists (excludes soft-deleted projects)

@@ -13,6 +13,16 @@
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PrismaProjectRepository } from "../../../src/infrastructure/repositories/PrismaProjectRepository.js";
 import { ProjectId, AccountId } from "@core/domain/index.js";
+import { toAdminActorId, type AdminActorId } from "@core/domain/value-objects/AdminActorId.js";
+
+/** Construct a branded admin actor id for the hard-delete context (throws on bad setup). */
+function actorId(raw: string): AdminActorId {
+  const result = toAdminActorId(raw);
+  if (!result.ok) {
+    throw new Error(`test setup: invalid admin actor id ${raw}`);
+  }
+  return result.value;
+}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -46,6 +56,7 @@ function makeMockPrisma() {
     post: {
       findMany: vi.fn(async () => [] as { id: string }[]),
       deleteMany: vi.fn(async () => ({ count: 0 })),
+      count: vi.fn(async () => 0),
     },
     publishLog: {
       deleteMany: vi.fn(async () => ({ count: 0 })),
@@ -66,7 +77,11 @@ function makeMockPrisma() {
     webhookEvent: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     webhookSubscription: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     template: { deleteMany: vi.fn(async () => ({ count: 0 })) },
-    deletionRecord: { createMany: vi.fn(async () => ({ count: 1 })) },
+    // Model the real client: createMany reports how many rows it inserted, so the
+    // repository's tombstone-count integrity check sees a truthful number.
+    deletionRecord: {
+      createMany: vi.fn(async (args: { data: unknown[] }) => ({ count: args.data.length })),
+    },
   };
   // `hardDelete` runs its whole FK-ordered cascade inside ONE transaction, so
   // the double has to model `$transaction` like the real client does: hand the
@@ -197,8 +212,78 @@ describe("PrismaProjectRepository", () => {
     });
   });
 
+  describe("findByIdIncludingDeleted", () => {
+    it("returns ok(project) WITHOUT a deletedAt: null filter so a soft-deleted row is reachable", async () => {
+      let capturedWhere: Record<string, unknown> | undefined;
+      prisma.project.findFirst.mockImplementation(
+        async (args: { where: Record<string, unknown> }) => {
+          capturedWhere = args.where;
+          return { ...baseRow(), deletedAt: new Date("2026-02-01") };
+        }
+      );
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+      const result = await repo.findByIdIncludingDeleted(id);
+
+      expect(result.ok).toBeTruthy();
+      expect(result.value.accountId.value).toBe("a0000000-0000-4000-8000-000000000001");
+      // The distinguishing property vs findById: NO deletedAt filter in the where.
+      expect(capturedWhere && "deletedAt" in capturedWhere).toBe(false);
+    });
+
+    it("returns err(EntityNotFoundError) when no row carries the id", async () => {
+      prisma.project.findFirst.mockImplementation(async () => null);
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+      const result = await repo.findByIdIncludingDeleted(id);
+
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Project/);
+    });
+  });
+
+  describe("restore (reverse soft delete)", () => {
+    it("clears deletedAt (update, never delete) when a soft-deleted project exists", async () => {
+      prisma.project.findFirst.mockImplementation(async () => ({
+        ...baseRow(),
+        deletedAt: new Date("2026-02-01"),
+      }));
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+      const result = await repo.restore(id);
+
+      expect(result.ok).toBeTruthy();
+      expect(prisma.project.update.mock.calls.length).toBe(1);
+      expect(prisma.project.delete.mock.calls.length).toBe(0);
+      const args = prisma.project.update.mock.calls[0]?.[0] as
+        { data: { deletedAt: unknown } } | undefined;
+      expect(args?.data.deletedAt).toBe(null);
+    });
+
+    it("queries only rows that are soft-deleted (NOT deletedAt: null)", async () => {
+      let capturedWhere: Record<string, unknown> | undefined;
+      prisma.project.findFirst.mockImplementation(
+        async (args: { where: Record<string, unknown> }) => {
+          capturedWhere = args.where;
+          return { ...baseRow(), deletedAt: new Date("2026-02-01") };
+        }
+      );
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+      await repo.restore(id);
+
+      expect(capturedWhere?.NOT).toEqual({ deletedAt: null });
+    });
+
+    it("returns err(EntityNotFoundError) and does not update when no soft-deleted row exists", async () => {
+      prisma.project.findFirst.mockImplementation(async () => null);
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+      const result = await repo.restore(id);
+
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Project/);
+      expect(prisma.project.update.mock.calls.length).toBe(0);
+    });
+  });
+
   describe("hardDelete", () => {
-    const CONTEXT = { deletedBy: "admin-1" };
+    const CONTEXT = { deletedBy: actorId("admin-1"), reason: "GDPR erasure request" };
 
     it("returns ok and calls delete when project exists (even if soft-deleted)", async () => {
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
@@ -275,6 +360,43 @@ describe("PrismaProjectRepository", () => {
 
       await expect(repo.hardDelete(id, CONTEXT)).rejects.toThrow("tombstone write failed");
       expect(prisma.project.delete.mock.calls.length).toBe(0);
+    });
+
+    it("aborts the delete when createMany reports fewer rows than the tombstone handed it", async () => {
+      // A silent short write would leave the row destroyed with no tombstone. The
+      // count is ASSERTED, not assumed: a mismatch (0 written vs the 1 handed in)
+      // throws before the delete, so nothing is destroyed without its record.
+      prisma.deletionRecord.createMany.mockResolvedValue({ count: 0 });
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+
+      await expect(repo.hardDelete(id, CONTEXT)).rejects.toThrow(
+        /Tombstone integrity check failed/
+      );
+      expect(prisma.project.delete.mock.calls.length).toBe(0);
+    });
+
+    it("runs its standalone transaction at Serializable isolation with an explicit timeout", async () => {
+      // When no outer Unit of Work is active the repository owns the transaction,
+      // so it must set the bounds itself: Serializable and a real timeout budget.
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+      await repo.hardDelete(id, CONTEXT);
+
+      const options = prisma.$transaction.mock.calls[0]?.[1] as
+        { isolationLevel?: unknown; timeout?: unknown } | undefined;
+      expect(options?.isolationLevel).toBe("Serializable");
+      expect(typeof options?.timeout).toBe("number");
+      expect(options?.timeout as number).toBeGreaterThan(0);
+    });
+
+    it("countHardDeleteImpact returns the number of posts the cascade would destroy", async () => {
+      prisma.post.count.mockResolvedValue(1234);
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+
+      const impact = await repo.countHardDeleteImpact(id);
+
+      expect(impact).toBe(1234);
+      const where = prisma.post.count.mock.calls[0]?.[0] as { where?: Record<string, unknown> };
+      expect(where?.where).toEqual({ projectId: id.value });
     });
 
     it("returns err(EntityNotFoundError) when project is not found at all", async () => {

@@ -84,7 +84,7 @@ export class PrismaThreadReadRepository implements ThreadReadRepositoryPort {
     const rows = await this.prisma.thread.findMany({
       where: {
         createdAt: { gte: start, lt: end },
-        post: { projectId },
+        post: { projectId, deletedAt: null },
       },
       include: THREAD_WITH_RELATIONS_INCLUDE,
       orderBy: { createdAt: "desc" },
@@ -104,7 +104,7 @@ export class PrismaThreadReadRepository implements ThreadReadRepositoryPort {
     const rows = await this.prisma.thread.findMany({
       where: {
         createdAt: { gte: start, lt: end },
-        post: { project: { accountId } },
+        post: { deletedAt: null, project: { accountId, deletedAt: null } },
       },
       include: THREAD_WITH_RELATIONS_INCLUDE,
       orderBy: { createdAt: "desc" },
@@ -117,7 +117,7 @@ export class PrismaThreadReadRepository implements ThreadReadRepositoryPort {
    */
   async getByProjectId(projectId: string): Promise<ThreadWithTweets[]> {
     const rows = await this.prisma.thread.findMany({
-      where: { post: { projectId } },
+      where: { post: { projectId, deletedAt: null } },
       include: THREAD_WITH_TWEETS_INCLUDE,
     });
     return rows as unknown as ThreadWithTweets[];
@@ -128,7 +128,7 @@ export class PrismaThreadReadRepository implements ThreadReadRepositoryPort {
    */
   async getByAccountId(accountId: string): Promise<ThreadWithTweets[]> {
     const rows = await this.prisma.thread.findMany({
-      where: { post: { project: { accountId } } },
+      where: { post: { deletedAt: null, project: { accountId, deletedAt: null } } },
       include: THREAD_WITH_TWEETS_INCLUDE,
     });
     return rows as unknown as ThreadWithTweets[];
@@ -139,7 +139,7 @@ export class PrismaThreadReadRepository implements ThreadReadRepositoryPort {
    */
   async countByProjectId(projectId: string): Promise<number> {
     return this.prisma.thread.count({
-      where: { post: { projectId } },
+      where: { post: { projectId, deletedAt: null } },
     });
   }
 }

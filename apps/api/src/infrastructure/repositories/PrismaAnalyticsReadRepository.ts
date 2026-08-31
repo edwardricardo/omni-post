@@ -78,7 +78,7 @@ export class PrismaAnalyticsReadRepository implements AnalyticsReadRepositoryPor
     options: AnalyticsQueryOptions = {}
   ): Promise<AnalyticsDto[]> {
     const posts = await this.prisma.post.findMany({
-      where: { projectId },
+      where: { projectId, deletedAt: null },
       select: { id: true },
     });
     const postIds = posts.map((p) => p.id);
@@ -222,7 +222,7 @@ export class PrismaAnalyticsReadRepository implements AnalyticsReadRepositoryPor
     options: AnalyticsQueryOptions = {}
   ): Promise<PostWithAnalyticsAndContent[]> {
     const rows = await this.prisma.post.findMany({
-      where: { projectId },
+      where: { projectId, deletedAt: null },
       include: {
         analytics: {
           where: {

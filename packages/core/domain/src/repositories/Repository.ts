@@ -6,6 +6,7 @@
 
 import { type Result } from "@shared/types";
 import { EntityId } from "../value-objects/EntityId.js";
+import { type AdminActorId } from "../value-objects/AdminActorId.js";
 import { EntityNotFoundError } from "../errors/index.js";
 
 /**
@@ -69,8 +70,20 @@ export interface WriteRepository<T, TId extends EntityId> {
  * still compile, and the resulting tombstone would name nobody.
  */
 export interface HardDeleteContext {
-  /** Admin principal executing the destruction; recorded on the tombstone. */
-  deletedBy: string;
+  /**
+   * Admin principal executing the destruction; recorded on the tombstone.
+   * Branded ({@link AdminActorId}) so a missing principal cannot be papered over
+   * with a placeholder string such as `"unknown"` — that no longer type-checks.
+   */
+  deletedBy: AdminActorId;
+  /**
+   * Operator-supplied reason for the destruction. It rides with the call so the
+   * tombstone can record WHY a tenant's data was destroyed, not only who did it.
+   * Threaded end-to-end here now; persisting it onto `DeletionRecord` awaits the
+   * `reason` column added by the schema pass, at which point the write is a
+   * one-line change rather than a re-plumb of the whole call chain.
+   */
+  reason: string;
 }
 
 /**

@@ -12,6 +12,7 @@ import { Account, AccountId, EntityNotFoundError } from "@core/domain/index.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 import type { HardDeleteContext } from "@core/domain/repositories/Repository.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
 
 /** Local type alias for Prisma transaction client */
 type TxClient = Prisma.TransactionClient;
@@ -176,6 +177,34 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   }
 
   /**
+   * Restore a soft-deleted account by clearing deletedAt = null, reversing the
+   * soft delete so standard reads return it again.
+   *
+   * DELIBERATE soft-delete-sweep exception: the finder targets a row that IS
+   * currently soft-deleted (`NOT: { deletedAt: null }`) — the one query in this
+   * adapter that does not filter `deletedAt: null`, because its whole purpose is
+   * to act on a soft-deleted row. A row that is absent (never existed or
+   * hard-deleted) or already active is not restorable and yields
+   * EntityNotFoundError, so "restore a non-deleted row" is indistinguishable from
+   * "restore a row that does not exist" (anti-enumeration).
+   */
+  async restore(id: AccountId): Promise<Result<void, EntityNotFoundError>> {
+    const softDeleted = await this.prisma.account.findFirst({
+      where: { id: id.value, NOT: { deletedAt: null } },
+      select: { id: true },
+    });
+    if (!softDeleted) {
+      return err(new EntityNotFoundError("Account", id.value));
+    }
+
+    await this.prisma.account.update({
+      where: { id: id.value },
+      data: { deletedAt: null },
+    });
+    return ok(undefined);
+  }
+
+  /**
    * Hard-delete an account and everything it owns. SUPER_ADMIN only —
    * irreversible.
    *
@@ -228,28 +257,40 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
       const projectIds = projects.map((p) => p.id);
 
       const clientUntil = new Date();
-      await tx.deletionRecord.createMany({
-        data: [
-          {
-            entityType: "ACCOUNT",
-            entityId: account.id,
-            name: account.name,
-            accountId,
-            clientSince: account.createdAt,
-            clientUntil,
-            deletedBy: context.deletedBy,
-          },
-          ...projects.map((project) => ({
-            entityType: "PROJECT",
-            entityId: project.id,
-            name: project.name,
-            accountId,
-            clientSince: project.createdAt,
-            clientUntil,
-            deletedBy: context.deletedBy,
-          })),
-        ],
-      });
+      const tombstones = [
+        {
+          entityType: "ACCOUNT",
+          entityId: account.id,
+          name: account.name,
+          accountId,
+          clientSince: account.createdAt,
+          clientUntil,
+          deletedBy: context.deletedBy,
+        },
+        ...projects.map((project) => ({
+          entityType: "PROJECT",
+          entityId: project.id,
+          name: project.name,
+          accountId,
+          clientSince: project.createdAt,
+          clientUntil,
+          deletedBy: context.deletedBy,
+        })),
+      ];
+      const written = await tx.deletionRecord.createMany({ data: tombstones });
+
+      // Assert the tombstone write rather than assume it: one row for the account
+      // plus one per project it drags along. If `createMany` inserted fewer than
+      // that, the durable record of what is about to be destroyed is incomplete,
+      // so we abort the whole transaction (delete included) instead of destroying
+      // rows no tombstone describes.
+      if (written.count !== tombstones.length) {
+        throw new Error(
+          `Tombstone integrity check failed for account ${accountId}: expected ` +
+            `${tombstones.length} DeletionRecord row(s) (1 account + ${projects.length} ` +
+            `project(s)), createMany reported ${written.count}`
+        );
+      }
 
       await tx.webhookEvent.deleteMany({
         where: {
@@ -265,15 +306,32 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
     };
 
     const activeTx = PrismaUnitOfWork.getTransactionClient();
+    // When an outer Unit of Work is active the delete JOINS it (the hard-delete
+    // use case opens a Serializable UoW under `withSystemContext`, which is what
+    // binds the `app.account_id` RLS GUC and pins the isolation level so the
+    // tombstone snapshot cannot miss a concurrently inserted project). Only the
+    // standalone branch owns a transaction, so it carries the same bounds itself.
     const deleted = activeTx
       ? await doHardDelete(activeTx)
-      : await this.prisma.$transaction(doHardDelete);
+      : await this.prisma.$transaction(doHardDelete, HARD_DELETE_TX_OPTIONS);
 
     if (!deleted) {
       return err(new EntityNotFoundError("Account", accountId));
     }
 
     return ok(undefined);
+  }
+
+  /**
+   * Estimate the blast radius of a hard delete: the number of posts the cascade
+   * would destroy across every project of the account (soft-deleted projects
+   * included — the cascade takes them too). Posts are the dominant per-row
+   * cascade cost, so the hard-delete use case uses this to refuse a tenant too
+   * large to remove in one transaction before any destructive work begins. A
+   * single aggregate, no rows materialized.
+   */
+  async countHardDeleteImpact(id: AccountId): Promise<number> {
+    return this.prisma.post.count({ where: { project: { accountId: id.value } } });
   }
 
   /**

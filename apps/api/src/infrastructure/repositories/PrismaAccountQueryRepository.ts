@@ -31,13 +31,14 @@ export class PrismaAccountQueryRepository implements AccountQueryRepositoryPort 
   /**
    * Find an account with its projects relation.
    *
-   * Uses findUnique (exact ID match) — no soft-delete filtering applied
-   * here because billing services need to read accounts even during
-   * suspension states.
+   * Excludes soft-deleted accounts (`deletedAt: null`): a soft-deleted account is
+   * deleted, not suspended — suspension is a subscription-status flag, deletion is
+   * `deletedAt`. Uses findFirst (not findUnique) because `deletedAt` is not a unique
+   * column and cannot be added to a findUnique where.
    */
   async findWithProjects(accountId: string): Promise<Result<AccountWithProjects, "NOT_FOUND">> {
-    const account = await this.prisma.account.findUnique({
-      where: { id: accountId },
+    const account = await this.prisma.account.findFirst({
+      where: { id: accountId, deletedAt: null },
       include: { projects: true },
     });
 
@@ -53,7 +54,7 @@ export class PrismaAccountQueryRepository implements AccountQueryRepositoryPort 
    */
   async findManyWithProjects(accountIds: string[]): Promise<AccountWithProjects[]> {
     const rows = await this.prisma.account.findMany({
-      where: { id: { in: accountIds } },
+      where: { id: { in: accountIds }, deletedAt: null },
       include: { projects: true },
     });
     return rows as unknown as AccountWithProjects[];
@@ -66,8 +67,8 @@ export class PrismaAccountQueryRepository implements AccountQueryRepositoryPort 
    * (e.g., audit logging in suspendSubscription).
    */
   async findById(accountId: string): Promise<Result<AccountDto, "NOT_FOUND">> {
-    const account = await this.prisma.account.findUnique({
-      where: { id: accountId },
+    const account = await this.prisma.account.findFirst({
+      where: { id: accountId, deletedAt: null },
     });
 
     if (!account) return err("NOT_FOUND");
@@ -80,8 +81,8 @@ export class PrismaAccountQueryRepository implements AccountQueryRepositoryPort 
    * Email is normalized to lowercase before the query.
    */
   async findByEmail(email: string): Promise<Result<AccountDto, "NOT_FOUND">> {
-    const account = await this.prisma.account.findUnique({
-      where: { email: email.toLowerCase() },
+    const account = await this.prisma.account.findFirst({
+      where: { email: email.toLowerCase(), deletedAt: null },
     });
 
     if (!account) return err("NOT_FOUND");
@@ -130,6 +131,7 @@ export class PrismaAccountQueryRepository implements AccountQueryRepositoryPort 
 
     const rows = await this.prisma.account.findMany({
       where: {
+        deletedAt: null,
         isOnTrial: true,
         trialEndDate: {
           lte: thresholdDate,
@@ -148,6 +150,7 @@ export class PrismaAccountQueryRepository implements AccountQueryRepositoryPort 
   async findExpiringTrials(now: Date, until: Date): Promise<AccountWithProjects[]> {
     const rows = await this.prisma.account.findMany({
       where: {
+        deletedAt: null,
         isOnTrial: true,
         trialEndDate: { gte: now, lte: until },
       },
@@ -164,6 +167,7 @@ export class PrismaAccountQueryRepository implements AccountQueryRepositoryPort 
   async findAutoRenewableExpired(now: Date): Promise<AccountWithProjects[]> {
     const rows = await this.prisma.account.findMany({
       where: {
+        deletedAt: null,
         isOnTrial: true,
         autoRenewal: true,
         trialEndDate: { lte: now },
@@ -182,11 +186,19 @@ export class PrismaAccountQueryRepository implements AccountQueryRepositoryPort 
 
     const [totalTrials, activeTrials, expiredTrials, converted, startedThisMonth] =
       await Promise.all([
-        this.prisma.account.count({ where: { isOnTrial: true } }),
-        this.prisma.account.count({ where: { isOnTrial: true, trialEndDate: { gte: now } } }),
-        this.prisma.account.count({ where: { isOnTrial: true, trialEndDate: { lt: now } } }),
-        this.prisma.account.count({ where: { isOnTrial: false, trialEndDate: { not: null } } }),
-        this.prisma.account.count({ where: { trialStartDate: { gte: thirtyDaysAgo } } }),
+        this.prisma.account.count({ where: { deletedAt: null, isOnTrial: true } }),
+        this.prisma.account.count({
+          where: { deletedAt: null, isOnTrial: true, trialEndDate: { gte: now } },
+        }),
+        this.prisma.account.count({
+          where: { deletedAt: null, isOnTrial: true, trialEndDate: { lt: now } },
+        }),
+        this.prisma.account.count({
+          where: { deletedAt: null, isOnTrial: false, trialEndDate: { not: null } },
+        }),
+        this.prisma.account.count({
+          where: { deletedAt: null, trialStartDate: { gte: thirtyDaysAgo } },
+        }),
       ]);
 
     return { totalTrials, activeTrials, expiredTrials, converted, startedThisMonth };

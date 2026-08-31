@@ -17,6 +17,7 @@ import {
   EntityNotFoundError,
 } from "@core/domain/index.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
 import type { ContentLocale } from "@core/domain/value-objects/Content.js";
 import type {
   ProjectRepositoryPort,
@@ -118,6 +119,29 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
+   * Find a project by its ID INCLUDING soft-deleted rows. The deliberate
+   * counterpart to {@link findById}: it does NOT filter `deletedAt: null`,
+   * because the restore path needs the stored `accountId` of a row that is by
+   * definition soft-deleted. Reserved for the restore use case; every other read
+   * path keeps the `deletedAt: null` sweep.
+   */
+  async findByIdIncludingDeleted(id: ProjectId): Promise<Result<Project, EntityNotFoundError>> {
+    const row = await this.prisma.project.findFirst({
+      where: { id: id.value },
+      include: {
+        channels: { select: { id: true } },
+        posts: { select: { id: true } },
+      },
+    });
+
+    if (!row) {
+      return err(new EntityNotFoundError("Project", id.value));
+    }
+
+    return ok(toDomain(row));
+  }
+
+  /**
    * Find all projects belonging to an account (excludes soft-deleted projects)
    */
   async findByAccountId(accountId: AccountId): Promise<Project[]> {
@@ -193,6 +217,36 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
+   * Restore a soft-deleted project by clearing deletedAt = null, reversing the
+   * soft delete so standard reads return it again.
+   *
+   * DELIBERATE soft-delete-sweep exception: the finder targets a row that IS
+   * currently soft-deleted (`NOT: { deletedAt: null }`) — the one write path here
+   * that does not filter `deletedAt: null`, because its whole purpose is to act
+   * on a soft-deleted row. A row that is absent (never existed / hard-deleted) or
+   * already active is not restorable and yields EntityNotFoundError, so "restore
+   * a non-deleted row" is indistinguishable from "restore a row that does not
+   * exist" (anti-enumeration). Under a customer tenant context the tenant guard
+   * additionally injects `accountId`, so a foreign tenant's row is invisible here
+   * as well (defense in depth over the use-case ownership gate).
+   */
+  async restore(id: ProjectId): Promise<Result<void, EntityNotFoundError>> {
+    const softDeleted = await this.prisma.project.findFirst({
+      where: { id: id.value, NOT: { deletedAt: null } },
+      select: { id: true },
+    });
+    if (!softDeleted) {
+      return err(new EntityNotFoundError("Project", id.value));
+    }
+
+    await this.prisma.project.update({
+      where: { id: id.value },
+      data: { deletedAt: null },
+    });
+    return ok(undefined);
+  }
+
+  /**
    * Hard-delete a project. SUPER_ADMIN only — irreversible.
    *
    * The delete order lives in the schema, not here. Every owned child —
@@ -230,34 +284,61 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
         return false;
       }
 
-      await tx.deletionRecord.createMany({
-        data: [
-          {
-            entityType: "PROJECT",
-            entityId: snapshot.id,
-            name: snapshot.name,
-            accountId: snapshot.accountId,
-            clientSince: snapshot.createdAt,
-            clientUntil: new Date(),
-            deletedBy: context.deletedBy,
-          },
-        ],
-      });
+      const tombstones = [
+        {
+          entityType: "PROJECT",
+          entityId: snapshot.id,
+          name: snapshot.name,
+          accountId: snapshot.accountId,
+          clientSince: snapshot.createdAt,
+          clientUntil: new Date(),
+          deletedBy: context.deletedBy,
+        },
+      ];
+      const written = await tx.deletionRecord.createMany({ data: tombstones });
+
+      // Assert the tombstone write rather than assume it: if `createMany`
+      // inserted fewer rows than we handed it, the durable record of what is
+      // about to be destroyed is incomplete, so we abort the whole transaction
+      // (delete included) instead of destroying a row no tombstone describes.
+      if (written.count !== tombstones.length) {
+        throw new Error(
+          `Tombstone integrity check failed for project ${id.value}: expected ` +
+            `${tombstones.length} DeletionRecord row(s), createMany reported ${written.count}`
+        );
+      }
 
       await tx.project.delete({ where: { id: id.value } });
       return true;
     };
 
     const activeTx = PrismaUnitOfWork.getTransactionClient();
+    // When an outer Unit of Work is active the delete JOINS it (the hard-delete
+    // use case opens a Serializable UoW under `withSystemContext`, which is what
+    // binds the `app.account_id` RLS GUC and pins the isolation level). Only the
+    // standalone branch owns a transaction, so it carries the same bounds itself
+    // (Serializable snapshot + explicit timeout) — direct callers and tests get
+    // the same guarantees as the production path.
     const deleted = activeTx
       ? await doHardDelete(activeTx)
-      : await this.prisma.$transaction(doHardDelete);
+      : await this.prisma.$transaction(doHardDelete, HARD_DELETE_TX_OPTIONS);
 
     if (!deleted) {
       return err(new EntityNotFoundError("Project", id.value));
     }
 
     return ok(undefined);
+  }
+
+  /**
+   * Estimate the blast radius of a hard delete: the number of posts the cascade
+   * would destroy for this project. Posts are the dominant per-row cascade cost,
+   * so the hard-delete use case uses this to refuse a project too large to remove
+   * in one transaction before any destructive work begins. A single aggregate,
+   * no rows materialized.
+   */
+  async countHardDeleteImpact(id: ProjectId): Promise<number> {
+    return this.prisma.post.count({ where: { projectId: id.value } });
   }
 
   /**
@@ -292,7 +373,7 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
    */
   async findPublishLogsByProjectId(id: ProjectId): Promise<PublishLogView[]> {
     const logs = await this.prisma.publishLog.findMany({
-      where: { post: { projectId: id.value } },
+      where: { post: { projectId: id.value, deletedAt: null } },
       include: {
         channel: { select: { id: true, handle: true, provider: true } },
       },

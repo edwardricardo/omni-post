@@ -84,6 +84,48 @@ export const USE_CASE_ERRORS = {
    * and reason so the user can retry with corrected content.
    */
   GUARDRAIL_REJECTED: "GUARDRAIL_REJECTED",
+  /**
+   * The operation is well-formed and authorized but its blast radius exceeds a
+   * bound the system will attempt atomically (e.g. a hard delete whose cascade
+   * would touch more rows than one transaction can safely carry). Not retryable
+   * as-is — the caller must reduce the scope first or use a chunked path. The
+   * error message names the measured size and the ceiling. Caller should surface
+   * it as an actionable "too large" response, not a generic 500.
+   */
+  OPERATION_TOO_LARGE: "OPERATION_TOO_LARGE",
+  /**
+   * A persistence failure that may succeed on retry: a transaction timeout, or a
+   * write conflict / serialization failure under a Serializable transaction.
+   * Distinct from `INTERNAL_ERROR` (unknown, do not blindly retry) and `CONFLICT`
+   * (a durable interlock that will keep failing). Caller should surface it as a
+   * retryable "temporarily unavailable" response.
+   */
+  TRANSIENT_FAILURE: "TRANSIENT_FAILURE",
 } as const;
 
 export type UseCaseErrorCode = (typeof USE_CASE_ERRORS)[keyof typeof USE_CASE_ERRORS];
+
+/**
+ * @function classifyPersistenceFailure
+ * @description Maps a caught persistence-layer failure to a use-case error code by its portable
+ *              SQLSTATE-style code, WITHOUT importing any ORM type — so the application layer
+ *              stays framework-free. The codes are the stable identifiers the data layer surfaces
+ *              on a known request failure:
+ *                - `P2003` foreign-key interlock (a RESTRICT relationship blocks the delete) →
+ *                  `CONFLICT`: durable, never retryable; the caller must remove the blocker first.
+ *                - `P2028` transaction timeout, `P2034` write conflict / deadlock (serialization
+ *                  failure under a Serializable transaction) → `TRANSIENT_FAILURE`: retryable.
+ *              Anything else is an unknown failure → `INTERNAL_ERROR`.
+ * @param error - The value caught from a repository/transaction call.
+ * @returns The use-case error code that best classifies the failure.
+ */
+export function classifyPersistenceFailure(error: unknown): UseCaseErrorCode {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (code === "P2003") {
+    return USE_CASE_ERRORS.CONFLICT;
+  }
+  if (code === "P2028" || code === "P2034") {
+    return USE_CASE_ERRORS.TRANSIENT_FAILURE;
+  }
+  return USE_CASE_ERRORS.INTERNAL_ERROR;
+}

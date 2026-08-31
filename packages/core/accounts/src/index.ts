@@ -15,3 +15,8 @@ export {
   type HardDeleteAccountCaller,
   type HardDeleteAccountInput,
 } from "./HardDeleteAccountUseCase.js";
+export {
+  RestoreAccountUseCase,
+  type RestoreAccountCaller,
+  type RestoreAccountInput,
+} from "./RestoreAccountUseCase.js";

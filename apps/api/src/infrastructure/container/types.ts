@@ -82,8 +82,10 @@ export const TOKENS = {
   // customer-facing call site cannot resolve it by mistake.
   DeleteProjectUseCase: Symbol.for("DeleteProjectUseCase"),
   HardDeleteProjectUseCase: Symbol.for("HardDeleteProjectUseCase"),
+  RestoreProjectUseCase: Symbol.for("RestoreProjectUseCase"),
   DeleteAccountUseCase: Symbol.for("DeleteAccountUseCase"),
   HardDeleteAccountUseCase: Symbol.for("HardDeleteAccountUseCase"),
+  RestoreAccountUseCase: Symbol.for("RestoreAccountUseCase"),
 
   // Use Cases (post scheduling)
   SchedulePostUseCase: Symbol.for("SchedulePostUseCase"),

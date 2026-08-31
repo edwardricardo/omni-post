@@ -14,10 +14,18 @@ import { SecureSchemas } from "../security/inputValidation.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
+import { requireCustomerPermission, CustomerPermission } from "../auth/customerRbacMiddleware.js";
+import { requireCustomerOrAdminAuth } from "../auth/customerOrAdminAuth.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { withSystemContext } from "../security/tenantContext.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import type { DeleteProjectUseCase, HardDeleteProjectUseCase } from "@core/projects/index.js";
+import { toAdminActorId } from "@core/domain/value-objects/AdminActorId.js";
+import type {
+  DeleteProjectUseCase,
+  HardDeleteProjectUseCase,
+  RestoreProjectUseCase,
+} from "@core/projects/index.js";
+import { mapHardDeleteError } from "../lib/hardDeleteErrorMapping.js";
 import { AuditActions, AuditResources, type AuditService } from "../audit/auditService.js";
 
 // Zod Schemas for Validation
@@ -58,6 +66,7 @@ class ProjectRouteHandler extends BaseRouteHandler {
     private readonly prisma: PrismaClient,
     private readonly deleteProjectUseCase: DeleteProjectUseCase,
     private readonly hardDeleteProjectUseCase: HardDeleteProjectUseCase,
+    private readonly restoreProjectUseCase: RestoreProjectUseCase,
     private readonly auditService: AuditService
   ) {
     super();
@@ -272,7 +281,7 @@ class ProjectRouteHandler extends BaseRouteHandler {
       }
 
       const publishLogs = await this.prisma.publishLog.findMany({
-        where: { post: { projectId } },
+        where: { post: { projectId, deletedAt: null } },
         orderBy: { createdAt: "desc" },
         take: 50,
       });
@@ -344,6 +353,78 @@ class ProjectRouteHandler extends BaseRouteHandler {
   }
 
   /**
+   * Restore Project (reverse of the soft delete)
+   * POST /projects/:projectId/restore
+   *
+   * Clears `deletedAt` so a soft-deleted project is visible again. Reachable by
+   * the OWNER (self-service undo) OR by an admin (support recovery) — the
+   * "admin-or-owner" surface via the composed `requireCustomerOrAdminAuth`, so
+   * exactly one of `request.customerUser` / `request.auth` is set here:
+   *   - customer: must hold the OWNER-only `account:delete` permission (same gate
+   *     as the delete it reverses); ownership-gated by the use case against the
+   *     soft-deleted row's stored account.
+   *   - admin: runs under `withSystemContext`, because `Project` is tenant-guard
+   *     enrolled and admin auth binds no tenant scope; skips the ownership gate.
+   * NOT_FOUND covers "no such project", "already active" and "not yours" — the
+   * use case makes them indistinguishable (anti-enumeration), mirroring delete.
+   */
+  async restoreProject(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    this.logInfo(ctx, "Restoring project");
+
+    const params = ProjectIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return this.sendError(ctx, 400, "Invalid project ID");
+    }
+    const { projectId } = params.data;
+
+    const customer = request.customerUser;
+    const admin = request.auth;
+
+    let result;
+    if (customer) {
+      // The owner-level gate, same permission as the delete this reverses.
+      if (!customer.permissions.includes(CustomerPermission.ACCOUNT_DELETE)) {
+        return this.sendError(ctx, 403, "PERMISSION_DENIED", {
+          error: { code: "PERMISSION_DENIED", message: "Required permission: account:delete" },
+        });
+      }
+      result = await this.restoreProjectUseCase.execute({
+        projectId,
+        caller: { type: "customer", accountId: customer.accountId },
+      });
+    } else if (admin) {
+      // Project IS tenant-guard enrolled; admin auth binds no tenant context, so
+      // the guarded findByIdIncludingDeleted / restore run under the sanctioned
+      // withSystemContext bypass (mirrors the hard-delete path).
+      result = await withSystemContext(`system:project-restore:${projectId}`, async () =>
+        this.restoreProjectUseCase.execute({
+          projectId,
+          caller: { type: "admin", adminUserId: admin.user.id },
+        })
+      );
+    } else {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
+    if (!result.ok) {
+      if (result.error.code === USE_CASE_ERRORS.NOT_FOUND) {
+        return this.sendError(ctx, 404, "Project not found");
+      }
+      if (result.error.code === USE_CASE_ERRORS.VALIDATION_FAILED) {
+        return this.sendError(ctx, 400, "Invalid project ID");
+      }
+      this.logError(ctx, "Failed to restore project", { error: result.error });
+      return this.sendError(ctx, 500, "Failed to restore project");
+    }
+
+    this.logInfo(ctx, "Project restored", { projectId });
+
+    this.sendSuccess(ctx, { restored: true });
+  }
+
+  /**
    * Hard Delete Project (EXCEPTIONAL path — irreversible)
    * DELETE /projects/:projectId/hard
    *
@@ -369,8 +450,23 @@ class ProjectRouteHandler extends BaseRouteHandler {
 
     const { projectId } = params.data;
     const { reason } = body.data;
-    const adminUserId =
-      (request as FastifyRequest & { adminUser?: { id: string } }).adminUser?.id ?? null;
+
+    // Fail closed on attribution. `requireAdminAuth` binds the principal on
+    // `request.auth`; reading THAT (not the phantom `request.adminUser` nobody
+    // sets) is what names the admin on the tombstone and the audit record. A
+    // branded, non-empty id — no `"unknown"` fallback: if no principal survived
+    // authentication we do not know who is erasing a tenant's data, so we destroy
+    // nothing and surface a 500 (an internal-invariant violation, not the
+    // caller's fault).
+    const actor = toAdminActorId(request.auth?.user?.id);
+    if (!actor.ok) {
+      this.logError(
+        ctx,
+        "Hard delete rejected: requireAdminAuth left no principal on request.auth"
+      );
+      return this.sendError(ctx, 500, "Failed to hard delete project");
+    }
+    const adminUserId = actor.value;
 
     // Admin auth binds NO tenant context, but `Project` (and the `Channel`,
     // `Template`, `SchedulingRule`, ... rows the cascade removes) are
@@ -383,7 +479,7 @@ class ProjectRouteHandler extends BaseRouteHandler {
         projectId,
         caller: {
           type: "admin",
-          adminUserId: adminUserId ?? "unknown",
+          adminUserId,
           reason,
         },
       })
@@ -394,29 +490,24 @@ class ProjectRouteHandler extends BaseRouteHandler {
         action: AuditActions.PROJECT_DELETED,
         resource: AuditResources.PROJECT,
         resourceId: projectId,
-        ...(adminUserId && { userId: adminUserId }),
+        userId: adminUserId,
         success: false,
         error: result.error.message,
         details: { mode: "hard", reason },
       });
-      const status =
-        result.error.code === USE_CASE_ERRORS.NOT_FOUND
-          ? 404
-          : result.error.code === USE_CASE_ERRORS.VALIDATION_FAILED
-            ? 400
-            : 500;
-      return this.sendError(
-        ctx,
-        status,
-        status === 404 ? "Project not found" : "Failed to hard delete project"
+      const { status, message } = mapHardDeleteError(
+        result.error.code,
+        result.error.message,
+        "project"
       );
+      return this.sendError(ctx, status, message);
     }
 
     await this.auditService.log({
       action: AuditActions.PROJECT_DELETED,
       resource: AuditResources.PROJECT,
       resourceId: projectId,
-      ...(adminUserId && { userId: adminUserId }),
+      userId: adminUserId,
       success: true,
       details: { mode: "hard", reason },
     });
@@ -440,12 +531,16 @@ export const projectRoutes: FastifyPluginAsync = async (fastify) => {
   const hardDeleteProjectUseCase = fastify.container.resolve<HardDeleteProjectUseCase>(
     TOKENS.HardDeleteProjectUseCase
   );
+  const restoreProjectUseCase = fastify.container.resolve<RestoreProjectUseCase>(
+    TOKENS.RestoreProjectUseCase
+  );
   const auditService = fastify.container.resolve<AuditService>(TOKENS.AuditService);
 
   const handler = new ProjectRouteHandler(
     prisma,
     deleteProjectUseCase,
     hardDeleteProjectUseCase,
+    restoreProjectUseCase,
     auditService
   );
 
@@ -489,14 +584,27 @@ export const projectRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getPublishLogs(request, reply)
   );
 
-  // Soft-delete project (normal path)
+  // Soft-delete project (normal path). Gated on the OWNER-only `account:delete`
+  // permission (D-RESTORE / F5): before this gate, ANY authenticated customer —
+  // MEMBER, VIEWER — could soft-delete an account-owned project.
   fastify.delete(
     "/projects/:projectId",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [requireClientAuth, requireCustomerPermission(CustomerPermission.ACCOUNT_DELETE)],
       schema: { tags: ["Projects"], summary: "Soft-delete a project" },
     },
     async (request, reply) => handler.deleteProject(request, reply)
+  );
+
+  // Restore a soft-deleted project (admin-or-owner). One composed authn accepts
+  // either a customer (owner) token or an admin token.
+  fastify.post(
+    "/projects/:projectId/restore",
+    {
+      preHandler: [requireCustomerOrAdminAuth],
+      schema: { tags: ["Projects"], summary: "Restore a soft-deleted project" },
+    },
+    async (request, reply) => handler.restoreProject(request, reply)
   );
 
   // Hard-delete project (irreversible, admin only)

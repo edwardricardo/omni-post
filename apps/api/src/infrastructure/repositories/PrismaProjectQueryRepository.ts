@@ -35,7 +35,7 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
    */
   async getPostIds(projectId: string): Promise<string[]> {
     const posts = await this.prisma.post.findMany({
-      where: { projectId },
+      where: { projectId, deletedAt: null },
       select: { id: true },
     });
     return posts.map((p) => p.id);
@@ -49,7 +49,7 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
     options: ProjectQueryOptions = {}
   ): Promise<PostWithContent[]> {
     const rows = await this.prisma.post.findMany({
-      where: { projectId },
+      where: { projectId, deletedAt: null },
       include: {
         contents: true,
         media: true,
@@ -70,7 +70,7 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
     options: ProjectQueryOptions = {}
   ): Promise<PostWithAnalytics[]> {
     const rows = await this.prisma.post.findMany({
-      where: { projectId },
+      where: { projectId, deletedAt: null },
       include: {
         analytics: {
           orderBy: { capturedAt: "desc" },
@@ -94,6 +94,7 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
     const rows = await this.prisma.post.findMany({
       where: {
         projectId,
+        deletedAt: null,
         publishedAt: { not: null },
       },
       include: {
@@ -112,7 +113,7 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
    */
   async countPosts(projectId: string): Promise<number> {
     return this.prisma.post.count({
-      where: { projectId },
+      where: { projectId, deletedAt: null },
     });
   }
 
@@ -121,7 +122,7 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
    */
   async getByAccountId(accountId: string): Promise<ProjectDto[]> {
     const rows = await this.prisma.project.findMany({
-      where: { accountId },
+      where: { accountId, deletedAt: null },
       orderBy: { createdAt: "desc" },
     });
     // Prisma crisisModeHistory is JsonValue, compatible with domain JsonValue — safe cast.
@@ -133,7 +134,7 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
    */
   async countByAccountId(accountId: string): Promise<number> {
     return this.prisma.project.count({
-      where: { accountId },
+      where: { accountId, deletedAt: null },
     });
   }
 
@@ -143,7 +144,7 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
   async getMediaCountsByAccount(accountId: string): Promise<MediaTypeCount[]> {
     const groups = await this.prisma.postMedia.groupBy({
       by: ["type"],
-      where: { post: { project: { accountId } } },
+      where: { post: { deletedAt: null, project: { accountId, deletedAt: null } } },
       _count: { id: true },
     });
     return groups.map((group) => ({ type: group.type, count: group._count.id }));
@@ -153,8 +154,10 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
    * Return a single project by ID, or null if not found.
    */
   async findById(projectId: string): Promise<ProjectDto | null> {
-    const row = await this.prisma.project.findUnique({
-      where: { id: projectId },
+    // findFirst (not findUnique): a soft-deleted project must read as absent, and
+    // `deletedAt` is not a unique column so it cannot go in a findUnique where.
+    const row = await this.prisma.project.findFirst({
+      where: { id: projectId, deletedAt: null },
     });
     return row ? (row as unknown as ProjectDto) : null;
   }
@@ -163,8 +166,10 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
    * Return whether the given account owns the given project.
    */
   async getProjectAccess(accountId: string, projectId: string): Promise<boolean> {
+    // Access gate for 11 analytics routes: a soft-deleted project must deny access
+    // so its analytics can no longer be read or exported after deletion.
     const count = await this.prisma.project.count({
-      where: { id: projectId, accountId },
+      where: { id: projectId, accountId, deletedAt: null },
     });
     return count > 0;
   }
@@ -174,7 +179,7 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
    */
   async getChannelsByProject(projectId: string): Promise<ChannelDto[]> {
     const rows = await this.prisma.channel.findMany({
-      where: { projectId },
+      where: { projectId, deletedAt: null },
     });
     // Prisma enum values are identical string literals at runtime — safe cast.
     return rows as unknown as ChannelDto[];

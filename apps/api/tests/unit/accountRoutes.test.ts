@@ -12,7 +12,14 @@ import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 // /accounts/:accountId is tenant-gated — an Account IS the tenant root, so a
 // customer may only delete its own — and the previous no-op mock produced an
 // identity-less request that no longer stands in for a signed-in customer.
-const authContext: { accountId: string } = { accountId: "" };
+// `permissions` carries the JWT permission snapshot: the DELETE route now gates
+// on the OWNER-only `account:delete`, so the default stands the caller in as an
+// OWNER (which the fixture's `roleName: "OWNER"` already claimed). Individual
+// tests flip it to exercise the deny path.
+const authContext: { accountId: string; permissions: readonly string[] } = {
+  accountId: "",
+  permissions: ["account:delete"],
+};
 
 vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
   requireClientAuth: async (request: FastifyRequest) => {
@@ -21,22 +28,46 @@ vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
       accountId: authContext.accountId,
       roleId: "role-1",
       roleName: "OWNER",
-      permissions: [],
+      permissions: authContext.permissions,
     };
   },
 }));
 
-// Admin surface for DELETE /accounts/:accountId/hard. Only the two
-// symbols accountRoutes imports are replaced; nothing else in this route's
-// module graph pulls from either middleware.
-vi.mock("../../src/admin/auth/adminAuthMiddleware.js", () => ({
-  requireAdminAuth: async (request: FastifyRequest) => {
-    (request as FastifyRequest & { adminUser?: { id: string } }).adminUser = {
-      id: "admin-user-1",
+// The restore endpoint accepts a customer OR an admin token via one composed
+// preHandler. The mock signs the caller in as whichever `restoreAuthContext`
+// selects, mirroring how the real middleware sets exactly one principal.
+const restoreAuthContext: {
+  principal: "customer" | "admin";
+  accountId: string;
+  permissions: readonly string[];
+} = { principal: "customer", accountId: "", permissions: ["account:delete"] };
+
+vi.mock("../../src/auth/customerOrAdminAuth.js", () => ({
+  requireCustomerOrAdminAuth: async (request: FastifyRequest) => {
+    if (restoreAuthContext.principal === "admin") {
+      (request as FastifyRequest & { auth?: { user: { id: string; role: string } } }).auth = {
+        user: { id: "admin-user-1", role: "ADMIN" },
+      };
+      return;
+    }
+    request.customerUser = {
+      id: "customer-user-1",
+      accountId: restoreAuthContext.accountId,
+      roleId: "role-1",
+      roleName: "OWNER",
+      permissions: restoreAuthContext.permissions,
     };
   },
 }));
 
+// Admin surface for DELETE /accounts/:accountId/hard is driven through the REAL
+// `requireAdminAuth` (NOT mocked): the previous mock set a phantom
+// `request.adminUser` that nothing in production ever sets, so it "proved" an
+// attribution the running system did not provide. The real middleware binds the
+// principal on `request.auth`, and these tests pass a genuine, TokenService-signed
+// admin access token — so the id that lands on the tombstone and the audit record
+// is the one the real authentication path put there. Only `requirePermission`
+// stays mocked: RBAC enforcement is a separate concern from attribution.
 vi.mock("../../src/auth/rbacMiddleware.js", () => ({
   requirePermission: () => async () => {},
 }));
@@ -119,13 +150,23 @@ const noopDeleteMany = vi.fn(async () => ({ count: 0 }));
 const prismaAny = mockPrisma.prisma as Record<string, unknown>;
 prismaAny.postContent = { deleteMany: noopDeleteMany };
 prismaAny.postMedia = { deleteMany: noopDeleteMany };
-prismaAny.post = { deleteMany: noopDeleteMany, findMany: vi.fn(async () => []) };
+// `post.count` backs the hard-delete pre-flight size probe (countHardDeleteImpact);
+// 0 keeps every fixture well under the ceiling so the guard never trips here.
+prismaAny.post = {
+  deleteMany: noopDeleteMany,
+  findMany: vi.fn(async () => []),
+  count: vi.fn(async () => 0),
+};
 prismaAny.channel = { deleteMany: noopDeleteMany };
 // The hard delete's own tombstone write (see PrismaAccountRepository.hardDelete):
 // one `DeletionRecord` row for the account plus one per project it drags along,
 // inserted in the same transaction as the delete, so the double has to offer it
-// or the route fails with an INTERNAL_ERROR.
-prismaAny.deletionRecord = { createMany: vi.fn(async () => ({ count: 1 })) };
+// or the route fails. It reports a TRUTHFUL count (rows inserted) so the
+// repository's tombstone-count integrity check passes, and it records its calls
+// so a test can read back the principal the delete attributed the destruction to.
+prismaAny.deletionRecord = {
+  createMany: vi.fn(async (args: { data: unknown[] }) => ({ count: args.data.length })),
+};
 // Models other repositories resolved from setupContainer may reach for. Named
 // one by one rather than proxied: a model that is reached but this list forgets
 // must surface as a failure, not be papered over by a catch-all.
@@ -176,9 +217,23 @@ const Fastify = (await import("fastify")).default;
 const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
 const { accountRoutes } = await import("../../src/accounts/accountRoutes.js");
 const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { TokenService } = await import("../../src/admin/auth/TokenService.js");
 
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
+
+// A genuine admin access token, signed with the same secret the real
+// `requireAdminAuth` verifies against. `ADMIN_PRINCIPAL_ID` is the id the token
+// carries in `sub`; the hard-delete route must attribute the destruction to
+// exactly this principal (read from `request.auth.user.id`), never a placeholder.
+const ADMIN_PRINCIPAL_ID = "admin-user-777";
+const adminAccessToken = new TokenService().generateAccessToken({
+  id: ADMIN_PRINCIPAL_ID,
+  email: "admin-seven@omnipost.test",
+  name: "Admin Seven",
+  role: "SUPER_ADMIN",
+} as never);
+const adminAuthHeaders = { authorization: `Bearer ${adminAccessToken}` };
 
 // ---------------------------------------------------------------------------
 // Helper
@@ -551,6 +606,32 @@ describe("accountRoutes Unit Tests", () => {
       expect(survivor?.deletedAt ?? null).toBe(null);
     });
 
+    it("denies a low-privilege customer (no account:delete) with 403 and leaves the row intact", async () => {
+      // The owner-level gate (D-RESTORE / F5): before it existed, ANY authenticated
+      // customer — MEMBER, VIEWER — could soft-delete the tenant root. The caller
+      // here OWNS the account (tenant gate would pass), but lacks account:delete.
+      const survivor = await mockPrisma.prisma.account.create({
+        data: { email: `low-priv-${timestamp}@example.com`, name: "Low Priv", maxProjects: 1 },
+      });
+      const savedAccount = authContext.accountId;
+      const savedPerms = authContext.permissions;
+      authContext.accountId = survivor.id;
+      authContext.permissions = ["post:read", "channel:read", "analytics:read"];
+      try {
+        const response = await app.inject({
+          method: "DELETE",
+          url: `/accounts/${survivor.id}`,
+        });
+
+        expect(response.statusCode).toBe(403);
+        const row = await mockPrisma.prisma.account.findUnique({ where: { id: survivor.id } });
+        expect(row?.deletedAt ?? null).toBe(null);
+      } finally {
+        authContext.accountId = savedAccount;
+        authContext.permissions = savedPerms;
+      }
+    });
+
     it("should delete account successfully", async () => {
       const response = await app.inject({
         method: "DELETE",
@@ -613,6 +694,95 @@ describe("accountRoutes Unit Tests", () => {
     });
   });
 
+  describe("POST /accounts/:accountId/restore", () => {
+    async function makeSoftDeletedAccount(): Promise<string> {
+      const acct = await mockPrisma.prisma.account.create({
+        data: {
+          email: `restore-${Date.now()}-${Math.random()}@example.com`,
+          name: "R",
+          maxProjects: 1,
+        },
+      });
+      await mockPrisma.prisma.account.update({
+        where: { id: acct.id },
+        data: { deletedAt: new Date() },
+      });
+      return acct.id;
+    }
+
+    it("owner restores their own soft-deleted account: deletedAt cleared, visible again", async () => {
+      const id = await makeSoftDeletedAccount();
+      restoreAuthContext.principal = "customer";
+      restoreAuthContext.accountId = id;
+      restoreAuthContext.permissions = ["account:delete"];
+
+      const response = await app.inject({ method: "POST", url: `/accounts/${id}/restore` });
+
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body).data?.restored).toBe(true);
+      const row = await mockPrisma.prisma.account.findUnique({ where: { id } });
+      expect(row?.deletedAt ?? null).toBe(null);
+    });
+
+    it("admin restores any tenant's soft-deleted account", async () => {
+      const id = await makeSoftDeletedAccount();
+      restoreAuthContext.principal = "admin";
+
+      const response = await app.inject({ method: "POST", url: `/accounts/${id}/restore` });
+
+      expect(response.statusCode).toBe(200);
+      const row = await mockPrisma.prisma.account.findUnique({ where: { id } });
+      expect(row?.deletedAt ?? null).toBe(null);
+    });
+
+    it("denies a low-privilege customer (no account:delete) with 403 and leaves it soft-deleted", async () => {
+      const id = await makeSoftDeletedAccount();
+      restoreAuthContext.principal = "customer";
+      restoreAuthContext.accountId = id;
+      restoreAuthContext.permissions = ["post:read", "analytics:read"];
+
+      const response = await app.inject({ method: "POST", url: `/accounts/${id}/restore` });
+
+      expect(response.statusCode).toBe(403);
+      const row = await mockPrisma.prisma.account.findUnique({ where: { id } });
+      expect(row?.deletedAt).toBeInstanceOf(Date);
+    });
+
+    it("returns 404 without restoring when a customer targets another tenant's soft-deleted account", async () => {
+      const id = await makeSoftDeletedAccount();
+      restoreAuthContext.principal = "customer";
+      restoreAuthContext.accountId = "a0000000-0000-4000-8000-0000000000ff"; // not the owner
+      restoreAuthContext.permissions = ["account:delete"];
+
+      const response = await app.inject({ method: "POST", url: `/accounts/${id}/restore` });
+
+      expect(response.statusCode).toBe(404);
+      const row = await mockPrisma.prisma.account.findUnique({ where: { id } });
+      expect(row?.deletedAt).toBeInstanceOf(Date);
+    });
+
+    it("returns 404 when the account is not soft-deleted (nothing to restore)", async () => {
+      const acct = await mockPrisma.prisma.account.create({
+        data: { email: `active-${Date.now()}@example.com`, name: "Active", maxProjects: 1 },
+      });
+      restoreAuthContext.principal = "admin";
+
+      const response = await app.inject({ method: "POST", url: `/accounts/${acct.id}/restore` });
+
+      expect(response.statusCode).toBe(404);
+    });
+
+    it("returns 404 for an unknown account", async () => {
+      restoreAuthContext.principal = "admin";
+      const response = await app.inject({
+        method: "POST",
+        url: "/accounts/a0000000-0000-4000-8000-000000000000/restore",
+      });
+
+      expect(response.statusCode).toBe(404);
+    });
+  });
+
   describe("DELETE /accounts/:accountId/hard", () => {
     it("destroys the account row, unlike the soft path", async () => {
       const doomed = await mockPrisma.prisma.account.create({
@@ -626,6 +796,7 @@ describe("accountRoutes Unit Tests", () => {
       const response = await app.inject({
         method: "DELETE",
         url: `/accounts/${doomed.id}/hard`,
+        headers: adminAuthHeaders,
         payload: { reason: "GDPR erasure request" },
       });
 
@@ -634,6 +805,64 @@ describe("accountRoutes Unit Tests", () => {
 
       const gone = await mockPrisma.prisma.account.findUnique({ where: { id: doomed.id } });
       expect(gone).toBe(null);
+    });
+
+    it("records the authenticated admin principal (request.auth.user.id) on the tombstone, not a placeholder", async () => {
+      // R1-F1: before the fix the route read the phantom `request.adminUser`
+      // (nothing set it) and fell back to "unknown"; every hard delete was
+      // attributed to nobody while a mock made it look attributed. Driven through
+      // the REAL `requireAdminAuth` with a signed token, the id on the tombstone
+      // MUST be the token's principal.
+      const createMany = (
+        mockPrisma.prisma as unknown as {
+          deletionRecord: { createMany: { mock: { calls: unknown[][] } } };
+        }
+      ).deletionRecord.createMany;
+      createMany.mock.calls.length = 0;
+
+      const doomed = await mockPrisma.prisma.account.create({
+        data: {
+          email: `attributed-${Date.now()}@example.com`,
+          name: "Attributed Hard Delete",
+          maxProjects: 1,
+        },
+      });
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/accounts/${doomed.id}/hard`,
+        headers: adminAuthHeaders,
+        payload: { reason: "GDPR erasure request" },
+      });
+      expect(response.statusCode).toBe(200);
+
+      const args = createMany.mock.calls[0]?.[0] as { data: Array<Record<string, unknown>> };
+      const accountTombstone = args.data.find((r) => r.entityType === "ACCOUNT");
+      expect(accountTombstone?.deletedBy).toBe(ADMIN_PRINCIPAL_ID);
+      // And nothing falls back to the old placeholder.
+      expect(accountTombstone?.deletedBy).not.toBe("unknown");
+    });
+
+    it("rejects the hard delete with 401 and destroys nothing when no admin token is present", async () => {
+      // Fail closed: with no principal we cannot know who is erasing a tenant's
+      // data, so the real middleware refuses before the handler runs.
+      const survivor = await mockPrisma.prisma.account.create({
+        data: {
+          email: `no-token-${Date.now()}@example.com`,
+          name: "No Token",
+          maxProjects: 1,
+        },
+      });
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/accounts/${survivor.id}/hard`,
+        payload: { reason: "GDPR erasure request" },
+      });
+
+      expect(response.statusCode).toBe(401);
+      const still = await mockPrisma.prisma.account.findUnique({ where: { id: survivor.id } });
+      expect(still).not.toBe(null);
     });
 
     it("refuses without a written reason, so the audit record can never be empty", async () => {
@@ -648,12 +877,14 @@ describe("accountRoutes Unit Tests", () => {
       const noBody = await app.inject({
         method: "DELETE",
         url: `/accounts/${survivor.id}/hard`,
+        headers: adminAuthHeaders,
       });
       expect(noBody.statusCode).toBe(400);
 
       const tooShort = await app.inject({
         method: "DELETE",
         url: `/accounts/${survivor.id}/hard`,
+        headers: adminAuthHeaders,
         payload: { reason: "oops" },
       });
       expect(tooShort.statusCode).toBe(400);
@@ -669,6 +900,7 @@ describe("accountRoutes Unit Tests", () => {
       const response = await app.inject({
         method: "DELETE",
         url: "/accounts/a0000000-0000-4000-8000-000000000000/hard",
+        headers: adminAuthHeaders,
         payload: { reason: "GDPR erasure request" },
       });
 
@@ -687,6 +919,7 @@ describe("accountRoutes Unit Tests", () => {
       await app.inject({
         method: "DELETE",
         url: `/accounts/${doomed.id}/hard`,
+        headers: adminAuthHeaders,
         payload: { reason: "Support escalation 4821" },
       });
 
@@ -695,7 +928,7 @@ describe("accountRoutes Unit Tests", () => {
 
       expect(entry).toBeTruthy();
       expect(entry?.action).toBe("ACCOUNT_DELETED");
-      expect(entry?.userId).toBe("admin-user-1");
+      expect(entry?.userId).toBe(ADMIN_PRINCIPAL_ID);
       expect(entry?.success).toBe(true);
       expect((entry?.details as { reason?: string })?.reason).toBe("Support escalation 4821");
       expect((entry?.details as { mode?: string })?.mode).toBe("hard");

@@ -15,3 +15,8 @@ export {
   type HardDeleteProjectCaller,
   type HardDeleteProjectInput,
 } from "./HardDeleteProjectUseCase.js";
+export {
+  RestoreProjectUseCase,
+  type RestoreProjectCaller,
+  type RestoreProjectInput,
+} from "./RestoreProjectUseCase.js";

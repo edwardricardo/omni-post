@@ -568,6 +568,53 @@ export function createMockPrismaModule() {
     return result;
   };
 
+  // Account include resolver: resolves include: { projects: true, _count: { projects } }.
+  //
+  // Without this, an account read through `findFirst` returned a record with no
+  // `_count`, and every suite that needed one patched `account.findUnique` by hand —
+  // six of them did. Those patches only ever covered `findUnique`, so the moment a
+  // repository moved to `findFirst` (which soft-delete filtering requires, since
+  // `deletedAt` is not part of any unique index) the count silently went missing and
+  // the route answered 500. Resolving it here fixes every read shape at once.
+  //
+  // The nested `where` is honoured because the production query is
+  // `_count: { select: { projects: { where: { deletedAt: null } } } }` — a count that
+  // ignored that filter would report soft-deleted projects as live, which is the exact
+  // defect the filter exists to prevent.
+  const accountIncludeResolver: IncludeResolver = (record, include) => {
+    const result = { ...record };
+    const accountId = record.id as string;
+    const projectsOf = (where?: Record<string, unknown>) =>
+      stores.project
+        .all()
+        .filter((p) => p.accountId === accountId && (!where || matchesWhere(p, where)));
+
+    if (include.projects) {
+      const spec = include.projects;
+      const where =
+        typeof spec === "object" && spec !== null
+          ? ((spec as Record<string, unknown>).where as Record<string, unknown> | undefined)
+          : undefined;
+      result.projects = projectsOf(where);
+    }
+
+    if (include._count) {
+      const spec = include._count;
+      const select =
+        typeof spec === "object" && spec !== null
+          ? ((spec as Record<string, unknown>).select as Record<string, unknown> | undefined)
+          : undefined;
+      const projectSpec = select?.projects;
+      const where =
+        typeof projectSpec === "object" && projectSpec !== null
+          ? ((projectSpec as Record<string, unknown>).where as Record<string, unknown> | undefined)
+          : undefined;
+      result._count = { projects: projectsOf(where).length };
+    }
+
+    return result;
+  };
+
   // Default field values for each model -- mirrors real DB defaults
   const adminUserDefaults = {
     passwordHashAlgo: "argon2id",
@@ -629,7 +676,7 @@ export function createMockPrismaModule() {
       sessionIncludeResolver
     ),
     auditLog: buildModelMock(stores.auditLog, auditLogDefaults, "id", auditLogIncludeResolver),
-    account: buildModelMock(stores.account),
+    account: buildModelMock(stores.account, {}, "id", accountIncludeResolver),
     project: buildModelMock(stores.project),
     apiKey: buildModelMock(stores.apiKey),
     webhookEvent: buildModelMock(stores.webhookEvent),

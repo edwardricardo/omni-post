@@ -14,10 +14,18 @@ import { SecureSchemas } from "../security/inputValidation.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
+import { requireCustomerPermission, CustomerPermission } from "../auth/customerRbacMiddleware.js";
+import { requireCustomerOrAdminAuth } from "../auth/customerOrAdminAuth.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { withSystemContext } from "../security/tenantContext.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import type { DeleteAccountUseCase, HardDeleteAccountUseCase } from "@core/accounts/index.js";
+import { toAdminActorId } from "@core/domain/value-objects/AdminActorId.js";
+import type {
+  DeleteAccountUseCase,
+  HardDeleteAccountUseCase,
+  RestoreAccountUseCase,
+} from "@core/accounts/index.js";
+import { mapHardDeleteError } from "../lib/hardDeleteErrorMapping.js";
 import { AuditActions, AuditResources, type AuditService } from "../audit/auditService.js";
 
 // Zod Schemas for Validation with security enhancement
@@ -75,6 +83,7 @@ class AccountRouteHandler extends BaseRouteHandler {
     private readonly prisma: PrismaClient,
     private readonly deleteAccountUseCase: DeleteAccountUseCase,
     private readonly hardDeleteAccountUseCase: HardDeleteAccountUseCase,
+    private readonly restoreAccountUseCase: RestoreAccountUseCase,
     private readonly auditService: AuditService
   ) {
     super();
@@ -363,6 +372,79 @@ class AccountRouteHandler extends BaseRouteHandler {
   }
 
   /**
+   * Restore Account (reverse of the soft delete)
+   * POST /accounts/:accountId/restore
+   *
+   * Clears `deletedAt` so a soft-deleted account is visible again. Reachable by
+   * the account OWNER (self-service undo) OR by an admin (support recovering a
+   * mistaken deletion) — the "admin-or-owner" surface. Authentication is the
+   * composed `requireCustomerOrAdminAuth`, so exactly one of
+   * `request.customerUser` / `request.auth` is set here:
+   *   - customer: must hold the OWNER-only `account:delete` permission (the same
+   *     gate as the delete it reverses), and is tenant-gated by the use case to
+   *     its own account.
+   *   - admin: runs under `withSystemContext` (admin auth binds no tenant scope),
+   *     skipping the ownership gate.
+   * NOT_FOUND covers "no such account", "already active" and "not yours" — the
+   * use case makes them indistinguishable (anti-enumeration), mirroring delete.
+   */
+  async restoreAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    this.logInfo(ctx, "Restoring account");
+
+    const params = AccountParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return this.sendError(ctx, 400, "Invalid account ID");
+    }
+    const { accountId } = params.data;
+
+    const customer = request.customerUser;
+    const admin = request.auth;
+
+    let result;
+    if (customer) {
+      // The owner-level gate, same permission as the delete this reverses.
+      if (!customer.permissions.includes(CustomerPermission.ACCOUNT_DELETE)) {
+        return this.sendError(ctx, 403, "PERMISSION_DENIED", {
+          error: { code: "PERMISSION_DENIED", message: "Required permission: account:delete" },
+        });
+      }
+      result = await this.restoreAccountUseCase.execute({
+        accountId,
+        caller: { type: "customer", accountId: customer.accountId },
+      });
+    } else if (admin) {
+      // Admin auth binds no tenant context; the account is not tenant-guard
+      // enrolled, but run under withSystemContext for symmetry with the other
+      // admin lifecycle paths and so the caller is a declared cross-tenant one.
+      result = await withSystemContext(`system:account-restore:${accountId}`, async () =>
+        this.restoreAccountUseCase.execute({
+          accountId,
+          caller: { type: "admin", adminUserId: admin.user.id },
+        })
+      );
+    } else {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
+    if (!result.ok) {
+      if (result.error.code === USE_CASE_ERRORS.NOT_FOUND) {
+        return this.sendError(ctx, 404, "Account not found");
+      }
+      if (result.error.code === USE_CASE_ERRORS.VALIDATION_FAILED) {
+        return this.sendError(ctx, 400, "Invalid account ID");
+      }
+      this.logError(ctx, "Failed to restore account", { error: result.error });
+      return this.sendError(ctx, 500, "Failed to restore account");
+    }
+
+    this.logInfo(ctx, "Account restored", { accountId });
+
+    this.sendSuccess(ctx, { restored: true });
+  }
+
+  /**
    * Hard Delete Account (EXCEPTIONAL path — irreversible)
    * DELETE /accounts/:accountId/hard
    *
@@ -388,8 +470,23 @@ class AccountRouteHandler extends BaseRouteHandler {
 
     const { accountId } = params.data;
     const { reason } = body.data;
-    const adminUserId =
-      (request as FastifyRequest & { adminUser?: { id: string } }).adminUser?.id ?? null;
+
+    // Fail closed on attribution. `requireAdminAuth` binds the principal on
+    // `request.auth`; reading THAT (not the phantom `request.adminUser` nobody
+    // sets) is what names the admin on the tombstone and the audit record. A
+    // branded, non-empty id — no `"unknown"` fallback: if no principal survived
+    // authentication we do not know who is erasing a tenant's data, so we destroy
+    // nothing and surface a 500 (an internal-invariant violation, not the
+    // caller's fault).
+    const actor = toAdminActorId(request.auth?.user?.id);
+    if (!actor.ok) {
+      this.logError(
+        ctx,
+        "Hard delete rejected: requireAdminAuth left no principal on request.auth"
+      );
+      return this.sendError(ctx, 500, "Failed to hard delete account");
+    }
+    const adminUserId = actor.value;
 
     // Admin auth binds NO tenant context, but the cascade writes to
     // tenant-guard-enrolled tables (`project`, `channel`, `apiKey`, `template`,
@@ -401,7 +498,7 @@ class AccountRouteHandler extends BaseRouteHandler {
         accountId,
         caller: {
           type: "admin",
-          adminUserId: adminUserId ?? "unknown",
+          adminUserId,
           reason,
         },
       })
@@ -412,29 +509,24 @@ class AccountRouteHandler extends BaseRouteHandler {
         action: AuditActions.ACCOUNT_DELETED,
         resource: AuditResources.ACCOUNT,
         resourceId: accountId,
-        ...(adminUserId && { userId: adminUserId }),
+        userId: adminUserId,
         success: false,
         error: result.error.message,
         details: { mode: "hard", reason },
       });
-      const status =
-        result.error.code === USE_CASE_ERRORS.NOT_FOUND
-          ? 404
-          : result.error.code === USE_CASE_ERRORS.VALIDATION_FAILED
-            ? 400
-            : 500;
-      return this.sendError(
-        ctx,
-        status,
-        status === 404 ? "Account not found" : "Failed to hard delete account"
+      const { status, message } = mapHardDeleteError(
+        result.error.code,
+        result.error.message,
+        "account"
       );
+      return this.sendError(ctx, status, message);
     }
 
     await this.auditService.log({
       action: AuditActions.ACCOUNT_DELETED,
       resource: AuditResources.ACCOUNT,
       resourceId: accountId,
-      ...(adminUserId && { userId: adminUserId }),
+      userId: adminUserId,
       success: true,
       details: { mode: "hard", reason },
     });
@@ -458,12 +550,16 @@ export const accountRoutes: FastifyPluginAsync = async (fastify) => {
   const hardDeleteAccountUseCase = fastify.container.resolve<HardDeleteAccountUseCase>(
     TOKENS.HardDeleteAccountUseCase
   );
+  const restoreAccountUseCase = fastify.container.resolve<RestoreAccountUseCase>(
+    TOKENS.RestoreAccountUseCase
+  );
   const auditService = fastify.container.resolve<AuditService>(TOKENS.AuditService);
 
   const handler = new AccountRouteHandler(
     prisma,
     deleteAccountUseCase,
     hardDeleteAccountUseCase,
+    restoreAccountUseCase,
     auditService
   );
 
@@ -507,14 +603,27 @@ export const accountRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.updateAccount(request, reply)
   );
 
-  // Soft-delete account (normal path)
+  // Soft-delete account (normal path). Gated on the OWNER-only `account:delete`
+  // permission (D-RESTORE / F5): before this gate, ANY authenticated customer —
+  // MEMBER, VIEWER — could soft-delete the tenant root.
   fastify.delete(
     "/accounts/:accountId",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [requireClientAuth, requireCustomerPermission(CustomerPermission.ACCOUNT_DELETE)],
       schema: { tags: ["Accounts"], summary: "Soft-delete an account" },
     },
     async (request, reply) => handler.deleteAccount(request, reply)
+  );
+
+  // Restore a soft-deleted account (admin-or-owner). One composed authn accepts
+  // either a customer (owner) token or an admin token.
+  fastify.post(
+    "/accounts/:accountId/restore",
+    {
+      preHandler: [requireCustomerOrAdminAuth],
+      schema: { tags: ["Accounts"], summary: "Restore a soft-deleted account" },
+    },
+    async (request, reply) => handler.restoreAccount(request, reply)
   );
 
   // Hard-delete account (irreversible, admin only)

@@ -59,6 +59,19 @@ export interface AccountRepositoryPort {
   delete(id: AccountId): Promise<Result<void, EntityNotFoundError>>;
 
   /**
+   * Restore a soft-deleted account (clears deletedAt = null), reversing the
+   * soft delete. This is the ONLY read/write path that deliberately targets a
+   * currently soft-deleted row — every other query filters `deletedAt: null`.
+   *
+   * Succeeds only when the row exists AND is currently soft-deleted. Returns
+   * EntityNotFoundError when the account is absent (never existed or was
+   * hard-deleted) OR is already active — so "restore a non-deleted row" is
+   * indistinguishable from "restore a row that does not exist" (anti-enumeration,
+   * same shape as `delete`).
+   */
+  restore(id: AccountId): Promise<Result<void, EntityNotFoundError>>;
+
+  /**
    * Hard-delete an account and all its data (irreversible).
    * Only callable by SUPER_ADMIN. Cascades to projects, channels, posts, etc.
    *
@@ -68,6 +81,16 @@ export interface AccountRepositoryPort {
    * principal, which nothing left behind by the delete could supply.
    */
   hardDelete(id: AccountId, context: HardDeleteContext): Promise<Result<void, EntityNotFoundError>>;
+
+  /**
+   * Estimate the blast radius of a hard delete: the number of posts the cascade
+   * would destroy across every project of the account (soft-deleted ones
+   * included — the cascade takes them too). Posts are the dominant per-row
+   * cascade cost, so this count is the pre-flight signal the hard-delete use case
+   * uses to refuse a tenant too large to remove in one transaction, before any
+   * destructive work begins. Cheap: a single aggregate, no rows materialized.
+   */
+  countHardDeleteImpact(id: AccountId): Promise<number>;
 
   /**
    * Check if an account exists (excludes soft-deleted accounts)
