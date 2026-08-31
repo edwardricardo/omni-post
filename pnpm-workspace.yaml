@@ -86,7 +86,7 @@ catalog:
   googleapis: 173.0.0 # latest stable; was 160.0.0
 
   # ── Build/test toolchain ──
-  vitest: 4.1.10 # peer-locked to @vitest/* 4.1.10 (was 4.1.8)
+  vitest: 4.1.11 # peer-locked to @vitest/* 4.1.10 (was 4.1.8)
   typescript: 6.0.3 # latest stable (taze -l --maturity-period 7); was 5.9.3
   tsx: 4.22.4 # MAX of declared 4.21.0 / 4.22.4 (root)
   "@types/node": 25.9.3 # latest stable (taze -l --maturity-period 7); was 24.5.2 (MAJOR 24->25)
@@ -137,22 +137,22 @@ catalog:
   webpack: 5.106.2
   vite: 8.0.16 # single version — the former vite-7 hold was a workaround for apps/client missing @vitejs/plugin-react (apps/admin had it). Adding the plugin to client (ADR-0019) lets it parse JSX under vite 8's rolldown SSR transform, collapsing the vite 7/8 split. Verified: client 510/510 + admin 106/106 on vite 8.
   eslint: 9.36.0 # held — eslint 10 has no peer in eslint-plugin-react/jsx-a11y (both already latest)
-  "@playwright/test": 1.61.1
+  "@playwright/test": 1.62.1
   "@axe-core/playwright": 4.10.2
   "@formatjs/icu-messageformat-parser": 3.5.9
   # @testing-library family (atomic)
   "@testing-library/dom": 10.4.1
-  "@testing-library/jest-dom": 7.0.0 # MAJOR 6->7: drops Node <22 (repo on Node 24)
-  "@testing-library/react": 16.3.2
-  "@testing-library/user-event": 14.6.1
+  "@testing-library/jest-dom": 7.0.1 # MAJOR 6->7: drops Node <22 (repo on Node 24)
+  "@testing-library/react": 16.3.3
+  "@testing-library/user-event": 14.6.6
   # Vitest JSX transform (apps/admin + apps/client) — required for vite 8 (ADR-0019).
   "@vitejs/plugin-react": 5.1.4
   # @vitest/* family (peer = vitest 4.1.10)
-  "@vitest/coverage-v8": 4.1.10
-  "@vitest/ui": 4.1.10
+  "@vitest/coverage-v8": 4.1.11
+  "@vitest/ui": 4.1.11
   # @stryker-mutator/* family (atomic; core is exact peer of vitest-runner)
   "@stryker-mutator/core": 9.6.1
-  "@stryker-mutator/vitest-runner": 9.6.1
+  "@stryker-mutator/vitest-runner": 10.0.0
   # Storybook family (atomic; 10.4.6 = vite 8 peer)
   storybook: 10.4.6
   "@storybook/addon-a11y": 10.4.6
