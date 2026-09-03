@@ -78,10 +78,11 @@ export interface HardDeleteContext {
   deletedBy: AdminActorId;
   /**
    * Operator-supplied reason for the destruction. It rides with the call so the
-   * tombstone can record WHY a tenant's data was destroyed, not only who did it.
-   * Threaded end-to-end here now; persisting it onto `DeletionRecord` awaits the
-   * `reason` column added by the schema pass, at which point the write is a
-   * one-line change rather than a re-plumb of the whole call chain.
+   * tombstone can record WHY a tenant's data was destroyed, not only who did it,
+   * and it is persisted onto `DeletionRecord.reason` inside the same transaction
+   * as the delete. AuditLog is written outside that transaction, so it can
+   * outlive a rolled-back destruction or be lost with a committed one; the
+   * tombstone cannot disagree with the delete it accompanies.
    */
   reason: string;
 }

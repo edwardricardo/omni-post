@@ -11,7 +11,7 @@ datasource db {
 
 model Account {
   id                          String                       @id @default(uuid())
-  email                       String                       @unique
+  email                       String
   name                        String
   maxProjects                 Int                          @default(1)
   isOnTrial                   Boolean                      @default(true)
@@ -99,6 +99,13 @@ model Account {
   referralsReceived           Referral[]                   @relation("ReferredAccount")
   conversions                 Conversion[]
 
+  /// Partial on purpose: a soft-deleted account keeps its row, and a TOTAL unique
+  /// would let that invisible row confiscate the address forever — every read filters
+  /// `deletedAt: null`, so the collision would point at a row no surface can show.
+  /// Restores are the one place two rows may legitimately compete for the address, so
+  /// RestoreAccountUseCase checks for a live holder and fails with an explicit
+  /// conflict instead of surfacing a raw P2002.
+  @@unique([email], where: { deletedAt: null }, map: "Account_email_key")
   @@index([isOnTrial, trialEndDate], where: { deletedAt: null })
   @@index([nextBillingDate], where: { deletedAt: null })
   @@index([deletedAt])
@@ -669,7 +676,12 @@ model Project {
   tasks                       Task[]
   customReports               CustomReport[]               @relation("CustomReportProject")
 
-  @@unique([accountId, name])
+  /// Partial on purpose, matching the four partial indexes below: soft-deleting
+  /// "Marketing" must not confiscate the name for the rest of the account's life.
+  /// Two soft-deleted projects may share a name by design; a restore that would
+  /// collide with a LIVE project is rejected by RestoreProjectUseCase with an
+  /// explicit conflict naming the holder.
+  @@unique([accountId, name], where: { deletedAt: null }, map: "Project_accountId_name_key")
   @@index([accountId], where: { deletedAt: null })
   @@index([createdAt], where: { deletedAt: null })
   @@index([locale], where: { deletedAt: null })
@@ -3644,24 +3656,61 @@ model StyleGuideRule {
 /// and this record must survive every deletion including the account's own. This is
 /// the documented audit-survives-deletion exception in
 /// docs/architecture/schema-conventions.md §Foreign keys.
+///
+/// RETENTION LIFECYCLE (two stages, GDPR art. 17(3)). The tombstone holds a personal
+/// name, so it carries its own legal clock instead of living forever in the clear:
+///   Stage 1 — `name` is stored in plaintext until `retainUntil`, justified by the
+///     `lawfulBasis` column. Reads are admin/legal-compliance only.
+///   Stage 2 — once `retainUntil` passes, a degradation job REPLACES the plaintext:
+///     it computes `nameDigest` (HMAC of `name`, stamped with the key generation in
+///     `nameDigestKeyVersion`) and nulls `name`. The tombstone survives forever as a
+///     verifiable digest; the readable PII lives only inside the legal window.
+/// The degradation job is not implemented yet, which is why every digest column is
+/// nullable and currently empty. `nameDigestKeyVersion` exists from day one on
+/// purpose: an HMAC key rotated without a recorded generation makes every older
+/// digest unverifiable, and a tombstone nobody can verify is not evidence.
+///
+/// `retainUntil` is bounded on THREE layers, never on one: Zod on
+/// DELETION_RECORD_RETENTION_YEARS (the app refuses to boot outside 1..7), a clamp at
+/// the write, and the CHECK constraint `retainUntil >= clientUntil + interval '1 year'`
+/// carried by the migration. The one-year floor is an invariant; seven years is the
+/// configurable policy ceiling.
 model DeletionRecord {
-  id          String   @id @default(uuid())
+  id                   String   @id @default(uuid())
   /// "ACCOUNT" | "PROJECT" — the aggregate that was hard-deleted.
-  entityType  String
+  entityType           String
   /// Id the entity had at death. Loose string on purpose — no FK target exists anymore.
-  entityId    String
-  /// Name the entity had at death.
-  name        String
+  entityId             String
+  /// Name the entity had at death, in plaintext. Nullable because stage 2 of the
+  /// retention lifecycle nulls it once `nameDigest` has been computed.
+  name                 String?
+  /// HMAC of the plaintext `name`, written by the stage-2 degradation job. Empty
+  /// until that job runs; a row never carries both a live `name` and its digest.
+  nameDigest           String?
+  /// Generation of the HMAC key that produced `nameDigest`. Without it a key
+  /// rotation silently invalidates every earlier digest.
+  nameDigestKeyVersion Int?
+  /// Why the aggregate was destroyed, as supplied by the admin who ordered it. Lives
+  /// on the tombstone rather than only in AuditLog so the justification is written in
+  /// the same transaction as the destruction it justifies.
+  reason               String
+  /// End of the legal retention window for the plaintext `name`. Never earlier than
+  /// `clientUntil` + 1 year — enforced by env schema, write-side clamp, and a CHECK.
+  retainUntil          DateTime @db.Timestamptz(6)
+  /// Legal ground for keeping the plaintext until `retainUntil` (GDPR art. 17(3)).
+  lawfulBasis          String
   /// Owning account id at death (loose). For an ACCOUNT record this equals entityId.
-  accountId   String
+  accountId            String
   /// createdAt of the deleted entity — when the client relationship began.
-  clientSince DateTime @db.Timestamptz(6)
+  clientSince          DateTime @db.Timestamptz(6)
   /// Moment of the hard delete — when the client relationship ended.
-  clientUntil DateTime @db.Timestamptz(6)
+  clientUntil          DateTime @db.Timestamptz(6)
   /// Admin principal that executed the hard delete (loose string id).
-  deletedBy   String
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  deletedBy            String
+  createdAt            DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([accountId])
   @@index([entityType, entityId])
+  /// Selects the rows the stage-2 degradation job must still process.
+  @@index([retainUntil], where: { name: { not: null } })
 }

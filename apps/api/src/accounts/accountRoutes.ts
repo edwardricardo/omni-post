@@ -112,9 +112,14 @@ class AccountRouteHandler extends BaseRouteHandler {
     const { email, name, maxProjects } = validated.value.body;
 
     try {
-      // Check if email already exists
-      const existingAccount = await this.prisma.account.findUnique({
-        where: { email },
+      // Check whether an ACTIVE account already holds the address. `findFirst`
+      // with the `deletedAt` filter, never `findUnique` on `email`: that unique
+      // holds only WHERE `deletedAt IS NULL`, so a lookup ignoring the filter
+      // answers for rows this product cannot show and would reserve the address
+      // on behalf of an account that no longer exists to anyone.
+      const existingAccount = await this.prisma.account.findFirst({
+        where: { email, deletedAt: null },
+        select: { id: true },
       });
 
       if (existingAccount) {

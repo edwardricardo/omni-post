@@ -72,6 +72,17 @@ export interface AccountRepositoryPort {
   restore(id: AccountId): Promise<Result<void, EntityNotFoundError>>;
 
   /**
+   * Find an account by id INCLUDING soft-deleted rows (no `deletedAt` filter).
+   * The deliberate counterpart to {@link findById}: the restore path has to read
+   * the very row every other query is built to hide, in order to check whether
+   * its e-mail is still free before making it live again.
+   *
+   * Reserved for the restore path. Any other caller wanting "including deleted"
+   * is almost certainly a read that should have been filtered.
+   */
+  findByIdIncludingDeleted(id: AccountId): Promise<Result<Account, EntityNotFoundError>>;
+
+  /**
    * Hard-delete an account and all its data (irreversible).
    * Only callable by SUPER_ADMIN. Cascades to projects, channels, posts, etc.
    *

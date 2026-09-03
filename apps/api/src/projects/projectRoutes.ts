@@ -118,14 +118,14 @@ class ProjectRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 403, "QUOTA_EXCEEDED", { error: "QUOTA_EXCEEDED" });
       }
 
-      // Check if project with same name exists for this account
-      const existingProject = await this.prisma.project.findUnique({
-        where: {
-          accountId_name: {
-            accountId,
-            name,
-          },
-        },
+      // Check if an ACTIVE project with the same name exists for this account.
+      // `findFirst` with the `deletedAt` filter, never `findUnique` on the
+      // compound key: that key is unique only WHERE `deletedAt IS NULL`, so a
+      // lookup ignoring the filter answers for rows this product cannot show and
+      // would refuse the name on behalf of a project the user already deleted.
+      const existingProject = await this.prisma.project.findFirst({
+        where: { accountId, name, deletedAt: null },
+        select: { id: true },
       });
 
       if (existingProject) {

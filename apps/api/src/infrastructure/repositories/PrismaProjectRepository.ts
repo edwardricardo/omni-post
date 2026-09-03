@@ -18,6 +18,8 @@ import {
 } from "@core/domain/index.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
+import { DELETION_RECORD_LAWFUL_BASIS, computeRetainUntil } from "./deletionRecordRetention.js";
+import { env } from "../../config/env.js";
 import type { ContentLocale } from "@core/domain/value-objects/Content.js";
 import type {
   ProjectRepositoryPort,
@@ -284,6 +286,7 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
         return false;
       }
 
+      const clientUntil = new Date();
       const tombstones = [
         {
           entityType: "PROJECT",
@@ -291,8 +294,16 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
           name: snapshot.name,
           accountId: snapshot.accountId,
           clientSince: snapshot.createdAt,
-          clientUntil: new Date(),
+          clientUntil,
           deletedBy: context.deletedBy,
+          // The operator's justification is written in the SAME transaction as
+          // the destruction it justifies. Kept on the row rather than only in
+          // AuditLog, which is written outside this transaction and can
+          // therefore survive a rolled-back delete or be lost with a committed
+          // one — either way describing a history that did not happen.
+          reason: context.reason,
+          retainUntil: computeRetainUntil(clientUntil, env.DELETION_RECORD_RETENTION_YEARS),
+          lawfulBasis: DELETION_RECORD_LAWFUL_BASIS,
         },
       ];
       const written = await tx.deletionRecord.createMany({ data: tombstones });

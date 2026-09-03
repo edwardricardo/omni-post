@@ -13,6 +13,8 @@ import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRep
 import type { HardDeleteContext } from "@core/domain/repositories/Repository.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
+import { DELETION_RECORD_LAWFUL_BASIS, computeRetainUntil } from "./deletionRecordRetention.js";
+import { env } from "../../config/env.js";
 
 /** Local type alias for Prisma transaction client */
 type TxClient = Prisma.TransactionClient;
@@ -78,6 +80,25 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   async findById(id: AccountId): Promise<Result<Account, EntityNotFoundError>> {
     const row = await this.prisma.account.findFirst({
       where: { id: id.value, deletedAt: null },
+      include: { _count: { select: { projects: { where: { deletedAt: null } } } } },
+    });
+
+    if (!row) {
+      return err(new EntityNotFoundError("Account", id.value));
+    }
+
+    return ok(toDomain(row));
+  }
+
+  /**
+   * Find an account by id INCLUDING soft-deleted rows. Deliberate exception to
+   * the `deletedAt: null` sweep: the restore path must read the row every other
+   * query exists to hide, to check its e-mail against the live population before
+   * bringing it back.
+   */
+  async findByIdIncludingDeleted(id: AccountId): Promise<Result<Account, EntityNotFoundError>> {
+    const row = await this.prisma.account.findFirst({
+      where: { id: id.value },
       include: { _count: { select: { projects: { where: { deletedAt: null } } } } },
     });
 
@@ -257,6 +278,11 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
       const projectIds = projects.map((p) => p.id);
 
       const clientUntil = new Date();
+      // One clock for the whole cascade: the account tombstone and every project
+      // tombstone it drags along share a single `clientUntil`, so they also share
+      // a single `retainUntil`. Computing it per row would let the degradation
+      // job strip an account's name while its projects' names stayed readable.
+      const retainUntil = computeRetainUntil(clientUntil, env.DELETION_RECORD_RETENTION_YEARS);
       const tombstones = [
         {
           entityType: "ACCOUNT",
@@ -266,6 +292,14 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
           clientSince: account.createdAt,
           clientUntil,
           deletedBy: context.deletedBy,
+          // The operator's justification is written in the SAME transaction as
+          // the destruction it justifies. Kept on the row rather than only in
+          // AuditLog, which is written outside this transaction and can
+          // therefore survive a rolled-back delete or be lost with a committed
+          // one — either way describing a history that did not happen.
+          reason: context.reason,
+          retainUntil,
+          lawfulBasis: DELETION_RECORD_LAWFUL_BASIS,
         },
         ...projects.map((project) => ({
           entityType: "PROJECT",
@@ -275,6 +309,9 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
           clientSince: project.createdAt,
           clientUntil,
           deletedBy: context.deletedBy,
+          reason: context.reason,
+          retainUntil,
+          lawfulBasis: DELETION_RECORD_LAWFUL_BASIS,
         })),
       ];
       const written = await tx.deletionRecord.createMany({ data: tombstones });

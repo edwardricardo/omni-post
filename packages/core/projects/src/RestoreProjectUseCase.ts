@@ -120,6 +120,37 @@ export class RestoreProjectUseCase implements CommandUseCase<RestoreProjectInput
     }
 
     const doRestore = async (): Promise<Result<void, UseCaseError>> => {
+      // Name-collision gate. `Project(accountId, name)` is unique only WHERE
+      // `deletedAt IS NULL`, which is what stops a soft delete from confiscating
+      // a name forever — but it also means two soft-deleted projects may legally
+      // share one, and the moment a restore makes one of them live again the
+      // partial index applies to it. Without this check the collision surfaces as
+      // a raw P2002 from deep inside the adapter: an opaque 500 naming an index,
+      // for a situation the operator can actually resolve by renaming.
+      //
+      // Deliberately NOT a full guarantee against a concurrent create: the
+      // authoritative arbiter is the partial unique itself. This exists to turn
+      // the ordinary case into an answerable error, not to replace the index.
+      const restoring = await this.projectRepository.findByIdIncludingDeleted(
+        projectIdResult.value
+      );
+      if (restoring.ok) {
+        const holder = await this.projectRepository.findByName(
+          restoring.value.accountId,
+          restoring.value.name
+        );
+        if (holder !== null && holder.id.value !== input.projectId) {
+          return err(
+            new UseCaseError(
+              `Cannot restore project ${input.projectId}: the name "${restoring.value.name}" ` +
+                `is already used by active project ${holder.id.value}. Rename or archive that ` +
+                `project, then restore this one.`,
+              USE_CASE_ERRORS.CONFLICT
+            )
+          );
+        }
+      }
+
       const restoreResult = await this.projectRepository.restore(projectIdResult.value);
       if (!restoreResult.ok) {
         return err(

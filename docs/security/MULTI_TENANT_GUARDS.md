@@ -1303,6 +1303,40 @@ writeAuditLog` threads it through when the caller provides it.
 Pre-existing rows (created before 2026-05-30) have `accountId = NULL`
 and remain queryable by the cross-account flows.
 
+### `DeletionRecord` design note (2026-08-31)
+
+`DeletionRecord` — the hard-delete tombstone — carries an `accountId`
+column but remains in this denylist by design, the second entry of the
+`AuditLog` shape (an `accountId` for attribution, not for isolation).
+Three reasons converging:
+
+1. **The tombstone deliberately outlives its tenant.** It is written in
+   the same transaction that destroys the account or project it
+   records. Enrolling it in tenant scope — guard injection of
+   `accountId`, or RLS keyed to `app.account_id` — would subject the
+   record of a deletion to the deletion itself: after the transaction
+   commits there is no tenant left to scope by, and a tenant-scoped
+   read of the tombstone would return nothing precisely when the
+   evidence matters (GDPR art. 17(3) retention, DSAR responses,
+   dispute forensics).
+2. **Reads are admin/compliance-only and cross-account by nature.**
+   There is no customer-facing read path: the tenant the record
+   describes no longer exists as a principal. Every legitimate reader
+   (erasure evidence, retention sweeps, the Phase-2 digest-degradation
+   job) operates across accounts, exactly like the `AuditLog` readers
+   above.
+3. **Writes happen inside the hard-delete transaction under its
+   system-level binding**, not under a customer tenant context. The
+   `accountId` column records WHICH tenant the tombstone witnesses
+   (attribution + indexed lookup), and confers no isolation guarantee
+   — the same searchability-only semantics as `AuditLog`.
+
+Fitness `#39` (CLAUDE.md §Automated Compliance Checks) enforces this
+file's role mechanically: every `accountId`-bearing model must appear
+in `TENANT_SCOPED_MODELS` (`infra/prisma/src/extensions/tenantGuard.ts`)
+or in the fenced table list below — `DeletionRecord` landed enrolled in
+neither and undocumented, which is the drift that gate now blocks.
+
 ```
 Account                  AdminUser                AdminSession
 AdminRoleHistory         AdminLoginAttempt        AdminUserPermission
@@ -1314,6 +1348,7 @@ EventSnapshot            PlatformCredential       PlatformEncryptionKey
 GdprSettings             SecuritySettings         ProviderBundle
 ProviderPricingTier      AccountPricingTier       BundleFeatureFlag
 SubscriptionPriceHistory Referral                 AssetTagOnAsset
+DeletionRecord
 ```
 
 These are explicit in the guard's denylist; queries against them

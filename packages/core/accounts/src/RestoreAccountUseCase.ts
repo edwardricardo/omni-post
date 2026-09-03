@@ -114,6 +114,34 @@ export class RestoreAccountUseCase implements CommandUseCase<RestoreAccountInput
     }
 
     const doRestore = async (): Promise<Result<void, UseCaseError>> => {
+      // E-mail-collision gate. `Account.email` is unique only WHERE
+      // `deletedAt IS NULL`, which is what stops a soft delete from confiscating
+      // an address forever — but it also means two soft-deleted accounts may
+      // legally share one, and the moment a restore makes one of them live again
+      // the partial index applies to it. Without this check the collision
+      // surfaces as a raw P2002 from deep inside the adapter: an opaque 500
+      // naming an index, for a situation an operator can actually resolve.
+      //
+      // Deliberately NOT a full guarantee against a concurrent signup: the
+      // authoritative arbiter is the partial unique itself. This exists to turn
+      // the ordinary case into an answerable error, not to replace the index.
+      const restoring = await this.accountRepository.findByIdIncludingDeleted(
+        accountIdResult.value
+      );
+      if (restoring.ok) {
+        const holder = await this.accountRepository.findByEmail(restoring.value.email);
+        if (holder !== null && holder.id.value !== accountIdResult.value.value) {
+          return err(
+            new UseCaseError(
+              `Cannot restore account ${input.accountId}: the e-mail ` +
+                `"${restoring.value.email}" is already used by active account ` +
+                `${holder.id.value}. Change that account's address, then restore this one.`,
+              USE_CASE_ERRORS.CONFLICT
+            )
+          );
+        }
+      }
+
       const restoreResult = await this.accountRepository.restore(accountIdResult.value);
       if (!restoreResult.ok) {
         return err(
