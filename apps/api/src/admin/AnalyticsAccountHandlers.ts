@@ -51,10 +51,8 @@ export class AnalyticsAccountHandler extends BaseRouteHandler {
     const updates = bodyValidation.value;
 
     try {
-      // findFirst + deletedAt: null — a soft-deleted account is not editable and
-      // must read as not-found here.
-      const existingAccount = await this.prisma.account.findFirst({
-        where: { id, deletedAt: null },
+      const existingAccount = await this.prisma.account.findUnique({
+        where: { id },
       });
 
       if (!existingAccount) {
@@ -62,10 +60,8 @@ export class AnalyticsAccountHandler extends BaseRouteHandler {
       }
 
       if (updates.email && updates.email !== existingAccount.email) {
-        // Exclude soft-deleted accounts: a deleted account must not confiscate its
-        // email against a live account's update.
-        const emailExists = await this.prisma.account.findFirst({
-          where: { email: updates.email, deletedAt: null },
+        const emailExists = await this.prisma.account.findUnique({
+          where: { email: updates.email },
         });
 
         if (emailExists) {

@@ -13,23 +13,22 @@ import {
   USE_CASE_ERRORS,
   classifyPersistenceFailure,
 } from "@core/application/UseCase.js";
+import {
+  HARD_DELETE_MAX_CASCADE_ROWS,
+  HARD_DELETE_MAX_POSTS,
+} from "@core/application/hardDeletePolicy.js";
+import {
+  WRITE_CONFLICT_MAX_ATTEMPTS,
+  type WriteConflictRetryOptions,
+  retryOnWriteConflict,
+} from "@core/application/retryOnWriteConflict.js";
 import { AccountId, type AdminActorId } from "@core/domain/index.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 import type { HardDeleteContext, UnitOfWork } from "@core/domain/repositories/Repository.js";
 
 /**
- * Upper bound on the cascade a single hard-delete transaction will attempt,
- * measured in posts (the dominant per-row cascade cost). Sized to complete
- * comfortably within the dedicated hard-delete transaction budget; a tenant
- * above it is refused with an actionable error rather than left to time out
- * — and time out forever — inside the transaction. A guardrail, tunable.
- */
-export const HARD_DELETE_MAX_POSTS = 50_000;
-
-/**
- * Required caller context for a hard delete. Single-variant on purpose: unlike
- * {@link import("./DeleteAccountUseCase.js").DeleteAccountCaller}, there is no
- * `customer` variant, so a customer-facing call site cannot construct a valid
+ * Required caller context for a hard delete. Single-variant on purpose: there is
+ * no `customer` variant, so a customer-facing call site cannot construct a valid
  * input for this use case at all. The gate is the type, not a runtime check
  * someone can forget. `reason` is mandatory and flows into the tombstone context
  * and the caller's audit record.
@@ -57,8 +56,7 @@ export interface HardDeleteAccountInput {
  * Hard Delete Account Use Case
  *
  * Permanently removes an account and every project, channel and post beneath it.
- * This destroys rows; there is no recovery. The normal deletion path is
- * `DeleteAccountUseCase` (soft).
+ * This destroys rows; there is no recovery.
  *
  * Atomicity is the repository adapter's responsibility: `hardDelete` writes the
  * tombstones (one for the account, one per project it drags along) and destroys
@@ -87,13 +85,39 @@ export interface HardDeleteAccountInput {
  *   caller: { type: 'admin', adminUserId, reason: 'GDPR erasure request' },
  * });
  */
+/**
+ * Translates a persistence failure into the typed use-case error the route maps to a
+ * status. It lives here, called from BOTH the retry's exhausted branch and the outer
+ * catch, because those two paths answer for the same failure and a second copy of this
+ * mapping is a second chance for them to disagree.
+ */
+function toPersistenceFailure(error: unknown): UseCaseError {
+  const code = classifyPersistenceFailure(error);
+  const message =
+    code === USE_CASE_ERRORS.CONFLICT
+      ? "Cannot hard-delete account: a protected relationship still references it"
+      : code === USE_CASE_ERRORS.TRANSIENT_FAILURE
+        ? `Hard-delete of account failed after ${WRITE_CONFLICT_MAX_ATTEMPTS} attempts ` +
+          `because the database kept aborting it (a write conflict or a transaction ` +
+          `timeout). A write conflict means the tenant is still taking writes: retrying ` +
+          `will keep losing until it is quiesced — soft-delete it first, then erase.`
+        : "Failed to hard-delete account";
+  return new UseCaseError(message, code, error instanceof Error ? error : undefined);
+}
+
 export class HardDeleteAccountUseCase implements CommandUseCase<
   HardDeleteAccountInput,
   UseCaseError
 > {
   constructor(
     private readonly accountRepository: AccountRepositoryPort,
-    private readonly unitOfWork: UnitOfWork
+    private readonly unitOfWork: UnitOfWork,
+    /**
+     * Backoff/attempt seams for the write-conflict retry. Production leaves it
+     * undefined and takes the policy defaults; a test injects a no-op sleep so the
+     * retry SCHEDULE is exercised without spending its wall-clock in the suite.
+     */
+    private readonly retryOptions?: WriteConflictRetryOptions
   ) {}
 
   /**
@@ -137,12 +161,28 @@ export class HardDeleteAccountUseCase implements CommandUseCase<
       // with an actionable error, not left to time out (and stay undeletable)
       // with the erasure clock running.
       const impact = await this.accountRepository.countHardDeleteImpact(accountId);
-      if (impact > HARD_DELETE_MAX_POSTS) {
+      // TWO bounds, because the transaction budget is spent on two dimensions that
+      // fail independently. Posts alone let a tenant with few posts and a huge child
+      // population through — and that tenant then cannot finish inside the budget,
+      // which is the failure the posts-only guard was blind to.
+      if (impact.posts > HARD_DELETE_MAX_POSTS) {
         return err(
           new UseCaseError(
-            `Hard delete refused: this account owns ${impact} posts, above the ` +
+            `Hard delete refused: this account owns ${impact.posts} posts, above the ` +
               `${HARD_DELETE_MAX_POSTS} ceiling for a single transaction. Reduce the tenant ` +
               `(delete posts or projects first) before erasing it.`,
+            USE_CASE_ERRORS.OPERATION_TOO_LARGE
+          )
+        );
+      }
+      if (impact.childRows > HARD_DELETE_MAX_CASCADE_ROWS) {
+        return err(
+          new UseCaseError(
+            `Hard delete refused: this account's cascade would touch ${impact.childRows} ` +
+              `dependent rows (tasks and webhook events), above the ` +
+              `${HARD_DELETE_MAX_CASCADE_ROWS} ceiling for a single transaction — the cost is ` +
+              `posts MULTIPLIED BY the rows that reference them, not posts alone. Reduce the ` +
+              `tenant (prune webhook events and tasks first) before erasing it.`,
             USE_CASE_ERRORS.OPERATION_TOO_LARGE
           )
         );
@@ -157,9 +197,26 @@ export class HardDeleteAccountUseCase implements CommandUseCase<
       // RLS-GUC binding cover the adapter's tombstone-then-delete cascade, which
       // joins this transaction rather than opening its own. The adapter's Result
       // is returned out of the transaction so its error is inspected here.
-      const hardDeleteResult = await this.unitOfWork.executeInTransaction(() =>
-        this.accountRepository.hardDelete(accountId, context)
+      //
+      // Wrapped in a bounded retry because Serializable is what makes the tombstone
+      // snapshot trustworthy, and the price of that is aborting when a concurrent
+      // writer touches the tenant mid-transaction. Without a retry the only
+      // convergent path left to the operator is re-running a minutes-long cascade
+      // by hand. Only a write conflict is retried; a timeout or an interlock is not
+      // (see `isRetryableWriteConflict`). The retry does NOT make an erasure
+      // converge against a tenant under continuous write load — the exhausted error
+      // below says exactly that.
+      const attempt = await retryOnWriteConflict(
+        () =>
+          this.unitOfWork.executeInTransaction(() =>
+            this.accountRepository.hardDelete(accountId, context)
+          ),
+        this.retryOptions
       );
+      if (!attempt.ok) {
+        return err(toPersistenceFailure(attempt.error));
+      }
+      const hardDeleteResult = attempt.value;
 
       if (!hardDeleteResult.ok) {
         return err(
@@ -172,14 +229,7 @@ export class HardDeleteAccountUseCase implements CommandUseCase<
       }
       return ok(undefined);
     } catch (error: unknown) {
-      const code = classifyPersistenceFailure(error);
-      const message =
-        code === USE_CASE_ERRORS.CONFLICT
-          ? "Cannot hard-delete account: a protected relationship still references it"
-          : code === USE_CASE_ERRORS.TRANSIENT_FAILURE
-            ? "Hard-delete of account failed due to a transient database conflict or timeout; retry"
-            : "Failed to hard-delete account";
-      return err(new UseCaseError(message, code, error instanceof Error ? error : undefined));
+      return err(toPersistenceFailure(error));
     }
   }
 }

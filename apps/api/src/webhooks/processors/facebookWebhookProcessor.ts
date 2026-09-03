@@ -341,7 +341,6 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
       where: {
         provider: "FACEBOOK",
         providerAccountId: facebookPageId,
-        deletedAt: null,
       },
       select: {
         id: true,

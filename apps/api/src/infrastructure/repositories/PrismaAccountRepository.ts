@@ -10,10 +10,11 @@ import { Prisma } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import { Account, AccountId, EntityNotFoundError } from "@core/domain/index.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
-import type { HardDeleteContext } from "@core/domain/repositories/Repository.js";
+import type { HardDeleteContext, HardDeleteImpact } from "@core/domain/repositories/Repository.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
 import { DELETION_RECORD_LAWFUL_BASIS, computeRetainUntil } from "./deletionRecordRetention.js";
+import { recordHardDeleteImpact } from "../../metrics/deletionMetrics.js";
 import { env } from "../../config/env.js";
 
 /** Local type alias for Prisma transaction client */
@@ -80,25 +81,6 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   async findById(id: AccountId): Promise<Result<Account, EntityNotFoundError>> {
     const row = await this.prisma.account.findFirst({
       where: { id: id.value, deletedAt: null },
-      include: { _count: { select: { projects: { where: { deletedAt: null } } } } },
-    });
-
-    if (!row) {
-      return err(new EntityNotFoundError("Account", id.value));
-    }
-
-    return ok(toDomain(row));
-  }
-
-  /**
-   * Find an account by id INCLUDING soft-deleted rows. Deliberate exception to
-   * the `deletedAt: null` sweep: the restore path must read the row every other
-   * query exists to hide, to check its e-mail against the live population before
-   * bringing it back.
-   */
-  async findByIdIncludingDeleted(id: AccountId): Promise<Result<Account, EntityNotFoundError>> {
-    const row = await this.prisma.account.findFirst({
-      where: { id: id.value },
       include: { _count: { select: { projects: { where: { deletedAt: null } } } } },
     });
 
@@ -193,34 +175,6 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
     await this.prisma.account.update({
       where: { id: id.value },
       data: { deletedAt: new Date() },
-    });
-    return ok(undefined);
-  }
-
-  /**
-   * Restore a soft-deleted account by clearing deletedAt = null, reversing the
-   * soft delete so standard reads return it again.
-   *
-   * DELIBERATE soft-delete-sweep exception: the finder targets a row that IS
-   * currently soft-deleted (`NOT: { deletedAt: null }`) — the one query in this
-   * adapter that does not filter `deletedAt: null`, because its whole purpose is
-   * to act on a soft-deleted row. A row that is absent (never existed or
-   * hard-deleted) or already active is not restorable and yields
-   * EntityNotFoundError, so "restore a non-deleted row" is indistinguishable from
-   * "restore a row that does not exist" (anti-enumeration).
-   */
-  async restore(id: AccountId): Promise<Result<void, EntityNotFoundError>> {
-    const softDeleted = await this.prisma.account.findFirst({
-      where: { id: id.value, NOT: { deletedAt: null } },
-      select: { id: true },
-    });
-    if (!softDeleted) {
-      return err(new EntityNotFoundError("Account", id.value));
-    }
-
-    await this.prisma.account.update({
-      where: { id: id.value },
-      data: { deletedAt: null },
     });
     return ok(undefined);
   }
@@ -360,15 +314,44 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   }
 
   /**
-   * Estimate the blast radius of a hard delete: the number of posts the cascade
-   * would destroy across every project of the account (soft-deleted projects
-   * included — the cascade takes them too). Posts are the dominant per-row
-   * cascade cost, so the hard-delete use case uses this to refuse a tenant too
-   * large to remove in one transaction before any destructive work begins. A
-   * single aggregate, no rows materialized.
+   * Measure the blast radius of a hard delete in BOTH dimensions the transaction
+   * budget is spent on, across every project of the account (soft-deleted projects
+   * included — the cascade takes them too). Posts alone were never the whole cost:
+   * PostgreSQL fires one referential trigger per destroyed row per referencing
+   * table, so the real cost is posts MULTIPLIED BY the rows that reference them,
+   * and a tenant with few posts and a large child population sails past a
+   * posts-only ceiling and then cannot finish inside the budget.
+   *
+   * `Task` and `WebhookEvent` are the child populations counted here because they
+   * are the two that (a) carry `accountId` themselves, so an index answers the
+   * count without joining through the posts we are trying not to touch, and (b)
+   * measured as the largest per-post triggers in the cascade. The webhook count
+   * uses the SAME predicate as the erasure below (`accountId`, or a project of this
+   * account), so the guard bounds the rows the delete will actually remove rather
+   * than a narrower set. The rest of `Post`'s children carry no tenant column; see
+   * `HardDeleteImpact` for what that leaves uncounted.
+   *
+   * Cheap by construction: three indexed aggregates, no rows materialized. They run
+   * concurrently rather than in one batched transaction because this is a pre-flight
+   * estimate that never needs a consistent snapshot — and because a batch
+   * `$transaction` here would nest if a caller ever ran the use case inside a Unit
+   * of Work.
    */
-  async countHardDeleteImpact(id: AccountId): Promise<number> {
-    return this.prisma.post.count({ where: { project: { accountId: id.value } } });
+  async countHardDeleteImpact(id: AccountId): Promise<HardDeleteImpact> {
+    const accountId = id.value;
+    const [posts, tasks, webhookEvents] = await Promise.all([
+      this.prisma.post.count({ where: { project: { accountId } } }),
+      this.prisma.task.count({ where: { accountId } }),
+      this.prisma.webhookEvent.count({
+        where: { OR: [{ accountId }, { project: { accountId } }] },
+      }),
+    ]);
+    const impact: HardDeleteImpact = { posts, childRows: tasks + webhookEvents };
+    // Published here, at the measurement, rather than at the ceiling check: the counts are
+    // otherwise discarded on every attempt that stays under the limits, which is exactly
+    // the population that shows a tenant approaching them.
+    recordHardDeleteImpact("account", impact);
+    return impact;
   }
 
   /**

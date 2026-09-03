@@ -317,7 +317,6 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
       where: {
         provider: "YOUTUBE",
         providerAccountId: youtubeChannelId,
-        deletedAt: null,
       },
       include: {
         project: true,

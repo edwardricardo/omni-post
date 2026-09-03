@@ -92,6 +92,43 @@ const g = globalThis as unknown as {
   prismaConnectionCount?: number;
 };
 
+/**
+ * Session parameters sent in the connection STARTUP packet, so they are in
+ * force before the first statement of the first transaction.
+ *
+ * `timezone=UTC` is load-bearing, not hygiene, and it guards two distinct
+ * defects — the loud one and the silent one.
+ *
+ * LOUD. PostgreSQL evaluates `timestamptz + interval '1 year'` in the SESSION
+ * time zone, and the `DeletionRecord_retainUntil_floor` CHECK constraint is
+ * written in exactly that form. The application computes the same value with
+ * `setUTCFullYear`, which is always UTC. Let the two disagree and the database
+ * rejects a retention deadline the application computed correctly: measured
+ * against this schema, a session on `America/New_York` refuses 248 of the
+ * ~35 000 hourly instants swept over 2026-2029 at a one-year window. A GDPR
+ * erasure aborts with a constraint violation that surfaces as a 500.
+ *
+ * SILENT, and far wider. The driver's `timestamptz` round-trip is session-
+ * relative too: on a session set to `America/New_York`, `SELECT timestamptz
+ * '2027-03-08 08:00:00+00'` comes back to JavaScript as `2027-03-08T03:00:00Z`
+ * — the same wall clock, relabelled as UTC, five hours wrong. That is not
+ * specific to deletion. EVERY `timestamptz` the application reads would be off
+ * by the session offset: scheduled publish times, analytics windows, retention
+ * deadlines, saga timeouts. No error is raised anywhere. The CHECK constraint
+ * above is simply the one place the drift happens to be audible.
+ *
+ * Nothing else pinned it. The invariant held only because the containers happen
+ * to run `Etc/UTC`; a server-side `timezone` in `postgresql.conf`, an
+ * `ALTER ROLE ... SET timezone`, or a managed provider that defaults to a
+ * regional zone would have broken both silently, in production only.
+ *
+ * Both PrismaClient construction sites — this one and `createTestPrismaClient`
+ * — apply this constant, so tests exercise the same session the API writes in.
+ * Duplicate `-c` settings are last-wins, which is what lets a test simulate a
+ * hostile server default and still prove the pin overrides it.
+ */
+export const PG_SESSION_OPTIONS = "-c timezone=UTC";
+
 // Connection pool configuration. Defaults derive from CPU count + NODE_ENV;
 // each value is overridable via env so ops can tune for cloud topology
 // without a code change. Idle timeout sits just below the typical cloud LB
@@ -127,7 +164,9 @@ const createPrismaClient = () => {
 
   const poolConfig = getConnectionPoolConfig();
 
-  const adapter = new PrismaPg({ connectionString, ...poolConfig });
+  // `options` sits AFTER the pool spread so a future pool key cannot silently
+  // displace the session pin; see PG_SESSION_OPTIONS for why it is load-bearing.
+  const adapter = new PrismaPg({ connectionString, ...poolConfig, options: PG_SESSION_OPTIONS });
 
   const client = new PrismaClient({
     adapter,

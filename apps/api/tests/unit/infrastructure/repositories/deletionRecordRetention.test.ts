@@ -73,22 +73,18 @@ describe("computeRetainUntil", () => {
     });
   });
 
-  describe("never lands before the database floor it must satisfy", () => {
-    it("resolves a 29 February deletion on or after the CHECK constraint's own floor", () => {
-      // PostgreSQL renders 2028-02-29 + INTERVAL '1 year' as 2029-02-28. JS year
-      // arithmetic overflows the same date to 2029-03-01, which is LATER — so the
-      // CHECK constraint can never reject what this function produced.
-      const leapDeletion = new Date("2028-02-29T00:00:00.000Z");
-      const result = computeRetainUntil(leapDeletion, RETENTION_FLOOR_YEARS);
-
-      const postgresFloor = new Date("2029-02-28T00:00:00.000Z");
-      assert.ok(
-        result.getTime() >= postgresFloor.getTime(),
-        `expected >= ${postgresFloor.toISOString()}, got ${result.toISOString()}`
-      );
-      assert.strictEqual(result.toISOString(), "2029-03-01T00:00:00.000Z");
-    });
-  });
+  // The claim "this function's result never lands before the database's floor"
+  // is NOT asserted here, deliberately. It used to be: one hardcoded date, with
+  // the PostgreSQL side of the comparison typed in from memory as a literal.
+  // That test could only ever confirm what its author already believed, and it
+  // stayed green through the whole time-zone divergence it appeared to guard —
+  // PostgreSQL evaluates `+ interval '1 year'` in the SESSION time zone, a
+  // variable a unit test has no access to at all.
+  //
+  // It now lives where the answer comes from the database instead of from a
+  // literal: tests/integration/deletionRecordRetentionFloor.test.ts sweeps a
+  // multi-year range against real Postgres, under a session deliberately
+  // started on a hostile time zone, and proves the connection pin overrides it.
 
   describe("does not mutate its input", () => {
     it("leaves clientUntil unchanged", () => {
@@ -100,7 +96,17 @@ describe("computeRetainUntil", () => {
 });
 
 describe("DELETION_RECORD_LAWFUL_BASIS", () => {
-  it("names the article that justifies keeping the plaintext", () => {
-    expect(DELETION_RECORD_LAWFUL_BASIS).toContain("17(3)");
+  // The SUB-ARTICLE, not the article family. `toContain("17(3)")` was satisfied
+  // by (a) through (e) alike, so it could not have noticed that this constant
+  // and the migration that backfills the same column named two DIFFERENT legal
+  // grounds — which is exactly what they did. Art. 17(3)(e) is the adjudicated
+  // ground (see the constant's own JSDoc); asserting the letter is what makes a
+  // future silent re-divergence fail.
+  it("names art. 17(3)(e), the ground the backfilled rows also carry", () => {
+    expect(DELETION_RECORD_LAWFUL_BASIS).toContain("17(3)(e)");
+  });
+
+  it("does not claim a legal obligation nobody can cite", () => {
+    expect(DELETION_RECORD_LAWFUL_BASIS).not.toContain("17(3)(b)");
   });
 });

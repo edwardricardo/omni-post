@@ -5,7 +5,7 @@
  */
 
 import { type Result } from "@shared/types";
-import { type HardDeleteContext, type Repository } from "./Repository.js";
+import { type HardDeleteContext, type HardDeleteImpact, type Repository } from "./Repository.js";
 import { type Account } from "../entities/Account.js";
 import { type AccountId } from "../value-objects/EntityId.js";
 import { type EntityNotFoundError } from "../errors/index.js";
@@ -59,30 +59,6 @@ export interface AccountRepositoryPort {
   delete(id: AccountId): Promise<Result<void, EntityNotFoundError>>;
 
   /**
-   * Restore a soft-deleted account (clears deletedAt = null), reversing the
-   * soft delete. This is the ONLY read/write path that deliberately targets a
-   * currently soft-deleted row — every other query filters `deletedAt: null`.
-   *
-   * Succeeds only when the row exists AND is currently soft-deleted. Returns
-   * EntityNotFoundError when the account is absent (never existed or was
-   * hard-deleted) OR is already active — so "restore a non-deleted row" is
-   * indistinguishable from "restore a row that does not exist" (anti-enumeration,
-   * same shape as `delete`).
-   */
-  restore(id: AccountId): Promise<Result<void, EntityNotFoundError>>;
-
-  /**
-   * Find an account by id INCLUDING soft-deleted rows (no `deletedAt` filter).
-   * The deliberate counterpart to {@link findById}: the restore path has to read
-   * the very row every other query is built to hide, in order to check whether
-   * its e-mail is still free before making it live again.
-   *
-   * Reserved for the restore path. Any other caller wanting "including deleted"
-   * is almost certainly a read that should have been filtered.
-   */
-  findByIdIncludingDeleted(id: AccountId): Promise<Result<Account, EntityNotFoundError>>;
-
-  /**
    * Hard-delete an account and all its data (irreversible).
    * Only callable by SUPER_ADMIN. Cascades to projects, channels, posts, etc.
    *
@@ -94,14 +70,18 @@ export interface AccountRepositoryPort {
   hardDelete(id: AccountId, context: HardDeleteContext): Promise<Result<void, EntityNotFoundError>>;
 
   /**
-   * Estimate the blast radius of a hard delete: the number of posts the cascade
-   * would destroy across every project of the account (soft-deleted ones
-   * included — the cascade takes them too). Posts are the dominant per-row
-   * cascade cost, so this count is the pre-flight signal the hard-delete use case
-   * uses to refuse a tenant too large to remove in one transaction, before any
-   * destructive work begins. Cheap: a single aggregate, no rows materialized.
+   * Measure the blast radius of a hard delete across every project of the account
+   * (soft-deleted ones included — the cascade takes them too), in BOTH dimensions
+   * the transaction budget is spent on: the posts destroyed and the rows in the
+   * directly-countable child populations. See {@link HardDeleteImpact} for why one
+   * number was not enough and for what the child count can and cannot see.
+   *
+   * This is the pre-flight signal the hard-delete use case uses to refuse a tenant
+   * too large to remove in one transaction, before any destructive work begins, so
+   * it must stay cheap: indexed aggregates only, no rows materialized, no join
+   * through the rows the guard exists to avoid touching.
    */
-  countHardDeleteImpact(id: AccountId): Promise<number>;
+  countHardDeleteImpact(id: AccountId): Promise<HardDeleteImpact>;
 
   /**
    * Check if an account exists (excludes soft-deleted accounts)

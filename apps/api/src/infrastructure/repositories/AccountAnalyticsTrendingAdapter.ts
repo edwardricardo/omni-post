@@ -31,8 +31,7 @@ export class AccountAnalyticsTrendingAdapter implements TrendingDataPort {
 
     const posts = await this.prisma.post.findMany({
       where: {
-        deletedAt: null,
-        project: { accountId: input.accountId, deletedAt: null },
+        project: { accountId: input.accountId },
         publishedAt: { gte: since },
       },
       include: {

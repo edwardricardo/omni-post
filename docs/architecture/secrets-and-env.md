@@ -35,6 +35,18 @@ Every backend module imports `env` from `apps/api/src/config/env.ts`. The schema
 
 Conditional validation is enforced at the point of use (e.g. `paymentAdapterFactory.ts` throws if Stripe is selected but its secrets are unset), not in the Zod schema, because the schema can't easily express cross-field constraints without losing the simple "all-fields-optional or required" mental model.
 
+### Non-secret vars that still carry a compliance consequence
+
+Not every var worth documenting is a credential. `DELETION_RECORD_RETENTION_YEARS` holds no secret and leaks nothing if read, yet it is the **only operator control over how long erased customers' plaintext names are retained**, which makes an undocumented default a policy decision nobody made.
+
+| Var                               | Contract                                                             | Consequence of the value                                                                                                                                                          |
+| --------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DELETION_RECORD_RETENTION_YEARS` | Optional with default (`7`); `z.coerce.number().int().min(1).max(7)` | How long a hard-delete tombstone keeps the erased entity's plaintext `name`, under the lawful basis GDPR art. 17(3)(e). Lower = less PII held; higher = a longer evidence window. |
+
+Three layers enforce the one-year floor, and they are not redundant: the Zod bound above only sees values arriving through the environment; `computeRetainUntil` clamps anything reaching it by another route; and the `DeletionRecord_retainUntil_floor` CHECK constraint holds even against a manual `INSERT` from a psql session. The ceiling is policy (do not hold readable PII past the window its own basis covers); the floor is the invariant.
+
+**What the value does NOT do today.** No job degrades the plaintext when the horizon passes (tracked as SMELL-88), so setting this to `1` bounds the _justification_, not the actual retention — the row keeps its plaintext until that job exists. Treat the number as a commitment being made, not one currently being kept.
+
 > **`REDIS_URL` is required for `apps/api`.** It moved from optional to required: BullMQ queue/consumer adapters and Redis-backed services are composition-root-owned and never self-construct a connection, so a missing `REDIS_URL` now fails the boot rather than silently defaulting to `redis://localhost:6379` (CWE-798). The legacy `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD` trio remains for compat (`getRedisUrl()` builds a URL from them for workers / docker-compose deploys) but is no longer a fallback that lets `apps/api` boot without `REDIS_URL`.
 
 ## What lives where

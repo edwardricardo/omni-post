@@ -64,6 +64,7 @@ import type { Redis } from "ioredis";
 import { logger } from "./lib/logger.js";
 import { ApiMetrics } from "./metrics/apiMetrics.js";
 import { setPublishQueueHealthProvider } from "./metrics/sagaRecoveryMetrics.js";
+import { setDeletionRecordOverdueProvider } from "./metrics/deletionMetrics.js";
 import { createMetricsMiddleware } from "./middleware/metricsMiddleware.js";
 import { createCircuitBreakerMonitor } from "@monitoring/circuit-breaker";
 import { createDeadLetterQueue } from "@adapters/dead-letter-queue";
@@ -329,6 +330,18 @@ async function createApp(): Promise<FastifyInstance> {
   // same queue as a producer and is up precisely when the consumers are not.
   // Observation only — nothing here participates in any saga decision.
   setPublishQueueHealthProvider(() => queueAdapter.health());
+
+  // Tombstones past their retention horizon that still hold plaintext PII. The
+  // degradation job that should empty this population does not exist yet
+  // (SMELL-88), so without this series the standing GDPR exposure is a number
+  // nobody anywhere can see. Deliberately UNSCOPED by tenant: DeletionRecord is
+  // a documented global table that outlives the account it records, so the
+  // level is a property of the deployment, not of any one tenant.
+  setDeletionRecordOverdueProvider(async () =>
+    container.resolve<PrismaClient>(TOKENS.PrismaClient).deletionRecord.count({
+      where: { retainUntil: { lt: new Date() }, name: { not: null } },
+    })
+  );
 
   // Initialize dead letter queue
   const _deadLetterQueue = createDeadLetterQueue({
@@ -1218,6 +1231,11 @@ async function start() {
       // Detach the attendance provider BEFORE the queues close, so a scrape
       // racing shutdown reads UNKNOWN rather than erroring on a closed queue.
       setPublishQueueHealthProvider(undefined);
+
+      // Same reasoning for the tombstone level, ahead of the Prisma disconnect:
+      // a scrape racing shutdown must read UNKNOWN, never a zero that would
+      // assert "no tombstone is overdue" on a closed connection.
+      setDeletionRecordOverdueProvider(undefined);
 
       // Close all BullMQ queue adapters via the registry — closes every
       // Queue and the shared Redis connection in one shot.

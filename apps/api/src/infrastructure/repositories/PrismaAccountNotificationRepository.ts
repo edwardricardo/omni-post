@@ -17,7 +17,7 @@ export class PrismaAccountNotificationRepository implements AccountNotificationR
   async listActiveEmails(): Promise<Result<string[], AccountNotificationReadError>> {
     try {
       const rows = await this.prisma.account.findMany({
-        where: { isActive: true, deletedAt: null },
+        where: { isActive: true },
         select: { email: true },
       });
       return ok(rows.map((r) => r.email).filter((e): e is string => e !== null && e !== ""));

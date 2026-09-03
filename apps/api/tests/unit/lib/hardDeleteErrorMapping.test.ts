@@ -18,11 +18,26 @@ describe("mapHardDeleteError", () => {
     });
   });
 
-  it("maps VALIDATION_FAILED to 400", () => {
-    expect(mapHardDeleteError(USE_CASE_ERRORS.VALIDATION_FAILED, "ignored", "project")).toEqual({
-      status: 400,
-      message: "Invalid project ID",
-    });
+  // The use case returns VALIDATION_FAILED for TWO different inputs, so the mapping must
+  // not answer both with one sentence. It used to reply "Invalid project ID" regardless,
+  // which sent an admin whose REASON was blank to go and re-check an id that was fine.
+  it("maps a malformed id to 400 and keeps the use case's own wording", () => {
+    const useCaseMessage = "Invalid project ID: not-a-uuid";
+    expect(
+      mapHardDeleteError(USE_CASE_ERRORS.VALIDATION_FAILED, useCaseMessage, "project")
+    ).toEqual({ status: 400, message: useCaseMessage });
+  });
+
+  it("maps a blank reason to 400 naming the REASON, not the id", () => {
+    const useCaseMessage = "A non-empty reason is required to hard-delete a project";
+    const { status, message } = mapHardDeleteError(
+      USE_CASE_ERRORS.VALIDATION_FAILED,
+      useCaseMessage,
+      "project"
+    );
+    expect(status).toBe(400);
+    expect(message).toBe(useCaseMessage);
+    expect(message).not.toContain("ID");
   });
 
   it("maps OPERATION_TOO_LARGE to 413 and surfaces the use-case message (the count + ceiling)", () => {

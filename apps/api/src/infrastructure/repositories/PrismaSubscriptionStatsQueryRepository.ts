@@ -37,23 +37,21 @@ export class PrismaSubscriptionStatsQueryRepository implements SubscriptionStats
    * Count all accounts.
    */
   async countAccounts(): Promise<number> {
-    return this.prisma.account.count({ where: { deletedAt: null } });
+    return this.prisma.account.count();
   }
 
   /**
    * Count accounts created at or after `since`.
    */
   async countAccountsCreatedSince(since: Date): Promise<number> {
-    return this.prisma.account.count({ where: { deletedAt: null, createdAt: { gte: since } } });
+    return this.prisma.account.count({ where: { createdAt: { gte: since } } });
   }
 
   /**
    * Count accounts created within the [from, to) window.
    */
   async countAccountsCreatedBetween(from: Date, to: Date): Promise<number> {
-    return this.prisma.account.count({
-      where: { deletedAt: null, createdAt: { gte: from, lt: to } },
-    });
+    return this.prisma.account.count({ where: { createdAt: { gte: from, lt: to } } });
   }
 
   /**
@@ -72,20 +70,12 @@ export class PrismaSubscriptionStatsQueryRepository implements SubscriptionStats
     thirtyDaysAgo: Date
   ): Promise<ChurnActivityWindowsDto> {
     const activeRows = await this.prisma.post.findMany({
-      where: {
-        deletedAt: null,
-        project: { deletedAt: null },
-        createdAt: { gte: fourteenDaysAgo },
-      },
+      where: { createdAt: { gte: fourteenDaysAgo } },
       select: { project: { select: { accountId: true } } },
       distinct: ["projectId"],
     });
     const moderateRows = await this.prisma.post.findMany({
-      where: {
-        deletedAt: null,
-        project: { deletedAt: null },
-        createdAt: { gte: thirtyDaysAgo, lt: fourteenDaysAgo },
-      },
+      where: { createdAt: { gte: thirtyDaysAgo, lt: fourteenDaysAgo } },
       select: { project: { select: { accountId: true } } },
       distinct: ["projectId"],
     });

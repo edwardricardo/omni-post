@@ -69,6 +69,12 @@ function makeMockPrisma() {
       deleteMany: vi.fn(async () => ({ count: 0 })),
       count: vi.fn(async () => 0),
     },
+    // The CHILD dimension of the pre-flight size probe. Both are read on every
+    // `countHardDeleteImpact` call, so an absent accessor is a TypeError inside the
+    // method rather than a wrong number.
+    task: {
+      count: vi.fn(async () => 0),
+    },
     publishLog: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     analytics: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     postMedia: { deleteMany: vi.fn(async () => ({ count: 0 })) },
@@ -82,7 +88,10 @@ function makeMockPrisma() {
     videoProcessingJob: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     instagramAnalytics: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     schedulingRule: { deleteMany: vi.fn(async () => ({ count: 0 })) },
-    webhookEvent: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    webhookEvent: {
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+      count: vi.fn(async () => 0),
+    },
     webhookSubscription: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     template: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     apiKey: { deleteMany: vi.fn(async () => ({ count: 0 })) },
@@ -232,50 +241,6 @@ describe("PrismaAccountRepository", () => {
       prisma.account.count.mockImplementation(async () => 0);
       const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
       const result = await repo.delete(id);
-
-      expect(result.ok).toBeFalsy();
-      expect(result.error.message).toMatch(/Account/);
-      expect(prisma.account.update.mock.calls.length).toBe(0);
-    });
-  });
-
-  describe("restore (reverse soft delete)", () => {
-    it("clears deletedAt (update, never delete) when a soft-deleted account exists", async () => {
-      // The restore finder targets a CURRENTLY soft-deleted row — the deliberate
-      // exception to the deletedAt:null sweep.
-      prisma.account.findFirst.mockImplementation(async () => ({
-        ...baseRow(),
-        deletedAt: new Date("2026-02-01"),
-      }));
-      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
-      const result = await repo.restore(id);
-
-      expect(result.ok).toBeTruthy();
-      expect(prisma.account.update.mock.calls.length).toBe(1);
-      const args = prisma.account.update.mock.calls[0]?.[0] as
-        { data: { deletedAt: unknown } } | undefined;
-      expect(args?.data.deletedAt).toBe(null);
-    });
-
-    it("queries only rows that are soft-deleted (NOT deletedAt: null), never active rows", async () => {
-      let capturedWhere: Record<string, unknown> | undefined;
-      prisma.account.findFirst.mockImplementation(
-        async (args: { where: Record<string, unknown> }) => {
-          capturedWhere = args.where;
-          return { ...baseRow(), deletedAt: new Date("2026-02-01") };
-        }
-      );
-      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
-      await repo.restore(id);
-
-      expect(capturedWhere?.NOT).toEqual({ deletedAt: null });
-    });
-
-    it("returns err(EntityNotFoundError) and does not update when no soft-deleted row exists", async () => {
-      // Covers absent, hard-deleted, and already-active — all indistinguishable.
-      prisma.account.findFirst.mockImplementation(async () => null);
-      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
-      const result = await repo.restore(id);
 
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/Account/);
@@ -433,17 +398,42 @@ describe("PrismaAccountRepository", () => {
       expect(options?.timeout as number).toBeGreaterThan(0);
     });
 
-    it("countHardDeleteImpact returns the number of posts the cascade would destroy", async () => {
+    it("countHardDeleteImpact measures BOTH dimensions the transaction budget is spent on", async () => {
       prisma.post.count.mockResolvedValue(4210);
+      prisma.task.count.mockResolvedValue(900);
+      prisma.webhookEvent.count.mockResolvedValue(100);
       const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
 
       const impact = await repo.countHardDeleteImpact(id);
 
-      expect(impact).toBe(4210);
+      expect(impact.posts).toBe(4210);
+      // The child dimension is the SUM of the countable child populations, not one of
+      // them: the guard bounds the rows the cascade touches, and reporting only tasks
+      // would let a webhook-heavy tenant through the exact hole this closes.
+      expect(impact.childRows).toBe(1000);
       // Counts across every project of the account (relation filter), soft-deleted
       // included — the cascade takes them too.
       const where = prisma.post.count.mock.calls[0]?.[0] as { where?: Record<string, unknown> };
       expect(where?.where).toEqual({ project: { accountId: id.value } });
+      const taskWhere = prisma.task.count.mock.calls[0]?.[0] as { where?: Record<string, unknown> };
+      expect(taskWhere?.where).toEqual({ accountId: id.value });
+    });
+
+    it("counts webhook events with the SAME predicate the erasure deletes them by", async () => {
+      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
+
+      await repo.countHardDeleteImpact(id);
+
+      // `hardDelete` removes webhook events matching `accountId` OR a project of this
+      // account. A probe that counted only the `accountId` half would bound a narrower
+      // set than the transaction actually destroys — a ceiling measuring something
+      // other than the work is not a ceiling.
+      const hookWhere = prisma.webhookEvent.count.mock.calls[0]?.[0] as {
+        where?: Record<string, unknown>;
+      };
+      expect(hookWhere?.where).toEqual({
+        OR: [{ accountId: id.value }, { project: { accountId: id.value } }],
+      });
     });
 
     it("returns err(EntityNotFoundError) when account is not found at all", async () => {

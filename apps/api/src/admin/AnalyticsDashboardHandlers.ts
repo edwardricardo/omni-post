@@ -62,29 +62,26 @@ export class AnalyticsDashboardHandler extends BaseRouteHandler {
         totalChannels,
         totalAnalytics,
       ] = await Promise.all([
-        this.prisma.account.count({ where: { deletedAt: null } }),
+        this.prisma.account.count(),
         this.prisma.account.count({
           where: {
-            deletedAt: null,
             OR: [{ isOnTrial: true, trialEndDate: { gte: new Date() } }],
           },
         }),
         this.prisma.project.count({
-          where: { deletedAt: null, ...(dateFilter && { createdAt: dateFilter }) },
+          ...(dateFilter && { where: { createdAt: dateFilter } }),
         }),
         this.prisma.post.count({
-          where: { deletedAt: null, ...(dateFilter && { createdAt: dateFilter }) },
+          ...(dateFilter && { where: { createdAt: dateFilter } }),
         }),
         this.prisma.post.count({
           where: {
-            deletedAt: null,
             status: "PUBLISHED",
             ...(dateFilter && { publishedAt: dateFilter }),
           },
         }),
         this.prisma.post.count({
           where: {
-            deletedAt: null,
             status: "SCHEDULED",
             ...(dateFilter && { scheduledAt: dateFilter }),
           },
@@ -92,10 +89,9 @@ export class AnalyticsDashboardHandler extends BaseRouteHandler {
         this.prisma.channel.groupBy({
           by: ["provider"],
           _count: { id: true },
-          where: {
-            deletedAt: null,
-            ...(provider && { provider: provider as ProviderName }),
-          },
+          ...(provider && {
+            where: { provider: provider as ProviderName },
+          }),
         }),
         this.prisma.analytics.aggregate({
           _sum: { views: true, likes: true, comments: true, shares: true },
@@ -229,7 +225,7 @@ export class AnalyticsDashboardHandler extends BaseRouteHandler {
           orderBy: { _count: { id: "desc" } },
           take: 5,
         }),
-        this.prisma.account.count({ where: { deletedAt: null } }),
+        this.prisma.account.count(),
       ]);
 
       const successRate =

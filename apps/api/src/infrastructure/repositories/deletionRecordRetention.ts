@@ -23,11 +23,26 @@ export const RETENTION_CEILING_YEARS = 7;
 
 /**
  * Legal ground recorded on every tombstone for keeping the plaintext name until
- * `retainUntil`. GDPR art. 17(3)(b) carves the erasure right back where
- * processing is necessary for compliance with a legal obligation — here, the
- * obligation to be able to evidence who the controller's clients were.
+ * `retainUntil`.
+ *
+ * ADJUDICATED. This constant said art. 17(3)(b) (compliance with a legal
+ * obligation) while the migration that created the column backfilled every
+ * pre-existing row with art. 17(3)(e) (establishment, exercise or defence of
+ * legal claims). Two grounds in one column, with nothing recording that they
+ * differed, so an erasure audit reading the table would get a different answer
+ * depending on which row it opened.
+ *
+ * (e) is the correct one and (b) was the mistake. 17(3)(b) requires naming the
+ * Union or Member State law that obliges the retention, and there is none here:
+ * the previous text argued from "the obligation to be able to evidence who the
+ * controller's clients were", which is a defensive interest, not a statutory
+ * duty. Being able to answer "who was your customer on this date, and on whose
+ * authority were they erased" when a claim is brought is squarely 17(3)(e). The
+ * constant is therefore aligned DOWN to the migration's wording rather than the
+ * migration being contradicted — new rows and backfilled rows now agree.
  */
-export const DELETION_RECORD_LAWFUL_BASIS = "GDPR art. 17(3)(b) - legal obligation";
+export const DELETION_RECORD_LAWFUL_BASIS =
+  "GDPR art. 17(3)(e) - establishment, exercise or defence of legal claims";
 
 /**
  * @method computeRetainUntil
@@ -42,14 +57,25 @@ export const DELETION_RECORD_LAWFUL_BASIS = "GDPR art. 17(3)(b) - legal obligati
  * into `NaN` — has never met that bound. A corrupted input therefore resolves to
  * the floor rather than to a shorter window or an `Invalid Date`, because a
  * tombstone whose clock is unreadable is a tombstone with no clock. Layer three
- * is the `DeletionRecord_retainUntil_floor_check` CHECK constraint, which is
- * what still holds when a write path is added that forgets to call this at all.
+ * is the `DeletionRecord_retainUntil_floor` CHECK constraint, which is what
+ * still holds when a write path is added that forgets to call this at all.
  *
- * Calendar note: year arithmetic is done with `setUTCFullYear`, which resolves
- * 29 February onto 1 March. PostgreSQL's `+ INTERVAL '1 year'` resolves the same
- * date onto 28 February instead, so this function's result is never EARLIER than
- * the database's floor for the same input, and the CHECK constraint cannot
- * reject a value this function produced.
+ * Calendar note, and the PRECONDITION it rests on. Year arithmetic here uses
+ * `setUTCFullYear`, which resolves 29 February onto 1 March; PostgreSQL's
+ * `+ INTERVAL '1 year'` resolves the same date onto 28 February. That leap-day
+ * comparison is only the visible half. The whole comparison is
+ * time-zone-dependent, because PostgreSQL evaluates the interval addition in
+ * the SESSION time zone while this function is unconditionally UTC: on a
+ * session set to `America/New_York`, 144 of the 8760 hourly instants in 2026
+ * make the database's floor LATER than this function's result at a one-year
+ * window, and the CHECK rejects a deadline computed correctly here.
+ *
+ * So "this function's result is never earlier than the database's floor" is
+ * TRUE ONLY WHILE THE WRITING SESSION IS UTC. That is not an accident of the
+ * deployment any more: `PG_SESSION_OPTIONS` in `infra/prisma/src/client.ts`
+ * pins `timezone=UTC` in the connection startup packet, at both the production
+ * and the test client. Remove that pin and this note becomes false again on a
+ * subset of dates.
  *
  * @param clientUntil - Moment of the hard delete; the window is measured from here.
  * @param configuredYears - Requested window length in years, from configuration.

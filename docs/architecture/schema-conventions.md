@@ -113,6 +113,8 @@ model Project {
 
 ## Foreign keys
 
+> Before trusting a count or a recovery claim written in a migration header, check [Errata in deployed migrations](#errata-in-deployed-migrations) — an applied migration's file can never be corrected in place, so known-wrong prose in the `ON DELETE` convention migrations is corrected there instead.
+
 Model relations are declared with `@relation`. Both sides should be present (back-relation field + `@relation` directive).
 
 **Loose-string vs FK trade-off** for audit / breach / consent records: when the audit trail must survive deletion of the referenced row, loose strings (no FK) can be acceptable. Document the choice explicitly in a JSDoc above the field — readers should not have to guess whether the missing FK is intentional or an oversight.
@@ -170,6 +172,64 @@ Three things worth knowing before you copy this:
 - **The split must be two files.** Prisma wraps each migration file in one transaction, and `VALIDATE` only takes the weaker `SHARE UPDATE EXCLUSIVE` (which does not block reads or writes) when it runs in its _own_ transaction. In the same file it would just extend the previous `ACCESS EXCLUSIVE` window across a full table scan.
 
 Set `lock_timeout` and `statement_timeout` in both (squawk's `require-timeout-settings` is active and will fail CI without them). `lock_timeout` makes the migration fail fast instead of queueing behind a long reader and blocking every request stacked behind it.
+
+**`lock_timeout` bounds ACQUISITION, not duration.** It caps how long a statement waits to _take_ a lock. Once taken, `ACCESS EXCLUSIVE` is held until the transaction commits, and how long the statement then runs is bounded by `statement_timeout`, not by `lock_timeout`. A migration that acquires its lock instantly and then rebuilds a large index blocks every reader and writer for the whole rebuild. When sizing a migration, reason about `statement_timeout` and the work; `lock_timeout` only protects you from queueing behind someone else.
+
+---
+
+## Recovering a failed migration (P3009)
+
+**A migration that aborts cannot "simply be re-run".** Two deployed migrations say it can — see [Errata](#errata-in-deployed-migrations) below — and that is wrong in a way that matters during an incident, because the recovery it implies makes the situation worse.
+
+What actually happens: Prisma inserts a row into `_prisma_migrations` _before_ running the file. If the file aborts (a `lock_timeout`, a `statement_timeout`, a constraint violation), the row stays with `finished_at IS NULL` and the failure text in `logs`. The transaction rolled back, so the schema is untouched — but the ledger now records a failed migration. The next `prisma migrate deploy` refuses to do anything at all:
+
+```
+Error: P3009
+migrate found failed migrations in the target database, new migrations will not be applied.
+```
+
+That is the whole deploy pipeline blocked, not just the one migration — reproduced end-to-end on a scratch database (`P3018` on the first run, `P3009` on the second).
+
+### Runbook
+
+1. **Read the failure before touching the ledger.** The reason is stored, not just printed:
+
+   ```sql
+   SELECT migration_name, started_at, logs
+   FROM _prisma_migrations
+   WHERE finished_at IS NULL
+   ORDER BY started_at DESC;
+   ```
+
+2. **Confirm the schema really is untouched.** Prisma wraps each migration file in one transaction, so an abort rolls the whole file back — but a file containing `CREATE INDEX CONCURRENTLY` (which cannot run in a transaction) is the exception and can leave an `INVALID` index behind. Check for one before continuing:
+
+   ```sql
+   SELECT indexrelid::regclass FROM pg_index WHERE NOT indisvalid;
+   ```
+
+   Drop any that the failed migration created; a later re-run will not reuse them.
+
+3. **Choose the right resolve verb — this is where the damage happens.**
+   - `prisma migrate resolve --rolled-back <name>` — the schema is back at its pre-migration state (the normal case for a transactional abort). Marks the attempt as rolled back so the migration is eligible to run again.
+   - `prisma migrate resolve --applied <name>` — the migration's effects ARE present and you do not want it re-run (hand-applied, or a partially-non-transactional file you finished manually).
+
+   Getting these backwards is the expensive mistake: `--applied` on a migration that never took effect makes Prisma skip it forever, and the schema silently diverges from `schema.prisma` on that database only.
+
+4. **Re-run** `prisma migrate deploy`. If the cause was lock contention, drain the long-running transactions first (`SELECT pid, state, query_start, query FROM pg_stat_activity WHERE state <> 'idle' ORDER BY query_start;`) — re-running into the same contention just reproduces the failure and burns another cycle.
+
+5. **If the abort was a `statement_timeout` rather than contention**, do not raise the timeout and retry. The migration is too big for one transaction; split it (see the two-phase `NOT VALID` / `VALIDATE` shape above) or convert the index build to a `CONCURRENTLY` runbook outside the migration.
+
+### Errata in deployed migrations
+
+An applied migration's file is immutable: its checksum is recorded in `_prisma_migrations`, and editing it makes `migrate deploy` fail on every database that already ran it. Corrections are therefore recorded **here**, never in the file that carries the error — this table is the canonical register, and it is the first place to look when a migration header and reality disagree.
+
+`20260901120000_deletion_record_retention_and_partial_uniques` also carries the count erratum inline, which is how it was first recorded; that header is a mirror of this table, not a second source. A reader who opens a deployed migration, counts 25, and doubts the header has no in-file breadcrumb pointing here — the deployed files cannot be given one. This register is reachable instead from `## Foreign keys` above and from the migration-authoring checklist, which is the compensation for that.
+
+| Migration                                      | Claim in the file                                                     | Correction                                                                                                                                                                                   |
+| ---------------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `20260830220417_ondelete_convention_alignment` | "24 FK actions"                                                       | The measured count is **25**. The SQL is correct; only the prose number is wrong.                                                                                                            |
+| `20260830220517_ondelete_convention_validate`  | "24 FK actions"                                                       | Same miscount, inherited from the alignment file.                                                                                                                                            |
+| `20260830220417_ondelete_convention_alignment` | "on contention the migration fails fast and **can simply be re-run**" | **False.** The aborted attempt leaves a failed row in `_prisma_migrations`, and the next `migrate deploy` stops with `P3009` until someone runs `migrate resolve`. Follow the runbook above. |
 
 ---
 

@@ -30,7 +30,13 @@ export function mapHardDeleteError(
     case USE_CASE_ERRORS.NOT_FOUND:
       return { status: 404, message: `${Entity} not found` };
     case USE_CASE_ERRORS.VALIDATION_FAILED:
-      return { status: 400, message: `Invalid ${entityNoun} ID` };
+      // The use case returns VALIDATION_FAILED for TWO distinct inputs: a malformed id, and
+      // a reason that is blank or only whitespace. Answering both with "Invalid <noun> ID"
+      // told an admin whose reason was a single space to go and check the id — which was
+      // fine — while the field that actually failed went unnamed. The use-case message
+      // already distinguishes them and is safe to surface: neither variant echoes anything
+      // but the id the caller just sent.
+      return { status: 400, message: useCaseMessage };
     case USE_CASE_ERRORS.OPERATION_TOO_LARGE:
       // 413 Payload Too Large: the request is fine, the blast radius is not.
       return { status: 413, message: useCaseMessage };

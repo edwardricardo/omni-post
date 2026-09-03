@@ -35,7 +35,7 @@ export class PrismaScoreTrendContextAdapter implements ScoreTrendContextPort {
     // Find channel IDs belonging to this account
     const channels = await this.prisma.channel.findMany({
       where: {
-        project: { accountId, deletedAt: null },
+        project: { accountId },
         deletedAt: null,
       },
       select: { id: true },

@@ -5,69 +5,20 @@
  * @layer infrastructure
  */
 
-import type { FastifyRequest } from "fastify";
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 
-// The tenant the mocked auth middleware signs the caller in as. DELETE
-// /accounts/:accountId is tenant-gated — an Account IS the tenant root, so a
-// customer may only delete its own — and the previous no-op mock produced an
-// identity-less request that no longer stands in for a signed-in customer.
-// `permissions` carries the JWT permission snapshot: the DELETE route now gates
-// on the OWNER-only `account:delete`, so the default stands the caller in as an
-// OWNER (which the fixture's `roleName: "OWNER"` already claimed). Individual
-// tests flip it to exercise the deny path.
-const authContext: { accountId: string; permissions: readonly string[] } = {
-  accountId: "",
-  permissions: ["account:delete"],
-};
-
 vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
-  requireClientAuth: async (request: FastifyRequest) => {
-    request.customerUser = {
-      id: "customer-user-1",
-      accountId: authContext.accountId,
-      roleId: "role-1",
-      roleName: "OWNER",
-      permissions: authContext.permissions,
-    };
-  },
-}));
-
-// The restore endpoint accepts a customer OR an admin token via one composed
-// preHandler. The mock signs the caller in as whichever `restoreAuthContext`
-// selects, mirroring how the real middleware sets exactly one principal.
-const restoreAuthContext: {
-  principal: "customer" | "admin";
-  accountId: string;
-  permissions: readonly string[];
-} = { principal: "customer", accountId: "", permissions: ["account:delete"] };
-
-vi.mock("../../src/auth/customerOrAdminAuth.js", () => ({
-  requireCustomerOrAdminAuth: async (request: FastifyRequest) => {
-    if (restoreAuthContext.principal === "admin") {
-      (request as FastifyRequest & { auth?: { user: { id: string; role: string } } }).auth = {
-        user: { id: "admin-user-1", role: "ADMIN" },
-      };
-      return;
-    }
-    request.customerUser = {
-      id: "customer-user-1",
-      accountId: restoreAuthContext.accountId,
-      roleId: "role-1",
-      roleName: "OWNER",
-      permissions: restoreAuthContext.permissions,
-    };
-  },
+  requireClientAuth: async () => {},
 }));
 
 // Admin surface for DELETE /accounts/:accountId/hard is driven through the REAL
-// `requireAdminAuth` (NOT mocked): the previous mock set a phantom
-// `request.adminUser` that nothing in production ever sets, so it "proved" an
-// attribution the running system did not provide. The real middleware binds the
-// principal on `request.auth`, and these tests pass a genuine, TokenService-signed
-// admin access token — so the id that lands on the tombstone and the audit record
-// is the one the real authentication path put there. Only `requirePermission`
-// stays mocked: RBAC enforcement is a separate concern from attribution.
+// `requireAdminAuth` (NOT mocked): a mock that set a phantom `request.adminUser`
+// nothing in production ever sets would "prove" an attribution the running system
+// does not provide. The real middleware binds the principal on `request.auth`, and
+// these tests pass a genuine, TokenService-signed admin access token — so the id
+// that lands on the tombstone and the audit record is the one the real
+// authentication path put there. Only `requirePermission` stays mocked: RBAC
+// enforcement is a separate concern from attribution.
 vi.mock("../../src/auth/rbacMiddleware.js", () => ({
   requirePermission: () => async () => {},
 }));
@@ -80,11 +31,10 @@ import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 
 const { mockPrisma, stores } = createMockPrismaModule();
 
-// accountRoutes uses include: { projects: { where: { deletedAt: null } } } and
-// include: { _count: ... }. Build an include resolver for the account model.
-// The nested `where` is honoured rather than ignored: the routes now list only
-// live projects, and a mock that returned soft-deleted rows would hide exactly
-// the behaviour under test.
+// accountRoutes uses include: { projects: ... } and include: { _count: ... }.
+// One include resolver for the account model, shared by findUnique and findMany.
+// A nested `where` is honoured rather than ignored, so the double answers the
+// same shape the real client would for either form of the include.
 function resolveAccountIncludes(
   result: Record<string, unknown>,
   include: Record<string, unknown> | undefined
@@ -116,15 +66,6 @@ mockPrisma.prisma.account.findUnique = vi.fn(
   }
 );
 
-const originalFindFirst = mockPrisma.prisma.account.findFirst;
-mockPrisma.prisma.account.findFirst = vi.fn(
-  async (args: { where?: Record<string, unknown>; include?: Record<string, unknown> }) => {
-    const result = await originalFindFirst(args);
-    if (!result) return null;
-    return resolveAccountIncludes(result as Record<string, unknown>, args.include);
-  }
-);
-
 const originalFindMany = mockPrisma.prisma.account.findMany;
 mockPrisma.prisma.account.findMany = vi.fn(
   async (args?: {
@@ -142,21 +83,26 @@ mockPrisma.prisma.account.findMany = vi.fn(
   }
 );
 
-// Models the mock module does not define but the container's repositories may
-// reach for. The DELETE route no longer touches them (it soft-deletes the
-// account row and leaves its children alone) — they remain so that any
-// repository resolved from setupContainer finds a callable accessor.
+// Models the mock module does not define but the DELETE handler and the
+// container's repositories reach for.
 const noopDeleteMany = vi.fn(async () => ({ count: 0 }));
 const prismaAny = mockPrisma.prisma as Record<string, unknown>;
 prismaAny.postContent = { deleteMany: noopDeleteMany };
 prismaAny.postMedia = { deleteMany: noopDeleteMany };
-// `post.count` backs the hard-delete pre-flight size probe (countHardDeleteImpact);
-// 0 keeps every fixture well under the ceiling so the guard never trips here.
+// `post.count` backs the POST dimension of the hard-delete pre-flight size probe
+// (countHardDeleteImpact); 0 keeps every fixture well under the ceiling so the
+// guard never trips here.
 prismaAny.post = {
   deleteMany: noopDeleteMany,
   findMany: vi.fn(async () => []),
   count: vi.fn(async () => 0),
 };
+// `task.count` and `webhookEvent.count` back the CHILD dimension of that same probe.
+// They are not optional decoration: the probe reads both, and an accessor the mock
+// does not define throws inside the use case's try/catch, which returns 500 — so a
+// missing count here would turn every hard-delete route test into a 500 that looks
+// like an unrelated regression.
+prismaAny.task = { count: vi.fn(async () => 0) };
 prismaAny.channel = { deleteMany: noopDeleteMany };
 // The hard delete's own tombstone write (see PrismaAccountRepository.hardDelete):
 // one `DeletionRecord` row for the account plus one per project it drags along,
@@ -579,57 +525,6 @@ describe("accountRoutes Unit Tests", () => {
 
       const body = JSON.parse(createResponse.body);
       deleteAccountId = body.data?.id || "";
-      // An Account IS the tenant root: the only account a customer may delete
-      // is its own, so sign the caller in as the account under test.
-      authContext.accountId = deleteAccountId;
-    });
-
-    it("returns 404 without deleting when the caller belongs to a different tenant", async () => {
-      const victim = await mockPrisma.prisma.account.create({
-        data: {
-          email: `victim-account-${timestamp}@example.com`,
-          name: "Victim Account",
-          maxProjects: 1,
-        },
-      });
-
-      // The caller is signed in as `deleteAccountId`, not as the victim.
-      const response = await app.inject({
-        method: "DELETE",
-        url: `/accounts/${victim.id}`,
-      });
-
-      expect(response.statusCode).toBe(404);
-
-      const survivor = await mockPrisma.prisma.account.findUnique({ where: { id: victim.id } });
-      expect(survivor).not.toBe(null);
-      expect(survivor?.deletedAt ?? null).toBe(null);
-    });
-
-    it("denies a low-privilege customer (no account:delete) with 403 and leaves the row intact", async () => {
-      // The owner-level gate (D-RESTORE / F5): before it existed, ANY authenticated
-      // customer — MEMBER, VIEWER — could soft-delete the tenant root. The caller
-      // here OWNS the account (tenant gate would pass), but lacks account:delete.
-      const survivor = await mockPrisma.prisma.account.create({
-        data: { email: `low-priv-${timestamp}@example.com`, name: "Low Priv", maxProjects: 1 },
-      });
-      const savedAccount = authContext.accountId;
-      const savedPerms = authContext.permissions;
-      authContext.accountId = survivor.id;
-      authContext.permissions = ["post:read", "channel:read", "analytics:read"];
-      try {
-        const response = await app.inject({
-          method: "DELETE",
-          url: `/accounts/${survivor.id}`,
-        });
-
-        expect(response.statusCode).toBe(403);
-        const row = await mockPrisma.prisma.account.findUnique({ where: { id: survivor.id } });
-        expect(row?.deletedAt ?? null).toBe(null);
-      } finally {
-        authContext.accountId = savedAccount;
-        authContext.permissions = savedPerms;
-      }
     });
 
     it("should delete account successfully", async () => {
@@ -645,19 +540,6 @@ describe("accountRoutes Unit Tests", () => {
       expect(body.data?.message).toBeTruthy();
     });
 
-    it("soft-deletes: the account row survives with deletedAt set", async () => {
-      // H12 Soft Delete Universal. The row is NOT destroyed — it stays in the
-      // table stamped with deletedAt, so invoices, audit rows and the tenant's
-      // content remain attributable. Before this change the handler physically
-      // removed the account together with every post and channel under it.
-      const row = await mockPrisma.prisma.account.findUnique({
-        where: { id: deleteAccountId },
-      });
-
-      expect(row).not.toBe(null);
-      expect(row?.deletedAt).toBeInstanceOf(Date);
-    });
-
     it("should verify account is deleted", async () => {
       const response = await app.inject({
         method: "GET",
@@ -665,14 +547,6 @@ describe("accountRoutes Unit Tests", () => {
       });
 
       expect(response.statusCode).toBe(404);
-    });
-
-    it("hides the deleted account from the list endpoint", async () => {
-      const response = await app.inject({ method: "GET", url: "/accounts" });
-
-      expect(response.statusCode).toBe(200);
-      const listed = JSON.parse(response.body).data as { id: string }[];
-      expect(listed.some((a) => a.id === deleteAccountId)).toBe(false);
     });
 
     it("should return 404 when deleting non-existent account", async () => {
@@ -688,95 +562,6 @@ describe("accountRoutes Unit Tests", () => {
       const response = await app.inject({
         method: "DELETE",
         url: `/accounts/${deleteAccountId}`,
-      });
-
-      expect(response.statusCode).toBe(404);
-    });
-  });
-
-  describe("POST /accounts/:accountId/restore", () => {
-    async function makeSoftDeletedAccount(): Promise<string> {
-      const acct = await mockPrisma.prisma.account.create({
-        data: {
-          email: `restore-${Date.now()}-${Math.random()}@example.com`,
-          name: "R",
-          maxProjects: 1,
-        },
-      });
-      await mockPrisma.prisma.account.update({
-        where: { id: acct.id },
-        data: { deletedAt: new Date() },
-      });
-      return acct.id;
-    }
-
-    it("owner restores their own soft-deleted account: deletedAt cleared, visible again", async () => {
-      const id = await makeSoftDeletedAccount();
-      restoreAuthContext.principal = "customer";
-      restoreAuthContext.accountId = id;
-      restoreAuthContext.permissions = ["account:delete"];
-
-      const response = await app.inject({ method: "POST", url: `/accounts/${id}/restore` });
-
-      expect(response.statusCode).toBe(200);
-      expect(JSON.parse(response.body).data?.restored).toBe(true);
-      const row = await mockPrisma.prisma.account.findUnique({ where: { id } });
-      expect(row?.deletedAt ?? null).toBe(null);
-    });
-
-    it("admin restores any tenant's soft-deleted account", async () => {
-      const id = await makeSoftDeletedAccount();
-      restoreAuthContext.principal = "admin";
-
-      const response = await app.inject({ method: "POST", url: `/accounts/${id}/restore` });
-
-      expect(response.statusCode).toBe(200);
-      const row = await mockPrisma.prisma.account.findUnique({ where: { id } });
-      expect(row?.deletedAt ?? null).toBe(null);
-    });
-
-    it("denies a low-privilege customer (no account:delete) with 403 and leaves it soft-deleted", async () => {
-      const id = await makeSoftDeletedAccount();
-      restoreAuthContext.principal = "customer";
-      restoreAuthContext.accountId = id;
-      restoreAuthContext.permissions = ["post:read", "analytics:read"];
-
-      const response = await app.inject({ method: "POST", url: `/accounts/${id}/restore` });
-
-      expect(response.statusCode).toBe(403);
-      const row = await mockPrisma.prisma.account.findUnique({ where: { id } });
-      expect(row?.deletedAt).toBeInstanceOf(Date);
-    });
-
-    it("returns 404 without restoring when a customer targets another tenant's soft-deleted account", async () => {
-      const id = await makeSoftDeletedAccount();
-      restoreAuthContext.principal = "customer";
-      restoreAuthContext.accountId = "a0000000-0000-4000-8000-0000000000ff"; // not the owner
-      restoreAuthContext.permissions = ["account:delete"];
-
-      const response = await app.inject({ method: "POST", url: `/accounts/${id}/restore` });
-
-      expect(response.statusCode).toBe(404);
-      const row = await mockPrisma.prisma.account.findUnique({ where: { id } });
-      expect(row?.deletedAt).toBeInstanceOf(Date);
-    });
-
-    it("returns 404 when the account is not soft-deleted (nothing to restore)", async () => {
-      const acct = await mockPrisma.prisma.account.create({
-        data: { email: `active-${Date.now()}@example.com`, name: "Active", maxProjects: 1 },
-      });
-      restoreAuthContext.principal = "admin";
-
-      const response = await app.inject({ method: "POST", url: `/accounts/${acct.id}/restore` });
-
-      expect(response.statusCode).toBe(404);
-    });
-
-    it("returns 404 for an unknown account", async () => {
-      restoreAuthContext.principal = "admin";
-      const response = await app.inject({
-        method: "POST",
-        url: "/accounts/a0000000-0000-4000-8000-000000000000/restore",
       });
 
       expect(response.statusCode).toBe(404);

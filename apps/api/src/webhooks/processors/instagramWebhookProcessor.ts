@@ -266,7 +266,6 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
       where: {
         provider: "INSTAGRAM",
         providerAccountId: instagramPageId,
-        deletedAt: null,
       },
       include: {
         project: {

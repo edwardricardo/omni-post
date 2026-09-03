@@ -53,7 +53,7 @@ export class PrismaTopPerformersQuery implements TopPerformersQueryPort {
     const posts = await this.prisma.post.findMany({
       where: {
         id: { in: postIds },
-        project: { accountId: params.accountId, deletedAt: null },
+        project: { accountId: params.accountId },
         deletedAt: null,
       },
       select: {

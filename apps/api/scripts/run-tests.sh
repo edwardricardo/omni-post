@@ -212,7 +212,22 @@ CONCURRENCY=1 run_batch "integration:repositories" \
   tests/integration/repositories/AnalyticsRepository.channel.test.ts \
   tests/integration/repositories/AnalyticsRepository.timeseries.test.ts \
   tests/integration/repositories/ConversionRepository.test.ts \
-  tests/integration/backfillAdminMfaBackupCodes.integration.test.ts
+  tests/integration/backfillAdminMfaBackupCodes.integration.test.ts \
+  tests/integration/postHardDeleteCascade.test.ts
+
+# Retention-floor sweep. DB-only, and deliberately its OWN batch: it holds a second
+# PrismaClient opened on a hostile session time zone, so folding it into a batch that
+# shares the singleton would make which client a failure belongs to ambiguous.
+CONCURRENCY=1 run_batch "integration:retention" \
+  tests/integration/deletionRecordRetentionFloor.test.ts
+
+# Serializable hard-delete race. Its OWN batch for the same reason as the retention
+# sweep, and one more: it holds TWO PrismaClients and deliberately parks one of them
+# on a row lock while polling `pg_blocking_pids`. Sharing a batch would let a sibling
+# suite's lock wait satisfy that poll, and the interleaving the proof depends on would
+# stop being the one under test. CONCURRENCY=1 is not optional here.
+CONCURRENCY=1 TIMEOUT=120000 run_batch "integration:hard-delete-race" \
+  tests/integration/hardDeleteSerializableRace.test.ts
 
 CONCURRENCY=1 run_batch "integration:sync" \
   tests/integration/syncEngine/syncEngine.init.test.ts \

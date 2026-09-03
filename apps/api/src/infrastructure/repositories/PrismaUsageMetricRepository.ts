@@ -84,8 +84,8 @@ export class PrismaUsageMetricRepository implements UsageMetricRepository {
    * `plan: "Free"` and `null` limits — the page maps null to "Unlimited".
    */
   async findAccountContext(accountId: string): Promise<AccountUsageContext | null> {
-    const account = await this.prisma.account.findFirst({
-      where: { id: accountId, deletedAt: null },
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
       select: {
         maxStorageBytes: true,
         maxTeamMembers: true,

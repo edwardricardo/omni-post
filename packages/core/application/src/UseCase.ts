@@ -107,10 +107,22 @@ export type UseCaseErrorCode = (typeof USE_CASE_ERRORS)[keyof typeof USE_CASE_ER
 
 /**
  * @function classifyPersistenceFailure
- * @description Maps a caught persistence-layer failure to a use-case error code by its portable
- *              SQLSTATE-style code, WITHOUT importing any ORM type — so the application layer
- *              stays framework-free. The codes are the stable identifiers the data layer surfaces
- *              on a known request failure:
+ * @description Maps a caught persistence-layer failure to a use-case error code by the `code`
+ *              string the data layer puts on the error.
+ *
+ *              Be honest about what this buys. `P2003` / `P2028` / `P2034` are PRISMA's own
+ *              error codes — proprietary, not SQLSTATE. SQLSTATE is the five-character ANSI
+ *              standard (`23503` for a foreign-key violation, `40001` for a serialization
+ *              failure), and nothing here reads one. So this function avoids a compile-time
+ *              import of an ORM type while remaining coupled to that same ORM BY VALUE: swap
+ *              Prisma out and these literals silently classify everything as
+ *              `INTERNAL_ERROR`, with no type error to catch it. The comment this replaces
+ *              called them "portable SQLSTATE-style", which reads as a guarantee of the
+ *              portability the design does not actually have.
+ *
+ *              The trade is still the right one — the application layer must not import a
+ *              driver — but the cost belongs written down, because the day the driver changes
+ *              is the day someone needs to know these three strings exist. The codes:
  *                - `P2003` foreign-key interlock (a RESTRICT relationship blocks the delete) →
  *                  `CONFLICT`: durable, never retryable; the caller must remove the blocker first.
  *                - `P2028` transaction timeout, `P2034` write conflict / deadlock (serialization
@@ -128,4 +140,28 @@ export function classifyPersistenceFailure(error: unknown): UseCaseErrorCode {
     return USE_CASE_ERRORS.TRANSIENT_FAILURE;
   }
   return USE_CASE_ERRORS.INTERNAL_ERROR;
+}
+
+/**
+ * @function isRetryableWriteConflict
+ * @description Narrower than `TRANSIENT_FAILURE`: true only for `P2034`, the serialization
+ *              failure / write conflict a Serializable transaction raises when a concurrent
+ *              writer made its snapshot unsafe. That is the one failure class where re-running
+ *              the SAME work can succeed unchanged, so it is the only one an automatic retry
+ *              may act on.
+ *
+ *              Deliberately NOT retryable, though both share the `TRANSIENT_FAILURE` code:
+ *                - `P2028` transaction timeout. The work did not fit the budget; running it
+ *                  again spends the budget again and times out again, while holding locks for
+ *                  another full budget. The caller is told to retry, but a HUMAN decides —
+ *                  usually after shrinking the operation.
+ *              And never `P2003`: a foreign-key interlock is durable by construction.
+ *
+ *              Coupled to Prisma's code strings by value, exactly like
+ *              {@link classifyPersistenceFailure} — see the honesty note there.
+ * @param error - The value caught from a repository/transaction call.
+ * @returns True when the failure is a write conflict that an identical retry may win.
+ */
+export function isRetryableWriteConflict(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === "P2034";
 }

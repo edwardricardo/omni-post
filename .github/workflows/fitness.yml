@@ -1258,73 +1258,6 @@ jobs:
             exit 1
           fi
 
-      - name: "#38 Soft-delete read coherence: no read of a swept soft-deletable model without its deletedAt filter"
-        if: always()
-        run: |
-          # Mirrors CLAUDE.md #38. Closes the CLASS behind B-READS: the delete went
-          # soft and ~90 read sites kept returning rows the tenant had deleted —
-          # including getProjectAccess, an access GATE — while every suite stayed
-          # green. Two streams from ONE detection: the swept tree is hard-zero;
-          # packages/adapters/db-prisma is a RATCHET at a measured baseline of 12
-          # (SMELL-87) — live-wired reads whose sweep needs its own tests. The
-          # baseline may fall and must never rise.
-          set -uo pipefail
-          SCHEMA=infra/prisma/schema.prisma
-          SWEPT="account channel post project"
-          UNSWEPT="conversationNote customerUser mediaAsset postComment task template"
-          DBPRISMA=packages/adapters/db-prisma
-          DBPRISMA_BASELINE=12
-          for d in apps/api/src apps/workers/src packages "$DBPRISMA"; do
-            [ -d "$d" ] || { echo "::error title=Fitness #38 scope error::'$d' does not exist — the read scan would silently skip it. If $DBPRISMA was deleted, delete its ratchet here and in CLAUDE.md in the same change; a baseline naming an absent directory is a gate measuring nothing."; exit 1; }
-          done
-          ALL=$(awk '/^model /{m=$2} /^[[:space:]]+deletedAt[[:space:]]/{print tolower(substr(m,1,1)) substr(m,2)}' "$SCHEMA" | sort -u)
-          [ -n "$ALL" ] || { echo "::error title=Fitness #38 scope error::zero deletedAt-bearing models extracted from $SCHEMA — the column convention changed or the schema moved; the check would scan for nothing and pass, failing closed instead."; exit 1; }
-          [ "$(echo $UNSWEPT | wc -w)" -le 6 ] || { echo "::error title=Fitness #38 scope error::the UNSWEPT quarantine grew past its floor of 6 — it may only shrink. A new soft-deletable model is enrolled by sweeping its reads, not by quarantining it."; exit 1; }
-          for m in $ALL; do
-            case " $SWEPT $UNSWEPT " in *" $m "*) ;; *)
-              echo "::error title=Fitness #38 scope error::model '$m' carries deletedAt but is in neither the SWEPT set nor the UNSWEPT quarantine — sweep its reads and add it to SWEPT (or quarantine it with an owning backlog entry)."; exit 1;;
-            esac
-          done
-          for m in $SWEPT $UNSWEPT; do
-            printf '%s\n' "$ALL" | grep -qx "$m" || { echo "::error title=Fitness #38 scope error::'$m' is listed but no longer carries deletedAt in $SCHEMA — delete the stale name so a future model cannot inherit its slot."; exit 1; }
-          done
-          MODELS=$(printf '%s|' $SWEPT); MODELS=${MODELS%|}
-          EXCEPTIONS='/PrismaPostRepository\.ts:|/PrismaPostQueryRepository\.ts:|/PrismaAccountRepository\.ts:|/PrismaProjectRepository\.ts:|/PrismaChannelRepository\.ts:|/SchedulingPostHandlers\.ts:|/CustomerAccountBillingService\.ts:|/gatewaySwitchProcessor\.ts:|/realtimeWebhookBroadcaster\.ts:|/PrismaAccountBillingRepository\.ts:|/projectRoutes\.ts:|/accountRoutes\.ts:'
-          scan_reads() {
-            grep -rnE "\.($MODELS)\.(findFirst|findFirstOrThrow|findMany|findUnique|findUniqueOrThrow|count|aggregate|groupBy)\b" \
-                "$@" --include="*.ts" | \
-              grep -vE "/node_modules/|/dist/|/tests/|\.test\.ts:" | \
-              grep -vE "$EXCEPTIONS" | grep -v "typeof " | \
-              while IFS= read -r hit; do
-                file=${hit%%:*}; rest=${hit#*:}; ln=${rest%%:*}
-                from=$((ln - 15)); [ "$from" -lt 1 ] && from=1
-                sed -n "${from},$((ln + 9))p" "$file" | grep -q "DELIBERATE soft-delete-sweep exception" && continue
-                if sed -n "${ln},$((ln + 9))p" "$file" | grep -q "deletedAt" && \
-                   ! printf '%s' "$hit" | grep -qE "\.findUnique(OrThrow)?\b"; then
-                  continue
-                fi
-                printf '%s\n' "$hit"
-              done
-          }
-          VIOLATIONS=$(scan_reads apps/api/src apps/workers/src packages | grep -vF "$DBPRISMA/") || true
-          COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
-          COUNT=${COUNT:-0}
-          echo "Fitness #38 (swept tree): $COUNT violations (expect 0)"
-          DBPRISMA_HITS=$(scan_reads "$DBPRISMA") || true
-          DBCOUNT=$(printf "%s" "$DBPRISMA_HITS" | grep -c . || true)
-          DBCOUNT=${DBCOUNT:-0}
-          echo "Fitness #38 (db-prisma ratchet): $DBCOUNT (baseline $DBPRISMA_BASELINE — may fall, must never rise)"
-          if [ "$COUNT" -gt 0 ]; then
-            echo "::error title=Fitness #38 violation::$COUNT read(s) of a swept soft-deletable model without the deletedAt filter. A soft-deleted row is not gone to the database, only to the reads that remember to filter it — an unfiltered read returns rows the tenant deleted (getProjectAccess was an ACCESS GATE doing exactly this). Filter with deletedAt: null, or mark a read that MUST see soft-deleted rows with the greppable marker 'DELIBERATE soft-delete-sweep exception' and its reason."
-            printf "%s\n" "$VIOLATIONS"
-            exit 1
-          fi
-          if [ "$DBCOUNT" -gt "$DBPRISMA_BASELINE" ]; then
-            echo "::error title=Fitness #38 db-prisma ratchet::$DBCOUNT unfiltered reads in $DBPRISMA against a baseline of $DBPRISMA_BASELINE. The 12 existing ones are owned as SMELL-87 (their sweep changes publish-worker and health-route behaviour and needs its own tests) — but the count may only FALL. A new unfiltered read in this package is a new violation hiding behind old debt."
-            printf "%s\n" "$DBPRISMA_HITS"
-            exit 1
-          fi
-
       - name: "#39 Every accountId-bearing model is tenant-guard-enrolled or in the documented denylist"
         if: always()
         run: |
@@ -1366,8 +1299,9 @@ jobs:
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "39 architectural invariants (#1-#39) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
-          echo "Hard-zero threshold for every check but #30 (a ratchet at a measured baseline of 21) and #38's db-prisma sub-count (ratcheted at 12, SMELL-87); both baselines may fall and must never rise." >> $GITHUB_STEP_SUMMARY
+          echo "38 architectural invariants (#1-#37 and #39) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "#38 is deliberately absent, and the gap is intentional: the number is RESERVED for the soft-delete read-coherence gate, which ships with the read sweep that makes it green. Renumbering twice would churn every cross-reference (#39's own prose calls #38 \"this gate's tenant-guard twin\")." >> $GITHUB_STEP_SUMMARY
+          echo "Hard-zero threshold for every check but #30, a ratchet at a measured baseline of 21 that may fall and must never rise." >> $GITHUB_STEP_SUMMARY
           echo "#37 compares against the PR base, so it runs on pull_request events only and skips cleanly on push." >> $GITHUB_STEP_SUMMARY
           echo "Any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

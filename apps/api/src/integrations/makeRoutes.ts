@@ -364,8 +364,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
       try {
         const posts = await prisma.post.findMany({
           where: {
-            deletedAt: null,
-            project: { accountId, deletedAt: null },
+            project: { accountId },
             status: "PUBLISHED",
           },
           orderBy: { publishedAt: "desc" },

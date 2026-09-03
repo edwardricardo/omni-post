@@ -20,8 +20,8 @@ export class PrismaCrisisProjectRepository implements CrisisProjectRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async findById(projectId: ProjectId): Promise<Result<Project, EntityNotFoundError>> {
-    const project = await this.prisma.project.findFirst({
-      where: { id: projectId.value, deletedAt: null },
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId.value },
       include: { account: true },
     });
 

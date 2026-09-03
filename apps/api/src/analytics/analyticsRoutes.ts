@@ -579,7 +579,7 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
         }),
         this.prisma.analytics.findMany({
           where: {
-            post: { projectId, deletedAt: null },
+            post: { projectId },
             capturedAt: { gte: startDate },
           },
           include: {
@@ -697,11 +697,7 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
     }
 
     try {
-      // findFirst + deletedAt: null so a soft-deleted project reads as not-found
-      // (defense in depth behind the getProjectAccess gate above).
-      const project = await this.prisma.project.findFirst({
-        where: { id: projectId, deletedAt: null },
-      });
+      const project = await this.prisma.project.findUnique({ where: { id: projectId } });
 
       if (!project) {
         return this.sendError(ctx, 404, "Project not found");
@@ -733,7 +729,7 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
         includeAnalytics
           ? this.prisma.analytics.findMany({
               where: {
-                post: { projectId, deletedAt: null },
+                post: { projectId },
                 capturedAt: { gte: startDate },
               },
               select: {
@@ -941,7 +937,7 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
       const [postCount, analytics] = await Promise.all([
         this.prisma.post.count({ where: { projectId, deletedAt: null } }),
         this.prisma.analytics.findMany({
-          where: { post: { projectId, deletedAt: null } },
+          where: { post: { projectId } },
           orderBy: { capturedAt: "desc" },
           take: 100,
         }),

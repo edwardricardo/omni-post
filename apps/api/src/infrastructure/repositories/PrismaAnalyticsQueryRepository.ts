@@ -92,7 +92,7 @@ export class PrismaAnalyticsQueryRepository implements AnalyticsQueryRepository 
   async findByProjectId(projectId: string, period?: DateRange): Promise<DomainAnalytics[]> {
     const rows = await this.prisma.analytics.findMany({
       where: {
-        channel: { projectId, deletedAt: null },
+        channel: { projectId },
         ...(period !== undefined && {
           capturedAt: {
             gte: period.start,

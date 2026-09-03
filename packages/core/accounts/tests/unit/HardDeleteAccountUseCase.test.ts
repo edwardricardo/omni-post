@@ -11,10 +11,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
+import { HardDeleteAccountUseCase } from "../../src/HardDeleteAccountUseCase.js";
 import {
-  HardDeleteAccountUseCase,
+  HARD_DELETE_MAX_CASCADE_ROWS,
   HARD_DELETE_MAX_POSTS,
-} from "../../src/HardDeleteAccountUseCase.js";
+} from "@core/application/hardDeletePolicy.js";
+import { WRITE_CONFLICT_MAX_ATTEMPTS } from "@core/application/retryOnWriteConflict.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { toAdminActorId, type AdminActorId } from "@core/domain/value-objects/AdminActorId.js";
@@ -48,9 +50,8 @@ function makeRepo(): AccountRepositoryPort & {
     findByEmail: vi.fn(async () => null),
     save: vi.fn(async () => ok(undefined)),
     delete: vi.fn(async () => ok(undefined)),
-    restore: vi.fn(async () => ok(undefined)),
     hardDelete: vi.fn(async () => ok(undefined)),
-    countHardDeleteImpact: vi.fn(async () => 0),
+    countHardDeleteImpact: vi.fn(async () => ({ posts: 0, childRows: 0 })),
     exists: vi.fn(async () => true),
     findAll: vi.fn(async () => []),
   };
@@ -72,6 +73,17 @@ function makeUow(): UnitOfWork & { executeInTransaction: ReturnType<typeof vi.fn
   };
   return uow as unknown as UnitOfWork & { executeInTransaction: ReturnType<typeof vi.fn> };
 }
+
+/**
+ * Retry seams that exercise the schedule without spending its wall clock: the sleep
+ * resolves immediately and the jitter is pinned. The ATTEMPT COUNT is deliberately
+ * left at the production default, so a test asserting "three attempts" is asserting
+ * the shipped policy rather than one the test invented.
+ */
+const NO_WAIT = {
+  sleep: async (): Promise<void> => {},
+  random: (): number => 0,
+} as const;
 
 describe("HardDeleteAccountUseCase", () => {
   beforeEach(() => {
@@ -137,7 +149,10 @@ describe("HardDeleteAccountUseCase", () => {
 
   it("refuses a tenant too large to remove atomically, before opening the transaction", async () => {
     const repo = makeRepo();
-    repo.countHardDeleteImpact.mockResolvedValue(HARD_DELETE_MAX_POSTS + 1);
+    repo.countHardDeleteImpact.mockResolvedValue({
+      posts: HARD_DELETE_MAX_POSTS + 1,
+      childRows: 0,
+    });
     const uow = makeUow();
 
     const result = await new HardDeleteAccountUseCase(repo, uow).execute({
@@ -158,7 +173,10 @@ describe("HardDeleteAccountUseCase", () => {
 
   it("allows a tenant exactly at the ceiling", async () => {
     const repo = makeRepo();
-    repo.countHardDeleteImpact.mockResolvedValue(HARD_DELETE_MAX_POSTS);
+    repo.countHardDeleteImpact.mockResolvedValue({
+      posts: HARD_DELETE_MAX_POSTS,
+      childRows: HARD_DELETE_MAX_CASCADE_ROWS,
+    });
 
     const result = await new HardDeleteAccountUseCase(repo, makeUow()).execute({
       accountId: ACCOUNT_ID,
@@ -260,5 +278,95 @@ describe("HardDeleteAccountUseCase", () => {
 
     assert.ok(!result.ok);
     assert.strictEqual(result.error.code, USE_CASE_ERRORS.INTERNAL_ERROR);
+  });
+
+  it("refuses a tenant whose CHILD dependent rows exceed the ceiling, even when its posts do not", async () => {
+    const repo = makeRepo();
+    // The exact shape a posts-only guard was blind to: comfortably under the post
+    // ceiling, far over the cascade the transaction budget can finish.
+    repo.countHardDeleteImpact.mockResolvedValue({
+      posts: 1,
+      childRows: HARD_DELETE_MAX_CASCADE_ROWS + 1,
+    });
+    const uow = makeUow();
+
+    const result = await new HardDeleteAccountUseCase(repo, uow).execute({
+      accountId: ACCOUNT_ID,
+      caller: ADMIN,
+    });
+
+    assert.ok(!result.ok, "A tenant over the child-row ceiling must be refused");
+    assert.strictEqual(result.error.code, USE_CASE_ERRORS.OPERATION_TOO_LARGE);
+    // The message names the dimension that tripped, so the operator does not go
+    // hunting through posts that were never the problem.
+    expect(result.error.message).toContain(String(HARD_DELETE_MAX_CASCADE_ROWS + 1));
+    expect(result.error.message).toContain(String(HARD_DELETE_MAX_CASCADE_ROWS));
+    // Nothing destructive ran.
+    expect(uow.executeInTransaction).not.toHaveBeenCalled();
+    expect(repo.hardDelete).not.toHaveBeenCalled();
+  });
+
+  it("retries a write conflict (P2034) and succeeds on the next attempt", async () => {
+    const repo = makeRepo();
+    repo.hardDelete
+      .mockRejectedValueOnce(Object.assign(new Error("write conflict"), { code: "P2034" }))
+      .mockResolvedValueOnce(ok(undefined));
+
+    const result = await new HardDeleteAccountUseCase(repo, makeUow(), NO_WAIT).execute({
+      accountId: ACCOUNT_ID,
+      caller: ADMIN,
+    });
+
+    // Serializable makes the tombstone snapshot trustworthy by aborting under a
+    // concurrent writer. Without the retry, that correctness costs the operator a
+    // hand-rerun of a minutes-long cascade; with it, the transient loss converges.
+    assert.ok(result.ok, "A retried write conflict must converge, not surface as 503");
+    expect(repo.hardDelete).toHaveBeenCalledTimes(2);
+  });
+
+  it("does NOT retry a transaction timeout (P2028) — re-running it just spends the budget again", async () => {
+    const repo = makeRepo();
+    repo.hardDelete.mockRejectedValue(Object.assign(new Error("tx timeout"), { code: "P2028" }));
+
+    const result = await new HardDeleteAccountUseCase(repo, makeUow(), NO_WAIT).execute({
+      accountId: ACCOUNT_ID,
+      caller: ADMIN,
+    });
+
+    assert.ok(!result.ok);
+    assert.strictEqual(result.error.code, USE_CASE_ERRORS.TRANSIENT_FAILURE);
+    expect(repo.hardDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT retry a foreign-key interlock (P2003) — it is durable by construction", async () => {
+    const repo = makeRepo();
+    repo.hardDelete.mockRejectedValue(Object.assign(new Error("FK"), { code: "P2003" }));
+
+    await new HardDeleteAccountUseCase(repo, makeUow(), NO_WAIT).execute({
+      accountId: ACCOUNT_ID,
+      caller: ADMIN,
+    });
+
+    expect(repo.hardDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up after the bounded attempts and says the tenant must be quiesced", async () => {
+    const repo = makeRepo();
+    repo.hardDelete.mockRejectedValue(
+      Object.assign(new Error("write conflict"), { code: "P2034" })
+    );
+
+    const result = await new HardDeleteAccountUseCase(repo, makeUow(), NO_WAIT).execute({
+      accountId: ACCOUNT_ID,
+      caller: ADMIN,
+    });
+
+    assert.ok(!result.ok);
+    assert.strictEqual(result.error.code, USE_CASE_ERRORS.TRANSIENT_FAILURE);
+    expect(repo.hardDelete).toHaveBeenCalledTimes(WRITE_CONFLICT_MAX_ATTEMPTS);
+    // The retry does not make an erasure converge against a live tenant, and the
+    // error has to say so instead of inviting the operator to press the button again.
+    expect(result.error.message).toContain(String(WRITE_CONFLICT_MAX_ATTEMPTS));
+    expect(result.error.message).toContain("quiesced");
   });
 });

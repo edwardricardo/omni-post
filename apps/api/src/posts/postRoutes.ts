@@ -21,6 +21,9 @@ import type { DuplicatePostsBatchUseCase } from "@core/posts/DuplicatePostsBatch
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { PublishStatusValue } from "@core/domain/value-objects/PublishStatus.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
+import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { requirePermission } from "../auth/rbacMiddleware.js";
+import { Permission } from "@core/domain/auth/Permission.js";
 
 // ---------------------------------------------------------------------------
 // Zod Schemas for Validation with security enhancement
@@ -32,6 +35,19 @@ const PostParamsSchema = z.object({
 
 const BatchPostsBodySchema = z.object({
   postIds: z.array(z.string().uuid()).min(1).max(100),
+});
+
+/**
+ * Body for the irreversible bulk hard-delete. `accountId` is REQUIRED and is not
+ * decoration: the route is admin-authenticated, and admin authentication binds no
+ * `request.customerUser`, so the CWE-639 owner filter the customer path supplied
+ * implicitly has to be supplied explicitly here. Without it the use case would run
+ * with no `callerAccountId` at all and one call could destroy posts belonging to
+ * several tenants at once — trading the destructiveness this gate closes for a
+ * cross-tenant one.
+ */
+const HardDeleteBatchPostsBodySchema = BatchPostsBodySchema.extend({
+  accountId: z.string().uuid(),
 });
 
 const UpdatePostBodySchema = z.object({
@@ -438,14 +454,36 @@ class PostRouteHandler extends BaseRouteHandler {
   }
 
   // -----------------------------------------------------------------------
-  // DELETE /posts/batch — Bulk hard-delete (irreversible)
+  // DELETE /posts/batch — Bulk hard-delete (irreversible, admin only)
   // -----------------------------------------------------------------------
 
+  /**
+   * Physically destroys up to 100 posts of ONE named account and everything the
+   * database cascades from them: contents, media, threads and tweets, content
+   * versions, comments, approval requests and reviews, first comments, campaign
+   * links and repurpose proposals. Analytics, publish logs, tasks and webhook
+   * events survive with their `postId` nulled.
+   *
+   * Admin-gated on purpose. Before the ON DELETE convention landed, `PostContent`
+   * and `PostMedia` referenced `Post` with ON DELETE RESTRICT, and the repository
+   * creates exactly one `PostContent` row for every post it creates — so this
+   * route's `deleteMany` raised P2003 for every post the application can produce
+   * and the endpoint had never successfully deleted one. The convention turns that
+   * dead call into a working irreversible cascade. Leaving it on `requireClientAuth`
+   * would hand a customer dashboard button the power the database used to refuse it.
+   * The permission is `ACCOUNT_MANAGE`, the same one its three siblings carry
+   * (`/accounts/:id/hard`, `/projects/:id/hard`, `/channels/:id/hard`): equal blast
+   * radius, equal gate. `POST_MANAGE` is this codebase's ROUTINE post-administration
+   * permission (admin scheduling routes), which would be a strictly weaker gate.
+   *
+   * Customers keep every reversible path: `DELETE /posts/:id` (soft) and
+   * `PATCH /posts/batch/archive`.
+   */
   async hardDeletePostsBatch(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
     this.logInfo(ctx, "Hard-deleting posts batch");
 
-    const validation = await this.validateBody(ctx, BatchPostsBodySchema);
+    const validation = await this.validateBody(ctx, HardDeleteBatchPostsBodySchema);
     if (!validation.ok) {
       return this.sendError(ctx, 400, "Invalid request body");
     }
@@ -453,10 +491,10 @@ class PostRouteHandler extends BaseRouteHandler {
     try {
       const result = await this.hardDeletePostsBatchUseCase.execute({
         postIds: validation.value.postIds,
-        // Cross-tenant gate (CWE-639): caller can only delete posts they own.
-        ...(ctx.request.customerUser && {
-          callerAccountId: ctx.request.customerUser.accountId,
-        }),
+        // Cross-tenant gate (CWE-639). Unconditional: admin auth binds no
+        // `customerUser`, so the owner scope arrives in the body and every id
+        // outside `accountId` is dropped before the delete runs.
+        callerAccountId: validation.value.accountId,
       });
 
       if (!result.ok) {
@@ -560,7 +598,8 @@ class PostRouteHandler extends BaseRouteHandler {
  * - PATCH  /posts/:id            — Update post content (UpdatePostUseCase)
  * - DELETE /posts/:id            — Soft-delete post (DeletePostUseCase)
  * - PATCH  /posts/batch/archive  — Bulk archive (ArchivePostsBatchUseCase)
- * - DELETE /posts/batch          — Bulk hard-delete (HardDeletePostsBatchUseCase)
+ * - DELETE /posts/batch          — Bulk hard-delete, ADMIN + account:manage
+ *                                  (HardDeletePostsBatchUseCase)
  * - POST   /posts/batch/duplicate — Bulk duplicate (DuplicatePostsBatchUseCase)
  *
  * Post creation, scheduling, and publish-now: see `POST /sagas/post-publishing/start`.
@@ -620,12 +659,16 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.archivePostsBatch(request, reply)
   );
 
-  // Bulk hard-delete (irreversible)
+  // Bulk hard-delete (irreversible, admin only — see handler JSDoc for why the
+  // ON DELETE convention makes a customer gate untenable here)
   fastify.delete(
     "/posts/batch",
     {
-      preHandler: [requireClientAuth],
-      schema: { tags: ["Posts"], summary: "Bulk hard-delete posts (irreversible)" },
+      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_MANAGE)],
+      schema: {
+        tags: ["Posts"],
+        summary: "Bulk hard-delete posts of one account (irreversible, admin only)",
+      },
     },
     async (request, reply) => handler.hardDeletePostsBatch(request, reply)
   );

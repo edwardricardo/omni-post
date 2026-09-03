@@ -28,19 +28,18 @@ export class DashboardService extends BaseService {
       // Get basic counts in parallel
       const [totalAccounts, activeAccounts, trialsActive, newAccountsToday, totalProjects] =
         await Promise.all([
-          this.prisma.account.count({ where: { deletedAt: null } }),
-          this.prisma.account.count({ where: { deletedAt: null, isOnTrial: false } }),
+          this.prisma.account.count(),
+          this.prisma.account.count({ where: { isOnTrial: false } }),
           this.prisma.account.count({
             where: {
-              deletedAt: null,
               isOnTrial: true,
               trialEndDate: { gte: now },
             },
           }),
           this.prisma.account.count({
-            where: { deletedAt: null, createdAt: { gte: todayStart } },
+            where: { createdAt: { gte: todayStart } },
           }),
-          this.prisma.project.count({ where: { deletedAt: null } }),
+          this.prisma.project.count(),
         ]);
 
       // Get subscription distribution from AccountSubscription
@@ -67,7 +66,6 @@ export class DashboardService extends BaseService {
 
       const trialsExpiring = await this.prisma.account.count({
         where: {
-          deletedAt: null,
           isOnTrial: true,
           trialEndDate: {
             gte: now,
@@ -163,7 +161,6 @@ export class DashboardService extends BaseService {
   async getAccountsSummary() {
     return this.execute({ operation: "getAccountsSummary" }, async () => {
       const accounts = await this.prisma.account.findMany({
-        where: { deletedAt: null },
         include: {
           projects: true,
           accountSubscription: { include: { bundle: true } },
@@ -193,7 +190,7 @@ export class DashboardService extends BaseService {
   async getAccountsForExport(ids?: string[]) {
     return this.execute({ operation: "getAccountsForExport" }, async () => {
       const accounts = await this.prisma.account.findMany({
-        where: ids && ids.length > 0 ? { id: { in: ids }, deletedAt: null } : { deletedAt: null },
+        where: ids && ids.length > 0 ? { id: { in: ids } } : {},
         include: {
           projects: true,
           accountSubscription: { include: { bundle: true } },
@@ -217,7 +214,6 @@ export class DashboardService extends BaseService {
       // Get active subscriptions (not on trial) with plan data
       const activeSubscriptions = await this.prisma.account.findMany({
         where: {
-          deletedAt: null,
           isOnTrial: false,
         },
         include: {
@@ -232,7 +228,6 @@ export class DashboardService extends BaseService {
       // Get trial accounts with plan data
       const trialAccounts = await this.prisma.account.findMany({
         where: {
-          deletedAt: null,
           isOnTrial: true,
         },
         include: {
@@ -354,13 +349,10 @@ export class DashboardService extends BaseService {
       const now = new Date();
 
       // Get basic metrics
-      const totalUsers = await this.prisma.account.count({ where: { deletedAt: null } });
-      const activeUsers = await this.prisma.account.count({
-        where: { deletedAt: null, isOnTrial: false },
-      });
+      const totalUsers = await this.prisma.account.count();
+      const activeUsers = await this.prisma.account.count({ where: { isOnTrial: false } });
       const newUsersToday = await this.prisma.account.count({
         where: {
-          deletedAt: null,
           createdAt: {
             gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
           },

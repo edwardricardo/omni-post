@@ -135,8 +135,8 @@ export class TemplateService extends BaseService {
         metadata: { projectId, templateName: templateData.name },
       },
       async () => {
-        const project = await this.prisma.project.findFirst({
-          where: { id: projectId, deletedAt: null },
+        const project = await this.prisma.project.findUnique({
+          where: { id: projectId },
         });
 
         if (!project) {
@@ -352,8 +352,8 @@ export class TemplateService extends BaseService {
           platforms: platforms || template.platforms,
         };
 
-        const project = await this.prisma.project.findFirst({
-          where: { id: projectId, deletedAt: null },
+        const project = await this.prisma.project.findUnique({
+          where: { id: projectId },
           select: { id: true, name: true },
         });
 
@@ -412,8 +412,8 @@ export class TemplateService extends BaseService {
 
         const template = templateResult.value;
 
-        const project = await this.prisma.project.findFirst({
-          where: { id: projectId, deletedAt: null },
+        const project = await this.prisma.project.findUnique({
+          where: { id: projectId },
           select: { id: true, name: true },
         });
 

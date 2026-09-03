@@ -73,11 +73,11 @@ describe("TemplateService - Duplicate Template", () => {
 
   it("should duplicate existing template", async () => {
     const findFirst = mockPrismaMethod(prisma.template, "findFirst");
-    const projectFindFirst = mockPrismaMethod(prisma.project, "findFirst");
+    const projectFindUnique = mockPrismaMethod(prisma.project, "findUnique");
     const templateCreate = mockPrismaMethod(prisma.template, "create");
     const versionUpdateMany = mockPrismaMethod(prisma.templateVersion, "updateMany");
     const versionCreate = mockPrismaMethod(prisma.templateVersion, "create");
-    mocks.push(findFirst, projectFindFirst, templateCreate, versionUpdateMany, versionCreate);
+    mocks.push(findFirst, projectFindUnique, templateCreate, versionUpdateMany, versionCreate);
 
     // First call: getTemplate (via findFirst) for the original
     findFirst.mockImplementationOnce(() =>
@@ -97,7 +97,7 @@ describe("TemplateService - Duplicate Template", () => {
       })
     );
 
-    projectFindFirst.mockImplementationOnce(() =>
+    projectFindUnique.mockImplementationOnce(() =>
       Promise.resolve({ id: "project-123", accountId: "account-456" })
     );
 
@@ -147,11 +147,11 @@ describe("TemplateService - Duplicate Template", () => {
 
   it("should use custom name for duplicate", async () => {
     const findFirst = mockPrismaMethod(prisma.template, "findFirst");
-    const projectFindFirst = mockPrismaMethod(prisma.project, "findFirst");
+    const projectFindUnique = mockPrismaMethod(prisma.project, "findUnique");
     const templateCreate = mockPrismaMethod(prisma.template, "create");
     const versionUpdateMany = mockPrismaMethod(prisma.templateVersion, "updateMany");
     const versionCreate = mockPrismaMethod(prisma.templateVersion, "create");
-    mocks.push(findFirst, projectFindFirst, templateCreate, versionUpdateMany, versionCreate);
+    mocks.push(findFirst, projectFindUnique, templateCreate, versionUpdateMany, versionCreate);
 
     findFirst.mockImplementationOnce(() =>
       Promise.resolve({
@@ -170,7 +170,7 @@ describe("TemplateService - Duplicate Template", () => {
       })
     );
 
-    projectFindFirst.mockImplementationOnce(() =>
+    projectFindUnique.mockImplementationOnce(() =>
       Promise.resolve({ id: "project-123", accountId: "account-456" })
     );
 
