@@ -7,8 +7,35 @@
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 
+// The customer principal this file's mocked `requireClientAuth` binds. Hoisted
+// so the `vi.mock` factory below (which vitest lifts above every import) can read
+// it, and so the DELETE suite can mint its account under exactly this id.
+const { CUSTOMER_PRINCIPAL } = vi.hoisted(() => ({
+  CUSTOMER_PRINCIPAL: {
+    id: "customer-user-1",
+    accountId: "c0000000-0000-4000-8000-000000000001",
+    roleId: "customer-role-1",
+    roleName: "OWNER",
+    permissions: ["account:manage"] as readonly string[],
+  },
+}));
+
+// The customer middleware stays mocked here so the POST/GET/PUT/LIST suites can
+// run without minting a token per request — but it now binds a principal instead
+// of authenticating NOBODY. An empty `async () => {}` left `request.customerUser`
+// undefined, which is a shape production never produces after this preHandler
+// succeeds, and it is why these tests could assert that DELETE works while being
+// blind to WHOSE account it worked on.
+//
+// The bound accountId is a fixed constant, deliberately NOT read from the request:
+// a double that echoed the path param back as the principal would make every
+// ownership check pass by construction. Ownership under the REAL `requireClientAuth`
+// with genuinely signed tokens is proven in
+// `tests/unit/accounts/accountDeleteOwnership.test.ts`.
 vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
-  requireClientAuth: async () => {},
+  requireClientAuth: async (request: { customerUser?: unknown }) => {
+    request.customerUser = { ...CUSTOMER_PRINCIPAL };
+  },
 }));
 
 // Admin surface for DELETE /accounts/:accountId/hard is driven through the REAL
@@ -510,21 +537,20 @@ describe("accountRoutes Unit Tests", () => {
   });
 
   describe("DELETE /accounts/:accountId", () => {
-    let deleteAccountId: string;
+    // The account under test IS the bound principal's own account: a customer may
+    // only delete their own, so the id is pinned rather than whatever POST /accounts
+    // happened to generate.
+    const deleteAccountId = CUSTOMER_PRINCIPAL.accountId;
 
     beforeAll(async () => {
-      // Create account to delete
-      const createResponse = await app.inject({
-        method: "POST",
-        url: "/accounts",
-        payload: {
+      await mockPrisma.prisma.account.create({
+        data: {
+          id: deleteAccountId,
           email: `removal-${testEmail}`,
           name: "To Be Removed",
+          maxProjects: 1,
         },
       });
-
-      const body = JSON.parse(createResponse.body);
-      deleteAccountId = body.data?.id || "";
     });
 
     it("should delete account successfully", async () => {
@@ -549,7 +575,11 @@ describe("accountRoutes Unit Tests", () => {
       expect(response.statusCode).toBe(404);
     });
 
-    it("should return 404 when deleting non-existent account", async () => {
+    it("should return 404 for an account id that is not the caller's own", async () => {
+      // Any id other than the principal's is refused with the SAME 404 a missing
+      // account gets — the anti-enumeration answer. Previously this asserted the
+      // not-found branch; with the ownership check in front, an id the caller does
+      // not own never reaches a lookup at all.
       const response = await app.inject({
         method: "DELETE",
         url: "/accounts/a0000000-0000-4000-8000-000000000000",

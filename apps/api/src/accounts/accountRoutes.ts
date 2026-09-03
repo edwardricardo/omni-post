@@ -318,6 +318,34 @@ class AccountRouteHandler extends BaseRouteHandler {
 
     const { accountId } = validated.value.params;
 
+    // Fail closed on the principal. `requireClientAuth` is the ONLY preHandler on
+    // this route, so `request.customerUser` is the sole authority over whose
+    // account this is; with no principal we do not know who is asking and we
+    // destroy nothing. No `?? ""` softening — an empty string would then match an
+    // account whose id is empty rather than refusing.
+    const principal = request.customerUser;
+    if (!principal) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
+    // The ownership comparison, and why it lives HERE rather than in a lower
+    // layer: `Account` IS the tenant. Its key is `id`, not `accountId`, so it is
+    // structurally absent from the Prisma tenant guard's `TENANT_SCOPED_MODELS`
+    // and the guard passes every `account` query through untouched — as do
+    // `post`, `postContent` and `postMedia`, which the cascade below reaches
+    // first. Nothing under this line can refuse a foreign id.
+    //
+    // The refusal is a 404, identical to the not-found answer a few lines down:
+    // a 403 would confirm to any authenticated customer that the id names a real
+    // tenant, turning the endpoint into an account-enumeration oracle.
+    if (accountId !== principal.accountId) {
+      this.logError(ctx, "Cross-tenant account delete refused", {
+        principalAccountId: principal.accountId,
+        requestedAccountId: accountId,
+      });
+      return this.sendError(ctx, 404, "Account not found");
+    }
+
     try {
       // Check if account exists
       const existingAccount = await this.prisma.account.findUnique({
