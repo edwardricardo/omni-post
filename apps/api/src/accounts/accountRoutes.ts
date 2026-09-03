@@ -115,9 +115,22 @@ class AccountRouteHandler extends BaseRouteHandler {
     const { email, name, maxProjects } = validated.value.body;
 
     try {
-      // Check if email already exists
-      const existingAccount = await this.prisma.account.findUnique({
-        where: { email },
+      // Check whether a LIVE account already holds this address.
+      //
+      // `Account_email_key` is PARTIAL (`WHERE "deletedAt" IS NULL`): a
+      // soft-deleted account keeps its row, and a check that still sees that row
+      // confiscates the address forever — the database would accept the reuse
+      // and only this line refuses it. `findUnique` cannot carry the predicate,
+      // so the check has to be a `findFirst` filtered to live rows.
+      //
+      // The address is compared VERBATIM, deliberately. Neither
+      // `SecureSchemas.userEmail` nor the create below normalises case or
+      // whitespace, and the Postgres index is on the raw column, so the lookup,
+      // the stored row and the constraint all compare the same bytes.
+      // Lowercasing here alone would stop this check detecting a duplicate that
+      // the database would then happily accept.
+      const existingAccount = await this.prisma.account.findFirst({
+        where: { email, deletedAt: null },
       });
 
       if (existingAccount) {

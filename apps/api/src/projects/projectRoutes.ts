@@ -107,14 +107,29 @@ class ProjectRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 403, "QUOTA_EXCEEDED", { error: "QUOTA_EXCEEDED" });
       }
 
-      // Check if project with same name exists for this account
-      const existingProject = await this.prisma.project.findUnique({
-        where: {
-          accountId_name: {
-            accountId,
-            name,
-          },
-        },
+      // Check if a LIVE project with the same name exists for this account.
+      //
+      // The unique behind this check is PARTIAL (`WHERE "deletedAt" IS NULL`):
+      // soft-deleting "Marketing" must not confiscate the name for the rest of
+      // the account's life. `findUnique` cannot express that predicate — its
+      // selector is the compound key and nothing else — so it matched
+      // soft-deleted rows and answered 409 for a name the database was willing
+      // to accept. Once two soft-deleted rows share a name, which the schema
+      // says is by design, that selector is not even unique any more, and a
+      // `findUnique` whose selector matches two rows is a defect on its own.
+      // `findFirst` filtered on `deletedAt: null` asks exactly the question the
+      // constraint enforces, and the same one PrismaProjectRepository.findByName
+      // already asks.
+      //
+      // `accountId` stays explicit: it comes from the path, it is the value the
+      // create below writes, and the tenant guard injects only when the field is
+      // ABSENT. Dropping it would silently rescope the check to the bearer's own
+      // account, which is not necessarily the account being written to; keeping
+      // it turns a disagreement between the two into a loud
+      // TenantContextMismatchError — the same one the create already raises —
+      // instead of a check that quietly asked about the wrong tenant.
+      const existingProject = await this.prisma.project.findFirst({
+        where: { accountId, name, deletedAt: null },
       });
 
       if (existingProject) {
