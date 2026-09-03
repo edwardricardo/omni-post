@@ -21,6 +21,18 @@ import type { HardDeleteAccountUseCase } from "@core/accounts/index.js";
 import { mapHardDeleteError } from "../lib/hardDeleteErrorMapping.js";
 import { AuditActions, AuditResources, type AuditService } from "../audit/auditService.js";
 
+/**
+ * The customer-side grant required to destroy an account. Seeded to the OWNER
+ * role and to no other (`infra/prisma/seed.ts`, where MANAGER is defined as
+ * "everything except billing, account deletion, and role assignment").
+ *
+ * Gating on this string rather than on `roleName === "OWNER"` is deliberate: a
+ * role-name comparison re-derives authority from a denormalised label, and a
+ * wildcard "OWNER can do anything" bypass would implicitly grant every
+ * permission added in the future.
+ */
+const ACCOUNT_DELETE_PERMISSION = "account:delete";
+
 // Zod Schemas for Validation with security enhancement
 const SlugSchema = z
   .string()
@@ -344,6 +356,41 @@ class AccountRouteHandler extends BaseRouteHandler {
         requestedAccountId: accountId,
       });
       return this.sendError(ctx, 404, "Account not found");
+    }
+
+    // Ownership is not authorization. The comparison above only establishes
+    // that the caller belongs to THIS tenant — every member passes it, VIEWER
+    // included. What follows destroys the tenant, so the destructive grant is
+    // asserted separately.
+    //
+    // Why this became urgent without the authorization changing: under the ON
+    // DELETE convention this branch carries, `Invoice.accountId` and
+    // `Referral.referralCodeId` no longer hold RESTRICT. Before, the database
+    // refused this statement outright for any account that had ever been billed
+    // or referred, so an under-privileged caller got a 500 and destroyed
+    // nothing. Now the same call completes and cascades. The gate below is what
+    // replaces the protection the constraints used to provide by accident.
+    //
+    // Fail closed on the claim itself. `verifyCustomerToken` casts its payload
+    // with `as CustomerJwtPayload` and validates nothing at runtime, so a token
+    // minted without a `permissions` claim arrives here as `undefined` — a real
+    // path, not a hypothetical one. No `?? []` softening: that would turn "this
+    // token carries no permissions" into "there is nothing to check".
+    const { permissions } = principal;
+    if (!Array.isArray(permissions) || !permissions.includes(ACCOUNT_DELETE_PERMISSION)) {
+      // 403 here, where the ownership refusal above is 404, and the difference
+      // is intentional — do NOT "align" them for consistency. The 404 exists so
+      // a FOREIGN account id looks indistinguishable from a missing one; it is
+      // an anti-enumeration answer. This caller owns the account and already
+      // knows it exists, so naming the real reason leaks nothing they did not
+      // already supply, and a 404 here would instead tell an owner their own
+      // account had vanished.
+      this.logError(ctx, "Account delete refused: missing destructive permission", {
+        accountId,
+        principalId: principal.id,
+        roleName: principal.roleName,
+      });
+      return this.sendError(ctx, 403, "Insufficient permissions to delete this account");
     }
 
     try {

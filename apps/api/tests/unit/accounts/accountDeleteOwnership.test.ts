@@ -143,12 +143,18 @@ async function makeTenant(label: string): Promise<Tenant> {
     deletedAt: null,
   });
 
+  // A REAL OWNER token: the seeded OWNER role carries `account:delete`
+  // (`infra/prisma/seed.ts`), and the handler now asserts that grant. Minting
+  // an "OWNER" without it would contradict the seed and would make these tests
+  // pass for the wrong reason — refused for lacking a permission rather than
+  // for reaching across tenants, which is the only thing this suite is about.
+  // The permission gate itself is pinned in `accountDeletePermission.test.ts`.
   const token = signCustomerAccessToken({
     sub: `user-${label}`,
     accountId: account.id,
     roleId: "role-owner",
     roleName: "OWNER",
-    permissions: ["account:manage"],
+    permissions: ["account:manage", "account:delete"],
   });
 
   return { accountId: account.id, projectId: project.id as string, token };

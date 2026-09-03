@@ -16,7 +16,13 @@ const { CUSTOMER_PRINCIPAL } = vi.hoisted(() => ({
     accountId: "c0000000-0000-4000-8000-000000000001",
     roleId: "customer-role-1",
     roleName: "OWNER",
-    permissions: ["account:manage"] as readonly string[],
+    // The seeded OWNER role carries `account:delete`, and DELETE
+    // /accounts/:accountId asserts that grant. A principal labelled OWNER
+    // without it contradicts the seed and would make this file's DELETE suite
+    // fail for a reason it does not test. The grant itself — that a member
+    // WITHOUT it is refused and destroys nothing — is pinned under the real
+    // middleware in `tests/unit/accounts/accountDeletePermission.test.ts`.
+    permissions: ["account:manage", "account:delete"] as readonly string[],
   },
 }));
 
