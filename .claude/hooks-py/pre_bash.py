@@ -17,6 +17,12 @@ from _common import (  # noqa: E402
     read_hook_input,
 )
 
+# THE SAME list pre-edit gates on, imported rather than copied. A second copy of
+# these patterns would drift the moment one file gained a path the other did not
+# — and a sensitive-path list that disagrees with itself protects whichever half
+# the writer did not go through.
+from pre_edit import SENSITIVE_PATTERNS, is_sensitive  # noqa: E402
+
 HOOK_NAME = "pre-bash"
 ALLOWED_BRANCH_PREFIX = "workstream/"
 
@@ -30,6 +36,75 @@ CONSOLE_LOG_RE = re.compile(r"\bconsole\.log\s*\(")
 PROD_PATH_RE = re.compile(r"(apps/api/src/|packages/[^/]+/src/)")
 # Comandos de migración Prisma que requieren DB corriendo.
 PNPM_MIGRATE_RE = re.compile(r"pnpm\s+(?:db:migrate|db:push|prisma\s+migrate)")
+
+# Construcciones de Bash que ESCRIBEN un archivo. Existen porque el gate de
+# rutas sensibles vivía solo en pre-edit, que inspecciona `tool_input.file_path`
+# — un campo que Bash no tiene. Un agente al que se le negó el `Edit` sobre
+# `.github/workflows/fitness.yml` ya había escrito el archivo con `python3` por
+# Bash: la compuerta no falló, es que ese camino nunca pasaba por ella.
+WRITE_CONSTRUCT_RES = [
+    re.compile(r">>?\s*[^|&;<>\s]"),                       # redirección: > y >>
+    re.compile(r"\btee\b"),                                # tee / tee -a
+    re.compile(r"\b(?:sd|sed|perl|ruby)\b[^|;]*\s-i\b"),   # edición in-place
+    re.compile(r"\bpython3?\b[^|;]*\bopen\s*\([^)]*['\"][wax]"),   # open(...,'w')
+    re.compile(r"\bnode\b[^|;]*\bwrite(?:File|FileSync)\b"),       # fs.writeFile
+    re.compile(r"\b(?:cp|mv|install|rsync|truncate|ln)\b"),        # mueven/crean
+    re.compile(r"\bdd\b[^|;]*\bof="),                      # dd of=
+    re.compile(r"\bgit\s+(?:checkout|restore|apply|revert)\b"),    # restauran contenido
+]
+
+
+def gate_sensitive_path_writes_require_token(command: str) -> None:
+    """Exigir el token `sensitive-edit` cuando Bash escribe una ruta sensible.
+
+    Mismo contrato que pre-edit, misma lista de patrones (importada, no
+    copiada): lo que Edit/Write no pueden tocar sin token, Bash tampoco.
+
+    LEER SIGUE SIENDO LIBRE, y es deliberado: `bat schema.prisma`,
+    `rg x migrations/` o un `prisma migrate diff` se usan constantemente y no
+    mutan nada. El gate exige que coincidan DOS cosas — una ruta sensible Y una
+    construcción de escritura — porque bloquear toda mención volvería inusable
+    la inspección y empujaría a buscarle la vuelta, que es exactamente cómo
+    mueren los gates.
+
+    LÍMITE, dicho en voz alta: esto es un tripwire, no una caja de arena. Una
+    shell puede ofuscar la ruta con variables, `eval`, base64 o un script en
+    disco, y ninguna inspección textual del comando lo va a ver. Lo que cierra
+    es el bypass ACCIDENTAL y el de conveniencia — sube el costo de evadir de
+    "escribí python3 en vez de Edit" a "acto deliberado de ocultamiento". Ese
+    salto es el punto; afirmar equivalencia total con pre-edit sería la clase
+    de mentira que este repo persigue.
+    """
+    matched_path = None
+    for pattern in SENSITIVE_PATTERNS:
+        # El patrón trae "/" inicial para anclar en pre-edit (que ve rutas
+        # absolutas); un comando suele citarlas relativas, así que se compara
+        # también sin esa barra.
+        if pattern in command or pattern.lstrip("/") in command:
+            matched_path = pattern
+            break
+
+    if matched_path is None:
+        return
+
+    if not any(rx.search(command) for rx in WRITE_CONSTRUCT_RES):
+        log(f"sensitive path {matched_path} mentioned, no write construct — read-only, allowed")
+        return
+
+    status = check_grant_token("sensitive-edit", log)
+    if status is None:
+        log(f"sensitive Bash write to {matched_path} authorized via valid sensitive-edit token")
+        return
+
+    block(
+        f"Bash escribe una ruta sensible ({matched_path}) sin token: {status}.\n"
+        f"Es la MISMA compuerta que pre-edit aplica a Edit/Write — tenerla solo en "
+        f"Edit dejaba que un `python3`, un `sd -i` o un `>` la rodearan sin que "
+        f"nadie se enterara.\n"
+        f"Pedí a Edward que ejecute 'omnipost-allow sensitive-edit' (TTL 15 min), "
+        f"igual que para push. Si el comando solo LEE, reescribilo sin "
+        f"construcciones de escritura (bat/rg en vez de redirecciones)."
+    )
 
 log, block, allow = make_logger(HOOK_NAME)
 
@@ -162,6 +237,7 @@ def main() -> None:
     log(f"inspecting: {command}")
 
     gate_git_push_requires_token(command)
+    gate_sensitive_path_writes_require_token(command)
     gate_no_npm_or_yarn(command)
     gate_no_co_authored_in_commit(command)
     gate_commit_only_in_allowed_branch(command)
