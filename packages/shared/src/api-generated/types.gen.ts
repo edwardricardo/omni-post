@@ -2899,6 +2899,22 @@ export type PutAccountsByAccountIdResponses = {
   200: unknown;
 };
 
+export type DeleteAccountsByAccountIdHardData = {
+  body?: never;
+  path: {
+    accountId: string;
+  };
+  query?: never;
+  url: "/accounts/{accountId}/hard";
+};
+
+export type DeleteAccountsByAccountIdHardResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
 export type GetAccountsByAccountIdProjectsData = {
   body?: never;
   path: {
@@ -2973,6 +2989,22 @@ export type GetProjectsByProjectIdPublishLogsData = {
 };
 
 export type GetProjectsByProjectIdPublishLogsResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
+export type DeleteProjectsByProjectIdHardData = {
+  body?: never;
+  path: {
+    projectId: string;
+  };
+  query?: never;
+  url: "/projects/{projectId}/hard";
+};
+
+export type DeleteProjectsByProjectIdHardResponses = {
   /**
    * Default Response
    */

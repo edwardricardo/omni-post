@@ -9,6 +9,8 @@
 export type {
   ClientOptions,
   DeleteAccountsByAccountIdData,
+  DeleteAccountsByAccountIdHardData,
+  DeleteAccountsByAccountIdHardResponses,
   DeleteAccountsByAccountIdResponses,
   DeleteAdminAccountsByAccountIdData,
   DeleteAdminAccountsByAccountIdResponses,
@@ -75,6 +77,8 @@ export type {
   DeleteProjectsByProjectIdCrisisData,
   DeleteProjectsByProjectIdCrisisResponses,
   DeleteProjectsByProjectIdData,
+  DeleteProjectsByProjectIdHardData,
+  DeleteProjectsByProjectIdHardResponses,
   DeleteProjectsByProjectIdResponses,
   DeleteProjectsByProjectIdTemplatesByTemplateIdData,
   DeleteProjectsByProjectIdTemplatesByTemplateIdResponses,

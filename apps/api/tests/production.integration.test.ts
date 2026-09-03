@@ -26,6 +26,26 @@ const WORKERS_METRICS = `http://localhost:${process.env.METRICS_PORT ?? 3300}`;
 const _CLIENT_APP = "http://localhost:3000"; // Will need to be adjusted when client runs
 
 /**
+ * The grants this suite's principal claims. `roleName: "OWNER"` with an EMPTY
+ * permission array is a principal the seeded system cannot produce: the OWNER
+ * CustomerRole in `infra/prisma/seed.ts` carries `account:delete` among its
+ * grants (mirrored verbatim in `tests/unit/helpers/seedCustomerRoles.ts`), so a
+ * token labelled OWNER that holds nothing contradicts the seed it claims to
+ * represent. It went unnoticed while `DELETE /accounts/:accountId` checked
+ * ownership alone; now that the route also asserts the destructive grant, the
+ * empty array makes the cleanup step fail for a reason this suite does not test.
+ *
+ * Only the account-lifecycle grants are listed, not the full seeded set: this
+ * suite exercises no other permission-gated route, and copying 118 literals here
+ * would create a second place for the seed to drift away from.
+ *
+ * This is the positive principal. That a member WITHOUT `account:delete` is
+ * refused, and destroys nothing, is pinned separately under the real middleware
+ * in `tests/unit/accounts/accountDeletePermission.test.ts`.
+ */
+const OWNER_PERMISSIONS: readonly string[] = ["account:manage", "account:delete"];
+
+/**
  * Mints a customer Bearer token bound to `accountId`. Gated routes sit behind
  * `requireClientAuth`; tenant-scoped writes (projects, channels, posts) also
  * require the token's accountId to match the resource's accountId via the
@@ -37,7 +57,7 @@ const bearer = (accountId: string): string =>
     accountId,
     roleId: "role-test",
     roleName: "OWNER",
-    permissions: [],
+    permissions: OWNER_PERMISSIONS,
   })}`;
 
 /** Builds the Authorization header object for `apiCall`. */
