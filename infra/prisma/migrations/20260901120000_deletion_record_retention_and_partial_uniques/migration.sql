@@ -22,19 +22,30 @@
 --      Two soft-deleted rows may share a name by design; the restore path
 --      resolves a live-name collision explicitly with a CONFLICT.
 --
--- LOCK ANALYSIS (why this needs no NOT VALID / VALIDATE split)
---   Every ALTER here takes ACCESS EXCLUSIVE only briefly: the ADD COLUMNs are
---   catalog-only (nullable, or NOT NULL with a constant DEFAULT — a metadata
---   write since PostgreSQL 11), and DeletionRecord is a tombstone table whose
---   row count is bounded by deletions performed, so its UPDATE backfill and
---   CHECK validation scan are trivially small. The unique-index swaps rebuild
---   indexes on Account and Project inside the migration transaction; both
---   tables are small enough that a non-CONCURRENT build inside the declared
---   timeouts is cheaper and safer than CONCURRENTLY (which cannot run in a
---   transaction and would leave an INVALID index behind on failure). If either
---   table grows to where the build exceeds the lock budget, the timeouts below
---   abort the whole transaction cleanly and this migration must be revisited
---   as a CONCURRENTLY runbook instead.
+-- LOCK ANALYSIS
+--   The ADD COLUMNs are catalog-only (nullable, or NOT NULL with a constant
+--   DEFAULT — a metadata write since PostgreSQL 11), and DeletionRecord is a
+--   tombstone table whose row count is bounded by deletions performed, so its
+--   UPDATE backfill is trivially small.
+--
+--   The retention-floor CHECK is added NOT VALID here and VALIDATEd by the
+--   companion migration 20260901120100_deletion_record_retention_floor_validate.
+--   Prisma runs each migration file in its own transaction, so the split is a
+--   real one: ADD CONSTRAINT ... NOT VALID takes ACCESS EXCLUSIVE without
+--   scanning, and the VALIDATE runs in the NEXT transaction under SHARE UPDATE
+--   EXCLUSIVE, which does not block reads or writes while it scans. Doing both
+--   in ONE transaction would hold ACCESS EXCLUSIVE across the scan and would be
+--   NOT VALID in name only. This mirrors the alignment/validate pair at
+--   20260830220417 + 20260830220517.
+--
+--   The unique-index swaps rebuild indexes on Account and Project inside this
+--   transaction; both tables are small enough that a non-CONCURRENT build
+--   inside the declared timeouts is cheaper and safer than CONCURRENTLY, which
+--   CANNOT run in a transaction at all (PostgreSQL rejects it) and would leave
+--   an INVALID index behind on failure. If either table grows to where the
+--   build exceeds the lock budget, the timeouts below abort the whole
+--   transaction cleanly and this migration must be revisited as a CONCURRENTLY
+--   runbook driven outside Prisma's migration engine.
 --
 -- ERRATUM for the two deployed predecessors (recorded here because editing an
 -- applied migration breaks its checksum and every existing database):
@@ -68,10 +79,14 @@ ALTER TABLE "DeletionRecord" ALTER COLUMN "retainUntil" SET NOT NULL;
 ALTER TABLE "DeletionRecord" ADD COLUMN "lawfulBasis" TEXT NOT NULL DEFAULT 'GDPR Art. 17(3)(e) - retained for the establishment, exercise or defence of legal claims (backfilled: row predates the column)';
 ALTER TABLE "DeletionRecord" ALTER COLUMN "lawfulBasis" DROP DEFAULT;
 
--- 2. The retention floor. Backfilled rows sit at clientUntil + 7 years, so
--- validation of existing rows passes by construction.
+-- 2. The retention floor, added NOT VALID so this transaction does not scan the
+-- table while holding ACCESS EXCLUSIVE. NOT VALID still enforces the constraint
+-- on every INSERT and UPDATE from this point on — it only defers the check of
+-- pre-existing rows. Those rows were backfilled at clientUntil + 7 years by 1c
+-- above, so they satisfy the >= 1 year floor by construction and the companion
+-- VALIDATE migration cannot fail on them.
 ALTER TABLE "DeletionRecord" ADD CONSTRAINT "DeletionRecord_retainUntil_floor"
-  CHECK ("retainUntil" >= "clientUntil" + interval '1 year');
+  CHECK ("retainUntil" >= "clientUntil" + interval '1 year') NOT VALID;
 
 -- 3. Phase-2 job scan index: only rows still holding plaintext are candidates
 -- for degradation, so the index is partial on name IS NOT NULL.
