@@ -637,15 +637,37 @@ grep -rnE "node ([^|&]*)--import tsx" \
 grep -nE "pnpm --filter @apps/(admin|client)( --filter @apps/(admin|client))* build" \
   .github/workflows/audit.yml | wc -l  # expect 0
 
-# 28. No permissive Fastify trust-proxy. `trustProxy: true` makes request.ip the
-# leftmost (client-controlled) X-Forwarded-For entry, letting any client spoof its
-# IP and rotate rate-limit / IP-allowlist buckets to defeat the limiter
-# (ERR_ERL_PERMISSIVE_TRUST_PROXY; CVE-2025-59152 / CVE-2023-49952 / CVE-2026-55501
-# class; CWE-807/290/348). `trustProxy` MUST be the numeric TRUSTED_PROXY_HOP_COUNT
-# so request.ip is proxy-addr-resolved and every IP-keyed decision goes through
-# resolveClientIp. Scope: apps/api/src + apps/workers/src. Excludes tests.
-grep -rnE "trustProxy:\s*true" apps/api/src apps/workers/src --include="*.ts" | \
-  grep -vE "/tests/|\.test\." | wc -l   # expect 0
+# 28. Fastify `trustProxy` comes ONLY from the derived policy. An ALLOWLIST, and it
+# used to be a denylist — the inversion is the point, not a refactor.
+#
+# The old form banned `trustProxy: true` and REQUIRED the numeric
+# TRUSTED_PROXY_HOP_COUNT. Fastify 5.12.1 (GHSA-3m5p-2c4r-xxw2) then deleted numeric
+# hop-count trust outright: `getTrustProxyFn` now returns `() => false` for a number,
+# because — upstream's words — hop-count-only trust cannot validate the immediate
+# peer. So the old check REQUIRED the spelling that had become dangerous, and was
+# blind to it: measured, `trustProxy: 2` planted in index.ts returned count=0 and
+# passed cleanly, while `trustProxy: true` was caught. A gate that mandates the
+# defect it exists to prevent is worse than no gate.
+#
+# A denylist cannot fix this: the dangerous set is now open-ended (any number, any
+# hand-rolled `(addr, hop) => hop < N` function that would type-check, keep tests
+# green, and deliberately restore the patched vulnerability). So the check inverts:
+# every `trustProxy:` in the scope MUST be the single derived binding
+# `FASTIFY_TRUST_PROXY`, which `apps/api/src/security/trustedProxy.ts` computes from
+# the boot-validated TRUSTED_PROXY_MODE + TRUSTED_PROXY_RANGES pair. Anything else —
+# `true`, a number, a literal, an inline function — is a violation by construction,
+# without this list needing to predict it.
+#
+# The trust model itself is unrepresentable-when-invalid rather than checked: the
+# policy type carries a NON-EMPTY TUPLE for its ranges, so "trusted-ranges with no
+# ranges" is not a value the program can hold, and the env schema refuses to boot on
+# an inconsistent pair (including a lingering TRUSTED_PROXY_HOP_COUNT, whose silent
+# acceptance would let an operator believe hop trust is still in force). See
+# ADR-0021 and SECURITY_CANON.md §Rate Limiting. Scope: apps/api/src +
+# apps/workers/src. Excludes tests and the deriving module itself.
+grep -rnE "trustProxy:" apps/api/src apps/workers/src --include="*.ts" | \
+  grep -vE "/tests/|\.test\.|/security/trustedProxy\.ts:" | \
+  grep -vE "trustProxy:\s*FASTIFY_TRUST_PROXY\b" | wc -l   # expect 0
 
 # 29. No raw client-IP header reads outside the canonical resolver. Every security
 # decision keyed by client IP MUST go through resolveClientIp(); a direct

@@ -12,7 +12,6 @@ import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "./customerAuthMiddleware.js";
 import { withSystemContext } from "../security/tenantContext.js";
 import { resolveClientIp } from "../security/resolveClientIp.js";
-import { env } from "../config/env.js";
 import { authLogger } from "../lib/logger.js";
 import type {
   RegisterCustomerUseCase,
@@ -87,13 +86,14 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
   /**
    * @method resolveIp
    * @description Derive the trusted client IP through the canonical
-   *   `resolveClientIp` resolver (trusted-hop counting from the right of
-   *   X-Forwarded-For, normalization, fail-closed to the socket peer). Used
-   *   for MFA challenge IP-binding and the brute-force forensic IP on both
-   *   login steps.
+   *   `resolveClientIp` resolver (configured trusted-proxy model, normalization,
+   *   fail-closed to the socket peer). Used for MFA challenge IP-binding and the
+   *   brute-force forensic IP on both login steps. The policy argument is left
+   *   to the resolver's default so this route cannot drift from the deployment's
+   *   configured model.
    */
   private resolveIp(request: FastifyRequest): string {
-    return resolveClientIp(request, env.TRUSTED_PROXY_HOP_COUNT);
+    return resolveClientIp(request);
   }
 
   /**

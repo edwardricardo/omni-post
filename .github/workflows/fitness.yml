@@ -654,21 +654,33 @@ jobs:
             exit 1
           fi
 
-      - name: "#28 No permissive Fastify trust-proxy (trustProxy: true)"
+      - name: "#28 Fastify trustProxy comes ONLY from the derived policy"
         if: always()
         run: |
           set -uo pipefail
-          # `trustProxy: true` makes request.ip the leftmost (client-controlled)
-          # X-Forwarded-For entry, letting any client spoof its IP and rotate
-          # rate-limit / IP-allowlist buckets to defeat the limiter
-          # (ERR_ERL_PERMISSIVE_TRUST_PROXY; CVE-2025-59152 / CVE-2023-49952 /
-          # CVE-2026-55501 class; CWE-807/290/348). trustProxy MUST be the numeric
-          # TRUSTED_PROXY_HOP_COUNT. Mirrors CLAUDE.md #28.
-          V=$(grep -rnE "trustProxy:\s*true" apps/api/src apps/workers/src --include="*.ts" 2>/dev/null | \
-                grep -vE "/tests/|\.test\." || true)
+          # An ALLOWLIST, and it used to be a denylist — the inversion is the point.
+          # The old form banned `trustProxy: true` and REQUIRED the numeric
+          # TRUSTED_PROXY_HOP_COUNT. Fastify 5.12.1 (GHSA-3m5p-2c4r-xxw2) deleted
+          # numeric hop-count trust: getTrustProxyFn returns `() => false` for a
+          # number, because hop-count-only trust cannot validate the immediate peer.
+          # So the old check REQUIRED the spelling that had become dangerous and was
+          # blind to it: measured, `trustProxy: 2` returned count=0 and passed, while
+          # `trustProxy: true` was caught. A gate that mandates the defect it exists
+          # to prevent is worse than no gate.
+          #
+          # A denylist cannot fix this — the dangerous set is open-ended (any number,
+          # any hand-rolled `(addr, hop) => hop < N` that would type-check and keep
+          # tests green while restoring the patched vulnerability). So: every
+          # `trustProxy:` MUST be the single derived binding FASTIFY_TRUST_PROXY,
+          # computed by apps/api/src/security/trustedProxy.ts from the boot-validated
+          # TRUSTED_PROXY_MODE + TRUSTED_PROXY_RANGES pair. See ADR-0021 and
+          # SECURITY_CANON.md §Rate Limiting. Mirrors CLAUDE.md #28.
+          V=$(grep -rnE "trustProxy:" apps/api/src apps/workers/src --include="*.ts" 2>/dev/null | \
+                grep -vE "/tests/|\.test\.|/security/trustedProxy\.ts:" | \
+                grep -vE "trustProxy:\s*FASTIFY_TRUST_PROXY\b" || true)
           COUNT=$(printf "%s" "$V" | grep -c . || true); COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
-            echo "::error title=Fitness #28 violation::$COUNT permissive 'trustProxy: true' occurrence(s) — use the numeric TRUSTED_PROXY_HOP_COUNT so request.ip is proxy-addr-resolved"
+            echo "::error title=Fitness #28 violation::$COUNT trustProxy binding(s) that are not the derived FASTIFY_TRUST_PROXY. Numeric hop counts are inert since fastify 5.12.1 (they resolve request.ip to the socket peer, collapsing every user into one rate-limit bucket), 'true' trusts the client-controlled leftmost XFF entry, and a hand-rolled hop function restores the exact vulnerability the advisory patched. Derive the policy from TRUSTED_PROXY_MODE + TRUSTED_PROXY_RANGES instead (ADR-0021)."
             printf "%s\n" "$V" | head -20
             exit 1
           fi

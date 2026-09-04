@@ -21,7 +21,7 @@ function makeMockPrisma(settings: { ipAllowlistEnabled: boolean; ipAllowlist: st
 
 function makeMockRequest(overrides: Partial<FastifyRequest> = {}): FastifyRequest {
   // Mirror the socket peer to `ip` by default: the resolver keys on the socket
-  // under the test's fail-closed hop count (TRUSTED_PROXY_HOP_COUNT=0), so the
+  // under the test's fail-closed model (TRUSTED_PROXY_MODE=socket-only), so the
   // socket is the source of truth unless a test overrides it explicitly.
   const ip = (overrides.ip as string | undefined) ?? "192.168.1.100";
   return {

@@ -324,7 +324,7 @@ describe("TrackedLink — two-tenant isolation (MERGE-BLOCKING)", () => {
     it("the /r namespace is rate-limited by the trusted socket peer, not a spoofable header", async () => {
       const cap = RateLimitConfigs.REDIRECT.maxRequests;
       // A distinct SOCKET peer → an isolated bucket. `resolveClientIp` keys on the
-      // socket at TRUSTED_PROXY_HOP_COUNT=0 (the test default), never on a
+      // socket under TRUSTED_PROXY_MODE=socket-only (the test default), never on a
       // client-controlled `X-Forwarded-For` — so the bucket is driven by
       // `remoteAddress`, not the header (that is the N-SEC-2 invariant).
       const ip = "203.0.113.77";

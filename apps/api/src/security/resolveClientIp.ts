@@ -2,14 +2,31 @@
  * @file resolveClientIp.ts
  * @description THE single canonical resolver for the client IP used as the
  *              bucket key of every IP-scoped security decision (HTTP rate limit,
- *              IP allowlist, brute-force throttle). Derives the IP from a fixed
- *              number of TRUSTED proxy hops counted from the right of
- *              X-Forwarded-For (`TRUSTED_PROXY_HOP_COUNT`), normalizes it
- *              (port strip + IPv6 canonicalization) for a stable bucket key, and
- *              fails CLOSED to the socket peer — never to a client-controlled
- *              entry. No other module may read `x-forwarded-for` / `x-real-ip`
- *              for a security decision (fitness #28/#29). See SECURITY_CANON.md
- *              §Rate Limiting for the threat model and topology invariant.
+ *              IP allowlist, brute-force throttle). Derives the IP under the
+ *              configured trusted-proxy model, normalizes it (port strip + IPv6
+ *              canonicalization) for a stable bucket key, and fails CLOSED to
+ *              the socket peer — never to a client-controlled entry. No other
+ *              module may read `x-forwarded-for` / `x-real-ip` for a security
+ *              decision (fitness #28/#29). See SECURITY_CANON.md §Rate Limiting
+ *              for the threat model and topology invariant, and ADR-0021 for why
+ *              hop counting was replaced.
+ *
+ *              WHAT CHANGED, AND WHY THE GUARD STILL EARNS ITS KEEP. This
+ *              resolver used to count trusted hops from the right of
+ *              X-Forwarded-For, and its fail-closed guard corrected a real
+ *              divergence: `@fastify/proxy-addr` returns the LEFTMOST
+ *              (client-controlled) entry when the chain is shorter than the
+ *              configured hop count. fastify 5.12.1 deleted numeric hop trust
+ *              outright (`getTrustProxyFn` returns `() => false` for a number —
+ *              "Hop-count-only trust cannot validate the immediate peer"), so
+ *              that shape of divergence is gone with the model that produced it.
+ *              Under `trusted-ranges` proxy-addr already stops at the first
+ *              untrusted address, so the peer check below currently AGREES with
+ *              it rather than correcting it. It is kept, and tested against an
+ *              adversarial `request.ip`, precisely because an upstream change to
+ *              that walk is the exact class of event that produced this rewrite:
+ *              the resolver states the invariant itself instead of inheriting
+ *              it.
  * @layer infrastructure
  */
 
@@ -19,20 +36,46 @@
 // module.exports and works in both the Node runtime and the Vitest transform.
 import ipaddr from "ipaddr.js";
 import { env } from "../config/env.js";
+import {
+  buildTrustedProxyPolicy,
+  fastifyTrustProxyOption,
+  isTrustedPeer,
+  type TrustedProxyPolicy,
+} from "./trustedProxy.js";
 
 /** Sentinel returned when no valid IP can be derived from any source. */
 const UNKNOWN_IP = "unknown";
 
 /**
+ * The deployment's resolved trust model, built once at module load. `env` has
+ * already rejected an inconsistent pair, so this construction cannot fail; the
+ * builder's own refusals are the second half of the same interlock.
+ */
+export const trustedProxyPolicy: TrustedProxyPolicy = buildTrustedProxyPolicy(
+  env.TRUSTED_PROXY_MODE,
+  env.TRUSTED_PROXY_RANGES
+);
+
+/**
+ * The exact `trustProxy` value to hand Fastify for this deployment. Exported
+ * from here so the trust model has ONE chokepoint: the module that consumes it
+ * is the module that configures it, and the two cannot drift apart.
+ */
+export const FASTIFY_TRUST_PROXY: false | string[] = fastifyTrustProxyOption(trustedProxyPolicy);
+
+/**
  * Minimal structural view of a Fastify request needed to derive the client IP.
  * A full `FastifyRequest` satisfies this shape, so production callers pass the
  * request directly; tests build a light literal without mocking all of Fastify.
+ *
+ * Headers are deliberately absent: under both models this resolver never parses
+ * a forwarding header itself. `socket-only` ignores them, and `trusted-ranges`
+ * delegates the chain walk to proxy-addr and validates the PEER instead.
  */
 export interface ClientIpRequest {
-  /** proxy-addr-resolved peer (Fastify sets this from numeric `trustProxy`). */
+  /** proxy-addr-resolved peer under `trusted-ranges`; the socket under `socket-only`. */
   readonly ip: string;
   readonly socket: { readonly remoteAddress?: string | undefined } | undefined;
-  readonly headers: Record<string, string | string[] | undefined>;
 }
 
 /** Drop an IPv6 zone identifier (`fe80::1%eth0` -> `fe80::1`). */
@@ -78,45 +121,40 @@ export function normalizeIp(raw: string | undefined | null): string | undefined 
   return ipaddr.process(candidate).toString();
 }
 
-/** Join every X-Forwarded-For header instance, split, trim OWS, drop empties. */
-function parseForwardedFor(header: string | string[] | undefined): string[] {
-  if (header === undefined) return [];
-  const joined = Array.isArray(header) ? header.join(",") : header;
-  return joined
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-}
-
 /**
  * @function resolveClientIp
  * @description Resolve the trusted client IP for a request as a stable bucket
- *   key. On the happy path (chain at least `trustedHops` long) `request.ip` is
- *   already `xff[len - hops]` via `@fastify/proxy-addr`, so it is normalized and
- *   returned. Otherwise — `hops == 0`, an absent/short chain, or an invalid
- *   token — it fails CLOSED to the normalized socket peer. This explicitly
- *   overrides `@fastify/proxy-addr`, which returns the leftmost
- *   (client-controlled) entry when the chain is shorter than `hops`.
+ *   key.
+ *
+ *   Under `socket-only` the socket peer is the only trustworthy source and every
+ *   forwarding header is ignored — spoof-safe, at the cost of one shared bucket
+ *   behind a proxy.
+ *
+ *   Under `trusted-ranges` the forwarded identity is believed ONLY when the
+ *   IMMEDIATE PEER is itself a configured proxy; otherwise a directly-connected
+ *   client could assert any identity it liked. On that path `request.ip` is
+ *   proxy-addr's trusted-peer walk, normalized here. Anything unexpected — an
+ *   untrusted peer, an unparseable token, an absent socket — fails CLOSED to the
+ *   socket peer, never to a claimed one.
  * @param request - The (Fastify) request to derive the IP from.
- * @param trustedHops - Trusted reverse-proxy hop count. Defaults to the
- *   canonical `env.TRUSTED_PROXY_HOP_COUNT`; an explicit value is for tests.
+ * @param policy - Trust model to apply. Defaults to the deployment's configured
+ *   policy; an explicit value is for tests.
  * @returns The normalized client IP, or the socket peer, or `"unknown"`.
  */
 export function resolveClientIp(
   request: ClientIpRequest,
-  trustedHops: number = env.TRUSTED_PROXY_HOP_COUNT
+  policy: TrustedProxyPolicy = trustedProxyPolicy
 ): string {
   const socket = normalizeIp(request.socket?.remoteAddress) ?? UNKNOWN_IP;
 
   // No trusted proxy in front: the socket peer is the only trustworthy source.
-  if (trustedHops <= 0) return socket;
+  if (policy.mode === "socket-only") return socket;
 
-  // Fail-closed: when the forwarding chain is shorter than the configured
-  // trusted-hop count, `request.ip` (@fastify/proxy-addr) falls back to the
-  // LEFTMOST (client-controlled) entry. Never trust it — use the socket peer.
-  const entries = parseForwardedFor(request.headers["x-forwarded-for"]);
-  if (entries.length < trustedHops) return socket;
+  // Fail-closed: a peer that is not one of our proxies has no standing to speak
+  // for anyone else, so nothing it forwarded may be believed. `socket` is
+  // UNKNOWN_IP when there is no peer at all, which is not a trusted range
+  // either — so an absent socket also fails closed here.
+  if (!isTrustedPeer(socket, policy.ranges)) return socket;
 
-  // Happy path: proxy-addr already selected `xff[len - hops]` as `request.ip`.
   return normalizeIp(request.ip) ?? socket;
 }

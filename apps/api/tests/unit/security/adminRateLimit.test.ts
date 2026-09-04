@@ -2,8 +2,9 @@
  * @file adminRateLimit.test.ts
  * @description Verifies the admin-auth rate-limit middleware keys its bucket via
  *              the canonical `resolveClientIp` resolver (socket peer under the
- *              test's fail-closed hop count) rather than the spoofable leftmost
- *              X-Forwarded-For entry that a raw `request.ip` read would expose.
+ *              test's fail-closed socket-only model) rather than the spoofable
+ *              leftmost X-Forwarded-For entry that a raw `request.ip` read would
+ *              expose.
  * @layer infrastructure
  */
 

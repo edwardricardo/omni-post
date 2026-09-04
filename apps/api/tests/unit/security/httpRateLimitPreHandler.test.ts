@@ -179,9 +179,9 @@ describe("createHttpRateLimitPreHandler", () => {
   });
 
   it("keys by the resolver's IP, not the leftmost X-Forwarded-For entry", async () => {
-    // Test env has TRUSTED_PROXY_HOP_COUNT=0 (default) so resolveClientIp returns
-    // the socket peer — proving the pre-handler no longer trusts the spoofable
-    // leftmost XFF entry that the old `clientIp()` used.
+    // Test env runs the default TRUSTED_PROXY_MODE=socket-only, so resolveClientIp
+    // returns the socket peer — proving the pre-handler no longer trusts the
+    // spoofable leftmost XFF entry that the old `clientIp()` used.
     const { port, calls } = limiterReturning(ALLOW);
     const handler = createHttpRateLimitPreHandler(port, {
       defaultConfig: RateLimitConfigs.STANDARD,

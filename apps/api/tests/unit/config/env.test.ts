@@ -143,6 +143,79 @@ describe("env schema (apps/api/src/config/env.ts)", () => {
     });
   });
 
+  // The trusted-proxy interlock (ADR-0021). These are boot-refusal tests, not
+  // value tests: the point is that an inconsistent pair CANNOT produce a running
+  // app that quietly picks one of the two models on the operator's behalf.
+  describe("trusted-proxy model interlock", () => {
+    it("defaults to socket-only when nothing is configured", async () => {
+      const env = (await loadEnvWith()) as { TRUSTED_PROXY_MODE: string };
+      expect(env.TRUSTED_PROXY_MODE).toBe("socket-only");
+    });
+
+    it("accepts trusted-ranges when ranges are configured", async () => {
+      const env = (await loadEnvWith({
+        TRUSTED_PROXY_MODE: "trusted-ranges",
+        TRUSTED_PROXY_RANGES: "10.0.0.0/8",
+      })) as { TRUSTED_PROXY_MODE: string; TRUSTED_PROXY_RANGES: string };
+      expect(env.TRUSTED_PROXY_MODE).toBe("trusted-ranges");
+      expect(env.TRUSTED_PROXY_RANGES).toBe("10.0.0.0/8");
+    });
+
+    it("REFUSES to boot when trusted-ranges is selected with no ranges", async () => {
+      await expect(
+        loadEnvWith({ TRUSTED_PROXY_MODE: "trusted-ranges", TRUSTED_PROXY_RANGES: undefined })
+      ).rejects.toThrow(/TRUSTED_PROXY_RANGES/);
+    });
+
+    it("REFUSES to boot when trusted-ranges is selected with an empty range list", async () => {
+      await expect(
+        loadEnvWith({ TRUSTED_PROXY_MODE: "trusted-ranges", TRUSTED_PROXY_RANGES: " , " })
+      ).rejects.toThrow(/TRUSTED_PROXY_RANGES/);
+    });
+
+    it("REFUSES to boot on a malformed CIDR and names the offending entry", async () => {
+      await expect(
+        loadEnvWith({
+          TRUSTED_PROXY_MODE: "trusted-ranges",
+          TRUSTED_PROXY_RANGES: "10.0.0.0/8, 10.0.0.0/99",
+        })
+      ).rejects.toThrow(/10\.0\.0\.0\/99/);
+    });
+
+    it("REFUSES to boot on a hostname — proxy trust is by address, never by name", async () => {
+      await expect(
+        loadEnvWith({ TRUSTED_PROXY_MODE: "trusted-ranges", TRUSTED_PROXY_RANGES: "edge.internal" })
+      ).rejects.toThrow(/edge\.internal/);
+    });
+
+    it("REFUSES to boot on socket-only paired with ranges that would never be consulted", async () => {
+      await expect(
+        loadEnvWith({ TRUSTED_PROXY_MODE: "socket-only", TRUSTED_PROXY_RANGES: "10.0.0.0/8" })
+      ).rejects.toThrow(/TRUSTED_PROXY_RANGES/);
+    });
+
+    it("rejects an unknown mode rather than falling back to a default", async () => {
+      await expect(loadEnvWith({ TRUSTED_PROXY_MODE: "hop-count" })).rejects.toThrow(
+        /TRUSTED_PROXY_MODE/
+      );
+    });
+
+    it("REFUSES to boot when the removed TRUSTED_PROXY_HOP_COUNT is still set", async () => {
+      // The removed variable must not be silently ignored: an operator who still
+      // sets it believes hop-count trust is in force, and under fastify >= 5.12.1
+      // it does nothing at all. Loud migration error, not a no-op.
+      await expect(loadEnvWith({ TRUSTED_PROXY_HOP_COUNT: "2" })).rejects.toThrow(
+        /TRUSTED_PROXY_HOP_COUNT/
+      );
+    });
+
+    it("still refuses when the removed variable is set to its old safe default of 0", async () => {
+      await expect(loadEnvWith({ TRUSTED_PROXY_HOP_COUNT: "0" })).rejects.toThrow(
+        /TRUSTED_PROXY_HOP_COUNT/
+      );
+    });
+  });
+
   describe("error message format", () => {
     it("includes 'Refusing to boot' phrase to flag intentional fail-fast", async () => {
       await expect(loadEnvWith({ JWT_ACCESS_SECRET: undefined })).rejects.toThrow(
