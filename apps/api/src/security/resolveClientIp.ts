@@ -51,7 +51,12 @@ const UNKNOWN_IP = "unknown";
  * already rejected an inconsistent pair, so this construction cannot fail; the
  * builder's own refusals are the second half of the same interlock.
  */
-export const trustedProxyPolicy: TrustedProxyPolicy = buildTrustedProxyPolicy(
+// Module-private on purpose: `FASTIFY_TRUST_PROXY` below and the resolver's
+// own default parameter are its only consumers, and both live here. Exporting
+// it would invite a second caller to derive its own trust decision somewhere
+// else, which is the drift this module exists to prevent — the chokepoint is
+// only a chokepoint while there is one way through it.
+const trustedProxyPolicy: TrustedProxyPolicy = buildTrustedProxyPolicy(
   env.TRUSTED_PROXY_MODE,
   env.TRUSTED_PROXY_RANGES
 );
