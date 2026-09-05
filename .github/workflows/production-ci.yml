@@ -33,7 +33,37 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Audit dependencies
-        run: pnpm audit --audit-level moderate
+        run: |
+          # Mirrors ci.yml "Run security audit" — same classification, same
+          # rationale (see the comment there): a required gate must distinguish
+          # "measured and found advisories" from "could not measure", failing
+          # closed in both cases but SAYING which one happened. Keep the two
+          # copies in lockstep when editing either.
+          set -uo pipefail
+          ATTEMPTS=4
+          BASE_SLEEP="${AUDIT_RETRY_BASE_SLEEP:-30}"
+          NET_SIG='error \(23\)|error \(5[0-9][0-9]\)|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN|aborted due to timeout|TimeoutError'
+          for i in $(seq 1 "$ATTEMPTS"); do
+            set +e
+            OUT=$(pnpm audit --audit-level moderate 2>&1)
+            CODE=$?
+            set -e
+            if [ "$CODE" -eq 0 ]; then
+              printf '%s\n' "$OUT" | tail -12
+              echo "Security audit measured CLEAN on attempt $i/$ATTEMPTS."
+              exit 0
+            fi
+            if ! printf '%s' "$OUT" | grep -qE "$NET_SIG"; then
+              printf '%s\n' "$OUT"
+              echo "::error title=Security audit: vulnerabilities found::pnpm audit MEASURED the tree (attempt $i/$ATTEMPTS) and found advisories at moderate or above. Raise the CVE floors per docs/security/SECURITY_CANON.md §Audited audit-ignores — never ignore a reachable, un-mitigated advisory."
+              exit 1
+            fi
+            echo "attempt $i/$ATTEMPTS: advisory endpoint unreachable (network signature matched), retrying in $((i * BASE_SLEEP))s"
+            printf '%s\n' "$OUT" | tail -4
+            [ "$i" -lt "$ATTEMPTS" ] && sleep $((i * BASE_SLEEP))
+          done
+          echo "::error title=Security audit COULD NOT MEASURE::npm's bulk advisory endpoint was unreachable on all $ATTEMPTS attempts. This is NOT a clean result and NOT a vulnerability finding — nothing was measured, so a required security gate fails closed rather than passing on silence. Re-run when the endpoint recovers."
+          exit 1
 
   # Code Quality and Testing
   test-and-build:

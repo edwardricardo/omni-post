@@ -88,7 +88,15 @@ def audit_missing_headers() -> list[str]:
             continue
         try:
             with open(f, encoding="utf-8") as fh:
-                head = fh.read(1500)
+                # 4096, not 1500: a file with a thorough doc header pushed
+                # @layer past the old window and this hook reported the header
+                # as MISSING while it was there (trustedProxy.ts, 2026-09-05) —
+                # a false positive from a gate about honesty is the worst kind.
+                # Still bounded on purpose: the header canon puts @file/@layer
+                # at the TOP of the file, so a header past 4KB is its own
+                # violation worth flagging, and an unbounded read would make
+                # the hook's cost scale with file size.
+                head = fh.read(4096)
         except OSError:
             continue
         missing = []

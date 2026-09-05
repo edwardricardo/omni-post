@@ -566,7 +566,48 @@ jobs:
         uses: ./.github/actions/setup-node-pnpm-cache
 
       - name: Run security audit
-        run: pnpm audit --audit-level moderate
+        run: |
+          # A required gate has two ways to lie, and this step used to allow one
+          # of them: when npm's bulk advisory endpoint is down (observed: error
+          # 23, then 503, sustained for hours on 2026-09-04), the bare command
+          # failed as if it had FOUND something, after measuring NOTHING. The
+          # mirror-image lie — passing unmeasured via `|| true` — is worse and
+          # remains forbidden: "measured clean" and "could not measure" must
+          # never collapse into each other, in either direction.
+          #
+          # Classification is by exit code + failure signature, not by prose:
+          # pnpm exits 0 for a clean measurement (ignored-GHSA rows are printed
+          # but do not fail), non-zero both for real findings and for endpoint
+          # failures — the signature tells them apart. An unmeasurable run still
+          # FAILS (this is a required security gate; silence is not clean), but
+          # it fails saying so, after retrying with backoff first.
+          # AUDIT_RETRY_BASE_SLEEP exists so the red-path harness can exercise
+          # the loop without minutes of real sleeping; CI uses the default.
+          set -uo pipefail
+          ATTEMPTS=4
+          BASE_SLEEP="${AUDIT_RETRY_BASE_SLEEP:-30}"
+          NET_SIG='error \(23\)|error \(5[0-9][0-9]\)|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN|aborted due to timeout|TimeoutError'
+          for i in $(seq 1 "$ATTEMPTS"); do
+            set +e
+            OUT=$(pnpm audit --audit-level moderate 2>&1)
+            CODE=$?
+            set -e
+            if [ "$CODE" -eq 0 ]; then
+              printf '%s\n' "$OUT" | tail -12
+              echo "Security audit measured CLEAN on attempt $i/$ATTEMPTS."
+              exit 0
+            fi
+            if ! printf '%s' "$OUT" | grep -qE "$NET_SIG"; then
+              printf '%s\n' "$OUT"
+              echo "::error title=Security audit: vulnerabilities found::pnpm audit MEASURED the tree (attempt $i/$ATTEMPTS) and found advisories at moderate or above. Raise the CVE floors per docs/security/SECURITY_CANON.md §Audited audit-ignores — never ignore a reachable, un-mitigated advisory."
+              exit 1
+            fi
+            echo "attempt $i/$ATTEMPTS: advisory endpoint unreachable (network signature matched), retrying in $((i * BASE_SLEEP))s"
+            printf '%s\n' "$OUT" | tail -4
+            [ "$i" -lt "$ATTEMPTS" ] && sleep $((i * BASE_SLEEP))
+          done
+          echo "::error title=Security audit COULD NOT MEASURE::npm's bulk advisory endpoint was unreachable on all $ATTEMPTS attempts. This is NOT a clean result and NOT a vulnerability finding — nothing was measured, so a required security gate fails closed rather than passing on silence. Re-run when the endpoint recovers (it returned error 23/503 during the 2026-09-04 outage and recovered on its own)."
+          exit 1
 
   # ── Code quality checks: dead code, duplication, circular deps ──
   code-quality:
