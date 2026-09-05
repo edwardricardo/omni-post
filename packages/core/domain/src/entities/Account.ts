@@ -7,6 +7,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { Entity, type EntityProps } from "./Entity.js";
 import { AccountId } from "../value-objects/EntityId.js";
+import { normalizeEmail } from "../value-objects/EmailAddress.js";
 import { InvalidValueError, InvariantViolationError } from "../errors/index.js";
 
 /**
@@ -198,7 +199,7 @@ export class Account extends Entity<AccountId> {
 
     return ok(
       new Account(AccountId.generate(), {
-        email: input.email.toLowerCase().trim(),
+        email: normalizeEmail(input.email),
         name: input.name.trim(),
         isOnTrial: true,
         trialEndDate,
@@ -378,7 +379,7 @@ export class Account extends Entity<AccountId> {
       return err(new InvalidValueError("email", newEmail, "Invalid email address"));
     }
 
-    this._email = newEmail.toLowerCase().trim();
+    this._email = normalizeEmail(newEmail);
     this.markUpdated();
 
     return ok(undefined);

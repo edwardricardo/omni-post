@@ -10,6 +10,7 @@
 export * from "./errors/index.js";
 export * from "./value-objects/EntityId.js";
 export * from "./value-objects/AdminActorId.js";
+export * from "./value-objects/EmailAddress.js";
 export * from "./events/DomainEvent.js";
 export * from "./entities/Entity.js";
 export * from "./aggregates/AggregateRoot.js";

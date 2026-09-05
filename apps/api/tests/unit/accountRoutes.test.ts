@@ -393,6 +393,58 @@ describe("accountRoutes Unit Tests", () => {
     });
   });
 
+  // `Foo@Example.com` and `foo@example.com` are ONE address for registration
+  // purposes. The three assertions below are one fix seen from three sides, and
+  // they only hold together: the route must STORE the normalized form, the
+  // lookup must FIND it whatever the caller typed, and the duplicate check must
+  // REFUSE the case-twin. Normalizing only the lookup is worse than doing
+  // nothing — it searches `foo@` against a row stored `Foo@`, misses, and
+  // reports "available" for an address that is already taken.
+  describe("POST /accounts — email is normalized identity", () => {
+    const mixedCase = `Norm-${timestamp}@Example.COM`;
+    const normalized = mixedCase.toLowerCase();
+
+    it("stores the address lowercased when registration supplies mixed case", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/accounts",
+        payload: { email: mixedCase, name: testName },
+      });
+
+      const body = JSON.parse(response.body);
+
+      expect(response.statusCode).toBe(200);
+      // The response echoes the persisted row, so this asserts what was STORED,
+      // not merely what the handler echoed back.
+      expect(body.data?.email).toBe(normalized);
+
+      const stored = stores.account.all().find((a) => a.id === body.data?.id);
+      expect(stored?.email).toBe(normalized);
+    });
+
+    it("refuses the case-twin of an existing address as a duplicate", async () => {
+      // The address differs from the row above ONLY in casing. Before the fix
+      // the duplicate check compared raw bytes, so this call created a SECOND
+      // account holding the same identity — the exact duplicate the check
+      // exists to prevent.
+      const response = await app.inject({
+        method: "POST",
+        url: "/accounts",
+        payload: { email: normalized.toUpperCase(), name: testName },
+      });
+
+      expect(response.statusCode).toBe(409);
+
+      const body = JSON.parse(response.body);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe("EMAIL_TAKEN");
+
+      // The refusal must leave exactly one holder of the address.
+      const holders = stores.account.all().filter((a) => a.email === normalized);
+      expect(holders).toHaveLength(1);
+    });
+  });
+
   describe("GET /accounts/:accountId", () => {
     it("should get account by ID successfully", async () => {
       const response = await app.inject({

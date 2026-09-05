@@ -9,6 +9,7 @@ import type { PrismaClient, Prisma, AdminUser, Role } from "@infra/prisma";
 import { ok, err } from "@shared/types";
 import type { Result } from "@shared/types";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 import type {
   AdminUserRepositoryPort,
   AdminUserCreateInput,
@@ -83,15 +84,15 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   /**
    * Find an admin user and verify they are active.
    *
-   * Looks up by ID (default) or email. Email is normalized to lowercase
-   * before the query so the caller does not need to pre-normalize.
+   * Looks up by ID (default) or email. Email is reduced to its canonical
+   * identity form before the query so the caller does not need to pre-normalize.
    */
   async findActiveUser(
     identifier: string,
     type: "email" | "id" = "id"
   ): Promise<Result<AdminUserDto, "NOT_FOUND" | "USER_INACTIVE">> {
     const user = await this.prisma.adminUser.findUnique({
-      where: type === "email" ? { email: identifier.toLowerCase() } : { id: identifier },
+      where: type === "email" ? { email: normalizeEmail(identifier) } : { id: identifier },
       include: { role: true },
     });
 
@@ -116,11 +117,11 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
 
   /**
    * Find an admin user by email address.
-   * Email is normalized to lowercase before the query.
+   * Email is reduced to its canonical identity form before the query.
    */
   async findByEmail(email: string): Promise<Result<AdminUserDto, "NOT_FOUND">> {
     const user = await this.prisma.adminUser.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: normalizeEmail(email) },
       include: { role: true },
     });
 
@@ -144,13 +145,14 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
 
   /**
    * Find an admin user by email including credential material.
-   * Email is normalized to lowercase before the query. For the login flow only.
+   * Email is reduced to its canonical identity form before the query. For the
+   * login flow only.
    */
   async findCredentialsByEmail(
     email: string
   ): Promise<Result<AdminUserCredentialsDto, "NOT_FOUND">> {
     const user = await this.prisma.adminUser.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: normalizeEmail(email) },
       include: { role: true },
     });
 
@@ -189,7 +191,10 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   async create(input: AdminUserCreateInput): Promise<AdminUserDto> {
     const user = await this.getClient().adminUser.create({
       data: {
-        email: input.email,
+        // Normalized on the way IN so the reads above, which normalize their
+        // argument, can actually find this row. Storing raw here while reading
+        // lowercased made a mixed-case admin invisible to every lookup.
+        email: normalizeEmail(input.email),
         passwordHash: input.passwordHash,
         name: input.name,
         roleId: input.roleId,
@@ -211,7 +216,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   async update(id: string, data: AdminUserUpdate): Promise<AdminUserDto> {
     const updateData: Prisma.AdminUserUncheckedUpdateInput = {
       ...(data.name !== undefined && { name: data.name }),
-      ...(data.email !== undefined && { email: data.email }),
+      ...(data.email !== undefined && { email: normalizeEmail(data.email) }),
       ...(data.passwordHash !== undefined && { passwordHash: data.passwordHash }),
       ...(data.roleId !== undefined && { roleId: data.roleId }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),

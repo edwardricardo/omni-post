@@ -12,6 +12,7 @@ import { type Result, ok, err } from "@shared/types";
 import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
 import { CustomerUser, type CustomerUserProps } from "@core/domain/entities/CustomerUser.js";
 import { EntityNotFoundError, type DomainError } from "@core/domain/errors/index.js";
+import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 
 /**
  * Prisma row shape including the joined CustomerRole + permissions. This is
@@ -83,7 +84,7 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
   async findByEmail(email: string, accountId: string): Promise<Result<CustomerUser, DomainError>> {
     try {
       const row = await this.prisma.customerUser.findFirst({
-        where: { email: email.toLowerCase().trim(), accountId, deletedAt: null },
+        where: { email: normalizeEmail(email), accountId, deletedAt: null },
         include: CUSTOMER_ROLE_INCLUDE,
       });
       if (!row) return err(new EntityNotFoundError("CustomerUser", email));
@@ -100,7 +101,7 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
 
   async findByEmailAcrossAccounts(email: string): Promise<CustomerUser[]> {
     const rows = await this.prisma.customerUser.findMany({
-      where: { email: email.toLowerCase().trim(), deletedAt: null },
+      where: { email: normalizeEmail(email), deletedAt: null },
       include: CUSTOMER_ROLE_INCLUDE,
     });
     return rows.map((r) => this.toDomain(r as unknown as PrismaCustomerUserRowWithRole));
@@ -172,7 +173,12 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
       const hash = passwordHash ?? user.passwordHash;
 
       const baseData = {
-        email: user.email,
+        // Both reads above normalize their argument, so the write must store
+        // the same form or they stop finding this row. `CustomerUser.create`
+        // already normalizes, but `reconstitute` does not — it replays whatever
+        // the row held — so relying on the entity alone would let a legacy
+        // mixed-case row survive a round-trip through `save` unchanged.
+        email: normalizeEmail(user.email),
         passwordHash: hash,
         firstName: user.firstName,
         lastName: user.lastName,

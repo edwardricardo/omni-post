@@ -16,6 +16,7 @@ import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
 import { DELETION_RECORD_LAWFUL_BASIS, computeRetainUntil } from "./deletionRecordRetention.js";
 import { recordHardDeleteImpact } from "../../metrics/deletionMetrics.js";
 import { env } from "../../config/env.js";
+import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 
 /** Local type alias for Prisma transaction client */
 type TxClient = Prisma.TransactionClient;
@@ -96,7 +97,7 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
    */
   async findByEmail(email: string): Promise<Account | null> {
     const row = await this.prisma.account.findFirst({
-      where: { email: email.toLowerCase().trim(), deletedAt: null },
+      where: { email: normalizeEmail(email), deletedAt: null },
       include: { _count: { select: { projects: { where: { deletedAt: null } } } } },
     });
 

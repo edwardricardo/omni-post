@@ -11,6 +11,7 @@ import { ok, err, type Result } from "@shared/types";
 import type { AuthErrorCode, PasswordValidation, SecurityEventType } from "./adminAuthTypes.js";
 import { validatePasswordStrength } from "./adminAuthSchemas.js";
 import { adminAuthConfig } from "./adminAuthConfig.js";
+import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 import {
   hashPassword as argonHashPassword,
   verifyPassword as argonVerifyPassword,
@@ -171,7 +172,7 @@ export class PasswordService {
   ): Promise<Result<string, AuthErrorCode>> {
     // Find user by email
     const user = await this.prisma.adminUser.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: normalizeEmail(email) },
       select: { id: true, isActive: true },
     });
 
@@ -202,7 +203,7 @@ export class PasswordService {
     await onSecurityEvent({
       type: "PASSWORD_RESET_REQUESTED",
       userId: user.id,
-      email: email.toLowerCase(),
+      email: normalizeEmail(email),
       success: true,
       timestamp: new Date(),
     });

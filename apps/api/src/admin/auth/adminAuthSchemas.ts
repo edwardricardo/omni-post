@@ -10,15 +10,20 @@
  */
 
 import { z } from "zod";
+import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 
 // ============================================================================
 // Reusable Schema Components
 // ============================================================================
 
 /**
- * Email validation schema
+ * Email validation schema.
+ *
+ * Validation runs first, then the address is reduced to its canonical identity
+ * form through the same helper every write and read path uses — so the admin
+ * login surface cannot drift from the rows it authenticates against.
  */
-const emailSchema = z.string().email({ message: "Invalid email format" }).toLowerCase().trim();
+const emailSchema = z.string().email({ message: "Invalid email format" }).transform(normalizeEmail);
 
 /**
  * Password validation schema with strength requirements

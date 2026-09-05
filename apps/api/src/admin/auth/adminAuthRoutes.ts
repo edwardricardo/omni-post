@@ -30,6 +30,7 @@ import {
 } from "./adminAuthSchemas.js";
 import type { DeviceFingerprint } from "./adminAuthTypes.js";
 import { env } from "../../config/env.js";
+import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 
 // ============================================================================
 // Route Handler Class
@@ -255,7 +256,7 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
       // truth: passwordResetEmail template + EmailPort + adminUrl from
       // PlatformCredentialService). Ref: F.7 Auth audit, finding #5.
       const resetToken = result.value;
-      const userRow = await this.adminAuthService.findAdminContactByEmail(email.toLowerCase());
+      const userRow = await this.adminAuthService.findAdminContactByEmail(normalizeEmail(email));
 
       if (userRow) {
         const adminUrlResult = await this.credentialService.getCredential("PLATFORM", "adminUrl");
