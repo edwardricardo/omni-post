@@ -79,8 +79,18 @@ def gate_sensitive_path_writes_require_token(command: str) -> None:
     for pattern in SENSITIVE_PATTERNS:
         # El patrón trae "/" inicial para anclar en pre-edit (que ve rutas
         # absolutas); un comando suele citarlas relativas, así que se compara
-        # también sin esa barra.
-        if pattern in command or pattern.lstrip("/") in command:
+        # también sin esa barra — pero con FRONTERA: el `in` pelado hacía que
+        # el patrón `.env` matcheara DENTRO de `process.env`, que aparece en
+        # cantidades industriales de comandos legítimos de solo lectura. Tres
+        # bloqueos falsos en un día enseñan a esquivar el gate, que es como
+        # los gates mueren. La frontera exige que la coincidencia no venga
+        # precedida de un carácter de palabra: `process.env` no matchea
+        # (la `s` la precede), `.env`, `cp .env`, `../.env` y `--env-file=.env`
+        # sí. El patrón con "/" inicial ya trae su frontera puesta.
+        stripped = pattern.lstrip("/")
+        if pattern in command or re.search(
+            r"(?<![A-Za-z0-9_])" + re.escape(stripped), command
+        ):
             matched_path = pattern
             break
 
