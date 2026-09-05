@@ -88,7 +88,7 @@ catalog:
   "@langchain/langgraph": 1.4.4 # already latest stable (7d candidate 1.4.2 is older; never pin lower)
 
   # ── googleapis family (atomic; the @10 scoped override stays in pnpm.overrides) ──
-  google-auth-library: 10.7.0 # latest stable (taze -l --maturity-period 7); was 9.14.1 (MAJOR 9->10)
+  google-auth-library: 11.0.0 # latest stable (taze -l --maturity-period 7); was 9.14.1 (MAJOR 9->10)
   googleapis: 173.0.0 # latest stable; was 160.0.0
 
   # ── Build/test toolchain ──
