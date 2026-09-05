@@ -6,9 +6,19 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
+import { Prisma } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import { Account, AccountId, EntityNotFoundError } from "@core/domain/index.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
+import type { HardDeleteContext, HardDeleteImpact } from "@core/domain/repositories/Repository.js";
+import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
+import { DELETION_RECORD_LAWFUL_BASIS, computeRetainUntil } from "./deletionRecordRetention.js";
+import { recordHardDeleteImpact } from "../../metrics/deletionMetrics.js";
+import { env } from "../../config/env.js";
+
+/** Local type alias for Prisma transaction client */
+type TxClient = Prisma.TransactionClient;
 
 /**
  * Maps a Prisma Account row to the Account domain entity
@@ -170,100 +180,178 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   }
 
   /**
-   * Hard-delete an account and all related data in the correct cascade order.
-   * SUPER_ADMIN only — irreversible.
+   * Hard-delete an account and everything it owns. SUPER_ADMIN only —
+   * irreversible.
    *
-   * Infrastructure-layer responsibility: manages FK constraint ordering so
-   * callers do not need to know the database topology.
+   * The delete order lives in the schema, not here: every owned child
+   * cascades from Account (projects and their subtrees, channels, users,
+   * subscriptions with their price history, api keys, templates, ...), and
+   * survivor records detach via `ON DELETE SET NULL` (invoices, billing
+   * events, DSAR requests, admin role history, referral usage rows — see
+   * docs/architecture/schema-conventions.md, "Choosing the ON DELETE
+   * action").
+   *
+   * The one explicit step left is GDPR erasure of inbound webhook payloads
+   * (tenant social data): their FKs are SET NULL so they survive narrower
+   * deletions as audit records, but account erasure keeps destroying them.
+   *
+   * Tombstones (`DeletionRecord`) are written FIRST — one for the account and
+   * one for every project the cascade drags along — from snapshots read inside
+   * the same transaction. The projects have to be captured BEFORE the delete:
+   * afterwards there is nothing left to read them from. No tombstone, no
+   * delete: a failed insert rolls the destruction back with it.
+   *
+   * ATOMIC: runs inside one transaction. UoW-aware: an outer
+   * `executeInTransaction` is joined rather than nested.
    */
-  async hardDelete(id: AccountId): Promise<Result<void, EntityNotFoundError>> {
-    // Use findFirst to detect the account even if it was soft-deleted
-    const account = await this.prisma.account.findFirst({
-      where: { id: id.value },
-      select: { id: true },
-    });
-    if (!account) {
-      return err(new EntityNotFoundError("Account", id.value));
-    }
-
+  async hardDelete(
+    id: AccountId,
+    context: HardDeleteContext
+  ): Promise<Result<void, EntityNotFoundError>> {
     const accountId = id.value;
 
-    // Gather project IDs for cascading into project-scoped tables
-    const projects = await this.prisma.project.findMany({
-      where: { accountId },
-      select: { id: true },
-    });
-    const projectIds = projects.map((p) => p.id);
-
-    if (projectIds.length > 0) {
-      // 1. PublishLogs (references posts + channels)
-      await this.prisma.publishLog.deleteMany({
-        where: { post: { projectId: { in: projectIds } } },
+    // The existence probe lives INSIDE the transaction and doubles as the
+    // tombstone snapshot: one read that cannot go stale between the check and
+    // the delete. `findFirst` without `deletedAt` so an already soft-deleted
+    // account is still reachable by the irreversible path.
+    const doHardDelete = async (tx: TxClient): Promise<boolean> => {
+      const account = await tx.account.findFirst({
+        where: { id: accountId },
+        select: { id: true, name: true, createdAt: true },
       });
-      // 2. Analytics
-      await this.prisma.analytics.deleteMany({
-        where: { post: { projectId: { in: projectIds } } },
-      });
-      // 3. PostMedia
-      await this.prisma.postMedia.deleteMany({
-        where: { post: { projectId: { in: projectIds } } },
-      });
-      // 4. PostContent
-      await this.prisma.postContent.deleteMany({
-        where: { post: { projectId: { in: projectIds } } },
-      });
-      // 5. ContentVersions
-      await this.prisma.contentVersion.deleteMany({
-        where: { post: { projectId: { in: projectIds } } },
-      });
-      // 6. Threads + Tweets
-      const posts = await this.prisma.post.findMany({
-        where: { projectId: { in: projectIds } },
-        select: { id: true },
-      });
-      const postIds = posts.map((p) => p.id);
-      if (postIds.length > 0) {
-        await this.prisma.tweet.deleteMany({
-          where: { thread: { postId: { in: postIds } } },
-        });
-        await this.prisma.thread.deleteMany({
-          where: { postId: { in: postIds } },
-        });
+      if (!account) {
+        return false;
       }
-      // 7. Posts
-      await this.prisma.post.deleteMany({ where: { projectId: { in: projectIds } } });
-      // 8. Channels (single connection model — covers tokens + display state)
-      await this.prisma.channel.deleteMany({ where: { projectId: { in: projectIds } } });
-      // 9. Misc project-scoped tables
-      await this.prisma.contentTemplate.deleteMany({ where: { projectId: { in: projectIds } } });
-      await this.prisma.instagramStoryProject.deleteMany({
-        where: { projectId: { in: projectIds } },
+
+      // Soft-deleted projects are included on purpose: the cascade destroys
+      // them too, so a tombstone owes them the same record.
+      const projects = await tx.project.findMany({
+        where: { accountId },
+        select: { id: true, name: true, createdAt: true },
       });
-      await this.prisma.videoProcessingJob.deleteMany({ where: { projectId: { in: projectIds } } });
-      await this.prisma.instagramAnalytics.deleteMany({ where: { projectId: { in: projectIds } } });
-      await this.prisma.schedulingRule.deleteMany({ where: { projectId: { in: projectIds } } });
-      await this.prisma.webhookEvent.deleteMany({ where: { projectId: { in: projectIds } } });
-      await this.prisma.webhookSubscription.deleteMany({
-        where: { projectId: { in: projectIds } },
+      const projectIds = projects.map((p) => p.id);
+
+      const clientUntil = new Date();
+      // One clock for the whole cascade: the account tombstone and every project
+      // tombstone it drags along share a single `clientUntil`, so they also share
+      // a single `retainUntil`. Computing it per row would let the degradation
+      // job strip an account's name while its projects' names stayed readable.
+      const retainUntil = computeRetainUntil(clientUntil, env.DELETION_RECORD_RETENTION_YEARS);
+      const tombstones = [
+        {
+          entityType: "ACCOUNT",
+          entityId: account.id,
+          name: account.name,
+          accountId,
+          clientSince: account.createdAt,
+          clientUntil,
+          deletedBy: context.deletedBy,
+          // The operator's justification is written in the SAME transaction as
+          // the destruction it justifies. Kept on the row rather than only in
+          // AuditLog, which is written outside this transaction and can
+          // therefore survive a rolled-back delete or be lost with a committed
+          // one — either way describing a history that did not happen.
+          reason: context.reason,
+          retainUntil,
+          lawfulBasis: DELETION_RECORD_LAWFUL_BASIS,
+        },
+        ...projects.map((project) => ({
+          entityType: "PROJECT",
+          entityId: project.id,
+          name: project.name,
+          accountId,
+          clientSince: project.createdAt,
+          clientUntil,
+          deletedBy: context.deletedBy,
+          reason: context.reason,
+          retainUntil,
+          lawfulBasis: DELETION_RECORD_LAWFUL_BASIS,
+        })),
+      ];
+      const written = await tx.deletionRecord.createMany({ data: tombstones });
+
+      // Assert the tombstone write rather than assume it: one row for the account
+      // plus one per project it drags along. If `createMany` inserted fewer than
+      // that, the durable record of what is about to be destroyed is incomplete,
+      // so we abort the whole transaction (delete included) instead of destroying
+      // rows no tombstone describes.
+      if (written.count !== tombstones.length) {
+        throw new Error(
+          `Tombstone integrity check failed for account ${accountId}: expected ` +
+            `${tombstones.length} DeletionRecord row(s) (1 account + ${projects.length} ` +
+            `project(s)), createMany reported ${written.count}`
+        );
+      }
+
+      await tx.webhookEvent.deleteMany({
+        where: {
+          OR: [
+            { accountId },
+            ...(projectIds.length > 0 ? [{ projectId: { in: projectIds } }] : []),
+          ],
+        },
       });
-      await this.prisma.template.deleteMany({ where: { projectId: { in: projectIds } } });
-      // 10. Projects
-      await this.prisma.project.deleteMany({ where: { id: { in: projectIds } } });
+
+      await tx.account.delete({ where: { id: accountId } });
+      return true;
+    };
+
+    const activeTx = PrismaUnitOfWork.getTransactionClient();
+    // When an outer Unit of Work is active the delete JOINS it (the hard-delete
+    // use case opens a Serializable UoW under `withSystemContext`, which is what
+    // binds the `app.account_id` RLS GUC and pins the isolation level so the
+    // tombstone snapshot cannot miss a concurrently inserted project). Only the
+    // standalone branch owns a transaction, so it carries the same bounds itself.
+    const deleted = activeTx
+      ? await doHardDelete(activeTx)
+      : await this.prisma.$transaction(doHardDelete, HARD_DELETE_TX_OPTIONS);
+
+    if (!deleted) {
+      return err(new EntityNotFoundError("Account", accountId));
     }
 
-    // Account-level records
-    await this.prisma.apiKey.deleteMany({ where: { accountId } });
-    await this.prisma.contentTemplate.deleteMany({ where: { accountId } });
-    await this.prisma.instagramStoryProject.deleteMany({ where: { accountId } });
-    await this.prisma.videoProcessingJob.deleteMany({ where: { accountId } });
-    await this.prisma.instagramAnalytics.deleteMany({ where: { accountId } });
-    await this.prisma.schedulingRule.deleteMany({ where: { accountId } });
-    await this.prisma.webhookEvent.deleteMany({ where: { accountId } });
-    await this.prisma.webhookSubscription.deleteMany({ where: { accountId } });
-    await this.prisma.template.deleteMany({ where: { accountId } });
-
-    await this.prisma.account.delete({ where: { id: accountId } });
     return ok(undefined);
+  }
+
+  /**
+   * Measure the blast radius of a hard delete in BOTH dimensions the transaction
+   * budget is spent on, across every project of the account (soft-deleted projects
+   * included — the cascade takes them too). Posts alone were never the whole cost:
+   * PostgreSQL fires one referential trigger per destroyed row per referencing
+   * table, so the real cost is posts MULTIPLIED BY the rows that reference them,
+   * and a tenant with few posts and a large child population sails past a
+   * posts-only ceiling and then cannot finish inside the budget.
+   *
+   * `Task` and `WebhookEvent` are the child populations counted here because they
+   * are the two that (a) carry `accountId` themselves, so an index answers the
+   * count without joining through the posts we are trying not to touch, and (b)
+   * measured as the largest per-post triggers in the cascade. The webhook count
+   * uses the SAME predicate as the erasure below (`accountId`, or a project of this
+   * account), so the guard bounds the rows the delete will actually remove rather
+   * than a narrower set. The rest of `Post`'s children carry no tenant column; see
+   * `HardDeleteImpact` for what that leaves uncounted.
+   *
+   * Cheap by construction: three indexed aggregates, no rows materialized. They run
+   * concurrently rather than in one batched transaction because this is a pre-flight
+   * estimate that never needs a consistent snapshot — and because a batch
+   * `$transaction` here would nest if a caller ever ran the use case inside a Unit
+   * of Work.
+   */
+  async countHardDeleteImpact(id: AccountId): Promise<HardDeleteImpact> {
+    const accountId = id.value;
+    const [posts, tasks, webhookEvents] = await Promise.all([
+      this.prisma.post.count({ where: { project: { accountId } } }),
+      this.prisma.task.count({ where: { accountId } }),
+      this.prisma.webhookEvent.count({
+        where: { OR: [{ accountId }, { project: { accountId } }] },
+      }),
+    ]);
+    const impact: HardDeleteImpact = { posts, childRows: tasks + webhookEvents };
+    // Published here, at the measurement, rather than at the ceiling check: the counts are
+    // otherwise discarded on every attempt that stays under the limits, which is exactly
+    // the population that shows a tenant approaching them.
+    recordHardDeleteImpact("account", impact);
+    return impact;
   }
 
   /**

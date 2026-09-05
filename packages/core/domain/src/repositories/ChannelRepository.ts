@@ -146,7 +146,14 @@ export interface ChannelRepository {
 
   /**
    * Hard-delete a channel and all its data (irreversible).
-   * Only callable by SUPER_ADMIN. Cascades to publishLogs, analytics.
+   *
+   * Guarded by the `account:manage` admin permission, which is seeded to
+   * SUPER_ADMIN AND to ADMIN — not to SUPER_ADMIN alone.
+   *
+   * Destroys, by database cascade: `PublishLog`, `Analytics`, the channel's
+   * entire inbox history (`SocialConversation` and every `SocialMessage` in
+   * it), and the rolled-up `AnalyticsDailySummary` / `AnalyticsMonthlySummary`.
+   * `Mention` rows survive with their `channelId` nulled, hence unattributed.
    */
   hardDelete(id: ChannelId): Promise<Result<void, EntityNotFoundError>>;
 }

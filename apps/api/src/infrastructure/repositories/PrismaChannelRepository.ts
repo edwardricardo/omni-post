@@ -425,7 +425,25 @@ export class PrismaChannelRepository implements ChannelRepository {
 
   /**
    * Hard-delete a channel and all its data (irreversible).
-   * SUPER_ADMIN only. Cascades to publishLogs, analytics.
+   *
+   * Reachable by any admin holding `account:manage` — seeded to SUPER_ADMIN AND
+   * to ADMIN, so this is not a SUPER_ADMIN-only operation.
+   *
+   * DESTROYS, by database cascade, everything keyed to the channel:
+   * - `PublishLog` and `Analytics` (also deleted explicitly below)
+   * - `SocialMessage` and `SocialConversation` — the channel's ENTIRE inbox
+   *   history, every conversation and every message in it
+   * - `AnalyticsDailySummary` and `AnalyticsMonthlySummary` — the rolled-up
+   *   history, so the loss is not recoverable from the summaries either
+   *
+   * SURVIVES: `Mention` rows, whose `channelId` is set to NULL and which are
+   * therefore kept but left unattributed.
+   *
+   * The inbox and summary cascades are NOT what the two explicit `deleteMany`
+   * calls below do; they happen in the database. Before the ON DELETE
+   * convention landed on this branch, `SocialMessage` and `SocialConversation`
+   * held RESTRICT and the database REFUSED this delete for any channel that had
+   * ever received a message.
    */
   async hardDelete(id: ChannelId): Promise<Result<void, EntityNotFoundError>> {
     // Use findFirst to detect even soft-deleted channels

@@ -619,6 +619,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: 'catalog:'
         version: 0.104.1(zod@4.4.3)
+      '@core/accounts':
+        specifier: workspace:*
+        version: link:../../packages/core/accounts
       '@core/ai':
         specifier: workspace:*
         version: link:../../packages/core/ai
@@ -727,6 +730,9 @@ importers:
       '@core/posts':
         specifier: workspace:*
         version: link:../../packages/core/posts
+      '@core/projects':
+        specifier: workspace:*
+        version: link:../../packages/core/projects
       '@core/providers':
         specifier: workspace:*
         version: link:../../packages/core/providers
@@ -1782,6 +1788,31 @@ importers:
         specifier: 'catalog:'
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(msw@2.14.6(@types/node@25.9.3)(typescript@6.0.3))(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
 
+  packages/core/accounts:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.9.3
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(msw@2.14.6(@types/node@25.9.3)(typescript@6.0.3))(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+
   packages/core/ai:
     dependencies:
       '@core/application':
@@ -2639,6 +2670,31 @@ importers:
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(msw@2.14.6(@types/node@25.9.3)(typescript@6.0.3))(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
 
   packages/core/posts:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.9.3
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(msw@2.14.6(@types/node@25.9.3)(typescript@6.0.3))(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+
+  packages/core/projects:
     dependencies:
       '@core/application':
         specifier: workspace:*

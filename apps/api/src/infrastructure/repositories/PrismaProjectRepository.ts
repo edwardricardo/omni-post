@@ -6,6 +6,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
+import { Prisma } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import {
   Project,
@@ -15,12 +16,21 @@ import {
   PostId,
   EntityNotFoundError,
 } from "@core/domain/index.js";
+import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
+import { DELETION_RECORD_LAWFUL_BASIS, computeRetainUntil } from "./deletionRecordRetention.js";
+import { recordHardDeleteImpact } from "../../metrics/deletionMetrics.js";
+import { env } from "../../config/env.js";
 import type { ContentLocale } from "@core/domain/value-objects/Content.js";
 import type {
   ProjectRepositoryPort,
   PublishLogView,
 } from "@core/domain/repositories/ProjectRepository.js";
+import type { HardDeleteContext, HardDeleteImpact } from "@core/domain/repositories/Repository.js";
 import type { CrisisModeEntry } from "@core/domain/entities/Project.js";
+
+/** Local type alias for Prisma transaction client */
+type TxClient = Prisma.TransactionClient;
 
 /**
  * Minimal Prisma project row shape used by the mapper
@@ -187,63 +197,131 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Hard-delete a project and all related data in the correct cascade order.
-   * SUPER_ADMIN only — irreversible.
+   * Hard-delete a project. SUPER_ADMIN only — irreversible.
    *
-   * Infrastructure-layer responsibility: manages FK constraint ordering so
-   * callers do not need to know the database topology.
+   * The delete order lives in the schema, not here. Every owned child —
+   * posts with their content, media, threads, versions, comments and
+   * approvals; channels with their inbox and analytics history; the
+   * project-scoped Cascade children — is removed by `ON DELETE CASCADE`,
+   * and every reference with its own lifetime (tasks, content templates,
+   * webhook events, custom reports, media assets) detaches via
+   * `ON DELETE SET NULL` (see docs/architecture/schema-conventions.md,
+   * "Choosing the ON DELETE action").
+   *
+   * A tombstone (`DeletionRecord`) is written FIRST, from a snapshot read inside
+   * the same transaction, so the only durable trace of the destroyed tenant data
+   * cannot describe a row other than the one deleted. No tombstone, no delete:
+   * a failed insert rolls the delete back with it.
+   *
+   * ATOMIC: two statements in one transaction, so a failure (e.g. the deliberate
+   * RecurringPost.templatePost RESTRICT interlock) rolls everything back.
+   * UoW-aware: an outer `executeInTransaction` is joined rather than nested.
    */
-  async hardDelete(id: ProjectId): Promise<Result<void, EntityNotFoundError>> {
-    // Use findFirst to detect the project even if it was soft-deleted
-    const project = await this.prisma.project.findFirst({
-      where: { id: id.value },
-      select: { id: true },
-    });
-    if (!project) {
+  async hardDelete(
+    id: ProjectId,
+    context: HardDeleteContext
+  ): Promise<Result<void, EntityNotFoundError>> {
+    // The existence probe lives INSIDE the transaction and doubles as the
+    // tombstone snapshot: one read that cannot go stale between the check and
+    // the delete. `findFirst` without `deletedAt` so an already soft-deleted
+    // project is still reachable by the irreversible path.
+    const doHardDelete = async (tx: TxClient): Promise<boolean> => {
+      const snapshot = await tx.project.findFirst({
+        where: { id: id.value },
+        select: { id: true, accountId: true, name: true, createdAt: true },
+      });
+      if (!snapshot) {
+        return false;
+      }
+
+      const clientUntil = new Date();
+      const tombstones = [
+        {
+          entityType: "PROJECT",
+          entityId: snapshot.id,
+          name: snapshot.name,
+          accountId: snapshot.accountId,
+          clientSince: snapshot.createdAt,
+          clientUntil,
+          deletedBy: context.deletedBy,
+          // The operator's justification is written in the SAME transaction as
+          // the destruction it justifies. Kept on the row rather than only in
+          // AuditLog, which is written outside this transaction and can
+          // therefore survive a rolled-back delete or be lost with a committed
+          // one — either way describing a history that did not happen.
+          reason: context.reason,
+          retainUntil: computeRetainUntil(clientUntil, env.DELETION_RECORD_RETENTION_YEARS),
+          lawfulBasis: DELETION_RECORD_LAWFUL_BASIS,
+        },
+      ];
+      const written = await tx.deletionRecord.createMany({ data: tombstones });
+
+      // Assert the tombstone write rather than assume it: if `createMany`
+      // inserted fewer rows than we handed it, the durable record of what is
+      // about to be destroyed is incomplete, so we abort the whole transaction
+      // (delete included) instead of destroying a row no tombstone describes.
+      if (written.count !== tombstones.length) {
+        throw new Error(
+          `Tombstone integrity check failed for project ${id.value}: expected ` +
+            `${tombstones.length} DeletionRecord row(s), createMany reported ${written.count}`
+        );
+      }
+
+      await tx.project.delete({ where: { id: id.value } });
+      return true;
+    };
+
+    const activeTx = PrismaUnitOfWork.getTransactionClient();
+    // When an outer Unit of Work is active the delete JOINS it (the hard-delete
+    // use case opens a Serializable UoW under `withSystemContext`, which is what
+    // binds the `app.account_id` RLS GUC and pins the isolation level). Only the
+    // standalone branch owns a transaction, so it carries the same bounds itself
+    // (Serializable snapshot + explicit timeout) — direct callers and tests get
+    // the same guarantees as the production path.
+    const deleted = activeTx
+      ? await doHardDelete(activeTx)
+      : await this.prisma.$transaction(doHardDelete, HARD_DELETE_TX_OPTIONS);
+
+    if (!deleted) {
       return err(new EntityNotFoundError("Project", id.value));
     }
 
-    const projectId = id.value;
-
-    // Collect post IDs first for tweet/thread deletion
-    const posts = await this.prisma.post.findMany({
-      where: { projectId },
-      select: { id: true },
-    });
-    const postIds = posts.map((p) => p.id);
-
-    // 1. PublishLogs (references posts + channels)
-    await this.prisma.publishLog.deleteMany({ where: { post: { projectId } } });
-    // 2. Analytics (references posts + channels)
-    await this.prisma.analytics.deleteMany({ where: { post: { projectId } } });
-    // 3. PostMedia
-    await this.prisma.postMedia.deleteMany({ where: { post: { projectId } } });
-    // 4. PostContent
-    await this.prisma.postContent.deleteMany({ where: { post: { projectId } } });
-    // 5. ContentVersions
-    await this.prisma.contentVersion.deleteMany({ where: { post: { projectId } } });
-    // 6. Tweets → Threads
-    if (postIds.length > 0) {
-      await this.prisma.tweet.deleteMany({ where: { thread: { postId: { in: postIds } } } });
-      await this.prisma.thread.deleteMany({ where: { postId: { in: postIds } } });
-    }
-    // 7. Posts
-    await this.prisma.post.deleteMany({ where: { projectId } });
-    // 8. Channels
-    await this.prisma.channel.deleteMany({ where: { projectId } });
-    // 9. Other project-level records
-    await this.prisma.contentTemplate.deleteMany({ where: { projectId } });
-    await this.prisma.instagramStoryProject.deleteMany({ where: { projectId } });
-    await this.prisma.videoProcessingJob.deleteMany({ where: { projectId } });
-    await this.prisma.instagramAnalytics.deleteMany({ where: { projectId } });
-    await this.prisma.schedulingRule.deleteMany({ where: { projectId } });
-    await this.prisma.webhookEvent.deleteMany({ where: { projectId } });
-    await this.prisma.webhookSubscription.deleteMany({ where: { projectId } });
-    await this.prisma.template.deleteMany({ where: { projectId } });
-    // 10. Project itself
-    await this.prisma.project.delete({ where: { id: projectId } });
-
     return ok(undefined);
+  }
+
+  /**
+   * Measure the blast radius of a hard delete in BOTH dimensions the transaction
+   * budget is spent on. Posts alone were never the whole cost: PostgreSQL fires one
+   * referential trigger per destroyed row per referencing table, so the real cost is
+   * posts MULTIPLIED BY the rows that reference them, and a project with few posts
+   * and a large child population sails past a posts-only ceiling and then cannot
+   * finish inside the budget.
+   *
+   * `Task` and `WebhookEvent` are the child populations counted here because they
+   * are the two that (a) carry `projectId` themselves, so an index answers the count
+   * without joining through the posts we are trying not to touch, and (b) measured
+   * as the largest per-post triggers in the cascade. The rest of `Post`'s children
+   * carry no tenant column; see `HardDeleteImpact` for what that leaves uncounted.
+   *
+   * Cheap by construction: three indexed aggregates, no rows materialized. They run
+   * concurrently rather than in one batched transaction because this is a pre-flight
+   * estimate that never needs a consistent snapshot — and because a batch
+   * `$transaction` here would nest if a caller ever ran the use case inside a Unit
+   * of Work.
+   */
+  async countHardDeleteImpact(id: ProjectId): Promise<HardDeleteImpact> {
+    const projectId = id.value;
+    const [posts, tasks, webhookEvents] = await Promise.all([
+      this.prisma.post.count({ where: { projectId } }),
+      this.prisma.task.count({ where: { projectId } }),
+      this.prisma.webhookEvent.count({ where: { projectId } }),
+    ]);
+    const impact: HardDeleteImpact = { posts, childRows: tasks + webhookEvents };
+    // Published here, at the measurement, rather than at the ceiling check: the counts are
+    // otherwise discarded on every attempt that stays under the limits, which is exactly
+    // the population that shows a project approaching them.
+    recordHardDeleteImpact("project", impact);
+    return impact;
   }
 
   /**

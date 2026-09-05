@@ -302,11 +302,11 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the single live ratchet**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work.) Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only ratcheted check**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work; that baseline may fall and must never rise.) There are **38 checks, numbered #1-#37 and #39** — **#38 is RESERVED, not missing**: see its entry below. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
-```bash
+````bash
 # 1. No Prisma singleton imports in routes. Hard-zero.
 # Glob fixed to *[Rr]outes* — the old *routes* was case-sensitive and missed
 # every PascalCase *Routes.ts, so this guard silently passed on admin routes.
@@ -1192,7 +1192,65 @@ EOF
 COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
 COUNT=${COUNT:-0}
 echo "$COUNT"   # expect 0
-```
+
+# 38. RESERVED — soft-delete read coherence. Deliberately absent: the gate that
+# forbids reading a swept soft-deletable model without its `deletedAt` filter is
+# hard-zero over ~90 read sites, so it can only go green together with the read
+# sweep that fixes them. It ships in the same change as that sweep. The number is
+# held rather than reused, and the #1-#37,#39 gap is intentional: renumbering
+# twice churns every cross-reference (#39's prose below calls #38 "this gate's
+# tenant-guard twin"). Do NOT assign #38 to anything else.
+
+# 39. Every accountId-bearing Prisma model is tenant-guard-enrolled OR in the
+# documented cross-tenant denylist. The gate whose absence let DeletionRecord
+# land carrying accountId with neither TENANT_SCOPED_MODELS nor any documented
+# denylist knowing it existed: the $extends guard silently SKIPS a model it
+# does not know (fail-open by construction), so an unenrolled accountId-bearing
+# model is cross-tenant by default (CWE-639). Membership is DERIVED, never
+# hand-listed: bearing models from schema.prisma (any accountId column —
+# optional ones count: AuditLog's searchability column is exactly that shape,
+# and optionality does not exempt a model from deciding which side it is on);
+# enrollment from the TENANT_SCOPED_MODELS Set in tenantGuard.ts (lowerCamel,
+# the Prisma client accessor casing); denylist from the fenced table grid under
+# "## Global tables (denylist — guard bypasses)" in
+# docs/security/MULTI_TENANT_GUARDS.md (PascalCase; AuditLog and DeletionRecord
+# are its two accountId-bearing entries, each with a design note there —
+# DeletionRecord deliberately OUTLIVES its tenant: a tombstone scoped to the
+# tenant it records would be destroyed by the very deletion it exists to
+# witness).
+# FAIL-CLOSED: a missing file, zero bearing models, zero enrolled names, or
+# zero denylist names is a blind comparison, not a clean one — each exits 1.
+# RESIDUAL LIMITS, stated honestly: (1) textual extraction — a renamed Set or
+# heading fails closed rather than passing silently, but a SECOND fenced block
+# inserted ABOVE the grid inside that doc section would be read as the denylist
+# (keep that section prose-only above the grid); (2) the denylist proves
+# DOCUMENTATION, not correctness — a model wrongly denylisted passes here and
+# is caught in review of the .md diff, exactly like #36's quarantine; (3)
+# enrollment proves the guard KNOWS the model, not that RLS or every read path
+# is right. Hard-zero.
+set -uo pipefail
+SCHEMA=infra/prisma/schema.prisma
+GUARD=infra/prisma/src/extensions/tenantGuard.ts
+DOC=docs/security/MULTI_TENANT_GUARDS.md
+for f in "$SCHEMA" "$GUARD" "$DOC"; do
+  [ -f "$f" ] || { echo "fitness #39 scope error: $f does not exist — the check would compare against nothing and pass, failing closed instead."; exit 1; }
+done
+BEARING=$(awk '/^model /{m=$2} /^[[:space:]]+accountId[[:space:]]/{print m}' "$SCHEMA" | sort -u)
+[ -n "$BEARING" ] || { echo "fitness #39 scope error: zero accountId-bearing models extracted from $SCHEMA — the column convention changed; failing closed."; exit 1; }
+SCOPED=$(sed -n '/TENANT_SCOPED_MODELS = new Set/,/\]);/p' "$GUARD" | grep -oE '"[^"]+"' | tr -d '"')
+[ -n "$SCOPED" ] || { echo "fitness #39 scope error: TENANT_SCOPED_MODELS extraction from $GUARD yielded zero names — the Set was renamed or is assembled at runtime; failing closed."; exit 1; }
+DENY=$(sed -n '/^## Global tables (denylist/,/^## /p' "$DOC" | sed -n '/^```/,/^```/p' | tr -s ' ' '\n' | grep -E '^[A-Z][A-Za-z0-9]*$' || true)
+[ -n "$DENY" ] || { echo "fitness #39 scope error: the fenced table list under '## Global tables (denylist — guard bypasses)' in $DOC yielded zero names — the heading or the grid moved; failing closed."; exit 1; }
+VIOLATIONS=$(for model in $BEARING; do
+  lower=$(printf '%s' "$model" | awk '{print tolower(substr($0,1,1)) substr($0,2)}')
+  printf '%s\n' "$SCOPED" | grep -qx "$lower" && continue
+  printf '%s\n' "$DENY" | grep -qx "$model" && continue
+  echo "$model: accountId-bearing but neither enrolled in TENANT_SCOPED_MODELS nor named in the documented denylist"
+done) || true
+COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
+COUNT=${COUNT:-0}
+echo "$COUNT"   # expect 0
+````
 
 **Extending the suite.** Adding a new fitness check requires four coordinated steps, in order:
 

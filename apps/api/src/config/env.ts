@@ -293,6 +293,28 @@ const serverSchema = {
   // It is rejected from the raw runtime env in `createFinalSchema` below, so it
   // stays out of the validated env's type while still refusing to boot when an
   // operator leaves it set (see the tripwire there for why silence is unsafe).
+
+  // ── DeletionRecord plaintext retention window ───────────────────────
+  // How long a tombstone keeps the deleted entity's `name` in PLAINTEXT, in
+  // years, counted from the moment of the hard delete (`clientUntil`). After it
+  // the degradation job replaces the plaintext with an HMAC digest; the
+  // tombstone survives forever, the readable PII does not.
+  //
+  // The `.min(1)` is NOT a tuning knob, it is the FLOOR of the retention
+  // invariant, and it is enforced on three layers because a floor only one layer
+  // knows about is a comment: this schema (the app refuses to BOOT below it —
+  // no fallback, no clamp-and-warn, per SECURITY_CANON §Secrets and
+  // Environment), a clamp applied where `retainUntil` is computed, and the
+  // `DeletionRecord_retainUntil_floor` CHECK constraint that catches a
+  // manual INSERT or any future write path that forgets the clamp. Dropping
+  // `.min(1)` here silently disarms only the outermost layer, which is exactly
+  // why the other two exist.
+  //
+  // `.max(7)` is the opposite kind of bound: policy, not invariant. Seven years
+  // is the longest window the lawful basis on the row is written to justify, so
+  // a larger value would keep PII past its own justification. Widening it is a
+  // compliance decision, lowering the floor is not available.
+  DELETION_RECORD_RETENTION_YEARS: z.coerce.number().int().min(1).max(7).default(7),
 } as const;
 
 /**

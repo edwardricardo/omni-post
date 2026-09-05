@@ -11,7 +11,7 @@ datasource db {
 
 model Account {
   id                          String                       @id @default(uuid())
-  email                       String                       @unique
+  email                       String
   name                        String
   maxProjects                 Int                          @default(1)
   isOnTrial                   Boolean                      @default(true)
@@ -99,6 +99,13 @@ model Account {
   referralsReceived           Referral[]                   @relation("ReferredAccount")
   conversions                 Conversion[]
 
+  /// Partial on purpose: a soft-deleted account keeps its row, and a TOTAL unique
+  /// would let that invisible row confiscate the address forever — every read filters
+  /// `deletedAt: null`, so the collision would point at a row no surface can show.
+  /// Restores are the one place two rows may legitimately compete for the address, so
+  /// RestoreAccountUseCase checks for a live holder and fails with an explicit
+  /// conflict instead of surfacing a raw P2002.
+  @@unique([email], where: { deletedAt: null }, map: "Account_email_key")
   @@index([isOnTrial, trialEndDate], where: { deletedAt: null })
   @@index([nextBillingDate], where: { deletedAt: null })
   @@index([deletedAt])
@@ -169,7 +176,7 @@ model AdminUser {
   passwordHash          String
   name                  String
   roleId                String
-  role                  Role      @relation(fields: [roleId], references: [id])
+  role                  Role      @relation(fields: [roleId], references: [id], onDelete: Restrict)
   isActive              Boolean   @default(true)
   emailVerified         Boolean   @default(false)
   lastLoginAt           DateTime? @db.Timestamptz(6)
@@ -316,7 +323,7 @@ model AdminUserPermission {
 
 model AdminRoleHistory {
   id             String    @id @default(uuid())
-  userId         String
+  userId         String?
   oldRole        String
   newRole        String
   reason         String?
@@ -325,7 +332,7 @@ model AdminRoleHistory {
   effectiveFrom  DateTime  @default(now()) @db.Timestamptz(6)
   effectiveUntil DateTime? @db.Timestamptz(6)
 
-  user AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user AdminUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, changedAt])
   @@index([changedBy])
@@ -365,7 +372,7 @@ model CustomerUser {
   deletedAt         DateTime? @db.Timestamptz(6)
 
   account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  customerRole CustomerRole? @relation(fields: [roleId], references: [id])
+  customerRole CustomerRole? @relation(fields: [roleId], references: [id], onDelete: Restrict)
 
   projectMemberships       ProjectMember[]
   notifications            Notification[]
@@ -488,7 +495,7 @@ model ApprovalWorkflowLevel {
 model ApprovalRequest {
   id           String         @id @default(uuid())
   postId       String
-  submitterId  String
+  submitterId  String?
   workflowId   String?
   currentLevel Int            @default(1)
   totalLevels  Int            @default(1)
@@ -498,8 +505,8 @@ model ApprovalRequest {
   updatedAt    DateTime       @updatedAt @db.Timestamptz(6)
 
   post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
-  submitter CustomerUser      @relation(fields: [submitterId], references: [id])
-  workflow  ApprovalWorkflow? @relation(fields: [workflowId], references: [id])
+  submitter CustomerUser?     @relation(fields: [submitterId], references: [id], onDelete: SetNull)
+  workflow  ApprovalWorkflow? @relation(fields: [workflowId], references: [id], onDelete: SetNull)
   reviews   ApprovalReview[]
 
   @@index([postId, status])
@@ -510,14 +517,14 @@ model ApprovalRequest {
 model ApprovalReview {
   id         String         @id @default(uuid())
   requestId  String
-  reviewerId String
+  reviewerId String?
   decision   ReviewDecision
   comment    String?
   level      Int            @default(1)
   reviewedAt DateTime       @default(now()) @db.Timestamptz(6)
 
   request  ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  reviewer CustomerUser    @relation(fields: [reviewerId], references: [id])
+  reviewer CustomerUser?   @relation(fields: [reviewerId], references: [id], onDelete: SetNull)
 
   @@index([requestId])
   @@index([reviewerId])
@@ -546,7 +553,7 @@ model Task {
   status      TaskStatus   @default(OPEN)
   priority    TaskPriority @default(MEDIUM)
   assigneeId  String?
-  createdById String
+  createdById String?
   dueDate     DateTime?    @db.Timestamptz(6)
   completedAt DateTime?    @db.Timestamptz(6)
   createdAt   DateTime     @default(now()) @db.Timestamptz(6)
@@ -555,9 +562,9 @@ model Task {
   postId      String?
 
   account   Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project   Project?      @relation(fields: [projectId], references: [id])
-  assignee  CustomerUser? @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  createdBy CustomerUser  @relation("TaskCreator", fields: [createdById], references: [id])
+  project   Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  assignee  CustomerUser? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy CustomerUser? @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
   post      Post?         @relation(fields: [postId], references: [id], onDelete: SetNull)
 
   @@index([accountId], where: { deletedAt: null })
@@ -569,7 +576,7 @@ model Task {
 model PostComment {
   id        String    @id @default(uuid())
   postId    String
-  authorId  String
+  authorId  String?
   parentId  String?
   body      String
   mentions  String[]  @default([])
@@ -580,8 +587,8 @@ model PostComment {
   updatedAt DateTime  @updatedAt @db.Timestamptz(6)
 
   post    Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author  CustomerUser  @relation(fields: [authorId], references: [id])
-  parent  PostComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  author  CustomerUser? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  parent  PostComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
   replies PostComment[] @relation("CommentReplies")
 
   @@index([postId, deletedAt, createdAt])
@@ -669,7 +676,12 @@ model Project {
   tasks                       Task[]
   customReports               CustomReport[]               @relation("CustomReportProject")
 
-  @@unique([accountId, name])
+  /// Partial on purpose, matching the four partial indexes below: soft-deleting
+  /// "Marketing" must not confiscate the name for the rest of the account's life.
+  /// Two soft-deleted projects may share a name by design; a restore that would
+  /// collide with a LIVE project is rejected by RestoreProjectUseCase with an
+  /// explicit conflict naming the holder.
+  @@unique([accountId, name], where: { deletedAt: null }, map: "Project_accountId_name_key")
   @@index([accountId], where: { deletedAt: null })
   @@index([createdAt], where: { deletedAt: null })
   @@index([locale], where: { deletedAt: null })
@@ -685,7 +697,7 @@ model Post {
   publishedAt               DateTime?                 @db.Timestamptz(6)
   createdAt                 DateTime                  @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime                  @updatedAt @db.Timestamptz(6)
-  project                   Project                   @relation(fields: [projectId], references: [id])
+  project                   Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   contents                  PostContent[]
   media                     PostMedia[]
   thread                    Thread?
@@ -733,7 +745,7 @@ model PostContent {
   revision  Int      @default(1)
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
-  post      Post     @relation(fields: [postId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@unique([postId, locale, revision])
   // @@index([postId]) - REMOVED: Covered by [postId, locale] and unique constraint
@@ -754,7 +766,7 @@ model PostMedia {
   tags                String[]             @default([])
   createdAt           DateTime             @default(now()) @db.Timestamptz(6)
   type                MediaKind
-  post                Post                 @relation(fields: [postId], references: [id])
+  post                Post                 @relation(fields: [postId], references: [id], onDelete: Cascade)
   instagramStories    InstagramStory[]
   videoProcessingJobs VideoProcessingJob[]
 
@@ -804,7 +816,7 @@ model Channel {
   createdAt                 DateTime                  @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime                  @updatedAt @db.Timestamptz(6)
   account                   Account                   @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  project                   Project                   @relation(fields: [projectId], references: [id])
+  project                   Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   publishLogs               PublishLog[]
   analytics                 Analytics[]
   socialMessages            SocialMessage[]
@@ -911,7 +923,7 @@ model Analytics {
   comments   Int?     @default(0)
   shares     Int?     @default(0)
   capturedAt DateTime @default(now()) @db.Timestamptz(6)
-  post       Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post       Post?    @relation(fields: [postId], references: [id], onDelete: SetNull)
   channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   @@index([postId, provider, capturedAt])
@@ -1054,8 +1066,8 @@ model ContentTemplate {
 
   // Relationships
   account         Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project         Project?          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  parent          ContentTemplate?  @relation("TemplateVersions", fields: [parentId], references: [id])
+  project         Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  parent          ContentTemplate?  @relation("TemplateVersions", fields: [parentId], references: [id], onDelete: SetNull)
   versions        ContentTemplate[] @relation("TemplateVersions")
   contentVersions ContentVersion[]
 
@@ -1504,8 +1516,8 @@ model WebhookEvent {
   updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
 
   // Relationships
-  account       Account?       @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project       Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  account       Account?       @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  project       Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   post          Post?          @relation(fields: [postId], references: [id], onDelete: SetNull)
   socialMessage SocialMessage?
 
@@ -1788,7 +1800,7 @@ model TemplateVersion {
 
   // Relationships
   template      Template          @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  parentVersion TemplateVersion?  @relation("VersionHistory", fields: [parentVersionId], references: [id])
+  parentVersion TemplateVersion?  @relation("VersionHistory", fields: [parentVersionId], references: [id], onDelete: SetNull)
   childVersions TemplateVersion[] @relation("VersionHistory")
 
   @@unique([templateId, version])
@@ -1921,7 +1933,7 @@ model TemplateCommit {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
 
   template Template         @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  parent   TemplateCommit?  @relation("CommitHistory", fields: [parentCommitId], references: [id])
+  parent   TemplateCommit?  @relation("CommitHistory", fields: [parentCommitId], references: [id], onDelete: SetNull)
   children TemplateCommit[] @relation("CommitHistory")
 
   @@index([templateId, branch])
@@ -2251,8 +2263,8 @@ model SocialMessage {
 
   account         Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project         Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  channel         Channel               @relation(fields: [channelId], references: [id])
-  conversation    SocialConversation?   @relation(fields: [conversationId], references: [id])
+  channel         Channel               @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  conversation    SocialConversation?   @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   webhookEvent    WebhookEvent?         @relation(fields: [webhookEventId], references: [id], onDelete: SetNull)
   relatedPost     Post?                 @relation(fields: [relatedPostId], references: [id], onDelete: SetNull)
   assignee        CustomerUser?         @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
@@ -2286,7 +2298,7 @@ model SocialConversation {
 
   account    Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project    Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  channel    Channel            @relation(fields: [channelId], references: [id])
+  channel    Channel            @relation(fields: [channelId], references: [id], onDelete: Cascade)
   messages   SocialMessage[]
   notes      ConversationNote[]
   resolvedBy CustomerUser?      @relation(fields: [resolvedById], references: [id], onDelete: SetNull)
@@ -2299,14 +2311,14 @@ model SocialConversation {
 model ConversationNote {
   id             String    @id @default(cuid())
   conversationId String
-  authorId       String
+  authorId       String?
   body           String    @db.Text
   createdAt      DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
   deletedAt      DateTime? @db.Timestamptz(6)
 
   conversation SocialConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  author       CustomerUser       @relation(fields: [authorId], references: [id])
+  author       CustomerUser?      @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([conversationId], where: { deletedAt: null })
   @@index([authorId], where: { deletedAt: null })
@@ -2315,7 +2327,7 @@ model ConversationNote {
 model SocialOutboundReply {
   id              String              @id @default(uuid())
   socialMessageId String
-  authorId        String
+  authorId        String?
   body            String
   providerReplyId String?
   status          OutboundReplyStatus @default(PENDING)
@@ -2325,7 +2337,7 @@ model SocialOutboundReply {
   updatedAt       DateTime            @updatedAt @db.Timestamptz(6)
 
   socialMessage SocialMessage @relation(fields: [socialMessageId], references: [id], onDelete: Cascade)
-  author        CustomerUser  @relation(fields: [authorId], references: [id])
+  author        CustomerUser? @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([socialMessageId])
   @@index([authorId])
@@ -2737,14 +2749,14 @@ model CustomReport {
   shareToken     String?         @unique
   shareEnabled   Boolean         @default(false)
   shareExpiresAt DateTime?       @db.Timestamptz(6)
-  createdById    String
+  createdById    String?
   createdAt      DateTime        @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime        @updatedAt @db.Timestamptz(6)
 
   schedules ReportSchedule[]
   account   Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project   Project?         @relation("CustomReportProject", fields: [projectId], references: [id])
-  createdBy CustomerUser     @relation(fields: [createdById], references: [id])
+  project   Project?         @relation("CustomReportProject", fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy CustomerUser?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([accountId])
   @@index([createdById])
@@ -2894,8 +2906,8 @@ model MediaAsset {
   deletedAt   DateTime? @db.Timestamptz(6)
 
   account Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project Project?          @relation(fields: [projectId], references: [id])
-  folder  AssetFolder?      @relation(fields: [folderId], references: [id])
+  project Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  folder  AssetFolder?      @relation(fields: [folderId], references: [id], onDelete: SetNull)
   tags    AssetTagOnAsset[]
 
   @@index([accountId], where: { deletedAt: null })
@@ -2914,7 +2926,7 @@ model AssetFolder {
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   account  Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  parent   AssetFolder?  @relation("FolderTree", fields: [parentId], references: [id])
+  parent   AssetFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
   children AssetFolder[] @relation("FolderTree")
   assets   MediaAsset[]
 
@@ -3003,7 +3015,7 @@ model BundleFeatureFlag {
   featureKey String
   isEnabled  Boolean @default(true)
 
-  bundle ProviderBundle? @relation(fields: [bundleId], references: [id])
+  bundle ProviderBundle? @relation(fields: [bundleId], references: [id], onDelete: Cascade)
 
   @@unique([bundleId, featureKey])
 }
@@ -3031,7 +3043,7 @@ model AccountSubscription {
   updatedAt              DateTime           @updatedAt @db.Timestamptz(6)
 
   account  Account                    @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  bundle   ProviderBundle?            @relation(fields: [bundleId], references: [id])
+  bundle   ProviderBundle?            @relation(fields: [bundleId], references: [id], onDelete: Restrict)
   history  SubscriptionPriceHistory[]
   invoices Invoice[]
 
@@ -3050,14 +3062,14 @@ model SubscriptionPriceHistory {
   notifiedAt     DateTime? @db.Timestamptz(6)
   createdAt      DateTime  @default(now()) @db.Timestamptz(6)
 
-  subscription AccountSubscription @relation(fields: [subscriptionId], references: [id])
+  subscription AccountSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@index([subscriptionId])
 }
 
 model Invoice {
   id               String          @id @default(cuid())
-  accountId        String
+  accountId        String?
   subscriptionId   String?
   gatewayProvider  GatewayProvider
   gatewayInvoiceId String          @unique
@@ -3075,8 +3087,8 @@ model Invoice {
   createdAt        DateTime        @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime        @updatedAt @db.Timestamptz(6)
 
-  account      Account              @relation(fields: [accountId], references: [id])
-  subscription AccountSubscription? @relation(fields: [subscriptionId], references: [id])
+  account      Account?             @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  subscription AccountSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
 
   @@index([accountId])
   @@index([status])
@@ -3195,7 +3207,7 @@ model BillingEvent {
   error           String?
   createdAt       DateTime        @default(now()) @db.Timestamptz(6)
 
-  account Account? @relation(fields: [accountId], references: [id])
+  account Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
   @@index([gatewayProvider, createdAt])
 }
@@ -3302,7 +3314,7 @@ model DsarRequest {
   ipAddress         String?
   verificationToken String?          @unique
 
-  account Account? @relation(fields: [accountId], references: [id])
+  account Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
   @@index([status, deadlineAt])
   @@index([requestorEmail])
@@ -3345,7 +3357,7 @@ model ReferralCode {
 
 model Referral {
   id                String         @id @default(cuid())
-  referralCodeId    String
+  referralCodeId    String?
   referredAccountId String?
   referredEmail     String
   status            ReferralStatus @default(PENDING)
@@ -3353,7 +3365,11 @@ model Referral {
   convertedAt       DateTime?      @db.Timestamptz(6)
   createdAt         DateTime       @default(now()) @db.Timestamptz(6)
 
-  referralCode    ReferralCode @relation(fields: [referralCodeId], references: [id])
+  /// SET NULL is the adjudicated action: a referral row is the code's usage ledger
+  /// (including rewardGranted), so it survives the referring code's deletion
+  /// unattributed rather than purging with it or blocking the delete. Account
+  /// hard-delete therefore no longer blocks while referrals exist.
+  referralCode    ReferralCode? @relation(fields: [referralCodeId], references: [id], onDelete: SetNull)
   referredAccount Account?     @relation("ReferredAccount", fields: [referredAccountId], references: [id], onDelete: SetNull)
 
   @@index([referralCodeId])
@@ -3384,7 +3400,7 @@ model RepurposeProposal {
   reviewedBy           String?
 
   account    Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  sourcePost Post               @relation("RepurposeSource", fields: [sourcePostId], references: [id])
+  sourcePost Post               @relation("RepurposeSource", fields: [sourcePostId], references: [id], onDelete: Cascade)
   variants   RepurposeVariant[]
 
   @@unique([accountId, sourcePostId])
@@ -3401,7 +3417,7 @@ model RepurposeVariant {
   postId     String?
 
   proposal RepurposeProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  post     Post?             @relation("RepurposedPost", fields: [postId], references: [id])
+  post     Post?             @relation("RepurposedPost", fields: [postId], references: [id], onDelete: SetNull)
 
   @@index([proposalId])
 }
@@ -3629,4 +3645,72 @@ model StyleGuideRule {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId, locale])
+}
+
+/// Tombstone for every hard delete. A hard delete may destroy the aggregate, but it
+/// must never erase the fact that the client existed: this row records the minimal
+/// reference (id, name, client since→until, who deleted) and is written INSIDE the
+/// same transaction as the hard delete — no tombstone, no delete.
+///
+/// Deliberately FK-free (loose string ids): the referenced rows are gone by design,
+/// and this record must survive every deletion including the account's own. This is
+/// the documented audit-survives-deletion exception in
+/// docs/architecture/schema-conventions.md §Foreign keys.
+///
+/// RETENTION LIFECYCLE (two stages, GDPR art. 17(3)). The tombstone holds a personal
+/// name, so it carries its own legal clock instead of living forever in the clear:
+///   Stage 1 — `name` is stored in plaintext until `retainUntil`, justified by the
+///     `lawfulBasis` column. Reads are admin/legal-compliance only.
+///   Stage 2 — once `retainUntil` passes, a degradation job REPLACES the plaintext:
+///     it computes `nameDigest` (HMAC of `name`, stamped with the key generation in
+///     `nameDigestKeyVersion`) and nulls `name`. The tombstone survives forever as a
+///     verifiable digest; the readable PII lives only inside the legal window.
+/// The degradation job is not implemented yet, which is why every digest column is
+/// nullable and currently empty. `nameDigestKeyVersion` exists from day one on
+/// purpose: an HMAC key rotated without a recorded generation makes every older
+/// digest unverifiable, and a tombstone nobody can verify is not evidence.
+///
+/// `retainUntil` is bounded on THREE layers, never on one: Zod on
+/// DELETION_RECORD_RETENTION_YEARS (the app refuses to boot outside 1..7), a clamp at
+/// the write, and the CHECK constraint `retainUntil >= clientUntil + interval '1 year'`
+/// carried by the migration. The one-year floor is an invariant; seven years is the
+/// configurable policy ceiling.
+model DeletionRecord {
+  id                   String   @id @default(uuid())
+  /// "ACCOUNT" | "PROJECT" — the aggregate that was hard-deleted.
+  entityType           String
+  /// Id the entity had at death. Loose string on purpose — no FK target exists anymore.
+  entityId             String
+  /// Name the entity had at death, in plaintext. Nullable because stage 2 of the
+  /// retention lifecycle nulls it once `nameDigest` has been computed.
+  name                 String?
+  /// HMAC of the plaintext `name`, written by the stage-2 degradation job. Empty
+  /// until that job runs; a row never carries both a live `name` and its digest.
+  nameDigest           String?
+  /// Generation of the HMAC key that produced `nameDigest`. Without it a key
+  /// rotation silently invalidates every earlier digest.
+  nameDigestKeyVersion Int?
+  /// Why the aggregate was destroyed, as supplied by the admin who ordered it. Lives
+  /// on the tombstone rather than only in AuditLog so the justification is written in
+  /// the same transaction as the destruction it justifies.
+  reason               String
+  /// End of the legal retention window for the plaintext `name`. Never earlier than
+  /// `clientUntil` + 1 year — enforced by env schema, write-side clamp, and a CHECK.
+  retainUntil          DateTime @db.Timestamptz(6)
+  /// Legal ground for keeping the plaintext until `retainUntil` (GDPR art. 17(3)).
+  lawfulBasis          String
+  /// Owning account id at death (loose). For an ACCOUNT record this equals entityId.
+  accountId            String
+  /// createdAt of the deleted entity — when the client relationship began.
+  clientSince          DateTime @db.Timestamptz(6)
+  /// Moment of the hard delete — when the client relationship ended.
+  clientUntil          DateTime @db.Timestamptz(6)
+  /// Admin principal that executed the hard delete (loose string id).
+  deletedBy            String
+  createdAt            DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([accountId])
+  @@index([entityType, entityId])
+  /// Selects the rows the stage-2 degradation job must still process.
+  @@index([retainUntil], where: { name: { not: null } })
 }

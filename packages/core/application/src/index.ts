@@ -7,3 +7,5 @@
  */
 
 export * from "./UseCase.js";
+export * from "./hardDeletePolicy.js";
+export * from "./retryOnWriteConflict.js";

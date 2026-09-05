@@ -356,6 +356,60 @@ describe("ApprovalRequestAggregate", () => {
     expect(aggregate.currentLevel).toBe(1);
     expect(aggregate.totalLevels).toBe(1);
   });
+
+  // `ApprovalRequest.submitterId` and `ApprovalReview.reviewerId` are nullable
+  // + SET NULL: hard-deleting a customer user leaves the approval trail
+  // standing with no principal. The aggregate has to be able to REPRESENT that
+  // — an approval request that cannot be loaded is one silently missing from
+  // every queue and history view.
+  it("reconstitutes with an erased submitter and an erased reviewer", () => {
+    const now = new Date();
+    const aggregate = ApprovalRequestAggregate.reconstitute({
+      id: ApprovalRequestId.generate(),
+      postId: VALID_UUID,
+      submitterId: null,
+      status: ApprovalStatus.pending(),
+      currentLevel: 1,
+      totalLevels: 1,
+      reviews: [
+        {
+          id: "review-id-002",
+          reviewerId: null,
+          decision: ReviewDecision.approved(),
+          level: 1,
+          reviewedAt: now,
+        },
+      ],
+      createdAt: now,
+      updatedAt: now,
+      version: 2,
+    });
+
+    expect(aggregate.submitterId).toBe(null);
+    expect(aggregate.reviews[0]?.reviewerId).toBe(null);
+  });
+
+  it("lets a reviewer act on a request whose submitter was erased", () => {
+    // The self-review guard compares the reviewer against the submitter. With
+    // the submitter gone nobody can be reviewing their own request, so the
+    // guard must not lock the request into a state no one can resolve.
+    const now = new Date();
+    const aggregate = ApprovalRequestAggregate.reconstitute({
+      id: ApprovalRequestId.generate(),
+      postId: VALID_UUID,
+      submitterId: null,
+      status: ApprovalStatus.pending(),
+      currentLevel: 1,
+      totalLevels: 1,
+      reviews: [],
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+    });
+
+    const result = aggregate.addReview(REVIEWER_UUID, ReviewDecision.approved());
+    expect(result.ok).toBeTruthy();
+  });
 });
 
 // ---------------------------------------------------------------------------

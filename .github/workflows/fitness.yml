@@ -1258,13 +1258,50 @@ jobs:
             exit 1
           fi
 
+      - name: "#39 Every accountId-bearing model is tenant-guard-enrolled or in the documented denylist"
+        if: always()
+        run: |
+          # Mirrors CLAUDE.md #39. The gate whose absence let DeletionRecord land
+          # carrying accountId with neither TENANT_SCOPED_MODELS nor any documented
+          # denylist knowing it existed: the $extends guard silently SKIPS a model
+          # it does not know (fail-open by construction), so an unenrolled
+          # accountId-bearing model is cross-tenant by default (CWE-639).
+          set -uo pipefail
+          SCHEMA=infra/prisma/schema.prisma
+          GUARD=infra/prisma/src/extensions/tenantGuard.ts
+          DOC=docs/security/MULTI_TENANT_GUARDS.md
+          for f in "$SCHEMA" "$GUARD" "$DOC"; do
+            [ -f "$f" ] || { echo "::error title=Fitness #39 scope error::$f does not exist — the check would compare against nothing and pass, failing closed instead."; exit 1; }
+          done
+          BEARING=$(awk '/^model /{m=$2} /^[[:space:]]+accountId[[:space:]]/{print m}' "$SCHEMA" | sort -u)
+          [ -n "$BEARING" ] || { echo "::error title=Fitness #39 scope error::zero accountId-bearing models extracted from $SCHEMA — the column convention changed; failing closed."; exit 1; }
+          SCOPED=$(sed -n '/TENANT_SCOPED_MODELS = new Set/,/\]);/p' "$GUARD" | grep -oE '"[^"]+"' | tr -d '"')
+          [ -n "$SCOPED" ] || { echo "::error title=Fitness #39 scope error::TENANT_SCOPED_MODELS extraction from $GUARD yielded zero names — the Set was renamed or is assembled at runtime; failing closed."; exit 1; }
+          DENY=$(sed -n '/^## Global tables (denylist/,/^## /p' "$DOC" | sed -n '/^```/,/^```/p' | tr -s ' ' '\n' | grep -E '^[A-Z][A-Za-z0-9]*$' || true)
+          [ -n "$DENY" ] || { echo "::error title=Fitness #39 scope error::the fenced table list under '## Global tables (denylist — guard bypasses)' in $DOC yielded zero names — the heading or the grid moved; failing closed."; exit 1; }
+          VIOLATIONS=$(for model in $BEARING; do
+            lower=$(printf '%s' "$model" | awk '{print tolower(substr($0,1,1)) substr($0,2)}')
+            printf '%s\n' "$SCOPED" | grep -qx "$lower" && continue
+            printf '%s\n' "$DENY" | grep -qx "$model" && continue
+            echo "$model: accountId-bearing but neither enrolled in TENANT_SCOPED_MODELS nor named in the documented denylist"
+          done) || true
+          COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          echo "Fitness #39: $COUNT violations (expect 0)"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #39 violation::$COUNT accountId-bearing model(s) in neither TENANT_SCOPED_MODELS nor the documented denylist. The tenant guard silently SKIPS models it does not know, so an unenrolled model is cross-tenant by default. Enroll it (SECURITY_CANON §Multi-Tenant Isolation 3-step checklist) or denylist it in MULTI_TENANT_GUARDS.md with a design note saying WHY it must see across tenants."
+            printf "%s\n" "$VIOLATIONS"
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "37 architectural invariants (#1-#37) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
-          echo "Hard-zero threshold for every check but #30, which is a ratchet at a measured baseline of 21." >> $GITHUB_STEP_SUMMARY
+          echo "38 architectural invariants (#1-#37 and #39) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "#38 is deliberately absent, and the gap is intentional: the number is RESERVED for the soft-delete read-coherence gate, which ships with the read sweep that makes it green. Renumbering twice would churn every cross-reference (#39's own prose calls #38 \"this gate's tenant-guard twin\")." >> $GITHUB_STEP_SUMMARY
+          echo "Hard-zero threshold for every check but #30, a ratchet at a measured baseline of 21 that may fall and must never rise." >> $GITHUB_STEP_SUMMARY
           echo "#37 compares against the PR base, so it runs on pull_request events only and skips cleanly on push." >> $GITHUB_STEP_SUMMARY
           echo "Any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

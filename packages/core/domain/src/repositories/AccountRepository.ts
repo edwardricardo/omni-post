@@ -5,7 +5,7 @@
  */
 
 import { type Result } from "@shared/types";
-import { type Repository } from "./Repository.js";
+import { type HardDeleteContext, type HardDeleteImpact, type Repository } from "./Repository.js";
 import { type Account } from "../entities/Account.js";
 import { type AccountId } from "../value-objects/EntityId.js";
 import { type EntityNotFoundError } from "../errors/index.js";
@@ -61,8 +61,27 @@ export interface AccountRepositoryPort {
   /**
    * Hard-delete an account and all its data (irreversible).
    * Only callable by SUPER_ADMIN. Cascades to projects, channels, posts, etc.
+   *
+   * Implementations MUST write the tombstones (`DeletionRecord`) — one for the
+   * account and one for every project it drags along — in the same transaction
+   * as the delete: no tombstone, no delete. `context` carries the acting
+   * principal, which nothing left behind by the delete could supply.
    */
-  hardDelete(id: AccountId): Promise<Result<void, EntityNotFoundError>>;
+  hardDelete(id: AccountId, context: HardDeleteContext): Promise<Result<void, EntityNotFoundError>>;
+
+  /**
+   * Measure the blast radius of a hard delete across every project of the account
+   * (soft-deleted ones included — the cascade takes them too), in BOTH dimensions
+   * the transaction budget is spent on: the posts destroyed and the rows in the
+   * directly-countable child populations. See {@link HardDeleteImpact} for why one
+   * number was not enough and for what the child count can and cannot see.
+   *
+   * This is the pre-flight signal the hard-delete use case uses to refuse a tenant
+   * too large to remove in one transaction, before any destructive work begins, so
+   * it must stay cheap: indexed aggregates only, no rows materialized, no join
+   * through the rows the guard exists to avoid touching.
+   */
+  countHardDeleteImpact(id: AccountId): Promise<HardDeleteImpact>;
 
   /**
    * Check if an account exists (excludes soft-deleted accounts)

@@ -9,6 +9,7 @@ dotenv.config({ path: path.join(import.meta.dirname, "../..", envFile) });
 
 import { PrismaClient } from "./generated/prisma/client/client.js";
 import { Provider, TrackedTermKind } from "./generated/prisma/client/client.js";
+import type { Prisma } from "./generated/prisma/client/client.js";
 import argon2 from "argon2";
 import { randomBytes, createCipheriv } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -70,36 +71,81 @@ function encryptChannelCredentials(
   };
 }
 
+/**
+ * Create-or-update helpers for the two models whose unique constraints are
+ * PARTIAL (`WHERE "deletedAt" IS NULL`), so that a soft-deleted row stops
+ * confiscating its address/name for the rest of the account's life.
+ *
+ * WHY NOT `upsert`: PostgreSQL infers a partial index for `ON CONFLICT` only
+ * when the statement repeats that index's predicate, and Prisma never emits a
+ * predicate. So `account.upsert({ where: { email } })` and
+ * `project.upsert({ where: { accountId_name } })` fail outright with
+ * `42P10: there is no unique or exclusion constraint matching the ON CONFLICT
+ * specification` — measured in CI, where it killed the seed before a single
+ * test ran and took the auth, RBAC, validation and MFA suites down with it.
+ * Selecting the LIVE row with the same predicate the index carries is the
+ * supported equivalent.
+ *
+ * IDEMPOTENT ACROSS RE-RUNS, which is the property the seed actually needs: a
+ * second run finds the row the first created and updates it rather than
+ * duplicating it. NOT atomic against a CONCURRENT writer — two racing seeds
+ * could both miss and both create. The seed is a single sequential process, so
+ * that window does not exist here; it is stated because the `upsert` this
+ * replaces did carry that guarantee and these helpers do not.
+ */
+async function seedAccountByEmail(
+  email: string,
+  create: Prisma.AccountCreateArgs["data"],
+  update: Prisma.AccountUpdateArgs["data"]
+) {
+  const existing = await prisma.account.findFirst({
+    where: { email, deletedAt: null },
+    select: { id: true },
+  });
+  return existing
+    ? prisma.account.update({ where: { id: existing.id }, data: update })
+    : prisma.account.create({ data: create });
+}
+
+async function seedProjectByAccountAndName(
+  accountId: string,
+  name: string,
+  create: Prisma.ProjectCreateArgs["data"],
+  update: Prisma.ProjectUpdateArgs["data"]
+) {
+  const existing = await prisma.project.findFirst({
+    where: { accountId, name, deletedAt: null },
+    select: { id: true },
+  });
+  return existing
+    ? prisma.project.update({ where: { id: existing.id }, data: update })
+    : prisma.project.create({ data: create });
+}
+
 async function main() {
   // Create a default account first
-  const account = await prisma.account.upsert({
-    where: { email: "demo@example.com" },
-    update: {
-      isOnTrial: false,
-    },
-    create: {
+  const account = await seedAccountByEmail(
+    "demo@example.com",
+    {
       email: "demo@example.com",
       name: "Demo Account",
       maxProjects: 3,
       isOnTrial: false,
     },
-  });
+    { isOnTrial: false }
+  );
 
   // Create project under the account
-  const project = await prisma.project.upsert({
-    where: {
-      accountId_name: {
-        accountId: account.id,
-        name: "Gol de Ayer",
-      },
-    },
-    update: {},
-    create: {
+  const project = await seedProjectByAccountAndName(
+    account.id,
+    "Gol de Ayer",
+    {
       accountId: account.id,
       name: "Gol de Ayer",
       locale: "es",
     },
-  });
+    {}
+  );
 
   await prisma.channel.upsert({
     where: { id: "dev-x" },
@@ -1056,10 +1102,9 @@ async function seedTestAccounts() {
     const acct = testAccounts[acctIdx]!;
     const slug = acct.email.split("@")[0]!;
 
-    const account = await prisma.account.upsert({
-      where: { email: acct.email },
-      update: { name: acct.name },
-      create: {
+    const account = await seedAccountByEmail(
+      acct.email,
+      {
         email: acct.email,
         name: acct.name,
         isOnTrial: acct.isOnTrial,
@@ -1069,18 +1114,20 @@ async function seedTestAccounts() {
         maxProjects: acct.maxProjects,
         slug,
       },
-    });
+      { name: acct.name }
+    );
 
     const projectName = `${acct.name} Project`;
-    const project = await prisma.project.upsert({
-      where: { accountId_name: { accountId: account.id, name: projectName } },
-      update: {},
-      create: {
+    const project = await seedProjectByAccountAndName(
+      account.id,
+      projectName,
+      {
         accountId: account.id,
         name: projectName,
         locale: acct.locale,
       },
-    });
+      {}
+    );
 
     // Seed 5 CustomerUsers per test account (1 OWNER + 1 MANAGER + 2 MEMBER +
     // 1 VIEWER), each wired to the account's project via ProjectMember. Emails

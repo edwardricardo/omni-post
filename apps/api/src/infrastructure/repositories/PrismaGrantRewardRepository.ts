@@ -21,7 +21,7 @@ export class PrismaGrantRewardRepository implements GrantRewardRepository {
    */
   async findReferralById(referralId: string): Promise<{
     id: string;
-    referralCodeId: string;
+    referralCodeId: string | null;
     rewardGranted: boolean;
     status: string;
   } | null> {
@@ -126,15 +126,19 @@ export class PrismaGrantRewardRepository implements GrantRewardRepository {
       },
     });
 
-    if (!referral || !referral.referralCode.account) {
+    // `referralCode` is now optional on the relation (SET NULL): once the
+    // referrer's account is erased there is no code, no account, and nobody to
+    // address the reward email to.
+    const referralCode = referral?.referralCode;
+    if (!referralCode?.account) {
       return null;
     }
 
     return {
-      referrerEmail: referral.referralCode.account.email,
-      referrerName: referral.referralCode.account.name,
-      referredCompanyName: referral.referredAccount?.name ?? "a new customer",
-      totalConversions: referral.referralCode.conversions,
+      referrerEmail: referralCode.account.email,
+      referrerName: referralCode.account.name,
+      referredCompanyName: referral?.referredAccount?.name ?? "a new customer",
+      totalConversions: referralCode.conversions,
     };
   }
 }

@@ -23,7 +23,8 @@ import { EntityNotFoundError, type DomainError } from "@core/domain/errors/index
 interface PrismaApprovalRequestRow {
   id: string;
   postId: string;
-  submitterId: string;
+  /** Nullable since `ApprovalRequest.submitterId` became `ON DELETE SET NULL`. */
+  submitterId: string | null;
   workflowId: string | null;
   currentLevel: number;
   totalLevels: number;
@@ -40,7 +41,8 @@ interface PrismaApprovalRequestRow {
 interface PrismaApprovalReviewRow {
   id: string;
   requestId: string;
-  reviewerId: string;
+  /** Nullable since `ApprovalReview.reviewerId` became `ON DELETE SET NULL`. */
+  reviewerId: string | null;
   decision: string;
   comment: string | null;
   level: number;

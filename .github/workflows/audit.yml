@@ -309,6 +309,140 @@ jobs:
           # and a blanket rule would red on a legitimate in-branch fixup.
           RLS_MIGRATION="infra/prisma/migrations/20260527000000_add_rls_tenant_isolation/migration.sql"
 
+          # ── Per-file, per-rule exceptions ────────────────────────────────
+          # Sanctioned path (2) in the error message at the bottom of this step:
+          # a finding that genuinely cannot be fixed gets an exception HERE,
+          # scoped to ONE file and ONE rule, with a written adjudication, a
+          # trigger statement and a remove-when.
+          #
+          # Every entry is pinned to the file's sha256, not just its path. The
+          # block above this one documents why: a PR that APPENDED DDL to a
+          # path-waived file got the waiver for its new statements too, under a
+          # comment claiming the findings had been adjudicated. A content pin
+          # makes that impossible — change one byte and the waiver stops
+          # applying, the step fails, and the author must re-adjudicate. Both
+          # pinned files are applied migrations that must never change anyway,
+          # so the pin costs nothing and catches the edit that must not happen.
+          #
+          # GOTCHA, measured against squawk 2.49.0: `--exclude` on the CLI
+          # REPLACES `excluded_rules` from .squawk.toml — it does NOT merge.
+          # Verified both ways: a file whose only finding is
+          # `adding-required-field` (excluded by the config) lints clean under
+          # the config alone, and fires again the moment ANY unrelated
+          # `--exclude` is passed. So each exception invocation below re-states
+          # the config baseline, and the drift guard that follows fails the step
+          # if .squawk.toml's list ever stops matching that baseline. Without
+          # the guard the two silently diverge and an exception quietly changes
+          # which rules the gate enforces for the file it exempts.
+          CONFIG_BASELINE_EXCLUDES="adding-required-field"
+          ACTUAL_CONFIG_EXCLUDES=$(
+            sed -n '/^excluded_rules = \[/,/^]/p' .squawk.toml \
+              | grep -oE '"[a-z0-9-]+"' | tr -d '"' | sort -u | paste -sd, -
+          )
+          EXPECTED_CONFIG_EXCLUDES=$(
+            printf '%s' "$CONFIG_BASELINE_EXCLUDES" | tr ',' '\n' | sort -u | paste -sd, -
+          )
+          if [ "$ACTUAL_CONFIG_EXCLUDES" != "$EXPECTED_CONFIG_EXCLUDES" ]; then
+            echo "::error title=Squawk config drifted from this step's baseline::.squawk.toml excluded_rules is now '${ACTUAL_CONFIG_EXCLUDES}' but this step re-states '${EXPECTED_CONFIG_EXCLUDES}' on every exception invocation, because CLI --exclude REPLACES the config list instead of merging with it. Reconcile CONFIG_BASELINE_EXCLUDES with .squawk.toml in the same change, or the exempted files stop being linted for the rules the config means to exclude."
+            exit 1
+          fi
+
+          # ADJUDICATION 1 — ban-drop-not-null x10.
+          # This migration is APPLIED and checksum-pinned, so it cannot be fixed,
+          # only adjudicated. Its 10 `DROP NOT NULL` statements ARE the change:
+          # each column is an FK whose action became ON DELETE SET NULL, and
+          # PostgreSQL rejects SET NULL on a NOT NULL column, so the drop is a
+          # precondition of the convention this migration exists to establish.
+          # The rule's stated concern is "may break existing clients". Measured
+          # against schema.prisma: all 10 columns are declared optional
+          # (AdminRoleHistory.userId, ApprovalRequest.submitterId,
+          # ApprovalReview.reviewerId, Task.createdById, PostComment.authorId,
+          # ConversationNote.authorId, SocialOutboundReply.authorId,
+          # CustomReport.createdById, Invoice.accountId, Referral.referralCodeId
+          # are each `String?`), so the generated client already types them
+          # nullable and every reader narrows at compile time. There is no
+          # client that can be surprised by a null it is not typed to handle.
+          # TRIGGER: squawk reports ban-drop-not-null for this exact file content.
+          # REMOVE-WHEN: a baseline squash removes this migration from the tree;
+          # delete this entry in that same change.
+          ALIGNMENT_MIGRATION="infra/prisma/migrations/20260830220417_ondelete_convention_alignment/migration.sql"
+          ALIGNMENT_DIGEST="d19d56452c5658b0b24637c5956bfd8800df3ad8931e17d1e37e8ce8572a6a8b"
+
+          # ADJUDICATION 2 — five rules on the retention/partial-unique migration.
+          # A sixth finding, constraint-missing-not-valid, was NOT adjudicated:
+          # it was FIXED. The CHECK is now added NOT VALID and validated by the
+          # companion migration 20260901120100, which lints clean. The five that
+          # remain:
+          #
+          #  - require-concurrent-index-creation (x3) and
+          #    require-concurrent-index-deletion (x2): UNSATISFIABLE here, not
+          #    unfixed. `CREATE INDEX CONCURRENTLY` / `DROP INDEX CONCURRENTLY`
+          #    cannot run inside a transaction block, and Prisma wraps every
+          #    migration in one — which is why .squawk.toml pins
+          #    assume_in_transaction = true. Measured both directions against
+          #    squawk 2.49.0 with this config: the non-concurrent statements fire
+          #    these two rules, and rewriting them with CONCURRENTLY fires
+          #    ban-concurrent-index-creation-in-transaction instead. There is no
+          #    formulation of these statements that this config accepts, so the
+          #    rule cannot be satisfied without leaving Prisma's migration engine
+          #    for a hand-run runbook. The lock analysis in the migration header
+          #    argues why that runbook is not worth it at these table sizes.
+          #  - ban-drop-not-null (DeletionRecord.name): the drop is the feature.
+          #    Stage 2 of the retention lifecycle replaces the plaintext name
+          #    with a keyed HMAC and nulls the column, which a NOT NULL column
+          #    forbids. schema.prisma declares `name String?`, so the client is
+          #    typed for the null.
+          #  - adding-not-nullable-field (retainUntil SET NOT NULL): the rule's
+          #    concern is that the scan blocks reads. DeletionRecord is a
+          #    tombstone table whose row count is bounded by hard deletions
+          #    performed, so the scan is trivially short, and the statement
+          #    timeout declared at the top of the migration aborts the whole
+          #    transaction cleanly if that ever stops being true. NOT NULL is
+          #    also not optional: schema.prisma declares `retainUntil DateTime`
+          #    (required), so a nullable column would leave the migration and
+          #    the schema permanently divergent.
+          #  - prefer-bigint-over-int (nameDigestKeyVersion): the rule's concern
+          #    is exhausting int4's 2147483647. This column is an HMAC key
+          #    GENERATION counter, incremented once per key rotation — not per
+          #    row, not per write. Exhausting it requires 2.1 billion key
+          #    rotations. The concern does not apply.
+          # TRIGGER: squawk reports any of those five for this exact file content.
+          # REMOVE-WHEN: per rule — the two concurrency rules when these
+          # statements no longer run under Prisma's per-migration transaction;
+          # ban-drop-not-null and adding-not-nullable-field when a baseline
+          # squash folds this migration away; prefer-bigint-over-int if
+          # nameDigestKeyVersion ever becomes a per-row value rather than a
+          # rotation counter, at which point it needs BIGINT and a schema change,
+          # not an exception.
+          RETENTION_MIGRATION="infra/prisma/migrations/20260901120000_deletion_record_retention_and_partial_uniques/migration.sql"
+          RETENTION_DIGEST="6c90d4f2c42c751b582065be825ece47f85cca352b48182b8dbe054ac820adea"
+
+          exception_rules_for() {
+            case "$1" in
+              "$ALIGNMENT_MIGRATION") echo "ban-drop-not-null" ;;
+              "$RETENTION_MIGRATION") echo "adding-not-nullable-field,ban-drop-not-null,prefer-bigint-over-int,require-concurrent-index-creation,require-concurrent-index-deletion" ;;
+              *) echo "" ;;
+            esac
+          }
+          exception_digest_for() {
+            case "$1" in
+              "$ALIGNMENT_MIGRATION") echo "$ALIGNMENT_DIGEST" ;;
+              "$RETENTION_MIGRATION") echo "$RETENTION_DIGEST" ;;
+              *) echo "" ;;
+            esac
+          }
+
+          # A waiver naming a file that no longer exists is a slot a future file
+          # could be recreated under and inherit unlinted — the same stale-name
+          # failure the fitness suite fails closed on. Checked on every run, not
+          # only when the file is in the changed set.
+          for p in "$ALIGNMENT_MIGRATION" "$RETENTION_MIGRATION"; do
+            if [ ! -f "$p" ]; then
+              echo "::error title=Squawk exception names a file that no longer exists::$p is adjudicated in this step but is not in the tree. Delete the entry, or a migration recreated under that path inherits the waiver without ever being adjudicated."
+              exit 1
+            fi
+          done
+
           FAIL=0
           OFFENDERS=""
           RULES_FILE="$RUNNER_TEMP/squawk-rules.txt"
@@ -325,8 +459,24 @@ jobs:
             # captured status is SQUAWK's: the old `echo ... | xargs squawk`
             # captured xargs' own 123 and reported it as squawk's exit code, which
             # told the author nothing about what squawk actually found.
+            EXC_RULES=$(exception_rules_for "$f")
             CODE=0
-            squawk --config .squawk.toml -- "$f" > "$OUT" 2>&1 || CODE=$?
+            if [ -n "$EXC_RULES" ]; then
+              GOT_DIGEST=$(sha256sum "$f" | cut -d' ' -f1)
+              WANT_DIGEST=$(exception_digest_for "$f")
+              if [ "$GOT_DIGEST" != "$WANT_DIGEST" ]; then
+                echo "::error title=Adjudicated migration changed::$f carries a per-rule Squawk exception pinned to sha256 ${WANT_DIGEST}, but its content now hashes to ${GOT_DIGEST}. The waiver deliberately does NOT follow the file across an edit: statements added since the adjudication have not been adjudicated. Both pinned files are applied migrations that must not change at all, so this is very likely the edit itself being the defect — revert it and express the change as a NEW migration. If the edit is genuinely intended, re-run the adjudication and update the pinned digest in the same change."
+                FAIL=1
+                continue
+              fi
+              # The baseline is re-stated because CLI --exclude REPLACES the
+              # config's excluded_rules rather than merging (see the gotcha
+              # above); the drift guard keeps the two in sync.
+              squawk --config .squawk.toml --exclude "${CONFIG_BASELINE_EXCLUDES},${EXC_RULES}" -- "$f" > "$OUT" 2>&1 || CODE=$?
+              echo "::notice::$f linted with adjudicated exceptions: ${EXC_RULES}"
+            else
+              squawk --config .squawk.toml -- "$f" > "$OUT" 2>&1 || CODE=$?
+            fi
             cat "$OUT"
             if [ "$CODE" -ne 0 ]; then
               FAIL=1

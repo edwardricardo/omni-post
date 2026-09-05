@@ -76,6 +76,12 @@ export const TOKENS = {
   HardDeletePostsBatchUseCase: Symbol.for("HardDeletePostsBatchUseCase"),
   DuplicatePostsBatchUseCase: Symbol.for("DuplicatePostsBatchUseCase"),
 
+  // Use Cases (project + account hard delete). The irreversible, admin-only
+  // erasure path lives under its own token so a customer-facing call site
+  // cannot resolve it by mistake.
+  HardDeleteProjectUseCase: Symbol.for("HardDeleteProjectUseCase"),
+  HardDeleteAccountUseCase: Symbol.for("HardDeleteAccountUseCase"),
+
   // Use Cases (post scheduling)
   SchedulePostUseCase: Symbol.for("SchedulePostUseCase"),
   GetPostWithThreadQuery: Symbol.for("GetPostWithThreadQuery"),

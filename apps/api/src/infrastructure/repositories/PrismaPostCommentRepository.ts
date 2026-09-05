@@ -23,7 +23,8 @@ import { EntityNotFoundError } from "@core/domain/errors/index.js";
 interface PrismaPostCommentRow {
   id: string;
   postId: string;
-  authorId: string;
+  /** Nullable since `PostComment.authorId` became `ON DELETE SET NULL`. */
+  authorId: string | null;
   parentId: string | null;
   body: string;
   mentions: string[];

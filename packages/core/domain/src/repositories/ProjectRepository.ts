@@ -5,7 +5,7 @@
  */
 
 import { type Result } from "@shared/types";
-import { type Repository } from "./Repository.js";
+import { type HardDeleteContext, type HardDeleteImpact, type Repository } from "./Repository.js";
 import { type Project } from "../entities/Project.js";
 import { type ProjectId, type AccountId } from "../value-objects/EntityId.js";
 import { type EntityNotFoundError } from "../errors/index.js";
@@ -75,8 +75,25 @@ export interface ProjectRepositoryPort {
   /**
    * Hard-delete a project and all its data (irreversible).
    * Only callable by SUPER_ADMIN. Cascades to channels, posts, etc.
+   *
+   * Implementations MUST write the project's tombstone (`DeletionRecord`) in the
+   * same transaction as the delete: no tombstone, no delete. `context` carries
+   * the acting principal, which nothing left behind by the delete could supply.
    */
-  hardDelete(id: ProjectId): Promise<Result<void, EntityNotFoundError>>;
+  hardDelete(id: ProjectId, context: HardDeleteContext): Promise<Result<void, EntityNotFoundError>>;
+
+  /**
+   * Measure the blast radius of a hard delete for this project, in BOTH dimensions
+   * the transaction budget is spent on: the posts destroyed (soft-deleted ones
+   * included — the cascade takes them too) and the rows in the directly-countable
+   * child populations. See {@link HardDeleteImpact} for why one number was not
+   * enough and for what the child count can and cannot see.
+   *
+   * This is the pre-flight signal the hard-delete use case uses to refuse a project
+   * too large to remove in one transaction, before any destructive work begins, so
+   * it must stay cheap: indexed aggregates only, no rows materialized.
+   */
+  countHardDeleteImpact(id: ProjectId): Promise<HardDeleteImpact>;
 
   /**
    * Check if a project exists (excludes soft-deleted projects)

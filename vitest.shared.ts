@@ -128,6 +128,14 @@ export function defineWorkspaceVitestConfig(packageDir: string, overrides: UserC
       environment: "node",
       globals: true,
       pool: "forks",
+      // A committed `.only` makes the runner execute that test and report every
+      // silenced sibling in the file as green. Fitness #32 catches both `.only`
+      // and `.skip` statically, but only for files matching `*.test.ts(x)`; this
+      // is the runtime half, and until now it was set in the five APP configs and
+      // in NO package that inherits from this factory — so the packages with the
+      // weakest static coverage also had the weakest runtime guard. An override
+      // here is still possible; the default no longer has to be remembered.
+      forbidOnly: true,
     },
   });
 

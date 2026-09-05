@@ -115,6 +115,45 @@ describe("env schema (apps/api/src/config/env.ts)", () => {
     });
   });
 
+  describe("DELETION_RECORD_RETENTION_YEARS (tombstone plaintext retention window)", () => {
+    // The .min(1) is the outermost of the retention floor's three enforcement
+    // layers (env schema, write-side clamp, database CHECK). These cases pin
+    // that the app REFUSES TO BOOT outside the 1..7 window rather than
+    // clamping and continuing — a floor the config can talk its way past is
+    // not a floor.
+    it("applies the 7-year policy default when unset", async () => {
+      const env = (await loadEnvWith({ DELETION_RECORD_RETENTION_YEARS: undefined })) as {
+        DELETION_RECORD_RETENTION_YEARS: number;
+      };
+      expect(env.DELETION_RECORD_RETENTION_YEARS).toBe(7);
+    });
+
+    it("accepts a value inside the window", async () => {
+      const env = (await loadEnvWith({ DELETION_RECORD_RETENTION_YEARS: "3" })) as {
+        DELETION_RECORD_RETENTION_YEARS: number;
+      };
+      expect(env.DELETION_RECORD_RETENTION_YEARS).toBe(3);
+    });
+
+    it("rejects boot below the 1-year floor", async () => {
+      await expect(loadEnvWith({ DELETION_RECORD_RETENTION_YEARS: "0" })).rejects.toThrow(
+        /DELETION_RECORD_RETENTION_YEARS/
+      );
+    });
+
+    it("rejects boot above the 7-year policy ceiling", async () => {
+      await expect(loadEnvWith({ DELETION_RECORD_RETENTION_YEARS: "8" })).rejects.toThrow(
+        /DELETION_RECORD_RETENTION_YEARS/
+      );
+    });
+
+    it("rejects boot on a non-integer window", async () => {
+      await expect(loadEnvWith({ DELETION_RECORD_RETENTION_YEARS: "2.5" })).rejects.toThrow(
+        /DELETION_RECORD_RETENTION_YEARS/
+      );
+    });
+  });
+
   describe("emptyStringAsUndefined behaviour (t3-env canon)", () => {
     it("treats KEY='' (empty string) as undefined so defaults apply", async () => {
       const env = (await loadEnvWith({ PORT: "" })) as { PORT: number };

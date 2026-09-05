@@ -7,7 +7,7 @@
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import { UseCaseError, USE_CASE_ERRORS } from "../../src/UseCase.js";
+import { UseCaseError, USE_CASE_ERRORS, classifyPersistenceFailure } from "../../src/UseCase.js";
 
 describe("USE_CASE_ERRORS constants", () => {
   it("defines NOT_FOUND with the correct literal string", () => {
@@ -42,9 +42,46 @@ describe("USE_CASE_ERRORS constants", () => {
     assert.strictEqual(USE_CASE_ERRORS.GUARDRAIL_REJECTED, "GUARDRAIL_REJECTED");
   });
 
-  it("exposes exactly 8 known error codes (no undocumented additions)", () => {
+  it("defines OPERATION_TOO_LARGE with the correct literal string", () => {
+    assert.strictEqual(USE_CASE_ERRORS.OPERATION_TOO_LARGE, "OPERATION_TOO_LARGE");
+  });
+
+  it("defines TRANSIENT_FAILURE with the correct literal string", () => {
+    assert.strictEqual(USE_CASE_ERRORS.TRANSIENT_FAILURE, "TRANSIENT_FAILURE");
+  });
+
+  it("exposes exactly 10 known error codes (no undocumented additions)", () => {
     const keys = Object.keys(USE_CASE_ERRORS);
-    assert.strictEqual(keys.length, 8);
+    assert.strictEqual(keys.length, 10);
+  });
+});
+
+describe("classifyPersistenceFailure", () => {
+  it("maps a P2003 foreign-key interlock to CONFLICT (durable, non-retryable)", () => {
+    const error = Object.assign(new Error("FK constraint failed"), { code: "P2003" });
+    assert.strictEqual(classifyPersistenceFailure(error), USE_CASE_ERRORS.CONFLICT);
+  });
+
+  it("maps a P2028 transaction timeout to TRANSIENT_FAILURE (retryable)", () => {
+    const error = Object.assign(new Error("transaction timed out"), { code: "P2028" });
+    assert.strictEqual(classifyPersistenceFailure(error), USE_CASE_ERRORS.TRANSIENT_FAILURE);
+  });
+
+  it("maps a P2034 write conflict / serialization failure to TRANSIENT_FAILURE (retryable)", () => {
+    const error = Object.assign(new Error("write conflict"), { code: "P2034" });
+    assert.strictEqual(classifyPersistenceFailure(error), USE_CASE_ERRORS.TRANSIENT_FAILURE);
+  });
+
+  it("maps an unclassified error (no known code) to INTERNAL_ERROR", () => {
+    assert.strictEqual(
+      classifyPersistenceFailure(new Error("something else")),
+      USE_CASE_ERRORS.INTERNAL_ERROR
+    );
+  });
+
+  it("maps a non-error value (null / string) to INTERNAL_ERROR without throwing", () => {
+    assert.strictEqual(classifyPersistenceFailure(null), USE_CASE_ERRORS.INTERNAL_ERROR);
+    assert.strictEqual(classifyPersistenceFailure("boom"), USE_CASE_ERRORS.INTERNAL_ERROR);
   });
 });
 

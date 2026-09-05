@@ -9,6 +9,7 @@
 // Domain primitives: errors, identifiers, base domain-event infra, entity/aggregate roots, repository base + UnitOfWork
 export * from "./errors/index.js";
 export * from "./value-objects/EntityId.js";
+export * from "./value-objects/AdminActorId.js";
 export * from "./events/DomainEvent.js";
 export * from "./entities/Entity.js";
 export * from "./aggregates/AggregateRoot.js";

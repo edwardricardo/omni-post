@@ -39,9 +39,18 @@ SyncScheduler.prototype.startRealtimeProcessors = function () {
 
 export const mockPrisma = createTestPrismaClient();
 
-export const mockRedis = new Redis({
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT || "6379"),
+// Connect the way every other integration suite does: from REDIS_URL, the
+// canonical variable `.env.test` and `.env` both carry. The previous form read
+// REDIS_HOST/REDIS_PORT, which this repo declares EMPTY and marks "# (optional)"
+// — an empty string is falsy, so it silently fell back to localhost:6379 and
+// carried no password. On any deployment whose Redis is not an unauthenticated
+// localhost (this one runs it on the infra host), `setupSyncEngineInfra` returned
+// false and every test in the batch skipped. Since run-tests.sh started failing a
+// tier-driven batch on a non-zero skip count, that surfaces as a red batch; before
+// that it printed OK over 36 tests nobody ran.
+const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
+
+export const mockRedis = new Redis(REDIS_URL, {
   maxRetriesPerRequest: null,
   lazyConnect: true,
   enableOfflineQueue: false,

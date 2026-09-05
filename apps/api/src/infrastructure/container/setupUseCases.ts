@@ -35,6 +35,8 @@ import { setupReferralUseCases } from "./setupReferralUseCases.js";
 import { setupTrendUseCases } from "./setupTrendUseCases.js";
 import { setupRepurposeUseCases } from "./setupRepurposeUseCases.js";
 import { setupChannelUseCases } from "./setupChannelUseCases.js";
+import { setupProjectUseCases } from "./setupProjectUseCases.js";
+import { setupAccountUseCases } from "./setupAccountUseCases.js";
 import { setupGuardrailUseCases } from "./setupGuardrailUseCases.js";
 import { setupLocalizedGenerationUseCases } from "./setupLocalizedGenerationUseCases.js";
 
@@ -48,6 +50,8 @@ export function setupUseCases(container: Container): void {
   setupLocalizedGenerationUseCases(container);
   setupPostUseCases(container);
   setupChannelUseCases(container);
+  setupProjectUseCases(container);
+  setupAccountUseCases(container);
   setupApiKeyUseCases(container);
   setupAnalyticsUseCases(container);
   setupLinkUseCases(container);
