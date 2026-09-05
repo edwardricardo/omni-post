@@ -31,6 +31,7 @@ import { TokenService } from "./TokenService.js";
 import { SessionManager } from "./SessionManager.js";
 import { MfaService } from "./MfaService.js";
 import { hashRefreshToken } from "../../auth/refreshTokenHash.js";
+import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 
 export class AdminAuthService {
   private passwordService: PasswordService;
@@ -79,7 +80,7 @@ export class AdminAuthService {
 
     // Find user (include role relation for profile mapping)
     const user = await this.prisma.adminUser.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: normalizeEmail(email) },
       include: { role: true },
     });
 

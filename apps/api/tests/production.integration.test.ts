@@ -232,10 +232,35 @@ describe("Comprehensive Production Integration Test", () => {
         authHeaders(accountToken)
       );
       assert.equal(getAccountResponse.status, 200, "Account retrieved successfully");
+
+      // `Foo@Example.com` and `foo@example.com` are ONE registration identity, so
+      // the address is stored — and therefore returned — in its canonical form.
+      // This line asserted byte-equality with the submitted address before that
+      // rule existed, pinning the ABSENCE of normalization as though it were the
+      // contract.
+      //
+      // The expectation is spelled out here rather than computed with the
+      // production `normalizeEmail` helper on purpose: a test that calls the same
+      // function the route calls agrees with it by construction, and would follow
+      // a redefinition of the rule anywhere it went — including back to
+      // `validator.normalizeEmail`, which also strips Gmail dots and `+tags` and
+      // so folds two people's addresses into one account.
+      const canonicalEmail = testData.account.email.trim().toLowerCase();
+
+      // Without this the assertion below is self-satisfying whenever the fixture
+      // happens to submit an already-canonical address: it would keep passing
+      // while proving nothing about normalization. faker capitalizes the local
+      // part today, and this fails loudly if that ever stops being true.
+      assert.notEqual(
+        testData.account.email,
+        canonicalEmail,
+        "Fixture must submit a non-canonical address or this case proves nothing"
+      );
+
       assert.equal(
         getAccountResponse.data.data.email,
-        testData.account.email,
-        "Account email matches"
+        canonicalEmail,
+        "Account email is returned in its canonical identity form"
       );
       assert.equal(
         getAccountResponse.data.data.name,

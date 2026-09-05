@@ -7,6 +7,7 @@
 
 import { z } from "zod/v4";
 import validator from "validator";
+import { normalizeEmail } from "@core/domain/index.js";
 import { SecureSchemas as _BaseSecureSchemas } from "../security/inputValidation.js";
 
 // Enhanced base primitives with comprehensive validation
@@ -35,7 +36,14 @@ export const SecurityValidatedSchemas = {
       },
       { message: "Email contains potentially dangerous characters" }
     )
-    .transform((email) => validator.normalizeEmail(email) || email),
+    // The domain's identity rule (lowercase + trim), NOT validator.normalizeEmail.
+    // The latter is a DIFFERENT and more destructive rule: it strips Gmail dots
+    // and +tags, folding Foo+Tag@Gmail.com and f.o.o@gmail.com into one address —
+    // silently merging two people's identities. This module had no production
+    // consumer when that sat here, which made it a live trap: inert until wired,
+    // then the merge happens with no error anywhere. One identity rule exists
+    // and it lives in the domain; a validation schema does not get its own.
+    .transform((email) => normalizeEmail(email)),
 
   /**
    * Strong password validation with security requirements

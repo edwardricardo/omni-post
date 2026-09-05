@@ -15,6 +15,7 @@ import type {
   TrialStatsCounts,
 } from "@core/domain/repositories/AccountQueryRepository.js";
 import type { AccountDto } from "@core/domain/repositories/ReadModelDtos.js";
+import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 
 /**
  * PrismaAccountQueryRepository — implements AccountQueryRepositoryPort.
@@ -77,11 +78,14 @@ export class PrismaAccountQueryRepository implements AccountQueryRepositoryPort 
   /**
    * Find a single account by email address without loading the projects relation.
    *
-   * Email is normalized to lowercase before the query.
+   * Email is reduced to its canonical identity form before the query, through
+   * the same helper the write paths use. This site previously lowercased
+   * WITHOUT trimming while the command-side repository did both, so the two
+   * disagreed on any padded address.
    */
   async findByEmail(email: string): Promise<Result<AccountDto, "NOT_FOUND">> {
     const account = await this.prisma.account.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: normalizeEmail(email) },
     });
 
     if (!account) return err("NOT_FOUND");

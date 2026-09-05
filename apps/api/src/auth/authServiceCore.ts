@@ -41,6 +41,7 @@ import {
   generateBrowserFingerprint,
 } from "./deviceFingerprint.js";
 import { authLogger } from "../lib/logger.js";
+import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 
 /**
  * Core authentication operations: register, login, and shared helpers
@@ -97,7 +98,7 @@ export class AuthServiceCore extends AuditableService {
       if (!roleRecord) return err("VALIDATION_ERROR");
 
       const user = await this.userRepo.create({
-        email: email.toLowerCase(),
+        email: normalizeEmail(email),
         passwordHash,
         name,
         roleId: roleRecord.id,

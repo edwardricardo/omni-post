@@ -269,18 +269,28 @@ describe("soft-deleted identifiers are reusable, live ones are not", () => {
       expect(result.body.error).toBe("EMAIL_TAKEN");
     });
 
-    it("matches the address verbatim, exactly as the create stores it", async () => {
-      // `SecureSchemas.userEmail` neither lowercases nor trims, and the create
-      // writes the address as given, so the lookup, the stored row and the
-      // Postgres index all compare the same bytes. Normalising the lookup alone
-      // would stop it detecting a duplicate the database would then accept.
-      const caller = await makeTenant("email-verbatim");
-      const stored = `${unique("Mixed")}@Example.com`;
+    it("refuses an address held by a LIVE account whatever casing the caller types", async () => {
+      // This replaced an assertion that the lookup matched the address VERBATIM.
+      // That property was real while the route stored what it was given, but it
+      // is no longer reachable: registration now reduces the address to its
+      // canonical form before both the duplicate check and the insert, and the
+      // backfill migration rewrote the rows that predate that. So no live
+      // account can hold a mixed-case address any more, and a test that plants
+      // one directly through the store asserts behaviour over a state the system
+      // cannot produce.
+      //
+      // The property that replaces it is strictly STRONGER. The old test only
+      // proved raw bytes match raw bytes; this one proves the case-twin — the
+      // duplicate that used to slip through and mint a second account for one
+      // human — is refused. It fails against the pre-fix route, which compared
+      // verbatim and would answer 200 here.
+      const caller = await makeTenant("email-casefold");
+      const stored = `${unique("mixed")}@example.com`;
       await mockPrisma.prisma.account.create({
         data: { email: stored, name: "Still Here", maxProjects: 1, deletedAt: null },
       });
 
-      const result = await postAccount(caller, stored);
+      const result = await postAccount(caller, stored.toUpperCase());
 
       expect(result.statusCode).toBe(409);
       expect(result.body.error).toBe("EMAIL_TAKEN");

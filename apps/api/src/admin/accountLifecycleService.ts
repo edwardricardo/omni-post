@@ -40,6 +40,7 @@ import type {
 } from "./accountLifecycleTypes.js";
 import { AccountLifecycleQueryService } from "./accountLifecycleQueryService.js";
 import { AccountSessionService } from "./AccountSessionService.js";
+import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 
 export class AccountLifecycleService extends AuditableService {
   constructor(
@@ -103,7 +104,7 @@ export class AccountLifecycleService extends AuditableService {
           const roleName = data.role || "ADMIN";
           const roleRecord = await this.roleRepo.findByName(roleName);
           return this.userRepo.create({
-            email: data.email.toLowerCase(),
+            email: normalizeEmail(data.email),
             passwordHash,
             name: data.name,
             roleId: roleRecord ? roleRecord.id : "role-admin",

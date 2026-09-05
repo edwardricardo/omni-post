@@ -17,6 +17,7 @@ import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { withSystemContext } from "../security/tenantContext.js";
 import { toAdminActorId } from "@core/domain/value-objects/AdminActorId.js";
+import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 import type { HardDeleteAccountUseCase } from "@core/accounts/index.js";
 import { mapHardDeleteError } from "../lib/hardDeleteErrorMapping.js";
 import { AuditActions, AuditResources, type AuditService } from "../audit/auditService.js";
@@ -112,7 +113,16 @@ class AccountRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const { email, name, maxProjects } = validated.value.body;
+    const { email: submittedEmail, name, maxProjects } = validated.value.body;
+
+    // `Foo@Example.com` and `foo@example.com` are the SAME registration
+    // identity, so the address is reduced to its canonical form ONCE, here, and
+    // that single value is used for both the duplicate check and the insert.
+    // Normalizing only one of the two is the defect this replaced: the check
+    // compared raw bytes while `PrismaAccountRepository.findByEmail` searched
+    // the lowercased form, so a mixed-case registration was invisible to every
+    // later lookup AND its case-twin could be registered as a second account.
+    const email = normalizeEmail(submittedEmail);
 
     try {
       // Check whether a LIVE account already holds this address.
@@ -123,12 +133,12 @@ class AccountRouteHandler extends BaseRouteHandler {
       // and only this line refuses it. `findUnique` cannot carry the predicate,
       // so the check has to be a `findFirst` filtered to live rows.
       //
-      // The address is compared VERBATIM, deliberately. Neither
-      // `SecureSchemas.userEmail` nor the create below normalises case or
-      // whitespace, and the Postgres index is on the raw column, so the lookup,
-      // the stored row and the constraint all compare the same bytes.
-      // Lowercasing here alone would stop this check detecting a duplicate that
-      // the database would then happily accept.
+      // Comparing the NORMALIZED value is sound only because the insert below
+      // stores that same value and the backfill migration
+      // (20260905000000_normalize_identity_emails) rewrote the rows that predate
+      // it. The lookup, the stored row and the constraint therefore still
+      // compare the same bytes — the property the previous verbatim comparison
+      // was protecting, now held on the normalized form instead of the raw one.
       const existingAccount = await this.prisma.account.findFirst({
         where: { email, deletedAt: null },
       });

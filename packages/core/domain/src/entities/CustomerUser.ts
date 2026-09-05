@@ -9,6 +9,7 @@
 
 import { type Result, ok, err } from "@shared/types";
 import { InvalidValueError, InvariantViolationError } from "../errors/index.js";
+import { normalizeEmail } from "../value-objects/EmailAddress.js";
 
 /**
  * Properties required to construct a CustomerUser.
@@ -188,7 +189,7 @@ export class CustomerUser {
       new CustomerUser({
         id: input.id,
         accountId: input.accountId,
-        email: trimmedEmail.toLowerCase(),
+        email: normalizeEmail(trimmedEmail),
         passwordHash: input.passwordHash,
         firstName: input.firstName.trim(),
         lastName: input.lastName.trim(),
