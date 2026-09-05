@@ -166,8 +166,8 @@ describe("POST /auth/customer/login/mfa — step-2 error contract", () => {
       payload: STEP2_BODY,
     });
     // The handler routes through the canonical resolveClientIp with the
-    // configured trusted-hop count (0 in tests): the chain is untrusted, so
-    // the resolver fails CLOSED to the socket peer. The client-controlled
+    // configured trust model (socket-only in tests): forwarding headers are
+    // ignored, so the resolver keys on the socket peer. The client-controlled
     // X-Forwarded-For value must never become the forensic IP.
     expect(capturedCompleteInput.ip).toBe("127.0.0.1");
     expect(capturedCompleteInput.ip).not.toBe("203.0.113.99");

@@ -7,6 +7,7 @@
  * @layer infrastructure
  */
 import { env } from "./config/env.js";
+import { FASTIFY_TRUST_PROXY } from "./security/resolveClientIp.js";
 
 import { createLogger } from "./lib/logger.js";
 const otelLogger = createLogger("api-telemetry");
@@ -182,11 +183,15 @@ async function createApp(): Promise<FastifyInstance> {
   // Fastify v5.6.1 constructor syntax
   const app = Fastify({
     logger: true,
-    // Numeric trusted-hop count (never `true`, which trusts the leftmost,
-    // client-controlled X-Forwarded-For entry — ERR_ERL_PERMISSIVE_TRUST_PROXY).
-    // `request.ip` becomes proxy-addr-resolved; every IP-keyed security decision
-    // still goes through `resolveClientIp` (SECURITY_CANON.md §Rate Limiting).
-    trustProxy: env.TRUSTED_PROXY_HOP_COUNT,
+    // `false` (socket-only) or the trusted proxy IP/CIDR allowlist — never
+    // `true`, which trusts the leftmost, client-controlled X-Forwarded-For entry
+    // (ERR_ERL_PERMISSIVE_TRUST_PROXY), and never a number, which fastify
+    // >= 5.12.1 treats as "trust nothing" because hop counting cannot validate
+    // the immediate peer (GHSA-3m5p-2c4r-xxw2). The value is derived from the
+    // configured policy in ONE place so the option and the resolver that reads
+    // `request.ip` can never disagree. Every IP-keyed security decision still
+    // goes through `resolveClientIp` (SECURITY_CANON.md §Rate Limiting, ADR-0021).
+    trustProxy: FASTIFY_TRUST_PROXY,
     // Bound the two HTTP defaults Fastify inherits from Node:
     //   keepAliveTimeout = 72000 ms   → 5 s (LB manages connection reuse)
     //   requestTimeout   = 0 (none)   → 30 s (matches typical API SLA)

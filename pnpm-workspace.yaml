@@ -69,13 +69,19 @@ catalog:
   "@types/react-dom": 19.2.3 # already latest stable
 
   # ── Tiptap + prosemirror family (atomic) ──
-  # already latest stable (7d candidate 3.26.1 is older; never pin lower)
-  "@tiptap/core": 3.27.1
-  "@tiptap/react": 3.27.1
-  "@tiptap/pm": 3.27.1
-  "@tiptap/starter-kit": 3.27.1
-  "@tiptap/extension-character-count": 3.28.0
-  "@tiptap/extension-placeholder": 3.27.1
+  # CVE floor raised 2026-09-04: GHSA-cp6q-959q-f8rh (moderate) — mergeAttributes()
+  # turns an own __proto__ key into inherited executable DOM attributes; vulnerable
+  # >=2.0.0-alpha.0 <3.30.4. Pinned to the MINIMAL patched 3.30.4 (not latest 3.31.2)
+  # per ADR-0018. The family moves ATOMICALLY — every member publishes 3.30.4
+  # (verified against the registry), and the apps/client single-manifest literals
+  # (extension-color/-highlight/-link/-text-style/-typography) move in the same
+  # commit, so no member can drag a pre-3.30.4 @tiptap/core back in transitively.
+  "@tiptap/core": 3.30.4
+  "@tiptap/react": 3.30.4
+  "@tiptap/pm": 3.30.4
+  "@tiptap/starter-kit": 3.30.4
+  "@tiptap/extension-character-count": 3.30.4
+  "@tiptap/extension-placeholder": 3.30.4
 
   # ── LangChain family (atomic) ──
   "@langchain/core": 1.2.0 # already latest stable (7d candidate 1.1.49 is older; never pin lower)
@@ -104,7 +110,19 @@ catalog:
   prom-client: 15.1.3 # MAX of 15.0.0 / 15.1.3
 
   # ── App/server runtime (DIRECT) ──
-  fastify: 5.10.0 # latest stable (taze -l --maturity-period 7; published 2026-07-05), paired with the find-my-way override — fastify declares find-my-way ^9.0.0, so bumping fastify alone leaves the vulnerable router; was 5.8.5
+  # CVE floor 5.12.1 — closes GHSA-w2qp-rph6-63g4 (schema validation bypass) and
+  # GHSA-3m5p-2c4r-xxw2 (X-Forwarded-* spoofing under hop-count trustProxy), both moderate.
+  # The floor was HELD at 5.10.0 until 2026-09-04 because fastify's fix for the second
+  # advisory REMOVES numeric hop-count trust in the RUNTIME, not only in the types:
+  # lib/request.js getTrustProxyFn returns `() => false` for a number ("Hop-count-only trust
+  # cannot validate the immediate peer"), so `request.ip` degraded to the socket peer for
+  # every request. ADR-0021 unblocked it by migrating this repo to fastify's sanctioned
+  # trusted-peer model: TRUSTED_PROXY_MODE selects socket-only or a TRUSTED_PROXY_RANGES
+  # IP/CIDR allowlist that proxy-addr compiles and validates against the IMMEDIATE PEER.
+  # Re-implementing `(addr, hop) => hop < N` as a TrustProxyFunction was rejected outright:
+  # it would type-check, keep tests green, and restore the exact vulnerability the advisory
+  # patched (Security canon: NO exception). See SECURITY_CANON.md §"Rate Limiting".
+  fastify: 5.12.1 # paired with the find-my-way override — fastify declares find-my-way ^9.0.0, so bumping fastify alone leaves the vulnerable router
   pino: 10.3.1
   zod: 4.4.3 # reconcile UP to apps' 4.4.3 (override 4.3.6 is stale)
   "@anthropic-ai/sdk": 0.104.1 # latest stable (taze -l --maturity-period 7); was 0.91.1
@@ -189,6 +207,15 @@ catalogs:
 # and dated-debt holds (SECURITY_CANON §Audited-audit-ignores, PENDING_WORK_INVENTORY §7).
 overrides:
   axios: "catalog:"
+  # Added 2026-09-04. The root declares `fastify-type-provider-zod` but no fastify,
+  # so its `fastify` peer is auto-installed UNCONSTRAINED and drifted to a different
+  # version than the catalog governs (apps/api + api-common) — two fastify copies in
+  # one tree, with the security-relevant pin authoritative for only one of them. This
+  # binds every fastify in the tree to the catalog value, so when the held 5.12.1
+  # floor is unblocked (see SECURITY_CANON §"Blocked floors") the dev-only peer moves
+  # with it instead of silently lagging. Not a de-dup-only override (ADR-0018 drops
+  # those): it exists to make ONE version answer for the CVE floor.
+  fastify: "catalog:"
   form-data: "catalog:"
   validator: "catalog:"
   uuid: "catalog:"
@@ -203,12 +230,21 @@ overrides:
   "brace-expansion@<1.1.18": 1.1.18
   "brace-expansion@>=2.0.0 <2.1.4": 2.1.4
   "brace-expansion@>=3.0.0 <5.0.9": 5.0.9
-  "fast-uri@>=3.0.0 <3.1.5": 3.1.5
-  "fast-uri@>=4.0.0 <4.1.2": 4.1.2
+  # Raised 2026-09-04 for GHSA-5jgf-p345-68v8 / GHSA-f65p-4m7j-42xc /
+  # GHSA-fph4-wmhf-6fwf / GHSA-jqff-g426-hqxp (4 high, host confusion via skipped
+  # IDN et al.). BOTH the band and the target moved: the tree resolved exactly
+  # 3.1.5 and 4.1.2 — the previous targets — which the old bands (<3.1.5 / <4.1.2)
+  # no longer match, so bumping only the value would have left two INERT overrides
+  # pinning nothing while the audit stayed red.
+  "fast-uri@>=3.0.0 <3.1.6": 3.1.6
+  "fast-uri@>=4.0.0 <4.1.3": 4.1.3
   "undici@>=7.0.0 <7.29.0": 7.29.0
   "sharp@<0.35.0": 0.35.0
   "find-my-way@<9.6.1": 9.7.0 # minimal AVAILABLE patched version: the advisory names 9.6.1 but npm never published it (9.6.0 -> 9.7.0)
   "protobufjs@>=7.5.0 <7.6.5": 7.6.5
+  "browserslist@<4.28.7": 4.28.7
+  "mysql2@<3.23.1": 3.23.1
+  "@xmldom/xmldom@>=0.7.0 <0.8.15": 0.8.15
   "valibot@<=1.4.1": 1.4.2
   shell-quote: 1.8.4
   esbuild: 0.28.1
@@ -239,7 +275,15 @@ overrides:
   markdown-it: 14.2.0
   "msw>path-to-regexp": 6.3.0
   path-to-regexp: 8.4.2
-  qs: 6.15.2
+  # Was a blanket de-dup pin at 6.15.2; promoted 2026-09-04 to a TRANSITIVE CVE
+  # floor for GHSA-4mjr-xmp4-gh2g (>=2.2.5 <6.16.0) and GHSA-x5fp-wj9c-mxmx
+  # (>=6.14.2 <=6.15.3) — 6.15.2 sat INSIDE both bands, so the pin itself was
+  # holding the whole tree on a vulnerable version. Fourth instance of the
+  # js-yaml / dompurify / fast-uri gotcha: raise the EXISTING key, never add a
+  # second one (a blanket override silently wins over a later range-scoped one).
+  # Range-scoped per ADR-0018; de-dup is preserved because every consumer range
+  # (~6.5.2, ^6.11.2, ^6.x) falls inside the band and collapses onto 6.16.0.
+  "qs@<6.16.0": 6.16.0
   rollup: 4.62.0
   serialize-javascript: 7.0.5
   tough-cookie: 4.1.3

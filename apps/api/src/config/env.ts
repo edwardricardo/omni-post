@@ -22,6 +22,7 @@ dotenv.config({ path: path.resolve(__dirname, "../../../..", envFile) });
 
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
+import { TRUSTED_PROXY_MODES, parseTrustedProxyRanges } from "../security/trustedProxy.js";
 
 /**
  * Shape of issues passed to `onValidationError` by t3-env (Standard Schema V1
@@ -265,17 +266,33 @@ const serverSchema = {
   // 60. Lower it where publish jobs are fast and the queue is cheap to read.
   SAGA_WAIT_POLL_MS: z.coerce.number().int().min(1000).max(300_000).default(30_000),
 
-  // ── Trusted reverse-proxy hop count (rate-limit / IP-allowlist keying) ──
-  // The number of TRUSTED reverse proxies between the public internet and this
-  // app. `resolveClientIp` counts this many hops from the RIGHT of
-  // X-Forwarded-For (the trusted edge) to derive the bucket key, and Fastify's
-  // `trustProxy` is set to this exact number. Fail-closed default `0` =
-  // socket-only (always spoof-safe; behind a proxy it degrades every caller to
-  // a shared bucket — an availability risk, never a bypass). Set the REAL value
-  // per environment (1 = one edge proxy, 2 = CDN → LB, …). Never a non-zero
-  // default: that would bake in an unverified topology assumption. See
-  // SECURITY_CANON.md §Rate Limiting for the topology invariant.
-  TRUSTED_PROXY_HOP_COUNT: z.coerce.number().int().min(0).default(0),
+  // ── Trusted proxy model (rate-limit / IP-allowlist keying) ─────────────
+  // Which peer this app believes when it claims to forward on someone's behalf.
+  // `socket-only` (fail-closed default) ignores every forwarding header and keys
+  // on the socket peer: always spoof-safe, but behind a proxy every caller
+  // shares one bucket (availability risk, never a bypass). `trusted-ranges`
+  // keys on the address a TRUSTED proxy vouched for, where "trusted" is the
+  // TRUSTED_PROXY_RANGES allowlist matched against the IMMEDIATE PEER.
+  //
+  // There is deliberately no hop-count model: fastify >= 5.12.1 makes numeric
+  // `trustProxy` fail closed ("Hop-count-only trust cannot validate the
+  // immediate peer" — GHSA-3m5p-2c4r-xxw2). See ADR-0021 and SECURITY_CANON.md
+  // §Rate Limiting for the topology invariant that both models depend on.
+  TRUSTED_PROXY_MODE: z.enum(TRUSTED_PROXY_MODES).default("socket-only"),
+
+  // Comma-separated IP / CIDR / preset entries (`loopback`, `linklocal`,
+  // `uniquelocal`) identifying the reverse proxies in front of this app —
+  // REQUIRED by, and only meaningful under, TRUSTED_PROXY_MODE=trusted-ranges.
+  // The pair is cross-validated below; an inconsistent pair refuses to boot.
+  // List ONLY real proxy addresses: every address in here may assert any
+  // client identity in X-Forwarded-For, so a broad tenant subnet here hands
+  // that power to everything inside it.
+  TRUSTED_PROXY_RANGES: z.string().optional(),
+
+  // NOTE: the removed TRUSTED_PROXY_HOP_COUNT is deliberately NOT declared here.
+  // It is rejected from the raw runtime env in `createFinalSchema` below, so it
+  // stays out of the validated env's type while still refusing to boot when an
+  // operator leaves it set (see the tripwire there for why silence is unsafe).
 } as const;
 
 /**
@@ -316,6 +333,64 @@ const onValidationError = (issues: readonly SchemaIssue[]): never => {
 export function parseApiEnv(runtimeEnv: Record<string, string | undefined>) {
   return createEnv({
     server: serverSchema,
+
+    /**
+     * Cross-field validation hook. Per-key schemas cannot see each other, and
+     * the trusted-proxy MODE and RANGES are only meaningful as a pair: selecting
+     * `trusted-ranges` without a valid range list has no safe interpretation, so
+     * it must refuse to boot rather than silently degrade to `socket-only` and
+     * collapse every caller into one rate-limit bucket. This is the boundary
+     * rejection; `TrustedProxyPolicy`'s non-empty tuple is what makes the state
+     * unrepresentable once past it (see security/trustedProxy.ts).
+     */
+    createFinalSchema: (shape) =>
+      z.object(shape).superRefine((value, ctx) => {
+        const mode = (value as { TRUSTED_PROXY_MODE?: string }).TRUSTED_PROXY_MODE;
+        const raw = (value as { TRUSTED_PROXY_RANGES?: string }).TRUSTED_PROXY_RANGES;
+        const parsed = parseTrustedProxyRanges(raw);
+
+        if (mode === "trusted-ranges" && !parsed.ok) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["TRUSTED_PROXY_RANGES"],
+            message:
+              `${parsed.reason} — required when TRUSTED_PROXY_MODE=trusted-ranges. ` +
+              "Refusing to boot rather than falling back to socket-only, which would " +
+              "collapse every caller into one shared rate-limit bucket without saying so.",
+          });
+        }
+
+        if (mode === "socket-only" && parsed.ok) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["TRUSTED_PROXY_RANGES"],
+            message:
+              "TRUSTED_PROXY_RANGES is set but TRUSTED_PROXY_MODE=socket-only ignores every " +
+              "forwarding header, so the list would never be consulted while reading as " +
+              "though it were. Set TRUSTED_PROXY_MODE=trusted-ranges, or clear the ranges.",
+          });
+        }
+
+        // Removal tripwire for TRUSTED_PROXY_HOP_COUNT. Read from the RAW env
+        // rather than the parsed value so the dead key never enters the env's
+        // type. Leaving it merely unread would be the trap this change exists to
+        // remove: an operator who still sets it believes hop-count trust is in
+        // force, while fastify >= 5.12.1 ignores it completely. Delete this
+        // block once no deployed environment sets the variable.
+        const legacyHopCount = runtimeEnv["TRUSTED_PROXY_HOP_COUNT"];
+        if (legacyHopCount !== undefined && legacyHopCount.trim() !== "") {
+          ctx.addIssue({
+            code: "custom",
+            path: ["TRUSTED_PROXY_HOP_COUNT"],
+            message:
+              "TRUSTED_PROXY_HOP_COUNT was removed (ADR-0021). Hop-count proxy trust is " +
+              "fail-closed in fastify >= 5.12.1, so this value is read by nothing and its " +
+              "presence misrepresents the deployment. Use TRUSTED_PROXY_MODE=socket-only " +
+              "(equivalent to the old 0), or TRUSTED_PROXY_MODE=trusted-ranges with " +
+              "TRUSTED_PROXY_RANGES set to your proxy IPs/CIDRs.",
+          });
+        }
+      }),
 
     /**
      * `runtimeEnv` is the raw map to validate; t3-env validates the subset
