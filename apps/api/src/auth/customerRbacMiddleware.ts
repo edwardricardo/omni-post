@@ -31,8 +31,6 @@ export const CustomerPermission = {
   ACCOUNT_MANAGE: "account:manage",
 } as const;
 
-export type CustomerPermissionValue = (typeof CustomerPermission)[keyof typeof CustomerPermission];
-
 /**
  * @function requireCustomerPermission
  * @description Builds a Fastify preHandler that allows the request only when the authenticated
