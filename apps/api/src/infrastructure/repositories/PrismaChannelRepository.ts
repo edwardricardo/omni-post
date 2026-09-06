@@ -446,7 +446,8 @@ export class PrismaChannelRepository implements ChannelRepository {
    * ever received a message.
    */
   async hardDelete(id: ChannelId): Promise<Result<void, EntityNotFoundError>> {
-    // Use findFirst to detect even soft-deleted channels
+    // DELIBERATE soft-delete-sweep exception: the hard-delete probe must detect
+    // even soft-deleted channels.
     const row = await this.prisma.channel.findFirst({
       where: { id: id.value },
       select: { id: true },

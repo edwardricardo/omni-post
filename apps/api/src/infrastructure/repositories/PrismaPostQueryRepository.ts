@@ -413,7 +413,10 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
 
     const where: Record<string, unknown> = {
       deletedAt: null,
-      project: { accountId: accountId.value },
+      // Project liveness is part of the feed gate: a soft-deleted project's
+      // posts stay `deletedAt: null` themselves (soft delete does not cascade),
+      // so without this relation predicate they remain in the account-wide feed.
+      project: { accountId: accountId.value, deletedAt: null },
     };
     if (filter?.status) {
       where["status"] = filter.status;

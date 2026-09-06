@@ -18,7 +18,8 @@ import { Permission } from "@core/domain/auth/Permission.js";
 import { withSystemContext } from "../security/tenantContext.js";
 import { toAdminActorId } from "@core/domain/value-objects/AdminActorId.js";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
-import type { HardDeleteAccountUseCase } from "@core/accounts/index.js";
+import type { DeleteAccountUseCase, HardDeleteAccountUseCase } from "@core/accounts/index.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { mapHardDeleteError } from "../lib/hardDeleteErrorMapping.js";
 import { AuditActions, AuditResources, type AuditService } from "../audit/auditService.js";
 
@@ -79,14 +80,16 @@ type _UpdateAccountBody = z.infer<typeof UpdateAccountBodySchema>;
 /**
  * Account Route Handler
  * Provides database-backed account management endpoints.
- * Receives PrismaClient and the admin-only hard-delete use case via constructor
- * injection from the route plugin.
+ * Receives PrismaClient, the customer-facing soft-delete use case and the
+ * admin-only hard-delete use case via constructor injection from the route
+ * plugin.
  */
 class AccountRouteHandler extends BaseRouteHandler {
   protected routeName = "accounts";
 
   constructor(
     private readonly prisma: PrismaClient,
+    private readonly deleteAccountUseCase: DeleteAccountUseCase,
     private readonly hardDeleteAccountUseCase: HardDeleteAccountUseCase,
     private readonly auditService: AuditService
   ) {
@@ -204,10 +207,13 @@ class AccountRouteHandler extends BaseRouteHandler {
     const { accountId } = validated.value.params;
 
     try {
-      const account = await this.prisma.account.findUnique({
-        where: { id: accountId },
+      // `deletedAt: null` is what makes the soft delete a delete from the
+      // caller's point of view — without it this route would keep serving an
+      // account the tenant has already removed.
+      const account = await this.prisma.account.findFirst({
+        where: { id: accountId, deletedAt: null },
         include: {
-          projects: true,
+          projects: { where: { deletedAt: null } },
         },
       });
 
@@ -243,9 +249,10 @@ class AccountRouteHandler extends BaseRouteHandler {
 
     try {
       const accounts = await this.prisma.account.findMany({
+        where: { deletedAt: null },
         orderBy: { createdAt: "desc" },
         include: {
-          projects: true,
+          projects: { where: { deletedAt: null } },
         },
       });
 
@@ -294,9 +301,10 @@ class AccountRouteHandler extends BaseRouteHandler {
     const updates = validated.value.body;
 
     try {
-      // Check if account exists
-      const existingAccount = await this.prisma.account.findUnique({
-        where: { id: accountId },
+      // Check if account exists. A soft-deleted account is gone as far as every
+      // other route is concerned, so it must not be updatable either.
+      const existingAccount = await this.prisma.account.findFirst({
+        where: { id: accountId, deletedAt: null },
       });
 
       if (!existingAccount) {
@@ -333,8 +341,14 @@ class AccountRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Delete Account
+   * Delete Account (NORMAL path — reversible)
    * DELETE /accounts/:accountId
+   *
+   * Soft-deletes: the row keeps its data and gains `deletedAt`, so the account
+   * disappears from every read while its projects, channels, posts, invoices
+   * and audit trail survive — which is what billing and legal retention
+   * require. The irreversible variant is `DELETE /accounts/:accountId/hard`
+   * and is admin-only.
    */
   async deleteAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -383,16 +397,10 @@ class AccountRouteHandler extends BaseRouteHandler {
 
     // Ownership is not authorization. The comparison above only establishes
     // that the caller belongs to THIS tenant — every member passes it, VIEWER
-    // included. What follows destroys the tenant, so the destructive grant is
-    // asserted separately.
-    //
-    // Why this became urgent without the authorization changing: under the ON
-    // DELETE convention this branch carries, `Invoice.accountId` and
-    // `Referral.referralCodeId` no longer hold RESTRICT. Before, the database
-    // refused this statement outright for any account that had ever been billed
-    // or referred, so an under-privileged caller got a 500 and destroyed
-    // nothing. Now the same call completes and cascades. The gate below is what
-    // replaces the protection the constraints used to provide by accident.
+    // included. What follows shuts the tenant down: the soft delete makes the
+    // account invisible to every read, stops its users' logins and halts its
+    // publishing, so the destructive-grade grant is asserted separately even
+    // though no row is destroyed any more.
     //
     // Fail closed on the claim itself. `verifyCustomerToken` casts its payload
     // with `as CustomerJwtPayload` and validates nothing at runtime, so a token
@@ -416,58 +424,55 @@ class AccountRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 403, "Insufficient permissions to delete this account");
     }
 
-    try {
-      // Check if account exists
-      const existingAccount = await this.prisma.account.findUnique({
-        where: { id: accountId },
-        include: { projects: { select: { id: true } } },
-      });
+    // The use case owns the tenant gate (CWE-639, re-checked below the route
+    // gate on purpose) and the transaction; this handler translates its typed
+    // error code to a status and writes the audit record. NOTHING destructive
+    // remains on this path: no leaf-first deleteMany, no `account.delete` —
+    // the repository's `delete` sets `deletedAt` and stops.
+    const result = await this.deleteAccountUseCase.execute({
+      accountId,
+      caller: { type: "customer", accountId: principal.accountId },
+    });
 
-      if (!existingAccount) {
+    if (!result.ok) {
+      // NOT_FOUND covers "no such account" and "already soft-deleted" — from
+      // the caller's point of view both are gone.
+      if (result.error.code === USE_CASE_ERRORS.NOT_FOUND) {
         return this.sendError(ctx, 404, "Account not found");
       }
-
-      // Explicit leaf-first deletes. Since the ON DELETE convention landed these
-      // are REDUNDANT — Account cascades to Project, Project to Post and Channel,
-      // Post to PostContent and PostMedia — so the final `account.delete` alone
-      // would remove all of it. They are kept because they bound the work into
-      // named statements instead of one opaque server-side cascade, and because
-      // deleting them is a behaviour change this slice has no test for. What they
-      // are NOT any more is load-bearing.
-      const projectIds = existingAccount.projects.map((p: { id: string }) => p.id);
-      if (projectIds.length > 0) {
-        await this.prisma.postContent.deleteMany({
-          where: { post: { projectId: { in: projectIds } } },
-        });
-        await this.prisma.postMedia.deleteMany({
-          where: { post: { projectId: { in: projectIds } } },
-        });
-
-        await this.prisma.post.deleteMany({
-          where: { projectId: { in: projectIds } },
-        });
-
-        await this.prisma.channel.deleteMany({
-          where: { projectId: { in: projectIds } },
-        });
+      if (result.error.code === USE_CASE_ERRORS.VALIDATION_FAILED) {
+        return this.sendError(ctx, 400, "Invalid account ID");
       }
-
-      // Deleting the account cascades to everything beneath it. Invoice,
-      // BillingEvent, DsarRequest and WebhookEvent SURVIVE with `accountId`
-      // nulled, and Referral survives its ReferralCode unattributed — before the
-      // convention, Invoice and Referral held ON DELETE RESTRICT and BLOCKED this
-      // statement outright for any account that had ever been billed or referred.
-      await this.prisma.account.delete({
-        where: { id: accountId },
+      this.logError(ctx, "Failed to delete account", { error: result.error });
+      await this.auditService.log({
+        action: AuditActions.ACCOUNT_DELETED,
+        resource: AuditResources.ACCOUNT,
+        resourceId: accountId,
+        customerUserId: principal.id,
+        accountId,
+        success: false,
+        error: result.error.message,
+        details: { mode: "soft" },
       });
-
-      this.logInfo(ctx, "Account deleted successfully", { accountId });
-
-      this.sendSuccess(ctx, { message: "Account deleted successfully" });
-    } catch (error) {
-      this.logError(ctx, "Failed to delete account", { error });
       return this.sendError(ctx, 500, "Failed to delete account");
     }
+
+    // Soft deletes write no tombstone (the row IS the record), so the audit
+    // log is the only durable answer to "who deleted this" — attributed to the
+    // CUSTOMER principal via its own FK, mirroring the hard path's admin entry.
+    await this.auditService.log({
+      action: AuditActions.ACCOUNT_DELETED,
+      resource: AuditResources.ACCOUNT,
+      resourceId: accountId,
+      customerUserId: principal.id,
+      accountId,
+      success: true,
+      details: { mode: "soft" },
+    });
+
+    this.logInfo(ctx, "Account soft-deleted", { accountId });
+
+    this.sendSuccess(ctx, { message: "Account deleted successfully" });
   }
 
   /**
@@ -570,12 +575,20 @@ class AccountRouteHandler extends BaseRouteHandler {
  */
 export const accountRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = fastify.container.resolve<PrismaClient>(TOKENS.PrismaClient);
+  const deleteAccountUseCase = fastify.container.resolve<DeleteAccountUseCase>(
+    TOKENS.DeleteAccountUseCase
+  );
   const hardDeleteAccountUseCase = fastify.container.resolve<HardDeleteAccountUseCase>(
     TOKENS.HardDeleteAccountUseCase
   );
   const auditService = fastify.container.resolve<AuditService>(TOKENS.AuditService);
 
-  const handler = new AccountRouteHandler(prisma, hardDeleteAccountUseCase, auditService);
+  const handler = new AccountRouteHandler(
+    prisma,
+    deleteAccountUseCase,
+    hardDeleteAccountUseCase,
+    auditService
+  );
 
   // Create account
   fastify.post(

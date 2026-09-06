@@ -17,7 +17,8 @@ import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { withSystemContext } from "../security/tenantContext.js";
 import { toAdminActorId } from "@core/domain/value-objects/AdminActorId.js";
-import type { HardDeleteProjectUseCase } from "@core/projects/index.js";
+import type { DeleteProjectUseCase, HardDeleteProjectUseCase } from "@core/projects/index.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { mapHardDeleteError } from "../lib/hardDeleteErrorMapping.js";
 import { AuditActions, AuditResources, type AuditService } from "../audit/auditService.js";
 
@@ -49,14 +50,16 @@ type _CreateProjectBody = z.infer<typeof CreateProjectBodySchema>;
 /**
  * Project Route Handler
  * Provides database-backed project management endpoints.
- * Receives PrismaClient and the admin-only hard-delete use case via constructor
- * injection from the route plugin.
+ * Receives PrismaClient, the customer-facing soft-delete use case and the
+ * admin-only hard-delete use case via constructor injection from the route
+ * plugin.
  */
 class ProjectRouteHandler extends BaseRouteHandler {
   protected routeName = "projects";
 
   constructor(
     private readonly prisma: PrismaClient,
+    private readonly deleteProjectUseCase: DeleteProjectUseCase,
     private readonly hardDeleteProjectUseCase: HardDeleteProjectUseCase,
     private readonly auditService: AuditService
   ) {
@@ -88,12 +91,14 @@ class ProjectRouteHandler extends BaseRouteHandler {
     const { name, locale } = validated.value.body;
 
     try {
-      // Verify account exists and get current project count
-      const account = await this.prisma.account.findUnique({
-        where: { id: accountId },
+      // Verify account exists and get current project count. Soft-deleted
+      // projects do NOT consume quota — they are invisible to every read, so
+      // counting them would strand the tenant below its own limit forever.
+      const account = await this.prisma.account.findFirst({
+        where: { id: accountId, deletedAt: null },
         include: {
           _count: {
-            select: { projects: true },
+            select: { projects: { where: { deletedAt: null } } },
           },
         },
       });
@@ -188,8 +193,8 @@ class ProjectRouteHandler extends BaseRouteHandler {
 
     try {
       // Verify account exists
-      const account = await this.prisma.account.findUnique({
-        where: { id: accountId },
+      const account = await this.prisma.account.findFirst({
+        where: { id: accountId, deletedAt: null },
       });
 
       if (!account) {
@@ -198,7 +203,7 @@ class ProjectRouteHandler extends BaseRouteHandler {
 
       // Get projects
       const projects = await this.prisma.project.findMany({
-        where: { accountId },
+        where: { accountId, deletedAt: null },
         orderBy: { createdAt: "desc" },
       });
 
@@ -231,8 +236,8 @@ class ProjectRouteHandler extends BaseRouteHandler {
     const { projectId } = validated.value.params;
 
     try {
-      const project = await this.prisma.project.findUnique({
-        where: { id: projectId },
+      const project = await this.prisma.project.findFirst({
+        where: { id: projectId, deletedAt: null },
       });
 
       if (!project) {
@@ -274,14 +279,16 @@ class ProjectRouteHandler extends BaseRouteHandler {
     const { projectId } = validated.value.params;
 
     try {
-      const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+      const project = await this.prisma.project.findFirst({
+        where: { id: projectId, deletedAt: null },
+      });
 
       if (!project) {
         return this.sendError(ctx, 404, "Project not found");
       }
 
       const publishLogs = await this.prisma.publishLog.findMany({
-        where: { post: { projectId } },
+        where: { post: { projectId, deletedAt: null } },
         orderBy: { createdAt: "desc" },
         take: 50,
       });
@@ -296,8 +303,13 @@ class ProjectRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Delete Project
+   * Delete Project (NORMAL path — reversible)
    * DELETE /projects/:projectId
+   *
+   * Soft-deletes: the row keeps its data and gains `deletedAt`, so the project
+   * disappears from every read while its posts, channels and publish history
+   * survive for audit. The irreversible variant is
+   * `DELETE /projects/:projectId/hard` and is admin-only.
    */
   async deleteProject(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -317,53 +329,85 @@ class ProjectRouteHandler extends BaseRouteHandler {
 
     const { projectId } = validated.value.params;
 
+    // Fail closed on the principal. `requireClientAuth` is the ONLY preHandler
+    // on this route, so `request.customerUser` is the sole source of the caller
+    // context the use case's ownership gate compares against; with no principal
+    // we do not know who is asking and we delete nothing.
+    const principal = request.customerUser;
+    if (!principal) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
     try {
-      // Verify project exists
-      const project = await this.prisma.project.findUnique({
-        where: { id: projectId },
+      // Guarded existence check. `Project` IS enrolled in the Prisma tenant
+      // guard, so under a customer request this read is scoped to the caller's
+      // own tenant — a foreign id answers null here and 404s exactly like a
+      // missing one (anti-enumeration). `deletedAt: null` keeps an already
+      // soft-deleted project on the 404 arm; `findFirst` because `deletedAt` is
+      // not part of any unique index.
+      const project = await this.prisma.project.findFirst({
+        where: { id: projectId, deletedAt: null },
       });
 
       if (!project) {
         return this.sendError(ctx, 404, "Project not found");
       }
-
-      // Explicit leaf-first deletes. Since the ON DELETE convention landed these
-      // are REDUNDANT — `Post.projectId` and `Channel.projectId` are ON DELETE
-      // CASCADE, and `PostContent.postId` / `PostMedia.postId` cascade from Post —
-      // so the final `project.delete` alone would remove all four. They are kept
-      // because they bound the work into named statements instead of one opaque
-      // server-side cascade, and because deleting them is a behaviour change this
-      // slice has no test for. What they are NOT any more is load-bearing.
-      await this.prisma.postContent.deleteMany({
-        where: { post: { projectId } },
-      });
-      await this.prisma.postMedia.deleteMany({
-        where: { post: { projectId } },
-      });
-
-      await this.prisma.post.deleteMany({
-        where: { projectId },
-      });
-
-      await this.prisma.channel.deleteMany({
-        where: { projectId },
-      });
-
-      // Deleting the project cascades to Post and Channel and everything under
-      // them; ContentTemplate, WebhookEvent, MediaAsset, Task and CustomReport
-      // survive with `projectId` nulled. Analytics survive too, detached from the
-      // posts that went with it.
-      await this.prisma.project.delete({
-        where: { id: projectId },
-      });
-
-      this.logInfo(ctx, "Project deleted successfully", { projectId });
-
-      this.sendSuccess(ctx, { message: "Project deleted successfully" });
     } catch (error) {
       this.logError(ctx, "Failed to delete project", { error });
       return this.sendError(ctx, 500, "Failed to delete project");
     }
+
+    // The use case owns the ownership gate (CWE-639, re-checked against the
+    // stored row below the guarded probe on purpose) and the transaction; this
+    // handler translates its typed error code to a status and writes the audit
+    // record. NOTHING destructive remains on this path: no leaf-first
+    // deleteMany, no `project.delete` — the repository's `delete` sets
+    // `deletedAt` and stops, so the project's posts and channels survive.
+    const result = await this.deleteProjectUseCase.execute({
+      projectId,
+      caller: { type: "customer", accountId: principal.accountId },
+    });
+
+    if (!result.ok) {
+      // NOT_FOUND covers "no such project", "already soft-deleted" and "not
+      // yours" — the use case deliberately makes them indistinguishable
+      // (anti-enumeration).
+      if (result.error.code === USE_CASE_ERRORS.NOT_FOUND) {
+        return this.sendError(ctx, 404, "Project not found");
+      }
+      if (result.error.code === USE_CASE_ERRORS.VALIDATION_FAILED) {
+        return this.sendError(ctx, 400, "Invalid project ID");
+      }
+      this.logError(ctx, "Failed to delete project", { error: result.error });
+      await this.auditService.log({
+        action: AuditActions.PROJECT_DELETED,
+        resource: AuditResources.PROJECT,
+        resourceId: projectId,
+        customerUserId: principal.id,
+        accountId: principal.accountId,
+        success: false,
+        error: result.error.message,
+        details: { mode: "soft" },
+      });
+      return this.sendError(ctx, 500, "Failed to delete project");
+    }
+
+    // Soft deletes write no tombstone (the row IS the record), so the audit
+    // log is the only durable answer to "who deleted this" — attributed to the
+    // CUSTOMER principal via its own FK, mirroring the hard path's admin entry.
+    await this.auditService.log({
+      action: AuditActions.PROJECT_DELETED,
+      resource: AuditResources.PROJECT,
+      resourceId: projectId,
+      customerUserId: principal.id,
+      accountId: principal.accountId,
+      success: true,
+      details: { mode: "soft" },
+    });
+
+    this.logInfo(ctx, "Project soft-deleted", { projectId });
+
+    this.sendSuccess(ctx, { message: "Project deleted successfully" });
   }
 
   /**
@@ -467,12 +511,20 @@ class ProjectRouteHandler extends BaseRouteHandler {
  */
 export const projectRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = fastify.container.resolve<PrismaClient>(TOKENS.PrismaClient);
+  const deleteProjectUseCase = fastify.container.resolve<DeleteProjectUseCase>(
+    TOKENS.DeleteProjectUseCase
+  );
   const hardDeleteProjectUseCase = fastify.container.resolve<HardDeleteProjectUseCase>(
     TOKENS.HardDeleteProjectUseCase
   );
   const auditService = fastify.container.resolve<AuditService>(TOKENS.AuditService);
 
-  const handler = new ProjectRouteHandler(prisma, hardDeleteProjectUseCase, auditService);
+  const handler = new ProjectRouteHandler(
+    prisma,
+    deleteProjectUseCase,
+    hardDeleteProjectUseCase,
+    auditService
+  );
 
   // Create project for account
   fastify.post(

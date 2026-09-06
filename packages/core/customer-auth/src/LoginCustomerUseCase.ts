@@ -11,6 +11,7 @@
 import { type Result, ok, err } from "@shared/types";
 import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
+import type { Account } from "@core/domain/entities/Account.js";
 import { AccountId } from "@core/domain/value-objects/EntityId.js";
 import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
 import {
@@ -25,6 +26,7 @@ import { sha256Hex } from "./challengeBinding.js";
 export type LoginCustomerError =
   | "INVALID_CREDENTIALS"
   | "USER_INACTIVE"
+  | "ACCOUNT_DEACTIVATED"
   | "MULTIPLE_ACCOUNTS"
   | "RATE_LIMITED"
   | "MFA_UNAVAILABLE"
@@ -181,6 +183,31 @@ export class LoginCustomerUseCase {
         return err("USER_INACTIVE");
       }
 
+      // Account liveness gate: a soft-deleted account's users must not log in
+      // (nor receive an MFA challenge). `accountRepo.findById` filters
+      // `deletedAt: null`, so a deleted account resolves as not-found here.
+      // Fail-closed: an unresolvable or malformed accountId also refuses —
+      // the gate admits only accounts it can PROVE live. Disclosed only after
+      // the password verified above, so this is no enumeration oracle; the
+      // failed attempt is recorded to mirror USER_INACTIVE.
+      const accountIdResult = AccountId.fromString(targetUser.accountId);
+      let liveAccount: Account | null = null;
+      if (accountIdResult.ok) {
+        const accountResult = await this.accountRepo.findById(accountIdResult.value);
+        if (accountResult.ok) {
+          liveAccount = accountResult.value;
+        }
+      }
+      if (liveAccount === null) {
+        await this.bruteForce.recordFailedAttempt({
+          identifier: input.email,
+          ip,
+          userAgent,
+          failureReason: "ACCOUNT_DEACTIVATED",
+        });
+        return err("ACCOUNT_DEACTIVATED");
+      }
+
       // Transparent rehash: if the stored hash uses parameters weaker than
       // the current canon (e.g. after a server-side cost bump), upgrade it
       // silently while we still have the plaintext on the stack. Failure
@@ -232,15 +259,8 @@ export class LoginCustomerUseCase {
         userAgent,
       });
 
-      // Fetch account for response
-      const accountIdResult = AccountId.fromString(targetUser.accountId);
-      let accountJson: Record<string, unknown> = { id: targetUser.accountId };
-      if (accountIdResult.ok) {
-        const accountResult = await this.accountRepo.findById(accountIdResult.value);
-        if (accountResult.ok) {
-          accountJson = accountResult.value.toJSON();
-        }
-      }
+      // Account for the response — the liveness gate above already fetched it.
+      const accountJson: Record<string, unknown> = liveAccount.toJSON();
 
       // Sign tokens
       const sessionId = randomBytes(16).toString("hex");

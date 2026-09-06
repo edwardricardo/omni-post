@@ -284,6 +284,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
       where: {
         provider: "TIKTOK",
         providerAccountId: userId as string,
+        deletedAt: null,
       },
       include: {
         project: {

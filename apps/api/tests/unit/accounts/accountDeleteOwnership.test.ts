@@ -242,7 +242,7 @@ describe("DELETE /accounts/:accountId — tenant ownership", () => {
     expect(foreign.body).toBe(missing.body);
   });
 
-  it("still lets a customer delete their own account", async () => {
+  it("still lets a customer delete their own account — softly: the row survives with deletedAt", async () => {
     const owner = await makeTenant("self");
 
     const response = await app.inject({
@@ -254,8 +254,21 @@ describe("DELETE /accounts/:accountId — tenant ownership", () => {
     expect(response.statusCode).toBe(200);
     expect(JSON.parse(response.body).ok).toBe(true);
 
-    const gone = await mockPrisma.prisma.account.findUnique({ where: { id: owner.accountId } });
-    expect(gone).toBe(null);
+    // Soft delete: the row is PRESENT and carries deletedAt. A vanished row is
+    // the hard-delete-by-default defect this slice removes from the customer
+    // path — the previous version of this test pinned that defect as the
+    // contract (`expect(gone).toBe(null)`).
+    const survivor = (await mockPrisma.prisma.account.findUnique({
+      where: { id: owner.accountId },
+    })) as { deletedAt?: Date | null } | null;
+    expect(survivor).not.toBe(null);
+    expect(survivor?.deletedAt).toBeInstanceOf(Date);
+
+    // And the tenant's project survives untouched — the cascade must not fire.
+    const childProject = stores.project.get(owner.projectId) as
+      { deletedAt?: Date | null } | undefined;
+    expect(childProject).toBeDefined();
+    expect(childProject?.deletedAt ?? null).toBe(null);
   });
 
   it("refuses with 401 and destroys nothing when no customer token is present", async () => {

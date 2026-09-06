@@ -62,8 +62,8 @@ export class SchedulingSlotRouteHandler extends BaseRouteHandler {
 
     try {
       // Verify project exists
-      const project = await this.prisma.project.findUnique({
-        where: { id: projectId },
+      const project = await this.prisma.project.findFirst({
+        where: { id: projectId, deletedAt: null },
       });
 
       if (!project) {
@@ -87,6 +87,7 @@ export class SchedulingSlotRouteHandler extends BaseRouteHandler {
       const scheduledPosts = await this.prisma.post.findMany({
         where: {
           projectId,
+          deletedAt: null,
           status: "SCHEDULED",
           scheduledAt: {
             gte: new Date(startDate),
@@ -157,8 +158,8 @@ export class SchedulingSlotRouteHandler extends BaseRouteHandler {
 
     try {
       // Verify project exists
-      const project = await this.prisma.project.findUnique({
-        where: { id: projectId },
+      const project = await this.prisma.project.findFirst({
+        where: { id: projectId, deletedAt: null },
       });
 
       if (!project) {
@@ -236,8 +237,8 @@ export class SchedulingSlotRouteHandler extends BaseRouteHandler {
 
     try {
       // Verify project exists
-      const project = await this.prisma.project.findUnique({
-        where: { id: projectId },
+      const project = await this.prisma.project.findFirst({
+        where: { id: projectId, deletedAt: null },
       });
 
       if (!project) {
@@ -318,8 +319,8 @@ export class SchedulingSlotRouteHandler extends BaseRouteHandler {
 
     try {
       // Verify project exists
-      const project = await this.prisma.project.findUnique({
-        where: { id: projectId },
+      const project = await this.prisma.project.findFirst({
+        where: { id: projectId, deletedAt: null },
       });
 
       if (!project) {
@@ -399,8 +400,8 @@ export class SchedulingSlotRouteHandler extends BaseRouteHandler {
 
     try {
       // Verify project exists
-      const project = await this.prisma.project.findUnique({
-        where: { id: projectId },
+      const project = await this.prisma.project.findFirst({
+        where: { id: projectId, deletedAt: null },
       });
 
       if (!project) {

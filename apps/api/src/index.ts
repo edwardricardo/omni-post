@@ -297,12 +297,17 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Register auto-cache middleware for automatic caching and invalidation
   // (autoCachePlugin handles both caching and cache-plugin functionality)
+  // Registered ahead of every route plugin so its `onRoute` collector observes
+  // the complete business surface — which is what makes `assertRuleCoverage`
+  // sound here and only here: this is the one place that mounts every route, so
+  // it is the one place that can tell a dead cache rule from an unmounted one.
   await typedApp.register(autoCachePlugin, {
     cache: cachePort,
     enableCaching: true,
     enableInvalidation: true,
     logCacheOps: env.LOG_CACHE_OPS ?? false,
     excludeRoutes: ["/health", "/metrics"],
+    assertRuleCoverage: true,
   });
 
   // Initialize cookie support. The plugin uses CommonJS-style export

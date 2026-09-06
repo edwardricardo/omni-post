@@ -15,6 +15,12 @@ import {
   getInvalidationTags,
   generateApiCacheKey,
 } from "../lib/cache/cacheConfig.js";
+import {
+  assertCacheRoutesCovered,
+  cacheRuleKeysByMap,
+  KNOWN_UNREGISTERED_CACHE_KEYS,
+  type RegisteredRoute,
+} from "../lib/cache/cacheRouteCoverage.js";
 import { createLogger } from "../lib/logger.js";
 
 const logger = createLogger("auto-cache-middleware");
@@ -49,6 +55,18 @@ export interface AutoCacheOptions {
    * Log cache operations
    */
   logCacheOps?: boolean;
+
+  /**
+   * Declares that this app mounts the COMPLETE route surface, which lets the
+   * boot-time guard also reject rule keys that match no route under any
+   * spelling. Only the composition root can make that claim; a partial test app
+   * legitimately mounts a handful of routes, and treating its absent routes as
+   * dead rules would be a false positive.
+   *
+   * The parameter-rename half of the guard runs regardless — it fires only when
+   * a colliding route proves the endpoint exists, so it is sound everywhere.
+   */
+  assertRuleCoverage?: boolean;
 }
 
 /**
@@ -63,7 +81,38 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
     enableInvalidation = true,
     excludeRoutes = [],
     logCacheOps = false,
+    assertRuleCoverage = false,
   } = options;
+
+  // Structural guard, wired BEFORE the cache check so it still runs when caching
+  // is unavailable: whether the rule keys describe real routes is a property of
+  // the configuration, not of Redis being up.
+  //
+  // `onRoute` sees every route registered AFTER this plugin. That is the whole
+  // business surface: the plugin is registered in `createApp` ahead of every
+  // route plugin, and it reads the same `routeOptions.url` spelling the
+  // invalidation hook looks rules up by — so the guard compares the exact
+  // strings that decide, at request time, whether a mutation invalidates
+  // anything at all.
+  const registeredRoutes: RegisteredRoute[] = [];
+
+  fastify.addHook("onRoute", (routeOptions) => {
+    const methods = Array.isArray(routeOptions.method)
+      ? routeOptions.method
+      : [routeOptions.method];
+    for (const method of methods) {
+      registeredRoutes.push({ method, url: routeOptions.url });
+    }
+  });
+
+  fastify.addHook("onReady", async () => {
+    assertCacheRoutesCovered({
+      registered: registeredRoutes,
+      keysByMap: cacheRuleKeysByMap(),
+      baseline: KNOWN_UNREGISTERED_CACHE_KEYS,
+      checkOrphans: assertRuleCoverage,
+    });
+  });
 
   const cache = options.cache ?? fastify.cache;
 

@@ -127,8 +127,20 @@ describe("Cache Configuration - Invalidation Rules", () => {
     expect(deleteTags).toStrictEqual(["templates"]);
   });
 
+  // Keyed to the REGISTERED spelling. This assertion used to read
+  // `DELETE:/projects/:id`, which no route produces, so it passed on a rule that
+  // never fired for a single request — the lookup is an exact Record hit on
+  // `request.routeOptions.url`. `cacheRouteCoverage.ts` now fails the boot on
+  // that mismatch instead of leaving it to a test that cannot see it.
   it("should invalidate projects and related data on project deletion", () => {
-    const tags = CACHE_INVALIDATION_RULES["DELETE:/projects/:id"];
+    const tags = CACHE_INVALIDATION_RULES["DELETE:/projects/:projectId"];
+    expect(tags.includes("projects")).toBeTruthy();
+    expect(tags.includes("posts")).toBeTruthy();
+    expect(tags.includes("dashboard")).toBeTruthy();
+  });
+
+  it("should invalidate the tenant surface on account deletion", () => {
+    const tags = CACHE_INVALIDATION_RULES["DELETE:/accounts/:accountId"];
     expect(tags.includes("projects")).toBeTruthy();
     expect(tags.includes("posts")).toBeTruthy();
     expect(tags.includes("dashboard")).toBeTruthy();
@@ -195,9 +207,13 @@ describe("Cache Configuration - getInvalidationTags", () => {
   });
 
   it("should return tags for DELETE operations", () => {
-    const tags = getInvalidationTags("DELETE", "/projects/:id");
+    const tags = getInvalidationTags("DELETE", "/projects/:projectId");
     expect(tags.length > 0).toBeTruthy();
     expect(tags.includes("projects")).toBeTruthy();
+  });
+
+  it("should return no tags for the pre-fix project spelling no route registers", () => {
+    expect(getInvalidationTags("DELETE", "/projects/:id")).toStrictEqual([]);
   });
 });
 

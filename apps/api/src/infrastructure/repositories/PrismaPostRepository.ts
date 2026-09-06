@@ -120,7 +120,8 @@ export class PrismaPostRepository implements PostRepository {
    * Es UoW-aware: si hay una transacción activa en el contexto, la usa directamente.
    */
   async hardDelete(id: PostId): Promise<Result<void, EntityNotFoundError>> {
-    // Use findFirst to detect even soft-deleted posts
+    // DELIBERATE soft-delete-sweep exception: the hard-delete probe must detect
+    // even soft-deleted posts.
     const post = await this.prisma.post.findFirst({
       where: { id: id.value },
       select: { id: true },
@@ -539,6 +540,8 @@ export class PrismaPostRepository implements PostRepository {
         "code" in error &&
         (error as { code?: string }).code === "P2025";
       if (isPrismaNotFound) {
+        // DELIBERATE soft-delete-sweep exception: version-conflict recovery must
+        // read the row even after a concurrent soft delete to report its version.
         const current = await tx.post.findUnique({
           where: { id: postId },
           select: { version: true },

@@ -220,6 +220,94 @@ describe("LoginCustomerUseCase", () => {
     });
   });
 
+  describe("account liveness gate — soft-deleted account", () => {
+    /**
+     * Mock-fidelity note: PrismaAccountRepository.findById is a
+     * `findFirst({ where: { id, deletedAt: null } })`, so a SOFT-DELETED account
+     * surfaces to the use case as err(EntityNotFoundError) — exactly what this
+     * mock returns. Deleting the account through the real path and calling
+     * findById produces this shape, byte-for-byte in Result terms.
+     */
+    function makeDeletedAccountRepo(): AccountRepositoryPort {
+      return {
+        findById: vi.fn(async () => err(new Error("Account with id X not found"))),
+        findByEmail: vi.fn(async () => null),
+        save: vi.fn(async () => ok(undefined)),
+      } as unknown as AccountRepositoryPort;
+    }
+
+    it("returns ACCOUNT_DEACTIVATED and mints nothing when the account is soft-deleted", async () => {
+      const user = makeUser();
+      const repo = makeUserRepo([user]);
+      const deletedAccountRepo = makeDeletedAccountRepo();
+      const useCase = new LoginCustomerUseCase(
+        repo,
+        deletedAccountRepo,
+        hasher,
+        tokenService,
+        bruteForce,
+        challengeStore
+      );
+
+      const result = await useCase.execute(INPUT_BASE);
+
+      assert.ok(!result.ok, "a soft-deleted account's user must not log in");
+      assert.strictEqual(result.error, "ACCOUNT_DEACTIVATED");
+      expect(tokenService.signAccessToken).not.toHaveBeenCalled();
+      expect(tokenService.signRefreshToken).not.toHaveBeenCalled();
+      expect(user.recordLogin).not.toHaveBeenCalled();
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(bruteForce.recordSuccessfulAttempt).not.toHaveBeenCalled();
+      expect(bruteForce.recordFailedAttempt).toHaveBeenCalledWith(
+        expect.objectContaining({ failureReason: "ACCOUNT_DEACTIVATED" })
+      );
+    });
+
+    it("issues NO MFA challenge for a user of a soft-deleted account", async () => {
+      const mfaUser = makeUser({ mfaEnabled: true });
+      const mfaRepo = makeUserRepo([mfaUser]);
+      const deletedAccountRepo = makeDeletedAccountRepo();
+      const useCase = new LoginCustomerUseCase(
+        mfaRepo,
+        deletedAccountRepo,
+        hasher,
+        tokenService,
+        bruteForce,
+        challengeStore
+      );
+
+      const result = await useCase.execute(INPUT_BASE);
+
+      assert.ok(!result.ok, "a deleted account must not receive an MFA challenge");
+      assert.strictEqual(result.error, "ACCOUNT_DEACTIVATED");
+      expect(challengeStore.issue).not.toHaveBeenCalled();
+      expect(tokenService.signMfaChallengeToken).not.toHaveBeenCalled();
+    });
+
+    it("does not reveal account state on a wrong password (no enumeration oracle)", async () => {
+      // Adjudicated ordering: the liveness verdict is disclosed only AFTER the
+      // caller has proven the credentials — an outsider probing a deleted
+      // account's email still sees the generic INVALID_CREDENTIALS.
+      const user = makeUser();
+      const repo = makeUserRepo([user]);
+      const deletedAccountRepo = makeDeletedAccountRepo();
+      const wrongPassHasher = makeHasher(false);
+      const useCase = new LoginCustomerUseCase(
+        repo,
+        deletedAccountRepo,
+        wrongPassHasher,
+        tokenService,
+        bruteForce,
+        challengeStore
+      );
+
+      const result = await useCase.execute(INPUT_BASE);
+
+      assert.ok(!result.ok);
+      assert.strictEqual(result.error, "INVALID_CREDENTIALS");
+    });
+  });
+
   describe("MFA-enabled customer — challenge branch (no session pre-MFA)", () => {
     it("returns a challenge (not tokens) when the user has MFA enabled", async () => {
       const mfaUser = makeUser({ mfaEnabled: true });

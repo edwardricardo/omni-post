@@ -178,6 +178,30 @@ describe("CompleteCustomerMfaLoginUseCase", () => {
     });
   });
 
+  describe("account liveness gate — soft-deleted account", () => {
+    it("returns ACCOUNT_DEACTIVATED, mints nothing, and does NOT burn the challenge when the account was soft-deleted between the two steps", async () => {
+      // Mock-fidelity note: PrismaAccountRepository.findById is a
+      // `findFirst({ where: { id, deletedAt: null } })`, so an account
+      // soft-deleted after step 1 issued the challenge surfaces here as
+      // err(EntityNotFoundError) — exactly what this mock returns.
+      accountRepo = {
+        findById: vi.fn(async () => err(new Error("Account not found"))),
+      } as unknown as AccountRepositoryPort;
+
+      const result = await build().execute(INPUT_BASE);
+
+      assert.ok(!result.ok, "a deleted account must not complete an MFA login");
+      assert.strictEqual(result.error, "ACCOUNT_DEACTIVATED");
+      expect(tokenService.signAccessToken).not.toHaveBeenCalled();
+      expect(tokenService.signRefreshToken).not.toHaveBeenCalled();
+      expect(userRepo.save).not.toHaveBeenCalled();
+      expect(bruteForce.recordSuccessfulAttempt).not.toHaveBeenCalled();
+      // Mirrors USER_INACTIVE: the block is an account-state verdict, not a
+      // legitimate attempt to spend the challenge.
+      expect(store.consume).not.toHaveBeenCalled();
+    });
+  });
+
   describe("single-use under concurrency", () => {
     it("mints exactly ONE session for two concurrent valid step-2 requests", async () => {
       // Shared store + shared instance; both requests verify then race on consume.

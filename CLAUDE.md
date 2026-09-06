@@ -302,7 +302,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only ratcheted check**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work; that baseline may fall and must never rise.) There are **38 checks, numbered #1-#37 and #39** — **#38 is RESERVED, not missing**: see its entry below. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **39 checks, numbered #1-#39**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -1193,13 +1193,144 @@ COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
 COUNT=${COUNT:-0}
 echo "$COUNT"   # expect 0
 
-# 38. RESERVED — soft-delete read coherence. Deliberately absent: the gate that
-# forbids reading a swept soft-deletable model without its `deletedAt` filter is
-# hard-zero over ~90 read sites, so it can only go green together with the read
-# sweep that fixes them. It ships in the same change as that sweep. The number is
-# held rather than reused, and the #1-#37,#39 gap is intentional: renumbering
-# twice churns every cross-reference (#39's prose below calls #38 "this gate's
-# tenant-guard twin"). Do NOT assign #38 to anything else.
+# 38. Soft-delete read coherence: no read of a swept soft-deletable model without
+# its deletedAt filter. Closes the CLASS behind B-READS: the delete went soft and
+# ~90 read sites kept returning rows the tenant had deleted — including
+# getProjectAccess, an access GATE — while every suite stayed green. Per-site
+# fixes drift back; this holds the class.
+# SCOPE, two lists, both fail-closed against drift:
+#   - SWEPT: the four models whose read surface the sweep covers
+#     (account, channel, post, project) — every read of them is checked.
+#   - UNSWEPT quarantine: six models that carry deletedAt (most with live
+#     soft-delete writers) whose read surface was never swept. A measured
+#     residual, not a pass — sweeping them is its own body of work (backlog:
+#     docs/reports/roadmap-detected-smells-backlog.md). The list may only
+#     SHRINK (floor 6, enforced): enrolling a model moves it to SWEPT in the
+#     same change that sweeps its reads.
+#   A deletedAt-bearing model in NEITHER list fails outright, so a NEW
+#   soft-deletable model cannot land unswept and unnoticed — the drift class
+#   that let DeletionRecord land unenrolled (#39 is this gate's tenant-guard
+#   twin), and a listed name whose column is gone fails too, so no stale slot
+#   can be inherited.
+# PASS RULES per hit: (a) `deletedAt` inside the call window (call line + 9
+# lines); findUnique/findUniqueOrThrow are ALWAYS flagged — their where takes
+# unique fields and the swept convention for live reads is findFirst; (b) the
+# greppable marker `DELIBERATE soft-delete-sweep exception` within 15 lines
+# above through 9 below — the sweep's convention for reads that MUST see
+# soft-deleted rows (restore, hard-delete probes/snapshots, impact counts,
+# version-conflict recovery, the publish worker's SOFT_DELETED classifier); (c)
+# a named file exception below. Lines carrying `typeof` are skipped
+# (type-position references, not executed queries).
+# packages/adapters/db-prisma is NOT excluded — it is RATCHETED. An earlier
+# form of this check excluded that directory outright, on the stated premise
+# that it held "dead unwired duplicates already flagged for deletion". That
+# premise is FALSE, and was measured false: `createPrismaRepoAdapter` is
+# imported by apps/api/src/index.ts, apps/api/src/health/healthRoutes.ts,
+# apps/workers/src/publishWorker.ts and apps/workers/src/mentionIngestWorker.ts,
+# and it constructs the Account / Project / Post / Channel / Thread
+# repositories in that package (UNUSED_CODE_INVENTORY.md marks only cached.ts
+# and its neighbours delete-recommended; it records the 7 repo factories as
+# CONSUMED). Their unfiltered reads are live — 12 at the original measurement,
+# 11 once the publish-worker liveness gate marked its deliberate read —
+# including ChannelRepository.ts `getChannelOwnerAccountId`, an OWNERSHIP read
+# of exactly the getProjectAccess shape that motivated this gate. So a blanket
+# exclusion was not a scope decision, it was live B-READS held invisible by a
+# false sentence. Sweeping them changes publish-worker and health-route
+# behaviour and needs its own tests, so it is owned as SMELL-87 rather than
+# done blind here; meanwhile the directory is SCANNED by the same detection and
+# its count held against DBPRISMA_BASELINE — it may fall and must never rise,
+# so a new unfiltered read there goes red today. RE-MEASURE the count in the
+# integration commit and set the baseline to that measured value (the two
+# concurrent B1 slices move it); delete the baseline together with the last
+# remaining read (or with the package).
+# FILE EXCEPTIONS — every entry audited-safe or owner-adjudicated, each with a
+# remove-when; the list may only shrink. Five entries LEFT the previous form of
+# this list: PrismaAccountRepository, PrismaProjectRepository and
+# PrismaChannelRepository now carry the greppable marker at their hard-delete
+# probe/tombstone/impact sites, and projectRoutes + accountRoutes were FIXED
+# outright once the partial-unique migration landed (their duplicate name/email
+# checks are findFirst + deletedAt: null now — the remove-when was satisfied).
+#   - PrismaPostRepository.ts + PrismaPostQueryRepository.ts: reads flow through
+#     in-file where-builders that seed `deletedAt: null` (audited: the
+#     status-filtered list/count `where` objects, `buildWhereClause`, and the
+#     account-scoped list builder) — the seed sits ABOVE the call, outside the
+#     detection window. The deliberate sites (hard-delete probe,
+#     version-conflict recovery) carry the greppable marker already.
+#     Remove-when: the builder reads sit within the window.
+#   - SchedulingPostHandlers.ts: whereClause seeded `deletedAt: null` at the
+#     builder top (fixed in this sweep), calls beyond the window (audited-safe).
+#   - CustomerAccountBillingService.ts + gatewaySwitchProcessor.ts +
+#     realtimeWebhookBroadcaster.ts + PrismaAccountBillingRepository.ts:
+#     FLAGGED deliberate-candidates — billing webhooks, gateway switches and
+#     realtime broadcasts may legitimately resolve a deleted row. Owner
+#     decision pending; each gets the filter or the marker when adjudicated.
+# RESIDUAL LIMITS, stated honestly (the #36 precedent):
+#   (1) a where built by a distant builder or variable is invisible — that
+#   limit IS the builder-file exceptions above, made explicit; (2) soft-delete
+#   does NOT cascade, and the grep only sees that `deletedAt` appears
+#   SOMEWHERE in the window, not at the right level — a leaf-only filter on a
+#   cross-account read still leaks a soft-deleted project's live children;
+#   (3) windows are line-based: a where past 9 lines, a marker past 15,
+#   spread/string-built objects — all invisible; (4) nested reads THROUGH a
+#   soft-deletable relation on a non-swept accessor
+#   (analytics.findMany({ where: { post: ... } })) are not matched at all;
+#   (5) a whole-file exception exempts FUTURE reads in that file — the price of
+#   not planting lying markers on safe sites; shrink the list; (6) the
+#   db-prisma stream is a COUNT, so a new violation there can be masked by
+#   fixing an older one in the same change — the standard ratchet tradeoff
+#   (#30's), accepted because the alternative on offer was a blanket exclusion
+#   that masked every live read permanently. The durable
+#   complement (backlog) is a dev/test-only Prisma $extends that throws on an
+#   unfiltered soft-deletable read — it closes (1)-(4) at runtime. Hard-zero.
+set -uo pipefail
+SCHEMA=infra/prisma/schema.prisma
+SWEPT="account channel post project"
+UNSWEPT="conversationNote customerUser mediaAsset postComment task template"
+DBPRISMA=packages/adapters/db-prisma
+DBPRISMA_BASELINE=11
+for d in apps/api/src apps/workers/src packages "$DBPRISMA"; do
+  [ -d "$d" ] || { echo "fitness #38 scope error: '$d' does not exist — the read scan would silently skip it. If $DBPRISMA was deleted, delete its ratchet here and in fitness.yml in the same change; a baseline naming an absent directory is a gate measuring nothing."; exit 1; }
+done
+ALL=$(awk '/^model /{m=$2} /^[[:space:]]+deletedAt[[:space:]]/{print tolower(substr(m,1,1)) substr(m,2)}' "$SCHEMA" | sort -u)
+[ -n "$ALL" ] || { echo "fitness #38 scope error: zero deletedAt-bearing models extracted from $SCHEMA — the column convention changed or the schema moved; the check would scan for nothing and pass, failing closed instead."; exit 1; }
+[ "$(echo $UNSWEPT | wc -w)" -le 6 ] || { echo "fitness #38 scope error: the UNSWEPT quarantine grew past its floor of 6 — it may only shrink. A new soft-deletable model is enrolled by sweeping its reads, not by quarantining it."; exit 1; }
+for m in $ALL; do
+  case " $SWEPT $UNSWEPT " in *" $m "*) ;; *)
+    echo "fitness #38 scope error: model '$m' carries deletedAt but is in neither the SWEPT set nor the UNSWEPT quarantine — sweep its reads and add it to SWEPT (or quarantine it with an owning backlog entry)."; exit 1;;
+  esac
+done
+for m in $SWEPT $UNSWEPT; do
+  printf '%s\n' "$ALL" | grep -qx "$m" || { echo "fitness #38 scope error: '$m' is listed but no longer carries deletedAt in $SCHEMA — delete the stale name so a future model cannot inherit its slot."; exit 1; }
+done
+MODELS=$(printf '%s|' $SWEPT); MODELS=${MODELS%|}
+EXCEPTIONS='/PrismaPostRepository\.ts:|/PrismaPostQueryRepository\.ts:|/SchedulingPostHandlers\.ts:|/CustomerAccountBillingService\.ts:|/gatewaySwitchProcessor\.ts:|/realtimeWebhookBroadcaster\.ts:|/PrismaAccountBillingRepository\.ts:'
+# ONE detection, two streams: the swept tree is hard-zero, db-prisma is the
+# same scan held against its baseline. Identical logic by construction — a
+# second copy would drift.
+scan_reads() {
+  grep -rnE "\.($MODELS)\.(findFirst|findFirstOrThrow|findMany|findUnique|findUniqueOrThrow|count|aggregate|groupBy)\b" \
+      "$@" --include="*.ts" | \
+    grep -vE "/node_modules/|/dist/|/tests/|\.test\.ts:" | \
+    grep -vE "$EXCEPTIONS" | grep -v "typeof " | \
+    while IFS= read -r hit; do
+      file=${hit%%:*}; rest=${hit#*:}; ln=${rest%%:*}
+      from=$((ln - 15)); [ "$from" -lt 1 ] && from=1
+      sed -n "${from},$((ln + 9))p" "$file" | grep -q "DELIBERATE soft-delete-sweep exception" && continue
+      if sed -n "${ln},$((ln + 9))p" "$file" | grep -q "deletedAt" && \
+         ! printf '%s' "$hit" | grep -qE "\.findUnique(OrThrow)?\b"; then
+        continue
+      fi
+      printf '%s\n' "$hit"
+    done
+}
+VIOLATIONS=$(scan_reads apps/api/src apps/workers/src packages | grep -vF "$DBPRISMA/") || true
+COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
+COUNT=${COUNT:-0}
+DBPRISMA_HITS=$(scan_reads "$DBPRISMA") || true
+DBCOUNT=$(printf "%s" "$DBPRISMA_HITS" | grep -c . || true)
+DBCOUNT=${DBCOUNT:-0}
+echo "$COUNT"   # expect 0
+echo "$DBCOUNT"  # ratchet — held at DBPRISMA_BASELINE above (SMELL-87); may fall, must never rise
 
 # 39. Every accountId-bearing Prisma model is tenant-guard-enrolled OR in the
 # documented cross-tenant denylist. The gate whose absence let DeletionRecord

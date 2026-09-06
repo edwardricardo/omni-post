@@ -457,6 +457,67 @@ describe("PublishHandler.handleJob", { sequential: true }, () => {
     assert.strictEqual(publishCalledOnX, false, "X provider should NOT be called");
   });
 
+  describe("deletion liveness gate — SOFT_DELETED chain", () => {
+    it("completes as a no-op (no publish, no publish_log, no failure) when the chain is soft-deleted", async () => {
+      deps.repo.getLogByDedupeKey = async () => ({ ok: true, value: null });
+      // The db-prisma adapter classifies a dead post -> project -> account chain
+      // as "SOFT_DELETED", distinct from "NOT_FOUND". Fidelity pinned in
+      // packages/adapters/db-prisma/tests/postRepositoryLiveness.test.ts.
+      deps.repo.getPostById = async () => ({ ok: false, error: "SOFT_DELETED" });
+
+      let publishCalled = false;
+      xProvider.publish = async () => {
+        publishCalled = true;
+        return { ok: true, value: createTestPublishReceipt() };
+      };
+      const logStatuses: string[] = [];
+      deps.repo.logPublish = async (input) => {
+        logStatuses.push(input.status);
+        return { ok: true, value: {} };
+      };
+
+      // Adjudicated semantics: a job for a deleted entity is NOT an error to
+      // retry — BullMQ retrying it would republish the content if the entity is
+      // restored after the fact. The job must RESOLVE (terminal no-op).
+      await handler.handleJob({
+        payload: { postId: POST_ID, channelId: CHANNEL_ID },
+      });
+
+      assert.strictEqual(
+        publishCalled,
+        false,
+        "provider.publish must never run for a deleted chain"
+      );
+      assert.deepStrictEqual(logStatuses, [], "no publish_log rows for a deleted chain");
+
+      const skipped = await deps.workerMetrics.metrics.jobsSkipped.get();
+      assert.strictEqual(skipped.values[0]?.value, 1, "the no-op counts as a skipped job");
+      const failed = await deps.workerMetrics.metrics.jobsFailed.get();
+      assert.strictEqual(failed.values[0]?.value ?? 0, 0, "a deleted chain is not a job failure");
+
+      const active = await deps.workerMetrics.metrics.jobsActive.get();
+      assert.strictEqual(active.values[0]?.value, 0, "the job must still finish cleanly");
+    });
+
+    it("still throws (BullMQ retry policy) for NOT_FOUND — the terminal no-op is deletion-specific", async () => {
+      deps.repo.getLogByDedupeKey = async () => ({ ok: true, value: null });
+      deps.repo.getPostById = async () => ({ ok: false, error: "NOT_FOUND" });
+
+      await assert.rejects(
+        handler.handleJob({
+          payload: { postId: POST_ID, channelId: CHANNEL_ID },
+        })
+      );
+
+      const skipped = await deps.workerMetrics.metrics.jobsSkipped.get();
+      assert.strictEqual(
+        skipped.values[0]?.value ?? 0,
+        0,
+        "NOT_FOUND must not be swallowed as a skip"
+      );
+    });
+  });
+
   it("should default to 'x' provider when no provider specified", async () => {
     deps.repo.getLogByDedupeKey = async () => ({
       ok: true,

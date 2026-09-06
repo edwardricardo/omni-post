@@ -116,7 +116,7 @@ export class PrismaRepurposeDetectionAdapter implements RepurposeDetectionPort {
     if (highPerformerIds.length === 0) return [];
 
     const posts = await this.prisma.post.findMany({
-      where: { id: { in: highPerformerIds } },
+      where: { id: { in: highPerformerIds }, deletedAt: null },
       select: {
         id: true,
         contents: { select: { body: true }, take: 1 },
@@ -201,7 +201,7 @@ export class PrismaRepurposeDetectionAdapter implements RepurposeDetectionPort {
   private async getAccountPostIds(accountId: string): Promise<string[]> {
     const posts = await this.prisma.post.findMany({
       where: {
-        project: { accountId },
+        project: { accountId, deletedAt: null },
         deletedAt: null,
       },
       select: { id: true },

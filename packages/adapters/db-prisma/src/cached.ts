@@ -371,7 +371,9 @@ export function createCachedRepositoryAdapter(
     },
 
     // Post management methods with caching
-    async getPostById(id: string): Promise<Result<CanonicalPost, "NOT_FOUND" | "DATABASE_ERROR">> {
+    async getPostById(
+      id: string
+    ): Promise<Result<CanonicalPost, "NOT_FOUND" | "SOFT_DELETED" | "DATABASE_ERROR">> {
       const cacheKey = generateKey("post", id);
       const cached = await getCached<CanonicalPost>(cacheKey);
 

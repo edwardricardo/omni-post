@@ -50,8 +50,9 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
       const sortField = sortBy ?? "scheduledAt";
       const sortDir = sortOrder ?? "asc";
 
-      // Build where clause with conditional filtering
-      const whereClause: Record<string, unknown> = {};
+      // Build where clause with conditional filtering.
+      // deletedAt: null so soft-deleted posts never surface in the scheduling view.
+      const whereClause: Record<string, unknown> = { deletedAt: null };
 
       // Filter by project if specified
       if (projectId) {
@@ -220,8 +221,8 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
 
     try {
       // Check if post exists and is scheduled
-      const post = await this.prisma.post.findUnique({
-        where: { id },
+      const post = await this.prisma.post.findFirst({
+        where: { id, deletedAt: null },
         include: {
           publishLogs: {
             where: {
@@ -316,8 +317,8 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
 
     try {
       // Check if post exists
-      const post = await this.prisma.post.findUnique({
-        where: { id },
+      const post = await this.prisma.post.findFirst({
+        where: { id, deletedAt: null },
         include: {
           publishLogs: {
             where: {

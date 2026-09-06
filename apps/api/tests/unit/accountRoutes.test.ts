@@ -599,6 +599,7 @@ describe("accountRoutes Unit Tests", () => {
     // only delete their own, so the id is pinned rather than whatever POST /accounts
     // happened to generate.
     const deleteAccountId = CUSTOMER_PRINCIPAL.accountId;
+    let childProjectId: string;
 
     beforeAll(async () => {
       await mockPrisma.prisma.account.create({
@@ -609,9 +610,19 @@ describe("accountRoutes Unit Tests", () => {
           maxProjects: 1,
         },
       });
+      // A child the delete must NOT destroy: the soft delete stops at the
+      // account row and leaves the tenant's data in place for audit/retention.
+      const child = stores.project.add({
+        accountId: deleteAccountId,
+        name: "Surviving child project",
+        deletedAt: null,
+      });
+      childProjectId = child.id as string;
     });
 
     it("should delete account successfully", async () => {
+      noopDeleteMany.mockClear();
+
       const response = await app.inject({
         method: "DELETE",
         url: `/accounts/${deleteAccountId}`,
@@ -622,6 +633,48 @@ describe("accountRoutes Unit Tests", () => {
       expect(response.statusCode).toBe(200);
       expect(body.ok).toBe(true);
       expect(body.data?.message).toBeTruthy();
+    });
+
+    it("soft-deletes: the account row survives with deletedAt set, asserted through the store", async () => {
+      // The row is PRESENT and carries deletedAt — a null here is the old
+      // hard-delete-by-default defect coming back.
+      const survivor = (await mockPrisma.prisma.account.findUnique({
+        where: { id: deleteAccountId },
+      })) as { deletedAt?: Date | null; email?: string } | null;
+
+      expect(survivor).not.toBe(null);
+      expect(survivor?.deletedAt).toBeInstanceOf(Date);
+      // The data survives too — retention is the point of the soft path.
+      expect(survivor?.email).toBe(`removal-${testEmail}`);
+    });
+
+    it("does NOT cascade: the account's project survives and no destructive statement was issued", async () => {
+      const child = stores.project.get(childProjectId) as { deletedAt?: Date | null } | undefined;
+      expect(child).toBeDefined();
+      expect(child?.deletedAt ?? null).toBe(null);
+      // The leaf-first deleteMany statements the old handler carried are gone.
+      expect(noopDeleteMany).not.toHaveBeenCalled();
+    });
+
+    it("writes an audit record naming the customer principal and the soft mode", async () => {
+      const entry = stores.auditLog.all().find((row) => row.resourceId === deleteAccountId) as
+        | {
+            customerUserId?: string;
+            userId?: string;
+            action?: string;
+            success?: boolean;
+            details?: unknown;
+          }
+        | undefined;
+
+      expect(entry).toBeTruthy();
+      expect(entry?.action).toBe("ACCOUNT_DELETED");
+      // A CUSTOMER deleted this — the customer FK carries the attribution and
+      // the admin FK stays empty (DB exclusive-arc CHECK).
+      expect(entry?.customerUserId).toBe(CUSTOMER_PRINCIPAL.id);
+      expect(entry?.userId ?? null).toBe(null);
+      expect(entry?.success).toBe(true);
+      expect((entry?.details as { mode?: string })?.mode).toBe("soft");
     });
 
     it("should verify account is deleted", async () => {

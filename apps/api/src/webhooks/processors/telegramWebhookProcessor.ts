@@ -328,8 +328,8 @@ export class TelegramWebhookProcessor extends AbstractWebhookProcessor {
       if (!channel) return {};
 
       // Fetch the project separately to get accountId
-      const project = await this.prisma.project.findUnique({
-        where: { id: channel.projectId },
+      const project = await this.prisma.project.findFirst({
+        where: { id: channel.projectId, deletedAt: null },
       });
 
       const result: {

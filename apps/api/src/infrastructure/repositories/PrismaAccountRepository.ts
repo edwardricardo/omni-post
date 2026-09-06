@@ -163,17 +163,36 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   }
 
   /**
+   * Resolve the client the CURRENT call must run on: the Unit of Work's
+   * transaction client when one is active in this async context, the injected
+   * base client otherwise. Without this, a statement issued inside
+   * `executeInTransaction` runs on a DIFFERENT connection than the transaction
+   * — outside its atomicity and outside the `app.account_id` GUC the UoW binds
+   * at tx start (RLS layer 2), while every caller reads as if it were inside.
+   */
+  private getClient(): PrismaClient | TxClient {
+    return PrismaUnitOfWork.getTransactionClient() ?? this.prisma;
+  }
+
+  /**
    * Soft-delete an account by marking deletedAt = now.
    * The account becomes invisible to all standard find queries.
    * Child data (projects, channels, posts) remains intact for audit purposes.
+   *
+   * The probe and the update deliberately resolve the client ONCE, together, so
+   * they land in the same transaction when a Unit of Work is active: the pair is
+   * a check-then-act, and split across two connections the check can be true
+   * when the act runs against a row someone else already changed.
    */
   async delete(id: AccountId): Promise<Result<void, EntityNotFoundError>> {
-    const exists = await this.exists(id);
+    const client = this.getClient();
+
+    const exists = await this.existsOn(id, client);
     if (!exists) {
       return err(new EntityNotFoundError("Account", id.value));
     }
 
-    await this.prisma.account.update({
+    await client.account.update({
       where: { id: id.value },
       data: { deletedAt: new Date() },
     });
@@ -216,6 +235,8 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
     // the delete. `findFirst` without `deletedAt` so an already soft-deleted
     // account is still reachable by the irreversible path.
     const doHardDelete = async (tx: TxClient): Promise<boolean> => {
+      // DELIBERATE soft-delete-sweep exception: the hard-delete probe/tombstone
+      // snapshot must reach an already soft-deleted account.
       const account = await tx.account.findFirst({
         where: { id: accountId },
         select: { id: true, name: true, createdAt: true },
@@ -224,8 +245,9 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
         return false;
       }
 
-      // Soft-deleted projects are included on purpose: the cascade destroys
-      // them too, so a tombstone owes them the same record.
+      // DELIBERATE soft-delete-sweep exception: soft-deleted projects are
+      // included on purpose — the cascade destroys them too, so a tombstone
+      // owes them the same record.
       const projects = await tx.project.findMany({
         where: { accountId },
         select: { id: true, name: true, createdAt: true },
@@ -341,6 +363,8 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   async countHardDeleteImpact(id: AccountId): Promise<HardDeleteImpact> {
     const accountId = id.value;
     const [posts, tasks, webhookEvents] = await Promise.all([
+      // DELIBERATE soft-delete-sweep exception: the impact estimate counts every
+      // row the cascade will destroy, soft-deleted ones included.
       this.prisma.post.count({ where: { project: { accountId } } }),
       this.prisma.task.count({ where: { accountId } }),
       this.prisma.webhookEvent.count({
@@ -356,10 +380,20 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   }
 
   /**
-   * Check whether an active (non-deleted) account with the given ID exists
+   * Check whether an active (non-deleted) account with the given ID exists.
+   * Joins the active Unit of Work transaction when one is open.
    */
   async exists(id: AccountId): Promise<boolean> {
-    const count = await this.prisma.account.count({
+    return this.existsOn(id, this.getClient());
+  }
+
+  /**
+   * The probe itself, against an explicit client. Private so the port signature
+   * stays free of infrastructure types: only `delete` needs to name the client,
+   * because only it must guarantee its probe and its write share one.
+   */
+  private async existsOn(id: AccountId, client: PrismaClient | TxClient): Promise<boolean> {
+    const count = await client.account.count({
       where: { id: id.value, deletedAt: null },
     });
     return count > 0;

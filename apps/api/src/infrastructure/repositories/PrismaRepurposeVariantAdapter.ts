@@ -51,7 +51,7 @@ export class PrismaRepurposeVariantAdapter implements RepurposeVariantPort {
   async getConnectedPlatforms(accountId: string): Promise<string[]> {
     const channels = await this.prisma.channel.findMany({
       where: {
-        project: { accountId },
+        project: { accountId, deletedAt: null },
         deletedAt: null,
       },
       select: { provider: true },

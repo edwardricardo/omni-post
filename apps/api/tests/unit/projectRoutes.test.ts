@@ -7,8 +7,38 @@
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 
+// The customer principal this file's mocked `requireClientAuth` binds. Hoisted so
+// the `vi.mock` factory below (which vitest lifts above every import) can read it.
+// The DELETE route now derives its caller context from `request.customerUser`, so
+// a middleware mock that authenticates NOBODY would turn every soft delete into a
+// 401 and prove nothing. `AUTH_STATE.principal` is mutable so one test can model
+// the fail-closed branch (middleware ran, no principal survived).
+//
+// The bound accountId is a fixed constant, deliberately NOT read from the request:
+// a double that echoed the path param back as the principal would make every
+// ownership check pass by construction.
+const { AUTH_STATE, CUSTOMER_PRINCIPAL } = vi.hoisted(() => {
+  const CUSTOMER_PRINCIPAL = {
+    id: "customer-user-42",
+    accountId: "c0000000-0000-4000-8000-000000000042",
+    roleId: "customer-role-owner",
+    roleName: "OWNER",
+    permissions: ["account:manage", "account:delete"] as readonly string[],
+  };
+  return {
+    CUSTOMER_PRINCIPAL,
+    AUTH_STATE: {
+      principal: CUSTOMER_PRINCIPAL as typeof CUSTOMER_PRINCIPAL | undefined,
+    },
+  };
+});
+
 vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
-  requireClientAuth: async () => {},
+  requireClientAuth: async (request: { customerUser?: unknown }) => {
+    if (AUTH_STATE.principal) {
+      request.customerUser = { ...AUTH_STATE.principal };
+    }
+  },
 }));
 
 // Admin surface for DELETE /projects/:projectId/hard is driven through the REAL
@@ -23,7 +53,7 @@ vi.mock("../../src/auth/rbacMiddleware.js", () => ({
   requirePermission: () => async () => {},
 }));
 
-import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";
 import type { FastifyInstance } from "fastify";
 
 // ---------------------------------------------------------------------------
@@ -80,21 +110,21 @@ const noopDeleteMany = vi.fn(async () => ({ count: 0 }));
 const prismaAny = mockPrisma.prisma as Record<string, unknown>;
 prismaAny.postContent = { deleteMany: noopDeleteMany };
 prismaAny.postMedia = { deleteMany: noopDeleteMany };
-// `post.count` backs the POST dimension of the hard-delete pre-flight size probe
-// (countHardDeleteImpact); 0 keeps every fixture well under the ceiling so the
-// guard never trips here.
-prismaAny.post = {
-  deleteMany: noopDeleteMany,
-  findMany: vi.fn(async () => []),
-  count: vi.fn(async () => 0),
-};
+// STORE-backed post and channel models, not bare stubs: the soft-delete suite
+// seeds real child rows and then asserts they SURVIVE the project delete — an
+// assertion a `count: async () => 0` stub could never carry. `post.count` also
+// backs the POST dimension of the hard-delete pre-flight size probe
+// (countHardDeleteImpact), which store-backed counting answers truthfully.
+const postStore = createStore();
+const channelStore = createStore();
+prismaAny.post = buildModelMock(postStore);
+prismaAny.channel = buildModelMock(channelStore);
 // `task.count` and `webhookEvent.count` back the CHILD dimension of that same probe.
 // They are not optional decoration: the probe reads both, and an accessor the mock
 // does not define throws inside the use case's try/catch, which returns 500 — so a
 // missing count here would turn every hard-delete route test into a 500 that looks
 // like an unrelated regression.
 prismaAny.task = { count: vi.fn(async () => 0) };
-prismaAny.channel = { deleteMany: noopDeleteMany };
 prismaAny.publishLog = { findMany: vi.fn(async () => []), deleteMany: noopDeleteMany };
 // The hard delete's own tombstone write (see PrismaProjectRepository.hardDelete):
 // a `DeletionRecord` row is inserted in the same transaction as the delete. It
@@ -197,9 +227,13 @@ describe("projectRoutes - Unit Tests", () => {
   beforeAll(async () => {
     app = await createTestApp();
 
-    // Create test account
+    // Create test account under the SAME id the mocked `requireClientAuth`
+    // binds as the principal's tenant: the soft-delete path is ownership-gated
+    // against `customerUser.accountId`, so a randomly-generated account id would
+    // make every DELETE in this file answer 404 for a reason it does not test.
     const testAccount = await prisma.account.create({
       data: {
+        id: CUSTOMER_PRINCIPAL.accountId,
         email: `test-project-${timestamp}@example.com`,
         name: "Test Account",
         subscription: "BASIC",
@@ -525,7 +559,7 @@ describe("projectRoutes - Unit Tests", () => {
   });
 
   describe("DELETE /projects/:projectId", () => {
-    it("should delete a project successfully", async () => {
+    it("soft-deletes: the row survives with deletedAt set, asserted through the store", async () => {
       // Create project to delete
       const projectToDelete = await prisma.project.create({
         data: {
@@ -546,11 +580,30 @@ describe("projectRoutes - Unit Tests", () => {
       expect(body.ok).toBe(true);
       expect(body.data?.message).toBeTruthy();
 
-      // Verify project is deleted
-      const deletedProject = await prisma.project.findUnique({
+      // The row is PRESENT and carries deletedAt — asserted through the store,
+      // not through a read path that might filter it. A null here is the old
+      // hard-delete-by-default defect coming back.
+      const survivor = (await prisma.project.findUnique({
         where: { id: projectToDelete.id },
+      })) as { deletedAt?: Date | null } | null;
+      expect(survivor).not.toBe(null);
+      expect(survivor?.deletedAt).toBeInstanceOf(Date);
+    });
+
+    it("answers the second delete of the same project with 404", async () => {
+      const doomed = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: `Twice Deleted ${Date.now()}`,
+          locale: "en",
+        },
       });
-      expect(deletedProject).toBe(null);
+
+      const first = await app.inject({ method: "DELETE", url: `/projects/${doomed.id}` });
+      expect(first.statusCode).toBe(200);
+
+      const second = await app.inject({ method: "DELETE", url: `/projects/${doomed.id}` });
+      expect(second.statusCode).toBe(404);
     });
 
     it("should return 404 for non-existent project", async () => {
@@ -596,29 +649,162 @@ describe("projectRoutes - Unit Tests", () => {
       expect(body.data?.message).toBe("Project deleted successfully");
     });
 
-    it("should handle cascade deletion properly", async () => {
-      // Create project with related data
+    it("does NOT cascade: the project's posts and channels survive the soft delete untouched", async () => {
       const projectWithData = await prisma.project.create({
         data: {
           accountId: createdAccountId,
-          name: `Cascade Test ${Date.now()}`,
+          name: `No Cascade ${Date.now()}`,
           locale: "en",
         },
       });
+      const post = postStore.add({
+        projectId: projectWithData.id,
+        title: "Surviving post",
+        deletedAt: null,
+      });
+      const channel = channelStore.add({
+        projectId: projectWithData.id,
+        name: "Surviving channel",
+        provider: "X",
+      });
 
-      // Delete project
+      const postDeleteMany = (prismaAny.post as { deleteMany: ReturnType<typeof vi.fn> })
+        .deleteMany;
+      const channelDeleteMany = (prismaAny.channel as { deleteMany: ReturnType<typeof vi.fn> })
+        .deleteMany;
+      postDeleteMany.mockClear();
+      channelDeleteMany.mockClear();
+      noopDeleteMany.mockClear();
+
       const response = await app.inject({
         method: "DELETE",
         url: `/projects/${projectWithData.id}`,
       });
-
       expect(response.statusCode).toBe(200);
 
-      // Verify project is deleted
-      const deletedProject = await prisma.project.findUnique({
-        where: { id: projectWithData.id },
+      // The children are still THERE, un-deleted — through the store, the same
+      // place Postgres would hold them. And no destructive statement was even
+      // issued: the leaf-first deleteMany calls the old handler carried are gone.
+      const survivingPost = postStore.get(post.id as string) as
+        { deletedAt?: Date | null } | undefined;
+      const survivingChannel = channelStore.get(channel.id as string);
+      expect(survivingPost).toBeDefined();
+      expect(survivingPost?.deletedAt ?? null).toBe(null);
+      expect(survivingChannel).toBeDefined();
+      expect(postDeleteMany).not.toHaveBeenCalled();
+      expect(channelDeleteMany).not.toHaveBeenCalled();
+      expect(noopDeleteMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses to delete a project of another tenant and leaves it live (404, anti-enumeration)", async () => {
+      const foreignAccount = await prisma.account.create({
+        data: {
+          email: `foreign-${Date.now()}@example.com`,
+          name: "Foreign Tenant",
+          maxProjects: 5,
+        },
       });
-      expect(deletedProject).toBe(null);
+      const foreignProject = await prisma.project.create({
+        data: {
+          accountId: foreignAccount.id,
+          name: `Foreign Project ${Date.now()}`,
+          locale: "en",
+        },
+      });
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/projects/${foreignProject.id}`,
+      });
+
+      // Same 404 a missing project gets — never a 403 that confirms existence.
+      expect(response.statusCode).toBe(404);
+      const survivor = (await prisma.project.findUnique({
+        where: { id: foreignProject.id },
+      })) as { deletedAt?: Date | null } | null;
+      expect(survivor).not.toBe(null);
+      expect(survivor?.deletedAt ?? null).toBe(null);
+    });
+
+    it("fails closed with 401 and deletes nothing when no principal survived authentication", async () => {
+      const survivorProject = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: `No Principal ${Date.now()}`,
+          locale: "en",
+        },
+      });
+
+      AUTH_STATE.principal = undefined;
+      try {
+        const response = await app.inject({
+          method: "DELETE",
+          url: `/projects/${survivorProject.id}`,
+        });
+        expect(response.statusCode).toBe(401);
+      } finally {
+        AUTH_STATE.principal = CUSTOMER_PRINCIPAL;
+      }
+
+      const survivor = (await prisma.project.findUnique({
+        where: { id: survivorProject.id },
+      })) as { deletedAt?: Date | null } | null;
+      expect(survivor).not.toBe(null);
+      expect(survivor?.deletedAt ?? null).toBe(null);
+    });
+
+    it("writes an audit record naming the customer principal and the soft mode", async () => {
+      const audited = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: `Audited Soft Delete ${Date.now()}`,
+          locale: "en",
+        },
+      });
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/projects/${audited.id}`,
+      });
+      expect(response.statusCode).toBe(200);
+
+      const entry = stores.auditLog.all().find((row) => row.resourceId === audited.id) as
+        | {
+            customerUserId?: string;
+            userId?: string;
+            action?: string;
+            success?: boolean;
+            details?: unknown;
+          }
+        | undefined;
+
+      expect(entry).toBeTruthy();
+      expect(entry?.action).toBe("PROJECT_DELETED");
+      // A CUSTOMER deleted this — the customer FK carries the attribution and
+      // the admin FK stays empty (DB exclusive-arc CHECK).
+      expect(entry?.customerUserId).toBe(CUSTOMER_PRINCIPAL.id);
+      expect(entry?.userId ?? null).toBe(null);
+      expect(entry?.success).toBe(true);
+      expect((entry?.details as { mode?: string })?.mode).toBe("soft");
+    });
+
+    it("no longer serves a soft-deleted project on GET (read sweep)", async () => {
+      const readSwept = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: `Read Swept ${Date.now()}`,
+          locale: "en",
+        },
+      });
+
+      const before = await app.inject({ method: "GET", url: `/projects/${readSwept.id}` });
+      expect(before.statusCode).toBe(200);
+
+      const del = await app.inject({ method: "DELETE", url: `/projects/${readSwept.id}` });
+      expect(del.statusCode).toBe(200);
+
+      const after = await app.inject({ method: "GET", url: `/projects/${readSwept.id}` });
+      expect(after.statusCode).toBe(404);
     });
   });
 

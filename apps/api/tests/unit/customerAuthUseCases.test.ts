@@ -239,16 +239,22 @@ describe("LoginCustomerUseCase", () => {
   });
 
   it("succeeds with valid credentials", async () => {
-    const user = makeExistingUser({ passwordHash: hashedPassword });
+    // Fixture fidelity: `accountId` is a UUID FK in the real schema, and the
+    // account-liveness gate fail-closes on an id it cannot resolve — the old
+    // "existing-acc-001" placeholder id is unrepresentable in Postgres and the
+    // former tolerant account fetch that let it pass WAS the defect (a deleted
+    // or unresolvable account still logged in).
+    const user = makeExistingUser({
+      passwordHash: hashedPassword,
+      accountId: "a1000000-0000-4000-8000-000000000001",
+    });
     customerUserRepo.findByEmailAcrossAccounts.mockResolvedValue([user]);
 
     const accountId = AccountId.fromString(user.accountId);
-    if (accountId.ok) {
-      const account = Account.create({ email: "co@co.com", name: "TestCo" });
-      if (account.ok) {
-        accountRepo.findById.mockResolvedValue(ok(account.value));
-      }
-    }
+    assert.ok(accountId.ok, "fixture accountId must be a valid UUID");
+    const account = Account.create({ email: "co@co.com", name: "TestCo" });
+    assert.ok(account.ok);
+    accountRepo.findById.mockResolvedValue(ok(account.value));
 
     const result = await useCase.execute({
       email: "existing@example.com",

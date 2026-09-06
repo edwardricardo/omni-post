@@ -510,4 +510,132 @@ describe("PrismaPostQueryRepository", () => {
       expect(findManyArgs?.take).toBe(100);
     });
   });
+
+  // ── listGlobal — project liveness (feed gate) ────────────────────────────────
+
+  describe("listGlobal — project liveness (feed gate)", () => {
+    const DELETED_PROJECT_ID = "b0000000-0000-4000-8000-00000000dead";
+    const FOREIGN_ACCOUNT_ID = "d0000000-0000-4000-8000-0000000000ff";
+
+    /**
+     * Rows as Postgres holds them: every post is LIVE (deletedAt: null); what
+     * varies is the parent project's state. `project` carries the columns the
+     * relation filter consults.
+     */
+    function feedRows() {
+      return [
+        {
+          ...baseRow(),
+          id: "c0000000-0000-4000-8000-0000000000a1",
+          project: { accountId: ACCOUNT_ID, deletedAt: null as Date | null },
+        },
+        {
+          ...baseRow(),
+          id: "c0000000-0000-4000-8000-0000000000a2",
+          projectId: DELETED_PROJECT_ID,
+          project: { accountId: ACCOUNT_ID, deletedAt: new Date("2026-09-02") as Date | null },
+        },
+        {
+          ...baseRow(),
+          id: "c0000000-0000-4000-8000-0000000000a3",
+          project: { accountId: FOREIGN_ACCOUNT_ID, deletedAt: null as Date | null },
+        },
+      ];
+    }
+    type FeedRow = ReturnType<typeof feedRows>[number];
+
+    /**
+     * Evaluates the where-shapes listGlobal builds with Postgres relation-filter
+     * semantics. Mock-fidelity rule: it THROWS on any key it does not model, so
+     * a new predicate can never silently pass through this evaluator — and it
+     * applies ONLY the predicates actually present in the where, so the RED
+     * state (no project.deletedAt predicate) honestly returns the deleted
+     * project's post.
+     */
+    function applyWhere(rows: FeedRow[], where: Record<string, unknown>): FeedRow[] {
+      return rows.filter((row) => {
+        for (const [key, value] of Object.entries(where)) {
+          if (key === "deletedAt") {
+            if (row.deletedAt !== value) return false;
+          } else if (key === "status") {
+            if (row.status !== value) return false;
+          } else if (key === "project") {
+            const projectWhere = value as Record<string, unknown>;
+            for (const [pKey, pValue] of Object.entries(projectWhere)) {
+              if (pKey === "accountId") {
+                if (row.project.accountId !== pValue) return false;
+              } else if (pKey === "deletedAt") {
+                if (row.project.deletedAt !== pValue) return false;
+              } else {
+                throw new Error(
+                  `applyWhere does not model project.${pKey} — extend it deliberately`
+                );
+              }
+            }
+          } else {
+            throw new Error(`applyWhere does not model where.${key} — extend it deliberately`);
+          }
+        }
+        return true;
+      });
+    }
+
+    function wireFilteringMock() {
+      const rows = feedRows();
+      prisma.post.findMany.mockImplementation(async (args?: unknown) =>
+        applyWhere(rows, (args as { where: Record<string, unknown> }).where)
+      );
+      prisma.post.count.mockImplementation(
+        async (args?: unknown) =>
+          applyWhere(rows, (args as { where: Record<string, unknown> }).where).length
+      );
+    }
+
+    it("evaluator fidelity: without a project.deletedAt predicate the deleted project's post IS returned", () => {
+      // Pins that the evaluator itself does no hidden filtering — which is what
+      // makes the gate test below honest: its failure mode is the missing
+      // predicate, never a lenient mock.
+      const visible = applyWhere(feedRows(), {
+        deletedAt: null,
+        project: { accountId: ACCOUNT_ID },
+      });
+      expect(visible.map((r) => r.projectId)).toContain(DELETED_PROJECT_ID);
+      expect(visible.length).toBe(2);
+    });
+
+    it("excludes a soft-deleted project's posts from the account-wide feed", async () => {
+      wireFilteringMock();
+
+      const result = await repo.listGlobal(accountId);
+
+      expect(result.items.length).toBe(1);
+      expect(result.items[0]?.projectId).toBe(PROJECT_ID);
+      expect(result.items.some((item) => item.projectId === DELETED_PROJECT_ID)).toBe(false);
+    });
+
+    it("keeps total/count consistent with the filtered page (same where on both queries)", async () => {
+      wireFilteringMock();
+
+      const result = await repo.listGlobal(accountId);
+
+      expect(result.total).toBe(1);
+      const findManyWhere = prisma.post.findMany.mock.calls[0]?.[0] as {
+        where: Record<string, unknown>;
+      };
+      const countWhere = prisma.post.count.mock.calls[0]?.[0] as {
+        where: Record<string, unknown>;
+      };
+      expect(countWhere.where).toEqual(findManyWhere.where);
+    });
+
+    it("still excludes foreign-account posts (tenant scope unchanged by the liveness predicate)", async () => {
+      wireFilteringMock();
+
+      const result = await repo.listGlobal(accountId);
+
+      expect(result.items.every((item) => item.id !== "c0000000-0000-4000-8000-0000000000a3")).toBe(
+        true
+      );
+    });
+  });
 });
