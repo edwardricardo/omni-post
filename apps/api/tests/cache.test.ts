@@ -109,7 +109,11 @@ describe("API Response Caching", { concurrency: 1 }, () => {
     });
 
     it("should have invalidation rules for project mutations", () => {
-      const tags = getInvalidationTags("DELETE", "/projects/:id");
+      // Keyed to the spelling projectRoutes.ts registers (`:projectId`, not
+      // `:id`): the runtime looks tags up by the registered route, so the old
+      // `/projects/:id` key this test used to assert matched nothing and
+      // invalidated nothing. cacheRouteCoverage pins key<->route at boot.
+      const tags = getInvalidationTags("DELETE", "/projects/:projectId");
       assert.ok(tags.includes("projects"), "Should include projects tag");
       assert.ok(tags.includes("posts"), "Should include posts tag");
       assert.ok(tags.includes("dashboard"), "Should include dashboard tag");
@@ -546,6 +550,11 @@ describe("Cache Configuration Completeness", () => {
   });
 
   it("should have invalidation rules for all mutation endpoints", () => {
+    // Project and account keys use the registered route spellings
+    // (`/accounts/:accountId/projects`, `/projects/:projectId`) — the flat
+    // `/projects/:id` forms this list used to assert matched no live route,
+    // so the rules they named never fired. There is no PUT project route, so
+    // no key claims one; the hard-delete path carries its own rule.
     const mutationEndpoints = [
       "POST:/posts",
       "PUT:/posts/:id",
@@ -553,9 +562,10 @@ describe("Cache Configuration Completeness", () => {
       "POST:/templates",
       "PUT:/templates/:id",
       "DELETE:/templates/:id",
-      "POST:/projects",
-      "PUT:/projects/:id",
-      "DELETE:/projects/:id",
+      "POST:/accounts/:accountId/projects",
+      "DELETE:/projects/:projectId",
+      "DELETE:/projects/:projectId/hard",
+      "DELETE:/accounts/:accountId",
     ];
 
     for (const endpoint of mutationEndpoints) {
