@@ -1,6 +1,7 @@
 /**
  * @file HardDeleteAccountUseCase.test.ts
- * @description Unit tests for HardDeleteAccountUseCase — proves the irreversible path reaches
+ * @description Unit tests for HardDeleteAccountUseCase — proves the irreversible path refuses a
+ *   LIVE account (erasure is the second of two deliberate acts, never the first), reaches
  *   `hardDelete` (never the soft `delete`) INSIDE a Unit of Work (the only thing that binds the
  *   tenant RLS GUC), refuses a tenant too large to remove atomically before any destructive work,
  *   carries the acting admin and the reason to the tombstone context, refuses a blank reason, and
@@ -40,26 +41,38 @@ const ADMIN = {
   reason: "GDPR erasure request",
 } as const;
 
-function makeRepo(): AccountRepositoryPort & {
+/** The spies every test in this suite reaches for, exposed on the returned port. */
+type RepoSpies = {
+  findById: ReturnType<typeof vi.fn>;
+  findByIdIncludingDeleted: ReturnType<typeof vi.fn>;
   delete: ReturnType<typeof vi.fn>;
   hardDelete: ReturnType<typeof vi.fn>;
   countHardDeleteImpact: ReturnType<typeof vi.fn>;
-} {
+};
+
+/**
+ * A repository double whose DEFAULT state is the only precondition a hard delete
+ * is allowed to run against: an account that is already SOFT-DELETED. So
+ * `findByIdIncludingDeleted` (the unfiltered reader) finds the row and `findById`
+ * (the sweep-filtered reader, which serves only `deletedAt IS NULL`) does not —
+ * a miss there IS the deleted state, because the domain Account carries no
+ * `deletedAt` of its own. A test that wants a live subject flips `findById` to a
+ * hit; one that wants a ghost flips both to a miss.
+ */
+function makeRepo(): AccountRepositoryPort & RepoSpies {
   const repo = {
-    findById: vi.fn(async () => ok({ id: { value: ACCOUNT_ID } })),
+    findById: vi.fn(async () => err(new EntityNotFoundError("Account", ACCOUNT_ID))),
+    findByIdIncludingDeleted: vi.fn(async () => ok({ id: { value: ACCOUNT_ID } })),
     findByEmail: vi.fn(async () => null),
     save: vi.fn(async () => ok(undefined)),
     delete: vi.fn(async () => ok(undefined)),
+    restore: vi.fn(async () => ok(undefined)),
     hardDelete: vi.fn(async () => ok(undefined)),
     countHardDeleteImpact: vi.fn(async () => ({ posts: 0, childRows: 0 })),
     exists: vi.fn(async () => true),
     findAll: vi.fn(async () => []),
   };
-  return repo as unknown as AccountRepositoryPort & {
-    delete: ReturnType<typeof vi.fn>;
-    hardDelete: ReturnType<typeof vi.fn>;
-    countHardDeleteImpact: ReturnType<typeof vi.fn>;
-  };
+  return repo as unknown as AccountRepositoryPort & RepoSpies;
 }
 
 /**
@@ -88,6 +101,73 @@ const NO_WAIT = {
 describe("HardDeleteAccountUseCase", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("refuses to erase a LIVE account: hard delete is the second of two deliberate acts", async () => {
+    // THE interlock. A live account reaches the destructive path in ONE call, so a
+    // single mistaken request — a wrong id pasted into an admin console — destroys
+    // a working tenant with no intermediate state anybody could have noticed. The
+    // soft delete is that intermediate state, and requiring it means erasure can
+    // only ever confirm a decision somebody already took and left visible.
+    const repo = makeRepo();
+    // A hit on the sweep-filtered reader IS liveness: `findById` serves only
+    // `deletedAt IS NULL`.
+    repo.findById.mockResolvedValue(ok({ id: { value: ACCOUNT_ID } }));
+    const uow = makeUow();
+
+    const result = await new HardDeleteAccountUseCase(repo, uow).execute({
+      accountId: ACCOUNT_ID,
+      caller: ADMIN,
+    });
+
+    assert.ok(!result.ok, "A live account must not be erasable in one act");
+    assert.strictEqual(result.error.code, USE_CASE_ERRORS.CONFLICT);
+    // CONFLICT, never NOT_FOUND: the admin has just proved this id exists, so the
+    // answer has to name the missing step instead of denying the account.
+    expect(result.error.message).toContain("requires a prior soft delete");
+    // Nothing ran: not the size probe, not the transaction, not the cascade. The
+    // interlock sits BEFORE the impact count so a refused erasure costs no reads
+    // beyond the two that decided it.
+    expect(repo.countHardDeleteImpact).not.toHaveBeenCalled();
+    expect(uow.executeInTransaction).not.toHaveBeenCalled();
+    expect(repo.hardDelete).not.toHaveBeenCalled();
+  });
+
+  it("proceeds once the account is already soft-deleted", async () => {
+    // The other side of the interlock: it gates the FIRST act, it does not block
+    // the second. A guard that refused both would make erasure unreachable.
+    const repo = makeRepo();
+
+    const result = await new HardDeleteAccountUseCase(repo, makeUow()).execute({
+      accountId: ACCOUNT_ID,
+      caller: ADMIN,
+    });
+
+    assert.ok(result.ok, "A soft-deleted account is erasable");
+    expect(repo.hardDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns NOT_FOUND when no row carries the id at all, without opening a transaction", async () => {
+    // Absent and live are answered DIFFERENTLY on purpose. An id nothing carries
+    // is NOT_FOUND (there is no missing first act to describe); a live row is
+    // CONFLICT. Collapsing them would either deny an account the admin can see or
+    // reveal which ids exist.
+    const repo = makeRepo();
+    repo.findByIdIncludingDeleted.mockResolvedValue(
+      err(new EntityNotFoundError("Account", ACCOUNT_ID))
+    );
+    const uow = makeUow();
+
+    const result = await new HardDeleteAccountUseCase(repo, uow).execute({
+      accountId: ACCOUNT_ID,
+      caller: ADMIN,
+    });
+
+    assert.ok(!result.ok);
+    assert.strictEqual(result.error.code, USE_CASE_ERRORS.NOT_FOUND);
+    expect(repo.countHardDeleteImpact).not.toHaveBeenCalled();
+    expect(uow.executeInTransaction).not.toHaveBeenCalled();
+    expect(repo.hardDelete).not.toHaveBeenCalled();
   });
 
   it("reaches the irreversible repository cascade and never the soft delete", async () => {

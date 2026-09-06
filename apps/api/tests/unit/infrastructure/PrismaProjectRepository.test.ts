@@ -221,16 +221,106 @@ describe("PrismaProjectRepository", () => {
     });
   });
 
+  describe("findByIdIncludingDeleted", () => {
+    it("returns a soft-deleted project that findById does not", async () => {
+      // The two readers are pointed at the SAME id and differ only in the sweep
+      // filter, so the double answers by inspecting the where clause: a query
+      // carrying `deletedAt: null` sees nothing, a query without it sees the row.
+      // Re-adding the filter to findByIdIncludingDeleted flips this to a
+      // not-found and reddens the test — which is the whole defect it guards.
+      const softDeletedRow = { ...baseRow(), deletedAt: new Date("2026-02-01") };
+      prisma.project.findFirst.mockImplementation(
+        async (args: { where: Record<string, unknown> }) =>
+          "deletedAt" in args.where && args.where.deletedAt === null ? null : softDeletedRow
+      );
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+
+      const hidden = await repo.findById(id);
+      const visible = await repo.findByIdIncludingDeleted(id);
+
+      expect(hidden.ok).toBeFalsy();
+      expect(visible.ok).toBeTruthy();
+      expect(visible.value.name).toBe("My Project");
+      expect(visible.value.accountId.value).toBe("a0000000-0000-4000-8000-000000000001");
+    });
+
+    it("returns err(EntityNotFoundError) when no row carries the id at all", async () => {
+      prisma.project.findFirst.mockImplementation(async () => null);
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+
+      const result = await repo.findByIdIncludingDeleted(id);
+
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Project/);
+    });
+  });
+
+  describe("restore", () => {
+    it("clears deletedAt when the project is soft-deleted", async () => {
+      prisma.project.findFirst.mockImplementation(async () => ({
+        ...baseRow(),
+        deletedAt: new Date("2026-02-01"),
+      }));
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+
+      const result = await repo.restore(id);
+
+      expect(result.ok).toBeTruthy();
+      const args = prisma.project.update.mock.calls[0]?.[0] as
+        { data: { deletedAt: unknown } } | undefined;
+      expect(args?.data.deletedAt).toBe(null);
+    });
+
+    it("returns err(EntityNotFoundError) and writes nothing for a LIVE project", async () => {
+      // The finder must target only rows that ARE soft-deleted. Dropping the
+      // `NOT: { deletedAt: null }` filter makes this row look restorable, the
+      // update fires on a live project, and this test goes red on both counts —
+      // that removal is exactly the defect being guarded.
+      prisma.project.findFirst.mockImplementation(
+        async (args: { where: Record<string, unknown> }) => ("NOT" in args.where ? null : baseRow())
+      );
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+
+      const result = await repo.restore(id);
+
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Project/);
+      expect(prisma.project.update.mock.calls.length).toBe(0);
+    });
+
+    it("returns err(EntityNotFoundError) when no row carries the id at all", async () => {
+      prisma.project.findFirst.mockImplementation(async () => null);
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+
+      const result = await repo.restore(id);
+
+      expect(result.ok).toBeFalsy();
+      expect(prisma.project.update.mock.calls.length).toBe(0);
+    });
+  });
+
   describe("hardDelete", () => {
     const CONTEXT = { deletedBy: actorId("admin-1"), reason: "GDPR erasure request" };
 
-    it("returns ok and calls delete when project exists (even if soft-deleted)", async () => {
+    it("returns ok and calls delete for an already soft-deleted project", async () => {
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
       const result = await repo.hardDelete(id, CONTEXT);
 
       expect(result.ok).toBeTruthy();
       // Hard delete: calls the actual DB delete
       expect(prisma.project.delete.mock.calls.length).toBe(1);
+    });
+
+    it("probes ONLY soft-deleted rows, so a live project is unreachable by the irreversible path", async () => {
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+      await repo.hardDelete(id, CONTEXT);
+
+      // The use case owns the two-act interlock, but this probe is the adapter's
+      // own fail-closed floor: a future caller that reaches `hardDelete` without
+      // going through it still cannot destroy a LIVE project, because the
+      // snapshot the delete depends on never resolves one.
+      const where = (prisma.project.findFirst.mock.calls[0]?.[0] as { where?: unknown })?.where;
+      expect(where).toEqual({ id: id.value, NOT: { deletedAt: null } });
     });
 
     it("runs the whole cascade inside a single transaction", async () => {

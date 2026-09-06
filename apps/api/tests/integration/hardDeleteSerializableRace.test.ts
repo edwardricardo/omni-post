@@ -140,7 +140,18 @@ describe("hard delete under a concurrent project insert (real DB, two connection
 
   beforeEach(async () => {
     const account = await prisma.account.create({
-      data: { email: `race-${randomUUID()}@omnipost.test`, name: "race fixture" },
+      data: {
+        email: `race-${randomUUID()}@omnipost.test`,
+        name: "race fixture",
+        // Erasure is the SECOND of two deliberate acts, so the subject arrives in
+        // the only state a hard delete runs against. Born live, both cases below
+        // would answer CONFLICT instead: the first would then take its
+        // aborted-delete branch and report green while proving nothing about the
+        // Serializable window it exists for, and the second would fail outright.
+        // The race itself is unchanged — the tombstone snapshot, the cascade and
+        // the row lock behave identically for a soft-deleted account.
+        deletedAt: new Date(),
+      },
     });
     accountId = account.id;
     await prisma.project.create({ data: { accountId, name: `pre-${randomUUID()}` } });

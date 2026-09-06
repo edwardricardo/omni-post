@@ -260,12 +260,40 @@ describe("Multi-Project Flow Tests", () => {
   describe("Project Name Uniqueness", () => {
     it("should enforce unique project names within an account", async (t) => {
       if (skipIfUnavailable(t)) return;
-      // First delete one project so we're within quota. Project3 belongs to the
+      // A soft delete does NOT free the slot: a deleted project still holds its
+      // quota claim, or deletion becomes a quota-farming move (delete, create,
+      // restore — a 1-slot plan ends up holding two). Project3 belongs to the
       // PRO account, so its owning token authorizes the tenant-scoped delete.
       const deleteResult = await apiCall("DELETE", `/projects/${project3Id}`, {}, proToken);
       assert.strictEqual(deleteResult.status, 200);
 
-      // Try to create duplicate name
+      // Still at quota: the deleted project holds its slot, and the 403 must
+      // SAY so — the list shows 2 live projects, the limit says 3 of 3, and
+      // without the explanatory fields the tenant cannot reconcile the two.
+      const stillBlocked = await apiCall(
+        "POST",
+        `/accounts/${proAccountId}/projects`,
+        { name: "Pro Project 1" },
+        proToken
+      );
+      assert.strictEqual(stillBlocked.status, 403);
+      assert.strictEqual(stillBlocked.data.details.error, "QUOTA_EXCEEDED");
+      assert.strictEqual(stillBlocked.data.details.used, 3);
+      assert.strictEqual(stillBlocked.data.details.limit, 3);
+      assert.strictEqual(stillBlocked.data.details.deletedHeld, 1);
+
+      // The slot is released by the second deliberate act: the owner purges the
+      // project it already soft-deleted (interlock satisfied), confirming by
+      // typing the project's name back.
+      const purgeResult = await apiCall(
+        "DELETE",
+        `/projects/${project3Id}/hard`,
+        { reason: "free the quota slot for the uniqueness check", confirmName: "Pro Project 3" },
+        proToken
+      );
+      assert.strictEqual(purgeResult.status, 200);
+
+      // With real headroom the create finally reaches the name check.
       const result = await apiCall(
         "POST",
         `/accounts/${proAccountId}/projects`,

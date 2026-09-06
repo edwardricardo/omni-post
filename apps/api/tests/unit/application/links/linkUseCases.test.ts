@@ -57,6 +57,10 @@ const makeProjectRepo = (found = true) => ({
   findById: vi.fn(async () =>
     found ? ok(makeProject()) : err(new EntityNotFoundError("Project", "missing"))
   ),
+  findByIdIncludingDeleted: vi.fn(async () =>
+    found ? ok(makeProject()) : err(new EntityNotFoundError("Project", "missing"))
+  ),
+  restore: vi.fn(async () => ok(undefined)),
 });
 
 describe("CreateTrackedLinkUseCase", () => {

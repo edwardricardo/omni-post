@@ -184,6 +184,7 @@ const { projectRoutes } = await import("../../src/projects/projectRoutes.js");
 const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
 const { prisma } = await import("@infra/prisma");
 const { TokenService } = await import("../../src/admin/auth/TokenService.js");
+const { signCustomerAccessToken } = await import("../../src/auth/customerJwt.js");
 
 // A genuine admin access token, signed with the same secret the real
 // `requireAdminAuth` verifies against. The hard-delete route must attribute the
@@ -196,6 +197,42 @@ const adminAccessToken = new TokenService().generateAccessToken({
   role: "SUPER_ADMIN",
 } as never);
 const adminAuthHeaders = { authorization: `Bearer ${adminAccessToken}` };
+
+// A genuine admin token for a STAFF role that does NOT hold `account:manage`.
+// SUPPORT is a real seeded role (see mockPrisma's role seed), which is what makes
+// this the honest shape of the threat: not a forged token, but a legitimate
+// lower-privilege employee reaching an endpoint that crosses every tenant.
+const SUPPORT_PRINCIPAL_ID = "admin-support-31";
+const supportAccessToken = new TokenService().generateAccessToken({
+  id: SUPPORT_PRINCIPAL_ID,
+  email: "support-one@omnipost.test",
+  name: "Support One",
+  role: "SUPPORT",
+} as never);
+const supportAuthHeaders = { authorization: `Bearer ${supportAccessToken}` };
+
+/**
+ * Mints a GENUINE customer access token for the composed admin-or-owner surfaces
+ * (`POST /projects/:projectId/restore`, the self-purge arm of the hard delete).
+ *
+ * Those routes run the REAL `requireCustomerOrAdminAuth`, not this file's
+ * `requireClientAuth` double, because which branch the handler takes IS the
+ * behaviour under test: a double that decided the branch would decide the answer
+ * with it. Signing a real token instead means the principal the handler gates on
+ * is the one the production verifier produced.
+ */
+function customerHeaders(
+  overrides: Partial<{ accountId: string; permissions: readonly string[] }> = {}
+): { authorization: string } {
+  const token = signCustomerAccessToken({
+    sub: CUSTOMER_PRINCIPAL.id,
+    accountId: overrides.accountId ?? CUSTOMER_PRINCIPAL.accountId,
+    roleId: CUSTOMER_PRINCIPAL.roleId,
+    roleName: CUSTOMER_PRINCIPAL.roleName,
+    permissions: overrides.permissions ?? CUSTOMER_PRINCIPAL.permissions,
+  });
+  return { authorization: `Bearer ${token}` };
+}
 
 // ---------------------------------------------------------------------------
 // Helper
@@ -368,6 +405,119 @@ describe("projectRoutes - Unit Tests", () => {
 
       // Cleanup
       await prisma.account.delete({ where: { id: quotaAccount.id } });
+    });
+
+    it("counts DELETED projects against the quota and explains which slots are held", async () => {
+      // The rule, and it is the opposite of what quota used to do: a deleted
+      // project still HOLDS its slot. Counting only live rows handed the slot back
+      // on delete, which — since the delete is soft and reversible — made deletion
+      // a quota-farming move: delete, create, restore, and a 2-slot tenant ends up
+      // holding 3.
+      const account = await prisma.account.create({
+        data: {
+          email: `quota-held-${Date.now()}@example.com`,
+          name: "Quota Held",
+          subscription: "BASIC",
+          maxProjects: 2,
+        },
+      });
+      await prisma.project.create({
+        data: { accountId: account.id, name: `Live One ${Date.now()}`, locale: "en" },
+      });
+      await prisma.project.create({
+        data: {
+          accountId: account.id,
+          name: `Deleted One ${Date.now()}`,
+          locale: "en",
+          deletedAt: new Date(),
+        },
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/accounts/${account.id}/projects`,
+        payload: { name: `Third Project ${Date.now()}`, locale: "en" },
+      });
+
+      expect(response.statusCode).toBe(403);
+
+      const body = JSON.parse(response.body);
+      expect(body.error).toBe("QUOTA_EXCEEDED");
+      // The refusal has to be actionable. The tenant's project LIST shows one
+      // project against a limit of two, so a bare "quota exceeded" is a number
+      // they cannot reconcile with anything on their screen; the body has to say
+      // that a deleted project is holding the missing slot and name both exits.
+      expect(body.details).toMatchObject({ used: 2, limit: 2, deletedHeld: 1 });
+      expect(String(body.details?.message)).toContain("restore");
+      expect(String(body.details?.message)).toContain("permanently delete");
+    });
+
+    it("still allows creation while the held slots — live and deleted — are under the limit", async () => {
+      // The other half: counting deleted rows must not strand a tenant below its
+      // own limit. One live project against a limit of two still leaves a slot.
+      const account = await prisma.account.create({
+        data: {
+          email: `quota-room-${Date.now()}@example.com`,
+          name: "Quota Room",
+          subscription: "BASIC",
+          maxProjects: 2,
+        },
+      });
+      await prisma.project.create({
+        data: { accountId: account.id, name: `Only Live ${Date.now()}`, locale: "en" },
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/accounts/${account.id}/projects`,
+        payload: { name: `Second Project ${Date.now()}`, locale: "en" },
+      });
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it("frees the slot again once the held project is permanently erased", async () => {
+      // The escape hatch the 403 message promises, exercised end to end so the
+      // message cannot become a lie: erasing the deleted project releases its
+      // slot and the create that was refused now succeeds.
+      const account = await prisma.account.create({
+        data: {
+          email: `quota-freed-${Date.now()}@example.com`,
+          name: "Quota Freed",
+          subscription: "BASIC",
+          maxProjects: 1,
+        },
+      });
+      const held = await prisma.project.create({
+        data: {
+          accountId: account.id,
+          name: `Held Slot ${Date.now()}`,
+          locale: "en",
+          deletedAt: new Date(),
+        },
+      });
+
+      const refused = await app.inject({
+        method: "POST",
+        url: `/accounts/${account.id}/projects`,
+        payload: { name: `Blocked ${Date.now()}`, locale: "en" },
+      });
+      expect(refused.statusCode).toBe(403);
+
+      const purge = await app.inject({
+        method: "DELETE",
+        url: `/projects/${held.id}/hard`,
+        headers: adminAuthHeaders,
+        payload: { reason: "Releasing the held quota slot" },
+      });
+      expect(purge.statusCode).toBe(200);
+
+      const allowed = await app.inject({
+        method: "POST",
+        url: `/accounts/${account.id}/projects`,
+        payload: { name: `Allowed ${Date.now()}`, locale: "en" },
+      });
+      expect(allowed.statusCode).toBe(200);
     });
 
     it("should validate project name format", async () => {
@@ -788,6 +938,61 @@ describe("projectRoutes - Unit Tests", () => {
       expect((entry?.details as { mode?: string })?.mode).toBe("soft");
     });
 
+    it("refuses a member without account:delete with 403 and the project stays live", async () => {
+      const survivor = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: `Member Cannot Delete ${Date.now()}`,
+          locale: "en",
+        },
+      });
+
+      // A real, broad member permission set — everything a MEMBER legitimately
+      // holds — minus the OWNER-only grant. A soft delete still shuts the project
+      // down for the whole tenant, so it stays an owner-grade action even though
+      // the row survives.
+      AUTH_STATE.principal = { ...CUSTOMER_PRINCIPAL, permissions: ["post:manage"] };
+      try {
+        const response = await app.inject({
+          method: "DELETE",
+          url: `/projects/${survivor.id}`,
+        });
+        expect(response.statusCode).toBe(403);
+      } finally {
+        AUTH_STATE.principal = CUSTOMER_PRINCIPAL;
+      }
+
+      const still = (await prisma.project.findUnique({ where: { id: survivor.id } })) as {
+        deletedAt?: Date | null;
+      } | null;
+      expect(still).not.toBe(null);
+      expect(still?.deletedAt ?? null).toBe(null);
+    });
+
+    it("still lets the owner holding account:delete delete the project", async () => {
+      // The other half of the gate above: it must refuse by CAPABILITY, not
+      // refuse everyone. A gate that denies the owner too is not a stricter gate,
+      // it is a broken endpoint.
+      const doomed = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: `Owner Can Delete ${Date.now()}`,
+          locale: "en",
+        },
+      });
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/projects/${doomed.id}`,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const survivor = (await prisma.project.findUnique({ where: { id: doomed.id } })) as {
+        deletedAt?: Date | null;
+      } | null;
+      expect(survivor?.deletedAt).toBeInstanceOf(Date);
+    });
+
     it("no longer serves a soft-deleted project on GET (read sweep)", async () => {
       const readSwept = await prisma.project.create({
         data: {
@@ -809,14 +1014,26 @@ describe("projectRoutes - Unit Tests", () => {
   });
 
   describe("DELETE /projects/:projectId/hard", () => {
-    it("destroys the project row, unlike the soft path", async () => {
-      const doomed = await prisma.project.create({
+    /**
+     * Seed a project in the ONLY state an erasure is admissible over: already
+     * soft-deleted. The interlock makes a prior soft delete part of the
+     * arrangement of every hard-delete test that expects to succeed — a live
+     * project now answers 409, and a suite that kept seeding one would be
+     * asserting the very defect the interlock closes.
+     */
+    async function seedErasableProject(name: string): Promise<{ id: string }> {
+      return prisma.project.create({
         data: {
           accountId: createdAccountId,
-          name: `Hard Delete ${Date.now()}`,
+          name: `${name} ${Date.now()}`,
           locale: "en",
+          deletedAt: new Date(),
         },
       });
+    }
+
+    it("destroys the project row, unlike the soft path", async () => {
+      const doomed = await seedErasableProject("Hard Delete");
 
       const response = await app.inject({
         method: "DELETE",
@@ -844,13 +1061,7 @@ describe("projectRoutes - Unit Tests", () => {
       ).deletionRecord.createMany;
       createMany.mock.calls.length = 0;
 
-      const doomed = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `Attributed Hard Delete ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const doomed = await seedErasableProject("Attributed Hard Delete");
 
       const response = await app.inject({
         method: "DELETE",
@@ -925,14 +1136,33 @@ describe("projectRoutes - Unit Tests", () => {
       expect(response.statusCode).toBe(404);
     });
 
-    it("writes an audit record naming the admin and the reason", async () => {
-      const doomed = await prisma.project.create({
+    it("refuses with 409 and destroys nothing when the project is still live", async () => {
+      // The two-act rule at the route: an erasure follows a soft delete, it does
+      // not replace it. Without the interlock this same request destroyed a live
+      // project outright, so the reversible step a mistaken erasure is caught by
+      // could be skipped entirely.
+      const live = await prisma.project.create({
         data: {
           accountId: createdAccountId,
-          name: `Audited Hard Delete ${Date.now()}`,
+          name: `Still Live ${Date.now()}`,
           locale: "en",
         },
       });
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/projects/${live.id}/hard`,
+        headers: adminAuthHeaders,
+        payload: { reason: "GDPR erasure request" },
+      });
+
+      expect(response.statusCode).toBe(409);
+      const survivor = await prisma.project.findUnique({ where: { id: live.id } });
+      expect(survivor).not.toBe(null);
+    });
+
+    it("writes an audit record naming the admin and the reason", async () => {
+      const doomed = await seedErasableProject("Audited Hard Delete");
 
       await app.inject({
         method: "DELETE",
@@ -952,6 +1182,367 @@ describe("projectRoutes - Unit Tests", () => {
         "Support escalation 4821"
       );
       expect((entry?.details as { mode?: string })?.mode).toBe("hard");
+    });
+  });
+
+  describe("POST /projects/:projectId/restore", () => {
+    /** A project in the only state a restore acts on: already soft-deleted. */
+    async function seedDeletedProject(
+      name: string,
+      accountId: string = createdAccountId
+    ): Promise<{ id: string; name: string }> {
+      const row = await prisma.project.create({
+        data: {
+          accountId,
+          name: `${name} ${Date.now()}`,
+          locale: "en",
+          deletedAt: new Date(),
+        },
+      });
+      return row as { id: string; name: string };
+    }
+
+    /** Reads `deletedAt` through the store, never through a read path that filters it. */
+    async function deletedAtOf(projectId: string): Promise<Date | null> {
+      const row = (await prisma.project.findUnique({ where: { id: projectId } })) as {
+        deletedAt?: Date | null;
+      } | null;
+      return row?.deletedAt ?? null;
+    }
+
+    it("clears deletedAt for the owning customer and the project is served again", async () => {
+      const deleted = await seedDeletedProject("Restorable");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/projects/${deleted.id}/restore`,
+        headers: customerHeaders(),
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body).data?.restored).toBe(true);
+      // The state change itself, not just the status code: a 200 over a row still
+      // carrying `deletedAt` would be a reversal that reversed nothing.
+      expect(await deletedAtOf(deleted.id)).toBe(null);
+
+      // And the project is back in the live population every ordinary read serves,
+      // which is the only reason a tenant asks for a restore at all.
+      const after = await app.inject({ method: "GET", url: `/projects/${deleted.id}` });
+      expect(after.statusCode).toBe(200);
+    });
+
+    it("answers 404 for another tenant's soft-deleted project, which stays deleted", async () => {
+      const foreignAccount = await prisma.account.create({
+        data: {
+          email: `restore-foreign-${Date.now()}@example.com`,
+          name: "Foreign Tenant",
+          maxProjects: 5,
+        },
+      });
+      const foreign = await seedDeletedProject("Foreign Restorable", foreignAccount.id);
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/projects/${foreign.id}/restore`,
+        headers: customerHeaders(),
+      });
+
+      // The same 404 a missing project gets — never a 403 that would confirm the
+      // id names a real project belonging to somebody else.
+      expect(response.statusCode).toBe(404);
+      expect(await deletedAtOf(foreign.id)).toBeInstanceOf(Date);
+    });
+
+    it("refuses a customer without account:delete with 403 and leaves the project deleted", async () => {
+      const deleted = await seedDeletedProject("Needs Owner Grant");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/projects/${deleted.id}/restore`,
+        // A real, broad member permission set — everything a MEMBER legitimately
+        // holds — minus the OWNER-only grant. Undoing a tenant-wide action is the
+        // same grade of authority as performing it, so a member who cannot delete
+        // the project must not be able to bring it back either.
+        headers: customerHeaders({ permissions: ["post:manage", "analytics:read"] }),
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect(await deletedAtOf(deleted.id)).toBeInstanceOf(Date);
+    });
+
+    it("refuses a SUPPORT admin lacking account:manage with 403 and leaves the project deleted", async () => {
+      // THE CROSS-TENANT HOLE. Authentication only proves the caller is staff;
+      // this endpoint reaches every tenant on the platform. With the capability
+      // check removed, this exact request — a genuine token for the lowest
+      // seeded staff role — restores another tenant's project and answers 200.
+      const deleted = await seedDeletedProject("Support Cannot Restore");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/projects/${deleted.id}/restore`,
+        headers: supportAuthHeaders,
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect(await deletedAtOf(deleted.id)).toBeInstanceOf(Date);
+    });
+
+    it("restores for an admin who does hold account:manage, so the gate is capability and not blanket denial", async () => {
+      const deleted = await seedDeletedProject("Support Escalated");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/projects/${deleted.id}/restore`,
+        headers: adminAuthHeaders,
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(await deletedAtOf(deleted.id)).toBe(null);
+    });
+
+    it("answers 409 naming the active project that already holds the name", async () => {
+      const contestedName = `Contested Name ${Date.now()}`;
+      // A soft delete does NOT confiscate a name — the unique is partial — so the
+      // account is free to reuse it while the old project sits deleted. Restoring
+      // the old one would then put two live projects on one name.
+      const deleted = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: contestedName,
+          locale: "en",
+          deletedAt: new Date(),
+        },
+      });
+      const holder = await prisma.project.create({
+        data: { accountId: createdAccountId, name: contestedName, locale: "en" },
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/projects/${deleted.id}/restore`,
+        headers: customerHeaders(),
+      });
+
+      expect(response.statusCode).toBe(409);
+      // The body has to NAME the blocker. Only a human can decide which of the two
+      // projects keeps the name, and they cannot decide it while being told only
+      // that something went wrong.
+      const body = JSON.parse(response.body);
+      expect(String(body.error)).toContain(holder.id);
+      // Refused means refused: the deleted row is untouched, so nothing half-happened.
+      expect(await deletedAtOf(deleted.id)).toBeInstanceOf(Date);
+    });
+
+    it("answers 401 and restores nothing when no token is presented", async () => {
+      const deleted = await seedDeletedProject("No Token Restore");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/projects/${deleted.id}/restore`,
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(await deletedAtOf(deleted.id)).toBeInstanceOf(Date);
+    });
+  });
+
+  describe("DELETE /projects/:projectId/hard — owner self-purge", () => {
+    /** A soft-deleted project owned by the bound customer principal's own account. */
+    async function seedOwnDeletedProject(name: string): Promise<{ id: string; name: string }> {
+      const row = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: `${name} ${Date.now()}`,
+          locale: "en",
+          deletedAt: new Date(),
+        },
+      });
+      return row as { id: string; name: string };
+    }
+
+    it("destroys the owner's own soft-deleted project when confirmName matches exactly", async () => {
+      const doomed = await seedOwnDeletedProject("Self Purge");
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/projects/${doomed.id}/hard`,
+        headers: customerHeaders(),
+        payload: { reason: "Tenant-initiated erasure", confirmName: doomed.name },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body).data?.deleted).toBe(true);
+      const gone = await prisma.project.findUnique({ where: { id: doomed.id } });
+      expect(gone).toBe(null);
+    });
+
+    it("attributes the self-purge to the CUSTOMER principal on the tombstone and the audit log", async () => {
+      const createMany = (
+        prisma as unknown as {
+          deletionRecord: { createMany: { mock: { calls: unknown[][] } } };
+        }
+      ).deletionRecord.createMany;
+      createMany.mock.calls.length = 0;
+
+      const doomed = await seedOwnDeletedProject("Attributed Self Purge");
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/projects/${doomed.id}/hard`,
+        headers: customerHeaders(),
+        payload: { reason: "Tenant-initiated erasure", confirmName: doomed.name },
+      });
+      expect(response.statusCode).toBe(200);
+
+      // The tombstone is the only durable record of a destruction, so it has to
+      // name who really did it. Attributing a tenant's own purge to an admin who
+      // never touched it would make that record describe something that did not
+      // happen.
+      const args = createMany.mock.calls[0]?.[0] as { data: Array<Record<string, unknown>> };
+      expect(args.data[0]?.deletedBy).toBe(CUSTOMER_PRINCIPAL.id);
+
+      const entry = stores.auditLog.all().find((row) => row.resourceId === doomed.id) as
+        { customerUserId?: string; userId?: string; details?: unknown } | undefined;
+      // The customer FK carries it and the admin FK stays empty — the DB models
+      // the two as an exclusive arc, so a row claiming both is not writable.
+      expect(entry?.customerUserId).toBe(CUSTOMER_PRINCIPAL.id);
+      expect(entry?.userId ?? null).toBe(null);
+      expect((entry?.details as { mode?: string })?.mode).toBe("hard");
+    });
+
+    it("refuses with 400 and destroys nothing when confirmName is not the project's name", async () => {
+      const survivor = await seedOwnDeletedProject("Wrong Confirmation");
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/projects/${survivor.id}/hard`,
+        headers: customerHeaders(),
+        payload: { reason: "Tenant-initiated erasure", confirmName: "Some other project" },
+      });
+
+      // A project id in a URL carries no evidence that the human meant THIS
+      // project. Typing the name back is that evidence, and without the comparison
+      // this same request erases whatever the id happened to name.
+      expect(response.statusCode).toBe(400);
+      const still = await prisma.project.findUnique({ where: { id: survivor.id } });
+      expect(still).not.toBe(null);
+    });
+
+    it("refuses with 400 and destroys nothing when confirmName is omitted entirely", async () => {
+      const survivor = await seedOwnDeletedProject("Missing Confirmation");
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/projects/${survivor.id}/hard`,
+        headers: customerHeaders(),
+        payload: { reason: "Tenant-initiated erasure" },
+      });
+
+      // An absent confirmation must not read as "nothing to confirm". The schema
+      // cannot require it (the admin arm legitimately omits it), so the customer
+      // branch does — and if it stopped, the field would be present in the code
+      // and absent in effect.
+      expect(response.statusCode).toBe(400);
+      const still = await prisma.project.findUnique({ where: { id: survivor.id } });
+      expect(still).not.toBe(null);
+
+      // The message must NAME the missing field. Without the route's own guard
+      // the request still fails 400 — the use case compares the project's name
+      // against `undefined` and refuses — but it refuses by telling the caller
+      // their project "is not named undefined", which describes the bug in our
+      // handler rather than the mistake in their request. The status alone
+      // therefore cannot tell the two apart, and this assertion is what makes the
+      // route-level guard's absence visible instead of silently absorbed.
+      expect(String(JSON.parse(response.body).error)).toContain("confirmName");
+    });
+
+    it("refuses a LIVE project with 409 even for its owner, and it survives", async () => {
+      const live = await prisma.project.create({
+        data: {
+          accountId: createdAccountId,
+          name: `Self Purge Live ${Date.now()}`,
+          locale: "en",
+        },
+      });
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/projects/${live.id}/hard`,
+        headers: customerHeaders(),
+        payload: { reason: "Tenant-initiated erasure", confirmName: live.name },
+      });
+
+      // The two-act rule is universal — the self-purge is not the one path where
+      // a single call still destroys a live project.
+      expect(response.statusCode).toBe(409);
+      expect(JSON.parse(response.body).error).toContain("requires a prior soft delete");
+      const survivor = await prisma.project.findUnique({ where: { id: live.id } });
+      expect(survivor).not.toBe(null);
+    });
+
+    it("answers 404 for another tenant's project even with the right confirmName", async () => {
+      const foreignAccount = await prisma.account.create({
+        data: {
+          email: `purge-foreign-${Date.now()}@example.com`,
+          name: "Foreign Tenant",
+          maxProjects: 5,
+        },
+      });
+      const foreign = await prisma.project.create({
+        data: {
+          accountId: foreignAccount.id,
+          name: `Foreign Purge ${Date.now()}`,
+          locale: "en",
+          deletedAt: new Date(),
+        },
+      });
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/projects/${foreign.id}/hard`,
+        headers: customerHeaders(),
+        payload: { reason: "Tenant-initiated erasure", confirmName: foreign.name },
+      });
+
+      // Ownership outranks the confirmation, and answers 404 rather than "wrong
+      // name" — otherwise the endpoint becomes an oracle for guessing another
+      // tenant's project names one request at a time.
+      expect(response.statusCode).toBe(404);
+      const survivor = await prisma.project.findUnique({ where: { id: foreign.id } });
+      expect(survivor).not.toBe(null);
+    });
+
+    it("refuses a customer without account:delete with 403 and destroys nothing", async () => {
+      const survivor = await seedOwnDeletedProject("Member Cannot Purge");
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/projects/${survivor.id}/hard`,
+        headers: customerHeaders({ permissions: ["post:manage", "analytics:read"] }),
+        payload: { reason: "Tenant-initiated erasure", confirmName: survivor.name },
+      });
+
+      expect(response.statusCode).toBe(403);
+      const still = await prisma.project.findUnique({ where: { id: survivor.id } });
+      expect(still).not.toBe(null);
+    });
+
+    it("refuses a SUPPORT admin lacking account:manage with 403 and destroys nothing", async () => {
+      const survivor = await seedOwnDeletedProject("Support Cannot Purge");
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/projects/${survivor.id}/hard`,
+        headers: supportAuthHeaders,
+        payload: { reason: "Support escalation 991" },
+      });
+
+      // The admin arm's capability gate moved out of the preHandler and into the
+      // handler when this route began accepting customer tokens. Losing it there
+      // would let any staff role erase any tenant's project.
+      expect(response.statusCode).toBe(403);
+      const still = await prisma.project.findUnique({ where: { id: survivor.id } });
+      expect(still).not.toBe(null);
     });
   });
 

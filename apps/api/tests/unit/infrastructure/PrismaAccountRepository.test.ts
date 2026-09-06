@@ -248,6 +248,86 @@ describe("PrismaAccountRepository", () => {
     });
   });
 
+  describe("findByIdIncludingDeleted", () => {
+    it("returns a soft-deleted account that findById does not", async () => {
+      // The two readers are pointed at the SAME id and differ only in the sweep
+      // filter, so the double answers by inspecting the where clause: a query
+      // carrying `deletedAt: null` sees nothing, a query without it sees the row.
+      // Re-adding the filter to findByIdIncludingDeleted flips this to a
+      // not-found and reddens the test — which is the whole defect it guards.
+      const softDeletedRow = { ...baseRow(), deletedAt: new Date("2026-02-01") };
+      prisma.account.findFirst.mockImplementation(
+        async (args: { where: Record<string, unknown> }) =>
+          "deletedAt" in args.where && args.where.deletedAt === null ? null : softDeletedRow
+      );
+      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
+
+      const hidden = await repo.findById(id);
+      const visible = await repo.findByIdIncludingDeleted(id);
+
+      expect(hidden.ok).toBeFalsy();
+      expect(visible.ok).toBeTruthy();
+      // The stored e-mail is what the restore path must weigh against the live
+      // population, so the mapping has to survive the unfiltered read intact.
+      expect(visible.value.email).toBe("alice@example.com");
+      expect(visible.value.name).toBe("Alice");
+    });
+
+    it("returns err(EntityNotFoundError) when no row carries the id at all", async () => {
+      prisma.account.findFirst.mockImplementation(async () => null);
+      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
+
+      const result = await repo.findByIdIncludingDeleted(id);
+
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Account/);
+    });
+  });
+
+  describe("restore", () => {
+    it("clears deletedAt when the account is soft-deleted", async () => {
+      prisma.account.findFirst.mockImplementation(async () => ({
+        ...baseRow(),
+        deletedAt: new Date("2026-02-01"),
+      }));
+      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
+
+      const result = await repo.restore(id);
+
+      expect(result.ok).toBeTruthy();
+      const args = prisma.account.update.mock.calls[0]?.[0] as
+        { data: { deletedAt: unknown } } | undefined;
+      expect(args?.data.deletedAt).toBe(null);
+    });
+
+    it("returns err(EntityNotFoundError) and writes nothing for a LIVE account", async () => {
+      // The finder must target only rows that ARE soft-deleted. Dropping the
+      // `NOT: { deletedAt: null }` filter makes this row look restorable, the
+      // update fires on a live account, and this test goes red on both counts —
+      // that removal is exactly the defect being guarded.
+      prisma.account.findFirst.mockImplementation(
+        async (args: { where: Record<string, unknown> }) => ("NOT" in args.where ? null : baseRow())
+      );
+      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
+
+      const result = await repo.restore(id);
+
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Account/);
+      expect(prisma.account.update.mock.calls.length).toBe(0);
+    });
+
+    it("returns err(EntityNotFoundError) when no row carries the id at all", async () => {
+      prisma.account.findFirst.mockImplementation(async () => null);
+      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
+
+      const result = await repo.restore(id);
+
+      expect(result.ok).toBeFalsy();
+      expect(prisma.account.update.mock.calls.length).toBe(0);
+    });
+  });
+
   describe("hardDelete", () => {
     const CONTEXT = { deletedBy: actorId("admin-1"), reason: "GDPR erasure request" };
     const PROJECT_ROWS = [
@@ -263,13 +343,47 @@ describe("PrismaAccountRepository", () => {
       },
     ];
 
-    it("returns ok and calls delete when account exists (even if soft-deleted)", async () => {
+    it("returns ok and destroys the row when the account is ALREADY soft-deleted", async () => {
+      // The only precondition erasure runs against. The probe has to keep reaching
+      // a row the sweep hides — re-adding `deletedAt: null` to it would make every
+      // erasure a not-found, which is the opposite defect from the one below.
+      let capturedWhere: Record<string, unknown> | undefined;
+      prisma.account.findFirst.mockImplementation(
+        async (args: { where: Record<string, unknown> }) => {
+          capturedWhere = args.where;
+          return { ...baseRow(), deletedAt: new Date("2026-02-01") };
+        }
+      );
       const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
       const result = await repo.hardDelete(id, CONTEXT);
 
       expect(result.ok).toBeTruthy();
       // Hard delete: calls the actual DB delete
       expect(prisma.account.delete.mock.calls.length).toBe(1);
+      // The probe selects soft-deleted rows and ONLY those. Widening it back to
+      // "any row with this id" is the defect the next test catches; asserting the
+      // predicate here says which shape is the intended one.
+      expect(capturedWhere?.NOT).toEqual({ deletedAt: null });
+    });
+
+    it("returns err(EntityNotFoundError) and destroys nothing for a LIVE account", async () => {
+      // Defence in depth for the use case's two-act interlock, at the layer that
+      // actually issues the DELETE. The double answers by the where clause, so it
+      // models a LIVE row: the narrowed probe (carrying `NOT`) misses it, a widened
+      // one finds it. Drop the `NOT` and this row looks erasable — the tombstones
+      // are written, the delete fires on a working tenant, and this test goes red
+      // on all three counts. That widening is exactly the defect being guarded.
+      prisma.account.findFirst.mockImplementation(
+        async (args: { where: Record<string, unknown> }) => ("NOT" in args.where ? null : baseRow())
+      );
+      const id = AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001");
+
+      const result = await repo.hardDelete(id, CONTEXT);
+
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/Account/);
+      expect(prisma.account.delete.mock.calls.length).toBe(0);
+      expect(prisma.deletionRecord.createMany.mock.calls.length).toBe(0);
     });
 
     it("runs the whole cascade inside a single transaction", async () => {

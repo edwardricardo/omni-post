@@ -34,9 +34,15 @@ function makeRepo(
         ? err(new EntityNotFoundError("Project", PROJECT_ID))
         : ok({ accountId: { value: ownerAccountId } })
     ),
+    findByIdIncludingDeleted: vi.fn(async () =>
+      ownerAccountId === null
+        ? err(new EntityNotFoundError("Project", PROJECT_ID))
+        : ok({ accountId: { value: ownerAccountId } })
+    ),
     findByAccountId: vi.fn(async () => []),
     save: vi.fn(async () => ok(undefined)),
     delete: vi.fn(async () => ok(undefined)),
+    restore: vi.fn(async () => ok(undefined)),
     hardDelete: vi.fn(async () => ok(undefined)),
     countHardDeleteImpact: vi.fn(async () => ({ posts: 0, childRows: 0 })),
     exists: vi.fn(async () => true),

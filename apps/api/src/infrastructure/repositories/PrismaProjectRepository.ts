@@ -122,6 +122,30 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
+   * Find a project by its ID INCLUDING soft-deleted rows.
+   *
+   * DELIBERATE soft-delete-sweep exception: no `deletedAt: null` filter, because
+   * the restore path's subject is by definition a soft-deleted row and
+   * {@link findById} exists to hide exactly that row. Reserved for restore; every
+   * other read here keeps the sweep.
+   */
+  async findByIdIncludingDeleted(id: ProjectId): Promise<Result<Project, EntityNotFoundError>> {
+    const row = await this.getClient().project.findFirst({
+      where: { id: id.value },
+      include: {
+        channels: { select: { id: true } },
+        posts: { select: { id: true } },
+      },
+    });
+
+    if (!row) {
+      return err(new EntityNotFoundError("Project", id.value));
+    }
+
+    return ok(toDomain(row));
+  }
+
+  /**
    * Find all projects belonging to an account (excludes soft-deleted projects)
    */
   async findByAccountId(accountId: AccountId): Promise<Project[]> {
@@ -216,7 +240,47 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Hard-delete a project. SUPER_ADMIN only — irreversible.
+   * Restore a soft-deleted project by clearing `deletedAt`, reversing the soft
+   * delete so standard reads return it again.
+   *
+   * DELIBERATE soft-delete-sweep exception: the finder targets a row that IS
+   * currently soft-deleted (`NOT: { deletedAt: null }`), so it cannot carry the
+   * sweep's `deletedAt: null` — that filter would select the exact rows this
+   * method must refuse. A row that is absent (never existed / hard-deleted) or
+   * already live is not restorable and yields EntityNotFoundError, so "restore a
+   * live row" is indistinguishable from "restore a row that does not exist"
+   * (anti-enumeration). Under a customer tenant context the tenant guard
+   * additionally injects `accountId`, so a foreign tenant's row is invisible here
+   * as well (defense in depth over the use-case ownership gate).
+   *
+   * Probe and update resolve the client ONCE, together, for the same reason
+   * {@link delete} does: the pair is a check-then-act, and split across two
+   * connections the check can be true while the act lands on a row someone else
+   * already changed.
+   */
+  async restore(id: ProjectId): Promise<Result<void, EntityNotFoundError>> {
+    const client = this.getClient();
+
+    const softDeleted = await client.project.findFirst({
+      where: { id: id.value, NOT: { deletedAt: null } },
+      select: { id: true },
+    });
+    if (!softDeleted) {
+      return err(new EntityNotFoundError("Project", id.value));
+    }
+
+    await client.project.update({
+      where: { id: id.value },
+      data: { deletedAt: null },
+    });
+    return ok(undefined);
+  }
+
+  /**
+   * Hard-delete a project — irreversible. Reachable by an admin and by the
+   * owning tenant's own self-purge; the authorization split lives in
+   * `HardDeleteProjectUseCase`, which gates the customer arm against the
+   * project's stored account.
    *
    * The delete order lives in the schema, not here. Every owned child —
    * posts with their content, media, threads, versions, comments and
@@ -242,13 +306,21 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   ): Promise<Result<void, EntityNotFoundError>> {
     // The existence probe lives INSIDE the transaction and doubles as the
     // tombstone snapshot: one read that cannot go stale between the check and
-    // the delete. `findFirst` without `deletedAt` so an already soft-deleted
-    // project is still reachable by the irreversible path.
+    // the delete. It resolves an already soft-deleted project — and ONLY one:
+    // `NOT: { deletedAt: null }` is the inverse of the ordinary sweep, so a LIVE
+    // project has no snapshot and therefore no delete. The two-act rule (erase
+    // only what was deliberately soft-deleted first) is decided in
+    // `HardDeleteProjectUseCase`, where the refusal can be worded for the caller;
+    // this narrowing is the adapter's own fail-closed floor, so a future caller
+    // that reaches the irreversible path without that use case still cannot
+    // destroy a live row.
     const doHardDelete = async (tx: TxClient): Promise<boolean> => {
       // DELIBERATE soft-delete-sweep exception: the hard-delete probe/tombstone
-      // snapshot must reach an already soft-deleted project.
+      // snapshot targets a row that IS soft-deleted, so it cannot carry the
+      // sweep's `deletedAt: null` — that filter selects the exact rows this
+      // method must refuse.
       const snapshot = await tx.project.findFirst({
-        where: { id: id.value },
+        where: { id: id.value, NOT: { deletedAt: null } },
         select: { id: true, accountId: true, name: true, createdAt: true },
       });
       if (!snapshot) {

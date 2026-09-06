@@ -28,6 +28,8 @@ function makeMockAccountRepo(): AccountRepositoryPort {
   return {
     save: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
     findById: vi.fn(),
+    findByIdIncludingDeleted: vi.fn(),
+    restore: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
   } as unknown as AccountRepositoryPort;
 }
 
