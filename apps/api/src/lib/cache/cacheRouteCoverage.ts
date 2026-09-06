@@ -17,7 +17,7 @@ export interface RegisteredRoute {
 }
 
 /** Which of the two cache maps a key belongs to (named in the failure message). */
-export type CacheRuleMapName = "CACHE_CONFIG" | "CACHE_INVALIDATION_RULES";
+type CacheRuleMapName = "CACHE_CONFIG" | "CACHE_INVALIDATION_RULES";
 
 /**
  * A rule key that does not describe a live route, or a baseline entry that no
@@ -223,7 +223,7 @@ export function findCacheRouteViolations(input: CacheRouteCoverageInput): CacheR
 }
 
 /** Render violations into a failure message that names the fix, not just the fault. */
-export function formatCacheRouteViolations(violations: readonly CacheRouteViolation[]): string {
+function formatCacheRouteViolations(violations: readonly CacheRouteViolation[]): string {
   const lines = violations.map((violation) => {
     switch (violation.kind) {
       case "param-rename":
