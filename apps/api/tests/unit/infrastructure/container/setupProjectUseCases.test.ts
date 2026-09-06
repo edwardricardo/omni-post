@@ -24,7 +24,8 @@ import {
   HARD_DELETE_TX_TIMEOUT_MS,
 } from "../../../../src/infrastructure/hardDeleteTransaction.js";
 import { toAdminActorId } from "@core/domain/value-objects/AdminActorId.js";
-import { ok } from "@shared/types";
+import { EntityNotFoundError } from "@core/domain/index.js";
+import { ok, err } from "@shared/types";
 
 type Factory = () => unknown;
 
@@ -67,12 +68,13 @@ function tokensResolvedBy(
 }
 
 describe("setupProjectUseCases", () => {
-  it("registers the project soft-delete and hard-delete tokens without throwing", () => {
+  it("registers the project soft-delete, restore and hard-delete tokens without throwing", () => {
     const { container, registered } = makeMockContainer();
 
     expect(() => setupProjectUseCases(container)).not.toThrow();
 
     expect(registered).toContain(TOKENS.DeleteProjectUseCase);
+    expect(registered).toContain(TOKENS.RestoreProjectUseCase);
     expect(registered).toContain(TOKENS.HardDeleteProjectUseCase);
   });
 
@@ -82,7 +84,25 @@ describe("setupProjectUseCases", () => {
     setupProjectUseCases(container);
 
     expect(singletons.get(TOKENS.DeleteProjectUseCase)).toBe(true);
+    expect(singletons.get(TOKENS.RestoreProjectUseCase)).toBe(true);
     expect(singletons.get(TOKENS.HardDeleteProjectUseCase)).toBe(true);
+  });
+
+  it("gives the restore the SHARED Unit of Work, the same one its soft delete uses", () => {
+    const { container, factories } = makeMockContainer();
+    setupProjectUseCases(container);
+
+    const resolved = tokensResolvedBy(container, factories, TOKENS.RestoreProjectUseCase);
+
+    // A restore is the exact inverse of the soft delete — one UPDATE clearing
+    // `deletedAt` on one row — so it wants what the soft delete wants: the
+    // `app.account_id` RLS GUC bound at tx start and atomicity over the
+    // read-then-write pair. Wiring it to the hard delete's dedicated Serializable
+    // transaction instead would show up here as a PrismaClient resolution, and
+    // would buy nothing but retryable serialization failures on a single-row write.
+    expect(resolved).toContain(TOKENS.ProjectRepository);
+    expect(resolved).toContain(TOKENS.UnitOfWork);
+    expect(resolved).not.toContain(TOKENS.PrismaClient);
   });
 
   it("gives the soft delete the SHARED Unit of Work, never the dedicated Serializable one", () => {
@@ -135,7 +155,14 @@ describe("setupProjectUseCases", () => {
         }
       ),
     };
+    const projectId = "550e8400-e29b-41d4-a716-446655440302";
+    // The subject is ALREADY SOFT-DELETED, which is the only state an erasure is
+    // admissible over: `findByIdIncludingDeleted` still sees the row while
+    // `findById` (the live population) does not. A live subject would be refused
+    // with CONFLICT and this transaction would never open.
     const repository = {
+      findByIdIncludingDeleted: vi.fn(async () => ok({ accountId: { value: "acc-1" } })),
+      findById: vi.fn(async () => err(new EntityNotFoundError("Project", projectId))),
       countHardDeleteImpact: vi.fn(async () => ({ posts: 0, childRows: 0 })),
       hardDelete: vi.fn(async () => ok(undefined)),
     };
@@ -152,7 +179,7 @@ describe("setupProjectUseCases", () => {
     const actor = toAdminActorId("admin-1");
     if (!actor.ok) throw new Error("test setup: invalid admin actor id");
     const result = await useCase.execute({
-      projectId: "550e8400-e29b-41d4-a716-446655440302",
+      projectId,
       caller: { type: "admin", adminUserId: actor.value, reason: "GDPR erasure request" },
     });
 

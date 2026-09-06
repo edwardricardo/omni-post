@@ -13,27 +13,23 @@ import { TOKENS } from "../infrastructure/container/types.js";
 import { SecureSchemas } from "../security/inputValidation.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { requireCustomerOrAdminAuth } from "../auth/customerOrAdminAuth.js";
+import { CustomerPermission, requireCustomerPermission } from "../auth/customerRbacMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
+import type { RbacService } from "../auth/rbacService.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { withSystemContext } from "../security/tenantContext.js";
 import { toAdminActorId } from "@core/domain/value-objects/AdminActorId.js";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
-import type { DeleteAccountUseCase, HardDeleteAccountUseCase } from "@core/accounts/index.js";
-import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import type {
+  DeleteAccountUseCase,
+  HardDeleteAccountUseCase,
+  RestoreAccountUseCase,
+} from "@core/accounts/index.js";
+import { USE_CASE_ERRORS, type UseCaseError } from "@core/application/UseCase.js";
+import type { Result } from "@shared/types";
 import { mapHardDeleteError } from "../lib/hardDeleteErrorMapping.js";
 import { AuditActions, AuditResources, type AuditService } from "../audit/auditService.js";
-
-/**
- * The customer-side grant required to destroy an account. Seeded to the OWNER
- * role and to no other (`infra/prisma/seed.ts`, where MANAGER is defined as
- * "everything except billing, account deletion, and role assignment").
- *
- * Gating on this string rather than on `roleName === "OWNER"` is deliberate: a
- * role-name comparison re-derives authority from a denormalised label, and a
- * wildcard "OWNER can do anything" bypass would implicitly grant every
- * permission added in the future.
- */
-const ACCOUNT_DELETE_PERMISSION = "account:delete";
 
 // Zod Schemas for Validation with security enhancement
 const SlugSchema = z
@@ -80,9 +76,9 @@ type _UpdateAccountBody = z.infer<typeof UpdateAccountBodySchema>;
 /**
  * Account Route Handler
  * Provides database-backed account management endpoints.
- * Receives PrismaClient, the customer-facing soft-delete use case and the
- * admin-only hard-delete use case via constructor injection from the route
- * plugin.
+ * Receives PrismaClient, the account lifecycle use cases (soft delete, its
+ * reversal, and the admin-only irreversible erasure), the RBAC service and the
+ * audit service via constructor injection from the route plugin.
  */
 class AccountRouteHandler extends BaseRouteHandler {
   protected routeName = "accounts";
@@ -90,10 +86,40 @@ class AccountRouteHandler extends BaseRouteHandler {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly deleteAccountUseCase: DeleteAccountUseCase,
+    private readonly restoreAccountUseCase: RestoreAccountUseCase,
     private readonly hardDeleteAccountUseCase: HardDeleteAccountUseCase,
+    private readonly rbacService: RbacService,
     private readonly auditService: AuditService
   ) {
     super();
+  }
+
+  /**
+   * @method adminHoldsAccountManage
+   * @description Answers whether the authenticated ADMIN principal on this request holds
+   *   `account:manage`, using the same RbacService the `requirePermission` preHandler uses so the
+   *   two cannot drift apart.
+   *
+   *   It exists as an in-handler check, rather than a preHandler, because the route that needs it
+   *   is the "admin-or-owner" restore surface: its preHandler is the composed
+   *   `requireCustomerOrAdminAuth`, and stacking `requirePermission` behind it would answer 401 to
+   *   every customer — it reads `request.auth` / `request.user`, neither of which a customer token
+   *   populates. So the grant is asserted inside the admin BRANCH, where the principal kind is
+   *   already known.
+   *
+   *   Omitting it is not a smaller gate, it is no gate: an admin token by itself only proves the
+   *   holder is staff, and every staff role — SUPPORT included — could otherwise reach across
+   *   tenants through this endpoint.
+   * @param request - The incoming request, whose `request.auth` carries the admin principal.
+   * @returns True when the principal's role grants `account:manage`; false when it does not, and
+   *   false when no admin principal is bound at all (fail closed).
+   */
+  private async adminHoldsAccountManage(request: FastifyRequest): Promise<boolean> {
+    const role = request.auth?.user?.role;
+    if (!role) {
+      return false;
+    }
+    return this.rbacService.hasAnyPermission(role, [Permission.ACCOUNT_MANAGE]);
   }
 
   /**
@@ -395,34 +421,21 @@ class AccountRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 404, "Account not found");
     }
 
-    // Ownership is not authorization. The comparison above only establishes
-    // that the caller belongs to THIS tenant — every member passes it, VIEWER
-    // included. What follows shuts the tenant down: the soft delete makes the
-    // account invisible to every read, stops its users' logins and halts its
-    // publishing, so the destructive-grade grant is asserted separately even
-    // though no row is destroyed any more.
+    // Ownership is not authorization, and the two gates now live in different
+    // places on purpose. CAPABILITY — the OWNER-only `account:delete` grant that
+    // this action needs because a soft delete still shuts the tenant down (every
+    // read stops serving it, its users stop logging in, its publishing halts) —
+    // is asserted by the `requireCustomerPermission` preHandler, which the
+    // project delete route shares, so both surfaces enforce it through ONE code
+    // path instead of two hand-written membership tests that can disagree.
+    // OWNERSHIP stays here, because only this handler knows which account the
+    // path names.
     //
-    // Fail closed on the claim itself. `verifyCustomerToken` casts its payload
-    // with `as CustomerJwtPayload` and validates nothing at runtime, so a token
-    // minted without a `permissions` claim arrives here as `undefined` — a real
-    // path, not a hypothetical one. No `?? []` softening: that would turn "this
-    // token carries no permissions" into "there is nothing to check".
-    const { permissions } = principal;
-    if (!Array.isArray(permissions) || !permissions.includes(ACCOUNT_DELETE_PERMISSION)) {
-      // 403 here, where the ownership refusal above is 404, and the difference
-      // is intentional — do NOT "align" them for consistency. The 404 exists so
-      // a FOREIGN account id looks indistinguishable from a missing one; it is
-      // an anti-enumeration answer. This caller owns the account and already
-      // knows it exists, so naming the real reason leaks nothing they did not
-      // already supply, and a 404 here would instead tell an owner their own
-      // account had vanished.
-      this.logError(ctx, "Account delete refused: missing destructive permission", {
-        accountId,
-        principalId: principal.id,
-        roleName: principal.roleName,
-      });
-      return this.sendError(ctx, 403, "Insufficient permissions to delete this account");
-    }
+    // Their statuses differ, and that is deliberate — do NOT "align" them. The
+    // preHandler's 403 is keyed on the CALLER alone and says nothing about which
+    // accounts exist. The 404 above exists so a FOREIGN account id looks
+    // indistinguishable from a missing one. An owner who lacks the grant is told
+    // the truth about their own capability; an outsider is told nothing at all.
 
     // The use case owns the tenant gate (CWE-639, re-checked below the route
     // gate on purpose) and the transaction; this handler translates its typed
@@ -473,6 +486,116 @@ class AccountRouteHandler extends BaseRouteHandler {
     this.logInfo(ctx, "Account soft-deleted", { accountId });
 
     this.sendSuccess(ctx, { message: "Account deleted successfully" });
+  }
+
+  /**
+   * Restore Account (reverse of the soft delete)
+   * POST /accounts/:accountId/restore
+   *
+   * Clears `deletedAt` so a soft-deleted account is live again — the act that
+   * makes the soft delete genuinely reversible rather than merely invisible.
+   * Reachable by the OWNER (self-service undo) or by an admin (support
+   * recovery) through the composed `requireCustomerOrAdminAuth`, so exactly one
+   * of `request.customerUser` / `request.auth` is set when the handler runs:
+   *   - customer: must hold the OWNER-only `account:delete` — the same grant as
+   *     the delete this reverses, because a capability to undo a tenant-wide
+   *     action is the same grade of authority as the action; the use case then
+   *     refuses any account but the caller's own.
+   *   - admin: must hold `account:manage`, then runs under `withSystemContext`
+   *     because the restore touches tenant-guarded reads and admin auth binds no
+   *     tenant scope.
+   * NOT_FOUND covers "no such account", "not yours" and "hard-deleted" — the use
+   * case makes them indistinguishable (anti-enumeration), mirroring the delete.
+   */
+  async restoreAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    this.logInfo(ctx, "Restoring account");
+
+    const params = AccountParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return this.sendError(ctx, 400, "Invalid account ID");
+    }
+    const { accountId } = params.data;
+
+    const customer = request.customerUser;
+    const admin = request.auth;
+
+    let result: Result<void, UseCaseError>;
+
+    if (customer) {
+      // Fail closed on the claim itself. `verifyCustomerToken` casts its payload
+      // and validates nothing at runtime, so `permissions` can arrive undefined —
+      // a real path, not a hypothetical one. `Array.isArray` first means an absent
+      // claim is "holds nothing", never "nothing to check".
+      const { permissions } = customer;
+      if (!Array.isArray(permissions) || !permissions.includes(CustomerPermission.ACCOUNT_DELETE)) {
+        return this.sendError(ctx, 403, "Insufficient permissions to restore this account");
+      }
+      result = await this.restoreAccountUseCase.execute({
+        accountId,
+        caller: { type: "customer", accountId: customer.accountId },
+      });
+    } else if (admin) {
+      // The admin grant, asserted BEFORE anything else on this arm. An admin
+      // token alone only proves the holder is staff; this endpoint reaches across
+      // every tenant, so without the capability check any staff role — SUPPORT
+      // included — could bring back any tenant the business had removed.
+      if (!(await this.adminHoldsAccountManage(request))) {
+        return this.sendError(ctx, 403, "Insufficient permissions to restore this account");
+      }
+
+      // Fail closed on attribution, exactly as the hard-delete path does: an id
+      // that survived validation is the proof a real principal authenticated, and
+      // a privileged cross-tenant restore performed by nobody is not a restore we
+      // are willing to run.
+      const actor = toAdminActorId(admin.user?.id);
+      if (!actor.ok) {
+        this.logError(
+          ctx,
+          "Restore rejected: the admin branch was reached with no principal on request.auth"
+        );
+        return this.sendError(ctx, 500, "Failed to restore account");
+      }
+
+      // Admin auth binds no tenant scope, and the restore reads and writes
+      // through tenant-guarded paths, so it runs under the sanctioned bypass
+      // (mirrors the hard-delete path).
+      result = await withSystemContext(`system:account-restore:${accountId}`, async () =>
+        this.restoreAccountUseCase.execute({
+          accountId,
+          caller: { type: "admin", adminUserId: actor.value },
+        })
+      );
+    } else {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
+    if (!result.ok) {
+      if (result.error.code === USE_CASE_ERRORS.NOT_FOUND) {
+        return this.sendError(ctx, 404, "Account not found");
+      }
+      if (result.error.code === USE_CASE_ERRORS.VALIDATION_FAILED) {
+        return this.sendError(ctx, 400, "Invalid account ID");
+      }
+      if (result.error.code === USE_CASE_ERRORS.CONFLICT) {
+        // The use-case message NAMES the blocker — the active account holding the
+        // e-mail address, or the fact that this one is already live. Surfacing it
+        // verbatim is what makes the 409 actionable: only a human can decide
+        // which of two accounts keeps a contested address, and they cannot decide
+        // it without being told which account is in the way.
+        return this.sendError(ctx, 409, result.error.message);
+      }
+      if (result.error.code === USE_CASE_ERRORS.FORBIDDEN) {
+        return this.sendError(ctx, 403, "Restore refused");
+      }
+      this.logError(ctx, "Failed to restore account", { error: result.error });
+      return this.sendError(ctx, 500, "Failed to restore account");
+    }
+
+    this.logInfo(ctx, "Account restored", { accountId });
+
+    this.sendSuccess(ctx, { restored: true });
   }
 
   /**
@@ -578,15 +701,21 @@ export const accountRoutes: FastifyPluginAsync = async (fastify) => {
   const deleteAccountUseCase = fastify.container.resolve<DeleteAccountUseCase>(
     TOKENS.DeleteAccountUseCase
   );
+  const restoreAccountUseCase = fastify.container.resolve<RestoreAccountUseCase>(
+    TOKENS.RestoreAccountUseCase
+  );
   const hardDeleteAccountUseCase = fastify.container.resolve<HardDeleteAccountUseCase>(
     TOKENS.HardDeleteAccountUseCase
   );
+  const rbacService = fastify.container.resolve<RbacService>(TOKENS.RbacService);
   const auditService = fastify.container.resolve<AuditService>(TOKENS.AuditService);
 
   const handler = new AccountRouteHandler(
     prisma,
     deleteAccountUseCase,
+    restoreAccountUseCase,
     hardDeleteAccountUseCase,
+    rbacService,
     auditService
   );
 
@@ -630,14 +759,31 @@ export const accountRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.updateAccount(request, reply)
   );
 
-  // Delete account
+  // Delete account (soft, reversible). The OWNER-only `account:delete` grant
+  // moved out of the handler and into this preHandler, which the project delete
+  // route shares: two hand-written membership tests over the same permission
+  // string are two chances to drift, and the one that drifts is the one nobody
+  // is looking at. Ownership stays in the handler, where the path's account id
+  // is known, and keeps its anti-enumeration 404.
   fastify.delete(
     "/accounts/:accountId",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [requireClientAuth, requireCustomerPermission(CustomerPermission.ACCOUNT_DELETE)],
       schema: { tags: ["Accounts"], summary: "Delete account" },
     },
     async (request, reply) => handler.deleteAccount(request, reply)
+  );
+
+  // Restore a soft-deleted account (admin-or-owner). One composed authn accepts
+  // either token kind; the handler asserts the grant appropriate to whichever
+  // one arrived, because a preHandler cannot branch on the principal kind.
+  fastify.post(
+    "/accounts/:accountId/restore",
+    {
+      preHandler: [requireCustomerOrAdminAuth],
+      schema: { tags: ["Accounts"], summary: "Restore a soft-deleted account" },
+    },
+    async (request, reply) => handler.restoreAccount(request, reply)
   );
 
   // Hard-delete account (irreversible, admin only)

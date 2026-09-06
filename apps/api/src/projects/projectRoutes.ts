@@ -12,13 +12,19 @@ import type { PrismaClient } from "@infra/prisma";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { SecureSchemas } from "../security/inputValidation.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
-import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
-import { requirePermission } from "../auth/rbacMiddleware.js";
+import { requireCustomerOrAdminAuth } from "../auth/customerOrAdminAuth.js";
+import { CustomerPermission, requireCustomerPermission } from "../auth/customerRbacMiddleware.js";
+import type { RbacService } from "../auth/rbacService.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { withSystemContext } from "../security/tenantContext.js";
 import { toAdminActorId } from "@core/domain/value-objects/AdminActorId.js";
-import type { DeleteProjectUseCase, HardDeleteProjectUseCase } from "@core/projects/index.js";
-import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import type {
+  DeleteProjectUseCase,
+  HardDeleteProjectUseCase,
+  RestoreProjectUseCase,
+} from "@core/projects/index.js";
+import { USE_CASE_ERRORS, type UseCaseError } from "@core/application/UseCase.js";
+import type { Result } from "@shared/types";
 import { mapHardDeleteError } from "../lib/hardDeleteErrorMapping.js";
 import { AuditActions, AuditResources, type AuditService } from "../audit/auditService.js";
 
@@ -37,12 +43,22 @@ const ProjectIdParamsSchema = z.object({
 });
 
 /**
- * Body for the irreversible hard-delete endpoint. The reason is REQUIRED: it is
- * the only durable explanation of why a tenant's data was destroyed, and it is
- * written to the audit log alongside the acting admin.
+ * Body for the irreversible hard-delete endpoint. The reason is REQUIRED on both
+ * arms: it is the only durable explanation of why a tenant's data was destroyed,
+ * and it is written to the audit log alongside the acting principal.
+ *
+ * `confirmName` is optional HERE and mandatory on the customer arm, enforced in
+ * the handler rather than the schema. One endpoint serves two callers with two
+ * different confirmations available to them: a tenant purging its own project
+ * has the project's name in front of it and must type it back, while an admin
+ * erasing someone else's has no reason to know that name — demanding it would
+ * only teach them to copy it off the same screen that gave them the id, which
+ * confirms nothing. A schema cannot see which principal authenticated, so it
+ * cannot express "required for one of them"; the handler can, and does.
  */
 const HardDeleteProjectBodySchema = z.object({
   reason: z.string().min(8).max(500),
+  confirmName: z.string().min(1).max(200).optional(),
 });
 
 type _CreateProjectBody = z.infer<typeof CreateProjectBodySchema>;
@@ -50,9 +66,9 @@ type _CreateProjectBody = z.infer<typeof CreateProjectBodySchema>;
 /**
  * Project Route Handler
  * Provides database-backed project management endpoints.
- * Receives PrismaClient, the customer-facing soft-delete use case and the
- * admin-only hard-delete use case via constructor injection from the route
- * plugin.
+ * Receives PrismaClient, the project lifecycle use cases (soft delete, its
+ * reversal, and the irreversible erasure), the RBAC service and the audit
+ * service via constructor injection from the route plugin.
  */
 class ProjectRouteHandler extends BaseRouteHandler {
   protected routeName = "projects";
@@ -60,10 +76,40 @@ class ProjectRouteHandler extends BaseRouteHandler {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly deleteProjectUseCase: DeleteProjectUseCase,
+    private readonly restoreProjectUseCase: RestoreProjectUseCase,
     private readonly hardDeleteProjectUseCase: HardDeleteProjectUseCase,
+    private readonly rbacService: RbacService,
     private readonly auditService: AuditService
   ) {
     super();
+  }
+
+  /**
+   * @method adminHoldsAccountManage
+   * @description Answers whether the authenticated ADMIN principal on this request holds
+   *   `account:manage`, using the same RbacService the `requirePermission` preHandler uses so the
+   *   two cannot drift apart.
+   *
+   *   It exists as an in-handler check, rather than a preHandler, because the routes that need it
+   *   are the "admin-or-owner" surfaces: their preHandler is the composed
+   *   `requireCustomerOrAdminAuth`, and stacking `requirePermission` behind it would answer 401 to
+   *   every customer — it reads `request.auth` / `request.user`, neither of which a customer token
+   *   populates. So the grant is asserted inside the admin BRANCH, where the principal kind is
+   *   already known.
+   *
+   *   Omitting it is not a smaller gate, it is no gate: an admin token by itself only proves the
+   *   holder is staff, and every staff role — SUPPORT included — could otherwise reach across
+   *   tenants through these endpoints.
+   * @param request - The incoming request, whose `request.auth` carries the admin principal.
+   * @returns True when the principal's role grants `account:manage`; false when it does not, and
+   *   false when no admin principal is bound at all (fail closed).
+   */
+  private async adminHoldsAccountManage(request: FastifyRequest): Promise<boolean> {
+    const role = request.auth?.user?.role;
+    if (!role) {
+      return false;
+    }
+    return this.rbacService.hasAnyPermission(role, [Permission.ACCOUNT_MANAGE]);
   }
 
   /**
@@ -91,14 +137,32 @@ class ProjectRouteHandler extends BaseRouteHandler {
     const { name, locale } = validated.value.body;
 
     try {
-      // Verify account exists and get current project count. Soft-deleted
-      // projects do NOT consume quota — they are invisible to every read, so
-      // counting them would strand the tenant below its own limit forever.
+      // Verify the account exists and read BOTH project populations.
+      //
+      // A deleted project still HOLDS its slot. That is the rule, and it is the
+      // opposite of what this code used to do: quota counted only live rows, so
+      // deleting a project handed the slot straight back. Since the delete is
+      // soft and reversible, that made deletion a quota-farming move — delete,
+      // create, restore, and a tenant on a 1-project plan ends up holding two.
+      // The slot is released by the two acts that genuinely release the project:
+      // restoring it (it becomes live and keeps the slot it never stopped
+      // holding) or permanently erasing it (the row is gone, and so is the
+      // claim).
+      //
+      // Two counts, because the 403 has to be actionable. The TOTAL decides, and
+      // the LIVE number is what turns "quota exceeded" into "you have N slots and
+      // K of them are held by projects you deleted" — without it the tenant sees
+      // a limit they cannot reconcile with the list in front of them, which shows
+      // only live projects.
+      //
+      // Prisma cannot alias two filtered `_count` selects over the same relation,
+      // so the unfiltered relation count travels with the account read and the
+      // live count is its own query.
       const account = await this.prisma.account.findFirst({
         where: { id: accountId, deletedAt: null },
         include: {
           _count: {
-            select: { projects: { where: { deletedAt: null } } },
+            select: { projects: true },
           },
         },
       });
@@ -107,9 +171,25 @@ class ProjectRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 404, "Account not found");
       }
 
-      // Check quota limits
-      if (account._count.projects >= account.maxProjects) {
-        return this.sendError(ctx, 403, "QUOTA_EXCEEDED", { error: "QUOTA_EXCEEDED" });
+      const heldSlots = account._count.projects;
+      const liveProjects = await this.prisma.project.count({
+        where: { accountId, deletedAt: null },
+      });
+      const deletedHeld = heldSlots - liveProjects;
+
+      if (heldSlots >= account.maxProjects) {
+        return this.sendError(ctx, 403, "QUOTA_EXCEEDED", {
+          error: "QUOTA_EXCEEDED",
+          used: heldSlots,
+          limit: account.maxProjects,
+          deletedHeld,
+          message:
+            `${heldSlots} of ${account.maxProjects} project slots used` +
+            (deletedHeld > 0
+              ? `; ${deletedHeld} are held by deleted projects — restore them or ` +
+                `permanently delete them to free space.`
+              : "."),
+        });
       }
 
       // Check if a LIVE project with the same name exists for this account.
@@ -201,7 +281,14 @@ class ProjectRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 404, "Account not found");
       }
 
-      // Get projects
+      // Live projects only — and this DELIBERATELY disagrees with the quota
+      // count in `createProject`, which counts deleted rows too. Do not "unify"
+      // them: the two answer different questions. The LIST shows what you HAVE,
+      // so a project the tenant deleted must not reappear in it. The QUOTA counts
+      // what you HOLD, so a deleted project keeps consuming its slot and deletion
+      // cannot be used to farm quota. A reader who makes the list include deleted
+      // rows resurrects them in the UI; one who makes the quota ignore them
+      // reopens the farming path.
       const projects = await this.prisma.project.findMany({
         where: { accountId, deletedAt: null },
         orderBy: { createdAt: "desc" },
@@ -411,14 +498,136 @@ class ProjectRouteHandler extends BaseRouteHandler {
   }
 
   /**
+   * Restore Project (reverse of the soft delete)
+   * POST /projects/:projectId/restore
+   *
+   * Clears `deletedAt` so a soft-deleted project is visible again — the act that
+   * makes the soft delete genuinely reversible rather than merely invisible.
+   * Reachable by the OWNER (self-service undo) or by an admin (support
+   * recovery) through the composed `requireCustomerOrAdminAuth`, so exactly one
+   * of `request.customerUser` / `request.auth` is set when the handler runs:
+   *   - customer: must hold the OWNER-only `account:delete` — the same grant as
+   *     the delete this reverses, because a capability to undo a tenant-wide
+   *     action is the same grade of authority as the action; then
+   *     ownership-gated by the use case against the soft-deleted row's account.
+   *   - admin: must hold `account:manage`, then runs under `withSystemContext`
+   *     because `Project` is tenant-guard enrolled and admin auth binds no
+   *     tenant scope.
+   * NOT_FOUND covers "no such project", "not yours" and "hard-deleted" — the use
+   * case makes them indistinguishable (anti-enumeration), mirroring the delete.
+   */
+  async restoreProject(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    this.logInfo(ctx, "Restoring project");
+
+    const params = ProjectIdParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return this.sendError(ctx, 400, "Invalid project ID");
+    }
+    const { projectId } = params.data;
+
+    const customer = request.customerUser;
+    const admin = request.auth;
+
+    let result: Result<void, UseCaseError>;
+
+    if (customer) {
+      // Fail closed on the claim itself. `verifyCustomerToken` casts its payload
+      // and validates nothing at runtime, so `permissions` can arrive undefined —
+      // a real path, not a hypothetical one. `Array.isArray` first means an absent
+      // claim is "holds nothing", never "nothing to check".
+      const { permissions } = customer;
+      if (!Array.isArray(permissions) || !permissions.includes(CustomerPermission.ACCOUNT_DELETE)) {
+        return this.sendError(ctx, 403, "Insufficient permissions to restore this project");
+      }
+      result = await this.restoreProjectUseCase.execute({
+        projectId,
+        caller: { type: "customer", accountId: customer.accountId },
+      });
+    } else if (admin) {
+      // The admin grant, asserted BEFORE anything else on this arm. An admin
+      // token alone only proves the holder is staff; this endpoint reaches across
+      // every tenant, so without the capability check any staff role — SUPPORT
+      // included — could restore any tenant's project.
+      if (!(await this.adminHoldsAccountManage(request))) {
+        return this.sendError(ctx, 403, "Insufficient permissions to restore this project");
+      }
+
+      // Fail closed on attribution, exactly as the hard-delete path does: the
+      // branded id is the proof a real principal survived authentication, and a
+      // privileged cross-tenant restore performed by nobody is not a restore we
+      // are willing to run.
+      const actor = toAdminActorId(admin.user?.id);
+      if (!actor.ok) {
+        this.logError(
+          ctx,
+          "Restore rejected: the admin branch was reached with no principal on request.auth"
+        );
+        return this.sendError(ctx, 500, "Failed to restore project");
+      }
+
+      // `Project` is tenant-guard enrolled and admin auth binds no tenant scope,
+      // so the guarded reads and the restore write run under the sanctioned
+      // bypass (mirrors the hard-delete path).
+      result = await withSystemContext(`system:project-restore:${projectId}`, async () =>
+        this.restoreProjectUseCase.execute({
+          projectId,
+          caller: { type: "admin", adminUserId: actor.value },
+        })
+      );
+    } else {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
+    if (!result.ok) {
+      if (result.error.code === USE_CASE_ERRORS.NOT_FOUND) {
+        return this.sendError(ctx, 404, "Project not found");
+      }
+      if (result.error.code === USE_CASE_ERRORS.VALIDATION_FAILED) {
+        return this.sendError(ctx, 400, "Invalid project ID");
+      }
+      if (result.error.code === USE_CASE_ERRORS.CONFLICT) {
+        // The use-case message NAMES the blocker — the active project holding the
+        // name, or the fact that this one is already live. Surfacing it verbatim
+        // is what makes the 409 actionable: only a human can decide which of two
+        // projects keeps a contested name, and they cannot decide it without
+        // being told which project is in the way. It echoes the subject's own
+        // account data back to a caller the use case has already gated, so it
+        // discloses nothing they could not read elsewhere.
+        return this.sendError(ctx, 409, result.error.message);
+      }
+      if (result.error.code === USE_CASE_ERRORS.FORBIDDEN) {
+        return this.sendError(ctx, 403, "Restore refused");
+      }
+      this.logError(ctx, "Failed to restore project", { error: result.error });
+      return this.sendError(ctx, 500, "Failed to restore project");
+    }
+
+    this.logInfo(ctx, "Project restored", { projectId });
+
+    this.sendSuccess(ctx, { restored: true });
+  }
+
+  /**
    * Hard Delete Project (EXCEPTIONAL path — irreversible)
    * DELETE /projects/:projectId/hard
    *
-   * Destroys the project and every row that references it. Guard rails, all of
-   * them load-bearing: admin authentication plus `account:manage`, a mandatory
-   * written reason, one transaction for the whole cascade (repository), an audit
-   * record on both success and failure, and the sanctioned `withSystemContext`
-   * bypass rather than an ambient tenant context.
+   * Destroys the project and every row that references it. Two callers reach it
+   * through the composed `requireCustomerOrAdminAuth`:
+   *   - admin: `account:manage`, then the sanctioned `withSystemContext` bypass,
+   *     because admin auth binds no tenant scope and the cascade writes to
+   *     tenant-guard-enrolled tables.
+   *   - customer self-purge: `account:delete` plus a `confirmName` that must be
+   *     the project's exact name. It runs WITHOUT `withSystemContext` on
+   *     purpose — the composed middleware already bound this tenant's context,
+   *     and wrapping a self-purge in a cross-tenant bypass would hand it reach it
+   *     has no need for, discarding the guard on the one path a non-staff caller
+   *     can destroy data through.
+   *
+   * Guard rails shared by both: a mandatory written reason, the prior-soft-delete
+   * interlock in the use case, one transaction for the whole cascade
+   * (repository), and an audit record on success and failure alike.
    */
   async hardDeleteProject(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -435,48 +644,122 @@ class ProjectRouteHandler extends BaseRouteHandler {
     }
 
     const { projectId } = params.data;
-    const { reason } = body.data;
+    const { reason, confirmName } = body.data;
 
-    // Fail closed on attribution. `requireAdminAuth` binds the principal on
-    // `request.auth`; reading THAT (not the phantom `request.adminUser` nobody
-    // sets) is what names the admin on the tombstone and the audit record. A
-    // branded, non-empty id — no `"unknown"` fallback: if no principal survived
-    // authentication we do not know who is erasing a tenant's data, so we destroy
-    // nothing and surface a 500 (an internal-invariant violation, not the
-    // caller's fault).
-    const actor = toAdminActorId(request.auth?.user?.id);
-    if (!actor.ok) {
-      this.logError(
-        ctx,
-        "Hard delete rejected: requireAdminAuth left no principal on request.auth"
-      );
-      return this.sendError(ctx, 500, "Failed to hard delete project");
-    }
-    const adminUserId = actor.value;
+    const customer = request.customerUser;
+    const admin = request.auth;
 
-    // Admin auth binds NO tenant context, but `Project` (and the `Channel`,
-    // `Template`, `SchedulingRule`, ... rows the cascade removes) are
-    // tenant-guard enrolled, so the guarded writes inside hardDelete would throw
-    // TenantContextMissingError. This is a legitimate cross-tenant admin
-    // operation, so run it under the sanctioned `withSystemContext` bypass
-    // (mirrors the channel hard-delete path).
-    const result = await withSystemContext(`system:project-hard-delete:${projectId}`, async () =>
-      this.hardDeleteProjectUseCase.execute({
+    // How the audit record names whoever destroyed this. The two FKs are
+    // mutually exclusive by a database CHECK — a row may carry the admin arc or
+    // the customer arc, never both — so the arm that runs the erasure also
+    // decides the attribution, and the single `auditService.log` pair below
+    // spreads whichever it chose. Building it here rather than duplicating the
+    // audit calls per arm is what stops the two paths from drifting into
+    // recording different things about the same event.
+    let attribution: { userId: string } | { customerUserId: string; accountId: string };
+    let result: Result<void, UseCaseError>;
+
+    if (customer) {
+      // Fail closed on the claim itself — see the identical reasoning on the
+      // restore path. An absent `permissions` claim holds nothing.
+      const { permissions } = customer;
+      if (!Array.isArray(permissions) || !permissions.includes(CustomerPermission.ACCOUNT_DELETE)) {
+        return this.sendError(ctx, 403, "Insufficient permissions to erase this project");
+      }
+
+      // The typed confirmation is what separates a self-purge from a misclick on
+      // a row in a list. It is required HERE rather than in the schema because
+      // only this branch knows a customer is asking; the use case then compares
+      // it against the stored name, which is the only place the authoritative
+      // value exists.
+      if (confirmName === undefined) {
+        return this.sendError(
+          ctx,
+          400,
+          "confirmName is required: type the project's exact name to confirm an irreversible erasure"
+        );
+      }
+
+      // Fail closed on attribution, as on the admin arm. The brand encodes
+      // "a validated, non-empty principal"; the VALUE is the customer, so the
+      // tombstone says truthfully who destroyed the data.
+      const principal = toAdminActorId(customer.id);
+      if (!principal.ok) {
+        this.logError(
+          ctx,
+          "Hard delete rejected: the customer branch was reached with no principal id"
+        );
+        return this.sendError(ctx, 500, "Failed to hard delete project");
+      }
+
+      attribution = { customerUserId: customer.id, accountId: customer.accountId };
+      // NO `withSystemContext` here, deliberately. The composed middleware
+      // already bound THIS tenant's context, so every guarded read and write in
+      // the cascade runs scoped to the caller's own account — which is precisely
+      // the protection a self-purge should keep. Wrapping it in the cross-tenant
+      // bypass would disable the tenant guard on the one destructive path a
+      // non-staff caller can reach, so a defect anywhere below it would escape
+      // the tenant instead of being refused.
+      result = await this.hardDeleteProjectUseCase.execute({
         projectId,
         caller: {
-          type: "admin",
-          adminUserId,
+          type: "customer",
+          accountId: customer.accountId,
+          customerUserId: principal.value,
           reason,
+          expectedName: confirmName,
         },
-      })
-    );
+      });
+    } else if (admin) {
+      // The admin grant, asserted before anything is read or destroyed: an admin
+      // token alone only proves the holder is staff, and this arm erases across
+      // every tenant.
+      if (!(await this.adminHoldsAccountManage(request))) {
+        return this.sendError(ctx, 403, "Insufficient permissions to erase this project");
+      }
+
+      // Fail closed on attribution. Reading `request.auth` (not the phantom
+      // `request.adminUser` nobody sets) is what names the admin on the tombstone
+      // and the audit record. A branded, non-empty id — no `"unknown"` fallback:
+      // if no principal survived authentication we do not know who is erasing a
+      // tenant's data, so we destroy nothing and surface a 500 (an
+      // internal-invariant violation, not the caller's fault).
+      const actor = toAdminActorId(admin.user?.id);
+      if (!actor.ok) {
+        this.logError(
+          ctx,
+          "Hard delete rejected: the admin branch was reached with no principal on request.auth"
+        );
+        return this.sendError(ctx, 500, "Failed to hard delete project");
+      }
+
+      attribution = { userId: actor.value };
+      // Admin auth binds NO tenant context, but `Project` (and the `Channel`,
+      // `Template`, `SchedulingRule`, ... rows the cascade removes) are
+      // tenant-guard enrolled, so the guarded writes inside hardDelete would throw
+      // TenantContextMissingError. This is a legitimate cross-tenant admin
+      // operation, so run it under the sanctioned `withSystemContext` bypass
+      // (mirrors the channel hard-delete path).
+      result = await withSystemContext(`system:project-hard-delete:${projectId}`, async () =>
+        this.hardDeleteProjectUseCase.execute({
+          projectId,
+          caller: {
+            type: "admin",
+            adminUserId: actor.value,
+            reason,
+          },
+        })
+      );
+    } else {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
 
     if (!result.ok) {
       await this.auditService.log({
         action: AuditActions.PROJECT_DELETED,
         resource: AuditResources.PROJECT,
         resourceId: projectId,
-        userId: adminUserId,
+        ...attribution,
         success: false,
         error: result.error.message,
         details: { mode: "hard", reason },
@@ -493,7 +776,7 @@ class ProjectRouteHandler extends BaseRouteHandler {
       action: AuditActions.PROJECT_DELETED,
       resource: AuditResources.PROJECT,
       resourceId: projectId,
-      userId: adminUserId,
+      ...attribution,
       success: true,
       details: { mode: "hard", reason },
     });
@@ -514,15 +797,21 @@ export const projectRoutes: FastifyPluginAsync = async (fastify) => {
   const deleteProjectUseCase = fastify.container.resolve<DeleteProjectUseCase>(
     TOKENS.DeleteProjectUseCase
   );
+  const restoreProjectUseCase = fastify.container.resolve<RestoreProjectUseCase>(
+    TOKENS.RestoreProjectUseCase
+  );
   const hardDeleteProjectUseCase = fastify.container.resolve<HardDeleteProjectUseCase>(
     TOKENS.HardDeleteProjectUseCase
   );
+  const rbacService = fastify.container.resolve<RbacService>(TOKENS.RbacService);
   const auditService = fastify.container.resolve<AuditService>(TOKENS.AuditService);
 
   const handler = new ProjectRouteHandler(
     prisma,
     deleteProjectUseCase,
+    restoreProjectUseCase,
     hardDeleteProjectUseCase,
+    rbacService,
     auditService
   );
 
@@ -566,22 +855,45 @@ export const projectRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getPublishLogs(request, reply)
   );
 
-  // Delete project
+  // Delete project (soft, reversible). The OWNER-only `account:delete` grant is
+  // asserted in a preHandler rather than inside the handler, so the account and
+  // project surfaces share ONE enforcement point instead of two hand-written
+  // membership tests that can disagree. Ownership is still decided below it, by
+  // the use case, and still answers 404 — the grant check is about capability
+  // and is keyed on the CALLER alone, so its 403 reveals nothing about which
+  // projects exist.
   fastify.delete(
     "/projects/:projectId",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [requireClientAuth, requireCustomerPermission(CustomerPermission.ACCOUNT_DELETE)],
       schema: { tags: ["Projects"], summary: "Delete project" },
     },
     async (request, reply) => handler.deleteProject(request, reply)
   );
 
-  // Hard-delete project (irreversible, admin only)
+  // Restore a soft-deleted project (admin-or-owner). One composed authn accepts
+  // either token kind; the handler asserts the grant appropriate to whichever
+  // one arrived, because a preHandler cannot branch on the principal kind.
+  fastify.post(
+    "/projects/:projectId/restore",
+    {
+      preHandler: [requireCustomerOrAdminAuth],
+      schema: { tags: ["Projects"], summary: "Restore a soft-deleted project" },
+    },
+    async (request, reply) => handler.restoreProject(request, reply)
+  );
+
+  // Hard-delete project (irreversible). Admin erasure OR owner self-purge — the
+  // grant, the confirmation and the tenant-scope decision are all made per arm
+  // inside the handler.
   fastify.delete(
     "/projects/:projectId/hard",
     {
-      preHandler: [requireAdminAuth, requirePermission(Permission.ACCOUNT_MANAGE)],
-      schema: { tags: ["Projects"], summary: "Hard-delete a project permanently" },
+      preHandler: [requireCustomerOrAdminAuth],
+      schema: {
+        tags: ["Projects"],
+        summary: "Hard-delete a project permanently (admin erasure or owner self-purge)",
+      },
     },
     async (request, reply) => handler.hardDeleteProject(request, reply)
   );

@@ -72,6 +72,17 @@ describe("classifyPersistenceFailure", () => {
     assert.strictEqual(classifyPersistenceFailure(error), USE_CASE_ERRORS.TRANSIENT_FAILURE);
   });
 
+  it("maps a P2002 unique-constraint violation to CONFLICT, not INTERNAL_ERROR", () => {
+    // The restore residual race: a LIVE twin was created after the subject was
+    // soft-deleted, and clearing deletedAt collides with it on the partial
+    // unique. The database is the arbiter that decides the race, and a caller
+    // who loses it is in conflict with an existing row — a 409 they can act on
+    // (rename the twin, or keep it) rather than an opaque 500 that reads as a
+    // system fault the operator caused.
+    const error = Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+    assert.strictEqual(classifyPersistenceFailure(error), USE_CASE_ERRORS.CONFLICT);
+  });
+
   it("maps an unclassified error (no known code) to INTERNAL_ERROR", () => {
     assert.strictEqual(
       classifyPersistenceFailure(new Error("something else")),

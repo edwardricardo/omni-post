@@ -2,9 +2,11 @@
  * @file HardDeleteProjectUseCase.test.ts
  * @description Unit tests for HardDeleteProjectUseCase — proves the irreversible path reaches
  *   `hardDelete` (never the soft `delete`) INSIDE a Unit of Work (the only thing that binds the
- *   tenant RLS GUC), refuses a project too large to remove atomically before any destructive work,
- *   carries the acting admin and the reason to the tombstone context, refuses a blank reason, and
- *   maps persistence failures to distinct typed codes.
+ *   tenant RLS GUC), refuses a LIVE project so an erasure always follows a deliberate soft delete,
+ *   gates a customer caller against the subject's stored account before that interlock can speak,
+ *   refuses a project too large to remove atomically before any destructive work, carries the
+ *   acting principal and the reason to the tombstone context, refuses a blank reason, and maps
+ *   persistence failures to distinct typed codes.
  * @layer infrastructure
  */
 
@@ -24,6 +26,8 @@ import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 const PROJECT_ID = "550e8400-e29b-41d4-a716-446655440101";
+const OWNER_ACCOUNT_ID = "acc-owner-1";
+const FOREIGN_ACCOUNT_ID = "acc-intruder-9";
 
 /** Construct a branded admin actor id for the test caller (throws on bad setup). */
 function actorId(raw: string): AdminActorId {
@@ -40,27 +44,59 @@ const ADMIN = {
   reason: "GDPR erasure request",
 } as const;
 
-function makeRepo(): ProjectRepositoryPort & {
+/** The name the default subject carries, and therefore the only accepted confirmation. */
+const SUBJECT_NAME = "Doomed project";
+
+/** The owning tenant erasing its own project — the self-purge caller. */
+const CUSTOMER = {
+  type: "customer",
+  accountId: OWNER_ACCOUNT_ID,
+  customerUserId: actorId("customer-user-42"),
+  reason: "Customer-initiated erasure",
+  expectedName: SUBJECT_NAME,
+} as const;
+
+/** The subject every default repository double resolves, owned by OWNER_ACCOUNT_ID. */
+const SUBJECT = { accountId: { value: OWNER_ACCOUNT_ID }, name: SUBJECT_NAME };
+
+type MockedRepo = ProjectRepositoryPort & {
+  findById: ReturnType<typeof vi.fn>;
+  findByIdIncludingDeleted: ReturnType<typeof vi.fn>;
   delete: ReturnType<typeof vi.fn>;
   hardDelete: ReturnType<typeof vi.fn>;
   countHardDeleteImpact: ReturnType<typeof vi.fn>;
-} {
+};
+
+/**
+ * A repository double whose subject is ALREADY SOFT-DELETED — the only state in
+ * which an erasure is admissible, and therefore the right default for a suite
+ * about the irreversible path. Soft-deleted is modelled the way the port defines
+ * it: `findById` excludes the row (it serves the live population only) while
+ * `findByIdIncludingDeleted` still resolves it.
+ */
+function makeRepo(): MockedRepo {
   const repo = {
-    findById: vi.fn(async () => ok({ accountId: { value: "acc" } })),
+    findById: vi.fn(async () => err(new EntityNotFoundError("Project", PROJECT_ID))),
+    findByIdIncludingDeleted: vi.fn(async () => ok(SUBJECT)),
     findByAccountId: vi.fn(async () => []),
     save: vi.fn(async () => ok(undefined)),
     delete: vi.fn(async () => ok(undefined)),
+    restore: vi.fn(async () => ok(undefined)),
     hardDelete: vi.fn(async () => ok(undefined)),
     countHardDeleteImpact: vi.fn(async () => ({ posts: 0, childRows: 0 })),
     exists: vi.fn(async () => true),
     findByName: vi.fn(async () => null),
     findPublishLogsByProjectId: vi.fn(async () => []),
   };
-  return repo as unknown as ProjectRepositoryPort & {
-    delete: ReturnType<typeof vi.fn>;
-    hardDelete: ReturnType<typeof vi.fn>;
-    countHardDeleteImpact: ReturnType<typeof vi.fn>;
-  };
+  return repo as unknown as MockedRepo;
+}
+
+/**
+ * Flip the double's subject back to the LIVE population: `findById` resolves it,
+ * which is exactly how the use case learns the row was never soft-deleted.
+ */
+function markLive(repo: MockedRepo): void {
+  repo.findById.mockResolvedValue(ok(SUBJECT));
 }
 
 /**
@@ -204,7 +240,7 @@ describe("HardDeleteProjectUseCase", () => {
     expect(repo.hardDelete).not.toHaveBeenCalled();
   });
 
-  it("returns NOT_FOUND when no project carries that id", async () => {
+  it("returns NOT_FOUND when the row stops being erasable between the checks and the write", async () => {
     const repo = makeRepo();
     repo.hardDelete.mockResolvedValue(err(new EntityNotFoundError("Project", PROJECT_ID)));
 
@@ -359,5 +395,233 @@ describe("HardDeleteProjectUseCase", () => {
     // error has to say so instead of inviting the operator to press the button again.
     expect(result.error.message).toContain(String(WRITE_CONFLICT_MAX_ATTEMPTS));
     expect(result.error.message).toContain("quiesced");
+  });
+
+  describe("prior-soft-delete interlock", () => {
+    it("returns CONFLICT for a LIVE project, so an erasure can only follow a deliberate soft delete", async () => {
+      const repo = makeRepo();
+      markLive(repo);
+      const uow = makeUow();
+
+      const result = await new HardDeleteProjectUseCase(repo, uow).execute({
+        projectId: PROJECT_ID,
+        caller: ADMIN,
+      });
+
+      // One mistaken call can no longer destroy a tenant's project: the row has
+      // to be soft-deleted first, which is a second, separate act that is also
+      // reversible right up to the moment the erasure runs.
+      assert.ok(!result.ok, "A live project must be refused");
+      assert.strictEqual(result.error.code, USE_CASE_ERRORS.CONFLICT);
+      expect(result.error.message).toContain("soft delete");
+      expect(repo.hardDelete).not.toHaveBeenCalled();
+      expect(uow.executeInTransaction).not.toHaveBeenCalled();
+    });
+
+    it("refuses the live project BEFORE measuring the cascade, so nothing is read on its behalf", async () => {
+      const repo = makeRepo();
+      markLive(repo);
+
+      await new HardDeleteProjectUseCase(repo, makeUow()).execute({
+        projectId: PROJECT_ID,
+        caller: ADMIN,
+      });
+
+      expect(repo.countHardDeleteImpact).not.toHaveBeenCalled();
+    });
+
+    it("proceeds for a project that is already soft-deleted", async () => {
+      const repo = makeRepo();
+
+      const result = await new HardDeleteProjectUseCase(repo, makeUow()).execute({
+        projectId: PROJECT_ID,
+        caller: ADMIN,
+      });
+
+      assert.ok(result.ok, "The soft-deleted subject is the erasable one");
+      expect(repo.hardDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns NOT_FOUND without touching the cascade when no row carries the id at all", async () => {
+      const repo = makeRepo();
+      repo.findByIdIncludingDeleted.mockResolvedValue(
+        err(new EntityNotFoundError("Project", PROJECT_ID))
+      );
+
+      const result = await new HardDeleteProjectUseCase(repo, makeUow()).execute({
+        projectId: PROJECT_ID,
+        caller: ADMIN,
+      });
+
+      assert.ok(!result.ok);
+      // Absent stays NOT_FOUND — only a row that EXISTS and is live is a conflict.
+      assert.strictEqual(result.error.code, USE_CASE_ERRORS.NOT_FOUND);
+      expect(repo.countHardDeleteImpact).not.toHaveBeenCalled();
+      expect(repo.hardDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("customer self-purge caller", () => {
+    it("erases a soft-deleted project the calling account owns", async () => {
+      const repo = makeRepo();
+
+      const result = await new HardDeleteProjectUseCase(repo, makeUow()).execute({
+        projectId: PROJECT_ID,
+        caller: CUSTOMER,
+      });
+
+      assert.ok(result.ok, "The owning tenant may erase its own soft-deleted project");
+      expect(repo.hardDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it("carries the acting customer principal and reason to the tombstone context", async () => {
+      const repo = makeRepo();
+
+      await new HardDeleteProjectUseCase(repo, makeUow()).execute({
+        projectId: PROJECT_ID,
+        caller: CUSTOMER,
+      });
+
+      const call = repo.hardDelete.mock.calls[0] as [
+        { value: string },
+        { deletedBy: string; reason: string },
+      ];
+      // The tombstone must name the principal that actually destroyed the data.
+      // Attributing a self-purge to an admin who never touched it would make the
+      // only durable record of the destruction describe something that did not happen.
+      expect(call[1]).toEqual({
+        deletedBy: CUSTOMER.customerUserId,
+        reason: "Customer-initiated erasure",
+      });
+    });
+
+    it("returns NOT_FOUND when the project belongs to another account", async () => {
+      const repo = makeRepo();
+
+      const result = await new HardDeleteProjectUseCase(repo, makeUow()).execute({
+        projectId: PROJECT_ID,
+        caller: { ...CUSTOMER, accountId: FOREIGN_ACCOUNT_ID },
+      });
+
+      // NOT_FOUND, never FORBIDDEN: a distinguishable refusal would confirm the
+      // id exists to a caller with no right to know (anti-enumeration).
+      assert.ok(!result.ok, "A foreign project must be refused");
+      assert.strictEqual(result.error.code, USE_CASE_ERRORS.NOT_FOUND);
+      expect(repo.countHardDeleteImpact).not.toHaveBeenCalled();
+      expect(repo.hardDelete).not.toHaveBeenCalled();
+    });
+
+    it("answers NOT_FOUND — never CONFLICT — for a foreign project that is LIVE", async () => {
+      const repo = makeRepo();
+      markLive(repo);
+
+      const result = await new HardDeleteProjectUseCase(repo, makeUow()).execute({
+        projectId: PROJECT_ID,
+        caller: { ...CUSTOMER, accountId: FOREIGN_ACCOUNT_ID },
+      });
+
+      // Ordering is the assertion: the ownership gate has to speak BEFORE the
+      // interlock, or "this project is live" tells an outsider the id exists.
+      assert.ok(!result.ok);
+      assert.strictEqual(result.error.code, USE_CASE_ERRORS.NOT_FOUND);
+      expect(repo.hardDelete).not.toHaveBeenCalled();
+    });
+
+    it("applies the same interlock to the owning customer: a LIVE project is CONFLICT", async () => {
+      const repo = makeRepo();
+      markLive(repo);
+
+      const result = await new HardDeleteProjectUseCase(repo, makeUow()).execute({
+        projectId: PROJECT_ID,
+        caller: CUSTOMER,
+      });
+
+      // The two-act rule is universal. A self-purge that skipped it would be the
+      // one path where a single call still destroys a live project.
+      assert.ok(!result.ok, "The owning tenant is not exempt from the interlock");
+      assert.strictEqual(result.error.code, USE_CASE_ERRORS.CONFLICT);
+      expect(repo.hardDelete).not.toHaveBeenCalled();
+    });
+
+    it("does NOT gate an admin against the subject's account", async () => {
+      const repo = makeRepo();
+      repo.findByIdIncludingDeleted.mockResolvedValue(
+        ok({ accountId: { value: FOREIGN_ACCOUNT_ID }, name: "Someone else's project" })
+      );
+
+      const result = await new HardDeleteProjectUseCase(repo, makeUow()).execute({
+        projectId: PROJECT_ID,
+        caller: ADMIN,
+      });
+
+      // Cross-tenant erasure is the admin path's whole purpose; only the customer
+      // arm is ownership-gated.
+      assert.ok(result.ok, "An admin erases across accounts by design");
+      expect(repo.hardDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a blank reason on the customer arm too", async () => {
+      const repo = makeRepo();
+
+      const result = await new HardDeleteProjectUseCase(repo, makeUow()).execute({
+        projectId: PROJECT_ID,
+        caller: { ...CUSTOMER, reason: "   " },
+      });
+
+      assert.ok(!result.ok, "A blank reason must be rejected whoever sends it");
+      assert.strictEqual(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
+      expect(repo.hardDelete).not.toHaveBeenCalled();
+    });
+
+    it("returns VALIDATION_FAILED and destroys nothing when the confirmation name is a different project's", async () => {
+      const repo = makeRepo();
+
+      const result = await new HardDeleteProjectUseCase(repo, makeUow()).execute({
+        projectId: PROJECT_ID,
+        caller: { ...CUSTOMER, expectedName: "Some other project" },
+      });
+
+      // The self-purge is the one destructive path a tenant can reach on its own,
+      // and an id in a URL carries no evidence that the human meant THIS project.
+      // Typing the name back is that evidence. Deleting the comparison turns this
+      // into a 200 that erases whatever the id happened to name.
+      assert.ok(!result.ok, "A confirmation naming a different project must be refused");
+      assert.strictEqual(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
+      expect(repo.countHardDeleteImpact).not.toHaveBeenCalled();
+      expect(repo.hardDelete).not.toHaveBeenCalled();
+    });
+
+    it("requires the confirmation name EXACTLY, so surrounding whitespace still refuses", async () => {
+      const repo = makeRepo();
+
+      const result = await new HardDeleteProjectUseCase(repo, makeUow()).execute({
+        projectId: PROJECT_ID,
+        caller: { ...CUSTOMER, expectedName: ` ${SUBJECT_NAME} ` },
+      });
+
+      // Exact, not trimmed and not case-folded. A confirmation that quietly
+      // repairs what the human typed is confirming its own guess rather than
+      // their intent — and the entity's own name is already stored trimmed, so a
+      // padded value did not come from reading the project's name off the screen.
+      assert.ok(!result.ok, "A padded confirmation is not the project's name");
+      assert.strictEqual(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
+      expect(repo.hardDelete).not.toHaveBeenCalled();
+    });
+
+    it("checks ownership BEFORE the confirmation, so a foreign project still answers NOT_FOUND", async () => {
+      const repo = makeRepo();
+
+      const result = await new HardDeleteProjectUseCase(repo, makeUow()).execute({
+        projectId: PROJECT_ID,
+        caller: { ...CUSTOMER, accountId: FOREIGN_ACCOUNT_ID, expectedName: "guess" },
+      });
+
+      // Ordering is the assertion. Answering "that name is wrong" to an outsider
+      // would confirm the id exists AND turn the endpoint into an oracle for
+      // guessing another tenant's project names, one request at a time.
+      assert.ok(!result.ok);
+      assert.strictEqual(result.error.code, USE_CASE_ERRORS.NOT_FOUND);
+      expect(repo.hardDelete).not.toHaveBeenCalled();
+    });
   });
 });

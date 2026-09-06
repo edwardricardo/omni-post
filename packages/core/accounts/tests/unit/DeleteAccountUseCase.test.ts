@@ -25,9 +25,11 @@ function makeRepo(): AccountRepositoryPort & {
 } {
   const repo = {
     findById: vi.fn(async () => ok({ id: { value: ACCOUNT_ID } })),
+    findByIdIncludingDeleted: vi.fn(async () => ok({ id: { value: ACCOUNT_ID } })),
     findByEmail: vi.fn(async () => null),
     save: vi.fn(async () => ok(undefined)),
     delete: vi.fn(async () => ok(undefined)),
+    restore: vi.fn(async () => ok(undefined)),
     hardDelete: vi.fn(async () => ok(undefined)),
     countHardDeleteImpact: vi.fn(async () => ({ posts: 0, childRows: 0 })),
     exists: vi.fn(async () => true),
