@@ -359,7 +359,8 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
       try {
         const posts = await prisma.post.findMany({
           where: {
-            project: { accountId },
+            deletedAt: null,
+            project: { accountId, deletedAt: null },
             status: "PUBLISHED",
           },
           orderBy: { publishedAt: "desc" },

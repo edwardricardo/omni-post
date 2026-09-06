@@ -18,8 +18,16 @@ export function createPostRepository(
   prisma: PrismaClient
 ) {
   return {
-    async getPostById(id: string): Promise<Result<CanonicalPost, "NOT_FOUND" | "DATABASE_ERROR">> {
+    async getPostById(
+      id: string
+    ): Promise<Result<CanonicalPost, "NOT_FOUND" | "SOFT_DELETED" | "DATABASE_ERROR">> {
       try {
+        // DELIBERATE soft-delete-sweep exception: this read must SEE soft-deleted
+        // rows. The publish worker needs "SOFT_DELETED" (terminal no-op — retrying
+        // would republish on a later restore) to be distinguishable from
+        // "NOT_FOUND" (absent row), and a `deletedAt: null` where-filter would
+        // collapse both into null. Liveness of the WHOLE chain
+        // (post → project → account) is classified below instead.
         const post = await prisma.post.findUnique({
           where: { id },
           include: {
@@ -28,10 +36,26 @@ export function createPostRepository(
               take: 1,
             },
             media: true,
+            project: { select: { deletedAt: true, account: { select: { deletedAt: true } } } },
           },
         });
 
-        if (!post || post.contents.length === 0) {
+        if (!post) {
+          return err("NOT_FOUND");
+        }
+
+        // The chain is live only when every link is. Dropping the `project`
+        // include above removes these properties from the row TYPE, so the
+        // classification cannot silently outlive its inputs.
+        const chainIsLive =
+          post.deletedAt === null &&
+          post.project.deletedAt === null &&
+          post.project.account.deletedAt === null;
+        if (!chainIsLive) {
+          return err("SOFT_DELETED");
+        }
+
+        if (post.contents.length === 0) {
           return err("NOT_FOUND");
         }
 

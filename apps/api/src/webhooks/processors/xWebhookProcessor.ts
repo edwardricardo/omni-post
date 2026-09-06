@@ -364,6 +364,7 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
       where: {
         provider: "X",
         providerAccountId: userId as string,
+        deletedAt: null,
       },
       include: {
         project: {

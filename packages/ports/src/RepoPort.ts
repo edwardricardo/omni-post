@@ -178,8 +178,16 @@ export interface RepoPort {
   /** Delete a project by id. Cascades to posts, channels, and analytics. */
   deleteProject(id: string): Promise<Result<void, "NOT_FOUND" | "DATABASE_ERROR">>;
 
-  /** Load a single canonical post by id. */
-  getPostById(id: string): Promise<Result<CanonicalPost, "NOT_FOUND" | "DATABASE_ERROR">>;
+  /**
+   * Load a single canonical post by id. `SOFT_DELETED` means the row exists but
+   * its liveness chain (post → project → account) is soft-deleted — a TERMINAL
+   * verdict callers must not retry (the publish worker completes such a job as
+   * a no-op), distinct from `NOT_FOUND` (absent row, retryable at the queue's
+   * discretion).
+   */
+  getPostById(
+    id: string
+  ): Promise<Result<CanonicalPost, "NOT_FOUND" | "SOFT_DELETED" | "DATABASE_ERROR">>;
   /**
    * Batch-fetch channels by id, scoped to the owning tenant. Missing ids and
    * channels owned by a different `accountId` are silently dropped from the

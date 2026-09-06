@@ -76,9 +76,12 @@ export const TOKENS = {
   HardDeletePostsBatchUseCase: Symbol.for("HardDeletePostsBatchUseCase"),
   DuplicatePostsBatchUseCase: Symbol.for("DuplicatePostsBatchUseCase"),
 
-  // Use Cases (project + account hard delete). The irreversible, admin-only
-  // erasure path lives under its own token so a customer-facing call site
-  // cannot resolve it by mistake.
+  // Use Cases (project + account lifecycle). The NORMAL delete is the
+  // reversible soft delete; the irreversible, admin-only erasure path lives
+  // under its own token so a customer-facing call site cannot resolve it by
+  // mistake.
+  DeleteProjectUseCase: Symbol.for("DeleteProjectUseCase"),
+  DeleteAccountUseCase: Symbol.for("DeleteAccountUseCase"),
   HardDeleteProjectUseCase: Symbol.for("HardDeleteProjectUseCase"),
   HardDeleteAccountUseCase: Symbol.for("HardDeleteAccountUseCase"),
 

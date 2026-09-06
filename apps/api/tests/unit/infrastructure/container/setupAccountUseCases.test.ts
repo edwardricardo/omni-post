@@ -1,13 +1,16 @@
 /**
  * @file setupAccountUseCases.test.ts
- * @description Smoke contract test for the Account hard-delete DI setup. Verifies
- *   that the function registers the expected TOKEN without throwing, that the use
- *   case is a singleton, and — what this change makes load-bearing — that the hard
- *   delete builds its OWN dedicated UnitOfWork (Serializable, explicit timeout)
- *   from the PrismaClient rather than resolving the shared UnitOfWork token: that
- *   transaction is what binds the `app.account_id` RLS GUC and pins the isolation
- *   level for the whole cascade. It does NOT test the full instantiation chain
- *   (that belongs to the use case's own tests plus the integration suite).
+ * @description Smoke contract test for the Account lifecycle DI setup. Verifies
+ *   that the function registers the soft-delete and hard-delete TOKENS without
+ *   throwing, that the use cases are singletons, and the two Unit of Work
+ *   contracts: the hard delete builds its OWN dedicated UnitOfWork (Serializable,
+ *   explicit timeout) from the PrismaClient rather than resolving the shared
+ *   UnitOfWork token — that transaction is what binds the `app.account_id` RLS
+ *   GUC and pins the isolation level for the whole cascade — while the soft
+ *   delete resolves the SHARED UnitOfWork, because a single-row UPDATE has no
+ *   snapshot for Serializable to protect. It does NOT test the full
+ *   instantiation chain (that belongs to the use case's own tests plus the
+ *   integration suite).
  * @layer infrastructure
  */
 
@@ -64,20 +67,39 @@ function tokensResolvedBy(
 }
 
 describe("setupAccountUseCases", () => {
-  it("registers the account hard-delete token without throwing", () => {
+  it("registers the account soft-delete and hard-delete tokens without throwing", () => {
     const { container, registered } = makeMockContainer();
 
     expect(() => setupAccountUseCases(container)).not.toThrow();
 
+    expect(registered).toContain(TOKENS.DeleteAccountUseCase);
     expect(registered).toContain(TOKENS.HardDeleteAccountUseCase);
   });
 
-  it("registers the use case as a singleton because it is stateless", () => {
+  it("registers the use cases as singletons because they are stateless", () => {
     const { container, singletons } = makeMockContainer();
 
     setupAccountUseCases(container);
 
+    expect(singletons.get(TOKENS.DeleteAccountUseCase)).toBe(true);
     expect(singletons.get(TOKENS.HardDeleteAccountUseCase)).toBe(true);
+  });
+
+  it("gives the soft delete the SHARED Unit of Work, never the dedicated Serializable one", () => {
+    const { container, factories } = makeMockContainer();
+    setupAccountUseCases(container);
+
+    const resolved = tokensResolvedBy(container, factories, TOKENS.DeleteAccountUseCase);
+
+    // The soft delete is one UPDATE of one row by primary key: there is no
+    // multi-row tombstone snapshot to keep consistent, so Serializable would buy
+    // nothing but retryable serialization failures. What it DOES want from the
+    // shared UnitOfWork is the `app.account_id` RLS GUC bound at tx start and
+    // atomicity over the probe+update pair. Resolving TOKENS.PrismaClient here
+    // would be the signature of building a dedicated transaction instead.
+    expect(resolved).toContain(TOKENS.AccountRepository);
+    expect(resolved).toContain(TOKENS.UnitOfWork);
+    expect(resolved).not.toContain(TOKENS.PrismaClient);
   });
 
   it("gives the hard delete its OWN Serializable Unit of Work built from the PrismaClient, not the shared one", () => {

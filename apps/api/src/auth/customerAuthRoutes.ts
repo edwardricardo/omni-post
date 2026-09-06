@@ -189,6 +189,10 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
       const errorMap = {
         INVALID_CREDENTIALS: { code: 401, message: "Invalid email or password" },
         USER_INACTIVE: { code: 403, message: "Account is inactive" },
+        // Disclosed only after valid credentials (use-case ordering), so this
+        // is actionable for the legitimate user without being an enumeration
+        // oracle for outsiders.
+        ACCOUNT_DEACTIVATED: { code: 403, message: "This account has been deactivated" },
         MULTIPLE_ACCOUNTS: {
           code: 409,
           message: "Multiple accounts found. Please provide accountSlug.",
@@ -294,6 +298,14 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
       USER_INACTIVE: {
         status: 403,
         body: { ok: false, error: "Account is inactive", code: "USER_INACTIVE" },
+      },
+      ACCOUNT_DEACTIVATED: {
+        status: 403,
+        body: {
+          ok: false,
+          error: "This account has been deactivated",
+          code: "ACCOUNT_DEACTIVATED",
+        },
       },
       RATE_LIMITED: {
         status: 429,

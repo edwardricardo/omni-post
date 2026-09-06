@@ -744,6 +744,22 @@ export class PublishHandler {
       });
       const post = await this.repo.getPostById(postId);
       if (!post.ok) {
+        if (post.error === "SOFT_DELETED") {
+          // Deletion liveness gate. The repo saw the row and classified its
+          // chain (post → project → account) as soft-deleted. Adjudicated as a
+          // TERMINAL no-op, not an error: throwing would hand the job to
+          // BullMQ's retry policy, and a retry that lands after the entity is
+          // restored would publish content the tenant deleted — restoring must
+          // never republish as a queue side effect. The read itself succeeded.
+          dbTimer({ result: "success" });
+          this.logger.info(
+            { postId, channelId, provider: providerName, dedupeKey, reason: "SOFT_DELETED" },
+            "Skip publish (post, project, or account soft-deleted)"
+          );
+          this.workerMetrics.metrics.jobsSkipped.inc();
+          finishJob();
+          return;
+        }
         dbTimer({ result: "error" });
         this.workerMetrics.recordError("database", "post_not_found", false);
         throw new Error(`Post not found or repo unavailable: ${post.error}`);

@@ -12,7 +12,10 @@ export class PrismaCreateSubscriptionRepository implements CreateSubscriptionRep
   constructor(private readonly prisma: PrismaClient) {}
 
   async findAccount(accountId: string): Promise<{ id: string } | null> {
-    return this.prisma.account.findUnique({ where: { id: accountId }, select: { id: true } });
+    return this.prisma.account.findFirst({
+      where: { id: accountId, deletedAt: null },
+      select: { id: true },
+    });
   }
 
   async findSubscriptionByAccountId(accountId: string): Promise<{ id: string } | null> {

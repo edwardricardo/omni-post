@@ -17,6 +17,7 @@
 import { type Result, ok, err } from "@shared/types";
 import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
+import type { Account } from "@core/domain/entities/Account.js";
 import { AccountId } from "@core/domain/value-objects/EntityId.js";
 import type { CustomerTokenService } from "@core/domain/repositories/CustomerTokenService.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
@@ -52,6 +53,7 @@ export type CompleteCustomerMfaLoginError =
   | "CHALLENGE_BINDING_MISMATCH"
   | "INVALID_MFA_CODE"
   | "USER_INACTIVE"
+  | "ACCOUNT_DEACTIVATED"
   | "RATE_LIMITED"
   | "MFA_UNAVAILABLE"
   | "INTERNAL_ERROR";
@@ -127,6 +129,25 @@ export class CompleteCustomerMfaLoginUseCase {
       }
       if (!user.isActive) {
         return err("USER_INACTIVE");
+      }
+
+      // 4b. Account liveness gate: step 1 refuses a deleted account outright,
+      // but a live challenge (180s TTL) must not outlive the account either —
+      // an account soft-deleted BETWEEN the two steps dies here, before any
+      // second-factor work. `accountRepo.findById` filters `deletedAt: null`,
+      // so a deleted (or unresolvable — fail-closed) account refuses. Like
+      // USER_INACTIVE this is an account-state verdict, so the challenge is
+      // NOT consumed. The account is kept for the response body below.
+      const accountIdResult = AccountId.fromString(user.accountId);
+      let liveAccount: Account | null = null;
+      if (accountIdResult.ok) {
+        const accountResult = await this.accountRepo.findById(accountIdResult.value);
+        if (accountResult.ok) {
+          liveAccount = accountResult.value;
+        }
+      }
+      if (liveAccount === null) {
+        return err("ACCOUNT_DEACTIVATED");
       }
 
       // 5. Brute-force gate — SAME identifier as step 1 (the email) so the
@@ -206,15 +227,8 @@ export class CompleteCustomerMfaLoginUseCase {
         userAgent,
       });
 
-      // 10. Fetch the account for the response body.
-      const accountIdResult = AccountId.fromString(user.accountId);
-      let accountJson: Record<string, unknown> = { id: user.accountId };
-      if (accountIdResult.ok) {
-        const accountResult = await this.accountRepo.findById(accountIdResult.value);
-        if (accountResult.ok) {
-          accountJson = accountResult.value.toJSON();
-        }
-      }
+      // 10. Account for the response body — fetched by the liveness gate (4b).
+      const accountJson: Record<string, unknown> = liveAccount.toJSON();
 
       // 11. Mint the fresh session — access + refresh, new sessionId.
       const sessionId = randomBytes(16).toString("hex");

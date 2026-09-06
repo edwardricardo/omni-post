@@ -346,8 +346,9 @@ export class SyncEngine extends SyncEngineBase {
   ): Promise<CanonicalPost | null> {
     // Get content from database for the given post
     try {
-      const post = await this.prisma.post.findUnique({
-        where: { id: postId },
+      // findFirst + deletedAt: null — a soft-deleted post must not be synced to a provider.
+      const post = await this.prisma.post.findFirst({
+        where: { id: postId, deletedAt: null },
         include: { contents: true },
       });
 

@@ -179,17 +179,36 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
+   * Resolve the client the CURRENT call must run on: the Unit of Work's
+   * transaction client when one is active in this async context, the injected
+   * base client otherwise. Without this, a statement issued inside
+   * `executeInTransaction` runs on a DIFFERENT connection than the transaction
+   * — outside its atomicity and outside the `app.account_id` GUC the UoW binds
+   * at tx start (RLS layer 2), while every caller reads as if it were inside.
+   */
+  private getClient(): PrismaClient | TxClient {
+    return PrismaUnitOfWork.getTransactionClient() ?? this.prisma;
+  }
+
+  /**
    * Soft-delete a project (sets deletedAt = now).
    * The project becomes invisible to all standard find queries.
    * Child data (posts, channels) remains intact for audit purposes.
+   *
+   * The probe and the update deliberately resolve the client ONCE, together, so
+   * they land in the same transaction when a Unit of Work is active: the pair is
+   * a check-then-act, and split across two connections the check can be true
+   * when the act runs against a row someone else already changed.
    */
   async delete(id: ProjectId): Promise<Result<void, EntityNotFoundError>> {
-    const exists = await this.exists(id);
+    const client = this.getClient();
+
+    const exists = await this.existsOn(id, client);
     if (!exists) {
       return err(new EntityNotFoundError("Project", id.value));
     }
 
-    await this.prisma.project.update({
+    await client.project.update({
       where: { id: id.value },
       data: { deletedAt: new Date() },
     });
@@ -226,6 +245,8 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
     // the delete. `findFirst` without `deletedAt` so an already soft-deleted
     // project is still reachable by the irreversible path.
     const doHardDelete = async (tx: TxClient): Promise<boolean> => {
+      // DELIBERATE soft-delete-sweep exception: the hard-delete probe/tombstone
+      // snapshot must reach an already soft-deleted project.
       const snapshot = await tx.project.findFirst({
         where: { id: id.value },
         select: { id: true, accountId: true, name: true, createdAt: true },
@@ -312,6 +333,8 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   async countHardDeleteImpact(id: ProjectId): Promise<HardDeleteImpact> {
     const projectId = id.value;
     const [posts, tasks, webhookEvents] = await Promise.all([
+      // DELIBERATE soft-delete-sweep exception: the impact estimate counts every
+      // row the cascade will destroy, soft-deleted ones included.
       this.prisma.post.count({ where: { projectId } }),
       this.prisma.task.count({ where: { projectId } }),
       this.prisma.webhookEvent.count({ where: { projectId } }),
@@ -325,10 +348,20 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Check whether an active (non-deleted) project with the given ID exists
+   * Check whether an active (non-deleted) project with the given ID exists.
+   * Joins the active Unit of Work transaction when one is open.
    */
   async exists(id: ProjectId): Promise<boolean> {
-    const count = await this.prisma.project.count({
+    return this.existsOn(id, this.getClient());
+  }
+
+  /**
+   * The probe itself, against an explicit client. Private so the port signature
+   * stays free of infrastructure types: only `delete` needs to name the client,
+   * because only it must guarantee its probe and its write share one.
+   */
+  private async existsOn(id: ProjectId, client: PrismaClient | TxClient): Promise<boolean> {
+    const count = await client.project.count({
       where: { id: id.value, deletedAt: null },
     });
     return count > 0;

@@ -289,20 +289,20 @@ describe("TemplateService - Create Template", () => {
   });
 
   it("should create new template", async () => {
-    const projectFindUnique = mockPrismaMethod(prisma.project, "findUnique");
+    const projectFindFirst = mockPrismaMethod(prisma.project, "findFirst");
     const templateCreate = mockPrismaMethod(prisma.template, "create");
     const templateFindFirst = mockPrismaMethod(prisma.template, "findFirst");
     const versionUpdateMany = mockPrismaMethod(prisma.templateVersion, "updateMany");
     const versionCreate = mockPrismaMethod(prisma.templateVersion, "create");
     mocks.push(
-      projectFindUnique,
+      projectFindFirst,
       templateCreate,
       templateFindFirst,
       versionUpdateMany,
       versionCreate
     );
 
-    projectFindUnique.mockImplementationOnce(() =>
+    projectFindFirst.mockImplementationOnce(() =>
       Promise.resolve({ id: "project-123", accountId: "account-456" })
     );
 
@@ -358,10 +358,10 @@ describe("TemplateService - Create Template", () => {
   });
 
   it("should fail for non-existent project", async () => {
-    const projectFindUnique = mockPrismaMethod(prisma.project, "findUnique");
-    mocks.push(projectFindUnique);
+    const projectFindFirst = mockPrismaMethod(prisma.project, "findFirst");
+    mocks.push(projectFindFirst);
 
-    projectFindUnique.mockImplementationOnce(() => Promise.resolve(null));
+    projectFindFirst.mockImplementationOnce(() => Promise.resolve(null));
 
     const templateData = {
       name: "Template",
@@ -377,13 +377,13 @@ describe("TemplateService - Create Template", () => {
   });
 
   it("should create initial version", async () => {
-    const projectFindUnique = mockPrismaMethod(prisma.project, "findUnique");
+    const projectFindFirst = mockPrismaMethod(prisma.project, "findFirst");
     const templateCreate = mockPrismaMethod(prisma.template, "create");
     const versionUpdateMany = mockPrismaMethod(prisma.templateVersion, "updateMany");
     const versionCreate = mockPrismaMethod(prisma.templateVersion, "create");
-    mocks.push(projectFindUnique, templateCreate, versionUpdateMany, versionCreate);
+    mocks.push(projectFindFirst, templateCreate, versionUpdateMany, versionCreate);
 
-    projectFindUnique.mockImplementationOnce(() =>
+    projectFindFirst.mockImplementationOnce(() =>
       Promise.resolve({ id: "project-123", accountId: "account-456" })
     );
 

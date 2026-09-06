@@ -317,7 +317,7 @@ describe("DELETE /accounts/:accountId — destructive permission", () => {
     expect(survivor).not.toBe(null);
   });
 
-  it("still lets an owner holding account:delete destroy their own account", async () => {
+  it("still lets an owner holding account:delete delete their own account — softly", async () => {
     const owner = await makeTenant("owner", OWNER_PERMISSIONS);
 
     const response = await app.inject({
@@ -329,8 +329,14 @@ describe("DELETE /accounts/:accountId — destructive permission", () => {
     expect(response.statusCode).toBe(200);
     expect(JSON.parse(response.body).ok).toBe(true);
 
-    const gone = await mockPrisma.prisma.account.findUnique({ where: { id: owner.accountId } });
-    expect(gone).toBe(null);
+    // Soft delete: the row is PRESENT and carries deletedAt. The previous
+    // version of this test pinned the hard-delete-by-default defect as the
+    // contract (`expect(gone).toBe(null)`).
+    const survivor = (await mockPrisma.prisma.account.findUnique({
+      where: { id: owner.accountId },
+    })) as { deletedAt?: Date | null } | null;
+    expect(survivor).not.toBe(null);
+    expect(survivor?.deletedAt).toBeInstanceOf(Date);
   });
 
   it("keeps answering a foreign account id with 404 even for an owner who holds account:delete", async () => {
