@@ -58,6 +58,12 @@ export interface HardDeleteAccountInput {
  * Permanently removes an account and every project, channel and post beneath it.
  * This destroys rows; there is no recovery.
  *
+ * It is the SECOND of two deliberate acts, never the first: the subject must
+ * already be soft-deleted. A live account is refused with CONFLICT, so no single
+ * request can take a working tenant from serving traffic to erased. An id that no
+ * row carries at all stays NOT_FOUND — absent and live are different answers on
+ * purpose, because the caller can act on one and not the other.
+ *
  * Atomicity is the repository adapter's responsibility: `hardDelete` writes the
  * tombstones (one for the account, one per project it drags along) and destroys
  * the rows inside a single transaction, so a mid-way failure leaves the tenant
@@ -122,14 +128,16 @@ export class HardDeleteAccountUseCase implements CommandUseCase<
 
   /**
    * @method execute
-   * @description Validates the id and the admin caller, refuses a tenant too large to remove
-   *              atomically, then irreversibly removes the account and its dependent rows inside
-   *              a Serializable, tenant-bound transaction.
+   * @description Validates the id and the admin caller, refuses an account that has not been
+   *              soft-deleted first, refuses a tenant too large to remove atomically, then
+   *              irreversibly removes the account and its dependent rows inside a Serializable,
+   *              tenant-bound transaction.
    * @param input - Account id plus the required admin caller context
    * @returns Ok on success; VALIDATION_FAILED on a malformed id or empty reason;
    *          OPERATION_TOO_LARGE when the cascade exceeds the single-transaction ceiling;
    *          NOT_FOUND when no account (including a soft-deleted one) carries that id;
-   *          CONFLICT on a foreign-key interlock; TRANSIENT_FAILURE on a timeout or write conflict
+   *          CONFLICT when the account is still live (it must be soft-deleted first) or on a
+   *          foreign-key interlock; TRANSIENT_FAILURE on a timeout or write conflict
    */
   async execute(input: HardDeleteAccountInput): Promise<Result<void, UseCaseError>> {
     const accountIdResult = AccountId.fromString(input.accountId);
@@ -156,6 +164,47 @@ export class HardDeleteAccountUseCase implements CommandUseCase<
     const accountId = accountIdResult.value;
 
     try {
+      // TWO-ACT INTERLOCK, before every other read: an account may only be erased
+      // once it has ALREADY been soft-deleted. Without it a single request
+      // destroys a working tenant — one mistyped id in an admin console and there
+      // is no intermediate state anybody could have seen, questioned or reversed.
+      // The soft delete IS that state, so requiring it means erasure can only
+      // confirm a decision somebody already took and left visible; it also means
+      // the tenant has stopped serving traffic, which is the condition the
+      // Serializable cascade needs anyway.
+      const subject = await this.accountRepository.findByIdIncludingDeleted(accountId);
+      if (!subject.ok) {
+        // No row carries this id at all (never existed, or already erased). There
+        // is no missing first act to describe, so this stays NOT_FOUND and never
+        // becomes the CONFLICT below.
+        return err(
+          new UseCaseError(
+            `Account not found: ${input.accountId}`,
+            USE_CASE_ERRORS.NOT_FOUND,
+            subject.error
+          )
+        );
+      }
+
+      // Liveness is read through the SWEEP-FILTERED accessor: `findById` serves
+      // only `deletedAt IS NULL`, so a hit here means the row is in the live
+      // population. It is asked rather than read off the entity because the domain
+      // Account carries no `deletedAt` of its own — the same technique
+      // `RestoreAccountUseCase` uses for the mirror-image check.
+      const live = await this.accountRepository.findById(accountId);
+      if (live.ok) {
+        // CONFLICT, deliberately not NOT_FOUND: the admin has just proved this id
+        // exists, so denying the account would be both false and unactionable. The
+        // message names the missing step instead.
+        return err(
+          new UseCaseError(
+            `Account ${input.accountId} is live; hard delete requires a prior soft delete ` +
+              `(two deliberate acts). Soft-delete it first, then erase it.`,
+            USE_CASE_ERRORS.CONFLICT
+          )
+        );
+      }
+
       // Pre-flight size guard, BEFORE opening the transaction: a tenant whose
       // cascade is too large to finish inside the transaction budget is refused
       // with an actionable error, not left to time out (and stay undeletable)

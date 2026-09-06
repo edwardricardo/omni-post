@@ -271,9 +271,19 @@ function createMockProjectRepo() {
       }
       return { ok: false, error: { kind: "NotFound" } } as any;
     },
+    findByIdIncludingDeleted: async (id: any) => {
+      const idStr = id?.toString?.() ?? String(id);
+      if (idStr === TEST_PROJECT_ID) {
+        return ok({
+          accountId: { toString: () => TEST_ACCOUNT_ID },
+        }) as any;
+      }
+      return { ok: false, error: { kind: "NotFound" } } as any;
+    },
     findByAccountId: async () => [],
     save: async () => ok(undefined),
     delete: async () => ok(undefined),
+    restore: async () => ok(undefined),
     hardDelete: async () => ok(undefined),
     exists: async () => true,
     findByName: async () => null,

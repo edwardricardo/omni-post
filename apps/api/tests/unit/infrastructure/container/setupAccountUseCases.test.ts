@@ -24,7 +24,10 @@ import {
   HARD_DELETE_TX_TIMEOUT_MS,
 } from "../../../../src/infrastructure/hardDeleteTransaction.js";
 import { toAdminActorId } from "@core/domain/value-objects/AdminActorId.js";
-import { ok } from "@shared/types";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
+import { ok, err } from "@shared/types";
+
+const ACCOUNT_ID = "550e8400-e29b-41d4-a716-446655440301";
 
 type Factory = () => unknown;
 
@@ -67,12 +70,13 @@ function tokensResolvedBy(
 }
 
 describe("setupAccountUseCases", () => {
-  it("registers the account soft-delete and hard-delete tokens without throwing", () => {
+  it("registers the account soft-delete, restore and hard-delete tokens without throwing", () => {
     const { container, registered } = makeMockContainer();
 
     expect(() => setupAccountUseCases(container)).not.toThrow();
 
     expect(registered).toContain(TOKENS.DeleteAccountUseCase);
+    expect(registered).toContain(TOKENS.RestoreAccountUseCase);
     expect(registered).toContain(TOKENS.HardDeleteAccountUseCase);
   });
 
@@ -82,7 +86,25 @@ describe("setupAccountUseCases", () => {
     setupAccountUseCases(container);
 
     expect(singletons.get(TOKENS.DeleteAccountUseCase)).toBe(true);
+    expect(singletons.get(TOKENS.RestoreAccountUseCase)).toBe(true);
     expect(singletons.get(TOKENS.HardDeleteAccountUseCase)).toBe(true);
+  });
+
+  it("gives the restore the SHARED Unit of Work, the same one its soft delete uses", () => {
+    const { container, factories } = makeMockContainer();
+    setupAccountUseCases(container);
+
+    const resolved = tokensResolvedBy(container, factories, TOKENS.RestoreAccountUseCase);
+
+    // A restore is the exact inverse of the soft delete — one UPDATE clearing
+    // `deletedAt` on one row — so it wants what the soft delete wants: the
+    // `app.account_id` RLS GUC bound at tx start and atomicity over the
+    // read-then-write pair. Wiring it to the hard delete's dedicated Serializable
+    // transaction instead would show up here as a PrismaClient resolution, and
+    // would buy nothing but retryable serialization failures on a single-row write.
+    expect(resolved).toContain(TOKENS.AccountRepository);
+    expect(resolved).toContain(TOKENS.UnitOfWork);
+    expect(resolved).not.toContain(TOKENS.PrismaClient);
   });
 
   it("gives the soft delete the SHARED Unit of Work, never the dedicated Serializable one", () => {
@@ -136,6 +158,12 @@ describe("setupAccountUseCases", () => {
       ),
     };
     const repository = {
+      // Erasure is the second of two deliberate acts, so the composed use case
+      // reads the subject's state before it destroys anything. The pair below IS
+      // the soft-deleted state: the unfiltered reader finds the row, the
+      // sweep-filtered one (which serves only `deletedAt IS NULL`) does not.
+      findByIdIncludingDeleted: vi.fn(async () => ok({})),
+      findById: vi.fn(async () => err(new EntityNotFoundError("Account", ACCOUNT_ID))),
       countHardDeleteImpact: vi.fn(async () => ({ posts: 0, childRows: 0 })),
       hardDelete: vi.fn(async () => ok(undefined)),
     };
@@ -152,7 +180,7 @@ describe("setupAccountUseCases", () => {
     const actor = toAdminActorId("admin-1");
     if (!actor.ok) throw new Error("test setup: invalid admin actor id");
     const result = await useCase.execute({
-      accountId: "550e8400-e29b-41d4-a716-446655440301",
+      accountId: ACCOUNT_ID,
       caller: { type: "admin", adminUserId: actor.value, reason: "GDPR erasure request" },
     });
 

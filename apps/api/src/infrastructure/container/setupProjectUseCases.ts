@@ -7,7 +7,11 @@
 import type { PrismaClient } from "@infra/prisma";
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { DeleteProjectUseCase, HardDeleteProjectUseCase } from "@core/projects/index.js";
+import {
+  DeleteProjectUseCase,
+  HardDeleteProjectUseCase,
+  RestoreProjectUseCase,
+} from "@core/projects/index.js";
 import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
@@ -30,6 +34,23 @@ export function setupProjectUseCases(container: Container): void {
     TOKENS.DeleteProjectUseCase,
     () =>
       new DeleteProjectUseCase(
+        container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+
+  // The restore takes the SAME shared Unit of Work as the soft delete it
+  // reverses, and for the same reasons: it is one UPDATE clearing `deletedAt` on
+  // one row by primary key, so Serializable would buy only retryable
+  // serialization failures, while the shared transaction supplies the two things
+  // the operation genuinely needs — the `app.account_id` RLS GUC bound at tx
+  // start, and atomicity over the liveness/name-collision reads and the write
+  // they guard.
+  container.register<RestoreProjectUseCase>(
+    TOKENS.RestoreProjectUseCase,
+    () =>
+      new RestoreProjectUseCase(
         container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),

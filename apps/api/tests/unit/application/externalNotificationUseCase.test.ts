@@ -45,6 +45,12 @@ function makeProjectRepo(found = true) {
       .mockResolvedValue(
         found ? ok(makeProject()) : err(new EntityNotFoundError("Project", PROJECT_ID))
       ),
+    findByIdIncludingDeleted: vi
+      .fn()
+      .mockResolvedValue(
+        found ? ok(makeProject()) : err(new EntityNotFoundError("Project", PROJECT_ID))
+      ),
+    restore: vi.fn().mockResolvedValue(ok(undefined)),
   } as unknown as ProjectRepositoryPort & { findById: ReturnType<typeof vi.fn> };
 }
 

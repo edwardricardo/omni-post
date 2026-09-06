@@ -93,6 +93,28 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   }
 
   /**
+   * Find an account by its ID INCLUDING soft-deleted rows.
+   *
+   * DELIBERATE soft-delete-sweep exception: no `deletedAt: null` filter, because
+   * the restore path's subject is by definition a soft-deleted row and
+   * {@link findById} exists to hide exactly that row — the restore must read the
+   * stored e-mail to weigh it against the live population before bringing the row
+   * back. Reserved for restore; every other read here keeps the sweep.
+   */
+  async findByIdIncludingDeleted(id: AccountId): Promise<Result<Account, EntityNotFoundError>> {
+    const row = await this.getClient().account.findFirst({
+      where: { id: id.value },
+      include: { _count: { select: { projects: { where: { deletedAt: null } } } } },
+    });
+
+    if (!row) {
+      return err(new EntityNotFoundError("Account", id.value));
+    }
+
+    return ok(toDomain(row));
+  }
+
+  /**
    * Find an account by email address (excludes soft-deleted accounts)
    */
   async findByEmail(email: string): Promise<Account | null> {
@@ -200,8 +222,52 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   }
 
   /**
+   * Restore a soft-deleted account by clearing `deletedAt`, reversing the soft
+   * delete so standard reads return it again.
+   *
+   * DELIBERATE soft-delete-sweep exception: the finder targets a row that IS
+   * currently soft-deleted (`NOT: { deletedAt: null }`), so it cannot carry the
+   * sweep's `deletedAt: null` — that filter would select the exact rows this
+   * method must refuse. A row that is absent (never existed / hard-deleted) or
+   * already live is not restorable and yields EntityNotFoundError, so "restore a
+   * live row" is indistinguishable from "restore a row that does not exist"
+   * (anti-enumeration).
+   *
+   * Probe and update resolve the client ONCE, together, for the same reason
+   * {@link delete} does: the pair is a check-then-act, and split across two
+   * connections the check can be true while the act lands on a row someone else
+   * already changed.
+   *
+   * The e-mail partial unique is the authoritative arbiter of the residual race
+   * (a live twin born after the soft delete): clearing `deletedAt` raises P2002
+   * there, which the application layer classifies as CONFLICT rather than an
+   * internal fault.
+   */
+  async restore(id: AccountId): Promise<Result<void, EntityNotFoundError>> {
+    const client = this.getClient();
+
+    const softDeleted = await client.account.findFirst({
+      where: { id: id.value, NOT: { deletedAt: null } },
+      select: { id: true },
+    });
+    if (!softDeleted) {
+      return err(new EntityNotFoundError("Account", id.value));
+    }
+
+    await client.account.update({
+      where: { id: id.value },
+      data: { deletedAt: null },
+    });
+    return ok(undefined);
+  }
+
+  /**
    * Hard-delete an account and everything it owns. SUPER_ADMIN only —
    * irreversible.
+   *
+   * PRECONDITION: the account must ALREADY be soft-deleted. A live one resolves
+   * to EntityNotFoundError and nothing is written, so erasure cannot be reached
+   * in a single act from a tenant that is still serving traffic.
    *
    * The delete order lives in the schema, not here: every owned child
    * cascades from Account (projects and their subtrees, channels, users,
@@ -232,13 +298,19 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
 
     // The existence probe lives INSIDE the transaction and doubles as the
     // tombstone snapshot: one read that cannot go stale between the check and
-    // the delete. `findFirst` without `deletedAt` so an already soft-deleted
-    // account is still reachable by the irreversible path.
+    // the delete. It selects rows that ARE soft-deleted and only those, so the
+    // probe is also the interlock: erasure is the second of two deliberate acts,
+    // and a live account fails to resolve here rather than being destroyed by a
+    // single call. That the application layer refuses a live account first is not
+    // a reason to widen this — the layer that issues the DELETE states the
+    // precondition itself instead of inheriting it from its callers.
     const doHardDelete = async (tx: TxClient): Promise<boolean> => {
-      // DELIBERATE soft-delete-sweep exception: the hard-delete probe/tombstone
-      // snapshot must reach an already soft-deleted account.
+      // DELIBERATE soft-delete-sweep exception: the probe cannot carry the sweep's
+      // `deletedAt: null` — that filter selects exactly the rows this method must
+      // refuse. It carries the inverse (`NOT: { deletedAt: null }`), which reaches
+      // the already soft-deleted account the tombstone snapshot needs.
       const account = await tx.account.findFirst({
-        where: { id: accountId },
+        where: { id: accountId, NOT: { deletedAt: null } },
         select: { id: true, name: true, createdAt: true },
       });
       if (!account) {

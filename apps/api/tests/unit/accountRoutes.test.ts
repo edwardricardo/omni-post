@@ -10,8 +10,8 @@ import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 // The customer principal this file's mocked `requireClientAuth` binds. Hoisted
 // so the `vi.mock` factory below (which vitest lifts above every import) can read
 // it, and so the DELETE suite can mint its account under exactly this id.
-const { CUSTOMER_PRINCIPAL } = vi.hoisted(() => ({
-  CUSTOMER_PRINCIPAL: {
+const { AUTH_STATE, CUSTOMER_PRINCIPAL } = vi.hoisted(() => {
+  const CUSTOMER_PRINCIPAL = {
     id: "customer-user-1",
     accountId: "c0000000-0000-4000-8000-000000000001",
     roleId: "customer-role-1",
@@ -23,8 +23,15 @@ const { CUSTOMER_PRINCIPAL } = vi.hoisted(() => ({
     // WITHOUT it is refused and destroys nothing — is pinned under the real
     // middleware in `tests/unit/accounts/accountDeletePermission.test.ts`.
     permissions: ["account:manage", "account:delete"] as readonly string[],
-  },
-}));
+  };
+  return {
+    CUSTOMER_PRINCIPAL,
+    // Mutable so a test can model a principal with a DIFFERENT permission set
+    // (the member who may not delete) without minting a token per request.
+    // Every test that changes it restores it in a `finally`.
+    AUTH_STATE: { principal: CUSTOMER_PRINCIPAL as typeof CUSTOMER_PRINCIPAL },
+  };
+});
 
 // The customer middleware stays mocked here so the POST/GET/PUT/LIST suites can
 // run without minting a token per request — but it now binds a principal instead
@@ -40,7 +47,7 @@ const { CUSTOMER_PRINCIPAL } = vi.hoisted(() => ({
 // `tests/unit/accounts/accountDeleteOwnership.test.ts`.
 vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
   requireClientAuth: async (request: { customerUser?: unknown }) => {
-    request.customerUser = { ...CUSTOMER_PRINCIPAL };
+    request.customerUser = { ...AUTH_STATE.principal };
   },
 }));
 
@@ -197,6 +204,7 @@ const { serializerCompiler, validatorCompiler } = await import("fastify-type-pro
 const { accountRoutes } = await import("../../src/accounts/accountRoutes.js");
 const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
 const { TokenService } = await import("../../src/admin/auth/TokenService.js");
+const { signCustomerAccessToken } = await import("../../src/auth/customerJwt.js");
 
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -213,6 +221,41 @@ const adminAccessToken = new TokenService().generateAccessToken({
   role: "SUPER_ADMIN",
 } as never);
 const adminAuthHeaders = { authorization: `Bearer ${adminAccessToken}` };
+
+// A genuine admin token for a STAFF role that does NOT hold `account:manage`.
+// SUPPORT is a real seeded role (see mockPrisma's role seed), which is what makes
+// this the honest shape of the threat: not a forged token, but a legitimate
+// lower-privilege employee reaching an endpoint that crosses every tenant.
+const supportAccessToken = new TokenService().generateAccessToken({
+  id: "admin-support-31",
+  email: "support-one@omnipost.test",
+  name: "Support One",
+  role: "SUPPORT",
+} as never);
+const supportAuthHeaders = { authorization: `Bearer ${supportAccessToken}` };
+
+/**
+ * Mints a GENUINE customer access token for the composed admin-or-owner surface
+ * (`POST /accounts/:accountId/restore`).
+ *
+ * That route runs the REAL `requireCustomerOrAdminAuth`, not this file's
+ * `requireClientAuth` double, because which branch the handler takes IS the
+ * behaviour under test: a double that decided the branch would decide the answer
+ * with it. Signing a real token instead means the principal the handler gates on
+ * is the one the production verifier produced.
+ */
+function customerHeaders(
+  overrides: Partial<{ accountId: string; permissions: readonly string[] }> = {}
+): { authorization: string } {
+  const token = signCustomerAccessToken({
+    sub: CUSTOMER_PRINCIPAL.id,
+    accountId: overrides.accountId ?? CUSTOMER_PRINCIPAL.accountId,
+    roleId: CUSTOMER_PRINCIPAL.roleId,
+    roleName: CUSTOMER_PRINCIPAL.roleName,
+    permissions: overrides.permissions ?? CUSTOMER_PRINCIPAL.permissions,
+  });
+  return { authorization: `Bearer ${token}` };
+}
 
 // ---------------------------------------------------------------------------
 // Helper
@@ -707,6 +750,227 @@ describe("accountRoutes Unit Tests", () => {
 
       expect(response.statusCode).toBe(404);
     });
+
+    it("refuses a member without account:delete with 403 and the account survives", async () => {
+      const survivor = await mockPrisma.prisma.account.create({
+        data: {
+          id: "c0000000-0000-4000-8000-0000000000aa",
+          email: `member-refused-${Date.now()}@example.com`,
+          name: "Member Refused",
+          maxProjects: 1,
+        },
+      });
+
+      // A real, broad member permission set — everything a MEMBER legitimately
+      // holds — minus the OWNER-only grant. The soft delete still shuts the
+      // tenant down (every read stops serving it, its users stop logging in), so
+      // it stays an owner-grade action even though the row survives. The gate now
+      // lives in a preHandler shared with the project delete route; removing it
+      // there turns this into a 200 that takes the tenant offline.
+      AUTH_STATE.principal = {
+        ...CUSTOMER_PRINCIPAL,
+        accountId: survivor.id as string,
+        permissions: ["post:manage", "analytics:read"],
+      };
+      try {
+        const response = await app.inject({
+          method: "DELETE",
+          url: `/accounts/${survivor.id}`,
+        });
+        expect(response.statusCode).toBe(403);
+      } finally {
+        AUTH_STATE.principal = CUSTOMER_PRINCIPAL;
+      }
+
+      const still = (await mockPrisma.prisma.account.findUnique({
+        where: { id: survivor.id },
+      })) as { deletedAt?: Date | null } | null;
+      expect(still).not.toBe(null);
+      expect(still?.deletedAt ?? null).toBe(null);
+    });
+
+    it("still lets an owner holding account:delete delete their own account", async () => {
+      // The other half of the gate above: it must refuse by CAPABILITY, not
+      // refuse everyone. A gate that denies the owner too is not a stricter gate,
+      // it is a broken endpoint.
+      const owned = await mockPrisma.prisma.account.create({
+        data: {
+          id: "c0000000-0000-4000-8000-0000000000bb",
+          email: `owner-allowed-${Date.now()}@example.com`,
+          name: "Owner Allowed",
+          maxProjects: 1,
+        },
+      });
+
+      AUTH_STATE.principal = { ...CUSTOMER_PRINCIPAL, accountId: owned.id as string };
+      try {
+        const response = await app.inject({
+          method: "DELETE",
+          url: `/accounts/${owned.id}`,
+        });
+        expect(response.statusCode).toBe(200);
+      } finally {
+        AUTH_STATE.principal = CUSTOMER_PRINCIPAL;
+      }
+
+      const survivor = (await mockPrisma.prisma.account.findUnique({
+        where: { id: owned.id },
+      })) as { deletedAt?: Date | null } | null;
+      expect(survivor?.deletedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe("POST /accounts/:accountId/restore", () => {
+    /** An account in the only state a restore acts on: already soft-deleted. */
+    async function seedDeletedAccount(label: string): Promise<{ id: string; email: string }> {
+      const row = await mockPrisma.prisma.account.create({
+        data: {
+          email: `${label}-${Date.now()}@example.com`.toLowerCase(),
+          name: `Restore ${label}`,
+          maxProjects: 1,
+          deletedAt: new Date(),
+        },
+      });
+      return row as { id: string; email: string };
+    }
+
+    /** Reads `deletedAt` through the store, never through a read path that filters it. */
+    async function deletedAtOf(accountId: string): Promise<Date | null> {
+      const row = (await mockPrisma.prisma.account.findUnique({
+        where: { id: accountId },
+      })) as { deletedAt?: Date | null } | null;
+      return row?.deletedAt ?? null;
+    }
+
+    it("clears deletedAt for the owning customer and the account is served again", async () => {
+      const deleted = await seedDeletedAccount("owner");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/accounts/${deleted.id}/restore`,
+        headers: customerHeaders({ accountId: deleted.id }),
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body).data?.restored).toBe(true);
+      // The state change itself, not just the status code: a 200 over a row still
+      // carrying `deletedAt` would be a reversal that reversed nothing.
+      expect(await deletedAtOf(deleted.id)).toBe(null);
+
+      const after = await app.inject({ method: "GET", url: `/accounts/${deleted.id}` });
+      expect(after.statusCode).toBe(200);
+    });
+
+    it("answers 404 for an account that is not the caller's own, which stays deleted", async () => {
+      const victim = await seedDeletedAccount("victim");
+      const attacker = await seedDeletedAccount("attacker");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/accounts/${victim.id}/restore`,
+        headers: customerHeaders({ accountId: attacker.id }),
+      });
+
+      // The same 404 a missing account gets — never a 403 that would confirm the
+      // id names a real tenant.
+      expect(response.statusCode).toBe(404);
+      expect(await deletedAtOf(victim.id)).toBeInstanceOf(Date);
+    });
+
+    it("refuses a customer without account:delete with 403 and leaves the account deleted", async () => {
+      const deleted = await seedDeletedAccount("needs-grant");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/accounts/${deleted.id}/restore`,
+        // Undoing a tenant-wide action is the same grade of authority as
+        // performing it, so a member who cannot delete the account must not be
+        // able to bring it back either.
+        headers: customerHeaders({
+          accountId: deleted.id,
+          permissions: ["post:manage", "analytics:read"],
+        }),
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect(await deletedAtOf(deleted.id)).toBeInstanceOf(Date);
+    });
+
+    it("refuses a SUPPORT admin lacking account:manage with 403 and leaves the account deleted", async () => {
+      // THE CROSS-TENANT HOLE. Authentication only proves the caller is staff;
+      // this endpoint reaches every tenant on the platform. With the capability
+      // check removed, this exact request — a genuine token for the lowest seeded
+      // staff role — brings back a tenant the business had removed, and answers
+      // 200 while doing it.
+      const deleted = await seedDeletedAccount("support-refused");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/accounts/${deleted.id}/restore`,
+        headers: supportAuthHeaders,
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect(await deletedAtOf(deleted.id)).toBeInstanceOf(Date);
+    });
+
+    it("restores for an admin who does hold account:manage, so the gate is capability and not blanket denial", async () => {
+      const deleted = await seedDeletedAccount("admin-restored");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/accounts/${deleted.id}/restore`,
+        headers: adminAuthHeaders,
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(await deletedAtOf(deleted.id)).toBe(null);
+    });
+
+    it("answers 409 naming the active account that already holds the e-mail address", async () => {
+      const contested = `contested-${Date.now()}@example.com`;
+      // A soft delete does NOT confiscate an address — the unique is partial — so
+      // the address is free to be registered again while the old account sits
+      // deleted. Restoring the old one would then put two live accounts on one
+      // address, which the partial unique refuses.
+      const deleted = await mockPrisma.prisma.account.create({
+        data: {
+          email: contested,
+          name: "Deleted Twin",
+          maxProjects: 1,
+          deletedAt: new Date(),
+        },
+      });
+      const holder = await mockPrisma.prisma.account.create({
+        data: { email: contested, name: "Live Twin", maxProjects: 1 },
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/accounts/${deleted.id}/restore`,
+        headers: customerHeaders({ accountId: deleted.id as string }),
+      });
+
+      expect(response.statusCode).toBe(409);
+      // The body has to NAME the blocker. Only a human can decide which of the two
+      // accounts keeps the address, and they cannot decide it while being told
+      // only that something went wrong.
+      expect(String(JSON.parse(response.body).error)).toContain(holder.id as string);
+      // Refused means refused: the deleted row is untouched, so nothing half-happened.
+      expect(await deletedAtOf(deleted.id as string)).toBeInstanceOf(Date);
+    });
+
+    it("answers 401 and restores nothing when no token is presented", async () => {
+      const deleted = await seedDeletedAccount("no-token");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/accounts/${deleted.id}/restore`,
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(await deletedAtOf(deleted.id)).toBeInstanceOf(Date);
+    });
   });
 
   describe("DELETE /accounts/:accountId/hard", () => {
@@ -716,6 +980,11 @@ describe("accountRoutes Unit Tests", () => {
           email: `hard-${Date.now()}@example.com`,
           name: "Hard Delete",
           maxProjects: 1,
+          // Erasure is the SECOND of two deliberate acts: a live account is
+          // refused with 409, so every fixture here starts where a real hard
+          // delete starts — already soft-deleted. The route behaviour under test
+          // (the row is destroyed rather than flagged) is unchanged by that.
+          deletedAt: new Date(),
         },
       });
 
@@ -731,6 +1000,38 @@ describe("accountRoutes Unit Tests", () => {
 
       const gone = await mockPrisma.prisma.account.findUnique({ where: { id: doomed.id } });
       expect(gone).toBe(null);
+    });
+
+    it("refuses a LIVE account with 409 and destroys nothing", async () => {
+      // The interlock's HTTP face. A tenant that is still serving traffic cannot
+      // be erased by one request: the admin has to soft-delete it first, which is
+      // an act somebody can see, question and reverse. 409 rather than 404 because
+      // the admin has just proved the id exists — denying the account would be
+      // both false and unactionable. Removing the use case's liveness check turns
+      // this into a 200 with the row gone, which is the whole defect.
+      const alive = await mockPrisma.prisma.account.create({
+        data: {
+          email: `still-live-${Date.now()}@example.com`,
+          name: "Still Live",
+          maxProjects: 1,
+        },
+      });
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/accounts/${alive.id}/hard`,
+        headers: adminAuthHeaders,
+        payload: { reason: "GDPR erasure request" },
+      });
+
+      expect(response.statusCode).toBe(409);
+      // The body names the missing step, so the admin knows what to do next
+      // instead of retrying the same call.
+      expect(JSON.parse(response.body).error?.message ?? response.body).toContain(
+        "requires a prior soft delete"
+      );
+      const survivor = await mockPrisma.prisma.account.findUnique({ where: { id: alive.id } });
+      expect(survivor).not.toBe(null);
     });
 
     it("records the authenticated admin principal (request.auth.user.id) on the tombstone, not a placeholder", async () => {
@@ -751,6 +1052,8 @@ describe("accountRoutes Unit Tests", () => {
           email: `attributed-${Date.now()}@example.com`,
           name: "Attributed Hard Delete",
           maxProjects: 1,
+          // Already soft-deleted: the only state the interlock lets an erasure run against.
+          deletedAt: new Date(),
         },
       });
 
@@ -839,6 +1142,8 @@ describe("accountRoutes Unit Tests", () => {
           email: `audited-${Date.now()}@example.com`,
           name: "Audited Hard Delete",
           maxProjects: 1,
+          // Already soft-deleted: the only state the interlock lets an erasure run against.
+          deletedAt: new Date(),
         },
       });
 

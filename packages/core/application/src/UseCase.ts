@@ -122,9 +122,18 @@ export type UseCaseErrorCode = (typeof USE_CASE_ERRORS)[keyof typeof USE_CASE_ER
  *
  *              The trade is still the right one — the application layer must not import a
  *              driver — but the cost belongs written down, because the day the driver changes
- *              is the day someone needs to know these three strings exist. The codes:
+ *              is the day someone needs to know these four strings exist. The codes:
  *                - `P2003` foreign-key interlock (a RESTRICT relationship blocks the delete) →
  *                  `CONFLICT`: durable, never retryable; the caller must remove the blocker first.
+ *                - `P2002` unique-constraint violation → `CONFLICT`. This is the restore
+ *                  residual race: a LIVE twin created AFTER the subject was soft-deleted holds
+ *                  the identity the subject is trying to reclaim, and clearing `deletedAt`
+ *                  collides with it on the partial unique. Checking for the twin first cannot
+ *                  close the window — the twin can be born between the check and the update —
+ *                  so the partial unique is the authoritative arbiter and its violation is the
+ *                  answer, not an internal fault. Classified as a conflict so the caller learns
+ *                  a competing row exists and can act (rename it, keep it), instead of reading
+ *                  a 500 that blames the system for a race the database resolved correctly.
  *                - `P2028` transaction timeout, `P2034` write conflict / deadlock (serialization
  *                  failure under a Serializable transaction) → `TRANSIENT_FAILURE`: retryable.
  *              Anything else is an unknown failure → `INTERNAL_ERROR`.
@@ -133,7 +142,7 @@ export type UseCaseErrorCode = (typeof USE_CASE_ERRORS)[keyof typeof USE_CASE_ER
  */
 export function classifyPersistenceFailure(error: unknown): UseCaseErrorCode {
   const code = (error as { code?: unknown } | null)?.code;
-  if (code === "P2003") {
+  if (code === "P2003" || code === "P2002") {
     return USE_CASE_ERRORS.CONFLICT;
   }
   if (code === "P2028" || code === "P2034") {

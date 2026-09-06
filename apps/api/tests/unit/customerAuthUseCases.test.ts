@@ -68,9 +68,11 @@ function makeCustomerUserRepo() {
 function makeAccountRepo() {
   return {
     findById: vi.fn(),
+    findByIdIncludingDeleted: vi.fn(),
     findByEmail: vi.fn().mockResolvedValue(null),
     save: vi.fn().mockResolvedValue(ok(undefined)),
     delete: vi.fn().mockResolvedValue(ok(undefined)),
+    restore: vi.fn().mockResolvedValue(ok(undefined)),
     hardDelete: vi.fn().mockResolvedValue(ok(undefined)),
     exists: vi.fn().mockResolvedValue(false),
     findAll: vi.fn().mockResolvedValue([]),
