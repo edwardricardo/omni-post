@@ -135,6 +135,21 @@ run_batch() {
   # A failing (or zero-collected) batch must never be silent — dump the runner
   # output so CI logs show WHY, not just the count.
   if [ "$status" = "FAIL" ] || [ "$tests" -eq 0 ]; then
+    # Name every failure FIRST. The tail window alone cannot: when a later
+    # green suite floods the last 200 lines, the failing test scrolls out and
+    # the log reports "fail 1" without ever naming it — the 'production'
+    # batch produced two consecutive red CI runs whose logs never said which
+    # test failed. Each top-level or nested 'not ok' line is printed with its
+    # TAP YAML detail block (up to its closing '...'), bounded per failure so
+    # a pathological block cannot flood the log. Anchored to line start:
+    # a test NAME containing "not ok" (they exist in this suite) sits after
+    # "ok N - " and must not trigger the printer.
+    echo "── failures in batch '$name' (every 'not ok' + its detail block) ──"
+    echo "$result" | awk '
+      /^[[:space:]]*not ok / { printing = 1; budget = 40 }
+      printing { print; budget-- }
+      printing && (/^[[:space:]]*\.\.\.$/ || budget <= 0) { printing = 0 }
+    '
     echo "── output of failing batch '$name' (last 200 lines) ──"
     echo "$result" | tail -200
     echo "── end of '$name' output ──"
