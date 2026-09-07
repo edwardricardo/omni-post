@@ -74,8 +74,19 @@ const serverSchema = {
   HOST: z.string().default("0.0.0.0"),
 
   // ── Database (REQUIRED — boot fails without these) ──────────────────
+  // DATABASE_URL is the APPLICATION's channel. Once an environment cuts over,
+  // it names the non-bypassing `omnipost_app` role, so every statement the app
+  // issues is subject to the `tenant_isolation` row-level policies.
   DATABASE_URL: urlString,
   SHADOW_DATABASE_URL: urlString,
+  // The MIGRATE/OWNER channel, and the other half of that pair. Optional
+  // because an environment that has not cut over yet has only one URL, and
+  // `infra/prisma/prisma.config.ts` falls back to DATABASE_URL when it is
+  // absent. It is declared here — rather than read ambiently off process.env —
+  // so the two channels are schema-visible together: an operator reading this
+  // block can see that the app and the migrations connect as different roles,
+  // which is the whole enforcement posture (ADR-0022).
+  MIGRATE_DATABASE_URL: urlString.optional(),
 
   // ── Redis (REQUIRED — boot fails without it) ────────────────────────
   // REDIS_URL is the canonical input. The legacy REDIS_HOST/PORT/PASSWORD

@@ -28,7 +28,8 @@ import { randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import Fastify, { type FastifyInstance } from "fastify";
-import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
+import { type PrismaClient } from "@infra/prisma";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
 import { getTenantContext, getSystemContext } from "../../src/security/tenantContext.js";
 import { Container } from "../../src/infrastructure/container/Container.js";
@@ -117,7 +118,7 @@ describe("External Notification — two-tenant isolation (Slice 1, MERGE-BLOCKIN
 
   before(async () => {
     encryption = new EncryptionService();
-    base = createTestPrismaClient();
+    base = createSeedPrismaClient();
 
     // Local HTTP sink standing in for the tenants' webhooks. Counts requests
     // per path so we can prove B's webhook is NEVER hit during A's attacks.

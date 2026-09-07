@@ -219,3 +219,57 @@ integration-tier gate so the gate inventory stays complete — a note, not a wor
 - **GIVEN** a tenant-owned table with `relrowsecurity` true, at least one policy, and either a non-owner app role or `relforcerowsecurity` true
 - **WHEN** the coverage gate runs
 - **THEN** the table is reported COVERED and the gate exits zero
+
+---
+
+### Requirement: The tenant scope is bound for EVERY application statement — request-scoped, not transaction-only **[MERGE-BLOCKING]**
+
+> **Added by the Slice 0d addendum (2026-09-07), on a measured red.** PR3's two-channel
+> measurement (ADR-0022 §Runtime cutover) ran the same 18-suite batch under both roles:
+> `postgres` 177/177, `omnipost_app` 170/177 with exit 1. Every failure is the application:
+> `app.account_id` is bound only inside `PrismaUnitOfWork.executeInTransaction` (and the saga
+> equivalent), so every statement issued OUTSIDE a unit of work runs with the GUC unset and
+> RLS fails closed against the app itself. This requirement's red therefore already exists on
+> the record; it SHALL NOT be re-manufactured, only re-run.
+
+The application SHALL bind `app.account_id` for every statement it issues against RLS-covered
+tables, whether or not a unit of work is open. The binding SHALL derive from the SAME context
+source as the layer-1 guard — one provider, no second source of tenant truth. Processes with
+no ambient request (queue workers, the saga engine, bootstrap consumers of the raw client)
+SHALL bind explicitly per read/write scope; a tenant-DISCOVERY read MAY bind the `__system__`
+sentinel only with a narrow column selection and an in-file justification. A flow holding
+neither a tenant nor a declared system scope SHALL fail loudly on any guard-enrolled model —
+never a silent superuser fallback, and never a silently empty result standing in for an
+error. Once this requirement is green, `DATABASE_URL` SHALL NOT name a role that can bypass
+row security in any application surface; the owner channel survives ONLY as
+`MIGRATE_DATABASE_URL` plus the named seed factory in the test harness.
+
+#### Scenario: an out-of-transaction read resolves under the app role [integration]
+
+- **GIVEN** a tenant context bound at request scope and a real connection as the app role
+- **WHEN** a repository read OUTSIDE any unit of work resolves ownership through a JOIN into an RLS-covered parent (the `findOwnerAccountId` shape that produced the measured failures)
+- **THEN** the owner's row is returned — not a null-join `500`, and not a zero-row `404` for the owner's own data
+
+#### Scenario: binding never breaks transactional atomicity — unit-of-work or repository-opened [integration]
+
+- **GIVEN** the bound client and an open transaction — an `executeInTransaction` unit of work OR a repository-opened `$transaction` (the UoW-aware fallback arms)
+- **WHEN** a statement runs inside that transaction
+- **THEN** it executes on the transaction's OWN connection with the GUC bound at most once — proven by a write followed by a forced failure rolling back TOGETHER, exercised on BOTH shapes: the unit of work, and a repository-opened create whose nested write is forced to fail; a write that survives the rollback demonstrates an operation escaped onto a second connection and FAILS this scenario
+
+#### Scenario: no-context stays loud [integration]
+
+- **GIVEN** neither a TenantContext nor a SystemContext is bound
+- **WHEN** a guard-enrolled model is queried on the application's client
+- **THEN** the call throws (the `TenantContextMissingError` class) — a silent zero-row success SHALL NOT be accepted
+
+#### Scenario: the two channels reach parity, and only then does the flip land [evidence]
+
+- **GIVEN** request-scoped binding has landed
+- **WHEN** the two-channel batch measurement from ADR-0022 §Runtime cutover is re-run — same files, same concurrency, only the role differing — together with the full integration tier and CI's worker readiness gate under the app-role URL
+- **THEN** both channels report the identical full pass count with exit 0, the result (including wall time per channel) is recorded in the ADR replacing the blocked table, and ONLY then does `DATABASE_URL` flip to the app role in `.env`, `.env.test`, and ci.yml
+
+#### Scenario: the owner channel is named, singular, and not the application's [static]
+
+- **GIVEN** the flip has landed
+- **WHEN** the environment surfaces are inspected
+- **THEN** `DATABASE_URL` names the app role in every application surface, `MIGRATE_DATABASE_URL` and the harness seed factory that resolves it are the ONLY owner-channel consumers, and no application code path constructs a connection from the owner channel

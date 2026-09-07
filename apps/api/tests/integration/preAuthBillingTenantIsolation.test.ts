@@ -21,7 +21,8 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
-import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
+import { type PrismaClient } from "@infra/prisma";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
 import { getTenantContext, getSystemContext } from "../../src/security/tenantContext.js";
 import { Container } from "../../src/infrastructure/container/Container.js";
@@ -41,7 +42,7 @@ describe("Billing webhook — system-context seam (MERGE-BLOCKING)", () => {
   const captured: Captured = {};
 
   before(async () => {
-    base = createTestPrismaClient();
+    base = createSeedPrismaClient();
     guarded = base.$extends(
       tenantGuardExtension({ getTenantContext, getSystemContext })
     ) as unknown as PrismaClient;

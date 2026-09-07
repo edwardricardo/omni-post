@@ -209,6 +209,95 @@ request against the migrated Postgres service. `CLAUDE.md` §Automated Complianc
 Checks carries a pointer note naming it — a note, not a numbered workflow step,
 so the gate inventory stays complete without pretending a grep can do this.
 
+## Runtime cutover — the URL split, and the blocker it uncovered
+
+The split itself is small and now shipped: `infra/prisma/prisma.config.ts` reads
+`MIGRATE_DATABASE_URL ?? DATABASE_URL ?? ""` (the owner channel for migrate and
+seed), `apps/api/src/config/env.ts` declares `MIGRATE_DATABASE_URL` as an
+optional server entry so the pair is schema-visible rather than ambient, and the
+integration harness builds every fixture through `createSeedPrismaClient()`
+(`apps/api/tests/integration/helpers/seedPrismaClient.ts`), which resolves the
+same precedence. Both fallbacks keep an environment that has not configured the
+pair behaving exactly as before.
+
+What the split does NOT do is flip `DATABASE_URL` to the app role. That flip was
+attempted against the real database and **measured**, and it does not hold yet.
+
+### What was measured
+
+The `integration:tenant-isolation` batch (18 suites, 177 tests) was run twice
+against the live dev database, same files, same `CONCURRENCY=1`, differing only
+in which role `DATABASE_URL` names:
+
+| Channel                               | Result                                        | Exit |
+| ------------------------------------- | --------------------------------------------- | ---- |
+| `postgres` (owner, today's value)     | `tests 177 · pass 177 · fail 0 · cancelled 0` | 0    |
+| `omnipost_app` (the intended cutover) | `tests 177 · pass 170 · fail 7 · cancelled 0` | 1    |
+
+The zero-rows proof itself is **green on the app-role channel**: the whole of
+`rls-tenant-isolation.test.ts` passes `21/21` with `DATABASE_URL` pointing at
+`omnipost_app`, which is the Slice 0 exit condition. All 15 dedicated
+`*TenantIsolation` suites pass on both channels.
+
+The 7 failures are confined to two suites — `postDeleteOwnership.test.ts` (3) and
+`postReadOwnership.test.ts` (4) — and they are not harness defects. They are the
+application misbehaving under the cutover: the owner's own post becomes
+unreadable (`404`), and deleting it returns `500` where the route contract says
+`200`.
+
+### Root cause: the tenant GUC is bound ONLY inside a transaction
+
+`app.account_id` is set in exactly one place per path —
+`PrismaUnitOfWork.executeInTransaction` (and the saga's equivalent). There is no
+request-scoped binding. So every statement the application issues OUTSIDE a unit
+of work runs with the GUC unset, and under a role that cannot bypass row
+security that means the `tenant_isolation` policy evaluates false: the read fails
+closed, exactly as designed, against the application itself.
+
+The ownership gate is where it surfaces first, because ownership is resolved
+through a JOIN into the RLS-covered `Project` table
+(`PrismaPostRepository.findOwnerAccountId`, which selects
+`{ project: { select: { accountId: true } } }` and then dereferences
+`row.project.accountId`). Measured directly, as `omnipost_app`:
+
+```text
+-- no GUC bound
+ current_user | bound_tenant |  post_visible  | project_visible | owner_account_id
+--------------+--------------+----------------+-----------------+------------------
+ omnipost_app |              | pr3-probe-post |                 |
+
+-- same read, app.account_id bound
+      step      |  post_visible  | project_visible | owner_account_id
+----------------+----------------+-----------------+------------------
+ with GUC bound | pr3-probe-post | pr3-probe-proj  | pr3-probe-acct
+```
+
+`Post` carries no policy today, so the post row is visible while the project it
+points at is not. `row.project` is therefore `null`, dereferencing it throws, the
+route's catch converts the throw into a `500`, and the anti-enumeration contract
+("a foreign id is byte-indistinguishable from a nonexistent one") is broken in
+both directions at once.
+
+### Two consequences worth stating separately
+
+1. **The flip is blocked, and Slice 1 does not unblock it by itself.** Once the
+   trio carries `accountId` and is enrolled, `Post` becomes RLS-covered too, so
+   the same out-of-transaction read returns zero rows instead of a null join —
+   a `404` for the owner's own post rather than a `500`. Cleaner, still wrong.
+   The actual remedy is request-scoped tenant binding, which no slice of this
+   change currently plans, and choosing it is a design decision, not an
+   implementation detail.
+2. **`findOwnerAccountId` dereferences an optional relation.** `row.project` is
+   nullable in the generated type's runtime shape whenever a policy, a soft
+   delete, or a race can hide the parent. This is a latent defect independent of
+   the cutover and it is recorded here rather than fixed, because fixing it
+   would convert the `500` into a `404` and make the cutover LOOK survivable
+   while the owner still could not read their own post.
+
+Until that decision lands, `DATABASE_URL` stays on the owner channel in every
+environment. Nothing about the proofs weakens: they run as `omnipost_app` over a
+real login connection, and the coverage gates keep failing on drift.
+
 ## Alternatives considered
 
 | Alternative                                                              | Why not                                                                                                                                                                                                                                                               |
@@ -222,13 +311,17 @@ so the gate inventory stays complete without pretending a grep can do this.
 ## Consequences
 
 - The application's connection URL becomes the `omnipost_app` URL at cutover, and
-  migrations/seeds need their own owner channel. That split is a separate, bounded
-  work unit; until it lands, RLS remains inert for the RUNNING application even
-  though the proofs are green — the proofs run as `omnipost_app` by `SET LOCAL
-ROLE`, which is not the same thing as the app connecting as it.
-- Integration suites that seed "as superuser" through the raw `@infra/prisma`
-  singleton will fail closed under the app role. The harness needs a superuser
-  seed client in the same unit as the cutover.
+  migrations/seeds need their own owner channel. That split has landed (see
+  §Runtime cutover); the flip of `DATABASE_URL` itself has NOT, and until it does
+  RLS remains inert for the RUNNING application even though the proofs are green
+  — the proofs run as `omnipost_app` by `SET LOCAL ROLE` and over a real login
+  connection, neither of which is the same thing as the app connecting as it.
+- Integration suites that seed "as superuser" fail closed under the app role. The
+  harness now writes every fixture through `createSeedPrismaClient()`, which is
+  named rather than implicit precisely so a future test cannot bypass row
+  security without saying so at the call site.
+- Cutting the application over requires the tenant GUC to be bound outside a unit
+  of work, which is a design decision this ADR records rather than makes.
 - Every future table is covered by `ALTER DEFAULT PRIVILEGES` without a follow-up
   grant, so a new migration cannot leave the application locked out of its own
   table.
@@ -245,6 +338,11 @@ ROLE`, which is not the same thing as the app connecting as it.
 - **The app role ever needs to own a table** (for example to run `CREATE INDEX`
   from the application). The ownership gate would then have to be narrowed
   per-table, and `FORCE` re-enters the discussion for exactly those tables.
+- **A request-scoped tenant binding is adopted** (the GUC bound per connection
+  checkout rather than per transaction). That is the precondition for flipping
+  `DATABASE_URL` to the app role; when it lands, re-run the two-channel batch
+  measurement in §Runtime cutover and the flip becomes a configuration change
+  per environment rather than a behavioural one.
 
 ## Risks
 

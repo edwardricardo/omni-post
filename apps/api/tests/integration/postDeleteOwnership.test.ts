@@ -13,7 +13,7 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import { createTestPrismaClient } from "@infra/prisma";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import type { PrismaClient } from "@infra/prisma";
 import { DeletePostUseCase } from "@core/posts";
 import { createApp } from "../../src/index.js";
@@ -74,7 +74,7 @@ describe("DELETE /posts/:id ownership gate (CWE-639)", () => {
   let systemPostId: string;
 
   before(async () => {
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
 
     const stamp = Date.now();
     const accountA = await prisma.account.create({

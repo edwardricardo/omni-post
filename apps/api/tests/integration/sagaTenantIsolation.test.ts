@@ -43,7 +43,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Redis } from "ioredis";
 import pino from "pino";
-import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
+import { type PrismaClient } from "@infra/prisma";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import {
   tenantGuardExtension,
   TenantContextMismatchError,
@@ -402,7 +403,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
   }
 
   before(async () => {
-    base = createTestPrismaClient();
+    base = createSeedPrismaClient();
     redis = new Redis(REDIS_URL, { maxRetriesPerRequest: 2, lazyConnect: false });
 
     guarded = base.$extends(

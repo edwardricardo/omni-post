@@ -16,6 +16,14 @@ set -euo pipefail
 : "${REDIS_URL:?ci-setup-test-env: REDIS_URL must be exported by the CI job}"
 SH="${SHADOW_DATABASE_URL:-${DATABASE_URL/omnipostdb/omnipostdb_shadow}}"
 
+# The owner/migrate channel of the URL split (ADR-0022). `DATABASE_URL` is the
+# channel the APPLICATION connects on; `MIGRATE_DATABASE_URL` is the one that
+# creates schema, seeds reference rows, and builds test fixtures — work the
+# non-bypassing `omnipost_app` role cannot do. Defaulting to DATABASE_URL keeps
+# a job that has not configured the pair behaving exactly as before, which is
+# the same fallback prisma.config.ts and the integration harness apply.
+MIGRATE_URL="${MIGRATE_DATABASE_URL:-${DATABASE_URL}}"
+
 # PLATFORM_ENCRYPTION_KEY must be base64 of EXACTLY 32 bytes (AES-256) — see
 # EncryptionService.decodeKey(). Generate 32 fixed bytes -> base64 (no literal).
 PLATFORM_KEY="$(head -c 32 /dev/zero | tr '\0' 'c' | base64 | tr -d '\n')"
@@ -24,6 +32,7 @@ PLATFORM_KEY="$(head -c 32 /dev/zero | tr '\0' 'c' | base64 | tr -d '\n')"
   echo "NODE_ENV=test"
   echo "PORT=3001"
   echo "DATABASE_URL=${DATABASE_URL}"
+  echo "MIGRATE_DATABASE_URL=${MIGRATE_URL}"
   echo "SHADOW_DATABASE_URL=${SH}"
   echo "REDIS_URL=${REDIS_URL}"
   # HMAC-style secrets: env.ts only requires z.string().min(32).
