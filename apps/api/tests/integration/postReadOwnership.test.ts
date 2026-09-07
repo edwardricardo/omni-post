@@ -14,7 +14,7 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import { createTestPrismaClient } from "@infra/prisma";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import type { PrismaClient } from "@infra/prisma";
 import { createApp } from "../../src/index.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
@@ -66,7 +66,7 @@ describe("GET /posts read ownership gate (CWE-639)", () => {
   let postB1Id: string;
 
   before(async () => {
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
 
     const stamp = Date.now();
     const accountA = await prisma.account.create({

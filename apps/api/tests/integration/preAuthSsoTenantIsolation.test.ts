@@ -29,7 +29,8 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
-import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
+import { type PrismaClient } from "@infra/prisma";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
 import { getTenantContext, getSystemContext } from "../../src/security/tenantContext.js";
 import { Container } from "../../src/infrastructure/container/Container.js";
@@ -124,7 +125,7 @@ describe("Public SSO (SAML + OIDC) — two-tenant isolation across all 5 param-s
   }
 
   before(async () => {
-    base = createTestPrismaClient();
+    base = createSeedPrismaClient();
 
     // Tenant A carries BOTH a SAML and an OIDC config; tenant B carries only
     // SAML. The OIDC-only-for-A split lets the OIDC routes prove that B (no

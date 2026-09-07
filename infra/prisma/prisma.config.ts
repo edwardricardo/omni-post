@@ -19,7 +19,14 @@ dotenv.config({ path: path.join(__dirname, "../../.env") });
 export default defineConfig({
   schema: path.join(__dirname, "schema.prisma"),
   datasource: {
-    url: process.env.DATABASE_URL ?? "",
+    // The CLI half of the URL split. `MIGRATE_DATABASE_URL` is the OWNER
+    // channel: migrate and seed create tables, alter them, and write reference
+    // rows, none of which the application's `omnipost_app` role can do once an
+    // environment cuts `DATABASE_URL` over to it (it is NOSUPERUSER,
+    // NOBYPASSRLS and owns nothing — ADR-0022). The fallback keeps every
+    // environment that has not configured the pair working exactly as before:
+    // both channels are then the same URL, which is the pre-cutover state.
+    url: process.env.MIGRATE_DATABASE_URL ?? process.env.DATABASE_URL ?? "",
     shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL ?? "",
   },
   migrations: {

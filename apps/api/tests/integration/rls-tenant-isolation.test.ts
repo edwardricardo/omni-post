@@ -26,6 +26,18 @@
  *   nor BYPASSRLS, it owns none of the RLS-covered tables, and a wrong-tenant
  *   read returns zero rows symmetrically in both directions.
  *
+ *   ## Why the fixtures are seeded on a DIFFERENT connection
+ *
+ *   Once `DATABASE_URL` points at `omnipost_app`, the connection this suite
+ *   would otherwise seed through is the very connection the policy gates, so
+ *   `INSERT INTO "Project"` with no tenant bound fails closed with 42501 —
+ *   the fixture layer would take the proof down with it. Seeding therefore
+ *   runs on the migrate/owner channel (`MIGRATE_DATABASE_URL`), reached
+ *   through `createSeedPrismaClient()`, while every proof keeps running on
+ *   the application's own connection. The two channels are named separately
+ *   on purpose: a suite that seeds and proves through one connection cannot
+ *   tell which of the two it actually measured.
+ *
  *   ## Why coverage is audited from `pg_catalog`
  *
  *   "Is RLS on?" is the wrong question, because coverage fails on three
@@ -46,8 +58,9 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { prisma } from "@infra/prisma";
+import { prisma, type PrismaClient } from "@infra/prisma";
 import { getTenantScopedModels } from "@infra/prisma/extensions/tenantGuard.js";
+import { createSeedPrismaClient, resolveSeedDatabaseUrl } from "./helpers/seedPrismaClient.js";
 
 const ACCOUNT_A = `rls-test-acc-A-${Date.now()}`;
 const ACCOUNT_B = `rls-test-acc-B-${Date.now()}`;
@@ -138,14 +151,22 @@ function upperFirst(name: string): string {
 }
 
 describe("Row Level Security — tenant_isolation policy", () => {
+  /**
+   * The migrate/owner connection. Every fixture write goes through it, and
+   * nothing else does: the proofs below deliberately run on `prisma`, the
+   * connection the application itself opens.
+   */
+  let seedPrisma: PrismaClient;
+
   before(async () => {
     // Seed: 2 accounts + 2 projects per account + 1 global AIPromptTemplate.
     // Done through the migration/owner connection → bypasses RLS for the seed
     // phase. No role is created here: `omnipost_app` is a migration artifact,
     // and a suite that provisions its own subject cannot prove anything about
     // the deployment's posture.
+    seedPrisma = createSeedPrismaClient();
     const now = Date.now();
-    await prisma.account.createMany({
+    await seedPrisma.account.createMany({
       data: [
         {
           id: ACCOUNT_A,
@@ -162,7 +183,7 @@ describe("Row Level Security — tenant_isolation policy", () => {
       ],
       skipDuplicates: true,
     });
-    await prisma.project.createMany({
+    await seedPrisma.project.createMany({
       data: [
         { id: `${ACCOUNT_A}-proj-1`, accountId: ACCOUNT_A, name: "A1" },
         { id: `${ACCOUNT_A}-proj-2`, accountId: ACCOUNT_A, name: "A2" },
@@ -171,7 +192,7 @@ describe("Row Level Security — tenant_isolation policy", () => {
       ],
       skipDuplicates: true,
     });
-    await prisma.aIPromptTemplate.create({
+    await seedPrisma.aIPromptTemplate.create({
       data: {
         id: `global-tpl-${TEST_TAG}`,
         accountId: null,
@@ -189,15 +210,16 @@ describe("Row Level Security — tenant_isolation policy", () => {
   after(async () => {
     // Cleanup seed data. Grants belong to the role migration, so there is
     // nothing to revoke here.
-    await prisma.aIPromptTemplate
+    await seedPrisma.aIPromptTemplate
       .delete({ where: { id: `global-tpl-${TEST_TAG}` } })
       .catch(() => undefined);
-    await prisma.project
+    await seedPrisma.project
       .deleteMany({ where: { accountId: { in: [ACCOUNT_A, ACCOUNT_B] } } })
       .catch(() => undefined);
-    await prisma.account
+    await seedPrisma.account
       .deleteMany({ where: { id: { in: [ACCOUNT_A, ACCOUNT_B] } } })
       .catch(() => undefined);
+    await seedPrisma.$disconnect();
     await prisma.$disconnect();
   });
 
@@ -253,6 +275,46 @@ describe("Row Level Security — tenant_isolation policy", () => {
         [],
         `${APP_ROLE} owns RLS-covered tables and is therefore exempt from their policies`
       );
+    });
+  });
+
+  describe("harness seed channel", () => {
+    it("prefers the migrate channel over the application's DATABASE_URL", () => {
+      // The precedence IS the cutover. Reversed, every fixture in the tier
+      // would be written through the connection the policy gates.
+      const resolved = resolveSeedDatabaseUrl({
+        MIGRATE_DATABASE_URL: "postgresql://owner@host/db",
+        DATABASE_URL: "postgresql://app@host/db",
+      });
+      assert.strictEqual(resolved, "postgresql://owner@host/db");
+    });
+
+    it("falls back to DATABASE_URL while the split is not yet configured", () => {
+      // Before an environment sets the pair, both channels are the same URL.
+      // Without this fallback the whole harness would fail to construct on any
+      // machine whose .env predates the split.
+      const resolved = resolveSeedDatabaseUrl({ DATABASE_URL: "postgresql://only@host/db" });
+      assert.strictEqual(resolved, "postgresql://only@host/db");
+    });
+
+    it("refuses to construct a client when neither channel is configured", () => {
+      // Failing loudly beats handing back a client bound to "", which would
+      // surface later as an opaque connection error inside a fixture.
+      assert.throws(() => resolveSeedDatabaseUrl({}), /MIGRATE_DATABASE_URL/);
+    });
+
+    it("writes an RLS-covered row with no tenant context bound", async () => {
+      // The property every fixture in this tier rests on, asserted rather than
+      // assumed: this connection is NOT subject to the tenant policy. Point
+      // MIGRATE_DATABASE_URL at `omnipost_app` and this fails with 42501,
+      // which is the whole point of naming the two channels separately.
+      const id = `${ACCOUNT_A}-seed-channel-probe`;
+      await seedPrisma.project.create({
+        data: { id, accountId: ACCOUNT_A, name: `seed-channel-${TEST_TAG}` },
+      });
+      const found = await seedPrisma.project.findUnique({ where: { id } });
+      assert.ok(found, "the seed channel must be able to write without a tenant bound");
+      await seedPrisma.project.delete({ where: { id } });
     });
   });
 
@@ -491,10 +553,14 @@ describe("Row Level Security — tenant_isolation policy", () => {
           },
         });
       });
-      // Verify through the owner connection then cleanup.
-      const found = await prisma.apiKey.findUnique({ where: { id } });
+      // Verify through the owner connection then cleanup. It has to be the
+      // owner connection: `ApiKey` is RLS-covered, so reading the row back on
+      // the application's connection with no tenant bound would return zero
+      // rows and the assertion would fail for a reason that has nothing to do
+      // with whether the INSERT persisted.
+      const found = await seedPrisma.apiKey.findUnique({ where: { id } });
       assert.ok(found, "INSERT with matching accountId should have persisted");
-      await prisma.apiKey.delete({ where: { id } });
+      await seedPrisma.apiKey.delete({ where: { id } });
     });
 
     it("a tenant-scoped read plans as an index scan on a tenant-leading index", async () => {

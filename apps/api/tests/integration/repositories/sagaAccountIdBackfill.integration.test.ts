@@ -45,7 +45,8 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
+import { type PrismaClient } from "@infra/prisma";
+import { createSeedPrismaClient } from "../helpers/seedPrismaClient.js";
 
 /** Directory name of the migration, which is also its `_prisma_migrations` key. */
 const MIGRATION_NAME = "20260731000000_backfill_saga_instance_account_id";
@@ -179,7 +180,7 @@ describe("SagaInstance accountId backfill migration", { concurrency: 1 }, () => 
   let statements: string[];
 
   before(() => {
-    base = createTestPrismaClient();
+    base = createSeedPrismaClient();
     statements = splitSqlStatements(readFileSync(MIGRATION_SQL_PATH, "utf8"));
   });
 

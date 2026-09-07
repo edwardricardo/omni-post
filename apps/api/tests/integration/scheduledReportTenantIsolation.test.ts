@@ -18,7 +18,8 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
-import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
+import { type PrismaClient } from "@infra/prisma";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
 import { getTenantContext, getSystemContext } from "../../src/security/tenantContext.js";
 import { Container } from "../../src/infrastructure/container/Container.js";
@@ -95,7 +96,7 @@ describe("ScheduledReport — two-tenant isolation (MERGE-BLOCKING)", () => {
   }
 
   before(async () => {
-    base = createTestPrismaClient();
+    base = createSeedPrismaClient();
 
     tenantA = await seedTenant("A");
     tenantB = await seedTenant("B");

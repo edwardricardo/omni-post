@@ -18,7 +18,8 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { Redis } from "ioredis";
-import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
+import { type PrismaClient } from "@infra/prisma";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
 import { getTenantContext, getSystemContext } from "../../src/security/tenantContext.js";
 import {
@@ -49,7 +50,7 @@ describe("Inbound webhook worker — system-context seam (MERGE-BLOCKING)", () =
   const captured: Captured = { guardedReadThrew: false };
 
   before(async () => {
-    base = createTestPrismaClient();
+    base = createSeedPrismaClient();
     guarded = base.$extends(
       tenantGuardExtension({ getTenantContext, getSystemContext })
     ) as unknown as PrismaClient;

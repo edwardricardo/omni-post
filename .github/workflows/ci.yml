@@ -123,6 +123,12 @@ jobs:
           # removed for credential hygiene, so CI synthesizes it (deterministic
           # non-production secrets). DB/Redis are passed in, not hardcoded here.
           export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
+          # The owner/migrate half of the URL split (ADR-0022). Written into
+          # .env.test so the integration harness builds its fixtures through the
+          # named owner channel rather than through whatever DATABASE_URL
+          # happens to be. Same value here because this job has not cut the
+          # application channel over.
+          export MIGRATE_DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
           export REDIS_URL="redis://localhost:6379"
           bash scripts/ci-setup-test-env.sh
 
@@ -338,6 +344,12 @@ jobs:
           # removed for credential hygiene, so CI synthesizes it (deterministic
           # non-production secrets). DB/Redis are passed in, not hardcoded here.
           export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
+          # The owner/migrate half of the URL split (ADR-0022). Written into
+          # .env.test so the integration harness builds its fixtures through the
+          # named owner channel rather than through whatever DATABASE_URL
+          # happens to be. Same value here because this job has not cut the
+          # application channel over.
+          export MIGRATE_DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
           export REDIS_URL="redis://localhost:6379"
           bash scripts/ci-setup-test-env.sh
 
@@ -483,6 +495,11 @@ jobs:
           # the repo .env (dotenv files are not valid bash).
           NODE_ENV: test
           DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          # The harness resolves its fixture connection from this key
+          # (createSeedPrismaClient). run-tests.sh does not pass --env-file, so
+          # the value has to reach the runner through this env block rather than
+          # through the synthesized .env.test.
+          MIGRATE_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
           SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
           REDIS_URL: redis://localhost:6379
         run: pnpm --filter @apps/api run test:integration
