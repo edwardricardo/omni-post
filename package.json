@@ -30,6 +30,7 @@
     "db:studio": "pnpm --filter @infra/prisma studio",
     "db:migrate": "pnpm --filter @infra/prisma migrate",
     "db:seed": "pnpm --filter @infra/prisma seed",
+    "db:app-role": "bash scripts/db/enable-app-role-login.sh",
     "prepare": "husky",
     "perf:test": "bash performance/scripts/run-performance-tests.sh",
     "perf:api": "k6 run performance/k6/scenarios/api-performance.js",

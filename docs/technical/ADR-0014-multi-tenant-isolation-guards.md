@@ -109,6 +109,11 @@ BYPASSRLS roles skip RLS entirely; the integration test
 non-superuser `rls_test_role` and `SET LOCAL ROLE` to exercise the
 production code path.
 
+> **Superseded on this paragraph by ADR-0022**: the synthetic `rls_test_role`
+> was retired; the suite now runs as `omnipost_app`, the migration-provisioned
+> role the application itself connects as (created by
+> `20260907000000_create_omnipost_app_role`).
+
 **Files:**
 
 - `infra/prisma/migrations/20260527000000_add_rls_tenant_isolation/migration.sql`
