@@ -35,11 +35,12 @@ import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
 /**
  * @function resolveSeedDatabaseUrl
  * @description Resolves the owner/migrate connection string for fixture writes,
- *   mirroring the `MIGRATE_DATABASE_URL ?? DATABASE_URL` precedence that
- *   `infra/prisma/prisma.config.ts` applies to the Prisma CLI. The fallback is
- *   what keeps an environment that has not yet configured the pair working
- *   unchanged: both channels are then the same URL, which is the pre-cutover
- *   state.
+ *   mirroring the `MIGRATE_DATABASE_URL || DATABASE_URL` precedence that
+ *   `infra/prisma/prisma.config.ts` applies to the Prisma CLI. `||` on purpose:
+ *   `.env.example` ships the key present-but-empty, so an empty string means
+ *   "unconfigured" and must fall through. The fallback is what keeps an
+ *   environment that has not yet configured the pair working unchanged: both
+ *   channels are then the same URL, which is the pre-cutover state.
  * @param env - Environment to read; injectable so the precedence is testable
  *   without mutating `process.env`.
  * @returns The connection string fixtures must be written through.
@@ -47,7 +48,7 @@ import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
  *   would surface later as an opaque failure inside an unrelated fixture.
  */
 export function resolveSeedDatabaseUrl(env: NodeJS.ProcessEnv = process.env): string {
-  const url = env.MIGRATE_DATABASE_URL ?? env.DATABASE_URL;
+  const url = env.MIGRATE_DATABASE_URL || env.DATABASE_URL;
   if (!url) {
     throw new Error(
       "seed channel is not configured: set MIGRATE_DATABASE_URL (the migrate/owner " +

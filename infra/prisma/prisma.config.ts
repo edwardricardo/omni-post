@@ -26,7 +26,13 @@ export default defineConfig({
     // NOBYPASSRLS and owns nothing — ADR-0022). The fallback keeps every
     // environment that has not configured the pair working exactly as before:
     // both channels are then the same URL, which is the pre-cutover state.
-    url: process.env.MIGRATE_DATABASE_URL ?? process.env.DATABASE_URL ?? "",
+    //
+    // `||`, not `??`, and it is load-bearing: `.env.example` ships the key
+    // PRESENT BUT EMPTY ("may be omitted while an environment has not cut
+    // over"), and CI copies that file to `.env` before dotenv loads it. An
+    // empty string is "unconfigured" here — `??` treated it as a real URL and
+    // every CI migrate died with "Connection url is empty".
+    url: process.env.MIGRATE_DATABASE_URL || process.env.DATABASE_URL || "",
     shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL ?? "",
   },
   migrations: {
