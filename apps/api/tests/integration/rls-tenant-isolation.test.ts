@@ -26,6 +26,19 @@
  *   nor BYPASSRLS, it owns none of the RLS-covered tables, and a wrong-tenant
  *   read returns zero rows symmetrically in both directions.
  *
+ *   ## Why coverage is audited from `pg_catalog`
+ *
+ *   "Is RLS on?" is the wrong question, because coverage fails on three
+ *   independent axes and two of them fail in OPPOSITE directions: a policy
+ *   whose table has row security disabled LEAKS while reading as protected, a
+ *   table with row security and no policy DENIES rather than leaks, and an
+ *   enabled-and-policied table owned by the app role LEAKS again because an
+ *   owner is exempt from its own policies. The coverage gate below reads all
+ *   three axes for every guard-enrolled model and names WHICH state it found,
+ *   because the remedy differs per state. Its mechanism is the integration
+ *   tier rather than a fitness grep: `pg_class.relrowsecurity` is database
+ *   state, and no grep can read it.
+ *
  *   Decision record: `docs/technical/ADR-0022-rls-enforcement-posture.md`.
  *
  * @layer infrastructure
@@ -72,6 +85,56 @@ function collectPlanShape(
   if (typeof indexName === "string") acc.indexNames.push(indexName);
   for (const child of node.Plans ?? []) collectPlanShape(child, acc);
   return acc;
+}
+
+/** One table's row-security posture, read straight from `pg_catalog`. */
+interface CatalogPosture {
+  readonly rlsEnabled: boolean;
+  readonly rlsForced: boolean;
+  readonly owner: string;
+  readonly policyCount: number;
+}
+
+/**
+ * The coverage verdicts. Each partial state carries its DIRECTION in the
+ * label, because a message that only says "RLS not covered" tells whoever
+ * reads the failure nothing about whether the table is currently leaking rows
+ * or refusing every read — and those two need opposite fixes.
+ */
+const COVERAGE_STATE = {
+  covered: "COVERED",
+  policyWithoutRls:
+    "policy-without-RLS (LEAKS: the policy is inert and the table is fully readable, " +
+    "while the schema still reads as protected)",
+  rlsWithoutPolicy:
+    "RLS-without-policy (DENIES: PostgreSQL default-denies for non-owners, so the table " +
+    "breaks rather than leaks)",
+  ownerWithoutForce:
+    "owner-without-FORCE (OWNER-EXEMPT LEAK: the app role owns the table and an owner is " +
+    "exempt from its own policies unless FORCE ROW LEVEL SECURITY is set)",
+  neitherRlsNorPolicy: "no-RLS-and-no-policy (LEAKS: the table sits entirely outside row security)",
+  tableMissing: "TABLE-ABSENT (the guard enrolls a model that has no table in this database)",
+} as const;
+
+/**
+ * Classify one enrolled table against the three coverage axes. COVERED
+ * requires all of: row security enabled, at least one policy, and either a
+ * non-owner app role or `relforcerowsecurity`.
+ */
+function classifyCoverage(posture: CatalogPosture | undefined, appRole: string): string {
+  if (!posture) return COVERAGE_STATE.tableMissing;
+  const hasPolicy = posture.policyCount > 0;
+  if (!posture.rlsEnabled) {
+    return hasPolicy ? COVERAGE_STATE.policyWithoutRls : COVERAGE_STATE.neitherRlsNorPolicy;
+  }
+  if (!hasPolicy) return COVERAGE_STATE.rlsWithoutPolicy;
+  if (posture.owner === appRole && !posture.rlsForced) return COVERAGE_STATE.ownerWithoutForce;
+  return COVERAGE_STATE.covered;
+}
+
+/** Guard keys are the lowerCamel Prisma accessors; tables are PascalCase. */
+function upperFirst(name: string): string {
+  return name.length === 0 ? name : `${name[0]!.toUpperCase()}${name.slice(1)}`;
 }
 
 describe("Row Level Security — tenant_isolation policy", () => {
@@ -189,6 +252,94 @@ describe("Row Level Security — tenant_isolation policy", () => {
         rows.map((r) => r.tablename),
         [],
         `${APP_ROLE} owns RLS-covered tables and is therefore exempt from their policies`
+      );
+    });
+  });
+
+  describe("pg_catalog coverage gate", () => {
+    /**
+     * Read the row-security posture of every table in the public schema in one
+     * pass, keyed by table name. Reading the whole schema and resolving per
+     * model in memory keeps the enrolled-model set as the single source of
+     * truth: a model the guard enrolls but the database lacks resolves to
+     * `undefined` and is reported as TABLE-ABSENT rather than silently
+     * skipped by a query that only returns rows it found.
+     */
+    async function readCatalogPostures(): Promise<Map<string, CatalogPosture>> {
+      const rows = await prisma.$queryRaw<
+        Array<{
+          table_name: string;
+          rls_enabled: boolean;
+          rls_forced: boolean;
+          table_owner: string;
+          policy_count: number;
+        }>
+      >`
+        SELECT c.relname                    AS table_name,
+               c.relrowsecurity             AS rls_enabled,
+               c.relforcerowsecurity        AS rls_forced,
+               pg_get_userbyid(c.relowner)  AS table_owner,
+               (SELECT count(*)::int FROM pg_policy p WHERE p.polrelid = c.oid) AS policy_count
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relkind = 'r'
+      `;
+      return new Map(
+        rows.map((r) => [
+          r.table_name,
+          {
+            rlsEnabled: r.rls_enabled,
+            rlsForced: r.rls_forced,
+            owner: r.table_owner,
+            policyCount: Number(r.policy_count),
+          },
+        ])
+      );
+    }
+
+    it("every guard-enrolled model is fully covered, and any partial state is named", async () => {
+      const postures = await readCatalogPostures();
+      const enrolled = getTenantScopedModels();
+      assert.ok(enrolled.size > 0, "guard must enroll at least one model");
+
+      const findings: string[] = [];
+      for (const model of [...enrolled].sort()) {
+        const tableName = upperFirst(model);
+        const posture = postures.get(tableName);
+        const state = classifyCoverage(posture, APP_ROLE);
+        if (state === COVERAGE_STATE.covered) continue;
+        const observed = posture
+          ? `relrowsecurity=${posture.rlsEnabled}, relforcerowsecurity=${posture.rlsForced}, ` +
+            `owner=${posture.owner}, policies=${posture.policyCount}`
+          : "no row in pg_class";
+        findings.push(`  "${tableName}" → ${state}\n      observed: ${observed}`);
+      }
+
+      assert.deepStrictEqual(
+        findings,
+        [],
+        `RLS coverage is PARTIAL on ${findings.length} of ${enrolled.size} guard-enrolled ` +
+          `table(s). Each is named with the state found, because they fail in opposite ` +
+          `directions and need opposite fixes:\n${findings.join("\n")}`
+      );
+    });
+
+    it("no guard-enrolled table is owned by the application role", async () => {
+      // Deliberately scoped to the ENROLLED set rather than to the tables that
+      // currently have row security on, which is what the posture gate above
+      // checks. An enrolled table that is BOTH owned by the app role AND has
+      // row security disabled is invisible to the `relrowsecurity`-filtered
+      // form, and it is the worst of the states: doubly exempt.
+      const postures = await readCatalogPostures();
+      const owned = [...getTenantScopedModels()]
+        .map(upperFirst)
+        .filter((tableName) => postures.get(tableName)?.owner === APP_ROLE)
+        .sort();
+      assert.deepStrictEqual(
+        owned,
+        [],
+        `${APP_ROLE} owns guard-enrolled table(s) and is therefore exempt from their ` +
+          `policies unless FORCE ROW LEVEL SECURITY is set: ${owned.join(", ")}`
       );
     });
   });
