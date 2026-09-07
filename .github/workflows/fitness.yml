@@ -1364,12 +1364,99 @@ jobs:
             exit 1
           fi
 
+      - name: "#40 One transaction seam (allowlist) + the scope it binds is derived"
+        if: always()
+        run: |
+          # Mirrors CLAUDE.md #40. Layer 2 of tenant isolation is a transaction-local
+          # GUC, so a statement is covered only if the transaction it runs in bound
+          # `app.account_id` first — and an operation that opens a transaction of its
+          # own leaves its caller's connection, taking its caller's rollback with it.
+          # Both properties come from ONE seam (`withGucBoundTransaction`), so a
+          # transaction opened any other way in application code silently opts out of
+          # both. ALLOWLIST, the #28 form: the dangerous set is open-ended (a raw batch
+          # array, a hand-rolled interactive transaction, a helper that forgets the
+          # marker, a hand-built scope) while the admissible set is small and nameable.
+          set -uo pipefail
+          for d in apps/api/src packages/adapters/db-prisma/src; do
+            [ -d "$d" ] || { echo "::error title=Fitness #40 scope error::'$d' does not exist — the scan would skip it silently and print 0."; exit 1; }
+          done
+          TX_SEAMS='/infrastructure/unitofwork/PrismaUnitOfWork\.ts:|/saga/sagaTenant\.ts:|/db-prisma/src/ChannelRepository\.ts:'
+          tx_calls() {
+            grep -rnE "\.\\\$transaction\(" apps/api/src packages/adapters/db-prisma/src --include="*.ts" | \
+              grep -vE "/node_modules/|/dist/|\.stryker|/tests/|\.test\.ts:" | \
+              grep -vE "^[^:]+:[0-9]+:[[:space:]]*(\*|//)"
+          }
+          SEAM_HITS=$(tx_calls | grep -cE "$TX_SEAMS" || true)
+          if [ "${SEAM_HITS:-0}" -lt 3 ]; then
+            echo "::error title=Fitness #40 scope error::the named seams hold ${SEAM_HITS:-0} \`.\$transaction(\` calls against a floor of 3 — the method was renamed, a seam moved, or the scan stopped matching. Failing closed rather than reporting a clean zero over code it never read."
+            exit 1
+          fi
+          VIOLATIONS=$(tx_calls | grep -vE "$TX_SEAMS" || true)
+          COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          echo "Fitness #40 part A: $COUNT transactions opened outside the seam (expect 0)"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #40 violation (part A)::$COUNT transaction(s) opened in application code outside the three named seams. A transaction opened without \`withGucBoundTransaction\` binds no tenant scope and holds no marker, so RLS fails closed on its statements and every operation inside it can escape onto a second pooled connection. Route it through the helper (or \`withTenantTransaction\` when a repository must join an open unit of work)."
+            printf "%s\n" "$VIOLATIONS"
+            exit 1
+          fi
+          # Part B — the scope a seam call binds is DERIVED from the same provider the
+          # tenant guard reads, never hand-built. `withGucBoundTransaction` takes any
+          # string, so without this a future site could mint a scope that disagrees with
+          # the accountId layer 1 injected. The saga is the one named exception: its
+          # primitives take the account explicitly because a saga step has no ambient
+          # request, and that module exists to keep the surface narrow.
+          SCOPE_EXEMPT='/saga/sagaTenant\.ts:'
+          seam_call_sites() {
+            grep -rnE "withGucBoundTransaction\(" apps/api/src --include="*.ts" | \
+              grep -vE "/node_modules/|/dist/|\.stryker|/tests/|\.test\.ts:" | \
+              grep -vE "^[^:]+:[0-9]+:[[:space:]]*(import|\*|//)" | \
+              grep -vE "$SCOPE_EXEMPT"
+          }
+          SITES=$(seam_call_sites | grep -c . || true)
+          if [ "${SITES:-0}" -lt 10 ]; then
+            echo "::error title=Fitness #40 scope error::${SITES:-0} seam call sites found against a floor of 10 — the helper was renamed or the adoption was undone. Failing closed."
+            exit 1
+          fi
+          UNDERIVED=$(seam_call_sites | while IFS= read -r hit; do
+            file=${hit%%:*}; rest=${hit#*:}; ln=${rest%%:*}
+            sed -n "${ln},$((ln + 3))p" "$file" | grep -q "getAmbientGucScope()" || printf '%s\n' "$hit"
+          done)
+          BCOUNT=$(printf "%s" "$UNDERIVED" | grep -c . || true)
+          BCOUNT=${BCOUNT:-0}
+          echo "Fitness #40 part B: $BCOUNT seam calls with an underived scope (expect 0)"
+          if [ "$BCOUNT" -gt 0 ]; then
+            echo "::error title=Fitness #40 violation (part B)::$BCOUNT seam call(s) bind a scope that is not \`getAmbientGucScope()\`. Layer 1 (the guard's injected accountId) and layer 2 (the policy's GUC) must come from the SAME provider object, or a request can inject one tenant and bind another. Use \`getAmbientGucScope()\`, or \`withTenantTransaction\` which calls it."
+            printf "%s\n" "$UNDERIVED"
+            exit 1
+          fi
+          # RESIDUAL LIMITS, stated rather than implied — mirrors CLAUDE.md #40 verbatim.
+          # (1) Textual, not a parser: a call reached through an alias
+          # (`const t = prisma.$transaction`) or built by string is invisible — the floors above
+          # turn a wholesale rename into a red, but not a single deliberately obfuscated call.
+          # (2) Part B proves the scope EXPRESSION, not that the provider behind it is the
+          # guard's — that one is structural instead, because `getAmbientGucScope()` and the
+          # guard read the same exported `ambientTenantContextProvider` object. (3) A whole-file
+          # seam exemption exempts future calls in that file; the exempt list is `sagaTenant.ts`
+          # alone and may only shrink. (4) `packages/adapters/db-prisma` is in Part A's scope but
+          # not Part B's: it has no ambient request to derive from, and its explicit-scope
+          # convention is the shipped worker pattern.
+          # (5) `apps/workers/src` IS OUTSIDE BOTH PARTS, and its transactions are therefore
+          # UNGATED. Part A's scope is `apps/api/src` + `packages/adapters/db-prisma/src`;
+          # Part B's is `apps/api/src` alone. Measured at the time of writing: 2
+          # `.$transaction(` calls live there — `services/ChannelAuthFailureRecorder.ts` and
+          # `mentionIngestWorker.ts` — and neither part reads them. The exclusion is deliberate
+          # (the worker process has no ambient request to derive a scope from) and is declared
+          # in this change's tasks under 6b.7; converting that seam belongs to the links that
+          # own the worker process. It is named HERE because a residual a future reader cannot
+          # see in the gate is not a stated residual, and this is the check they will read.
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "39 architectural invariants (#1-#39) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "40 architectural invariants (#1-#40) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold for every check but #30 (a ratchet at a measured baseline of 21) and #38's db-prisma sub-count (ratcheted, SMELL-87); both baselines may fall and must never rise." >> $GITHUB_STEP_SUMMARY
           echo "#37 compares against the PR base, so it runs on pull_request events only and skips cleanly on push." >> $GITHUB_STEP_SUMMARY
           echo "Any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY

@@ -1244,6 +1244,32 @@ It asserts `reason.length > 20` against a literal declared in the same file, so 
 fail; the adjacent source-regex assertion is the real check. Either give it a real subject or
 record it as deliberately inert beside the assertion that carries the weight.
 
+## RDD outcome (0d-1b candidate)
+
+The 25-file candidate (1562 lines, risk high) ran the full four-lens review under lineage
+`review-12d518c016cef444`: **approved with 0 blocking findings**, 13 WARNING + 11 SUGGESTION,
+all informational; authority acknowledged and burned; committed as `25683f3a` with the exact
+reviewed bytes. The informational findings converge with the gate's carry-forwards — the
+factory-not-consumed-by-tests pair and the approval-repository rollback gap are (c) and (d)
+above — and add three new 0d-2 inputs recorded here so they survive the session:
+
+- **Per-operation binding doubles the connection hold** (`tenantGucBinding.ts:99-115`): an
+  operation with no ambient marker opens its own transaction, so its statement holds a second
+  pooled connection for its duration. Sizing input for 0d-2/0d-3, not a defect — the design
+  accepted it when it chose per-operation binding as the fallback for unmarked clients.
+- **Transaction options do not reach the binding's batch path**
+  (`tenantGucBinding.ts:107-115`) and `withTenantTransaction` forwards its options only on the
+  open branch — the joined branch inherits the caller's. Adjudicate one documented behavior in
+  0d-2.
+- **The nesting-scan test is path-fragile** (cwd assumption at `:38-39`, separator handling at
+  `:181/:184`): harden the scan before 0d-2 widens its allowlist.
+
+Fitness #40 was then applied from the prepared artifacts to `CLAUDE.md` and
+`.github/workflows/fitness.yml` under the sensitive-edit token: both installs byte-identical to
+the proven copies (`cmp`), detection parity PASS on the live tree, and the red re-proven on the
+INSTALLED step body (planted part A violation → exit 1 → restored byte-exact,
+sha256 `a2dade56…` → 0/0 exit 0).
+
 ## Next (PR 0d-1b)
 
 PR 0d-2: convert the 12 composition-root setup files (30 raw-singleton handoffs) to the
