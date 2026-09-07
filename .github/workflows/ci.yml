@@ -140,6 +140,17 @@ jobs:
           SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
         run: pnpm --filter @infra/prisma run migrate
 
+      # The application role is created NOLOGIN by its migration (no password in
+      # the migration tree — CWE-798), so every environment turns login on from
+      # its own channel. Runs after migrate because the role does not exist
+      # before it. Deterministic non-production value, same class as the
+      # password123 literal this workflow already uses.
+      - name: Enable app-role login
+        env:
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          OMNIPOST_APP_DB_PASSWORD: approle123
+        run: bash scripts/db/enable-app-role-login.sh
+
       - name: Run API tests (shard, blob reporter)
         env:
           # Heap-ceiling backstop only — the actual RSS fix is maxWorkers:1 in
@@ -344,6 +355,15 @@ jobs:
           DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
           SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
         run: pnpm --filter @infra/prisma run migrate
+
+      # See the shard job for the rationale. Ordered before the seed so that a
+      # later cutover of DATABASE_URL to the app role finds a role that can
+      # already connect.
+      - name: Enable app-role login
+        env:
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          OMNIPOST_APP_DB_PASSWORD: approle123
+        run: bash scripts/db/enable-app-role-login.sh
 
       # Both tiers need the seeded baseline (roles/permissions and reference
       # rows the integration suites assume exist — the local dev DB always has
