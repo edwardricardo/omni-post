@@ -6,7 +6,9 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { type Result, ok, err } from "@shared/types";
+import { getAmbientGucScope } from "../../security/tenantContext.js";
 import type { ApprovalRequestRepository } from "@core/domain/repositories/ApprovalRequestRepository.js";
 import {
   ApprovalRequestAggregate,
@@ -150,7 +152,7 @@ export class PrismaApprovalRequestRepository implements ApprovalRequestRepositor
 
       const statusValue = json.status as PrismaApprovalRow["status"];
 
-      await this.prisma.$transaction(async (tx) => {
+      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
         // Upsert the approval request
         await tx.approvalRequest.upsert({
           where: { id: request.id.value },

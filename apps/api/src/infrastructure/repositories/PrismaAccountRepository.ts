@@ -11,8 +11,10 @@ import { type Result, ok, err } from "@shared/types";
 import { Account, AccountId, EntityNotFoundError } from "@core/domain/index.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 import type { HardDeleteContext, HardDeleteImpact } from "@core/domain/repositories/Repository.js";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
+import { getAmbientGucScope } from "../../security/tenantContext.js";
 import { DELETION_RECORD_LAWFUL_BASIS, computeRetainUntil } from "./deletionRecordRetention.js";
 import { recordHardDeleteImpact } from "../../metrics/deletionMetrics.js";
 import { env } from "../../config/env.js";
@@ -399,7 +401,12 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
     // standalone branch owns a transaction, so it carries the same bounds itself.
     const deleted = activeTx
       ? await doHardDelete(activeTx)
-      : await this.prisma.$transaction(doHardDelete, HARD_DELETE_TX_OPTIONS);
+      : await withGucBoundTransaction(
+          this.prisma,
+          getAmbientGucScope(),
+          doHardDelete,
+          HARD_DELETE_TX_OPTIONS
+        );
 
     if (!deleted) {
       return err(new EntityNotFoundError("Account", accountId));

@@ -35,7 +35,10 @@
  * @layer infrastructure
  */
 import { randomUUID } from "node:crypto";
-import { SYSTEM_TENANT_SCOPE, setTenantGuc } from "@infra/prisma/extensions/tenantGuc.js";
+import {
+  SYSTEM_TENANT_SCOPE,
+  withGucBoundTransaction,
+} from "@infra/prisma/extensions/tenantGuc.js";
 import type { SagaContext, SagaInstance } from "@shared/types/saga.js";
 import { SAGA_EVENTS } from "@shared/types/saga.js";
 import { createEventStoreEvent } from "@shared/types/events.js";
@@ -213,10 +216,7 @@ export async function runSagaTenantTransaction<T>(
   accountId: string,
   fn: (tx: SagaTransactionClient) => Promise<T>
 ): Promise<T> {
-  return await prisma.$transaction(async (tx) => {
-    await setTenantGuc(tx, accountId);
-    return await fn(tx);
-  });
+  return await withGucBoundTransaction(prisma, accountId, fn);
 }
 
 /**
@@ -237,11 +237,7 @@ async function runSagaSystemTransaction<T>(
 ): Promise<T> {
   return await withSystemContext(
     SAGA_SYSTEM_REASON,
-    async () =>
-      await prisma.$transaction(async (tx) => {
-        await setTenantGuc(tx, SYSTEM_TENANT_SCOPE);
-        return await fn(tx);
-      })
+    async () => await withGucBoundTransaction(prisma, SYSTEM_TENANT_SCOPE, fn)
   );
 }
 

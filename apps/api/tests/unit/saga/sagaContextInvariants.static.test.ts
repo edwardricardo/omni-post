@@ -965,11 +965,17 @@ describe("saga engine context invariants", () => {
     // than being waved through), so tolerance is not absence: this asserts the
     // absence, which is what makes "every engine write binds both layers" hold
     // without an asterisk.
+    //
+    // BOTH openers count: a raw `$transaction` and the shared GUC seam
+    // `withGucBoundTransaction`, which the primitives now open through. Matching
+    // only the raw form would report zero sites here and let the "none elsewhere"
+    // assertion pass over an engine that had grown unscoped transactions through
+    // the seam.
     const TRANSACTION_PRIMITIVE_MODULE = "src/saga/sagaTenant.ts";
 
     const transactionSites = sagaSources.flatMap((source) => {
       const sites: string[] = [];
-      const pattern = /\$transaction\s*\(/g;
+      const pattern = /(?:\$transaction|withGucBoundTransaction)\s*\(/g;
       let match = pattern.exec(source.sanitized);
       while (match !== null) {
         sites.push(`${source.label}:${lineOf(source.original, match.index)}`);

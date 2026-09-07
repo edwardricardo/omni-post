@@ -16,8 +16,10 @@ import {
   PostId,
   EntityNotFoundError,
 } from "@core/domain/index.js";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
+import { getAmbientGucScope } from "../../security/tenantContext.js";
 import { DELETION_RECORD_LAWFUL_BASIS, computeRetainUntil } from "./deletionRecordRetention.js";
 import { recordHardDeleteImpact } from "../../metrics/deletionMetrics.js";
 import { env } from "../../config/env.js";
@@ -373,7 +375,12 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
     // the same guarantees as the production path.
     const deleted = activeTx
       ? await doHardDelete(activeTx)
-      : await this.prisma.$transaction(doHardDelete, HARD_DELETE_TX_OPTIONS);
+      : await withGucBoundTransaction(
+          this.prisma,
+          getAmbientGucScope(),
+          doHardDelete,
+          HARD_DELETE_TX_OPTIONS
+        );
 
     if (!deleted) {
       return err(new EntityNotFoundError("Project", id.value));

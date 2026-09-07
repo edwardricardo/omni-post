@@ -7,6 +7,7 @@
 import { ok, err, type Result, type CanonicalPost, type Media } from "@shared/types";
 import type { CreatePostInput, ListPostsQuery, PostsPage } from "@ports/core";
 import type { PrismaClient, MediaKind } from "@infra/prisma";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:post");
@@ -89,9 +90,15 @@ export function createPostRepository(
 
     async createPost(input: CreatePostInput): Promise<Result<CanonicalPost, "DATABASE_ERROR">> {
       try {
-        // Create Post with PostContent and PostMedia in a transaction with circuit breaker
+        // Create Post with PostContent and PostMedia in a transaction with circuit breaker.
+        // The transaction goes through the shared GUC seam and is opened DELIBERATELY
+        // UNBOUND: this port's input carries a projectId and no account, so there is no
+        // tenant to bind and inventing one would be worse than binding none. What the seam
+        // still buys here is ownership of the connection — every operation inside stays on
+        // this transaction instead of being wrapped onto another one. The binding follows
+        // when the port's own signature carries a scope.
         const result = await transactionBreaker.fire(() => {
-          return prisma.$transaction(async (tx) => {
+          return withGucBoundTransaction(prisma, undefined, async (tx) => {
             // Create the main Post record
             const post = await tx.post.create({
               data: {

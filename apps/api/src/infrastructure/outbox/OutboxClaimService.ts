@@ -17,6 +17,8 @@
  */
 
 import { Prisma, type PrismaClient } from "@infra/prisma";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
+import { getAmbientGucScope } from "../../security/tenantContext.js";
 
 /**
  * Subset of `OutboxEvent` row returned by the atomic claim query. The
@@ -138,8 +140,8 @@ export class OutboxClaimService {
     failureReason: string,
     retryCount: number
   ): Promise<void> {
-    await this.prisma.$transaction([
-      this.prisma.outboxDeadLetter.create({
+    await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
+      await tx.outboxDeadLetter.create({
         data: {
           originalEventId: event.id,
           eventType: event.eventType,
@@ -150,11 +152,11 @@ export class OutboxClaimService {
           retryCount,
           firstFailedAt: event.createdAt,
         },
-      }),
-      this.prisma.outboxEvent.update({
+      });
+      await tx.outboxEvent.update({
         where: { id: event.id },
         data: { publishedAt: new Date(), claimedAt: null, claimedBy: null },
-      }),
-    ]);
+      });
+    });
   }
 }

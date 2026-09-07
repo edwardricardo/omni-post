@@ -11,6 +11,7 @@
  */
 
 import { PrismaClient, Prisma } from "@infra/prisma";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { Redis } from "ioredis";
 import {
   EventStoreEvent,
@@ -20,6 +21,7 @@ import {
   deserializeEvent,
 } from "@shared/types/events.js";
 import { logger } from "../lib/logger.js";
+import { getAmbientGucScope } from "../security/tenantContext.js";
 
 interface EventStoreConfig {
   prisma: PrismaClient;
@@ -76,7 +78,7 @@ export class PostgreSQLEventStore implements IEventStore {
     }
 
     try {
-      await this.prisma.$transaction(async (tx) => {
+      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
         await this.appendInTx(tx, streamId, events, expectedVersion);
       });
 

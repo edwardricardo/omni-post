@@ -7,7 +7,9 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import type { PrismaClient, Prisma, SchedulingRule } from "@infra/prisma";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import type { ProviderName } from "@shared/types";
+import { getAmbientGucScope } from "../security/tenantContext.js";
 import {
   SchedulingSlotsQuerySchema,
   OptimalTimesQuerySchema,
@@ -408,30 +410,40 @@ export class SchedulingSlotRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 404, "Project not found");
       }
 
-      // Create all scheduling rules in a transaction
-      const createdRules = await this.prisma.$transaction(
-        slots.map((slot) =>
-          this.prisma.schedulingRule.create({
-            data: {
-              projectId,
-              accountId: project.accountId,
-              name: `Auto-generated slot: ${this.formatSlotName(slot.dayOfWeek, slot.hour, slot.minute ?? 0)}`,
-              description: `Scheduled slot for ${slot.providers.join(", ")}`,
-              isActive: isActive ?? true,
-              contentTypes: [],
-              platforms: slot.providers as ProviderName[],
-              timezone: timezone ?? "UTC",
-              optimalTimes: [
-                {
-                  dayOfWeek: slot.dayOfWeek,
-                  hour: slot.hour,
-                  minute: slot.minute ?? 0,
-                },
-              ],
-              blackoutPeriods: [],
-            },
-          })
-        )
+      // Create all scheduling rules in a transaction. Sequential awaits inside one
+      // interactive transaction rather than an array of promises built before the
+      // transaction exists: same atomicity, and every insert demonstrably runs on
+      // this transaction's own connection.
+      const createdRules: SchedulingRule[] = await withGucBoundTransaction(
+        this.prisma,
+        getAmbientGucScope(),
+        async (tx) => {
+          const rules: SchedulingRule[] = [];
+          for (const slot of slots) {
+            const rule = await tx.schedulingRule.create({
+              data: {
+                projectId,
+                accountId: project.accountId,
+                name: `Auto-generated slot: ${this.formatSlotName(slot.dayOfWeek, slot.hour, slot.minute ?? 0)}`,
+                description: `Scheduled slot for ${slot.providers.join(", ")}`,
+                isActive: isActive ?? true,
+                contentTypes: [],
+                platforms: slot.providers as ProviderName[],
+                timezone: timezone ?? "UTC",
+                optimalTimes: [
+                  {
+                    dayOfWeek: slot.dayOfWeek,
+                    hour: slot.hour,
+                    minute: slot.minute ?? 0,
+                  },
+                ],
+                blackoutPeriods: [],
+              },
+            });
+            rules.push(rule);
+          }
+          return rules;
+        }
       );
 
       this.logInfo(ctx, "Schedule slots created in bulk", {

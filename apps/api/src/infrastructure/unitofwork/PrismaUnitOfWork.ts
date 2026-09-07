@@ -8,8 +8,9 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { PrismaClient } from "@infra/prisma";
 import { Prisma } from "@infra/prisma";
+import { runWithBoundGuc } from "@infra/prisma/extensions/tenantGuc.js";
 import type { UnitOfWork } from "@core/domain/index.js";
-import { getTenantContext, getSystemContext } from "../../security/tenantContext.js";
+import { getAmbientGucScope } from "../../security/tenantContext.js";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -68,7 +69,7 @@ export class PrismaUnitOfWork implements UnitOfWork {
     return this.prisma.$transaction(
       async (tx) => {
         // RLS layer 2. Bind `app.account_id` as a transaction-local GUC
-        // so the `tenant_isolation` policy on the 51 tenant-scoped tables
+        // so the `tenant_isolation` policy on every tenant-scoped table
         // gates every statement inside this tx.
         //   - SystemContext active  → sentinel '__system__' (policy bypass).
         //   - TenantContext bound   → real accountId from the customer JWT.
@@ -79,15 +80,18 @@ export class PrismaUnitOfWork implements UnitOfWork {
         // `set_config(name, value, is_local)` with is_local=true is the SQL
         // function form of `SET LOCAL` — scoped to this tx, auto-reset on
         // COMMIT/ROLLBACK, safe under pgbouncer/connection-pooled deploys.
-        const systemCtx = getSystemContext();
-        const tenantCtx = getTenantContext();
-        if (systemCtx) {
-          await tx.$queryRaw`SELECT set_config('app.account_id', '__system__', true)`;
-        } else if (tenantCtx) {
-          await tx.$queryRaw`SELECT set_config('app.account_id', ${tenantCtx.accountId}, true)`;
+        const scope = getAmbientGucScope();
+        if (scope !== undefined) {
+          await tx.$queryRaw`SELECT set_config('app.account_id', ${scope}, true)`;
         }
 
-        return txStorage.run(tx, fn);
+        // This transaction OWNS GUC adjudication for everything inside it. The
+        // marker says so to the per-operation binding, which then passes
+        // operations through instead of wrapping them in transactions of their
+        // own — a wrap would move the operation onto a second pooled connection,
+        // where it would commit even when this transaction rolls back. Held in
+        // the unbound branch too: the connection is owned either way.
+        return runWithBoundGuc(scope, () => txStorage.run(tx, fn));
       },
       {
         ...(opts.maxWait !== undefined && { maxWait: opts.maxWait }),

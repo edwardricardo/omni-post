@@ -10,8 +10,10 @@ import { Worker, type Job } from "bullmq";
 import type { Redis } from "ioredis";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import type { PrismaClient } from "@infra/prisma";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import { logger } from "../lib/logger.js";
+import { getAmbientGucScope } from "../security/tenantContext.js";
 
 interface SwitchJobData {
   accountId: string;
@@ -110,16 +112,16 @@ export class GatewaySwitchProcessor {
       return;
     }
 
-    await this.prisma.$transaction([
-      this.prisma.accountSubscription.updateMany({
+    await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
+      await tx.accountSubscription.updateMany({
         where: { accountId },
         data: { status: "CANCELED" },
-      }),
-      this.prisma.gatewaySwitchEvent.update({
+      });
+      await tx.gatewaySwitchEvent.update({
         where: { id: switchEventId },
         data: { status: "SUSPENDED", suspendedAt: new Date() },
-      }),
-      this.prisma.auditLog.create({
+      });
+      await tx.auditLog.create({
         data: {
           action: "GATEWAY_SWITCH_AUTO_SUSPENDED",
           resource: "account",
@@ -127,8 +129,8 @@ export class GatewaySwitchProcessor {
           details: { switchEventId, reason: "Checkout window expired" },
           success: true,
         },
-      }),
-    ]);
+      });
+    });
 
     // Notify account
     const account = await this.prisma.account.findUnique({

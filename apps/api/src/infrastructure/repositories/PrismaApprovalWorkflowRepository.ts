@@ -6,7 +6,9 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { type Result, ok, err } from "@shared/types";
+import { getAmbientGucScope } from "../../security/tenantContext.js";
 import type { ApprovalWorkflowRepository } from "@core/domain/repositories/ApprovalWorkflowRepository.js";
 import { ApprovalWorkflow, type WorkflowLevel } from "@core/domain/entities/ApprovalWorkflow.js";
 import { EntityNotFoundError, type DomainError } from "@core/domain/errors/index.js";
@@ -118,7 +120,7 @@ export class PrismaApprovalWorkflowRepository implements ApprovalWorkflowReposit
    */
   async save(workflow: ApprovalWorkflow): Promise<Result<void, DomainError>> {
     try {
-      await this.prisma.$transaction(async (tx) => {
+      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
         // Upsert the workflow
         await tx.approvalWorkflow.upsert({
           where: { id: workflow.id },

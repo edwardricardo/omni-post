@@ -6,6 +6,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { type Result, ok, err } from "@shared/types";
 import {
   type TrackedLinkRepository,
@@ -19,7 +20,7 @@ import {
   EntityNotFoundError,
 } from "@core/domain/index.js";
 import { ShortCode } from "@core/domain/value-objects/ShortCode.js";
-import { withSystemContext } from "../../security/tenantContext.js";
+import { getAmbientGucScope, withSystemContext } from "../../security/tenantContext.js";
 
 /**
  * PrismaTrackedLinkRepository - Implements TrackedLinkRepository using Prisma
@@ -156,14 +157,14 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
     }
 
     // Delete related clicks first (cascade should handle this, but explicit is safer)
-    await this.prisma.$transaction([
-      this.prisma.linkClick.deleteMany({
+    await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
+      await tx.linkClick.deleteMany({
         where: { trackedLinkId: id.value },
-      }),
-      this.prisma.trackedLink.delete({
+      });
+      await tx.trackedLink.delete({
         where: { id: id.value },
-      }),
-    ]);
+      });
+    });
 
     return ok(undefined);
   }
@@ -173,9 +174,9 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
    */
   async recordClick(linkId: TrackedLinkId, click: LinkClick): Promise<Result<void, Error>> {
     try {
-      await this.prisma.$transaction([
+      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
         // Create click record
-        this.prisma.linkClick.create({
+        await tx.linkClick.create({
           data: {
             id: click.id.value,
             trackedLinkId: linkId.value,
@@ -186,16 +187,16 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
             country: click.country ?? null,
             city: click.city ?? null,
           },
-        }),
+        });
         // Increment click counter
-        this.prisma.trackedLink.update({
+        await tx.trackedLink.update({
           where: { id: linkId.value },
           data: {
             clicks: { increment: 1 },
             updatedAt: new Date(),
           },
-        }),
-      ]);
+        });
+      });
 
       return ok(undefined);
     } catch (error) {

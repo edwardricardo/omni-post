@@ -27,7 +27,11 @@
  * @layer infrastructure
  */
 import { AsyncLocalStorage } from "node:async_hooks";
-import { TenantContextMissingError } from "@infra/prisma/extensions/tenantGuard.js";
+import {
+  TenantContextMissingError,
+  type TenantContextProvider,
+} from "@infra/prisma/extensions/tenantGuard.js";
+import { SYSTEM_TENANT_SCOPE } from "@infra/prisma/extensions/tenantGuc.js";
 
 /** Customer-side tenant context bound by the auth middleware. */
 export interface TenantContext {
@@ -142,6 +146,47 @@ export function withSystemContext<T>(reason: string, fn: () => Promise<T>): Prom
  */
 export function getSystemContext(): SystemContext | undefined {
   return systemStorage.getStore();
+}
+
+// ─── RLS scope ──────────────────────────────────────────────────────────────
+
+/**
+ * The ONE provider object the tenant guard and the GUC scope resolution both
+ * read. Exported as a value rather than assembled at each call site so "layer 1
+ * and layer 2 read the same context" is a fact about the wiring instead of a
+ * convention two literals happen to share.
+ */
+export const ambientTenantContextProvider: TenantContextProvider = {
+  getTenantContext,
+  getSystemContext,
+};
+
+/**
+ * @function resolveGucScope
+ * @description Maps a context provider to the scope `app.account_id` must carry:
+ *   the system sentinel when a SystemContext is active, the tenant's accountId
+ *   when one is bound, and `undefined` when neither is — which leaves the
+ *   transaction deliberately unbound rather than inventing a scope for it.
+ *   System wins over tenant, matching what the unit of work already binds.
+ * @param provider - Context provider to read.
+ * @returns The scope to bind, or `undefined` when there is none.
+ */
+function resolveGucScope(provider: TenantContextProvider): string | undefined {
+  if (provider.getSystemContext()) {
+    return SYSTEM_TENANT_SCOPE;
+  }
+  return provider.getTenantContext()?.accountId;
+}
+
+/**
+ * @function getAmbientGucScope
+ * @description {@link resolveGucScope} over the ambient request context. This is
+ *   what every repository-opened transaction passes to `withGucBoundTransaction`,
+ *   so no call site grows a second source of tenant truth.
+ * @returns The scope to bind for the current async execution, or `undefined`.
+ */
+export function getAmbientGucScope(): string | undefined {
+  return resolveGucScope(ambientTenantContextProvider);
 }
 
 // ─── Errors ─────────────────────────────────────────────────────────────────
