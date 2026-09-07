@@ -10,7 +10,7 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { env } from "../../config/env.js";
 import { localizedContentSpec } from "../../ai/structuredSchemas.js";
 
@@ -40,6 +40,13 @@ import { GenerateLocalizedContentUseCase } from "@core/ai/GenerateLocalizedConte
  *   token.
  */
 export function setupLocalizedGenerationUseCases(container: Container): void {
+  // The container's client, never the `@infra/prisma` singleton — `setup.ts` applies the tenant
+  // guard and the request-scoped GUC binding there. `glossary` and `styleGuideRule` are
+  // guard-enrolled and RLS-covered, and their call paths already `requireTenantContext()`. The
+  // raw pgvector statements these adapters also issue stay in fitness #23's audited inventory:
+  // an extension adjudicates typed model operations, never raw SQL.
+  const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
+
   container.registerInstance<GlossaryRepository>(
     TOKENS.GlossaryRepository,
     new PrismaGlossaryRepository(prisma)

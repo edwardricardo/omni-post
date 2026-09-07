@@ -1,6 +1,6 @@
 # Apply progress — tenant-isolation-composite-fk
 
-**Batches so far**: PR 1 (Slice 0a) — complete and merged · PR 2 (Slice 0b) — 5 of 6 done, 5.4 prepared · PR 3 (Slice 0c) — 5 of 6 done, 6.5 blocked on a measured application defect · PR 0d-1a (Slice 0d, adoption first) — 11 of 11 done, gate green · PR 0d-1b (Slice 0d, the binding extension + the drift gate) — 12 of 12 done, fitness #40 prepared with both reds proven; the first gate review returned FAIL (3 CRITICAL / 4 WARNING / 3 SUGGESTION) and this record carries the single corrective pass that answers C1, C2, C3, W3 and W4
+**Batches so far**: PR 1 (Slice 0a) — complete and merged · PR 2 (Slice 0b) — 5 of 6 done, 5.4 prepared · PR 3 (Slice 0c) — 5 of 6 done, 6.5 blocked on a measured application defect · PR 0d-1a (Slice 0d, adoption first) — 11 of 11 done, gate green · PR 0d-1b (Slice 0d, the binding extension + the drift gate) — 12 of 12 done, fitness #40 prepared with both reds proven; the first gate review returned FAIL (3 CRITICAL / 4 WARNING / 3 SUGGESTION) and this record carries the single corrective pass that answers C1, C2, C3, W3 and W4 · PR 0d-2 (Slice 0d, the raw-singleton composition-root conversion) — 8 of 9 writer tasks done, 6c.7 measured as a NO-OP (the #38 ratchet did not fall, so nothing is prepared)
 **Mode**: Strict TDD
 **Branch**: `workstream/tenant-isolation`
 **Artifact store**: openspec
@@ -1278,3 +1278,309 @@ landed covers only clients that come FROM the container, which is exactly why 0d
 SILENT one — a `brandKit` row read through a still-raw-wired repository returns zero rows with
 no guard throw. Carry-forwards (a)–(f) above are inputs to its task breakdown, not optional
 follow-ups.
+
+---
+
+# PR 0d-2 (Slice 0d) — the raw-singleton composition-root conversion
+
+**Status**: 8 of 9 writer tasks done. **6c.7 is orchestrator-owned and is a measured NO-OP** —
+the fitness #38 db-prisma ratchet did NOT fall, so no gated file changes and nothing is
+prepared. No git ran; no gated path was touched.
+
+**What this link claims**: the container's guarded, GUC-binding client is now the ONLY client
+application code receives from the composition root. Before it, 12 setup files handed the raw
+`@infra/prisma` singleton into 30 handoffs, so those repositories were DI-resolved and yet
+unguarded and unbound — under the application role they answered zero rows with no throw. That
+silence is the defect this link removes, and its removal is what makes the flip in 0d-3 safe to
+attempt.
+
+## Task ledger (PR 0d-2)
+
+| Task                                       | State   | Evidence                                                                                                                                                             |
+| ------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6c.1 re-measure the 12 files / 30 handoffs | **[x]** | **Delta = ZERO** — same files, same handoff counts, same line numbers as the snapshot. The 13th grep match is a JSDoc `@example`.                                    |
+| 6c.2 fail-closed RED                       | **[x]** | `tests 2 · pass 0 · fail 2`, exit 1 — zero rows silently on one arm, no throw on the other.                                                                          |
+| 6c.3 convert the 12 files                  | **[x]** | All 30 handoffs on `container.resolve<PrismaClient>(TOKENS.PrismaClient)`. Shape deviation recorded below.                                                           |
+| 6c.4 judgement cells declare their scope   | **[x]** | Six declarations; two differ from the brief on measured evidence (pre-auth SSO, referral). Two in-process consumers also had to be bound.                            |
+| 6c.5 worker-shared explicit leg            | **[x]** | `ProjectRepository` + `MentionRepository` (the db-prisma reads whose tables carry a policy today) on `withGucBoundTransaction`; `index.ts` feeds the guarded client. |
+| 6c.6 GREEN + no-context throws             | **[x]** | `tests 2 · pass 2`, exit 0 on the app-role session channel AND on a real `omnipost_app` login connection.                                                            |
+| 6c.7 #38 ratchet re-measure                | **[ ]** | **ORCHESTRATOR-owned, and measured as a NO-OP**: db-prisma = **11**, unchanged; swept tree = 0. Nothing to prepare, nothing to apply.                                |
+| 6c.8 `run-tests.sh` wiring                 | **[x]** | Suite named in `integration:tenant-isolation`; #30 back to its ratchet 21 (it read 22 while the suite was unwired).                                                  |
+| 6c.9 0-defect gate                         | **[x]** | Counts table below.                                                                                                                                                  |
+
+## TDD cycle evidence (PR 0d-2)
+
+| Step               | Observed                                                                                                                                                                                                                                                                                                                   |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **RED (6c.2)**     | `tests 2 · suites 1 · pass 0 · fail 2 · cancelled 0`, exit 1. Arm 1: the tenant's own `brandKit` row came back `null` under a bound tenant context — `notStrictEqual` against `~`, zero rows, silently. Arm 2: `Missing expected rejection (TenantContextMissingError)` — the context-less read answered without throwing. |
+| **GREEN (6c.6)**   | Converting ONE file (`setupBrandKitUseCases.ts`) flipped both arms: `tests 2 · pass 2 · fail 0`, exit 0. Re-run afterwards on a real `omnipost_app` LOGIN connection: same result.                                                                                                                                         |
+| **RED (unit, c)**  | The composed-factory suite's own red was PLANTED, not assumed: inverting `tenantGuardWithGucBindingExtension` to bind-then-guard → `1 failed / 9 passed`, exit 1, on "issues NO bind and opens NO transaction when the guard refuses a foreign accountId". Restored byte-exact (`cmp`, sha256 `e3288c00…`) → 10/10.        |
+| **RED (consumer)** | Removing `withTenantContext` from `trendRadarHandler` → `1 failed / 4 passed`, exit 1, on "binds the payload's account as the tenant context for the whole run". Restored byte-exact (`cmp`, sha256 `026c35ce…`) → 20/20.                                                                                                  |
+| **REFACTOR**       | The conversion follows the convention that EXISTS (`container.resolve`) rather than the `prisma` parameter the task describes — measured, see the deviations. No setup signature and no call site moved.                                                                                                                   |
+
+## The app-role channel, and why it is not a credential (carry-forward (b))
+
+0d-2's red is app-role-only by construction, and the previous link's merge-blocking measurement
+was unreproducible for its reviewer because the only recorded app-role URL was a credential that
+had gone stale. The committed answer is `tests/integration/helpers/appRoleClient.ts`: the OWNER
+connection with `role=omnipost_app` in the startup packet, so the session runs as the
+non-bypassing role from its first statement — the mechanism `rls-tenant-isolation.test.ts`
+already uses with `SET LOCAL ROLE`, hoisted to the session so a repository under test needs no
+cooperation from the suite.
+
+Measured before it was built on, not assumed: `current_user = omnipost_app`,
+`session_user = postgres`, `current_setting('is_superuser') = off`; an unbound read of an
+RLS-covered table returns `null`; the same read inside a transaction that binds `app.account_id`
+returns the row.
+
+**The brief's credentialed route was rejected on a measurement, and the premise it rested on is
+false**: `OMNIPOST_APP_DB_PASSWORD` is absent from this repo's environment channel, and ci.yml
+exports it ONLY to the two `Enable app-role login` steps (`:154-158`, `:374-378`), never to a
+test step. Taking that route would have made the new suite fail closed in the gate and in CI
+until a gated workflow hunk and an owner-applied env key landed — a suite only its provisioner
+can run, which is the exact defect Finding 18 recorded. The session route needs nothing beyond
+the owner channel every integration suite already has.
+
+What it does NOT prove is stated in the helper rather than implied: that the role can LOG IN and
+that its grants are right under its own login. `rls-tenant-isolation.test.ts` owns that proof.
+And it never degrades quietly — `assertAppRoleSession` verifies the posture on the live
+connection and throws, naming the migration, if the session is anything else.
+
+**Separately, the real login channel WAS exercised.** To produce the two-channel batch the gate
+asks for, a dev login password was generated in-session, applied through the sanctioned
+`scripts/db/enable-app-role-login.sh` (`pnpm db:app-role`), used for the run, and never written
+to any tracked file. Recorded because it is the one piece of DB state this link changed and
+cannot restore — a password hash cannot be read back. Nothing consumes the previous value: it
+was not in the environment channel and not in any artifact, and `DATABASE_URL` still names the
+owner in every environment until 6d.5. Role posture verified after:
+`rolcanlogin, rolsuper, rolbypassrls = t, f, f`.
+
+## What each suite's `prisma` IS (carry-forward (a))
+
+Stated per surface, because a green is worth exactly what the client behind it is:
+
+| Surface                                             | Its `prisma`                                                                                                  | What a green there proves                                                                                       |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `compositionRootTenantBinding.test.ts` (node:test)  | REAL package. Two clients on the APPLICATION role: the container's extended one, and the raw singleton pinned | Binding and guarding, on a live connection where row security is in force. This is the link's proof.            |
+| `setupLocalizedGenerationUseCases.test.ts` (vitest) | A bare object registered under `TOKENS.PrismaClient`                                                          | WIRING only — which client instance each adapter receives. Never binding. Said in the file header.              |
+| `tenantGucBinding.test.ts` (vitest)                 | A hand-built double that records batches and binds                                                            | The decision and the composition ORDER. No database, no Proxy involved.                                         |
+| `PrismaMentionRepository.test.ts` (vitest)          | A double exposing `$transaction` + `$executeRaw` and the same model spies                                     | That the adapter runs inside a bound transaction and WHICH scope it binds. Not that the policy then honours it. |
+| Every suite that calls the real `setupContainer`    | The vitest entry's no-op `Proxy` (`async () => undefined` for every `$` property)                             | That the composition does not throw. Not that anything binds — the standing caveat from Finding 15, unchanged.  |
+| `subRepos.di.test.ts` (db-prisma, vitest)           | A fake client whose `$transaction` hands back the same tracked spies                                          | That each repository uses the INJECTED client, through the transactional path it now takes.                     |
+
+## Work unit evidence (PR 0d-2)
+
+| Evidence             | Value                                                                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command | `node --conditions development --import tsx --test --test-force-exit --test-concurrency=1 tests/integration/compositionRootTenantBinding.test.ts` from `apps/api`                                       |
+| Result               | `tests 2 · suites 1 · pass 2 · fail 0 · cancelled 0 · skipped 0`, exit 0                                                                                                                                |
+| Runtime harness      | Live PostgreSQL 16 on `omnipost-infra`. Fixtures on the owner channel; the reads on a session whose `current_user` is `omnipost_app` with superuser attributes dropped, verified on the connection      |
+| Rollback boundary    | Revert per setup file — each is an independent three-line change. The db-prisma leg reverts per method; `index.ts` reverts to the raw singleton on its own; the two consumer bindings are one line each |
+
+## 0-defect gate (PR 0d-2) — exact counts
+
+| Check                               | Command                                                  | Result                                                                      |
+| ----------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------- |
+| TSC (workspace)                     | `pnpm typecheck` (turbo)                                 | **169/169 tasks successful**, exit 0                                        |
+| TSC (api alone)                     | `pnpm exec tsc -b apps/api`                              | exit **0**                                                                  |
+| ESLint                              | `--max-warnings 0` over all 30 touched TS files          | exit **0** — 0 errors, 0 warnings                                           |
+| Prettier                            | `--check` over every touched text file                   | `All matched files use Prettier code style!`                                |
+| `bash -n`                           | `apps/api/scripts/run-tests.sh`                          | exit 0 (no prettier parser for `.sh`)                                       |
+| Fitness #8 / #9 / #10               | grep per CLAUDE.md                                       | **0 / 0 / 0**                                                               |
+| Fitness #21 / #23 / #32             | grep per CLAUDE.md                                       | **0 / 0 / 0**                                                               |
+| Fitness #30 (ratchet 21)            | loop per CLAUDE.md                                       | **21** — the new suite IS named in a batch                                  |
+| Fitness #38                         | scan per CLAUDE.md                                       | swept **0**; db-prisma **11**, UNCHANGED (baseline did not fall)            |
+| Fitness #39                         | script per CLAUDE.md                                     | **0**                                                                       |
+| Fitness #40                         | both parts per CLAUDE.md                                 | **partA=0, partB=0**                                                        |
+| INT — this link's suite             | see Work unit evidence                                   | **2/2**, exit 0                                                             |
+| INT — batch, OWNER channel          | 20 files, concurrency 1                                  | **182/182**, 0 fail / 0 cancelled / 0 skipped, exit 0, 31.09 s              |
+| INT — batch, APP-ROLE channel       | same 20 files, real `omnipost_app` login                 | **182/182**, 0 fail / 0 cancelled / 0 skipped, exit 0, 30.32 s              |
+| INT — whole DB-only tier            | `TIER=pr-integration bash scripts/run-tests.sh`          | **420 tests, 420 pass, 0 fail, 0 cancel, 0 skip**, 9 batches OK             |
+| VITEST — full api unit tier         | `pnpm --filter @apps/api test`                           | **561 files · 8730/8730**, 0 skipped                                        |
+| VITEST — db-prisma package          | `pnpm --filter @adapters/db-prisma test`                 | **4 files · 67/67**                                                         |
+| VITEST — workers package            | `pnpm --filter @apps/workers test`                       | **17 files · 125/125**                                                      |
+| Boot smoke (stand-in for CI's gate) | API booted from source on a spare port, `/health` polled | ready, `{"status":"healthy"}`, 200; process killed, port released           |
+| Shared dev DB left as found         | `psql -f` over every fixture prefix, `__system__` bound  | `crtb` 0 / `guc-tx` 0 / probe 0, against a live control of **289** accounts |
+
+The batch's 180 → 182 is this link's two new tests and nothing else, on BOTH channels. The unit
+tier's 8721 → 8730 is nine: one container-wiring case, two mention-scope cases, four on the
+composed extension, and one per consumer handler for the tenant binding.
+
+The dev-DB check binds `__system__` and carries a control count rather than reading zeros as the
+app role, where absence and invisibility are the same answer — Finding 17's rule, applied.
+
+## Files written (PR 0d-2)
+
+| File                                                                                    | Action | What                                                                                               |
+| --------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------- |
+| 12 `apps/api/src/infrastructure/container/setup*UseCases.ts`                            | Modify | 30 handoffs onto `container.resolve<PrismaClient>(TOKENS.PrismaClient)`, each with its scope note  |
+| `apps/api/src/admin/webhookAdminRoutes.ts`                                              | Modify | `withSystemContext` on the rotation call — the one true cross-tenant admin declaration             |
+| `apps/api/src/admin/oidcAdminRoutes.ts`                                                 | Modify | The tenant-param binder joins the preHandler chain; the tenant is in the path                      |
+| `apps/api/src/auth/samlRoutes.ts`                                                       | Modify | Four admin handlers bind the identifier they already pass as the account scope                     |
+| `apps/api/src/auth/oidcRoutes.ts`                                                       | Modify | Same, four handlers                                                                                |
+| `apps/api/src/ai/consumers/triageInboxHandler.ts`                                       | Modify | Binds the payload's account — the in-process consumer convention, which this handler lacked        |
+| `apps/api/src/ai/consumers/trendRadarHandler.ts`                                        | Modify | Same                                                                                               |
+| `apps/api/src/index.ts`                                                                 | Modify | The repo-adapter feed takes the container's client; the tenant-health comment stops saying "inert" |
+| `packages/adapters/db-prisma/src/ProjectRepository.ts`                                  | Modify | Quota+create and the account listing on `withGucBoundTransaction`; `deleteProject` left unbound    |
+| `packages/adapters/db-prisma/src/MentionRepository.ts`                                  | Modify | Dedup probe under `__system__` with its residual named; `save` bound to the mention's own account  |
+| `apps/api/tests/integration/compositionRootTenantBinding.test.ts`                       | Create | The fail-closed proof: bound read returns, context-less read throws                                |
+| `apps/api/tests/integration/helpers/appRoleClient.ts`                                   | Create | The committed app-role channel + its posture assertion                                             |
+| `apps/api/tests/unit/security/tenantGucBinding.test.ts`                                 | Modify | Four cases that CONSUME the composition factory (carry-forward (c))                                |
+| `apps/api/tests/unit/infrastructure/container/setupLocalizedGenerationUseCases.test.ts` | Modify | Registers the client the setup now depends on; asserts each adapter holds it                       |
+| `apps/api/tests/unit/infrastructure/adapters/PrismaMentionRepository.test.ts`           | Modify | The double models the transaction; two cases assert WHICH scope is bound                           |
+| `apps/api/tests/unit/admin/oidcAdminRoutes.test.ts`                                     | Modify | The third preHandler is named, not counted                                                         |
+| `apps/api/tests/unit/ai/consumers/triageInboxHandler.test.ts`                           | Modify | One case pinning the tenant binding                                                                |
+| `apps/api/tests/unit/ai/consumers/trendRadarHandler.test.ts`                            | Modify | One case pinning the tenant binding, with its red proven                                           |
+| `packages/adapters/db-prisma/tests/subRepos.di.test.ts`                                 | Modify | The fake transaction client routes `project` + `account` to the tracked spies                      |
+| `apps/api/scripts/run-tests.sh`                                                         | Modify | The new suite joins `integration:tenant-isolation`                                                 |
+| `openspec/changes/.../tasks.md`                                                         | Modify | 6c.1–6c.6, 6c.8, 6c.9 checked with their evidence; 6c.7 annotated as a measured no-op              |
+| `openspec/changes/.../apply-progress.md`                                                | Modify | This section, merged onto the PR 1 + 2 + 3 + 0d-1a + 0d-1b record                                  |
+
+## Size (PR 0d-2)
+
+| Measure                                                        | Lines       |
+| -------------------------------------------------------------- | ----------- |
+| Tracked code files (everything outside `openspec/`)            | +625 / −121 |
+| New test files (`compositionRootTenantBinding` + the helper)   | 235         |
+| **Total authored (code + new files, excluding the artifacts)** | **~625**    |
+
+Inside the forecast's ~250–350 for the twelve-file conversion only if the conversion were the
+whole link, and it is not: 235 lines are the two new test files the strict-TDD red requires, 143
+are the composed-factory cases carry-forward (c) asked for, and the db-prisma leg plus the two
+consumer bindings are work the task list named but did not size. Nothing was compressed and no
+comment, blank line, or test was deleted to move the number.
+
+## Prepared for the orchestrator (PR 0d-2)
+
+**Nothing.** 6c.7 is the only orchestrator unit in this link and it is a measured no-op: the #38
+db-prisma ratchet stands at 11, exactly where it stood before this link, so `CLAUDE.md` and
+`.github/workflows/fitness.yml` need no edit. Preparing an artifact that changes 11 to 11 would
+be ceremony, and a baseline touched without a measurement behind it is how a ratchet loses its
+meaning.
+
+## Deviations from tasks/design (PR 0d-2)
+
+**The conversion threads no parameter, because the convention it was told to follow does not
+exist.** 6c.3 and D-S0d-4 both say each setup fn "gains the `prisma: PrismaClient` parameter its
+type-only-import siblings already model", naming `setupPostUseCases` and `setupProjectUseCases`.
+Measured: all 40 setup functions in that directory take `(container: Container)` and nothing
+else, and both named exemplars reach the client with
+`container.resolve<PrismaClient>(TOKENS.PrismaClient)` (`setupPostUseCases.ts:228`,
+`setupProjectUseCases.ts:72`). Threading a parameter would have changed 12 signatures, forced
+`setupUseCases` to take a client it otherwise has no use for, and left 12 of its 32 children
+with a different shape from the other 20. The conversion therefore adopts the in-tree
+convention. The outcome is identical — the guarded client — and the diff is three lines per
+file.
+
+**The app-role channel is a session, not a login.** See the section above: the brief's
+credentialed derivation rests on a premise that measurement contradicts, and taking it would
+have made the link's own proof unrunnable for anyone who has not provisioned a password. The
+real login channel is still exercised for the two-channel batch.
+
+**6c.5 is scoped by policy coverage, not by file count.** "Convert the live-wired db-prisma read
+sites" reads as all seven repositories; the criterion that actually decides the requirement is
+which reads fail closed under the app role, and that is the tables carrying a `tenant_isolation`
+policy. Today those are `Project`, `Mention` and `Channel` — the third already ships the
+pattern. `Post`, `Thread`, `PublishLog`, `Analytics` and `Account` carry no policy, so binding
+their reads now would add transactions with no present effect and pre-empt PR 5's task 11.3,
+which owns db-prisma once `Post` is enrolled. Stated as the criterion rather than as a count so
+the next link can re-derive it.
+
+**Two in-process consumers had to be bound, and this was not in the task list.** D-S0d-3 records
+in-process consumers as binding "from job payload (the existing convention)". Measured:
+`triageInboxHandler` and `trendRadarHandler` pass `accountId` INTO their use cases but bind no
+tenant context, and the subscribe seams in `index.ts` bind none either. Their adapters were
+built from the raw singleton, so the gap was invisible; the conversion would have turned it into
+a throw on the first enrolled read of every triage and trend job. Both now bind at the handler,
+where the payload is validated, and each binding carries a test whose red was demonstrated. The
+class is worth naming: **conversion does not create these gaps, it reveals them** — every
+consumer that was silently reading unguarded is now either bound or loud.
+
+**The SAML/OIDC admin identifier is left visibly wrong rather than quietly fixed.** Those
+handlers scope by `request.auth.user.id`, which under `requireAdminAuth` is the ADMIN user's id,
+not an account id. The binding added here uses that same identifier, so the rows they return are
+exactly the rows they returned before. Whether the identifier is right is a question about the
+endpoints' semantics, it predates this change, and answering it would alter behaviour — so it is
+recorded at both handler classes instead of being rewritten inside a wiring conversion.
+
+## Findings (PR 0d-2)
+
+**19. The task's two premises about the tree were both false, and both were falsifiable in one
+command.** The `prisma: PrismaClient` parameter the siblings "already model" does not exist in
+any of the 40 setup functions, and the `OMNIPOST_APP_DB_PASSWORD` that "CI already exports" is
+exported only to the two enable-login steps. Neither is a large error, and both would have
+produced a worse change had they been taken on trust — a signature churn nobody else follows,
+and a merge-blocking suite gated on a credential. The design-time snapshot of the handoffs, by
+contrast, re-measured at exactly 12 files / 30 handoffs. Re-measuring cost two commands.
+
+**20. The pre-auth SSO surface was already narrower than the design asked for.** D-S0d-4
+prescribes `__system__` with a narrow select for pre-auth SSO discovery. The five public SSO
+routes already bind the tenant from their `:accountId` path param, which is strictly stronger:
+the request declares which tenant it is asking about and the guard holds it to that one, where a
+system bypass would have accepted any. The design's instruction was written against an older
+tree; following it literally would have WIDENED an already-correct boundary. What the conversion
+actually surfaced there is the admin half nobody had looked at.
+
+**21. `deleteProject(id)` cannot be scoped, and that is the finding rather than a problem to
+solve.** It takes no account, so there is no tenant to bind — and a `__system__` bypass, the
+only other way to make it "work" under the app role, would hand an unscoped delete-by-id the
+right to remove any tenant's project. Left unbound it fails closed with NOT_FOUND, which is the
+correct answer to a destructive call that cannot say whose data it is touching. The
+tenant-scoped path already exists elsewhere (`DeleteProjectUseCase`, inside a unit of work).
+
+**22. A test that pins a preHandler COUNT tells you nothing about which guards ran.**
+`oidcAdminRoutes.test.ts` asserted `preHandler.length === 2`; adding the tenant binder broke it,
+and the assertion could not say whether the new entry was a tenant binder or a second copy of
+the permission gate. It now asserts the chain length AND names the third entry. Same class as
+the "no Seq Scan" finding from PR 1: an assertion that counts is weaker than one that names.
+
+## Blockers (PR 0d-2)
+
+None. 6c.7 is outstanding by ROLE only, and it is a no-op: the ratchet did not move, so there is
+nothing for the orchestrator to apply under a token.
+
+## RDD outcome (0d-2 candidate) — 20 informational findings, adjudicated
+
+The 33-file candidate (1272 lines, risk high) ran the four-lens review under lineage
+`review-64ceb4feb413a8b7`: **approved with 0 blocking findings**, 8 WARNING + 12 SUGGESTION,
+all informational; authority acknowledged and burned; committed as `433b92b6` with the exact
+reviewed bytes. Informational findings are never fixed inside a frozen candidate (that would
+un-review the bytes); every one is routed here instead:
+
+- **Convergent with the fresh gate's WARNING (dispatcher scope):**
+  `R4-consumer-scope-binding-no-degradation-plan` — same class as the unbound
+  `trend-radar-dispatch`/`detect-repurpose-dispatch` ticks. → 0d-3 carry-forward #1 (bind
+  dispatchers with a declared scope BEFORE the flip turns the swallowed warn into a dead job).
+- **Convergent with the named unresolved items (pre-existing, verified at HEAD):**
+  `R1-saml-oidc-admin-scope-uses-admin-id-as-account` (the `request.auth.user.id`-as-account
+  question — principal-authority territory, master plan N.E) and the `deleteProject` pair
+  (`R1-…-relies-on-rls-fail-closed`, `R4-deleteProject-silent-noop` — a fail-closed delete that
+  no-ops silently has honest semantics under RLS but deserves a signature that carries the
+  account). → smells backlog, cross-referenced to N.E.
+- **Convergent with an EXISTING master-plan item:** `R4-mention-dedup-cross-tenant-materialization`
+  is `WRK-MENTION-XTENANT` (master plan §5.1), observed again from the converted read path —
+  evidence that item should rise, not a new finding.
+- **Test-fragility batch (4):** singleton-cache-key coupling in
+  `compositionRootTenantBinding.test.ts` (×2 lenses), the brittle preHandler-name assertion in
+  `oidcAdminRoutes.test.ts`, unused spies in `subRepos.di.test.ts`. → 0d-3's harness sweep
+  (6d.2-6d.4 touches this exact tier) alongside carry-forwards (d)/(e).
+- **Sizing inputs:** `R4-createProject-quota-transaction-latency` joins the 0d-1b
+  connection-hold observation — both are what 6d.8's wall-time-per-channel table exists to
+  measure.
+- **webhookAdmin `withSystemContext` cluster (3 SUGGESTION):** request-supplied id inside the
+  reason string + no audit event on the bypass. Small hardening, out of this change's scope. →
+  smells backlog.
+- **Comment/doc mismatches (4 SUGGESTION):** scope-note duplication and comment-vs-code drift
+  in `setupBrandKitUseCases`, `setupAssetUseCases`, `index.ts`, `MentionRepository`. → fixed
+  opportunistically by whichever 0d-3 task touches each file; not worth a candidate of their own.
+
+## Next (PR 0d-2)
+
+PR 0d-3: the harness sweep (Finding 9's ~65 files, re-measured at 6d.2), the withheld
+`DATABASE_URL` flip (owner-applied at 6d.5, orchestrator-applied to ci.yml at 6d.6), the 6.5
+exit proof, and the ADR-0022 §Runtime cutover update. Two inputs from this link carry forward:
+the committed app-role channel (`helpers/appRoleClient.ts`) is available to any suite that needs
+the non-bypassing role WITHOUT provisioning a credential, and the conversion-reveals-gaps class
+from the deviations is the shape 6d.1's tier-level red will surface at scale — the full tier on
+the app-role channel will name the seeds that fail closed, and it may name consumers the batch
+never exercised.

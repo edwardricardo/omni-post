@@ -7,7 +7,7 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { PrismaCustomReportRepository } from "../repositories/PrismaCustomReportRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { CreateCustomReportUseCase } from "@core/custom-reports/CreateCustomReportUseCase.js";
@@ -23,6 +23,11 @@ import { PrismaAnalyticsAggregationQuery } from "../repositories/PrismaAnalytics
  * Register all Custom Report use cases in the container
  */
 export function setupCustomReportUseCases(container: Container): void {
+  // The container's client, never the `@infra/prisma` singleton — `setup.ts` applies the tenant
+  // guard and the request-scoped GUC binding there. `customReport` is guard-enrolled and
+  // RLS-covered; the analytics aggregation query reads `channel` (also covered) and
+  // `analyticsDailySummary`, both from authenticated tenant flows.
+  const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
   const repo = new PrismaCustomReportRepository(prisma);
   const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
   const analyticsAggQuery = new PrismaAnalyticsAggregationQuery(prisma);

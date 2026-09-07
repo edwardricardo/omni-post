@@ -7,7 +7,7 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { PrismaSamlConfigurationRepository } from "../repositories/PrismaSamlConfigurationRepository.js";
 import { PrismaOidcConfigurationRepository } from "../repositories/PrismaOidcConfigurationRepository.js";
 import type { EncryptionService } from "../../security/EncryptionService.js";
@@ -30,6 +30,19 @@ import { OpenidClientHandshakeProbe } from "../auth/OpenidClientHandshakeProbe.j
  * @param container - The application DI container
  */
 export function setupSamlUseCases(container: Container): void {
+  // The container's client, never the `@infra/prisma` singleton — `setup.ts` applies the tenant
+  // guard and the request-scoped GUC binding there. `samlConfiguration` and `oidcConfiguration`
+  // are guard-enrolled and RLS-covered.
+  //
+  // Scope declaration for the PRE-AUTH SSO surface: the metadata / login / callback routes read
+  // a configuration before any credential has been verified, so they carry no tenant of their
+  // own. They do not need a system bypass and do not get one — the tenant IS the `:accountId`
+  // path segment, and `makeTenantParamPreHandler("accountId")` binds it before the handler runs
+  // (see `auth/samlRoutes.ts` and `auth/oidcRoutes.ts`). That is strictly narrower than
+  // `__system__`: the request declares which tenant it is asking about, and the guard then holds
+  // it to that one. Admin configuration endpoints on the same files run under admin auth and are
+  // tenant-bound by the same seam.
+  const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
   const resolveUoW = (): UnitOfWork => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
   const resolveAccountQueryRepo = (): AccountQueryRepositoryPort =>
     container.resolve<AccountQueryRepositoryPort>(TOKENS.AccountQueryRepository);

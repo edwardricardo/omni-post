@@ -7,7 +7,7 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { PrismaMediaAssetRepository } from "../repositories/PrismaMediaAssetRepository.js";
 import { PrismaAssetTagRepository } from "../repositories/PrismaAssetTagRepository.js";
 import { PrismaAssetFolderRepository } from "../repositories/PrismaAssetFolderRepository.js";
@@ -30,6 +30,11 @@ import {
  * @param container - The application DI container
  */
 export function setupAssetUseCases(container: Container): void {
+  // The container's client, never the `@infra/prisma` singleton — `setup.ts` applies the tenant
+  // guard and the request-scoped GUC binding there. `mediaAsset`, `assetTag` and `assetFolder`
+  // are all guard-enrolled and RLS-covered, and every caller is an authenticated tenant flow.
+  const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
+
   // -- Repositories --
   const mediaAssetRepo = new PrismaMediaAssetRepository(prisma);
   const assetTagRepo = new PrismaAssetTagRepository(prisma);

@@ -16,6 +16,7 @@ import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { RotateWebhookSecretKeyUseCase } from "@core/webhooks/RotateWebhookSecretKeyUseCase.js";
 import type { AuditService } from "../audit/auditService.js";
+import { withSystemContext } from "../security/tenantContext.js";
 
 const ParamsSchema = z.object({ id: z.string().min(1) });
 const BodySchema = z.object({
@@ -48,12 +49,23 @@ class WebhookAdminRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const result = await this.useCase.execute({
-      webhookSubscriptionId: params.data.id,
-      ...(body.data.graceWindowHours !== undefined && {
-        graceWindowHours: body.data.graceWindowHours,
-      }),
-    });
+    // Admin auth binds an administrator, not a tenant, and the only identifier this request
+    // carries is the subscription id — which is global, so there is no account to scope to
+    // before the row is read. `webhookSubscription` is tenant-guard-enrolled and RLS-covered, so
+    // the rotation is a cross-tenant admin operation by construction and declares itself as one
+    // through the sanctioned bypass (the `channelReauthRoutes` force-reauth precedent). Without
+    // the declaration this read fails closed on the guarded client the composition root now
+    // hands the repository, which is the change that made the boundary visible.
+    const result = await withSystemContext(
+      `system:webhook-secret-rotation:${params.data.id}`,
+      async () =>
+        this.useCase.execute({
+          webhookSubscriptionId: params.data.id,
+          ...(body.data.graceWindowHours !== undefined && {
+            graceWindowHours: body.data.graceWindowHours,
+          }),
+        })
+    );
 
     const adminUserId =
       (request as FastifyRequest & { adminUser?: { id: string } }).adminUser?.id ?? null;

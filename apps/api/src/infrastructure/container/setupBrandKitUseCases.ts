@@ -7,7 +7,7 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { PrismaBrandKitRepository } from "../repositories/PrismaBrandKitRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { GetBrandKitQuery } from "@core/brand-kit/GetBrandKitQuery.js";
@@ -20,6 +20,11 @@ import { DeleteBrandKitUseCase } from "@core/brand-kit/DeleteBrandKitUseCase.js"
  * @param container - DI container
  */
 export function setupBrandKitUseCases(container: Container): void {
+  // The container's client, never the `@infra/prisma` singleton: `setup.ts` is where the tenant
+  // guard and the request-scoped GUC binding are applied, so a repository built from the raw
+  // singleton is DI-resolved and yet unguarded and unbound. `brandKit` is guard-enrolled and
+  // RLS-covered, so under the application role that repository answers zero rows with no throw.
+  const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
   const repo = new PrismaBrandKitRepository(prisma);
   const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
   container.registerInstance(TOKENS.BrandKitRepository, repo);

@@ -117,8 +117,21 @@ describe("oidcAdminRoutes plugin", () => {
       harness.routes[0]!.url,
       "/admin/oidc/configurations/:accountId/replace-client-secret"
     );
-    const preHandler = harness.routes[0]!.options.preHandler as unknown[];
-    assert.ok(Array.isArray(preHandler) && preHandler.length === 2);
+    // Three guards, and the third is named rather than counted: `oidcConfiguration` is
+    // tenant-guard-enrolled, admin auth binds an administrator and not a tenant, so without the
+    // param binder this endpoint reads an enrolled model with no context and fails closed.
+    const preHandler = harness.routes[0]!.options.preHandler as Array<{ name?: string }>;
+    assert.ok(Array.isArray(preHandler));
+    assert.equal(
+      preHandler.length,
+      3,
+      "expected admin auth, the permission gate, and the tenant-param binder"
+    );
+    assert.equal(
+      preHandler[2]?.name,
+      "tenantParamPreHandler",
+      "the last preHandler must be the tenant-param binder that scopes the enrolled read"
+    );
   });
 
   it("resolves ReplaceOidcClientSecretUseCase from DI", async () => {

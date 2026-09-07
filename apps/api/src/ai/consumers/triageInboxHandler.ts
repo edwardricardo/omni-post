@@ -8,6 +8,7 @@
  * @layer infrastructure
  */
 import type { TriageInboxMessageUseCase } from "@core/inbox/TriageInboxMessageUseCase.js";
+import { withTenantContext } from "../../security/tenantContext.js";
 import type { RepurposeJobLogger } from "./repurposeGenerateHandler.js";
 
 export interface TriageInboxDeps {
@@ -45,7 +46,14 @@ export async function processTriageInboxJob(
     return;
   }
 
-  const result = await triage.execute({ messageId, accountId });
+  // A queue job carries no request, so the tenant scope is bound HERE, from the payload the
+  // producer put the account in — the in-process consumer convention. `socialMessage` and
+  // `crmContact` are tenant-guard-enrolled, so without this the triage adapters read on the
+  // container's guarded client with no context and throw; with it, layer 1 holds the read to
+  // this account and layer 2 binds the same scope for the policy.
+  const result = await withTenantContext({ accountId }, () =>
+    triage.execute({ messageId, accountId })
+  );
   if (!result.ok) {
     logger.error({ messageId, accountId, error: result.error }, "Triage inbox failed");
     throw new Error(`Triage inbox failed for message ${messageId}`);

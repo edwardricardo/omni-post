@@ -34,7 +34,24 @@ import {
   SYSTEM_TENANT_SCOPE,
   runWithBoundGuc,
 } from "../../../../../infra/prisma/src/extensions/tenantGuc.js";
-import { bindGucForOperation } from "../../../../../infra/prisma/src/extensions/tenantGucBinding.js";
+import {
+  bindGucForOperation,
+  tenantGuardWithGucBindingExtension,
+} from "../../../../../infra/prisma/src/extensions/tenantGucBinding.js";
+
+/** The one hook the composed extension installs, reached structurally so it can be invoked. */
+interface ComposedExtension {
+  query: {
+    $allModels: {
+      $allOperations: (params: {
+        model: string;
+        operation: string;
+        args: unknown;
+        query: (args: unknown) => Promise<unknown>;
+      }) => Promise<unknown>;
+    };
+  };
+}
 
 /** One statement the double was asked to run, recorded rather than executed. */
 interface RecordedBind {
@@ -190,5 +207,129 @@ describe("request-scoped GUC binding", () => {
     ).rejects.toBeInstanceOf(TenantContextMissingError);
 
     expect(batches).toEqual([]);
+  });
+});
+
+describe("the composed extension the composition root applies", () => {
+  /**
+   * Every case above re-states the guard→bind nesting by hand, so inverting the SHIPPED factory
+   * would leave all of them green. These consume `tenantGuardWithGucBindingExtension` itself and
+   * invoke the hook it installs.
+   *
+   * The discriminator is what a REJECTED call leaves behind. Guard-then-bind decides and throws
+   * before the binding is reached, so nothing is issued. Bind-then-guard evaluates
+   * `[$executeRaw..., query(args)]` first, so it issues a bind statement and opens a transaction
+   * whose only other member is an already-rejected promise — a wasted round trip on every
+   * refused query, and, on a real client, a transaction opened for an operation that never runs.
+   */
+  /**
+   * `Prisma.defineExtension` given the object form returns a FUNCTION that applies those args to
+   * a client, so the definition is reached the way `setup.ts` reaches it: by handing the factory's
+   * result a client whose `$extends` records what it was asked to install.
+   */
+  const hookOf = (client: unknown, provider: TenantContextProvider) => {
+    const installed: unknown[] = [];
+    const apply = tenantGuardWithGucBindingExtension(client, provider) as unknown as (
+      base: unknown
+    ) => unknown;
+    apply({
+      $extends: (definition: unknown) => {
+        installed.push(definition);
+        return {};
+      },
+    });
+    const definition = installed[0] as ComposedExtension | undefined;
+    if (!definition?.query?.$allModels?.$allOperations) {
+      throw new Error(
+        "the composed extension installed no $allModels/$allOperations hook — the factory's " +
+          "shape changed and these assertions would otherwise pass over nothing"
+      );
+    }
+    return definition.query.$allModels.$allOperations;
+  };
+
+  it("applies BOTH halves: the guard's injected scope reaches the query, inside a bound transaction", async () => {
+    const { client, binds, batches } = makeFakeClient();
+    const provider = makeProvider({ accountId: "account-1" });
+    const seen: unknown[] = [];
+
+    const result = await hookOf(
+      client,
+      provider
+    )({
+      model: "Project",
+      operation: "findMany",
+      args: {},
+      query: async (args) => {
+        seen.push(args);
+        return ["row"];
+      },
+    });
+
+    // Layer 1 ran: the guard injected the bound tenant into a `where` that had none.
+    expect(seen).toEqual([{ where: { accountId: "account-1" } }]);
+    // Layer 2 ran: one transaction, bind first, carrying the same scope.
+    expect(batches).toHaveLength(1);
+    expect(binds).toHaveLength(1);
+    expect(binds[0]?.values).toEqual(["account-1"]);
+    expect(result).toEqual(["row"]);
+  });
+
+  it("issues NO bind and opens NO transaction when the guard refuses a context-less call", async () => {
+    const { client, binds, batches } = makeFakeClient();
+
+    await expect(
+      hookOf(
+        client,
+        makeProvider(undefined)
+      )({
+        model: "Project",
+        operation: "findMany",
+        args: {},
+        query: async () => [],
+      })
+    ).rejects.toBeInstanceOf(TenantContextMissingError);
+
+    // Inverting the factory to bind-then-guard turns both of these into 1.
+    expect(binds).toEqual([]);
+    expect(batches).toEqual([]);
+  });
+
+  it("issues NO bind and opens NO transaction when the guard refuses a foreign accountId", async () => {
+    const { client, binds, batches } = makeFakeClient();
+
+    await expect(
+      hookOf(
+        client,
+        makeProvider({ accountId: "account-1" })
+      )({
+        model: "Project",
+        operation: "findMany",
+        args: { where: { accountId: "account-2" } },
+        query: async () => [],
+      })
+    ).rejects.toThrow();
+
+    expect(binds).toEqual([]);
+    expect(batches).toEqual([]);
+  });
+
+  it("keeps an operation on the ambient transaction's connection when the marker is held", async () => {
+    const { client, batches } = makeFakeClient();
+
+    const result = await runWithBoundGuc("account-1", () =>
+      hookOf(
+        client,
+        makeProvider({ accountId: "account-1" })
+      )({
+        model: "Project",
+        operation: "findMany",
+        args: {},
+        query: async () => ["row"],
+      })
+    );
+
+    expect(batches).toEqual([]);
+    expect(result).toEqual(["row"]);
   });
 });

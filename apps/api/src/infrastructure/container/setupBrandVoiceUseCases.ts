@@ -7,7 +7,7 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { PrismaBrandVoiceRepository } from "../repositories/PrismaBrandVoiceRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { GetBrandVoiceQuery } from "@core/brand-voice/GetBrandVoiceQuery.js";
@@ -20,6 +20,10 @@ import { DeleteBrandVoiceUseCase } from "@core/brand-voice/DeleteBrandVoiceUseCa
  * @param container - DI container
  */
 export function setupBrandVoiceUseCases(container: Container): void {
+  // The container's client, never the `@infra/prisma` singleton — `setup.ts` applies the tenant
+  // guard and the request-scoped GUC binding there. `brandVoice` is guard-enrolled and
+  // RLS-covered; these use cases serve authenticated tenant flows that already bind context.
+  const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
   const repo = new PrismaBrandVoiceRepository(prisma);
   const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
   container.registerInstance(TOKENS.BrandVoiceRepository, repo);

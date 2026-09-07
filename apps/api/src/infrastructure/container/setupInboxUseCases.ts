@@ -49,7 +49,7 @@ import { PrismaTrackedTermQuery } from "../repositories/PrismaTrackedTermQuery.j
 import { providerRegistry } from "../../providers/providerRegistry.js";
 import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { PrismaTriageMessageAdapter } from "../repositories/PrismaTriageMessageAdapter.js";
 import { PrismaTriageCrmAdapter } from "../repositories/PrismaTriageCrmAdapter.js";
 import { NotificationDispatchAdapter } from "./adapters/NotificationDispatchAdapter.js";
@@ -70,6 +70,13 @@ import type { GuardrailRegistry } from "@core/guardrails/GuardrailRegistry.js";
  * Register social inbox commands, queries, and event handlers
  */
 export function setupInboxUseCases(container: Container): void {
+  // The container's client, never the `@infra/prisma` singleton — `setup.ts` applies the tenant
+  // guard and the request-scoped GUC binding there. `socialMessage`, `crmContact` and
+  // `trackedTerm` are guard-enrolled and RLS-covered. The in-process triage and mention-search
+  // consumers bind their scope from the job payload, the existing convention: an unbound
+  // consumer now throws instead of reading zero rows, which is the point of the conversion.
+  const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
+
   // Social Inbox Use Cases
   container.register<IngestSocialMessageUseCase>(
     TOKENS.IngestSocialMessageUseCase,
