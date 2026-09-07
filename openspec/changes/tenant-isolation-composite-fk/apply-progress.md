@@ -1539,6 +1539,41 @@ the "no Seq Scan" finding from PR 1: an assertion that counts is weaker than one
 None. 6c.7 is outstanding by ROLE only, and it is a no-op: the ratchet did not move, so there is
 nothing for the orchestrator to apply under a token.
 
+## RDD outcome (0d-2 candidate) — 20 informational findings, adjudicated
+
+The 33-file candidate (1272 lines, risk high) ran the four-lens review under lineage
+`review-64ceb4feb413a8b7`: **approved with 0 blocking findings**, 8 WARNING + 12 SUGGESTION,
+all informational; authority acknowledged and burned; committed as `433b92b6` with the exact
+reviewed bytes. Informational findings are never fixed inside a frozen candidate (that would
+un-review the bytes); every one is routed here instead:
+
+- **Convergent with the fresh gate's WARNING (dispatcher scope):**
+  `R4-consumer-scope-binding-no-degradation-plan` — same class as the unbound
+  `trend-radar-dispatch`/`detect-repurpose-dispatch` ticks. → 0d-3 carry-forward #1 (bind
+  dispatchers with a declared scope BEFORE the flip turns the swallowed warn into a dead job).
+- **Convergent with the named unresolved items (pre-existing, verified at HEAD):**
+  `R1-saml-oidc-admin-scope-uses-admin-id-as-account` (the `request.auth.user.id`-as-account
+  question — principal-authority territory, master plan N.E) and the `deleteProject` pair
+  (`R1-…-relies-on-rls-fail-closed`, `R4-deleteProject-silent-noop` — a fail-closed delete that
+  no-ops silently has honest semantics under RLS but deserves a signature that carries the
+  account). → smells backlog, cross-referenced to N.E.
+- **Convergent with an EXISTING master-plan item:** `R4-mention-dedup-cross-tenant-materialization`
+  is `WRK-MENTION-XTENANT` (master plan §5.1), observed again from the converted read path —
+  evidence that item should rise, not a new finding.
+- **Test-fragility batch (4):** singleton-cache-key coupling in
+  `compositionRootTenantBinding.test.ts` (×2 lenses), the brittle preHandler-name assertion in
+  `oidcAdminRoutes.test.ts`, unused spies in `subRepos.di.test.ts`. → 0d-3's harness sweep
+  (6d.2-6d.4 touches this exact tier) alongside carry-forwards (d)/(e).
+- **Sizing inputs:** `R4-createProject-quota-transaction-latency` joins the 0d-1b
+  connection-hold observation — both are what 6d.8's wall-time-per-channel table exists to
+  measure.
+- **webhookAdmin `withSystemContext` cluster (3 SUGGESTION):** request-supplied id inside the
+  reason string + no audit event on the bypass. Small hardening, out of this change's scope. →
+  smells backlog.
+- **Comment/doc mismatches (4 SUGGESTION):** scope-note duplication and comment-vs-code drift
+  in `setupBrandKitUseCases`, `setupAssetUseCases`, `index.ts`, `MentionRepository`. → fixed
+  opportunistically by whichever 0d-3 task touches each file; not worth a candidate of their own.
+
 ## Next (PR 0d-2)
 
 PR 0d-3: the harness sweep (Finding 9's ~65 files, re-measured at 6d.2), the withheld
