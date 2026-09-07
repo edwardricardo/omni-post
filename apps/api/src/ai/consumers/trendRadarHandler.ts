@@ -7,6 +7,7 @@
  * @layer infrastructure
  */
 import type { DetectTrendsUseCase } from "@core/trends/DetectTrendsUseCase.js";
+import { withTenantContext } from "../../security/tenantContext.js";
 import type { RepurposeJobLogger } from "./repurposeGenerateHandler.js";
 
 export interface TrendRadarDeps {
@@ -48,7 +49,14 @@ export async function processTrendRadarJob(
     return;
   }
 
-  const result = await detect.execute({ accountId, dayKey });
+  // A queue job carries no request, so the tenant scope is bound HERE, from the payload the
+  // producer put the account in — the in-process consumer convention. `channel`, `brandVoice`
+  // and `trendRadarResult` are tenant-guard-enrolled, so without this the trend adapters read
+  // and write on the container's guarded client with no context and throw; with it, the whole
+  // pipeline runs inside the account it was dispatched for.
+  const result = await withTenantContext({ accountId }, () =>
+    detect.execute({ accountId, dayKey })
+  );
   if (!result.ok) {
     logger.error({ accountId, error: result.error }, "Trend radar detection failed");
     throw new Error(`Trend radar detection failed for account ${accountId}`);

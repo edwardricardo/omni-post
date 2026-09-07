@@ -10,7 +10,7 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import type { CachePort, QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
@@ -45,6 +45,13 @@ import { DispatchDetectTrendsUseCase } from "@core/trends/DispatchDetectTrendsUs
  * @description Registers trend-radar ports, adapters, and use cases.
  */
 export function setupTrendUseCases(container: Container): void {
+  // The container's client, never the `@infra/prisma` singleton — `setup.ts` applies the tenant
+  // guard and the request-scoped GUC binding there. `trendRadarResult`, `brandVoice` and
+  // `channel` are guard-enrolled and RLS-covered. The trend consumers bind their scope from the
+  // job payload, the existing convention; an unbound one now throws rather than scoring a tenant
+  // over zero rows it silently could not see.
+  const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
+
   container.registerInstance<ScoreTrendContextPort>(
     TOKENS.ScoreTrendContextPort,
     new PrismaScoreTrendContextAdapter(prisma)

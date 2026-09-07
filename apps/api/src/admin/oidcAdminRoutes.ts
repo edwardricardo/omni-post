@@ -15,6 +15,7 @@ import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { ReplaceOidcClientSecretUseCase } from "@core/auth/ReplaceOidcClientSecretUseCase.js";
 import type { AuditService } from "../audit/auditService.js";
+import { makeTenantParamPreHandler } from "../security/tenantParamPreHandler.js";
 
 const ParamsSchema = z.object({ accountId: z.string().min(1) });
 const BodySchema = z.object({
@@ -91,10 +92,22 @@ const oidcAdminRoutes: FastifyPluginAsync = async (fastify) => {
   const auditService = fastify.container!.resolve<AuditService>(TOKENS.AuditService);
   const handler = new OidcAdminRouteHandler(useCase, auditService);
 
+  // Admin auth binds an administrator, not a tenant, and `oidcConfiguration` is
+  // tenant-guard-enrolled and RLS-covered — so on the guarded client the composition root now
+  // hands the repository, this read needs a declared scope or it fails closed. The request
+  // already names the tenant in its path, so the narrowest correct declaration is to bind THAT
+  // account rather than to open a cross-tenant bypass: the admin says which tenant it is acting
+  // on, and the guard holds it to that one.
+  const bindAccountFromParam = makeTenantParamPreHandler("accountId");
+
   fastify.post(
     "/admin/oidc/configurations/:accountId/replace-client-secret",
     {
-      preHandler: [requireAdminAuth, requirePermission(Permission.OIDC_REPLACE_SECRET)],
+      preHandler: [
+        requireAdminAuth,
+        requirePermission(Permission.OIDC_REPLACE_SECRET),
+        bindAccountFromParam,
+      ],
       schema: {
         tags: ["Admin OIDC"],
         summary: "Replace OIDC clientSecret atomically (handshake test before commit)",

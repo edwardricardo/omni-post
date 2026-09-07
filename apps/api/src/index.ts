@@ -320,7 +320,17 @@ async function createApp(): Promise<FastifyInstance> {
   });
 
   // Initialize components
-  const repoAdapter = createPrismaRepoAdapter({ prisma, scheduler: bootstrapScheduler });
+  // The container's client, not the raw `@infra/prisma` singleton: the tenant guard and the
+  // request-scoped GUC binding are applied in `setupContainer`, so feeding the singleton here
+  // would leave this adapter's reads unguarded and unbound while `healthRoutes.ts` — which
+  // builds the same adapter — already resolves the guarded one. The package's own repositories
+  // bind their scope explicitly for their worker callers, and that stays true underneath: an
+  // explicit `withGucBoundTransaction` holds the marker, so the per-operation binding passes its
+  // inner operations through instead of re-wrapping them onto a second connection.
+  const repoAdapter = createPrismaRepoAdapter({
+    prisma: container.resolve<PrismaClient>(TOKENS.PrismaClient),
+    scheduler: bootstrapScheduler,
+  });
   // Queue adapter resolved from the registry so this top-level wiring
   // shares the same Redis connection and queue instances as the rest of
   // the container. Targets the PUBLISH queue for callers that expect a
@@ -752,9 +762,10 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Tenant health endpoint. The `:tenantId` path param IS the account id — the
   // health monitor resolves projects via `getProjectsByAccount(tenantId)` — so
-  // the seam binds it as the tenant context. The scoping is inert until the
-  // bootstrap adapter is swapped onto the guarded client; the seam lands now so
-  // the route is never context-less once that swap happens.
+  // the seam binds it as the tenant context. The seam is no longer inert: the
+  // bootstrap adapter now receives the container's guarded client, so a
+  // context-less request would reach the tenant guard on an enrolled read and
+  // fail loudly rather than answering from an unguarded connection.
   typedApp.get(
     "/health/tenant/:tenantId/project/:projectId",
     {

@@ -6,6 +6,16 @@
  *              (`AIServicePort`, `BrandVoiceRepository`) as stubs, runs
  *              the setup function, and asserts each of the 11 tokens
  *              resolves to an instance of the expected concrete class.
+ *
+ *              What this suite's Prisma client IS, stated so no green here is read for more
+ *              than it proves: a bare object registered under `TOKENS.PrismaClient`. It is not
+ *              the guarded, GUC-binding client the composition root builds, and under vitest the
+ *              `@infra/prisma` singleton is a no-op Proxy answering every `$`-prefixed property
+ *              with `async () => undefined`, so neither one would execute a query here. These
+ *              tests therefore pin WIRING — which client instance each adapter receives — and
+ *              never binding. The binding proof is
+ *              `tests/integration/compositionRootTenantBinding.test.ts`, on a real connection as
+ *              the non-bypassing application role.
  * @layer infrastructure
  */
 
@@ -27,9 +37,13 @@ import { GenerateLocalizedContentUseCase } from "@core/ai/GenerateLocalizedConte
 
 describe("setupLocalizedGenerationUseCases", () => {
   let container: Container;
+  /** Stands in for the container's guarded client; identity is all this suite reads from it. */
+  let prismaStub: object;
 
   beforeEach(() => {
     container = new Container();
+    prismaStub = { marker: "container-prisma-client" };
+    container.registerInstance(TOKENS.PrismaClient, prismaStub as never);
     container.registerInstance(TOKENS.AIServicePort, {} as never);
     container.registerInstance(TOKENS.BrandVoiceRepository, {} as never);
   });
@@ -87,6 +101,21 @@ describe("setupLocalizedGenerationUseCases", () => {
     expect(container.resolve(TOKENS.GenerateLocalizedContentUseCase)).toBeInstanceOf(
       GenerateLocalizedContentUseCase
     );
+  });
+
+  it("builds every adapter from the container's Prisma client, not the module singleton", () => {
+    setupLocalizedGenerationUseCases(container);
+
+    // Reading the private field is deliberate: the claim is about which INSTANCE the adapter
+    // holds, and no public surface exposes that. Behaviourally the difference is invisible until
+    // a real connection is involved, which is exactly how the raw-singleton wiring stayed
+    // unnoticed — a repository that is DI-resolved and yet built from an unguarded client.
+    const clientOf = (adapter: unknown): unknown =>
+      (adapter as { prisma?: unknown }).prisma ?? undefined;
+
+    expect(clientOf(container.resolve(TOKENS.GlossaryRepository))).toBe(prismaStub);
+    expect(clientOf(container.resolve(TOKENS.StyleGuideRuleRepository))).toBe(prismaStub);
+    expect(clientOf(container.resolve(TOKENS.SemanticRetrievalPort))).toBe(prismaStub);
   });
 
   it("treats use-case registrations as singletons (same instance on repeated resolve)", () => {

@@ -15,12 +15,29 @@ import type { ProviderType } from "@core/domain/value-objects/Provider.js";
 const ACCOUNT_ID = "11111111-1111-4111-8111-111111111111";
 const PROJECT_ID = "22222222-2222-4222-8222-222222222222";
 
+/**
+ * The double models the shape the adapter actually uses: both of its statements run inside an
+ * interactive transaction that binds `app.account_id` first, because `Mention` is RLS-covered and
+ * this package is shared with the workers, where no request-scoped tenant context exists. The
+ * transaction client exposes the SAME spies, so every assertion below still observes the real
+ * call; `$executeRaw` is what the GUC binding issues, and `bindScopes` records what it bound so a
+ * test can assert the scope rather than only the query.
+ */
 function makePrisma() {
+  const mention = {
+    findFirst: vi.fn(async () => null),
+    create: vi.fn(async () => ({})),
+  };
+  const bindScopes: unknown[] = [];
+  const $executeRaw = vi.fn(async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+    bindScopes.push(values[0]);
+    return 1;
+  });
   return {
-    mention: {
-      findFirst: vi.fn(async () => null),
-      create: vi.fn(async () => ({})),
-    },
+    mention,
+    bindScopes,
+    $executeRaw,
+    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({ mention, $executeRaw })),
   };
 }
 
@@ -93,10 +110,20 @@ describe("PrismaMentionRepository", () => {
     expect(result.channelId).toBeNull();
   });
 
+  it("binds the system scope for the dedup probe, which spans tenants by construction", async () => {
+    await repo.findByProviderExternalId("X" as ProviderType, "ext-1");
+    expect(prisma.bindScopes).toEqual(["__system__"]);
+  });
+
   it("inserts on save and returns ok", async () => {
     const result = await repo.save(makeMention());
     assert.ok(result.ok);
     expect(prisma.mention.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("binds the mention's own account on save, never the system scope", async () => {
+    await repo.save(makeMention());
+    expect(prisma.bindScopes).toEqual([ACCOUNT_ID]);
   });
 
   it("treats a P2002 unique violation as idempotent success", async () => {

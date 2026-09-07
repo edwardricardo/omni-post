@@ -7,7 +7,7 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { SecretRotationLogPrismaReadRepository } from "../security/SecretRotationLogPrismaReadRepository.js";
 import { GetSecretRotationStatusQuery } from "@core/security/GetSecretRotationStatusQuery.js";
 
@@ -17,6 +17,14 @@ import { GetSecretRotationStatusQuery } from "@core/security/GetSecretRotationSt
  * @param container - DI container
  */
 export function setupSecretsRotationUseCases(container: Container): void {
+  // The container's client, never the `@infra/prisma` singleton — `setup.ts` applies the tenant
+  // guard and the request-scoped GUC binding there.
+  //
+  // Scope declaration for this admin surface: `secretRotationLog` carries no `accountId`, so it
+  // is neither guard-enrolled nor RLS-covered and the swap changes nothing observable today.
+  // That is exactly why it is stated: the file stops being a place where an unguarded client is
+  // in reach, so a future read of an enrolled model added here fails loudly instead of silently.
+  const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
   const repo = new SecretRotationLogPrismaReadRepository(prisma);
   container.registerInstance(TOKENS.SecretRotationLogReadRepository, repo);
   container.registerInstance(

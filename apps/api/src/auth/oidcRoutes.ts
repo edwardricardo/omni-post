@@ -23,6 +23,7 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { makeTenantParamPreHandler } from "../security/tenantParamPreHandler.js";
+import { withTenantContext } from "../security/tenantContext.js";
 import type { ConfigureOidcUseCase } from "@core/auth/ConfigureOidcUseCase.js";
 import type { EnableOidcSsoUseCase } from "@core/auth/EnableOidcSsoUseCase.js";
 import type { DisableOidcSsoUseCase } from "@core/auth/DisableOidcSsoUseCase.js";
@@ -83,6 +84,17 @@ function cleanExpiredPkce(): void {
 // Admin Handler
 // ============================================================================
 
+/**
+ * Scope declaration for the four admin endpoints below.
+ *
+ * `oidcConfiguration` is tenant-guard-enrolled and RLS-covered, and admin auth binds an
+ * administrator rather than a tenant — so on the guarded client the composition root now hands
+ * the repository, a context-less read fails closed. Each handler therefore binds the SAME
+ * identifier it already passes to its use case as the account scope, which is narrower than a
+ * cross-tenant bypass and leaves the rows these endpoints return exactly as they were. The
+ * identifier question is the one recorded on `SamlAdminHandler`, and it is left visible here for
+ * the same reason.
+ */
 class OidcAdminHandler extends BaseRouteHandler {
   protected routeName = "oidc";
 
@@ -103,7 +115,9 @@ class OidcAdminHandler extends BaseRouteHandler {
       return this.sendError(ctx, 401, "Authentication required");
     }
 
-    const result = await this.getConfigQuery.execute({ accountId });
+    const result = await withTenantContext({ accountId }, () =>
+      this.getConfigQuery.execute({ accountId })
+    );
     if (!result.ok) {
       return this.sendError(ctx, 400, result.error.message);
     }
@@ -135,17 +149,19 @@ class OidcAdminHandler extends BaseRouteHandler {
     }
 
     const body = bodyValidation.value;
-    const result = await this.configureUseCase.execute({
-      accountId,
-      issuerUrl: body.issuerUrl,
-      clientId: body.clientId,
-      clientSecret: body.clientSecret,
-      ...(body.scopes !== undefined && { scopes: body.scopes }),
-      attributeMapping: body.attributeMapping as {
-        email: string;
-        [key: string]: string | undefined;
-      },
-    });
+    const result = await withTenantContext({ accountId }, () =>
+      this.configureUseCase.execute({
+        accountId,
+        issuerUrl: body.issuerUrl,
+        clientId: body.clientId,
+        clientSecret: body.clientSecret,
+        ...(body.scopes !== undefined && { scopes: body.scopes }),
+        attributeMapping: body.attributeMapping as {
+          email: string;
+          [key: string]: string | undefined;
+        },
+      })
+    );
 
     if (!result.ok) {
       const statusCode = result.error.code === "VALIDATION_FAILED" ? 400 : 500;
@@ -168,7 +184,9 @@ class OidcAdminHandler extends BaseRouteHandler {
       return this.sendError(ctx, 401, "Authentication required");
     }
 
-    const result = await this.enableOidcSsoUseCase.execute({ accountId });
+    const result = await withTenantContext({ accountId }, () =>
+      this.enableOidcSsoUseCase.execute({ accountId })
+    );
     if (!result.ok) {
       const statusCode = result.error.code === "VALIDATION_FAILED" ? 400 : 500;
       return this.sendError(ctx, statusCode, result.error.message);
@@ -185,7 +203,9 @@ class OidcAdminHandler extends BaseRouteHandler {
       return this.sendError(ctx, 401, "Authentication required");
     }
 
-    const result = await this.disableOidcSsoUseCase.execute({ accountId });
+    const result = await withTenantContext({ accountId }, () =>
+      this.disableOidcSsoUseCase.execute({ accountId })
+    );
     if (!result.ok) {
       return this.sendError(ctx, 500, result.error.message);
     }

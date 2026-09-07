@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
 import type { TriageInboxMessageUseCase } from "@core/inbox/TriageInboxMessageUseCase.js";
 import { processTriageInboxJob } from "../../../../src/ai/consumers/triageInboxHandler.js";
+import { getTenantContext } from "../../../../src/security/tenantContext.js";
 
 function silentLogger() {
   return { info: () => {}, warn: () => {}, error: () => {} };
@@ -46,6 +47,32 @@ describe("processTriageInboxJob", () => {
     );
 
     assert.deepStrictEqual(calls[0], { messageId: "msg-1", accountId: "acc-1" });
+  });
+
+  it("binds the payload's account as the tenant context for the whole run", async () => {
+    // A queue job carries no request, so this handler is the boundary that binds the scope. The
+    // triage adapters read `socialMessage` and `crmContact` — both tenant-guard-enrolled — on the
+    // container's guarded client, so dropping the binding makes every one of those reads throw.
+    let seen: string | undefined;
+    const triage = {
+      execute: async () => {
+        seen = getTenantContext()?.accountId;
+        return ok({
+          priority: "LOW",
+          suggestedReplies: [],
+          sentimentScore: 0,
+          crmContactId: null,
+        });
+      },
+    } as unknown as TriageInboxMessageUseCase;
+
+    await processTriageInboxJob(
+      { triage, logger: silentLogger() },
+      { messageId: "msg-1", accountId: "acc-1" }
+    );
+
+    assert.strictEqual(seen, "acc-1");
+    assert.strictEqual(getTenantContext(), undefined, "the binding must not outlive the job");
   });
 
   it("throws to signal a retry when triage fails", async () => {

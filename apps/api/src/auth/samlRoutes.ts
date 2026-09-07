@@ -23,6 +23,7 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { makeTenantParamPreHandler } from "../security/tenantParamPreHandler.js";
+import { withTenantContext } from "../security/tenantContext.js";
 import type { ConfigureSamlUseCase } from "@core/auth/ConfigureSamlUseCase.js";
 import type { EnableSsoUseCase } from "@core/auth/EnableSsoUseCase.js";
 import type { DisableSsoUseCase } from "@core/auth/DisableSsoUseCase.js";
@@ -57,6 +58,21 @@ const ConfigureBodySchema = z.object({
 // Admin Handler
 // ============================================================================
 
+/**
+ * Scope declaration for the four admin endpoints below.
+ *
+ * `samlConfiguration` is tenant-guard-enrolled and RLS-covered, and admin auth binds an
+ * administrator rather than a tenant — so on the guarded client the composition root now hands
+ * the repository, a context-less read fails closed. Each handler therefore binds the SAME
+ * identifier it already passes to its use case as the account scope, which is narrower than a
+ * cross-tenant bypass and leaves the rows these endpoints return exactly as they were.
+ *
+ * Deliberately NOT resolved here: that identifier is `request.auth.user.id`, the admin user's
+ * id, which these handlers have always used as the account scope. Whether that is the right
+ * identifier is a question about the endpoints' semantics, it predates this wiring change, and
+ * answering it would alter what they return — so it stays visible rather than being quietly
+ * rewritten inside a conversion.
+ */
 class SamlAdminHandler extends BaseRouteHandler {
   protected routeName = "saml";
 
@@ -77,7 +93,9 @@ class SamlAdminHandler extends BaseRouteHandler {
       return this.sendError(ctx, 401, "Authentication required");
     }
 
-    const result = await this.getConfigQuery.execute({ accountId });
+    const result = await withTenantContext({ accountId }, () =>
+      this.getConfigQuery.execute({ accountId })
+    );
     if (!result.ok) {
       return this.sendError(ctx, 400, result.error.message);
     }
@@ -99,16 +117,18 @@ class SamlAdminHandler extends BaseRouteHandler {
     }
 
     const body = bodyValidation.value;
-    const result = await this.configureUseCase.execute({
-      accountId,
-      idpEntityId: body.idpEntityId,
-      idpSsoUrl: body.idpSsoUrl,
-      idpCertificate: body.idpCertificate,
-      attributeMapping: body.attributeMapping as {
-        email: string;
-        [key: string]: string | undefined;
-      },
-    });
+    const result = await withTenantContext({ accountId }, () =>
+      this.configureUseCase.execute({
+        accountId,
+        idpEntityId: body.idpEntityId,
+        idpSsoUrl: body.idpSsoUrl,
+        idpCertificate: body.idpCertificate,
+        attributeMapping: body.attributeMapping as {
+          email: string;
+          [key: string]: string | undefined;
+        },
+      })
+    );
 
     if (!result.ok) {
       const statusCode = result.error.code === "VALIDATION_FAILED" ? 400 : 500;
@@ -126,7 +146,9 @@ class SamlAdminHandler extends BaseRouteHandler {
       return this.sendError(ctx, 401, "Authentication required");
     }
 
-    const result = await this.enableSsoUseCase.execute({ accountId });
+    const result = await withTenantContext({ accountId }, () =>
+      this.enableSsoUseCase.execute({ accountId })
+    );
     if (!result.ok) {
       const statusCode = result.error.code === "VALIDATION_FAILED" ? 400 : 500;
       return this.sendError(ctx, statusCode, result.error.message);
@@ -143,7 +165,9 @@ class SamlAdminHandler extends BaseRouteHandler {
       return this.sendError(ctx, 401, "Authentication required");
     }
 
-    const result = await this.disableSsoUseCase.execute({ accountId });
+    const result = await withTenantContext({ accountId }, () =>
+      this.disableSsoUseCase.execute({ accountId })
+    );
     if (!result.ok) {
       return this.sendError(ctx, 500, result.error.message);
     }

@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
 import type { DetectTrendsUseCase } from "@core/trends/DetectTrendsUseCase.js";
 import { processTrendRadarJob } from "../../../../src/ai/consumers/trendRadarHandler.js";
+import { getTenantContext } from "../../../../src/security/tenantContext.js";
 
 function silentLogger() {
   return { info: () => {}, warn: () => {}, error: () => {} };
@@ -39,6 +40,27 @@ describe("processTrendRadarJob", () => {
     );
 
     assert.deepStrictEqual(calls[0], { accountId: "acc-1", dayKey: "2026-05-31" });
+  });
+
+  it("binds the payload's account as the tenant context for the whole run", async () => {
+    // A queue job carries no request, so this handler is the boundary that binds the scope. The
+    // trend adapters read tenant-guard-enrolled models on the container's guarded client, so
+    // dropping the binding does not degrade the run — it makes every one of those reads throw.
+    let seen: string | undefined;
+    const detect = {
+      execute: async () => {
+        seen = getTenantContext()?.accountId;
+        return ok({ fetched: 0, scored: 0, persisted: 0, updated: 0 });
+      },
+    } as unknown as DetectTrendsUseCase;
+
+    await processTrendRadarJob(
+      { detect, logger: silentLogger() },
+      { accountId: "acc-1", dayKey: "2026-05-31" }
+    );
+
+    assert.strictEqual(seen, "acc-1");
+    assert.strictEqual(getTenantContext(), undefined, "the binding must not outlive the job");
   });
 
   it("throws to signal a retry when detection fails", async () => {

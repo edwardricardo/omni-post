@@ -7,7 +7,7 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { env } from "../../config/env.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { ReferralRewardMailer } from "@core/domain/repositories/ReferralRewardMailer.js";
@@ -31,6 +31,20 @@ import { GetOrCreateReferralCodeUseCase } from "@core/referral/GetOrCreateReferr
  * @description Registers referral repositories and use cases in the DI container.
  */
 export function setupReferralUseCases(container: Container): void {
+  // The container's client, never the `@infra/prisma` singleton — `setup.ts` applies the tenant
+  // guard and the request-scoped GUC binding there. `referralCode`, `conversion` and
+  // `accountSubscription` are guard-enrolled and RLS-covered.
+  //
+  // Scope declaration for the signup-time lookup: `PrismaReferralRepository.findCodeByCode`
+  // resolves a code that belongs to the REFERRER's account from a request that has no tenant
+  // yet, so it is tenant DISCOVERY, not a tenant-scoped read — the `getChannelOwnerAccountId`
+  // shape, and it is already narrow by construction (`select: { id: true }`). Its declaration
+  // belongs at the signup boundary that calls it, and NO bypass is written here because no
+  // route consumes these use cases today (measured: nothing outside this container module
+  // resolves any referral token). Until one is wired the guard makes the gap loud — an unbound
+  // signup read throws instead of silently resolving no code — which is the outcome to keep.
+  const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
+
   // Repositories
   container.registerInstance<ConvertReferralRepository>(
     TOKENS.ConvertReferralRepository,

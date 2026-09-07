@@ -60,9 +60,12 @@ function makeTrackedMockClient() {
 
   // Every repo that runs inside `$transaction` sees the SAME fake transaction
   // client, so the tracked spies keep working through the transactional path.
-  // `$executeRaw` is what `setTenantGuc` binds the RLS GUC with, and
-  // `channel.findMany` routes back to the tracked `channelFindMany` spy so the
-  // "uses INJECTED client" assertion still observes the real call.
+  // `$executeRaw` is what `setTenantGuc` binds the RLS GUC with, and each model
+  // routes back to its tracked spy so the "uses INJECTED client" assertions
+  // still observe the real call. `project` and `account` joined `channel` here
+  // when the RLS-covered reads in `ProjectRepository` moved onto the explicit
+  // GUC-bound seam: the assertions are unchanged, the path they observe is the
+  // one the repository now takes.
   const runTransaction = vi.fn().mockImplementation(async (fn: (tx: unknown) => unknown) => {
     const fakeTx = {
       $executeRaw: transactionExecuteRaw,
@@ -86,6 +89,8 @@ function makeTrackedMockClient() {
         }),
       },
       channel: { findMany: channelFindMany, findUnique: channelFindUnique },
+      project: { findMany: projectFindMany, create: projectCreate },
+      account: { findUnique: accountFindUnique },
     };
     return fn(fakeTx);
   });
