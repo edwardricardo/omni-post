@@ -30,6 +30,7 @@ afterAll(() => {
 const POST_ID = "c0000000-0000-4000-8000-000000000001";
 const PROJECT_ID = "b0000000-0000-4000-8000-000000000001";
 const POST_ID_2 = "c0000000-0000-4000-8000-000000000002";
+const ACCOUNT_ID = "a0000000-0000-4000-8000-000000000001";
 
 function basePostRow() {
   return {
@@ -242,6 +243,39 @@ describe("PrismaPostRepository", () => {
       const callRecord = prisma.post.count.mock.calls[0];
       const args = callRecord?.[0] as { where: { deletedAt: unknown } } | undefined;
       expect(args?.where.deletedAt).toEqual(null);
+    });
+  });
+
+  // ── findOwnerAccountId ──────────────────────────────────────────────────────
+
+  describe("findOwnerAccountId", () => {
+    it("returns the owning accountId when the project relation resolves", async () => {
+      prisma.post.findFirst.mockImplementation(
+        async () => ({ project: { accountId: ACCOUNT_ID } }) as never
+      );
+      const result = await repo.findOwnerAccountId(PostId.fromStringUnsafe(POST_ID));
+
+      expect(result?.value).toBe(ACCOUNT_ID);
+    });
+
+    it("returns null when the post row does not exist", async () => {
+      prisma.post.findFirst.mockImplementation(async () => null as never);
+      const result = await repo.findOwnerAccountId(PostId.fromStringUnsafe(POST_ID));
+
+      expect(result).toBeNull();
+    });
+
+    it("returns null when the post is visible but its project relation is not", async () => {
+      // The join CAN come back without its parent. Row security covers `Project` and does not
+      // cover `Post`, so a caller whose scope excludes the project sees the post row and a
+      // `project` of null — measured directly against PostgreSQL as `omnipost_app` with no
+      // scope bound. Dereferencing it turns an authorization outcome into a TypeError that the
+      // route reports as a 500, which tells the caller nothing and tells an attacker that the
+      // id exists.
+      prisma.post.findFirst.mockImplementation(async () => ({ project: null }) as never);
+      const result = await repo.findOwnerAccountId(PostId.fromStringUnsafe(POST_ID));
+
+      expect(result).toBeNull();
     });
   });
 

@@ -302,7 +302,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **39 checks, numbered #1-#39**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **40 checks, numbered #1-#40**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -1381,6 +1381,109 @@ done) || true
 COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
 COUNT=${COUNT:-0}
 echo "$COUNT"   # expect 0
+
+# 40. One transaction seam. An ALLOWLIST, the #28 form, in TWO parts.
+#
+# Threat: layer 2 of tenant isolation is a transaction-local GUC, so a statement is covered
+# only if the transaction it runs in bound `app.account_id` first — and an operation that
+# opens a transaction of its own leaves its caller's connection, taking its caller's rollback
+# with it. Both properties come from ONE seam: `withGucBoundTransaction` binds the scope and
+# holds the marker that stops the per-operation binding from re-wrapping anything inside it. A
+# transaction opened any other way in application code silently opts out of both.
+#
+# ALLOWLIST, not denylist, for the #28 reason: the dangerous set is open-ended (a raw batch
+# array, a hand-rolled interactive transaction, a future helper that forgets the marker, a
+# call that passes a hand-built scope), while the admissible set is small and nameable. So
+# each part names what IS allowed and counts everything else, instead of trying to predict
+# the next wrong shape.
+#
+# Home is fitness, not the integration tier: unlike the pg-catalog RLS-coverage gate, whose
+# subject is database state a grep cannot read, this invariant is a CALL SHAPE in source —
+# exactly what a grep decides.
+#
+# PART A — no `.$transaction(` in application code outside the three NAMED seams.
+# `withGucBoundTransaction` lives in `infra/prisma/src/extensions/tenantGuc.ts`, outside this
+# scope, so a call site that goes through it contains no `.$transaction(` at all. The named
+# seams are the transaction openers the design keeps: `PrismaUnitOfWork` (which binds the GUC
+# and holds the marker itself), `sagaTenant.ts` (the engine's two primitives, which open
+# THROUGH the helper), and `db-prisma/ChannelRepository.ts` (the shipped worker-side explicit
+# pattern). Comment lines are dropped so prose naming `prisma.$transaction()` is not counted.
+#
+# FAIL-CLOSED. A zero that comes from the pattern no longer matching anything is not a clean
+# scan, it is a blind one: renaming the client method, moving the seams, or dropping the
+# scope directory would each print 0 forever. So the seams' own occurrences are counted and
+# held against a floor.
+set -uo pipefail
+for d in apps/api/src packages/adapters/db-prisma/src; do
+  [ -d "$d" ] || { echo "fitness #40 scope error: '$d' does not exist — the scan would skip it silently and print 0."; exit 1; }
+done
+TX_SEAMS='/infrastructure/unitofwork/PrismaUnitOfWork\.ts:|/saga/sagaTenant\.ts:|/db-prisma/src/ChannelRepository\.ts:'
+tx_calls() {
+  grep -rnE "\.\\\$transaction\(" apps/api/src packages/adapters/db-prisma/src --include="*.ts" | \
+    grep -vE "/node_modules/|/dist/|\.stryker|/tests/|\.test\.ts:" | \
+    grep -vE "^[^:]+:[0-9]+:[[:space:]]*(\*|//)"
+}
+SEAM_HITS=$(tx_calls | grep -cE "$TX_SEAMS" || true)
+if [ "${SEAM_HITS:-0}" -lt 3 ]; then
+  echo "fitness #40 scope error: the named seams hold ${SEAM_HITS:-0} \`.\$transaction(\` calls against a floor of 3 — the method was renamed, a seam moved, or the scan stopped matching. Failing closed rather than reporting a clean zero over code it never read."
+  exit 1
+fi
+COUNT=$(tx_calls | grep -vE "$TX_SEAMS" | grep -c . || true)
+COUNT=${COUNT:-0}
+echo "$COUNT"   # expect 0
+#
+# PART B — the scope a seam call binds is DERIVED, never hand-built. Closes the residual the
+# seam alone leaves open: `withGucBoundTransaction(client, scope, fn)` takes any string, so a
+# future site could call `getTenantContext()` itself, or read a request field, and mint a
+# scope that disagrees with the one layer 1 injected. `getAmbientGucScope()` resolves it from
+# the SAME provider object the tenant guard reads, which is what makes "one provider, no
+# second source of tenant truth" a property of the code rather than a habit.
+#
+# The saga is the one deliberate exception and it is named rather than tolerated: its two
+# primitives take the account explicitly because a saga step runs with no ambient request,
+# and `sagaTenant.ts` is the module that exists to keep that surface narrow.
+#
+# Window is the call line plus 3, which covers both the single-line form and the wrapped one
+# (`client,` / `getAmbientGucScope(),` on their own lines). A call whose scope argument is
+# further away than that is not readable at the call site either, and is a violation for the
+# same reason.
+SCOPE_EXEMPT='/saga/sagaTenant\.ts:'
+seam_call_sites() {
+  grep -rnE "withGucBoundTransaction\(" apps/api/src --include="*.ts" | \
+    grep -vE "/node_modules/|/dist/|\.stryker|/tests/|\.test\.ts:" | \
+    grep -vE "^[^:]+:[0-9]+:[[:space:]]*(import|\*|//)" | \
+    grep -vE "$SCOPE_EXEMPT"
+}
+SITES=$(seam_call_sites | grep -c . || true)
+if [ "${SITES:-0}" -lt 10 ]; then
+  echo "fitness #40 scope error: ${SITES:-0} seam call sites found against a floor of 10 — the helper was renamed or the adoption was undone. Failing closed."
+  exit 1
+fi
+UNDERIVED=$(seam_call_sites | while IFS= read -r hit; do
+  file=${hit%%:*}; rest=${hit#*:}; ln=${rest%%:*}
+  sed -n "${ln},$((ln + 3))p" "$file" | grep -q "getAmbientGucScope()" || printf '%s\n' "$hit"
+done)
+BCOUNT=$(printf "%s" "$UNDERIVED" | grep -c . || true)
+BCOUNT=${BCOUNT:-0}
+echo "$BCOUNT"   # expect 0
+#
+# RESIDUAL LIMITS, stated rather than implied. (1) Textual, not a parser: a call reached
+# through an alias (`const t = prisma.$transaction`) or built by string is invisible — the
+# floors above turn a wholesale rename into a red, but not a single deliberately obfuscated
+# call. (2) Part B proves the scope EXPRESSION, not that the provider behind it is the guard's
+# — that one is structural instead, because `getAmbientGucScope()` and the guard read the same
+# exported `ambientTenantContextProvider` object. (3) A whole-file seam exemption exempts
+# future calls in that file; the exempt list is `sagaTenant.ts` alone and may only shrink.
+# (4) `packages/adapters/db-prisma` is in Part A's scope but not Part B's: it has no ambient
+# request to derive from, and its explicit-scope convention is the shipped worker pattern.
+# (5) `apps/workers/src` IS OUTSIDE BOTH PARTS, and its transactions are therefore UNGATED.
+# Part A's scope is `apps/api/src` + `packages/adapters/db-prisma/src`; Part B's is
+# `apps/api/src` alone. Measured at the time of writing: 2 `.$transaction(` calls live there
+# — `services/ChannelAuthFailureRecorder.ts` and `mentionIngestWorker.ts` — and neither part
+# reads them. The exclusion is deliberate (the worker process has no ambient request to derive
+# a scope from) and is declared in this change's tasks under 6b.7; converting that seam belongs
+# to the links that own the worker process. It is named HERE because a residual a future reader
+# cannot see in the gate is not a stated residual, and this is the check they will read.
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One

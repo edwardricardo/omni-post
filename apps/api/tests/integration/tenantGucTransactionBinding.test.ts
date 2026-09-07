@@ -15,14 +15,25 @@
  *
  *   The closure is an AsyncLocalStorage marker: a transaction that owns GUC adjudication
  *   holds it, and the binding recognises it and passes the operation straight through, so
- *   the operation stays on the transaction's own connection. This suite drives the
- *   non-unit-of-work arm of `PrismaPostRepository.save` — the arm a repository takes when
- *   no unit of work is open — and asserts BOTH halves: the write and the forced failure
- *   roll back together, and no operation inside that transaction takes the wrapping path.
+ *   the operation stays on the transaction's own connection.
  *
- *   The binding extension itself lands in the next link; the probe extension below has the
- *   same shape (bind-then-query in one batch transaction, pass through when the marker is
- *   held) so this suite fails for the escape rather than for a missing composition.
+ *   ## Both shapes, because a transaction is opened in two ways
+ *
+ *   The spec requires the atomicity proof on BOTH shapes, and they fail for different
+ *   reasons, so neither stands in for the other:
+ *
+ *   - **Repository-opened** — the non-unit-of-work arm of `PrismaPostRepository.save`, the
+ *     arm a repository takes when no unit of work is open. Its marker comes from
+ *     `withGucBoundTransaction`.
+ *   - **Unit of work** — `PrismaUnitOfWork.executeInTransaction`, whose marker is adopted in
+ *     the unit of work itself. Every repository inside the callback issues its writes on THAT
+ *     transaction's client, so if the marker is missing each of those writes is re-wrapped
+ *     onto a second pooled connection and commits through the unit of work's rollback.
+ *
+ *   The probe extension below records observations the shipped extension does not expose
+ *   (which operations took the wrapping path, whether the marker was held at a given write)
+ *   but DELEGATES the decision itself to `bindGucForOperation` — the function the shipped
+ *   extension runs — so this suite cannot pass over a look-alike.
  *
  * @layer infrastructure
  */
@@ -31,10 +42,19 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Prisma, createTestPrismaClient, type PrismaClient } from "@infra/prisma";
-import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
+import {
+  tenantGuardExtension,
+  type TenantContextProvider,
+} from "@infra/prisma/extensions/tenantGuard.js";
 import { isGucBound } from "@infra/prisma/extensions/tenantGuc.js";
+import {
+  bindGucForOperation,
+  type GucBindingHost,
+} from "@infra/prisma/extensions/tenantGucBinding.js";
 import { PostAggregate, ProjectId } from "@core/domain/index.js";
 import { PrismaPostRepository } from "../../src/infrastructure/repositories/PrismaPostRepository.js";
+import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { withTenantContext } from "../../src/security/tenantContext.js";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 /** Mutable observations the probe extension records for the assertions below. */
@@ -45,31 +65,27 @@ interface ProbeControl {
   wrappedOperations: string[];
   /** Whether the marker was held when the post insert reached the extension. */
   markerHeldAtPostCreate: boolean | null;
-}
-
-/**
- * Batch-transaction client surface. Structural because the batch overload of
- * `$transaction` is what the binding uses, and the nominal generated types do not unify
- * across the app's client and this package's own instantiation.
- */
-interface BatchTransactionClient {
-  $transaction(operations: unknown[]): Promise<unknown[]>;
-  $executeRaw(query: TemplateStringsArray, ...values: unknown[]): unknown;
+  /** Whether the marker was held at the top of the unit-of-work callback. */
+  markerHeldInsideUoW: boolean | null;
 }
 
 /**
  * @function bindingProbeExtension
- * @description Same shape as the request-scoped binding this workstream lands next: bind
- *   `app.account_id` and run the operation in ONE batch transaction, unless an ambient
- *   transaction already owns GUC adjudication, in which case the operation passes through
- *   untouched and stays on that transaction's connection.
+ * @description The SHIPPED per-operation binding, with an observation sink around it. The
+ *   decision — pass through under an ambient marker, wrap in a two-statement batch otherwise,
+ *   leave a scope-less operation alone — is `bindGucForOperation`, not a re-implementation of
+ *   it; only the recording and the forced failure belong to the probe.
  * @param root - The client the batch transaction is opened on.
- * @param scope - Tenant scope bound before the wrapped operation runs.
+ * @param scope - Tenant scope the probe's provider reports.
  * @param control - Observation sink for the assertions.
  * @returns A Prisma extension definition.
  */
 function bindingProbeExtension(root: unknown, scope: string, control: ProbeControl) {
-  const client = root as BatchTransactionClient;
+  const client = root as GucBindingHost;
+  const provider: TenantContextProvider = {
+    getTenantContext: () => ({ accountId: scope }),
+    getSystemContext: () => undefined,
+  };
   return Prisma.defineExtension({
     name: "tenantGucBindingProbe",
     query: {
@@ -85,15 +101,13 @@ function bindingProbeExtension(root: unknown, scope: string, control: ProbeContr
           ) {
             throw new Error("forced failure on the nested content write");
           }
-          if (isGucBound()) {
-            return query(args);
+          if (!isGucBound()) {
+            control.wrappedOperations.push(`${model}.${operation}`);
           }
-          control.wrappedOperations.push(`${model}.${operation}`);
-          const results = await client.$transaction([
-            client.$executeRaw`SELECT set_config('app.account_id', ${scope}, true)`,
-            query(args),
-          ]);
-          return results[results.length - 1];
+          return bindGucForOperation(
+            { client, args, query: query as (a: unknown) => Promise<unknown> },
+            provider
+          );
         },
       },
     },
@@ -115,6 +129,7 @@ describe("GUC binding and a repository-opened transaction", () => {
     failNestedContentCreate: false,
     wrappedOperations: [],
     markerHeldAtPostCreate: null,
+    markerHeldInsideUoW: null,
   };
 
   before(async () => {
@@ -218,5 +233,59 @@ describe("GUC binding and a repository-opened transaction", () => {
       select: { id: true },
     });
     assert.notEqual(persisted, null, "the successful save must be committed");
+  });
+
+  it("rolls the unit of work back together with every write issued inside it", async () => {
+    control.failNestedContentCreate = false;
+    control.wrappedOperations = [];
+    control.markerHeldAtPostCreate = null;
+    control.markerHeldInsideUoW = null;
+
+    const created = PostAggregate.create({
+      projectId: ProjectId.fromStringUnsafe(projectId),
+      body: "atomicity of a unit of work",
+    });
+    assert.ok(created.ok, "the aggregate fixture must be valid");
+    const aggregate = created.value;
+    createdPostIds.push(aggregate.id.value);
+
+    const unitOfWork = new PrismaUnitOfWork(extendedClient);
+
+    // The tenant context is bound because the unit of work resolves its own GUC scope from
+    // the ambient request context, and a scope-less run would never reach the branch this
+    // test is about: with no scope the binding passes everything through, so the write could
+    // not escape even with the marker gone, and the assertion below would pass vacuously.
+    await assert.rejects(
+      withTenantContext({ accountId }, async () =>
+        unitOfWork.executeInTransaction(async () => {
+          control.markerHeldInsideUoW = isGucBound();
+          const saveResult = await repository.save(aggregate);
+          assert.ok(saveResult.ok, "the write inside the unit of work must succeed");
+          throw new Error("forced failure after the write, inside the unit of work");
+        })
+      ),
+      /forced failure after the write/,
+      "the forced failure must propagate out of the unit of work"
+    );
+
+    // The row comes first deliberately: it is the HARM, and the marker is the diagnostic. A
+    // suite that fails on the diagnostic never shows whether the write actually escaped.
+    const survivor = await seedClient.post.findUnique({
+      where: { id: aggregate.id.value },
+      select: { id: true },
+    });
+    assert.equal(
+      survivor,
+      null,
+      "the post row survived the unit of work's rollback: the insert escaped onto a second " +
+        "connection and committed there"
+    );
+
+    assert.equal(
+      control.markerHeldInsideUoW,
+      true,
+      "the unit of work ran without holding the marker, so every write inside it would be " +
+        "re-wrapped onto a second connection"
+    );
   });
 });

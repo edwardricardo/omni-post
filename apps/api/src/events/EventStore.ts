@@ -78,6 +78,10 @@ export class PostgreSQLEventStore implements IEventStore {
     }
 
     try {
+      // This transaction is INDEPENDENT of any enclosing unit of work, deliberately: the
+      // store's enlisting door is `appendInTx(tx, ...)`, which a caller holding a transaction
+      // calls to put its events in that transaction. Auto-joining here would take the choice
+      // away from callers that append audit events which must survive a rollback.
       await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
         await this.appendInTx(tx, streamId, events, expectedVersion);
       });

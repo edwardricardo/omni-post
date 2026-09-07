@@ -6,7 +6,6 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { type Result, ok, err } from "@shared/types";
 import {
   type TrackedLinkRepository,
@@ -20,7 +19,8 @@ import {
   EntityNotFoundError,
 } from "@core/domain/index.js";
 import { ShortCode } from "@core/domain/value-objects/ShortCode.js";
-import { getAmbientGucScope, withSystemContext } from "../../security/tenantContext.js";
+import { withSystemContext } from "../../security/tenantContext.js";
+import { withTenantTransaction } from "../unitofwork/tenantTransaction.js";
 
 /**
  * PrismaTrackedLinkRepository - Implements TrackedLinkRepository using Prisma
@@ -156,8 +156,10 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
       return err(new EntityNotFoundError("TrackedLink", id.value));
     }
 
-    // Delete related clicks first (cascade should handle this, but explicit is safer)
-    await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
+    // Delete related clicks first (cascade should handle this, but explicit is safer).
+    // Joins the caller's unit of work when one is open, so a deletion that is one step of a
+    // larger operation rolls back with it instead of leaving the link gone.
+    await withTenantTransaction(this.prisma, async (tx) => {
       await tx.linkClick.deleteMany({
         where: { trackedLinkId: id.value },
       });
@@ -174,7 +176,10 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
    */
   async recordClick(linkId: TrackedLinkId, click: LinkClick): Promise<Result<void, Error>> {
     try {
-      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
+      // The redirect path has no unit of work of its own, so this normally opens the
+      // transaction; going through the same helper as the rest of the repository means the
+      // answer does not depend on which caller happens to arrive.
+      await withTenantTransaction(this.prisma, async (tx) => {
         // Create click record
         await tx.linkClick.create({
           data: {

@@ -206,6 +206,11 @@ export async function withSagaSystemRead<T>(
  *   {@link runAsSagaTenant} or the request), and this binds the
  *   transaction-local `app.account_id` as the transaction's FIRST statement so
  *   the row-level policies evaluate against the same account.
+ *   The transaction is independent of any enclosing one, and the engine is where that is
+ *   true by construction rather than by choice: a saga step is dispatched from the engine's
+ *   own loop, so this OPENS the outermost transaction of its step instead of joining one. A
+ *   command handler the step dispatches may open a unit of work inside it; the GUC marker is
+ *   what keeps that nesting honest.
  * @param prisma - The engine's Prisma client.
  * @param accountId - The owning account to bind.
  * @param fn - The transaction body.

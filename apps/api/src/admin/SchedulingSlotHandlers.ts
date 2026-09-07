@@ -413,7 +413,8 @@ export class SchedulingSlotRouteHandler extends BaseRouteHandler {
       // Create all scheduling rules in a transaction. Sequential awaits inside one
       // interactive transaction rather than an array of promises built before the
       // transaction exists: same atomicity, and every insert demonstrably runs on
-      // this transaction's own connection.
+      // this transaction's own connection. Independent of any enclosing transaction by
+      // position: an admin route handler is the outermost frame of its own request.
       const createdRules: SchedulingRule[] = await withGucBoundTransaction(
         this.prisma,
         getAmbientGucScope(),

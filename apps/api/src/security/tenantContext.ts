@@ -3,7 +3,7 @@
  * @description AsyncLocalStorage holder for request-scoped tenant context.
  *   The Fastify customer auth middleware sets this after the JWT is verified;
  *   the Prisma tenant guard extension reads it on every query to enforce
- *   tenant isolation on the 51 tenant-scoped Prisma models.
+ *   tenant isolation on the tenant-scoped Prisma models it enrolls.
  *
  *   Mirror of `decryptAuditContext.ts` — same ALS pattern, separate store.
  *   Independent of the UnitOfWork transaction ALS in
@@ -31,7 +31,7 @@ import {
   TenantContextMissingError,
   type TenantContextProvider,
 } from "@infra/prisma/extensions/tenantGuard.js";
-import { SYSTEM_TENANT_SCOPE } from "@infra/prisma/extensions/tenantGuc.js";
+import { resolveGucScope } from "@infra/prisma/extensions/tenantGuc.js";
 
 /** Customer-side tenant context bound by the auth middleware. */
 export interface TenantContext {
@@ -162,27 +162,16 @@ export const ambientTenantContextProvider: TenantContextProvider = {
 };
 
 /**
- * @function resolveGucScope
- * @description Maps a context provider to the scope `app.account_id` must carry:
- *   the system sentinel when a SystemContext is active, the tenant's accountId
- *   when one is bound, and `undefined` when neither is — which leaves the
- *   transaction deliberately unbound rather than inventing a scope for it.
- *   System wins over tenant, matching what the unit of work already binds.
- * @param provider - Context provider to read.
- * @returns The scope to bind, or `undefined` when there is none.
- */
-function resolveGucScope(provider: TenantContextProvider): string | undefined {
-  if (provider.getSystemContext()) {
-    return SYSTEM_TENANT_SCOPE;
-  }
-  return provider.getTenantContext()?.accountId;
-}
-
-/**
  * @function getAmbientGucScope
- * @description {@link resolveGucScope} over the ambient request context. This is
- *   what every repository-opened transaction passes to `withGucBoundTransaction`,
- *   so no call site grows a second source of tenant truth.
+ * @description `resolveGucScope` over the ambient request context. This is what every
+ *   repository-opened transaction passes to `withGucBoundTransaction`, so no call site grows
+ *   a second source of tenant truth.
+ *
+ *   The mapping itself lives in `@infra/prisma/extensions/tenantGuc.js` beside the system
+ *   sentinel, because the per-operation binding extension needs the identical derivation and
+ *   cannot import from `apps/api` — the guard's provider injection exists to avoid that
+ *   cycle. One function, one provider: the request-scoped binding and a repository-opened
+ *   transaction cannot disagree about the scope.
  * @returns The scope to bind for the current async execution, or `undefined`.
  */
 export function getAmbientGucScope(): string | undefined {

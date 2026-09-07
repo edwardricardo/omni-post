@@ -112,6 +112,8 @@ export class GatewaySwitchProcessor {
       return;
     }
 
+    // Independent of any enclosing transaction by position: a queue processor is the
+    // outermost frame of its job, so this opens the transaction rather than joining one.
     await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
       await tx.accountSubscription.updateMany({
         where: { accountId },

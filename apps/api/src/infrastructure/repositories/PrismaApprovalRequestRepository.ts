@@ -6,9 +6,8 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { type Result, ok, err } from "@shared/types";
-import { getAmbientGucScope } from "../../security/tenantContext.js";
+import { withTenantTransaction } from "../unitofwork/tenantTransaction.js";
 import type { ApprovalRequestRepository } from "@core/domain/repositories/ApprovalRequestRepository.js";
 import {
   ApprovalRequestAggregate,
@@ -152,7 +151,10 @@ export class PrismaApprovalRequestRepository implements ApprovalRequestRepositor
 
       const statusValue = json.status as PrismaApprovalRow["status"];
 
-      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
+      // Joins the caller's unit of work when one is open: `SubmitForReviewUseCase` and the
+      // approve/reject use cases save the request as one step of a larger transaction, and a
+      // request that commits on its own outlives the rollback of the decision that produced it.
+      await withTenantTransaction(this.prisma, async (tx) => {
         // Upsert the approval request
         await tx.approvalRequest.upsert({
           where: { id: request.id.value },
