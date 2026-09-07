@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import type { PrismaClient } from "@infra/prisma";
-import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
+import { tenantGuardWithGucBindingExtension } from "@infra/prisma/extensions/tenantGucBinding.js";
 import { Container, getContainer } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { InMemoryEventDispatcher, type EventDispatcher } from "@core/domain/index.js";
@@ -52,17 +52,27 @@ export interface ContainerSetupOptions {
 export function setupContainer(options: ContainerSetupOptions): Container {
   const container = getContainer();
 
-  // Wrap the Prisma client with the tenant guard extension. Every
-  // consumer that resolves PrismaClient from the container gets the
-  // guarded instance; scripts/migrations that import `prisma` directly
-  // from `@infra/prisma` get the unwrapped client. The extension reads
-  // tenant + system context through `ambientTenantContextProvider` — the
-  // SAME provider object `getAmbientGucScope()` resolves the RLS scope
-  // from, so the guard's tenant (layer 1) and the GUC binding a
-  // repository-opened transaction carries (layer 2) cannot drift apart:
-  // there is one provider, not two literals that happen to agree.
+  // Wrap the Prisma client with the tenant guard (layer 1) and the request-scoped
+  // GUC binding (layer 2). Every consumer that resolves PrismaClient from the
+  // container gets the extended instance; scripts/migrations that import `prisma`
+  // directly from `@infra/prisma` get the unwrapped client.
+  //
+  // ONE `$extends`, guard-then-bind inside it. Two chained extensions were the first
+  // shape, and folding them is the fallback the design names for this class of trouble.
+  // What triggered the fold, measured rather than inferred: under the unit-test runner
+  // `@infra/prisma` resolves to `infra/prisma/src/vitest-entry.ts`, whose `prisma` export
+  // is a deliberate no-op Proxy returning `async () => undefined` for EVERY `$`-prefixed
+  // property. One `$extends` against it yields a Promise, so a second chained call throws
+  // `$extends is not a function`. Module resolution is not the cause — the same alias map
+  // already points `@infra/prisma/extensions` at source.
+  //
+  // Both halves read the SAME `ambientTenantContextProvider` object — the one
+  // `getAmbientGucScope()` resolves a repository-opened transaction's scope from — so
+  // layer 1's injected `where.accountId` and layer 2's policy GUC cannot drift apart:
+  // one provider, not two literals that happen to agree. The client is passed in
+  // because that is what the binding opens its batch transaction on.
   const guardedPrisma = options.prisma.$extends(
-    tenantGuardExtension(ambientTenantContextProvider)
+    tenantGuardWithGucBindingExtension(options.prisma, ambientTenantContextProvider)
   ) as unknown as PrismaClient;
   container.registerInstance(TOKENS.PrismaClient, guardedPrisma);
 

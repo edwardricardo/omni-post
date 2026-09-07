@@ -7,9 +7,8 @@
  */
 
 import type { PrismaClient, Provider as PrismaProvider } from "@infra/prisma";
-import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { ok, err, type Result } from "@shared/types";
-import { getAmbientGucScope } from "../../security/tenantContext.js";
+import { withTenantTransaction } from "../unitofwork/tenantTransaction.js";
 import type {
   AnalyticsWriteRepository,
   AnalyticsDailySummaryInput,
@@ -59,7 +58,10 @@ export class PrismaAnalyticsWriteRepository implements AnalyticsWriteRepository 
       // Sequential awaits inside one interactive transaction rather than an array of
       // promises built before the transaction exists: same atomicity, and every upsert
       // demonstrably runs on this transaction's own connection.
-      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
+      // Joins the caller's unit of work when one is open: `IngestChannelAnalyticsUseCase`
+      // writes the summaries as one step of its transaction, and a partially-ingested day
+      // that survived the rollback would read as real data on the next run.
+      await withTenantTransaction(this.prisma, async (tx) => {
         for (const input of inputs) {
           await tx.analyticsDailySummary.upsert({
             where: {

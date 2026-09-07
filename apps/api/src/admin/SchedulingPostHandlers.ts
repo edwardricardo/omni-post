@@ -244,7 +244,8 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
         });
       }
 
-      // Update post status to DRAFT (cancelled)
+      // Update post status to DRAFT (cancelled). Independent of any enclosing transaction by
+      // position: an admin route handler is the outermost frame of its own request.
       const updatedPost = await withGucBoundTransaction(
         this.prisma,
         getAmbientGucScope(),

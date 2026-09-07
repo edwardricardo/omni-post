@@ -428,14 +428,25 @@ export class PrismaPostRepository implements PostRepository {
 
   /**
    * Lookup the accountId that owns this post via the Project relationship.
-   * Returns null if the post does not exist or is soft-deleted.
+   * Returns null if the post does not exist, is soft-deleted, or its owning
+   * project is not visible to the caller.
+   *
+   * The third case is not defensive padding. `Project` is covered by row
+   * security and `Post` is not, so a caller whose scope excludes the project
+   * still sees the post row and gets `project: null` from the join — measured
+   * directly against PostgreSQL as `omnipost_app`. Prisma types the relation as
+   * non-nullable because the schema declares it required, so nothing but this
+   * check stands between that shape and a TypeError the route reports as a 500.
+   * Ownership that cannot be established is NOT ownership: it collapses onto the
+   * same null the missing-post case returns, which is what keeps a foreign id
+   * indistinguishable from a nonexistent one at the gate above.
    */
   async findOwnerAccountId(postId: PostId): Promise<AccountId | null> {
     const row = await this.prisma.post.findFirst({
       where: { id: postId.value, deletedAt: null },
       select: { project: { select: { accountId: true } } },
     });
-    if (!row) return null;
+    if (!row?.project) return null;
     return AccountId.fromStringUnsafe(row.project.accountId);
   }
 

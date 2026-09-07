@@ -7,9 +7,8 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { type Result, ok, err } from "@shared/types";
-import { getAmbientGucScope } from "../../security/tenantContext.js";
+import { withTenantTransaction } from "../unitofwork/tenantTransaction.js";
 
 import {
   type MediaAssetRepository,
@@ -215,7 +214,11 @@ export class PrismaMediaAssetRepository implements MediaAssetRepository {
    */
   async updateTags(assetId: string, tagIds: string[]): Promise<Result<void, Error>> {
     try {
-      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
+      // Joins the caller's unit of work when one is open: `TagMediaAssetUseCase` calls this
+      // inside `executeInTransaction`, and a tag replacement that commits on its own would
+      // survive the rollback of the operation that asked for it — with the old tags already
+      // deleted.
+      await withTenantTransaction(this.prisma, async (tx) => {
         await tx.assetTagOnAsset.deleteMany({
           where: { assetId },
         });

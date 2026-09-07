@@ -1,6 +1,6 @@
 # Apply progress — tenant-isolation-composite-fk
 
-**Batches so far**: PR 1 (Slice 0a) — complete and merged · PR 2 (Slice 0b) — 5 of 6 done, 5.4 prepared · PR 3 (Slice 0c) — 5 of 6 done, 6.5 blocked on a measured application defect · PR 0d-1a (Slice 0d, adoption first) — 11 of 11 done, gate green
+**Batches so far**: PR 1 (Slice 0a) — complete and merged · PR 2 (Slice 0b) — 5 of 6 done, 5.4 prepared · PR 3 (Slice 0c) — 5 of 6 done, 6.5 blocked on a measured application defect · PR 0d-1a (Slice 0d, adoption first) — 11 of 11 done, gate green · PR 0d-1b (Slice 0d, the binding extension + the drift gate) — 12 of 12 done, fitness #40 prepared with both reds proven; the first gate review returned FAIL (3 CRITICAL / 4 WARNING / 3 SUGGESTION) and this record carries the single corrective pass that answers C1, C2, C3, W3 and W4
 **Mode**: Strict TDD
 **Branch**: `workstream/tenant-isolation`
 **Artifact store**: openspec
@@ -776,3 +776,479 @@ PR 0d-1b: the binding extension (`tenantGucBinding.ts`), its composition in `set
 `$extends(guard).$extends(binding)` — the order this link measured — the
 `findOwnerAccountId` null check, and fitness #40 with its red demonstrated. The 170/177
 two-channel measurement is RE-RUN there, never re-manufactured.
+
+---
+
+# PR 0d-1b (Slice 0d) — the binding extension, and the gate that keeps the seam single
+
+**Status**: 12 of 12 tasks done. Two files are token-gated for the writer (`CLAUDE.md`,
+`.github/workflows/fitness.yml`), so fitness #40 ships as PREPARED artifacts — authored, RUN,
+and RED-PROVEN locally, with a parity script the token holder runs after pasting. Everything
+else was writable and applied directly. No git ran.
+
+**One corrective pass has been applied to this link, after a FAIL gate review.** The
+implementation verified — both fitness #40 reds, the 6b.5 red, the batch, the posture and
+cleanup probes all reproduced independently by the reviewer — but three CRITICAL findings stood:
+the candidate was unfrozen and `prettier`-red with stale recorded counts (C1/W3), the fold's
+recorded CAUSE was refuted by direct execution and shipped as a wrong WHY in two source files
+(C2), and the merge-blocking app-role measurement was not reproducible from the artifacts (C3).
+W4 (the workers residual missing from the gate's own RESIDUAL LIMITS) was closed with them.
+Every correction is marked in place rather than silently overwritten, and each superseded
+number is kept beside its replacement so the correction is auditable. W1, W2, S1 and S2 were
+deliberately NOT closed here — they need new tests or a suite rewrite, which is a second change
+rather than a bounded correction; they are carry-forwards (c)–(f) below.
+
+**What this link claims**: the application binds `app.account_id` for EVERY statement it
+issues, not only the ones inside a unit of work — so the same batch that failed 7 tests under
+the non-bypassing role now passes all 177 on that role, and the flip 0d-3 will make is no
+longer blocked by the application.
+
+## Task ledger (PR 0d-1b)
+
+| Task                                | State   | Evidence                                                                                                                                                                                            |
+| ----------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6b.1 two-channel red, RE-RUN        | **[x]** | `177 · pass 170 · fail 7 · cancelled 0`, exit 1, 28.065 s. The 7 are the recorded pair, now named test by test.                                                                                     |
+| 6b.2 chained-extension unit RED     | **[x]** | Module absent → `1 failed`, exit 1. Green 6/6 after 6b.3.                                                                                                                                           |
+| 6b.3 binding extension              | **[x]** | `infra/prisma/src/extensions/tenantGucBinding.ts`; decision extracted as the pure `bindGucForOperation`. `resolveGucScope` moved into `tenantGuc.ts` — deviation explained.                         |
+| 6b.4 composition                    | **[x]** | The design's NAMED FALLBACK taken on a measurement: ONE extension, guard-then-bind. The chained shape breaks on the unit-test runner's no-op `prisma` Proxy (5 suites / 97 tests) — see Finding 15. |
+| 6b.5 `findOwnerAccountId`           | **[x]** | RED `TypeError: Cannot read properties of null` at `:439` → `if (!row?.project) return null;` → 49/49.                                                                                              |
+| 6b.6 batch GREEN on the app role    | **[x]** | `177/177`, exit 0, 28.321 s. Two-channel wall time on the 19-suite batch: owner 29.157 s vs app role 29.245 s (+0.3 %).                                                                             |
+| 6b.7 fitness #40 authored           | **[x]** | Prepared: `APPLY_NOTES.md`, the CLAUDE.md body, the workflow step, and a detection-parity script. Two parts, both fail-closed on floors.                                                            |
+| 6b.8 #40 red proof                  | **[x]** | Part A and part B each planted, each a REAL exit 1, each restored `cmp` byte-identical, count back to 0. Branch tip `partA=0 partB=0`, `PARITY PASS`.                                               |
+| 6b.5b UoW atomicity shape           | **[x]** | RED: the post row SURVIVED the unit of work's rollback (`pass 2 · fail 1`, exit 1). Restored → 3/3. The probe now delegates to the SHIPPED decision.                                                |
+| 6b.5c nesting adjudication          | **[x]** | 21 sites classified, 7 nestable: 6 restructured onto a new `withTenantTransaction` seam, 7 documented independent-by-design at the call site. Pinned by an allowlist suite.                         |
+| 6b.9 0-defect gate                  | **[x]** | Counts table below.                                                                                                                                                                                 |
+| 6b.10 widen #40 to scope derivation | **[x]** | Implemented as #40 part B rather than deferred; what it cannot prove is stated in the check's own comment.                                                                                          |
+
+## The re-run (6b.1) — a measurement repeated, not a red manufactured
+
+The spec forbids manufacturing a fresh red for this requirement, because one already exists on
+the record. Re-run under the same conditions (same 18 files, `CONCURRENCY=1`, only
+`DATABASE_URL` differing), it reproduced exactly: `tests 177 · pass 170 · fail 7 · cancelled 0
+· skipped 0`, exit 1.
+
+What the re-run ADDS to the record is the failure list, which the ADR summarised by count:
+
+| Suite                     | Failing test                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------ |
+| `postDeleteOwnership` (3) | lets the owner delete its own post                                                   |
+|                           | returns 404 (not 403) when deleting another account's post and leaves it intact      |
+|                           | makes a foreign post id byte-indistinguishable from a nonexistent id                 |
+| `postReadOwnership` (4)   | lets the owner read its own post                                                     |
+|                           | returns 404 (not 403) when reading another account's post and never exposes it       |
+|                           | lets the owner list its own project's posts                                          |
+|                           | scopes the unfiltered global list to the caller account (never leaks other accounts) |
+
+All seven are green after 6b.3 + 6b.4 + 6b.5, on the same channel and the same command.
+
+## The chained composition did not survive the unit-test runner — measured, then folded
+
+> **Corrected after the gate review.** The first version of this section attributed the
+> failure to a module-instance split (`@infra/prisma` on `src`, its subpaths on `dist`).
+> That premise was REFUTED by direct execution and the real cause is below. The wording
+> here, in `setup.ts` and in `tenantGucBinding.ts` now states the measured cause. See
+> Finding 15.
+
+The 6a.1 spike measured that batch enlistment works through a CHAINED `$extends` in both
+orders, and it does: end to end, against a real RLS-covered table, under the application's own
+resolver. The shipped chain still failed, and only under the unit-test runner:
+
+```text
+TypeError: options.prisma.$extends(...).$extends is not a function
+ ❯ Module.setupContainer src/infrastructure/container/setup.ts:72:6
+```
+
+**The cause is the runner's test double, not module resolution.** `vitest.shared.ts:103` maps
+`@infra/prisma` to `infra/prisma/src/vitest-entry.ts`, whose `prisma` export is a deliberate
+no-op `Proxy`: `vitest-entry.ts:124-126` returns `async () => undefined` for EVERY `$`-prefixed
+property. So the first `$extends` returns a **Promise**, and the second chained call on that
+Promise throws. Executed against the real module:
+
+```text
+typeof prisma.$extends        = function
+typeof prisma.$extends({})    = [object Promise]
+first.$extends                = undefined
+CHAINED CALL THROWS: first.$extends is not a function
+```
+
+Resolution is not involved, and this is checkable rather than argued: `vitest.shared.ts:102`
+ALREADY pushes `{ find: "@infra/prisma/extensions", replacement: infra/prisma/src/extensions }`
+and the list is sorted longest-find-first, so extension subpaths resolve to **source** under
+vitest. No `dist` participates. Nobody had noticed because there had only ever been ONE
+`$extends` call against that Proxy.
+
+Five suites failed this way (`aiRoutes.generate`, `aiRoutes.predict`, `aiRoutes.smartanalysis`,
+`contentRoutes`, `trendRoutes` — 97 tests, reported as "skipped" because the suite-level throw
+happens in `beforeAll`). The remedy chosen:
+
+- **Fold the two extensions into one** — the fallback D-S0d-1 names verbatim ("one extension
+  doing guard-then-bind, same seam, no third pattern"). It removes the second `$extends` call
+  entirely, so the Proxy has only one `$`-property call to answer. TAKEN.
+
+The `tsconfig.base.json` paths entry the first version of this section proposed is **not** a
+remedy for this failure and is not carried forward as one: subpaths already resolve to source
+under vitest, so adding it would change nothing here.
+
+The fold is not a downgrade: `tenantGuardCheck` and `bindGucForOperation` remain separate pure
+functions with their own unit tests, and the hook nests them in the order the composition
+demands — the guard's `query` IS the binding, so a guard throw still happens before any
+transaction opens, and the binding still runs whatever `where.accountId` the guard injected.
+
+## The nesting adjudication (6b.5c) — where a documented "intended" would have been a lie
+
+21 seam sites, classified by whether they can be reached from INSIDE a unit of work:
+
+| Class                                           | Sites | Verdict                                                                                     |
+| ----------------------------------------------- | ----: | ------------------------------------------------------------------------------------------- |
+| UoW-aware ternary arms (already adjudicated)    |     5 | untouched — `PrismaPostRepository` ×3, `PrismaProjectRepository`, `PrismaAccountRepository` |
+| Repository writes reachable from a unit of work |     6 | **restructured** onto `withTenantTransaction`                                               |
+| Openers that are the outermost frame            |     8 | **documented** independent-by-design, reason at the call site                               |
+| Worker-side explicit (`db-prisma`)              |     2 | out of scope here — no unit of work exists in that process (0d-2 owns the package)          |
+
+The restructure is not tidying. Four of the six have a MEASURED unit-of-work caller:
+`CreateApprovalWorkflowUseCase` (which unsets the previous default and writes the new one in
+one `executeInTransaction`), `SubmitForReviewUseCase`, `TagMediaAssetUseCase` and
+`IngestChannelAnalyticsUseCase`. Each of those repositories opened its own transaction, so the
+write committed even when the use case rolled back — a pre-existing atomicity defect that the
+architecture canon already forbids ("repositories detect the active transaction"). Writing
+"commits independently, deliberately" beside them would have documented a defect as a decision.
+The other two (`PrismaTrackedLinkRepository.delete` / `.recordClick`) take the same seam so the
+answer is structural rather than dependent on which caller happens to arrive.
+
+`EventStore.append` keeps its independence, and now says why at the call site: the store's
+enlisting door is `appendInTx(tx, …)`, which a caller holding a transaction calls explicitly.
+Auto-joining would take that choice away from callers appending audit events that must survive
+a rollback.
+
+## TDD cycle evidence (PR 0d-1b)
+
+| Task  | RED (observed first)                                                                                                                                               | GREEN                                                      | REFACTOR                                                                                         |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 6b.1  | `177 · pass 170 · fail 7`, exit 1 — the recorded measurement, re-run                                                                                               | 6b.6: `177/177`, exit 0                                    | —                                                                                                |
+| 6b.2  | `Cannot find module '.../tenantGucBinding.js'`, `1 failed`, exit 1                                                                                                 | 6/6 after the extension lands                              | the probe extension in the integration suite now DELEGATES to the shipped decision               |
+| 6b.5  | `TypeError: Cannot read properties of null (reading 'accountId')` at `PrismaPostRepository.ts:439`, `1 failed`, exit 1                                             | 49/49                                                      | —                                                                                                |
+| 6b.5b | post row `{ id: '1978ae95-…' }` SURVIVED the unit of work's rollback, `pass 2 · fail 1`, exit 1 (planted: `runWithBoundGuc` removed from `PrismaUnitOfWork.ts:94`) | 3/3, exit 0 after restore                                  | assertion order flipped to row-then-marker so the suite fails on the HARM, not on the diagnostic |
+| 6b.5c | `Cannot find module '.../tenantTransaction.js'`, `1 failed`, exit 1                                                                                                | 6/6                                                        | 6 repository sites collapse onto ONE named seam instead of restating the ternary                 |
+| 6b.8  | part A: bare `$transaction` at `OutboxClaimService.ts:146` → **exit 1**; part B: hand-built scope at `EventStore.ts:85` → **exit 1**                               | both restored `cmp` byte-identical, counts back to `0 / 0` | the parity script learned that a step stopping at part A is correct, not drift                   |
+
+## Work unit evidence (PR 0d-1b)
+
+| Evidence             | Value                                                                                                                                                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Focused test command | `node --conditions development --import tsx --test --test-force-exit --test-concurrency=1` over the 19-suite `integration:tenant-isolation` list, run twice with only `DATABASE_URL` differing                                 |
+| Result               | owner `180/180` exit 0 (29.157 s) · app role `180/180` exit 0 (29.245 s) · 0 fail / 0 cancelled / 0 skipped on both                                                                                                            |
+| Runtime harness      | Live PostgreSQL 16 on `omnipost-infra`. The app-role channel is a REAL login connection as `omnipost_app` (`rolcanlogin,rolsuper,rolbypassrls = t,f,f`), not `SET LOCAL ROLE`.                                                 |
+| Rollback boundary    | Revert `tenantGucBinding.ts` + the one `setup.ts` composition line and the binding is gone; revert `tenantTransaction.ts` + 6 one-line call-site changes and the nesting restructure is gone. No schema, no env, no migration. |
+
+## 0-defect gate (PR 0d-1b) — exact counts
+
+| Check                                     | Command                                                | Result                                                    |
+| ----------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------- |
+| TSC (workspace)                           | `pnpm typecheck` (turbo)                               | **169/169 tasks successful**, exit 0                      |
+| TSC (api alone)                           | `pnpm --filter @apps/api exec tsc -b`                  | exit **0**                                                |
+| ESLint                                    | `eslint --max-warnings 0` over all 22 touched TS files | exit **0** — 0 errors, 0 warnings                         |
+| Prettier                                  | `prettier --check` over every touched file             | `All matched files use Prettier code style!`              |
+| Fitness #8 / #9 / #10                     | grep per CLAUDE.md                                     | **0 / 0 / 0**                                             |
+| Fitness #21 / #23 / #32                   | grep per CLAUDE.md                                     | **0 / 0 / 0**                                             |
+| Fitness #30 (ratchet 21)                  | loop per CLAUDE.md                                     | **21** — unchanged; this link adds no node:test suite     |
+| Fitness #38                               | scan per CLAUDE.md                                     | swept tree **0**; db-prisma ratchet **11**, unchanged     |
+| Fitness #39                               | script per CLAUDE.md                                   | **0**                                                     |
+| **Fitness #40** (both copies)             | `detection-parity.sh`                                  | `partA=0 partB=0` from both, **PARITY PASS**              |
+| INT — batch, owner channel                | 19 suites, concurrency 1                               | **180/180**, exit 0, 29.157 s                             |
+| INT — batch, app-role channel             | same 19 suites, only `DATABASE_URL` differing          | **180/180**, exit 0, 29.245 s                             |
+| INT — repositories + hard delete + outbox | 10 suites                                              | **120/120**, exit 0                                       |
+| INT — saga recovery                       | `sagaCrashRecovery`, `sagaCompensationRecovery`        | **19/19**, exit 0                                         |
+| VITEST — full api unit tier               | `pnpm --filter @apps/api test`                         | **561 files · 8721/8721**, 0 skipped, 0 cancelled         |
+| VITEST — db-prisma package                | `pnpm --filter @adapters/db-prisma test`               | **4 files · 67/67**                                       |
+| Shared dev DB left as found               | `psql -f` with `__system__` bound, plus a control read | 0 / 0 / 0 fixtures against a live control of 289 accounts |
+
+The unit tier's 8703 → 8721 is this link's 18 new tests and nothing else: 15 from the writer's
+two suites plus the 3 in the adopted fifth file. The batch's 177 → 180 is the new unit-of-work
+atomicity case plus 0d-1a's two, on both channels.
+
+**The stale count, and why it is worth a line rather than a silent overwrite.** This table
+first said **560 files · 8718/8718** against a tree that held **561 · 8721**. The delta was
+exactly the undeclared fifth file's 3 tests, and it is how the gate review detected an unfrozen
+candidate at all: comparing a measured tier count against the recorded one caught what
+`git status` alone did not. The numbers above are re-measured in the corrective pass, not
+edited to agree.
+
+### Corrective-pass re-run (after the gate review)
+
+Everything below was re-measured over the tree as it now stands — the two comment rewrites, the
+formatted fifth file, and this document.
+
+| Check                         | Command                                                             | Result                                                           |
+| ----------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Prettier                      | `--check` on the 4 files this pass touched, incl. the adopted test  | `All matched files use Prettier code style!`, exit **0**         |
+| ESLint                        | `--max-warnings 0` on the 3 touched `.ts`                           | exit **0** — 0 errors, 0 warnings                                |
+| TSC (api alone)               | `pnpm exec tsc -b apps/api`                                         | exit **0**                                                       |
+| VITEST — affected suites      | `tenantTransaction`, `tenantGucBinding`, `tenantTransactionNesting` | **3 files · 15/15**, exit 0                                      |
+| VITEST — full api unit tier   | `pnpm --filter @apps/api test`                                      | **561 files · 8721/8721**, 0 skipped/cancelled, exit 0, 400.70 s |
+| **Fitness #40** (both copies) | `detection-parity.sh`, after adding residual (5) to both            | `doc partA=0 partB=0` · `step partA=0 partB=0`, **PARITY PASS**  |
+| #40 step structure            | `run: \|` block indent scan + `bash -n` on both extracted bodies    | all lines ≥10-space indent; both bodies syntax-OK                |
+| Fitness #34 (on #40)          | `::error` ↔ failure-mechanism pairing in the step copy              | 5 `::error` / 5 `exit 1` — **paired**                            |
+
+Prettier's `--write` on this document changed its diffstat by nothing (`417/1` before and
+after), which is the evidence that it re-aligned only rows this pass had already edited rather
+than reformatting the record wholesale.
+
+**One measurement deserves its own line**: the dev-DB counts were first taken WITHOUT binding a
+scope, as the app role — where every count is 0 whether the row is absent or merely invisible.
+That reads as a clean database and proves nothing. Re-taken with `__system__` bound and a
+control (`289` accounts visible), the zeros mean absence.
+
+## Files written (PR 0d-1b)
+
+| File                                                                                       | Action | What                                                                                     |
+| ------------------------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------------------- |
+| `infra/prisma/src/extensions/tenantGucBinding.ts`                                          | Create | `bindGucForOperation` (the three branches) + `tenantGuardWithGucBindingExtension`        |
+| `infra/prisma/src/extensions/tenantGuc.ts`                                                 | Modify | `resolveGucScope(provider)` moved here, beside the sentinel both consumers need          |
+| `apps/api/src/security/tenantContext.ts`                                                   | Modify | `getAmbientGucScope()` delegates to the shared derivation; the stale model count is gone |
+| `apps/api/src/infrastructure/container/setup.ts`                                           | Modify | ONE `$extends`, guard-then-bind, with the resolution finding recorded beside it          |
+| `apps/api/src/infrastructure/repositories/PrismaPostRepository.ts`                         | Modify | `findOwnerAccountId` null-checks the join                                                |
+| `apps/api/src/infrastructure/unitofwork/tenantTransaction.ts`                              | Create | `withTenantTransaction` — join the unit of work, else open a GUC-bound transaction       |
+| 6 repository/handler files                                                                 | Modify | The nestable sites: 6 onto the new seam, the rest documented independent-by-design       |
+| `apps/api/src/events/EventStore.ts`, `saga/sagaTenant.ts`, `outbox/*`, `admin/Scheduling*` | Modify | Independence declared at the call site, with its reason                                  |
+| `apps/api/tests/unit/security/tenantGucBinding.test.ts`                                    | Create | The binding's three branches, the batch shape, guard-then-bind ordering                  |
+| `apps/api/tests/unit/infrastructure/tenantTransactionNesting.test.ts`                      | Create | The helper's behaviour + the nesting allowlist scan                                      |
+| `apps/api/tests/unit/infrastructure/unitofwork/tenantTransaction.test.ts`                  | Create | **Orchestrator-authored**, mirror-path unit surface of `withTenantTransaction` — 3 tests |
+| `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`                          | Modify | Three `findOwnerAccountId` cases, one of them the null-join red                          |
+| `apps/api/tests/integration/tenantGucTransactionBinding.test.ts`                           | Modify | The unit-of-work shape; the probe delegates to the shipped decision                      |
+| `openspec/changes/.../tasks.md`                                                            | Modify | 6b.1–6b.10 checked with their evidence                                                   |
+| `openspec/changes/.../apply-progress.md`                                                   | Modify | This section, merged onto the PR 1 + 2 + 3 + 0d-1a record                                |
+
+## Size (PR 0d-1b)
+
+**The fifth file, declared rather than absorbed.** The gate review caught
+`tests/unit/infrastructure/unitofwork/tenantTransaction.test.ts` present in the tree, named by
+no task and in no table — an undeclared candidate, and `prettier`-red while every
+writer-authored file passed. It is **orchestrator-authored**, written after the writer finished
+to satisfy the repo stop hook that requires a unit test at the mirror path of
+`src/infrastructure/unitofwork/tenantTransaction.ts`. It is ADOPTED rather than deleted: the
+hook's requirement is real and the file states a real surface. Its three cases are the seam's
+three behaviours — join an active unit-of-work transaction, open through
+`withGucBoundTransaction` with the AMBIENT scope, and open deliberately unbound when no scope
+exists. It was formatted (`prettier --write`) and re-checked clean in this corrective pass, and
+its 3 tests are green. It deliberately does NOT merge with `tenantTransactionNesting.test.ts`,
+which also owns `describe("withTenantTransaction")` with a different mocking style; converging
+the two is carry-forward (e) rather than a same-pass rewrite of a passing suite.
+
+| Measure                                                      | Lines      |
+| ------------------------------------------------------------ | ---------- |
+| Tracked code files                                           | +257 / −86 |
+| New source (`tenantGucBinding` 173 + `tenantTransaction` 56) | 229        |
+| New test suites (194 + 222 + 72)                             | 488        |
+| **Total authored**                                           | **~974**   |
+
+**Superseded numbers, kept so the correction is auditable**: 4 new files · +255 / −86 · 221 ·
+416 · **~892**. Three things moved them, all re-measurable. (1) The fifth file above is now
+counted: +72 lines, +3 tests. (2) The comment rewrites Finding 15 forced add +2 tracked lines
+in `setup.ts` and +8 in `tenantGucBinding.ts` (a new file, so that lands in the "new source"
+row, 165 → 173). (3) Nothing else — no file was added, and none was compressed or trimmed to
+move the number.
+
+The forecast for the whole of 0d-1 was ~380–420 and 0d-1a already spent ~1002 of it, so this
+link carries the same `size:exception`, now against **~974** rather than ~892. What is in it:
+488 lines are the three new suites (two the strict-TDD reds require, one the stop hook does);
+229 are the two new source modules; the remaining +257/−86 is the composition, the null check,
+and 13 call sites gaining one line each. Nothing was compressed and no comment, blank line, or
+test was deleted to move the number.
+
+## Prepared for the orchestrator (PR 0d-1b)
+
+| Prepared file                                        | Target                          | Action                                                                                     |
+| ---------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------ |
+| `<scratchpad>/tif-0d1b-prepared/APPLY_NOTES.md`      | —                               | Full hand-off: what #40 asserts, both apply steps, both red proofs, the residual limits    |
+| `<scratchpad>/tif-0d1b-prepared/fitness-40-check.sh` | `CLAUDE.md`                     | The check body from its `# 40.` line down; also update the count sentence to `#1-#40`      |
+| `<scratchpad>/tif-0d1b-prepared/fitness-40-step.yml` | `.github/workflows/fitness.yml` | The step verbatim, after #39; also update the summary step's `39` → `40`                   |
+| `<scratchpad>/tif-0d1b-prepared/detection-parity.sh` | —                               | Run AFTER pasting: it runs both copies and fails unless they agree. Must print PARITY PASS |
+
+## Deviations from tasks/design (PR 0d-1b)
+
+**ONE extension, not two chained.** Task 6b.4 and D-S0d-1 both describe
+`$extends(guard).$extends(binding)`, and the 6a.1 spike measured that the chain enlists in both
+orders. It does — under the application's resolver. Under the unit-test runner the first
+`$extends` lands on a no-op `Proxy` and returns a Promise, so the second call throws; five
+suites proved it. (Recorded first as a module-resolution split; that premise was refuted by
+execution — see Finding 15.) The design NAMED this fallback for a neighbouring trigger ("if
+enlistment through the chain misbehaves"), and its wording — one extension, same seam, no third
+pattern — is exactly what shipped. The trigger differs from the one the design anticipated; the
+remedy does not.
+
+**`resolveGucScope` moved down instead of being re-exported.** The brief had `apps/api` export
+it for the extension to consume. The extension lives in `infra/prisma` and importing `apps/api`
+from there is the dependency cycle the guard's provider injection exists to avoid. So the
+derivation moved to `tenantGuc.ts`, beside `SYSTEM_TENANT_SCOPE`, and `getAmbientGucScope()`
+delegates to it. One function instead of two copies, and the knip rule is satisfied by
+construction rather than by an export nobody consumes.
+
+**The batch transaction is opened on the client passed IN, not fetched from a callback.**
+`Prisma.defineExtension` accepts a callback form that receives the client; it did not survive
+the same resolution split. The factory takes the client as a parameter, which is also the shape
+the spike's probe used.
+
+**6b.5c restructured six sites rather than documenting all seven.** The task allows either.
+Four sites have a measured unit-of-work caller, so "independent by design" would have been
+false there; the two tracked-link sites took the same seam so the property stops depending on
+the caller. This is the largest single deviation in the link and it is a behaviour change:
+those four repository writes now roll back with the use case that issued them, which is what
+the architecture canon already required of them.
+
+**The ADR-0022 §Runtime cutover table was NOT edited.** Task 6b.6 says to record the interim
+measurement there; task 6d.8 owns the table and flips it from "blocked" to "landed" together
+with the flip itself. Writing the 177/177 into that table now would read as a completed cutover
+while `DATABASE_URL` still names the owner everywhere. The measurement is recorded here and in
+`tasks.md` instead, which is where 6d.8 will find it.
+
+## Findings (PR 0d-1b)
+
+**15. The chained `$extends` failed on the unit-test runner's no-op `prisma` Proxy — not on
+module resolution.** RECORDED WRONG FIRST, corrected here after the gate review refuted it by
+execution. Keeping the original claim beside its refutation is the point: the effect was
+measured, the cause was inferred and then presented as if it had been.
+
+_What was claimed:_ `@infra/prisma` resolved to `src` while `@infra/prisma/extensions/*` fell
+through to the package `exports` and landed on `dist`, so client and extension came from two
+module instances; the remedy was `"@infra/prisma/*": ["./infra/prisma/src/*"]` in
+`tsconfig.base.json`; and, generally, any state in those modules existed TWICE under vitest,
+the GUC `AsyncLocalStorage` among it.
+
+_What is true, each part measured:_
+
+1. **No `dist` is involved.** `vitest.shared.ts:102` already pushes
+   `{ find: "@infra/prisma/extensions", replacement: infra/prisma/src/extensions }`, and
+   `vitest.shared.ts:106` sorts longest-find-first so that subpath alias wins over the bare
+   one. Extension subpaths resolve to SOURCE under vitest.
+2. **The proposed `tsconfig.base.json` remedy would change nothing**, because of (1). It is
+   withdrawn rather than carried forward — a finding that sends a future link to re-run the
+   whole tier behind an inert fix is worse than no finding.
+3. **The real mechanism is the test double.** `vitest.shared.ts:103` maps `@infra/prisma` to
+   `infra/prisma/src/vitest-entry.ts`, whose `prisma` export is a `Proxy` returning
+   `async () => undefined` for every `$`-prefixed property (`vitest-entry.ts:124-126`). One
+   `$extends` yields a Promise; the second chained call on that Promise throws
+   `$extends is not a function`. Probed directly: `typeof prisma.$extends = function`,
+   `prisma.$extends({}) = [object Promise]`, `first.$extends = undefined`.
+4. **The module-duplication paragraph is refuted empirically, not merely doubted.**
+   `tenantTransactionNesting.test.ts:31` imports `tenantGuc.js` by RELATIVE path while the
+   module under test, `tenantTransaction.ts:29`, imports it by ALIAS — and `isGucBound()` reads
+   `true` across that boundary, 6/6 green. Both specifiers resolve to the one file
+   `infra/prisma/src/extensions/tenantGuc.ts`. One instance, not two. The
+   `AsyncLocalStorage` duplication hazard, as stated, does not exist under this alias map.
+
+**The caveat that survives, and it is the load-bearing one.** The unit-test `prisma` has
+ALWAYS been that Proxy, so under vitest `setupContainer` registers a Promise-yielding Proxy as
+`TOKENS.PrismaClient`. "5 suites green (97/97)" therefore proves that the composition **does
+not throw** — not that it binds anything. Every unit-tier green over a code path that goes
+through the container's client carries the same limit. The binding's real proof is the
+integration tier, on a live connection as the non-bypassing role, which is where the
+177 → 180 two-channel measurement lives. Carried into 0d-2 as carry-forward (a), because that
+link converts 12 composition-root files and its red is a SILENT one.
+
+**16. Four repositories were writing outside their caller's unit of work, and every test was
+green.** `ApprovalWorkflow.save`, `ApprovalRequest.save`, `MediaAsset.updateTags` and
+`AnalyticsWrite.upsertDailySummaries` each opened their own transaction while their use case
+had one open. Nothing failed, because no test forced a failure AFTER one of those writes — the
+same blind spot the 0d-1a escape red closed for the repository-opened shape. The class is
+"repository that is not unit-of-work-aware", and the new `withTenantTransaction` seam plus the
+allowlist suite is what keeps a future repository from rejoining it.
+
+**17. A cleanup verification can be an RLS artifact.** The dev-DB "left as found" check, run as
+the app role with no scope bound, returned 0 for every fixture prefix — and would have returned
+0 for a database full of them. Under a non-bypassing role, absence and invisibility are the
+same reading. Any such check now binds `__system__` and carries a control count, and that is a
+general rule for this workstream, not a note about one command.
+
+**18. A merge-blocking measurement that only its author can re-run is not yet evidence.** The
+`rls-enforcement` delta calls the app-role zero-rows proof MERGE-BLOCKING, and the two-channel
+177 → 180 result is provable only on that channel. The gate reviewer could not reproduce it:
+the only app-role URL any artifact recorded (`tif-pr3-prepared/APPLY_NOTES.md:224`) was made
+stale by THIS link's own password re-set, and no replacement was written down. Jointly caused
+— the reviewer's sandbox refused every credentialed route, and the record offered no
+derivable one — but only the second half is ours to fix. It is fixed by describing the ROUTE
+rather than pasting a string: `tif-0d1b-prepared/APPLY_NOTES.md` §6 now gives the four steps
+(export the password from the environment's own channel → `pnpm db:app-role` → derive the URL
+from `DATABASE_URL` by swapping user and password → run `run-approle.mjs` with
+`APP_ROLE_DATABASE_URL`), and cites the two committed `Enable app-role login` steps in
+`.github/workflows/ci.yml` (`:154-158`, `:374-378`) as the reference implementation. **The
+general rule**: record how to re-derive a credentialed channel, never the credential — a
+recorded URL is a recorded secret AND goes stale on the next rotation, so it fails both ways at
+once.
+
+## Blockers (PR 0d-1b)
+
+None for the writer. Two units are outstanding by ROLE, not by difficulty:
+
+- **Orchestrator (token)**: paste fitness #40 into `CLAUDE.md` and `fitness.yml`, then run
+  `detection-parity.sh`. Both reds are already proven; the paste is mechanical.
+- The dev app-role LOGIN password was re-set through the sanctioned
+  `scripts/db/enable-app-role-login.sh` (the migration creates the role NOLOGIN and leaves the
+  password to each environment's own secret channel; PR 1's task 2.2 did the same). It is
+  stated rather than hidden because it is the one piece of DB state this link changed and could
+  not restore: a password hash cannot be read back. **Consequence, surfaced by the gate review
+  and now answered**: it invalidated the only recorded app-role URL, which is what made the
+  merge-blocking measurement unreproducible for a third party (Finding 18). The derivation
+  route is recorded in `tif-0d1b-prepared/APPLY_NOTES.md` §6; the stale string must not be
+  retried. Nothing consumes it — `DATABASE_URL` still
+  names the owner in every environment until 6d.5 — and the role's posture is unchanged
+  (`rolcanlogin,rolsuper,rolbypassrls = t,f,f`, verified after).
+
+## Carry-forwards to 0d-2
+
+Opened by the gate review of this link. Each is a task for the next link, not a note: (a)–(b)
+came out of the two CRITICAL findings, (c)–(d) are the WARNINGs the corrective pass
+deliberately did not close by writing tests around a frozen candidate, (e)–(f) are the
+SUGGESTIONs.
+
+**(a) Establish what each converted suite's `prisma` actually IS, before trusting its green.**
+0d-2 converts 12 composition-root files, so it inherits the unit-suite Proxy directly (Finding
+15): under vitest `setupContainer` receives `vitest-entry.ts`'s no-op `Proxy`, which answers
+every `$`-prefixed property with `async () => undefined`. 0d-2's red is a SILENT one — a
+`brandKit` row read through a still-raw-wired repository returns zero rows with no guard throw
+— and **a silent-zero-rows red is indistinguishable from the Proxy returning `undefined`**.
+Decide per converted suite whether its client is the Proxy, a double, or a real client, and
+say so in the suite, before any of its greens are cited as evidence.
+
+**(b) Land the app-role channel as a committed, reproducible harness.** 0d-2's red is
+app-role-only by construction. The route is now written down (`tif-0d1b-prepared/APPLY_NOTES.md`
+§6) but it is still a procedure, not a runner: it should provision through
+`scripts/db/enable-app-role-login.sh` and DERIVE the URL from `DATABASE_URL`, so the next
+reviewer re-measures instead of trusting a paste. A recorded URL is a recorded credential and
+goes stale on the next rotation — which is exactly how this link's measurement became
+unverifiable to anyone but its writer.
+
+**(c) Test the shipped composition factory, not a restatement of it (gate W1).**
+`tenantGuardWithGucBindingExtension` is referenced only by its own file and `setup.ts`. Both
+the unit suite and the integration probe RE-STATE the guard→bind nesting rather than consuming
+the factory, so inverting it to bind-then-guard would keep every suite green. The test to write
+is one that consumes the factory and goes RED on that inversion. This is the same look-alike
+hazard the writer closed one level down (the probe delegates to `bindGucForOperation`) and left
+open one level up.
+
+**(d) A rollback-together test for the four Finding-16 repositories (gate W2).** The helper's
+join is pinned and the allowlist scan catches a revert, but no test forces a failure AFTER e.g.
+`PrismaApprovalWorkflowRepository.save` inside a use case's `executeInTransaction` and then
+asserts the write rolled back. The defect class was invisible for exactly that reason; the fix
+currently inherits the same blind spot one layer up. Cover `ApprovalWorkflow.save`,
+`ApprovalRequest.save`, `MediaAsset.updateTags` and `AnalyticsWrite.upsertDailySummaries`.
+
+**(e) Converge the two `withTenantTransaction` suites onto one mocking style (gate S2).**
+`tenantTransactionNesting.test.ts` and `tenantTransaction.test.ts` both own
+`describe("withTenantTransaction")` with overlapping cases and different styles (`vi.spyOn` on
+the module namespace vs. hand-rolled doubles). Pick one before either is extended. Not done in
+the corrective pass: rewriting a passing suite to satisfy taste, inside the one bounded
+correction a frozen candidate allows, is how a correction becomes a second change.
+
+**(f) Adjudicate the inert assertion at `tenantTransactionNesting.test.ts:211` (gate S1).**
+It asserts `reason.length > 20` against a literal declared in the same file, so that arm cannot
+fail; the adjacent source-regex assertion is the real check. Either give it a real subject or
+record it as deliberately inert beside the assertion that carries the weight.
+
+## Next (PR 0d-1b)
+
+PR 0d-2: convert the 12 composition-root setup files (30 raw-singleton handoffs) to the
+container's guarded client, and the worker-shared explicit class. The extension this link
+landed covers only clients that come FROM the container, which is exactly why 0d-2's red is a
+SILENT one — a `brandKit` row read through a still-raw-wired repository returns zero rows with
+no guard throw. Carry-forwards (a)–(f) above are inputs to its task breakdown, not optional
+follow-ups.

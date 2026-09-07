@@ -140,6 +140,9 @@ export class OutboxClaimService {
     failureReason: string,
     retryCount: number
   ): Promise<void> {
+    // Independent of any enclosing transaction, and structurally so: the relay's claim pass is
+    // a top-level background frame, never a step of somebody's unit of work. Archiving a
+    // poisoned event must also outlive whatever failed while processing it.
     await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
       await tx.outboxDeadLetter.create({
         data: {

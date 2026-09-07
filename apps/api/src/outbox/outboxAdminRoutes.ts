@@ -67,6 +67,9 @@ export const outboxAdminRoutes: FastifyPluginAsync = async (fastify) => {
       // Atomic: re-create outbox event AND mark DLQ resolved together. If
       // either side fails, both roll back — protects against the case where
       // the DLQ is marked resolved but the event never re-enters the relay.
+      // Independent of any enclosing transaction by position: a route handler is the
+      // outermost frame of its own request, so this opens the transaction rather than
+      // joining one.
       await withGucBoundTransaction(prisma, getAmbientGucScope(), async (tx: TransactionClient) => {
         await tx.outboxEvent.create({
           data: {

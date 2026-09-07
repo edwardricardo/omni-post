@@ -6,9 +6,8 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { type Result, ok, err } from "@shared/types";
-import { getAmbientGucScope } from "../../security/tenantContext.js";
+import { withTenantTransaction } from "../unitofwork/tenantTransaction.js";
 import type { ApprovalWorkflowRepository } from "@core/domain/repositories/ApprovalWorkflowRepository.js";
 import { ApprovalWorkflow, type WorkflowLevel } from "@core/domain/entities/ApprovalWorkflow.js";
 import { EntityNotFoundError, type DomainError } from "@core/domain/errors/index.js";
@@ -120,7 +119,10 @@ export class PrismaApprovalWorkflowRepository implements ApprovalWorkflowReposit
    */
   async save(workflow: ApprovalWorkflow): Promise<Result<void, DomainError>> {
     try {
-      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
+      // Joins the caller's unit of work when one is open: `CreateApprovalWorkflowUseCase`
+      // unsets the previous default and writes the new one in a single `executeInTransaction`,
+      // and two independent transactions could leave an account with two defaults or none.
+      await withTenantTransaction(this.prisma, async (tx) => {
         // Upsert the workflow
         await tx.approvalWorkflow.upsert({
           where: { id: workflow.id },
