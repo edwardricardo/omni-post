@@ -143,6 +143,72 @@ tenant-leading index (`Project_accountId…`) as well, and it is that stronger f
 whose red is recorded above. The weaker gate would have reported a healthy
 tenant-scoped read while no tenant index was involved.
 
+## Coverage-gate red
+
+The role posture above answers "can the app role bypass row security?". It does
+not answer "is row security actually covering every table the guard enrolls?",
+and those are different questions with three independent failure axes. The
+`pg_catalog` coverage gate — `apps/api/tests/integration/rls-tenant-isolation.test.ts`,
+`describe("pg_catalog coverage gate")` — reads `relrowsecurity`,
+`relforcerowsecurity`, the table owner, and the policy count for every model in
+`getTenantScopedModels()`, and passes a table only when row security is on AND
+at least one policy exists AND (the app role does not own the table OR
+`relforcerowsecurity` is true).
+
+### The gap the gate closes, measured before it existed
+
+The gate was not added on suspicion. With `UsageMetric` placed in the
+policy-without-RLS state — the table fully readable by every tenant, its
+`tenant_isolation` policy still sitting in `pg_policy` — the suite as it stood
+before the gate reported `tests 15 · pass 15 · fail 0`, **exit 0**. A leaking
+table produced a green run. That is the gap, observed rather than argued: the
+existing proofs are per-table (they query `Project` and `ApiKey`) and the
+policy↔guard 1:1 test counts policies, which a `DISABLE ROW LEVEL SECURITY`
+does not remove.
+
+### The three planted states
+
+Each state was planted in the live database from a named SQL file, the suite
+observed to exit **non-zero**, the state restored, and the suite re-confirmed
+green. A log line or an annotation would leave the job green and prove nothing.
+
+| Planted state                                          | Suite result                              | Named by the gate as                                                                                                                   |
+| ------------------------------------------------------ | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `ALTER TABLE "UsageMetric" DISABLE ROW LEVEL SECURITY` | `tests 17 · pass 16 · fail 1`, exit **1** | `policy-without-RLS (LEAKS…)` — observed `relrowsecurity=false, relforcerowsecurity=false, owner=postgres, policies=1`                 |
+| `DROP POLICY tenant_isolation ON "UsageMetric"`        | `tests 17 · pass 14 · fail 3`, exit **1** | `RLS-without-policy (DENIES…)` — observed `relrowsecurity=true, relforcerowsecurity=false, owner=postgres, policies=0`                 |
+| `ALTER TABLE "UsageMetric" OWNER TO omnipost_app`      | `tests 17 · pass 14 · fail 3`, exit **1** | `owner-without-FORCE (OWNER-EXEMPT LEAK…)` — observed `relrowsecurity=true, relforcerowsecurity=false, owner=omnipost_app, policies=1` |
+
+Restored state, after every plant: `tests 17 · pass 17 · fail 0 · cancelled 0 ·
+skipped 0`, exit 0.
+
+Two of the three also trip older assertions — the policy↔guard 1:1 pair fires on
+the dropped policy, and the PR-1 ownership gate fires on the ownership change.
+Only the first state is caught by nothing else, and it is the one this gate was
+written for. The three are still asserted separately because the gate's
+obligation is to NAME which state it found: `policy-without-RLS` leaks while
+`RLS-without-policy` denies, so a message that said only "RLS not covered" would
+send whoever reads it toward the wrong repair.
+
+### Finding 1 reproduced, and it is now a written restore procedure
+
+The ownership plant re-ran into finding 1 below, measured this time rather than
+recalled: `omnipost_app` held `SELECT, INSERT, UPDATE, DELETE` on `UsageMetric`
+before the plant, and **zero** privileges after ownership was handed back to
+`postgres`. The restore is therefore two steps — hand ownership back, then
+re-run the idempotent `20260907000000_create_omnipost_app_role` migration, which
+re-issues the grants. Confirmed: the four privileges return and the suite goes
+green. Any future plant that touches ownership restores the same way.
+
+### Why the integration tier and not a fitness grep
+
+`pg_class.relrowsecurity` is database state. The fitness workflow runs no
+Postgres service, and no grep can read a catalog. The gate is wired through
+`apps/api/scripts/run-tests.sh` (`integration:tenant-isolation` batch, which
+already named this suite) and runs in CI's Integration Tests job on every pull
+request against the migrated Postgres service. `CLAUDE.md` §Automated Compliance
+Checks carries a pointer note naming it — a note, not a numbered workflow step,
+so the gate inventory stays complete without pretending a grep can do this.
+
 ## Alternatives considered
 
 | Alternative                                                              | Why not                                                                                                                                                                                                                                                               |

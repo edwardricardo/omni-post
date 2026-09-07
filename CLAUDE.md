@@ -1383,6 +1383,29 @@ COUNT=${COUNT:-0}
 echo "$COUNT"   # expect 0
 ````
 
+**Not a numbered check — the integration-tier RLS coverage gate.** One
+invariant in this suite's remit cannot live here, and saying so is the point:
+whether row security actually covers every guard-enrolled table is DATABASE
+state. `pg_class.relrowsecurity`, `pg_class.relforcerowsecurity`, the table
+owner and `pg_policy` are not greppable, and the fitness workflow runs no
+Postgres service — a check written here could only ever assert that a migration
+file contains the word `ENABLE`, which is not the same claim. The gate is
+therefore an integration test, and it is named here so the gate inventory stays
+complete rather than silently short by one:
+
+| Field            | Value                                                                                                                                                                              |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Suite            | `apps/api/tests/integration/rls-tenant-isolation.test.ts` — `describe("pg_catalog coverage gate")`                                                                                 |
+| Batch            | `integration:tenant-isolation` in `apps/api/scripts/run-tests.sh` (fitness #30's reachability rule: a suite no `run_batch` names never executes)                                   |
+| CI job           | `Integration Tests` in `.github/workflows/ci.yml`, on every `pull_request`, against the migrated Postgres service                                                                  |
+| Passes only when | for every model in `getTenantScopedModels()`: `relrowsecurity` is true **and** ≥1 policy exists **and** (the app role does not own the table **or** `relforcerowsecurity` is true) |
+| Red demonstrated | all three partial states planted, each a real non-zero exit, restored and re-confirmed green — recorded in `docs/technical/ADR-0022-rls-enforcement-posture.md` §Coverage-gate red |
+
+The three partial states are named separately by the failure message because
+they fail in OPPOSITE directions and need opposite repairs: policy-without-RLS
+**leaks**, RLS-without-policy **denies**, owner-without-`FORCE` **leaks** again.
+A generic "RLS not covered" would send the reader toward the wrong fix.
+
 **Extending the suite.** Adding a new fitness check requires four coordinated steps, in order:
 
 1. Add the regex here with a one-line description of the threat being prevented and a comment justifying any exclusions.
