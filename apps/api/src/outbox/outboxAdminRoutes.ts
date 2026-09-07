@@ -9,11 +9,21 @@
  */
 
 import type { FastifyPluginAsync } from "fastify";
-import type { PrismaClient } from "@infra/prisma";
+import type { Prisma, PrismaClient } from "@infra/prisma";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { getAmbientGucScope } from "../security/tenantContext.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
+
+/**
+ * The client Prisma hands an interactive transaction. Named here because this file
+ * resolves its client from the container inside a Fastify handler, where the callback's
+ * parameter is not contextually typed from the client argument the way a repository
+ * method's is.
+ */
+type TransactionClient = Prisma.TransactionClient;
 
 export const outboxAdminRoutes: FastifyPluginAsync = async (fastify) => {
   const preHandler = [requireAdminAuth, requirePermission(Permission.WEBHOOK_MANAGE)];
@@ -57,8 +67,8 @@ export const outboxAdminRoutes: FastifyPluginAsync = async (fastify) => {
       // Atomic: re-create outbox event AND mark DLQ resolved together. If
       // either side fails, both roll back — protects against the case where
       // the DLQ is marked resolved but the event never re-enters the relay.
-      await prisma.$transaction([
-        prisma.outboxEvent.create({
+      await withGucBoundTransaction(prisma, getAmbientGucScope(), async (tx: TransactionClient) => {
+        await tx.outboxEvent.create({
           data: {
             eventType: dlqEntry.eventType,
             aggregateId: dlqEntry.aggregateId,
@@ -70,15 +80,15 @@ export const outboxAdminRoutes: FastifyPluginAsync = async (fastify) => {
             maxRetries: 5,
             nextRetryAt: new Date(),
           },
-        }),
-        prisma.outboxDeadLetter.update({
+        });
+        await tx.outboxDeadLetter.update({
           where: { id },
           data: {
             resolvedAt: new Date(),
             resolvedBy: request.auth?.user?.id ?? "system",
           },
-        }),
-      ]);
+        });
+      });
 
       return reply.send({ ok: true });
     }

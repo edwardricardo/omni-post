@@ -21,6 +21,13 @@ interface MockTransactionOp {
   args: unknown;
 }
 
+/** The transaction client the interactive `$transaction` hands the callback. */
+interface MockTransactionClient {
+  $executeRaw(): Promise<number>;
+  outboxDeadLetter: { create(args: unknown): Promise<MockTransactionOp> };
+  outboxEvent: { update(args: unknown): Promise<MockTransactionOp> };
+}
+
 function createMockPrisma() {
   let lastQueryRawSql: string | null = null;
   let lastQueryRawValues: readonly unknown[] = [];
@@ -50,16 +57,40 @@ function createMockPrisma() {
         args,
       })),
     },
-    $transaction: vi.fn(async (ops: Promise<MockTransactionOp>[]) => {
-      const resolved = await Promise.all(ops);
-      if (transactionShouldThrow) {
-        const err = transactionShouldThrow;
-        transactionShouldThrow = null;
-        throw err;
+    // Interactive form: the archival goes through the shared GUC transaction seam,
+    // which opens the transaction and hands the body a transaction client. The mock
+    // records the operations issued ON THAT CLIENT, so the atomicity assertions below
+    // still read "these two writes, in this order, in one transaction".
+    $transaction: vi.fn(
+      async (fn: (tx: MockTransactionClient) => Promise<unknown>): Promise<unknown> => {
+        const ops: MockTransactionOp[] = [];
+        const tx: MockTransactionClient = {
+          $executeRaw: async () => 1,
+          outboxDeadLetter: {
+            create: async (args: unknown) => {
+              const op: MockTransactionOp = { __op: "create", table: "outboxDeadLetter", args };
+              ops.push(op);
+              return op;
+            },
+          },
+          outboxEvent: {
+            update: async (args: unknown) => {
+              const op: MockTransactionOp = { __op: "update", table: "outboxEvent", args };
+              ops.push(op);
+              return op;
+            },
+          },
+        };
+        const result = await fn(tx);
+        if (transactionShouldThrow) {
+          const err = transactionShouldThrow;
+          transactionShouldThrow = null;
+          throw err;
+        }
+        transactionCalls.push(ops);
+        return result;
       }
-      transactionCalls.push(resolved);
-      return resolved;
-    }),
+    ),
   };
 
   return {

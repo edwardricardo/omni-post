@@ -7,7 +7,9 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { type Result, ok, err } from "@shared/types";
+import { getAmbientGucScope } from "../../security/tenantContext.js";
 
 import {
   type MediaAssetRepository,
@@ -213,7 +215,7 @@ export class PrismaMediaAssetRepository implements MediaAssetRepository {
    */
   async updateTags(assetId: string, tagIds: string[]): Promise<Result<void, Error>> {
     try {
-      await this.prisma.$transaction(async (tx) => {
+      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
         await tx.assetTagOnAsset.deleteMany({
           where: { assetId },
         });

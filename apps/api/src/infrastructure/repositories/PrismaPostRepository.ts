@@ -24,12 +24,14 @@ import {
   EntityNotFoundError,
   VersionConflictError,
 } from "@core/domain/index.js";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import type { OutboxWriter } from "@core/domain/repositories/OutboxWriter.js";
 import {
   PostAggregateMapper,
   type PrismaPostWithRelations,
 } from "./mappers/PostAggregateMapper.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { getAmbientGucScope } from "../../security/tenantContext.js";
 
 /** Local type alias for Prisma transaction client */
 type TxClient = Prisma.TransactionClient;
@@ -153,7 +155,7 @@ export class PrismaPostRepository implements PostRepository {
     if (activeTx) {
       await doHardDelete(activeTx);
     } else {
-      await this.prisma.$transaction(doHardDelete);
+      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), doHardDelete);
     }
 
     return ok(undefined);
@@ -450,7 +452,7 @@ export class PrismaPostRepository implements PostRepository {
     if (activeTx) {
       await this.doCreate(activeTx, data, aggregate);
     } else {
-      await this.prisma.$transaction(async (tx) => {
+      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
         await this.doCreate(tx, data, aggregate);
       });
     }
@@ -504,7 +506,7 @@ export class PrismaPostRepository implements PostRepository {
     if (activeTx) {
       await this.doUpdate(activeTx, data, aggregate);
     } else {
-      await this.prisma.$transaction(async (tx) => {
+      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
         await this.doUpdate(tx, data, aggregate);
       });
     }

@@ -1,6 +1,6 @@
 # Apply progress — tenant-isolation-composite-fk
 
-**Batches so far**: PR 1 (Slice 0a) — complete and merged · PR 2 (Slice 0b) — 5 of 6 done, 5.4 prepared · PR 3 (Slice 0c) — 5 of 6 done, 6.5 blocked on a measured application defect
+**Batches so far**: PR 1 (Slice 0a) — complete and merged · PR 2 (Slice 0b) — 5 of 6 done, 5.4 prepared · PR 3 (Slice 0c) — 5 of 6 done, 6.5 blocked on a measured application defect · PR 0d-1a (Slice 0d, adoption first) — 11 of 11 done, gate green
 **Mode**: Strict TDD
 **Branch**: `workstream/tenant-isolation`
 **Artifact store**: openspec
@@ -539,3 +539,240 @@ finding 7 before PR 4 is presented as continuing a completed Slice 0 — the
 `rls-enforcement` delta's blocking requirement is about the zero-rows proof,
 which IS green, so PR 4 (unrepeatable pre-migration evidence) is not itself
 blocked; what is blocked is calling the runtime cutover done.
+
+---
+
+# PR 0d-1a (Slice 0d, adoption first) — one transaction seam, before any binding
+
+**Status**: 11 of 11 tasks done. Nothing is prepared and withheld: every file this
+link needs turned out to be ungated, including `infra/prisma/src/extensions/tenantGuc.ts`
+(attempted once as a real edit, and it applied — the same finding PR 3 recorded for
+`prisma.config.ts`). No git ran. `size:exception` applies and the final number is
+stated below rather than met by deleting anything.
+
+**What this link claims**: no behaviour change. Every transaction that a repository,
+handler, route, processor or adapter opens outside the unit of work now goes through
+ONE seam that holds an AsyncLocalStorage marker, and the binding extension that will
+read that marker lands in the NEXT link. The order is the point: composing the binding
+first would arm the escape hazard on 19 live sites at once.
+
+## Task ledger (PR 0d-1a)
+
+| Task                               | State   | Evidence                                                                                                                                                           |
+| ---------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 6a.1 chained-`$extends` spike      | **[x]** | Enlistment works in BOTH orders, measured end to end against RLS-covered `Project`. Order probe: the FIRST-applied extension is the OUTERMOST. No fallback needed. |
+| 6a.2 `$transaction` re-enumeration | **[x]** | **Delta = ZERO** vs the re-gated snapshot: 19 sites, 12 interactive / 7 batch, same files, same line numbers.                                                      |
+| 6a.3 escape RED                    | **[x]** | Observed twice, both exits non-zero: helper absent (`fail 1`), then the escape itself (`fail 2`) — the post row SURVIVED its transaction's rollback.               |
+| 6a.4 marker + helper               | **[x]** | `runWithBoundGuc` / `isGucBound` / `getBoundGucScope` / `withGucBoundTransaction` in `tenantGuc.ts`. Applied directly; the path is not gated.                      |
+| 6a.5 named seams + stale comment   | **[x]** | UoW binds through `getAmbientGucScope()` and holds the marker; both saga primitives now OPEN through the helper. `PrismaUnitOfWork.ts` L71 is count-free.          |
+| 6a.6 12 interactive sites          | **[x]** | All 12 routed. `db-prisma/PostRepository` takes the deliberate-unbound branch with an in-file justification.                                                       |
+| 6a.7 7 batch sites                 | **[x]** | All 7 converted to sequential awaits inside one interactive transaction, including the two array restructures. Two test doubles updated to the interactive shape.  |
+| 6a.8 seam wiring                   | **[x]** | One shared provider OBJECT (`ambientTenantContextProvider`) read by BOTH the guard and the GUC scope resolution. Deviation from "curries" explained below.         |
+| 6a.9 GREEN + marker unit tests     | **[x]** | INT `tests 2 · pass 2`, exit 0. VITEST 9/9 with a planted red demonstrated and restored.                                                                           |
+| 6a.10 `run-tests.sh` wiring        | **[x]** | Suite named in the `integration:tenant-isolation` `run_batch`; fitness #30 unchanged at 21.                                                                        |
+| 6a.11 0-defect gate                | **[x]** | Counts table below.                                                                                                                                                |
+
+## The spike (6a.1) — what it decided, and how
+
+Prisma's published RLS example proves batch enlistment for a SINGLE extension. Here the
+binding chains with the guard, so the question was whether `query(args)` — which now
+routes through another extension's async callback — still enlists in
+`$transaction([set_config, query(args)])`.
+
+Observation was end-to-end rather than by inspection: the batch ALSO ran
+`SET LOCAL ROLE omnipost_app` as its first statement, so the read executed as the
+non-bypassing role and a returned row proves the GUC reached the same connection the
+query ran on.
+
+| Case                                               | Result   | What it decides                                                            |
+| -------------------------------------------------- | -------- | -------------------------------------------------------------------------- |
+| binding applied first, guard second, correct scope | `rows=1` | enlistment works through the chain                                         |
+| same order, WRONG scope                            | `rows=0` | the binding governs; it is not passing rows through                        |
+| guard applied first, binding second, correct scope | `rows=1` | enlistment works in the SHIPPING order too                                 |
+| same order, WRONG scope                            | `rows=0` | the shipping order governs as well                                         |
+| control: app role, GUC unbound                     | `rows=0` | the fixture is genuinely RLS-covered, so the rows above mean what they say |
+| control: interactive transaction, bound once       | `rows=1` | the shape this link ships behaves like the wrapped one                     |
+
+A separate order probe (two marker extensions, tracing enter/exit) pins the composition:
+`base.$extends(A).$extends(B)` traces `enter:A → enter:B → exit:B → exit:A`, so the
+**first-applied extension is the OUTERMOST**. `$extends(guard).$extends(binding)` is
+therefore guard-then-bind — the order the design names — and a guard throw happens
+before any transaction opens. `Project`'s posture at measurement time:
+`relrowsecurity=true, relforcerowsecurity=false, owner=postgres`.
+
+**Decision: no fallback.** 6b.3 keeps its shape; the binding stays its own extension.
+
+## The escape, measured before the test was written around it
+
+A separate probe answered the question the RED depends on: does a TX-BOUND `query(args)`,
+re-wrapped by an outer extension into a batch transaction on the ROOT client, escape? It
+does. `wrapped ops: ["Post.create"]`, outer transaction threw, and the post row was
+`SURVIVED (escape)`. That is D-S0d-2's central claim, reproduced rather than assumed, and
+it is why the marker is held in every branch instead of only the bound ones.
+
+## TDD cycle evidence (PR 0d-1a)
+
+| Step           | Observed                                                                                                                                                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **RED (1)**    | `tenantGucTransactionBinding.test.ts` written FIRST, against a helper that did not exist: `SyntaxError: ... does not provide an export named 'isGucBound'`, `tests 1 · pass 0 · fail 1`, exit 1.                                           |
+| **RED (2)**    | Helper created, `:453` NOT yet routed: `tests 2 · pass 0 · fail 2`, exit 1. Escape arm — `actual { id: '18d3d26e-…' }` vs `expected null`, the post row survived its own rollback. Marker arm — `markerHeldAtPostCreate` `false !== true`. |
+| **GREEN**      | `:453` routed through the helper: `tests 2 · suites 1 · pass 2 · fail 0 · cancelled 0`, exit 0. Both arms flipped on that single call-site change.                                                                                         |
+| **RED (unit)** | The marker unit suite's own red was PLANTED, not assumed: skipping `runWithBoundGuc` in the unbound branch → `Tests 1 failed                                                                                                               | 8 passed`, exit 1, failing exactly "holds the marker when the transaction deliberately binds nothing". Restored → 9/9. |
+| **REFACTOR**   | The saga primitives were not left holding the marker beside their own `setTenantGuc` call; they OPEN through the helper, so the repo has one transaction shape instead of two that agree by convention.                                    |
+
+## Work unit evidence (PR 0d-1a)
+
+| Evidence             | Value                                                                                                                                                                                         |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command | `node --import tsx --conditions development --test --test-force-exit --test-concurrency=1 tests/integration/tenantGucTransactionBinding.test.ts` from `apps/api`                              |
+| Result               | `tests 2 · suites 1 · pass 2 · fail 0 · cancelled 0 · skipped 0`, exit 0                                                                                                                      |
+| Runtime harness      | Live PostgreSQL 16 on `omnipost-infra`. The suite drives the REAL repository against the real database through a guard + binding-probe chain, and the forced failure is a real rollback.      |
+| Rollback boundary    | Revert the helper and marker in `tenantGuc.ts`, the two seam files, and the 19 call-site edits — each site reverts independently to its bare `$transaction`. No schema, no env, no migration. |
+
+## 0-defect gate (PR 0d-1a) — exact counts
+
+| Check                                      | Command                                                                       | Result                                                |
+| ------------------------------------------ | ----------------------------------------------------------------------------- | ----------------------------------------------------- |
+| TSC (workspace)                            | `pnpm typecheck` (turbo)                                                      | **169/169 tasks successful**, exit 0                  |
+| TSC (api alone)                            | `pnpm --filter @apps/api exec tsc -b`                                         | exit **0**                                            |
+| ESLint                                     | `eslint --max-warnings 0` over all 25 touched TS files                        | exit **0** — 0 errors, 0 warnings                     |
+| Prettier                                   | `prettier --check` over every touched text file                               | `All matched files use Prettier code style!`          |
+| `bash -n`                                  | `apps/api/scripts/run-tests.sh`                                               | exit 0 (no prettier parser for `.sh`)                 |
+| Fitness #8 / #9 / #10                      | grep per CLAUDE.md                                                            | **0 / 0 / 0**                                         |
+| Fitness #21 / #23 / #32                    | grep per CLAUDE.md                                                            | **0 / 0 / 0**                                         |
+| Fitness #30 (ratchet 21)                   | loop per CLAUDE.md                                                            | **21** — unchanged; the new suite IS named in a batch |
+| Fitness #38                                | scan per CLAUDE.md                                                            | swept tree **0**; db-prisma ratchet **11**, unchanged |
+| Fitness #39                                | script per CLAUDE.md                                                          | **0**                                                 |
+| INT — this link's suite                    | see Work unit evidence                                                        | **2/2**, exit 0                                       |
+| INT — `integration:tenant-isolation` batch | same 18 files + this one, concurrency 1, owner channel                        | **179/179**, 0 fail / 0 cancelled / 0 skipped, exit 0 |
+| VITEST — full api unit tier                | `pnpm --filter @apps/api test`                                                | **558 files · 8703/8703**                             |
+| VITEST — db-prisma package                 | `pnpm --filter @adapters/db-prisma test`                                      | **4 files · 67/67**                                   |
+| INT — repository + hard-delete suites      | `PrismaPostRepository`, `postHardDeleteCascade`, `hardDeleteSerializableRace` | **27/27**, exit 0                                     |
+| INT — saga recovery suites                 | `sagaCrashRecovery`, `sagaCompensationRecovery`                               | **19/19**, exit 0                                     |
+| Shared dev DB left as found                | `psql -f` count over every fixture prefix this link planted                   | account **0** · project **0** · post **0**            |
+
+The batch's 177 → 179 is this link's two new tests and nothing else: no pre-existing test
+changed its result, which is the form "the batch is UNCHANGED" takes when a suite is added
+to it.
+
+## Files written (PR 0d-1a)
+
+| File                                                             | Action | What                                                                                               |
+| ---------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------- |
+| `infra/prisma/src/extensions/tenantGuc.ts`                       | Modify | The marker (`runWithBoundGuc` / `isGucBound` / `getBoundGucScope`) and `withGucBoundTransaction`   |
+| `apps/api/src/security/tenantContext.ts`                         | Modify | `ambientTenantContextProvider`, `resolveGucScope`, `getAmbientGucScope`                            |
+| `apps/api/src/infrastructure/container/setup.ts`                 | Modify | The guard now reads the shared provider object                                                     |
+| `apps/api/src/infrastructure/unitofwork/PrismaUnitOfWork.ts`     | Modify | Marker adoption, one scope resolution, stale count-bearing comment fixed                           |
+| `apps/api/src/saga/sagaTenant.ts`                                | Modify | Both tenant primitives open through the helper                                                     |
+| 14 API call-site files                                           | Modify | 18 transaction sites routed through the helper (7 of them converted from the batch form)           |
+| `packages/adapters/db-prisma/src/PostRepository.ts`              | Modify | The 19th site, deliberate-unbound with its justification in the file                               |
+| `apps/api/tests/integration/tenantGucTransactionBinding.test.ts` | Create | The escape red and the marker red                                                                  |
+| `apps/api/tests/unit/security/tenantGuc.test.ts`                 | Create | The marker's branches, release on return and on throw, one bind per transaction, option forwarding |
+| `apps/api/tests/unit/outbox/OutboxClaimService.test.ts`          | Modify | Test double moved from the batch shape to the interactive one; assertions unchanged                |
+| `apps/api/tests/unit/saga/sagaContextInvariants.static.test.ts`  | Modify | The opener scan counts the seam as an opener, so its non-vacuity floor keeps meaning something     |
+| `apps/api/scripts/run-tests.sh`                                  | Modify | The new suite named in the `integration:tenant-isolation` batch                                    |
+| `openspec/changes/.../tasks.md`                                  | Modify | 6a.1–6a.11 checked with their evidence                                                             |
+| `openspec/changes/.../apply-progress.md`                         | Modify | This section, merged into the PR 1 + PR 2 + PR 3 record                                            |
+
+## Size (the `size:exception` this link carries)
+
+| Measure                                              | Lines                   |
+| ---------------------------------------------------- | ----------------------- |
+| Tracked files, raw                                   | 460 added / 169 deleted |
+| Tracked files, ignoring whitespace-only re-indenting | 392 added / 101 deleted |
+| Two new test suites                                  | 373                     |
+| **Total authored (raw)**                             | **~1002**               |
+
+**The forecast said ~400–460 and this is roughly double it.** Stated rather than met:
+(1) 136 of those lines are pure RE-INDENTATION — converting a batch array or wrapping a
+multi-statement body shifts every line of two large handlers, where the semantic change is
+three lines each; (2) 373 lines are the two test suites the strict-TDD reds require, which
+the forecast did not count; (3) 57 lines are the two test doubles the batch→interactive
+conversion forces, which nothing could have predicted without reading them. Nothing was
+compressed, and no comment, blank line, or test was deleted to move the number.
+
+## Deviations from tasks/design (PR 0d-1a)
+
+**The helper lives in `tenantGuc.ts`, not `tenantGucBinding.ts`.** The launch brief named
+the new `tenantGucBinding.ts` as the helper's home; task 6a.4 and design D-S0d-2 both say
+`tenantGuc.ts` ("already the GUC's home") and reserve `tenantGucBinding.ts` for the binding
+EXTENSION that 6b.3 creates. The artifacts agree with each other, so they won: putting the
+helper in the extension's file would have made this link create the file the next link is
+defined by, and the marker would then live in the module the binding imports rather than
+the module both import.
+
+**Seam wiring is a shared provider OBJECT, not a curried function.** Task 6a.8 says
+`setup.ts` "curries the helper with the SAME `TenantContextProvider` the guard reads". A
+literal currying has nowhere to go without either threading a new constructor parameter
+through 11 classes (which changes every direct construction in their tests) or parking a
+mutable module-level resolver that the composition root sets — a SECOND source of tenant
+truth, mutable at runtime, which is the opposite of the requirement's intent. What ships
+instead makes the sharing structural: `security/tenantContext.ts` exports ONE
+`ambientTenantContextProvider`, `setup.ts` hands that exact object to the guard, and
+`getAmbientGucScope()` resolves the GUC scope from the same object. `PrismaUnitOfWork`
+already read those holders directly, so this is the shipped convention, not a new one.
+
+**The helper does not join an ambient transaction.** Task 6a.9 asks for "a nested helper
+call binds at most once". It is implemented as ONE BIND PER TRANSACTION OPENED, including
+the nested case, and the unit suite asserts exactly that. Making a nested call reuse the
+enclosing transaction's client would have made the phrase literally true and it was
+REJECTED on the merits: sites like `EventStore.append` open a transaction that commits
+independently of an enclosing unit of work today, and silently enlisting them would change
+that atomicity in a link whose whole claim is that behaviour does not change. The seam
+documents this in its own JSDoc so the next reader adjudicates it at the call site.
+
+**Two test doubles were updated, and that was not optional.** Converting the batch sites
+means `$transaction` is called with a CALLBACK, so a double that models the array form
+throws `function is not iterable`. `OutboxClaimService.test.ts` now records the operations
+issued on the transaction client — the assertions (two writes, in order, one transaction,
+nothing recorded when it throws) are unchanged. `sagaContextInvariants.static.test.ts`
+matters more: its scan counted `$transaction(` sites and asserted a floor of two in the
+primitive module for non-vacuity. Once the primitives opened through the helper the scan
+found ZERO, so its companion assertion ("the engine opens none anywhere else") would have
+passed over an engine that had grown any number of unscoped transactions through the seam.
+The pattern now counts both openers, which preserves the invariant instead of relaxing it.
+
+**`outboxAdminRoutes.ts` needed one type annotation the other 18 sites did not.** Inside a
+Fastify handler the callback's `tx` parameter is not contextually typed from the client
+argument, so `TTransaction` fell back to its constraint and every model accessor
+disappeared. Named `TransactionClient` locally with a comment; no cast, no `any`.
+
+## Findings (PR 0d-1a)
+
+**11. The escape is real, and it is not limited to root-client operations.** The design
+described a batch transaction "opened from the ROOT client inside a UoW callback". The
+probe shows the stronger and more dangerous version: an operation issued on a TRANSACTION
+CLIENT, re-wrapped by an extension into a batch transaction on the root client, also
+leaves its caller's connection and commits independently. Every operation inside a
+repository-opened transaction is therefore exposed the moment the binding lands — which is
+exactly why adoption ships first, and why the marker is held even when nothing is bound.
+
+**12. Prisma composes extension query hooks in first-applied-outermost order, and both
+orders enlist.** Measured, not recalled from documentation. The practical consequence for
+the next link is small but real: composing `$extends(guard).$extends(binding)` means the
+guard's `TenantContextMissingError` is thrown BEFORE a transaction is opened, so a
+no-context call on an enrolled model cannot leave a transaction to roll back.
+
+**13. `security/tenantContext.ts` carries the same stale count the unit of work did.** Its
+header still says "the 51 tenant-scoped Prisma models" against a 58-model guard Set. Task
+6a.5 named only `PrismaUnitOfWork.ts:71`, so this one is REPORTED rather than fixed inside
+an already-over-budget link. It is a one-word fix for whoever takes the next touch of that
+file.
+
+**14. A count-bearing comment is a defect class, not two instances.** Both stale counts
+came from the same habit of writing a number into prose that a Set owns. The wording that
+replaced them is count-free on purpose, so the next enrollment cannot make them wrong
+again.
+
+## Blockers (PR 0d-1a)
+
+None. Every file this link needed was writable, no gated path was involved, and no
+orchestrator-owned or owner-owned unit is outstanding for it. The `size:exception` is
+noted above rather than requested — under auto-chain it does not stop the chain.
+
+## Next (PR 0d-1a)
+
+PR 0d-1b: the binding extension (`tenantGucBinding.ts`), its composition in `setup.ts` as
+`$extends(guard).$extends(binding)` — the order this link measured — the
+`findOwnerAccountId` null check, and fitness #40 with its red demonstrated. The 170/177
+two-channel measurement is RE-RUN there, never re-manufactured.

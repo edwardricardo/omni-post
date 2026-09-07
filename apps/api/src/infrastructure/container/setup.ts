@@ -16,7 +16,7 @@ import { setupUseCases } from "./setupUseCases.js";
 import { setupBillingUseCases } from "./setupBillingUseCases.js";
 import { setupServices } from "./setupServices.js";
 import { setupAgentOrchestration } from "./setupAgentOrchestration.js";
-import { getTenantContext, getSystemContext } from "../../security/tenantContext.js";
+import { ambientTenantContextProvider } from "../../security/tenantContext.js";
 import type { ApiMetrics } from "../../metrics/apiMetrics.js";
 
 /**
@@ -56,10 +56,13 @@ export function setupContainer(options: ContainerSetupOptions): Container {
   // consumer that resolves PrismaClient from the container gets the
   // guarded instance; scripts/migrations that import `prisma` directly
   // from `@infra/prisma` get the unwrapped client. The extension reads
-  // tenant + system context via the AsyncLocalStorage holders in
-  // `apps/api/src/security/tenantContext.ts`.
+  // tenant + system context through `ambientTenantContextProvider` — the
+  // SAME provider object `getAmbientGucScope()` resolves the RLS scope
+  // from, so the guard's tenant (layer 1) and the GUC binding a
+  // repository-opened transaction carries (layer 2) cannot drift apart:
+  // there is one provider, not two literals that happen to agree.
   const guardedPrisma = options.prisma.$extends(
-    tenantGuardExtension({ getTenantContext, getSystemContext })
+    tenantGuardExtension(ambientTenantContextProvider)
   ) as unknown as PrismaClient;
   container.registerInstance(TOKENS.PrismaClient, guardedPrisma);
 

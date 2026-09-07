@@ -7,7 +7,9 @@
  */
 
 import type { PrismaClient, Provider as PrismaProvider } from "@infra/prisma";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { ok, err, type Result } from "@shared/types";
+import { getAmbientGucScope } from "../../security/tenantContext.js";
 import type {
   AnalyticsWriteRepository,
   AnalyticsDailySummaryInput,
@@ -54,9 +56,12 @@ export class PrismaAnalyticsWriteRepository implements AnalyticsWriteRepository 
 
   async upsertDailySummaries(inputs: AnalyticsDailySummaryInput[]): Promise<Result<void, Error>> {
     try {
-      await this.prisma.$transaction(
-        inputs.map((input) =>
-          this.prisma.analyticsDailySummary.upsert({
+      // Sequential awaits inside one interactive transaction rather than an array of
+      // promises built before the transaction exists: same atomicity, and every upsert
+      // demonstrably runs on this transaction's own connection.
+      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
+        for (const input of inputs) {
+          await tx.analyticsDailySummary.upsert({
             where: {
               postId_channelId_provider_date: {
                 postId: input.postId ?? "",
@@ -83,9 +88,9 @@ export class PrismaAnalyticsWriteRepository implements AnalyticsWriteRepository 
               shares: input.shares,
               records: 1,
             },
-          })
-        )
-      );
+          });
+        }
+      });
       return ok(undefined);
     } catch (error: unknown) {
       return err(error instanceof Error ? error : new Error(String(error)));

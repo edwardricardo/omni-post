@@ -7,7 +7,9 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import type { PrismaClient } from "@infra/prisma";
+import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import type { ProviderName } from "@shared/types";
+import { getAmbientGucScope } from "../security/tenantContext.js";
 import {
   ScheduledPostsQuerySchema,
   PostIdParamsSchema,
@@ -243,35 +245,39 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
       }
 
       // Update post status to DRAFT (cancelled)
-      const updatedPost = await this.prisma.$transaction(async (tx) => {
-        // Update post status
-        const updated = await tx.post.update({
-          where: { id },
-          data: {
-            status: "DRAFT",
-            scheduledAt: null,
-          },
-        });
-
-        // Cancel any queued publish logs
-        if (post.publishLogs.length > 0) {
-          await tx.publishLog.updateMany({
-            where: {
-              postId: id,
-              status: { in: ["QUEUED", "RUNNING"] },
-            },
+      const updatedPost = await withGucBoundTransaction(
+        this.prisma,
+        getAmbientGucScope(),
+        async (tx) => {
+          // Update post status
+          const updated = await tx.post.update({
+            where: { id },
             data: {
-              status: "ERR",
-              payload: {
-                error: "Post cancelled by user",
-                cancelledAt: new Date().toISOString(),
-              },
+              status: "DRAFT",
+              scheduledAt: null,
             },
           });
-        }
 
-        return updated;
-      });
+          // Cancel any queued publish logs
+          if (post.publishLogs.length > 0) {
+            await tx.publishLog.updateMany({
+              where: {
+                postId: id,
+                status: { in: ["QUEUED", "RUNNING"] },
+              },
+              data: {
+                status: "ERR",
+                payload: {
+                  error: "Post cancelled by user",
+                  cancelledAt: new Date().toISOString(),
+                },
+              },
+            });
+          }
+
+          return updated;
+        }
+      );
 
       this.logInfo(ctx, "Post cancelled successfully", {
         postId: id,
@@ -339,35 +345,39 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
       }
 
       // Update post and publish logs
-      const updatedPost = await this.prisma.$transaction(async (tx) => {
-        // Update post
-        const updated = await tx.post.update({
-          where: { id },
-          data: {
-            status: "SCHEDULED",
-            scheduledAt: newScheduledDate,
-          },
-        });
-
-        // Update publish logs if requested
-        if (updateChannels && post.publishLogs.length > 0) {
-          await tx.publishLog.updateMany({
-            where: {
-              postId: id,
-              status: { in: ["QUEUED", "RUNNING"] },
-            },
+      const updatedPost = await withGucBoundTransaction(
+        this.prisma,
+        getAmbientGucScope(),
+        async (tx) => {
+          // Update post
+          const updated = await tx.post.update({
+            where: { id },
             data: {
-              payload: {
-                scheduledFor: newScheduledDate.toISOString(),
-                timezone,
-                rescheduledAt: new Date().toISOString(),
-              },
+              status: "SCHEDULED",
+              scheduledAt: newScheduledDate,
             },
           });
-        }
 
-        return updated;
-      });
+          // Update publish logs if requested
+          if (updateChannels && post.publishLogs.length > 0) {
+            await tx.publishLog.updateMany({
+              where: {
+                postId: id,
+                status: { in: ["QUEUED", "RUNNING"] },
+              },
+              data: {
+                payload: {
+                  scheduledFor: newScheduledDate.toISOString(),
+                  timezone,
+                  rescheduledAt: new Date().toISOString(),
+                },
+              },
+            });
+          }
+
+          return updated;
+        }
+      );
 
       this.logInfo(ctx, "Post rescheduled successfully", {
         postId: id,
