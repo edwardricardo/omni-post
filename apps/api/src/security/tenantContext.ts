@@ -171,7 +171,7 @@ export const ambientTenantContextProvider: TenantContextProvider = {
  * @param provider - Context provider to read.
  * @returns The scope to bind, or `undefined` when there is none.
  */
-export function resolveGucScope(provider: TenantContextProvider): string | undefined {
+function resolveGucScope(provider: TenantContextProvider): string | undefined {
   if (provider.getSystemContext()) {
     return SYSTEM_TENANT_SCOPE;
   }
