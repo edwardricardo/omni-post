@@ -2045,3 +2045,396 @@ spike. Four inputs carry forward from this link:
    scoped, but WITHOUT the `system:` prefix this link established, and with no scan that would
    notice if it stopped binding at all. Widening the scan and normalizing that reason is a later
    slice's work; it is named here so the gap is not rediscovered as a defect.
+
+---
+
+# PR 4 — Slice 1a: unrepeatable pre-migration evidence + Prisma spike
+
+## Task ledger (PR 4)
+
+| Task                                  | State                | Evidence                                                                               |
+| ------------------------------------- | -------------------- | -------------------------------------------------------------------------------------- |
+| 7.1 `scripts/rls-ab-measurement.ts`   | Done, two deviations | 1 170-line standalone harness; runs green end to end; deviations below                 |
+| 7.2 ONE-SHOT hot `Post` listings      | **Captured**         | 8 cases (Q1-Q8) in `docs/reports/TENANT_RLS_AB_MEASUREMENT.md` §Before                 |
+| 7.3 ONE-SHOT `postId`-led child reads | **Captured**         | 5 cases (Q9-Q13) in the same §Before                                                   |
+| 7.4 Prisma shared-scalar spike        | Done                 | §Spike — protocol PASS, recommendation still the Post pattern, on two measured hazards |
+| 7.5 0-defect gate                     | Green                | exact counts below                                                                     |
+
+## What the one-shot capture actually found (7.2)
+
+The corpus: two tenants, 100 projects and 10 000 posts each, posts round-robined over the
+tenant's projects, every 20th soft-deleted, every 10th archived, statuses cycling, one
+`PostContent` per post and one `PostMedia` per third post. 20 003 live `Post` rows in the
+table at capture time. Measured as `omnipost_app` (non-superuser, non-bypassing) with
+`app.account_id` bound, three `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` passes per case.
+
+**The account-wide feed is the only query with no index able to answer it.** `Q3`
+(`listGlobal` page 1) is the ONLY capture that reaches a sequential scan on `Post` — 4.305 ms
+median. Every other `Post` path index-scans, because every existing `Post` index is
+`projectId`-led and those queries supply a `projectId`; the account-wide feed supplies none,
+because the tenant identity lives one table away. That is precisely the query the design's
+single new `(accountId, projectId)` partial index exists to serve, and the report now holds
+the number it will be measured against.
+
+**Corrected in the PR 4 re-gate (numbers re-measured in the same pass).** This section first
+claimed `Q3` and `Q4` were "the only two that reach a sequential scan on `Post`", with `Q4`
+walking all 20 003 `Post` rows and probing `Project` per row. Its own committed plan JSON
+said the opposite: `Q4` is `Aggregate → Nested Loop → Seq Scan rel=Project rows=100 →
+Index Only Scan rel=Post idx=Post_projectId_archivedAt_idx loops=100`. It walks `Project` and
+probes `Post` — the inverse join direction. Measured across all 13 cases: `Q3 → Seq Scan on
+[Post, Project]`, `Q4 → [Project]`, `Q6 → [Project]`. The error came from reading the
+flattened `Plan nodes` summary string, which names node TYPES in tree order and never says
+which relation each node scans; only the tree with `Relation Name` decides.
+
+| Case | Path                          | Plan                                                            | Median (ms) |
+| ---- | ----------------------------- | --------------------------------------------------------------- | ----------- |
+| Q1   | `listByProject` page          | Index Scan `Post_projectId_createdAt_idx`                       | 0.036       |
+| Q2   | `listByProject` count         | Index Scan + Index Only Scan                                    | 0.035       |
+| Q3   | `listGlobal` page             | **Seq Scan on `Post`** + Hash Join + top-N Sort                 | 4.305       |
+| Q4   | `listGlobal` count            | Nested Loop: **Seq Scan on `Project`** → 100× Index Only `Post` | 1.279       |
+| Q5   | `findByProjectId` page        | Index Scan `Post_projectId_createdAt_idx`                       | 0.021       |
+| Q6   | `filterIdsByAccount`          | Index Scan `Post_pkey` + Hash Join over **Seq Scan `Project`**  | 0.151       |
+| Q7   | `findOwnerAccountId`          | Nested Loop, `Post_pkey` + `Project_pkey`                       | 0.016       |
+| Q8   | `getProjectStats` (DRAFT arm) | Index Only Scan `Post_projectId_status_idx`                     | 0.012       |
+
+`Q4` and `Q6` are the two that pay a `Seq Scan` on **`Project`**, and grouping them that way
+strengthens the case for the composite key rather than weakening it. `Q6` is the
+bulk-mutation tenant gate — the read that decides which ids a caller may touch — and `Q4` is
+the account-wide count. The composite key removes the `Project` walk from the tenant gate
+itself, not only from the feed.
+
+**The RLS policy qual appears verbatim in every plan that touches `Project`**
+(`current_setting('app.account_id', true) = '__system__' OR "accountId" = ...`). That is the
+proof the capture ran as the application's role with the GUC bound rather than as the owner;
+a capture taken as the owner would show only the left half of each filter, and every later
+comparison would have been measuring the wrong thing.
+
+## The child-read evidence, and the state it starts from (7.3)
+
+All five child reads are `Index Scan` (or `Index Only Scan` for the aggregate) on the parent
+key today, 0.011-0.090 ms median. The data-shape table records what makes that clean:
+`Post`, `PostContent` and `PostMedia` are at `relrowsecurity = false` with **0 policies**.
+There is no qual to apply yet.
+
+**Corrected in the PR 4 re-gate: `Q13` was measuring nothing.** It pointed at
+`postIds[0]`, and media is seeded only for `g % 3 == 0`, so the single-parent `PostMedia`
+read matched **zero rows on both sides**. Its `byIds` digest therefore compared `""` to
+`""` — a comparison that passes no matter where the mirror points, proven by repointing the
+mirror at a different post and still getting `match` — over a plan whose `Actual Rows` was
+`0`. It was listed in this section as one of the five child-read baselines for the leg-1
+exemption's revisit trigger, where a lookup that finds nothing cannot demonstrate
+degradation. `Q13` now resolves its parent by QUERYING which of the page's posts carry media
+(`tif-ab-a-post-000201`, the first such post in page order) instead of by index arithmetic,
+and returns 1 row. The `PostMedia` side of the trigger now has three live rows (`Q11`, `Q12`,
+`Q13`) rather than two.
+
+**A second degenerate case surfaced while closing the first, and it is NOT `Q13`'s twin.**
+`Q8` (`getProjectStats`, DRAFT arm) counts **0** on this corpus and its digest compares
+`"0"` to `"0"`. The seeder cycles status by `g % 4` while a project's posts are the `g`
+congruent to its own number modulo the project count, so every post under `-proj-0001` is
+`SCHEDULED` and the DRAFT bucket is legitimately empty. Unlike `Q13` this is not fully
+vacuous — a mirror repointed at `-proj-0004` (all DRAFT) would return 100 and fail — but it
+is degenerate for the three projects in four that also count 0. `Q8` is therefore left
+measuring exactly what it measured before (its plan is unchanged) and DECLARED as a miss
+probe, which is checked in both directions: the run now fails if `Q8` ever starts matching
+rows, because its plan would no longer be the empty-bucket plan it claims to be.
+
+That is the exemption's starting point. The design's revisit trigger is specific — if the
+after-phase plans show the RLS policy qual degrading either table to a sequential scan, the
+accountId-led index is added in the same slice — and these five rows are what "degrading" is
+measured from. The benign outcome is the same `Index Scan` node with the policy predicate as
+an extra `Filter`; a `Seq Scan` or a `Bitmap Heap Scan` replacing it is the trigger firing.
+
+One planner detail recorded on purpose: `PostContent` is served by the
+`(postId, locale, revision)` UNIQUE index, not the `(postId, locale)` index. Without that in
+writing, a planner change after the migration would read as a regression.
+
+## Deviations from the task text (PR 4)
+
+### 1. `ANALYZE` was not enough, and finding that out was the point
+
+Task 7.1 says `ANALYZE`. The harness runs `VACUUM (ANALYZE)`, because ANALYZE alone did not
+produce a reproducible baseline. Measured: the first capture after the bulk insert and a
+later capture over the **identical, untouched corpus** disagreed on two plans — `Q2` moved
+from a Bitmap Heap Scan to an Index Only Scan (0.081 -> 0.030 ms) and `Q4` from a hash join
+over two sequential scans to a nested loop with an Index Only Scan (3.05 -> 1.32 ms).
+Nothing about the data changed; the freshly inserted heap pages were not yet marked
+all-visible, so no index-only path was available until autovacuum reached them.
+
+A baseline that changes shape on its own is not a baseline — this is a ONE-SHOT capture, and
+the after phase would have read that drift as an effect of the migration. `VACUUM` sets the
+visibility map before the capture. Verified rather than asserted: two independent
+full-cleanup-and-reseed runs produced **byte-identical plan node sequences for all 13
+cases**, execution times inside run-to-run noise. `--skip-seed` vacuum-analyzes too, because
+a corpus someone else left behind is exactly the case where the map's state is unknown.
+
+### 2. The plans are taken from a validated MIRROR, not from Prisma's own SQL
+
+`EXPLAIN` needs SQL text. Prisma 7 emits its SQL through a driver adapter, and subscribing to
+it requires constructing the client with `log`, which requires `@prisma/adapter-pg` — a
+dependency of the Prisma infra package, not of the repo root where the task pins the script.
+Three routes were tried and rejected before settling: constructing the client directly from
+the repo root and from `apps/api` (neither resolves the adapter), and reading Prisma's
+statements back from `pg_stat_statements` (available on the server but not in
+`shared_preload_libraries`, so enabling it means restarting the shared dev database).
+
+So each case carries a hand-written SQL mirror of a NAMED repository call site, and every run
+executes both the real Prisma call and the mirror **inside the same bound transaction** and
+compares them with a per-case digest — sorted ids for row-returning cases, the scalar for
+counts, the resolved `accountId` for the ownership case, grouped pairs for the aggregate. A
+disagreement fails the run. Row COUNT was deliberately not used as the comparison: for a
+count query both sides always return exactly one row, so that check could not fail — the
+first version of the harness had exactly that hole, and the three false mismatches it
+produced are what exposed it.
+
+What this does NOT claim, and the report says so: the mirror is semantically validated, not
+textually identical to Prisma's emission. Literals are inlined, so these are custom plans.
+
+### 3. `prisma db push` was not used
+
+Its built-in AI-consent guard refuses to run unattended, and that guard is correct. The DDL
+was taken from `migrate diff --script` and applied to the throwaway database statement by
+statement — byte-identical SQL, no destructive verb, no consent bypass.
+
+## The spike verdict (7.4), and why the recommendation is not the same as the verdict
+
+**Protocol: PASS, all three steps.** `prisma validate` accepts a model whose `accountId`
+appears in two relations' `fields` lists, with no warning. `migrate diff` emits BOTH foreign
+keys, the composite one carrying `ON UPDATE NO ACTION ON DELETE CASCADE`. The generated
+client typechecks five create shapes under `--strict --exactOptionalPropertyTypes`, and three
+deliberately wrong shapes fail with TS2353/TS2741/TS2741 — so that typecheck can fail.
+`db pull` round-trips both relations verbatim. The design's fallback rule ("any of the three
+fails -> the Post pattern") is therefore NOT triggered, and the report does not pretend it is.
+
+The generated input types are better than expected: nesting REMOVES the shared scalar from
+the input rather than making it optional. `SpikeWidgetUncheckedCreateWithoutParentInput` is
+`{ id?, label }` — there is no way to state a tenant key on a child created under its parent,
+because Prisma derives it from the parent row. That is the threading design's intent enforced
+by the compiler.
+
+**Two hazards, measured at runtime, both caused by KEEPING the direct `Account` relation:**
+
+1. A checked create with two connects that DISAGREE — `account: connect acct-B`, parent
+   belonging to `acct-A` — type-checks, executes without error, and lands the row under
+   **`acct-A`**. Prisma resolves the shared scalar from one relation and silently drops the
+   other's value. A caller who believed the `account` connect was the tenant assertion has
+   written into a different tenant and been told it succeeded.
+2. `UPDATE "SpikeAccount" SET id = ...` propagated into `SpikeWidget.accountId` through
+   relation 1's default `ON UPDATE CASCADE`, straight past relation 2's `onUpdate: NoAction`.
+   That `NoAction` exists in the design precisely to keep a tenant re-point noisy.
+
+Controls that make those observations rather than guesses: a flat create with a mismatched
+`(parentId, accountId)` pair IS refused with `P2003`, and a nested create under the parent
+DOES land the parent's account. The engine is enforcing the composite FK; hazard 1 is the
+input layer picking a value before the FK ever sees a conflict, hazard 2 is a legal cascade
+the FK has no reason to refuse.
+
+**Recommendation: the Post pattern for Slice 2 as well** — composite parent relation only,
+`Account` navigation through the parent. One relation over `accountId` means no second
+connect to disagree with and no second `ON UPDATE` rule to outvote `NoAction`. It is also the
+shape Slice 1's trio already uses. Stated as a recommendation, not as a protocol failure,
+because that is what the evidence supports; if a Slice 2 model is later argued into keeping
+both relations, the report names the two guardrails it would need.
+
+## 0-defect gate (PR 4) — exact counts
+
+| Check                       | Command                                                            | Result                                                                           |
+| --------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| Docs + one script only      | `git status --short`                                               | 2 untracked files, **0 modified** — the schema and migrations provably untouched |
+| TSC (apps/api unaffected)   | `NODE_OPTIONS=--max-old-space-size=6144 pnpm exec tsc -b apps/api` | exit **0**                                                                       |
+| TSC (the new script)        | standalone, see note below                                         | exit **0**                                                                       |
+| ESLint                      | `pnpm exec eslint scripts/rls-ab-measurement.ts --max-warnings 0`  | exit **0**, 0 warnings                                                           |
+| Prettier                    | `--check` on both new files + `tasks.md` + this file               | clean                                                                            |
+| Fitness #9 (`@file`)        | repo-wide over `apps/` + `packages/`                               | **0**                                                                            |
+| Fitness #10 (`@layer`)      | repo-wide over `apps/` + `packages/`                               | **0**                                                                            |
+| Fitness #16 (`process.env`) | `apps/api/src`                                                     | **0**                                                                            |
+| Fitness #8 (phase refs)     | `apps/` + `packages/` + `infra/`                                   | **0**                                                                            |
+| Spot-checks on the script   | `any`, `@ts-ignore`, phase refs, secret fallbacks, tripwire words  | **0** each                                                                       |
+
+**How the script is typechecked, since no project owns it.** Root `tsconfig.json` is
+`files: []` plus references, and `scripts/` appears in no project, so `tsc -b apps/api` never
+sees this file — which is why that build is unaffected. It is therefore typechecked
+standalone with the `tsconfig.base.json` flags spelled out: `tsc --ignoreConfig --noEmit
+--strict --noUncheckedIndexedAccess --exactOptionalPropertyTypes --noImplicitOverride
+--target ES2022 --module esnext --moduleResolution bundler --skipLibCheck --esModuleInterop
+--typeRoots <prisma-infra>/node_modules/@types --types node scripts/rls-ab-measurement.ts`.
+It found three real defects on first run (a `PrismaClient` type imported from a module that
+does not export it, and two `noUncheckedIndexedAccess` violations), all fixed.
+
+**Fitness scope, stated rather than claimed.** #9, #10 and #16 all scan `apps/` + `packages/`
+(or `apps/api/src`). `scripts/` at the repo ROOT is outside all three, as it is outside #3,
+#5, #8, #11 and #23. The gate's wording ("fitness #9/#10/#16 = 0 on the new script") is
+satisfied both ways: repo-wide the counts are 0, and the script independently satisfies each
+rule's intent — `@file` and `@layer infrastructure` present, no invalid `@layer`, and its
+only env reads are the two channel URLs, neither with a secret fallback.
+
+## Files written (PR 4)
+
+| File                                              | Action | What                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `scripts/rls-ab-measurement.ts`                   | Create | Seeder (`VACUUM (ANALYZE)`), owner/app-role channel split with a live posture assertion, 13-case catalog with per-case fidelity digests plus a non-empty precondition and declared miss probes, `EXPLAIN` capture, marker-scoped report writer that runs AFTER both guards, `--cleanup` with `__system__`-bound controls |
+| `docs/reports/roadmap-detected-smells-backlog.md` | Modify | `SMELL-91` — the unswept `scripts/` fitness + typecheck scope gets a durable id (added in the corrective pass; see C2)                                                                                                                                                                                                   |
+| `docs/reports/TENANT_RLS_AB_MEASUREMENT.md`       | Create | 2 027 lines, of which **1 748 are the generated §Before block** (13 full plan JSONs plus the data-shape and index-inventory tables). The rest is hand-written: §Method, §Reading the before capture, §Spike                                                                                                              |
+
+## Size (PR 4)
+
+**~3 197 added lines**, against a forecast of ~290. The forecast assumed a summary-style
+report; tasks 7.2/7.3 ask for "the plan", and these plans are unrepeatable — after migration
+file 1 lands there is no way to take them again. The full `EXPLAIN` JSON is therefore kept
+verbatim inside `<details>` blocks rather than summarized into node names. Reviewable surface,
+honestly: **~1 449 lines** (the 1 170-line script plus ~279 lines of hand-written report
+prose); the remaining ~1 748 are machine-generated evidence.
+
+## Cleanup — the dev database left as found, with controls
+
+Read with `app.account_id = '__system__'` bound, because as a scoped app-role session absence
+and invisibility give the same answer (Finding 17's rule):
+
+| Table         | `tif-ab-%` rows after cleanup | Live control (whole table) |
+| ------------- | ----------------------------- | -------------------------- |
+| `Account`     | 0                             | 354                        |
+| `Project`     | 0                             | 317                        |
+| `Post`        | 0                             | 3                          |
+| `PostContent` | 0                             | 3                          |
+| `PostMedia`   | 0                             | **0**                      |
+
+The controls are the point: the zeros sit next to non-zero live counts read by the same
+statement in the same transaction, so "0" means the rows are gone rather than the query being
+blind. The throwaway spike database is gone too —
+`SELECT datname FROM pg_database WHERE datname LIKE 'tif%'` returns `[]`. The account control
+(354) matches the pre-seed reading, so nothing of this slice survives.
+
+**The discipline degenerates on exactly one row, and it is named rather than smoothed over.**
+`PostMedia`'s live control is **0**, so its "0 namespaced beside 0 live" pair carries no
+information at all: an empty table and a blind query are indistinguishable there. The other
+four rows each sit beside a non-zero live count read by that same statement, which is what
+proves the read is not blind — so the cleanup IS demonstrated, by four rows rather than five.
+(The two `—` entries this table carried before the re-gate were re-measured: `PostContent` is
+3, not unknown; only `PostMedia` is genuinely 0.) The re-gate re-ran the whole sequence — seed
+→ `VACUUM (ANALYZE)` → capture → cleanup — and the post-cleanup reading above is that run's,
+matching the pre-run baseline exactly.
+
+**A second stated limit, so the mirror check is not read as stronger than it is.** The
+fidelity comparison validates predicate and ordering, NOT projection: `Q1`, `Q3`, `Q5` and
+`Q6` ask Prisma for `select: { id: true }` while their mirrors select the full column list, so
+a mirror that drifted only in its projection would still pass. Disclosed in the report's
+§Method as an explicit bullet rather than left implied by the phrase "semantically validated".
+
+## Findings (PR 4)
+
+1. **`scripts/` at the repo root is an unswept fitness scope.** Not a defect introduced here,
+   but this slice is the first to add a file there in this workstream, so it is worth naming:
+   #3, #5, #8, #9, #10, #11, #16 and #23 all scope to `apps/`, `packages/`, `infra/` or
+   `apps/api/src`. A root script can carry `any`, a `@ts-ignore`, a phase reference or an
+   unvalidated secret read and every gate stays green. This file was checked against all of
+   them by hand and is clean; the class is not. **Routed as `SMELL-91`** in
+   `docs/reports/roadmap-detected-smells-backlog.md`, with the measurement that makes it
+   concrete rather than theoretical: `scripts/depscan.mjs` carries `@file` but **no
+   `@layer`** — and, corrected at the re-gate after measurement: that absence is invisible to
+   fitness #10 no matter its path scope, because #10 validates VALUES on lines that already
+   contain `@layer` (a tagless file contributes zero lines) and its `--include` excludes
+   `.mjs`; NO check anywhere enforces `@layer` presence. Three holes, not two — path scope,
+   extension scope, typecheck scope. This script's own 18 raw
+   `$queryRawUnsafe`/`$executeRawUnsafe` calls are outside #23's adjudication entirely.
+2. **No project typechecks `scripts/`.** Same shape, compiler edition: root `tsconfig.json` is
+   `files: []` + references, so nothing in `scripts/` is in any build. The standalone
+   invocation above found three real type errors that would otherwise have shipped. A
+   `scripts/tsconfig.json` wired into the root references would close both 1 and 2 for that
+   directory; deliberately NOT done here, because it is a repo-wide tooling change and this
+   gate is "docs + one script only". Same backlog id, `SMELL-91`, which owns both halves and
+   carries the gate-first sequence (wire the tsconfig, widen the scopes, plant the red,
+   restore, re-confirm) plus the reason #16 and #23 need an exception story before they widen
+   at all — a migration script legitimately reads env and issues raw SQL.
+3. **`Q6` (`filterIdsByAccount`) hash-joins over a sequential scan of `Project`.** Cheap at
+   517 project rows and not a defect today. Recorded because it is the bulk-mutation tenant
+   gate, and because the composite key is what would let it stop leaving the table.
+4. **The `relationJoins` preview feature is enabled**, so whether Prisma issues the child
+   reads as separate `postId IN (...)` statements or as lateral joins inside the parent query
+   is not settled by this capture and was not measured. The cases measure the child read as
+   its own statement, which is the shape the exemption's argument is written about. Named in
+   the report so the after phase does not infer the other shape from these numbers.
+
+## PR 4 corrective pass (2026-09-08) — what the fresh gate caught and how it closed
+
+The fresh-context gate FAILED the PR 4 candidate with 3 CRITICAL. The measurement itself
+reproduced fully — all 13 plan node sequences, the policy-qual proof, both spike hazards, the
+cleanup discipline — so every failure was in the CLAIMS layer or the ROUTING layer, and the
+window to re-measure was still open because the schema was untouched.
+
+| Finding | What was wrong                                                                                | How it closed                                                                                                                                                 |
+| ------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1      | `Q4` described as seq-scanning `Post`, contradicting its own committed plan JSON              | Prose corrected in the report's §Reading and in task 7.2 and this file; `Q4` moved to the served table and grouped with `Q6` under "Seq Scan on `Project`"    |
+| C2      | The `scripts/` gate-scope class finding lived only in prose, with no id or owner              | Routed as **`SMELL-91`** with a measured live violation (`depscan.mjs` has no `@layer`) and a gate-first fix sequence                                         |
+| C3      | `Q13` compared two EMPTY results — a check that could not fail, over a plan measuring nothing | `Q13` repointed at a media-bearing parent by QUERY; a non-empty precondition added to the harness; empty-digest rendering fixed; the before phase re-captured |
+| W1      | `writePhase()` ran BEFORE the fidelity throw, so a failed run still wrote its report          | Both guards moved ahead of the write; the error names the report as unwritten                                                                                 |
+| W2      | `PostMedia`'s live control is 0, degenerating the zero-beside-non-zero proof for that table   | Stated explicitly in §Cleanup; the two `—` entries re-measured (`PostContent` = 3)                                                                            |
+| W3      | Projection not validated by the mirror check                                                  | Promoted from implied ("semantically validated") to its own §Method bullet naming the four affected cases                                                     |
+
+**Q4's error had a mechanical cause worth keeping.** The prose was written from the flattened
+`Plan nodes` summary — `Aggregate → Nested Loop → Seq Scan → Index Only Scan` — which lists
+node TYPES in tree order and never says which RELATION each node touches. Only the tree with
+`Relation Name` decides, and reading the summary inverted the join direction. Any future prose
+about a plan shape must come from the tree.
+
+**The re-capture, and the identity check that makes it a correction rather than a new
+measurement.** Ran the documented command end to end (seed → `VACUUM (ANALYZE)` → capture as
+`omnipost_app` → cleanup). Diffing plan node sequences, index names, `Actual Rows` and
+`Actual Loops` against the committed block: **12 of 13 cases came back byte-identical**, and
+`Q13` alone moved — same `Index Scan`, same `PostMedia_postId_idx`, `rows=0` → `rows=1`. A
+second full run reproduced the same shapes, so the reproducibility claim now rests on three
+runs rather than two.
+
+**New guards, each with its red path demonstrated** (the canon rule: a gate ships with its
+red proven, planted then restored byte-exact — `sha256 bc4b56d3…` verified by `cmp` after
+every demo):
+
+| Planted defect                                        | Expected                             | Observed                                                                  |
+| ----------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------- |
+| `Q1` mirror `LIMIT 20` → `LIMIT 19` (both sides live) | fidelity fails, NOTHING written      | `exit 1`, `mirror fidelity failed for Q1`, sentinel target byte-unchanged |
+| `Q13` repointed back at the media-less post           | vacuity guard fails, NOTHING written | `exit 1`, `Q13 matched nothing on both sides…`, sentinel byte-unchanged   |
+| `missProbe` declared on `Q10` (which DOES match)      | reverse direction fails              | `exit 1`, `Q10 declared \`missProbe\` but matched rows…`                  |
+
+The first of those is the W1 proof: the run reached the fidelity failure and the target file
+still held its sentinel, with no capture block written. The second is the direct proof that
+the new precondition catches exactly the C3 defect — under the old code that same state
+reported `Q13 ok` and wrote a green report.
+
+**A second degenerate case surfaced from implementing the precondition, and it is recorded
+rather than quietly declared.** `Q8` counts 0 DRAFT posts because the seeder's `g % 4` status
+cycle makes every post under `-proj-0001` `SCHEDULED`. It is weaker than `Q13` was (a mirror
+repointed at `-proj-0004`, which is all DRAFT, would fail it) but degenerate for the three
+projects in four that also count 0. Its query and plan are UNCHANGED — fixing it would have
+moved a plan shape, which is a measurement change and not a corrective — so it is declared a
+miss probe, disclosed as such in the rendered report, and checked in reverse.
+
+**One more trap found by re-running the capture, and it was aimed straight at PR 5.** The
+generator emits Markdown tables with single-space padding; Prettier aligns table columns. So
+**every** `--phase before|after` run leaves the report formatting-dirty — a 98-line diff of
+pure column padding, no content — and the 0-defect gate fails on `prettier --check` unless
+the operator remembers a step nothing told them about. The original report was clean only
+because the writer happened to run Prettier afterwards. The `--phase after` run in PR 5 would
+have walked into it. Rather than leave that as folklore, the generated
+**"Re-run this exact capture"** block now ends with
+`pnpm exec prettier --write docs/reports/TENANT_RLS_AB_MEASUREMENT.md` and says why, so the
+instruction travels with the artifact. Verified by regenerating the block and re-running the
+full gate.
+
+## Blockers (PR 4)
+
+None. Both one-shot captures are taken, and both precede the migration link as required.
+
+## Prepared for the orchestrator (PR 4)
+
+**Five files, not four** — the corrective adds `docs/reports/roadmap-detected-smells-backlog.md`
+to the candidate, because C2's whole point is that a class finding without a durable id is a
+lost finding, and routing it necessarily writes to the backlog. No git run by this writer.
+Nothing sensitive was touched: no `.env*`, no Prisma schema or migration, no `.github/**`, no
+`CLAUDE.md`, no `.claude/settings*`.
+
+## Next (PR 4)
+
+PR 5 (Slice 1 structural enrollment). Its post-migration comparison now has a source for both
+`PostContent` and `PostMedia`, and its `--phase after` run is
+`node --import tsx --conditions development --env-file=.env scripts/rls-ab-measurement.ts
+--phase after --projects 100 --posts 10000 --runs 3`, followed by `--cleanup`. The after run
+must use the same corpus size, or the comparison is between two different questions.
