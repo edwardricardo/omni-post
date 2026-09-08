@@ -25,10 +25,10 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { assertPublishConsumers, checkApiAvailable, getBaseUrl } from "../testUtils.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 const API_URL = getBaseUrl();
 
@@ -116,7 +116,7 @@ describe("Saga customer flow integration", () => {
     // Failing here instead states the cause, in seconds.
     assert.ok(consumers.ok, consumers.message);
 
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
     const tag = `saga-int-${Date.now()}`;
 
     const account = await prisma.account.create({

@@ -12,13 +12,12 @@
  *        write (no batch/items/events created).
  *
  *   Pre-requisite: `pnpm db:up` (Postgres + Redis). Uses real DB via
- *   `createTestPrismaClient()` and a stub QueuePort — no BullMQ connection needed.
+ *   `createSeedPrismaClient()` and a stub QueuePort — no BullMQ connection needed.
  * @layer infrastructure
  */
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { InMemoryEventDispatcher } from "@core/domain/index.js";
 import { PrismaBulkScheduleBatchRepository } from "../../src/infrastructure/repositories/PrismaBulkScheduleBatchRepository.js";
@@ -28,6 +27,7 @@ import { PrismaOutboxWriter } from "../../src/infrastructure/outbox/PrismaOutbox
 import { ConfirmBulkScheduleUseCase } from "@core/bulk-scheduling/ConfirmBulkScheduleUseCase.js";
 import { BulkScheduleDispatchEventHandler } from "../../src/bulk-scheduling/BulkScheduleDispatchEventHandler.js";
 import type { SchedulingCsvRow } from "@core/bulk-scheduling/schedulingCsv.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import {
   makeStubQueue,
   makeRelay,
@@ -56,7 +56,7 @@ describe("BulkSchedule outbox path — smoke e2e", () => {
   const batchIds: string[] = [];
 
   before(async () => {
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
     tenant = await seedTenant(prisma, tag);
     accountId = tenant.accountId;
     projectId = tenant.projectId;

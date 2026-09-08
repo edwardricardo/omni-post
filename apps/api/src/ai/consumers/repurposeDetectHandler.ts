@@ -9,6 +9,7 @@
  * @layer infrastructure
  */
 import type { DetectRepurposeCandidatesUseCase } from "@core/ai/DetectRepurposeCandidatesUseCase.js";
+import { withTenantContext } from "../../security/tenantContext.js";
 import type { RepurposeJobLogger } from "./repurposeGenerateHandler.js";
 
 export interface RepurposeDetectDeps {
@@ -40,7 +41,11 @@ export async function processRepurposeDetectJob(
     return;
   }
 
-  const result = await detect.execute({ accountId });
+  // A queue job carries no request, so the tenant scope is bound HERE, from the payload the
+  // producer put the account in — the in-process consumer convention. Detection creates a
+  // `repurposeProposal`, which is tenant-guard-enrolled, so without this the write on the
+  // container's guarded client throws and the queue retries the job forever.
+  const result = await withTenantContext({ accountId }, () => detect.execute({ accountId }));
   if (!result.ok) {
     logger.error({ accountId, error: result.error }, "Repurpose detection failed");
     throw new Error(`Repurpose detection failed for account ${accountId}`);

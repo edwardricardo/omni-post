@@ -18,6 +18,7 @@ import type {
   ReplaceOidcClientSecretOutput,
 } from "@core/auth/ReplaceOidcClientSecretUseCase.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { getTenantContext } from "../../../src/security/tenantContext.js";
 
 const ACCOUNT_ID = "acct-uuid-123";
 
@@ -120,17 +121,27 @@ describe("oidcAdminRoutes plugin", () => {
     // Three guards, and the third is named rather than counted: `oidcConfiguration` is
     // tenant-guard-enrolled, admin auth binds an administrator and not a tenant, so without the
     // param binder this endpoint reads an enrolled model with no context and fails closed.
-    const preHandler = harness.routes[0]!.options.preHandler as Array<{ name?: string }>;
+    const preHandler = harness.routes[0]!.options.preHandler as Array<
+      (request: unknown, reply: unknown) => Promise<void>
+    >;
     assert.ok(Array.isArray(preHandler));
     assert.equal(
       preHandler.length,
       3,
       "expected admin auth, the permission gate, and the tenant-param binder"
     );
-    assert.equal(
-      preHandler[2]?.name,
-      "tenantParamPreHandler",
-      "the last preHandler must be the tenant-param binder that scopes the enrolled read"
+
+    // The third guard is identified by what it DOES, not by its function name: a name is
+    // metadata a rename, a wrapper, or a bundler can change while the guard still works — and,
+    // worse, can keep matching while the guard stops binding anything.
+    const accountId = "acct-oidc-binder";
+    const reply = { code: () => reply, send: async () => undefined };
+    await preHandler[2]!({ params: { accountId } }, reply);
+    assert.deepEqual(
+      getTenantContext(),
+      { accountId },
+      "the third preHandler did not bind the account from the path: the endpoint would read " +
+        "the enrolled `oidcConfiguration` with no tenant context and fail closed"
     );
   });
 

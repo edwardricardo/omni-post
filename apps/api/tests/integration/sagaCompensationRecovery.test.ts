@@ -45,7 +45,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import { Redis } from "ioredis";
-import { createTestPrismaClient, type PrismaClient } from "@infra/prisma";
+import { type PrismaClient } from "@infra/prisma";
 import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { createBullMQQueueAdapter, type BullMQQueueAdapter } from "@adapters/queue-bullmq";
@@ -74,6 +74,7 @@ import { PrismaChannelRepository } from "../../src/infrastructure/repositories/P
 import { PrismaProjectRepository } from "../../src/infrastructure/repositories/PrismaProjectRepository.js";
 import { ChannelCredentialsCrypto } from "../../src/security/ChannelCredentialsCrypto.js";
 import { EncryptionService } from "../../src/security/EncryptionService.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 const TAG = `saga-comp-${Date.now()}`;
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
@@ -350,7 +351,7 @@ describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () =
   }
 
   before(async () => {
-    base = createTestPrismaClient();
+    base = createSeedPrismaClient();
     guarded = base.$extends(
       tenantGuardExtension({ getTenantContext, getSystemContext })
     ) as unknown as PrismaClient;

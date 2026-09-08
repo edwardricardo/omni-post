@@ -11,8 +11,14 @@
  * @description Tests for test data factory
  * @layer infrastructure
  */
-import { prisma } from "@infra/prisma";
 import type { AdminUser, Account, Project, Post, Channel } from "@infra/prisma";
+import { createSeedPrismaClient } from "../integration/helpers/seedPrismaClient.js";
+
+/**
+ * Fixture channel: this factory exists to create rows, which is exactly what the application
+ * role may not do without a tenant bound.
+ */
+const prisma = createSeedPrismaClient();
 
 interface CreatedIds {
   adminUsers: string[];

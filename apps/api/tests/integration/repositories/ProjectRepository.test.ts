@@ -22,7 +22,13 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { PrismaProjectQueryRepository } from "../../../src/infrastructure/repositories/PrismaProjectQueryRepository.js";
-import { prisma } from "@infra/prisma";
+import { createSeedPrismaClient } from "../helpers/seedPrismaClient.js";
+
+/**
+ * Fixture AND subject channel: the suite proves the N+1 elimination in the project read model,
+ * which is a query-plan claim rather than a tenant one.
+ */
+const prisma = createSeedPrismaClient();
 
 // ========================================
 // TEST DATA SETUP & TEARDOWN

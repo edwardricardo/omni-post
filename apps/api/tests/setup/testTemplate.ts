@@ -16,9 +16,15 @@
  */
 import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { prisma } from "@infra/prisma";
 import { TestDataFactory } from "./testDataFactory.js";
 import { disconnectPrisma } from "./testLifecycle.js";
+import { createSeedPrismaClient } from "../integration/helpers/seedPrismaClient.js";
+
+/**
+ * Fixture channel, and the template teaches it: a suite copied from here seeds on the owner
+ * channel and asserts through whatever surface it is actually testing.
+ */
+const prisma = createSeedPrismaClient();
 
 describe("Feature Name", () => {
   // ============================================

@@ -13,8 +13,14 @@
 
 import { describe, it, before, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { prisma } from "@infra/prisma";
 import { PrismaAuditLogRepository } from "../../src/infrastructure/repositories/PrismaAuditLogRepository.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
+
+/**
+ * Fixture channel. The subject is the polymorphic audit write path; this client plants the
+ * customer and admin actors and reads the rows back.
+ */
+const prisma = createSeedPrismaClient();
 
 // Actor-type literals asserted against the DB. The production discriminator is
 // the const-object union AUDIT_ACTOR_TYPE (fitness #3); string literals here are

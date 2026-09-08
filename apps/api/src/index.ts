@@ -172,6 +172,7 @@ import { customerAuthRoutes } from "./auth/customerAuthRoutes.js";
 
 import { SecurityManager } from "./security/securityHeaders.js";
 import { makeTenantParamPreHandler } from "./security/tenantParamPreHandler.js";
+import { withSystemContext } from "./security/tenantContext.js";
 import { PerformanceMonitor } from "./monitoring/performanceMonitor.js";
 import { analyticsRoutes } from "./analytics/analyticsRoutes.js";
 import aiRoutes from "./ai/routes.js";
@@ -889,6 +890,15 @@ async function start() {
     recurrenceScheduler.start();
 
     // Resolve the background task scheduler once and register daily maintenance jobs.
+    //
+    // Every tick registered below is a sweep ACROSS accounts: the clock dispatches it, not a
+    // request, so there is no tenant context to inherit and the accounts it must visit are
+    // precisely the ones it is about to discover. `withSystemContext(reason)` declares that to
+    // the tenant guard — the same wrap `RecurrenceScheduler` uses for its own tick. Without it
+    // the tick's first read of a guard-enrolled model raises `TenantContextMissingError`, the
+    // use case's own catch turns it into an `err(...)`, and the tick reports a dead job as a
+    // `logger.warn`: nothing fails, nothing alerts, and the sweep silently stops happening.
+    // Pinned by `tests/unit/bootstrap/schedulerTickTenantScope.test.ts`.
     const scheduler = app.container!.resolve<BackgroundTaskScheduler>(
       TOKENS.BackgroundTaskScheduler
     );
@@ -901,10 +911,11 @@ async function start() {
     );
     scheduler.register(
       "dlq-archival",
-      async () => {
-        await dlqArchival.archiveResolvedEvents(90);
-        await dlqArchival.flagStaleEvents(30);
-      },
+      () =>
+        withSystemContext("system:dlq-archival", async () => {
+          await dlqArchival.archiveResolvedEvents(90);
+          await dlqArchival.flagStaleEvents(30);
+        }),
       24 * 60 * 60 * 1000
     );
 
@@ -916,7 +927,10 @@ async function start() {
     );
     scheduler.register(
       "data-retention-cleanup",
-      () => dataRetention.runRetentionCleanup(),
+      () =>
+        withSystemContext("system:data-retention-cleanup", async () => {
+          await dataRetention.runRetentionCleanup();
+        }),
       24 * 60 * 60 * 1000
     );
 
@@ -930,12 +944,13 @@ async function start() {
     );
     scheduler.register(
       "auto-renewal",
-      async () => {
-        const result = await subscriptionSvc.processAutoRenewals();
-        if (!result.ok) {
-          logger.warn({ err: result.error }, "Auto-renewal processing failed");
-        }
-      },
+      () =>
+        withSystemContext("system:auto-renewal", async () => {
+          const result = await subscriptionSvc.processAutoRenewals();
+          if (!result.ok) {
+            logger.warn({ err: result.error }, "Auto-renewal processing failed");
+          }
+        }),
       24 * 60 * 60 * 1000
     );
 
@@ -951,12 +966,13 @@ async function start() {
     );
     scheduler.register(
       "inbox-sync-dispatch",
-      async () => {
-        const result = await dispatchInboxSync.execute({});
-        if (!result.ok) {
-          logger.warn({ err: result.error }, "Inbox sync dispatch failed");
-        }
-      },
+      () =>
+        withSystemContext("system:inbox-sync-dispatch", async () => {
+          const result = await dispatchInboxSync.execute({});
+          if (!result.ok) {
+            logger.warn({ err: result.error }, "Inbox sync dispatch failed");
+          }
+        }),
       30 * 60 * 1000
     );
 
@@ -971,22 +987,26 @@ async function start() {
     >(TOKENS.DispatchMentionSearchUseCase);
     scheduler.register(
       "mention-search-dispatch",
-      async () => {
-        const result = await dispatchMentionSearch.execute({});
-        if (!result.ok) {
-          logger.warn({ err: result.error }, "Mention search dispatch failed");
-        }
-      },
+      () =>
+        withSystemContext("system:mention-search-dispatch", async () => {
+          const result = await dispatchMentionSearch.execute({});
+          if (!result.ok) {
+            logger.warn({ err: result.error }, "Mention search dispatch failed");
+          }
+        }),
       30 * 60 * 1000
     );
     scheduler.register(
       "mention-reconcile-dispatch",
-      async () => {
-        const result = await dispatchMentionSearch.execute({ lookbackMs: 48 * 60 * 60 * 1000 });
-        if (!result.ok) {
-          logger.warn({ err: result.error }, "Mention reconcile dispatch failed");
-        }
-      },
+      () =>
+        withSystemContext("system:mention-reconcile-dispatch", async () => {
+          const result = await dispatchMentionSearch.execute({
+            lookbackMs: 48 * 60 * 60 * 1000,
+          });
+          if (!result.ok) {
+            logger.warn({ err: result.error }, "Mention reconcile dispatch failed");
+          }
+        }),
       12 * 60 * 60 * 1000
     );
 
@@ -1002,12 +1022,13 @@ async function start() {
     >(TOKENS.DispatchAnalyticsIngestionUseCase);
     scheduler.register(
       "analytics-ingest-dispatch",
-      async () => {
-        const result = await dispatchAnalyticsIngestion.execute({});
-        if (!result.ok) {
-          logger.warn({ err: result.error }, "Analytics ingest dispatch failed");
-        }
-      },
+      () =>
+        withSystemContext("system:analytics-ingest-dispatch", async () => {
+          const result = await dispatchAnalyticsIngestion.execute({});
+          if (!result.ok) {
+            logger.warn({ err: result.error }, "Analytics ingest dispatch failed");
+          }
+        }),
       6 * 60 * 60 * 1000
     );
 
@@ -1018,12 +1039,13 @@ async function start() {
     );
     scheduler.register(
       "detect-repurpose-dispatch",
-      async () => {
-        const result = await dispatchDetectRepurpose.execute({});
-        if (!result.ok) {
-          logger.warn({ err: result.error }, "Detect repurpose dispatch failed");
-        }
-      },
+      () =>
+        withSystemContext("system:detect-repurpose-dispatch", async () => {
+          const result = await dispatchDetectRepurpose.execute({});
+          if (!result.ok) {
+            logger.warn({ err: result.error }, "Detect repurpose dispatch failed");
+          }
+        }),
       24 * 60 * 60 * 1000
     );
 
@@ -1032,12 +1054,13 @@ async function start() {
     );
     scheduler.register(
       "trend-radar-dispatch",
-      async () => {
-        const result = await dispatchDetectTrends.execute({});
-        if (!result.ok) {
-          logger.warn({ err: result.error }, "Trend radar dispatch failed");
-        }
-      },
+      () =>
+        withSystemContext("system:trend-radar-dispatch", async () => {
+          const result = await dispatchDetectTrends.execute({});
+          if (!result.ok) {
+            logger.warn({ err: result.error }, "Trend radar dispatch failed");
+          }
+        }),
       24 * 60 * 60 * 1000
     );
 

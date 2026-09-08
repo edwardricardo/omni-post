@@ -15,9 +15,15 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import type { QueuePort } from "@ports/core";
 import type { Redis } from "ioredis";
-import { prisma } from "@infra/prisma";
 import { createRedisConnection } from "../src/lib/redis.js";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.js";
+
+/**
+ * Fixture channel. The subject is the queue and storage adapters; this client only plants the
+ * rows a job needs to refer to.
+ */
+const prisma = createSeedPrismaClient();
 
 const userRepository = new PrismaAdminUserRepository(prisma);
 

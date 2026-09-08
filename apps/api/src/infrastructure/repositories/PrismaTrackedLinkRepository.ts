@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import type { PrismaClient } from "@infra/prisma";
+import type { Prisma, PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import {
   type TrackedLinkRepository,
@@ -20,7 +20,11 @@ import {
 } from "@core/domain/index.js";
 import { ShortCode } from "@core/domain/value-objects/ShortCode.js";
 import { withSystemContext } from "../../security/tenantContext.js";
+import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 import { withTenantTransaction } from "../unitofwork/tenantTransaction.js";
+
+/** The interactive-transaction client Prisma hands a `$transaction` callback. */
+type TxClient = Prisma.TransactionClient;
 
 /**
  * PrismaTrackedLinkRepository - Implements TrackedLinkRepository using Prisma
@@ -32,17 +36,34 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   /**
+   * Resolve the client the CURRENT call must run on: the Unit of Work's transaction client when
+   * one is active in this async context, the injected base client otherwise. A write issued on
+   * the base client while a unit of work is open runs on a DIFFERENT connection — outside the
+   * caller's atomicity and outside the `app.account_id` the unit of work bound at tx start.
+   * Under a superuser that only broke atomicity, silently; under the application role the
+   * `tenant_isolation` policy refuses the row outright (SQLSTATE 42501).
+   */
+  private getClient(): PrismaClient | TxClient {
+    return PrismaUnitOfWork.getTransactionClient() ?? this.prisma;
+  }
+
+  /**
    * Save a tracked link (create or update)
+   *
+   * The existence probe and the write resolve the client ONCE, together: the pair is a
+   * check-then-act, and split across two connections the check can be true when the act runs
+   * against a row someone else already changed.
    */
   async save(link: TrackedLink): Promise<Result<void, Error>> {
     try {
-      const exists = await this.prisma.trackedLink.findUnique({
+      const client = this.getClient();
+      const exists = await client.trackedLink.findUnique({
         where: { id: link.id.value },
       });
 
       if (exists) {
         // Update existing link
-        await this.prisma.trackedLink.update({
+        await client.trackedLink.update({
           where: { id: link.id.value },
           data: {
             clicks: link.clicks,
@@ -58,7 +79,7 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
         });
       } else {
         // Create new link
-        await this.prisma.trackedLink.create({
+        await client.trackedLink.create({
           data: {
             id: link.id.value,
             accountId: link.accountId,
@@ -148,25 +169,37 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
    * Delete a tracked link
    */
   async delete(id: TrackedLinkId): Promise<Result<void, EntityNotFoundError>> {
-    const exists = await this.prisma.trackedLink.findUnique({
-      where: { id: id.value },
-    });
+    // The probe runs INSIDE the transaction with the deletes, not before it. Two reasons, and
+    // the second is what the runtime cutover exposed: the pair is a check-then-act, so split
+    // across two connections the check can be true when the act runs against a row someone else
+    // already changed; and a probe issued on the base client while a unit of work is open runs
+    // on a connection that unit of work never bound `app.account_id` on, where the
+    // `tenant_isolation` policy hides the row and the caller is told the link does not exist.
+    //
+    // Delete related clicks first (cascade should handle this, but explicit is safer). Joins the
+    // caller's unit of work when one is open, so a deletion that is one step of a larger
+    // operation rolls back with it instead of leaving the link gone.
+    const found = await withTenantTransaction(this.prisma, async (tx) => {
+      const exists = await tx.trackedLink.findUnique({
+        where: { id: id.value },
+      });
 
-    if (!exists) {
-      return err(new EntityNotFoundError("TrackedLink", id.value));
-    }
+      if (!exists) {
+        return false;
+      }
 
-    // Delete related clicks first (cascade should handle this, but explicit is safer).
-    // Joins the caller's unit of work when one is open, so a deletion that is one step of a
-    // larger operation rolls back with it instead of leaving the link gone.
-    await withTenantTransaction(this.prisma, async (tx) => {
       await tx.linkClick.deleteMany({
         where: { trackedLinkId: id.value },
       });
       await tx.trackedLink.delete({
         where: { id: id.value },
       });
+      return true;
     });
+
+    if (!found) {
+      return err(new EntityNotFoundError("TrackedLink", id.value));
+    }
 
     return ok(undefined);
   }

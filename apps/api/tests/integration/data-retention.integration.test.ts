@@ -20,8 +20,14 @@
  */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { prisma } from "@infra/prisma";
 import { runRetentionForTest } from "./helpers/runRetentionForTest.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
+
+/**
+ * Fixture channel. The subject is `DataRetentionService.runRetentionCleanup` across accounts;
+ * this client ages the fixtures into the window the service is supposed to sweep.
+ */
+const prisma = createSeedPrismaClient();
 
 const TEST_TAG = "RETENTION_E2E";
 

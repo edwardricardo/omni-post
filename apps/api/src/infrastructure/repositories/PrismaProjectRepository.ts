@@ -174,7 +174,12 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
         ...(entry.endedAt !== undefined && { endedAt: entry.endedAt.toISOString() }),
       }));
 
-      await this.prisma.project.upsert({
+      // Resolve the client, exactly as `delete()` does: a write issued on the base client while
+      // a unit of work is open runs on a DIFFERENT connection — outside the caller's atomicity
+      // and outside the `app.account_id` the unit of work bound at tx start. Under a superuser
+      // that only broke atomicity, silently; under the application role the `tenant_isolation`
+      // policy refuses the row outright (SQLSTATE 42501).
+      await this.getClient().project.upsert({
         where: { id: project.id.value },
         create: {
           id: project.id.value,

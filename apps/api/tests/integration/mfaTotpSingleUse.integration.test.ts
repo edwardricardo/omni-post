@@ -15,10 +15,10 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { PrismaAdminMfaUserRepository } from "../../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js";
 import { PrismaCustomerMfaUserRepository } from "../../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 interface Fixture {
   accountId: string;
@@ -34,7 +34,7 @@ describe("TOTP single-use claim (integration)", () => {
   let customerRepo: PrismaCustomerMfaUserRepository;
 
   before(async () => {
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
     adminRepo = new PrismaAdminMfaUserRepository(prisma);
     customerRepo = new PrismaCustomerMfaUserRepository(prisma);
 

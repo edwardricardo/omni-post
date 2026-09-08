@@ -41,6 +41,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { Prisma, createTestPrismaClient, type PrismaClient } from "@infra/prisma";
 import {
   tenantGuardExtension,
@@ -49,13 +50,18 @@ import {
 import { isGucBound } from "@infra/prisma/extensions/tenantGuc.js";
 import {
   bindGucForOperation,
+  tenantGuardWithGucBindingExtension,
   type GucBindingHost,
 } from "@infra/prisma/extensions/tenantGucBinding.js";
-import { PostAggregate, ProjectId } from "@core/domain/index.js";
+import { PostAggregate, ProjectId, TrackedLink } from "@core/domain/index.js";
 import { PrismaPostRepository } from "../../src/infrastructure/repositories/PrismaPostRepository.js";
+import { PrismaCrisisProjectRepository } from "../../src/infrastructure/repositories/PrismaCrisisProjectRepository.js";
+import { PrismaProjectRepository } from "../../src/infrastructure/repositories/PrismaProjectRepository.js";
+import { PrismaTrackedLinkRepository } from "../../src/infrastructure/repositories/PrismaTrackedLinkRepository.js";
 import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
 import { withTenantContext } from "../../src/security/tenantContext.js";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
+import { assertAppRoleSession, createAppRoleClient } from "./helpers/appRoleClient.js";
 
 /** Mutable observations the probe extension records for the assertions below. */
 interface ProbeControl {
@@ -286,6 +292,184 @@ describe("GUC binding and a repository-opened transaction", () => {
       true,
       "the unit of work ran without holding the marker, so every write inside it would be " +
         "re-wrapped onto a second connection"
+    );
+  });
+});
+
+/**
+ * The THIRD shape of the same class, and the one the runtime cutover surfaced: a repository
+ * write issued on the BASE client while a unit of work is open.
+ *
+ * The marker says "the ambient transaction owns GUC adjudication, do not wrap", which is true
+ * only for operations that run ON that transaction's connection. A repository method that
+ * reaches for `this.prisma` instead of `PrismaUnitOfWork.getTransactionClient()` runs on a
+ * different connection, where the unit of work's `set_config('app.account_id', …, true)` was
+ * never issued and the per-operation binding has been told to stand down. Under a superuser
+ * that write simply committed outside its caller's transaction and nothing complained — the
+ * architecture canon's unit-of-work rule was violated silently. Under `omnipost_app` the
+ * `tenant_isolation` policy refuses it outright: SQLSTATE 42501, "new row violates row-level
+ * security policy".
+ *
+ * The channel is therefore the app role, through the committed session helper, so the case
+ * holds on both sides of the `DATABASE_URL` cutover instead of only after it.
+ */
+describe("a repository write inside a unit of work runs on the transaction's connection", () => {
+  const suffix = randomUUID();
+  const accountId = `uow-write-acct-${suffix}`;
+  const projectId = `uow-write-proj-${suffix}`;
+
+  let seedClient: PrismaClient;
+  let appRoleClient: PrismaClient;
+  let guardedClient: PrismaClient;
+  let unitOfWork: PrismaUnitOfWork;
+
+  before(async () => {
+    seedClient = createSeedPrismaClient();
+    appRoleClient = createAppRoleClient();
+    await assertAppRoleSession(appRoleClient);
+
+    await seedClient.account.create({
+      data: { id: accountId, name: "UoW write account", email: `${accountId}@example.test` },
+    });
+    await seedClient.project.create({
+      data: { id: projectId, accountId, name: "UoW write project", locale: "en" },
+    });
+
+    guardedClient = appRoleClient.$extends(
+      tenantGuardWithGucBindingExtension(appRoleClient, {
+        getTenantContext: () => ({ accountId }),
+        getSystemContext: () => undefined,
+      })
+    ) as unknown as PrismaClient;
+    unitOfWork = new PrismaUnitOfWork(guardedClient);
+  });
+
+  after(async () => {
+    await seedClient.trackedLink.deleteMany({ where: { accountId } });
+    await seedClient.project.deleteMany({ where: { id: projectId } });
+    await seedClient.account.deleteMany({ where: { id: accountId } });
+    await seedClient.$disconnect();
+    await appRoleClient.$disconnect();
+  });
+
+  it("persists a project through the unit of work instead of failing the tenant policy", async () => {
+    const repository = new PrismaProjectRepository(guardedClient);
+
+    await withTenantContext({ accountId }, async () => {
+      const found = await repository.findById(ProjectId.fromStringUnsafe(projectId));
+      assert.ok(found.ok, "the seeded project must be readable under a bound tenant context");
+
+      const project = found.value;
+      assert.ok(project.enterCrisisMode("unit-of-work write channel"), "fixture precondition");
+
+      await unitOfWork.executeInTransaction(async () => {
+        const saved = await repository.save(project);
+        assert.ok(
+          saved.ok,
+          "the save was refused inside the unit of work: it ran on the base client, on a " +
+            "connection the unit of work never bound `app.account_id` on, so the tenant " +
+            `policy rejected the row (${saved.ok ? "" : String(saved.error).slice(0, 200)})`
+        );
+      });
+    });
+
+    const persisted = await seedClient.project.findUnique({
+      where: { id: projectId },
+      select: { isInCrisisMode: true },
+    });
+    assert.equal(persisted?.isInCrisisMode, true, "the committed row does not carry the write");
+  });
+
+  it("persists a crisis-mode change through the unit of work instead of failing the tenant policy", async () => {
+    const repository = new PrismaCrisisProjectRepository(guardedClient);
+
+    await withTenantContext({ accountId }, async () => {
+      const found = await repository.findById(ProjectId.fromStringUnsafe(projectId));
+      assert.ok(found.ok, "the seeded project must be readable under a bound tenant context");
+
+      const project = found.value;
+      assert.ok(project.exitCrisisMode(), "fixture precondition: the project is in crisis mode");
+
+      await unitOfWork.executeInTransaction(async () => {
+        const saved = await repository.save(project);
+        assert.ok(
+          saved.ok,
+          "the save was refused inside the unit of work: it ran on the base client, where the " +
+            "tenant policy hides the row the UPDATE targets " +
+            `(${saved.ok ? "" : String(saved.error).slice(0, 200)})`
+        );
+      });
+    });
+
+    const persisted = await seedClient.project.findUnique({
+      where: { id: projectId },
+      select: { isInCrisisMode: true },
+    });
+    assert.equal(persisted?.isInCrisisMode, false, "the committed row does not carry the write");
+  });
+
+  it("persists a tracked link through the unit of work instead of failing the tenant policy", async () => {
+    const repository = new PrismaTrackedLinkRepository(guardedClient);
+
+    const created = TrackedLink.create({
+      accountId,
+      projectId: ProjectId.fromStringUnsafe(projectId),
+      originalUrl: "https://example.test/unit-of-work-write-channel",
+    });
+    assert.ok(created.ok, "the tracked-link fixture must be valid");
+    const link = created.value;
+
+    await withTenantContext({ accountId }, async () => {
+      await unitOfWork.executeInTransaction(async () => {
+        const saved = await repository.save(link);
+        assert.ok(
+          saved.ok,
+          "the save was refused inside the unit of work: it ran on the base client, outside " +
+            "the transaction that bound the tenant " +
+            `(${saved.ok ? "" : String(saved.error).slice(0, 200)})`
+        );
+      });
+    });
+
+    const persisted = await seedClient.trackedLink.findUnique({
+      where: { id: link.id.value },
+      select: { id: true },
+    });
+    assert.notEqual(persisted, null, "the tracked link was not committed by the unit of work");
+  });
+});
+
+describe("scheduler tick tenant scope — node:test pin", () => {
+  // Second, collector-independent pin for the bound-scope invariant on the bootstrap's
+  // recurring ticks. The exhaustive gate (exact spans, per-tick reason naming) lives in
+  // tests/unit/bootstrap/schedulerTickTenantScope.test.ts under the vitest tier; that tier's
+  // reachability rests on its config's include globs, so this batch — explicitly named in
+  // run-tests.sh and therefore held by fitness #30 — pins the CLASS-level invariant too. A
+  // vitest include regression now disables one of two guards, not the only one.
+  it("every scheduler.register tick in the bootstrap declares a system: scope within its callback window", () => {
+    const bootstrapUrl = new URL("../../src/index.ts", import.meta.url);
+    const lines = readFileSync(bootstrapUrl, "utf8").split("\n");
+    const MINIMUM_TICKS = 9;
+    const WINDOW = 8;
+    const unscoped: string[] = [];
+    let ticks = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i] ?? "";
+      if (!line.includes("scheduler.register(") || line.trimStart().startsWith("//")) continue;
+      ticks += 1;
+      const window = lines.slice(i, i + WINDOW).join("\n");
+      if (!window.includes('withSystemContext("system:')) {
+        unscoped.push(`src/index.ts:${i + 1}: ${line.trim()}`);
+      }
+    }
+    assert.ok(
+      ticks >= MINIMUM_TICKS,
+      `non-vacuity floor: found ${ticks} scheduler.register ticks against a floor of ${MINIMUM_TICKS} — the call shape moved and this scan stopped seeing it`
+    );
+    assert.deepEqual(
+      unscoped,
+      [],
+      'every recurring tick must declare its cross-account sweep via withSystemContext("system:...") inside its callback'
     );
   });
 });

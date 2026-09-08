@@ -29,10 +29,9 @@
 import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
-import { createTestPrismaClient } from "@infra/prisma";
-
-let prisma: ReturnType<typeof createTestPrismaClient>;
+let prisma: ReturnType<typeof createSeedPrismaClient>;
 
 /** Ids created by the current fixture, torn down after every test. */
 let accountId: string;
@@ -123,7 +122,7 @@ describe("DELETE /posts/batch — database blast radius", () => {
     // Built here, not at module scope: a client constructed while the module
     // evaluates throws BEFORE any test exists, and node:test reports that as one
     // anonymous failure with no name to read.
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
   });
 
   after(async () => {

@@ -31,12 +31,18 @@
 
 import { describe, it, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { prisma } from "@infra/prisma";
 import { OutboxClaimService } from "../../../src/infrastructure/outbox/OutboxClaimService.js";
 import { OutboxBackoff } from "../../../src/infrastructure/outbox/OutboxBackoff.js";
 import { OutboxRelay } from "../../../src/infrastructure/outbox/OutboxRelay.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { DomainEvent } from "@core/domain/events/DomainEvent.js";
+import { createSeedPrismaClient } from "../helpers/seedPrismaClient.js";
+
+/**
+ * Fixture channel. The subject is the relay's deterministic drain under concurrency; this
+ * client seeds the backlog and reads the terminal states back.
+ */
+const prisma = createSeedPrismaClient();
 
 const EVENT_COUNT = 100;
 const TEST_TAG = "T4C_INTEGRATION";

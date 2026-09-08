@@ -79,13 +79,18 @@ is outside RLS's threat model either way.
 Deployment configuration, not schema — so each row is measured on its own
 environment. **No row is inferred from another.**
 
-| Environment                              | Connecting role                                                                                           | `SUPERUSER`                              | `BYPASSRLS`                              | Owns RLS-covered tables        | How measured                                                                                              |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| dev (`omnipost-infra` LXC, `omnipostdb`) | `postgres` → cutting over to `omnipost_app`                                                               | `postgres`: yes · `omnipost_app`: **no** | `postgres`: yes · `omnipost_app`: **no** | `omnipost_app`: **0 tables**   | Live query, 2026-09-07: `pg_roles` + `pg_class.relowner`                                                  |
-| test                                     | Same database and role as dev — `.env` and `.env.test` both point at `omnipost-infra:5432/omnipostdb`     | as dev                                   | as dev                                   | as dev                         | Read of both env files; this is a shared-database FACT, not an inference from dev                         |
-| CI (Integration Tests job)               | `postgres` (service `pgvector/pgvector:pg16`, `POSTGRES_USER: postgres`) → cutting over to `omnipost_app` | yes, until cutover                       | yes, until cutover                       | migration role owns the tables | Static read of `.github/workflows/ci.yml`; the live assertion is the suite itself, which runs in that job |
-| staging                                  | **Does not exist**                                                                                        | n/a                                      | n/a                                      | n/a                            | No such deployment today                                                                                  |
-| production                               | **Does not exist**                                                                                        | n/a                                      | n/a                                      | n/a                            | No such deployment today                                                                                  |
+| Environment                              | Connecting role                                                                                       | `SUPERUSER`                              | `BYPASSRLS`                              | Owns RLS-covered tables        | How measured                                                                                                                         |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| dev (`omnipost-infra` LXC, `omnipostdb`) | `postgres` → `omnipost_app` once the owner applies the `.env` flip                                    | `postgres`: yes · `omnipost_app`: **no** | `postgres`: yes · `omnipost_app`: **no** | `omnipost_app`: **0 tables**   | Live query as `omnipost_app` over a real LOGIN connection, 2026-09-08: `rolsuper=f, rolbypassrls=f, rolcanlogin=t`; owned tables = 0 |
+| test                                     | Same database and role as dev — `.env` and `.env.test` both point at `omnipost-infra:5432/omnipostdb` | as dev                                   | as dev                                   | as dev                         | Read of both env files; this is a shared-database FACT, not an inference from dev                                                    |
+| CI (Integration Tests job)               | `postgres` → `omnipost_app` for the application steps once task 6d.6 applies the workflow hunks       | `postgres`: yes · `omnipost_app`: **no** | `postgres`: yes · `omnipost_app`: **no** | migration role owns the tables | Static read of the COMMITTED `.github/workflows/ci.yml`, labelled as such: no CI job has been observed on the flipped channel yet    |
+| staging                                  | **Does not exist**                                                                                    | n/a                                      | n/a                                      | n/a                            | No such deployment today                                                                                                             |
+| production                               | **Does not exist**                                                                                    | n/a                                      | n/a                                      | n/a                            | No such deployment today                                                                                                             |
+
+The dev and CI rows say different things on purpose. Dev's is a LIVE measurement on the role's
+own login connection; CI's is a reading of configuration, because a workflow file is what CI's
+posture is made of until a job runs. Neither is inferred from the other, and neither is inferred
+from the code.
 
 The dev/test row is the one with live evidence on both sides. As `omnipost_app`,
 over a real connection (not `SET LOCAL ROLE`):
@@ -95,8 +100,21 @@ $ psql -U omnipost_app -d omnipostdb -tAX -c 'SELECT current_user, count(*) FROM
 omnipost_app|0                      -- no GUC bound → fail-closed
 
 BEGIN; SELECT set_config('app.account_id','__system__',true); SELECT count(*) FROM "Project";
-293                                 -- system sentinel → full visibility
+309                                 -- system sentinel → full visibility (re-measured 2026-09-08)
 ```
+
+**Re-deriving the login channel** (the credential is never recorded — a recorded URL is a
+recorded secret AND goes stale on the next rotation, so it fails both ways):
+
+```bash
+export OMNIPOST_APP_DB_PASSWORD='<generated for this session>'
+pnpm db:app-role                    # scripts/db/enable-app-role-login.sh, over the owner channel
+# then build the URL from DATABASE_URL by swapping user and password:
+#   postgresql://omnipost_app:${OMNIPOST_APP_DB_PASSWORD}@<host>:5432/omnipostdb?schema=public
+```
+
+CI's reference implementation of the same two steps is the `Enable app-role login` step in each
+job of `.github/workflows/ci.yml`.
 
 Zero rows with no tenant bound is the exact inverse of the recorded red, where
 the same query returned everything.
@@ -209,7 +227,7 @@ request against the migrated Postgres service. `CLAUDE.md` §Automated Complianc
 Checks carries a pointer note naming it — a note, not a numbered workflow step,
 so the gate inventory stays complete without pretending a grep can do this.
 
-## Runtime cutover — the URL split, and the blocker it uncovered
+## Runtime cutover — the URL split, and the flip it was blocking
 
 The split itself is small and now shipped: `infra/prisma/prisma.config.ts` reads
 `MIGRATE_DATABASE_URL ?? DATABASE_URL ?? ""` (the owner channel for migrate and
@@ -220,10 +238,12 @@ integration harness builds every fixture through `createSeedPrismaClient()`
 same precedence. Both fallbacks keep an environment that has not configured the
 pair behaving exactly as before.
 
-What the split does NOT do is flip `DATABASE_URL` to the app role. That flip was
-attempted against the real database and **measured**, and it does not hold yet.
+What the split deliberately did NOT do was flip `DATABASE_URL` to the application
+role. That flip was attempted, measured, and REFUSED — and the record of the
+refusal is kept below, because it is the red this section's green is measured
+against.
 
-### What was measured
+### The blocked measurement, as it stood
 
 The `integration:tenant-isolation` batch (18 suites, 177 tests) was run twice
 against the live dev database, same files, same `CONCURRENCY=1`, differing only
@@ -231,18 +251,18 @@ in which role `DATABASE_URL` names:
 
 | Channel                               | Result                                        | Exit |
 | ------------------------------------- | --------------------------------------------- | ---- |
-| `postgres` (owner, today's value)     | `tests 177 · pass 177 · fail 0 · cancelled 0` | 0    |
+| `postgres` (owner, the value then)    | `tests 177 · pass 177 · fail 0 · cancelled 0` | 0    |
 | `omnipost_app` (the intended cutover) | `tests 177 · pass 170 · fail 7 · cancelled 0` | 1    |
 
-The zero-rows proof itself is **green on the app-role channel**: the whole of
-`rls-tenant-isolation.test.ts` passes `21/21` with `DATABASE_URL` pointing at
-`omnipost_app`, which is the Slice 0 exit condition. All 15 dedicated
-`*TenantIsolation` suites pass on both channels.
+The zero-rows proof itself was **green on the app-role channel** even then: the
+whole of `rls-tenant-isolation.test.ts` passed `21/21` with `DATABASE_URL`
+pointing at `omnipost_app`, which is the Slice 0 exit condition. All 15 dedicated
+`*TenantIsolation` suites passed on both channels.
 
-The 7 failures are confined to two suites — `postDeleteOwnership.test.ts` (3) and
-`postReadOwnership.test.ts` (4) — and they are not harness defects. They are the
-application misbehaving under the cutover: the owner's own post becomes
-unreadable (`404`), and deleting it returns `500` where the route contract says
+The 7 failures were confined to two suites — `postDeleteOwnership.test.ts` (3) and
+`postReadOwnership.test.ts` (4) — and they were not harness defects. They were the
+application misbehaving under the cutover: the owner's own post became
+unreadable (`404`), and deleting it returned `500` where the route contract says
 `200`.
 
 ### Root cause: the tenant GUC is bound ONLY inside a transaction
@@ -280,23 +300,138 @@ both directions at once.
 
 ### Two consequences worth stating separately
 
-1. **The flip is blocked, and Slice 1 does not unblock it by itself.** Once the
-   trio carries `accountId` and is enrolled, `Post` becomes RLS-covered too, so
-   the same out-of-transaction read returns zero rows instead of a null join —
-   a `404` for the owner's own post rather than a `500`. Cleaner, still wrong.
-   The actual remedy is request-scoped tenant binding, which no slice of this
-   change currently plans, and choosing it is a design decision, not an
-   implementation detail.
-2. **`findOwnerAccountId` dereferences an optional relation.** `row.project` is
+1. **The flip was blocked, and Slice 1 would not have unblocked it by itself.**
+   Once the trio carries `accountId` and is enrolled, `Post` becomes RLS-covered
+   too, so the same out-of-transaction read returns zero rows instead of a null
+   join — a `404` for the owner's own post rather than a `500`. Cleaner, still
+   wrong. The remedy was request-scoped tenant binding, which is what Slice 0d
+   went and built.
+2. **`findOwnerAccountId` dereferenced an optional relation.** `row.project` is
    nullable in the generated type's runtime shape whenever a policy, a soft
-   delete, or a race can hide the parent. This is a latent defect independent of
-   the cutover and it is recorded here rather than fixed, because fixing it
-   would convert the `500` into a `404` and make the cutover LOOK survivable
-   while the owner still could not read their own post.
+   delete, or a race can hide the parent. It was recorded rather than fixed at
+   the time, deliberately: fixing it first would have converted the `500` into a
+   `404` and made the cutover LOOK survivable while the owner still could not
+   read their own post. It carries a null check now, landed together with the
+   binding that makes the parent visible in the first place.
 
-Until that decision lands, `DATABASE_URL` stays on the owner channel in every
-environment. Nothing about the proofs weakens: they run as `omnipost_app` over a
-real login connection, and the coverage gates keep failing on drift.
+### The landed result
+
+Slice 0d made the binding request-scoped, converted the composition root onto the
+guarded client, swept the harness onto named channels, and repaired the
+application defects the role exposed. The same batch, re-run on both channels
+after that work — 20 suites now, 185 tests, `CONCURRENCY=1`, only the role
+differing:
+
+| Channel                            | Result                                                    | Exit | Wall time |
+| ---------------------------------- | --------------------------------------------------------- | ---- | --------- |
+| `postgres` (owner)                 | `tests 185 · pass 185 · fail 0 · cancelled 0 · skipped 0` | 0    | 31 s      |
+| `omnipost_app` (the LOGIN channel) | `tests 185 · pass 185 · fail 0 · cancelled 0 · skipped 0` | 0    | 30 s      |
+
+Wall time is the free empirical check on the cost of per-operation binding, and it
+holds: the difference is inside the run-to-run noise of a shared dev database, in
+the app role's favour if anything. The design accepted a second pooled connection
+per unbound operation; on this workload that is not paying rent.
+
+The FULL integration tier was then run on the app-role channel with the API and
+the workers booted as `omnipost_app` on that same channel:
+
+| Scope                                             | Result                                                            |
+| ------------------------------------------------- | ----------------------------------------------------------------- |
+| `TIER=pr-integration` (DB-only, BEFORE the sweep) | `420 tests · 248 pass · 11 fail · 161 cancelled`, exit 1          |
+| `TIER=pr-integration` (DB-only, after the sweep)  | `420 tests · 420 pass · 0 fail · 0 cancelled · 0 skipped`, exit 0 |
+| `TIER=full-integration` (live API + live workers) | `821 tests · 818 pass · 3 fail · 0 cancelled · 0 skipped`         |
+
+The 3 remaining failures are `integration:saga-live`, and they are NOT the role —
+but the cause first recorded for them was wrong, and the correction is kept here
+rather than quietly swapped.
+
+**Withdrawn:** that a locally booted worker cannot decrypt the seeded channel
+credentials because the suite and the booted processes load different env files
+and disagree on `PLATFORM_ENCRYPTION_KEY`.
+
+**Measured instead:** the decrypt failure is universal and by fixture design.
+`sagaCustomerFlow.test.ts:146-148` and `:508-510` seed literal fixture strings
+(`"test-ciphertext"` / `"test-iv"` / `"test-auth-tag"`), so
+`channelCredentialsCrypto.ts:88` throws `Decryption failed: invalid auth tag
+length` on `authTag.length !== 16` before the key decrypts anything — no key
+decrypts these. The error string rules the key out on its own: a missing or
+wrong-length key throws the distinct named error from `decodeKey` (`:34-38`), and
+a right-length wrong-value key would fail later in `decipher.final()`. **CI
+carries the identical signature and is green** — run `34167031322`, job
+`101880011422`, HEAD `585a01bb`: 12 `invalid auth tag length` and 12
+`"error":"AUTH"` alongside `integration:saga-live 14 tests · 14 pass · exit 0`
+and `TOTAL: 818 tests, 818 pass`.
+
+**What remains open:** not why the decrypt fails, but why these three sagas do
+not terminalize inside the suite's 120 s budget locally when CI's do. The local
+failure mode is the timeout itself (`did not reach terminal state within
+120000ms`, at ~120.1 s each), and the known precedent class is
+`docs/reports/SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §H3, which names these exact three
+subtests: with nothing draining the publish queue the saga parks in `waiting` and
+only the 30-minute horizon terminalizes it. Here a worker WAS booted, so that is
+a lead, not a conclusion, and it is recorded as undiagnosed.
+
+**What the controls do establish** is the classification, in two arms: the same
+three fail on the OWNER channel with working-tree code (arm A), and again with
+HEAD (`585a01bb`) content planted in all six changed source files (arm B,
+restored byte-exact). Neither the role nor this change's diff is the variable.
+The carry-forward is binary: diagnose it, or declare the hand-driven local live
+tier an unsupported measurement surface — `SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §Fix 2
+already specifies the fail-loud consumer precondition that would have turned this
+into a named failure in seconds instead of a wrong diagnosis.
+
+### What the role exposed, and what was repaired
+
+Every defect below pre-dates the flip. Under a superuser each one was silent; the
+non-bypassing role turned all of them into failures, which is the argument for the
+cutover in one sentence.
+
+| Defect                                                                                                                                                                                        | Under a superuser                          | Under `omnipost_app`                               | Repair                                                                               |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `PrismaProjectRepository.save`, `PrismaCrisisProjectRepository.save`, `PrismaTrackedLinkRepository.save` / `.delete` issued their statements on the BASE client while a unit of work was open | committed outside the caller's transaction | `42501`, or a probe that cannot see its own row    | each resolves `PrismaUnitOfWork.getTransactionClient()` first, as the canon requires |
+| `db-prisma` `getPostById` read the parent chain as a nested `include`                                                                                                                         | joined fine through the bypass             | `project` came back NULL and was dereferenced      | the parent liveness read is separate and DECLARES `__system__`, projecting 2 columns |
+| every `*-dispatch` scheduler tick, and the `DETECT_REPURPOSE` consumer, ran with no declared scope                                                                                            | swept every account through the bypass     | the first enrolled read threw, swallowed as a warn | `withSystemContext("system:<task-id>")` per tick; the payload's account per consumer |
+
+The first row is a CLASS, not three sites: a repository statement issued on the
+base client while a unit of work is open. `apps/api/src` holds **256** candidate
+`this.prisma.<model>.<write>` call sites; only those reached from inside a unit of
+work can fail, which is why three of them surfaced and the rest did not. The
+systematic sweep of the remainder, and a gate for it, are follow-up work rather
+than a claim made here.
+
+### The Slice 0d decision trail
+
+- **Request-scoped binding through ONE extension, not two.** The design planned a
+  chained `$extends` (guard, then bind). Chaining works under the application's
+  resolver and breaks under the unit-test runner's: `vitest.shared.ts` maps
+  `@infra/prisma` to an entry whose `prisma` export is a no-op `Proxy` answering
+  every `$`-prefixed property with `async () => undefined`, so the first `$extends`
+  yields a Promise and the second call on it throws. The design's own named
+  fallback was taken — `tenantGuardWithGucBindingExtension`, guard-then-bind inside
+  a single hook. An earlier record blamed a module-instance split and proposed a
+  `tsconfig.base.json` remedy; that was refuted by direct execution, and the
+  withdrawn claim is kept beside its refutation rather than quietly deleted.
+- **A marker, and one helper, so a transaction owns its own connection.**
+  `runWithBoundGuc` marks a transaction as owning GUC adjudication and
+  `withGucBoundTransaction` is the single seam that opens one. Without the marker
+  an operation issued inside a transaction is re-wrapped onto a SECOND pooled
+  connection and commits through its caller's rollback — measured before the fix,
+  with a `Post` row surviving its own transaction's rollback.
+- **Drift is gated, not trusted.** Fitness **#40** is an allowlist in the shape of
+  #28: every `.$transaction(` in `apps/api/src` and `packages/adapters/db-prisma/src`
+  must be a `withGucBoundTransaction` call outside three named seams, and every
+  seam call must derive its scope from `getAmbientGucScope()`. Both parts shipped
+  with their red demonstrated on the installed copies.
+- **The residual, stated rather than implied.** #40 gates the transaction SEAM and
+  the scope EXPRESSION. It does not gate which CLIENT a repository method reaches
+  for, which is exactly the class this cutover exposed. Until that has a gate of
+  its own, the canon rule — repositories detect the active transaction — is held
+  by review.
+
+The flip itself is applied per environment by its owner: the env files by hand,
+`.github/workflows/ci.yml` under a sensitive-edit token. CI's readiness gate on the
+flipped channel is observable only in CI, and it is reported there rather than
+asserted here.
 
 ## Alternatives considered
 

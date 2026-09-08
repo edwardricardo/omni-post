@@ -14,11 +14,11 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { BulkScheduleReconciliationService } from "../../src/bulk-scheduling/BulkScheduleReconciliationService.js";
 import { makeStubQueue } from "./helpers/bulkScheduleHarness.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 const RECONCILE_TASK_ID = "bulk-schedule-reconciliation";
 
@@ -57,7 +57,7 @@ describe("BulkSchedule reconciliation sweep — integration", () => {
   let prisma: PrismaClient;
 
   before(() => {
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
   });
 
   after(async () => {

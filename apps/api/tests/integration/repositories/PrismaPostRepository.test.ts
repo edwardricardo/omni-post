@@ -10,10 +10,17 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { prisma } from "@infra/prisma";
 import { PrismaPostRepository } from "../../../src/infrastructure/repositories/PrismaPostRepository.js";
 import { PostAggregateMapper } from "../../../src/infrastructure/repositories/mappers/PostAggregateMapper.js";
 import { PostAggregate, PostId, ProjectId, PUBLISH_STATUS } from "@core/domain/index.js";
+import { createSeedPrismaClient } from "../helpers/seedPrismaClient.js";
+
+/**
+ * Fixture AND subject channel: the suite proves the repository's persistence shape. Its
+ * tenant behaviour is proved on the application role by `postReadOwnership` and
+ * `postDeleteOwnership` in the `integration:tenant-isolation` batch.
+ */
+const prisma = createSeedPrismaClient();
 
 describe("PrismaPostRepository", () => {
   let repository: PrismaPostRepository;

@@ -10,7 +10,6 @@ import { AuthService } from "../src/auth/authService.js";
 import { MfaService } from "../src/admin/auth/MfaService.js";
 import { PrismaAdminMfaUserRepository } from "../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js";
 import { PrismaCustomerMfaUserRepository } from "../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js";
-import { prisma } from "@infra/prisma";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";
 import { PrismaAdminSessionRepository } from "../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
 import { PrismaRoleRepository } from "../src/infrastructure/repositories/PrismaRoleRepository.js";
@@ -18,6 +17,13 @@ import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/Pri
 import { AccountLifecycleQueryService } from "../src/admin/accountLifecycleQueryService.js";
 import { AccountSessionService } from "../src/admin/AccountSessionService.js";
 import { PrismaUnitOfWork } from "../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.js";
+
+/**
+ * Fixture channel. The subject is the lifecycle API over HTTP; this client only plants the
+ * accounts it acts on and reads back what it did.
+ */
+const prisma = createSeedPrismaClient();
 
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const sessionRepo = new PrismaAdminSessionRepository(prisma);

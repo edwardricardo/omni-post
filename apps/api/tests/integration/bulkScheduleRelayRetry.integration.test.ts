@@ -12,7 +12,6 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { InMemoryEventDispatcher } from "@core/domain/index.js";
 import { ConfirmBulkScheduleUseCase } from "@core/bulk-scheduling/ConfirmBulkScheduleUseCase.js";
@@ -22,6 +21,7 @@ import { PrismaChannelRepository } from "../../src/infrastructure/repositories/P
 import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
 import { PrismaOutboxWriter } from "../../src/infrastructure/outbox/PrismaOutboxWriter.js";
 import { BulkScheduleDispatchEventHandler } from "../../src/bulk-scheduling/BulkScheduleDispatchEventHandler.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import {
   makeStubQueue,
   makeRelay,
@@ -40,7 +40,7 @@ describe("BulkSchedule relay retry on enqueue failure — integration", () => {
   const batchIds: string[] = [];
 
   before(async () => {
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
     tenant = await seedTenant(prisma, tag);
   });
 

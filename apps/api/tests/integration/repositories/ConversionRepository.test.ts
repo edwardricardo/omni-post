@@ -10,9 +10,15 @@
  */
 import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { prisma } from "@infra/prisma";
 import { PrismaConversionRepository } from "../../../src/infrastructure/repositories/PrismaConversionRepository.js";
 import type { ConversionRecordInput } from "@core/domain/repositories/ConversionRepository.js";
+import { createSeedPrismaClient } from "../helpers/seedPrismaClient.js";
+
+/**
+ * Fixture AND subject channel: the suite proves the INSERT itself — Decimal money, enum
+ * columns, the natural-key idempotency constraint — none of which is a tenant question.
+ */
+const prisma = createSeedPrismaClient();
 
 let accountId: string;
 let otherAccountId: string;

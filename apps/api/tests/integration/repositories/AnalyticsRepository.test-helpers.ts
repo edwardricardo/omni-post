@@ -3,7 +3,13 @@
  * @description Test helpers for analytics repository test helpers
  * @layer infrastructure
  */
-import { prisma } from "@infra/prisma";
+import { createSeedPrismaClient } from "../helpers/seedPrismaClient.js";
+
+/**
+ * Fixture channel shared by the three analytics suites, which prove query shape rather than
+ * row security.
+ */
+const prisma = createSeedPrismaClient();
 
 export let testAccountId: string;
 export let testProjectId: string;

@@ -37,7 +37,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { authenticator } from "otplib";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { checkApiAvailable, getBaseUrl } from "../testUtils.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
@@ -46,6 +45,7 @@ import { PrismaAdminMfaUserRepository } from "../../src/infrastructure/adapters/
 import { PrismaAuditLogRepository } from "../../src/infrastructure/repositories/PrismaAuditLogRepository.js";
 import { MfaService } from "../../src/admin/auth/MfaService.js";
 import { MFA_SUBJECT_TYPE } from "@ports/core";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 const API_URL = getBaseUrl();
 
@@ -105,7 +105,7 @@ describe("Customer MFA persistence + route correctness (integration)", () => {
       `API not reachable at ${API_URL} — start the dev environment with 'pnpm dev' before running this suite`
     );
 
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
     const tag = `mfa-customer-int-${Date.now()}`;
     const seededResetToken = `pending-reset-${tag}`;
 

@@ -6,7 +6,13 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { PrismaAnalyticsReadRepository } from "../../../src/infrastructure/repositories/PrismaAnalyticsReadRepository.js";
-import { prisma } from "@infra/prisma";
+import { createSeedPrismaClient } from "../helpers/seedPrismaClient.js";
+
+/**
+ * Fixture AND subject channel: the suite proves the analytics query shape, not row security.
+ * See `AccountQueryRepository.test.ts` for where the isolation proof lives.
+ */
+const prisma = createSeedPrismaClient();
 import {
   setupTestData,
   teardownTestData,

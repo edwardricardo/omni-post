@@ -12,7 +12,15 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { PrismaAccountQueryRepository } from "../../../src/infrastructure/repositories/PrismaAccountQueryRepository.js";
-import { prisma } from "@infra/prisma";
+import { createSeedPrismaClient } from "../helpers/seedPrismaClient.js";
+
+/**
+ * Fixture AND subject channel. The suite proves the read model's query shape — joins,
+ * case-normalised lookups, trial windows — not row security, and the repository under test is
+ * constructed from this same client. Isolation for these models is proved by the
+ * `integration:tenant-isolation` batch, on the application role, with the guard composed.
+ */
+const prisma = createSeedPrismaClient();
 
 // ========================================
 // TEST DATA SETUP & TEARDOWN

@@ -36,11 +36,11 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 import { authenticator } from "otplib";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { checkApiAvailable, getBaseUrl } from "../testUtils.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
 import { hashPassword } from "../../src/auth/passwordHashing.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 const API_URL = getBaseUrl();
 // A single, stable user-agent — the challenge token binds `uah = sha256(UA)` at
@@ -91,7 +91,7 @@ describe("Customer login MFA — full HTTP E2E (integration)", () => {
       `API not reachable at ${API_URL} — boot it with dev:test on port 3000 before running this suite`
     );
 
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
     const tag = `mfa-login-e2e-${Date.now()}`;
     const account = await prisma.account.create({
       data: { email: `${tag}@test.com`, name: "Customer Login MFA E2E Account" },

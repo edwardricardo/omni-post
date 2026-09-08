@@ -1,6 +1,6 @@
 # Apply progress — tenant-isolation-composite-fk
 
-**Batches so far**: PR 1 (Slice 0a) — complete and merged · PR 2 (Slice 0b) — 5 of 6 done, 5.4 prepared · PR 3 (Slice 0c) — 5 of 6 done, 6.5 blocked on a measured application defect · PR 0d-1a (Slice 0d, adoption first) — 11 of 11 done, gate green · PR 0d-1b (Slice 0d, the binding extension + the drift gate) — 12 of 12 done, fitness #40 prepared with both reds proven; the first gate review returned FAIL (3 CRITICAL / 4 WARNING / 3 SUGGESTION) and this record carries the single corrective pass that answers C1, C2, C3, W3 and W4 · PR 0d-2 (Slice 0d, the raw-singleton composition-root conversion) — 8 of 9 writer tasks done, 6c.7 measured as a NO-OP (the #38 ratchet did not fall, so nothing is prepared)
+**Batches so far**: PR 1 (Slice 0a) — complete and merged · PR 2 (Slice 0b) — 5 of 6 done, 5.4 prepared · PR 3 (Slice 0c) — 5 of 6 done, 6.5 blocked on a measured application defect · PR 0d-1a (Slice 0d, adoption first) — 11 of 11 done, gate green · PR 0d-1b (Slice 0d, the binding extension + the drift gate) — 12 of 12 done, fitness #40 prepared with both reds proven; the first gate review returned FAIL (3 CRITICAL / 4 WARNING / 3 SUGGESTION) and this record carries the single corrective pass that answers C1, C2, C3, W3 and W4 · PR 0d-2 (Slice 0d, the raw-singleton composition-root conversion) — 8 of 9 writer tasks done, 6c.7 measured as a NO-OP (the #38 ratchet did not fall, so nothing is prepared) · PR 0d-3 (Slice 0d, the harness sweep and the exit proof) — 8 of 10 done, the tier green on the application role (423/423 DB-only on both channels); 6d.5 is the owner's env-file flip and 6d.6 is the orchestrator's ci.yml flip, so 6d.7's third arm is CI's to observe
 **Mode**: Strict TDD
 **Branch**: `workstream/tenant-isolation`
 **Artifact store**: openspec
@@ -1584,3 +1584,430 @@ the non-bypassing role WITHOUT provisioning a credential, and the conversion-rev
 from the deviations is the shape 6d.1's tier-level red will surface at scale — the full tier on
 the app-role channel will name the seeds that fail closed, and it may name consumers the batch
 never exercised.
+
+---
+
+# PR 0d-3 (Slice 0d) — the harness sweep, the application defects the role exposed, and the exit proof
+
+**Status**: 8 of 10 writer-reachable tasks done. **6d.5 is the OWNER's** (the two env files,
+Edward by hand) and **6d.6 is the ORCHESTRATOR's** (`.github/workflows/ci.yml`, prepared here
+under `<scratchpad>/tif-0d3-prepared/`). **6d.7 is PARTIAL by construction** — two arms proven,
+the third lives in CI. No git ran; no gated path was touched.
+
+**What this link claims**: with `DATABASE_URL` pointed at the non-bypassing `omnipost_app`, the
+whole integration tier passes. Getting there took three kinds of work, and only the first was
+the one the task list predicted: the harness sweep (55 files), a scheduler/consumer scope
+binding the 0d-2 gate had flagged, and FOUR application defects that a superuser had been
+hiding.
+
+## Task ledger (PR 0d-3)
+
+| Task                                | State   | Evidence                                                                                                                                                           |
+| ----------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CF-1 dispatcher/consumer scope      | **[x]** | 9 ticks + 1 consumer bound; RED measured on a live app-role connection AND as a source scan that named all 9.                                                      |
+| 6d.1 tier-level RED                 | **[x]** | `420 tests · 248 pass · 11 fail · 161 cancelled`, exit 1. 54 × SQLSTATE 42501 on fixture INSERTs.                                                                  |
+| 6d.2 re-measure the harness surface | **[x]** | 30 files / 33 no-arg sites + 40 raw-singleton files; **55 unique in the node:test tier** once the vitest half is excluded by construction.                         |
+| 6d.3 mechanical conversions         | **[x]** | 27 files, 29 call sites.                                                                                                                                           |
+| 6d.4 judgement conversions          | **[x]** | 25 files, each with its own justification; 2 adjudicated OUT (their subject IS the role).                                                                          |
+| 6d.5 env-file flip                  | **[ ]** | **OWNER UNIT.** Not touched, not read.                                                                                                                             |
+| 6d.6 ci.yml flip                    | **[ ]** | **ORCHESTRATOR UNIT.** 6 hunks prepared against the current file, with verification.                                                                               |
+| 6d.7 exit proof                     | **[ ]** | **PARTIAL**: batch 185/185 both channels; tier 423/423 DB-only and 818/821 live, on an in-shell flipped channel. The env-file run and CI's gate are other owners'. |
+| 6d.8 ADR-0022 §Runtime cutover      | **[x]** | Blocked table kept as the red; landed table added with wall time; audit re-measured; decision trail written.                                                       |
+| 6d.9 owner-channel static assertion | **[x]** | Four greps; application-code consumers = 0, connection constructions outside the seed factory and the CLI = 0.                                                     |
+| 6d.10 0-defect gate                 | **[x]** | Counts below. One named exception (3 saga-live failures, reproduced on the owner channel).                                                                         |
+
+## The RED, and what it was actually about (6d.1)
+
+The task predicted "it fails on fail-closed seeds", and that is exactly what the class was:
+**54 occurrences of SQLSTATE 42501, `new row violates row-level security policy`**, on fixture
+INSERTs — `Project` 45, `Conversion` 6, `CustomerUser` 3. Nothing else. Five of nine batches
+went red and 161 tests were CANCELLED rather than failed, because a broken `before` hook takes
+its whole file with it.
+
+| Batch                          | Before the sweep                             | After     |
+| ------------------------------ | -------------------------------------------- | --------- |
+| `integration:repositories`     | 163 tests · 54 pass · 9 fail · 100 cancelled | 163 / 163 |
+| `integration:hard-delete-race` | 2 · 0 pass · 2 fail                          | 2 / 2     |
+| `integration:sync`             | 36 · 0 pass · 36 cancelled                   | 36 / 36   |
+| `integration:outbox`           | 7 · 1 pass · 6 cancelled                     | 7 / 7     |
+| `integration:saga-recovery`    | 19 · 0 pass · 19 cancelled                   | 19 / 19   |
+| `integration:tenant-isolation` | **182 / 182** — already green                | 185 / 185 |
+
+That last row is the point of the measurement: the batch 0d-1b and 0d-2 fixed was ALREADY green
+on this channel. The tier-level red is precisely the surface those links did not touch.
+
+## The sweep, and the split that made the number honest (6d.2-6d.4)
+
+Finding 9 recorded "~65 files: 45 no-arg `createTestPrismaClient` + ~20 raw-singleton". Both
+halves re-measured differently, and the difference is a distinction the snapshot did not make:
+
+| Surface                              | Files | In the node:test tier | Under vitest |
+| ------------------------------------ | ----- | --------------------- | ------------ |
+| no-arg `createTestPrismaClient()`    | 30    | 29                    | 1            |
+| raw `@infra/prisma` singleton import | 40    | 26                    | 14           |
+| **union (the sweep surface)**        | —     | **55 unique**         | 15           |
+
+**The vitest half is out of scope BY CONSTRUCTION, not by choice**: `vitest.shared.ts` maps
+`@infra/prisma` to an entry whose `prisma` export is a no-op Proxy, so those files never open a
+connection and the flip cannot reach them. Saying "65" without that split would have counted 15
+files the change cannot affect.
+
+Of the 55, **26 are named in a `run_batch` today and 29 are not** (fitness #30's unreached set).
+All 55 were converted: a file the sweep skips is a file the flip breaks on the day someone wires
+it, and the skip would be invisible until then.
+
+The mechanical set carries **no per-file comment**, deliberately. PR 3 decided the FACTORY NAME
+is the declaration (`createSeedPrismaClient` is greppable and says what it does); 27 copies of
+one sentence is the scope-note duplication the 0d-2 review already flagged. The judgement set
+carries one line each, and the lines differ because the decisions do: 18 are pure fixture
+channels, and 7 are fixture AND SUBJECT — the repository suites, where the client under test is
+also the seeder. Those seven say what the suite actually proves (a query shape) and name where
+the isolation proof lives instead (the `integration:tenant-isolation` batch, on the application
+role). Two files were adjudicated OUT and keep the application channel because their subject IS
+the role: `rls-tenant-isolation.test.ts` and `tenantGucTransactionBinding.test.ts`.
+
+**One conversion was wrong and the tier caught it.** `tests/mfa.test.ts` carries a stray import
+BELOW its first statement, so a declaration anchored to "after the last import" landed in the
+temporal dead zone of every repository built at module load —
+`ReferenceError: Cannot access 'prisma' before initialization`, which node:test reports as one
+anonymous whole-file failure. Fixed by hand, and a scan (`check-tdz.mjs`) added to the
+scratchpad so a future sweep does not repeat it. The lesson is small and general: "insert after
+the last import" is not the same instruction as "insert before the first use".
+
+## CF-1 — the dispatchers were dead jobs, and the flip was not going to be what killed them
+
+The 0d-2 gate flagged the unbound `trend-radar-dispatch` / `detect-repurpose-dispatch` ticks.
+Measured on a live app-role connection, running the tick's OWN read
+(`PrismaChannelQueryForIngestion.findActiveChannels(undefined)`) through the guarded client:
+
+```text
+connected as: omnipost_app
+UNBOUND tick read: TenantContextMissingError
+BOUND tick read:   OK — returned 22 rows
+```
+
+The throw never reaches an operator: `DispatchDetectTrendsUseCase.execute` catches it and
+returns `err(...)`, and the tick reports that through `logger.warn`. The job is dead, the
+process is healthy, and no test fails. **This pre-dates the flip** — the guard has been on the
+container's client since well before this change — so CF-1 repairs a live defect rather than one
+the cutover would have created.
+
+**Enumerated, then all bound.** The source scan written for it named every one:
+
+```text
+dlq-archival · data-retention-cleanup · auto-renewal · inbox-sync-dispatch ·
+mention-search-dispatch · mention-reconcile-dispatch · analytics-ingest-dispatch ·
+detect-repurpose-dispatch · trend-radar-dispatch          (9 of 9 unscoped)
+```
+
+All nine now run inside `withSystemContext("system:<task-id>")` — a sweep across every account
+is exactly what that declaration is for, and `RecurrenceScheduler` already used it for its own
+tick. The regression gate is `tests/unit/bootstrap/schedulerTickTenantScope.test.ts`: it reads
+`src/index.ts`, balances each registration over a sanitized copy, and requires a declared scope
+whose reason NAMES the tick — a reason pasted from the neighbouring tick fails, which a count
+would not catch. Its red was the 9-name list above; it is 4/4 green now.
+
+**One consumer joined them.** `processRepurposeDetectJob` receives `accountId` in its payload
+and bound nothing, while `DetectRepurposeCandidatesUseCase` creates a `repurposeProposal` — an
+enrolled model. Same one-line fix its two siblings got in 0d-2, with the same test shape and its
+red demonstrated. **`processRepurposeGenerateJob` is REPORTED, not fixed**: its payload carries
+only `{ proposalId }`, so binding needs either a producer-side payload change or a declared
+discovery bypass, and inventing one inside a sweep would be worse than naming it here.
+
+## What the role exposed — four application defects a superuser was hiding
+
+This is the part the task list did not predict, and it is the substance of the slice. Each was
+found by the tier, each was confirmed by an OWNER-CHANNEL CONTROL (same code, same suite, only
+the role differing), and each pre-dates the flip.
+
+**1-3. A repository statement issued on the BASE client while a unit of work is open.**
+`PrismaProjectRepository.save` (crisis routes, 5 failures), `PrismaCrisisProjectRepository.save`
+(the repository the route actually resolves — found because fixing the first one did not make
+the suite green), `PrismaTrackedLinkRepository.save` and `.delete` (link routes, 9 failures).
+
+The mechanism is the marker's one blind spot, and it is worth stating precisely: the marker
+means "the ambient transaction owns GUC adjudication, do not wrap", which is true only for
+operations that run ON that transaction's connection. A method that reaches for `this.prisma`
+instead of `PrismaUnitOfWork.getTransactionClient()` runs on a different connection, where the
+unit of work's `set_config('app.account_id', …, true)` was never issued and the per-operation
+binding has been told to stand down. Under a superuser that merely broke atomicity, silently —
+the architecture canon's unit-of-work rule violated with every test green. Under `omnipost_app`
+the policy refuses it outright.
+
+Measured, on the app-role channel:
+
+```text
+Invalid `this.prisma.project.upsert()` invocation in PrismaProjectRepository.ts:177:33
+Database error. Code: `42501`. Message: `new row violates row-level security policy for table "Project"`
+```
+
+The same `upsert` OUTSIDE a unit of work succeeds — which is what makes the class specific
+rather than "the app role cannot write".
+
+Repaired by resolving the client first, the way `delete()` in the same class already did. The
+tracked-link `delete` also moved its existence probe INSIDE the transaction: split across two
+connections a check-then-act can be true when the act runs, and on the app role the probe simply
+could not see the row it was about to delete (a 404 on a link that exists).
+
+**The CLASS is bigger than the three sites, and the size is measured**: `apps/api/src` holds
+**256** `this.prisma.<model>.<write>` call sites. Only those reached from inside a unit of work
+can fail, which is why three surfaced and the rest did not. Sweeping the remainder — and gating
+it, which #40 does not — is follow-up work, named here rather than quietly done at the end of a
+flip slice.
+
+**4. A nested `include` across a policy boundary.** `db-prisma`'s `getPostById` read
+`project: { select: { deletedAt, account: { deletedAt } } }` as an include on `Post`. `Post`
+carries no policy; `Project` does. Under the app role the parent came back NULL and the liveness
+classifier dereferenced it — `TypeError: Cannot read properties of null (reading 'deletedAt')`,
+which the publish worker turned into `DATABASE_ERROR` and retried until the saga timed out at
+120 s.
+
+This refutes 0d-2's scoping criterion in one measurement. That link scoped its db-prisma work by
+"does this read touch a table with a policy today", and `getPostById` reads `Post`, which does
+not. **The criterion has to include relations**: an unbound read of an unenrolled model that
+JOINS into a covered one fails just as closed, and it fails in a nastier way — a null where the
+type says there cannot be one.
+
+Repaired by splitting the parent chain into its own read, under a DECLARED `__system__` scope,
+projecting two `deletedAt` columns and nothing else, with the reason for both halves at the call
+site. The system scope is justified rather than assumed: this is the worker's repository, no
+request and no ambient tenant exist, the caller already authorized the job by post id, and the
+publish handler resolves the job's account only AFTER this read.
+
+## Controls — because "it fails under the app role" is a claim, not an observation
+
+Every failure was re-run on the owner channel with the same code before being attributed:
+
+| Suite                     | App role (before fixes) | Owner control (same code) | Verdict                                         |
+| ------------------------- | ----------------------- | ------------------------- | ----------------------------------------------- |
+| `crisisRoutes`            | 5 / 10                  | **10 / 10**               | the role. Repaired.                             |
+| `linkRoutes` + `security` | 14 / 23                 | (green in the tier)       | the role. Repaired.                             |
+| `mfa`                     | 0 / 1 (module error)    | —                         | MY sweep's TDZ bug. Repaired.                   |
+| `sagaCustomerFlow`        | 11 / 14                 | **11 / 14, same three**   | NOT the role, NOT the diff. Cause open — below. |
+
+The saga trio's cause was first recorded as a `PLATFORM_ENCRYPTION_KEY` mismatch between the
+suite's env file and the booted processes'. **That is REFUTED, and the correction is kept here
+beside it rather than quietly swapped.** The decrypt failure is real but universal and by
+fixture design: `sagaCustomerFlow.test.ts:146-148` and `:508-510` seed literal fixture strings
+(`credentialsCiphertext: "test-ciphertext"`, `credentialsIv: "test-iv"`,
+`credentialsAuthTag: "test-auth-tag"`), so `channelCredentialsCrypto.ts:88` throws
+`Decryption failed: invalid auth tag length` on `authTag.length !== 16` before the key decrypts
+anything. No key decrypts these. The error string is itself the proof that the key is not the
+variable: a wrong-length or absent key throws the DIFFERENT, named error from `decodeKey`
+(`:34-38`, "PLATFORM_ENCRYPTION_KEY must be 32 bytes …"), and a right-length wrong-VALUE key
+would fail later inside `decipher.final()`. Neither is what was observed.
+
+CI reproduces the identical signature and is GREEN: run `34167031322`, job `101880011422`, at
+HEAD `585a01bb`, carries **12** `Decryption failed: invalid auth tag length` and **12**
+`"error":"AUTH"` while reporting `integration:saga-live 14 tests · 14 pass · exit 0` and
+`TOTAL: 818 tests, 818 pass`. So "CI does not have it" was false.
+
+**What actually differs locally is UNDIAGNOSED and is recorded as such.** The question is not
+why the decrypt fails — it fails everywhere — but why these three sagas do not terminalize
+inside the suite's 120 s budget here while CI's do. The local failure mode is the timeout, not
+an assertion: `Saga … did not reach terminal state within 120000ms` at 120 188 ms / 120 168 ms /
+120 135 ms. The known precedent class is `docs/reports/SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §H3,
+which names **these exact three** subtests (3 `runs publish-now end-to-end through the worker
+pipeline`, 4 `reports a multi-channel publish …`, 14 `does NOT compensate steps at or after the
+pivot …`): with no consumer draining the publish queue the saga parks in `waiting` and its only
+remaining terminalizer is the 30-minute horizon, against a 120 s budget. That is a hypothesis
+here, not a finding — a worker WAS booted for these runs — and it is carried forward rather than
+asserted.
+
+The classification (not the role, not this diff) is what the controls DO establish, in two arms:
+
+| Arm | Setup                                                               | Result                    |
+| --- | ------------------------------------------------------------------- | ------------------------- |
+| A   | working-tree code, fresh stack, OWNER channel                       | 14 · 11 pass · **3 fail** |
+| B   | HEAD (`585a01bb`) content planted in all 6 changed src files, owner | 14 · 11 pass · **same 3** |
+
+Same three subtests both times, restored byte-exact after arm B. The failure is therefore
+independent of the role AND of the diff. An earlier control run against the long-lived dev
+server on :3000 was DISCARDED as contaminated: that process had been up for a day and predates
+this change's code, so it could not answer a question about it.
+
+**Carried forward (open question, named owner).** Either diagnose the local non-terminalization,
+or declare the hand-driven local live tier an unsupported measurement surface. The second exit
+is already designed: `SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §Fix 2 proposes a fail-loud consumer
+precondition (assert the publish queue has a live consumer) so a mis-wired environment fails in
+seconds with a named reason instead of burning six minutes and inviting a wrong diagnosis —
+which is exactly what it cost here.
+
+## The exit proof (6d.7) — two arms, measured
+
+| Measurement                                                      | Owner channel               | App-role channel            |
+| ---------------------------------------------------------------- | --------------------------- | --------------------------- |
+| `integration:tenant-isolation` batch (20 suites)                 | **185 / 185**, exit 0, 31 s | **185 / 185**, exit 0, 30 s |
+| `TIER=pr-integration` (DB-only, 9 batches)                       | **423 / 423**, exit 0       | **423 / 423**, exit 0       |
+| `TIER=full-integration` (live API + live workers on the channel) | —                           | **821 · 818 pass · 3 fail** |
+
+0 cancelled and 0 skipped everywhere. Wall time is the free empirical check ADR-0022 asks for on
+the cost of per-operation binding: 30 s vs 31 s, i.e. inside the noise, in the app role's favour
+if anything.
+
+The app-role stack was booted for the live arm — API and workers, both on the non-bypassing
+role, on a spare port so the developer's own server was never touched. It boots, serves
+`/health` 200, registers every consumer, and the workers' readiness surface reports a consumer
+on the publish queue. That is the closest a writer can get to CI's gate; the gate itself is
+6d.6's arm.
+
+## 0-defect gate (PR 0d-3) — exact counts
+
+| Check                                | Command                                         | Result                                                          |
+| ------------------------------------ | ----------------------------------------------- | --------------------------------------------------------------- |
+| TSC (workspace)                      | `pnpm typecheck` (turbo)                        | **169/169 tasks successful**, exit 0                            |
+| ESLint                               | `--max-warnings 0` over all 65 touched TS files | exit **0** — 0 errors, 0 warnings                               |
+| Prettier                             | `--check` over every touched file               | clean (2 files needed formatting and got it)                    |
+| Fitness #8 / #9 / #10                | grep per CLAUDE.md                              | **0 / 0 / 0**                                                   |
+| Fitness #15 / #16                    | grep per CLAUDE.md                              | **0 / 0**                                                       |
+| Fitness #21 / #23 / #32              | grep per CLAUDE.md                              | **0 / 0 / 0**                                                   |
+| Fitness #30 (ratchet 21)             | loop per CLAUDE.md                              | **21**, unchanged                                               |
+| Fitness #31 A / B                    | grep per CLAUDE.md                              | **0**; guards present (2 and 1)                                 |
+| Fitness #38                          | scan per CLAUDE.md                              | swept **0**; db-prisma **11**, back to baseline (read 12 first) |
+| Fitness #39                          | script per CLAUDE.md                            | **0**                                                           |
+| Fitness #40                          | both parts per CLAUDE.md                        | **partA=0, partB=0**                                            |
+| `prisma validate` / `migrate status` | Prisma CLI                                      | valid · 74 migrations, up to date                               |
+| INT — DB-only tier, both channels    | `TIER=pr-integration`                           | **423/423** each, 0 cancelled / 0 skipped, exit 0               |
+| INT — full tier, app role            | `TIER=full-integration` + live stack            | **821 · 818 pass · 3 fail**, 0 cancelled / 0 skipped            |
+| VITEST — full api unit tier          | `pnpm --filter @apps/api test`                  | **562 files · 8735/8735**, 0 skipped                            |
+| VITEST — db-prisma                   | `pnpm --filter @adapters/db-prisma test`        | **70/70**                                                       |
+| VITEST — workers                     | `pnpm --filter @apps/workers test`              | **125/125**                                                     |
+
+#38 is worth one sentence: the new liveness read went to **12** on first measurement, and that
+was the check working. The read must SEE soft-deleted parents — it is the classifier — so it
+took the sanctioned `DELIBERATE soft-delete-sweep exception` marker rather than a filter, and
+the ratchet returned to 11. A baseline is not something to raise because a new read is
+justified; the justification goes in the marker.
+
+The unit tier's 8730 → 8735 is five: four in the scheduler-scope scan and one for the repurpose
+consumer's binding.
+
+**The shared dev database, checked with `__system__` bound and a control count** (Finding 17's
+rule — as the app role with no scope, absence and invisibility read the same): every fixture
+prefix this link created is at **0** (`probe-save`, `probe-uow`, `uow-write`, `crtb`, `guc-tx`)
+against a live control of **341** accounts. It is NOT claimed as "left exactly as found",
+because that would be false: the LIVE-API batches create accounts through the API and their own
+suites do not delete them (`Production Test Account …`, `Demo Account`, `Enterprise Account`),
+which is pre-existing behaviour of running the full tier anywhere, CI included. The DB-only tier
+and every probe written here do clean up.
+
+## Routed findings from the 0d-2 review
+
+| Finding                                                       | Resolution                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dispatcher scope (`R4-consumer-scope-binding`)                | **Fixed** — CF-1 above, plus the source-scan gate.                                                                                                                                                                                                                                                                  |
+| Singleton-cache-key coupling (`compositionRootTenantBinding`) | **Fixed by verifying the coupling instead of removing it**: the pin writes `globalThis.prisma`, a key that belongs to `@infra/prisma`; the suite now asks the package's OWN exported `prisma` which role it is connected as, so a renamed key fails loudly here instead of leaving the pin inert.                   |
+| Brittle preHandler-name assertion (`oidcAdminRoutes`)         | **Fixed** — the third guard is identified by BEHAVIOUR (it is invoked with a path param and must bind that account), not by `Function.name`, which a rename or a wrapper changes while the guard still works, and which can keep matching after it stops binding.                                                   |
+| Unused spies (`subRepos.di.test.ts`)                          | **Fixed by giving the spy a claim**: `postMediaCreate` on the base client now asserts a NEGATIVE — media rows are written on the transaction, never on the base client. That is this slice's own defect class, pinned one layer down.                                                                               |
+| Comment/doc mismatches ×4                                     | **1 of 4 reached.** `index.ts` was touched by CF-1 and its scheduler block now documents the scope rule at the seam. `setupBrandKitUseCases`, `setupAssetUseCases` and `MentionRepository` were NOT touched by any task here, and the routing rule says not to open a file solely for a comment — they stay routed. |
+
+## Files written (PR 0d-3)
+
+| File                                                                        | Action | What                                                                                  |
+| --------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------- |
+| 27 `apps/api/tests/**` (mechanical)                                         | Modify | no-arg `createTestPrismaClient()` → `createSeedPrismaClient()`                        |
+| 25 `apps/api/tests/**` (judgement)                                          | Modify | raw singleton → a named channel with its one-line justification                       |
+| `apps/api/tests/unit/bootstrap/schedulerTickTenantScope.test.ts`            | Create | The source-scan gate for CF-1                                                         |
+| `apps/api/src/index.ts`                                                     | Modify | 9 scheduler ticks bound in `withSystemContext`, with the class documented at the seam |
+| `apps/api/src/ai/consumers/repurposeDetectHandler.ts` (+ its test)          | Modify | Binds the payload's account, red demonstrated                                         |
+| `apps/api/src/infrastructure/repositories/PrismaProjectRepository.ts`       | Modify | `save` resolves the unit of work's client                                             |
+| `apps/api/src/infrastructure/repositories/PrismaCrisisProjectRepository.ts` | Modify | Gains `getClient()`; `save` uses it                                                   |
+| `apps/api/src/infrastructure/repositories/PrismaTrackedLinkRepository.ts`   | Modify | Gains `getClient()`; `save` uses it; `delete`'s probe moves inside the transaction    |
+| `apps/api/tests/integration/tenantGucTransactionBinding.test.ts`            | Modify | The THIRD shape of the class: 3 cases on the app-role channel, red first              |
+| `apps/api/tests/unit/infrastructure/TrackedLinkRepository.test.ts`          | Modify | Updated to the probe-inside-the-transaction contract, with new claims                 |
+| `packages/adapters/db-prisma/src/PostRepository.ts`                         | Modify | Parent liveness read split out, `__system__` declared, marker for #38                 |
+| `packages/adapters/db-prisma/tests/postRepositoryLiveness.test.ts`          | Modify | Two-read shape; asserts the projection AND the declared scope                         |
+| `packages/adapters/db-prisma/tests/subRepos.di.test.ts`                     | Modify | The idle spy carries a negative claim now                                             |
+| `apps/api/tests/integration/compositionRootTenantBinding.test.ts`           | Modify | The singleton pin is VERIFIED through the package's own export                        |
+| `apps/api/tests/unit/admin/oidcAdminRoutes.test.ts`                         | Modify | The guard is identified by behaviour                                                  |
+| `docs/technical/ADR-0022-rls-enforcement-posture.md`                        | Modify | §Runtime cutover rewritten; audit re-measured; decision trail                         |
+| `docs/reports/roadmap-detected-smells-backlog.md`                           | Modify | `SMELL-90` — the 257-site base-client-write class gets a durable id                   |
+| `openspec/changes/.../tasks.md`, `apply-progress.md`                        | Modify | This record                                                                           |
+
+**Size**: 66 code files, **+967 / −199** — re-derived at branch tip, not carried over. The split
+is 65 tracked code files at +749 / −199 (`git diff --numstat HEAD -- . ':(exclude)*.md'`) plus
+the one untracked file, `apps/api/tests/unit/bootstrap/schedulerTickTenantScope.test.ts`, at 218
+lines. The count is deliberately CODE-only: the record files (this one, `tasks.md`, ADR-0022,
+the smells backlog) are excluded, because a total that includes them changes every time this
+paragraph is edited — which is how the previous figure went stale. An earlier `+885 / −236` was
+exactly that: the file count was right, the line counts were not. Over the
+forecast's ~300-340 for "the harness
+sweep", and the reason is stated rather than compressed: the forecast sized 6d.3/6d.4 only, and
+this link also carries CF-1 (10 sites + a new scan suite), four application repairs with their
+tests, and the two suites the routed findings asked for. Nothing was deleted to move the number.
+
+## Prepared for the orchestrator (PR 0d-3)
+
+`<scratchpad>/tif-0d3-prepared/APPLY_NOTES.md` — the 6d.6 ci.yml hunks (6 of them), the list of
+steps that must NOT move and why, and the exact post-apply verification.
+
+## Prepared for the owner (Edward)
+
+6d.5 only: `DATABASE_URL` → `omnipost_app` in the two env files, `MIGRATE_DATABASE_URL` keeping
+the owner channel. Neither file was read or written here. The app-role LOGIN password was re-set
+in-session through the sanctioned `pnpm db:app-role` to run the measurements (a password hash
+cannot be read back, so this is stated rather than hidden); nothing consumes the previous value,
+and the role's posture is unchanged: `rolcanlogin, rolsuper, rolbypassrls = t, f, f`.
+
+## Findings (PR 0d-3)
+
+**23. A marker that says "someone else owns this connection" is only true if the operation is on
+that connection.** The binding extension passes through when `isGucBound()` is set, on the
+assumption that the operation runs on the ambient transaction. A repository that reaches for the
+base client breaks that assumption from OUTSIDE the extension, which cannot detect it. The
+existing canon rule (repositories resolve the active transaction) is what holds the assumption
+up — and **257** call sites (re-measured; the earlier 256 was one short) currently rest on review
+rather than on a gate. **Routed as `SMELL-90`** in `docs/reports/roadmap-detected-smells-backlog.md`,
+with the measurement command, the four repaired sites and their controls, and a gate-first
+sequence. It carries a durable id because a class this size, named only inside a change record
+that gets archived, is a lost finding.
+
+**24. Scoping by "which tables have a policy" misses the relations.** 0d-2 excluded
+`getPostById` because `Post` has no policy. Its nested `include` reaches `Project`, which does,
+and the read fails in the worst available way: a NULL where the generated type says a value. The
+criterion must be "does this read touch a covered table, INCLUDING through a relation".
+
+**25. The three failures that were not ours were only knowable by control.** `sagaCustomerFlow`
+looked exactly like the other role-caused failures — a live suite, red on the app-role channel,
+green in the batch. The owner-channel control on the SAME code is what separated them, and the
+first control was itself contaminated by a day-old server process. A control has to be as fresh
+as the thing it controls.
+
+**26. "Insert after the last import" is not "insert before the first use".** One file in 55 had
+a stray import below its first statement, and the codemod's anchor put a `const` into the
+temporal dead zone of module-load code. The tier caught it as an anonymous whole-file failure —
+node:test cannot name a test inside a module that never evaluated.
+
+## Blockers (PR 0d-3)
+
+None for the writer. Two units are outstanding by ROLE:
+
+- **Owner (Edward)**: 6d.5, the env-file flip.
+- **Orchestrator (token)**: 6d.6, the ci.yml hunks, prepared and verified against the current
+  file.
+
+Both of 6d.7's remaining arms follow from those two, and neither is claimed here.
+
+## Next (PR 0d-3)
+
+PR 4 (Slice 1a) — the unrepeatable pre-migration `EXPLAIN` evidence and the Prisma shared-scalar
+spike. Four inputs carry forward from this link:
+
+1. **The base-client-write class** — 257 candidate sites, four repaired, **no gate yet**. Routed
+   as `SMELL-90` in `docs/reports/roadmap-detected-smells-backlog.md` with its measurement
+   command and a gate-first sequence (land a check that can fail, then sweep against it).
+2. **The relation-aware scoping criterion** (Finding 24) — "does this read touch a covered table,
+   INCLUDING through a relation". PR 5's task 11.3 needs it when `Post` becomes covered and
+   `db-prisma` is enrolled.
+3. **The undiagnosed local saga-live non-terminalization** (§Controls). Either diagnose why
+   these three sagas miss the 120 s budget locally when CI's do not, or declare the hand-driven
+   local live tier an unsupported measurement surface and implement
+   `SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §Fix 2's fail-loud consumer precondition. What is settled is
+   only the classification: arms A and B put it outside both the role and this diff.
+4. **The scheduler scan is narrower than the convention it enforces.** The new
+   `schedulerTickTenantScope.test.ts` reads `scheduler.register` call sites in
+   `apps/api/src/index.ts` and nothing else, so a tick registered anywhere else is unpinned.
+   One exists today: `RecurrenceScheduler.ts:82` binds `withSystemContext("recurrence-sweep")` —
+   scoped, but WITHOUT the `system:` prefix this link established, and with no scan that would
+   notice if it stopped binding at all. Widening the scan and normalizing that reason is a later
+   slice's work; it is named here so the gap is not rediscovered as a defect.

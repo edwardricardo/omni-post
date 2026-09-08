@@ -79,6 +79,13 @@ jobs:
       matrix:
         shard: [1, 2]
 
+    # The application role's login password, deterministic and non-production, hoisted to job
+    # scope so every step that needs the APP-ROLE connection string derives it from one value
+    # instead of restating a credential. `Enable app-role login` sets the same password on the
+    # role; the steps below connect with it.
+    env:
+      OMNIPOST_APP_DB_PASSWORD: approle123
+
     services:
       postgres:
         # pgvector-enabled image — the glossary/style-guide migrations CREATE
@@ -122,12 +129,16 @@ jobs:
           # env.ts loads `.env.test` when NODE_ENV=test; the tracked file was
           # removed for credential hygiene, so CI synthesizes it (deterministic
           # non-production secrets). DB/Redis are passed in, not hardcoded here.
-          export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
+          # The APPLICATION channel: the non-bypassing `omnipost_app` role, derived from the
+          # job-level password rather than restated. Everything that loads the synthesized
+          # .env.test — the API, the workers, and every suite that does not name a channel —
+          # therefore connects as the role row security is actually enforced against.
+          export DATABASE_URL="postgresql://omnipost_app:${OMNIPOST_APP_DB_PASSWORD}@localhost:5432/omnipostdb?schema=public"
           # The owner/migrate half of the URL split (ADR-0022). Written into
           # .env.test so the integration harness builds its fixtures through the
-          # named owner channel rather than through whatever DATABASE_URL
-          # happens to be. Same value here because this job has not cut the
-          # application channel over.
+          # named owner channel: seeding an RLS-covered table with no tenant bound
+          # is precisely what the policy refuses, for a fixture as readily as for
+          # an attacker.
           export MIGRATE_DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
           export REDIS_URL="redis://localhost:6379"
           bash scripts/ci-setup-test-env.sh
@@ -153,8 +164,9 @@ jobs:
       # password123 literal this workflow already uses.
       - name: Enable app-role login
         env:
+          # The owner channel: ALTER ROLE needs CREATEROLE or superuser, so this step keeps it
+          # even after the application steps below move to the role it is enabling.
           DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
-          OMNIPOST_APP_DB_PASSWORD: approle123
         run: bash scripts/db/enable-app-role-login.sh
 
       - name: Run API tests (shard, blob reporter)
@@ -300,6 +312,13 @@ jobs:
     # a wider budget only doubles the time it takes a hung run to go red.
     timeout-minutes: 15
 
+    # The application role's login password, deterministic and non-production, hoisted to job
+    # scope so every step that needs the APP-ROLE connection string derives it from one value
+    # instead of restating a credential. `Enable app-role login` sets the same password on the
+    # role; the steps below connect with it.
+    env:
+      OMNIPOST_APP_DB_PASSWORD: approle123
+
     services:
       postgres:
         # pgvector-enabled image — the glossary/style-guide migrations CREATE
@@ -343,12 +362,16 @@ jobs:
           # env.ts loads `.env.test` when NODE_ENV=test; the tracked file was
           # removed for credential hygiene, so CI synthesizes it (deterministic
           # non-production secrets). DB/Redis are passed in, not hardcoded here.
-          export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
+          # The APPLICATION channel: the non-bypassing `omnipost_app` role, derived from the
+          # job-level password rather than restated. Everything that loads the synthesized
+          # .env.test — the API, the workers, and every suite that does not name a channel —
+          # therefore connects as the role row security is actually enforced against.
+          export DATABASE_URL="postgresql://omnipost_app:${OMNIPOST_APP_DB_PASSWORD}@localhost:5432/omnipostdb?schema=public"
           # The owner/migrate half of the URL split (ADR-0022). Written into
           # .env.test so the integration harness builds its fixtures through the
-          # named owner channel rather than through whatever DATABASE_URL
-          # happens to be. Same value here because this job has not cut the
-          # application channel over.
+          # named owner channel: seeding an RLS-covered table with no tenant bound
+          # is precisely what the policy refuses, for a fixture as readily as for
+          # an attacker.
           export MIGRATE_DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
           export REDIS_URL="redis://localhost:6379"
           bash scripts/ci-setup-test-env.sh
@@ -373,8 +396,9 @@ jobs:
       # already connect.
       - name: Enable app-role login
         env:
+          # The owner channel: ALTER ROLE needs CREATEROLE or superuser, so this step keeps it
+          # even after the application steps below move to the role it is enabling.
           DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
-          OMNIPOST_APP_DB_PASSWORD: approle123
         run: bash scripts/db/enable-app-role-login.sh
 
       # Both tiers need the seeded baseline (roles/permissions and reference
@@ -411,7 +435,9 @@ jobs:
         env:
           NODE_ENV: test
           PORT: "3000"
-          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          # The API connects as the application role. Nothing else in this block changes: the
+          # shadow URL belongs to the Prisma CLI, which is not part of a running server.
+          DATABASE_URL: postgresql://omnipost_app:${{ env.OMNIPOST_APP_DB_PASSWORD }}@localhost:5432/omnipostdb?schema=public
           SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
           REDIS_URL: redis://localhost:6379
           # The full tier includes rate-limiting tests (Advanced Rate Limiting in
@@ -452,7 +478,9 @@ jobs:
       - name: Start workers in background
         env:
           NODE_ENV: test
-          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          # The workers connect as the application role, exactly as the API does: they run the
+          # same repositories and the same publish path.
+          DATABASE_URL: postgresql://omnipost_app:${{ env.OMNIPOST_APP_DB_PASSWORD }}@localhost:5432/omnipostdb?schema=public
           SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
           REDIS_URL: redis://localhost:6379
         run: |
@@ -494,11 +522,15 @@ jobs:
           # Explicit DB/Redis env so run-tests.sh never falls back to sourcing
           # the repo .env (dotenv files are not valid bash).
           NODE_ENV: test
-          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          # The APPLICATION channel. A suite that reaches for a client without naming a channel
+          # gets this one, which is the posture the tier is supposed to be proving.
+          DATABASE_URL: postgresql://omnipost_app:${{ env.OMNIPOST_APP_DB_PASSWORD }}@localhost:5432/omnipostdb?schema=public
           # The harness resolves its fixture connection from this key
           # (createSeedPrismaClient). run-tests.sh does not pass --env-file, so
           # the value has to reach the runner through this env block rather than
-          # through the synthesized .env.test.
+          # through the synthesized .env.test. It stays the OWNER: a fixture write
+          # into an RLS-covered table with no tenant bound is what the policy
+          # refuses, and the harness would report the cutover as a broken suite.
           MIGRATE_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
           SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
           REDIS_URL: redis://localhost:6379

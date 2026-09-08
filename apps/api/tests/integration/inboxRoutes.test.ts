@@ -21,10 +21,10 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { checkApiAvailable, getBaseUrl } from "../testUtils.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 const API_URL = getBaseUrl();
 
@@ -69,7 +69,7 @@ describe("Client inbox routes integration (triage exposure)", () => {
       `API not reachable at ${API_URL} — start the dev environment with 'pnpm dev' before running this suite`
     );
 
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
     const tag = `inbox-int-${Date.now()}`;
 
     const account = await prisma.account.create({

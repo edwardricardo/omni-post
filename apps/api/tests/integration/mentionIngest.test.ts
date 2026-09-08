@@ -10,8 +10,8 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 describe("Mention listening corpus integration (idempotency)", () => {
   let prisma: PrismaClient;
@@ -20,7 +20,7 @@ describe("Mention listening corpus integration (idempotency)", () => {
   const tag = `mention-int-${Date.now()}`;
 
   before(async () => {
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
     const account = await prisma.account.create({
       data: { email: `${tag}@test.com`, name: "Mention Integration Account" },
     });

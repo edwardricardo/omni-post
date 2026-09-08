@@ -15,7 +15,6 @@
 import { describe, it, after } from "node:test";
 import assert from "node:assert/strict";
 import { setupTest, TestContext } from "./setup.js";
-import { prisma } from "@infra/prisma";
 import { PublishHandler } from "../../../apps/workers/src/publishHandler.js";
 import {
   createMockProvider,
@@ -30,6 +29,13 @@ import type {
   PublishProvider,
 } from "../../../apps/workers/src/publishHandlerTypes.js";
 import type { CanonicalPost, Result } from "@shared/types";
+import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.js";
+
+/**
+ * Fixture channel. The subject is the publish path end to end; this client plants the post and
+ * channel it publishes and reads the PublishLog back.
+ */
+const prisma = createSeedPrismaClient();
 
 // ---------------------------------------------------------------------------
 // Helpers
