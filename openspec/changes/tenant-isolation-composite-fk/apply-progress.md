@@ -1988,6 +1988,40 @@ None for the writer. Two units are outstanding by ROLE:
 
 Both of 6d.7's remaining arms follow from those two, and neither is claimed here.
 
+## Exit proof (6d.7, all three arms — Slice 0d and Phase 0 CLOSED, 2026-09-08)
+
+After Edward's 6d.5 unit (both env files flipped, role password owner-provisioned via
+`pnpm db:app-role`) and the orchestrator's 6d.6 (ci.yml hunks, PR #227), the final arm ran on
+the live stack — API and workers booted dev-style so they load the SAME `.env` the integration
+runner loads, both connecting as `omnipost_app`:
+
+- **Full integration tier: 9557 / 9557 pass, 0 fail, 0 cancel, 0 skip, exit 0** — every live
+  batch green: `integration:routes` 33/33, `integration:flows` 69/69, `integration:saga-live`
+  **14/14**, `production` 81/81.
+- CI's worker readiness gate on the flipped channel: green in PR #227's Integration Tests run
+  (7m01s).
+- The stack was shut down cleanly after the proof (no zombie left on :3000/:3300).
+
+**Two false starts, owned (orchestrator errors, both instructive):**
+
+1. A hand-rolled batch invocation omitted the harness's `--test-force-exit`, so the child
+   process outlived its (all-green) tests on OTel/health timers and read as a 16-minute hang.
+   The sanctioned entry (`run-tests.sh`) carries the flag; invoking around the harness is how
+   a green run gets misread as a red one.
+2. A `NODE_ENV=test` (`dev:test`) boot produced **universal 401s** across every live batch:
+   the integration runner loads `../../.env` (95 keys) while test-mode boots load
+   `../../.env.test` (16 keys), so the runner signed JWTs against one secret set and the API
+   verified against another. CI never sees this class — `ci-setup-test-env.sh` synthesizes ONE
+   file for both sides. The local recipe that agrees is: boot API/workers WITHOUT
+   `NODE_ENV=test` (both sides then read `.env`), which is also what every historical local
+   live run did.
+
+**Evidence toward the undiagnosed saga-live carry-forward:** under env agreement the three
+previously non-terminalizing saga-live subtests passed 14/14. One green run is evidence, not a
+closed diagnosis — but it points the diagnosis at the same env-split class (a worker whose key
+set disagrees with the seeder's can never hand the engine a decryptable outcome), consistent
+with `SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §H3's parked-in-`waiting` signature.
+
 ## Next (PR 0d-3)
 
 PR 4 (Slice 1a) — the unrepeatable pre-migration `EXPLAIN` evidence and the Prisma shared-scalar
