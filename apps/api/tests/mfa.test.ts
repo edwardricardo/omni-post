@@ -8,13 +8,21 @@ import assert from "node:assert/strict";
 import { AuthService } from "../src/auth/authService.js";
 import { MfaService } from "../src/admin/auth/MfaService.js";
 import { MFA_SUBJECT_TYPE, type MfaSubject } from "@ports/core";
-import { prisma } from "@infra/prisma";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";
 import { PrismaRoleRepository } from "../src/infrastructure/repositories/PrismaRoleRepository.js";
 import { PrismaAdminSessionRepository } from "../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
 import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/PrismaAuditLogRepository.js";
 import { PrismaAdminMfaUserRepository } from "../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js";
 import { PrismaCustomerMfaUserRepository } from "../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js";
+import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.js";
+
+/**
+ * Fixture channel. The subject is the MFA API over HTTP; this client plants the enrolments and
+ * reads back what a verification consumed. Declared HERE, above the first use: this file carries
+ * a stray import further down, and a declaration anchored to it would sit in the temporal dead
+ * zone of every repository built at module load.
+ */
+const prisma = createSeedPrismaClient();
 
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const roleRepo = new PrismaRoleRepository(prisma);

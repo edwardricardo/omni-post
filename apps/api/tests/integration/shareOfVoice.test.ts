@@ -8,9 +8,9 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { PrismaMentionQueryRepository } from "../../src/infrastructure/repositories/PrismaMentionQueryRepository.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 describe("Share of Voice integration (read model over the corpus)", () => {
   let prisma: PrismaClient;
@@ -25,7 +25,7 @@ describe("Share of Voice integration (read model over the corpus)", () => {
   const now = new Date();
 
   before(async () => {
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
     repo = new PrismaMentionQueryRepository(prisma);
 
     const accountA = await prisma.account.create({

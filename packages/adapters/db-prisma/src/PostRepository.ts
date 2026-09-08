@@ -7,7 +7,10 @@
 import { ok, err, type Result, type CanonicalPost, type Media } from "@shared/types";
 import type { CreatePostInput, ListPostsQuery, PostsPage } from "@ports/core";
 import type { PrismaClient, MediaKind } from "@infra/prisma";
-import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
+import {
+  SYSTEM_TENANT_SCOPE,
+  withGucBoundTransaction,
+} from "@infra/prisma/extensions/tenantGuc.js";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:post");
@@ -37,7 +40,6 @@ export function createPostRepository(
               take: 1,
             },
             media: true,
-            project: { select: { deletedAt: true, account: { select: { deletedAt: true } } } },
           },
         });
 
@@ -45,13 +47,46 @@ export function createPostRepository(
           return err("NOT_FOUND");
         }
 
-        // The chain is live only when every link is. Dropping the `project`
-        // include above removes these properties from the row TYPE, so the
-        // classification cannot silently outlive its inputs.
+        // The parent chain is read SEPARATELY and under the SYSTEM scope, and both halves of
+        // that sentence are load-bearing.
+        //
+        // Separately, because `Project` carries a `tenant_isolation` policy while `Post` does
+        // not: as a nested `include` on the read above, the parent came back NULL for the
+        // non-bypassing application role and the liveness classification dereferenced it —
+        // measured as `TypeError: Cannot read properties of null (reading 'deletedAt')`, which
+        // the worker then reported as `DATABASE_ERROR` and retried until the saga timed out.
+        //
+        // Under the system scope, because this repository is the WORKER's, where no request
+        // and no ambient tenant exist, and the answer it needs is precisely whether a parent
+        // this post already names is still live. The projection is two boolean-shaped columns
+        // and nothing else — no tenant data crosses — and the caller has already authorized
+        // the job by post id. A tenant scope is not available here to narrow it further: the
+        // publish handler resolves the job's account only after this read.
+        //
+        // DELIBERATE soft-delete-sweep exception: this read is a two-column projection whose
+        // ONLY consumer is the liveness classification below, so the `deletedAt` values are the
+        // classifier's input rather than a filter's predicate. Unlike the post read above, this
+        // one draws no distinction a filter would erase: a soft-deleted parent and an absent
+        // one both return `SOFT_DELETED` (the `!parent` branch and the `chainIsLive` branch
+        // agree), so adding `deletedAt: null` here would be behaviourally identical TODAY. The
+        // marker records where the decision lives — in the classifier, not in the where clause
+        // — so the two cases can be told apart later without also revisiting the sweep. Nothing
+        // soft-deleted reaches a caller either way: every non-live chain ends in an error.
+        const parent = await withGucBoundTransaction(prisma, SYSTEM_TENANT_SCOPE, (tx) =>
+          tx.project.findUnique({
+            where: { id: post.projectId },
+            select: { deletedAt: true, account: { select: { deletedAt: true } } },
+          })
+        );
+
+        // A post whose project cannot be resolved at all is not a live chain either.
+        if (!parent) {
+          return err("SOFT_DELETED");
+        }
+
+        // The chain is live only when every link is.
         const chainIsLive =
-          post.deletedAt === null &&
-          post.project.deletedAt === null &&
-          post.project.account.deletedAt === null;
+          post.deletedAt === null && parent.deletedAt === null && parent.account.deletedAt === null;
         if (!chainIsLive) {
           return err("SOFT_DELETED");
         }

@@ -5,10 +5,14 @@
  * @layer infrastructure
  */
 
-import type { PrismaClient } from "@infra/prisma";
+import type { Prisma, PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import { Project, ProjectId, AccountId, EntityNotFoundError } from "@core/domain/index.js";
 import type { CrisisProjectRepository } from "@core/crisis/types.js";
+import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+
+/** The interactive-transaction client Prisma hands a `$transaction` callback. */
+type TxClient = Prisma.TransactionClient;
 
 /**
  * PrismaCrisisProjectRepository - Implements CrisisProjectRepository using Prisma
@@ -56,9 +60,21 @@ export class PrismaCrisisProjectRepository implements CrisisProjectRepository {
     );
   }
 
+  /**
+   * Resolve the client the CURRENT call must run on: the Unit of Work's transaction client when
+   * one is active in this async context, the injected base client otherwise. A write issued on
+   * the base client while a unit of work is open runs on a DIFFERENT connection — outside the
+   * caller's atomicity and outside the `app.account_id` the unit of work bound at tx start.
+   * Under a superuser that only broke atomicity, silently; under the application role the
+   * `tenant_isolation` policy hides the row from the UPDATE and the write fails outright.
+   */
+  private getClient(): PrismaClient | TxClient {
+    return PrismaUnitOfWork.getTransactionClient() ?? this.prisma;
+  }
+
   async save(project: Project): Promise<Result<void, Error>> {
     try {
-      await this.prisma.project.update({
+      await this.getClient().project.update({
         where: { id: project.id.value },
         data: {
           isInCrisisMode: project.isInCrisisMode,

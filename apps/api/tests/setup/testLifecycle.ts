@@ -9,9 +9,15 @@
  * @description Tests for test lifecycle
  * @layer infrastructure
  */
-import { prisma } from "@infra/prisma";
 import type { FastifyInstance } from "fastify";
 import type { Redis } from "ioredis";
+import { createSeedPrismaClient } from "../integration/helpers/seedPrismaClient.js";
+
+/**
+ * Fixture channel: the lifecycle manager creates and tears down the rows a suite registered,
+ * outside any request that could carry a tenant.
+ */
+const prisma = createSeedPrismaClient();
 
 export class TestLifecycleManager {
   private cleanupStack: Array<() => Promise<void>> = [];

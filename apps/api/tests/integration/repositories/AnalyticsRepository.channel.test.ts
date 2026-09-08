@@ -6,7 +6,12 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { PrismaAnalyticsReadRepository } from "../../../src/infrastructure/repositories/PrismaAnalyticsReadRepository.js";
-import { prisma } from "@infra/prisma";
+import { createSeedPrismaClient } from "../helpers/seedPrismaClient.js";
+
+/**
+ * Fixture AND subject channel: the suite proves `getLatestForPosts`, not row security.
+ */
+const prisma = createSeedPrismaClient();
 import {
   setupTestData,
   teardownTestData,

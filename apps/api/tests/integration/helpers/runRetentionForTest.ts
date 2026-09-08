@@ -10,11 +10,18 @@
  *
  * @layer infrastructure
  */
-import { prisma } from "@infra/prisma";
 import { DataRetentionService } from "@core/compliance/DataRetentionService.js";
 import { PrismaGdprSettingsRepository } from "../../../src/infrastructure/repositories/PrismaGdprSettingsRepository.js";
 import { PrismaAuditLogRetentionRepository } from "../../../src/infrastructure/repositories/PrismaAuditLogRetentionRepository.js";
 import { PrismaDsarRequestRepository } from "../../../src/infrastructure/repositories/PrismaDsarRequestRepository.js";
+import { createSeedPrismaClient } from "./seedPrismaClient.js";
+
+/**
+ * Fixture channel. This helper builds the retention service's Prisma adapters for a suite that
+ * verifies WHAT the sweep deletes; the sweep's own tenant posture is the application's, and it
+ * is proved by the tenant-isolation batch rather than here.
+ */
+const prisma = createSeedPrismaClient();
 import type {
   AuditEmitterPort,
   AuditEmitterInput,

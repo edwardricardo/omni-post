@@ -31,7 +31,6 @@ import { describe, it, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
-import { createTestPrismaClient } from "@infra/prisma";
 import { Container } from "../../src/infrastructure/container/Container.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { setupAccountUseCases } from "../../src/infrastructure/container/setupAccountUseCases.js";
@@ -43,11 +42,12 @@ import { withSystemContext } from "../../src/security/tenantContext.js";
 import { HardDeleteAccountUseCase } from "@core/accounts/index.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { toAdminActorId, type AdminActorId } from "@core/domain/value-objects/AdminActorId.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 /** The deleting connection. */
-let prisma: ReturnType<typeof createTestPrismaClient>;
+let prisma: ReturnType<typeof createSeedPrismaClient>;
 /** The racing connection — a genuinely separate client, not a second call on the same one. */
-let racer: ReturnType<typeof createTestPrismaClient>;
+let racer: ReturnType<typeof createSeedPrismaClient>;
 
 let accountId: string;
 let admin: AdminActorId;
@@ -126,8 +126,8 @@ async function raceAgainstAProjectInsert(
 
 describe("hard delete under a concurrent project insert (real DB, two connections)", () => {
   before(async () => {
-    prisma = createTestPrismaClient();
-    racer = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
+    racer = createSeedPrismaClient();
     const actor = toAdminActorId("hard-delete-race-suite");
     if (!actor.ok) throw new Error("test setup: invalid admin actor id");
     admin = actor.value;

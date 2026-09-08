@@ -46,7 +46,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import type { PrismaClient } from "@infra/prisma";
+import { prisma, type PrismaClient } from "@infra/prisma";
 import { tenantGuardWithGucBindingExtension } from "@infra/prisma/extensions/tenantGucBinding.js";
 import { TenantContextMissingError } from "@infra/prisma/extensions/tenantGuard.js";
 import type { BrandKitRepository } from "@core/domain/repositories/BrandKitRepository.js";
@@ -58,7 +58,7 @@ import {
   withTenantContext,
 } from "../../src/security/tenantContext.js";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
-import { assertAppRoleSession, createAppRoleClient } from "./helpers/appRoleClient.js";
+import { APP_ROLE, assertAppRoleSession, createAppRoleClient } from "./helpers/appRoleClient.js";
 
 /**
  * The lazy singleton's cache slot. `@infra/prisma` builds its client on first property access
@@ -93,6 +93,23 @@ describe("composition-root tenant binding", () => {
         "a raw-singleton consumer would read through whatever channel resolved it first"
     );
     singletonCache.prisma = appRoleClient;
+
+    // The pin above writes a cache key that belongs to `@infra/prisma`, not to this suite, and
+    // a key the package renames would leave the pin INERT while every assertion below still
+    // read as if it held. So the coupling is verified rather than trusted: the package's own
+    // exported `prisma` is asked, through its own Proxy, which role it is connected as. A
+    // rename turns this into a loud failure here instead of a silent one in the two cases that
+    // depend on it.
+    const pinned = await prisma.$queryRaw<Array<{ role: string }>>`
+      SELECT current_user::text AS role
+    `;
+    assert.equal(
+      pinned[0]?.role,
+      APP_ROLE,
+      "the raw `@infra/prisma` singleton did not resolve to the pinned app-role client: the " +
+        "cache key this suite writes is no longer the one the package memoises on, so the pin " +
+        "is inert and a revert to `import { prisma }` would read through some other channel"
+    );
 
     await seedClient.account.create({
       data: {

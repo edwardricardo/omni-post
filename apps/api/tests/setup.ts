@@ -7,9 +7,18 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
-import { prisma } from "@infra/prisma";
 import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
 import { createRedisConnection } from "../src/lib/redis.js";
+import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.js";
+
+/**
+ * Fixture AND subject channel for the shared publish-flow setup: it plants the account,
+ * project and channel a suite starts from, and it is also the client behind the repository
+ * adapter the flow then drives. The flow suites prove the publish path's behaviour, not the
+ * role it runs as; the role is proved on the application channel by the
+ * `integration:tenant-isolation` batch, `publishWorkerTenantIsolation.test.ts` included.
+ */
+const prisma = createSeedPrismaClient();
 
 // Load test environment variables
 const __filename = fileURLToPath(import.meta.url);

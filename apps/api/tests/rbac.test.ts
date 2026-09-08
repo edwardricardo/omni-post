@@ -11,11 +11,17 @@ import { PrismaAdminMfaUserRepository } from "../src/infrastructure/adapters/Pri
 import { PrismaCustomerMfaUserRepository } from "../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js";
 import { RbacService } from "../src/auth/rbacService.js";
 import { Permission } from "@core/domain/auth/Permission.js";
-import { prisma } from "@infra/prisma";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";
 import { PrismaRoleRepository } from "../src/infrastructure/repositories/PrismaRoleRepository.js";
 import { PrismaAdminSessionRepository } from "../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
 import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/PrismaAuditLogRepository.js";
+import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.js";
+
+/**
+ * Fixture channel. The subject is the RBAC API over HTTP; this client plants the roles and
+ * memberships it then exercises.
+ */
+const prisma = createSeedPrismaClient();
 
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const roleRepo = new PrismaRoleRepository(prisma);

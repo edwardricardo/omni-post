@@ -9,7 +9,6 @@ import { AuthService } from "../src/auth/authService.js";
 import { MfaService } from "../src/admin/auth/MfaService.js";
 import { PrismaAdminMfaUserRepository } from "../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js";
 import { PrismaCustomerMfaUserRepository } from "../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js";
-import { prisma } from "@infra/prisma";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";
 import { PrismaRoleRepository } from "../src/infrastructure/repositories/PrismaRoleRepository.js";
 import { PrismaAdminSessionRepository } from "../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
@@ -27,6 +26,13 @@ import { PrismaSubscriptionStatsQueryRepository } from "../src/infrastructure/re
 import { PrismaProjectQueryRepository } from "../src/infrastructure/repositories/PrismaProjectQueryRepository.js";
 import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/PrismaAuditLogRepository.js";
 import { AuditEmitterAdapter } from "../src/services/AuditEmitterAdapter.js";
+import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.js";
+
+/**
+ * Fixture channel. The subject is trial management over HTTP; this client plants the trial
+ * windows and reads back what the API changed.
+ */
+const prisma = createSeedPrismaClient();
 
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const roleRepo = new PrismaRoleRepository(prisma);

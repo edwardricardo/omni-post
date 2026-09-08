@@ -12,10 +12,10 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { PrismaBulkScheduleBatchRepository } from "../../src/infrastructure/repositories/PrismaBulkScheduleBatchRepository.js";
 import { PrismaBulkScheduleQueryRepository } from "../../src/infrastructure/repositories/PrismaBulkScheduleQueryRepository.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 describe("Bulk scheduling manifest integration", () => {
   let prisma: PrismaClient;
@@ -28,7 +28,7 @@ describe("Bulk scheduling manifest integration", () => {
   const batchIds: string[] = [];
 
   before(async () => {
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
     batchRepo = new PrismaBulkScheduleBatchRepository(prisma);
     queryRepo = new PrismaBulkScheduleQueryRepository(prisma);
 

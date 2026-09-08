@@ -219,6 +219,7 @@ function makeTrackedMockClient() {
       postFindUnique,
       postCount,
       postFindMany,
+      postMediaCreate,
       runTransaction,
       transactionExecuteRaw,
       channelFindMany,
@@ -316,6 +317,26 @@ describe("sub-repo DI contract — injected client threading", () => {
       await repo.listPosts({ limit: 10, offset: 0 });
       expect(spies.postCount).toHaveBeenCalledTimes(1);
       expect(spies.postFindMany).toHaveBeenCalledTimes(1);
+    });
+
+    it("createPost — writes the media rows on the TRANSACTION, never on the base client", async () => {
+      // The base client's `postMedia.create` spy used to be wired and never asserted, which made
+      // it decoration. It carries a real claim now, and it is the claim this workstream keeps
+      // finding the hard way: a write issued on the base client while a transaction is open runs
+      // on a second connection — outside the caller's atomicity, and outside the
+      // `app.account_id` that connection never bound.
+      const { client, spies } = makeTrackedMockClient();
+      const repo = createPostRepository(mockTransactionBreaker, client);
+
+      await repo.createPost({
+        projectId: "proj-1",
+        locale: "en",
+        body: "media goes inside the transaction",
+        media: [{ id: "media-1", url: "https://example.test/a.png", type: "image" }],
+      });
+
+      expect(spies.runTransaction).toHaveBeenCalledTimes(1);
+      expect(spies.postMediaCreate).toHaveBeenCalledTimes(0);
     });
   });
 

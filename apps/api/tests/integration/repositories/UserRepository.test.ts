@@ -24,7 +24,13 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { PrismaAdminUserRepository } from "../../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
 import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
-import { prisma } from "@infra/prisma";
+import { createSeedPrismaClient } from "../helpers/seedPrismaClient.js";
+
+/**
+ * Fixture AND subject channel: the suite proves the centralised user lookups, which are keyed
+ * by user identity rather than by tenant.
+ */
+const prisma = createSeedPrismaClient();
 
 // ========================================
 // TEST DATA SETUP & TEARDOWN

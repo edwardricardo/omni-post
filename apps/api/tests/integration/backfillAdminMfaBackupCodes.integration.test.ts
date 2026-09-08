@@ -37,8 +37,8 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 // The three named exports each receive an injected PrismaClient, so the suite
 // drives them against a test-owned client; the module's CLI `main()` runner is
 // guarded to run only on direct invocation, so importing here never connects.
@@ -73,7 +73,7 @@ describe("Admin MFA backup-code backfill (integration)", () => {
   let fixture: Fixture;
 
   before(async () => {
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
     const tag = `mfa-backfill-int-${Date.now()}`;
 
     const role = await prisma.role.upsert({

@@ -41,6 +41,10 @@ function makeMockPrisma() {
       deleteMany: vi.fn(async () => ({ count: 0 })),
     },
     trackedLink: {
+      // The existence probe moved INSIDE the transaction with the deletes it guards: a probe on
+      // the base client while a unit of work is open runs on a connection that unit of work
+      // never bound `app.account_id` on, and the row it is looking for is invisible there.
+      findUnique: vi.fn(async () => baseRow() as ReturnType<typeof baseRow> | null),
       update: vi.fn(async () => baseRow()),
       delete: vi.fn(async () => baseRow()),
     },
@@ -304,16 +308,22 @@ describe("PrismaTrackedLinkRepository", () => {
       expect(result.ok).toBeTruthy();
       // Used $transaction to cascade-delete clicks first
       expect(prisma.$transaction.mock.calls.length).toBe(1);
+      // …and the existence probe ran on the transaction's own client, not on the base one.
+      expect(prisma._txClient.trackedLink.findUnique.mock.calls.length).toBe(1);
+      expect(prisma.trackedLink.findUnique.mock.calls.length).toBe(0);
     });
 
     it("returns err(EntityNotFoundError) when link does not exist", async () => {
-      prisma.trackedLink.findUnique.mockImplementation(async () => null);
+      prisma._txClient.trackedLink.findUnique.mockImplementation(async () => null);
       const id = TrackedLinkId.fromStringUnsafe(LINK_ID);
       const result = await repo.delete(id);
 
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/TrackedLink/);
-      expect(prisma.$transaction.mock.calls.length).toBe(0);
+      // The transaction still OPENS — the probe lives inside it now — but it deletes nothing.
+      expect(prisma.$transaction.mock.calls.length).toBe(1);
+      expect(prisma._txClient.trackedLink.delete.mock.calls.length).toBe(0);
+      expect(prisma._txClient.linkClick.deleteMany.mock.calls.length).toBe(0);
     });
   });
 

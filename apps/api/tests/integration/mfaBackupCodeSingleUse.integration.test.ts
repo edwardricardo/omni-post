@@ -22,13 +22,13 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { authenticator } from "otplib";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { PrismaCustomerMfaUserRepository } from "../../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js";
 import { PrismaAdminMfaUserRepository } from "../../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js";
 import { PrismaAuditLogRepository } from "../../src/infrastructure/repositories/PrismaAuditLogRepository.js";
 import { MfaService } from "../../src/admin/auth/MfaService.js";
 import { MFA_SUBJECT_TYPE } from "@ports/core";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 interface Fixture {
   accountId: string;
@@ -41,7 +41,7 @@ describe("Backup-code single-use (integration)", () => {
   let customerRepo: PrismaCustomerMfaUserRepository;
 
   before(async () => {
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
     customerRepo = new PrismaCustomerMfaUserRepository(prisma);
 
     const tag = `mfa-backup-su-int-${Date.now()}`;

@@ -13,10 +13,10 @@
 
 import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { checkApiAvailable, getBaseUrl } from "../testUtils.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
+import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 const API_URL = getBaseUrl();
 
@@ -49,7 +49,7 @@ describe("Link Tracking Routes Integration", () => {
       return;
     }
 
-    prisma = createTestPrismaClient();
+    prisma = createSeedPrismaClient();
 
     // Create test account and project
     const account = await prisma.account.create({
