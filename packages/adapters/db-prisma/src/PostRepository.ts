@@ -134,10 +134,28 @@ export function createPostRepository(
         // when the port's own signature carries a scope.
         const result = await transactionBreaker.fire(() => {
           return withGucBoundTransaction(prisma, undefined, async (tx) => {
+            // The tenant of the new rows is READ from the project they are being
+            // filed under. This transaction is deliberately unbound (see above), so
+            // the guard injects nothing here — the parent row is the only source of
+            // a tenant, and a project that does not resolve gets no post at all
+            // rather than a post the database would have to refuse.
+            const project = await tx.project.findFirst({
+              where: { id: input.projectId, deletedAt: null },
+              select: { accountId: true },
+            });
+            if (!project) {
+              // Throw rather than return: this callback's value is the transaction
+              // result, so returning an error object here would COMMIT and hand the
+              // caller a shape it would then misread as a post.
+              throw new Error(`createPost: project ${input.projectId} does not exist`);
+            }
+            const { accountId } = project;
+
             // Create the main Post record
             const post = await tx.post.create({
               data: {
                 projectId: input.projectId,
+                accountId,
                 status: "DRAFT",
                 ...(input.scheduledAt ? { scheduledAt: input.scheduledAt } : {}),
               },
@@ -147,6 +165,7 @@ export function createPostRepository(
             const content = await tx.postContent.create({
               data: {
                 postId: post.id,
+                accountId: post.accountId,
                 locale: input.locale,
                 ...(input.title ? { title: input.title } : {}),
                 ...(input.summary ? { summary: input.summary } : {}),
@@ -163,6 +182,7 @@ export function createPostRepository(
                 const mediaRecord = await tx.postMedia.create({
                   data: {
                     postId: post.id,
+                    accountId: post.accountId,
                     url: media.url,
                     type: media.type.toUpperCase() as MediaKind,
                     ...(media.w ? { width: media.w } : {}),
@@ -302,10 +322,12 @@ export function createPostRepository(
           return err("NOT_FOUND");
         }
 
-        // Add media to post
+        // Add media to post — the tenant comes from the parent row just read, so
+        // the child cannot be filed anywhere its post is not.
         await prisma.postMedia.create({
           data: {
             postId,
+            accountId: post.accountId,
             url: media.url,
             type: media.type.toUpperCase() as MediaKind,
             ...(media.w ? { width: media.w } : {}),

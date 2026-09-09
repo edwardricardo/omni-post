@@ -88,7 +88,14 @@ export class SearchPostsQueryHandler implements QueryHandler<Query<unknown>, Pos
       const page = Math.floor(data.offset / data.limit) + 1;
       const pagination = { page, limit: data.limit };
 
+      // Fails closed, matching ListPostsQueryHandler: this CQRS bus is registered
+      // on no route and carries no authenticated principal, so the search runs
+      // inside an ephemeral account that owns nothing and returns an empty page
+      // rather than searching across tenants (CWE-639). Before this bus is mounted,
+      // a real caller account must be threaded through to here — the scope
+      // parameter is now what forces that to be a visible decision.
       const paginatedResult = await this.config.postQueryRepository.search(
+        { accountId: AccountId.generate().value },
         projectIdResult.value,
         data.searchTerm,
         pagination

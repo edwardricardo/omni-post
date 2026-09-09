@@ -150,9 +150,18 @@ export class TestDataFactory {
     projectId: string,
     overrides: Partial<Omit<Post, "id" | "projectId" | "createdAt" | "updatedAt">> = {}
   ): Promise<Post> {
+    // Tenant derived from the project this post is filed under. Callers pass a
+    // projectId and nothing else, so deriving here is what keeps every factory-made
+    // post consistent with the composite foreign key without every caller learning
+    // about the column.
+    const project = await prisma.project.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { accountId: true },
+    });
     const post = await prisma.post.create({
       data: {
         projectId,
+        accountId: project.accountId,
         status: "draft",
         ...overrides,
       },

@@ -112,6 +112,20 @@ export class CreatePostFromRecurrenceUseCase implements UseCase<
     }
 
     const doWork = async (): Promise<Result<CreatePostFromRecurrenceOutput, UseCaseError>> => {
+      // 0. The target project must resolve before anything is built. This path's
+      //    projectId is server-derived from the recurrence's own ownership chain
+      //    rather than caller-supplied, so this is not where a foreign id is
+      //    expected to arrive — it is where an unresolvable one stops being an
+      //    INTERNAL_ERROR raised at write time and becomes the not-found it is.
+      const projectOwner = await this.postRepository.findProjectOwnerAccountId(
+        projectIdResult.value
+      );
+      if (projectOwner === null) {
+        return err(
+          new UseCaseError(`Project not found: ${input.projectId}`, USE_CASE_ERRORS.NOT_FOUND)
+        );
+      }
+
       // 1. Load template
       const templateResult = await this.postRepository.findById(templateIdResult.value);
       if (!templateResult.ok) {

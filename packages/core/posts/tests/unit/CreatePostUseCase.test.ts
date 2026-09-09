@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import { ok } from "@shared/types";
 import { CreatePostUseCase } from "../../src/CreatePostUseCase.js";
 import type { PostRepository } from "@core/domain/index.js";
+import { AccountId } from "@core/domain/index.js";
 import type { EventDispatcher } from "@core/domain/events/DomainEvent.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
@@ -32,6 +33,9 @@ function makeMockRepo(): PostRepository {
     bulkUpdateStatus: vi.fn(),
     delete: vi.fn(),
     hardDelete: vi.fn(),
+    // Creation resolves the target project's tenant before building anything; a
+    // double answering null would NOT_FOUND every case in this file.
+    findProjectOwnerAccountId: vi.fn(async () => AccountId.fromStringUnsafe("acc-owner-fixture")),
   } as unknown as PostRepository;
 }
 

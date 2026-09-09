@@ -15,6 +15,7 @@ const prisma = createSeedPrismaClient();
 import {
   setupTestData,
   teardownTestData,
+  testAccountId,
   testPostIds,
   testProjectId,
 } from "./AnalyticsRepository.test-helpers.js";
@@ -72,6 +73,7 @@ describe("AnalyticsRepository - getLatestForPosts", () => {
     const postWithoutAnalytics = await prisma.post.create({
       data: {
         projectId: testProjectId,
+        accountId: testAccountId,
         status: "DRAFT",
         contents: {
           create: { locale: "en", body: "No analytics", revision: 1 },

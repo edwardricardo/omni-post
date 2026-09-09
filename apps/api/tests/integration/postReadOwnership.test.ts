@@ -38,9 +38,16 @@ const bearerFor = (accountId: string): string =>
  * given project and returns its id.
  */
 const seedPost = async (prisma: PrismaClient, projectId: string, body: string): Promise<string> => {
+  // Tenant read from the project, not taken as an argument — see the note in
+  // postDeleteOwnership.test.ts's seed helper.
+  const project = await prisma.project.findUniqueOrThrow({
+    where: { id: projectId },
+    select: { accountId: true },
+  });
   const post = await prisma.post.create({
     data: {
       projectId,
+      accountId: project.accountId,
       status: "DRAFT",
       contents: { create: { locale: "en", body, tags: [] } },
     },

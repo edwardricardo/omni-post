@@ -21,6 +21,8 @@ const PROJECT_ID = "b0000000-0000-4000-8000-000000000001";
 const ACCOUNT_ID = "d0000000-0000-4000-8000-000000000001";
 // Server-derived caller account threaded into the scoped read methods (CWE-639).
 const accountId = AccountId.fromStringUnsafe(ACCOUNT_ID);
+// The tenant scope every collection query now takes as its first argument.
+const scope = { accountId: ACCOUNT_ID };
 
 function baseRow() {
   return {
@@ -235,7 +237,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.findMany.mockImplementation(async () => [baseRow(), baseRow()]);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.listByProject(projectId, accountId, { page: 1, limit: 2 });
+      const result = await repo.listByProject(scope, projectId, { page: 1, limit: 2 });
 
       expect(result.items.length).toBe(2);
       expect(result.total).toBe(5);
@@ -250,7 +252,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.count.mockImplementation(async () => 1);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.listByProject(projectId, accountId);
+      await repo.listByProject(scope, projectId);
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as {
         skip: number;
@@ -264,7 +266,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.count.mockImplementation(async () => 0);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.listByProject(projectId, accountId, { page: 1, limit: 9999 });
+      await repo.listByProject(scope, projectId, { page: 1, limit: 9999 });
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as { take: number };
       expect(findManyArgs?.take).toBe(100);
@@ -275,8 +277,8 @@ describe("PrismaPostQueryRepository", () => {
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
       await repo.listByProject(
+        scope,
         projectId,
-        accountId,
         { page: 1, limit: 10 },
         { field: "scheduledAt", direction: "asc" }
       );
@@ -292,7 +294,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.findMany.mockImplementation(async () => [baseRow()]);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.listByProject(projectId, accountId, { page: 2, limit: 10 });
+      const result = await repo.listByProject(scope, projectId, { page: 2, limit: 10 });
 
       expect(result.hasNext).toBe(true);
       expect(result.hasPrevious).toBe(true);
@@ -304,7 +306,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.findMany.mockImplementation(async () => [baseRow()]);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.listByProject(projectId, accountId, { page: 1, limit: 10 });
+      const result = await repo.listByProject(scope, projectId, { page: 1, limit: 10 });
 
       expect(result.hasNext).toBe(false);
       expect(result.hasPrevious).toBe(false);
@@ -315,7 +317,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.count.mockImplementation(async () => 1);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.listByProject(projectId, accountId);
+      const result = await repo.listByProject(scope, projectId);
 
       expect(result.items.length).toBe(1);
       expect(result.items[0]?.id).toBe(POST_ID);
@@ -326,13 +328,17 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.count.mockImplementation(async () => 0);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.listByProject(projectId, accountId, { page: 1, limit: 10 });
+      await repo.listByProject(scope, projectId, { page: 1, limit: 10 });
 
+      // The tenant predicate moved from the RELATION (`project: { accountId }`)
+      // to Post's OWN column. Same claim, stronger mechanism: the composite
+      // foreign key makes the two values incapable of disagreeing, and the local
+      // column is what the new (accountId, projectId) index can serve.
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as {
-        where: { projectId: string; project?: { accountId?: string } };
+        where: { projectId: string; accountId?: string };
       };
       expect(findManyArgs?.where?.projectId).toBe(PROJECT_ID);
-      expect(findManyArgs?.where?.project?.accountId).toBe(ACCOUNT_ID);
+      expect(findManyArgs?.where?.accountId).toBe(ACCOUNT_ID);
     });
   });
 
@@ -343,7 +349,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.count.mockImplementation(async () => 1);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.search(projectId, "hello");
+      await repo.search(scope, projectId, "hello");
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as {
         where: {
@@ -375,7 +381,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.findMany.mockImplementation(async () => [baseRow(), baseRow()]);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.search(projectId, "world", { page: 1, limit: 10 });
+      const result = await repo.search(scope, projectId, "world", { page: 1, limit: 10 });
 
       expect(result.items.length).toBe(2);
       expect(result.total).toBe(2);
@@ -386,7 +392,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.findMany.mockImplementation(async () => []);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.search(projectId, "nonexistent");
+      const result = await repo.search(scope, projectId, "nonexistent");
 
       expect(result.items.length).toBe(0);
       expect(result.total).toBe(0);
@@ -403,7 +409,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.findMany.mockImplementation(async () => [scheduledRow()]);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const results = await repo.getUpcoming(projectId);
+      const results = await repo.getUpcoming(scope, projectId);
 
       expect(results.length).toBe(1);
       expect(results[0]?.status).toBe("SCHEDULED");
@@ -412,7 +418,7 @@ describe("PrismaPostQueryRepository", () => {
 
     it("queries with status=SCHEDULED and scheduledAt >= now", async () => {
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.getUpcoming(projectId);
+      await repo.getUpcoming(scope, projectId);
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as {
         where: {
@@ -428,7 +434,7 @@ describe("PrismaPostQueryRepository", () => {
 
     it("orders by scheduledAt ascending", async () => {
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.getUpcoming(projectId);
+      await repo.getUpcoming(scope, projectId);
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as {
         orderBy: { scheduledAt: string };
@@ -439,7 +445,7 @@ describe("PrismaPostQueryRepository", () => {
 
     it("respects the limit parameter", async () => {
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.getUpcoming(projectId, 5);
+      await repo.getUpcoming(scope, projectId, 5);
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as { take: number };
       expect(findManyArgs?.take).toBe(5);
@@ -447,7 +453,7 @@ describe("PrismaPostQueryRepository", () => {
 
     it("caps limit at MAX_LIMIT (100)", async () => {
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.getUpcoming(projectId, 9999);
+      await repo.getUpcoming(scope, projectId, 9999);
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as { take: number };
       expect(findManyArgs?.take).toBe(100);
@@ -461,7 +467,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.findMany.mockImplementation(async () => [publishedRow()]);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const results = await repo.getRecentlyPublished(projectId);
+      const results = await repo.getRecentlyPublished(scope, projectId);
 
       expect(results.length).toBe(1);
       expect(results[0]?.status).toBe("PUBLISHED");
@@ -470,7 +476,7 @@ describe("PrismaPostQueryRepository", () => {
 
     it("queries with status=PUBLISHED and publishedAt not null", async () => {
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.getRecentlyPublished(projectId);
+      await repo.getRecentlyPublished(scope, projectId);
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as {
         where: {
@@ -485,7 +491,7 @@ describe("PrismaPostQueryRepository", () => {
 
     it("orders by publishedAt descending", async () => {
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.getRecentlyPublished(projectId);
+      await repo.getRecentlyPublished(scope, projectId);
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as {
         orderBy: { publishedAt: string };
@@ -496,7 +502,7 @@ describe("PrismaPostQueryRepository", () => {
 
     it("respects the limit parameter", async () => {
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.getRecentlyPublished(projectId, 7);
+      await repo.getRecentlyPublished(scope, projectId, 7);
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as { take: number };
       expect(findManyArgs?.take).toBe(7);
@@ -504,7 +510,7 @@ describe("PrismaPostQueryRepository", () => {
 
     it("caps limit at MAX_LIMIT (100)", async () => {
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.getRecentlyPublished(projectId, 500);
+      await repo.getRecentlyPublished(scope, projectId, 500);
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as { take: number };
       expect(findManyArgs?.take).toBe(100);

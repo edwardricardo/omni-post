@@ -12,7 +12,13 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { PrismaPostRepository } from "../../../src/infrastructure/repositories/PrismaPostRepository.js";
 import { PostAggregateMapper } from "../../../src/infrastructure/repositories/mappers/PostAggregateMapper.js";
-import { PostAggregate, PostId, ProjectId, PUBLISH_STATUS } from "@core/domain/index.js";
+import {
+  PostAggregate,
+  PostId,
+  ProjectId,
+  PUBLISH_STATUS,
+  type TenantScope,
+} from "@core/domain/index.js";
 import { createSeedPrismaClient } from "../helpers/seedPrismaClient.js";
 
 /**
@@ -27,6 +33,17 @@ describe("PrismaPostRepository", () => {
   let testProjectId: string;
   let testAccountId: string;
   const createdPostIds: string[] = [];
+  /** Extra projects an individual arm seeds so it can assert an exact population. */
+  const extraProjectIds: string[] = [];
+  /** Extra accounts an individual arm seeds so it can assert across a tenant boundary. */
+  const extraAccountIds: string[] = [];
+
+  /**
+   * The tenant every collection read in this suite runs inside. The scope-first
+   * signatures take it positionally, so it is derived once from the fixture account
+   * the project belongs to rather than restated per call site.
+   */
+  const tenantScope = (): TenantScope => ({ accountId: testAccountId });
 
   before(async () => {
     repository = new PrismaPostRepository(prisma);
@@ -57,10 +74,11 @@ describe("PrismaPostRepository", () => {
   after(async () => {
     // Cleanup: Delete all posts for the test project (cascading related records first)
     // This covers posts tracked in createdPostIds AND any created by bulk operations
+    const projectIds = [testProjectId, ...extraProjectIds];
     try {
-      // Find all post IDs belonging to the test project
+      // Find all post IDs belonging to the test projects
       const projectPosts = await prisma.post.findMany({
-        where: { projectId: testProjectId },
+        where: { projectId: { in: projectIds } },
         select: { id: true },
       });
       const allPostIds = projectPosts.map((p) => p.id);
@@ -76,10 +94,12 @@ describe("PrismaPostRepository", () => {
       // Ignore cleanup failures
     }
 
-    // Delete test project and account
+    // Delete test projects and accounts
     try {
-      await prisma.project.deleteMany({ where: { id: testProjectId } });
-      await prisma.account.deleteMany({ where: { id: testAccountId } });
+      await prisma.project.deleteMany({ where: { id: { in: projectIds } } });
+      await prisma.account.deleteMany({
+        where: { id: { in: [testAccountId, ...extraAccountIds] } },
+      });
     } catch {
       // Ignore if already deleted
     }
@@ -242,8 +262,12 @@ describe("PrismaPostRepository", () => {
         }
       }
 
-      // Find with pagination
-      const result = await repository.findByProjectId(projectId, { page: 1, limit: 3 });
+      // Find with pagination. The tenant scope is FIRST and required: the fixture's
+      // project belongs to `testAccountId`, so that is the scope this read runs inside.
+      const result = await repository.findByProjectId(tenantScope(), projectId, {
+        page: 1,
+        limit: 3,
+      });
 
       assert.ok(result.items.length <= 3);
       assert.ok(result.total >= 5);
@@ -318,25 +342,147 @@ describe("PrismaPostRepository", () => {
   describe("countByProjectId", () => {
     it("should count posts for a project", async () => {
       const projectId = ProjectId.fromStringUnsafe(testProjectId);
-      const count = await repository.countByProjectId(projectId);
+      const count = await repository.countByProjectId(tenantScope(), projectId);
       assert.ok(typeof count === "number");
       assert.ok(count >= 0);
     });
   });
 
   describe("countByStatus", () => {
-    it("should count posts by status", async () => {
-      const projectId = ProjectId.fromStringUnsafe(testProjectId);
-      const count = await repository.countByStatus(projectId, PUBLISH_STATUS.DRAFT);
-      assert.ok(typeof count === "number");
-      assert.ok(count >= 0);
+    it("counts only the posts of the given project that carry the given status", async () => {
+      // A project of its own. The shared fixture project accumulates DRAFT posts from
+      // every arm above it, so a count taken there could only be asserted as a lower
+      // bound — and `count >= 0`, which is what this arm asserted before, is a number
+      // no implementation can fail. An exact count needs a population this arm owns.
+      const countProjectId = `test-project-count-${Date.now()}`;
+      extraProjectIds.push(countProjectId);
+      await prisma.project.create({
+        data: {
+          id: countProjectId,
+          name: `Count Project ${countProjectId}`,
+          accountId: testAccountId,
+          locale: "en",
+        },
+      });
+
+      const EXPECTED_DRAFTS = 3;
+      for (let i = 0; i < EXPECTED_DRAFTS; i++) {
+        await prisma.post.create({
+          data: {
+            projectId: countProjectId,
+            accountId: testAccountId,
+            status: PUBLISH_STATUS.DRAFT,
+          },
+        });
+      }
+
+      // Three discriminators, one per filter the count applies. Without them an
+      // implementation that dropped any single filter would still return 3.
+      await prisma.post.create({
+        data: {
+          projectId: countProjectId,
+          accountId: testAccountId,
+          status: PUBLISH_STATUS.SCHEDULED,
+          scheduledAt: new Date("2030-01-01T00:00:00Z"),
+        },
+      });
+      await prisma.post.create({
+        data: {
+          projectId: countProjectId,
+          accountId: testAccountId,
+          status: PUBLISH_STATUS.DRAFT,
+          deletedAt: new Date(),
+        },
+      });
+      await prisma.post.create({
+        data: {
+          projectId: testProjectId,
+          accountId: testAccountId,
+          status: PUBLISH_STATUS.DRAFT,
+        },
+      });
+
+      // The FOURTH discriminator, and the only one that can reach the scope
+      // argument. The three above are all rows of THIS tenant, so dropping
+      // `accountId: scope.accountId` from the implementation still returns 3 and the
+      // predicate reads as decorative — measured that way, and the composite FK is
+      // why it cannot be fixed by seeding alone: `Post.accountId` is functionally
+      // determined by `projectId`, so no row can ever match this project and carry a
+      // different tenant. What IS falsifiable is the scope the caller passes, which
+      // this suite can vary because its repository runs on the raw owner client, with
+      // no guard behind it to inject a tenant the argument forgot.
+      const otherAccountId = `test-account-other-${Date.now()}`;
+      const otherProjectId = `test-project-other-${Date.now()}`;
+      extraAccountIds.push(otherAccountId);
+      extraProjectIds.push(otherProjectId);
+      await prisma.account.create({
+        data: {
+          id: otherAccountId,
+          email: `test-repo-other-${otherAccountId}@example.com`,
+          name: "Other Tenant Account",
+        },
+      });
+      await prisma.project.create({
+        data: {
+          id: otherProjectId,
+          name: `Other Tenant Project ${otherProjectId}`,
+          accountId: otherAccountId,
+          locale: "en",
+        },
+      });
+      await prisma.post.create({
+        data: {
+          projectId: otherProjectId,
+          accountId: otherAccountId,
+          status: PUBLISH_STATUS.DRAFT,
+        },
+      });
+      const otherScope = (): TenantScope => ({ accountId: otherAccountId });
+
+      const count = await repository.countByStatus(
+        tenantScope(),
+        ProjectId.fromStringUnsafe(countProjectId),
+        PUBLISH_STATUS.DRAFT
+      );
+
+      assert.equal(
+        count,
+        EXPECTED_DRAFTS,
+        "the count must exclude the other status, the soft-deleted row, and the draft " +
+          "filed under a different project of the same tenant"
+      );
+
+      const foreignScopeCount = await repository.countByStatus(
+        otherScope(),
+        ProjectId.fromStringUnsafe(countProjectId),
+        PUBLISH_STATUS.DRAFT
+      );
+      assert.equal(
+        foreignScopeCount,
+        0,
+        "counting THIS project under ANOTHER tenant's scope must answer zero. Drop the " +
+          "`accountId` predicate and this returns 3 — the scope argument would then be " +
+          "accepted and ignored, which is worse than not taking one"
+      );
+
+      const otherOwnCount = await repository.countByStatus(
+        otherScope(),
+        ProjectId.fromStringUnsafe(otherProjectId),
+        PUBLISH_STATUS.DRAFT
+      );
+      assert.equal(
+        otherOwnCount,
+        1,
+        "the other tenant must still count its OWN draft; without this the zero above " +
+          "would also be satisfied by a tenant that simply has no data anywhere"
+      );
     });
   });
 
   describe("getProjectStats", () => {
     it("should return project statistics", async () => {
       const projectId = ProjectId.fromStringUnsafe(testProjectId);
-      const stats = await repository.getProjectStats(projectId);
+      const stats = await repository.getProjectStats(tenantScope(), projectId);
 
       assert.ok(typeof stats.total === "number");
       assert.ok(typeof stats.drafts === "number");

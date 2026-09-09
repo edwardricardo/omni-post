@@ -290,7 +290,9 @@ CONCURRENCY=1 run_batch "integration:tenant-isolation" \
   tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts \
   tests/integration/rls-tenant-isolation.test.ts \
   tests/integration/tenantGucTransactionBinding.test.ts \
-  tests/integration/compositionRootTenantBinding.test.ts
+  tests/integration/compositionRootTenantBinding.test.ts \
+  tests/integration/tenant-composite-fk.test.ts \
+  tests/integration/post-trio-tenant-isolation.test.ts
 
 # Saga recovery proofs. DB-only by dependency (Postgres + Redis; the crash suite
 # also owns a real BullMQ queue and worker), so they belong to the tier that

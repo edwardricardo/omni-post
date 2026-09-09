@@ -176,8 +176,8 @@ export class ListPostsQueryHandler implements QueryHandler<Query<unknown>, Posts
       // result) rather than leaking cross-tenant rows (CWE-639). A real caller
       // account must be threaded here before this bus is registered on any route.
       const paginatedResult = await this.config.postQueryRepository.listByProject(
+        { accountId: AccountId.generate().value },
         projectIdResult.value,
-        AccountId.generate(),
         pagination,
         sort
       );

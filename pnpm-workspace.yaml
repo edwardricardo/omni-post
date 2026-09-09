@@ -247,6 +247,12 @@ overrides:
   # matches, so raising only the value would have left an INERT override pinning
   # nothing while the audit stayed red.
   "sharp@<0.35.4": 0.35.4
+  # Added 2026-09-09 for GHSA-7w5x-hrqm-74c2 (high, DoS via malformed TOML,
+  # patched >=1.7.1). DEV-only chain: root knip > smol-toml — the dead-code
+  # gate's TOML parser, no production runtime path. Minimal patched 1.7.1, not
+  # the latest 1.8.0, per ADR-0018; range-scoped so only the vulnerable band
+  # is lifted.
+  "smol-toml@<1.7.1": 1.7.1
   "find-my-way@<9.6.1": 9.7.0 # minimal AVAILABLE patched version: the advisory names 9.6.1 but npm never published it (9.6.0 -> 9.7.0)
   "protobufjs@>=7.5.0 <7.6.5": 7.6.5
   "browserslist@<4.28.7": 4.28.7

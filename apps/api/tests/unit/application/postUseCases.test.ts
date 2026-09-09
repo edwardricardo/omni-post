@@ -60,6 +60,12 @@ function createMockPostRepository() {
     bulkUpdateStatus: vi.fn(),
     hardDelete: vi.fn(),
     findOwnerAccountId: vi.fn(async (_id: PostId): Promise<AccountId | null> => null),
+    // Resolves by default so the create path's project-ownership gate lets the
+    // aggregate through; the arms that exercise a FOREIGN project override it
+    // with null, which is the only answer that means "not yours or not there".
+    findProjectOwnerAccountId: vi.fn(async (_projectId: ProjectId): Promise<AccountId | null> =>
+      AccountId.fromStringUnsafe("acc-owner-fixture")
+    ),
   };
 }
 

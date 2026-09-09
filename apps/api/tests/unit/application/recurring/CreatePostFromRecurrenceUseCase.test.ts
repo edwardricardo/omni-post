@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok, err } from "@shared/types";
 import { CreatePostFromRecurrenceUseCase } from "@core/recurring/CreatePostFromRecurrenceUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import { PostAggregate, PostId, ProjectId } from "@core/domain/index.js";
+import { AccountId, PostAggregate, PostId, ProjectId } from "@core/domain/index.js";
 import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 vi.mock("../../../../src/metrics/businessMetrics.js", () => ({
@@ -58,6 +58,9 @@ function makeMockPostRepository(template?: PostAggregate) {
     bulkArchive: vi.fn(),
     bulkHardDelete: vi.fn(),
     hardDelete: vi.fn(),
+    // The recurrence create path resolves its target project before cloning the
+    // template; a double answering null would NOT_FOUND every sweep.
+    findProjectOwnerAccountId: vi.fn(async () => AccountId.fromStringUnsafe("acc-owner-fixture")),
   };
 }
 

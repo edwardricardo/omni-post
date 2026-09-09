@@ -60,7 +60,7 @@ export class PrismaApproveVariantAdapter implements ApproveVariantPort {
   }): Promise<string> {
     const project = await this.prisma.project.findFirst({
       where: { accountId: params.accountId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, accountId: true },
       orderBy: { createdAt: "asc" },
     });
 
@@ -68,17 +68,24 @@ export class PrismaApproveVariantAdapter implements ApproveVariantPort {
       throw new Error("No project found for account");
     }
 
+    // The tenant written onto the post is the one carried by the resolved project
+    // ROW, not the `params.accountId` the caller passed. The two agree here because
+    // the lookup filters on it, and taking it from the row anyway is what keeps
+    // "the tenant comes from the parent" true of the code rather than of the call.
     const post = await this.prisma.post.create({
       data: {
         projectId: project.id,
+        accountId: project.accountId,
         status: "DRAFT",
         ...(params.scheduleAt !== undefined && { scheduledAt: params.scheduleAt }),
       },
+      select: { id: true, accountId: true },
     });
 
     await this.prisma.postContent.create({
       data: {
         postId: post.id,
+        accountId: post.accountId,
         locale: "en",
         body: params.content,
       },

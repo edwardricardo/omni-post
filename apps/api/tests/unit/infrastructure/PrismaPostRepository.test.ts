@@ -31,6 +31,9 @@ const POST_ID = "c0000000-0000-4000-8000-000000000001";
 const PROJECT_ID = "b0000000-0000-4000-8000-000000000001";
 const POST_ID_2 = "c0000000-0000-4000-8000-000000000002";
 const ACCOUNT_ID = "a0000000-0000-4000-8000-000000000001";
+// The tenant scope every project-keyed collection/aggregate read now takes
+// as its first argument.
+const scope = { accountId: ACCOUNT_ID };
 
 function basePostRow() {
   return {
@@ -73,9 +76,15 @@ function basePostRow() {
 
 function makeTransactionMockClient() {
   return {
+    // The create path reads the target project INSIDE the transaction to derive
+    // the tenant it will write onto the post and its children. A double that
+    // answered null here would abort every create with "Project not found".
+    project: {
+      findFirst: vi.fn(async () => ({ accountId: ACCOUNT_ID })),
+    },
     post: {
       create: vi.fn(async () => ({})),
-      update: vi.fn(async () => ({})),
+      update: vi.fn(async () => ({ accountId: ACCOUNT_ID })),
       delete: vi.fn(async () => ({})),
     },
     postContent: {
@@ -376,6 +385,15 @@ describe("PrismaPostRepository", () => {
       const tx = prisma._txClient;
       expect(tx.post.create.mock.calls.length).toBe(1);
       expect(tx.postContent.create.mock.calls.length).toBe(1);
+
+      // The tenant written onto both rows is the one READ from the project, not
+      // anything the caller supplied — the aggregate carries no account at all.
+      const postArgs = tx.post.create.mock.calls[0]?.[0] as { data: { accountId?: string } };
+      const contentArgs = tx.postContent.create.mock.calls[0]?.[0] as {
+        data: { accountId?: string };
+      };
+      expect(postArgs?.data?.accountId).toBe(ACCOUNT_ID);
+      expect(contentArgs?.data?.accountId).toBe(ACCOUNT_ID);
     });
 
     it("returns err when $transaction throws during create", async () => {
@@ -440,7 +458,7 @@ describe("PrismaPostRepository", () => {
   describe("findByProjectId", () => {
     it("returns paginated result with correct structure", async () => {
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.findByProjectId(projectId);
+      const result = await repo.findByProjectId(scope, projectId);
 
       expect(result.items.length).toBe(1);
       expect(result.total).toBe(1);
@@ -460,7 +478,7 @@ describe("PrismaPostRepository", () => {
       prisma.post.count.mockImplementation(async () => 10);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.findByProjectId(projectId, { page: 2, limit: 2 });
+      const result = await repo.findByProjectId(scope, projectId, { page: 2, limit: 2 });
 
       expect(result.page).toBe(2);
       expect(result.limit).toBe(2);
@@ -478,7 +496,7 @@ describe("PrismaPostRepository", () => {
 
     it("filters by projectId and deletedAt: null", async () => {
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.findByProjectId(projectId);
+      await repo.findByProjectId(scope, projectId);
 
       const callRecord = prisma.post.findMany.mock.calls[0];
       const args = callRecord?.[0] as { where: Record<string, unknown> } | undefined;
@@ -488,7 +506,10 @@ describe("PrismaPostRepository", () => {
 
     it("applies sort parameter correctly", async () => {
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.findByProjectId(projectId, undefined, { field: "scheduledAt", direction: "asc" });
+      await repo.findByProjectId(scope, projectId, undefined, {
+        field: "scheduledAt",
+        direction: "asc",
+      });
 
       const callRecord = prisma.post.findMany.mock.calls[0];
       const args = callRecord?.[0] as { orderBy: Record<string, unknown> } | undefined;
@@ -671,7 +692,7 @@ describe("PrismaPostRepository", () => {
     it("returns count of non-deleted posts for a project", async () => {
       prisma.post.count.mockImplementation(async () => 7);
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const count = await repo.countByProjectId(projectId);
+      const count = await repo.countByProjectId(scope, projectId);
 
       expect(count).toBe(7);
       const callRecord = prisma.post.count.mock.calls[0];
@@ -687,7 +708,7 @@ describe("PrismaPostRepository", () => {
     it("returns 0 when project has no posts", async () => {
       prisma.post.count.mockImplementation(async () => 0);
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const count = await repo.countByProjectId(projectId);
+      const count = await repo.countByProjectId(scope, projectId);
       expect(count).toBe(0);
     });
   });
@@ -698,7 +719,7 @@ describe("PrismaPostRepository", () => {
     it("counts posts for a specific project and status", async () => {
       prisma.post.count.mockImplementation(async () => 3);
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const count = await repo.countByStatus(projectId, PUBLISH_STATUS.DRAFT);
+      const count = await repo.countByStatus(scope, projectId, PUBLISH_STATUS.DRAFT);
 
       expect(count).toBe(3);
       const callRecord = prisma.post.count.mock.calls[0];
@@ -715,7 +736,7 @@ describe("PrismaPostRepository", () => {
     it("returns 0 when no posts match status", async () => {
       prisma.post.count.mockImplementation(async () => 0);
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const count = await repo.countByStatus(projectId, PUBLISH_STATUS.PUBLISHED);
+      const count = await repo.countByStatus(scope, projectId, PUBLISH_STATUS.PUBLISHED);
       expect(count).toBe(0);
     });
   });
@@ -730,7 +751,7 @@ describe("PrismaPostRepository", () => {
       prisma.post.count.mockImplementation(async () => counts[callCount++] ?? 0);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const stats = await repo.getProjectStats(projectId);
+      const stats = await repo.getProjectStats(scope, projectId);
 
       expect(stats.total).toBe(10);
       expect(stats.drafts).toBe(5);
@@ -742,7 +763,7 @@ describe("PrismaPostRepository", () => {
     it("makes 5 count queries (total + 4 statuses)", async () => {
       prisma.post.count.mockImplementation(async () => 0);
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.getProjectStats(projectId);
+      await repo.getProjectStats(scope, projectId);
 
       expect(prisma.post.count.mock.calls.length).toBe(5);
     });
@@ -750,7 +771,7 @@ describe("PrismaPostRepository", () => {
     it("all queries include deletedAt: null and projectId filters", async () => {
       prisma.post.count.mockImplementation(async () => 0);
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.getProjectStats(projectId);
+      await repo.getProjectStats(scope, projectId);
 
       for (const call of prisma.post.count.mock.calls) {
         const args = call?.[0] as { where: { projectId: string; deletedAt: unknown } } | undefined;

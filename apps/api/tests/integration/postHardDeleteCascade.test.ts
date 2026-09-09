@@ -67,15 +67,22 @@ async function seedFixture(): Promise<void> {
   });
   channelId = channel.id;
 
-  const post = await prisma.post.create({ data: { projectId } });
+  const post = await prisma.post.create({ data: { projectId, accountId } });
   postId = post.id;
 
-  // CASCADE children — must be gone after the delete.
+  // CASCADE children — must be gone after the delete. Each carries the parent's
+  // tenant: the composite foreign key refuses any other value, so these are not
+  // decorative arguments.
   await prisma.postContent.create({
-    data: { postId, locale: "en", body: "cascade body", tags: [] },
+    data: { postId, accountId: post.accountId, locale: "en", body: "cascade body", tags: [] },
   });
   await prisma.postMedia.create({
-    data: { postId, url: "https://example.test/cascade.png", type: "image" },
+    data: {
+      postId,
+      accountId: post.accountId,
+      url: "https://example.test/cascade.png",
+      type: "image",
+    },
   });
   await prisma.repurposeProposal.create({
     data: {

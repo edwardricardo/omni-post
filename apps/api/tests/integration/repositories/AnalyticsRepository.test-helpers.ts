@@ -68,6 +68,7 @@ export async function setupTestData() {
     const post = await prisma.post.create({
       data: {
         projectId: testProjectId,
+        accountId: testAccountId,
         status: "PUBLISHED",
         publishedAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
         contents: {

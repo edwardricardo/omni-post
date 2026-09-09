@@ -81,7 +81,9 @@ describe("Campaign — two-tenant isolation (MERGE-BLOCKING)", () => {
     const campaign = await base.campaign.create({
       data: { accountId: account.id, projectId: project.id, name: `${TAG}-${name}-campaign` },
     });
-    const post = await base.post.create({ data: { projectId: project.id } });
+    const post = await base.post.create({
+      data: { projectId: project.id, accountId: account.id },
+    });
     // Tag the post with the campaign — this is the join row A must NOT be able
     // to delete.
     await base.campaignPost.create({ data: { campaignId: campaign.id, postId: post.id } });

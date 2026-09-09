@@ -173,6 +173,7 @@ export * from "./repositories/AIServicePort.js";
 export * from "./events/PostEvents.js";
 export * from "./aggregates/PostAggregate.js";
 export * from "./repositories/PostRepository.js";
+export * from "./repositories/TenantScope.js";
 
 // Inbox: social message/conversation value objects, entities, aggregate, ports
 export * from "./value-objects/SocialConversationId.js";

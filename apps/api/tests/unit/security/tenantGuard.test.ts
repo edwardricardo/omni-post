@@ -213,20 +213,16 @@ describe("tenantGuardExtension", () => {
       expect(calledArgs.where.accountId).toBe("acc-A");
     });
 
-    it("bypasses transitively-scoped models like Post (not in direct list)", async () => {
-      const queryFn = vi.fn().mockResolvedValue([]);
-      const provider = makeProvider({
-        getTenantContext: () => ({ accountId: "acc-A" }),
-      });
-      await callGuard({
-        provider,
-        model: "Post",
-        operation: "findMany",
-        args: { where: { accountId: "acc-B" } },
-        query: queryFn,
-      });
-      expect(queryFn).toHaveBeenCalledWith({ where: { accountId: "acc-B" } });
-    });
+    // A test named "bypasses transitively-scoped models like Post (not in direct
+    // list)" used to stand here and pass. It asserted that a tenant-A-bound
+    // `Post.findMany({ where: { accountId: "acc-B" } })` reached the database
+    // UNTOUCHED — a cross-tenant read, pinned as correct behaviour because Post
+    // had no tenant column of its own to guard. Post now carries `accountId`, so
+    // the premise is gone and the assertion is inverted rather than deleted: its
+    // exact inputs now appear in the trio enrollment block as "throws
+    // TenantContextMismatchError when a Post where.accountId disagrees with
+    // context". This note stands where the old rule did so a reader who
+    // remembers it learns why it reversed instead of assuming a regression.
 
     it("throws TenantContextMismatchError on direct tenant table", async () => {
       const provider = makeProvider({
@@ -926,9 +922,365 @@ describe("tenantGuardExtension", () => {
     });
   });
 
+  // The Post / PostContent / PostMedia enrollment. Written before the guard
+  // list names them, so every assertion here is red until the three models are
+  // appended to TENANT_SCOPED_MODELS. Until then `tenantGuardCheck` returns
+  // early on the membership test and the query runs unguarded — which is the
+  // defect these tests describe.
+  describe("post trio enrollment", () => {
+    it("post is a member of getTenantScopedModels()", () => {
+      expect(getTenantScopedModels().has("post")).toBe(true);
+    });
+
+    it("postContent is a member of getTenantScopedModels()", () => {
+      expect(getTenantScopedModels().has("postContent")).toBe(true);
+    });
+
+    it("postMedia is a member of getTenantScopedModels()", () => {
+      expect(getTenantScopedModels().has("postMedia")).toBe(true);
+    });
+
+    it("injects accountId into where on Post findMany (list by projectId)", async () => {
+      const queryFn = vi.fn().mockResolvedValue([]);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Post",
+        operation: "findMany",
+        args: { where: { projectId: "proj-B" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; projectId: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.projectId).toBe("proj-B");
+    });
+
+    it("injects accountId into where on Post findUnique (get by id)", async () => {
+      const queryFn = vi.fn().mockResolvedValue(null);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Post",
+        operation: "findUnique",
+        args: { where: { id: "post-1" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("post-1");
+    });
+
+    it("injects accountId into where on Post update", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Post",
+        operation: "update",
+        args: { where: { id: "post-1" }, data: { status: "SCHEDULED" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("post-1");
+    });
+
+    it("injects accountId into where on Post delete", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Post",
+        operation: "delete",
+        args: { where: { id: "post-1" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("post-1");
+    });
+
+    it("injects accountId into Post create data", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Post",
+        operation: "create",
+        args: { data: { id: "post-1", projectId: "proj-1", status: "DRAFT" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as { data: { accountId: string } };
+      expect(calledArgs.data.accountId).toBe("acc-A");
+    });
+
+    it("throws TenantContextMismatchError when Post create.accountId disagrees with context", async () => {
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await expect(
+        callGuard({
+          provider,
+          model: "Post",
+          operation: "create",
+          args: { data: { id: "post-1", accountId: "acc-B", projectId: "proj-1" } },
+        })
+      ).rejects.toThrow(TenantContextMismatchError);
+    });
+
+    it("throws TenantContextMismatchError when a Post where.accountId disagrees with context", async () => {
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await expect(
+        callGuard({
+          provider,
+          model: "Post",
+          operation: "findMany",
+          args: { where: { accountId: "acc-B" } },
+        })
+      ).rejects.toThrow(TenantContextMismatchError);
+    });
+
+    it("throws TenantContextMissingError on Post findFirst when no context is bound", async () => {
+      await expect(
+        callGuard({
+          provider: makeProvider(),
+          model: "Post",
+          operation: "findFirst",
+          args: { where: { id: "post-1" } },
+        })
+      ).rejects.toThrow(TenantContextMissingError);
+    });
+
+    it("injects accountId into where on PostContent findMany (direct child read)", async () => {
+      const queryFn = vi.fn().mockResolvedValue([]);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "PostContent",
+        operation: "findMany",
+        args: { where: { postId: "post-B" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; postId: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.postId).toBe("post-B");
+    });
+
+    it("injects accountId into where on PostContent update", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "PostContent",
+        operation: "update",
+        args: { where: { id: "pc-1" }, data: { body: "edited" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("pc-1");
+    });
+
+    it("injects accountId into where on PostContent delete", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "PostContent",
+        operation: "delete",
+        args: { where: { id: "pc-1" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("pc-1");
+    });
+
+    it("injects accountId into PostContent create data", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "PostContent",
+        operation: "create",
+        args: { data: { id: "pc-1", postId: "post-1", locale: "en", body: "hello" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as { data: { accountId: string } };
+      expect(calledArgs.data.accountId).toBe("acc-A");
+    });
+
+    it("throws TenantContextMismatchError when PostContent create.accountId disagrees with context", async () => {
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await expect(
+        callGuard({
+          provider,
+          model: "PostContent",
+          operation: "create",
+          args: {
+            data: { id: "pc-1", accountId: "acc-B", postId: "post-1", locale: "en", body: "x" },
+          },
+        })
+      ).rejects.toThrow(TenantContextMismatchError);
+    });
+
+    it("throws TenantContextMissingError on PostContent findMany when no context is bound", async () => {
+      await expect(
+        callGuard({
+          provider: makeProvider(),
+          model: "PostContent",
+          operation: "findMany",
+          args: { where: { postId: "post-1" } },
+        })
+      ).rejects.toThrow(TenantContextMissingError);
+    });
+
+    it("injects accountId into where on PostMedia findMany (direct child read)", async () => {
+      const queryFn = vi.fn().mockResolvedValue([]);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "PostMedia",
+        operation: "findMany",
+        args: { where: { postId: "post-B" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; postId: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.postId).toBe("post-B");
+    });
+
+    it("injects accountId into where on PostMedia update", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "PostMedia",
+        operation: "update",
+        args: { where: { id: "pm-1" }, data: { alt: "edited" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("pm-1");
+    });
+
+    it("injects accountId into where on PostMedia delete", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "PostMedia",
+        operation: "delete",
+        args: { where: { id: "pm-1" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("pm-1");
+    });
+
+    it("injects accountId into PostMedia create data", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "PostMedia",
+        operation: "create",
+        args: { data: { id: "pm-1", postId: "post-1", url: "https://cdn/x.png", type: "image" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as { data: { accountId: string } };
+      expect(calledArgs.data.accountId).toBe("acc-A");
+    });
+
+    it("throws TenantContextMismatchError when PostMedia create.accountId disagrees with context", async () => {
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await expect(
+        callGuard({
+          provider,
+          model: "PostMedia",
+          operation: "create",
+          args: {
+            data: {
+              id: "pm-1",
+              accountId: "acc-B",
+              postId: "post-1",
+              url: "https://cdn/x.png",
+              type: "image",
+            },
+          },
+        })
+      ).rejects.toThrow(TenantContextMismatchError);
+    });
+
+    it("throws TenantContextMissingError on PostMedia findMany when no context is bound", async () => {
+      await expect(
+        callGuard({
+          provider: makeProvider(),
+          model: "PostMedia",
+          operation: "findMany",
+          args: { where: { postId: "post-1" } },
+        })
+      ).rejects.toThrow(TenantContextMissingError);
+    });
+  });
+
   describe("model classification", () => {
-    it("getTenantScopedModels returns 58 entries", () => {
-      expect(getTenantScopedModels().size).toBe(58);
+    it("getTenantScopedModels returns 61 entries", () => {
+      expect(getTenantScopedModels().size).toBe(61);
     });
 
     it("includes well-known tenant tables (project, apiKey, mediaAsset)", () => {
@@ -939,16 +1291,19 @@ describe("tenantGuardExtension", () => {
       expect(models.has("socialMessage")).toBe(true);
     });
 
-    it("excludes global tables (account, auditLog, providerBundle, post, linkClick)", () => {
+    it("excludes global tables (account, auditLog, providerBundle, linkClick)", () => {
       const models = getTenantScopedModels();
-      // Post is transitively scoped (via project FK), not in this direct list.
       // Channel is enrolled in the guard list (see its enrollment suite).
+      // Post, PostContent and PostMedia gain their own tenant column and are
+      // enrolled directly (see the post trio enrollment suite) — `post` used to
+      // be asserted here as excluded, on the grounds that it was transitively
+      // scoped through the project FK. That assertion pinned the defect this
+      // slice removes, so it moved to the enrollment suite as a positive.
       // LinkClick has no accountId column and is gated transitively via the guarded
       // parent trackedLink lookup — same policy as campaignPost.
       expect(models.has("account")).toBe(false);
       expect(models.has("auditLog")).toBe(false);
       expect(models.has("providerBundle")).toBe(false);
-      expect(models.has("post")).toBe(false);
       expect(models.has("linkClick")).toBe(false);
     });
   });
