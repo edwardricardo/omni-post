@@ -3800,7 +3800,7 @@ to 169 / 169. The cap is the LXC's, not this change's.
 | `openspec/changes/tenant-isolation-composite-fk/apply-progress.md`     | Modify — this section, appended                                           |
 | `openspec/changes/tenant-isolation-composite-fk/tasks.md`              | Modify — 13.3's blocked two-channel arm is now RUN, with counts           |
 
-Four of the five were already candidate entries before this corrective; only `postRoutes.ts` is
+Five of the six were already candidate entries before this corrective; only `postRoutes.ts` is
 new, which is the whole of the 60 -> 61 delta recorded under S-2.
 
 **`roadmap-detected-smells-backlog.md` was deliberately NOT touched**, and the reason is a
@@ -3840,3 +3840,289 @@ touched test files (the shipped scopes do not open them) was deleted in the same
    in practice only; promoting it to `run-tests.sh` belongs to that file's owner. Whoever does it
    must use the client-options mechanism above, never a URL `options` parameter — W-2 is the
    measurement that says why.
+
+---
+
+# PR 6 — Slice 1c: the after-measurement (tasks 14.1 – 14.5)
+
+Work unit: docs plus the evidence harness. No schema, no migration, no production source.
+`git status` at the end shows exactly **six** modified files, enumerated in §"Files touched
+(PR 6)" below, with `infra/prisma/` untouched.
+
+## Tasks completed
+
+| Task | State | Evidence                                                                                       |
+| ---- | ----- | ---------------------------------------------------------------------------------------------- |
+| 14.1 | `[x]` | §After captured twice, identical shapes; 4 regressions with adjudications; SMELL-93 filed      |
+| 14.2 | `[x]` | revisit trigger checked, did NOT fire; exemption record updated with its 5-row evidence table  |
+| 14.3 | `[x]` | 4 policy arms, transaction-scoped swap, restore proven; the trigger's first half is unmet      |
+| 14.4 | `[x]` | §Completion with the independence statement and the per-environment RLS table (production RED) |
+| 14.5 | `[x]` | TSC 81/81 + standalone 0, ESLint 0/0, 18 fitness checks at 0 or baseline, prettier clean       |
+
+## The mirror adjudication, which had to happen before any plan was worth taking
+
+Four of the 13 cases no longer mirrored their source site, because PR 5 changed what those
+sites emit:
+
+| Case       | Emission at §Before                 | Emission now          | Site                                      |
+| ---------- | ----------------------------------- | --------------------- | ----------------------------------------- |
+| `Q1`, `Q2` | `project: { accountId }` (relation) | `accountId` on `Post` | `buildWhereClause`                        |
+| `Q5`, `Q8` | no account predicate at all         | `accountId` on `Post` | the required `TenantScope` in the `where` |
+
+The fidelity check could NOT have caught this: both texts return the same rows and the check
+compares row identity, so a stale mirror would have passed while taking a plan for a query
+nobody issues. It was caught by reading the four source sites. The mirrors were updated to the
+current emission — the mirror mirrors Prisma, not history — and the cost is stated in three
+places rather than absorbed: the script's catalog docblock, each case's `why` line in the
+generated block, and a table in §"Reading the after capture". Every conclusion in the report
+says whether it rests on a case whose emission also moved; the nine textually-identical cases
+(`Q3`, `Q4`, `Q6`, `Q7`, `Q9`–`Q13`) carry the schema-only delta. Source-site line numbers were
+refreshed for all 13.
+
+§Before is now unreproducible by construction — it was captured against a schema that no longer
+exists — so it stays the historical one-shot tasks 7.2/7.3 called it.
+
+## The one fact the whole reading rests on
+
+In all 13 after-plans the row-security predicate is a **`Filter`**, never an `Index Cond` —
+17× `Filter`, 0× `Index Cond` counted over every node, and independently recounted by the
+re-gate. The policy is a disjunction whose first arm mentions no column, and PostgreSQL cannot
+make an index condition out of that.
+
+**`Q1`, `Q2` and `Q5` are the measured proof**, and they are used instead of the more dramatic
+`Q4` because all three reproduce identically across all four captures. Each carries
+`Index Cond: (("accountId" = 'tif-ab-a') AND ("projectId" = …))` — supplied by the QUERY's own
+literal — while the policy's reference to that SAME column stays in the `Filter` and is
+evaluated per row regardless. The tenant column indexed, the index chosen, and row security
+still not served by it: no plan-choice instability can touch that, because both halves sit on
+one plan node.
+
+`Q4` **illustrates** the cost and nothing more (19 000 index entries read to keep 9 500 in the
+captures that take the index; the same 9 500 filtered off the heap in the captures that do
+not). Its plan choice is the one unstable result in the set — see §Reproducibility below — so
+it carries no conclusion here.
+
+## What the design claimed, and what was measured
+
+D-S1-1: _"It serves the RLS policy's tenant qual AND tenant-wide listings."_ Both halves fail
+on this corpus. The qual is never indexable (above). The tenant-wide listing `Q3` and its count
+`Q4` still reach the tenant through the relation, because `listGlobal` was deliberately left
+unconverted in 12.2, so no `accountId` predicate exists on `Post` for the index to answer —
+and even a converted `listGlobal` would get that index condition from the QUERY, never from the
+policy. `Q3`'s node sequence is byte-identical to §Before and it reports `Indexes used: (none)`.
+
+What the index does instead is displace better-fitting indexes on the four `projectId`-led paths
+that now supply `accountId` as a literal: `Q1` ×2.39 and `Q5` ×3.52 lose the `createdAt`
+ordering (a top-N `Sort` appears where `LIMIT 20` used to stop the scan at 20 rows), `Q2` ×1.66
+loses index-only coverage, and `Q4` ×3.73 loses the nested loop's early exit in the captures
+that take the index. Net: **chosen by 3-4 of the 8 `Post` cases depending on the reseed**
+(`Q1`/`Q2`/`Q5` always, `Q4` sometimes), **slower in every case that chooses it**, worth
+**0.1 %** at `Q4`'s tie where the choice is closest (707.29 against 708.06), and unused by the
+one case it was designed for.
+
+Three caveats kept attached so this is not louder than the evidence: everything except `Q3`/`Q4`
+is sub-millisecond on a 20 000-row table, so these are shapes and not production costs; the
+corpus gives every project exactly 100 posts, which is the condition under which
+`(projectId, createdAt)` beats `(accountId, projectId)`; and the index's justification was never
+only read performance.
+
+## The A′-vs-B′ result, and the arm that made it readable
+
+The task names two arms. Four were run, and the two extra ones are the reason the answer is
+usable rather than ambiguous. `B′` as researched carries no `__system__` escape and therefore
+could not ship, so `B′+sys` measures a shippable version; `A′+init` is the shipped policy with
+each `current_setting()` wrapped in `(SELECT ...)`, semantically identical, added because the
+first three arms differ in two ways at once.
+
+`B′` wins exactly one of three shapes (`S3`, 3.774 vs 5.403) and it is recorded plainly. But
+`B′+sys`'s `Post` scan node is **indistinguishable from `A′`'s** — 4.22 vs 3.881 ms on the
+embedded plans, 4.205 vs 4.146 ms on an independent re-capture, all four readings inside a
+3.88-4.22 band, a spread (0.34 ms) comparable to one arm's own drift between captures — which identifies the
+expense as the per-row `current_setting()` call rather than the set-membership form; and
+`A′+init` collects that same win (scan node 1.833 / 1.775 ms, **~2.1-2.4× cheaper than either**,
+total 3.009 ms) while keeping the shipped column, escape and semantics.
+
+**A correction to how that was first published, kept because the defect is instructive.** The
+scan-node table originally carried one hand-transcribed figure per arm and showed `A′` and
+`B′+sys` as exactly equal at 4.198 ms. The script computes a median for the STATEMENT but not
+for an individual plan NODE, so those figures came from a single run whose plan is not in the
+artifact — and three of the four disagreed with the only plans a reader could check. The exact
+equality was a one-run coincidence. The table now publishes two traceable readings per arm (the
+embedded last-run plan, and the re-capture), which is weaker arithmetic and a stronger claim: a
+reader can check both columns without re-running anything. The conclusion did not move. `B′` also never becomes an index probe: its `Index Cond` comes
+from the query's own `projectId` and the policy lands as `Filter: (hashed SubPlan 1)` over a
+one-time `Seq Scan` of `Project`.
+
+The revisit trigger is a conjunction and its first half is unmet, so the per-table choice does
+not reopen. The A′-only guarantee is stated where it belongs: no policy form makes a mis-parented
+row unrepresentable, holds against `BYPASSRLS`, or holds with the GUC unset.
+
+One honest cost against `A′+init`: it moved `S2` the wrong way (0.024 → 0.063) by flipping the
+chosen index. A policy rewrite moves plans in both directions, so any follow-up adopting it must
+re-run the 13 cases instead of assuming the `S3` win generalizes.
+
+## Harness changes, and why each was necessary
+
+| Change                                 | Why                                                                                                        |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `Q1`/`Q2`/`Q5`/`Q8` mirrors and calls  | their source sites changed emission; see the adjudication above                                            |
+| 13 `sourceSite` line references        | the repositories moved; a stale citation is a wrong citation                                               |
+| `--policy-ab` mode + 4 arms + 3 shapes | 14.3 had no implementation; the swap is transaction-scoped so the restore is the rollback                  |
+| row-equivalence guard across arms      | a policy returning different rows answers a different question; one returning nothing is trivially fastest |
+| policy re-read before and after        | the restore is proven from `pg_policies`, not assumed from the rollback                                    |
+| `writePhase` third marker              | the comparison needs its own generated block so a phase re-run cannot overwrite it                         |
+
+## Reproducibility, measured rather than claimed
+
+The after phase was captured TWICE here, each from a full cleanup and reseed — the standard
+§Before set for itself — and TWICE more by the independent re-gate under the same command.
+Across those four captures: **12 of the 13 cases produced identical plan node sequences and
+identical index choices, and `Q4` did not.** For the 12, medians moved ≤6 µs on the
+sub-millisecond cases and <1 % on `Q3`. That band is what lets the child reads be reported as
+flat, and what makes `Q1`'s +50 µs a change rather than noise.
+
+**`Q4` is a coin-flip, and this is a correction to a claim this record previously overstated.**
+Its two candidate paths are separated by 0.11 % — `Seq Scan` at cost 708.06 against
+`Index Only Scan Post_accountId_projectId_idx` at 707.29 — and a one-page `relpages` drift
+between reseeds flips which one wins (the same `Project` scan was estimated at 23.63 rows in
+one capture and 21.63 in another). Two captures took the index; two took the sequential scan
+and reported `Indexes used: (none)` at 5.42 / 5.40 ms. Neither is wrong: the planner is
+choosing between paths it costs as equal, on an input the harness does not control.
+
+The aggravating half is that the harness said so first. Its `vacuumAnalyze` docblock
+(`scripts/rls-ab-measurement.ts:355-359`) already named `Q4` as one of the two plans that moved
+on their own during baseline work, and the report elevated exactly that plan to load-bearing
+proof. The `VACUUM`-over-`ANALYZE` fix removed the visibility-map drift; it never addressed a
+genuine cost tie and never claimed to. So the report and this record now cross-reference that
+docblock, treat `Q4`'s plan choice as an illustration everywhere, and re-base the counter-proof
+on `Q1`/`Q2`/`Q5`. What does NOT flip is `Q4`'s regression — ×3.7 to ×4.2 on either path,
+because both evaluate the qual per row — so no adjudication in this unit changed, only the
+evidence each one rests on.
+
+## 0-defect gate (PR 6) — exact counts
+
+- TSC: `turbo run typecheck --filter=@apps/api` → **81/81 successful** (includes
+  `tsc --noEmit -p tsconfig.type-tests.json`). `scripts/` is outside every tsconfig project
+  (SMELL-91), so the changed script was typechecked standalone with the `tsconfig.base.json`
+  flags → **exit 0**.
+- ESLint `--max-warnings 0` on the changed script → **0/0**.
+- Prettier → clean on all **six** touched files (the manifest below is the list).
+- Fitness: **#2 0 · #3 0 · #4 0 · #5 0 · #8 0 · #9 0 · #10 0 · #16 0 · #21 0 · #22 0 · #23 0 ·
+  #30 21 (baseline) · #32 0 · #38 swept 0 / db-prisma 11 (baseline) · #39 0 (63 bearing / 61
+  enrolled / 31 denylisted, re-run AFTER the guards-doc edit because #39 parses that file) ·
+  #40A 0 (3 seams) · #40B 0 (13 sites)**.
+- `prisma validate` valid; `prisma migrate status` **80 migrations, up to date**.
+- Conditional index migration: **none authored, because the trigger did not fire** — vacuous by
+  measurement, not by omission.
+
+## Database left as found
+
+The harness cleanup reports 0 namespaced rows across all five tables, and an independent
+out-of-band read confirms it: `Account 0 / Project 0 / Post 0 / PostContent 0 / PostMedia 0`
+under the `tif-ab-%` namespace, the pre-existing **354 accounts and 3 posts** back, RLS enabled
+with exactly one `tenant_isolation` policy per trio table whose catalog-normalized `USING` qual
+was verified EQUIVALENT to migration `20260909000500` — the catalog stores PostgreSQL's own
+rendering of the expression rather than the migration's source bytes, so this is a normalized
+qual comparison and calling it byte-identical was imprecise — and the three composite foreign
+keys still
+`confupdtype='a'` / `confdeltype='c'` / `confmatchtype='s'` / `convalidated=true`.
+
+## Files touched (PR 6)
+
+| File                                                               | Action   | What                                                                                               |
+| ------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------- |
+| `scripts/rls-ab-measurement.ts`                                    | Modified | 4 mirrors re-pointed, 13 source sites refreshed, `--policy-ab` mode with 4 arms and its two guards |
+| `docs/reports/TENANT_RLS_AB_MEASUREMENT.md`                        | Modified | §After, §policy-ab, and three hand-written readings including §Completion                          |
+| `docs/security/MULTI_TENANT_GUARDS.md`                             | Modified | the index exemption's trigger state, with the five-row measurement that justifies it standing      |
+| `docs/reports/roadmap-detected-smells-backlog.md`                  | Modified | **SMELL-93** — the non-indexable policy qual and the three repairs, sequenced smallest-first       |
+| `openspec/changes/tenant-isolation-composite-fk/tasks.md`          | Modified | 14.1 / 14.3 / 14.5 annotations — the evidence, the gate counts, and this manifest                  |
+| `openspec/changes/tenant-isolation-composite-fk/apply-progress.md` | Modified | this record: the PR 6 readings, the gate counts, and the corrective pass below                     |
+
+**Six files, and the two openspec records are part of the candidate rather than bookkeeping
+around it.** An earlier version of this table listed four and task 14.5 asserted "exactly four
+modified files" — the change record and the task list were counted as though they sat outside
+the change they describe. They do not: they carry annotations a reviewer reads as evidence, and
+a manifest that omits them is a manifest that cannot be checked against `git status`.
+
+## Residuals carried forward (PR 6)
+
+1. **SMELL-93's three repairs are not in this unit** — two are migrations (token-gated) and one
+   is a production query change with its own tests. Each is recorded with the measurement that
+   motivates it, sequenced smallest-first, and each must be re-measured against these 13 cases
+   rather than assumed.
+2. **`listGlobal` still reaches its tenant through the relation.** That is deliberate as of
+   12.2 and it is why `Q3` cannot use the new index; the liveness half of that predicate is real
+   and does not disappear when the local column is used, so the reshape is not a one-line edit.
+3. **The `relationJoins` question §Before deliberately left open is still open.** Whether Prisma
+   folds the child reads into the parent query as lateral joins was not measured here either;
+   the way to settle it remains a capture with `relationLoadStrategy` stated explicitly on both
+   sides, not an inference from these numbers.
+4. **`scripts/` remains outside every fitness scope and every tsconfig project** (SMELL-91). The
+   changed file was checked by hand and standalone, which is exactly the state that keeps the
+   gap invisible.
+5. **The harness still computes no scan-node median.** That is the mechanical cause of the
+   `4.198` defect below: a per-node figure can only be read off a single run, so quoting one as
+   though it were a median invites exactly the false precision that happened. The corrective
+   closes it in the DOCUMENT (two traceable readings per arm instead of one untraceable one);
+   closing it in the HARNESS — emitting a median per scan node the way it already does per
+   statement — is a script change and belongs with the follow-up that re-runs these arms.
+
+## PR 6 corrective pass (2026-09-09) — what the fresh gate caught and how it closed
+
+The fresh-context gate **FAILED** the PR 6 candidate, and the shape of the failure is worth
+recording precisely: it ruled the unfavourable headline **EARNED and understated** — it
+reproduced the after capture twice, reproduced the four-arm A/B, re-ran every gate, and found
+the conclusion stronger than the report had written it. **What failed was the EVIDENTIARY
+CHAIN.** The report published a reproducibility standard the gate falsified, and then cited the
+one case that fails it as proof. A correct conclusion resting on a defective proof is still a
+defect: the next person to re-measure would have found the cited plan gone and had no way to
+tell which conclusions survived.
+
+| Finding | What was wrong                                                                                                                                                                  | How it closed                                                                                                                                                                                                |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1       | "identical plan node sequences and identical index choices for **all 13** cases" — false on a third and fourth capture                                                          | Restated as **12 of 13 stable, `Q4` a coin-flip**, with the measured 0.11 % tie (708.06 vs 707.29) as the mechanism and the `relpages` drift that flips it; the §Before claim is scoped to that schema       |
+| 2       | `Q4` cited as the PROOF that the policy qual is never an index condition — the one case whose plan is not reproducible                                                          | Demoted to **illustration** in verdict (a), verdict (c) and SMELL-93; counter-proof re-based on `Q1`/`Q2`/`Q5` (17× `Filter`, 0× `Index Cond`, `accountId` in the `Index Cond` from the query's own literal) |
+| 3       | Verdict (c)'s arithmetic "chosen by four of the eight cases, makes all four slower" — the count is reseed-dependent                                                             | Restated as **3-4 of 8 depending on the reseed, slower in every case that chooses it, worth 0.1 % at the tie** — a stronger claim than the one it replaced                                                   |
+| 4       | The `4.198 = 4.198` scan-node identity is hand-transcribed from a run whose plan is not in the artifact; three of its four numbers contradict the only plans a reader can check | Table now publishes **two traceable readings per arm** (embedded last-run plan + independent re-capture); "identical" replaced by **indistinguishable within a 3.88-4.22 band**, `A′+init` ~2.1-2.4× cheaper |
+| 5       | Manifest undercount — 14.5 asserted "exactly four modified files" and §Files touched listed four; the candidate is six                                                          | Both corrected to **six**, each file named so the manifest is checkable against `git status` rather than counted                                                                                             |
+| nit     | "`USING` text byte-identical to `20260909000500`" — the catalog stores PostgreSQL's normalized rendering, not the migration's source bytes                                      | Restated as **catalog-normalized qual verified equivalent**; the substance was always true, only the word was wrong                                                                                          |
+
+**Carried forward unchanged, because the gate verified them:** verdict (b) and the index
+exemption record; the independence statement re-measured from `pg_constraint`; the production
+RLS red; the A/B row-equivalence guards and the rollback-as-restore proof; the mirror
+adjudication; and SMELL-93's three repairs with their token gating.
+
+**The lesson worth keeping, and it is not "re-measure more".** The harness's own method notes
+named `Q4` as a fragile plan (`vacuumAnalyze` docblock, `scripts/rls-ab-measurement.ts:355-359`)
+before this report elevated it to proof. The failure was not a missing measurement; it was
+promoting the most VIVID case over the most STABLE one. `Q4` reads better — the planner picks
+the index and still throws half the rows away — while `Q1`/`Q2`/`Q5` prove the same fact more
+strongly and never move. When a proof and an illustration compete, the reproducible one is the
+proof, and the vivid one goes in the sentence after it.
+
+## PR 6 re-gate (gate #2, 2026-09-09) — one new finding, prescribed and closed inline
+
+The fresh re-gate verified all five corrective fixes as landed — the `Q1`/`Q2`/`Q5` chain
+checked against the embedded plans, the 17×/0× qual count reproduced independently, the four
+scan-node values confirmed as `Actual Total Time` on each arm's `Post` node, the six-file
+manifest checked against `git status` — and FAILED on one defect the corrective itself
+introduced: the summary band `3.88-4.21` excluded the 4.22 ms reading its own table publishes
+one paragraph above. Two riders on the same finding: a misattribution ("3.881–4.21 ms for the
+shipped form" mixed `A′`'s range with `B′+sys`'s re-capture; `A′`'s is 3.881–4.146) and a
+ratio overstating one of its four pairings (3.881/1.833 = 2.12×, so "~2.3×" is now
+"~2.1-2.4×"). All fixes were prescribed one-token replacements and were applied inline by the
+orchestrator: the five band sites (report, backlog row, tasks 14.3, this file twice), the
+misattribution, and the ratio sites. The spread qualifier was re-based honestly at the new
+ceiling — the 0.34 ms band is "comparable to" `A′`'s own 0.27 ms between-capture drift, no
+longer "no wider than" it. The same pass applied the gate's adjudication of the PR 5
+undercount the corrective had reported out of scope: task 13.3's "four touched files" is now
+"six", and this file's "Four of the five" is "Five of the six" (the true set is the six named
+rows under §Files touched, corroborated against `git show 38576a94 --name-only`).
+
+Two residuals recorded rather than fixed here. The generated §After preamble (emitted by
+`scripts/rls-ab-measurement.ts:1436`) still says the post-vacuum plan "is reproducible across
+reseeds", which §Reproducibility falsifies for `Q4`; narrowing that sentence to what `VACUUM`
+actually buys requires a regeneration, so it belongs with the follow-up that re-runs these
+arms, alongside the already-recorded scan-node-median gap. And the two historical "all 13"
+statements in the PR 4 sections stand as records of specific pre-migration run pairs —
+adjudicated independently by the orchestrator and the re-gate, both reaching the same reading.

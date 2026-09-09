@@ -591,6 +591,32 @@ sequential scan induced by the RLS policy qual, the `accountId`-led index is add
 SAME slice as that measurement, and this exemption record is updated with the plan that
 justified the change.
 
+**Trigger state: CHECKED, and it did NOT fire. The exemption stands.** The post-migration
+capture (`docs/reports/TENANT_RLS_AB_MEASUREMENT.md` §After, taken twice from independent
+reseeds with identical plan shapes) measured all five child reads with row security enabled
+and the policy in force:
+
+| Case  | Read                                 | Node before     | Node after | Index                                    | Policy qual lands as | Rows Removed by Filter | Exec median (ms) |
+| ----- | ------------------------------------ | --------------- | ---------- | ---------------------------------------- | -------------------- | ---------------------- | ---------------- |
+| `Q9`  | `PostContent` by 20 parent ids       | Index Scan      | Index Scan | `PostContent_postId_locale_revision_key` | `Filter`             | 0                      | 0.090 → 0.100    |
+| `Q10` | `PostContent` by one parent id       | Index Scan      | Index Scan | `PostContent_postId_locale_revision_key` | `Filter`             | 0                      | 0.011 → 0.012    |
+| `Q11` | `PostMedia` by 20 parent ids         | Index Scan      | Index Scan | `PostMedia_postId_idx`                   | `Filter`             | 0                      | 0.076 → 0.075    |
+| `Q12` | `PostMedia` `_count` over 20 parents | Index Only Scan | Index Scan | `PostMedia_postId_idx`                   | `Filter`             | 0                      | 0.085 → 0.086    |
+| `Q13` | `PostMedia` by one parent id         | Index Scan      | Index Scan | `PostMedia_postId_idx`                   | `Filter`             | 0                      | 0.011 → 0.012    |
+
+No `Seq Scan` and no `Bitmap Heap Scan` on either table. `Rows Removed by Filter: 0` on all
+five is the exemption's own argument measured: the parent-key equality has already narrowed
+the read to the caller's own tenant, so the policy predicate discards nothing and costs only
+its own evaluation. Every delta is inside the capture's noise band, which the two independent
+reseeds put at 6 µs.
+
+One node type DID change and is recorded so it is not later mistaken for a regression that
+went unnoticed: `Q12` moved from `Index Only Scan` to `Index Scan`, because the policy
+predicate reads `accountId` and `PostMedia_postId_idx` does not carry it, so the heap must be
+visited. Same index, same index condition, same rows, 1 µs. That is not a sequential scan and
+is therefore not the trigger — but it IS the shape a real regression here would take first,
+so a future capture that sees an index-only path lost on these tables should look again.
+
 #### Trio write paths (full enumeration, not a subset audit)
 
 Every production path that persists a `Post`, `PostContent` or `PostMedia` row, and where
