@@ -54,7 +54,8 @@
  *
  * @layer infrastructure
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createTestPrismaClient } from "../infra/prisma/src/test-client.js";
@@ -217,6 +218,16 @@ async function assertAppRoleSession(client: PrismaClient): Promise<void> {
 
 /** Escape a string for inlining as a SQL literal. Ids here are harness-generated. */
 const lit = (value: string): string => `'${value.replace(/'/g, "''")}'`;
+
+/**
+ * Escape a value for one Markdown table cell. The BACKSLASH pass has to come first
+ * and is the whole point: escaping `|` into `\|` while leaving `\` alone lets an
+ * input backslash pair with the escape (`\` + `\|` renders as a literal backslash
+ * followed by an UNescaped delimiter), so the cell the escaping exists to protect
+ * splits anyway. Both passes are global — escaping only the first occurrence leaves
+ * every later delimiter live.
+ */
+const mdCell = (value: string): string => value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
 
 /**
  * @function withScope
@@ -1072,7 +1083,7 @@ function renderBlock(
     "| Table | Index | Definition |",
     "| ----- | ----- | ---------- |",
     ...shape.indexes.map(
-      (i) => `| \`${i.table}\` | \`${i.index}\` | \`${i.definition.replace(/\|/g, "\\|")}\` |`
+      (i) => `| \`${i.table}\` | \`${i.index}\` | \`${mdCell(i.definition)}\` |`
     ),
     "",
     "</details>",
@@ -1141,10 +1152,33 @@ _Not recorded yet._
 `;
 
 /**
+ * @function isEnoent
+ * @description Narrows a caught value to Node's "path does not exist" system error.
+ * @param error - The caught value.
+ * @returns True when the value is an `ENOENT` error.
+ */
+function isEnoent(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
+/**
  * @function writePhase
  * @description Replaces the generated block for one phase inside the report,
  *   creating the report from a scaffold when it does not exist. Marker-scoped so a
  *   re-run of one phase never touches the other phase or the hand-written sections.
+ *
+ *   Absence is discovered by ATTEMPTING the read and handling `ENOENT`, never by
+ *   asking `existsSync` first: a check-then-use pair answers about the file as it
+ *   was at the check, and the read that follows can land on a different file (or on
+ *   none). The result is byte-identical either way — the old form wrote the scaffold
+ *   and read it straight back, which is what starting from the scaffold in memory
+ *   produces, minus one write nobody consumed.
+ *
+ *   The write is atomic: the spliced document goes to a uniquely named temp file in
+ *   the SAME directory and is then renamed over the report. A crash or a failed
+ *   write can therefore leave the previous report intact or the new one complete,
+ *   but never a half-written file — and this report's hand-written sections are not
+ *   recoverable from anywhere else.
  * @param path - Report path.
  * @param phase - Which block to replace.
  * @param body - Rendered Markdown for that block.
@@ -1152,8 +1186,13 @@ _Not recorded yet._
  */
 function writePhase(path: string, phase: "before" | "after", body: string): void {
   mkdirSync(dirname(path), { recursive: true });
-  if (!existsSync(path)) writeFileSync(path, SCAFFOLD, "utf8");
-  const current = readFileSync(path, "utf8");
+  let current: string;
+  try {
+    current = readFileSync(path, "utf8");
+  } catch (error: unknown) {
+    if (!isEnoent(error)) throw error;
+    current = SCAFFOLD;
+  }
   const open = `<!-- BEGIN generated:${phase} -->`;
   const close = `<!-- END generated:${phase} -->`;
   const start = current.indexOf(open);
@@ -1165,7 +1204,18 @@ function writePhase(path: string, phase: "before" | "after", body: string): void
     );
   }
   const next = `${current.slice(0, start + open.length)}\n\n${body}\n${current.slice(end)}`;
-  writeFileSync(path, next, "utf8");
+  const temp = `${path}.${randomUUID()}.tmp`;
+  let renamed = false;
+  try {
+    writeFileSync(temp, next, "utf8");
+    renameSync(temp, path);
+    renamed = true;
+  } finally {
+    // A failed write or rename leaves the temp file behind next to the report;
+    // `force` keeps the cleanup a no-op once the rename has consumed it. No catch
+    // here on purpose — whatever went wrong above is the error worth propagating.
+    if (!renamed) rmSync(temp, { force: true });
+  }
 }
 
 /**
