@@ -72,3 +72,27 @@ export function resolveSeedDatabaseUrl(env: NodeJS.ProcessEnv = process.env): st
 export function createSeedPrismaClient(env: NodeJS.ProcessEnv = process.env): PrismaClient {
   return createTestPrismaClient(resolveSeedDatabaseUrl(env));
 }
+
+/**
+ * @function assertSeedChannelConfigured
+ * @description Module-scope preflight: resolves the seed channel at IMPORT time so
+ *   a missing one aborts the file before any test is registered.
+ *
+ *   Why it exists as a separate call. `createSeedPrismaClient()` is normally
+ *   invoked inside `before()`, and node:test reports a failing `before` hook by
+ *   CANCELLING every child — measured on this suite, 18 cancelled / 0 failed. A
+ *   run in that shape reads as a leak or a hang: "test did not finish before its
+ *   parent" is what a resource leak looks like, and the one line that names the
+ *   real cause is buried under 18 that do not. Resolving at module scope means
+ *   there are no children to cancel; the file fails to load, once, with the
+ *   reason.
+ *
+ *   This is for the caller who runs a suite by hand, without the harness that
+ *   sources the root env — `run-tests.sh` supplies both channels, so under the
+ *   batch this call is a no-op that costs one environment read.
+ * @param env - Environment to read; defaults to `process.env`.
+ * @throws Error naming the missing channel, before any `describe` executes.
+ */
+export function assertSeedChannelConfigured(env: NodeJS.ProcessEnv = process.env): void {
+  resolveSeedDatabaseUrl(env);
+}

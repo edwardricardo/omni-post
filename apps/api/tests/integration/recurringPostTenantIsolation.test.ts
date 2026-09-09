@@ -86,7 +86,9 @@ describe("RecurringPost — two-tenant isolation (MERGE-BLOCKING)", () => {
     const project = await base.project.create({
       data: { accountId: account.id, name: `${TAG}-${name}-project` },
     });
-    const templatePost = await base.post.create({ data: { projectId: project.id } });
+    const templatePost = await base.post.create({
+      data: { projectId: project.id, accountId: account.id },
+    });
     const channel = await base.channel.create({
       data: {
         projectId: project.id,

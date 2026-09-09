@@ -20,6 +20,7 @@ import {
   ProjectId,
   AccountId,
   type PublishStatusValue,
+  type TenantScope,
   PUBLISH_STATUS,
   EntityNotFoundError,
   VersionConflictError,
@@ -97,9 +98,31 @@ export class PrismaPostRepository implements PostRepository {
   }
 
   /**
+   * @method activeClient
+   * @description The client a statement must be issued on. Inside a unit of work that is
+   *   the transaction's OWN client, and the distinction is load-bearing rather than
+   *   stylistic: the unit of work issues `set_config('app.account_id', …, true)` on THAT
+   *   connection and then holds the marker that tells the per-operation binding to stand
+   *   down. A statement issued on the injected client instead runs on a second pooled
+   *   connection where the tenant was never bound and where nothing will bind it — outside
+   *   the caller's rollback, and invisible for as long as the connecting role bypassed row
+   *   security. Once `tenant_isolation` covers `Post`, the same statement simply matches no
+   *   row, so a soft delete of a post the caller owns reports failure.
+   * @returns The active transaction client when a unit of work is open, otherwise the
+   *   injected client, whose per-operation binding wraps and binds each statement itself.
+   */
+  private activeClient(): TxClient {
+    return PrismaUnitOfWork.getTransactionClient() ?? this.prisma;
+  }
+
+  /**
    * Soft-delete a post (sets deletedAt = now).
    * The post becomes invisible to all standard find queries.
    * Child data (contents, media, publishLogs) remains intact for audit purposes.
+   *
+   * Both statements go through {@link activeClient}: the existence probe and the update
+   * must observe the same tenant binding, and inside a unit of work that binding lives on
+   * the transaction's connection.
    */
   async delete(id: PostId): Promise<Result<void, EntityNotFoundError>> {
     const exists = await this.exists(id);
@@ -108,7 +131,7 @@ export class PrismaPostRepository implements PostRepository {
       return err(new EntityNotFoundError("Post", id.value));
     }
 
-    await this.prisma.post.update({
+    await this.activeClient().post.update({
       where: { id: id.value },
       data: { deletedAt: new Date() },
     });
@@ -124,7 +147,13 @@ export class PrismaPostRepository implements PostRepository {
   async hardDelete(id: PostId): Promise<Result<void, EntityNotFoundError>> {
     // DELIBERATE soft-delete-sweep exception: the hard-delete probe must detect
     // even soft-deleted posts.
-    const post = await this.prisma.post.findFirst({
+    //
+    // Through {@link activeClient} for the reason `exists()` is: this probe decides
+    // whether the destructive block below runs at all, and an answer read on a
+    // connection the enclosing unit of work never bound describes a different tenant
+    // scope than the delete that follows it. Left on the injected client it reported
+    // the caller's OWN post as absent once `Post` carried row security.
+    const post = await this.activeClient().post.findFirst({
       where: { id: id.value },
       select: { id: true },
     });
@@ -162,19 +191,30 @@ export class PrismaPostRepository implements PostRepository {
   }
 
   /**
-   * Check if an active (non-deleted) post exists
+   * Check if an active (non-deleted) post exists.
+   *
+   * Issued through {@link activeClient} because this probe decides what `save` and
+   * `delete` do next: read on a connection the enclosing unit of work never bound and the
+   * answer describes a different tenant scope than the write that follows it.
    */
   async exists(id: PostId): Promise<boolean> {
-    const count = await this.prisma.post.count({
+    const count = await this.activeClient().post.count({
       where: { id: id.value, deletedAt: null },
     });
     return count > 0;
   }
 
   /**
-   * Find all posts for a project
+   * Find all posts for a project, inside an explicit tenant scope.
+   *
+   * `scope.accountId` goes into the `where` EXPLICITLY rather than being left to
+   * the guard's injection. The guard would supply it, but then the query would
+   * only be as scoped as the context happened to be; stated here, the guard
+   * VALIDATES it against the bound context instead and disagreement becomes a
+   * mismatch error rather than a silently different result set.
    */
   async findByProjectId(
+    scope: TenantScope,
     projectId: ProjectId,
     pagination?: PaginationParams,
     sort?: SortParams<PostSortField>
@@ -184,7 +224,7 @@ export class PrismaPostRepository implements PostRepository {
 
     const [posts, total] = await Promise.all([
       this.prisma.post.findMany({
-        where: { projectId: projectId.value, deletedAt: null },
+        where: { projectId: projectId.value, accountId: scope.accountId, deletedAt: null },
         include: {
           contents: true,
           media: true,
@@ -197,7 +237,7 @@ export class PrismaPostRepository implements PostRepository {
         take: limit,
       }),
       this.prisma.post.count({
-        where: { projectId: projectId.value, deletedAt: null },
+        where: { projectId: projectId.value, accountId: scope.accountId, deletedAt: null },
       }),
     ]);
 
@@ -306,19 +346,24 @@ export class PrismaPostRepository implements PostRepository {
   /**
    * Count active (non-deleted) posts by project
    */
-  async countByProjectId(projectId: ProjectId): Promise<number> {
+  async countByProjectId(scope: TenantScope, projectId: ProjectId): Promise<number> {
     return this.prisma.post.count({
-      where: { projectId: projectId.value, deletedAt: null },
+      where: { projectId: projectId.value, accountId: scope.accountId, deletedAt: null },
     });
   }
 
   /**
    * Count active (non-deleted) posts by status within a project
    */
-  async countByStatus(projectId: ProjectId, status: PublishStatusValue): Promise<number> {
+  async countByStatus(
+    scope: TenantScope,
+    projectId: ProjectId,
+    status: PublishStatusValue
+  ): Promise<number> {
     return this.prisma.post.count({
       where: {
         projectId: projectId.value,
+        accountId: scope.accountId,
         status,
         deletedAt: null,
       },
@@ -328,14 +373,17 @@ export class PrismaPostRepository implements PostRepository {
   /**
    * Get post statistics for a project (excludes soft-deleted posts)
    */
-  async getProjectStats(projectId: ProjectId): Promise<{
+  async getProjectStats(
+    scope: TenantScope,
+    projectId: ProjectId
+  ): Promise<{
     total: number;
     drafts: number;
     scheduled: number;
     published: number;
     failed: number;
   }> {
-    const base = { projectId: projectId.value, deletedAt: null };
+    const base = { projectId: projectId.value, accountId: scope.accountId, deletedAt: null };
     const [total, drafts, scheduled, published, failed] = await Promise.all([
       this.prisma.post.count({ where: base }),
       this.prisma.post.count({ where: { ...base, status: PUBLISH_STATUS.DRAFT } }),
@@ -348,14 +396,20 @@ export class PrismaPostRepository implements PostRepository {
   }
 
   /**
-   * Bulk update status for multiple posts
+   * Bulk update status for multiple posts.
+   *
+   * Issued through {@link activeClient}. `updateMany` reports success on a statement
+   * that matched NOTHING, so this method's `ok` says only that the database accepted
+   * the query — never that a row moved. On the injected client inside a unit of work
+   * the statement runs on a connection the transaction never bound, matches nothing,
+   * and this returns `ok` over a status change that did not happen.
    */
   async bulkUpdateStatus(
     postIds: PostId[],
     status: PublishStatusValue
   ): Promise<Result<void, Error>> {
     try {
-      await this.prisma.post.updateMany({
+      await this.activeClient().post.updateMany({
         where: {
           id: { in: postIds.map((id) => id.value) },
           deletedAt: null,
@@ -373,11 +427,17 @@ export class PrismaPostRepository implements PostRepository {
    * Bulk archive — stamp archivedAt for every non-deleted, non-archived post
    * in the input set. Returns the row count whose archivedAt transitioned
    * from null to a timestamp in this call.
+   *
+   * Issued through {@link activeClient}. `ArchivePostsBatchUseCase` receives a
+   * UnitOfWork from the composition root, so this always runs inside a transaction
+   * in production; on the injected client that transaction's tenant binding lives on
+   * a different connection, the update matches nothing, and `PATCH /posts/batch/archive`
+   * answers 200 with `archived: 0` for a caller archiving its own post.
    */
   async bulkArchive(postIds: PostId[]): Promise<Result<number, Error>> {
     if (postIds.length === 0) return ok(0);
     try {
-      const result = await this.prisma.post.updateMany({
+      const result = await this.activeClient().post.updateMany({
         where: {
           id: { in: postIds.map((id) => id.value) },
           deletedAt: null,
@@ -395,11 +455,16 @@ export class PrismaPostRepository implements PostRepository {
    * Bulk hard-delete — physically remove rows for every postId. Prisma cascades
    * to dependent rows (contents, media, publishLogs, etc.) per the schema
    * relation onDelete behaviour.
+   *
+   * Issued through {@link activeClient}, the same reach as its archive sibling and
+   * for the same reason: `HardDeletePostsBatchUseCase` wraps this in a unit of work,
+   * and an irreversible delete that silently matches no row is the worst shape this
+   * class of defect takes — the caller is told the posts are gone while they remain.
    */
   async bulkHardDelete(postIds: PostId[]): Promise<Result<number, Error>> {
     if (postIds.length === 0) return ok(0);
     try {
-      const result = await this.prisma.post.deleteMany({
+      const result = await this.activeClient().post.deleteMany({
         where: { id: { in: postIds.map((id) => id.value) } },
       });
       return ok(result.count);
@@ -412,10 +477,19 @@ export class PrismaPostRepository implements PostRepository {
    * Filter input postIds to only those owned by accountId (joined via
    * Project.accountId). Cross-tenant isolation gate for bulk mutating
    * use cases per CWE-639.
+   *
+   * Issued through {@link activeClient} even though both batch use cases call it
+   * BEFORE they open their transaction, which is what keeps it working today. That
+   * ordering is load-bearing by accident, not by design: the `project: { accountId }`
+   * join meets `Project`'s row security, so inside a unit of work this read returns an
+   * EMPTY set on the injected client and every id is dropped as unowned — a gate that
+   * refuses the caller's own posts. Measured to fail that way with the trio's own RLS
+   * migration reverted, so it is not this enrollment's doing; reaching for the active
+   * client closes it here rather than leaving the fix to be whoever moves this call.
    */
   async filterIdsByAccount(postIds: PostId[], accountId: AccountId): Promise<PostId[]> {
     if (postIds.length === 0) return [];
-    const rows = await this.prisma.post.findMany({
+    const rows = await this.activeClient().post.findMany({
       where: {
         id: { in: postIds.map((id) => id.value) },
         deletedAt: null,
@@ -431,15 +505,23 @@ export class PrismaPostRepository implements PostRepository {
    * Returns null if the post does not exist, is soft-deleted, or its owning
    * project is not visible to the caller.
    *
-   * The third case is not defensive padding. `Project` is covered by row
-   * security and `Post` is not, so a caller whose scope excludes the project
-   * still sees the post row and gets `project: null` from the join — measured
-   * directly against PostgreSQL as `omnipost_app`. Prisma types the relation as
-   * non-nullable because the schema declares it required, so nothing but this
-   * check stands between that shape and a TypeError the route reports as a 500.
-   * Ownership that cannot be established is NOT ownership: it collapses onto the
-   * same null the missing-post case returns, which is what keeps a foreign id
-   * indistinguishable from a nonexistent one at the gate above.
+   * The third case used to be the ORDINARY one, and saying what changed matters
+   * more than the check itself. `Project` was covered by row security while `Post`
+   * was not, so a caller whose scope excluded the project still saw the post row
+   * and got `project: null` from the join — measured directly against PostgreSQL
+   * as `omnipost_app`. `Post` now carries `tenant_isolation` too, so that caller no
+   * longer sees the post row at all and lands on the FIRST case instead: the whole
+   * read resolves to null one table earlier.
+   *
+   * The check stays because it is the only thing standing between a divergence in
+   * what the two policies admit and a TypeError the route reports as a 500 —
+   * Prisma types the relation as non-nullable because the schema declares it
+   * required, so an empty join is a shape the compiler cannot warn about. Failing
+   * closed here costs one comparison; the alternative fails open into a 500 on a
+   * read whose whole job is to decide ownership. Ownership that cannot be
+   * established is NOT ownership: it collapses onto the same null the missing-post
+   * case returns, which is what keeps a foreign id indistinguishable from a
+   * nonexistent one at the gate above.
    */
   async findOwnerAccountId(postId: PostId): Promise<AccountId | null> {
     const row = await this.prisma.post.findFirst({
@@ -448,6 +530,24 @@ export class PrismaPostRepository implements PostRepository {
     });
     if (!row?.project) return null;
     return AccountId.fromStringUnsafe(row.project.accountId);
+  }
+
+  /**
+   * @method findProjectOwnerAccountId
+   * @description Resolves the tenant that owns a project, through the guarded
+   *   client. Under a bound tenant context the guard injects `accountId` into the
+   *   `where`, so another tenant's project does not resolve and this returns null
+   *   — indistinguishable, by construction, from a project that does not exist.
+   * @param projectId - The project a post would be created under
+   * @returns The owning accountId, or null when the project is absent or invisible
+   */
+  async findProjectOwnerAccountId(projectId: ProjectId): Promise<AccountId | null> {
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId.value, deletedAt: null },
+      select: { accountId: true },
+    });
+    if (!project) return null;
+    return AccountId.fromStringUnsafe(project.accountId);
   }
 
   // Private helper methods
@@ -470,6 +570,41 @@ export class PrismaPostRepository implements PostRepository {
   }
 
   /**
+   * @method resolveProjectTenant
+   * @description Reads the owning tenant of a post's project from the project row
+   *   itself, through the SAME transaction client the write will use. This is the
+   *   only source of a new post's `accountId`: the value is never taken from the
+   *   caller, from the aggregate, or from the request.
+   *
+   *   Under a bound tenant context the guard injects `accountId` into this read's
+   *   `where`, so a project belonging to another tenant simply does not resolve and
+   *   the write is refused before it is attempted. Under an explicit
+   *   `withSystemContext(reason)` the guard steps aside and this read returns the
+   *   project's true owner, which is what lets a server-side sweep write on behalf
+   *   of a tenant it derived rather than one it was handed.
+   *
+   *   Soft-deleted projects are excluded deliberately. The composite FK would accept
+   *   one (a soft delete is a column update, so the referenced row still exists), but
+   *   a post created inside a deleted project is a defect either way, and refusing it
+   *   here fails closed instead of relying on the caller having checked.
+   * @param tx - The transaction client the post write runs on
+   * @param projectId - The project the post will belong to
+   * @returns The project's `accountId`
+   */
+  private async resolveProjectTenant(tx: TxClient, projectId: string): Promise<string> {
+    const project = await tx.project.findFirst({
+      where: { id: projectId, deletedAt: null },
+      select: { accountId: true },
+    });
+    if (!project) {
+      // Indistinguishable by construction from "no such project": a foreign
+      // project and a nonexistent one must not be tellable apart from outside.
+      throw new EntityNotFoundError("Project", projectId);
+    }
+    return project.accountId;
+  }
+
+  /**
    * Lógica interna de creación de post — opera sobre un cliente de transacción.
    */
   private async doCreate(
@@ -477,26 +612,29 @@ export class PrismaPostRepository implements PostRepository {
     data: ReturnType<typeof PostAggregateMapper.toPrismaCreate>,
     aggregate: PostAggregate
   ): Promise<void> {
+    const accountId = await this.resolveProjectTenant(tx, data.post.projectId);
+
     // Create post
     await tx.post.create({
       data: {
         id: data.post.id,
         projectId: data.post.projectId,
+        accountId,
         status: data.post.status,
         scheduledAt: data.post.scheduledAt,
         publishedAt: data.post.publishedAt,
       },
     });
 
-    // Create content
+    // Create content — the child inherits the parent's tenant, never its own lookup.
     await tx.postContent.create({
-      data: data.content,
+      data: { ...data.content, accountId },
     });
 
     // Create media
     if (data.media.length > 0) {
       await tx.postMedia.createMany({
-        data: data.media,
+        data: data.media.map((media) => ({ ...media, accountId })),
       });
     }
 
@@ -538,11 +676,17 @@ export class PrismaPostRepository implements PostRepository {
     // so concurrent writers are rejected — Prisma throws P2025 when no row
     // matches. We translate that to VersionConflictError so the use case
     // layer can surface a meaningful conflict response to the caller.
+    // The tenant of any child row created below comes from the parent row this
+    // update just wrote — read back from the database rather than recomputed, so
+    // a child can never land in a tenant its parent is not in.
+    let accountId: string;
     try {
-      await tx.post.update({
+      const updated = await tx.post.update({
         where: { id: postId, version: expectedVersion },
         data: { ...data.post, version: { increment: 1 } },
+        select: { accountId: true },
       });
+      accountId = updated.accountId;
       // Reflect the new version in the aggregate so subsequent operations on
       // the same instance see the post-commit value.
       aggregate.incrementVersion();
@@ -575,6 +719,7 @@ export class PrismaPostRepository implements PostRepository {
       },
       create: {
         postId,
+        accountId,
         ...data.content,
         revision: 1,
       },
@@ -607,6 +752,7 @@ export class PrismaPostRepository implements PostRepository {
         create: {
           id: media.id.value,
           postId,
+          accountId,
           type: media.type as "image" | "video" | "gif",
           url: media.url,
           width: media.width ?? null,

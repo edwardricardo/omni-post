@@ -19,7 +19,7 @@ import { UpdatePostUseCase } from "@core/posts/UpdatePostUseCase.js";
 import { ListPostsUseCase } from "@core/posts/ListPostsUseCase.js";
 import { DeletePostUseCase } from "@core/posts/DeletePostUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import { PostAggregate, ProjectId, EntityNotFoundError } from "@core/domain/index.js";
+import { AccountId, PostAggregate, ProjectId, EntityNotFoundError } from "@core/domain/index.js";
 import type { PostRepository, PostQueryRepository, PostReadModel } from "@core/domain/index.js";
 import type { EventDispatcher } from "@core/domain/events/DomainEvent.js";
 
@@ -73,6 +73,9 @@ function createMockPostRepository(): PostRepository {
     })),
     bulkUpdateStatus: vi.fn(async () => ok(undefined)),
     hardDelete: vi.fn(async () => ok(undefined)),
+    // The create path resolves the target project's tenant before building the
+    // aggregate; a double that answers null would 404 every creation.
+    findProjectOwnerAccountId: vi.fn(async () => AccountId.fromStringUnsafe("acc-owner-fixture")),
   };
 }
 

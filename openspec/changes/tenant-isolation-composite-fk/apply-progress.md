@@ -2438,3 +2438,1405 @@ PR 5 (Slice 1 structural enrollment). Its post-migration comparison now has a so
 `node --import tsx --conditions development --env-file=.env scripts/rls-ab-measurement.ts
 --phase after --projects 100 --posts 10000 --runs 3`, followed by `--cleanup`. The after run
 must use the same corpus size, or the comparison is between two different questions.
+
+---
+
+# PR 5 — Slice 1b: the RED half (tasks 8.1–8.5 only)
+
+Schema and migrations are the NEXT unit of work and are untouched here — `git status
+infra/prisma` is empty, so that is provable rather than asserted. Every gate's defect below is
+written and observed failing before its fix exists.
+
+## Task ledger (RED half)
+
+| Task                       | State                            | Evidence                                                    |
+| -------------------------- | -------------------------------- | ----------------------------------------------------------- |
+| 8.1 guard unit additions   | done, red                        | 24 new assertions, all red; suite 84 / 60 pass / 24 fail    |
+| 8.2 composite-FK suite     | done, red                        | 18 tests / 3 pass / 15 fail                                 |
+| 8.3 trio isolation suite   | done, red                        | 28 tests / 12 pass / 16 fail                                |
+| 8.4 compile-time scope pin | done, red — **not yet enforced** | 5 × TS2578, verified standalone; no CI scope opens the file |
+| 8.5 run all three red      | done                             | 84 vitest + 56 node:test, 0 cancelled, 0 skipped            |
+
+## The guard-set size was measured, not inherited
+
+The task text said "bump 58 → 61". The number was re-derived from the source before writing
+the assertion, because a count carried forward in prose is exactly the kind of fact that rots:
+
+```
+sed -n '/TENANT_SCOPED_MODELS = new Set/,/\]);/p' infra/prisma/src/extensions/tenantGuard.ts \
+  | grep -oE '"[^"]+"' | tr -d '"' | wc -l     # -> 58
+```
+
+58, so the premise holds and the assertion now reads 61. `post`, `postContent` and `postMedia`
+are confirmed absent from the set.
+
+## The counter-assertion that had to move (8.1)
+
+`model classification > excludes global tables` asserted `getTenantScopedModels().has("post")
+=== false`, with an in-file comment justifying it: "Post is transitively scoped (via project
+FK), not in this direct list." That is a passing test PINNING THE DEFECT this slice removes.
+Left alone it would have gone red at 10.1 and read as enrollment breaking something.
+
+`post` was removed from that exclusion list — which still covers `account`, `auditLog`,
+`providerBundle` and `linkClick` — and its positive membership moved into the new enrollment
+block. The reversal is explained where the old assertion stood, so a reader who remembers the
+old rule finds out why it changed instead of assuming a regression.
+
+## What each suite measures, and why the fixtures are raw SQL
+
+Both new suites had to compile BEFORE the tenant column exists and keep compiling AFTER it
+becomes required. The typed client cannot do both: `prisma.post.create({ data: { accountId } })`
+does not type-check today, and `prisma.post.create({ data: { projectId } })` stops type-checking
+once `accountId` is required. So all fixture writes go through raw SQL in one shared helper,
+`apps/api/tests/integration/helpers/postTrioFixtures.ts`, and the helper DISCOVERS from
+`information_schema` which trio tables already carry `accountId`, naming the column only when
+it is there.
+
+The adaptation is confined to the FIXTURE. Every behavioural assertion is unconditional, so a
+missing column surfaces as the assertion it belongs to rather than as a setup crash that would
+read as a broken harness — and one test reports the discovered shape outright, so a run states
+which side of the migration it measured (`Post=false PostContent=false PostMedia=false` today).
+
+## 8.2 — the four preconditions that were added, and why
+
+The task text lists behavioural arms only. Four catalog assertions were added ahead of them,
+because a behavioural arm on its own cannot distinguish "the constraint refused this write"
+from "the constraint is absent and something else refused it":
+
+1. `accountId` is NOT NULL on all three tables — this is what forecloses the `MATCH SIMPLE`
+   escape, not the FK. PostgreSQL skips a composite FK check when ANY referencing column is
+   NULL, so a nullable column would reopen it while every behavioural arm still passed.
+2. `Project` and `Post` carry a TOTAL unique on `(id, accountId)`, asserted to have no
+   `WHERE` clause — a partial unique cannot be an FK target at all, and a filtered one would
+   break children of soft-deleted parents.
+3. Each child's FK is composite AND carries `ON UPDATE NO ACTION` + `ON DELETE CASCADE`.
+4. Every composite FK is `convalidated`. A `NOT VALID` constraint is live for new writes only;
+   without this arm the slice could report a forward-only guarantee as covering history.
+
+## 8.2 — verbatim red reasons
+
+15 red / 3 green. Two distinct failure shapes, both right-reason:
+
+```
+Post, PostContent and PostMedia each carry a NOT NULL accountId column
+  -> expected a NOT NULL accountId on all three tables, observed []
+Project and Post each carry a TOTAL unique on (id, accountId)
+  -> expected a unique on (id, accountId) for both Project and Post, observed []
+each trio child's FK is composite and pinned to ON UPDATE NO ACTION / ON DELETE CASCADE
+  -> expected a composite tenant FK on all three tables, observed []
+every composite tenant FK is VALIDATED
+  -> no composite tenant FK exists to validate
+
+refuses a Post whose accountId disagrees with its project's, via the Prisma client
+  -> expected SQLSTATE 23503, observed [42703 ColumnNotFound]
+     column "accountId" of relation "Post" does not exist
+   (same shape for: explicit transaction, direct SQL, PostContent, PostMedia,
+    the consistent-write arm, the three NULL/NOT NULL arms, and the BYPASSRLS arm)
+
+refuses a project accountId update while posts reference it
+  -> expected PostgreSQL to refuse the write with SQLSTATE 23503, but it SUCCEEDED
+```
+
+The last one is the only arm whose red is a SUCCESS rather than an error, and that is the
+design's point: today `Post_projectId_fkey` is `FOREIGN KEY ("projectId") REFERENCES
+"Project"(id) ON UPDATE CASCADE ON DELETE CASCADE` (measured from `pg_constraint`), and there
+is no tenant column to re-point, so moving a project between tenants is silently permitted.
+
+## 8.2 — the three GREEN arms are named, not absorbed
+
+The task text says "still" for these, and they are regression pins that must hold on both
+sides of the migration. They pass today and are recorded so a later red is read as a
+regression rather than as expected:
+
+- a child survives its parent project being soft-deleted (soft delete is a column update, so
+  `ON DELETE CASCADE` must not fire);
+- `Account_email_key` — partial on `deletedAt IS NULL` — rejects a second live duplicate and
+  permits reuse after soft delete;
+- `Project_accountId_name_key` — same shape — does likewise.
+
+## 8.3 — the split, and the live defect it uncovered
+
+16 red / 12 green. The greens matter as much as the reds: all six application-level HTTP arms
+pass, and `postDeleteOwnership` + `postReadOwnership` were run in the same invocation and are
+**10/10 green**. That is the direct evidence for "the app-level gate is RETAINED, not
+replaced". Both recurrence-sweep arms are green too; the literal reason string
+`withSystemContext("recurrence-sweep")` was verified in `RecurrenceScheduler.tick` rather than
+copied from the task text.
+
+The reds are the guard-level arms — B's rows are readable, updatable and deletable from a
+tenant-A-bound guarded client, direct `PostContent` / `PostMedia` reads by parent key return
+B's rows, and an unbound read returns data instead of raising (`Missing expected rejection
+(TenantContextMissingError)`), because `tenantGuardCheck` returns early for a model it does
+not know.
+
+**One red is a LIVE DEFECT rather than a missing constraint, and it is the most important
+finding of this half.** `CreatePostUseCase`, with tenant A bound and tenant B's `projectId`,
+SUCCEEDS and persists a row into B's project. Read directly from `execute`: it validates that
+`projectId` is a well-formed UUID via `ProjectId.fromString` and then builds the aggregate — it
+never resolves the project and never checks ownership. Four surfaces pass a caller-supplied
+`projectId` straight through with no ownership assertion between the authenticated principal
+and the project:
+
+- `POST /zapier/actions/create-draft`
+- `POST /zapier/actions/schedule-post`
+- the two matching `make` actions
+
+Task 11.5 already owns the repair. What is new is that the exposure is LIVE and named, so 11.5
+is closing a real cross-tenant write hole rather than adding a backstop to a path that was
+already gated.
+
+## Two defects in this writer's own test code, found by running them
+
+Both would have produced right-looking reds for wrong reasons.
+
+**Cleanup written inside test bodies leaked fixtures.** The first `tenant-composite-fk` run
+left 2 accounts and 1 project behind: the soft-delete-unique tests clean up on their last line,
+and a test that fails earlier never reaches it — which is EVERY test in a suite authored red.
+Teardown now owns cleanup outright through a tracked-account list, and asserts per-table
+control counts. The rows leaked by that first run were removed by id and the database
+re-verified clean.
+
+**The SQLSTATE extractor read the wrong field.** Two arms first reported `[no-sqlstate] Invalid
+prisma.$executeRawUnsafe() invocation` — a wrong-reason red on two arms that are in fact green.
+Probed against four real failures (unique, undefined column, foreign key, not null): Prisma 7
+surfaces every raw failure as a `PrismaClientKnownRequestError` whose own `code` is the generic
+`P2010`, while the discriminating SQLSTATE sits at
+`meta.driverAdapterError.cause.originalCode`. Reading the outer code would have collapsed a
+foreign-key violation, a not-null violation and a missing column into one indistinguishable
+value — precisely the distinction these suites exist to draw. The extractor now prefers the
+structured payload, falls back to the backticked code in the message text, and `describeError`
+reports the engine's own message instead of Prisma's wrapper line.
+
+**Order-dependent contamination in 8.3.** The destructive arms originally attacked the shared
+tenant-B fixture. Because those writes SUCCEED today, one red arm destroyed the row a later arm
+needed, and four HTTP regression pins reported red for their predecessor's reason. Each
+destructive arm now seeds its own throwaway victim and the shared fixture stays pristine —
+which is what moved those four from red to green without changing a single assertion.
+
+## 8.4 — written, verified red, and NOT yet enforced
+
+The pin is `apps/api/tests/unit/security/tenantScopedQueryContract.type-test.ts`, covering the
+five methods D-T1 names. The premise is writable today without `TenantScope` existing: the pin
+references only the port methods, so while `scope` is absent each call is legal, the directive
+has nothing to suppress, and the compiler raises TS2578. Measured, exactly five, one per
+method:
+
+```
+tenantScopedQueryContract.type-test.ts(54,3): error TS2578: Unused '@ts-expect-error' directive.
+tenantScopedQueryContract.type-test.ts(57,3): error TS2578: Unused '@ts-expect-error' directive.
+tenantScopedQueryContract.type-test.ts(60,3): error TS2578: Unused '@ts-expect-error' directive.
+tenantScopedQueryContract.type-test.ts(63,3): error TS2578: Unused '@ts-expect-error' directive.
+tenantScopedQueryContract.type-test.ts(66,3): error TS2578: Unused '@ts-expect-error' directive.
+```
+
+**The enforcement gap, found while placing the file.** `apps/api/tsconfig.json` includes `src`
+only; `packages/core/domain/tsconfig.json` likewise. No project-level typecheck opens ANY file
+under `apps/api/tests` or `packages/core/domain/tests`. `tsc -b apps/api` returned exit 0 over
+this slice's work without reading a line of it — the first check run in this half was
+worthless, and saying so is the point. A pin placed there is INERT in CI today: it states the
+contract but cannot fail a build, which is the dead-scope class this repo's fitness preamble
+already names twice.
+
+It was written anyway, in the form the design prescribes, because it goes live the moment a
+typecheck scope covers it — and its red was demonstrated rather than asserted. **12.3 does not
+turn 8.4 green on its own; 12.3 plus a typecheck scope that includes the file does.** Required
+follow-up, sized with 12.4's plant-and-restore proof, which has the identical problem: a
+dedicated type-test tsconfig for `apps/api` wired into the typecheck task.
+
+The file is deliberately `.type-test.ts`, not `.test.ts`, so neither the vitest `include` globs
+(`tests/unit/**/*.test.ts`) nor fitness #30's `*.test.ts` scan treats it as a suite that ought
+to execute. Verified against both.
+
+## How the compile gate was actually run
+
+Because no project config covers the test tree, the four artifacts that must compile were
+typechecked STANDALONE against `tsconfig.base.json`'s flags, the same way PR 4 typechecked its
+root-level script:
+
+```
+npx tsc --noEmit -p <scratchpad>/tsconfig.trio-red.json   # exit 0
+```
+
+That config includes `apps/api/src`, the workspace packages, and the four artifacts. It is not
+a substitute for the missing scope — it is how this half proved its own work rather than
+inheriting a green from a check that never opened the files. The check earned trust the same
+run it was written: it caught a real error (`EventDispatcher` missing `register` in a
+hand-rolled stub, since replaced with `InMemoryEventDispatcher`).
+
+## 0-defect gate (RED half) — exact counts
+
+| Gate                                  | Result                                          |
+| ------------------------------------- | ----------------------------------------------- |
+| TSC, four artifacts, standalone       | **0**                                           |
+| TSC `tsc -b apps/api` (src scope)     | **0** — and scope-blind to this work, see above |
+| ESLint `--max-warnings 0`, five files | **0** (one unused import found and removed)     |
+| Prettier                              | clean (one file reformatted)                    |
+| Fitness #8 phase refs                 | **0**                                           |
+| Fitness #9 `@file`                    | **0**                                           |
+| Fitness #10 `@layer`                  | **0**                                           |
+| Fitness #5 `@ts-ignore`               | **0**                                           |
+| Fitness #23 raw prisma                | **0**                                           |
+| Fitness #32 `.skip` / `.only`         | **0**                                           |
+| Fitness #39 guard/denylist parity     | **0**                                           |
+| Tripwire words                        | **0**                                           |
+| **Fitness #30 unreached suites**      | **23 against a baseline of 21 — see below**     |
+
+## The one gate that is NOT green, deliberately, and must not be committed as-is
+
+Fitness #30 counts committed `*.test.ts` files under `apps/api/tests` that no `run_batch`
+names. The two new integration suites are exactly that, on instruction: wiring them into
+`run-tests.sh` now would put a red batch into CI. So the count is **23**, and the +2 is
+attributable by name:
+
+```
+apps/api/tests/integration/tenant-composite-fk.test.ts
+apps/api/tests/integration/post-trio-tenant-isolation.test.ts
+```
+
+This is a ratchet whose baseline may fall and must never rise, so the tree in this state is
+**work in progress, not a mergeable commit**. Task 13.1 wires both suites into the
+`integration:tenant-isolation` batch in the same change that makes them green, which returns
+the count to 21. If this half is ever committed and pushed before 13.1, fitness goes red for
+this reason and no other — recorded here so that failure is read correctly rather than
+diagnosed from scratch.
+
+## Database left as found — proven, not assumed
+
+Both suites assert per-table control counts in teardown (read before fixtures exist, re-read
+after cleanup). Independently, after the final run, an out-of-band query for tagged rows and
+orphans:
+
+| Check                                      | Count |
+| ------------------------------------------ | ----- |
+| `Account` tagged `tif-fk-%` / `trio-iso-%` | 0     |
+| `Project` tagged                           | 0     |
+| `PostContent` tagged                       | 0     |
+| `PostMedia` tagged                         | 0     |
+| `Post` with no surviving project           | 0     |
+
+Postgres was already up on the homelab host (`pg_isready` → accepting connections), so
+`pnpm db:up` was neither needed nor run. No migration was applied; `prisma` was not invoked.
+
+## Files written (RED half)
+
+| File                                                                  | Change                                                    |
+| --------------------------------------------------------------------- | --------------------------------------------------------- |
+| `apps/api/tests/unit/security/tenantGuard.test.ts`                    | Modify — 24 assertions added, one counter-assertion moved |
+| `apps/api/tests/integration/tenant-composite-fk.test.ts`              | Create — 18 tests                                         |
+| `apps/api/tests/integration/post-trio-tenant-isolation.test.ts`       | Create — 28 tests                                         |
+| `apps/api/tests/integration/helpers/postTrioFixtures.ts`              | Create — shared raw-SQL fixtures + SQLSTATE reader        |
+| `apps/api/tests/unit/security/tenantScopedQueryContract.type-test.ts` | Create — compile-time scope pin                           |
+
+Nothing sensitive was touched: no `.env*` (never read), no `schema.prisma`, no `migrations/**`,
+no `.github/**`, no `CLAUDE.md`, no `.claude/settings*`. No git command was run by this writer
+beyond read-only `status` / `log`.
+
+## Blockers and findings carried forward
+
+1. **`CreatePostUseCase` accepts a foreign `projectId`** — live, four named surfaces. Owned by
+   11.5; the red exists now.
+2. **No typecheck scope covers `apps/api/tests`** — makes 8.4 inert and will make 12.4's
+   compile-time proof inert too. Needs a type-test tsconfig wired into the typecheck task.
+3. **Fitness #30 is at 23 until 13.1** — intended, attributable, blocks commit-to-main.
+
+## Next (RED half)
+
+Schema and the six migrations, then enrollment. The reds above are the acceptance criteria:
+8.2's 15 turn green on the migrations, 8.1's 24 and 8.3's 16 on enrollment plus the write-path
+threading, and 8.4 on the query contract PLUS a typecheck scope that can see it.
+
+---
+
+# Corrective batch — PR #230 CI, three failure classes (2026-09-09)
+
+Not a numbered task. This is remediation of what the pushed HEAD `d8fb0f31` turned red in CI,
+so no `tasks.md` checkbox moves; the phase-8 WIP in `apps/api/tests/**` was not read for
+content and not touched, and its 24 reds are still exactly the reds task 8.1 recorded.
+
+## Class 1 — knip flagged `scripts/rls-ab-measurement.ts` as a dead file
+
+The harness is a standalone CLI (`node --import tsx … scripts/rls-ab-measurement.ts`) that
+nothing imports and that no `package.json` script names, so knip's npm-scripts plugin never
+saw it and its own `entry` defaults (`index.*`, `src/index.*`) do not match it. Nothing was
+importing it because nothing is supposed to — the finding is a false positive about the file's
+ROLE, not about its reachability.
+
+Declared as an `entry` in the root workspace, not an `ignore`. The distinction is the whole
+choice: an `ignore` would take the file out of knip's sight entirely, so a genuinely dead
+EXPORT added to it later would never be reported again; an `entry` keeps the file analysed and
+only says where the graph starts. The baseline was NOT regenerated — the gate's own message
+forbids exactly that, and doing it would have converted a config error into permanent debt.
+
+```
+knip.json  ".": { "entry": ["scripts/rls-ab-measurement.ts"], … }
+```
+
+| Run                                    | Result                                                   |
+| -------------------------------------- | -------------------------------------------------------- |
+| `pnpm check:dead-code` (before)        | exit 1 — `files::scripts/rls-ab-measurement.ts` NEW      |
+| `pnpm check:dead-code` (after config)  | exit 0 — 0 regressions, 321 baseline entries             |
+| `pnpm check:dead-code` (after Class 3) | exit 0 — 0 regressions, 321 baseline entries, re-checked |
+
+Re-run after the dependency moves on purpose: a catalog change can add `unlisted` or unused-
+dependency findings, and a gate verified only before the change would have been verified
+against a tree that no longer exists. The baseline count is unchanged at 321 and no baseline
+entry resolved, so the entry declaration bought exactly the one finding it was aimed at.
+
+## Class 2 — three CodeQL high alerts, all ours, all real
+
+### `js/file-system-race` ×2 — `writePhase` (was :1155 read, :1168 write)
+
+`if (!existsSync(path)) writeFileSync(path, SCAFFOLD); const current = readFileSync(path)` is
+check-then-use: the check answers about the file as it was AT THE CHECK, and the read that
+follows can land on a different file, or on none. Replaced the pattern rather than the symptom:
+
+- **Absence is discovered by attempting the read** and handling `ENOENT` (`isEnoent`, an
+  `instanceof Error` + `"code" in error` narrow — no cast, no `any`). There is no check left to
+  race against.
+- **The write is atomic**: the spliced document goes to `${path}.${randomUUID()}.tmp` in the
+  SAME directory and is `renameSync`d over the report, with a `finally` that removes the temp
+  file only when the rename did not consume it. The report's hand-written sections are not
+  recoverable from anywhere else, so a half-written file is the one outcome that must be
+  impossible.
+
+Byte-compatibility of the marker-scoped replacement is load-bearing for PR 4's evidence, so it
+was MEASURED, not argued. `<scratchpad>/equiv.mjs` runs the old and new implementations side by
+side over the real report bytes:
+
+| Assertion                                                            | Result                 |
+| -------------------------------------------------------------------- | ---------------------- |
+| `writePhase("before")` old output === new output, on the real report | ok                     |
+| `writePhase("before")` round-trip byte-identical to committed report | ok                     |
+| `writePhase("after")` old === new, and round-trip byte-identical     | ok                     |
+| Missing-file scaffold path, both phases, old === new                 | ok                     |
+| Missing markers still throws; no `.tmp` residue; file untouched      | ok                     |
+| `sha256` of `TENANT_RLS_AB_MEASUREMENT.md` before and after all work | `8173cf45…` both times |
+
+The old form wrote the scaffold and read it straight back, which is what starting from the
+scaffold in memory produces — the equality above is that reasoning checked rather than trusted.
+
+### `js/incomplete-sanitization` — `:1075`, the index-definition table cell
+
+`definition.replace(/\|/g, "\\|")` is global, so this is not the first-occurrence case; it is
+the missing-backslash case. Escaping `|` into `\|` while leaving `\` alone lets an input
+backslash pair with the escape — `\` + `\|` renders as a literal backslash followed by an
+UNescaped delimiter, and the cell the escaping exists to protect splits anyway. Replaced with a
+named `mdCell` helper that escapes `\` FIRST, then `|`, both global.
+
+Digest impact: none, and measured. The 24 index definitions in the committed capture contain no
+backslash and no pipe (`rg` over the report: zero of each), and the harness confirms `mdCell`
+is byte-identical to the old escaper on all 24. The differing behaviour is exercised on a
+synthetic input instead: `a\|b` → old `a\\|b` (delimiter live), new `a\\\|b` (escaped).
+
+The sibling escaper `lit` (SQL literal, `''` doubling) was checked in the same pass and is
+complete — SQL has no backslash escape inside a standard-conforming string literal.
+
+## Class 3 — the advisory wave
+
+`pnpm audit --audit-level moderate` was exit 1 with 14 vulnerabilities (2 critical, 5 high,
+4 moderate, 3 low; 4 of them pre-approved ignores). Six floors moved, each to the MINIMAL
+AVAILABLE patched version verified against the registry first — the `find-my-way` precedent is
+that an advisory can name a version npm never published, so "patched >= X" is a claim to check,
+not a value to paste.
+
+| Package                  | Old     | New        | Severity     | Chain / reachability                                                                          |
+| ------------------------ | ------- | ---------- | ------------ | --------------------------------------------------------------------------------------------- |
+| `next` (catalog)         | 16.2.11 | **16.3.3** | 2 × critical | DIRECT prod, both portals. Windows-RCE not reachable on Linux hosts; AVIF image-opt RCE is    |
+| `sharp` (override)       | 0.35.0  | **0.35.4** | high         | `next > sharp` (optional). Wrapper over two libheif bugs — same AVIF/HEIF decode surface      |
+| `@tiptap/*` (11 members) | 3.30.4  | **3.30.5** | high         | DIRECT prod, apps/client editor. Markdown-attribute ReDoS on pasted content — reachable       |
+| `js-yaml` (override)     | 4.3.1   | **4.3.2**  | high         | dev/build tooling (`@hey-api/openapi-ts`, ~100 paths). Empty merge sources walk the 4.3.0 cap |
+| `csv-parse` (catalog)    | 6.2.1   | **7.0.2**  | moderate     | DIRECT prod. `parseSchedulingCsv` uses `columns: true` — the exact advisory path. REACHABLE   |
+| `vitest` + `@vitest/*`   | 4.1.10  | **4.1.11** | moderate     | dev-only. `@vitest/mocker` needs no override: vitest pins it EXACTLY                          |
+
+Three canon gotchas were live in this wave and all three were hit:
+
+1. **`sharp` is the `fast-uri` gotcha again.** The override was `"sharp@<0.35.0": 0.35.0` — the
+   tree already resolved 0.35.0, its own target, so the band matched nothing and the override
+   was INERT. Raising only the value would have left it inert while the audit stayed red. Band
+   AND target moved, to `"sharp@<0.35.4": 0.35.4`.
+2. **`js-yaml` is the blanket-override gotcha.** The EXISTING key was raised; adding a second,
+   range-scoped key would have been silently outranked by the blanket one.
+3. **`@tiptap/*` is ATOMIC.** All 11 members moved in this batch — the 6 catalog entries and the
+   5 single-manifest literals in `apps/client`. Moving `@tiptap/core` alone leaves five siblings
+   pinned at 3.30.4 that each pull `@tiptap/core` transitively and drag a vulnerable copy back
+   in (the audit listed 63 such paths). Every member publishes 3.30.5 — verified before moving.
+
+`csv-parse` is the one MAJOR (6 → 7) and it is not a shortcut: there is no 6.x backport, so
+7.0.2 IS the minimal patched version and ADR-0018's rule is satisfied, not waived. It was also
+the move most likely to break something, so it was validated first.
+
+**Nothing is blocked.** §Blocked floors stays empty — every advisory in this wave had a
+published patch that the tree took without breaking a build or a test.
+
+### Empirical validation
+
+| Command                                      | Result                                                                                                                  |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install`                               | exit 0; one version each of next / sharp / js-yaml / csv-parse / vitest / @vitest/mocker / @tiptap/core in the lockfile |
+| `pnpm audit --audit-level moderate`          | **exit 0** — 6 findings, all below the gate or pre-approved                                                             |
+| `pnpm exec tsc -b apps/api` (heap 6144)      | exit 0                                                                                                                  |
+| `pnpm exec turbo run build` (admin + client) | 20/20 tasks, both Next apps compiled on 16.3.3                                                                          |
+| `pnpm --filter @core/bulk-scheduling test`   | 60/60 — the csv-parse MAJOR, on its own consumer                                                                        |
+| `pnpm --filter @apps/client test`            | 538/538 — tiptap, next, and the CSV parser integration test                                                             |
+| `pnpm --filter @apps/admin test`             | 111/111 — next + the vitest runner move                                                                                 |
+| `pnpm --filter @apps/api test`               | 8734 passed, 24 failed — the 24 are task 8.1's WIP reds, below                                                          |
+| `eslint . --max-warnings 0` (tracked tree)   | exit 0                                                                                                                  |
+| `prettier --check` on every touched file     | clean                                                                                                                   |
+| Fitness #9 / #10 / #16                       | 0 / 0 / 0                                                                                                               |
+
+The tier coverage is chosen, not incidental: `csv-parse` and `@tiptap/*` are exercised by the
+packages that consume them, `vitest` by every tier that ran at all (the runner itself moved —
+`v4.1.11` is printed in each run header), and `next` by both portals' tests AND a real
+`next build`, because a minor bump can pass tests and still fail the build the size-limit job
+runs. `sharp` is next's optional image-optimization binary and no test tier decodes an image —
+stated rather than papered over: its evidence is the successful install and build, not a
+runtime exercise.
+
+## The 24 API reds are the phase-8 WIP, and that is measured, not assumed
+
+`apps/api/tests/unit/security/tenantGuard.test.ts` — 1 failed file, 561 passed (562), and every
+one of the 24 failures names `post`, `postContent`, or `postMedia` guard enrollment. The
+committed `infra/prisma/src/extensions/tenantGuard.ts` contains none of those three strings, so
+the suite is red BY CONSTRUCTION and no dependency version can move it either way. This is
+exactly the red task 8.1 recorded ("84 tests / 60 pass / 24 fail"), unchanged by this batch.
+
+## Files touched
+
+| File                              | Change                                                                 |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| `knip.json`                       | Modify — root workspace `entry` for the standalone harness             |
+| `scripts/rls-ab-measurement.ts`   | Modify — `isEnoent` + atomic `writePhase`, `mdCell`, imports           |
+| `pnpm-workspace.yaml`             | Modify — 6 floors across catalog + overrides                           |
+| `apps/client/package.json`        | Modify — 5 tiptap literals 3.30.4 → 3.30.5 (atomic family)             |
+| `pnpm-lock.yaml`                  | Modify — regenerated by `pnpm install`                                 |
+| `docs/security/SECURITY_CANON.md` | Modify — 4 CVE-floor rows raised, 2 added; §Blocked floors still empty |
+| `apps/admin/next-env.d.ts`        | Modify — REGENERATED by `next build` (see below)                       |
+| `apps/client/next-env.d.ts`       | Modify — REGENERATED by `next build` (see below)                       |
+
+The two `next-env.d.ts` files are Next-generated ("This file should not be edited") and changed
+as a consequence of the 16.3.3 bump: both gained `root-params.d.ts`, and admin ALSO moved from
+`./.next/dev/types/routes.d.ts` to `./.next/types/routes.d.ts`. That second one is not cosmetic
+— it was committed in DEV form from some past `next dev`, and after a build `.next/dev/types/`
+does not exist at all, so the previously-committed content would have failed a post-build
+typecheck on the new version. Both apps typecheck exit 0 with the regenerated content. Kept,
+and flagged here rather than decided quietly, because whether generated files ride in this
+commit is a delivery call the orchestrator owns.
+
+Nothing sensitive was touched: no `.env*` (never read), no `infra/prisma/**`, no `.github/**`,
+no `CLAUDE.md`, no `.claude/settings*`, and no file under `apps/api/tests/**`. No git command
+was run beyond read-only `status` / `diff` / `ls-files` / `check-ignore`.
+
+## One residual, reported not fixed
+
+`pnpm lint` (the repo script, unscoped) reports 5 `no-console` errors in
+`.config/opencode/plugins/*.ts`. Those files are UNTRACKED and `.config/` is gitignored
+(`.gitignore:187`), so CI never checks them out and they cannot fail the workflow — measured:
+`git ls-files .config` returns zero files. They are local editor tooling, outside this repo's
+source tree and outside my edit scope. With `--ignore-pattern ".config/**"` the tracked tree
+lints at 0 errors / 0 warnings. Worth knowing for anyone who runs `pnpm lint` locally and reads
+those 5 as a repo defect.
+
+---
+
+# PR 5 — Slice 1b: the GREEN half (phases 10-13)
+
+The schema and all six migrations were applied by the orchestrator before this half began
+(`migrate status` up to date, `VALIDATE CONSTRAINT` passed x3 on an empty-divergence corpus,
+client regenerated). Phase 8's reds were in the tree, uncommitted, and were not weakened to
+pass. Everything below is the fix half: the reds turned green, and the three places where the
+prediction was wrong reported as findings rather than smoothed.
+
+## Task ledger (GREEN half)
+
+| Task  | State | Evidence                                                                          |
+| ----- | ----- | --------------------------------------------------------------------------------- |
+| 10.1  | done  | guard set 58 -> 61; vitest 83/83 after a SECOND defect-pin was reversed           |
+| 10.2  | done  | 4 live counts bumped, 2 historical ones deliberately not; new promotion section   |
+| 11.1  | done  | 3 sweeps; 5 production paths + nested creates + 1 harness; seed writes no trio    |
+| 11.2  | done  | `resolveProjectTenant` + update-returns-tenant; approve-variant adapter converted |
+| 11.3  | done  | db-prisma `createPost` + `addMediaToPost`; unbound tx, so derivation is mandatory |
+| 11.3b | done  | #38 db-prisma re-measured **11** = baseline; did not fall, did not rise           |
+| 11.4  | done  | 12 test factories/harnesses + the AB script; found by grep, confirmed by running  |
+| 11.5  | done  | foreign projectId -> NOT_FOUND, 0 rows persisted; 4 surfaces map to 404           |
+| 12.1  | done  | `TenantScope.ts`; the VO-vs-interface deviation is adjudicated in-file            |
+| 12.2  | done  | **8** methods converted, not the design table's 5; residual named                 |
+| 12.3  | done  | explicit `scope.accountId`; relation filter -> local column                       |
+| 12.4  | done  | 3 plants, all restored byte-exact; plant C proves the pin is load-bearing         |
+| 13.1  | done  | #30 back to 21; W3 18-cancelled -> 1-failed with a named message                  |
+| 13.2  | done  | tenant-isolation batch **232/232**, 0 cancelled, 0 skipped                        |
+| 13.3  | done  | full gate green; the two-channel arm is BLOCKED and reported, not claimed         |
+
+## The green-flip prediction vs what happened
+
+`APPLY_NOTES.md` section 5 predicted the flips. Three deviations, all reported rather than
+smoothed, because a wrong prediction is information about the staging.
+
+| Suite                                | Predicted         | Measured                          | Deviation                                                                                    |
+| ------------------------------------ | ----------------- | --------------------------------- | -------------------------------------------------------------------------------------------- |
+| `tenantGuard.test.ts` (vitest)       | 84/84 after 10.1  | **83 pass / 1 fail**, then 83/83  | A SECOND test pinned the defect; 8.1's sweep reached one counter-assertion, not both         |
+| `tenant-composite-fk.test.ts`        | 18/18 after mig 5 | **16 pass / 2 fail**, then 18/18  | One assertion could never pass; one arm was passing for another constraint's reason          |
+| `post-trio-tenant-isolation.test.ts` | 28/28 after 10+11 | **16 pass / 12 fail**, then 28/28 | A lazy-PrismaPromise trap in the harness that only became visible once the trio was enrolled |
+
+Everything else matched: migrations 1-5 staged the fk suite's arms exactly as predicted, and
+migration 6 changed nothing in it.
+
+### Deviation 1 — a second test pinned the defect (10.1)
+
+Task 8.1 found `model classification > excludes global tables` asserting
+`getTenantScopedModels().has("post") === false` and moved it. There was a second, in a
+different describe block, that its sweep did not reach:
+
+```
+bypasses transitively-scoped models like Post (not in direct list)
+  -> expects queryFn toHaveBeenCalledWith({ where: { accountId: "acc-B" } })
+     under a context bound to acc-A
+```
+
+That is a cross-tenant read asserted as CORRECT BEHAVIOUR — the sharpest form of the class,
+because it is green today and goes red the moment the hole closes. It was REVERSED rather than
+deleted: its exact inputs (model `Post`, operation `findMany`, `where.accountId = "acc-B"`,
+context `acc-A`) already appear in the trio enrollment block as
+`throws TenantContextMismatchError when a Post where.accountId disagrees with context`, so the
+old test was a reversed duplicate of a live assertion. A note stands where it did, so a reader
+who remembers the old rule finds out why it flipped instead of assuming a regression.
+
+Suite count moved 84 -> 83. That is the duplicate becoming a comment, not an assertion dropped.
+
+### Deviation 2 — two fk arms, and only one of them was about the constraint
+
+**2a. An assertion that could never pass, no matter how correct the constraint.**
+
+```
+each trio child's FK is composite and pinned to ON UPDATE NO ACTION / ON DELETE CASCADE
+  -> "Post": ON UPDATE must be NO ACTION ... Observed: FOREIGN KEY ("projectId", "accountId")
+     REFERENCES "Project"(id, "accountId") ON DELETE CASCADE
+```
+
+The arm matched the STRING `"ON UPDATE NO ACTION"` inside `pg_get_constraintdef`. PostgreSQL
+omits a clause whose value is the default, and `NO ACTION` is the default — so a constraint
+created exactly right renders with no `ON UPDATE` clause at all and the substring test can
+never succeed.
+
+Measured from the catalog before touching anything, all three constraints:
+
+```
+Post_projectId_accountId_fkey        confupdtype=a  confdeltype=c  convalidated=true
+PostContent_postId_accountId_fkey    confupdtype=a  confdeltype=c  convalidated=true
+PostMedia_postId_accountId_fkey      confupdtype=a  confdeltype=c  convalidated=true
+```
+
+`'a'` is NO ACTION, `'c'` is CASCADE. The constraint was right; the assertion was wrong about
+how PostgreSQL renders it. And the behavioural arm in the same file —
+`refuses a project accountId update while posts reference it` — was ALREADY GREEN, which is the
+independent proof that ON UPDATE really is NO ACTION.
+
+The arm now reads `confupdtype` / `confdeltype` from `pg_constraint` directly. That is a
+STRENGTHENING, not a weakening: the codes are the canonical value, the definition text is a
+rendering of it, and a rendering that omits defaults cannot express the thing being asserted.
+
+**2b. An arm passing for a different constraint's reason.**
+
+```
+refuses a PostContent whose accountId disagrees with its post's
+  -> expected SQLSTATE 23503, observed [23505 UniqueConstraintViolation]
+     duplicate key value violates unique constraint "PostContent_postId_locale_revision_key"
+```
+
+The suite seeds one content row for `postA` at `('en', revision 1)`, and the divergent-tenant
+insert used locale `'en'` too. `PostContent_postId_locale_revision_key` is unique over exactly
+that triple, so the UNIQUE index refused the row before the foreign key was ever consulted. In
+phase 8 this was invisible: the column did not exist, so the insert died at `42703` first.
+
+An arm refused by the wrong constraint is no evidence at all about the tenant key. Fixed by
+using locale `'de'`, which leaves the divergent `accountId` as the only thing wrong with the
+row — so 23503 is the only refusal available. The assertion is untouched.
+
+### Deviation 3 — a lazy PrismaPromise escaping the tenant binding (13.2)
+
+12 of the trio suite's arms failed with `No TenantContext or SystemContext bound for
+Post.findMany` — including three that assert tenant A's OWN surfaces still work, which is not a
+shape an isolation defect produces.
+
+Cause, PROVEN with a two-arm probe against this database rather than reasoned about:
+
+```
+LAZY   withTenantContext(ctx, () => guarded.post.findMany({}))          -> TenantContextMissingError
+EAGER  withTenantContext(ctx, async () => await guarded.post.findMany({})) -> no throw
+```
+
+A Prisma client call returns a lazy `PrismaPromise` that executes nothing until awaited.
+`withTenantContext` is `AsyncLocalStorage.run`, which returns as soon as the arrow hands the
+promise back — so the query executes AFTER the scope has closed and the guard sees no context.
+Before enrollment the guard returned early for `Post` and the missing context never mattered;
+enrollment is what made it visible.
+
+**Production is not exposed to this, and that was checked rather than assumed.** Every
+`withTenantContext` call site in `apps/api/src` wraps a real `async` use case (`oidcRoutes`,
+`samlRoutes`, `providerOAuthFlow`, ...) whose awaits happen inside the scope. The trap belongs
+to suites that drive the client DIRECTLY, and this suite exists to drive it directly. A local
+`asTenant(accountId, run)` helper now binds and awaits inside the binding, with the measurement
+recorded in its own JSDoc; 13 call sites moved onto it. No assertion changed.
+
+## The 11.5 closure — the live cross-tenant write hole
+
+8.3 recorded this as a LIVE defect: `CreatePostUseCase` validated that `projectId` parsed as a
+UUID and nothing else, so a caller bound to tenant A persisted a post into tenant B's project.
+Reachable through four surfaces that pass a caller-supplied `projectId` straight through.
+
+The gate is at the APPLICATION layer, before anything is built:
+
+```
+findProjectOwnerAccountId(projectId)  -> resolved through the guarded client
+  null  -> USE_CASE_ERRORS.NOT_FOUND   (foreign and nonexistent give the SAME answer)
+```
+
+Evidence, from the arm phase 8 wrote red:
+
+```
+ok 1 - CreatePostUseCase with B's projectId under A's context is NOT_FOUND and persists nothing
+```
+
+The arm asserts three things and all three hold: the result is not ok; the error code contains
+`NOT_FOUND` (its message says why 403 would be wrong — a 403 confirms the project exists); and
+the `Post` row count is identical before and after, so nothing was written.
+
+**Why the gate is not the foreign key.** The composite FK would also refuse the write, but by
+then the application has already lost the ability to answer properly — it surfaces as a 500
+carrying an engine message. The four surfaces previously mapped EVERY use-case failure to 400,
+which is not a 404 either; all four now map `NOT_FOUND -> 404` explicitly.
+
+The constructor stayed at 3 arguments. That was forced, not chosen: 8.3 constructs the use case
+with three, so a fourth required dependency would have made the red test unconstructable. The
+resolution therefore went onto the port the use case already holds, symmetric with the existing
+`findOwnerAccountId(postId)`.
+
+## 12.4 — three plants, and the one that proves the pin is load-bearing
+
+Every plant restored byte-exact, verified with `sha256sum -c` (not by eye).
+
+| Plant | Change                                                           | `tsc --noEmit` (src) | type-test scope |
+| ----- | ---------------------------------------------------------------- | -------------------- | --------------- |
+| A     | delete the `scope` argument at one call site                     | **exit 1**, TS2345   | (same error)    |
+| B     | widen all 8 `scope` parameters to optional                       | **8 x TS1016**       | **8 x TS1016**  |
+| C     | silently un-scope `countByProjectId` in the port AND its adapter | **0 errors — BLIND** | **1 x TS2578**  |
+
+Plant C is the one that matters. A and B are both catchable by the source pass, so they do not
+demonstrate that the pin adds anything. C is the shape a codemod actually produces — the
+parameter removed from the port and the implementation together, with no call site left to
+disagree — and `countByProjectId` has zero production callers, so the source typecheck sees a
+perfectly consistent program. It reported 0 errors. The pin reported:
+
+```
+tests/unit/security/tenantScopedQueryContract.type-test.ts(54,3): error TS2578: Unused '@ts-expect-error' directive.
+```
+
+That is 8.4's finding closed by demonstration. Plant B is also worth its own line for the
+OPPOSITE reason: with `scope` positioned FIRST, widening it to optional is not merely caught,
+it is unwritable — `A required parameter cannot follow an optional parameter`. The positional
+choice is doing work the prose alone would not.
+
+**The enforcement wiring, which is what made any of this non-inert.** New
+`apps/api/tsconfig.type-tests.json` extending the package's own `tsconfig.json`, and
+`"typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.type-tests.json"`. Extending a
+WORKSPACE config rather than a root one keeps fitness #33 unengaged (its rule covers root-level
+extends targets; targets resolving inside a workspace directory are covered by that package's
+own input hash), so `turbo.json` needs no change — checked against the check's own skip clause
+rather than assumed.
+
+## 13.1 — W3, reproduced before it was fixed
+
+Bare invocation, no root env:
+
+```
+before:  # tests 18   # fail 0   # cancelled 18
+after:   # tests 1    # fail 1   # cancelled 0
+         Error: seed channel is not configured: set MIGRATE_DATABASE_URL (the migrate/owner
+         channel) or DATABASE_URL. ...
+```
+
+`resolveSeedDatabaseUrl` already threw a good message; the problem was WHERE. Thrown from
+inside `before()`, node:test cancels every child, and "test did not finish before its parent"
+x18 is what a resource leak looks like — the one line naming the real cause sits underneath
+eighteen that point somewhere else. `assertSeedChannelConfigured()` is called at module scope
+now, so the file fails to load and there are no children to cancel.
+
+## Findings (GREEN half)
+
+1. **A second defect-pin in `tenantGuard.test.ts`** (deviation 1). The class is worth naming
+   beyond this instance: a test that asserts the CURRENT permissive behaviour of a gap is
+   green until the gap closes, and then reads as the fix breaking something. Two were found in
+   this file across two phases; a third would not be surprising in the next enrollment.
+2. **`pg_get_constraintdef` omits default clauses** (deviation 2a). Any assertion about a
+   referential action must read `confupdtype`/`confdeltype`, never the definition text. This
+   applies to every future enrollment that pins `ON UPDATE NO ACTION`.
+3. **A lazy `PrismaPromise` escapes `AsyncLocalStorage.run`** (deviation 3). Production is
+   unaffected; suites driving the client directly are not. Worth knowing before the next
+   isolation suite is written.
+4. **Nested relation creates inherit the tenant by construction.** `PostContentCreateWithoutPostInput`
+   omits both `postId` and `accountId` because both are the composite relation's `fields`, so a
+   nested child cannot name a tenant of its own. The composite key bought more than refusal: on
+   that path, correctness is unwritable-otherwise rather than enforced-after-the-fact.
+5. **Two collection-port members the design table missed** (12.2). `findByProjectId` and
+   `getProjectStats` reach the same rows, over the same key, as members the design DID list. The
+   task's "the table is a snapshot, not a sample" instruction was load-bearing.
+6. **`postDeleteOwnership`'s system-caller arm needed a context binding.** `caller: { type:
+"system" }` is an APPLICATION-level claim that skips the ownership gate; the tenant context is
+   an INFRASTRUCTURE-level binding the data layer needs. The two were conflated while `Post` sat
+   outside the guard. Production binds it (the saga dispatches through `runAsSagaTenant`, which
+   enters a context before `step.execute` — verified in `SagaManagerExecution.ts`), so the test
+   was relying on a gap rather than matching production; it now wraps in `withSystemContext`.
+
+## Blockers (GREEN half)
+
+1. **The app-role-channel batch could not be run here.** `run-tests.sh` sources only the root
+   env file, and in this environment BOTH channels resolve to `postgres`
+   (`rolsuper=true`, `rolbypassrls=true`, measured). The app-role URL lives in the test env file,
+   and every command naming that path is refused by the pre-bash sensitive-path guard without a
+   `sensitive-edit` token. The batch reported above is therefore the OWNER channel. This is not a
+   silent gap: `rls-tenant-isolation.test.ts` reaches the non-bypassing role through
+   `SET LOCAL ROLE omnipost_app` regardless of the connection URL and all of its app-role arms
+   are green, and the trio suite is DESIGNED for the owner channel so its isolation result cannot
+   be a borrowed RLS result. The second-channel run is left to the orchestrator.
+2. **Two live-API suites could not run**: `repurposeRoutes` and `sagaCustomerFlow` require a
+   server on :3000 (`full-integration` tier). Their fixtures were threaded and they cancel on
+   their own reachability precondition, which is unrelated to this work.
+3. **Phase 9's checkboxes (9.1-9.9) are still unmarked.** That work was done by the orchestrator,
+   which owns those boxes; this half did not mark them.
+
+## Files written (GREEN half)
+
+| File                                                                      | Change                                                          |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `infra/prisma/src/extensions/tenantGuard.ts`                              | Modify — trio enrolled, header count 58 -> 61                   |
+| `packages/core/domain/src/repositories/TenantScope.ts`                    | Create — the scope type                                         |
+| `packages/core/domain/src/repositories/PostRepository.ts`                 | Modify — 8 scope-first signatures + `findProjectOwnerAccountId` |
+| `packages/core/domain/src/index.ts`                                       | Modify — export `TenantScope`                                   |
+| `packages/core/posts/src/CreatePostUseCase.ts`                            | Modify — the project-ownership gate                             |
+| `packages/core/posts/src/ListPostsUseCase.ts`                             | Modify — scope built from the authenticated principal           |
+| `packages/core/recurring/src/CreatePostFromRecurrenceUseCase.ts`          | Modify — same gate, correct error shape                         |
+| `apps/api/src/infrastructure/repositories/PrismaPostRepository.ts`        | Modify — tenant threading + 5 scoped reads                      |
+| `apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts`   | Modify — 4 scoped reads; relation filter -> local column        |
+| `apps/api/src/infrastructure/repositories/PrismaApproveVariantAdapter.ts` | Modify — tenant from the resolved project row                   |
+| `apps/api/src/cqrs/handlers/PostQueryGetList.ts`                          | Modify — scope-first call                                       |
+| `apps/api/src/cqrs/handlers/PostQuerySearchAnalytics.ts`                  | Modify — scope-first call, fail-closed like its sibling         |
+| `apps/api/src/integrations/zapierRoutes.ts`                               | Modify — `NOT_FOUND -> 404` on both create surfaces             |
+| `apps/api/src/integrations/makeRoutes.ts`                                 | Modify — same                                                   |
+| `packages/adapters/db-prisma/src/PostRepository.ts`                       | Modify — tenant threading on both write paths                   |
+| `scripts/rls-ab-measurement.ts`                                           | Modify — trio seeding threads the tenant                        |
+| `apps/api/scripts/run-tests.sh`                                           | Modify — both suites wired into the batch                       |
+| `apps/api/tsconfig.type-tests.json`                                       | Create — the scope that makes compile-time pins real            |
+| `apps/api/package.json`                                                   | Modify — `typecheck` runs the type-test scope                   |
+| `apps/api/tests/integration/helpers/seedPrismaClient.ts`                  | Modify — `assertSeedChannelConfigured`                          |
+| `apps/api/tests/integration/tenant-composite-fk.test.ts`                  | Modify — catalog-code assertion, locale fix, preflight          |
+| `apps/api/tests/integration/post-trio-tenant-isolation.test.ts`           | Modify — `asTenant` helper, preflight                           |
+| `apps/api/tests/integration/rls-tenant-isolation.test.ts`                 | Modify — the trio RLS assertion flipped positive                |
+| `apps/api/tests/unit/security/tenantGuard.test.ts`                        | Modify — the second defect-pin reversed                         |
+| 12 test fixture/factory files                                             | Modify — tenant threaded at every trio create site              |
+| 7 unit-test doubles                                                       | Modify — new port member + scope-first shapes                   |
+| `docs/security/MULTI_TENANT_GUARDS.md`                                    | Modify — counts, promotion section, exemption, enumeration      |
+
+Nothing prohibited was touched: no `.env*` (never read — one command that would have named the
+path was refused by the guard and NOT worked around), no `schema.prisma`, no `migrations/**`, no
+`.github/**`, no `CLAUDE.md`, no `.claude/settings*`, no `turbo.json`. No git command beyond
+read-only `status` / `log` / `diff`.
+
+## Database left as found
+
+Both new suites assert per-table control counts in teardown (read before fixtures exist, re-read
+after cleanup) and both were green on the final run, which is the check. No migration was
+applied by this half; `prisma migrate status` reports the same 80 migrations and "Database schema
+is up to date". The scratchpad probes used for the catalog and ALS measurements were read-only
+apart from one that was copied into `apps/api/tests/integration/` to resolve workspace imports
+and deleted in the same command (absence verified).
+
+## Next (GREEN half)
+
+PR 5 is complete and gate-green on the owner channel. The orchestrator owns: the app-role-channel
+batch, the phase-9 checkboxes, the commit (phases 9 + 10 must land together — fitness #39 is red
+on a tree carrying the schema without the enrollment), and the RDD lifecycle. PR 6 (phase 14) can
+then take the after-plans; `scripts/rls-ab-measurement.ts` is already threaded for it.
+
+---
+
+# PR 5 — corrective after the independent gate (2026-09-09)
+
+The fresh-context gate returned **FAIL: 3 CRITICAL, 4 WARNING, 3 SUGGESTION**. Everything the
+GREEN half claimed on the owner channel reproduced exactly; what it could not see was the
+application-role channel, which is the channel CI's `Integration Tests` job uses. This section
+is the single bounded corrective that closes C1, C2, C3, W1, W3 and S2, and RECORDS W2, W4, S1,
+S3 and one finding of the corrective's own.
+
+## The two-channel runner, and why the previous blocker was wrong
+
+The GREEN half reported the app-role batch as BLOCKED because "the app-role URL lives in the
+test env file" and every command naming that path is refused by the sensitive-path guard. **W2
+is correct: that reasoning was wrong**, and it is worth stating plainly rather than quietly
+dropping. The role does not need a second URL or a credential at all.
+
+`node-postgres` merges `parse(connectionString)` OVER the adapter's explicit config, so
+`?options=-c role=omnipost_app` appended to the OWNER url wins and the session runs as the
+application role from its first statement — `current_user = omnipost_app`, `session_user =
+postgres`, `is_superuser = off`. That is the same mechanism `tests/integration/helpers/appRoleClient.ts`
+already ships (`createTestPrismaClient(url, "-c role=omnipost_app")`), hoisted from one client
+to the whole process. The corrective ran it as a scratchpad `--import` preload passed through
+the harness's own `EXTRA_FLAGS` hook, so `run-tests.sh` still loads the environment itself and
+no command in this session named an env path:
+
+```
+TIER=pr-integration EXTRA_FLAGS="--import <scratch>/approle-preload.mjs" \
+  pnpm --filter @apps/api test:integration
+```
+
+The preload reads `process.env` only, pins `MIGRATE_DATABASE_URL` to the owner channel so
+fixtures keep their seed path, and restates `-c timezone=UTC` because the url's `options`
+displace `PG_SESSION_OPTIONS`. **S3 is adopted in practice**; making it a first-class runner
+flag is left to the slice that owns `run-tests.sh`.
+
+**Bearing on task 6.5, stated but not acted on.** 6.5 asked for the
+`integration:tenant-isolation` batch green on the app-role url, and its annotation records the
+measurement that blocked it: `177 · pass 170 · fail 7`, adjudicated 2026-09-07 and deferred to
+Slice 0d. That batch is now **232 / 232 on that channel**. Its checkbox is deliberately left
+for its own owner rather than flipped from inside a corrective for a later slice — the number
+is recorded here so the adjudication can be closed by whoever holds it.
+
+## Corrective ledger
+
+| Finding | State     | Evidence                                                                            |
+| ------- | --------- | ----------------------------------------------------------------------------------- |
+| C1      | closed    | 4 stale call sites updated; `integration:repositories` **163/163** on both channels |
+| C2 a+b  | closed    | production fix in `PrismaPostRepository`; root cause is a base-client escape        |
+| C2 c    | closed    | root cause is NOT a base-client escape — measured; test wiring corrected instead    |
+| C3      | closed    | routed to `MULTI_TENANT_GUARDS.md`, **SMELL-92**, and the 12.2 annotation           |
+| W1      | closed    | 9.1-9.9 marked with the gate's measured 9.8 / 9.9 evidence, attributed              |
+| W3      | closed    | `findOwnerAccountId` JSDoc rewritten to the post-migration posture                  |
+| W4      | recorded  | migration 3's `CREATE UNIQUE INDEX` deviation annotated on task 9.4                 |
+| S2      | closed    | `countByStatus`'s arm now asserts an exact count against 3 discriminators           |
+| W2      | recorded  | above — the stated blocker reason was wrong; the channel needs no credential        |
+| S1      | not taken | widening the test typecheck scope is SMELL-91's own work; see the residual below    |
+| S3      | adopted   | above, as a scratchpad preload; promoting it to the runner is left to its owner     |
+
+## C1 — four stale call sites, and one that could not fail
+
+`tests/integration/repositories/PrismaPostRepository.test.ts` was byte-identical to HEAD and
+still called the pre-conversion arity of four scope-first methods. Three went red; the fourth
+passed vacuously. Baseline reproduced before touching anything: `TIER=pr-integration` = **470
+tests, 467 pass, 3 fail**, batch `integration:repositories` 163 / 160 / 3.
+
+| Line | Call as written                            | Symptom                                                      |
+| ---- | ------------------------------------------ | ------------------------------------------------------------ |
+| 246  | `findByProjectId(projectId, {page,limit})` | `result.items.length <= 3` false — `projectId` read as scope |
+| 321  | `countByProjectId(projectId)`              | `TypeError` reading `value` at `PrismaPostRepository.ts:319` |
+| 330  | `countByStatus(projectId, DRAFT)`          | **passed** — `typeof count === "number"` and `count >= 0`    |
+| 339  | `getProjectStats(projectId)`               | `TypeError` at `:354`                                        |
+
+The scope is DERIVED rather than restated per call site: the suite's own fixtures create the
+project under `testAccountId`, so a single `tenantScope()` helper returns `{ accountId:
+testAccountId }` and every converted call takes it positionally.
+
+**S2, folded in here because line 330 is the same defect seen from the other side.** A count
+asserted as `>= 0` is a count no implementation can fail. The arm now seeds a population it
+owns — its OWN project under the same tenant, three DRAFT posts — and asserts `count === 3`
+exactly, against three discriminators, one per filter the query applies: a SCHEDULED post in
+the same project (status filter), a soft-deleted DRAFT in the same project (`deletedAt`
+filter), and a DRAFT under the shared fixture project (project filter). Drop any one filter
+from the implementation and the arm goes red. The extra project is registered for teardown, so
+the suite still leaves the database as it found it.
+
+## C2 — the app-role regressions, and where the gate's diagnosis held and where it did not
+
+Baseline on the application role: `integration:tenant-isolation` **232 / 229 / 3**. The three
+failures split into two DIFFERENT root causes, and the split matters because one of them is a
+production defect and the other is not.
+
+### (a) + (b) — `postDeleteOwnership`, a base-client escape (PRODUCTION defect, fixed)
+
+`lets the owner delete its own post` returned 500, and `lets the explicit system caller delete
+the post it owns` returned `ok = false`. One cause for both.
+
+`DeletePostUseCase` receives a `UnitOfWork` from the composition root
+(`setupPostUseCases.ts`), so its delete runs inside `executeInTransaction`. Inside that
+transaction the unit of work has issued `set_config('app.account_id', …, true)` on ITS
+connection and holds the marker that tells the per-operation binding to stand down.
+`PrismaPostRepository.delete` then issued BOTH of its statements — the `exists` probe and the
+`update` — on `this.prisma`, the injected base client. That runs on a second pooled connection
+where the tenant was never bound and where nothing will now bind it.
+
+This is **SMELL-90's exact class**, and it was invisible for as long as the connecting role
+bypassed row security: under the owner channel the statements simply committed outside their
+caller's transaction and nothing complained. Once `20260909000500` put `tenant_isolation` on
+`Post`, the same statements match no row, so the existence probe reports the caller's own post
+as absent and the delete reports failure. Proven causal by the gate on a throwaway database:
+with migration 6 applied `postDeleteOwnership` is 2 pass / 2 fail; after `down.sql` alone it is
+4 pass / 4 pass.
+
+**Fix**, in `apps/api/src/infrastructure/repositories/PrismaPostRepository.ts`: a private
+`activeClient()` that returns `PrismaUnitOfWork.getTransactionClient() ?? this.prisma`, used by
+`exists()` and by `delete()`'s update. It is the pattern `create()` and `hardDelete()` in the
+same file already follow; those two were converted earlier and `delete` was not. No policy was
+widened, no raw SQL was added, and the no-unit-of-work path is unchanged — there the injected
+client's per-operation binding still wraps and binds each statement itself.
+
+`exists()` is shared with `save()`, so the same reach existed on the save path: inside a unit
+of work an existence probe answering from an unbound connection describes a different tenant
+scope than the write that follows it. That is closed by the same change.
+
+### (c) — `tenantGucTransactionBinding`, NOT a base-client escape (test wiring, corrected)
+
+The gate attributed this arm to the same class and prescribed "resolve through the tx client,
+not the base client". **Measured, that diagnosis does not hold: `resolveProjectTenant` already
+runs on the transaction client** — it takes `tx` as its first parameter and issues
+`tx.project.findFirst`. The transaction it runs in had bound NO tenant, which is a different
+defect with a different owner.
+
+A repository-opened transaction binds `getAmbientGucScope()`, and fitness **#40 Part B**
+requires exactly that: the scope must be DERIVED from the same provider object the tenant
+guard reads, never hand-built, which is what makes "one provider, no second source of tenant
+truth" a property of the code. The composition root honours it — `setup.ts` passes
+`ambientTenantContextProvider` into `tenantGuardWithGucBindingExtension`, so the guard's tenant
+and the transaction's scope are the same object and CANNOT disagree.
+
+The failing arm's double breaks that: it hands the guard a fixed provider (`() => ({ accountId
+})`) while leaving the ambient storage empty. The guard then reports a tenant, the transaction
+binds nothing, and the new in-transaction `Project` read — added by task 11.2, and the first
+read of a row-security-covered table ever placed inside a repository-opened transaction — sees
+no project. Measured with a scratchpad probe run inside the harness on the application role,
+four shapes, cleaned up afterwards:
+
+```
+SHAPE1 guard-only extension, NO ambient ctx  -> ok=false  EntityNotFoundError: Project ... not found
+SHAPE2 guard-only extension, ambient ctx BOUND -> ok=true
+SHAPE3 guard+binding (shipped wiring), NO ambient ctx -> ok=false  EntityNotFoundError: Project ... not found
+SHAPE4 guard+binding (shipped wiring), ambient ctx BOUND -> ok=true
+```
+
+SHAPE3 rules out the extension shape as the variable: the SHIPPED composition-root wiring
+behaves identically. The variable is the ambient binding, and production always has it — a
+request enters `withTenantContext`, a scheduler tick enters `withSystemContext`, a saga step
+enters through `runAsSagaTenant`. With no context at all, production's provider returns
+`undefined` and the guard refuses the read outright with `TenantContextMissingError`; it never
+reaches the state this double constructs.
+
+**Fix, and it is a DEVIATION from the corrective brief, stated rather than slipped in.** The
+brief said C2 is production-only. On this arm a production change is not available: the only
+candidate is to stop deriving the scope through `getAmbientGucScope()`, which fitness #40 Part
+B forbids at hard-zero and which would replace a canon-mandated single provider with a second
+source of tenant truth. So the fix is in the double's wiring — the two arms of the first
+`describe` now wrap their `save` in `withTenantContext({ accountId }, …)`, which is exactly
+what the THIRD arm of that same suite already does and documents in its own comment. **No
+assertion was changed, removed or relaxed.** The suite's docblock now carries the reason.
+
+**This also un-vacuums the sibling arm, which is a finding of its own.** `rolls the post back
+when the nested content write fails` forces a failure on the nested `PostContent` write and
+asserts the post did not survive. On the unbound wiring, `resolveProjectTenant` threw BEFORE
+any content write, so the arm was green on an error that had nothing to do with the rollback it
+exists to prove. That is not inferred: the sibling arm, identical up to the forced flag,
+measured that exact pre-content failure. With the context bound the forced failure is reachable
+again and the rollback assertion means what it says.
+
+## C3 — the 12.2 residual now has a durable home
+
+`findByStatus`, `findReadyForPublishing` and `findWithFilters` are the three collection members
+task 12.2 deliberately did not convert. They appeared ONLY in that task annotation: zero
+occurrences in this file, in `MULTI_TENANT_GUARDS.md` or in the backlog, and no owner.
+
+Routed three ways: a named-residual subsection under `MULTI_TENANT_GUARDS.md` §"Post trio
+promotion", a backlog id **SMELL-92** owned by Slice 2 / the FK slices, and a pointer appended
+to the 12.2 annotation itself.
+
+The runtime claim is carried with its measurement rather than as an assertion. Under tenant A's
+bound context on the application role, `findWithFilters({ projectId: B })` returns **0 rows**
+(control under B: 1 row) and `findByStatus("DRAFT")` returns **0 rows** and does not contain
+B's post (same control). The guard injects `accountId` from the bound context and the policy
+re-checks it in the engine; what is missing is the COMPILE-time half, and SMELL-92 cross-refs
+**SMELL-91** because a pin for it cannot be load-bearing until `apps/api/tests/**` is inside a
+tsconfig project.
+
+## Phase 9 — the evidence, attributed to the run that produced it
+
+Tasks 9.1-9.7 were applied by the ORCHESTRATOR on 2026-09-09, before the phases 10-13 half
+began. The seven migration files on disk are **byte-identical** to `tif-pr5-prepared/migrations/`
+— the gate ran `cmp` on all seven (six `migration.sql` plus migration 6's `down.sql`) and every
+comparison was clean, so what ran is what was reviewed. Tasks 9.8 and 9.9 were executed by the
+INDEPENDENT GATE; the numbers below are its measurements, transcribed here because a proof that
+lives only in a review report is a proof the change does not carry.
+
+### 9.8 — each stage reverts only itself
+
+Throwaway database, built from zero through all 80 migrations, populated with 20 000 posts and
+20 000 contents. Every scratch database was destroyed afterwards (`datname LIKE 'tif_%'` → 0).
+
+| Reverse stage             | Measured                                                                                                                 |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 6 — `down.sql`            | 3 policies dropped, row security disabled; columns, foreign keys, uniques and sizes untouched                            |
+| 5+4 — `DROP CONSTRAINT`×3 | `pg_total_relation_size` **byte-identical** (5 079 040 / 5 529 600) — catalog-only, no table rewrite                     |
+| 3 — drop uniques + index  | the two TOTAL uniques and the new index drop INDEPENDENTLY; `Project_accountId_name_key` and `Account_email_key` survive |
+| 3 — `DROP NOT NULL` ×3    | catalog-only                                                                                                             |
+| 1 — `DROP COLUMN` ×3      | **20 000 / 20 000 rows** preserved                                                                                       |
+
+The fitness **#39** half is a DISTINCTION, not a claim: #39 reads `schema.prisma`,
+`tenantGuard.ts` and `MULTI_TENANT_GUARDS.md` — the FILE, never the database — so dropping
+columns from a database changes its result by nothing at all. Demonstrated three ways: candidate
+schema + HEAD guard = **3** violations, candidate schema + candidate guard = **0**, full
+file-side revert = **0**. The forcing function the design relies on is real and lives on the
+file side, which is also why phases 9 and 10 must land in the same commit.
+
+### 9.9 — post-apply proof, read-only on the dev database
+
+`prisma validate` valid · `prisma migrate status` **80 migrations, 0 unfinished, up to date** ·
+client regenerated (the trio's create inputs now REQUIRE `accountId`).
+
+- **0 NULL `accountId`** on `Post`, `PostContent` and `PostMedia`
+- **3 composite foreign keys, `convalidated = true`** — validated, not forward-only —
+  with `confupdtype='a'`, `confdeltype='c'`, `confmatchtype='s'` read from the CATALOG, because
+  `pg_get_constraintdef` omits default clauses and the rendered text never shows `ON UPDATE NO ACTION`
+- **0 divergent children** on both parent joins
+- both TOTAL uniques carry no `WHERE`
+- row security plus exactly **one `tenant_isolation` policy** on each of the three tables
+- row counts at proof time: Post 3 (all 3 soft-deleted) / PostContent 3 / PostMedia 0 / Project 317
+
+**One honest gap, recorded rather than papered over.** The runbook's pre-migration "before"
+counts were never taken, so "row count preserved" is PERMANENTLY unverifiable on this database
+— a count taken only afterwards compares a number to itself, exactly as the runbook warned.
+Every derived fact above is green, and the preservation property itself was demonstrated on the
+throwaway database in 9.8 across 20 000 rows; neither substitutes for the count that was not
+taken. The next enrollment takes its before-counts first.
+
+### W4 — migration 3 and task 9.4 disagree in wording, agree in effect
+
+Task 9.4 says `ADD CONSTRAINT … UNIQUE (id, "accountId")`; the file uses `CREATE UNIQUE INDEX`.
+Adjudicated in `APPLY_NOTES.md` §7: it is byte-identical to Prisma's own emission (zero drift
+risk by construction), a plain unique index IS a valid foreign-key target in PostgreSQL (the
+catalog requires a unique, immediate, valid, non-partial index, not a `pg_constraint` row), and
+it takes a `SHARE` lock for the build instead of `ACCESS EXCLUSIVE`. The named falsifier —
+migration 4 failing with "there is no unique constraint matching given keys" — did not fire, and
+both composite keys validate against these indexes. Task 9.4 now carries the annotation so the
+disagreement is not read later as drift.
+
+## Findings (corrective)
+
+1. **A vacuous arm hidden behind a fail-closed error.** `tenantGucTransactionBinding`'s
+   forced-rollback arm was green because a DIFFERENT error fired before the forced one. The
+   class generalizes: an arm that asserts only "this failed" cannot tell which failure it got,
+   and a new fail-closed read placed upstream will silently take ownership of its red. Arms of
+   that shape should assert the failure's identity, not merely its occurrence.
+2. **A gate's causal attribution is a hypothesis until it is re-measured.** C2's three failures
+   arrived as one class; two were that class and the third was not, and the third's prescribed
+   fix would have broken fitness #40 Part B. The four-shape probe cost one harness run.
+3. **The application-role channel needs no credential and no second URL.** Any suite, and the
+   whole batch, can be run against the non-bypassing role by appending
+   `?options=-c role=omnipost_app` to the owner url. Every enrollment from here changes the
+   failure surface of unbound-scope and system-context paths, and the owner channel cannot see
+   it — run both.
+4. **`exists`-then-mutate probes inherit the connection they are asked on.** The repository's
+   existence probe is not a read incidental to the write; inside a unit of work it must answer
+   from the same connection the write will use, or it describes a different tenant scope than
+   the mutation that follows it.
+
+## Recorded, not closed (corrective)
+
+1. **S1 — the test typecheck scope stays narrow.** `tsconfig.type-tests.json` includes
+   `tests/**/*.type-test.ts` only, so C1's four call sites were invisible to `tsc` and went red
+   at runtime instead. A tests-wide scope catches all four (`TS2345` at 246, `TS2554` at 321,
+   330 and 339 — measured by the gate) and reports **2574** errors overall. Widening it is
+   SMELL-91's own body of work and is not attempted here.
+2. **Three pre-existing type errors in the same suite, widened by this change.** Scoping `tsc`
+   over `tests/integration/repositories/PrismaPostRepository.test.ts` reports three
+   `TS2345`s at the `PostAggregateMapper` fixtures (lines 487, 525, 573): the object literals
+   omit `deletedAt`, `version` and `archivedAt`, which predate this change, plus `accountId`,
+   which this change added to `PrismaPostWithRelations`. They do not fail any shipped gate for
+   exactly the reason in item 1, and they are part of the 2574. Left to SMELL-91 rather than
+   fixed inside a bounded corrective, but named with their line numbers so the next author does
+   not rediscover them.
+3. **`apps/workers/src` transactions remain outside fitness #40's scope** — unchanged by this
+   corrective, already declared under task 6b.7.
+4. **Three sibling base-client mutations survive in the SAME file, and they are named rather
+   than swept.** After the C2 fix, `PrismaPostRepository` still issues
+   `this.prisma.post.updateMany` at **:400** (`bulkUpdateStatus`) and **:422** (`bulkArchive`),
+   and `this.prisma.post.deleteMany` at **:444** (`bulkHardDelete`), plus the base-client probe
+   at the top of `hardDelete`. `HardDeletePostsBatchUseCase` calls `bulkHardDelete` from inside
+   `unitOfWork.executeInTransaction`, so that one is the same shape that produced C2 — it is
+   latent only because no test drives it through a unit of work on the application role today.
+   They are NOT converted here for the reason SMELL-90's own remediation gives: the class is
+   swept gate-first with tests that can fail, and "the suite is green" is not evidence for
+   sites that are green today and still wrong. Recorded with line numbers so the FK slices'
+   sweep starts from a measurement rather than a re-derivation.
+
+## 0-defect gate (corrective) — exact counts
+
+| Gate                                            | Result                                                              |
+| ----------------------------------------------- | ------------------------------------------------------------------- |
+| `TIER=pr-integration`, APPLICATION role         | **470 / 470**, 0 fail, 0 cancel, 0 skip, exit 0                     |
+| `TIER=pr-integration`, OWNER channel            | **470 / 470**, 0 fail, 0 cancel, 0 skip, exit 0                     |
+| `integration:tenant-isolation`, both channels   | **232 / 232** each                                                  |
+| `integration:repositories`, both channels       | **163 / 163** each                                                  |
+| Vitest unit tier                                | **8757 / 8757** across 562 files, exit 0                            |
+| `turbo run typecheck`                           | 169 / 169 successful, includes the `tsconfig.type-tests.json` scope |
+| ESLint (`--max-warnings 0`) on touched files    | 0 errors, 0 warnings                                                |
+| Prettier `--check` on touched files             | all matched                                                         |
+| Fitness #38                                     | swept **0**, `db-prisma` **11** (baseline, unmoved)                 |
+| Fitness #39                                     | **0**                                                               |
+| Fitness #40 A / B                               | **0 / 0** (seam floor 3, call-site floor met)                       |
+| Fitness #30                                     | **21** (baseline, unmoved)                                          |
+| Fitness #3 #5 #8 #9 #10 #16 #21 #22 #23 #32 #33 | **0** each                                                          |
+
+## Files touched (corrective)
+
+| File                                                                   | Change                                                                     |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `apps/api/src/infrastructure/repositories/PrismaPostRepository.ts`     | Modify — `activeClient()`; `exists`/`delete` on the active transaction; W3 |
+| `apps/api/tests/integration/repositories/PrismaPostRepository.test.ts` | Modify — 4 scope-first call sites, `tenantScope()`, S2's exact-count arm   |
+| `apps/api/tests/integration/tenantGucTransactionBinding.test.ts`       | Modify — two arms bind the ambient context; docblock states why            |
+| `openspec/changes/tenant-isolation-composite-fk/tasks.md`              | Modify — 9.1-9.9 marked with evidence; 12.2 residual routing appended      |
+| `docs/security/MULTI_TENANT_GUARDS.md`                                 | Modify — named-residual subsection under the trio promotion                |
+| `docs/reports/roadmap-detected-smells-backlog.md`                      | Modify — SMELL-92                                                          |
+| `openspec/changes/tenant-isolation-composite-fk/apply-progress.md`     | Modify — this section                                                      |
+
+Nothing prohibited was touched: no `.env*` (never read — the two-channel run goes through the
+harness's own environment loading and the `EXTRA_FLAGS` hook, and no command in this session
+named an env path), no `schema.prisma`, no `migrations/**`, no `.github/**`, no `CLAUDE.md`, no
+`.claude/settings*`, no `turbo.json`. No git command beyond read-only `status` / `log`.
+
+## Database left as found (corrective)
+
+The corrective applied no migration and created no scratch database. Its one probe seeded an
+account, a project and four posts under ids it generated, and deleted all of them in the same
+run. Measured before and after the corrective's full runs, and identical to the numbers the
+gate recorded: **Post 3 (3 soft-deleted) / PostContent 3 / PostMedia 0 / Project 317 / Account
+354**, with **0** probe leftovers, **0** leftover `test-project-count-*` projects and **0**
+databases matching `tif_%`. The `integration:repositories` suite's new extra project is
+registered in its own teardown, and that measurement is the check. `migrate status` was not
+re-run here — no command in this session could name an env path — but no migration was applied
+and the schema the 470 passing integration tests ran against is the one phase 9 left.
+
+A scratch `apps/api/tsconfig.corrective-probe.json` was created to typecheck the touched test
+files (the shipped scopes do not open them) and DELETED in the same session; `git status`
+confirms its absence.
+
+## Next (corrective)
+
+Re-gate on C1, C2, C3, W1, W3 and S2. Two items carry forward to the re-gate's judgement rather
+than to a later slice: the (c) deviation above — a test-wiring fix where the brief asked for a
+production one, with the measurement that says a production fix is not available — and the three
+pre-existing `PostAggregateMapper` fixture type errors, which are named but not fixed.
+
+---
+
+# Second corrective — the re-gate's CRITICAL, W-1, S-1 and S-2
+
+The second re-gate returned **FAIL** on one CRITICAL: the three base-client siblings the first
+corrective left to SMELL-90's sweep are not latent. They are reachable and broken today, and the
+suite could not see it because its only arms on those paths were cross-tenant REFUSAL arms, which
+pass just as readily when the endpoint is broken for every tenant. This section closes the
+CRITICAL and W-1, folds in S-1 and S-2, and records one finding of its own that the re-gate did
+not name.
+
+## The two-channel runner, corrected per W-2
+
+W-2 rejected the previous mechanism and it was right to. Appending `?options=-c role=omnipost_app`
+to the connection URL works because `pg`'s `ConnectionParameters` does
+`Object.assign({}, config, parse(connectionString))` — and that same assignment is what makes the
+URL's `options` OVERWRITE the adapter's explicit `options`, which is the `-c timezone=UTC` pin
+(`PG_SESSION_OPTIONS`). The role trick and the broken timezone pin were the same line.
+
+The mechanism here is the one `tests/integration/helpers/appRoleClient.ts` already ships: the role
+travels as CLIENT options, prepended to whatever the construction site already passes, so the
+composed value is `-c role=omnipost_app -c timezone=UTC`. Two different GUCs, both applied,
+nothing displaced. A scratchpad `--import` preload passed through the harness's own `EXTRA_FLAGS`
+hook wraps `pg.Pool` and switches ONLY the application's pool — `infra/prisma/src/client.ts` is
+the one construction site that spreads `getConnectionPoolConfig()`, so `max` in the config is the
+discriminator, and the fixture/seed channel stays on the owner role where it must be. It verifies
+the live posture on the first switched pool and aborts on anything else, so an owner-channel run
+cannot masquerade as an app-role one.
+
+Measured posture, every run: `{"role":"omnipost_app","su":"off","tz":"UTC"}`. The direct control
+for W-2 is `integration:retention`, the batch whose whole subject is the session pin: **5 / 5**
+here, against the **1 fail** the previous harness produced. `run-tests.sh` still loads the
+environment itself and no command in this session named an env path.
+
+## Corrective ledger (second)
+
+| Finding  | State  | Evidence                                                                                |
+| -------- | ------ | --------------------------------------------------------------------------------------- |
+| CRITICAL | closed | 3 positive own-tenant arms, red first; 4 sites moved to `activeClient()`                |
+| W-1      | FIXED  | `filterIdsByAccount` on `activeClient()`, plus a control that makes the fix falsifiable |
+| S-1      | closed | 4th discriminator: a foreign SCOPE, plant-measured red                                  |
+| S-2      | closed | manifest reconciled below; the count moves 60 -> 61 and the delta is named              |
+| NEW      | closed | the admin hard-delete route was 500, not a silent no-op — see below                     |
+
+## CRITICAL — the positive controls, red before the fix
+
+Three arms, added beside the vacuous refusal arm at the same describe block so its vacuity cannot
+be repeated. Each drives the production shape: two through the HTTP surface with the real
+composition root, the third through the container's OWN repository and unit of work because
+`bulkUpdateStatus` has no route.
+
+RED, on the app-role channel, before any production change (`integration:tenant-isolation`
+**235 tests / 232 pass / 3 fail**):
+
+| Arm                                        | Observed RED                                                 |
+| ------------------------------------------ | ------------------------------------------------------------ |
+| `PATCH /posts/batch/archive`, A's own post | `200 {"ok":true,"data":{"archived":0,...}}` — `0 !== 1`      |
+| `DELETE /posts/batch`, admin, A's own post | `500 {"ok":false,"error":"Failed to delete posts"}`          |
+| `bulkUpdateStatus` in a unit of work       | result `ok`, status still `'DRAFT'` — expected `'SCHEDULED'` |
+
+GREEN after the fix, on BOTH channels: **236 / 236**.
+
+The fix is the class fix the first corrective already applied to `exists()` and `delete()`, moved
+to the four remaining sites: `bulkUpdateStatus`, `bulkArchive`, `bulkHardDelete`, and the probe at
+the top of `hardDelete`. No raw SQL, no `withSystemContext` inside the repository, no policy
+change, and the no-unit-of-work path is unchanged.
+
+**Per-site attribution, measured rather than asserted.** With all four sites reverted to the
+injected client and everything else at its final state, the batch reports exactly **3 failures**,
+one per arm, and the admin arm's failure CHANGES SHAPE — from the `500` above to
+`200 {"deleted":0}`, the silent-no-op the re-gate named. That is the two-factor split stated
+plainly: the `500` belongs to the route finding below, the `{"deleted":0}` belongs to
+`bulkHardDelete`.
+
+**The fourth site is honest debt, not a measured fix.** `hardDelete`'s probe produced NO red in
+that plant, and the reason is that `PostRepository.hardDelete` — the single-post variant — has no
+production caller at all: it appears only in the port interface and in unit-test doubles
+(`bulkHardDelete` is what the batch use case calls). Its move is class consistency, and no control
+can be written that fails today. Said here rather than left for a reader to discover that one of
+four sites is unfalsifiable.
+
+## NEW finding — the admin hard-delete route had no declared scope
+
+Not in the re-gate's list, because the re-gate drove `HardDeletePostsBatchUseCase` directly rather
+than the admin HTTP surface. Through the route the endpoint did not return a silent no-op; it
+returned **500**, and the measured cause is
+`TenantContextMissingError: No TenantContext or SystemContext bound for Post.findMany`.
+
+`requireAdminAuth` binds no tenant context — only `requireClientAuth` does — and this change
+ENROLLED `Post` in `TENANT_SCOPED_MODELS`, so every guarded read under an admin request now
+throws. It surfaces at the ownership filter's own `Post.findMany`, which runs OUTSIDE the use
+case's `try`, so the throw escapes `execute()` entirely and lands in the route's catch. That is
+candidate-caused, on a committed admin endpoint, at layer 1 rather than layer 2.
+
+The fix mirrors the three siblings that carry the same permission and the same blast radius —
+`/accounts/:id/hard`, `/projects/:id/hard`, `/channels/:id/hard` — all of which already run under
+the sanctioned `withSystemContext` bypass for exactly this reason. Migration
+`20260909000500_add_rls_post_trio` names that flow in its own header as the deliberate
+`__system__` path. It widens nothing the caller controls: `callerAccountId` remains the body's
+validated account and the use case still drops every id outside it, so the scope the route acts in
+is the one it names.
+
+## W-1 — fixed, and made falsifiable
+
+`filterIdsByAccount` reaches `activeClient()` now. The preferred branch was taken, but the
+measurement that justified offering a deferral is worth recording because it says what the green
+is worth.
+
+Reverted to the injected client with the rest of this corrective in place, the full DB-only tier
+stayed **473 / 473 green**. Nothing could see it: both batch use cases call the filter BEFORE they
+open their transaction, so no shipped path reaches it inside a unit of work, and that ordering is
+load-bearing by accident rather than by design. Its `project: { accountId }` join meets `Project`'s
+PRE-EXISTING row security, so inside a unit of work it returns an empty set and every id is
+dropped as unowned — a gate that answers "not yours" about the caller's own posts.
+
+A fix nothing can fail is a fix nobody can keep, so the corrective adds the control the class was
+missing: an arm that calls `filterIdsByAccount` inside a real unit of work under a bound tenant and
+asserts the caller's own id survives. Plant-measured: reverted, the batch is **236 / 235 / 1** with
+that arm the only failure; restored, **236 / 236**.
+
+## S-1 — the fourth discriminator, and why it had to be a scope
+
+S-1 asked for a second account with its own project and DRAFT post so the `accountId` predicate
+becomes load-bearing. Seeding alone cannot do it, and the reason is this change's own composite FK:
+`Post.accountId` is functionally determined by `projectId`, so no row can ever match the arm's
+project and carry a different tenant. A predicate that filters by `projectId` first can never be
+discriminated by a row.
+
+What IS falsifiable is the SCOPE the caller passes, and this suite can vary it because its
+repository runs on the raw owner client with no guard behind it to inject a tenant the argument
+forgot. The arm now seeds the second account, project and DRAFT post as asked, then adds two
+assertions: counting THIS project under the OTHER tenant's scope must answer **0**, and the other
+tenant counting its OWN project must answer **1** — the second is what stops the first from being
+satisfied by a tenant that simply has no data anywhere.
+
+Plant-measured: `accountId: scope.accountId` removed from `countByStatus`, the foreign-scope
+assertion goes red (`3` where `0` is required), batch **163 / 162 / 1**; the implementation was
+restored and `sha256sum -c` confirmed byte-exact. The predicate is now the fourth of four.
+
+## S-2 — candidate manifest reconciled
+
+The re-gate measured **60** tree entries against the first corrective's reported 59. This
+corrective adds exactly **one** previously-clean file, `apps/api/src/posts/postRoutes.ts`, which
+the re-gate explicitly recorded as "committed at HEAD and unmodified by this candidate" — so the
+manifest is now **61**. Its other three files were already entries: `PrismaPostRepository.ts` and
+`repositories/PrismaPostRepository.test.ts` from the first corrective, and
+`post-trio-tenant-isolation.test.ts`, which is untracked and was already counted.
+
+## 0-defect gate (second corrective) — exact counts
+
+| Gate                                          | Result                                                          |
+| --------------------------------------------- | --------------------------------------------------------------- |
+| `TIER=pr-integration`, OWNER channel          | **474 / 474**, 0 fail, 0 cancel, 0 skip, exit 0                 |
+| `TIER=pr-integration`, APPLICATION role       | **474 / 474**, 0 fail, 0 cancel, 0 skip, exit 0                 |
+| `integration:tenant-isolation`, both channels | **236 / 236** each (was 232; +3 CRITICAL arms, +1 W-1 control)  |
+| `integration:repositories`, both channels     | **163 / 163** each (S-1 adds assertions, not arms)              |
+| `integration:retention`, both channels        | **5 / 5** — W-2's own control, the session pin intact           |
+| Vitest unit tier                              | **8757 / 8757** across 562 files, exit 0                        |
+| `turbo run typecheck`                         | **169 / 169** successful, exit 0                                |
+| ESLint (`--max-warnings 0`) on touched files  | 0 errors, 0 warnings                                            |
+| Prettier `--check` on touched files           | all matched                                                     |
+| Fitness #38                                   | swept **0**, `db-prisma` **11** (baseline, unmoved)             |
+| Fitness #39                                   | **0** (bearing 63, scoped 61)                                   |
+| Fitness #40 A / B                             | **0 / 0** (seam floor 3/3, call sites 13 against a floor of 10) |
+| Fitness #30                                   | **21** (baseline, unmoved)                                      |
+
+A heap note, since it changes a command rather than a result: `turbo run typecheck` aborts with
+SIGABRT (exit 134) on this host's default heap. `NODE_OPTIONS=--max-old-space-size=6144` runs it
+to 169 / 169. The cap is the LXC's, not this change's.
+
+## Files touched (second corrective)
+
+| File                                                                   | Change                                                                    |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `apps/api/src/infrastructure/repositories/PrismaPostRepository.ts`     | Modify — 4 base-client sites + `filterIdsByAccount` onto `activeClient()` |
+| `apps/api/src/posts/postRoutes.ts`                                     | Modify — admin batch hard-delete declares `withSystemContext` (NEW entry) |
+| `apps/api/tests/integration/post-trio-tenant-isolation.test.ts`        | Modify — 3 positive CRITICAL arms + the W-1 control; seed helper widened  |
+| `apps/api/tests/integration/repositories/PrismaPostRepository.test.ts` | Modify — S-1's foreign-scope discriminator and its second account         |
+| `openspec/changes/tenant-isolation-composite-fk/apply-progress.md`     | Modify — this section, appended                                           |
+| `openspec/changes/tenant-isolation-composite-fk/tasks.md`              | Modify — 13.3's blocked two-channel arm is now RUN, with counts           |
+
+Four of the five were already candidate entries before this corrective; only `postRoutes.ts` is
+new, which is the whole of the 60 -> 61 delta recorded under S-2.
+
+**`roadmap-detected-smells-backlog.md` was deliberately NOT touched**, and the reason is a
+measurement rather than a scope claim. SMELL-90's row now understates: it says three sites were
+repaired, and this corrective repairs five more. Writing that into its Status cell makes that cell
+the widest in its column, so prettier re-pads **123 lines** — every unrelated SMELL row — for a
+one-sentence update, and `prettier -c .` fails until it does. A one-sentence correction that
+arrives as a 123-line whitespace diff is a correction nobody will read. The five sites are recorded
+here instead, and the row is left for whoever owns the backlog to update with that cost known.
+
+Nothing prohibited was touched: no `.env*` (never read — the two-channel run goes through the
+harness's own environment loading and the `EXTRA_FLAGS` hook), no `schema.prisma`, no
+`migrations/**`, no `.github/**`, no `CLAUDE.md`, no `.claude/settings*`, no `turbo.json`. No git
+command of any kind was run in this session.
+
+## Database left as found (second corrective)
+
+Measured through the harness's own environment immediately before the first final run and
+immediately after the last: **Post 3 (3 soft-deleted) / PostContent 3 / PostMedia 0 / Project 317
+/ Account 354**, identical on both sides and identical to the numbers the re-gate recorded. No
+migration was applied and no scratch database was created. Every plant was restored and confirmed
+with `sha256sum -c` before the next measurement. The scratch tsconfig used to typecheck the two
+touched test files (the shipped scopes do not open them) was deleted in the same session.
+
+## Residuals carried forward (second corrective)
+
+1. **The three pre-existing `PostAggregateMapper` fixture `TS2345`s remain**, now at lines
+   **551 / 589 / 637** of `repositories/PrismaPostRepository.test.ts` — the shift from
+   487 / 525 / 573 is this corrective's added seed lines, not a new error. Re-measured: the two
+   touched test files produce **3** type errors total, all of them those, and **0** new ones.
+   Still SMELL-91's work.
+2. **`hardDelete`'s probe is the one site of four with no failing control**, because the method
+   has no production caller. Named above rather than counted as measured.
+3. **`apps/workers/src` transactions remain outside fitness #40's scope** — unchanged, already
+   declared under task 6b.7.
+4. **The app-role channel is still a scratchpad preload, not a runner flag.** S3 remains adopted
+   in practice only; promoting it to `run-tests.sh` belongs to that file's owner. Whoever does it
+   must use the client-options mechanism above, never a URL `options` parameter — W-2 is the
+   measurement that says why.

@@ -19,6 +19,7 @@ import { DeletePostUseCase } from "@core/posts";
 import { createApp } from "../../src/index.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
+import { withSystemContext } from "../../src/security/tenantContext.js";
 
 /**
  * Mints a customer Bearer token bound to the given account. The DELETE route
@@ -39,10 +40,20 @@ const bearerFor = (accountId: string): string =>
  * aggregate) under the given project and returns its id.
  */
 const seedDraftPost = async (prisma: PrismaClient, projectId: string): Promise<string> => {
+  // The tenant key is READ from the project rather than passed in: that is the
+  // production rule for this column, and a fixture that took it as a parameter
+  // could seed a row the composite foreign key would have to refuse.
+  const project = await prisma.project.findUniqueOrThrow({
+    where: { id: projectId },
+    select: { accountId: true },
+  });
   const post = await prisma.post.create({
     data: {
       projectId,
+      accountId: project.accountId,
       status: "DRAFT",
+      // The nested content carries no tenant of its own — the composite relation
+      // fills both `postId` and `accountId` from the parent it is created under.
       contents: { create: { locale: "en", body: "seeded post body", tags: [] } },
     },
   });
@@ -180,10 +191,23 @@ describe("DELETE /posts/:id ownership gate (CWE-639)", () => {
   it("lets the explicit system caller delete the post it owns (gate skipped)", async () => {
     const deletePostUseCase = app.container!.resolve<DeletePostUseCase>(TOKENS.DeletePostUseCase);
 
-    const result = await deletePostUseCase.execute({
-      postId: systemPostId,
-      caller: { type: "system", source: "PostPublishingSaga:Compensation" },
-    });
+    // Two different "system" notions meet here, and the binding is the one this
+    // arm was missing. `caller: { type: "system" }` is the APPLICATION-level
+    // claim under test — it skips the customer ownership gate. The tenant
+    // context is the INFRASTRUCTURE-level binding the data layer needs, and it
+    // was invisible while Post sat outside the guard's model set: the read
+    // simply bypassed the guard. Post is enrolled now, so an unbound read fails
+    // closed, which is the correct behaviour and not what this arm measures.
+    // Production binds it — the saga's sole caller of this path dispatches
+    // through `runAsSagaTenant`, which enters a tenant or system context before
+    // `step.execute` — so binding it here makes the test match production
+    // instead of relying on a gap that has since closed.
+    const result = await withSystemContext("PostPublishingSaga:Compensation", () =>
+      deletePostUseCase.execute({
+        postId: systemPostId,
+        caller: { type: "system", source: "PostPublishingSaga:Compensation" },
+      })
+    );
 
     assert.ok(result.ok, "system caller delete should succeed");
 

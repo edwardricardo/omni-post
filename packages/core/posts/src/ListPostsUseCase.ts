@@ -117,9 +117,14 @@ export class ListPostsUseCase implements UseCase<ListPostsInput, ListPostsOutput
 
     // Query the read model directly — no aggregate loading or manual DTO mapping.
     // The account scope makes a foreign-owned project return an empty page.
+    // The scope is built from `callerAccountId`, which the route fills from the
+    // AUTHENTICATED principal (`request.customerUser.accountId`) — never from the
+    // body, the query string, a path param or a header. That provenance is the
+    // whole value of the parameter; a scope assembled from request input would
+    // type-check and prove nothing.
     const result = await this.postQueryRepository.listByProject(
+      { accountId: accountIdResult.value.value },
       projectIdResult.value,
-      accountIdResult.value,
       pagination,
       sort,
       filter

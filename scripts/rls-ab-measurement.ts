@@ -285,11 +285,16 @@ async function seed(owner: PrismaClient, opts: Options): Promise<Record<string, 
       );
       // Round-robin over the tenant's projects, so per-project listings and the
       // account-wide feed both see a realistic fan-out instead of one hot project.
+      // The trio now carries its own tenant key, and `tenant` IS the account id
+      // here, so every seeded row agrees with its parent by construction — a
+      // divergent value would be refused by the composite foreign key, which is
+      // the right outcome but would read as a broken harness.
       await tx.$executeRawUnsafe(
-        `INSERT INTO "Post" (id, "projectId", status, "scheduledAt", "publishedAt",
+        `INSERT INTO "Post" (id, "projectId", "accountId", status, "scheduledAt", "publishedAt",
                              "createdAt", "updatedAt", "archivedAt", "deletedAt", version)
          SELECT ${lit(tenant)} || '-post-' || lpad(g::text, 6, '0'),
                 ${lit(tenant)} || '-proj-' || lpad((((g - 1) % ${opts.projects}) + 1)::text, 4, '0'),
+                ${lit(tenant)},
                 (ARRAY['DRAFT','SCHEDULED','PUBLISHED','FAILED'])[1 + (g % 4)],
                 CASE WHEN g % 4 = 1 THEN now() + ((g % 10000) || ' minutes')::interval END,
                 CASE WHEN g % 4 = 2 THEN now() - ((g % 10000) || ' minutes')::interval END,
@@ -302,10 +307,11 @@ async function seed(owner: PrismaClient, opts: Options): Promise<Record<string, 
          ON CONFLICT (id) DO NOTHING`
       );
       await tx.$executeRawUnsafe(
-        `INSERT INTO "PostContent" (id, "postId", locale, title, body, tags, revision,
+        `INSERT INTO "PostContent" (id, "postId", "accountId", locale, title, body, tags, revision,
                                     "createdAt", "updatedAt")
          SELECT ${lit(tenant)} || '-content-' || lpad(g::text, 6, '0'),
                 ${lit(tenant)} || '-post-' || lpad(g::text, 6, '0'),
+                ${lit(tenant)},
                 'en',
                 'AB post ' || g,
                 repeat('lorem ipsum dolor sit amet ', 8) || g,
@@ -315,9 +321,10 @@ async function seed(owner: PrismaClient, opts: Options): Promise<Record<string, 
          ON CONFLICT (id) DO NOTHING`
       );
       await tx.$executeRawUnsafe(
-        `INSERT INTO "PostMedia" (id, "postId", url, type, tags, "createdAt")
+        `INSERT INTO "PostMedia" (id, "postId", "accountId", url, type, tags, "createdAt")
          SELECT ${lit(tenant)} || '-media-' || lpad(g::text, 6, '0'),
                 ${lit(tenant)} || '-post-' || lpad(g::text, 6, '0'),
+                ${lit(tenant)},
                 'https://example.invalid/ab/' || g || '.jpg',
                 'image'::"MediaKind",
                 ARRAY[]::text[],

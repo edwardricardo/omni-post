@@ -457,11 +457,27 @@ describe("Row Level Security — tenant_isolation policy", () => {
       assert.strictEqual(rows[0]?.rowsecurity, false);
     });
 
-    it("Post (transitively scoped) does NOT have RLS enabled", async () => {
-      const rows = await prisma.$queryRawUnsafe<Array<{ rowsecurity: boolean }>>(
-        `SELECT rowsecurity FROM pg_tables WHERE tablename = 'Post'`
+    // This assertion used to read "Post (transitively scoped) does NOT have RLS
+    // enabled" and pass. Post carried no tenant column of its own, so its tenancy
+    // lived one table away and there was nothing for a policy to filter on. The
+    // composite-FK slice gave Post, PostContent and PostMedia a real `accountId`,
+    // so the boundary moved and this assertion moves with it — a positive
+    // assertion here is the visible proof, not a formality.
+    it("the post trio (directly scoped) HAS RLS enabled", async () => {
+      const rows = await prisma.$queryRawUnsafe<Array<{ tablename: string; rowsecurity: boolean }>>(
+        `SELECT tablename, rowsecurity FROM pg_tables
+          WHERE tablename IN ('Post', 'PostContent', 'PostMedia')
+          ORDER BY tablename`
       );
-      assert.strictEqual(rows[0]?.rowsecurity, false);
+      assert.deepStrictEqual(
+        rows,
+        [
+          { tablename: "Post", rowsecurity: true },
+          { tablename: "PostContent", rowsecurity: true },
+          { tablename: "PostMedia", rowsecurity: true },
+        ],
+        "all three trio tables must carry row security once they are guard-enrolled"
+      );
     });
   });
 

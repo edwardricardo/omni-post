@@ -95,7 +95,12 @@ describe("Client repurpose routes integration", () => {
       data: { accountId: account.id, name: `Repurpose Project ${tag}` },
     });
     const sourcePost = await prisma.post.create({
-      data: { projectId: project.id, status: "PUBLISHED", publishedAt: new Date() },
+      data: {
+        projectId: project.id,
+        accountId: account.id,
+        status: "PUBLISHED",
+        publishedAt: new Date(),
+      },
     });
     const proposal = await prisma.repurposeProposal.create({
       data: {

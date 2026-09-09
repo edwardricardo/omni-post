@@ -35,6 +35,20 @@
  *   but DELEGATES the decision itself to `bindGucForOperation` — the function the shipped
  *   extension runs — so this suite cannot pass over a look-alike.
  *
+ *   ## Why every arm binds the ambient tenant context
+ *
+ *   The composition root builds the guard and the per-operation binding from ONE object
+ *   (`ambientTenantContextProvider`), and `getAmbientGucScope()` — the scope a
+ *   repository-opened transaction binds — reads that same object. A double that hands the
+ *   guard a fixed provider while leaving the ambient storage empty therefore describes a
+ *   wiring production cannot have: the guard reports a tenant, the transaction binds
+ *   nothing, and the two disagree about the scope in a way the shipped code has no way to
+ *   reach. That divergence was invisible while nothing inside a repository-opened
+ *   transaction READ a row-security-covered table; the write path now resolves the post's
+ *   tenant from its `Project` inside that transaction, and an unbound transaction sees no
+ *   project. Binding the context here is what keeps the arms measuring the connection
+ *   ownership they are about instead of a scope mismatch no deployment produces.
+ *
  * @layer infrastructure
  */
 
@@ -187,7 +201,7 @@ describe("GUC binding and a repository-opened transaction", () => {
     const aggregate = created.value;
     createdPostIds.push(aggregate.id.value);
 
-    const saveResult = await repository.save(aggregate);
+    const saveResult = await withTenantContext({ accountId }, () => repository.save(aggregate));
     assert.equal(saveResult.ok, false, "the forced nested failure must surface as an error");
 
     const survivor = await seedClient.post.findUnique({
@@ -215,7 +229,7 @@ describe("GUC binding and a repository-opened transaction", () => {
     const aggregate = created.value;
     createdPostIds.push(aggregate.id.value);
 
-    const saveResult = await repository.save(aggregate);
+    const saveResult = await withTenantContext({ accountId }, () => repository.save(aggregate));
     assert.ok(saveResult.ok, "the save must succeed when nothing is forced to fail");
 
     assert.equal(

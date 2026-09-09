@@ -97,6 +97,24 @@ export class CreatePostUseCase implements UseCase<CreatePostInput, CreatePostOut
       );
     }
 
+    // The project must belong to the caller's tenant, and that is asserted HERE —
+    // before an aggregate exists, before anything is persisted, and before the
+    // composite foreign key gets a chance to speak. The key is a backstop: a
+    // create that only the database refuses has already lost the ability to answer
+    // the caller properly, and it would surface as a 500 rather than a 404.
+    //
+    // A foreign project and a nonexistent one both resolve to null and both return
+    // NOT_FOUND. Returning 403 for the foreign case would confirm the project
+    // exists, which is the disclosure this collapse exists to avoid.
+    const ownerAccountId = await this.postRepository.findProjectOwnerAccountId(
+      projectIdResult.value
+    );
+    if (ownerAccountId === null) {
+      return err(
+        new UseCaseError(`Project not found: ${input.projectId}`, USE_CASE_ERRORS.NOT_FOUND)
+      );
+    }
+
     // Create the post aggregate
     const createResult = PostAggregate.create({
       projectId: projectIdResult.value,

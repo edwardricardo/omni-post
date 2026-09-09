@@ -1,0 +1,24 @@
+{
+  // Type-only tests live outside `src`, and `tsconfig.json` includes `src` ONLY —
+  // so `tsc --noEmit` never opened them and a compile-time pin placed there could
+  // state a contract without being able to fail a build. This config is the scope
+  // that makes those pins real; it is run by the package's `typecheck` script
+  // immediately after the source pass, so a broken pin fails the same task.
+  //
+  // It deliberately compiles the pins and nothing else: `src` is already covered
+  // by the pass before it, and re-including it here would double the work while
+  // reporting the same errors twice.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "types": ["node"]
+  },
+  "include": [
+    "tests/**/*.type-test.ts",
+    "../../packages/*/src/**/*",
+    "../../packages/core/*/src/**/*",
+    "../../infra/*/src/**/*"
+  ],
+  "exclude": ["node_modules", "dist", "build", ".turbo", ".next", "coverage"]
+}

@@ -11,6 +11,7 @@ import {
   type PaginationParams,
   type SortParams,
 } from "./Repository.js";
+import { type TenantScope } from "./TenantScope.js";
 import { PostAggregate } from "../aggregates/PostAggregate.js";
 import { PostId, ProjectId, AccountId } from "../value-objects/EntityId.js";
 import { type PublishStatusValue } from "../value-objects/PublishStatus.js";
@@ -50,9 +51,13 @@ export type PostSortField = "createdAt" | "updatedAt" | "scheduledAt" | "publish
  */
 export interface PostRepository extends Repository<PostAggregate, PostId> {
   /**
-   * Find all posts for a project
+   * Find all posts for a project, inside an explicit tenant scope.
+   *
+   * `scope` is first and required: a projectId alone does not say whose project
+   * it is, and this port used to accept exactly that. See {@link TenantScope}.
    */
   findByProjectId(
+    scope: TenantScope,
     projectId: ProjectId,
     pagination?: PaginationParams,
     sort?: SortParams<PostSortField>
@@ -81,19 +86,30 @@ export interface PostRepository extends Repository<PostAggregate, PostId> {
   ): Promise<PaginatedResult<PostAggregate>>;
 
   /**
-   * Count posts by project
+   * Count posts by project, inside an explicit tenant scope.
    */
-  countByProjectId(projectId: ProjectId): Promise<number>;
+  countByProjectId(scope: TenantScope, projectId: ProjectId): Promise<number>;
 
   /**
-   * Count posts by status
+   * Count posts by status within a project, inside an explicit tenant scope.
    */
-  countByStatus(projectId: ProjectId, status: PublishStatusValue): Promise<number>;
+  countByStatus(
+    scope: TenantScope,
+    projectId: ProjectId,
+    status: PublishStatusValue
+  ): Promise<number>;
 
   /**
-   * Get post statistics for a project
+   * Get post statistics for a project, inside an explicit tenant scope.
+   *
+   * Converted for the same reason as {@link countByProjectId}: it aggregates the
+   * same rows over the same key, and a scoped count sitting beside an unscoped
+   * stats call would leave the contract porous at exactly the seam it claims.
    */
-  getProjectStats(projectId: ProjectId): Promise<{
+  getProjectStats(
+    scope: TenantScope,
+    projectId: ProjectId
+  ): Promise<{
     total: number;
     drafts: number;
     scheduled: number;
@@ -145,6 +161,21 @@ export interface PostRepository extends Repository<PostAggregate, PostId> {
    * proceeding. Returns null if the post does not exist.
    */
   findOwnerAccountId(postId: PostId): Promise<AccountId | null>;
+
+  /**
+   * Resolve the accountId that owns the PROJECT a post would be filed under.
+   * Creation paths call this before building anything, so a project belonging to
+   * another tenant is refused by the application rather than by the database.
+   *
+   * The adapter resolves it through the tenant-guarded client, so under a bound
+   * context a foreign project is simply not visible and this returns null — the
+   * SAME answer a nonexistent project gives. That collapse is deliberate: a
+   * caller must not be able to tell "not yours" from "does not exist", because
+   * the difference is itself a disclosure.
+   *
+   * Returns null if the project does not exist or is not visible to the caller.
+   */
+  findProjectOwnerAccountId(projectId: ProjectId): Promise<AccountId | null>;
 }
 
 /**
@@ -238,31 +269,36 @@ export interface PostQueryRepository {
    * ignored — the explicit `projectId` parameter is authoritative for scope.
    */
   listByProject(
+    scope: TenantScope,
     projectId: ProjectId,
-    accountId: AccountId,
     pagination?: PaginationParams,
     sort?: SortParams<PostSortField>,
     filter?: PostFilterCriteria
   ): Promise<PaginatedResult<PostReadModel>>;
 
   /**
-   * Search posts by text
+   * Search posts by text within a project, inside an explicit tenant scope.
    */
   search(
+    scope: TenantScope,
     projectId: ProjectId,
     searchText: string,
     pagination?: PaginationParams
   ): Promise<PaginatedResult<PostReadModel>>;
 
   /**
-   * Get upcoming scheduled posts
+   * Get upcoming scheduled posts for a project, inside an explicit tenant scope.
    */
-  getUpcoming(projectId: ProjectId, limit?: number): Promise<PostReadModel[]>;
+  getUpcoming(scope: TenantScope, projectId: ProjectId, limit?: number): Promise<PostReadModel[]>;
 
   /**
-   * Get recently published posts
+   * Get recently published posts for a project, inside an explicit tenant scope.
    */
-  getRecentlyPublished(projectId: ProjectId, limit?: number): Promise<PostReadModel[]>;
+  getRecentlyPublished(
+    scope: TenantScope,
+    projectId: ProjectId,
+    limit?: number
+  ): Promise<PostReadModel[]>;
 
   /**
    * Get a post by ID enriched with thread data (tweets ordered by sequence),

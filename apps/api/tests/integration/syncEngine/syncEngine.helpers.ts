@@ -138,15 +138,17 @@ export async function setupSyncEngineInfra(): Promise<boolean> {
   const post = await mockPrisma.post.create({
     data: {
       projectId: testProjectId,
+      accountId: testAccountId,
       status: "DRAFT",
     },
   });
   testPostId = post.id;
 
-  // Seed post content
+  // Seed post content — tenant inherited from the post it belongs to.
   await mockPrisma.postContent.create({
     data: {
       postId: testPostId,
+      accountId: post.accountId,
       body: "Test sync content",
       locale: "en",
     },

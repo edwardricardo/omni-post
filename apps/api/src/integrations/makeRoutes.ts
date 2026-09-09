@@ -290,7 +290,12 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
       });
 
       if (!result.ok) {
-        return reply.code(400).send({ error: result.error.message });
+        // A projectId this caller does not own resolves to NOT_FOUND, and it must
+        // reach the client as 404. Collapsing it into the generic 400 would tell a
+        // caller nothing, and answering 403 would confirm the project exists.
+        return reply
+          .code(result.error.code === "NOT_FOUND" ? 404 : 400)
+          .send({ error: result.error.message });
       }
 
       return reply.code(201).send({ ok: true, data: result.value });
@@ -321,7 +326,10 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
       });
 
       if (!createResult.ok) {
-        return reply.code(400).send({ error: createResult.error.message });
+        // See create-draft above: a foreign or absent projectId is a 404 here too.
+        return reply
+          .code(createResult.error.code === "NOT_FOUND" ? 404 : 400)
+          .send({ error: createResult.error.message });
       }
 
       // Step 2: Schedule the post

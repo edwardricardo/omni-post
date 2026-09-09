@@ -169,22 +169,36 @@ describe("Saga customer flow integration", () => {
     const draftPost = await prisma.post.create({
       data: {
         projectId: project.id,
+        accountId: account.id,
         status: "DRAFT",
       },
     });
     await prisma.postContent.create({
-      data: { postId: draftPost.id, locale: "en", revision: 1, body: "draft body" },
+      data: {
+        postId: draftPost.id,
+        accountId: draftPost.accountId,
+        locale: "en",
+        revision: 1,
+        body: "draft body",
+      },
     });
 
     const publishedPost = await prisma.post.create({
       data: {
         projectId: project.id,
+        accountId: account.id,
         status: "PUBLISHED",
         publishedAt: new Date(),
       },
     });
     await prisma.postContent.create({
-      data: { postId: publishedPost.id, locale: "en", revision: 1, body: "published body" },
+      data: {
+        postId: publishedPost.id,
+        accountId: publishedPost.accountId,
+        locale: "en",
+        revision: 1,
+        body: "published body",
+      },
     });
 
     // Cross-tenant fixture: a SECOND account whose token must be rejected
@@ -459,7 +473,7 @@ describe("Saga customer flow integration", () => {
       data: { accountId: foreignAccount.id, name: "Foreign project" },
     });
     const foreignPost = await prisma.post.create({
-      data: { projectId: foreignProject.id, status: "DRAFT" },
+      data: { projectId: foreignProject.id, accountId: foreignAccount.id, status: "DRAFT" },
     });
 
     try {

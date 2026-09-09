@@ -14,6 +14,7 @@ import {
   ProjectId,
   type PostQueryRepository,
   type PostReadModel,
+  type TenantScope,
 } from "@core/domain/index.js";
 
 const OWNER_ACCOUNT = AccountId.generate().value;
@@ -56,8 +57,11 @@ function createMockQueryRepository(): PostQueryRepository {
   return {
     getById: vi.fn(),
     getByIdWithThread: vi.fn(),
-    listByProject: vi.fn(async (_projectId: ProjectId, accountId: AccountId) => {
-      if (accountId && accountId.value === OWNER_ACCOUNT) {
+    // Scope FIRST, projectId second — the double mirrors the port it stands in
+    // for, so a signature drift shows up here as a failing ownership gate rather
+    // than as a double that quietly kept answering.
+    listByProject: vi.fn(async (scope: TenantScope, _projectId: ProjectId) => {
+      if (scope?.accountId === OWNER_ACCOUNT) {
         return page([makeReadModel()]);
       }
       return page([]);
@@ -79,7 +83,12 @@ describe("ListPostsUseCase — ownership gate (CWE-639)", () => {
     useCase = new ListPostsUseCase(repo);
   });
 
-  it("returns the owner's posts and passes the scoped account as the second argument", async () => {
+  // The account used to arrive SECOND, behind the projectId. It is FIRST now, as
+  // a TenantScope, and the reorder is the assertion rather than an incidental
+  // detail: a query whose tenant is positionally first cannot be written without
+  // one, which is the property the port conversion exists to create. The value
+  // asserted is unchanged — the server-derived caller account.
+  it("returns the owner's posts and passes the scoped account as the FIRST argument", async () => {
     const result = await useCase.execute({
       projectId: PROJECT_ID,
       callerAccountId: OWNER_ACCOUNT,
@@ -90,9 +99,8 @@ describe("ListPostsUseCase — ownership gate (CWE-639)", () => {
     expect(result.value.items).toHaveLength(1);
 
     const call = (repo.listByProject as unknown as { mock: { calls: unknown[][] } }).mock.calls[0];
-    expect(call?.[0]).toBeInstanceOf(ProjectId);
-    expect(call?.[1]).toBeInstanceOf(AccountId);
-    expect((call?.[1] as AccountId).value).toBe(OWNER_ACCOUNT);
+    expect(call?.[0]).toEqual({ accountId: OWNER_ACCOUNT });
+    expect(call?.[1]).toBeInstanceOf(ProjectId);
   });
 
   it("returns an empty page for a project owned by another account (no foreign posts)", async () => {

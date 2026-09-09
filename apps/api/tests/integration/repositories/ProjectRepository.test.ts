@@ -78,6 +78,7 @@ async function setupTestData() {
     const post = await prisma.post.create({
       data: {
         projectId: testProjectId,
+        accountId: testAccountId,
         status: i < 3 ? "PUBLISHED" : "DRAFT",
         publishedAt: i < 3 ? new Date() : null,
         contents: {

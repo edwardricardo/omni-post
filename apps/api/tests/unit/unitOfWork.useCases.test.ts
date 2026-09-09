@@ -19,6 +19,7 @@ import { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
 import { UpdatePostUseCase } from "@core/posts/UpdatePostUseCase.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { PostRepository, EventDispatcher } from "@core/domain/index.js";
+import { AccountId } from "@core/domain/index.js";
 import { ok, err } from "@shared/types";
 
 /** Minimal mock that tracks UoW calls */
@@ -39,6 +40,10 @@ function createMockPostRepo(overrides?: Partial<PostRepository>): PostRepository
     findById: async () => err(new Error("not found") as any),
     findByProjectId: async () => ok([]),
     delete: async () => ok(undefined),
+    // The create path resolves the target project's tenant first; a double that
+    // answers null would turn every creation into a NOT_FOUND before the unit of
+    // work this suite is about ever runs.
+    findProjectOwnerAccountId: async () => AccountId.fromStringUnsafe("acc-owner-fixture"),
     ...overrides,
   } as PostRepository;
 }

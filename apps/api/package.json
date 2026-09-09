@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.type-tests.json",
     "dev": "node --conditions development --env-file=../../.env --import tsx src/index.ts",
     "dev:test": "cross-env NODE_ENV=test node --conditions development --import tsx src/index.ts",
     "dump:openapi": "SCHEMA_ONLY=true node --conditions development --env-file=../../.env --import tsx scripts/dump-openapi-spec.ts",

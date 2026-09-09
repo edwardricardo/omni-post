@@ -265,14 +265,14 @@ model AuditLog {
   actorType      AuditActorType @default(SYSTEM) // Discriminator: SYSTEM has no FK, ADMIN uses userId, CUSTOMER uses customerUserId
   accountId      String? // Searchability column (NOT for RLS): customer-facing queries filter via findByAccount; AuditLog remains in tenant-guard denylist by canon — immutable evidence requires audit logs outside RLS (see MULTI_TENANT_GUARDS.md §Global-tables-denylist)
   action         String // e.g., "LOGIN", "CREATE_PROJECT", "DELETE_USER"
-  resource   String? // e.g., "Project", "Account", "AdminUser"
-  resourceId String? // ID of the affected resource
-  details    Json? // Additional context
-  ipAddress  String?
-  userAgent  String?
-  success    Boolean  @default(true)
-  error      String? // Error message if success = false
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  resource       String? // e.g., "Project", "Account", "AdminUser"
+  resourceId     String? // ID of the affected resource
+  details        Json? // Additional context
+  ipAddress      String?
+  userAgent      String?
+  success        Boolean        @default(true)
+  error          String? // Error message if success = false
+  createdAt      DateTime       @default(now()) @db.Timestamptz(6)
 
   // Relationships
   user         AdminUser?    @relation("PerformedBy", fields: [userId], references: [id], onDelete: SetNull)
@@ -340,36 +340,36 @@ model AdminRoleHistory {
 }
 
 model CustomerUser {
-  id                String    @id @default(uuid())
-  accountId         String
-  email             String
-  passwordHash      String
-  firstName         String
-  lastName          String
-  roleId            String?
-  isActive          Boolean   @default(true)
-  isEmailVerified   Boolean   @default(false)
-  emailVerifyToken  String?   @unique
-  emailVerifyExpiry DateTime? @db.Timestamptz(6)
-  resetToken        String?   @unique
-  resetTokenExpiry  DateTime? @db.Timestamptz(6)
-  mfaEnabled        Boolean   @default(false)
-  mfaSecret         String?
-  mfaBackupCodes    String[]  @default([])
-  mfaBackupUsedAt   Json?     @default("{}")
+  id                  String    @id @default(uuid())
+  accountId           String
+  email               String
+  passwordHash        String
+  firstName           String
+  lastName            String
+  roleId              String?
+  isActive            Boolean   @default(true)
+  isEmailVerified     Boolean   @default(false)
+  emailVerifyToken    String?   @unique
+  emailVerifyExpiry   DateTime? @db.Timestamptz(6)
+  resetToken          String?   @unique
+  resetTokenExpiry    DateTime? @db.Timestamptz(6)
+  mfaEnabled          Boolean   @default(false)
+  mfaSecret           String?
+  mfaBackupCodes      String[]  @default([])
+  mfaBackupUsedAt     Json?     @default("{}")
   // Highest TOTP time-step already accepted for this user. Enforces single-use
   // of time-based OTPs (NIST SP 800-63B 5.1.5.2): a given step is claimed once
   // via compare-and-set, so the same code cannot be replayed within its window.
   mfaLastUsedTotpStep Int?
-  lastLoginAt       DateTime? @db.Timestamptz(6)
-  avatarUrl         String?
-  invitedBy         String? // ID of the CustomerUser who sent the invitation
-  inviteToken       String?   @unique
-  inviteTokenExpiry DateTime? @db.Timestamptz(6)
-  joinedAt          DateTime  @default(now()) @db.Timestamptz(6)
-  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt         DateTime? @db.Timestamptz(6)
+  lastLoginAt         DateTime? @db.Timestamptz(6)
+  avatarUrl           String?
+  invitedBy           String? // ID of the CustomerUser who sent the invitation
+  inviteToken         String?   @unique
+  inviteTokenExpiry   DateTime? @db.Timestamptz(6)
+  joinedAt            DateTime  @default(now()) @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt           DateTime? @db.Timestamptz(6)
 
   account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
   customerRole CustomerRole? @relation(fields: [roleId], references: [id], onDelete: Restrict)
@@ -682,6 +682,11 @@ model Project {
   /// collide with a LIVE project is rejected by RestoreProjectUseCase with an
   /// explicit conflict naming the holder.
   @@unique([accountId, name], where: { deletedAt: null }, map: "Project_accountId_name_key")
+  /// TOTAL on purpose — no `where:`. This is the FK target for Post's composite tenant
+  /// relation, and PostgreSQL cannot reference a PARTIAL unique index. It coexists with
+  /// the partial name unique above rather than replacing it: a child pointing at a
+  /// soft-deleted project still needs its FK target to exist.
+  @@unique([id, accountId])
   @@index([accountId], where: { deletedAt: null })
   @@index([createdAt], where: { deletedAt: null })
   @@index([locale], where: { deletedAt: null })
@@ -692,12 +697,13 @@ model Project {
 model Post {
   id                        String                    @id @default(uuid())
   projectId                 String
+  accountId                 String
   status                    String                    @default("DRAFT")
   scheduledAt               DateTime?                 @db.Timestamptz(6)
   publishedAt               DateTime?                 @db.Timestamptz(6)
   createdAt                 DateTime                  @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime                  @updatedAt @db.Timestamptz(6)
-  project                   Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project                   Project                   @relation(fields: [projectId, accountId], references: [id, accountId], onDelete: Cascade, onUpdate: NoAction)
   contents                  PostContent[]
   media                     PostMedia[]
   thread                    Thread?
@@ -725,6 +731,9 @@ model Post {
   // post.update commands to enforce lost-update prevention.
   version                   Int                       @default(0)
 
+  /// TOTAL on purpose — no `where:`. The FK target for PostContent and PostMedia's
+  /// composite tenant relations; a partial unique cannot be referenced by a foreign key.
+  @@unique([id, accountId])
   @@index([scheduledAt], where: { deletedAt: null })
   @@index([projectId, status], where: { deletedAt: null })
   @@index([projectId, createdAt], where: { deletedAt: null })
@@ -732,11 +741,19 @@ model Post {
   @@index([projectId, scheduledAt, status], where: { deletedAt: null })
   @@index([projectId, archivedAt], where: { deletedAt: null })
   @@index([deletedAt])
+  /// The ONE new index this change adds. The account-wide feed is the only measured read
+  /// that sequentially scans Post: every existing index here is projectId-led and that
+  /// query supplies no projectId, because the tenant identity used to live one table away.
+  /// It also serves the tenant qual of the RLS policy. The two child tables deliberately
+  /// get no accountId-led index — their reads are parent-key-led, and that exemption plus
+  /// its revisit trigger are recorded in docs/security/MULTI_TENANT_GUARDS.md.
+  @@index([accountId, projectId], where: { deletedAt: null })
 }
 
 model PostContent {
   id        String   @id @default(uuid())
   postId    String
+  accountId String
   locale    String
   title     String?
   summary   String?
@@ -745,7 +762,7 @@ model PostContent {
   revision  Int      @default(1)
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId, accountId], references: [id, accountId], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([postId, locale, revision])
   // @@index([postId]) - REMOVED: Covered by [postId, locale] and unique constraint
@@ -757,6 +774,7 @@ model PostContent {
 model PostMedia {
   id                  String               @id @default(uuid())
   postId              String
+  accountId           String
   url                 String
   width               Int?
   height              Int?
@@ -766,7 +784,7 @@ model PostMedia {
   tags                String[]             @default([])
   createdAt           DateTime             @default(now()) @db.Timestamptz(6)
   type                MediaKind
-  post                Post                 @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post                Post                 @relation(fields: [postId, accountId], references: [id, accountId], onDelete: Cascade, onUpdate: NoAction)
   instagramStories    InstagramStory[]
   videoProcessingJobs VideoProcessingJob[]
 
@@ -3370,7 +3388,7 @@ model Referral {
   /// unattributed rather than purging with it or blocking the delete. Account
   /// hard-delete therefore no longer blocks while referrals exist.
   referralCode    ReferralCode? @relation(fields: [referralCodeId], references: [id], onDelete: SetNull)
-  referredAccount Account?     @relation("ReferredAccount", fields: [referredAccountId], references: [id], onDelete: SetNull)
+  referredAccount Account?      @relation("ReferredAccount", fields: [referredAccountId], references: [id], onDelete: SetNull)
 
   @@index([referralCodeId])
   @@index([referredAccountId])

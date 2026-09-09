@@ -19,6 +19,7 @@ import type {
   PaginationParams,
   PaginatedResult,
   SortParams,
+  TenantScope,
 } from "@core/domain/index.js";
 import { AccountId, PostId, ProjectId } from "@core/domain/index.js";
 import { EntityNotFoundError } from "@core/domain/index.js";
@@ -134,8 +135,8 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
    * authoritative for scope (prevents cross-project leakage).
    */
   async listByProject(
+    scope: TenantScope,
     projectId: ProjectId,
-    accountId: AccountId,
     pagination?: PaginationParams,
     sort?: SortParams<PostSortField>,
     filter?: PostFilterCriteria
@@ -144,7 +145,7 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
     const limit = Math.min(pagination?.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const skip = (page - 1) * limit;
 
-    const where = this.buildWhereClause(projectId, accountId, filter);
+    const where = this.buildWhereClause(scope, projectId, filter);
     const orderBy = sort ? { [sort.field]: sort.direction } : { createdAt: "desc" as const };
 
     const [posts, total] = await Promise.all([
@@ -183,13 +184,18 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
    * (explicit Archive view).
    */
   private buildWhereClause(
+    scope: TenantScope,
     projectId: ProjectId,
-    accountId: AccountId,
     filter?: PostFilterCriteria
   ): Record<string, unknown> {
+    // The tenant predicate was `project: { accountId }` — a join to reach a key
+    // that lived one table away. Post carries its own tenant now, so this filters
+    // the local column instead. The two cannot disagree: the composite foreign key
+    // makes a post whose accountId differs from its project's unrepresentable, and
+    // the new (accountId, projectId) partial index serves this shape directly.
     const where: Record<string, unknown> = {
       projectId: projectId.value,
-      project: { accountId: accountId.value },
+      accountId: scope.accountId,
       deletedAt: null,
     };
 
@@ -245,6 +251,7 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
    * Performs case-insensitive contains match on PostContent title and body fields.
    */
   async search(
+    scope: TenantScope,
     projectId: ProjectId,
     searchText: string,
     pagination?: PaginationParams
@@ -255,6 +262,7 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
 
     const where = {
       projectId: projectId.value,
+      accountId: scope.accountId,
       deletedAt: null,
       contents: {
         some: {
@@ -297,10 +305,15 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
    * Get upcoming scheduled posts for a project ordered by scheduledAt ascending.
    * Returns only posts with status SCHEDULED and scheduledAt in the future.
    */
-  async getUpcoming(projectId: ProjectId, limit = 10): Promise<PostReadModel[]> {
+  async getUpcoming(
+    scope: TenantScope,
+    projectId: ProjectId,
+    limit = 10
+  ): Promise<PostReadModel[]> {
     const posts = await this.prisma.post.findMany({
       where: {
         projectId: projectId.value,
+        accountId: scope.accountId,
         deletedAt: null,
         status: "SCHEDULED",
         scheduledAt: { gte: new Date() },
@@ -320,10 +333,15 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
    * Get recently published posts for a project ordered by publishedAt descending.
    * Returns only posts with status PUBLISHED and a non-null publishedAt.
    */
-  async getRecentlyPublished(projectId: ProjectId, limit = 10): Promise<PostReadModel[]> {
+  async getRecentlyPublished(
+    scope: TenantScope,
+    projectId: ProjectId,
+    limit = 10
+  ): Promise<PostReadModel[]> {
     const posts = await this.prisma.post.findMany({
       where: {
         projectId: projectId.value,
+        accountId: scope.accountId,
         deletedAt: null,
         status: "PUBLISHED",
         publishedAt: { not: null },

@@ -24,6 +24,7 @@ import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";
+import { withSystemContext } from "../security/tenantContext.js";
 
 // ---------------------------------------------------------------------------
 // Zod Schemas for Validation with security enhancement
@@ -489,13 +490,29 @@ class PostRouteHandler extends BaseRouteHandler {
     }
 
     try {
-      const result = await this.hardDeletePostsBatchUseCase.execute({
-        postIds: validation.value.postIds,
-        // Cross-tenant gate (CWE-639). Unconditional: admin auth binds no
-        // `customerUser`, so the owner scope arrives in the body and every id
-        // outside `accountId` is dropped before the delete runs.
-        callerAccountId: validation.value.accountId,
-      });
+      // Admin auth binds NO tenant context, and `Post` is now tenant-guard enrolled,
+      // so every guarded read and write inside the use case throws
+      // TenantContextMissingError under an admin request — measured on this route as a
+      // 500 raised by the ownership filter's own `Post.findMany`, before any delete was
+      // attempted. This is a legitimate cross-tenant admin operation, so it runs under
+      // the sanctioned `withSystemContext` bypass, exactly as its three siblings with
+      // the same permission and blast radius do (`/accounts/:id/hard`,
+      // `/projects/:id/hard`, `/channels/:id/hard`).
+      //
+      // The bypass widens nothing the caller controls: `callerAccountId` below is the
+      // body's validated account, and the use case still drops every id outside it, so
+      // the scope this route acts in is the one it names.
+      const result = await withSystemContext(
+        `system:post-hard-delete-batch:${validation.value.accountId}`,
+        async () =>
+          this.hardDeletePostsBatchUseCase.execute({
+            postIds: validation.value.postIds,
+            // Cross-tenant gate (CWE-639). Unconditional: admin auth binds no
+            // `customerUser`, so the owner scope arrives in the body and every id
+            // outside `accountId` is dropped before the delete runs.
+            callerAccountId: validation.value.accountId,
+          })
+      );
 
       if (!result.ok) {
         return this.mapUseCaseError(ctx, result.error);
