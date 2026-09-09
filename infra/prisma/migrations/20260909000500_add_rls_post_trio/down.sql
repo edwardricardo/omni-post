@@ -11,6 +11,13 @@
 -- Dropping these policies re-opens cross-tenant reads for any raw SQL path that does not
 -- filter by tenant itself; the application guard and the composite FK still stand.
 
+-- Session-level SET, not SET LOCAL: this script is operator-run and is not guaranteed a
+-- wrapping transaction, where SET LOCAL would warn and no-op. Values mirror the forward
+-- migration. DROP POLICY and DISABLE ROW LEVEL SECURITY take ACCESS EXCLUSIVE briefly;
+-- the lock_timeout bounds the wait behind a long-running query, not the hold.
+SET lock_timeout = '5s';
+SET statement_timeout = '30s';
+
 DROP POLICY IF EXISTS tenant_isolation ON "Post";
 DROP POLICY IF EXISTS tenant_isolation ON "PostContent";
 DROP POLICY IF EXISTS tenant_isolation ON "PostMedia";

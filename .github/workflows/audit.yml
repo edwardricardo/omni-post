@@ -16,10 +16,10 @@ name: Pre-merge Audit Toolkit
 #   - Squawk              (DB migration safety, hard fail on ANY finding in
 #                          changed migrations, one file per invocation. It also
 #                          hard-fails on a diff that EDITS an already-applied
-#                          migration, which no lint result can make safe. There
-#                          are currently no per-file/per-rule waivers: adding one
-#                          requires its adjudication, a trigger and a remove-when
-#                          inline in the lint step)
+#                          migration, which no lint result can make safe.
+#                          Per-file/per-rule waivers live ONLY inline in the
+#                          lint step, each pinned to the file's sha256 with its
+#                          adjudication, a trigger and a remove-when)
 #   - size-limit          (bundle regression, fail on threshold breach)
 #   - TruffleHog          (verified secrets, NIGHTLY schedule)
 
@@ -417,10 +417,43 @@ jobs:
           RETENTION_MIGRATION="infra/prisma/migrations/20260901120000_deletion_record_retention_and_partial_uniques/migration.sql"
           RETENTION_DIGEST="6c90d4f2c42c751b582065be825ece47f85cca352b48182b8dbe054ac820adea"
 
+          # ADJUDICATION 3 — two rules on the post-trio NOT NULL/uniques migration.
+          # This migration is APPLIED and checksum-pinned; its own header already
+          # characterizes every lock Squawk warns about ("LOCKS, CHARACTERIZED
+          # HONESTLY") and names the live-path variants as runbook work, so this
+          # entry records that adjudication where the gate reads it.
+          #  - adding-not-nullable-field (x3, the SET NOT NULLs): the rule's
+          #    concern is the ACCESS EXCLUSIVE verification scan. Step 2's
+          #    backfill (20260909000100) aborts its own transaction unless every
+          #    row resolved, so the scan verifies and cannot fail, and the
+          #    statement_timeout declared at the file's top bounds it. NOT NULL
+          #    is also load-bearing, not stylistic: a composite FK is MATCH
+          #    SIMPLE and SKIPS its check whenever ANY referencing column is
+          #    NULL, so a nullable accountId would disable the tenant guarantee
+          #    for exactly the rows that omit it.
+          #  - require-concurrent-index-creation (x3): UNSATISFIABLE here for
+          #    the reason ADJUDICATION 2 measured — CONCURRENTLY cannot run
+          #    inside a transaction block, Prisma wraps every migration in one
+          #    (.squawk.toml pins assume_in_transaction = true), and the
+          #    CONCURRENTLY spelling fires
+          #    ban-concurrent-index-creation-in-transaction instead. The
+          #    migration header's lock analysis argues why the hand-run runbook
+          #    is not worth it for today's single deployable (dev and CI, no
+          #    production traffic).
+          # TRIGGER: squawk reports either rule for this exact file content.
+          # REMOVE-WHEN: require-concurrent-index-creation when these statements
+          # no longer run under Prisma's per-migration transaction (the
+          # live-path runbook the header names, mandatory before production
+          # traffic); adding-not-nullable-field when a baseline squash folds
+          # this migration away — delete the entry in that same change.
+          POST_TRIO_MIGRATION="infra/prisma/migrations/20260909000200_post_trio_tenant_not_null_and_uniques/migration.sql"
+          POST_TRIO_DIGEST="d0d109427c2fc423ffb66581be197a59f31ea00ac4784cb4e7fc8ae79af51f4d"
+
           exception_rules_for() {
             case "$1" in
               "$ALIGNMENT_MIGRATION") echo "ban-drop-not-null" ;;
               "$RETENTION_MIGRATION") echo "adding-not-nullable-field,ban-drop-not-null,prefer-bigint-over-int,require-concurrent-index-creation,require-concurrent-index-deletion" ;;
+              "$POST_TRIO_MIGRATION") echo "adding-not-nullable-field,require-concurrent-index-creation" ;;
               *) echo "" ;;
             esac
           }
@@ -428,6 +461,7 @@ jobs:
             case "$1" in
               "$ALIGNMENT_MIGRATION") echo "$ALIGNMENT_DIGEST" ;;
               "$RETENTION_MIGRATION") echo "$RETENTION_DIGEST" ;;
+              "$POST_TRIO_MIGRATION") echo "$POST_TRIO_DIGEST" ;;
               *) echo "" ;;
             esac
           }
