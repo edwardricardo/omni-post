@@ -598,27 +598,123 @@ describe("Row Level Security — tenant_isolation policy", () => {
       );
     });
 
-    it("no policy outside the trio was rewritten by this migration", async () => {
-      // Blast-radius proof. This migration names three tables explicitly and
-      // touches nothing else; an accidental sweep would show up here as a
-      // hoisted read on a table that was never in scope.
-      //
-      // BOTH clauses are read, because both clauses are what the rewrite moves:
-      // the migration wraps the GUC read in USING and in WITH CHECK alike, so a
-      // sweep that reached an out-of-scope policy would leave a hoisted read in
-      // either one. A qual-only check would miss the WITH CHECK half entirely
-      // and report a clean blast radius over a policy whose mutation gate had
-      // already been rewritten.
-      const others = (await readPolicies()).filter(
-        (r) => !(TRIO as readonly string[]).includes(r.tablename)
-      );
-      const rewritten = others.filter(
-        (r) => countOf(r.qual ?? "", HOISTED) > 0 || countOf(r.with_check ?? "", HOISTED) > 0
-      );
+    // A blast-radius assertion stood here — "no policy outside the trio was
+    // rewritten by this migration" — and it was not defective: it was the
+    // trio migration's own proof that its rewrite reached exactly three
+    // tables. `20260910000200_rls_initplan_sweep` is the change that
+    // deliberately widens that radius to the whole enrollment, so its premise
+    // expired the moment the sweep applied (measured: 58 offenders, every
+    // non-trio enrolled table). It is replaced rather than deleted, by the two
+    // assertions the sweep itself owes.
+    //
+    // What deliberately does NOT stand here is the form-uniformity gate —
+    // "every enrolled policy holds a hoisted read". That gate ships in the
+    // next link, over a catalog that is already uniform, with its own planted
+    // red; landing it here would leave that link gating nothing and would skip
+    // the read-back that gives the pinned rendering its provenance.
+
+    // Exactly one enrolled policy carries a THIRD disjunct: `AIPromptTemplate`,
+    // whose global templates (`"accountId" IS NULL`) are visible from every
+    // tenant context. The sweep rewrites that policy on its own branch for
+    // exactly this reason — the generic two-arm rewrite would flatten the arm
+    // away, and a lost arm is a silent BEHAVIOUR change, not a performance
+    // detail.
+    //
+    // A declared literal compared as a SET, for the same reason
+    // EXPECTED_NO_WITH_CHECK is one: filtering to the three-arm policies and
+    // then asserting that those policies are three-arm restates the selector
+    // and cannot fail. The equality fails in both directions instead — on an
+    // arm LOST (global templates stop being readable) and on an arm GAINED (a
+    // policy quietly acquires cross-tenant visibility it was never granted).
+    const EXPECTED_THREE_ARM: string[] = ["AIPromptTemplate"];
+    const IS_NULL_ARM = /"accountId"\s+IS\s+NULL/gi;
+
+    it("exactly the policies expected to carry the IS NULL third arm carry one", async () => {
+      const rows = await readPolicies();
+      assert.ok(rows.length > 0, "at least one tenant_isolation policy must exist");
+
+      const threeArm = rows
+        .filter((r) => countOf(r.qual ?? "", IS_NULL_ARM) > 0)
+        .map((r) => r.tablename);
       assert.deepStrictEqual(
-        rewritten.map((r) => r.tablename),
-        [],
-        "policies outside the trio must keep the form they shipped with"
+        threeArm,
+        EXPECTED_THREE_ARM,
+        `the set of tenant_isolation policies carrying an "accountId" IS NULL arm moved. ` +
+          `expected [${EXPECTED_THREE_ARM.join(", ")}], catalog holds [${threeArm.join(", ")}]. ` +
+          `A LOST arm makes global rows invisible to every tenant; a GAINED one hands a ` +
+          `policy cross-tenant read visibility. Update this literal only for a deliberate change.`
+      );
+
+      // The read arm is permissive; the WRITE arm is not, and the two are not
+      // the same claim. A WITH CHECK that acquired the IS NULL disjunct would
+      // let any tenant write a row it can never be held accountable for —
+      // and every read-path assertion in this file would stay green.
+      for (const row of rows.filter((r) => EXPECTED_THREE_ARM.includes(r.tablename))) {
+        assert.ok(row.with_check !== null, `${row.tablename}: WITH CHECK disappeared`);
+        assert.strictEqual(
+          countOf(row.with_check, IS_NULL_ARM),
+          0,
+          `${row.tablename}: WITH CHECK acquired an "accountId" IS NULL arm, so any tenant ` +
+            `may write an unowned row. Catalog holds: ${row.with_check}`
+        );
+      }
+    });
+
+    // The body `20260910000000_rls_initplan_post_trio` left on the trio, read
+    // back from `pg_policies` on this project's PostgreSQL 16.14 — never
+    // copied from migration source. `pg_get_expr` re-prints from the parsed
+    // tree, adding the `::text` casts and the ` AS current_setting` sub-select
+    // alias that the installing SQL never wrote, so a literal taken from the
+    // bytes would pin an intent the database does not hold. Whitespace is
+    // collapsed on BOTH sides before comparing (line breaks in a deparsed body
+    // are the deparser's business); the quoting, the casts and the operand
+    // order are pinned.
+    const WRAPPED_TRIO_BODY =
+      "((( SELECT current_setting('app.account_id'::text, true) AS current_setting)" +
+      " = '__system__'::text) OR (\"accountId\" = ( SELECT current_setting('app.account_id'::text," +
+      " true) AS current_setting)))";
+
+    /** Collapse whitespace runs so a re-wrapped deparse is not read as a different body. */
+    const collapse = (expr: string): string => expr.replace(/\s+/g, " ").trim();
+
+    it("the sweep left the trio's committed body and the enrolled population untouched", async () => {
+      const rows = await readPolicies();
+
+      // The sweep excludes the trio because the previous link already rewrote
+      // it, and it asserts that exclusion at deploy time. This is the same
+      // claim read from the committed catalog afterwards: a sweep that
+      // re-derived the trio's body — or that dropped one clause while
+      // rewriting the other — leaves a state the deploy-time check has no
+      // further chance to see.
+      const trio = rows.filter((r) => (TRIO as readonly string[]).includes(r.tablename));
+      assert.strictEqual(trio.length, TRIO.length, "all three trio policies must be installed");
+      const expectedBody = collapse(WRAPPED_TRIO_BODY);
+      for (const row of trio) {
+        assert.strictEqual(
+          collapse(row.qual ?? ""),
+          expectedBody,
+          `${row.tablename}: USING no longer holds the body the trio migration installed. ` +
+            `catalog holds: ${row.qual}`
+        );
+        assert.strictEqual(
+          collapse(row.with_check ?? ""),
+          expectedBody,
+          `${row.tablename}: WITH CHECK no longer holds the body the trio migration installed. ` +
+            `catalog holds: ${row.with_check}`
+        );
+      }
+
+      // The sweep rewrites bodies; it creates and drops nothing. The count is
+      // derived from the guard's enrolled-model Set rather than written as a
+      // literal, and it is the same number the parity test above gates against
+      // the same source — restated here so that a sweep which ADDED or REMOVED
+      // a policy fails in the test that owns the sweep, naming it, instead of
+      // only in the test that owns guard↔policy parity.
+      assert.strictEqual(
+        rows.length,
+        getTenantScopedModels().size,
+        `the sweep changed the enrolled population: catalog holds ${rows.length} ` +
+          `tenant_isolation policies against ${getTenantScopedModels().size} enrolled models`
       );
     });
   });
@@ -678,6 +774,82 @@ describe("Row Level Security — tenant_isolation policy", () => {
         1,
         "global system template (accountId=NULL) must be visible to any tenant"
       );
+    });
+
+    it("AIPromptTemplate: a tenant reads its OWN rows AND the global rows, and no other tenant's", async () => {
+      // The catalog twin of this claim is the three-arm assertion in the policy
+      // form block; this is the behavioural half, and the two are not the same
+      // proof. The catalog says the disjunct is written; this says the disjunct
+      // ADMITS rows — and it is the only one of the two that would notice the
+      // arm being satisfied by something other than the row's own tenancy.
+      //
+      // The planted row is what makes it discriminating. Every
+      // `AIPromptTemplate` row reachable here is GLOBAL — measured on the
+      // development database: 6 in the corpus plus the one this suite's own
+      // fixture seeds, 7 of 7 with `accountId` NULL and none owned by a tenant.
+      // Without a tenant-owned row the test would pass on a policy whose
+      // "accountId" = <guc> arm had been dropped entirely, asserting only the
+      // IS NULL arm it already shares with the previous test.
+      //
+      // The expected global set is READ from the owner connection rather than
+      // written as a count. It is not a restatement of the selector: the owner
+      // channel is RLS-exempt, so it is a different source from the app
+      // connection under test, and a literal (7 = 6 + 1 here) would encode this
+      // host's corpus into a test that also runs against a freshly seeded CI
+      // database.
+      const ownedId = `own-tpl-${TEST_TAG}-${randomUUID()}`;
+      const globalIds = (
+        await seedPrisma.aIPromptTemplate.findMany({
+          where: { accountId: null },
+          select: { id: true },
+        })
+      )
+        .map((r) => r.id)
+        .sort();
+      assert.ok(globalIds.length > 0, "the fixture must leave at least one global template");
+
+      await seedPrisma.aIPromptTemplate.create({
+        data: {
+          id: ownedId,
+          accountId: ACCOUNT_A,
+          name: `Owned RLS Test Template ${TEST_TAG}`,
+          prompt: "test",
+          category: "GENERAL",
+          platforms: [],
+          tone: [],
+          variables: {},
+          isSystem: false,
+        },
+      });
+
+      try {
+        const asA = await asAppRole(ACCOUNT_A, async (tx) =>
+          tx.aIPromptTemplate.findMany({ select: { id: true } })
+        );
+        assert.deepStrictEqual(
+          asA.map((r) => r.id).sort(),
+          [...globalIds, ownedId].sort(),
+          `bound to its own tenant, the policy must admit BOTH disjuncts: the ${globalIds.length} ` +
+            `global template(s) and this tenant's own row. Missing the own row means the ` +
+            `"accountId" = <guc> arm was lost; missing the globals means the IS NULL arm was.`
+        );
+
+        const asB = await asAppRole(ACCOUNT_B, async (tx) =>
+          tx.aIPromptTemplate.findMany({ select: { id: true } })
+        );
+        assert.deepStrictEqual(
+          asB.map((r) => r.id).sort(),
+          globalIds,
+          `a second tenant must still read exactly the global templates. Seeing tenant A's ` +
+            `row here would mean the third arm admits owned rows across tenants, which is the ` +
+            `failure mode a globals-only corpus cannot distinguish from correct behaviour.`
+        );
+      } finally {
+        // Owner channel: the row is RLS-covered, so a cleanup on the
+        // application's connection with no tenant bound would delete nothing
+        // and leave the plant behind for every later run.
+        await seedPrisma.aIPromptTemplate.delete({ where: { id: ownedId } }).catch(() => undefined);
+      }
     });
 
     it("INSERT with mismatching accountId is rejected", async () => {
