@@ -95,10 +95,15 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
   /**
    * Get a post read model by ID, scoped to the caller's account (CWE-639).
    * Returns EntityNotFoundError when the post does not exist, is soft-deleted, or
-   * belongs to another account — the account scope lives inside the query
-   * (`project.accountId`), so a foreign-owned post is indistinguishable from a
-   * nonexistent one (Post has no direct accountId — ownership is transitive via
-   * Project, mirroring `findOwnerAccountId`).
+   * belongs to another account — the account scope lives inside the query, so a
+   * foreign-owned post is indistinguishable from a nonexistent one.
+   *
+   * The scope is written relationally (`project.accountId`). `Post` carries its
+   * own `accountId` too, and the composite foreign key keeps the two from ever
+   * disagreeing, so which one this query names is a shape decision rather than a
+   * semantic one. This point read keeps the relational form: it is a single-row
+   * lookup led by the primary key, and the account-wide feed — not this — is the
+   * shape whose cost was measured.
    */
   async getById(
     id: PostId,
@@ -178,7 +183,7 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
   /**
    * Build a Prisma `where` clause from a project scope, the caller's account
    * scope, and an optional filter. Always pins `projectId`, `deletedAt: null`,
-   * and the transitive account scope `project.accountId` (CWE-639) — so a
+   * and the account scope on `Post`'s own `accountId` column (CWE-639) — so a
    * client-supplied `projectId` owned by another account matches no rows.
    * Filters `archivedAt: null` by default unless `filter.includeArchived === true`
    * (explicit Archive view).
@@ -416,8 +421,12 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
 
   /**
    * List the caller account's posts across all its projects (CWE-639) with an
-   * optional status filter. The account scope (`project.accountId`) lives inside
-   * the query, so a customer never receives another account's posts.
+   * optional status filter. The account scope lives inside the query as `Post`'s
+   * own `accountId` column, so a customer never receives another account's posts
+   * and the read does not walk into `Project` to learn whose post it is. Project
+   * liveness is the one predicate that stays relational, because soft delete does
+   * not cascade. The account value is server-derived; no caller-supplied scope
+   * selector reaches this method.
    * Defaults: page 1, limit 20, ordered by createdAt descending.
    */
   async listGlobal(
@@ -430,11 +439,16 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {
+      accountId: accountId.value,
       deletedAt: null,
-      // Project liveness is part of the feed gate: a soft-deleted project's
-      // posts stay `deletedAt: null` themselves (soft delete does not cascade),
-      // so without this relation predicate they remain in the account-wide feed.
-      project: { accountId: accountId.value, deletedAt: null },
+      // Project liveness stays relational: a soft-deleted project's posts stay
+      // `deletedAt: null` themselves (soft delete does not cascade), so without
+      // this relation predicate they remain in the account-wide feed. Only the
+      // relation's `accountId` half is gone — the composite foreign key
+      // (Post.projectId, Post.accountId) → Project makes a Post whose accountId
+      // disagrees with its Project's unrepresentable, so re-asserting the tenant
+      // through the relation could not exclude a row the local column admits.
+      project: { deletedAt: null },
     };
     if (filter?.status) {
       where["status"] = filter.status;

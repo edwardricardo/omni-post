@@ -626,18 +626,26 @@ const POST_COLS = `p.id, p."projectId", p.status, p."scheduledAt", p."publishedA
  * validated against that method's own Prisma call on every run.
  *
  * The mirror tracks the source site as it is TODAY, never as it was when a previous
- * phase was captured. Four sites changed their emission when `Post` gained its own
- * tenant column — `Q1`/`Q2` (`buildWhereClause` moved from the relation predicate
- * `project: { accountId }` to the local `Post.accountId`), `Q5` and `Q8` (both gained
- * an explicit `accountId` from the required `TenantScope`, having carried no account
- * predicate at all before) — and each of those four now mirrors the new text. That is
- * the only honest option: a mirror kept at the old shape would take a plan for a query
- * the application no longer issues, and the fidelity check could not notice, because
- * both texts select the SAME rows and the check compares row identity. The cost is
- * stated instead of hidden: for those four cases the before/after delta is a delta of
- * TWO changes at once (schema and query), so their `why` line says so and the report's
- * §Reading the after capture separates what is attributable to which. `Q3`, `Q4`, `Q6`,
- * `Q7` and every child read are textually identical across the two phases.
+ * phase was captured. That is the only honest option: a mirror kept at the old shape
+ * would take a plan for a query the application no longer issues, and the fidelity
+ * check could not notice, because both texts select the SAME rows and the check
+ * compares row identity. Six sites have moved, in two distinct ways, and the
+ * difference decides what a before/after delta may be attributed to:
+ *
+ * - SCHEMA-MOVED — `Q1`/`Q2` (`buildWhereClause` moved from the relation predicate
+ *   `project: { accountId }` to the local `Post.accountId`), `Q5` and `Q8` (both
+ *   gained an explicit `accountId` from the required `TenantScope`, having carried no
+ *   account predicate at all before). Their emission moved BECAUSE `Post` gained its
+ *   own tenant column, so their §Before→§After delta is a delta of TWO changes at
+ *   once (schema and query), and the report's §Reading the after capture separates
+ *   what is attributable to which.
+ * - EMISSION-MOVED — `Q3` and `Q4`. The column already existed when §After was
+ *   captured; `listGlobal` simply kept reaching through the relation for a tenant it
+ *   could read locally, and the reshape stopped it. Their §After→next-capture delta
+ *   is therefore attributable to the QUERY alone, with no schema move mixed in. Their
+ *   §Before→next delta still carries both.
+ *
+ * `Q6`, `Q7` and every child read remain textually identical across every phase.
  *
  * §Before cannot be re-captured on a migrated database, so it stays the historical
  * artifact `--phase before` produced against the pre-migration schema.
@@ -647,7 +655,7 @@ const CASES: readonly Case[] = [
     id: "Q1",
     title: "listByProject — page 1 of a project's live posts",
     sourceSite:
-      "apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:152 (where built at :186)",
+      "apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:157 (where built at :191)",
     why:
       "the customer's post list; the most frequently served Post read. " +
       "EMISSION CHANGED with the trio's tenant column: `buildWhereClause` filtered the " +
@@ -680,7 +688,7 @@ const CASES: readonly Case[] = [
   {
     id: "Q2",
     title: "listByProject — the paired total count",
-    sourceSite: "apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:162",
+    sourceSite: "apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:167",
     why:
       "runs on every page load in the same Promise.all as Q1, over the whole project. " +
       "EMISSION CHANGED with the trio's tenant column — it shares Q1's `buildWhereClause`, " +
@@ -706,24 +714,27 @@ const CASES: readonly Case[] = [
   {
     id: "Q3",
     title: "listGlobal — the account-wide feed, page 1",
-    sourceSite: "apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:444",
+    sourceSite: "apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:458",
     why:
-      "the tenant-wide listing the new (accountId, projectId) partial index exists to serve. " +
-      "Emission UNCHANGED: `listGlobal` still reaches the tenant through the relation, so this " +
-      "case's query text is identical in both phases",
+      "the tenant-wide listing the (accountId, projectId) partial index exists to serve. " +
+      "EMISSION CHANGED with the reshape: `listGlobal` reached the tenant through the relation " +
+      "when §Before AND §After were captured, and filters the LOCAL `Post.accountId` now, so " +
+      "this case's query text differs from BOTH committed phases. Unlike Q1/Q2/Q5/Q8 the move " +
+      "is not the schema's — the column already existed when §After was captured, so the delta " +
+      "against §After is attributable to the query change alone",
     group: "post-listing",
     measuredTable: "Post",
     sql: (c) => `SELECT ${POST_COLS} FROM "Post" p
- WHERE p."deletedAt" IS NULL
+ WHERE p."accountId" = ${lit(c.accountId)}
+   AND p."deletedAt" IS NULL
    AND EXISTS (SELECT 1 FROM "Project" pr
                 WHERE pr.id = p."projectId"
-                  AND pr."accountId" = ${lit(c.accountId)}
                   AND pr."deletedAt" IS NULL)
  ORDER BY p."createdAt" DESC
  LIMIT 20 OFFSET 0`,
     prisma: (tx, c) =>
       tx.post.findMany({
-        where: { deletedAt: null, project: { accountId: c.accountId, deletedAt: null } },
+        where: { accountId: c.accountId, deletedAt: null, project: { deletedAt: null } },
         select: { id: true },
         orderBy: { createdAt: "desc" },
         skip: 0,
@@ -734,21 +745,22 @@ const CASES: readonly Case[] = [
   {
     id: "Q4",
     title: "listGlobal — the paired total count",
-    sourceSite: "apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:454",
+    sourceSite: "apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:468",
     why:
-      "the account-wide count; it shares Q3's `where`, so it can still only be answered by " +
-      "walking into Project. Emission UNCHANGED between the two phases",
+      "the account-wide count; it shares Q3's `where`, so it walks into Project for LIVENESS " +
+      "only now, not for the tenant. EMISSION CHANGED with the reshape, on Q3's terms and for " +
+      "Q3's reason",
     group: "post-listing",
     measuredTable: "Post",
     sql: (c) => `SELECT count(*) AS n FROM "Post" p
- WHERE p."deletedAt" IS NULL
+ WHERE p."accountId" = ${lit(c.accountId)}
+   AND p."deletedAt" IS NULL
    AND EXISTS (SELECT 1 FROM "Project" pr
                 WHERE pr.id = p."projectId"
-                  AND pr."accountId" = ${lit(c.accountId)}
                   AND pr."deletedAt" IS NULL)`,
     prisma: (tx, c) =>
       tx.post.count({
-        where: { deletedAt: null, project: { accountId: c.accountId, deletedAt: null } },
+        where: { accountId: c.accountId, deletedAt: null, project: { deletedAt: null } },
       }),
     digest: byCount,
   },
@@ -873,7 +885,7 @@ const CASES: readonly Case[] = [
     id: "Q9",
     title: "PostContent — batched postId-led read for one listing page",
     sourceSite:
-      "include `contents` on PrismaPostQueryRepository.ts:155 / PrismaPostRepository.ts:229",
+      "include `contents` on PrismaPostQueryRepository.ts:160 / PrismaPostRepository.ts:229",
     why:
       "shape-1b evidence: the read stays parent-key-led, and the exemption's revisit trigger " +
       "is measured from whether the policy qual moves it off that index",
@@ -919,7 +931,7 @@ const CASES: readonly Case[] = [
   {
     id: "Q12",
     title: "PostMedia — the `_count` aggregate over one listing page",
-    sourceSite: "`_count: { select: { media: true } }` on PrismaPostQueryRepository.ts:156",
+    sourceSite: "`_count: { select: { media: true } }` on PrismaPostQueryRepository.ts:161",
     why: "the aggregate arm of the same child read; grouping changes the plan, so it is captured apart",
     group: "child-read",
     measuredTable: "PostMedia",
