@@ -105,6 +105,14 @@ interface Options {
   readonly projects: number;
   readonly posts: number;
   readonly runs: number;
+  /**
+   * How many times the WHOLE arm sweep is repeated. Distinct from {@link runs}, which
+   * takes several EXPLAIN passes inside one arm transaction: repetitions re-install the
+   * policies and re-measure from scratch, which is the only way to see variation that
+   * belongs to the run rather than to the form. Measured on this corpus, a single sweep
+   * cannot tell the two candidate forms apart — see §The form verdict.
+   */
+  readonly repetitions: number;
   readonly report: string;
 }
 
@@ -125,6 +133,7 @@ export function parseOptions(argv: readonly string[]): Options {
   let projects = 100;
   let posts = 10_000;
   let runs = 3;
+  let repetitions = 3;
   let report = DEFAULT_REPORT;
 
   const positive = (flag: string, raw: string | undefined): number => {
@@ -167,6 +176,9 @@ export function parseOptions(argv: readonly string[]): Options {
       case "--runs":
         runs = positive(flag, argv[(i += 1)]);
         break;
+      case "--repetitions":
+        repetitions = positive(flag, argv[(i += 1)]);
+        break;
       case "--out":
         report = argv[(i += 1)] ?? DEFAULT_REPORT;
         break;
@@ -174,7 +186,7 @@ export function parseOptions(argv: readonly string[]): Options {
         throw new Error(
           `unknown flag ${String(flag)}. Usage: rls-ab-measurement.ts ` +
             `[--phase before|after] [--policy-ab] [--cleanup] [--seed-only] [--skip-seed] ` +
-            `[--projects N] [--posts N] [--runs N] [--out FILE]`
+            `[--projects N] [--posts N] [--runs N] [--repetitions N] [--out FILE]`
         );
     }
   }
@@ -184,7 +196,18 @@ export function parseOptions(argv: readonly string[]): Options {
       "nothing to do: pass --phase before|after, --policy-ab, --seed-only, or --cleanup"
     );
   }
-  return { phase, cleanup, skipSeed, seedOnly, policyAb, projects, posts, runs, report };
+  return {
+    phase,
+    cleanup,
+    skipSeed,
+    seedOnly,
+    policyAb,
+    projects,
+    posts,
+    runs,
+    repetitions,
+    report,
+  };
 }
 
 /**
@@ -1008,14 +1031,30 @@ function walkPlan(node: PlanNode | undefined, acc: WalkedPlan = emptyWalk()): Wa
  *   that no policy form and no index shape touches, so quoting it as the effect of a
  *   policy swap attributes shared overhead to whichever arm happened to run under it.
  *   That conflation is what forced the retraction of a previously published 4.198×.
+ *
+ *   THROWS when no node in the plan names the table. Summing an empty set returns
+ *   `0`, and `0` renders as `0.000 ms` — indistinguishable from a relation that was
+ *   read for free. In a three-arm comparison that is not a missing number, it is a
+ *   WRONG one: the arm whose plan stopped touching the measured relation would post
+ *   the lowest median and win the verdict by being unmeasured.
  * @param walked - One walked plan.
  * @param table - The relation the case is measuring.
+ * @param context - What is being measured, for the failure message.
  * @returns Milliseconds spent on that table's scan nodes.
+ * @throws Error when the plan contains no node reading `table`.
  */
-function scanTimeMs(walked: WalkedPlan, table: string): number {
-  return walked.scanNodes
-    .filter((n) => n.relationName === table)
-    .reduce((sum, n) => sum + n.actualTotalTime * n.actualLoops, 0);
+function scanTimeMs(walked: WalkedPlan, table: string, context: string): number {
+  const nodes = walked.scanNodes.filter((n) => n.relationName === table);
+  if (nodes.length === 0) {
+    const seen = [...new Set(walked.scanNodes.map((n) => n.relationName))];
+    throw new Error(
+      `${context}: no plan node reads "${table}", so its scan-node time is not zero — it is ` +
+        `unmeasured. The plan's relations are [${seen.join(", ") || "(none)"}]. Point the case ` +
+        "at the relation its plan actually reads; a 0 here would reach the report as `0.000 ms` " +
+        "and win any comparison it entered."
+    );
+  }
+  return nodes.reduce((sum, n) => sum + n.actualTotalTime * n.actualLoops, 0);
 }
 
 /**
@@ -1091,7 +1130,7 @@ async function capture(
     // Every run contributes its OWN scan total and its OWN index set. Overwriting a
     // single accumulator per iteration — the previous form — kept only the last run,
     // so a capture whose runs disagreed reported one run's plan as all three.
-    scanMs.push(scanTimeMs(shape, c.measuredTable));
+    scanMs.push(scanTimeMs(shape, c.measuredTable, `case ${c.id}`));
     indexNamesPerRun.push([...new Set(shape.indexNames)]);
     lastPlan = JSON.stringify(parsed, null, 2);
   }
@@ -1121,8 +1160,9 @@ async function capture(
 
 /**
  * One policy form under comparison. `using` is the body of the `USING (...)` clause
- * the arm installs on `Post`; `null` measures the SHIPPED policy without touching it,
- * which is what makes arm A′ a real control rather than a re-creation of itself.
+ * the arm installs on each of {@link TRIO_TABLES}; `null` measures the SHIPPED policy
+ * without touching it, which is what makes arm `A′` a real control rather than a
+ * re-creation of itself.
  */
 interface PolicyArm {
   readonly id: string;
@@ -1132,12 +1172,24 @@ interface PolicyArm {
 }
 
 /**
- * The three arms. B′ is quoted from `docs/technical/TENANT_ISOLATION_RESEARCH.md` §4
- * verbatim, INCLUDING the fact that the researched form carries no `__system__` escape
- * — the third arm adds that escape back so the cost of the escape is measured instead
- * of argued about. All three are installed on `Post` only: the three shapes below touch
- * no other table, so swapping the children's policies would change nothing and would
- * widen the blast radius of a transaction that already holds an AccessExclusive lock.
+ * The three arms of the FORM decision: the shipped bare form as the live control, and
+ * the two candidate renderings of the same predicate.
+ *
+ * `B′` / `B′+sys` — the decorrelated set-membership direction quoted from
+ * `docs/technical/TENANT_ISOLATION_RESEARCH.md` §4 — are RETIRED here, and the report
+ * keeps their measurements as history rather than pretending they were never run. Two
+ * reasons, both already measured: `B′` carries no `__system__` escape at all, so it
+ * could never ship (every `withSystemContext()` flow would see nothing under it), and
+ * the shippable `B′+sys` measured indistinguishable from the shipped form. A retired
+ * direction left in the arm list costs a full transaction per run and invites a reader
+ * to compare against a form nobody can commit.
+ *
+ * What is left is the question the migration actually has to answer: given that the
+ * GUC read must be hoisted, is it hoisted as TWO wrapped calls (`W`) or as ONE
+ * (`S`)? Both are semantically identical to the shipped policy; the plan and the row
+ * digests decide between them, and if they tie, the pre-declared tiebreak does.
+ *
+ * Every arm installs its form on ALL THREE trio tables — see {@link TRIO_TABLES}.
  */
 const POLICY_ARMS: readonly PolicyArm[] = [
   {
@@ -1149,42 +1201,45 @@ const POLICY_ARMS: readonly PolicyArm[] = [
     using: null,
   },
   {
-    id: "A′+init",
-    label: "shipped form with the GUC read hoisted into a scalar subquery",
+    id: "W",
+    label: "both halves wrapped — the disjunction, each GUC read hoisted",
     note:
       "SEMANTICALLY IDENTICAL to the shipped policy — same column, same `__system__` " +
       "escape — differing only in that each `current_setting()` is wrapped in `(SELECT ...)`, " +
-      "which PostgreSQL evaluates once as an InitPlan instead of once per candidate row. It " +
-      "is here because the other three arms disagree on the set-membership half while agreeing " +
-      "on the per-row function call, so this is the arm that tells them apart",
+      "which PostgreSQL evaluates once as an InitPlan instead of once per candidate row. " +
+      "This arm was measured as `A′+init` in the retired four-arm comparison; the numbers " +
+      "under the old name are the same form",
     using:
       `(SELECT current_setting('app.account_id', true)) = '__system__' ` +
       `OR "accountId" = (SELECT current_setting('app.account_id', true))`,
   },
   {
-    id: "B′",
-    label: "decorrelated set-membership, as researched",
+    id: "S",
+    label: "single hoisted read, set-membership against the two admissible values",
     note:
-      "the research's form verbatim. It carries NO `__system__` escape, so it is not a " +
-      "drop-in for the shipped policy — `withSystemContext()` flows would see nothing " +
-      "under it. Measured as written because that is the form the recommendation rests on",
-    using:
-      `"projectId" IN (SELECT p.id FROM "Project" p ` +
-      `WHERE p."accountId" = current_setting('app.account_id', true))`,
-  },
-  {
-    id: "B′+sys",
-    label: "decorrelated set-membership plus the `__system__` escape",
-    note:
-      "B′ made semantically equal to the shipped policy by restoring the cross-tenant " +
-      "escape. It is the only one of the three B-shaped forms that could actually ship, " +
-      "and it exists here to measure what the escape's disjunction costs",
-    using:
-      `current_setting('app.account_id', true) = '__system__' ` +
-      `OR "projectId" IN (SELECT p.id FROM "Project" p ` +
-      `WHERE p."accountId" = current_setting('app.account_id', true))`,
+      "the same predicate written so the GUC is read ONCE syntactically: a row is visible " +
+      "when the bound value is either the `__system__` sentinel or the row's own account. " +
+      "Text equality is symmetric, so this is `x = '__system__' OR x = \"accountId\"`, which " +
+      'is the shipped `"accountId" = x` order. It is here to answer whether one wrapped ' +
+      "read plans better than two — a question the design refused to settle by argument",
+    using: `(SELECT current_setting('app.account_id', true)) IN ('__system__', "accountId")`,
   },
 ];
+
+/**
+ * The tables an arm swaps. All three, not `Post` alone.
+ *
+ * The earlier form swapped `Post` only, and said so for a reason that has since
+ * expired: the three AB_SHAPES read no other table, so the children's policies could
+ * not have affected them. The 13 CASES do — five of them read `PostContent` or
+ * `PostMedia` — so measuring them against a bare child policy under every arm would
+ * put five rows in the report whose numbers CANNOT respond to the arm, and a reader
+ * comparing them would be reading noise as a result. The trio migration this run
+ * decides rewrites all three tables, so the arm now installs what that migration will
+ * install. The blast radius is unchanged in kind: the transaction already held an
+ * AccessExclusive lock and is still ALWAYS rolled back.
+ */
+const TRIO_TABLES = ["Post", "PostContent", "PostMedia"] as const;
 
 /**
  * The three shapes the design names for this comparison: point read by id,
@@ -1230,29 +1285,142 @@ const AB_SHAPES: readonly AbShape[] = [
   },
 ];
 
-/** One (arm, shape) measurement. */
+/** The relation every `AB_SHAPES` entry measures — all three read `Post` alone. */
+const AB_MEASURED_TABLE = "Post";
+
+/**
+ * One SQL statement an arm measures. The arms run TWO populations under one shape of
+ * code: the three synthetic {@link AB_SHAPES}, which carry no tenant predicate so the
+ * policy is the whole restriction, and the 13 {@link CASES}, which are what the
+ * application actually issues.
+ *
+ * The cases enter as their SQL MIRRORS, not as their Prisma calls. A Prisma call cannot
+ * run inside the arm transaction — the arm reaches `omnipost_app` with `SET LOCAL ROLE`
+ * on the OWNER connection, and Prisma's client speaks to its own pool — so the mirror is
+ * what an arm can execute. That is sound only because the mirror's fidelity to its
+ * Prisma call is proven separately and on every capture run by {@link capture}: the
+ * standing proof lives there, and this run consumes it rather than restating it.
+ */
+interface AbProbe {
+  readonly id: string;
+  readonly kind: "shape" | "case";
+  readonly title: string;
+  readonly why: string;
+  /** The relation whose scan nodes carry this probe's headline figure. */
+  readonly measuredTable: string;
+  readonly sql: (ctx: Ctx) => string;
+  /**
+   * How many rows the statement actually FOUND, which is not always how many rows it
+   * RETURNED. A scalar `count(*)` returns exactly one row whether it counted a
+   * thousand or none, so reading `rows.length` as "matched something" would report
+   * every empty aggregate as a live result — and would report the declared miss probe
+   * `Q8`, whose empty bucket IS its subject, as having started matching rows.
+   */
+  readonly matched: (rows: ReadonlyArray<Record<string, unknown>>) => number;
+  /** A probe whose empty result is the measured subject — see {@link Case.missProbe}. */
+  readonly missProbe: boolean;
+}
+
+/**
+ * The scalar-count cases are exactly the ones digesting through {@link byCount}: that
+ * function reads the single `n` column, which is the same fact this predicate needs, so
+ * it is read from there rather than restated as a second list that could drift.
+ */
+const matchedRows =
+  (c: Case) =>
+  (rows: ReadonlyArray<Record<string, unknown>>): number =>
+    c.digest === byCount ? Number(rows[0]?.["n"] ?? 0) : rows.length;
+
+/**
+ * Every probe an arm runs: the three shapes first, then the 13 application cases in
+ * catalog order. Built from the two existing lists rather than restated, so a case
+ * added to {@link CASES} is measured by the arms without a second edit.
+ */
+const AB_PROBES: readonly AbProbe[] = [
+  ...AB_SHAPES.map((s): AbProbe => ({
+    id: s.id,
+    kind: "shape",
+    title: s.title,
+    why: s.why,
+    measuredTable: AB_MEASURED_TABLE,
+    sql: s.sql,
+    matched: (rows) => rows.length,
+    missProbe: false,
+  })),
+  ...CASES.map((c): AbProbe => ({
+    id: c.id,
+    kind: "case",
+    title: c.title,
+    why: c.why,
+    measuredTable: c.measuredTable,
+    sql: c.sql,
+    matched: matchedRows(c),
+    missProbe: c.missProbe === true,
+  })),
+];
+
+/**
+ * A row-set digest that compares the WHOLE row, not its id.
+ *
+ * The arms' acceptance criterion is row-equivalence, and an id list cannot see a
+ * column whose VALUE changed — nor can it compare the three aggregate cases at all,
+ * whose single row is a count and carries no id. Keys are sorted so column order
+ * cannot manufacture a difference, `bigint` and `Date` are given stable text (a
+ * `count(*)` arrives as `bigint`, which `JSON.stringify` refuses outright), and the
+ * rows themselves are sorted so an ordering difference between two arms is not read
+ * as a different row SET. Ordering is separately visible in the plan.
+ */
+const rawDigest = (rows: ReadonlyArray<Record<string, unknown>>): string => {
+  const scalar = (v: unknown): string => {
+    if (typeof v === "bigint") return `${v.toString()}n`;
+    if (v instanceof Date) return v.toISOString();
+    if (v instanceof Uint8Array) return `\\x${Buffer.from(v).toString("hex")}`;
+    return JSON.stringify(v) ?? "null";
+  };
+  return rows
+    .map((row) =>
+      Object.keys(row)
+        .sort()
+        .map((k) => `${k}=${scalar(row[k])}`)
+        .join("|")
+    )
+    .sort()
+    .join(";");
+};
+
+/** One (arm, probe) measurement. */
 interface AbResult {
   readonly armId: string;
-  readonly shapeId: string;
-  /** Sorted row ids the shape returned under this arm — the equivalence check. */
+  readonly probeId: string;
+  readonly probeKind: "shape" | "case";
+  /** The relation {@link scanMs} is summed over — the probe's own measured table. */
+  readonly measuredTable: string;
+  /** Whole-row digest of what this probe returned under this arm — the equivalence check. */
   readonly digest: string;
+  /** Rows the statement RETURNED — one for a scalar aggregate, whatever it counted. */
   readonly rows: number;
+  /** Rows the statement FOUND — see {@link AbProbe.matched}. The refusal logic reads this. */
+  readonly matched: number;
+  /** Carried through so the refusal logic can tell a declared miss from a vacuous one. */
+  readonly missProbe: boolean;
   readonly planningMs: readonly number[];
   readonly executionMs: readonly number[];
-  /** Per-run scan-node time on `Post` — the arm's headline statistic. */
+  /** Per-run scan-node time on {@link measuredTable} — the arm's headline statistic. */
   readonly scanMs: readonly number[];
   readonly nodeTypes: readonly string[];
   /** Union across runs; {@link indexNamesPerRun} keeps them apart. */
   readonly indexNames: readonly string[];
   /** The index set of EACH run — same last-run-only defect as {@link CaptureResult}. */
   readonly indexNamesPerRun: ReadonlyArray<readonly string[]>;
-  /** `InitPlan`/`SubPlan` labels of the last run, in tree order. */
-  readonly subplanNames: readonly string[];
+  /**
+   * The `InitPlan`/`SubPlan` labels of EACH run, in tree order. Per run for the reason
+   * the index sets are: the InitPlan COUNT is what task 2.4 records as a measured
+   * claim about the form, and a field assigned from the last walk quotes one run's
+   * plan as the arm's — the same defect the per-run index annotation exists to catch.
+   */
+  readonly subplanNamesPerRun: ReadonlyArray<readonly string[]>;
   readonly plan: string;
 }
-
-/** The relation every `AB_SHAPES` entry measures — all three read `Post` alone. */
-const AB_MEASURED_TABLE = "Post";
 
 /**
  * @function readTrioPolicies
@@ -1302,8 +1470,9 @@ async function readTrioPolicies(owner: PrismaClient): Promise<string> {
 
 /**
  * @function runPolicyArm
- * @description Measures every shape under ONE policy form, inside a single transaction
- *   that is ALWAYS rolled back.
+ * @description Measures every probe — the three synthetic shapes and the 13 application
+ *   cases — under ONE policy form, inside a single transaction that is ALWAYS rolled
+ *   back.
  *
  *   The swap is transaction-scoped rather than committed because a committed policy swap
  *   on a shared development database is a tenant-isolation change, and one that a crashed
@@ -1320,8 +1489,8 @@ async function readTrioPolicies(owner: PrismaClient): Promise<string> {
  * @param owner - Owner-channel client (policy DDL needs the table owner).
  * @param arm - The policy form to install, or the shipped one when `using` is null.
  * @param ctx - Shared tenant/id context.
- * @param runs - How many EXPLAIN passes per shape.
- * @returns One result per shape.
+ * @param runs - How many EXPLAIN passes per probe.
+ * @returns One result per probe.
  * @throws Error when the session posture is wrong, or when the transaction fails for any
  *   reason other than the deliberate rollback.
  */
@@ -1337,10 +1506,12 @@ async function runPolicyArm(
     await owner.$transaction(
       async (tx) => {
         if (arm.using !== null) {
-          await tx.$executeRawUnsafe(`DROP POLICY tenant_isolation ON "Post"`);
-          await tx.$executeRawUnsafe(
-            `CREATE POLICY tenant_isolation ON "Post" USING (${arm.using})`
-          );
+          for (const table of TRIO_TABLES) {
+            await tx.$executeRawUnsafe(`DROP POLICY tenant_isolation ON "${table}"`);
+            await tx.$executeRawUnsafe(
+              `CREATE POLICY tenant_isolation ON "${table}" USING (${arm.using})`
+            );
+          }
         }
         await tx.$executeRawUnsafe(`SET LOCAL ROLE ${APP_ROLE}`);
         await tx.$executeRawUnsafe(
@@ -1357,13 +1528,14 @@ async function runPolicyArm(
           );
         }
 
-        for (const shape of AB_SHAPES) {
-          const sql = shape.sql(ctx);
+        for (const probe of AB_PROBES) {
+          const sql = probe.sql(ctx);
           const rows = await tx.$queryRawUnsafe<Array<Record<string, unknown>>>(sql);
           const planningMs: number[] = [];
           const executionMs: number[] = [];
           const scanMs: number[] = [];
           const indexNamesPerRun: string[][] = [];
+          const subplanNamesPerRun: string[][] = [];
           let lastPlan = "";
           let walked = emptyWalk();
           for (let i = 0; i < runs; i += 1) {
@@ -1383,25 +1555,27 @@ async function runPolicyArm(
             // Per run, exactly as `capture()` does: the arms carried the SAME
             // last-run-only defect, so fixing only the capture path would have left
             // every policy arm quoting one run's plan as the arm's.
-            scanMs.push(scanTimeMs(walked, AB_MEASURED_TABLE));
+            scanMs.push(scanTimeMs(walked, probe.measuredTable, `arm ${arm.id} ${probe.id}`));
             indexNamesPerRun.push([...new Set(walked.indexNames)]);
+            subplanNamesPerRun.push([...walked.subplanNames]);
             lastPlan = JSON.stringify(parsed, null, 2);
           }
           results.push({
             armId: arm.id,
-            shapeId: shape.id,
-            digest: rows
-              .map((r) => String(r["id"]))
-              .sort()
-              .join(","),
+            probeId: probe.id,
+            probeKind: probe.kind,
+            measuredTable: probe.measuredTable,
+            digest: rawDigest(rows),
             rows: rows.length,
+            matched: probe.matched(rows),
+            missProbe: probe.missProbe,
             planningMs,
             executionMs,
             scanMs,
             nodeTypes: walked.nodeTypes,
             indexNames: [...new Set(indexNamesPerRun.flat())],
             indexNamesPerRun,
-            subplanNames: walked.subplanNames,
+            subplanNamesPerRun,
             plan: lastPlan,
           });
         }
@@ -1415,40 +1589,222 @@ async function runPolicyArm(
   return results;
 }
 
+/** One GUC state under which the two candidate forms were compared row by row. */
+interface FormEquivalenceRow {
+  /** How `app.account_id` was bound for this comparison. */
+  readonly gucState: string;
+  /** Sample rows admitted by `W`, as a sorted id list. */
+  readonly admittedByW: string;
+  /** Sample rows admitted by `S`. Must equal {@link admittedByW}. */
+  readonly admittedByS: string;
+  /**
+   * Sample rows where the two expressions differ BEFORE the policy's implicit
+   * `NULL → not visible` collapse. Zero here is a stronger statement than equal
+   * admission: it says the forms agree as three-valued expressions, not merely that
+   * two different NULL/false mixtures happened to hide the same rows.
+   */
+  readonly threeValuedDivergences: number;
+}
+
+/**
+ * @function proveFormEquivalence
+ * @description Proves `S` admits exactly the rows `W` admits, under every GUC state a
+ *   deployed policy can meet: a bound tenant, the `__system__` sentinel, and an UNSET
+ *   GUC.
+ *
+ *   This exists because the 13-case comparison CANNOT see the difference that matters.
+ *   Every case runs with `app.account_id` bound to one tenant, and under a bound tenant
+ *   an `S` body that had lost its `__system__` member returns exactly the same rows —
+ *   the arms agree, the digests match, and a form that silently revoked every
+ *   `withSystemContext()` flow's visibility ships with a green run behind it. The
+ *   sentinel and the unset states are reachable only here.
+ *
+ *   The expressions are read from {@link POLICY_ARMS} rather than restated, so this
+ *   proves the bodies the arms actually install. They are evaluated over a literal
+ *   3-row sample — local tenant, foreign tenant, NULL `accountId` — rather than over
+ *   `Post`: the sample is not subject to row security, so the comparison cannot be
+ *   quietly filtered by the very policy under test, and it can include the NULL-account
+ *   row that no `Post` carries but the `AIPromptTemplate` variant depends on. The
+ *   real-data leg for the bound-tenant state is the 13-case digest equality above.
+ * @param owner - Owner-channel client.
+ * @param ctx - Shared tenant/id context; supplies the local tenant of the sample.
+ * @returns One row per GUC state.
+ * @throws Error when the forms admit different rows, when they diverge as three-valued
+ *   expressions, when an arm body is missing, or when the UNSET state is not actually
+ *   unset on the connection the probe got.
+ */
+async function proveFormEquivalence(
+  owner: PrismaClient,
+  ctx: Ctx
+): Promise<readonly FormEquivalenceRow[]> {
+  const bodyOf = (id: string): string => {
+    const arm = POLICY_ARMS.find((a) => a.id === id);
+    if (!arm || arm.using === null) {
+      throw new Error(
+        `the equivalence proof needs arm ${id} with a real USING body; the arm list no longer ` +
+          "carries one, so the proof would compare something other than what ships."
+      );
+    }
+    return arm.using;
+  };
+  const w = bodyOf("W");
+  const s = bodyOf("S");
+  const sample =
+    `(VALUES ('r1-local', ${lit(TENANTS[0])}), ('r2-foreign', ${lit(TENANTS[1])}), ` +
+    `('r3-null-account', NULL::text))`;
+
+  const states: ReadonlyArray<{ label: string; bind: string | null }> = [
+    { label: `bound tenant \`${ctx.accountId}\``, bind: ctx.accountId },
+    { label: "`__system__` sentinel", bind: "__system__" },
+    { label: "UNSET (no `set_config` at all)", bind: null },
+  ];
+
+  const out: FormEquivalenceRow[] = [];
+  for (const state of states) {
+    const row = await owner.$transaction(async (tx) => {
+      if (state.bind !== null) {
+        await tx.$executeRawUnsafe(`SELECT set_config('app.account_id', ${lit(state.bind)}, true)`);
+      }
+      const [result] = await tx.$queryRawUnsafe<
+        Array<{
+          guc: string | null;
+          w_admitted: string | null;
+          s_admitted: string | null;
+          divergent: bigint;
+        }>
+      >(
+        `WITH sample(id, "accountId") AS ${sample}
+         SELECT current_setting('app.account_id', true) AS guc,
+                string_agg(id, ',' ORDER BY id) FILTER (WHERE coalesce(${w}, false)) AS w_admitted,
+                string_agg(id, ',' ORDER BY id) FILTER (WHERE coalesce(${s}, false)) AS s_admitted,
+                count(*) FILTER (WHERE (${w}) IS DISTINCT FROM (${s})) AS divergent
+         FROM sample`
+      );
+      if (!result) throw new Error("the equivalence probe returned no row at all");
+      if (state.bind === null && result.guc !== null && result.guc !== "") {
+        throw new Error(
+          `the UNSET state was not unset: \`app.account_id\` read back as ` +
+            `${JSON.stringify(result.guc)} on this connection, so the NULL-propagation leg of ` +
+            "the proof would have tested a bound tenant instead. NOTHING was written."
+        );
+      }
+      return result;
+    });
+
+    const admittedByW = row.w_admitted ?? "(none)";
+    const admittedByS = row.s_admitted ?? "(none)";
+    const threeValuedDivergences = Number(row.divergent);
+    if (admittedByW !== admittedByS || threeValuedDivergences > 0) {
+      throw new Error(
+        `the two candidate forms are NOT equivalent under ${state.label}: W admits ` +
+          `[${admittedByW}] and S admits [${admittedByS}], with ${threeValuedDivergences} row(s) ` +
+          "differing as three-valued expressions. A form that admits different rows is a " +
+          "different policy, whatever it measures. NOTHING was written.\n" +
+          `  W = ${w}\n  S = ${s}`
+      );
+    }
+    out.push({ gucState: state.label, admittedByW, admittedByS, threeValuedDivergences });
+    console.log(
+      `equivalence — ${state.label}: W and S both admit [${admittedByW}], ` +
+        `${threeValuedDivergences} three-valued divergence(s)`
+    );
+  }
+  return out;
+}
+
+/**
+ * Merge the same (arm, probe) measurement taken in several repetitions into one result
+ * whose series are the CONCATENATION of theirs.
+ *
+ * Concatenated rather than averaged: the median of the pooled series is a statistic over
+ * every sample actually taken, while a median of medians would hide how wide the samples
+ * were. The plan, node types and matched count come from the LAST repetition; they are
+ * identical across repetitions or the digest gate would already have refused.
+ */
+function poolRepetitions(perRepetition: ReadonlyArray<readonly AbResult[]>): readonly AbResult[] {
+  const first = perRepetition[0];
+  if (!first) throw new Error("no repetition was measured, so there is nothing to pool");
+  return first.map((seed) => {
+    const all = perRepetition.map((rep) => {
+      const hit = rep.find((r) => r.armId === seed.armId && r.probeId === seed.probeId);
+      if (!hit) {
+        throw new Error(
+          `a repetition is missing the ${seed.armId}/${seed.probeId} measurement, so the pooled ` +
+            "series would be shorter for that pair than for the others and its median would be " +
+            "taken over a different number of samples."
+        );
+      }
+      return hit;
+    });
+    const last = all[all.length - 1] as AbResult;
+    return {
+      ...last,
+      planningMs: all.flatMap((r) => [...r.planningMs]),
+      executionMs: all.flatMap((r) => [...r.executionMs]),
+      scanMs: all.flatMap((r) => [...r.scanMs]),
+      indexNames: [...new Set(all.flatMap((r) => [...r.indexNames]))],
+      indexNamesPerRun: all.flatMap((r) => r.indexNamesPerRun),
+      subplanNamesPerRun: all.flatMap((r) => r.subplanNamesPerRun),
+    };
+  });
+}
+
 /**
  * @function runPolicyAb
- * @description Runs every arm, proves the shipped policy survived, and refuses to report
- *   anything if the arms disagree about WHICH ROWS they let through.
+ * @description Runs every arm, REPEATEDLY, proves the shipped policy survived, and
+ *   refuses to report anything if the arms disagree about WHICH ROWS they let through.
  *
  *   The equivalence check is the counterpart of the mirror-fidelity check above and exists
  *   for the same reason: a policy form that returns different rows is not a faster answer
  *   to the same question, it is an answer to a different one, and comparing their timings
  *   would be meaningless. A row count of zero fails for the vacuity reason — a policy that
  *   hides everything is trivially fast.
+ *
+ *   The whole sweep repeats because a SINGLE sweep was measured to be unable to tell the
+ *   two candidate forms apart on this corpus: six consecutive sweeps put `Q4` anywhere
+ *   from 111 µs in `S`'s favour to 112 µs in `W`'s, and a rule reading one sweep would
+ *   have announced a different winner depending on which sweep it read. Repetitions are
+ *   what separate a difference that belongs to the FORM from one that belongs to the RUN.
  * @param owner - Owner-channel client.
  * @param ctx - Shared tenant/id context.
- * @param runs - EXPLAIN passes per (arm, shape).
- * @returns Every measurement plus the before/after policy text used as the restore proof.
- * @throws Error when the arms disagree, when a shape matched nothing, or when the shipped
+ * @param runs - EXPLAIN passes per (arm, probe) within one sweep.
+ * @param repetitions - How many independent sweeps to take.
+ * @returns The pooled measurements, the per-repetition measurements the stability
+ *   analysis reads, the before/after policy text used as the restore proof, and the
+ *   form-equivalence proof.
+ * @throws Error when the arms disagree, when a probe matched nothing, or when the shipped
  *   policy did not come back byte-identical.
  */
 async function runPolicyAb(
   owner: PrismaClient,
   ctx: Ctx,
-  runs: number
-): Promise<{ results: readonly AbResult[]; policiesBefore: string; policiesAfter: string }> {
+  runs: number,
+  repetitions: number
+): Promise<{
+  results: readonly AbResult[];
+  perRepetition: ReadonlyArray<readonly AbResult[]>;
+  policiesBefore: string;
+  policiesAfter: string;
+  equivalence: readonly FormEquivalenceRow[];
+}> {
   const policiesBefore = await readTrioPolicies(owner);
-  const results: AbResult[] = [];
-  for (const arm of POLICY_ARMS) {
-    const armResults = await runPolicyArm(owner, arm, ctx, runs);
-    results.push(...armResults);
-    for (const r of armResults) {
-      console.log(
-        `${arm.id} ${r.shapeId} — rows ${r.rows} — exec ` +
-          `${r.executionMs.map((v) => v.toFixed(2)).join("/")} ms — ${r.nodeTypes.join(" → ")}`
-      );
+  const perRepetition: AbResult[][] = [];
+  for (let rep = 0; rep < repetitions; rep += 1) {
+    const ofRepetition: AbResult[] = [];
+    for (const arm of POLICY_ARMS) {
+      const armResults = await runPolicyArm(owner, arm, ctx, runs);
+      ofRepetition.push(...armResults);
+      for (const r of armResults) {
+        console.log(
+          `rep ${rep + 1}/${repetitions} ${arm.id} ${r.probeId} — matched ${r.matched} — scan ` +
+            `${r.scanMs.map((v) => v.toFixed(3)).join("/")} ms — exec ` +
+            `${r.executionMs.map((v) => v.toFixed(2)).join("/")} ms — ${r.nodeTypes.join(" → ")}`
+        );
+      }
     }
+    perRepetition.push(ofRepetition);
   }
+  const results = poolRepetitions(perRepetition);
   const policiesAfter = await readTrioPolicies(owner);
 
   if (policiesAfter !== policiesBefore) {
@@ -1458,27 +1814,52 @@ async function runPolicyAb(
         `BEFORE:\n${policiesBefore}\nAFTER:\n${policiesAfter}`
     );
   }
-  for (const shape of AB_SHAPES) {
-    const forShape = results.filter((r) => r.shapeId === shape.id);
-    const empty = forShape.filter((r) => r.rows === 0);
-    if (empty.length > 0) {
+  // Across every repetition, not only the pooled result: the pooled digest is the last
+  // repetition's, so checking it alone would let an arm that returned different rows in
+  // an earlier sweep pass unnoticed.
+  const everyMeasurement = perRepetition.flat();
+  for (const probe of AB_PROBES) {
+    const forProbe = everyMeasurement.filter((r) => r.probeId === probe.id);
+    // A declared miss probe (`Q8`) is EXPECTED to match nothing, and it binds both
+    // ways: an empty result is the measured subject, and a miss probe that starts
+    // matching rows means the corpus moved out from under the case, so its plan is no
+    // longer the one it claims to measure. `capture()` refuses on exactly this pair.
+    const empty = forProbe.filter((r) => r.matched === 0);
+    if (!probe.missProbe && empty.length > 0) {
       throw new Error(
-        `${shape.id} returned no rows under ${empty.map((e) => e.armId).join(", ")}: a policy ` +
+        `${probe.id} matched nothing under ${empty.map((e) => e.armId).join(", ")}: a policy ` +
           "that hides everything is trivially fast, so its timing is not a comparison. " +
           "NOTHING was written."
       );
     }
-    const digests = new Set(forShape.map((r) => r.digest));
+    const live = forProbe.filter((r) => r.matched > 0);
+    if (probe.missProbe && live.length > 0) {
+      throw new Error(
+        `${probe.id} declared \`missProbe\` but matched rows under ` +
+          `${live.map((l) => `${l.armId}=${l.matched}`).join(", ")}: the corpus has moved out ` +
+          "from under the probe, so its plan is no longer the empty-bucket plan it claims to " +
+          "measure. NOTHING was written."
+      );
+    }
+    // The hard gate. Whole-row digests, so a column whose VALUE moved is caught, not
+    // only a row that appeared or vanished. An arm returning different rows is not a
+    // faster answer to this question, it is an answer to a different one.
+    const digests = new Set(forProbe.map((r) => r.digest));
     if (digests.size > 1) {
       throw new Error(
-        `${shape.id} returned DIFFERENT rows across the arms, so their timings answer ` +
+        `${probe.id} returned DIFFERENT rows across the arms, so their timings answer ` +
           "different questions and cannot be compared: " +
-          forShape.map((r) => `${r.armId}=${r.rows} rows`).join(", ") +
+          forProbe.map((r) => `${r.armId}=${r.matched} matched`).join(", ") +
+          `. Digests: ${forProbe.map((r) => `${r.armId}=${truncate(r.digest, 80)}`).join(" ¦ ")}` +
           ". NOTHING was written."
       );
     }
   }
-  return { results, policiesBefore, policiesAfter };
+  // AFTER the case comparison, deliberately: the ordering is the demonstration. Every
+  // case can pass while the two forms disagree about who `__system__` is, and this is
+  // the only step that can say so.
+  const equivalence = await proveFormEquivalence(owner, ctx);
+  return { results, perRepetition, policiesBefore, policiesAfter, equivalence };
 }
 
 /**
@@ -1730,11 +2111,374 @@ const indexAnnotation = (perRun: ReadonlyArray<readonly string[]>): string => {
 };
 
 /**
- * Build the generated block for the A′-vs-B′ comparison. One table per shape (arms are
- * the rows, so the comparison reads across a line), then the full plan of every
- * (arm, shape) pair — the prose that follows the block is written from THOSE trees, never
- * from the summary line, because a node sequence flattened to a string loses which side
- * of a join each scan sits on.
+ * The `InitPlan`/`SubPlan` labels an arm produced, with the runs' disagreement made
+ * visible instead of collapsed. Same rule as {@link indexAnnotation}: annotate, never
+ * fail — a plan that moved between runs is a fact about the planner, and the InitPlan
+ * COUNT is a claim about the FORM, so a run-to-run disagreement must be readable rather
+ * than silently resolved to whichever run happened to be last.
+ */
+const subplanSummary = (perRun: ReadonlyArray<readonly string[]>): string => {
+  const rendered = perRun.map((set) => set.join(", ") || "(none)");
+  const first = rendered[0] ?? "(none)";
+  if (new Set(rendered).size <= 1) return first;
+  return `${first} — ANNOTATION, the runs DISAGREED: ${rendered
+    .map((set, i) => `run ${i + 1} [${set}]`)
+    .join(", ")}`;
+};
+
+/** How many `InitPlan` labels an arm's FIRST run carried. */
+const initPlanCount = (perRun: ReadonlyArray<readonly string[]>): number =>
+  (perRun[0] ?? []).filter((name) => name.startsWith("InitPlan")).length;
+
+/**
+ * The adjudication band, from `specs/rls-policy-form/spec.md`: a case that moves by no
+ * more than 6 µs, OR by less than 1 % of its own baseline, is inside it.
+ *
+ * The two limits are an OR rather than an AND on purpose, and the alternative is worse
+ * in both directions: an absolute-only band calls every sub-millisecond case
+ * out-of-band the moment it wobbles by a few microseconds, and a relative-only band
+ * calls a 7 µs case a 100 % regression. Neither reading is "the number got worse"; both
+ * are the resolution of the measurement.
+ */
+const BAND_ABSOLUTE_MS = 0.006;
+const BAND_RELATIVE = 0.01;
+
+/** One in-band/out-of-band decision between two medians. */
+interface BandVerdict {
+  /** `candidate − baseline`, in ms. Negative means the candidate is faster. */
+  readonly deltaMs: number;
+  /** The same delta relative to the baseline. `null` when the baseline is 0. */
+  readonly deltaRatio: number | null;
+  readonly inBand: boolean;
+}
+
+/**
+ * @function classifyBand
+ * @description Decides whether a move between two medians is inside the adjudication
+ *   band. Every out-of-band pair owes the report a named adjudication; an artifact that
+ *   reports only the favourable cases does not satisfy the spec.
+ * @param baselineMs - The median being moved from.
+ * @param candidateMs - The median being moved to.
+ * @returns The signed delta, its ratio, and whether it is inside the band.
+ */
+function classifyBand(baselineMs: number, candidateMs: number): BandVerdict {
+  const deltaMs = candidateMs - baselineMs;
+  const deltaRatio = baselineMs === 0 ? null : deltaMs / baselineMs;
+  const inBand =
+    Math.abs(deltaMs) <= BAND_ABSOLUTE_MS ||
+    (deltaRatio !== null && Math.abs(deltaRatio) < BAND_RELATIVE);
+  return { deltaMs, deltaRatio, inBand };
+}
+
+/** One probe's W-vs-S comparison, plus the control it improves on. */
+interface FormComparison {
+  readonly probeId: string;
+  readonly kind: "shape" | "case";
+  readonly measuredTable: string;
+  readonly controlMs: number;
+  readonly wMs: number;
+  readonly sMs: number;
+  /** W as the baseline, S as the candidate — the tiebreak is stated in that direction. */
+  readonly band: BandVerdict;
+  /** The signed `S − W` delta of EACH repetition, in ms, in repetition order. */
+  readonly deltaPerRepetition: readonly number[];
+  /**
+   * Whether every repetition agreed on the SIGN of the delta. A probe whose sign flips
+   * between repetitions has not measured a property of the form: it has measured the
+   * run. Out-of-band AND sign-stable is what makes a difference attributable.
+   */
+  readonly signStable: boolean;
+  /** Which form is faster, and only when the difference is attributable. */
+  readonly faster: "W" | "S" | "tie";
+}
+
+/** What the decision run concluded, and on what basis. */
+interface FormVerdict {
+  readonly comparisons: readonly FormComparison[];
+  readonly outOfBand: readonly FormComparison[];
+  readonly winner: "W" | "S" | "UNDECIDED";
+  readonly basis: string;
+}
+
+/**
+ * @function decideForm
+ * @description Applies the decision rule to the measured medians. The verdict is a
+ *   MEASUREMENT OUTPUT: it is computed here from the scan-node medians and the
+ *   pre-declared tiebreak, never typed into the report by hand.
+ *
+ *   The rule, in the order it is applied:
+ *   1. A probe's difference is ATTRIBUTABLE to the form only when it is outside the band
+ *      on the pooled medians AND every repetition agreed on its sign. Out-of-band alone
+ *      is not enough, and this is measured rather than assumed: six consecutive sweeps
+ *      of this same comparison put `Q4` anywhere from 111 µs in `S`'s favour to 112 µs
+ *      in `W`'s, so a one-sweep rule announced `S`, `W` and `UNDECIDED` depending only on
+ *      which sweep it happened to read.
+ *   2. If no difference is attributable, the two forms are indistinguishable on this
+ *      corpus and the PRE-DECLARED tiebreak decides: **`W` wins** — it is the textually
+ *      minimal delta from the shipped form, it keeps the 58-policy sweep a pure "wrap
+ *      each `current_setting` call" transform identical for the standard and variant
+ *      policies, and it keeps the gate matcher one adjacency rule.
+ *   3. If attributable differences exist and all favour the same form, that form wins on
+ *      measurement and the tiebreak never applies.
+ *   4. If they disagree, this returns `UNDECIDED` rather than picking. A split decision
+ *      is a finding for a human, and a rule that resolves it silently would be inventing
+ *      a verdict.
+ * @param results - The POOLED (arm, probe) measurements.
+ * @param perRepetition - The same measurements per sweep, for the sign-stability test.
+ * @returns The comparisons, the attributable subset, and the winner.
+ * @throws Error when an arm is missing a probe the others measured.
+ */
+function decideForm(
+  results: readonly AbResult[],
+  perRepetition: ReadonlyArray<readonly AbResult[]>
+): FormVerdict {
+  const medianOf = (from: readonly AbResult[], armId: string, probeId: string): number => {
+    const hit = from.find((r) => r.armId === armId && r.probeId === probeId);
+    if (!hit) {
+      throw new Error(
+        `arm ${armId} has no measurement for ${probeId}, so the forms cannot be compared on it. ` +
+          "A verdict computed over a partial arm is a verdict about whichever probes happened " +
+          "to run."
+      );
+    }
+    return median(hit.scanMs);
+  };
+
+  const comparisons = AB_PROBES.map((probe): FormComparison => {
+    const controlMs = medianOf(results, "A′", probe.id);
+    const wMs = medianOf(results, "W", probe.id);
+    const sMs = medianOf(results, "S", probe.id);
+    const band = classifyBand(wMs, sMs);
+    const deltaPerRepetition = perRepetition.map(
+      (rep) => medianOf(rep, "S", probe.id) - medianOf(rep, "W", probe.id)
+    );
+    const signs = new Set(deltaPerRepetition.map((d) => Math.sign(d)));
+    const signStable = signs.size === 1 && !signs.has(0);
+    const attributable = !band.inBand && signStable;
+    return {
+      probeId: probe.id,
+      kind: probe.kind,
+      measuredTable: probe.measuredTable,
+      controlMs,
+      wMs,
+      sMs,
+      band,
+      deltaPerRepetition,
+      signStable,
+      faster: attributable ? (sMs < wMs ? "S" : "W") : "tie",
+    };
+  });
+
+  const attributable = comparisons.filter((c) => c.faster !== "tie");
+  if (attributable.length === 0) {
+    const unstable = comparisons.filter((c) => !c.band.inBand && !c.signStable);
+    return {
+      comparisons,
+      outOfBand: comparisons.filter((c) => !c.band.inBand),
+      winner: "W",
+      basis:
+        "no probe's difference is attributable to the form — " +
+        (unstable.length === 0
+          ? "every W-vs-S move is inside the band"
+          : `${unstable.length} probe(s) moved outside the band but their sign FLIPPED between ` +
+            `repetitions (${unstable.map((c) => c.probeId).join(", ")}), which measures the run ` +
+            "rather than the form") +
+        ", so the two forms are indistinguishable on this corpus and the PRE-DECLARED " +
+        "tiebreak decides",
+    };
+  }
+  const favoured = new Set(attributable.map((c) => c.faster));
+  if (favoured.size === 1) {
+    const winner = attributable[0]?.faster === "S" ? "S" : "W";
+    return {
+      comparisons,
+      outOfBand: attributable,
+      winner,
+      basis:
+        `${attributable.length} probe(s) are outside the band AND sign-stable across every ` +
+        `repetition, and all of them favour \`${winner}\`, so the measurement decides and the ` +
+        "tiebreak does not apply",
+    };
+  }
+  return {
+    comparisons,
+    outOfBand: attributable,
+    winner: "UNDECIDED",
+    basis:
+      `${attributable.length} probe(s) are outside the band and sign-stable, and they DISAGREE ` +
+      "about which form is faster. This run does not pick a winner: a split is a finding for a " +
+      "human, and a rule that resolved it silently would be inventing a verdict",
+  };
+}
+
+/**
+ * Render the form verdict: the per-probe W-vs-S table, the InitPlan counts, the
+ * equivalence proof, and the decision with the rule that produced it.
+ */
+function renderFormVerdict(
+  measured: Awaited<ReturnType<typeof runPolicyAb>>,
+  runs: number,
+  repetitions: number
+): string {
+  const verdict = decideForm(measured.results, measured.perRepetition);
+  const us = (ms: number): string => `${(ms * 1000).toFixed(1)} µs`;
+  const pct = (ratio: number | null): string =>
+    ratio === null ? "n/a" : `${(ratio * 100).toFixed(2)} %`;
+  const armIds = POLICY_ARMS.map((a) => a.id);
+
+  // The verdict names the body it just chose, READ FROM THE ARM LIST rather than
+  // retyped beside it — the same rule the rest of this renderer follows. A reader
+  // who reaches the verdict should not have to scroll to §The arms to learn which
+  // predicate won. The refusal below exists because interpolating a null `using`
+  // would print `USING (null)`: a winner with no installable body is a broken
+  // arm list, not a formatting detail.
+  const winnerBody =
+    verdict.winner === "UNDECIDED"
+      ? null
+      : (POLICY_ARMS.find((a) => a.id === verdict.winner)?.using ?? null);
+  if (verdict.winner !== "UNDECIDED" && winnerBody === null) {
+    throw new Error(
+      `the verdict names \`${verdict.winner}\` but that arm declares no \`USING\` body, so the ` +
+        "report cannot state the predicate it just chose. An arm that can win must carry the " +
+        "text a migration would install."
+    );
+  }
+
+  const initPlanRows = armIds.map((armId) => {
+    const forArm = measured.results.filter((r) => r.armId === armId);
+    const counts = [...new Set(forArm.map((r) => initPlanCount(r.subplanNamesPerRun)))].sort();
+    const s3 = forArm.find((r) => r.probeId === "S3");
+    return (
+      `| \`${armId}\` | ${counts.join(" / ")} | ` +
+      `${s3 ? subplanSummary(s3.subplanNamesPerRun) : "(no S3 measurement)"} |`
+    );
+  });
+
+  return [
+    "### The form verdict",
+    "",
+    "**Computed from the medians above, not typed in.** The rule is applied in code " +
+      "(`decideForm`), so this section cannot say one thing while the table says another.",
+    "",
+    `- **The band**: a move is INSIDE it when it is ≤ ${BAND_ABSOLUTE_MS * 1000} µs **or** ` +
+      `< ${BAND_RELATIVE * 100} % of its own baseline. The two limits are an OR: an ` +
+      "absolute-only band calls every sub-millisecond probe out-of-band for a few " +
+      "microseconds of wobble, and a relative-only band calls a 7 µs probe a 100 % " +
+      "regression.",
+    `- **The statistic**: the SCAN-NODE median over the POOLED ${runs * repetitions} ` +
+      `sample(s) — ${runs} EXPLAIN run(s) × ${repetitions} independent sweep(s) — per probe, ` +
+      "on that probe's own measured relation. Statement medians are in the tables above and " +
+      "are NOT interchangeable with these — the ratio between the two differs by case, which " +
+      "is why a band drawn on one cannot be read against the other.",
+    "- **The direction**: `W` is the baseline and `S` is the candidate, because the " +
+      "pre-declared tiebreak is stated in that direction.",
+    "- **Attributability**: a difference counts as the FORM's only when it is out of band " +
+      "AND every sweep agreed on its sign. This is not a precaution, it is a measured " +
+      "necessity: six consecutive sweeps of this comparison put `Q4` anywhere from 111 µs in " +
+      "`S`'s favour to 112 µs in `W`'s, so a rule reading one sweep announced `S`, `W` or " +
+      "`UNDECIDED` depending only on which sweep it read.",
+    "- **The tiebreak**: pre-declared in task 2.7 BEFORE this run — when no difference is " +
+      "attributable, `W` wins, because it is the textually minimal delta from the shipped " +
+      'form, it keeps the 58-policy sweep a pure "wrap each `current_setting` call" transform ' +
+      "identical for the standard and the `AIPromptTemplate` variant, and it keeps the " +
+      "form-uniformity gate matcher one adjacency rule.",
+    "",
+    "| Probe | Kind | Relation | `A′` control | `W` | `S` | S − W | S − W (%) | In band | Sign stable | Attributable to |",
+    "| ----- | ---- | -------- | ------------ | --- | --- | ----- | --------- | ------- | ----------- | --------------- |",
+    ...verdict.comparisons.map(
+      (c) =>
+        `| \`${c.probeId}\` | ${c.kind} | \`${c.measuredTable}\` | ${c.controlMs.toFixed(3)} | ` +
+        `${c.wMs.toFixed(3)} | ${c.sMs.toFixed(3)} | ${us(c.band.deltaMs)} | ` +
+        `${pct(c.band.deltaRatio)} | ${c.band.inBand ? "yes" : "**NO**"} | ` +
+        `${c.signStable ? "yes" : "**no**"} | ` +
+        `${c.faster === "tie" ? "—" : `\`${c.faster}\``} |`
+    ),
+    "",
+    "Medians in ms. `S − W` is positive when `S` is SLOWER.",
+    "",
+    "#### Per-sweep spread — why one sweep cannot decide this",
+    "",
+    `The signed \`S − W\` delta of each of the ${repetitions} sweeps, in µs. A probe whose ` +
+      "sign changes down its row has not measured a property of the form.",
+    "",
+    `| Probe | ${measured.perRepetition.map((_, i) => `sweep ${i + 1}`).join(" | ")} | Sign stable |`,
+    `| ----- | ${measured.perRepetition.map(() => "-------").join(" | ")} | ----------- |`,
+    ...verdict.comparisons.map(
+      (c) =>
+        `| \`${c.probeId}\` | ${c.deltaPerRepetition.map((d) => us(d)).join(" | ")} | ` +
+        `${c.signStable ? "yes" : "**no**"} |`
+    ),
+    "",
+    "#### InitPlan count per arm — read from the plan, not assumed",
+    "",
+    "`design.md` refused to assume whether `W`'s two wrapped reads share one InitPlan and " +
+      "asked the plan to answer. It answers here, per arm, from the `Subplan Name` labels " +
+      "the walk collects. The labels are kept PER RUN, so a run-to-run disagreement is " +
+      "annotated rather than resolved to whichever run was last.",
+    "",
+    "| Arm | InitPlan count(s) across probes | `S3` labels |",
+    "| --- | ------------------------------- | ----------- |",
+    ...initPlanRows,
+    "",
+    "#### Semantic equivalence of the two forms",
+    "",
+    "The 13-case comparison runs with `app.account_id` bound to ONE tenant, and under a " +
+      "bound tenant an `S` body that had lost its `__system__` member returns exactly the " +
+      "same rows — every digest matches and a form that revoked every " +
+      "`withSystemContext()` flow's visibility would ship with a green run behind it. These " +
+      "three states are the ones the case run cannot reach. The expressions are read from " +
+      "the arm list, so this proves the bodies the arms install; the sample is a literal " +
+      "3-row set (local tenant, foreign tenant, NULL account) rather than `Post`, so the " +
+      "comparison cannot be filtered by the policy under test and can include the " +
+      "NULL-account row that the `AIPromptTemplate` variant depends on.",
+    "",
+    "| GUC state | Admitted by `W` | Admitted by `S` | Three-valued divergences |",
+    "| --------- | --------------- | --------------- | ------------------------ |",
+    ...measured.equivalence.map(
+      (e) =>
+        `| ${e.gucState} | \`${e.admittedByW}\` | \`${e.admittedByS}\` | ` +
+        `${e.threeValuedDivergences} |`
+    ),
+    "",
+    "#### Verdict",
+    "",
+    verdict.winner === "UNDECIDED"
+      ? `**UNDECIDED.** ${verdict.basis}.`
+      : `**\`${verdict.winner}\` wins.** ${verdict.basis}. The winning body, read from the arm ` +
+        `list rather than retyped beside it: \`USING (${winnerBody})\` — so the verdict names ` +
+        "the exact predicate the trio migration installs, without a lookup.",
+    "",
+    ...(() => {
+      const outOfBand = verdict.comparisons.filter((c) => !c.band.inBand);
+      if (outOfBand.length === 0) {
+        return [
+          "No probe moved outside the band on the pooled medians, so the W-vs-S comparison " +
+            "owes no out-of-band adjudication. The `A′`→winner improvements are a DIFFERENT " +
+            "comparison and are adjudicated in the reading below — they are the point of the " +
+            "change, not a regression.",
+        ];
+      }
+      return [
+        `**${outOfBand.length} out-of-band probe(s)** on the pooled medians, each owed a ` +
+          "named adjudication:",
+        "",
+        ...outOfBand.map(
+          (c) =>
+            `- \`${c.probeId}\` — ${us(c.band.deltaMs)} (${pct(c.band.deltaRatio)}), sign ` +
+            `${c.signStable ? "STABLE across every sweep, so it is attributable to the form" : "FLIPPED between sweeps, so it measures the run and not the form: **accepted as noise**, and it is the reason the tiebreak governs rather than this number"}.`
+        ),
+      ];
+    })(),
+    "",
+  ].join("\n");
+}
+
+/**
+ * Build the generated block for the policy-form comparison. One table per probe group
+ * (arms are the rows, so the comparison reads across a line), then the full plan of
+ * every (arm, shape) pair — the prose that follows the block is written from THOSE
+ * trees, never from the summary line, because a node sequence flattened to a string
+ * loses which side of a join each scan sits on.
  */
 function renderPolicyAbBlock(
   opts: Options,
@@ -1744,20 +2488,33 @@ function renderPolicyAbBlock(
   const armById = (id: string): PolicyArm =>
     POLICY_ARMS.find((a) => a.id === id) ?? (POLICY_ARMS[0] as PolicyArm);
   const out: string[] = [
-    "## A′-vs-B′ — the two policy forms, measured",
+    "## Policy form decision run — `A′` vs `W` vs `S`",
     "",
     `Captured ${meta.startedAt} in ${(meta.wallMs / 1000).toFixed(1)} s. ` +
-      `PostgreSQL: ${meta.pgVersion}. Every arm installs its policy on \`Post\` inside ONE ` +
-      "transaction, reaches `omnipost_app` with `SET LOCAL ROLE` in that same transaction, " +
-      `binds \`app.account_id\` to \`${TENANTS[0]}\`, measures, and ROLLS BACK. Nothing is ` +
+      `PostgreSQL: ${meta.pgVersion}. Every arm installs its policy on all three trio tables ` +
+      `(${TRIO_TABLES.map((t) => `\`${t}\``).join(", ")}) inside ONE transaction, reaches ` +
+      "`omnipost_app` with `SET LOCAL ROLE` in that same transaction, binds " +
+      `\`app.account_id\` to \`${TENANTS[0]}\`, measures, and ROLLS BACK. Nothing is ` +
       "committed; the restore is the rollback itself, and the shipped policies are re-read " +
       "afterwards and compared.",
+    "",
+    "Each arm measures **16 probes**: the three synthetic shapes below, which carry no " +
+      "tenant predicate of their own so the policy is the whole restriction, and the **13 " +
+      "application cases** of the capture sections — entered as their SQL mirrors, because a " +
+      "Prisma call cannot run inside the arm's owner transaction. The mirrors' fidelity to " +
+      "their repository calls is proven on every capture run, and this run consumes that " +
+      "proof rather than restating it.",
+    "",
+    "The arm swaps ALL THREE trio tables. An earlier form swapped `Post` alone, which was " +
+      "sound while only the three shapes ran; five of the 13 cases read `PostContent` or " +
+      "`PostMedia`, and measuring those against a bare child policy under every arm would " +
+      "put five rows in this report whose numbers cannot respond to the arm at all.",
     "",
     "**Re-run this exact comparison:**",
     "",
     "```bash",
     "node --import tsx --conditions development --env-file=.env \\",
-    `  scripts/rls-ab-measurement.ts --policy-ab --projects ${opts.projects} --posts ${opts.posts} --runs ${opts.runs}`,
+    `  scripts/rls-ab-measurement.ts --policy-ab --projects ${opts.projects} --posts ${opts.posts} --runs ${opts.runs} --repetitions ${opts.repetitions}`,
     "node --import tsx --conditions development --env-file=.env \\",
     "  scripts/rls-ab-measurement.ts --cleanup",
     "pnpm exec prettier --write docs/reports/TENANT_RLS_AB_MEASUREMENT.md",
@@ -1790,11 +2547,45 @@ function renderPolicyAbBlock(
     "",
   ];
 
+  out.push(renderFormVerdict(measured, opts.runs, opts.repetitions), "");
+
+  out.push(
+    "### The 13 application cases, per arm",
+    "",
+    "Scan-node medians on each case's own measured relation, over " +
+      `${opts.runs} run(s). Node types and index sets travel with them, so a plan that MOVED ` +
+      "between arms is visible here rather than only in a full tree: a form that changes the " +
+      "chosen index is a finding even when the rows are identical. Full plan JSON is not " +
+      "repeated for the cases — the shipped form's own trees are in the capture sections " +
+      "above, and what the arm comparison needs from them is the summary plus the medians.",
+    "",
+    "| Case | Relation | Arm | Matched | Scan-node median (ms) | Statement median (ms) | Plan nodes | Indexes | InitPlan/SubPlan |",
+    "| ---- | -------- | --- | ------- | --------------------- | --------------------- | ---------- | ------- | ---------------- |"
+  );
+  for (const probe of AB_PROBES.filter((p) => p.kind === "case")) {
+    for (const r of measured.results.filter((x) => x.probeId === probe.id)) {
+      out.push(
+        `| \`${r.probeId}\` | \`${r.measuredTable}\` | \`${r.armId}\` | ${r.matched} | ` +
+          `**${median(r.scanMs).toFixed(3)}** | ${median(r.executionMs).toFixed(3)} | ` +
+          `${r.nodeTypes.join(" → ") || "(none)"} | ${r.indexNames.join(", ") || "(none)"} | ` +
+          `${mdCell(subplanSummary(r.subplanNamesPerRun))} |`
+      );
+    }
+  }
+  out.push(
+    "",
+    "`Q8` is a declared miss probe: it counts zero on this corpus under every arm, and the " +
+      "run refuses to write if it ever starts matching rows.",
+    "",
+    "### The three synthetic shapes, per arm",
+    ""
+  );
+
   for (const shape of AB_SHAPES) {
-    const rows = measured.results.filter((r) => r.shapeId === shape.id);
+    const rows = measured.results.filter((r) => r.probeId === shape.id);
     const first = rows[0];
     out.push(
-      `### ${shape.id} — ${shape.title}`,
+      `#### ${shape.id} — ${shape.title}`,
       "",
       `- **Why it is here**: ${shape.why}`,
       `- **Rows returned (identical under every arm)**: ${first?.rows ?? 0}`,
@@ -1814,7 +2605,8 @@ function renderPolicyAbBlock(
       ...rows.map(
         (r) =>
           `| \`${r.armId}\` | ${r.nodeTypes.join(" → ") || "(none)"} | ` +
-          `${r.indexNames.join(", ") || "(none)"} | ${r.subplanNames.join(", ") || "(none)"} | ` +
+          `${r.indexNames.join(", ") || "(none)"} | ` +
+          `${mdCell(subplanSummary(r.subplanNamesPerRun))} | ` +
           `${median(r.planningMs).toFixed(3)} | **${median(r.scanMs).toFixed(3)}** | ` +
           `${median(r.executionMs).toFixed(3)} | ${r.scanMs.map((v) => v.toFixed(3)).join(" / ")} |`
       ),
@@ -2057,7 +2849,7 @@ async function main(): Promise<void> {
     if (opts.policyAb) {
       const abStartedAt = new Date().toISOString();
       const abT0 = performance.now();
-      const measured = await runPolicyAb(owner, ctx, opts.runs);
+      const measured = await runPolicyAb(owner, ctx, opts.runs, opts.repetitions);
       writePhase(
         opts.report,
         "policy-ab",
