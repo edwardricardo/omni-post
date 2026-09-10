@@ -53,6 +53,28 @@
  *   report: the fidelity and vacuity checks run BEFORE the artifact is written, so
  *   a capture that failed its own guard leaves no readable evidence behind.
  *
+ *   ## The quoted figure is a scan-node median, not a statement time
+ *
+ *   `Execution Time` is the whole statement: sort, aggregate, join and output work
+ *   included, none of which a policy form or an index shape touches. Attributing that
+ *   shared overhead to whichever arm ran under it is how a previously published
+ *   figure had to be retracted. Every headline number here is therefore the MEDIAN,
+ *   across runs, of Σ(`Actual Total Time` × `Actual Loops`) over the plan nodes that
+ *   read the case's own measured relation — with the statement median printed beside
+ *   it so the gap between the two stays visible rather than being collapsed. The
+ *   loops multiplier is load-bearing: `EXPLAIN` reports per-loop time, so a scan on
+ *   the inner side of a nested loop otherwise all but vanishes from the arithmetic.
+ *
+ *   ## What this harness refuses to do
+ *
+ *   It will not quote a median of nothing (`median()` throws rather than returning a
+ *   sentinel that renders as `-1.000 ms`), it will not report one run's plan as the
+ *   capture's (each run keeps its own index set, and a disagreement is annotated),
+ *   and it will not call a policy restored on the strength of its `qual` alone (the
+ *   proof compares all five attributes that define a policy, because re-creating one
+ *   with `USING (...)` and no `WITH CHECK` leaves `qual` identical while silently
+ *   changing the write-path predicate).
+ *
  * @layer infrastructure
  */
 import { randomUUID } from "node:crypto";
@@ -439,8 +461,20 @@ interface CaptureResult {
   readonly prismaWallMs: number;
   readonly planningMs: readonly number[];
   readonly executionMs: readonly number[];
+  /** The table {@link scanTimeMs} is summed over — the case's own measured relation. */
+  readonly measuredTable: string;
+  /** Per-run scan-node time on {@link measuredTable}. The headline statistic. */
+  readonly scanMs: readonly number[];
   readonly nodeTypes: readonly string[];
+  /** Union of the indexes used across ALL runs — see {@link indexNamesPerRun}. */
   readonly indexNames: readonly string[];
+  /**
+   * The index set of EACH run, kept separately because a capture whose runs chose
+   * different indexes is not a capture of one plan. Collapsing them — which the
+   * previous form did by overwriting the walk on every iteration, so only the LAST
+   * run's set survived — makes that disagreement unreportable.
+   */
+  readonly indexNamesPerRun: ReadonlyArray<readonly string[]>;
   readonly plan: string;
 }
 
@@ -511,6 +545,13 @@ interface Case {
   readonly sourceSite: string;
   readonly why: string;
   readonly group: "post-listing" | "child-read";
+  /**
+   * The relation whose scan nodes carry this case's headline figure. Declared per
+   * case rather than derived from {@link group}, because the child-read group spans
+   * two tables and a wrong guess would sum the scan time of a relation the case does
+   * not measure — silently, since every plan node reports a time.
+   */
+  readonly measuredTable: "Post" | "PostContent" | "PostMedia";
   readonly sql: (ctx: Ctx) => string;
   readonly prisma: (tx: PrismaClient, ctx: Ctx) => Promise<unknown>;
   readonly digest: Digest;
@@ -575,6 +616,7 @@ const CASES: readonly Case[] = [
       "RELATION (`project: { accountId }`) when §Before was captured and filters the LOCAL " +
       "`Post.accountId` now, so this case's query text differs between the two phases",
     group: "post-listing",
+    measuredTable: "Post",
     sql: (c) => `SELECT ${POST_COLS} FROM "Post" p
  WHERE p."projectId" = ${lit(c.projectId)}
    AND p."accountId" = ${lit(c.accountId)}
@@ -606,6 +648,7 @@ const CASES: readonly Case[] = [
       "EMISSION CHANGED with the trio's tenant column — it shares Q1's `buildWhereClause`, " +
       "so the same relation-to-local move applies here",
     group: "post-listing",
+    measuredTable: "Post",
     sql: (c) => `SELECT count(*) AS n FROM "Post" p
  WHERE p."projectId" = ${lit(c.projectId)}
    AND p."accountId" = ${lit(c.accountId)}
@@ -631,6 +674,7 @@ const CASES: readonly Case[] = [
       "Emission UNCHANGED: `listGlobal` still reaches the tenant through the relation, so this " +
       "case's query text is identical in both phases",
     group: "post-listing",
+    measuredTable: "Post",
     sql: (c) => `SELECT ${POST_COLS} FROM "Post" p
  WHERE p."deletedAt" IS NULL
    AND EXISTS (SELECT 1 FROM "Project" pr
@@ -657,6 +701,7 @@ const CASES: readonly Case[] = [
       "the account-wide count; it shares Q3's `where`, so it can still only be answered by " +
       "walking into Project. Emission UNCHANGED between the two phases",
     group: "post-listing",
+    measuredTable: "Post",
     sql: (c) => `SELECT count(*) AS n FROM "Post" p
  WHERE p."deletedAt" IS NULL
    AND EXISTS (SELECT 1 FROM "Project" pr
@@ -678,6 +723,7 @@ const CASES: readonly Case[] = [
       "account predicate at all (its tenant scope came from the guard and RLS), and the " +
       "required `TenantScope` now puts `accountId` in the `where` explicitly",
     group: "post-listing",
+    measuredTable: "Post",
     sql: (c) => `SELECT ${POST_COLS} FROM "Post" p
  WHERE p."projectId" = ${lit(c.projectId)}
    AND p."accountId" = ${lit(c.accountId)}
@@ -702,6 +748,7 @@ const CASES: readonly Case[] = [
       "runs before every bulk mutation; the join into Project IS the isolation check the " +
       "method still writes. Emission UNCHANGED between the two phases",
     group: "post-listing",
+    measuredTable: "Post",
     sql: (c) => `SELECT p.id FROM "Post" p
  WHERE p.id = ANY(${idList(c.postIds)})
    AND p."deletedAt" IS NULL
@@ -726,6 +773,7 @@ const CASES: readonly Case[] = [
       "the per-request ownership gate; the composite key MAKES this join optional but the " +
       "method still writes it, so its emission is UNCHANGED between the two phases",
     group: "post-listing",
+    measuredTable: "Post",
     sql: (c) => `SELECT pr."accountId" FROM "Post" p
  JOIN "Project" pr ON pr.id = p."projectId"
  WHERE p.id = ${lit(c.postId)} AND p."deletedAt" IS NULL
@@ -758,6 +806,7 @@ const CASES: readonly Case[] = [
       "`base` where carried no account predicate when §Before was captured and carries the " +
       "required scope's `accountId` now",
     group: "post-listing",
+    measuredTable: "Post",
     sql: (c) => `SELECT count(*) AS n FROM "Post" p
  WHERE p."projectId" = ${lit(c.projectId)}
    AND p."accountId" = ${lit(c.accountId)}
@@ -791,6 +840,7 @@ const CASES: readonly Case[] = [
       "shape-1b evidence: the read stays parent-key-led, and the exemption's revisit trigger " +
       "is measured from whether the policy qual moves it off that index",
     group: "child-read",
+    measuredTable: "PostContent",
     sql: (c) => `SELECT c.id, c."postId", c.locale, c.title, c.summary, c.revision
  FROM "PostContent" c
  WHERE c."postId" = ANY(${idList(c.postIds)})`,
@@ -807,6 +857,7 @@ const CASES: readonly Case[] = [
     sourceSite: "include `contents` on PrismaPostRepository.findById (:66)",
     why: "the aggregate-load shape; the narrowest postId-led child read there is",
     group: "child-read",
+    measuredTable: "PostContent",
     sql: (c) => `SELECT c.id, c."postId", c.locale, c.title, c.summary, c.revision
  FROM "PostContent" c
  WHERE c."postId" = ${lit(c.postId)}`,
@@ -820,6 +871,7 @@ const CASES: readonly Case[] = [
     sourceSite: "include `media` on PrismaPostRepository.ts:230",
     why: "shape-1b evidence for the second exempted table",
     group: "child-read",
+    measuredTable: "PostMedia",
     sql: (c) => `SELECT m.id, m."postId", m.url, m.type FROM "PostMedia" m
  WHERE m."postId" = ANY(${idList(c.postIds)})`,
     prisma: (tx, c) =>
@@ -832,6 +884,7 @@ const CASES: readonly Case[] = [
     sourceSite: "`_count: { select: { media: true } }` on PrismaPostQueryRepository.ts:156",
     why: "the aggregate arm of the same child read; grouping changes the plan, so it is captured apart",
     group: "child-read",
+    measuredTable: "PostMedia",
     sql: (c) => `SELECT m."postId", count(*) AS n FROM "PostMedia" m
  WHERE m."postId" = ANY(${idList(c.postIds)})
  GROUP BY m."postId"`,
@@ -866,6 +919,7 @@ const CASES: readonly Case[] = [
     sourceSite: "include `media` on PrismaPostRepository.findById (:67)",
     why: "the aggregate-load counterpart of Q10, over a parent that actually HAS media",
     group: "child-read",
+    measuredTable: "PostMedia",
     // `mediaPostId`, not `postId`: media is seeded for every third post, so the
     // page's newest post carries none and this read would return nothing on both
     // sides — an identity comparison no mirror error could turn red, over a plan
@@ -882,19 +936,102 @@ const CASES: readonly Case[] = [
 interface PlanNode {
   readonly "Node Type"?: string;
   readonly "Index Name"?: string;
+  readonly "Relation Name"?: string;
+  readonly "Actual Total Time"?: number;
+  readonly "Actual Loops"?: number;
+  readonly "Heap Fetches"?: number;
+  readonly "Subplan Name"?: string;
   readonly Plans?: readonly PlanNode[];
 }
 
+/**
+ * One plan node reduced to the fields a scan-node statistic is computed from.
+ *
+ * `Actual Total Time` in an `EXPLAIN ANALYZE` tree is PER LOOP, so the time a node
+ * actually spent is `Actual Total Time × Actual Loops`. A node under a nested loop
+ * that reports 0.004 ms over 200 loops cost 0.8 ms, and reading the per-loop figure
+ * as the node's cost is how a scan on the inner side of a join disappears from the
+ * arithmetic.
+ */
+interface ScanNode {
+  readonly nodeType: string;
+  readonly relationName: string;
+  readonly actualTotalTime: number;
+  readonly actualLoops: number;
+  /** `null` when the node reported none — only index-only scans carry the counter. */
+  readonly heapFetches: number | null;
+}
+
+/** Everything one walk of a plan tree collects. */
+interface WalkedPlan {
+  readonly nodeTypes: string[];
+  readonly indexNames: string[];
+  /** Every node that named a relation, with the numbers a per-table total needs. */
+  readonly scanNodes: ScanNode[];
+  /** `InitPlan 1` / `SubPlan 2` labels, in tree order — the InitPlan count reads these. */
+  readonly subplanNames: string[];
+}
+
+const emptyWalk = (): WalkedPlan => ({
+  nodeTypes: [],
+  indexNames: [],
+  scanNodes: [],
+  subplanNames: [],
+});
+
 /** Walk the whole tree: a Seq Scan under a Gather or an Aggregate is still a Seq Scan. */
-function walkPlan(
-  node: PlanNode | undefined,
-  acc: { nodeTypes: string[]; indexNames: string[] } = { nodeTypes: [], indexNames: [] }
-): { nodeTypes: string[]; indexNames: string[] } {
+function walkPlan(node: PlanNode | undefined, acc: WalkedPlan = emptyWalk()): WalkedPlan {
   if (!node || typeof node !== "object") return acc;
   if (typeof node["Node Type"] === "string") acc.nodeTypes.push(node["Node Type"]);
   if (typeof node["Index Name"] === "string") acc.indexNames.push(node["Index Name"]);
+  if (typeof node["Subplan Name"] === "string") acc.subplanNames.push(node["Subplan Name"]);
+  if (typeof node["Relation Name"] === "string") {
+    acc.scanNodes.push({
+      nodeType: node["Node Type"] ?? "(unknown)",
+      relationName: node["Relation Name"],
+      actualTotalTime: node["Actual Total Time"] ?? 0,
+      actualLoops: node["Actual Loops"] ?? 1,
+      heapFetches: typeof node["Heap Fetches"] === "number" ? node["Heap Fetches"] : null,
+    });
+  }
   for (const child of node.Plans ?? []) walkPlan(child, acc);
   return acc;
+}
+
+/**
+ * @function scanTimeMs
+ * @description Total time the plan spent on nodes reading ONE table: Σ(`Actual Total
+ *   Time` × `Actual Loops`) over every node whose `Relation Name` is that table.
+ *
+ *   This — not `Execution Time` — is what every A/B figure in this report compares.
+ *   The statement total also carries sort, aggregate, join and output-projection work
+ *   that no policy form and no index shape touches, so quoting it as the effect of a
+ *   policy swap attributes shared overhead to whichever arm happened to run under it.
+ *   That conflation is what forced the retraction of a previously published 4.198×.
+ * @param walked - One walked plan.
+ * @param table - The relation the case is measuring.
+ * @returns Milliseconds spent on that table's scan nodes.
+ */
+function scanTimeMs(walked: WalkedPlan, table: string): number {
+  return walked.scanNodes
+    .filter((n) => n.relationName === table)
+    .reduce((sum, n) => sum + n.actualTotalTime * n.actualLoops, 0);
+}
+
+/**
+ * The forced-rollback sentinel.
+ *
+ * An interactive Prisma transaction aborts only by throwing, so every arm ends by
+ * throwing this after its last measurement. It is a CLASS rather than a magic message
+ * because `error.message === ABORT` cannot tell the deliberate abort from a genuine
+ * failure that happens to carry the same text — and a genuine failure swallowed as
+ * "the rollback we wanted" is a run that reports measurements it never took.
+ */
+class DeliberateRollback extends Error {
+  constructor(what: string) {
+    super(`rls-ab: deliberate rollback of ${what}`);
+    this.name = "DeliberateRollback";
+  }
 }
 
 /**
@@ -930,8 +1067,10 @@ async function capture(
 
   const planningMs: number[] = [];
   const executionMs: number[] = [];
+  const scanMs: number[] = [];
+  const indexNamesPerRun: string[][] = [];
   let lastPlan = "";
-  let shape = { nodeTypes: [] as string[], indexNames: [] as string[] };
+  let shape = emptyWalk();
 
   for (let i = 0; i < runs; i += 1) {
     const raw = await withScope(client, ctx.accountId, async (tx) =>
@@ -949,6 +1088,11 @@ async function capture(
     planningMs.push(root?.["Planning Time"] ?? -1);
     executionMs.push(root?.["Execution Time"] ?? -1);
     shape = walkPlan(root?.Plan);
+    // Every run contributes its OWN scan total and its OWN index set. Overwriting a
+    // single accumulator per iteration — the previous form — kept only the last run,
+    // so a capture whose runs disagreed reported one run's plan as all three.
+    scanMs.push(scanTimeMs(shape, c.measuredTable));
+    indexNamesPerRun.push([...new Set(shape.indexNames)]);
     lastPlan = JSON.stringify(parsed, null, 2);
   }
 
@@ -966,8 +1110,11 @@ async function capture(
     prismaWallMs,
     planningMs,
     executionMs,
+    measuredTable: c.measuredTable,
+    scanMs,
     nodeTypes: shape.nodeTypes,
-    indexNames: [...new Set(shape.indexNames)],
+    indexNames: [...new Set(indexNamesPerRun.flat())],
+    indexNamesPerRun,
     plan: lastPlan,
   };
 }
@@ -1092,20 +1239,65 @@ interface AbResult {
   readonly rows: number;
   readonly planningMs: readonly number[];
   readonly executionMs: readonly number[];
+  /** Per-run scan-node time on `Post` — the arm's headline statistic. */
+  readonly scanMs: readonly number[];
   readonly nodeTypes: readonly string[];
+  /** Union across runs; {@link indexNamesPerRun} keeps them apart. */
   readonly indexNames: readonly string[];
+  /** The index set of EACH run — same last-run-only defect as {@link CaptureResult}. */
+  readonly indexNamesPerRun: ReadonlyArray<readonly string[]>;
+  /** `InitPlan`/`SubPlan` labels of the last run, in tree order. */
+  readonly subplanNames: readonly string[];
   readonly plan: string;
 }
 
-/** Reads the live `USING` expression of every `tenant_isolation` policy on the trio. */
+/** The relation every `AB_SHAPES` entry measures — all three read `Post` alone. */
+const AB_MEASURED_TABLE = "Post";
+
+/**
+ * @function readTrioPolicies
+ * @description Reads the FIVE attributes that define each `tenant_isolation` policy on
+ *   the trio: `(qual, with_check, permissive, cmd, roles)`.
+ *
+ *   All five, not `qual` alone, because the restore proof is only as strong as the
+ *   attributes it compares. Measured on this database: re-creating the policy the way
+ *   an arm does — `CREATE POLICY ... USING (...)` with no `WITH CHECK` — leaves `qual`
+ *   byte-identical and silently drops `with_check` from a real expression to `null`.
+ *   PostgreSQL then derives the write-path check from `USING`, which is a different
+ *   policy object with a different write-path predicate, and a `qual`-only proof
+ *   reported that swap as "identical". `permissive`, `cmd` and `roles` are here for the
+ *   same reason: each is settable at `CREATE POLICY` time and invisible in `qual`.
+ * @param owner - Owner-channel client.
+ * @returns A stable multi-line rendering, compared as a whole against a later read.
+ */
 async function readTrioPolicies(owner: PrismaClient): Promise<string> {
-  const rows = await owner.$queryRawUnsafe<Array<{ tablename: string; qual: string | null }>>(
-    `SELECT tablename, qual FROM pg_policies
+  const rows = await owner.$queryRawUnsafe<
+    Array<{
+      tablename: string;
+      qual: string | null;
+      with_check: string | null;
+      permissive: string | null;
+      cmd: string | null;
+      roles: string | null;
+    }>
+  >(
+    `SELECT tablename, qual, with_check, permissive, cmd, roles::text AS roles FROM pg_policies
       WHERE schemaname = 'public' AND policyname = 'tenant_isolation'
         AND tablename IN ('Post', 'PostContent', 'PostMedia')
       ORDER BY tablename`
   );
-  return rows.map((r) => `${r.tablename}: ${r.qual ?? "(null)"}`).join("\n");
+  return rows
+    .map((r) =>
+      [
+        `${r.tablename}:`,
+        `  qual       = ${r.qual ?? "(null)"}`,
+        `  with_check = ${r.with_check ?? "(null)"}`,
+        `  permissive = ${r.permissive ?? "(null)"}`,
+        `  cmd        = ${r.cmd ?? "(null)"}`,
+        `  roles      = ${r.roles ?? "(null)"}`,
+      ].join("\n")
+    )
+    .join("\n");
 }
 
 /**
@@ -1139,7 +1331,6 @@ async function runPolicyArm(
   ctx: Ctx,
   runs: number
 ): Promise<readonly AbResult[]> {
-  const ABORT = "rls-ab: deliberate rollback of the policy swap";
   const results: AbResult[] = [];
 
   try {
@@ -1171,8 +1362,10 @@ async function runPolicyArm(
           const rows = await tx.$queryRawUnsafe<Array<Record<string, unknown>>>(sql);
           const planningMs: number[] = [];
           const executionMs: number[] = [];
+          const scanMs: number[] = [];
+          const indexNamesPerRun: string[][] = [];
           let lastPlan = "";
-          let walked = { nodeTypes: [] as string[], indexNames: [] as string[] };
+          let walked = emptyWalk();
           for (let i = 0; i < runs; i += 1) {
             const raw = await tx.$queryRawUnsafe<Array<Record<string, unknown>>>(
               `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${sql}`
@@ -1187,6 +1380,11 @@ async function runPolicyArm(
             planningMs.push(root?.["Planning Time"] ?? -1);
             executionMs.push(root?.["Execution Time"] ?? -1);
             walked = walkPlan(root?.Plan);
+            // Per run, exactly as `capture()` does: the arms carried the SAME
+            // last-run-only defect, so fixing only the capture path would have left
+            // every policy arm quoting one run's plan as the arm's.
+            scanMs.push(scanTimeMs(walked, AB_MEASURED_TABLE));
+            indexNamesPerRun.push([...new Set(walked.indexNames)]);
             lastPlan = JSON.stringify(parsed, null, 2);
           }
           results.push({
@@ -1199,17 +1397,20 @@ async function runPolicyArm(
             rows: rows.length,
             planningMs,
             executionMs,
+            scanMs,
             nodeTypes: walked.nodeTypes,
-            indexNames: [...new Set(walked.indexNames)],
+            indexNames: [...new Set(indexNamesPerRun.flat())],
+            indexNamesPerRun,
+            subplanNames: walked.subplanNames,
             plan: lastPlan,
           });
         }
-        throw new Error(ABORT);
+        throw new DeliberateRollback(`the ${arm.id} policy swap`);
       },
       { timeout: 600_000, maxWait: 30_000 }
     );
   } catch (error: unknown) {
-    if (!(error instanceof Error) || error.message !== ABORT) throw error;
+    if (!(error instanceof DeliberateRollback)) throw error;
   }
   return results;
 }
@@ -1252,7 +1453,8 @@ async function runPolicyAb(
 
   if (policiesAfter !== policiesBefore) {
     throw new Error(
-      "the shipped tenant_isolation policies did not come back unchanged after the swap. " +
+      "the shipped tenant_isolation policies did not come back unchanged after the swap — the " +
+        "5-tuple (qual, with_check, permissive, cmd, roles) diverged. NOTHING was written. " +
         `BEFORE:\n${policiesBefore}\nAFTER:\n${policiesAfter}`
     );
   }
@@ -1370,8 +1572,16 @@ function renderCapture(r: CaptureResult): string {
     `- **Prisma call wall time**: ${r.prismaWallMs} ms`,
     `- **Planning time (ms, per run)**: ${ms(r.planningMs)}`,
     `- **Execution time (ms, per run)**: ${ms(r.executionMs)}`,
+    `- **Scan-node time on \`${r.measuredTable}\` (ms, per run)**: ${ms(r.scanMs)} — ` +
+      "Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation",
+    `- **Medians over ${r.executionMs.length} run(s)**: scan-node ` +
+      `**${median(r.scanMs).toFixed(3)} ms** · statement-time ${median(r.executionMs).toFixed(3)} ms. ` +
+      "The scan-node figure is the one to compare across phases: the statement total also " +
+      "carries sort, aggregate, join and output work that neither the policy form nor the " +
+      "index shape touches.",
     `- **Plan nodes**: ${r.nodeTypes.join(" → ") || "(none)"}`,
-    `- **Indexes used**: ${r.indexNames.join(", ") || "(none)"}`,
+    `- **Indexes used (union across runs)**: ${r.indexNames.join(", ") || "(none)"}` +
+      indexAnnotation(r.indexNamesPerRun),
     "",
     "Query text (the mirror; `EXPLAIN` is taken from exactly this):",
     "",
@@ -1433,7 +1643,11 @@ function renderBlock(
       "posts round-robined over the tenant's projects; every 20th post soft-deleted, every 10th " +
       "archived, statuses cycling DRAFT/SCHEDULED/PUBLISHED/FAILED, one `PostContent` per post and " +
       "one `PostMedia` per third post. `VACUUM (ANALYZE)` ran on all five tables before the " +
-      "capture, so the visibility map is set and the plan is reproducible across reseeds.",
+      "capture, so the visibility map is set and index-only-scan costing reflects a settled " +
+      "heap. That is ALL it buys, and the previous wording claimed more: it said the plan was " +
+      '"reproducible across reseeds", which this artifact\'s own data disproves — `Q4` selects ' +
+      "a different index between runs of ONE capture, on a 0.11 % planner tie that nothing here " +
+      "repairs. Where that happens the case carries a per-run index annotation.",
     "",
     "| Namespaced rows | Count |",
     "| --------------- | ----- |",
@@ -1475,9 +1689,45 @@ function renderBlock(
   ].join("\n");
 }
 
-/** Median of a run series — the statistic every table in this report quotes. */
-const median = (values: readonly number[]): number =>
-  [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? -1;
+/**
+ * Median of a run series — the statistic every table in this report quotes.
+ *
+ * THROWS on an empty series instead of returning a sentinel. The previous form
+ * returned `-1`, and every caller renders through `toFixed(3)`, so a missing
+ * measurement reached the report as `-1.000 ms` — a plausible-looking number in a
+ * column of real ones, with nothing to distinguish it from a fast query. An absent
+ * measurement is a defect in the run, so it fails the run.
+ *
+ * At an EVEN length there is no middle element and this returns the UPPER of the two
+ * middle values rather than their mean, which biases the statistic high by half a gap.
+ * Keep `--runs` ODD (the default is 3) and the choice never arises.
+ */
+const median = (values: readonly number[]): number => {
+  if (values.length === 0) {
+    throw new Error(
+      "median() received an empty series, so there is no measurement to quote. Returning a " +
+        "sentinel here would reach the report as `-1.000 ms` and read as a real number."
+    );
+  }
+  return [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] as number;
+};
+
+/**
+ * Renders the per-run index sets when the runs DISAGREED, and nothing when they agreed.
+ *
+ * An annotation, never a failure: the underlying planner tie (`Q4`'s 0.11 % margin) is
+ * repaired by nothing in this change, and `Q4` is read for its delta, never for its
+ * plan. A guard here would turn the harness red for reporting something true.
+ */
+const indexAnnotation = (perRun: ReadonlyArray<readonly string[]>): string => {
+  const rendered = perRun.map((set) => set.join(", ") || "(none)");
+  if (new Set(rendered).size <= 1) return "";
+  return (
+    " ANNOTATION — the runs of this capture did NOT agree on the index: " +
+    rendered.map((set, i) => `run ${i + 1} [${set}]`).join(", ") +
+    ". Recorded rather than failed; the plan is a planner tie, not a defect in the query."
+  );
+};
 
 /**
  * Build the generated block for the A′-vs-B′ comparison. One table per shape (arms are
@@ -1525,7 +1775,10 @@ function renderPolicyAbBlock(
     "### Restore proof",
     "",
     "The three `tenant_isolation` policies, read from `pg_policies` before the first arm and " +
-      "again after the last one:",
+      "again after the last one. The comparison is over the FIVE attributes that define a " +
+      "policy — `(qual, with_check, permissive, cmd, roles)` — because an arm re-creates with " +
+      "`USING (...)` alone, which leaves `qual` byte-identical while dropping `with_check` to " +
+      "`null`; a `qual`-only proof passes on exactly that swap:",
     "",
     "```text",
     measured.policiesBefore,
@@ -1556,14 +1809,26 @@ function renderPolicyAbBlock(
       }),
       "```",
       "",
-      "| Arm | Plan nodes | Indexes | Planning median (ms) | Execution median (ms) | Execution per run (ms) |",
-      "| --- | ---------- | ------- | -------------------- | --------------------- | ---------------------- |",
+      `| Arm | Plan nodes | Indexes | InitPlan/SubPlan | Planning median (ms) | **Scan-node median (ms)** | Statement median (ms) | Scan per run (ms) |`,
+      "| --- | ---------- | ------- | ---------------- | -------------------- | ------------------------- | --------------------- | ----------------- |",
       ...rows.map(
         (r) =>
           `| \`${r.armId}\` | ${r.nodeTypes.join(" → ") || "(none)"} | ` +
-          `${r.indexNames.join(", ") || "(none)"} | ${median(r.planningMs).toFixed(3)} | ` +
-          `${median(r.executionMs).toFixed(3)} | ${r.executionMs.map((v) => v.toFixed(3)).join(" / ")} |`
+          `${r.indexNames.join(", ") || "(none)"} | ${r.subplanNames.join(", ") || "(none)"} | ` +
+          `${median(r.planningMs).toFixed(3)} | **${median(r.scanMs).toFixed(3)}** | ` +
+          `${median(r.executionMs).toFixed(3)} | ${r.scanMs.map((v) => v.toFixed(3)).join(" / ")} |`
       ),
+      "",
+      `Medians are over ${first?.scanMs.length ?? 0} run(s). The **scan-node median** is the ` +
+        `figure this comparison is about: Σ(\`Actual Total Time\` × \`Actual Loops\`) over the ` +
+        `nodes reading \`${AB_MEASURED_TABLE}\`, which is where a policy qual is evaluated. The ` +
+        "statement median is kept beside it because the two are NOT interchangeable, and " +
+        "quoting the statement total as the effect of a policy swap is what forced the " +
+        "retraction of a previously published figure.",
+      ...rows
+        .map((r) => indexAnnotation(r.indexNamesPerRun).trim())
+        .filter((note) => note !== "")
+        .map((note) => `- ${note}`),
       ""
     );
     for (const r of rows) {
