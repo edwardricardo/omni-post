@@ -150,6 +150,162 @@ function upperFirst(name: string): string {
   return name.length === 0 ? name : `${name[0]!.toUpperCase()}${name.slice(1)}`;
 }
 
+/**
+ * ## The renderings this gate matches, READ BACK from the catalog
+ *
+ * Every string below was read from `pg_policies` on this project's own
+ * PostgreSQL **16.14** on 2026-09-10, never copied from migration source.
+ * `pg_get_expr` re-prints a policy body from the parsed tree, so it adds the
+ * `::text` casts, the ` AS current_setting` sub-select alias and the outer
+ * parentheses that the installing SQL never wrote:
+ *
+ * ```text
+ * -- the standard body, on 60 of the 61 enrolled policies (and on the
+ * -- variant's WITH CHECK):
+ * ((( SELECT current_setting('app.account_id'::text, true) AS current_setting) = '__system__'::text)
+ *  OR ("accountId" = ( SELECT current_setting('app.account_id'::text, true) AS current_setting)))
+ *
+ * -- the 3-arm variant's USING, on AIPromptTemplate alone:
+ * ((( SELECT current_setting('app.account_id'::text, true) AS current_setting) = '__system__'::text)
+ *  OR ("accountId" = ( SELECT current_setting('app.account_id'::text, true) AS current_setting))
+ *  OR ("accountId" IS NULL))
+ *
+ * -- the BARE body this change replaced, captured from a rolled-back re-create:
+ * ((current_setting('app.account_id'::text, true) = '__system__'::text)
+ *  OR ("accountId" = current_setting('app.account_id'::text, true)))
+ * ```
+ *
+ * **The read-back is load-bearing, and it is measured rather than asserted.**
+ * The obvious spelling of the rule — count occurrences of the glued literal
+ * `"(select current_setting("` — matches **zero** times across all 61 deployed
+ * policies, because the deparser emits `( SELECT`, with one space, and
+ * collapsing whitespace runs leaves that space in place. A gate written from
+ * that literal would have red-lined the entire compliant catalog on its first
+ * run. The adjacency below tolerates the whitespace instead of guessing it,
+ * and it is the same pattern the sweep migration's own `DO $$` guard uses
+ * (`20260910000200_rls_initplan_sweep`), so the gate and the migration cannot
+ * disagree about what "hoisted" means.
+ *
+ * ## Known, unfixed limit: SMELL-91
+ *
+ * The A/B harness every number behind this form came from —
+ * `scripts/rls-ab-measurement.ts` — is **typechecked by nothing in CI**:
+ * `scripts/` sits outside every tsconfig project (`apps/api/tsconfig.json`
+ * includes `src` plus per-package `src` globs under `packages/`,
+ * `packages/core/` and `infra/`, and `scripts/` matches none of them — the
+ * globs are spelled out that way here because writing them literally would
+ * close this comment) and outside every fitness scope, so its only typecheck
+ * is a standalone `tsc --noEmit` invocation run by hand at each gate. This
+ * gate does not fix that and does not depend on it — it reads the catalog,
+ * not the harness — but a limit stated in the check is a limit the next reader
+ * finds, and an unstated one is how "typechecked by nothing" persists.
+ */
+const HOISTED_GUC_READ = /\(\s*select\s+current_setting\s*\(/g;
+const ANY_GUC_READ = /current_setting\s*\(/g;
+
+/**
+ * Lowercase and collapse whitespace runs. Line breaks and indentation inside a
+ * deparsed body are the deparser's business; the gate is about whether the call
+ * sits inside a sub-select, not about how the sub-select is laid out.
+ */
+function normalizePolicyExpr(expr: string): string {
+  return expr.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/** Count non-overlapping matches. The source regex is re-built so `lastIndex` never leaks. */
+function countMatches(haystack: string, pattern: RegExp): number {
+  return haystack.match(new RegExp(pattern.source, pattern.flags))?.length ?? 0;
+}
+
+/** One clause's verdict: how many GUC reads it holds, and how many are hoisted. */
+interface ClauseAudit {
+  readonly reads: number;
+  readonly hoisted: number;
+  readonly compliant: boolean;
+  readonly reason: string;
+}
+
+/**
+ * Audit ONE rendered clause (`qual` or `with_check`).
+ *
+ * Three rules, and the third is the one a counting gate forgets:
+ *
+ * 1. **A NULL `WITH CHECK` is COMPLIANT** — and only that clause. An
+ *    unspecified `WITH CHECK` inherits the `USING` expression by
+ *    specification, so it is gated by an expression this same audit already
+ *    checked, and a gate demanding a non-null `with_check` would red-line
+ *    correct policies. A NULL `USING` is the opposite case and is NOT
+ *    exempted: there would be no inherited expression to fall back on, so the
+ *    exemption is scoped to the clause that actually has one rather than
+ *    written once for "a null clause".
+ * 2. **Every GUC read must be hoisted**: `reads === hoisted`. Equality rather
+ *    than "contains a sub-select" is what catches a HALF-wrapped body, which
+ *    still pays the per-row cost on the arm that stayed bare and is measured
+ *    to deparse as `(( SELECT current_setting(…)) = '__system__') OR
+ *    ("accountId" = current_setting(…))`.
+ * 3. **A clause that is present must read the GUC at least once.** Without
+ *    this the rule is vacuously satisfiable: `USING (true)` holds zero reads
+ *    and zero hoisted reads, so `0 === 0` would report a policy that gates
+ *    NOTHING as compliant. An assertion that cannot see its subject is not one.
+ */
+function auditClause(expr: string, clause: string): ClauseAudit {
+  const normalized = normalizePolicyExpr(expr);
+  const reads = countMatches(normalized, ANY_GUC_READ);
+  const hoisted = countMatches(normalized, HOISTED_GUC_READ);
+  if (reads === 0) {
+    return {
+      reads,
+      hoisted,
+      compliant: false,
+      reason: `${clause} reads app.account_id ZERO times, so it gates no tenant at all`,
+    };
+  }
+  if (reads !== hoisted) {
+    return {
+      reads,
+      hoisted,
+      compliant: false,
+      reason:
+        `${clause} holds ${reads - hoisted} un-hoisted GUC read(s) of ${reads} ` +
+        `(${hoisted} hoisted) — each bare read is re-evaluated once per candidate row`,
+    };
+  }
+  return {
+    reads,
+    hoisted,
+    compliant: true,
+    reason: `${clause}: all ${reads} GUC read(s) hoisted`,
+  };
+}
+
+/**
+ * A policy is compliant when BOTH its clauses are. Returns one verdict per
+ * clause so a failure can say WHICH half moved: a bare `USING` is a read-path
+ * cost, a bare `WITH CHECK` is a write-path cost, and the two are separately
+ * repairable.
+ */
+function auditPolicyForm(qual: string | null, withCheck: string | null): ClauseAudit[] {
+  const qualAudit: ClauseAudit =
+    qual === null
+      ? {
+          reads: 0,
+          hoisted: 0,
+          compliant: false,
+          reason: "USING is NULL — the policy declares no visibility predicate at all",
+        }
+      : auditClause(qual, "USING");
+  const checkAudit: ClauseAudit =
+    withCheck === null
+      ? {
+          reads: 0,
+          hoisted: 0,
+          compliant: true,
+          reason: "WITH CHECK is NULL, which inherits USING by specification",
+        }
+      : auditClause(withCheck, "WITH CHECK");
+  return [qualAudit, checkAudit];
+}
+
 describe("Row Level Security — tenant_isolation policy", () => {
   /**
    * The migrate/owner connection. Every fixture write goes through it, and
@@ -715,6 +871,228 @@ describe("Row Level Security — tenant_isolation policy", () => {
         getTenantScopedModels().size,
         `the sweep changed the enrolled population: catalog holds ${rows.length} ` +
           `tenant_isolation policies against ${getTenantScopedModels().size} enrolled models`
+      );
+    });
+  });
+
+  describe("form-uniformity gate — every enrolled policy, read from the catalog", () => {
+    // The block above pins the trio's EXACT body, because a migration installed
+    // exactly that body and nothing else may. This one asserts a RELATION over
+    // the whole enrollment — every GUC read is hoisted — because the sweep
+    // rewrote 58 policies through a `DO $$` loop whose per-table output no
+    // human read. The two are different claims and the second is the one that
+    // scales: it stays true for a policy this change never saw.
+    //
+    // It ships in THIS link rather than beside the sweep deliberately: a gate
+    // landed over a mixed catalog would have had to be born failing or born
+    // scoped, and a scoped uniformity gate is how the remainder gets deferred
+    // forever. The catalog was made uniform first; the gate that keeps it that
+    // way lands second, with its red planted on a real table.
+    //
+    // The pattern, the normalization and the three compliance rules live at
+    // module scope, above — together with the read-back fixtures they were
+    // derived from and the SMELL-91 limit this gate does not fix.
+
+    interface EnrolledPolicy {
+      readonly tablename: string;
+      readonly qual: string | null;
+      readonly with_check: string | null;
+    }
+
+    const readEnrolledPolicies = async (): Promise<EnrolledPolicy[]> =>
+      prisma.$queryRawUnsafe<EnrolledPolicy[]>(
+        `SELECT tablename, qual, with_check FROM pg_policies
+          WHERE policyname = 'tenant_isolation' ORDER BY tablename`
+      );
+
+    it("every enrolled tenant_isolation policy expresses the GUC read in the hoisted form", async () => {
+      const rows = await readEnrolledPolicies();
+
+      // Derived from the guard's enrolled-model Set, never a literal: layers 1
+      // and 2 are 1:1 by construction, so the expected population is whatever
+      // the guard enrolls at the moment the gate runs. A literal here would
+      // pass a catalog that lost a policy and gained an enrollment.
+      const expected = getTenantScopedModels().size;
+      assert.ok(expected > 0, "guard must enroll at least one model");
+      assert.strictEqual(
+        rows.length,
+        expected,
+        `expected one tenant_isolation policy per guard-enrolled model: catalog holds ` +
+          `${rows.length} against ${expected} enrolled models`
+      );
+
+      // One finding line per offending policy, NAMING the table and which
+      // clause moved. "The catalog is not uniform" would send whoever reads
+      // the failure to re-derive the offender from 61 rows by hand.
+      const findings: string[] = [];
+      let compliantCount = 0;
+      let hoistedReads = 0;
+      for (const row of rows) {
+        const audits = auditPolicyForm(row.qual, row.with_check);
+        hoistedReads += audits.reduce((sum, a) => sum + a.hoisted, 0);
+        if (audits.every((a) => a.compliant)) {
+          compliantCount += 1;
+          continue;
+        }
+        for (const audit of audits.filter((a) => !a.compliant)) {
+          findings.push(
+            `  "${row.tablename}" → ${audit.reason}\n` +
+              `      USING:      ${row.qual}\n` +
+              `      WITH CHECK: ${row.with_check}`
+          );
+        }
+      }
+
+      assert.deepStrictEqual(
+        findings,
+        [],
+        `${findings.length} tenant_isolation policy clause(s) are NOT in the canonical ` +
+          `InitPlan-wrapped form, out of ${rows.length} enrolled policies. A bare GUC read is ` +
+          `re-evaluated once per candidate row, which is the cost this form exists to remove:\n` +
+          `${findings.join("\n")}`
+      );
+
+      // Stated as a measured count rather than as "the sweep completed". The
+      // expected total is DERIVED per policy, not rows.length × 4: a policy that
+      // declares no WITH CHECK is compliant with 2 hoisted reads, not 4 — the
+      // per-clause rule above already grants that exemption, and a flat ×4 here
+      // would silently override it and red-line a catalog every per-clause rule
+      // calls compliant. Vacuous today (all 61 declare one, measured), but the
+      // sweep migration's own polwithcheck IS NULL branch exists precisely to
+      // make that state reachable.
+      assert.strictEqual(compliantCount, rows.length);
+      const expectedHoisted = rows.reduce(
+        (sum: number, r: PolicyRow) => sum + (r.with_check === null ? 2 : 4),
+        0
+      );
+      assert.strictEqual(
+        hoistedReads,
+        expectedHoisted,
+        `expected ${expectedHoisted} hoisted GUC reads (2 per declared clause) across ` +
+          `${rows.length} policies; counted ${hoistedReads}`
+      );
+    });
+
+    // The renderings below are the ones read back from this catalog on
+    // 2026-09-10 (module-scope docblock). They are fixtures rather than live
+    // reads on purpose: the two states that must be REJECTED do not exist in a
+    // healthy catalog, so a gate that only ever sees the healthy one has never
+    // been shown capable of failing. This test is that demonstration, and
+    // unlike the planted red of the PR body it re-runs on every CI pass.
+    const OBSERVED_WRAPPED =
+      "((( SELECT current_setting('app.account_id'::text, true) AS current_setting)" +
+      " = '__system__'::text) OR (\"accountId\" = ( SELECT current_setting('app.account_id'::text," +
+      " true) AS current_setting)))";
+    const OBSERVED_WRAPPED_VARIANT =
+      "((( SELECT current_setting('app.account_id'::text, true) AS current_setting)" +
+      " = '__system__'::text) OR (\"accountId\" = ( SELECT current_setting('app.account_id'::text," +
+      ' true) AS current_setting)) OR ("accountId" IS NULL))';
+    const OBSERVED_BARE =
+      "((current_setting('app.account_id'::text, true) = '__system__'::text) OR " +
+      "(\"accountId\" = current_setting('app.account_id'::text, true)))";
+    const OBSERVED_HALF_WRAPPED =
+      "((( SELECT current_setting('app.account_id'::text, true) AS current_setting)" +
+      " = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true)))";
+
+    it("the compliance rule accepts the deployed rendering and rejects a bare or half-wrapped one", () => {
+      // ACCEPTED — the wrapped standard body, both clauses.
+      assert.deepStrictEqual(
+        auditPolicyForm(OBSERVED_WRAPPED, OBSERVED_WRAPPED).map((a) => a.compliant),
+        [true, true],
+        "the deployed standard rendering must be compliant, or the gate red-lines all 61"
+      );
+
+      // REJECTED — fully bare. Two reads, zero hoisted, on each clause.
+      const bare = auditPolicyForm(OBSERVED_BARE, OBSERVED_BARE);
+      assert.deepStrictEqual(
+        bare.map((a) => a.compliant),
+        [false, false],
+        "a bare policy body must be rejected — this is the state the sweep removed"
+      );
+      assert.deepStrictEqual(
+        bare.map((a) => [a.reads, a.hoisted]),
+        [
+          [2, 0],
+          [2, 0],
+        ]
+      );
+
+      // REJECTED — HALF-wrapped, which is the state that makes this an equality
+      // rather than a "contains a sub-select" check. One arm hoisted, one arm
+      // bare: the bare arm is still re-evaluated per candidate row, and a
+      // presence check would have passed it.
+      const half = auditPolicyForm(OBSERVED_HALF_WRAPPED, OBSERVED_WRAPPED);
+      assert.deepStrictEqual(
+        half.map((a) => a.compliant),
+        [false, true],
+        "a half-wrapped USING must be rejected even though it contains a sub-select"
+      );
+      assert.deepStrictEqual(half[0]!.reads - half[0]!.hoisted, 1);
+
+      // REJECTED — vacuous. `USING (true)` satisfies `reads === hoisted` as
+      // `0 === 0`, so the third rule is what stops the gate from blessing a
+      // policy that gates nothing at all.
+      assert.strictEqual(auditPolicyForm("true", OBSERVED_WRAPPED)[0]!.compliant, false);
+      assert.strictEqual(auditPolicyForm(null, OBSERVED_WRAPPED)[0]!.compliant, false);
+    });
+
+    it("a policy that declares no WITH CHECK is COMPLIANT, and the 3-arm variant passes", () => {
+      // An unspecified WITH CHECK inherits the USING expression by
+      // specification, so there is no second expression to be bare: the policy
+      // is gated by the one this audit already accepted. Asserted with a
+      // fixture rather than left to omission, because "the gate happens not to
+      // fail on it" and "the gate treats it as correct" are different claims,
+      // and only the second survives someone adding a non-null requirement.
+      //
+      // Vacuous on today's catalog by measurement — all 61 declare a WITH
+      // CHECK — which is exactly why the fixture is the proof. The sweep
+      // migration carries the same branch for the same reason and proved it the
+      // same way, on a rolled-back re-create of this very table.
+      const noWithCheck = auditPolicyForm(OBSERVED_WRAPPED, null);
+      assert.deepStrictEqual(
+        noWithCheck.map((a) => a.compliant),
+        [true, true],
+        "a NULL with_check inherits USING and SHALL NOT be reported as a miss"
+      );
+      assert.match(noWithCheck[1]!.reason, /inherits USING/);
+
+      // The 3-arm variant: three disjuncts, still only two GUC reads, both
+      // hoisted. Its WITH CHECK is the strict two-arm body — deliberately, so
+      // the global-visibility arm is read-only — and both halves must pass.
+      const variant = auditPolicyForm(OBSERVED_WRAPPED_VARIANT, OBSERVED_WRAPPED);
+      assert.deepStrictEqual(
+        variant.map((a) => a.compliant),
+        [true, true],
+        "the AIPromptTemplate 3-arm variant must PASS — the third arm reads no GUC"
+      );
+      assert.deepStrictEqual(variant[0]!, {
+        reads: 2,
+        hoisted: 2,
+        compliant: true,
+        reason: "USING: all 2 GUC read(s) hoisted",
+      });
+    });
+
+    it("the variant that exists in the catalog is audited as compliant by the same rule", async () => {
+      // The fixture above proves the RULE accepts a 3-arm body; this proves the
+      // rule accepts THE 3-arm body the catalog actually holds. A fixture can
+      // drift from the deployment it was copied from — that is the whole reason
+      // this gate reads pg_policies — so the variant is re-audited live rather
+      // than trusted through its transcript.
+      const rows = await readEnrolledPolicies();
+      const variants = rows.filter((r) => /"accountId"\s+IS\s+NULL/i.test(r.qual ?? ""));
+      assert.strictEqual(
+        variants.length,
+        1,
+        `expected exactly one 3-arm policy in the catalog, found ${variants.length}: ` +
+          `[${variants.map((v) => v.tablename).join(", ")}]`
+      );
+      const audits = auditPolicyForm(variants[0]!.qual, variants[0]!.with_check);
+      assert.deepStrictEqual(
+        audits.map((a) => a.compliant),
+        [true, true],
+        `the deployed 3-arm policy on "${variants[0]!.tablename}" is not in the canonical ` +
+          `form: ${audits.map((a) => a.reason).join(" · ")}`
       );
     });
   });

@@ -2319,3 +2319,314 @@ with no second population.
 The PR-3 delivery decision: RDD review, attempt settle, commit (size:exception accepted by
 Edward — 647/31 total, 192/31 code, the rest the evidence artifacts this phase exists to
 produce).
+
+---
+
+# Batch 8 — PR-4: the form-uniformity gate and change close (Phase 9, tasks 9.1–9.7; Phase 10, tasks 10.1–10.5)
+
+> The gate ships LAST, over a catalog PR-3 already made uniform, so it is born with a real
+> planted red rather than born failing. Task 10.6 (the 0-defect gate) is deliberately left
+> unchecked: it is the orchestrator's. Nothing under `infra/prisma/`, `.github/workflows/`,
+> `.claude/` or any `.env` was touched, and no git command was run.
+
+## Task ledger
+
+| Task | State | Evidence                                                                                                                    |
+| ---- | ----- | --------------------------------------------------------------------------------------------------------------------------- |
+| 9.1  | `[x]` | read-back from PG 16.14; the naive glued adjacency matches **0 / 61** — the matcher is measured, not guessed                |
+| 9.2  | `[x]` | RED `31 tests · 27 pass · 4 fail`, exit 1, all 61 named → GREEN `31 / 31`, exit 0                                           |
+| 9.3  | `[x]` | NULL `WITH CHECK` compliant by fixture, NULL `USING` explicitly NOT; variant passes as fixture AND as a live catalog read   |
+| 9.4  | `[x]` | 61 compliant / 0 non-compliant / 244 hoisted / 0 un-hoisted; BATCH 246/246 inside 484/484                                   |
+| 9.5  | `[x]` | committed plant → batch exit **1** naming `WebhookEvent` → restore → tuple md5 AND whole-catalog digest byte-equal → green  |
+| 9.6  | `[x]` | SMELL-91 named in the gate's own docblock; the literal tsconfig globs closed the JSDoc block and are described instead      |
+| 9.7  | `[x]` | CONFIRMED read-only with line numbers; **no fitness step created**, and the reason recorded in ADR-0022                     |
+| 10.1 | `[x]` | uniformity as a COUNT table in the report's Completion section, re-derived by the gate                                      |
+| 10.2 | `[x]` | **SMELL-94** filed, id re-verified against the file (max was 93)                                                            |
+| 10.3 | `[x]` | **SMELL-95** filed; all three line numbers re-verified live and all three hold                                              |
+| 10.4 | `[x]` | SMELL-93 → DONE, commits cited, PR numbers stated as pending, outcome per repair including the net-zero and the regression  |
+| 10.5 | `[x]` | `## Completion — tenant-rls-cost-repair` at the end of the report: 7 disclaimers, 4 named by the task and 3 the change owes |
+| 10.6 | `[ ]` | **orchestrator's gate — not this writer's.**                                                                                |
+
+## Finding 1 — the matcher the brief proposed matches NOTHING, and the ordering constraint is what caught it
+
+This is the batch's most important result and it is the reason task 9.1 exists as a blocking
+predecessor rather than as a formality.
+
+The obvious spelling of the compliance rule is a literal occurrence count of
+`"(select current_setting("` after lowercasing and collapsing whitespace. Measured against the
+committed catalog, in one query, three candidate matchers plus the denominator:
+
+| Matcher                                    | Occurrences across all 61 policies' `qual` |
+| ------------------------------------------ | ------------------------------------------ |
+| `(select current_setting(` — glued literal | **0**                                      |
+| `select current_setting(` — no paren       | 122                                        |
+| `( select current_setting(` — one space    | 122                                        |
+| `\(\s*select\s+current_setting\s*\(`       | 122                                        |
+| `current_setting(` — the denominator       | 122                                        |
+
+`pg_get_expr` re-prints from the parsed tree and emits `( SELECT`, **with one space**, which
+collapsing whitespace runs does not remove because it is already a single space. A gate written
+from the glued literal would have reported `compliant 0 / non_compliant 61` on a catalog that is
+perfectly uniform — and the person who hit it would have concluded the gate was broken, not the
+catalog. That is the same class as reading migration bytes: both assert an intent the database
+does not hold.
+
+The shipped matcher is the tolerant adjacency, and it is not a new invention: it is the pattern
+`20260910000200_rls_initplan_sweep`'s own `DO $$` guard already uses, so the gate and the
+migration that produced the state it gates cannot disagree about what "hoisted" means.
+
+## Finding 2 — the counting rule is vacuously satisfiable, and needed a third clause
+
+`reads === hoisted` is the rule the task names, and on its own it passes two states that gate
+nothing at all:
+
+- `USING (true)` — zero GUC reads, zero hoisted, so `0 === 0`. A policy that admits every row
+  reports as compliant.
+- A NULL `USING` — same arithmetic, same verdict.
+
+So the audit carries a third rule: a clause that is PRESENT must read the GUC at least once, and
+the NULL exemption is scoped to `WITH CHECK` alone — the clause that actually has an inherited
+expression to fall back on. Writing one "a null clause is compliant" rule would have blessed a
+policy with no visibility predicate. Both states are asserted with fixtures, so the rule is not
+merely written correctly, it is pinned.
+
+## Finding 3 — the JSDoc that could not survive its own subject
+
+Naming SMELL-91 (task 9.6) required naming the tsconfig include globs, and writing
+`packages/*/src` inside a `/** */` block **closes the block**: esbuild reported
+`ERROR: Expected ";" but found "packages"` and the suite would not transform at all. Caught by
+the run rather than by review. The globs are now described in prose with the reason stated in
+the comment itself, so the next author does not re-introduce it while "fixing" the wording.
+
+Worth recording beyond this file: any comment in this repo that documents a glob pattern has
+the same hazard, and a documentation-only edit is exactly the kind of change nobody runs the
+suite after.
+
+## TDD evidence — the gate born red, twice, in two different ways
+
+Two independent reds, because they prove different things. The first proves the RULE can fail;
+the second proves the GATE fires end-to-end on a real catalog through the collector CI uses.
+
+### RED 1 — the classifier, planted with 9.1's refuted matcher
+
+`HOISTED_GUC_READ` temporarily set to the glued literal. Verbatim summary:
+
+```text
+ℹ tests 31
+ℹ suites 9
+ℹ pass 27
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+exit **1**, with the headline naming the population and every offender:
+
+```text
+122 tenant_isolation policy clause(s) are NOT in the canonical InitPlan-wrapped form, out of 61 enrolled policies. A bare GUC read is re-evaluated once per candidate row, which is the cost this form exists to remove:
+  "WebhookEvent" → USING holds 2 un-hoisted GUC read(s) of 2 (0 hoisted) — each bare read is re-evaluated once per candidate row
+```
+
+GREEN with the observed adjacency: `tests 31 · pass 31 · fail 0 · cancelled 0 · skipped 0`,
+exit 0.
+
+Note which four tests failed: the catalog gate AND all three fixture tests. That is the fixture
+tests doing their job — they are the half of the demonstration that re-runs on every CI pass,
+where a planted catalog red does not.
+
+### RED 2 — the committed bare policy on `WebhookEvent` (task 9.5)
+
+**The plant had to be COMMITTED**, and that is the one way this red differs from the three the
+ADR already records. The suite opens its own connection; a plant rolled back inside the planting
+session is a state the gate can never observe, so a rolled-back plant would have proven nothing
+while looking identical in a transcript.
+
+Committing a schema change to get a red is a real risk, so the restore was proven FIRST, in a
+rolled-back dry run: `03eb3ab2…` (pre) → `4e1d18b9…` (planted) → `03eb3ab2…` (restored). Only
+then was the plant committed. There was no window in which the correct bytes were unknown.
+
+The red, verbatim from the batch:
+
+```text
+  integration:tenant-isolation  246 tests   245 pass  1 fail  0 cancel  0 skip  exit 1  [FAIL]
+── failures in batch 'integration:tenant-isolation' (every 'not ok' + its detail block) ──
+        not ok 1 - every enrolled tenant_isolation policy expresses the GUC read in the hoisted form
+          ---
+          error: |-
+            2 tenant_isolation policy clause(s) are NOT in the canonical InitPlan-wrapped form, out of 61 enrolled policies. A bare GUC read is re-evaluated once per candidate row, which is the cost this form exists to remove:
+              "WebhookEvent" → USING holds 2 un-hoisted GUC read(s) of 2 (0 hoisted) — each bare read is re-evaluated once per candidate row
+                  USING:      ((current_setting('app.account_id'::text, true) = '__system__'::text) OR ("accountId" = current_setting('app.account_id'::text, true)))
+                  WITH CHECK: ((current_setting('app.account_id'::text, true) = '__system__'::text) OR ("accountId" = current_setting('app.account_id'::text, true)))
+              "WebhookEvent" → WITH CHECK holds 2 un-hoisted GUC read(s) of 2 (0 hoisted) — each bare read is re-evaluated once per candidate row
+```
+
+```text
+========================================
+TOTAL: 484 tests, 483 pass, 1 fail, 0 cancel, 0 skip
+========================================
+FAILED batches: integration:tenant-isolation
+```
+
+Process exit **1** — a real failure mechanism, not an annotation.
+
+**Restore, proven on two scopes rather than one.** The `WebhookEvent` 5-tuple md5 returned to
+`03eb3ab226fc5de8d14dc207e8068e1e`, and the WHOLE-catalog 5-tuple digest over all 61 policies
+returned to `70322c28db1c0684897b49e4d70de014` — the value PR-3 committed. The second is the
+one that matters: a per-table comparison cannot see a policy the plant never touched, and
+"I only altered one table" is a claim about intent, not a measurement.
+
+Re-confirmed green: suite `31 / 31`, exit 0; and the final batch below.
+
+### The standalone typecheck of the test file, red-proven
+
+`tsc -b apps/api` includes `src` only, so it opens **zero** test files — SMELL-91's second
+instance, already recorded in that row. The modified suite was therefore typechecked through a
+scratch project naming it explicitly, with `typeRoots` pointed at `apps/api/node_modules/@types`
+(the `@types/node` hoisting gotcha Batch 1 documented, hit again here). **Exit 0 — and proven
+discriminating rather than assumed**: a planted `const _plantedTypeError: number = expr;` gave
+`error TS2322: Type 'string' is not assignable to type 'number'`, exit **2**; restored, exit 0,
+zero residue of the plant in the file.
+
+## What the gate asserts, and what each assertion is for
+
+| Assertion                                               | Why it is separate                                                                                                           |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| population `=== getTenantScopedModels().size`           | a literal would pass a catalog that lost a policy and gained an enrollment                                                   |
+| per-clause `reads === hoisted`, findings NAME the table | "the catalog is not uniform" makes the reader re-derive the offender from 61 rows                                            |
+| total hoisted reads `=== policies × 4`                  | 61 policies passing is satisfiable by 61 policies passing for the wrong reason; 244 is the number a partial rewrite moves    |
+| fixture: bare and half-wrapped REJECTED                 | neither state exists in a healthy catalog, so a gate that only ever sees the healthy one has never been shown able to fail   |
+| fixture: NULL `WITH CHECK` COMPLIANT, NULL `USING` not  | vacuous today (0 of 61 declare no `WITH CHECK`) — which is exactly why a fixture is the only available proof                 |
+| live re-audit of whichever policy carries the `IS NULL` | a fixture can drift from the deployment it was copied from, and that drift is the whole reason this gate reads `pg_policies` |
+
+The half-wrapped case is the one that makes this an equality rather than a presence check: one
+arm hoisted, one arm bare still pays per-row on the bare arm, and `contains a sub-select` passes
+it. Its rendering was captured live, not constructed.
+
+## Files written
+
+| File                                                        | Change                                                                                                                                        |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/tests/integration/rls-tenant-isolation.test.ts`   | module-scope read-back docblock + compliance classifier, and the new `form-uniformity gate` describe (4 tests). Existing blocks untouched.    |
+| `docs/technical/ADR-0022-rls-enforcement-posture.md`        | §Coverage-gate red: "The fourth planted state" + "The matcher is read back, never written from migration bytes" + the 9.7 wiring confirmation |
+| `docs/reports/roadmap-detected-smells-backlog.md`           | **SMELL-94** and **SMELL-95** filed; **SMELL-93** verdict cell rewritten to DONE                                                              |
+| `docs/reports/TENANT_RLS_AB_MEASUREMENT.md`                 | new `## Completion — tenant-rls-cost-repair` (hand-written, last section). No generated block touched, no capture re-run.                     |
+| `openspec/changes/tenant-rls-cost-repair/tasks.md`          | 9.1–9.7 and 10.1–10.5 checked with evidence notes; 10.6 left `[ ]` for the orchestrator                                                       |
+| `openspec/changes/tenant-rls-cost-repair/apply-progress.md` | this Batch 8 section, appended                                                                                                                |
+
+## Gate readings taken by this writer (task 10.6 remains the orchestrator's)
+
+| Gate                                       | Result                                                                                                                             |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `tsc -b apps/api`                          | exit **0** (heap 6144 — the standing LXC cap)                                                                                      |
+| Standalone typecheck of the modified suite | exit **0**, red-proven (planted `TS2322` → exit 2 → restored)                                                                      |
+| `eslint --max-warnings 0` on the suite     | exit **0**                                                                                                                         |
+| Fitness #8 / #9 / #10 / #32                | **0 / 0 / 0 / 0**                                                                                                                  |
+| `prettier` on all five touched files       | clean; two `.md` realigned by `--write`, the suite and the report unchanged                                                        |
+| BATCH `TIER=pr-integration`                | **`TOTAL: 484 tests, 484 pass, 0 fail, 0 cancel, 0 skip`**, exit 0 — `integration:tenant-isolation` **246/246**                    |
+| Database left as found                     | out-of-band read AFTER the run: `61 \| 61 \| 0 \| 0 \| 1 \| 3 \| 70322c28db1c0684897b49e4d70de014`, `WebhookEvent` md5 `03eb3ab2…` |
+
+Not measured here and owned by 10.6: the full workspace `pnpm typecheck`, the standalone
+`scripts/rls-ab-measurement.ts` typecheck (untouched by this link — its verdict stands from the
+PR-1c gate), the remaining fitness counts (#3/#16/#21/#23/#30/#38/#39/#40, of which **#38's
+db-prisma ratchet must be re-measured against baseline 11** and **#39 is expected unchanged at
+61**), and `prisma validate` + `migrate status` (this link authored no migration, so 83 should
+be unchanged).
+
+## Deviations
+
+1. **The compliance rule is the tolerant adjacency, not the task's literal string.** Task 9.2
+   offers "(or 9.1's observed adjacency)" and 9.1 makes the read-back binding, so this is the
+   path the tasks prescribe rather than a departure from them — but it is flagged because the
+   literal in 9.2's text does not work and a reader comparing the task to the code would
+   otherwise think the code drifted. Finding 1 has the measurement.
+2. **A third compliance rule beyond the task's counting rule.** "A present clause must read the
+   GUC at least once" is not in 9.2. Justified by Finding 2: without it `USING (true)` passes.
+   Six lines, asserted by fixture.
+3. **Four tests, not one.** 9.2 says "the form-uniformity `it()`" singular; 9.3 asks for the
+   NULL-`with_check` case explicitly. The split is one catalog test plus two fixture tests plus
+   one live variant re-audit, because the fixture tests are the only half of the red that
+   survives into CI and the live variant re-audit is the only one that catches fixture drift.
+4. **The 9.5 plant was committed to the DEV database, not to a scratch one.** Task 9.5 says
+   "(scratch)". A scratch database would have needed the full 83-migration deploy AND the suite
+   repointed at it through both channels — and the suite's own `DATABASE_URL`/
+   `MIGRATE_DATABASE_URL` pair is what the red is supposed to travel through, so repointing it
+   would have moved the subject. The risk was bounded instead: restore proven byte-exact in a
+   rolled-back dry run before the plant was committed, restore verified on the whole-catalog
+   digest afterwards, total exposure one batch run on a development database. Flagged rather
+   than absorbed.
+5. **ADR-0022 gained two subsections, not one.** The fourth planted state is what 9.5 asks for;
+   the matcher subsection records Finding 1, which is a decision an ADR is the right home for
+   and which would otherwise live only in this file.
+6. **SMELL-93's row records a net-ZERO, not a net-negative.** Task 10.4 says "including
+   whichever of its three repairs measured net-negative". Measured, the reshape produced no
+   timing change at all (`Q3` unchanged) rather than a regression, and the form rewrite carries
+   the only real regression (`S2`, ×3.50, synthetic). Both are recorded as measured; neither is
+   relabelled to match the task's wording.
+7. **The backlog diff reads as 126/124 and is 3 rows of content.** Flagged because a reviewer
+   opening that file sees the whole table rewritten. It was prettier-clean at `HEAD` (verified
+   by checking out `HEAD`'s copy and running `prettier --check` on it: exit 0), and the two new
+   rows are wider than the previous widest, so prettier re-padded every column in all 125 rows.
+   **122 of the 124 deletions are whitespace.** It is not revertible: `pnpm format:check` is
+   `prettier -c .` over the whole repo, so un-padding the table would fail CI. Review the three
+   SMELL rows (`93` modified, `94` and `95` added); the rest of that file's diff is padding.
+8. **AUTHORED SIZE IS OVER THE 400-LINE BUDGET, against a ~180–240 forecast — `size:exception`
+   recommended, and the decision is the orchestrator's.** Measured `git diff --numstat`:
+
+   | File                             | +/−       | Counts toward review?                                    |
+   | -------------------------------- | --------- | -------------------------------------------------------- |
+   | `rls-tenant-isolation.test.ts`   | 369 / 0   | **yes — this is the code**                               |
+   | `ADR-0022-…md`                   | 78 / 0    | yes (the 9.5 record the task mandates)                   |
+   | `TENANT_RLS_AB_MEASUREMENT.md`   | 60 / 0    | yes (hand-written §Completion; no generated block moved) |
+   | `roadmap-…-backlog.md`           | 126 / 124 | ~6 real lines; the rest is deviation 7's forced padding  |
+   | `tasks.md` + `apply-progress.md` | 287 / 12  | bookkeeping the tasks require                            |
+
+   **Why it does not shrink.** The 369 is one `describe` (4 tests) plus a module-scope
+   classifier, and roughly 150 of it is the read-back fixtures and the comment blocks tasks 9.1
+   and 9.6 require IN THE TEST — the pasted renderings, the measured refutation of the naive
+   matcher, and the SMELL-91 statement are deliverables of those tasks, not commentary that
+   could be trimmed. **There is no seam to split on**: 9.2's gate cannot land without 9.1's
+   read-back, 9.3's fixtures are what make the gate's red re-runnable, and 9.5's demonstration
+   is the canon requirement that the gate be born red — splitting would ship a gate whose red
+   lands in a later PR, which is the exact shape this link exists to avoid. Per the budget
+   rule, it is reported rather than compressed: no comment, test or doc was cut to reach a
+   number. PR-3 took a `size:exception` for the same evidence-heavy reason.
+
+## Not done in this batch (by instruction)
+
+Task 10.6 — the 0-defect gate — is the orchestrator's and is left `[ ]`. _(Ran and passed
+after this batch — see the Amendment below.)_ No git command, no migration, no schema change,
+no production code, nothing under `infra/`, `.github/`, `.claude/` or any `.env`.
+
+## Amendment — 2026-09-10, after this batch was written
+
+Three post-batch events, each recorded here with a pointer from its now-stale line rather than
+by rewriting history in place.
+
+1. **10.6 ran and PASSED** (orchestrator-run, then independently reproduced by the fresh
+   gate): fitness #3/#8/#9/#10/#16/#21/#23/#32/#39 all 0; #30 held at 21; #38 re-measured
+   swept 0 / db-prisma 11 (at its ratchet); #40 parts A and B both 0 (3 seam occurrences
+   against a floor of 3, 13 call sites against a declared floor of 10); `tsc -b apps/api`,
+   eslint and prettier clean; `prisma validate` + `migrate status` up to date; BATCH
+   `pr-integration` 484/484, 0 cancelled / 0 skipped; database as found by out-of-band
+   post-gate read (`pr3-evidence/asfound-pr4.txt`). `tasks.md` 10.6 is checked on this
+   evidence.
+2. **The fresh gate's WARNING-1 was fixed rather than accepted**: the catalog test's
+   aggregate `hoistedReads === rows.length * 4` contradicted the NULL-`WITH CHECK` exemption
+   the per-clause rule grants — measured by the gate on a simulated 61-policy catalog with one
+   legitimate no-`WITH-CHECK` policy: per-clause findings empty, aggregate red. The expected
+   total is now DERIVED per policy (`with_check === null ? 2 : 4`), the comment states why,
+   and the suite re-ran green after the edit. Vacuous today (0 of 61 declare none), latent
+   until the sweep's own `polwithcheck IS NULL` branch is first exercised.
+3. **Deviation 8's size table is superseded for one row**: `tasks.md + apply-progress.md`
+   measured 287/12 at writer time; the orchestrator's 10.6 note, this Amendment and the
+   WARNING-1 fix land after that measurement, so the authoritative figures are the commit's
+   own `--numstat`, quoted in the PR body. The size:exception decision was made by Edward on
+   the writer's figures plus the forecast miss pattern, and the additions since are more of
+   the same class (gate evidence + amendment), not code.
+
+## Next
+
+The PR-4 delivery decision, which is also the change's close: RDD review, then commit. The
+change's remaining open items are filed rather than pending — **SMELL-94** (the unread
+`Post_projectId_createdAt_idx`), **SMELL-95** (the three unmeasured feed-shaped siblings), and
+**SMELL-91**, which this change names in the gate and does not fix.

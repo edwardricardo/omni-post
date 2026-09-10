@@ -217,6 +217,72 @@ re-run the idempotent `20260907000000_create_omnipost_app_role` migration, which
 re-issues the grants. Confirmed: the four privileges return and the suite goes
 green. Any future plant that touches ownership restores the same way.
 
+### The fourth planted state: a policy that is covered but not UNIFORM
+
+The three states above ask whether row security COVERS a table. A fourth,
+independent axis opened with `tenant-rls-cost-repair`: whether every covered
+policy expresses its tenant predicate in the one canonical InitPlan-wrapped
+form. A policy left in the bare form is fully covered on all three axes above —
+row security on, one policy, non-owner role — and leaks nothing. It re-evaluates
+`current_setting('app.account_id', true)` once per candidate row instead of once
+per statement, which is a cost rather than a hole, and not one of the three gates
+can see it.
+
+The form-uniformity gate — same suite, `describe("form-uniformity gate — every
+enrolled policy, read from the catalog")` — reads `pg_policies.qual` and
+`pg_policies.with_check` for every `tenant_isolation` policy and requires, per
+clause, that the count of GUC reads equals the count of HOISTED GUC reads. The
+expected population is `getTenantScopedModels().size`, never a literal, so it is
+the same 1:1 source the coverage gate uses. Recorded here because this ADR is
+where the reds of this suite live, and a fourth gate whose red lived somewhere
+else would be a fourth gate nobody could audit against the other three.
+
+Its red was planted on `WebhookEvent` and, unlike the three above, it had to be
+**committed**: the suite opens its own connection, so a plant rolled back in the
+planting session is a state the gate can never observe. The restore was proven
+capable of reproducing the exact 5-tuple in a rolled-back dry run BEFORE the
+plant was committed, so the window between commit and restore was never a
+window in which the correct bytes were unknown.
+
+| Planted state                                                 | Batch result                                                                                       | Named by the gate as                                                                                                |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `ALTER POLICY tenant_isolation ON "WebhookEvent"` → bare body | `integration:tenant-isolation 246 tests 245 pass 1 fail 0 cancel 0 skip exit 1 [FAIL]`, exit **1** | `"WebhookEvent" → USING holds 2 un-hoisted GUC read(s) of 2 (0 hoisted)` — and the same line again for `WITH CHECK` |
+
+Verbatim, from the failing batch:
+
+```text
+2 tenant_isolation policy clause(s) are NOT in the canonical InitPlan-wrapped form, out of 61 enrolled policies. A bare GUC read is re-evaluated once per candidate row, which is the cost this form exists to remove:
+  "WebhookEvent" → USING holds 2 un-hoisted GUC read(s) of 2 (0 hoisted) — each bare read is re-evaluated once per candidate row
+      USING:      ((current_setting('app.account_id'::text, true) = '__system__'::text) OR ("accountId" = current_setting('app.account_id'::text, true)))
+      WITH CHECK: ((current_setting('app.account_id'::text, true) = '__system__'::text) OR ("accountId" = current_setting('app.account_id'::text, true)))
+  "WebhookEvent" → WITH CHECK holds 2 un-hoisted GUC read(s) of 2 (0 hoisted) — each bare read is re-evaluated once per candidate row
+```
+
+Restored state: the `WebhookEvent` policy 5-tuple md5 returned to its pre-plant
+value `03eb3ab226fc5de8d14dc207e8068e1e` (planted: `4e1d18b9c49d8084d679bd76e14dcd89`),
+and the WHOLE-catalog 5-tuple digest over all 61 policies returned to
+`70322c28db1c0684897b49e4d70de014` — the value the sweep migration committed —
+so the restore is proven against the whole enrollment rather than only against
+the table that was touched.
+
+### The matcher is read back, never written from migration bytes
+
+The gate's adjacency pattern was derived from the catalog and the derivation
+found a real defect in the obvious spelling. `pg_get_expr` re-prints a policy
+body from the parsed tree, and on this server it emits `( SELECT
+current_setting(` — **with one space** after the parenthesis. Counting
+occurrences of the glued literal `"(select current_setting("` after lowercasing
+and collapsing whitespace therefore matches **zero** times across all 61
+deployed policies: measured, not supposed. A gate written from that literal
+would have red-lined the entire compliant catalog on its first run and taught
+whoever hit it that the gate was wrong rather than that the catalog was.
+
+That is the same failure mode as reading migration source: both assert an intent
+the database does not hold. The pattern the gate ships with tolerates the
+whitespace, and it is the same pattern
+`20260910000200_rls_initplan_sweep`'s own `DO $$` guard uses, so the gate and the
+migration cannot disagree about what "hoisted" means.
+
 ### Why the integration tier and not a fitness grep
 
 `pg_class.relrowsecurity` is database state. The fitness workflow runs no
@@ -226,6 +292,18 @@ already named this suite) and runs in CI's Integration Tests job on every pull
 request against the migrated Postgres service. `CLAUDE.md` §Automated Compliance
 Checks carries a pointer note naming it — a note, not a numbered workflow step,
 so the gate inventory stays complete without pretending a grep can do this.
+
+The form-uniformity gate rides the same wiring for a stronger version of the same
+reason: rendered policy TEXT is not merely database state, it is database state
+the database itself re-writes. No `grep` over `infra/prisma/**` can see that
+`pg_get_expr` adds a `::text` cast and an ` AS current_setting` alias, which is
+precisely the gap between the migration's bytes and the deployed truth. It was
+therefore confirmed — not added — that `run-tests.sh:273` already names this
+suite in the `integration:tenant-isolation` `run_batch` at `:291`, and that
+`ci.yml`'s `test-integration` job runs that batch under `TIER: full-integration`
+on every `pull_request`. **No `fitness.yml` step was created**, for the same
+reason D-S0-4 ruled it out for the coverage gate: a grep step here would be a
+check that measures nothing while reading as coverage.
 
 ## Runtime cutover — the URL split, and the flip it was blocking
 
