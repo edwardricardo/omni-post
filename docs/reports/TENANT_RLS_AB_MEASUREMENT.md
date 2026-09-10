@@ -5588,6 +5588,341 @@ form provides that at any speed, which is why a B′ that had won all three shap
 not have been an argument for replacing A′ — only for pairing with it on tables where the
 column is genuinely not worth carrying.
 
+<!-- BEGIN generated:index-ab -->
+
+## Index shortlist run — four arms over `Post`
+
+Captured 2026-09-10T02:32:54.567Z in 3.4 s. PostgreSQL: PostgreSQL 16.14 (Debian 16.14-1.pgdg12+1). Each arm installs ONE index shape inside a single transaction, reaches `omnipost_app` with `SET LOCAL ROLE` in that same transaction, binds `app.account_id` to `tif-ab-a`, measures every probe, and ROLLS BACK. Nothing is committed: the rollback IS the restore, so there is no repair step that could itself fail, and `Post`'s index inventory is re-read afterwards and compared as `(indexname, indexdef)` tuples.
+
+**This is a SHORTLIST FILTER, not the authoritative capture.** Every number below was taken against an index that exists only inside an open transaction. The winner is committed by its own migration and re-measured against the COMMITTED index before any figure here is quoted as the shipped one.
+
+**Re-run this exact comparison:**
+
+```bash
+node --import tsx --conditions development --env-file=.env \
+  scripts/rls-ab-measurement.ts --index-ab --projects 100 --posts 10000 --runs 3 --repetitions 5
+node --import tsx --conditions development --env-file=.env \
+  scripts/rls-ab-measurement.ts --cleanup
+pnpm exec prettier --write docs/reports/TENANT_RLS_AB_MEASUREMENT.md
+```
+
+### The arms
+
+| Arm   | Shape                | Key                                       | Note                                                                                                                                                                                                                                                      |
+| ----- | -------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `IX0` | as-shipped (control) | `("accountId", "projectId")`              | the live index, untouched — the control this comparison is measured against                                                                                                                                                                               |
+| `IX1` | +createdAt extension | `("accountId", "projectId", "createdAt")` | extends the shipped key with the column every listing orders by, so a plan that takes it can also take its ordering — for a `projectId`-bound scan                                                                                                        |
+| `IX2` | feed shape           | `("accountId", "createdAt")`              | drops `projectId` from the key so `createdAt` LEADS under an accountId-only bind — the account-wide feed's ordering, which the extension cannot supply                                                                                                    |
+| `IX3` | DROP                 | _(no accountId-led index)_                | no accountId-led index at all. A first-class arm: if no candidate measurably beats the control, an index nothing selects is write-path and storage cost with no read behind it, and dropping is the measured answer rather than a failure of the exercise |
+
+Every candidate is partial `WHERE "deletedAt" IS NULL`, because the shipped index is — an arm that dropped the predicate would be measuring a different index as well as a different key. Candidate names follow Prisma's own `Table_col_col_idx` convention, so each arm installs the exact object its migration would install. `CONCURRENTLY` is never used: it cannot run inside a transaction, which is the containment these arms depend on.
+
+### The preconditions that make an in-transaction index believable
+
+An index built inside an open transaction still yielding index-only scans WITHIN that transaction is an inference, not a citation. These three make it evidence instead:
+
+1. **`VACUUM (ANALYZE)` runs BEFORE the arm transaction** — it cannot run inside one — so the visibility map is settled before any arm opens.
+2. **No DML on the measured table inside the arm.** Any write clears visibility-map bits for the pages it touches and silently destroys index-only eligibility. The arms issue DDL, `ANALYZE`, `SET LOCAL ROLE`, `set_config`, the probe statements and their `EXPLAIN`s — nothing else.
+3. **`Heap Fetches: 0` is ASSERTED on every `Index Only Scan` node**, and a non-zero or ABSENT counter aborts the arm rather than being reported as an index-only result.
+
+`ANALYZE "Post"` runs in-transaction in EVERY arm, the control included, so the planner sees statistics refreshed the same way on all four rather than the control alone planning against different bookkeeping.
+
+**What the assertion actually inspected**, so its scope is a measured fact rather than a claim — an assertion with no subjects is a gate that cannot fail, and this run says outright how many it had. The last column is the one that matters for the inference: an index-only scan on a PRE-EXISTING index proves that index-only scans work, which nobody doubted; only one on an index built INSIDE the arm transaction says anything about whether such an index is usable there.
+
+| Arm   | Index-only-scan nodes inspected | On                                 | Of those, on the index THIS ARM BUILT |
+| ----- | ------------------------------- | ---------------------------------- | ------------------------------------- |
+| `IX0` | 15                              | `Project.Project_id_accountId_key` | _(builds none)_                       |
+| `IX1` | 15                              | `Project.Project_id_accountId_key` | 0                                     |
+| `IX2` | 15                              | `Project.Project_id_accountId_key` | 0                                     |
+| `IX3` | 15                              | `Project.Project_id_accountId_key` | _(builds none)_                       |
+
+The assertion inspected **60** index-only-scan node(s) across the arms and every one of them fetched zero heap pages, so no arm was aborted as unrepresentative.
+
+**The inference is NOT fully converted, and the honest statement is the narrow one.** Every index-only scan above is on an index that ALREADY EXISTED when the arm opened; **not one plan took an index-only scan on an index the arm itself built**. So what this run demonstrates is that the visibility map is settled and index-only scans are clean inside the arm transaction — which is the precondition the `VACUUM` and the no-DML rule exist to establish, and it is worth having. What it does NOT demonstrate is the narrower claim that an index built inside an open transaction is itself usable index-only within it: the planner never chose one of those indexes for an index-only scan on this corpus, so the assertion had no chance to observe it. That bounds this mode's validity rather than invalidating it — the arms' figures are ordinary index and sequential scans, which are not subject to the visibility-map question at all — and the winner is re-measured against the COMMITTED index anyway, where the question does not arise. It is recorded because an unconverted inference quietly reported as converted is exactly the defect this assertion was added to prevent.
+
+### Restore proof
+
+`Post`'s index inventory, read from `pg_indexes` before the first arm and again after the last one, compared as `(indexname, indexdef)` TUPLES — the definition travels with the name because an arm re-creating an index under the same name with a different key would leave a name-only proof reporting an identical inventory:
+
+```text
+Post_accountId_projectId_idx :: CREATE INDEX "Post_accountId_projectId_idx" ON public."Post" USING btree ("accountId", "projectId") WHERE ("deletedAt" IS NULL)
+Post_deletedAt_idx :: CREATE INDEX "Post_deletedAt_idx" ON public."Post" USING btree ("deletedAt")
+Post_id_accountId_key :: CREATE UNIQUE INDEX "Post_id_accountId_key" ON public."Post" USING btree (id, "accountId")
+Post_pkey :: CREATE UNIQUE INDEX "Post_pkey" ON public."Post" USING btree (id)
+Post_projectId_archivedAt_idx :: CREATE INDEX "Post_projectId_archivedAt_idx" ON public."Post" USING btree ("projectId", "archivedAt") WHERE ("deletedAt" IS NULL)
+Post_projectId_createdAt_idx :: CREATE INDEX "Post_projectId_createdAt_idx" ON public."Post" USING btree ("projectId", "createdAt") WHERE ("deletedAt" IS NULL)
+Post_projectId_publishedAt_idx :: CREATE INDEX "Post_projectId_publishedAt_idx" ON public."Post" USING btree ("projectId", "publishedAt") WHERE ("deletedAt" IS NULL)
+Post_projectId_scheduledAt_status_idx :: CREATE INDEX "Post_projectId_scheduledAt_status_idx" ON public."Post" USING btree ("projectId", "scheduledAt", status) WHERE ("deletedAt" IS NULL)
+Post_projectId_status_idx :: CREATE INDEX "Post_projectId_status_idx" ON public."Post" USING btree ("projectId", status) WHERE ("deletedAt" IS NULL)
+Post_scheduledAt_idx :: CREATE INDEX "Post_scheduledAt_idx" ON public."Post" USING btree ("scheduledAt") WHERE ("deletedAt" IS NULL)
+```
+
+The two reads are identical, which is what makes the swaps provably transaction-scoped.
+
+### The decision rule, declared before the run
+
+**Computed from the medians below, not typed in.** The rule is applied in code (`decideIndex`), so this section cannot say one thing while its own table says another.
+
+- **The band**: a move is INSIDE it when it is ≤ 6 µs **or** < 1 % of its own baseline — the same band the form run uses, and an OR for the same reason: an absolute-only band calls every sub-millisecond probe out-of-band for a few microseconds of wobble, a relative-only band calls a 7 µs probe a 100 % regression.
+- **The statistic**: the SCAN-NODE median over the POOLED 15 sample(s) — 3 EXPLAIN run(s) × 5 independent sweep(s) — per probe, on that probe's own measured relation.
+- **The direction**: `IX0` (as-shipped) is the baseline; each candidate is the candidate.
+- **Attributability**: a difference counts as the SHAPE's only when it is out of band AND every sweep agreed on its sign. Measured necessity, not caution — six consecutive sweeps of the FORM comparison on this same corpus put one probe anywhere from 111 µs in one arm's favour to 112 µs in the other's. **A single sweep is never sign-stable**: with one sweep there is one sign, so `every sweep agreed` is vacuously true and the test stops testing while still printing `sign-stable` beside a verdict. At `--repetitions 5` this run can attribute a difference; below two it could not.
+- **Admissibility**: an arm is admissible when it has ZERO attributable regressions on an APPLICATION case. A synthetic-shape regression is recorded and adjudicated but does not disqualify — the shapes deliberately omit the predicates the application always supplies, and the form run measured exactly that trap when `S2` regressed 3.5× under both candidate forms while its real counterparts `Q1` and `Q5` got faster.
+- **Measurement first**: among admissible arms with at least one attributable case improvement, the most improvements wins; ties go to the fewest shape regressions.
+- **The tiebreak**, and ONLY when no arm has an attributable case improvement: the pre-declared preference order **IX3 > IX0 > IX2 > IX1** decides among the admissible arms. It is a write-path order, which is the only question left when the reads cannot be told apart: every index is paid for on every `INSERT` and every `UPDATE` of its columns, so DROP is first; the as-shipped control is second because keeping it needs no migration at all; the two replacements come last, narrower before wider. The order is a tiebreak and never overrides a measured regression.
+
+> **This rule was authored before the run that produced the numbers below, and the `tasks.md` entry for this work unit pre-declared no tiebreak of its own** — unlike the form run, whose tiebreak was written into task 2.7. Declaring one afterwards, with the medians already visible, would be choosing the rule that produces the preferred answer. It is recorded as a declared deviation in this change's apply progress.
+
+### The verdict
+
+**`IX1` — +createdAt extension, `("accountId", "projectId", "createdAt")`.**
+
+`IX1` improves 2 application case(s) (Q1, Q5) by an amount attributable to the SHAPE — outside the band AND sign-stable across every sweep — with no attributable case regression, so the measurement decides and the pre-declared preference order does not apply.
+
+| Arm   | Admissible | Case improvements | Case regressions | Shape improvements | Shape regressions |
+| ----- | ---------- | ----------------- | ---------------- | ------------------ | ----------------- |
+| `IX1` | yes        | Q1, Q5            | —                | —                  | —                 |
+| `IX2` | **no**     | Q5                | Q2               | —                  | —                 |
+| `IX3` | **no**     | Q5                | Q2               | —                  | —                 |
+
+**The shipped index `Post_accountId_projectId_idx` was selected under the control arm by**: `Q1`, `Q2`, `Q5` — read from the plans, so the DROP arm's cost is a measured one rather than an assumed one.
+
+### Per-probe delta against the control
+
+Scan-node medians on each probe's own measured relation. `Δ` is `candidate − control`: negative is faster. A move is the SHAPE's only when it is out of band AND its sign held across every sweep, and the two conditions are shown separately so a reader can see which one a probe failed.
+
+| Probe | Kind  | Relation      | Control (ms) | Arm   | Candidate (ms) | Δ         | Δ %      | In band | Sign stable | Effect        |
+| ----- | ----- | ------------- | ------------ | ----- | -------------- | --------- | -------- | ------- | ----------- | ------------- |
+| `S1`  | shape | `Post`        | 0.008        | `IX1` | 0.008          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+| `S1`  | shape | `Post`        | 0.008        | `IX2` | 0.007          | -1.0 µs   | -12.50 % | yes     | no          | —             |
+| `S1`  | shape | `Post`        | 0.008        | `IX3` | 0.009          | 1.0 µs    | 12.50 %  | yes     | no          | —             |
+| `S2`  | shape | `Post`        | 0.016        | `IX1` | 0.016          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+| `S2`  | shape | `Post`        | 0.016        | `IX2` | 0.015          | -1.0 µs   | -6.25 %  | yes     | no          | —             |
+| `S2`  | shape | `Post`        | 0.016        | `IX3` | 0.015          | -1.0 µs   | -6.25 %  | yes     | no          | —             |
+| `S3`  | shape | `Post`        | 4.167        | `IX1` | 4.164          | -3.0 µs   | -0.07 %  | yes     | no          | —             |
+| `S3`  | shape | `Post`        | 4.167        | `IX2` | 4.179          | 12.0 µs   | 0.29 %   | yes     | no          | —             |
+| `S3`  | shape | `Post`        | 4.167        | `IX3` | 4.142          | -25.0 µs  | -0.60 %  | yes     | yes         | —             |
+| `Q1`  | case  | `Post`        | 0.047        | `IX1` | 0.019          | -28.0 µs  | -59.57 % | **no**  | yes         | **improves**  |
+| `Q1`  | case  | `Post`        | 0.047        | `IX2` | 0.066          | 19.0 µs   | 40.43 %  | **no**  | no          | —             |
+| `Q1`  | case  | `Post`        | 0.047        | `IX3` | 0.066          | 19.0 µs   | 40.43 %  | **no**  | no          | —             |
+| `Q2`  | case  | `Post`        | 0.044        | `IX1` | 0.047          | 3.0 µs    | 6.82 %   | yes     | no          | —             |
+| `Q2`  | case  | `Post`        | 0.044        | `IX2` | 0.060          | 16.0 µs   | 36.36 %  | **no**  | yes         | **regresses** |
+| `Q2`  | case  | `Post`        | 0.044        | `IX3` | 0.061          | 17.0 µs   | 38.64 %  | **no**  | yes         | **regresses** |
+| `Q3`  | case  | `Post`        | 4.223        | `IX1` | 4.231          | 8.0 µs    | 0.19 %   | yes     | no          | —             |
+| `Q3`  | case  | `Post`        | 4.223        | `IX2` | 4.205          | -18.0 µs  | -0.43 %  | yes     | yes         | —             |
+| `Q3`  | case  | `Post`        | 4.223        | `IX3` | 4.224          | 1.0 µs    | 0.02 %   | yes     | no          | —             |
+| `Q4`  | case  | `Post`        | 4.052        | `IX1` | 4.065          | 13.0 µs   | 0.32 %   | yes     | no          | —             |
+| `Q4`  | case  | `Post`        | 4.052        | `IX2` | 3.817          | -235.0 µs | -5.80 %  | **no**  | no          | —             |
+| `Q4`  | case  | `Post`        | 4.052        | `IX3` | 4.050          | -2.0 µs   | -0.05 %  | yes     | no          | —             |
+| `Q5`  | case  | `Post`        | 0.048        | `IX1` | 0.019          | -29.0 µs  | -60.42 % | **no**  | yes         | **improves**  |
+| `Q5`  | case  | `Post`        | 0.048        | `IX2` | 0.014          | -34.0 µs  | -70.83 % | **no**  | yes         | **improves**  |
+| `Q5`  | case  | `Post`        | 0.048        | `IX3` | 0.015          | -33.0 µs  | -68.75 % | **no**  | yes         | **improves**  |
+| `Q6`  | case  | `Post`        | 0.086        | `IX1` | 0.087          | 1.0 µs    | 1.16 %   | yes     | no          | —             |
+| `Q6`  | case  | `Post`        | 0.086        | `IX2` | 0.083          | -3.0 µs   | -3.49 %  | yes     | no          | —             |
+| `Q6`  | case  | `Post`        | 0.086        | `IX3` | 0.086          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+| `Q7`  | case  | `Post`        | 0.006        | `IX1` | 0.006          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+| `Q7`  | case  | `Post`        | 0.006        | `IX2` | 0.005          | -1.0 µs   | -16.67 % | yes     | no          | —             |
+| `Q7`  | case  | `Post`        | 0.006        | `IX3` | 0.006          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+| `Q8`  | case  | `Post`        | 0.005        | `IX1` | 0.005          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+| `Q8`  | case  | `Post`        | 0.005        | `IX2` | 0.004          | -1.0 µs   | -20.00 % | yes     | no          | —             |
+| `Q8`  | case  | `Post`        | 0.005        | `IX3` | 0.005          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+| `Q9`  | case  | `PostContent` | 0.088        | `IX1` | 0.086          | -2.0 µs   | -2.27 %  | yes     | no          | —             |
+| `Q9`  | case  | `PostContent` | 0.088        | `IX2` | 0.084          | -4.0 µs   | -4.55 %  | yes     | no          | —             |
+| `Q9`  | case  | `PostContent` | 0.088        | `IX3` | 0.085          | -3.0 µs   | -3.41 %  | yes     | no          | —             |
+| `Q10` | case  | `PostContent` | 0.005        | `IX1` | 0.007          | 2.0 µs    | 40.00 %  | yes     | no          | —             |
+| `Q10` | case  | `PostContent` | 0.005        | `IX2` | 0.005          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+| `Q10` | case  | `PostContent` | 0.005        | `IX3` | 0.005          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+| `Q11` | case  | `PostMedia`   | 0.071        | `IX1` | 0.071          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+| `Q11` | case  | `PostMedia`   | 0.071        | `IX2` | 0.072          | 1.0 µs    | 1.41 %   | yes     | no          | —             |
+| `Q11` | case  | `PostMedia`   | 0.071        | `IX3` | 0.071          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+| `Q12` | case  | `PostMedia`   | 0.071        | `IX1` | 0.071          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+| `Q12` | case  | `PostMedia`   | 0.071        | `IX2` | 0.071          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+| `Q12` | case  | `PostMedia`   | 0.071        | `IX3` | 0.070          | -1.0 µs   | -1.41 %  | yes     | no          | —             |
+| `Q13` | case  | `PostMedia`   | 0.004        | `IX1` | 0.005          | 1.0 µs    | 25.00 %  | yes     | no          | —             |
+| `Q13` | case  | `PostMedia`   | 0.004        | `IX2` | 0.005          | 1.0 µs    | 25.00 %  | yes     | no          | —             |
+| `Q13` | case  | `PostMedia`   | 0.004        | `IX3` | 0.004          | 0.0 µs    | 0.00 %   | yes     | no          | —             |
+
+### The plans, per probe and arm
+
+Node types and index sets travel with the medians, so a plan that MOVED between arms is visible here rather than only in a full tree. A shape that changes the chosen index is a finding even when the rows are identical — and the rows ARE identical: the run refuses to write if any two arms return different ones.
+
+| Probe | Relation      | Arm   | Matched | Scan-node median (ms) | Statement median (ms) | Plan nodes                                            | Indexes                                         |
+| ----- | ------------- | ----- | ------- | --------------------- | --------------------- | ----------------------------------------------------- | ----------------------------------------------- |
+| `S1`  | `Post`        | `IX0` | 1       | **0.008**             | 0.014                 | Index Scan                                            | Post_id_accountId_key                           |
+| `S1`  | `Post`        | `IX1` | 1       | **0.008**             | 0.014                 | Index Scan                                            | Post_id_accountId_key                           |
+| `S1`  | `Post`        | `IX2` | 1       | **0.007**             | 0.011                 | Index Scan                                            | Post_id_accountId_key                           |
+| `S1`  | `Post`        | `IX3` | 1       | **0.009**             | 0.014                 | Index Scan                                            | Post_id_accountId_key                           |
+| `S2`  | `Post`        | `IX0` | 20      | **0.016**             | 0.021                 | Limit → Index Scan                                    | Post_projectId_createdAt_idx                    |
+| `S2`  | `Post`        | `IX1` | 20      | **0.016**             | 0.024                 | Limit → Index Scan                                    | Post_projectId_createdAt_idx                    |
+| `S2`  | `Post`        | `IX2` | 20      | **0.015**             | 0.022                 | Limit → Index Scan                                    | Post_projectId_createdAt_idx                    |
+| `S2`  | `Post`        | `IX3` | 20      | **0.015**             | 0.022                 | Limit → Index Scan                                    | Post_projectId_createdAt_idx                    |
+| `S3`  | `Post`        | `IX0` | 20      | **4.167**             | 5.434                 | Limit → Sort → Seq Scan                               | (none)                                          |
+| `S3`  | `Post`        | `IX1` | 20      | **4.164**             | 5.440                 | Limit → Sort → Seq Scan                               | (none)                                          |
+| `S3`  | `Post`        | `IX2` | 20      | **4.179**             | 5.449                 | Limit → Sort → Seq Scan                               | (none)                                          |
+| `S3`  | `Post`        | `IX3` | 20      | **4.142**             | 5.406                 | Limit → Sort → Seq Scan                               | (none)                                          |
+| `Q1`  | `Post`        | `IX0` | 20      | **0.047**             | 0.073                 | Limit → Sort → Index Scan                             | Post_accountId_projectId_idx                    |
+| `Q1`  | `Post`        | `IX1` | 20      | **0.019**             | 0.027                 | Limit → Index Scan                                    | Post_accountId_projectId_createdAt_idx          |
+| `Q1`  | `Post`        | `IX2` | 20      | **0.066**             | 0.092                 | Limit → Sort → Bitmap Heap Scan → Bitmap Index Scan   | Post_projectId_archivedAt_idx                   |
+| `Q1`  | `Post`        | `IX3` | 20      | **0.066**             | 0.093                 | Limit → Sort → Bitmap Heap Scan → Bitmap Index Scan   | Post_projectId_archivedAt_idx                   |
+| `Q2`  | `Post`        | `IX0` | 100     | **0.044**             | 0.053                 | Aggregate → Index Scan                                | Post_accountId_projectId_idx                    |
+| `Q2`  | `Post`        | `IX1` | 100     | **0.047**             | 0.057                 | Aggregate → Index Scan                                | Post_accountId_projectId_createdAt_idx          |
+| `Q2`  | `Post`        | `IX2` | 100     | **0.060**             | 0.071                 | Aggregate → Bitmap Heap Scan → Bitmap Index Scan      | Post_projectId_archivedAt_idx                   |
+| `Q2`  | `Post`        | `IX3` | 100     | **0.061**             | 0.072                 | Aggregate → Bitmap Heap Scan → Bitmap Index Scan      | Post_projectId_archivedAt_idx                   |
+| `Q3`  | `Post`        | `IX0` | 20      | **4.223**             | 6.677                 | Limit → Sort → Hash Join → Seq Scan → Hash → Seq Scan | (none)                                          |
+| `Q3`  | `Post`        | `IX1` | 20      | **4.231**             | 6.672                 | Limit → Sort → Hash Join → Seq Scan → Hash → Seq Scan | (none)                                          |
+| `Q3`  | `Post`        | `IX2` | 20      | **4.205**             | 6.640                 | Limit → Sort → Hash Join → Seq Scan → Hash → Seq Scan | (none)                                          |
+| `Q3`  | `Post`        | `IX3` | 20      | **4.224**             | 6.655                 | Limit → Sort → Hash Join → Seq Scan → Hash → Seq Scan | (none)                                          |
+| `Q4`  | `Post`        | `IX0` | 9500    | **4.052**             | 5.361                 | Aggregate → Hash Join → Seq Scan → Hash → Seq Scan    | (none)                                          |
+| `Q4`  | `Post`        | `IX1` | 9500    | **4.065**             | 5.362                 | Aggregate → Hash Join → Seq Scan → Hash → Seq Scan    | (none)                                          |
+| `Q4`  | `Post`        | `IX2` | 9500    | **3.817**             | 5.041                 | Aggregate → Hash Join → Seq Scan → Hash → Seq Scan    | (none)                                          |
+| `Q4`  | `Post`        | `IX3` | 9500    | **4.050**             | 5.357                 | Aggregate → Hash Join → Seq Scan → Hash → Seq Scan    | (none)                                          |
+| `Q5`  | `Post`        | `IX0` | 20      | **0.048**             | 0.073                 | Limit → Sort → Index Scan                             | Post_accountId_projectId_idx                    |
+| `Q5`  | `Post`        | `IX1` | 20      | **0.019**             | 0.026                 | Limit → Index Scan                                    | Post_accountId_projectId_createdAt_idx          |
+| `Q5`  | `Post`        | `IX2` | 20      | **0.014**             | 0.020                 | Limit → Index Scan                                    | Post_projectId_createdAt_idx                    |
+| `Q5`  | `Post`        | `IX3` | 20      | **0.015**             | 0.021                 | Limit → Index Scan                                    | Post_projectId_createdAt_idx                    |
+| `Q6`  | `Post`        | `IX0` | 20      | **0.086**             | 0.152                 | Hash Join → Index Scan → Hash → Seq Scan              | Post_pkey                                       |
+| `Q6`  | `Post`        | `IX1` | 20      | **0.087**             | 0.156                 | Hash Join → Index Scan → Hash → Seq Scan              | Post_pkey                                       |
+| `Q6`  | `Post`        | `IX2` | 20      | **0.083**             | 0.151                 | Hash Join → Index Scan → Hash → Seq Scan              | Post_pkey                                       |
+| `Q6`  | `Post`        | `IX3` | 20      | **0.086**             | 0.152                 | Hash Join → Index Scan → Hash → Seq Scan              | Post_pkey                                       |
+| `Q7`  | `Post`        | `IX0` | 1       | **0.006**             | 0.018                 | Limit → Nested Loop → Index Scan → Index Only Scan    | Post_id_accountId_key, Project_id_accountId_key |
+| `Q7`  | `Post`        | `IX1` | 1       | **0.006**             | 0.020                 | Limit → Nested Loop → Index Scan → Index Only Scan    | Post_id_accountId_key, Project_id_accountId_key |
+| `Q7`  | `Post`        | `IX2` | 1       | **0.005**             | 0.018                 | Limit → Nested Loop → Index Scan → Index Only Scan    | Post_id_accountId_key, Project_id_accountId_key |
+| `Q7`  | `Post`        | `IX3` | 1       | **0.006**             | 0.018                 | Limit → Nested Loop → Index Scan → Index Only Scan    | Post_id_accountId_key, Project_id_accountId_key |
+| `Q8`  | `Post`        | `IX0` | 0       | **0.005**             | 0.012                 | Aggregate → Index Scan                                | Post_projectId_status_idx                       |
+| `Q8`  | `Post`        | `IX1` | 0       | **0.005**             | 0.012                 | Aggregate → Index Scan                                | Post_projectId_status_idx                       |
+| `Q8`  | `Post`        | `IX2` | 0       | **0.004**             | 0.011                 | Aggregate → Index Scan                                | Post_projectId_status_idx                       |
+| `Q8`  | `Post`        | `IX3` | 0       | **0.005**             | 0.012                 | Aggregate → Index Scan                                | Post_projectId_status_idx                       |
+| `Q9`  | `PostContent` | `IX0` | 20      | **0.088**             | 0.093                 | Index Scan                                            | PostContent_postId_locale_revision_key          |
+| `Q9`  | `PostContent` | `IX1` | 20      | **0.086**             | 0.090                 | Index Scan                                            | PostContent_postId_locale_revision_key          |
+| `Q9`  | `PostContent` | `IX2` | 20      | **0.084**             | 0.088                 | Index Scan                                            | PostContent_postId_locale_revision_key          |
+| `Q9`  | `PostContent` | `IX3` | 20      | **0.085**             | 0.090                 | Index Scan                                            | PostContent_postId_locale_revision_key          |
+| `Q10` | `PostContent` | `IX0` | 1       | **0.005**             | 0.008                 | Index Scan                                            | PostContent_postId_locale_revision_key          |
+| `Q10` | `PostContent` | `IX1` | 1       | **0.007**             | 0.011                 | Index Scan                                            | PostContent_postId_locale_revision_key          |
+| `Q10` | `PostContent` | `IX2` | 1       | **0.005**             | 0.008                 | Index Scan                                            | PostContent_postId_locale_revision_key          |
+| `Q10` | `PostContent` | `IX3` | 1       | **0.005**             | 0.008                 | Index Scan                                            | PostContent_postId_locale_revision_key          |
+| `Q11` | `PostMedia`   | `IX0` | 6       | **0.071**             | 0.075                 | Index Scan                                            | PostMedia_postId_idx                            |
+| `Q11` | `PostMedia`   | `IX1` | 6       | **0.071**             | 0.075                 | Index Scan                                            | PostMedia_postId_idx                            |
+| `Q11` | `PostMedia`   | `IX2` | 6       | **0.072**             | 0.075                 | Index Scan                                            | PostMedia_postId_idx                            |
+| `Q11` | `PostMedia`   | `IX3` | 6       | **0.071**             | 0.075                 | Index Scan                                            | PostMedia_postId_idx                            |
+| `Q12` | `PostMedia`   | `IX0` | 6       | **0.071**             | 0.079                 | Aggregate → Index Scan                                | PostMedia_postId_idx                            |
+| `Q12` | `PostMedia`   | `IX1` | 6       | **0.071**             | 0.080                 | Aggregate → Index Scan                                | PostMedia_postId_idx                            |
+| `Q12` | `PostMedia`   | `IX2` | 6       | **0.071**             | 0.079                 | Aggregate → Index Scan                                | PostMedia_postId_idx                            |
+| `Q12` | `PostMedia`   | `IX3` | 6       | **0.070**             | 0.079                 | Aggregate → Index Scan                                | PostMedia_postId_idx                            |
+| `Q13` | `PostMedia`   | `IX0` | 1       | **0.004**             | 0.008                 | Index Scan                                            | PostMedia_postId_idx                            |
+| `Q13` | `PostMedia`   | `IX1` | 1       | **0.005**             | 0.008                 | Index Scan                                            | PostMedia_postId_idx                            |
+| `Q13` | `PostMedia`   | `IX2` | 1       | **0.005**             | 0.008                 | Index Scan                                            | PostMedia_postId_idx                            |
+| `Q13` | `PostMedia`   | `IX3` | 1       | **0.004**             | 0.007                 | Index Scan                                            | PostMedia_postId_idx                            |
+
+### The index mechanics, stated rather than implied
+
+With only `accountId` equality-bound — which is what the policy supplies when the query itself names no project — the scanned range of `(accountId, projectId, createdAt)` is ordered by `(projectId, createdAt)`, **not** by `createdAt`. So the `+createdAt` extension does NOT by itself give ordered output for the account-wide feed: Incremental Sort needs a leading sorted key, and B-tree skip scan — which could otherwise hop `projectId`'s distinct values — is a PostgreSQL 18 feature while this server is PostgreSQL 16.14 (Debian 16.14-1.pgdg12+1). `(accountId, createdAt)` is the shape that CAN order that feed, and it is in the arm list for exactly that reason rather than for symmetry.
+
+### The single-corpus caveat
+
+**The measurement rests on one shape** — 100 projects × 10 000 posts, exactly 100 per project — **which is the condition under which the displaced index wins.** A corpus with a different fan-out (a few enormous projects, or thousands of tiny ones) moves the selectivity of every `projectId`-led index in this comparison and can move the verdict with it. This caveat travels with the decision wherever the decision is recorded; it is not a disclaimer about precision, it is the boundary of what was measured.
+
+<!-- END generated:index-ab -->
+
+## Reading the index shortlist run
+
+Hand-written, outside the generated block. Written from the plan tables above, same rule as
+the other reading sections.
+
+### The verdict, and what decided it
+
+**`IX1` — the `+createdAt` extension, `("accountId", "projectId", "createdAt")` partial
+`WHERE "deletedAt" IS NULL`.** The measurement decided it and the pre-declared preference
+order never came into play: `IX1` is the only arm that improves an application case by an
+amount attributable to the shape AND regresses none.
+
+The mechanism is visible in the plan column rather than inferred from the timing. Under the
+as-shipped index, `Q1` and `Q5` run `Limit → Sort → Index Scan`: the shipped
+`("accountId", "projectId")` key carries no ordering, so a `LIMIT 20` over
+`ORDER BY "createdAt" DESC` has to sort first. Under `IX1` both become `Limit → Index Scan`
+with **no Sort node at all** — the extension puts `createdAt` inside the range the query
+already binds, so the index supplies the ordering the sort was manufacturing. That is a
+structural change, not a faster sort: `Q1` 0.047 → 0.019 ms and `Q5` 0.048 → 0.019 ms, with
+every one of the five sweeps agreeing on the sign.
+
+**This is the displacement repair, measured.** The §Reading the after capture section records
+`Q1 ×2.39` and `Q5 ×3.52` as regressions caused by the shipped index displacing the
+`projectId`-led indexes that supplied ordering. The extension is what gives the ordering back
+without giving up the tenant-led key.
+
+### The two candidates that lost, and why they are not close calls
+
+`IX2` and `IX3` are **inadmissible**, and by the same mechanism in both: with no
+`("accountId", "projectId")` prefix available, `Q2`'s count falls from an `Index Scan` to
+`Bitmap Heap Scan → Bitmap Index Scan` on `Post_projectId_archivedAt_idx` and pays 16-17 µs
+for it, sign-stable across all five sweeps. An arm that regresses a real application case does
+not win on the strength of what it improves elsewhere — the rule says so before the numbers,
+and this is the case it was written for.
+
+`IX3` (DROP) deserves its own sentence because the spec makes it a first-class outcome and
+this run does **not** take it. The shipped index is not dead weight on this corpus: it is
+selected by `Q1`, `Q2` and `Q5` under the control arm, read from the plans. Dropping it makes
+`Q5` faster (0.048 → 0.015, the planner falls back to the ordered `Post_projectId_createdAt_idx`)
+and `Q1` and `Q2` slower. DROP was measured, it was admissible as an arm, and it lost on
+evidence rather than on preference.
+
+### Every case that moved outside the band, with its adjudication
+
+Nine case rows moved outside the ≤ 6 µs / < 1 % band. All nine are named here, including the
+ones that are inconvenient for the winner:
+
+| Probe | Arm   | Δ       | Attributable | Adjudication                                                                                                                                                                                                                                          |
+| ----- | ----- | ------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Q1`  | `IX1` | −28 µs  | yes          | **Accepted — this is the repair.** The `Sort` node disappears; the listing reads the index in `createdAt` order.                                                                                                                                      |
+| `Q5`  | `IX1` | −29 µs  | yes          | **Accepted — same mechanism**, on the command-side listing.                                                                                                                                                                                           |
+| `Q5`  | `IX2` | −34 µs  | yes          | **Recorded, and it does not carry `IX2`.** Faster than the winner on this one case, by falling back to `Post_projectId_createdAt_idx`. `IX2` is inadmissible on `Q2` regardless.                                                                      |
+| `Q5`  | `IX3` | −33 µs  | yes          | **Recorded**, same fallback, same disposition.                                                                                                                                                                                                        |
+| `Q2`  | `IX2` | +16 µs  | yes          | **Regression — disqualifies the arm.** `Index Scan` → `Bitmap Heap Scan`; the count loses its `(accountId, projectId)` prefix.                                                                                                                        |
+| `Q2`  | `IX3` | +17 µs  | yes          | **Regression — disqualifies the arm**, identical mechanism.                                                                                                                                                                                           |
+| `Q1`  | `IX2` | +19 µs  | no           | **Recorded as directional, not counted.** The sign flipped across sweeps, so the rule refuses to attribute it — but it points the same way as `Q2`'s attributable regression, and the arm is already out on that.                                     |
+| `Q1`  | `IX3` | +19 µs  | no           | **Same**, same disposition.                                                                                                                                                                                                                           |
+| `Q4`  | `IX2` | −235 µs | no           | **The largest absolute move in the run, and it is credited to nobody.** The sign flipped between sweeps. `Q4` is the same probe that ranged ±112 µs across single sweeps in the form run; it is unstable here for the same reason and the rule holds. |
+
+No synthetic shape moved outside the band under any arm.
+
+### What this corpus could NOT decide: the account-wide feed
+
+The honest bound on this run, and it is a real one. `S3`, `Q3` and `Q4` — the unselective,
+account-wide shapes — run `Seq Scan` under **every** arm, `IX2` included. The
+`("accountId", "createdAt")` shape exists in the arm list precisely to serve that feed, and
+the planner never took it.
+
+That is not evidence that it cannot: **this corpus has two tenants**, so `accountId` selects
+half the table, and no index beats a sequential scan at 50 % selectivity. A production corpus
+with hundreds of tenants makes `accountId` selective, and the same shape could then win the
+feed it lost here. So the feed question is **not decided by this run in either direction**,
+and no later link may read `IX2`'s loss as a finding about `(accountId, createdAt)` on a
+realistic tenant distribution. It is a finding about this corpus.
+
+This compounds with the generated block's mechanics note rather than replacing it: even with
+a selective `accountId`, the `IX1` extension cannot order the account-wide feed, because with
+only `accountId` bound its range is ordered by `("projectId", "createdAt")`. The winner
+repairs the project-scoped listings and leaves the feed exactly where it was, which is what
+the numbers above show and all they show.
+
+### What this section does not claim
+
+- **It is a shortlist filter.** Every figure was taken against an index that existed only
+  inside an open transaction. The winner is committed by its own migration and re-measured
+  against the committed index; that later capture is the authoritative one, and if it
+  disagrees with this section, it wins.
+- **The `Heap Fetches: 0` assertion is only partly converted.** It inspected 60 index-only
+  scans and every one was clean, but all 60 were on a pre-existing index — no plan took an
+  index-only scan on an index an arm built. The generated block states this in full; it is
+  repeated here so a reader of the prose alone does not inherit the stronger claim.
+- **No write-path number.** Every measurement here is a read. A wider index costs more on
+  every `INSERT` and every `UPDATE` of its columns, and this run measures none of that. The
+  extension adds one column to an index that already exists, so the additional cost is small
+  and bounded — but "small and bounded" is reasoning, not a measurement, and it is labelled
+  as such.
+- **Nothing about `Post_projectId_createdAt_idx`'s redundancy is settled here.** `Q5` reaching
+  it under `IX2`/`IX3` shows it is live and useful, which is an input to that separate
+  question, not an answer to it.
+
 ## Completion — Slice 1
 
 Hand-written. The independence statement is a deliverable of this slice, not a summary of it.

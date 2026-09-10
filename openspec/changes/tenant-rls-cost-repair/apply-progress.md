@@ -1,8 +1,9 @@
 # Apply progress: tenant-rls-cost-repair
 
 > **Batch 1** — PR-1a (Phase 1, tasks 1.1–1.10: the six harness advisories) — below.
-> **Batch 2** — PR-1b (Phase 2, tasks 2.1–2.9: the three-arm decision run) — at the end
-> of this file. Phase 3+ deliberately not started. Every number in either batch was
+> **Batch 2** — PR-1b (Phase 2, tasks 2.1–2.9: the three-arm decision run) — further down.
+> **Batch 3** — PR-1c (Phase 3, tasks 3.1–3.8: the four-arm index decision run) — at the
+> end of this file. Phase 4+ deliberately not started. Every number in every batch was
 > observed on this machine; nothing here is inferred from the design.
 
 ## Task ledger
@@ -807,3 +808,353 @@ and this section.
 
 Nothing outside F1 and F2. No git command was run. No migration, no schema change, no
 production query. Phase 3 onward is untouched.
+
+---
+
+# Batch 3 — PR-1c: the four-arm index decision run (Phase 3, tasks 3.1–3.8)
+
+> A SHORTLIST filter. The winner it names is what task 6.1's migration is authored from, and
+> task 6.7 re-measures it against the COMMITTED index. No migration, no schema edit, no
+> production query was touched: the database was read out of band afterwards and still holds
+> the BARE trio form and the as-shipped index, byte-for-byte.
+
+## Task ledger
+
+| Task | State | Evidence                                                                                                              |
+| ---- | ----- | --------------------------------------------------------------------------------------------------------------------- |
+| 3.1  | `[x]` | `--index-ab` mode; arm tx in the design's exact order; plain `DROP INDEX`, never `CONCURRENTLY`                       |
+| 3.2  | `[x]` | four arms `{IX0 control, IX1 +createdAt, IX2 (accountId, createdAt), IX3 DROP}`; DROP measured and LOST on evidence   |
+| 3.3  | `[x]` | RED: planted `INSERT` → `heapFetches: 1` → arm ABORTED, exit 1, nothing written                                       |
+| 3.4  | `[x]` | assertion live on non-zero AND absent counters; conversion is PARTIAL and the report says so                          |
+| 3.5  | `[x]` | `(indexname, indexdef)` tuple proof; RED: name-only proof passes a same-name/different-key swap the tuple proof fails |
+| 3.6  | `[x]` | **`IX1` wins ON MEASUREMENT**, 5 sweeps; 16/16 row-equivalence × 4 arms; all 9 out-of-band case rows adjudicated      |
+| 3.7  | `[x]` | mechanics in the generated block + a SECOND measured bound the task could not have known (two-tenant selectivity)     |
+| 3.8  | `[x]` | gate table below                                                                                                      |
+
+## THE VERDICT (task 3.6)
+
+**`IX1` — `("accountId", "projectId", "createdAt")`, partial `WHERE "deletedAt" IS NULL`.
+It wins ON MEASUREMENT; the pre-declared tiebreak never applied.**
+
+`IX1` is the only arm that improves an application case attributably and regresses none:
+
+| Arm   | Admissible | Case improvements | Case regressions |
+| ----- | ---------- | ----------------- | ---------------- |
+| `IX1` | yes        | `Q1`, `Q5`        | —                |
+| `IX2` | **no**     | `Q5`              | `Q2`             |
+| `IX3` | **no**     | `Q5`              | `Q2`             |
+
+The mechanism is in the plan column, not in the timing. Under the shipped index `Q1`/`Q5` run
+`Limit → Sort → Index Scan` — the `(accountId, projectId)` key carries no ordering, so a
+`LIMIT 20` over `ORDER BY "createdAt" DESC` must sort first. Under `IX1` both become
+`Limit → Index Scan` with **no Sort node**: `Q1` 0.047 → 0.019 ms (−59.6 %), `Q5` 0.048 →
+0.019 ms (−60.4 %), sign-stable across all five sweeps. **That is the displacement repair the
+§after section flagged as `Q1 ×2.39` / `Q5 ×3.52`, now measured with its fix.**
+
+**DROP was a real arm and it lost on evidence, not on preference.** The shipped index IS
+selected under the control by `Q1`, `Q2` and `Q5` (read from the plans, not assumed), and
+dropping it regresses `Q2` by 17 µs sign-stably. `IX2` fails on the same `Q2` mechanism: with
+no `(accountId, projectId)` prefix the count falls to `Bitmap Heap Scan` on
+`Post_projectId_archivedAt_idx`.
+
+## Finding 1 — this corpus CANNOT decide the account-wide feed, in either direction
+
+The most important bound in this batch, and it is not in the tasks.
+
+`S3`, `Q3` and `Q4` — the unselective account-wide shapes — run `Seq Scan` under **every**
+arm, `IX2` included. `(accountId, createdAt)` is in the arm list precisely to serve that feed,
+and the planner never took it.
+
+That is **not** evidence that it cannot: the corpus has **two tenants**, so `accountId`
+selects half the table, and no index beats a sequential scan at 50 % selectivity. A production
+corpus with hundreds of tenants makes `accountId` selective and the same shape could win the
+feed it lost here.
+
+So the feed question is undecided by this run, and the report says so explicitly, because the
+alternative is that a later link reads `IX2`'s loss as a finding about a realistic tenant
+distribution. It compounds with task 3.7's mechanics rather than replacing them: even with a
+selective `accountId`, `IX1` cannot order the account-wide feed, because with only `accountId`
+bound its range is ordered by `("projectId", "createdAt")`. **The winner repairs the
+project-scoped listings and leaves the feed exactly where it was.**
+
+## Finding 2 — the `Heap Fetches` assertion converts the inference only PARTLY
+
+Task 3.4's stated purpose is to convert "an index built inside an open transaction still
+yields index-only scans within it" from an uncited inference into evidence. Measured: it does
+not get all the way there, and reporting otherwise would have been the exact defect the
+assertion was added to prevent.
+
+The authoritative run inspected **60** index-only-scan nodes across the four arms and every
+one reported `Heap Fetches: 0`. But **all 60 are on `Project_id_accountId_key`** — an index
+that already existed when the arm opened. **Not one plan took an index-only scan on an index
+an arm built.** So what is converted is that the visibility map is settled and index-only
+scans are clean inside the arm transaction (the precondition `VACUUM` + no-DML exist to
+establish, worth having). What is NOT converted is the narrower claim about arm-built indexes:
+the planner never chose one for an index-only scan on this corpus, so the assertion had no
+subject for it.
+
+That bounds the mode rather than invalidating it — the arms' figures are ordinary index and
+sequential scans, which the visibility-map question does not touch — and task 6.7 re-measures
+the winner against a committed index, where the question does not arise at all. The audit
+table renders the split PER ARM (`inspected` vs `on the index THIS ARM BUILT`) rather than a
+total that would have read as converted. That column is a repair to my own first renderer,
+which printed "**Not vacuous**: 12 nodes, all clean" over a set containing zero arm-built
+indexes — a true sentence that would have been read as the stronger claim.
+
+## Finding 3 — a single sweep declares vacuous sign-stability, in BOTH deciders
+
+Found in my own new `decideIndex` and traced straight into PR-1b's `decideForm`, which carries
+the identical shape. The first one-sweep dry run of this mode announced:
+
+```
+**`IX1` — +createdAt extension.**
+`IX1` improves 3 application case(s) (Q1, Q4, Q5) by an amount attributable to the SHAPE —
+outside the band AND sign-stable across every sweep — with no attributable case regression,
+so the measurement decides and the pre-declared preference order does not apply.
+```
+
+**"sign-stable across every sweep" over ONE sweep is vacuously true.** With one sweep there is
+exactly one sign, so the test that exists to separate a property of the subject from a
+property of the run stops separating anything while still printing its own name beside a
+verdict. It is PR-1b's Finding 1 wearing the decision rule's clothes.
+
+Repaired in a SHARED helper (`signStability`) used by both deciders rather than in mine alone,
+because a second copy of a rule is a copy that drifts, and the weakness is the rule's, not the
+index run's. Probe output, verbatim — the middle line is the one that matters, because it is
+the proof that **PR-1b's committed verdict is untouched** (it ran at five repetitions):
+
+```
+PROBE signStability — ONE sweep, +20 µs: before=true after=false
+PROBE signStability — five sweeps, all favouring the candidate: before=true after=true
+PROBE signStability — five sweeps, sign flipping: before=false after=false
+```
+
+And the downstream GREEN, the same one-sweep data under the guard:
+
+```
+**`IX3` — DROP.**
+no arm improves an application case by an amount attributable to the shape — every
+candidate's moves are inside the band or sign-unstable — so the shapes are indistinguishable
+on read cost and the PRE-DECLARED preference order decides among the admissible arms
+```
+
+Two different winners from one dataset, decided entirely by whether the rule was allowed to
+lie about stability. The authoritative run uses **five** sweeps for that reason.
+
+## Finding 4 — what the `Heap Fetches` counter can and cannot see
+
+The planted `INSERT` fired the assertion under one arm and left it silent under two others, in
+the SAME run. That is not a flaw in the plant; it is the counter's reach, and it is worth
+stating because it bounds what the no-DML rule protects against:
+
+```
+RED-3.3 probe: arm IX0 Q7 run 1 index-only scans = [{"relation":"Project","index":"Project_id_accountId_key","heapFetches":0}]
+RED-3.3 probe: arm IX1 Q7 run 1 index-only scans = [{"relation":"Project","index":"Project_id_accountId_key","heapFetches":0}]
+RED-3.3 probe: arm IX2 Q7 run 1 index-only scans = [{"relation":"Project","index":"Project_id_accountId_key","heapFetches":1}]
+```
+
+A write clears visibility-map bits **for the pages it touches**, so the counter moves only
+when the plan reads one of those pages. An index-only scan that is a point lookup on an
+untouched page reports zero however much DML the arm did elsewhere. The assertion is therefore
+a real gate (it fired, aborted the arm, and refused to write) but it is not a general DML
+detector — the no-DML rule is what covers the rest, and it is structural: the arm issues DDL,
+`ANALYZE`, `SET LOCAL ROLE`, `set_config`, the probe statements and their `EXPLAIN`s, nothing
+else.
+
+## TDD evidence — every gate born red
+
+Same discipline note as Batches 1 and 2: `scripts/` sits outside every tsconfig project and
+every test collector (**SMELL-91**), and the file executes `main()` at import, so a `vitest`
+suite importing it would connect to the database rather than test a function. The RED for each
+gate is therefore plant → observe → restore, run against the live database.
+
+Pristine harness before any plant:
+`sha256 1c6d49ef36d7bb9c5c7660953268d4c4af9699df2bafb4941a79e240f40ae4c1`. Every plant below
+was removed and the file re-verified with `cmp` + `sha256sum -c` before the next one.
+
+### 3.3 / 3.4 — the planted write, and a real abort
+
+Plant: one `INSERT INTO "Project"` inside the arm transaction, after the posture assert,
+exactly as the task specifies. Observed above in Finding 4; the assertion's own output,
+verbatim, and the run's exit code:
+
+```
+arm IX2 Q7 run 1: an Index Only Scan on `Project_id_accountId_key` (Project) reported
+`Heap Fetches: 1`. The arm is ABORTED as unrepresentative rather than reported as an
+index-only result: the visibility map does not cover the pages this scan read, which is what
+a write inside the arm transaction does, so the figure would be an in-transaction artifact
+quoted as an index-only measurement. NOTHING was written.
+EXIT=1
+```
+
+**Nothing was written** — the scratch report the run was pointed at does not exist
+(`ls: cannot access …/redA.md: No such file or directory`). A real non-zero exit, not an
+annotation.
+
+### 3.5 — the restore proof, red-proven although the task asked only for GREEN
+
+Plant: inside a rolled-back probe transaction, drop the shipped index and re-create it under
+the **same name** with a **different key**. This is 1.4's `with_check` red in index form:
+
+```
+RED-3.5 probe: same-name different-key swap — name-only proof says: IDENTICAL (passes)
+GREEN-3.5 probe: (indexname, indexdef) tuple proof says: DIVERGED (fails)
+GREEN-3.5 probe: BEFORE Post_accountId_projectId_idx :: CREATE INDEX "Post_accountId_projectId_idx" ON public."Post" USING btree ("accountId", "projectId") WHERE ("deletedAt" IS NULL)
+GREEN-3.5 probe: AFTER  Post_accountId_projectId_idx :: CREATE INDEX "Post_accountId_projectId_idx" ON public."Post" USING btree ("accountId", "createdAt") WHERE ("deletedAt" IS NULL)
+```
+
+### The shared refusal gate caught the new mode on its FIRST run
+
+Not a planted red — the gate firing on real data, before any verdict existed. The very first
+`--index-ab` smoke run used a small corpus and was refused:
+
+```
+Q8 declared `missProbe` but matched rows under IX0=10, IX1=10, IX2=10, IX3=10: the corpus has
+moved out from under the probe, so its plan is no longer the empty-bucket plan it claims to
+measure. NOTHING was written.
+```
+
+`Q8`'s empty bucket is its subject and it only stays empty at the documented corpus size. The
+gate is the extracted `assertProbeEquivalence`, shared with the policy arms — which is exactly
+why the index mode inherited a working refusal instead of a fresh copy of one.
+
+## Files written
+
+| File                                                        | Change                                                                                                         |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `scripts/rls-ab-measurement.ts`                             | **+1028 / −55 authored** — see the budget deviation below                                                      |
+| `docs/reports/TENANT_RLS_AB_MEASUREMENT.md`                 | generated §index-ab block (+ its `index-ab` markers) and the hand-written §Reading the index shortlist run     |
+| `openspec/changes/tenant-rls-cost-repair/tasks.md`          | 3.1–3.8 checked with evidence                                                                                  |
+| `openspec/changes/tenant-rls-cost-repair/apply-progress.md` | this Batch 3 section, appended; Batches 1 and 2 and both gate addenda are byte-unchanged apart from the header |
+
+Nothing under `infra/`, `.github/`, `.claude/`, `apps/`, `packages/` was touched. **No
+migration, no schema change, no production query.** No git command was run — the orchestrator
+owns git.
+
+## 0-defect gate (task 3.8)
+
+| Gate                                                    | Result                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workspace `pnpm typecheck`                              | **169/169, exit 0** — 168 cached + `@apps/api` re-run at `--max-old-space-size=6144` (the same LXC heap cap as PR-1a and PR-1b; `scripts/` is not in that program at all)                                                                                   |
+| Standalone script typecheck (SMELL-91)                  | **exit 0**                                                                                                                                                                                                                                                  |
+| `eslint --max-warnings 0 scripts/rls-ab-measurement.ts` | **exit 0**                                                                                                                                                                                                                                                  |
+| Fitness #8 / #9 / #10 / #16 / #23                       | **0 / 0 / 0 / 0 / 0**                                                                                                                                                                                                                                       |
+| `prettier --check` (script + report + openspec)         | **exit 0** — "All matched files use Prettier code style!"                                                                                                                                                                                                   |
+| `pg_indexes` restore proof                              | **green** — before == after as `(indexname, indexdef)` tuples, in the report                                                                                                                                                                                |
+| Row-equivalence hard gate                               | **16/16 probes × 4 arms × 5 sweeps**, whole-row digests, no divergence                                                                                                                                                                                      |
+| Planted reds restored                                   | every plant removed; `cmp` + `sha256sum -c` clean after each                                                                                                                                                                                                |
+| Database left as found                                  | read **out of band** AFTER the run and the cleanup: 61 `tenant_isolation` policies, trio `qual` still BARE with matching halves, `Post` at 10 indexes with the shipped one byte-identical, **zero arm-created leftovers**, `Account` 354, 0 `tif-ab-%` rows |
+
+## Deviations
+
+1. **AUTHORED SIZE 1083 LINES (script +1028 / −55) vs the ~250–330 forecast — over the
+   400-line review budget.** Flagged, not absorbed; the orchestrator owns the decision.
+   Measured distribution: the arm apparatus (`SHIPPED_POST_INDEX` → `runIndexAb`) is ~400
+   lines, `renderIndexAbBlock` ~280, the decision machinery (`INDEX_PREFERENCE_ORDER` →
+   `decideIndex`) ~170, the extracted `assertProbeEquivalence` ~95 (net ~+55 after the
+   deletion from `runPolicyAb`), `signStability` ~22, and the CLI / `ScanNode` / `writePhase`
+   / `main` / scaffold / header wiring ~50. **Recommended seam, if the orchestrator wants
+   one**: PR-1c-i = tasks 3.1–3.5 (the apparatus; ends with a green run that produces per-arm
+   tables and NO verdict) and PR-1c-ii = tasks 3.6–3.7 (the decision: preference order,
+   `decideIndex`, the rendered rule, verdict and delta table, and the report's reading
+   section). **Stated honestly, the split does not buy compliance**: the halves measure ~545
+   and ~472, so both still exceed 400 and the chain pays an extra link for nothing. My
+   recommendation is therefore ONE `size:exception` for PR-1c with the seam recorded above,
+   rather than a split that leaves the same problem in two pieces. **Per the `chained-pr`
+   skill the split is the DEFAULT and the exception needs explicit maintainer acceptance**, so
+   this is a recommendation with its rationale, not a decision taken here.
+
+   **Chain context** (`chained-pr` output contract). Strategy: `auto-chain`, `stacked-to-main`
+   — unchanged from the tasks' forecast. Review budget: **1083** (`additions + deletions`),
+   authored, script only; the regenerated report is excluded per the tasks' own rule, and the
+   hand-written §Reading the index shortlist run adds ~110 authored Markdown lines on top.
+   Boundary: starts at PR-1b's tip (the form verdict `W` committed), ends with the index
+   shortlist verdict recorded; rollback is `git revert` of this link's script hunks plus the
+   report's `index-ab` block — no schema, no migration, no production query, so the arms roll
+   back by construction. Verification plan: the gate table above. Out of scope: committing any
+   index (task 6.1), the trio policy migration (task 4.1), the reshape, the sweep, the gate.
+
+   ```text
+   PR-1a ✅ → PR-1b ✅ → PR-1c 📍 → PR-2 → PR-3 → PR-4
+   (advisories) (form W)  (index IX1) (migrations+reshape) (sweep) (gate)
+   ```
+
+2. **The tasks pre-declared NO tiebreak for the index, unlike task 2.7 for the form.** One was
+   authored BEFORE the run and rendered into the report above the verdict, and it is a
+   write-path preference order (`IX3 > IX0 > IX2 > IX1`) with its reasoning stated: when the
+   reads cannot be told apart, fewer indexes is strictly cheaper on every write, and keeping
+   the shipped shape needs no migration. **It never applied** — `IX1` won on measurement — so
+   it decided nothing in this run, which is the safest possible outcome for a rule the tasks
+   did not pre-declare.
+3. **The arms measure all 16 `AB_PROBES`, not the 13 cases alone.** Additive: `AB_PROBES` is
+   already the list the refusal gates read, and the three synthetic shapes include `S3`, the
+   account-wide feed shape this comparison exists to test. Excluding them would have cost the
+   run its only unselective probe.
+4. **`assertProbeEquivalence` was extracted from `runPolicyAb`, which is PR-1b's verified
+   code.** The alternative was a second copy of the row-equivalence gate — the acceptance
+   criterion of this whole change — in the new mode. The policy path's message bytes are
+   preserved except the one vacuity sentence, which is now parameterised because "a policy
+   that hides everything is trivially fast" is false of an index arm: an index cannot change
+   which rows exist.
+5. **`signStability` also changes `decideForm`.** PR-1b code, changed deliberately (Finding 3).
+   Proven not to move PR-1b's verdict: at five repetitions the old and new logic agree, shown
+   in the probe above, and the committed §policy-ab block was NOT regenerated.
+6. **`ScanNode` gained `indexName`.** One field in `walkPlan`, so the `Heap Fetches` failure
+   can name the offending index instead of only its relation.
+7. **`ANALYZE "Post"` runs in the control arm too**, though the control performs no DDL. Not
+   in the design's arm sketch, which lists it after the DDL: without it the control would be
+   the only arm planning against differently-refreshed statistics, and the comparison would
+   carry that difference silently.
+
+## Residuals — named, not fixed
+
+- **The arm-built-index inference stays unconverted** (Finding 2). Closing it would need a
+  probe the planner answers with an index-only scan on the arm's own index; none of the 16
+  does on this corpus. Task 6.7's committed re-measure makes the question moot for the
+  decision, so it is recorded rather than chased.
+- **The account-wide feed is undecided on this corpus** (Finding 1). Deciding it needs a
+  corpus with a realistic tenant count, which is a different measurement exercise than this
+  change scopes.
+- **`Post_projectId_createdAt_idx`'s redundancy is untouched.** `Q5` reaching it under
+  `IX2`/`IX3` shows it is live and useful — an input to task 10.2's SMELL-94 row, not an
+  answer to it.
+- **SMELL-91** — untouched: `scripts/` is outside every tsconfig project and every collector,
+  so this file's only typecheck is the standalone invocation Batch 1 recorded under §Commands.
+
+## Not done in this batch (by instruction)
+
+Phase 4 onward: every migration, the `listGlobal` reshape, the schema edit, the 58-policy
+sweep, and the form-uniformity gate. `infra/` and `.github/` were not opened.
+
+## Next
+
+`sdd-apply` for **PR-2** (Phase 4, tasks 4.1–4.8 as commit c1), which is the first
+token-gated link. It inherits two decided inputs: the policy form is **`W`** (Batch 2) and the
+index shape is **`IX1` `("accountId", "projectId", "createdAt")` partial
+`WHERE "deletedAt" IS NULL`** (this batch), with `Post_accountId_projectId_createdAt_idx` as
+the name the arm installed and therefore the name task 6.1's migration should create. Task
+6.2's schema docblock must state the MEASURED outcome — the `Sort` elimination on `Q1`/`Q5`,
+the two-tenant bound on the feed, and the single-corpus caveat — and must not restate the
+reasoning the measurement did not test.
+
+## PR-1c fresh gate (2026-09-10) — PASS; one latent defect killed inline
+
+The fresh-context gate PASSED this batch on all eight checks (numstat exact, verdict chain in
+the artifact, corpus caveat routed, Heap-Fetches over-claim refused, the `decideForm` touch
+proven byte-inert for PR-1b's committed verdict, deviations flagged, gates re-run at exit 0)
+with two non-blocking findings, both closed:
+
+1. **Latent `rank()` tie-break on the measurement path — removed by the orchestrator.**
+   `decideIndex`'s contenders sort carried `rank(armId)` as a hidden third key while the basis
+   it emits asserts "the pre-declared preference order does not apply". It never engaged in
+   this run (contenders = `IX1` alone), so the committed verdict and report are untouched and
+   no regeneration is needed — the change is behavior-identical for this data. A residual tie
+   on both declared measurement keys now REFUSES with a recorded message instead of deciding,
+   which is what the declared rule always said. Same defect class as the vacuous
+   sign-stability this batch itself repaired; killed before it could ever fire.
+2. **Relay figure only:** Batch 3's numstat in the phase-agent's summary read +313/−2; the
+   actual is +331/−2. Nothing in the tree carried the wrong figure.
+
+`size:exception` for this link was accepted by Edward (2026-09-10) with the measured
+rationale: the apparatus/decision seam yields ~545/~472 — both over budget — so a split buys
+no compliance and costs a chain link.

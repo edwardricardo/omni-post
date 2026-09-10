@@ -5,8 +5,8 @@
  *   `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` for the hot `Post` listing paths and
  *   the `postId`-led `PostContent` / `PostMedia` child reads, as the non-bypassing
  *   `omnipost_app` role with `app.account_id` bound. `--phase before` writes the
- *   pre-migration capture, `--phase after` the post-migration one, and `--policy-ab`
- *   the A′-vs-B′ policy-form comparison, all three into
+ *   pre-migration capture, `--phase after` the post-migration one, `--policy-ab` the
+ *   policy-form comparison and `--index-ab` the four-arm index shortlist, all four into
  *   `docs/reports/TENANT_RLS_AB_MEASUREMENT.md` between generated markers so the
  *   hand-written sections of that report survive a re-run.
  *
@@ -73,7 +73,10 @@
  *   and it will not call a policy restored on the strength of its `qual` alone (the
  *   proof compares all five attributes that define a policy, because re-creating one
  *   with `USING (...)` and no `WITH CHECK` leaves `qual` identical while silently
- *   changing the write-path predicate).
+ *   changing the write-path predicate). Nor will it report an index arm as an
+ *   index-only result on the strength of the node's name: every `Index Only Scan` an
+ *   arm produces must report `Heap Fetches: 0`, and a non-zero or absent counter aborts
+ *   the arm rather than being quoted.
  *
  * @layer infrastructure
  */
@@ -102,6 +105,13 @@ interface Options {
   readonly seedOnly: boolean;
   /** Run the A′-vs-B′ policy-form comparison and write its own generated block. */
   readonly policyAb: boolean;
+  /**
+   * Run the four-arm index comparison and write its own generated block. A SHORTLIST
+   * filter, not the authoritative capture: every arm builds its index inside a
+   * transaction that is rolled back, so the winner is re-measured against the
+   * COMMITTED index before any number here is quoted as the shipped one.
+   */
+  readonly indexAb: boolean;
   readonly projects: number;
   readonly posts: number;
   readonly runs: number;
@@ -130,6 +140,7 @@ export function parseOptions(argv: readonly string[]): Options {
   let skipSeed = false;
   let seedOnly = false;
   let policyAb = false;
+  let indexAb = false;
   let projects = 100;
   let posts = 10_000;
   let runs = 3;
@@ -167,6 +178,9 @@ export function parseOptions(argv: readonly string[]): Options {
       case "--policy-ab":
         policyAb = true;
         break;
+      case "--index-ab":
+        indexAb = true;
+        break;
       case "--projects":
         projects = positive(flag, argv[(i += 1)]);
         break;
@@ -185,15 +199,15 @@ export function parseOptions(argv: readonly string[]): Options {
       default:
         throw new Error(
           `unknown flag ${String(flag)}. Usage: rls-ab-measurement.ts ` +
-            `[--phase before|after] [--policy-ab] [--cleanup] [--seed-only] [--skip-seed] ` +
-            `[--projects N] [--posts N] [--runs N] [--repetitions N] [--out FILE]`
+            `[--phase before|after] [--policy-ab] [--index-ab] [--cleanup] [--seed-only] ` +
+            `[--skip-seed] [--projects N] [--posts N] [--runs N] [--repetitions N] [--out FILE]`
         );
     }
   }
 
-  if (!cleanup && !seedOnly && !policyAb && phase === null) {
+  if (!cleanup && !seedOnly && !policyAb && !indexAb && phase === null) {
     throw new Error(
-      "nothing to do: pass --phase before|after, --policy-ab, --seed-only, or --cleanup"
+      "nothing to do: pass --phase before|after, --policy-ab, --index-ab, --seed-only, or --cleanup"
     );
   }
   return {
@@ -202,6 +216,7 @@ export function parseOptions(argv: readonly string[]): Options {
     skipSeed,
     seedOnly,
     policyAb,
+    indexAb,
     projects,
     posts,
     runs,
@@ -979,6 +994,8 @@ interface PlanNode {
 interface ScanNode {
   readonly nodeType: string;
   readonly relationName: string;
+  /** The index this node read, when it read one — names the offender in a failure. */
+  readonly indexName: string | null;
   readonly actualTotalTime: number;
   readonly actualLoops: number;
   /** `null` when the node reported none — only index-only scans carry the counter. */
@@ -1012,6 +1029,7 @@ function walkPlan(node: PlanNode | undefined, acc: WalkedPlan = emptyWalk()): Wa
     acc.scanNodes.push({
       nodeType: node["Node Type"] ?? "(unknown)",
       relationName: node["Relation Name"],
+      indexName: typeof node["Index Name"] === "string" ? node["Index Name"] : null,
       actualTotalTime: node["Actual Total Time"] ?? 0,
       actualLoops: node["Actual Loops"] ?? 1,
       heapFetches: typeof node["Heap Fetches"] === "number" ? node["Heap Fetches"] : null,
@@ -1750,6 +1768,79 @@ function poolRepetitions(perRepetition: ReadonlyArray<readonly AbResult[]>): rea
 }
 
 /**
+ * What an arm set varies. It changes ONE sentence of the vacuity refusal, and the
+ * sentence has to be right: a policy that admits nothing is trivially the fastest,
+ * while an index arm cannot change which rows exist at all — an empty probe there
+ * means the corpus moved, not that the arm hid anything.
+ */
+type ArmSubject = "policy form" | "index shape";
+
+const VACUITY_REASON: Readonly<Record<ArmSubject, string>> = {
+  "policy form":
+    "a policy that hides everything is trivially fast, so its timing is not a comparison. ",
+  "index shape":
+    "an index arm cannot change which rows exist, so a probe that matches nothing under one " +
+    "measures an empty lookup rather than an access path. ",
+};
+
+/**
+ * @function assertProbeEquivalence
+ * @description The refusal gate every arm set passes before a single number is
+ *   rendered: no probe may match nothing, no declared miss probe may start matching,
+ *   and no two arms may return DIFFERENT rows for the same probe.
+ *
+ *   It reads EVERY measurement rather than the pooled one. The pooled digest is the
+ *   last repetition's, so checking it alone would let an arm that returned different
+ *   rows in an earlier sweep pass unnoticed.
+ *
+ *   One implementation for both arm sets on purpose. The row-equivalence gate is the
+ *   acceptance criterion of this whole change, and a second copy of it is a copy that
+ *   drifts — the index arms need exactly the check the policy arms already have.
+ * @param everyMeasurement - Every (arm, probe) measurement of every repetition.
+ * @param subject - What the arms vary, for the vacuity message.
+ * @throws Error naming the probe, the arms, and the digests, when any gate fails.
+ */
+function assertProbeEquivalence(everyMeasurement: readonly AbResult[], subject: ArmSubject): void {
+  for (const probe of AB_PROBES) {
+    const forProbe = everyMeasurement.filter((r) => r.probeId === probe.id);
+    // A declared miss probe (`Q8`) is EXPECTED to match nothing, and it binds both
+    // ways: an empty result is the measured subject, and a miss probe that starts
+    // matching rows means the corpus moved out from under the case, so its plan is no
+    // longer the one it claims to measure. `capture()` refuses on exactly this pair.
+    const empty = forProbe.filter((r) => r.matched === 0);
+    if (!probe.missProbe && empty.length > 0) {
+      throw new Error(
+        `${probe.id} matched nothing under ${empty.map((e) => e.armId).join(", ")}: ` +
+          VACUITY_REASON[subject] +
+          "NOTHING was written."
+      );
+    }
+    const live = forProbe.filter((r) => r.matched > 0);
+    if (probe.missProbe && live.length > 0) {
+      throw new Error(
+        `${probe.id} declared \`missProbe\` but matched rows under ` +
+          `${live.map((l) => `${l.armId}=${l.matched}`).join(", ")}: the corpus has moved out ` +
+          "from under the probe, so its plan is no longer the empty-bucket plan it claims to " +
+          "measure. NOTHING was written."
+      );
+    }
+    // The hard gate. Whole-row digests, so a column whose VALUE moved is caught, not
+    // only a row that appeared or vanished. An arm returning different rows is not a
+    // faster answer to this question, it is an answer to a different one.
+    const digests = new Set(forProbe.map((r) => r.digest));
+    if (digests.size > 1) {
+      throw new Error(
+        `${probe.id} returned DIFFERENT rows across the arms, so their timings answer ` +
+          "different questions and cannot be compared: " +
+          forProbe.map((r) => `${r.armId}=${r.matched} matched`).join(", ") +
+          `. Digests: ${forProbe.map((r) => `${r.armId}=${truncate(r.digest, 80)}`).join(" ¦ ")}` +
+          ". NOTHING was written."
+      );
+    }
+  }
+}
+
+/**
  * @function runPolicyAb
  * @description Runs every arm, REPEATEDLY, proves the shipped policy survived, and
  *   refuses to report anything if the arms disagree about WHICH ROWS they let through.
@@ -1814,52 +1905,396 @@ async function runPolicyAb(
         `BEFORE:\n${policiesBefore}\nAFTER:\n${policiesAfter}`
     );
   }
-  // Across every repetition, not only the pooled result: the pooled digest is the last
-  // repetition's, so checking it alone would let an arm that returned different rows in
-  // an earlier sweep pass unnoticed.
-  const everyMeasurement = perRepetition.flat();
-  for (const probe of AB_PROBES) {
-    const forProbe = everyMeasurement.filter((r) => r.probeId === probe.id);
-    // A declared miss probe (`Q8`) is EXPECTED to match nothing, and it binds both
-    // ways: an empty result is the measured subject, and a miss probe that starts
-    // matching rows means the corpus moved out from under the case, so its plan is no
-    // longer the one it claims to measure. `capture()` refuses on exactly this pair.
-    const empty = forProbe.filter((r) => r.matched === 0);
-    if (!probe.missProbe && empty.length > 0) {
-      throw new Error(
-        `${probe.id} matched nothing under ${empty.map((e) => e.armId).join(", ")}: a policy ` +
-          "that hides everything is trivially fast, so its timing is not a comparison. " +
-          "NOTHING was written."
-      );
-    }
-    const live = forProbe.filter((r) => r.matched > 0);
-    if (probe.missProbe && live.length > 0) {
-      throw new Error(
-        `${probe.id} declared \`missProbe\` but matched rows under ` +
-          `${live.map((l) => `${l.armId}=${l.matched}`).join(", ")}: the corpus has moved out ` +
-          "from under the probe, so its plan is no longer the empty-bucket plan it claims to " +
-          "measure. NOTHING was written."
-      );
-    }
-    // The hard gate. Whole-row digests, so a column whose VALUE moved is caught, not
-    // only a row that appeared or vanished. An arm returning different rows is not a
-    // faster answer to this question, it is an answer to a different one.
-    const digests = new Set(forProbe.map((r) => r.digest));
-    if (digests.size > 1) {
-      throw new Error(
-        `${probe.id} returned DIFFERENT rows across the arms, so their timings answer ` +
-          "different questions and cannot be compared: " +
-          forProbe.map((r) => `${r.armId}=${r.matched} matched`).join(", ") +
-          `. Digests: ${forProbe.map((r) => `${r.armId}=${truncate(r.digest, 80)}`).join(" ¦ ")}` +
-          ". NOTHING was written."
-      );
-    }
-  }
+  // Across every repetition, not only the pooled result.
+  assertProbeEquivalence(perRepetition.flat(), "policy form");
   // AFTER the case comparison, deliberately: the ordering is the demonstration. Every
   // case can pass while the two forms disagree about who `__system__` is, and this is
   // the only step that can say so.
   const equivalence = await proveFormEquivalence(owner, ctx);
   return { results, perRepetition, policiesBefore, policiesAfter, equivalence };
+}
+
+/**
+ * The index whose shape this comparison decides: the partial `(accountId, projectId)`
+ * index `Post` carries today. Named once, because the arms DROP it, the restore proof
+ * reads it back, and the report quotes it — three places that must not drift apart.
+ */
+const SHIPPED_POST_INDEX = "Post_accountId_projectId_idx";
+
+/**
+ * One candidate index shape. `drop` and `create` are independent so DROP is a
+ * first-class arm rather than a special case: it drops and creates nothing, which is
+ * the only way "the index buys nothing" can be a MEASURED answer instead of an opinion.
+ *
+ * The control declares neither, so it measures the LIVE index without re-creating it —
+ * the same reason arm `A′` of the form run carries `using: null`. An arm that rebuilt
+ * the shipped index would be comparing three fresh indexes against a fourth fresh one,
+ * and a freshly built index is denser than one that has taken writes.
+ */
+interface IndexArm {
+  readonly id: string;
+  readonly label: string;
+  /** The shape, as a reader sees it. `null` for the arm that leaves `Post` alone. */
+  readonly shape: string | null;
+  readonly note: string;
+  readonly drop: boolean;
+  readonly create: { readonly name: string; readonly columns: string } | null;
+}
+
+/**
+ * The four arms the spec names, all partial `WHERE "deletedAt" IS NULL` — the shipped
+ * index is partial, and an arm that dropped the predicate would be measuring a
+ * different index as well as a different key.
+ *
+ * Candidate names follow Prisma's own `Table_col_col_idx` convention, so an arm
+ * installs the exact object its migration would install rather than a stand-in.
+ */
+const INDEX_ARMS: readonly IndexArm[] = [
+  {
+    id: "IX0",
+    label: "as-shipped (control)",
+    shape: `("accountId", "projectId")`,
+    note: "the live index, untouched — the control this comparison is measured against",
+    drop: false,
+    create: null,
+  },
+  {
+    id: "IX1",
+    label: "+createdAt extension",
+    shape: `("accountId", "projectId", "createdAt")`,
+    note:
+      "extends the shipped key with the column every listing orders by, so a plan that " +
+      "takes it can also take its ordering — for a `projectId`-bound scan",
+    drop: true,
+    create: {
+      name: "Post_accountId_projectId_createdAt_idx",
+      columns: `"accountId", "projectId", "createdAt"`,
+    },
+  },
+  {
+    id: "IX2",
+    label: "feed shape",
+    shape: `("accountId", "createdAt")`,
+    note:
+      "drops `projectId` from the key so `createdAt` LEADS under an accountId-only bind — " +
+      "the account-wide feed's ordering, which the extension cannot supply",
+    drop: true,
+    create: {
+      name: "Post_accountId_createdAt_idx",
+      columns: `"accountId", "createdAt"`,
+    },
+  },
+  {
+    id: "IX3",
+    label: "DROP",
+    shape: null,
+    note:
+      "no accountId-led index at all. A first-class arm: if no candidate measurably beats " +
+      "the control, an index nothing selects is write-path and storage cost with no read " +
+      "behind it, and dropping is the measured answer rather than a failure of the exercise",
+    drop: true,
+    create: null,
+  },
+];
+
+/** One `Index Only Scan` node, reduced to what the precondition assertion needs. */
+interface IndexOnlyScanNode {
+  readonly relation: string;
+  readonly index: string;
+  readonly heapFetches: number | null;
+}
+
+/** Every `Index Only Scan` node of one walked plan. */
+const indexOnlyScans = (walked: WalkedPlan): readonly IndexOnlyScanNode[] =>
+  walked.scanNodes
+    .filter((n) => n.nodeType === "Index Only Scan")
+    .map((n) => ({
+      relation: n.relationName,
+      index: n.indexName ?? "(unnamed)",
+      heapFetches: n.heapFetches,
+    }));
+
+/**
+ * @function assertHeapFetchesZero
+ * @description Aborts the arm unless every `Index Only Scan` it produced fetched ZERO
+ *   heap pages.
+ *
+ *   This is the assertion that converts a premise into evidence. The arms build their
+ *   index inside an open transaction, and "an index built inside an open transaction
+ *   still yields index-only scans within it" is an INFERENCE with no citation behind
+ *   it. An index-only scan is only index-only while the visibility map covers the pages
+ *   it reads; `Heap Fetches` is PostgreSQL's own count of the pages where it did not,
+ *   so a non-zero value means the plan printed as index-only while paying heap cost —
+ *   an in-transaction artifact quoted as an index-only figure.
+ *
+ *   An ABSENT counter fails the same way. `EXPLAIN (ANALYZE)` reports `Heap Fetches` on
+ *   every index-only scan, so its absence means the assertion cannot see its own
+ *   subject, and an assertion that cannot see its subject is not one.
+ * @param nodes - The index-only scan nodes of one plan.
+ * @param context - Arm and probe, for the failure message.
+ * @throws Error when any node reports a non-zero or missing `Heap Fetches`.
+ */
+function assertHeapFetchesZero(nodes: readonly IndexOnlyScanNode[], context: string): void {
+  for (const n of nodes) {
+    if (n.heapFetches === 0) continue;
+    throw new Error(
+      n.heapFetches === null
+        ? `${context}: an Index Only Scan on \`${n.index}\` (${n.relation}) reported NO ` +
+            "`Heap Fetches` counter, so the index-only precondition cannot be checked at all. " +
+            "Failing closed: an assertion that cannot see its subject is not an assertion. " +
+            "NOTHING was written."
+        : `${context}: an Index Only Scan on \`${n.index}\` (${n.relation}) reported ` +
+            `\`Heap Fetches: ${n.heapFetches}\`. The arm is ABORTED as unrepresentative rather ` +
+            "than reported as an index-only result: the visibility map does not cover the pages " +
+            "this scan read, which is what a write inside the arm transaction does, so the " +
+            "figure would be an in-transaction artifact quoted as an index-only measurement. " +
+            "NOTHING was written."
+    );
+  }
+}
+
+/**
+ * @function readPostIndexes
+ * @description Reads `Post`'s index inventory as `(indexname, indexdef)` TUPLES — the
+ *   restore proof for the index arms.
+ *
+ *   The definition travels with the name for the reason the policy proof reads five
+ *   attributes rather than one: an arm re-creating an index under the SAME name with a
+ *   different key would leave a name-only proof reporting an identical inventory.
+ * @param owner - Owner-channel client (catalog read, no tenant scope).
+ * @returns One `name :: definition` line per index, ordered by name.
+ */
+async function readPostIndexes(owner: PrismaClient): Promise<string> {
+  const rows = await owner.$queryRawUnsafe<Array<{ indexname: string; indexdef: string }>>(
+    `SELECT indexname, indexdef FROM pg_indexes
+      WHERE schemaname = 'public' AND tablename = 'Post'
+      ORDER BY indexname`
+  );
+  return rows.map((r) => `${r.indexname} :: ${r.indexdef}`).join("\n");
+}
+
+/** What one index arm measured, plus the audit of the precondition it had to satisfy. */
+interface IndexArmAudit {
+  readonly armId: string;
+  /** Index-only-scan nodes the `Heap Fetches` assertion actually inspected. */
+  readonly inspected: number;
+  /**
+   * How many of those nodes read the index THIS ARM BUILT, which is the only subject
+   * that can convert the in-transaction inference into evidence.
+   *
+   * Counted separately because the totals do not distinguish them and the difference is
+   * the whole claim: an index-only scan on a PRE-EXISTING index proves that index-only
+   * scans work, which nobody doubted. Only an index-only scan on an index created inside
+   * the open transaction says anything about whether such an index is usable there.
+   */
+  readonly onArmCreatedIndex: number;
+  /** The `relation.index` pairs those nodes read — deduplicated, in first-seen order. */
+  readonly onIndexes: readonly string[];
+}
+
+/**
+ * @function runIndexArm
+ * @description Measures every probe under ONE index shape, inside a transaction that is
+ *   ALWAYS rolled back.
+ *
+ *   Same containment as the policy arms and for the same reason: an index swap committed
+ *   on a shared database is a change a crashed process would leave installed, while
+ *   `DROP INDEX` / `CREATE INDEX` are transactional in PostgreSQL, so the rollback IS
+ *   the restore and there is no repair step that could itself fail. `CONCURRENTLY` is
+ *   deliberately NOT used — it cannot run inside a transaction, which is exactly the
+ *   containment this arm depends on.
+ *
+ *   The preconditions that make the numbers believable are structural here rather than
+ *   documented: `vacuumAnalyze()` runs BEFORE the transaction (the caller's job, since
+ *   `VACUUM` cannot run inside one), the arm issues NO DML on the measured table — any
+ *   write would clear visibility-map bits and silently destroy index-only eligibility —
+ *   and every index-only scan the arm produces is asserted to have fetched zero heap
+ *   pages. `ANALYZE` runs in-transaction, in EVERY arm including the control, so the
+ *   planner sees statistics refreshed the same way on all four and the control is not
+ *   the only arm planning against different bookkeeping.
+ * @param owner - Owner-channel client (index DDL needs the table owner).
+ * @param arm - The index shape to install.
+ * @param ctx - Shared tenant/id context.
+ * @param runs - How many EXPLAIN passes per probe.
+ * @returns One result per probe, plus the index-only-scan audit.
+ * @throws Error on a wrong session posture, a non-zero `Heap Fetches`, or any failure
+ *   other than the deliberate rollback.
+ */
+async function runIndexArm(
+  owner: PrismaClient,
+  arm: IndexArm,
+  ctx: Ctx,
+  runs: number
+): Promise<{ results: readonly AbResult[]; audit: IndexArmAudit }> {
+  const results: AbResult[] = [];
+  const onIndexes = new Set<string>();
+  let inspected = 0;
+  let onArmCreatedIndex = 0;
+
+  try {
+    await owner.$transaction(
+      async (tx) => {
+        await tx.$executeRawUnsafe(`SET LOCAL lock_timeout = '5s'`);
+        // Plain `DROP INDEX`, never `IF EXISTS`: an absent shipped index is state drift,
+        // and an arm that shrugged at it would measure a control that is not the control.
+        if (arm.drop) await tx.$executeRawUnsafe(`DROP INDEX "${SHIPPED_POST_INDEX}"`);
+        if (arm.create !== null) {
+          await tx.$executeRawUnsafe(
+            `CREATE INDEX "${arm.create.name}" ON "Post" (${arm.create.columns}) ` +
+              `WHERE "deletedAt" IS NULL`
+          );
+        }
+        await tx.$executeRawUnsafe(`ANALYZE "Post"`);
+        await tx.$executeRawUnsafe(`SET LOCAL ROLE ${APP_ROLE}`);
+        await tx.$executeRawUnsafe(
+          `SELECT set_config('app.account_id', ${lit(ctx.accountId)}, true)`
+        );
+        const [posture] = await tx.$queryRawUnsafe<Array<{ role: string; su: string }>>(
+          `SELECT current_user::text AS role, current_setting('is_superuser') AS su`
+        );
+        if (!posture || posture.role !== APP_ROLE || posture.su !== "off") {
+          throw new Error(
+            `arm ${arm.id} could not reach ${APP_ROLE}: got role=${posture?.role ?? "?"}, ` +
+              `is_superuser=${posture?.su ?? "?"}. A plan taken as the owner carries no policy ` +
+              "qual, so it would compare index shapes under a restriction the application " +
+              "never runs without."
+          );
+        }
+
+        for (const probe of AB_PROBES) {
+          const sql = probe.sql(ctx);
+          const rows = await tx.$queryRawUnsafe<Array<Record<string, unknown>>>(sql);
+          const planningMs: number[] = [];
+          const executionMs: number[] = [];
+          const scanMs: number[] = [];
+          const indexNamesPerRun: string[][] = [];
+          const subplanNamesPerRun: string[][] = [];
+          let lastPlan = "";
+          let walked = emptyWalk();
+          for (let i = 0; i < runs; i += 1) {
+            const raw = await tx.$queryRawUnsafe<Array<Record<string, unknown>>>(
+              `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${sql}`
+            );
+            const value = raw[0]?.["QUERY PLAN"];
+            const parsed = (typeof value === "string" ? JSON.parse(value) : value) as Array<{
+              Plan?: PlanNode;
+              "Planning Time"?: number;
+              "Execution Time"?: number;
+            }>;
+            const root = parsed[0];
+            planningMs.push(root?.["Planning Time"] ?? -1);
+            executionMs.push(root?.["Execution Time"] ?? -1);
+            walked = walkPlan(root?.Plan);
+            const ios = indexOnlyScans(walked);
+            assertHeapFetchesZero(ios, `arm ${arm.id} ${probe.id} run ${i + 1}`);
+            inspected += ios.length;
+            for (const n of ios) {
+              onIndexes.add(`${n.relation}.${n.index}`);
+              if (arm.create !== null && n.index === arm.create.name) onArmCreatedIndex += 1;
+            }
+            scanMs.push(scanTimeMs(walked, probe.measuredTable, `arm ${arm.id} ${probe.id}`));
+            indexNamesPerRun.push([...new Set(walked.indexNames)]);
+            subplanNamesPerRun.push([...walked.subplanNames]);
+            lastPlan = JSON.stringify(parsed, null, 2);
+          }
+          results.push({
+            armId: arm.id,
+            probeId: probe.id,
+            probeKind: probe.kind,
+            measuredTable: probe.measuredTable,
+            digest: rawDigest(rows),
+            rows: rows.length,
+            matched: probe.matched(rows),
+            missProbe: probe.missProbe,
+            planningMs,
+            executionMs,
+            scanMs,
+            nodeTypes: walked.nodeTypes,
+            indexNames: [...new Set(indexNamesPerRun.flat())],
+            indexNamesPerRun,
+            subplanNamesPerRun,
+            plan: lastPlan,
+          });
+        }
+        throw new DeliberateRollback(`the ${arm.id} index swap`);
+      },
+      { timeout: 600_000, maxWait: 30_000 }
+    );
+  } catch (error: unknown) {
+    if (!(error instanceof DeliberateRollback)) throw error;
+  }
+  return {
+    results,
+    audit: { armId: arm.id, inspected, onArmCreatedIndex, onIndexes: [...onIndexes] },
+  };
+}
+
+/**
+ * @function runIndexAb
+ * @description Runs every index arm, REPEATEDLY, proves `Post`'s index inventory came
+ *   back unchanged, and refuses to report anything if the arms disagree about WHICH ROWS
+ *   they returned.
+ *
+ *   Row-equivalence is a stronger claim here than it looks: an index cannot change which
+ *   rows a query is entitled to, so a divergence would mean the corpus moved under the
+ *   run rather than that one shape is "wrong" — and either way the timings would be
+ *   answering different questions.
+ *
+ *   The sweep repeats for the reason the form run's does. A single sweep of the form
+ *   comparison was measured putting one probe anywhere from 111 µs in one arm's favour
+ *   to 112 µs in the other's, and nothing about that instability is specific to
+ *   policies: it is this corpus and this instrument.
+ * @param owner - Owner-channel client.
+ * @param ctx - Shared tenant/id context.
+ * @param runs - EXPLAIN passes per (arm, probe) within one sweep.
+ * @param repetitions - How many independent sweeps to take.
+ * @returns The pooled measurements, the per-sweep measurements the stability analysis
+ *   reads, the before/after index inventory, and the per-arm index-only-scan audit.
+ * @throws Error when the arms disagree, a probe matched nothing, an index-only scan
+ *   fetched heap pages, or `Post`'s index inventory did not come back identical.
+ */
+async function runIndexAb(
+  owner: PrismaClient,
+  ctx: Ctx,
+  runs: number,
+  repetitions: number
+): Promise<{
+  results: readonly AbResult[];
+  perRepetition: ReadonlyArray<readonly AbResult[]>;
+  indexesBefore: string;
+  indexesAfter: string;
+  audits: readonly IndexArmAudit[];
+}> {
+  const indexesBefore = await readPostIndexes(owner);
+  const perRepetition: AbResult[][] = [];
+  const audits: IndexArmAudit[] = [];
+  for (let rep = 0; rep < repetitions; rep += 1) {
+    const ofRepetition: AbResult[] = [];
+    for (const arm of INDEX_ARMS) {
+      const { results: armResults, audit } = await runIndexArm(owner, arm, ctx, runs);
+      ofRepetition.push(...armResults);
+      audits.push(audit);
+      for (const r of armResults) {
+        console.log(
+          `rep ${rep + 1}/${repetitions} ${arm.id} ${r.probeId} — matched ${r.matched} — scan ` +
+            `${r.scanMs.map((v) => v.toFixed(3)).join("/")} ms — ${r.indexNames.join(", ") || "(no index)"}`
+        );
+      }
+    }
+    perRepetition.push(ofRepetition);
+  }
+  const results = poolRepetitions(perRepetition);
+  const indexesAfter = await readPostIndexes(owner);
+
+  if (indexesAfter !== indexesBefore) {
+    throw new Error(
+      "`Post`'s index inventory did not come back unchanged after the arms — the " +
+        "(indexname, indexdef) tuples diverged, so an arm's DDL escaped its rollback. " +
+        `NOTHING was written.\nBEFORE:\n${indexesBefore}\nAFTER:\n${indexesAfter}`
+    );
+  }
+  assertProbeEquivalence(perRepetition.flat(), "index shape");
+  return { results, perRepetition, indexesBefore, indexesAfter, audits };
 }
 
 /**
@@ -2170,6 +2605,29 @@ function classifyBand(baselineMs: number, candidateMs: number): BandVerdict {
   return { deltaMs, deltaRatio, inBand };
 }
 
+/**
+ * @function signStability
+ * @description Whether every sweep agreed on the SIGN of a per-sweep delta series.
+ *
+ *   A SINGLE sweep is never stable, and that is the whole point of the guard rather than
+ *   an edge case tidied away. With one sweep there is exactly one sign, so "every sweep
+ *   agreed" is vacuously true and the rule that exists to separate a property of the
+ *   subject from a property of the run silently stops separating anything — while still
+ *   printing `sign-stable` beside a verdict. Measured on this corpus: six consecutive
+ *   single sweeps of the form comparison announced three different winners, and each of
+ *   them would have been declared sign-stable by a one-sweep reading.
+ *
+ *   A zero delta is unstable too: it has no sign to agree about, and a series that
+ *   crosses zero is the flip this test is looking for.
+ * @param deltaPerSweep - The signed delta of each sweep, in sweep order.
+ * @returns True only when there are at least two sweeps and all agree on a non-zero sign.
+ */
+const signStability = (deltaPerSweep: readonly number[]): boolean => {
+  if (deltaPerSweep.length < 2) return false;
+  const signs = new Set(deltaPerSweep.map((d) => Math.sign(d)));
+  return signs.size === 1 && !signs.has(0);
+};
+
 /** One probe's W-vs-S comparison, plus the control it improves on. */
 interface FormComparison {
   readonly probeId: string;
@@ -2252,8 +2710,7 @@ function decideForm(
     const deltaPerRepetition = perRepetition.map(
       (rep) => medianOf(rep, "S", probe.id) - medianOf(rep, "W", probe.id)
     );
-    const signs = new Set(deltaPerRepetition.map((d) => Math.sign(d)));
-    const signStable = signs.size === 1 && !signs.has(0);
+    const signStable = signStability(deltaPerRepetition);
     const attributable = !band.inBand && signStable;
     return {
       probeId: probe.id,
@@ -2639,6 +3096,503 @@ function renderPolicyAbBlock(
   return out.join("\n");
 }
 
+/**
+ * The PRE-DECLARED preference order, stated here BEFORE the run rather than chosen
+ * after seeing which arm came out ahead. It applies ONLY when no arm has an
+ * attributable improvement — that is, when the measurement cannot separate the shapes
+ * on read cost — and the reasoning is a write-path one, which is the only thing left to
+ * decide on when the reads are indistinguishable:
+ *
+ * 1. **`IX3` DROP** — every index is paid for on every INSERT and every UPDATE of the
+ *    indexed columns, and `Post` is one of this schema's most written tables. An index
+ *    no measured read needs is that cost with nothing behind it.
+ * 2. **`IX0` as-shipped** — second because keeping it needs no migration at all, so if
+ *    dropping is inadmissible the cheapest remaining outcome is to change nothing.
+ * 3. **`IX2` `(accountId, createdAt)`** — a two-column replacement, narrower than (4).
+ * 4. **`IX1` `(accountId, projectId, createdAt)`** — last: the widest key, so the most
+ *    expensive to maintain, and it would be adopted for an ordering benefit the
+ *    measurement did not find.
+ *
+ * An arm is skipped here if it is INADMISSIBLE — see {@link decideIndex}. The order is
+ * a tiebreak, never an override of a measured regression.
+ */
+const INDEX_PREFERENCE_ORDER: readonly string[] = ["IX3", "IX0", "IX2", "IX1"];
+
+/** One probe's candidate-vs-control comparison under one index arm. */
+interface IndexComparison {
+  readonly probeId: string;
+  readonly kind: "shape" | "case";
+  readonly measuredTable: string;
+  readonly controlMs: number;
+  readonly candidateMs: number;
+  /** Control as the baseline, the candidate arm as the candidate. */
+  readonly band: BandVerdict;
+  /** The signed `candidate − control` delta of EACH sweep, in ms, in sweep order. */
+  readonly deltaPerRepetition: readonly number[];
+  readonly signStable: boolean;
+  /** Attributable to the SHAPE only when out of band AND sign-stable. */
+  readonly effect: "improves" | "regresses" | "unattributable";
+}
+
+/** One candidate arm's whole standing against the control. */
+interface IndexArmScore {
+  readonly armId: string;
+  readonly comparisons: readonly IndexComparison[];
+  readonly caseImprovements: readonly string[];
+  readonly caseRegressions: readonly string[];
+  readonly shapeImprovements: readonly string[];
+  readonly shapeRegressions: readonly string[];
+  /** Zero attributable regressions on an APPLICATION case — see {@link decideIndex}. */
+  readonly admissible: boolean;
+}
+
+/** What the shortlist run concluded, and on what basis. */
+interface IndexVerdict {
+  readonly scores: readonly IndexArmScore[];
+  readonly winner: string;
+  readonly basis: string;
+  /** Probes whose CONTROL-arm plans actually selected the shipped index. */
+  readonly shippedIndexUsedBy: readonly string[];
+}
+
+/**
+ * @function decideIndex
+ * @description Applies the shortlist decision rule to the measured medians. The verdict
+ *   is a MEASUREMENT OUTPUT: computed here from the scan-node medians and the
+ *   pre-declared preference order, never typed into the report by hand.
+ *
+ *   The rule, in the order it is applied:
+ *   1. **Attributability**, the same bar the form run uses and for the same measured
+ *      reason: a candidate's difference from the control counts as the SHAPE's only when
+ *      it is outside the band on the pooled medians AND every sweep agreed on its sign.
+ *      A sign that flips between sweeps has measured the run, not the index.
+ *   2. **Admissibility**: an arm is admissible when it has ZERO attributable regressions
+ *      on an APPLICATION case. A regression on a synthetic shape is recorded and
+ *      adjudicated but does not disqualify — the shapes deliberately omit the predicates
+ *      the application always supplies, and the form run already measured that exact
+ *      trap (`S2` regressed 3.5× under both candidate policy forms while its real
+ *      counterparts `Q1` and `Q5` got faster). That carve-out is stated here BEFORE the
+ *      run so it cannot be reached for afterwards to excuse an inconvenient number.
+ *   3. **Measurement wins when it can**: among admissible arms with at least one
+ *      attributable case improvement, the winner is the one with the most; ties go to
+ *      the fewest attributable shape regressions, then to the pre-declared order.
+ *   4. **The tiebreak**, only when no arm has an attributable case improvement: the
+ *      shapes are indistinguishable on read cost and {@link INDEX_PREFERENCE_ORDER}
+ *      decides among the admissible arms. The control is always admissible, so this
+ *      branch always has an answer and never invents one.
+ * @param results - The POOLED (arm, probe) measurements.
+ * @param perRepetition - The same measurements per sweep, for the sign-stability test.
+ * @returns Per-arm scores, the winner, the basis, and the shipped index's measured use.
+ * @throws Error when an arm is missing a probe the others measured.
+ */
+function decideIndex(
+  results: readonly AbResult[],
+  perRepetition: ReadonlyArray<readonly AbResult[]>
+): IndexVerdict {
+  const controlId = (INDEX_ARMS[0] as IndexArm).id;
+  const medianOf = (from: readonly AbResult[], armId: string, probeId: string): number => {
+    const hit = from.find((r) => r.armId === armId && r.probeId === probeId);
+    if (!hit) {
+      throw new Error(
+        `arm ${armId} has no measurement for ${probeId}, so the shapes cannot be compared on ` +
+          "it. A verdict computed over a partial arm is a verdict about whichever probes " +
+          "happened to run."
+      );
+    }
+    return median(hit.scanMs);
+  };
+
+  const scores = INDEX_ARMS.filter((a) => a.id !== controlId).map((arm): IndexArmScore => {
+    const comparisons = AB_PROBES.map((probe): IndexComparison => {
+      const controlMs = medianOf(results, controlId, probe.id);
+      const candidateMs = medianOf(results, arm.id, probe.id);
+      const band = classifyBand(controlMs, candidateMs);
+      const deltaPerRepetition = perRepetition.map(
+        (rep) => medianOf(rep, arm.id, probe.id) - medianOf(rep, controlId, probe.id)
+      );
+      const signStable = signStability(deltaPerRepetition);
+      const attributable = !band.inBand && signStable;
+      return {
+        probeId: probe.id,
+        kind: probe.kind,
+        measuredTable: probe.measuredTable,
+        controlMs,
+        candidateMs,
+        band,
+        deltaPerRepetition,
+        signStable,
+        effect: attributable
+          ? candidateMs < controlMs
+            ? "improves"
+            : "regresses"
+          : "unattributable",
+      };
+    });
+    const pick = (kind: "shape" | "case", effect: "improves" | "regresses"): string[] =>
+      comparisons.filter((c) => c.kind === kind && c.effect === effect).map((c) => c.probeId);
+    const caseRegressions = pick("case", "regresses");
+    return {
+      armId: arm.id,
+      comparisons,
+      caseImprovements: pick("case", "improves"),
+      caseRegressions,
+      shapeImprovements: pick("shape", "improves"),
+      shapeRegressions: pick("shape", "regresses"),
+      admissible: caseRegressions.length === 0,
+    };
+  });
+
+  const shippedIndexUsedBy = results
+    .filter((r) => r.armId === controlId && r.indexNamesPerRun.flat().includes(SHIPPED_POST_INDEX))
+    .map((r) => r.probeId);
+
+  const rank = (armId: string): number => {
+    const at = INDEX_PREFERENCE_ORDER.indexOf(armId);
+    return at === -1 ? INDEX_PREFERENCE_ORDER.length : at;
+  };
+  const contenders = scores.filter((s) => s.admissible && s.caseImprovements.length > 0);
+  if (contenders.length > 0) {
+    // The pre-declared preference order is reserved for the no-improvement path below.
+    // Carrying it as a hidden third sort key HERE would let it break a tie on the very
+    // path whose emitted basis asserts it does not apply — so a residual tie on both
+    // declared measurement keys REFUSES instead of deciding.
+    const sorted = [...contenders].sort(
+      (a, b) =>
+        b.caseImprovements.length - a.caseImprovements.length ||
+        a.shapeRegressions.length - b.shapeRegressions.length
+    );
+    const best = sorted[0] as IndexArmScore;
+    const runnerUp = sorted[1];
+    if (
+      runnerUp !== undefined &&
+      runnerUp.caseImprovements.length === best.caseImprovements.length &&
+      runnerUp.shapeRegressions.length === best.shapeRegressions.length
+    ) {
+      throw new Error(
+        `index verdict REFUSED: arms ${best.armId} and ${runnerUp.armId} tie on both declared ` +
+          "measurement keys (attributable case improvements, shape regressions). The declared " +
+          "rule reserves the preference order for the no-improvement path, so deciding here " +
+          "would contradict the emitted basis. Record the ambiguity and re-run with a corpus " +
+          "that separates the arms."
+      );
+    }
+    return {
+      scores,
+      shippedIndexUsedBy,
+      winner: best.armId,
+      basis:
+        `\`${best.armId}\` improves ${best.caseImprovements.length} application case(s) ` +
+        `(${best.caseImprovements.join(", ")}) by an amount attributable to the SHAPE — outside ` +
+        "the band AND sign-stable across every sweep — with no attributable case regression, so " +
+        "the measurement decides and the pre-declared preference order does not apply",
+    };
+  }
+  const inadmissible = scores.filter((s) => !s.admissible);
+  const admissibleIds = [controlId, ...scores.filter((s) => s.admissible).map((s) => s.armId)];
+  const winner = [...admissibleIds].sort((a, b) => rank(a) - rank(b))[0] as string;
+  return {
+    scores,
+    shippedIndexUsedBy,
+    winner,
+    basis:
+      "no arm improves an application case by an amount attributable to the shape — " +
+      (inadmissible.length === 0
+        ? "every candidate's moves are inside the band or sign-unstable"
+        : `${inadmissible.map((s) => `\`${s.armId}\` regresses ${s.caseRegressions.join(", ")}`).join("; ")}, ` +
+          "and the remaining candidates' moves are inside the band or sign-unstable") +
+      ` — so the shapes are indistinguishable on read cost and the PRE-DECLARED preference ` +
+      `order decides among the admissible arms (${admissibleIds.join(" > ")} ranked as ` +
+      `${INDEX_PREFERENCE_ORDER.join(" > ")})`,
+  };
+}
+
+/**
+ * Render the index shortlist: the preconditions with their audit, the restore proof, the
+ * decision rule, the computed verdict, and the per-probe deltas against the control.
+ */
+function renderIndexAbBlock(
+  opts: Options,
+  measured: Awaited<ReturnType<typeof runIndexAb>>,
+  meta: { pgVersion: string; startedAt: string; wallMs: number }
+): string {
+  const verdict = decideIndex(measured.results, measured.perRepetition);
+  const us = (ms: number): string => `${(ms * 1000).toFixed(1)} µs`;
+  const pct = (ratio: number | null): string =>
+    ratio === null ? "n/a" : `${(ratio * 100).toFixed(2)} %`;
+  const armById = (id: string): IndexArm =>
+    INDEX_ARMS.find((a) => a.id === id) ?? (INDEX_ARMS[0] as IndexArm);
+  const controlId = (INDEX_ARMS[0] as IndexArm).id;
+  const inspectedTotal = measured.audits.reduce((sum, a) => sum + a.inspected, 0);
+  const ownIndexTotal = measured.audits.reduce((sum, a) => sum + a.onArmCreatedIndex, 0);
+  const winnerArm = armById(verdict.winner);
+
+  const out: string[] = [
+    "## Index shortlist run — four arms over `Post`",
+    "",
+    `Captured ${meta.startedAt} in ${(meta.wallMs / 1000).toFixed(1)} s. ` +
+      `PostgreSQL: ${meta.pgVersion}. Each arm installs ONE index shape inside a single ` +
+      "transaction, reaches `omnipost_app` with `SET LOCAL ROLE` in that same transaction, " +
+      `binds \`app.account_id\` to \`${TENANTS[0]}\`, measures every probe, and ROLLS BACK. ` +
+      "Nothing is committed: the rollback IS the restore, so there is no repair step that " +
+      "could itself fail, and `Post`'s index inventory is re-read afterwards and compared as " +
+      "`(indexname, indexdef)` tuples.",
+    "",
+    "**This is a SHORTLIST FILTER, not the authoritative capture.** Every number below was " +
+      "taken against an index that exists only inside an open transaction. The winner is " +
+      "committed by its own migration and re-measured against the COMMITTED index before any " +
+      "figure here is quoted as the shipped one.",
+    "",
+    "**Re-run this exact comparison:**",
+    "",
+    "```bash",
+    "node --import tsx --conditions development --env-file=.env \\",
+    `  scripts/rls-ab-measurement.ts --index-ab --projects ${opts.projects} --posts ${opts.posts} --runs ${opts.runs} --repetitions ${opts.repetitions}`,
+    "node --import tsx --conditions development --env-file=.env \\",
+    "  scripts/rls-ab-measurement.ts --cleanup",
+    "pnpm exec prettier --write docs/reports/TENANT_RLS_AB_MEASUREMENT.md",
+    "```",
+    "",
+    "### The arms",
+    "",
+    "| Arm | Shape | Key | Note |",
+    "| --- | ----- | --- | ---- |",
+    ...INDEX_ARMS.map(
+      (a) =>
+        `| \`${a.id}\` | ${a.label} | ${a.shape === null ? "_(no accountId-led index)_" : `\`${mdCell(a.shape)}\``} | ${a.note} |`
+    ),
+    "",
+    `Every candidate is partial \`WHERE "deletedAt" IS NULL\`, because the shipped index is ` +
+      "— an arm that dropped the predicate would be measuring a different index as well as a " +
+      "different key. Candidate names follow Prisma's own `Table_col_col_idx` convention, so " +
+      "each arm installs the exact object its migration would install. `CONCURRENTLY` is " +
+      "never used: it cannot run inside a transaction, which is the containment these arms " +
+      "depend on.",
+    "",
+    "### The preconditions that make an in-transaction index believable",
+    "",
+    "An index built inside an open transaction still yielding index-only scans WITHIN that " +
+      "transaction is an inference, not a citation. These three make it evidence instead:",
+    "",
+    `1. **\`VACUUM (ANALYZE)\` runs BEFORE the arm transaction** — it cannot run inside one — ` +
+      "so the visibility map is settled before any arm opens.",
+    "2. **No DML on the measured table inside the arm.** Any write clears visibility-map bits " +
+      "for the pages it touches and silently destroys index-only eligibility. The arms issue " +
+      "DDL, `ANALYZE`, `SET LOCAL ROLE`, `set_config`, the probe statements and their " +
+      "`EXPLAIN`s — nothing else.",
+    "3. **`Heap Fetches: 0` is ASSERTED on every `Index Only Scan` node**, and a non-zero or " +
+      "ABSENT counter aborts the arm rather than being reported as an index-only result.",
+    "",
+    `\`ANALYZE "Post"\` runs in-transaction in EVERY arm, the control included, so the planner ` +
+      "sees statistics refreshed the same way on all four rather than the control alone " +
+      "planning against different bookkeeping.",
+    "",
+    "**What the assertion actually inspected**, so its scope is a measured fact rather than a " +
+      "claim — an assertion with no subjects is a gate that cannot fail, and this run says " +
+      "outright how many it had. The last column is the one that matters for the inference: " +
+      "an index-only scan on a PRE-EXISTING index proves that index-only scans work, which " +
+      "nobody doubted; only one on an index built INSIDE the arm transaction says anything " +
+      "about whether such an index is usable there.",
+    "",
+    "| Arm | Index-only-scan nodes inspected | On | Of those, on the index THIS ARM BUILT |",
+    "| --- | ------------------------------- | -- | ------------------------------------- |",
+    ...INDEX_ARMS.map((arm) => {
+      const forArm = measured.audits.filter((a) => a.armId === arm.id);
+      const inspected = forArm.reduce((sum, a) => sum + a.inspected, 0);
+      const own = forArm.reduce((sum, a) => sum + a.onArmCreatedIndex, 0);
+      const on = [...new Set(forArm.flatMap((a) => a.onIndexes))];
+      return (
+        `| \`${arm.id}\` | ${inspected} | ${on.map((n) => `\`${n}\``).join(", ") || "(none)"} | ` +
+        `${arm.create === null ? "_(builds none)_" : own} |`
+      );
+    }),
+    "",
+    inspectedTotal === 0
+      ? "**VACUOUS — read this before believing any index-only claim in this section.** Not one " +
+        "`Index Only Scan` node appeared under any arm, so the `Heap Fetches: 0` assertion had " +
+        "NO subject and proved nothing at all. No figure here may be read as an index-only " +
+        "result."
+      : `The assertion inspected **${inspectedTotal}** index-only-scan node(s) across the arms ` +
+        "and every one of them fetched zero heap pages, so no arm was aborted as " +
+        "unrepresentative.",
+    "",
+    ownIndexTotal === 0
+      ? "**The inference is NOT fully converted, and the honest statement is the narrow one.** " +
+        "Every index-only scan above is on an index that ALREADY EXISTED when the arm opened; " +
+        "**not one plan took an index-only scan on an index the arm itself built**. So what " +
+        "this run demonstrates is that the visibility map is settled and index-only scans are " +
+        "clean inside the arm transaction — which is the precondition the `VACUUM` and the " +
+        "no-DML rule exist to establish, and it is worth having. What it does NOT demonstrate " +
+        "is the narrower claim that an index built inside an open transaction is itself usable " +
+        "index-only within it: the planner never chose one of those indexes for an index-only " +
+        "scan on this corpus, so the assertion had no chance to observe it. That bounds this " +
+        "mode's validity rather than invalidating it — the arms' figures are ordinary index and " +
+        "sequential scans, which are not subject to the visibility-map question at all — and " +
+        "the winner is re-measured against the COMMITTED index anyway, where the question does " +
+        "not arise. It is recorded because an unconverted inference quietly reported as " +
+        "converted is exactly the defect this assertion was added to prevent."
+      : `**The inference IS converted**: **${ownIndexTotal}** of those nodes took an index-only ` +
+        "scan on an index the arm BUILT inside the open transaction, and every one reported " +
+        "`Heap Fetches: 0`. That an index created in an open transaction still yields " +
+        "index-only scans within it is evidence on this corpus and this server, not an " +
+        "uncited premise.",
+    "",
+    "### Restore proof",
+    "",
+    "`Post`'s index inventory, read from `pg_indexes` before the first arm and again after " +
+      "the last one, compared as `(indexname, indexdef)` TUPLES — the definition travels with " +
+      "the name because an arm re-creating an index under the same name with a different key " +
+      "would leave a name-only proof reporting an identical inventory:",
+    "",
+    "```text",
+    measured.indexesBefore,
+    "```",
+    "",
+    measured.indexesAfter === measured.indexesBefore
+      ? "The two reads are identical, which is what makes the swaps provably transaction-scoped."
+      : "THE TWO READS DIFFER — see the run's own failure, which refuses to write this block.",
+    "",
+    "### The decision rule, declared before the run",
+    "",
+    "**Computed from the medians below, not typed in.** The rule is applied in code " +
+      "(`decideIndex`), so this section cannot say one thing while its own table says another.",
+    "",
+    `- **The band**: a move is INSIDE it when it is ≤ ${BAND_ABSOLUTE_MS * 1000} µs **or** ` +
+      `< ${BAND_RELATIVE * 100} % of its own baseline — the same band the form run uses, and ` +
+      "an OR for the same reason: an absolute-only band calls every sub-millisecond probe " +
+      "out-of-band for a few microseconds of wobble, a relative-only band calls a 7 µs probe " +
+      "a 100 % regression.",
+    `- **The statistic**: the SCAN-NODE median over the POOLED ${opts.runs * opts.repetitions} ` +
+      `sample(s) — ${opts.runs} EXPLAIN run(s) × ${opts.repetitions} independent sweep(s) — per ` +
+      "probe, on that probe's own measured relation.",
+    `- **The direction**: \`${controlId}\` (as-shipped) is the baseline; each candidate is the ` +
+      "candidate.",
+    "- **Attributability**: a difference counts as the SHAPE's only when it is out of band AND " +
+      "every sweep agreed on its sign. Measured necessity, not caution — six consecutive " +
+      "sweeps of the FORM comparison on this same corpus put one probe anywhere from 111 µs " +
+      "in one arm's favour to 112 µs in the other's. **A single sweep is never sign-stable**: " +
+      "with one sweep there is one sign, so `every sweep agreed` is vacuously true and the " +
+      "test stops testing while still printing `sign-stable` beside a verdict. At " +
+      `\`--repetitions ${opts.repetitions}\` this run ` +
+      (opts.repetitions < 2
+        ? "**cannot attribute anything**, and every verdict below therefore falls to the tiebreak."
+        : "can attribute a difference; below two it could not."),
+    "- **Admissibility**: an arm is admissible when it has ZERO attributable regressions on an " +
+      "APPLICATION case. A synthetic-shape regression is recorded and adjudicated but does not " +
+      "disqualify — the shapes deliberately omit the predicates the application always " +
+      "supplies, and the form run measured exactly that trap when `S2` regressed 3.5× under " +
+      "both candidate forms while its real counterparts `Q1` and `Q5` got faster.",
+    "- **Measurement first**: among admissible arms with at least one attributable case " +
+      "improvement, the most improvements wins; ties go to the fewest shape regressions.",
+    `- **The tiebreak**, and ONLY when no arm has an attributable case improvement: the ` +
+      `pre-declared preference order **${INDEX_PREFERENCE_ORDER.join(" > ")}** decides among ` +
+      "the admissible arms. It is a write-path order, which is the only question left when " +
+      "the reads cannot be told apart: every index is paid for on every `INSERT` and every " +
+      "`UPDATE` of its columns, so DROP is first; the as-shipped control is second because " +
+      "keeping it needs no migration at all; the two replacements come last, narrower before " +
+      "wider. The order is a tiebreak and never overrides a measured regression.",
+    "",
+    "> **This rule was authored before the run that produced the numbers below, and the " +
+      "`tasks.md` entry for this work unit pre-declared no tiebreak of its own** — unlike the " +
+      "form run, whose tiebreak was written into task 2.7. Declaring one afterwards, with the " +
+      "medians already visible, would be choosing the rule that produces the preferred answer. " +
+      "It is recorded as a declared deviation in this change's apply progress.",
+    "",
+    "### The verdict",
+    "",
+    `**\`${verdict.winner}\` — ${winnerArm.label}${winnerArm.shape === null ? "" : `, \`${winnerArm.shape}\``}.**`,
+    "",
+    `${verdict.basis}.`,
+    "",
+    "| Arm | Admissible | Case improvements | Case regressions | Shape improvements | Shape regressions |",
+    "| --- | ---------- | ----------------- | ---------------- | ------------------ | ----------------- |",
+    ...verdict.scores.map(
+      (s) =>
+        `| \`${s.armId}\` | ${s.admissible ? "yes" : "**no**"} | ` +
+        `${s.caseImprovements.join(", ") || "—"} | ${s.caseRegressions.join(", ") || "—"} | ` +
+        `${s.shapeImprovements.join(", ") || "—"} | ${s.shapeRegressions.join(", ") || "—"} |`
+    ),
+    "",
+    verdict.shippedIndexUsedBy.length === 0
+      ? `**The shipped index \`${SHIPPED_POST_INDEX}\` was selected by NO probe's plan under ` +
+        "the control arm.** Measured from the plans, not argued: across every probe and every " +
+        "run of the as-shipped arm, no plan named it. An index no measured plan selects is " +
+        "paid for on every write and read by nothing."
+      : `**The shipped index \`${SHIPPED_POST_INDEX}\` was selected under the control arm by**: ` +
+        `${verdict.shippedIndexUsedBy.map((p) => `\`${p}\``).join(", ")} — read from the plans, ` +
+        "so the DROP arm's cost is a measured one rather than an assumed one.",
+    "",
+    "### Per-probe delta against the control",
+    "",
+    "Scan-node medians on each probe's own measured relation. `Δ` is `candidate − control`: " +
+      "negative is faster. A move is the SHAPE's only when it is out of band AND its sign held " +
+      "across every sweep, and the two conditions are shown separately so a reader can see " +
+      "which one a probe failed.",
+    "",
+    "| Probe | Kind | Relation | Control (ms) | Arm | Candidate (ms) | Δ | Δ % | In band | Sign stable | Effect |",
+    "| ----- | ---- | -------- | ------------ | --- | -------------- | - | --- | ------- | ----------- | ------ |",
+  ];
+  for (const probe of AB_PROBES) {
+    for (const score of verdict.scores) {
+      const c = score.comparisons.find((x) => x.probeId === probe.id);
+      if (!c) continue;
+      out.push(
+        `| \`${c.probeId}\` | ${c.kind} | \`${c.measuredTable}\` | ${c.controlMs.toFixed(3)} | ` +
+          `\`${score.armId}\` | ${c.candidateMs.toFixed(3)} | ${us(c.band.deltaMs)} | ` +
+          `${pct(c.band.deltaRatio)} | ${c.band.inBand ? "yes" : "**no**"} | ` +
+          `${c.signStable ? "yes" : "no"} | ${c.effect === "unattributable" ? "—" : `**${c.effect}**`} |`
+      );
+    }
+  }
+
+  out.push(
+    "",
+    "### The plans, per probe and arm",
+    "",
+    "Node types and index sets travel with the medians, so a plan that MOVED between arms is " +
+      "visible here rather than only in a full tree. A shape that changes the chosen index is " +
+      "a finding even when the rows are identical — and the rows ARE identical: the run " +
+      "refuses to write if any two arms return different ones.",
+    "",
+    "| Probe | Relation | Arm | Matched | Scan-node median (ms) | Statement median (ms) | Plan nodes | Indexes |",
+    "| ----- | -------- | --- | ------- | --------------------- | --------------------- | ---------- | ------- |"
+  );
+  for (const probe of AB_PROBES) {
+    for (const r of measured.results.filter((x) => x.probeId === probe.id)) {
+      out.push(
+        `| \`${r.probeId}\` | \`${r.measuredTable}\` | \`${r.armId}\` | ${r.matched} | ` +
+          `**${median(r.scanMs).toFixed(3)}** | ${median(r.executionMs).toFixed(3)} | ` +
+          `${r.nodeTypes.join(" → ") || "(none)"} | ${r.indexNames.join(", ") || "(none)"} |`
+      );
+    }
+  }
+
+  out.push(
+    "",
+    "### The index mechanics, stated rather than implied",
+    "",
+    "With only `accountId` equality-bound — which is what the policy supplies when the query " +
+      "itself names no project — the scanned range of `(accountId, projectId, createdAt)` is " +
+      "ordered by `(projectId, createdAt)`, **not** by `createdAt`. So the `+createdAt` " +
+      "extension does NOT by itself give ordered output for the account-wide feed: Incremental " +
+      "Sort needs a leading sorted key, and B-tree skip scan — which could otherwise hop " +
+      "`projectId`'s distinct values — is a PostgreSQL 18 feature while this server is " +
+      `${meta.pgVersion}. \`(accountId, createdAt)\` is the shape that CAN order that feed, ` +
+      "and it is in the arm list for exactly that reason rather than for symmetry.",
+    "",
+    "### The single-corpus caveat",
+    "",
+    "**The measurement rests on one shape** — 100 projects × 10 000 posts, exactly 100 per " +
+      "project — **which is the condition under which the displaced index wins.** A corpus " +
+      "with a different fan-out (a few enormous projects, or thousands of tiny ones) moves " +
+      "the selectivity of every `projectId`-led index in this comparison and can move the " +
+      "verdict with it. This caveat travels with the decision wherever the decision is " +
+      "recorded; it is not a disclaimer about precision, it is the boundary of what was " +
+      "measured.",
+    ""
+  );
+  return out.join("\n");
+}
+
 const SCAFFOLD = `# Tenant isolation — Post trio A/B measurement
 
 > Generated by \`scripts/rls-ab-measurement.ts\`. The two capture sections below are
@@ -2690,6 +3644,14 @@ _Not captured yet._
 
 <!-- END generated:policy-ab -->
 
+<!-- BEGIN generated:index-ab -->
+
+## Index shortlist run — four arms over \`Post\`
+
+_Not captured yet._
+
+<!-- END generated:index-ab -->
+
 ## Spike — Prisma shared-scalar relation pattern
 
 _Not recorded yet._
@@ -2724,11 +3686,16 @@ function isEnoent(error: unknown): boolean {
  *   but never a half-written file — and this report's hand-written sections are not
  *   recoverable from anywhere else.
  * @param path - Report path.
- * @param phase - Which block to replace: a capture phase, or the policy-form comparison.
+ * @param phase - Which block to replace: a capture phase, the policy-form comparison, or
+ *   the index shortlist.
  * @param body - Rendered Markdown for that block.
  * @throws Error when the markers are missing from an existing report.
  */
-function writePhase(path: string, phase: "before" | "after" | "policy-ab", body: string): void {
+function writePhase(
+  path: string,
+  phase: "before" | "after" | "policy-ab" | "index-ab",
+  body: string
+): void {
   mkdirSync(dirname(path), { recursive: true });
   let current: string;
   try {
@@ -2765,9 +3732,10 @@ function writePhase(path: string, phase: "before" | "after" | "policy-ab", body:
 /**
  * @function main
  * @description Entry point: resolve channels, optionally seed, run the policy-form
- *   comparison and/or a phase capture, write the report, and report namespace control
- *   counts. `--policy-ab` runs BEFORE the phase capture when both are asked for, so the
- *   phase capture always sees the shipped policy that its own rollback restored.
+ *   comparison, the index shortlist and/or a phase capture, write the report, and report
+ *   namespace control counts. Both A/B modes run BEFORE the phase capture when several
+ *   are asked for, so the phase capture always sees the shipped policy and the shipped
+ *   index that the arms' own rollbacks restored.
  * @returns Resolves when the run has written everything it is going to write.
  */
 async function main(): Promise<void> {
@@ -2862,6 +3830,29 @@ async function main(): Promise<void> {
       console.log(
         `wrote ${measured.results.length} policy-arm measurements into ${opts.report} ` +
           "(§policy-ab); the shipped policies were re-read and are unchanged"
+      );
+    }
+
+    if (opts.indexAb) {
+      // The corpus was vacuum-analyzed on the way in (seed, or the --skip-seed branch),
+      // which is the arms' precondition: VACUUM cannot run inside a transaction, so the
+      // visibility map has to be settled before any arm opens. If the policy comparison
+      // ran first it committed nothing, so the map is still the one that VACUUM left.
+      const ixStartedAt = new Date().toISOString();
+      const ixT0 = performance.now();
+      const measured = await runIndexAb(owner, ctx, opts.runs, opts.repetitions);
+      writePhase(
+        opts.report,
+        "index-ab",
+        renderIndexAbBlock(opts, measured, {
+          pgVersion: version,
+          startedAt: ixStartedAt,
+          wallMs: performance.now() - ixT0,
+        })
+      );
+      console.log(
+        `wrote ${measured.results.length} index-arm measurements into ${opts.report} ` +
+          "(§index-ab); Post's index inventory was re-read and is unchanged"
       );
     }
     if (opts.phase === null) return;
