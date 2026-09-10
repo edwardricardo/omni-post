@@ -741,13 +741,38 @@ model Post {
   @@index([projectId, scheduledAt, status], where: { deletedAt: null })
   @@index([projectId, archivedAt], where: { deletedAt: null })
   @@index([deletedAt])
-  /// The ONE new index this change adds. The account-wide feed is the only measured read
-  /// that sequentially scans Post: every existing index here is projectId-led and that
-  /// query supplies no projectId, because the tenant identity used to live one table away.
-  /// It also serves the tenant qual of the RLS policy. The two child tables deliberately
-  /// get no accountId-led index — their reads are parent-key-led, and that exemption plus
-  /// its revisit trigger are recorded in docs/security/MULTI_TENANT_GUARDS.md.
-  @@index([accountId, projectId], where: { deletedAt: null })
+  /// SHAPE DECIDED BY MEASUREMENT. Four arms — the as-shipped ("accountId", "projectId"),
+  /// this extension, the ("accountId", "createdAt") feed shape, and DROP — were installed one
+  /// at a time inside a rolled-back transaction and measured over the same corpus, 16 probes
+  /// each, 3 EXPLAIN runs x 5 sweeps. Recorded in docs/reports/TENANT_RLS_AB_MEASUREMENT.md,
+  /// section "Reading the index shortlist run" (hand-written, outside the generated block a
+  /// later capture would rewrite). Migration: 20260910000100_post_feed_index_winner.
+  /// WHAT WON IT: a Sort node disappearing, not a faster sort. Trailing "createdAt" puts the
+  /// listings' ORDER BY inside the range the query already binds, so listByProject page 1 and
+  /// findByProjectId go from `Limit -> Sort -> Index Scan` to `Limit -> Index Scan` —
+  /// scan-node medians 0.047 -> 0.019 ms and 0.048 -> 0.019 ms, sign-stable across all five
+  /// sweeps. It is the only arm that improves an application case attributably and regresses
+  /// none. DROP was a first-class arm and LOST ON EVIDENCE: this key is selected by three of
+  /// the eight Post listing cases, and dropping it regresses the paired count by 17 us.
+  /// WHAT IT DOES NOT DO. It does not order the account-wide feed. With only "accountId"
+  /// bound, the scanned range is ordered by ("projectId", "createdAt") — not by "createdAt" —
+  /// so Incremental Sort has no leading sorted key, and B-tree skip scan is PostgreSQL 18
+  /// while this server is 16. It repairs the project-scoped listings and leaves the feed
+  /// where it was.
+  /// TWO EARLIER JUSTIFICATIONS ARE RETRACTED BY THE SAME RUN, not softened: the feed does
+  /// NOT take this index, and the RLS tenant qual is a per-row Filter in all 13 measured
+  /// plans (17x Filter, 0x Index Cond) — the queries that do bind "accountId" put it in the
+  /// index condition themselves, and the policy still filters per row on that same node.
+  /// CAVEAT — the boundary of the claim, not a disclaimer about precision. ONE corpus: 100
+  /// projects x 10 000 posts, exactly 100 per project, TWO tenants. A different fan-out moves
+  /// the selectivity of every projectId-led index in the comparison and can move the verdict.
+  /// At two tenants "accountId" selects half the table, so the unselective account-wide
+  /// shapes sequentially scan under EVERY arm and that question is undecided in either
+  /// direction. No write-path cost was measured.
+  /// The two child tables still get no accountId-led index — their reads are parent-key-led,
+  /// and that exemption plus its revisit trigger are recorded in
+  /// docs/security/MULTI_TENANT_GUARDS.md.
+  @@index([accountId, projectId, createdAt], where: { deletedAt: null })
 }
 
 model PostContent {

@@ -1,0 +1,128 @@
+-- Replace the as-shipped account-led read index on "Post" with the shape the four-arm
+-- measurement selected: the same key extended by the column every project-scoped listing
+-- orders by.
+--
+-- THE SHAPE WAS MEASURED, NOT ARGUED — and this migration exists because the reasoning it
+-- replaces was REFUTED by that measurement, not merely improved on. Four arms were installed
+-- one at a time inside a rolled-back transaction and measured over the same corpus, 16 probes
+-- each (the 13 application cases plus 3 synthetic shapes), 3 EXPLAIN runs x 5 independent
+-- sweeps. The run and its reading are recorded in docs/reports/TENANT_RLS_AB_MEASUREMENT.md,
+-- section "Reading the index shortlist run" — the HAND-WRITTEN reading, deliberately cited
+-- instead of the tables it was written from, because those tables live inside the
+-- `generated:index-ab` block and any later `--index-ab` capture rewrites them. The four arms:
+--   * IX0, the as-shipped ("accountId", "projectId") partial — the control, measured as the
+--     LIVE index rather than a freshly built copy of it;
+--   * IX1, this shape, ("accountId", "projectId", "createdAt") partial;
+--   * IX2, the feed shape ("accountId", "createdAt") partial;
+--   * IX3, DROP — a first-class arm, not a formality.
+--
+-- WHAT DECIDED IT: A SORT NODE DISAPPEARING, NOT A FASTER SORT. Under the shipped key,
+-- `Q1` (listByProject page 1) and `Q5` (findByProjectId) plan as `Limit -> Sort -> Index
+-- Scan`: ("accountId", "projectId") carries no ordering, so a LIMIT 20 over
+-- ORDER BY "createdAt" DESC has to sort before it can stop. Under this shape both become
+-- `Limit -> Index Scan` with NO Sort node at all — scan-node medians 0.047 -> 0.019 ms on
+-- `Q1` (-28 us, -59.6 %) and 0.048 -> 0.019 ms on `Q5` (-29 us, -60.4 %), with every one of
+-- the five sweeps agreeing on the sign. IX1 is the only arm that improves an application
+-- case attributably AND regresses none, so the measurement decided and the tiebreak declared
+-- before the run never applied.
+--
+-- This is the displacement repair. The after-capture recorded `Q1 x2.39` and `Q5 x3.52` as
+-- REGRESSIONS caused by the shipped index displacing "Post_projectId_createdAt_idx", which
+-- had supplied that ordering. The extension gives the ordering back without giving up the
+-- tenant-led key.
+--
+-- DROP WAS MEASURED AND LOST ON EVIDENCE, not on preference. The shipped index is not dead
+-- weight on this corpus: it is SELECTED under the control by `Q1`, `Q2` and `Q5` — read from
+-- the plans, not assumed — and dropping it regresses `Q2` by 17 us, sign-stable across all
+-- five sweeps. IX2 is inadmissible by the same mechanism: with no ("accountId", "projectId")
+-- prefix, `Q2`'s count falls from `Index Scan` to `Bitmap Heap Scan` on
+-- "Post_projectId_archivedAt_idx" and pays 16 us for it.
+--
+-- WHAT THIS INDEX DOES NOT DO, stated here rather than left to be re-derived. It does NOT
+-- order the account-wide feed. With only "accountId" equality-bound — which is what the
+-- policy supplies when the query names no project — the scanned range of
+-- ("accountId", "projectId", "createdAt") is ordered by ("projectId", "createdAt"), not by
+-- "createdAt". Incremental Sort needs a leading sorted key, and B-tree skip scan is a
+-- PostgreSQL 18 feature while this server is PostgreSQL 16.14. This shape repairs the
+-- project-scoped listings and leaves the feed exactly where it was.
+--
+-- TWO EARLIER JUSTIFICATIONS ARE RETRACTED BY THE SAME RUN, and schema.prisma's docblock is
+-- rewritten in this same commit so no refuted reasoning survives beside the object:
+--   * "serves the RLS policy's tenant qual" — NO. The qual is a per-row `Filter` in all 13
+--     plans (17x Filter, 0x Index Cond). `Q1`/`Q2`/`Q5` settle it: they put "accountId" into
+--     the index condition from the QUERY, and the policy still filters per row on that node.
+--   * "AND tenant-wide listings" — NO, as shipped. `Q3` and `Q4` reached the tenant through
+--     the relation, so the index answered neither question. The `listGlobal` reshape in this
+--     same PR moves that predicate local; whether the feed then takes an index is a question
+--     this corpus cannot answer (below), so no claim is made here.
+--
+-- THE SINGLE-CORPUS CAVEAT TRAVELS WITH THE DECISION. It is the boundary of the claim, not a
+-- disclaimer about precision. The measurement rests on ONE shape: 100 projects x 10 000
+-- posts, exactly 100 per project, across TWO tenants. A different fan-out (a few enormous
+-- projects, or thousands of tiny ones) moves the selectivity of every projectId-led index in
+-- that comparison and can move the verdict with it. And at two tenants "accountId" selects
+-- half the table, so `S3`, `Q3` and `Q4` run `Seq Scan` under EVERY arm including IX2 — the
+-- account-wide feed is undecided by this run IN EITHER DIRECTION, and no later change may
+-- read IX2's loss as a finding about ("accountId", "createdAt") on a realistic tenant
+-- distribution.
+--
+-- NO WRITE-PATH NUMBER. Every figure above is a read. A wider index costs more on every
+-- INSERT and every UPDATE of its columns, and none of that was measured. This adds one
+-- column to an index that already exists, so the additional cost is small and bounded — but
+-- "small and bounded" is reasoning, not a measurement, and is labelled as such.
+--
+-- LOCKS, CHARACTERIZED HONESTLY (same treatment as 20260909000200). Plain `DROP INDEX` takes
+-- ACCESS EXCLUSIVE on "Post" for the duration; plain `CREATE INDEX` takes SHARE, which blocks
+-- WRITERS (readers proceed) for the whole build. `lock_timeout` bounds only the WAIT to
+-- ACQUIRE each lock — it does NOT bound the HOLD, so a large table can block writers well
+-- past 5s once the lock is granted, and `statement_timeout` is what bounds the build itself.
+-- Between the DROP and the CREATE, inside this one transaction, "Post" has NO accountId-led
+-- index; that window is invisible to other sessions (the DROP's ACCESS EXCLUSIVE is held to
+-- COMMIT) but it is real for this transaction's own duration. All of that is acceptable for
+-- today's single deployable — dev and CI, no production traffic — and is stated so a future
+-- operator does not read the 30s timeout as a duration guarantee.
+--
+-- LIVE-PATH VARIANT, named here for the runbook rather than used here, and it is the
+-- REMOVE-WHEN that ADJUDICATION 4 in .github/workflows/audit.yml cites:
+--   CREATE INDEX CONCURRENTLY "Post_accountId_projectId_createdAt_idx" ...;   -- outside a tx
+--   DROP INDEX CONCURRENTLY "Post_accountId_projectId_idx";                   -- outside a tx
+--   (build the new one FIRST in that ordering, verify `indisvalid`, then drop the old one —
+--   the reverse of this file's order, because a live path must never leave the table without
+--   an accountId-led index.)
+-- CONCURRENTLY cannot run inside a transaction block and Prisma wraps every migration in one
+-- (.squawk.toml pins assume_in_transaction = true), so that variant has to leave the
+-- migration engine for a hand-run runbook. Mandatory before this schema carries production
+-- traffic; not worth it at today's table sizes.
+--
+-- SQUAWK, expected and adjudicated rather than waived silently: `require-concurrent-index-
+-- deletion` fires on the DROP and `require-concurrent-index-creation` on the CREATE. Both are
+-- UNSATISFIABLE under this config for the reason above — rewriting either with CONCURRENTLY
+-- fires `ban-concurrent-index-creation-in-transaction` instead, so there is no formulation
+-- this config accepts. Recorded as ADJUDICATION 4 in .github/workflows/audit.yml, pinned to
+-- this file's sha256.
+--
+-- An abort here rolls the whole file back and leaves a failed ledger row: recover with
+-- `migrate resolve --rolled-back`, never a bare re-run (docs/architecture/schema-conventions.md,
+-- "Recovering a failed migration").
+--
+-- Rollback: the companion down.sql, which Prisma never applies automatically.
+
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '30s';
+
+-- Plain `DROP INDEX`, deliberately NOT `IF EXISTS`. An absent shipped index here is state
+-- drift, and the idempotent form would report a clean migration over a database whose index
+-- set nobody has actually verified. It is the same rule the trio's policy migration applies
+-- to `DROP POLICY` and the measurement harness applies to its own arms.
+DROP INDEX "Post_accountId_projectId_idx";
+
+-- The winner. Both statements in this file are Prisma's OWN emission for the corresponding
+-- `@@index([accountId, projectId, createdAt], where: { deletedAt: null })`, reproduced
+-- byte-for-byte rather than hand-approximated — including the derived index NAME, the absence
+-- of a space before the column list, and the parentheses around the partial predicate. Taken
+-- from `prisma migrate diff --from-config-datasource --to-schema <edited schema>`, run against
+-- this live database while preparing the change, so the migration and the schema cannot
+-- disagree about the object and drift detection stays quiet by construction rather than by
+-- inspection. Partial on the same predicate as the index it replaces: the shipped object is
+-- partial, and an unqualified replacement would be a different index as well as a different key.
+CREATE INDEX "Post_accountId_projectId_createdAt_idx" ON "Post"("accountId", "projectId", "createdAt") WHERE ("deletedAt" IS NULL);

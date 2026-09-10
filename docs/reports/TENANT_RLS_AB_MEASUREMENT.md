@@ -1967,7 +1967,7 @@ phase needs the other shape, the way to get it is a capture with
 
 ## After — post-migration capture
 
-Captured 2026-09-09T06:39:18.240Z in 0.2 s. PostgreSQL: PostgreSQL 16.14 (Debian 16.14-1.pgdg12+1). Measuring role: `omnipost_app` (non-superuser, non-bypassing), `app.account_id` bound to `tif-ab-a` for every statement below.
+Captured 2026-09-10T13:31:21.039Z in 0.2 s. PostgreSQL: PostgreSQL 16.14 (Debian 16.14-1.pgdg12+1). Measuring role: `omnipost_app` (non-superuser, non-bypassing), `app.account_id` bound to `tif-ab-a` for every statement below.
 
 **Re-run this exact capture:**
 
@@ -1999,40 +1999,40 @@ Two tenants (`tif-ab-a`, `tif-ab-b`), 100 projects and 10000 posts each, posts r
 | ------------- | --------- | ---------------- | ---------- | ---- | ----- | ---------- | -------- |
 | `Project`     | 517       | 517              | 31 MB      | true | false | `postgres` | 1        |
 | `Post`        | 20003     | 20003            | 20 MB      | true | false | `postgres` | 1        |
-| `PostContent` | 20003     | 20003            | 24 MB      | true | false | `postgres` | 1        |
-| `PostMedia`   | 6666      | 6666             | 3888 kB    | true | false | `postgres` | 1        |
+| `PostContent` | 20003     | 20003            | 17 MB      | true | false | `postgres` | 1        |
+| `PostMedia`   | 6666      | 6666             | 2968 kB    | true | false | `postgres` | 1        |
 
 <details><summary>Index inventory at capture time</summary>
 
-| Table         | Index                                    | Definition                                                                                                                                           |
-| ------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Post`        | `Post_accountId_projectId_idx`           | `CREATE INDEX "Post_accountId_projectId_idx" ON public."Post" USING btree ("accountId", "projectId") WHERE ("deletedAt" IS NULL)`                    |
-| `Post`        | `Post_deletedAt_idx`                     | `CREATE INDEX "Post_deletedAt_idx" ON public."Post" USING btree ("deletedAt")`                                                                       |
-| `Post`        | `Post_id_accountId_key`                  | `CREATE UNIQUE INDEX "Post_id_accountId_key" ON public."Post" USING btree (id, "accountId")`                                                         |
-| `Post`        | `Post_pkey`                              | `CREATE UNIQUE INDEX "Post_pkey" ON public."Post" USING btree (id)`                                                                                  |
-| `Post`        | `Post_projectId_archivedAt_idx`          | `CREATE INDEX "Post_projectId_archivedAt_idx" ON public."Post" USING btree ("projectId", "archivedAt") WHERE ("deletedAt" IS NULL)`                  |
-| `Post`        | `Post_projectId_createdAt_idx`           | `CREATE INDEX "Post_projectId_createdAt_idx" ON public."Post" USING btree ("projectId", "createdAt") WHERE ("deletedAt" IS NULL)`                    |
-| `Post`        | `Post_projectId_publishedAt_idx`         | `CREATE INDEX "Post_projectId_publishedAt_idx" ON public."Post" USING btree ("projectId", "publishedAt") WHERE ("deletedAt" IS NULL)`                |
-| `Post`        | `Post_projectId_scheduledAt_status_idx`  | `CREATE INDEX "Post_projectId_scheduledAt_status_idx" ON public."Post" USING btree ("projectId", "scheduledAt", status) WHERE ("deletedAt" IS NULL)` |
-| `Post`        | `Post_projectId_status_idx`              | `CREATE INDEX "Post_projectId_status_idx" ON public."Post" USING btree ("projectId", status) WHERE ("deletedAt" IS NULL)`                            |
-| `Post`        | `Post_scheduledAt_idx`                   | `CREATE INDEX "Post_scheduledAt_idx" ON public."Post" USING btree ("scheduledAt") WHERE ("deletedAt" IS NULL)`                                       |
-| `PostContent` | `PostContent_pkey`                       | `CREATE UNIQUE INDEX "PostContent_pkey" ON public."PostContent" USING btree (id)`                                                                    |
-| `PostContent` | `PostContent_postId_locale_idx`          | `CREATE INDEX "PostContent_postId_locale_idx" ON public."PostContent" USING btree ("postId", locale)`                                                |
-| `PostContent` | `PostContent_postId_locale_revision_key` | `CREATE UNIQUE INDEX "PostContent_postId_locale_revision_key" ON public."PostContent" USING btree ("postId", locale, revision)`                      |
-| `PostContent` | `PostContent_tags_idx`                   | `CREATE INDEX "PostContent_tags_idx" ON public."PostContent" USING btree (tags)`                                                                     |
-| `PostMedia`   | `PostMedia_createdAt_idx`                | `CREATE INDEX "PostMedia_createdAt_idx" ON public."PostMedia" USING btree ("createdAt")`                                                             |
-| `PostMedia`   | `PostMedia_hash_idx`                     | `CREATE INDEX "PostMedia_hash_idx" ON public."PostMedia" USING btree (hash)`                                                                         |
-| `PostMedia`   | `PostMedia_pkey`                         | `CREATE UNIQUE INDEX "PostMedia_pkey" ON public."PostMedia" USING btree (id)`                                                                        |
-| `PostMedia`   | `PostMedia_postId_idx`                   | `CREATE INDEX "PostMedia_postId_idx" ON public."PostMedia" USING btree ("postId")`                                                                   |
-| `PostMedia`   | `PostMedia_type_idx`                     | `CREATE INDEX "PostMedia_type_idx" ON public."PostMedia" USING btree (type)`                                                                         |
-| `Project`     | `Project_accountId_idx`                  | `CREATE INDEX "Project_accountId_idx" ON public."Project" USING btree ("accountId") WHERE ("deletedAt" IS NULL)`                                     |
-| `Project`     | `Project_accountId_name_key`             | `CREATE UNIQUE INDEX "Project_accountId_name_key" ON public."Project" USING btree ("accountId", name) WHERE ("deletedAt" IS NULL)`                   |
-| `Project`     | `Project_createdAt_idx`                  | `CREATE INDEX "Project_createdAt_idx" ON public."Project" USING btree ("createdAt") WHERE ("deletedAt" IS NULL)`                                     |
-| `Project`     | `Project_deletedAt_idx`                  | `CREATE INDEX "Project_deletedAt_idx" ON public."Project" USING btree ("deletedAt")`                                                                 |
-| `Project`     | `Project_id_accountId_key`               | `CREATE UNIQUE INDEX "Project_id_accountId_key" ON public."Project" USING btree (id, "accountId")`                                                   |
-| `Project`     | `Project_isInCrisisMode_idx`             | `CREATE INDEX "Project_isInCrisisMode_idx" ON public."Project" USING btree ("isInCrisisMode") WHERE ("deletedAt" IS NULL)`                           |
-| `Project`     | `Project_locale_idx`                     | `CREATE INDEX "Project_locale_idx" ON public."Project" USING btree (locale) WHERE ("deletedAt" IS NULL)`                                             |
-| `Project`     | `Project_pkey`                           | `CREATE UNIQUE INDEX "Project_pkey" ON public."Project" USING btree (id)`                                                                            |
+| Table         | Index                                    | Definition                                                                                                                                               |
+| ------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Post`        | `Post_accountId_projectId_createdAt_idx` | `CREATE INDEX "Post_accountId_projectId_createdAt_idx" ON public."Post" USING btree ("accountId", "projectId", "createdAt") WHERE ("deletedAt" IS NULL)` |
+| `Post`        | `Post_deletedAt_idx`                     | `CREATE INDEX "Post_deletedAt_idx" ON public."Post" USING btree ("deletedAt")`                                                                           |
+| `Post`        | `Post_id_accountId_key`                  | `CREATE UNIQUE INDEX "Post_id_accountId_key" ON public."Post" USING btree (id, "accountId")`                                                             |
+| `Post`        | `Post_pkey`                              | `CREATE UNIQUE INDEX "Post_pkey" ON public."Post" USING btree (id)`                                                                                      |
+| `Post`        | `Post_projectId_archivedAt_idx`          | `CREATE INDEX "Post_projectId_archivedAt_idx" ON public."Post" USING btree ("projectId", "archivedAt") WHERE ("deletedAt" IS NULL)`                      |
+| `Post`        | `Post_projectId_createdAt_idx`           | `CREATE INDEX "Post_projectId_createdAt_idx" ON public."Post" USING btree ("projectId", "createdAt") WHERE ("deletedAt" IS NULL)`                        |
+| `Post`        | `Post_projectId_publishedAt_idx`         | `CREATE INDEX "Post_projectId_publishedAt_idx" ON public."Post" USING btree ("projectId", "publishedAt") WHERE ("deletedAt" IS NULL)`                    |
+| `Post`        | `Post_projectId_scheduledAt_status_idx`  | `CREATE INDEX "Post_projectId_scheduledAt_status_idx" ON public."Post" USING btree ("projectId", "scheduledAt", status) WHERE ("deletedAt" IS NULL)`     |
+| `Post`        | `Post_projectId_status_idx`              | `CREATE INDEX "Post_projectId_status_idx" ON public."Post" USING btree ("projectId", status) WHERE ("deletedAt" IS NULL)`                                |
+| `Post`        | `Post_scheduledAt_idx`                   | `CREATE INDEX "Post_scheduledAt_idx" ON public."Post" USING btree ("scheduledAt") WHERE ("deletedAt" IS NULL)`                                           |
+| `PostContent` | `PostContent_pkey`                       | `CREATE UNIQUE INDEX "PostContent_pkey" ON public."PostContent" USING btree (id)`                                                                        |
+| `PostContent` | `PostContent_postId_locale_idx`          | `CREATE INDEX "PostContent_postId_locale_idx" ON public."PostContent" USING btree ("postId", locale)`                                                    |
+| `PostContent` | `PostContent_postId_locale_revision_key` | `CREATE UNIQUE INDEX "PostContent_postId_locale_revision_key" ON public."PostContent" USING btree ("postId", locale, revision)`                          |
+| `PostContent` | `PostContent_tags_idx`                   | `CREATE INDEX "PostContent_tags_idx" ON public."PostContent" USING btree (tags)`                                                                         |
+| `PostMedia`   | `PostMedia_createdAt_idx`                | `CREATE INDEX "PostMedia_createdAt_idx" ON public."PostMedia" USING btree ("createdAt")`                                                                 |
+| `PostMedia`   | `PostMedia_hash_idx`                     | `CREATE INDEX "PostMedia_hash_idx" ON public."PostMedia" USING btree (hash)`                                                                             |
+| `PostMedia`   | `PostMedia_pkey`                         | `CREATE UNIQUE INDEX "PostMedia_pkey" ON public."PostMedia" USING btree (id)`                                                                            |
+| `PostMedia`   | `PostMedia_postId_idx`                   | `CREATE INDEX "PostMedia_postId_idx" ON public."PostMedia" USING btree ("postId")`                                                                       |
+| `PostMedia`   | `PostMedia_type_idx`                     | `CREATE INDEX "PostMedia_type_idx" ON public."PostMedia" USING btree (type)`                                                                             |
+| `Project`     | `Project_accountId_idx`                  | `CREATE INDEX "Project_accountId_idx" ON public."Project" USING btree ("accountId") WHERE ("deletedAt" IS NULL)`                                         |
+| `Project`     | `Project_accountId_name_key`             | `CREATE UNIQUE INDEX "Project_accountId_name_key" ON public."Project" USING btree ("accountId", name) WHERE ("deletedAt" IS NULL)`                       |
+| `Project`     | `Project_createdAt_idx`                  | `CREATE INDEX "Project_createdAt_idx" ON public."Project" USING btree ("createdAt") WHERE ("deletedAt" IS NULL)`                                         |
+| `Project`     | `Project_deletedAt_idx`                  | `CREATE INDEX "Project_deletedAt_idx" ON public."Project" USING btree ("deletedAt")`                                                                     |
+| `Project`     | `Project_id_accountId_key`               | `CREATE UNIQUE INDEX "Project_id_accountId_key" ON public."Project" USING btree (id, "accountId")`                                                       |
+| `Project`     | `Project_isInCrisisMode_idx`             | `CREATE INDEX "Project_isInCrisisMode_idx" ON public."Project" USING btree ("isInCrisisMode") WHERE ("deletedAt" IS NULL)`                               |
+| `Project`     | `Project_locale_idx`                     | `CREATE INDEX "Project_locale_idx" ON public."Project" USING btree (locale) WHERE ("deletedAt" IS NULL)`                                                 |
+| `Project`     | `Project_pkey`                           | `CREATE UNIQUE INDEX "Project_pkey" ON public."Project" USING btree (id)`                                                                                |
 
 </details>
 
@@ -2040,14 +2040,16 @@ Two tenants (`tif-ab-a`, `tif-ab-b`), 100 projects and 10000 posts each, posts r
 
 #### Q1 — listByProject — page 1 of a project's live posts
 
-- **Source site**: `apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:152 (where built at :186)`
+- **Source site**: `apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:157 (where built at :191)`
 - **Why it is here**: the customer's post list; the most frequently served Post read. EMISSION CHANGED with the trio's tenant column: `buildWhereClause` filtered the RELATION (`project: { accountId }`) when §Before was captured and filters the LOCAL `Post.accountId` now, so this case's query text differs between the two phases
 - **Mirror fidelity**: match — the case's own comparison returned `tif-ab-a-post-000001,tif-ab-a-post-000101,tif-ab-a-post-000201,tif-ab-a-post-000301,tif-ab-a-post-000401,tif-ab-a-post-0… (419 chars)` from the Prisma call and `tif-ab-a-post-000001,tif-ab-a-post-000101,tif-ab-a-post-000201,tif-ab-a-post-000301,tif-ab-a-post-000401,tif-ab-a-post-0… (419 chars)` from the mirror.
-- **Prisma call wall time**: 24.85 ms
-- **Planning time (ms, per run)**: 0.070 / 0.063 / 0.065
-- **Execution time (ms, per run)**: 0.100 / 0.086 / 0.084
-- **Plan nodes**: Limit → Sort → Index Scan
-- **Indexes used**: Post_accountId_projectId_idx
+- **Prisma call wall time**: 24.87 ms
+- **Planning time (ms, per run)**: 0.087 / 0.076 / 0.070
+- **Execution time (ms, per run)**: 0.034 / 0.031 / 0.029
+- **Scan-node time on `Post` (ms, per run)**: 0.022 / 0.021 / 0.019 — Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation
+- **Medians over 3 run(s)**: scan-node **0.021 ms** · statement-time 0.031 ms. The scan-node figure is the one to compare across phases: the statement total also carries sort, aggregate, join and output work that neither the policy form nor the index shape touches.
+- **Plan nodes**: Limit → Result → Result → Index Scan
+- **Indexes used (union across runs)**: Post_accountId_projectId_createdAt_idx
 
 Query text (the mirror; `EXPLAIN` is taken from exactly this):
 
@@ -2070,15 +2072,15 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
       "Node Type": "Limit",
       "Parallel Aware": false,
       "Async Capable": false,
-      "Startup Cost": 89.47,
-      "Total Cost": 89.52,
-      "Plan Rows": 20,
+      "Startup Cost": 0.44,
+      "Total Cost": 84.86,
+      "Plan Rows": 9,
       "Plan Width": 80,
-      "Actual Startup Time": 0.074,
-      "Actual Total Time": 0.076,
+      "Actual Startup Time": 0.014,
+      "Actual Total Time": 0.02,
       "Actual Rows": 20,
       "Actual Loops": 1,
-      "Shared Hit Blocks": 102,
+      "Shared Hit Blocks": 23,
       "Shared Read Blocks": 0,
       "Shared Dirtied Blocks": 0,
       "Shared Written Blocks": 0,
@@ -2090,23 +2092,20 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
       "Temp Written Blocks": 0,
       "Plans": [
         {
-          "Node Type": "Sort",
-          "Parent Relationship": "Outer",
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
           "Parallel Aware": false,
           "Async Capable": false,
-          "Startup Cost": 89.47,
-          "Total Cost": 89.52,
-          "Plan Rows": 21,
-          "Plan Width": 80,
-          "Actual Startup Time": 0.074,
-          "Actual Total Time": 0.074,
-          "Actual Rows": 20,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0.001,
+          "Actual Total Time": 0.001,
+          "Actual Rows": 1,
           "Actual Loops": 1,
-          "Sort Key": ["\"createdAt\" DESC"],
-          "Sort Method": "top-N heapsort",
-          "Sort Space Used": 27,
-          "Sort Space Type": "Memory",
-          "Shared Hit Blocks": 102,
+          "Shared Hit Blocks": 0,
           "Shared Read Blocks": 0,
           "Shared Dirtied Blocks": 0,
           "Shared Written Blocks": 0,
@@ -2115,138 +2114,55 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
           "Local Dirtied Blocks": 0,
           "Local Written Blocks": 0,
           "Temp Read Blocks": 0,
-          "Temp Written Blocks": 0,
-          "Plans": [
-            {
-              "Node Type": "Index Scan",
-              "Parent Relationship": "Outer",
-              "Parallel Aware": false,
-              "Async Capable": false,
-              "Scan Direction": "Forward",
-              "Index Name": "Post_accountId_projectId_idx",
-              "Relation Name": "Post",
-              "Alias": "p",
-              "Startup Cost": 0.29,
-              "Total Cost": 89.01,
-              "Plan Rows": 21,
-              "Plan Width": 80,
-              "Actual Startup Time": 0.013,
-              "Actual Total Time": 0.056,
-              "Actual Rows": 100,
-              "Actual Loops": 1,
-              "Index Cond": "((\"accountId\" = 'tif-ab-a'::text) AND (\"projectId\" = 'tif-ab-a-proj-0001'::text))",
-              "Rows Removed by Index Recheck": 0,
-              "Filter": "((\"archivedAt\" IS NULL) AND ((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true))))",
-              "Rows Removed by Filter": 0,
-              "Shared Hit Blocks": 102,
-              "Shared Read Blocks": 0,
-              "Shared Dirtied Blocks": 0,
-              "Shared Written Blocks": 0,
-              "Local Hit Blocks": 0,
-              "Local Read Blocks": 0,
-              "Local Dirtied Blocks": 0,
-              "Local Written Blocks": 0,
-              "Temp Read Blocks": 0,
-              "Temp Written Blocks": 0
-            }
-          ]
-        }
-      ]
-    },
-    "Planning": {
-      "Shared Hit Blocks": 0,
-      "Shared Read Blocks": 0,
-      "Shared Dirtied Blocks": 0,
-      "Shared Written Blocks": 0,
-      "Local Hit Blocks": 0,
-      "Local Read Blocks": 0,
-      "Local Dirtied Blocks": 0,
-      "Local Written Blocks": 0,
-      "Temp Read Blocks": 0,
-      "Temp Written Blocks": 0
-    },
-    "Planning Time": 0.065,
-    "Triggers": [],
-    "Execution Time": 0.084
-  }
-]
-```
-
-</details>
-
-#### Q2 — listByProject — the paired total count
-
-- **Source site**: `apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:162`
-- **Why it is here**: runs on every page load in the same Promise.all as Q1, over the whole project. EMISSION CHANGED with the trio's tenant column — it shares Q1's `buildWhereClause`, so the same relation-to-local move applies here
-- **Mirror fidelity**: match — the case's own comparison returned `100` from the Prisma call and `100` from the mirror.
-- **Prisma call wall time**: 3.2 ms
-- **Planning time (ms, per run)**: 0.058 / 0.052 / 0.048
-- **Execution time (ms, per run)**: 0.059 / 0.058 / 0.055
-- **Plan nodes**: Aggregate → Index Scan
-- **Indexes used**: Post_accountId_projectId_idx
-
-Query text (the mirror; `EXPLAIN` is taken from exactly this):
-
-```sql
-SELECT count(*) AS n FROM "Post" p
- WHERE p."projectId" = 'tif-ab-a-proj-0001'
-   AND p."accountId" = 'tif-ab-a'
-   AND p."deletedAt" IS NULL
-   AND p."archivedAt" IS NULL
-```
-
-<details><summary>Full plan (last run)</summary>
-
-```json
-[
-  {
-    "Plan": {
-      "Node Type": "Aggregate",
-      "Strategy": "Plain",
-      "Partial Mode": "Simple",
-      "Parallel Aware": false,
-      "Async Capable": false,
-      "Startup Cost": 89.06,
-      "Total Cost": 89.07,
-      "Plan Rows": 1,
-      "Plan Width": 8,
-      "Actual Startup Time": 0.048,
-      "Actual Total Time": 0.048,
-      "Actual Rows": 1,
-      "Actual Loops": 1,
-      "Shared Hit Blocks": 102,
-      "Shared Read Blocks": 0,
-      "Shared Dirtied Blocks": 0,
-      "Shared Written Blocks": 0,
-      "Local Hit Blocks": 0,
-      "Local Read Blocks": 0,
-      "Local Dirtied Blocks": 0,
-      "Local Written Blocks": 0,
-      "Temp Read Blocks": 0,
-      "Temp Written Blocks": 0,
-      "Plans": [
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
         {
           "Node Type": "Index Scan",
           "Parent Relationship": "Outer",
           "Parallel Aware": false,
           "Async Capable": false,
-          "Scan Direction": "Forward",
-          "Index Name": "Post_accountId_projectId_idx",
+          "Scan Direction": "Backward",
+          "Index Name": "Post_accountId_projectId_createdAt_idx",
           "Relation Name": "Post",
           "Alias": "p",
-          "Startup Cost": 0.29,
-          "Total Cost": 89.01,
-          "Plan Rows": 21,
-          "Plan Width": 0,
-          "Actual Startup Time": 0.007,
-          "Actual Total Time": 0.044,
-          "Actual Rows": 100,
+          "Startup Cost": 0.41,
+          "Total Cost": 84.84,
+          "Plan Rows": 9,
+          "Plan Width": 80,
+          "Actual Startup Time": 0.013,
+          "Actual Total Time": 0.019,
+          "Actual Rows": 20,
           "Actual Loops": 1,
           "Index Cond": "((\"accountId\" = 'tif-ab-a'::text) AND (\"projectId\" = 'tif-ab-a-proj-0001'::text))",
           "Rows Removed by Index Recheck": 0,
-          "Filter": "((\"archivedAt\" IS NULL) AND ((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true))))",
+          "Filter": "((\"archivedAt\" IS NULL) AND (($0 = '__system__'::text) OR (\"accountId\" = $1)))",
           "Rows Removed by Filter": 0,
-          "Shared Hit Blocks": 102,
+          "Shared Hit Blocks": 23,
           "Shared Read Blocks": 0,
           "Shared Dirtied Blocks": 0,
           "Shared Written Blocks": 0,
@@ -2271,9 +2187,167 @@ SELECT count(*) AS n FROM "Post" p
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.048,
+    "Planning Time": 0.07,
     "Triggers": [],
-    "Execution Time": 0.055
+    "Execution Time": 0.029
+  }
+]
+```
+
+</details>
+
+#### Q2 — listByProject — the paired total count
+
+- **Source site**: `apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:167`
+- **Why it is here**: runs on every page load in the same Promise.all as Q1, over the whole project. EMISSION CHANGED with the trio's tenant column — it shares Q1's `buildWhereClause`, so the same relation-to-local move applies here
+- **Mirror fidelity**: match — the case's own comparison returned `100` from the Prisma call and `100` from the mirror.
+- **Prisma call wall time**: 3.3 ms
+- **Planning time (ms, per run)**: 0.052 / 0.052 / 0.050
+- **Execution time (ms, per run)**: 0.050 / 0.046 / 0.044
+- **Scan-node time on `Post` (ms, per run)**: 0.036 / 0.035 / 0.034 — Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation
+- **Medians over 3 run(s)**: scan-node **0.035 ms** · statement-time 0.046 ms. The scan-node figure is the one to compare across phases: the statement total also carries sort, aggregate, join and output work that neither the policy form nor the index shape touches.
+- **Plan nodes**: Aggregate → Result → Result → Index Scan
+- **Indexes used (union across runs)**: Post_accountId_projectId_createdAt_idx
+
+Query text (the mirror; `EXPLAIN` is taken from exactly this):
+
+```sql
+SELECT count(*) AS n FROM "Post" p
+ WHERE p."projectId" = 'tif-ab-a-proj-0001'
+   AND p."accountId" = 'tif-ab-a'
+   AND p."deletedAt" IS NULL
+   AND p."archivedAt" IS NULL
+```
+
+<details><summary>Full plan (last run)</summary>
+
+```json
+[
+  {
+    "Plan": {
+      "Node Type": "Aggregate",
+      "Strategy": "Plain",
+      "Partial Mode": "Simple",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 84.88,
+      "Total Cost": 84.89,
+      "Plan Rows": 1,
+      "Plan Width": 8,
+      "Actual Startup Time": 0.037,
+      "Actual Total Time": 0.038,
+      "Actual Rows": 1,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 103,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Scan Direction": "Forward",
+          "Index Name": "Post_accountId_projectId_createdAt_idx",
+          "Relation Name": "Post",
+          "Alias": "p",
+          "Startup Cost": 0.41,
+          "Total Cost": 84.84,
+          "Plan Rows": 9,
+          "Plan Width": 0,
+          "Actual Startup Time": 0.01,
+          "Actual Total Time": 0.034,
+          "Actual Rows": 100,
+          "Actual Loops": 1,
+          "Index Cond": "((\"accountId\" = 'tif-ab-a'::text) AND (\"projectId\" = 'tif-ab-a-proj-0001'::text))",
+          "Rows Removed by Index Recheck": 0,
+          "Filter": "((\"archivedAt\" IS NULL) AND (($0 = '__system__'::text) OR (\"accountId\" = $1)))",
+          "Rows Removed by Filter": 0,
+          "Shared Hit Blocks": 103,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        }
+      ]
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.05,
+    "Triggers": [],
+    "Execution Time": 0.044
   }
 ]
 ```
@@ -2282,23 +2356,25 @@ SELECT count(*) AS n FROM "Post" p
 
 #### Q3 — listGlobal — the account-wide feed, page 1
 
-- **Source site**: `apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:444`
-- **Why it is here**: the tenant-wide listing the new (accountId, projectId) partial index exists to serve. Emission UNCHANGED: `listGlobal` still reaches the tenant through the relation, so this case's query text is identical in both phases
+- **Source site**: `apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:458`
+- **Why it is here**: the tenant-wide listing the (accountId, projectId) partial index exists to serve. EMISSION CHANGED with the reshape: `listGlobal` reached the tenant through the relation when §Before AND §After were captured, and filters the LOCAL `Post.accountId` now, so this case's query text differs from BOTH committed phases. Unlike Q1/Q2/Q5/Q8 the move is not the schema's — the column already existed when §After was captured, so the delta against §After is attributable to the query change alone
 - **Mirror fidelity**: match — the case's own comparison returned `tif-ab-a-post-000001,tif-ab-a-post-000002,tif-ab-a-post-000003,tif-ab-a-post-000004,tif-ab-a-post-000005,tif-ab-a-post-0… (419 chars)` from the Prisma call and `tif-ab-a-post-000001,tif-ab-a-post-000002,tif-ab-a-post-000003,tif-ab-a-post-000004,tif-ab-a-post-000005,tif-ab-a-post-0… (419 chars)` from the mirror.
-- **Prisma call wall time**: 6.37 ms
-- **Planning time (ms, per run)**: 0.191 / 0.190 / 0.184
-- **Execution time (ms, per run)**: 6.826 / 6.754 / 6.748
-- **Plan nodes**: Limit → Sort → Hash Join → Seq Scan → Hash → Seq Scan
-- **Indexes used**: (none)
+- **Prisma call wall time**: 5.88 ms
+- **Planning time (ms, per run)**: 0.208 / 0.194 / 0.188
+- **Execution time (ms, per run)**: 4.407 / 4.390 / 4.372
+- **Scan-node time on `Post` (ms, per run)**: 1.935 / 1.930 / 1.923 — Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation
+- **Medians over 3 run(s)**: scan-node **1.930 ms** · statement-time 4.390 ms. The scan-node figure is the one to compare across phases: the statement total also carries sort, aggregate, join and output work that neither the policy form nor the index shape touches.
+- **Plan nodes**: Limit → Result → Result → Sort → Hash Join → Seq Scan → Hash → Seq Scan
+- **Indexes used (union across runs)**: (none)
 
 Query text (the mirror; `EXPLAIN` is taken from exactly this):
 
 ```sql
 SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."createdAt", p."updatedAt" FROM "Post" p
- WHERE p."deletedAt" IS NULL
+ WHERE p."accountId" = 'tif-ab-a'
+   AND p."deletedAt" IS NULL
    AND EXISTS (SELECT 1 FROM "Project" pr
                 WHERE pr.id = p."projectId"
-                  AND pr."accountId" = 'tif-ab-a'
                   AND pr."deletedAt" IS NULL)
  ORDER BY p."createdAt" DESC
  LIMIT 20 OFFSET 0
@@ -2313,15 +2389,15 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
       "Node Type": "Limit",
       "Parallel Aware": false,
       "Async Capable": false,
-      "Startup Cost": 1075.53,
-      "Total Cost": 1075.58,
+      "Startup Cost": 694.66,
+      "Total Cost": 694.71,
       "Plan Rows": 20,
       "Plan Width": 80,
-      "Actual Startup Time": 6.734,
-      "Actual Total Time": 6.736,
+      "Actual Startup Time": 4.357,
+      "Actual Total Time": 4.359,
       "Actual Rows": 20,
       "Actual Loops": 1,
-      "Shared Hit Blocks": 629,
+      "Shared Hit Blocks": 318,
       "Shared Read Blocks": 0,
       "Shared Dirtied Blocks": 0,
       "Shared Written Blocks": 0,
@@ -2333,23 +2409,73 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
       "Temp Written Blocks": 0,
       "Plans": [
         {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0.001,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
           "Node Type": "Sort",
           "Parent Relationship": "Outer",
           "Parallel Aware": false,
           "Async Capable": false,
-          "Startup Cost": 1075.53,
-          "Total Cost": 1076.41,
-          "Plan Rows": 351,
+          "Startup Cost": 694.63,
+          "Total Cost": 695.56,
+          "Plan Rows": 371,
           "Plan Width": 80,
-          "Actual Startup Time": 6.733,
-          "Actual Total Time": 6.734,
+          "Actual Startup Time": 4.356,
+          "Actual Total Time": 4.357,
           "Actual Rows": 20,
           "Actual Loops": 1,
           "Sort Key": ["p.\"createdAt\" DESC"],
           "Sort Method": "top-N heapsort",
           "Sort Space Used": 27,
           "Sort Space Type": "Memory",
-          "Shared Hit Blocks": 629,
+          "Shared Hit Blocks": 318,
           "Shared Read Blocks": 0,
           "Shared Dirtied Blocks": 0,
           "Shared Written Blocks": 0,
@@ -2366,17 +2492,17 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
               "Parallel Aware": false,
               "Async Capable": false,
               "Join Type": "Inner",
-              "Startup Cost": 23.87,
-              "Total Cost": 1066.19,
-              "Plan Rows": 351,
+              "Startup Cost": 21.58,
+              "Total Cost": 684.76,
+              "Plan Rows": 371,
               "Plan Width": 80,
-              "Actual Startup Time": 0.113,
-              "Actual Total Time": 5.43,
+              "Actual Startup Time": 0.114,
+              "Actual Total Time": 3.066,
               "Actual Rows": 9500,
               "Actual Loops": 1,
               "Inner Unique": true,
               "Hash Cond": "(p.\"projectId\" = pr.id)",
-              "Shared Hit Blocks": 629,
+              "Shared Hit Blocks": 318,
               "Shared Read Blocks": 0,
               "Shared Dirtied Blocks": 0,
               "Shared Written Blocks": 0,
@@ -2395,16 +2521,16 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
                   "Relation Name": "Post",
                   "Alias": "p",
                   "Startup Cost": 0,
-                  "Total Cost": 1017.06,
-                  "Plan Rows": 9546,
+                  "Total Cost": 658.05,
+                  "Plan Rows": 1938,
                   "Plan Width": 80,
-                  "Actual Startup Time": 0.044,
-                  "Actual Total Time": 4.296,
+                  "Actual Startup Time": 0.004,
+                  "Actual Total Time": 1.923,
                   "Actual Rows": 9500,
                   "Actual Loops": 1,
-                  "Filter": "((\"deletedAt\" IS NULL) AND ((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true))))",
+                  "Filter": "((\"deletedAt\" IS NULL) AND (\"accountId\" = 'tif-ab-a'::text) AND (($0 = '__system__'::text) OR (\"accountId\" = $1)))",
                   "Rows Removed by Filter": 10503,
-                  "Shared Hit Blocks": 617,
+                  "Shared Hit Blocks": 308,
                   "Shared Read Blocks": 0,
                   "Shared Dirtied Blocks": 0,
                   "Shared Written Blocks": 0,
@@ -2420,12 +2546,12 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
                   "Parent Relationship": "Inner",
                   "Parallel Aware": false,
                   "Async Capable": false,
-                  "Startup Cost": 23.63,
-                  "Total Cost": 23.63,
-                  "Plan Rows": 19,
+                  "Startup Cost": 20.34,
+                  "Total Cost": 20.34,
+                  "Plan Rows": 99,
                   "Plan Width": 30,
-                  "Actual Startup Time": 0.066,
-                  "Actual Total Time": 0.067,
+                  "Actual Startup Time": 0.108,
+                  "Actual Total Time": 0.108,
                   "Actual Rows": 100,
                   "Actual Loops": 1,
                   "Hash Buckets": 1024,
@@ -2433,7 +2559,7 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
                   "Hash Batches": 1,
                   "Original Hash Batches": 1,
                   "Peak Memory Usage": 13,
-                  "Shared Hit Blocks": 12,
+                  "Shared Hit Blocks": 10,
                   "Shared Read Blocks": 0,
                   "Shared Dirtied Blocks": 0,
                   "Shared Written Blocks": 0,
@@ -2452,16 +2578,16 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
                       "Relation Name": "Project",
                       "Alias": "pr",
                       "Startup Cost": 0,
-                      "Total Cost": 23.63,
-                      "Plan Rows": 19,
+                      "Total Cost": 20.34,
+                      "Plan Rows": 99,
                       "Plan Width": 30,
-                      "Actual Startup Time": 0.017,
-                      "Actual Total Time": 0.052,
+                      "Actual Startup Time": 0.03,
+                      "Actual Total Time": 0.1,
                       "Actual Rows": 100,
                       "Actual Loops": 1,
-                      "Filter": "((\"deletedAt\" IS NULL) AND (\"accountId\" = 'tif-ab-a'::text) AND ((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true))))",
+                      "Filter": "((\"deletedAt\" IS NULL) AND ((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true))))",
                       "Rows Removed by Filter": 417,
-                      "Shared Hit Blocks": 12,
+                      "Shared Hit Blocks": 10,
                       "Shared Read Blocks": 0,
                       "Shared Dirtied Blocks": 0,
                       "Shared Written Blocks": 0,
@@ -2492,9 +2618,9 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.184,
+    "Planning Time": 0.188,
     "Triggers": [],
-    "Execution Time": 6.748
+    "Execution Time": 4.372
   }
 ]
 ```
@@ -2503,23 +2629,25 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
 
 #### Q4 — listGlobal — the paired total count
 
-- **Source site**: `apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:454`
-- **Why it is here**: the account-wide count; it shares Q3's `where`, so it can still only be answered by walking into Project. Emission UNCHANGED between the two phases
+- **Source site**: `apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts:468`
+- **Why it is here**: the account-wide count; it shares Q3's `where`, so it walks into Project for LIVENESS only now, not for the tenant. EMISSION CHANGED with the reshape, on Q3's terms and for Q3's reason
 - **Mirror fidelity**: match — the case's own comparison returned `9500` from the Prisma call and `9500` from the mirror.
-- **Prisma call wall time**: 3.82 ms
-- **Planning time (ms, per run)**: 0.168 / 0.167 / 0.176
-- **Execution time (ms, per run)**: 4.799 / 4.768 / 4.765
-- **Plan nodes**: Aggregate → Hash Join → Index Only Scan → Hash → Seq Scan
-- **Indexes used**: Post_accountId_projectId_idx
+- **Prisma call wall time**: 3.17 ms
+- **Planning time (ms, per run)**: 0.187 / 0.181 / 0.193
+- **Execution time (ms, per run)**: 2.238 / 2.241 / 2.227
+- **Scan-node time on `Post` (ms, per run)**: 1.500 / 1.500 / 1.400 — Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation
+- **Medians over 3 run(s)**: scan-node **1.500 ms** · statement-time 2.238 ms. The scan-node figure is the one to compare across phases: the statement total also carries sort, aggregate, join and output work that neither the policy form nor the index shape touches.
+- **Plan nodes**: Aggregate → Result → Result → Nested Loop → Seq Scan → Index Only Scan
+- **Indexes used (union across runs)**: Post_accountId_projectId_createdAt_idx
 
 Query text (the mirror; `EXPLAIN` is taken from exactly this):
 
 ```sql
 SELECT count(*) AS n FROM "Post" p
- WHERE p."deletedAt" IS NULL
+ WHERE p."accountId" = 'tif-ab-a'
+   AND p."deletedAt" IS NULL
    AND EXISTS (SELECT 1 FROM "Project" pr
                 WHERE pr.id = p."projectId"
-                  AND pr."accountId" = 'tif-ab-a'
                   AND pr."deletedAt" IS NULL)
 ```
 
@@ -2534,15 +2662,15 @@ SELECT count(*) AS n FROM "Post" p
       "Partial Mode": "Simple",
       "Parallel Aware": false,
       "Async Capable": false,
-      "Startup Cost": 677.29,
-      "Total Cost": 677.3,
+      "Startup Cost": 504.36,
+      "Total Cost": 504.37,
       "Plan Rows": 1,
       "Plan Width": 8,
-      "Actual Startup Time": 4.752,
-      "Actual Total Time": 4.752,
+      "Actual Startup Time": 2.214,
+      "Actual Total Time": 2.215,
       "Actual Rows": 1,
       "Actual Loops": 1,
-      "Shared Hit Blocks": 50,
+      "Shared Hit Blocks": 372,
       "Shared Read Blocks": 0,
       "Shared Dirtied Blocks": 0,
       "Shared Written Blocks": 0,
@@ -2554,22 +2682,71 @@ SELECT count(*) AS n FROM "Post" p
       "Temp Written Blocks": 0,
       "Plans": [
         {
-          "Node Type": "Hash Join",
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Nested Loop",
           "Parent Relationship": "Outer",
           "Parallel Aware": false,
           "Async Capable": false,
           "Join Type": "Inner",
-          "Startup Cost": 24.16,
-          "Total Cost": 676.42,
-          "Plan Rows": 351,
+          "Startup Cost": 0.41,
+          "Total Cost": 503.4,
+          "Plan Rows": 371,
           "Plan Width": 0,
-          "Actual Startup Time": 0.073,
-          "Actual Total Time": 4.479,
+          "Actual Startup Time": 0.042,
+          "Actual Total Time": 1.955,
           "Actual Rows": 9500,
           "Actual Loops": 1,
-          "Inner Unique": true,
-          "Hash Cond": "(p.\"projectId\" = pr.id)",
-          "Shared Hit Blocks": 50,
+          "Inner Unique": false,
+          "Shared Hit Blocks": 372,
           "Shared Read Blocks": 0,
           "Shared Dirtied Blocks": 0,
           "Shared Written Blocks": 0,
@@ -2581,26 +2758,23 @@ SELECT count(*) AS n FROM "Post" p
           "Temp Written Blocks": 0,
           "Plans": [
             {
-              "Node Type": "Index Only Scan",
+              "Node Type": "Seq Scan",
               "Parent Relationship": "Outer",
               "Parallel Aware": false,
               "Async Capable": false,
-              "Scan Direction": "Forward",
-              "Index Name": "Post_accountId_projectId_idx",
-              "Relation Name": "Post",
-              "Alias": "p",
-              "Startup Cost": 0.29,
-              "Total Cost": 627.29,
-              "Plan Rows": 9546,
-              "Plan Width": 19,
-              "Actual Startup Time": 0.003,
-              "Actual Total Time": 3.459,
-              "Actual Rows": 9500,
+              "Relation Name": "Project",
+              "Alias": "pr",
+              "Startup Cost": 0,
+              "Total Cost": 20.34,
+              "Plan Rows": 99,
+              "Plan Width": 30,
+              "Actual Startup Time": 0.031,
+              "Actual Total Time": 0.108,
+              "Actual Rows": 100,
               "Actual Loops": 1,
-              "Filter": "((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true)))",
-              "Rows Removed by Filter": 9500,
-              "Heap Fetches": 0,
-              "Shared Hit Blocks": 38,
+              "Filter": "((\"deletedAt\" IS NULL) AND ((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true))))",
+              "Rows Removed by Filter": 417,
+              "Shared Hit Blocks": 10,
               "Shared Read Blocks": 0,
               "Shared Dirtied Blocks": 0,
               "Shared Written Blocks": 0,
@@ -2612,24 +2786,28 @@ SELECT count(*) AS n FROM "Post" p
               "Temp Written Blocks": 0
             },
             {
-              "Node Type": "Hash",
+              "Node Type": "Index Only Scan",
               "Parent Relationship": "Inner",
               "Parallel Aware": false,
               "Async Capable": false,
-              "Startup Cost": 23.63,
-              "Total Cost": 23.63,
-              "Plan Rows": 19,
-              "Plan Width": 30,
-              "Actual Startup Time": 0.068,
-              "Actual Total Time": 0.068,
-              "Actual Rows": 100,
-              "Actual Loops": 1,
-              "Hash Buckets": 1024,
-              "Original Hash Buckets": 1024,
-              "Hash Batches": 1,
-              "Original Hash Batches": 1,
-              "Peak Memory Usage": 13,
-              "Shared Hit Blocks": 12,
+              "Scan Direction": "Forward",
+              "Index Name": "Post_accountId_projectId_createdAt_idx",
+              "Relation Name": "Post",
+              "Alias": "p",
+              "Startup Cost": 0.41,
+              "Total Cost": 4.78,
+              "Plan Rows": 10,
+              "Plan Width": 19,
+              "Actual Startup Time": 0.007,
+              "Actual Total Time": 0.014,
+              "Actual Rows": 95,
+              "Actual Loops": 100,
+              "Index Cond": "((\"accountId\" = 'tif-ab-a'::text) AND (\"projectId\" = pr.id))",
+              "Rows Removed by Index Recheck": 0,
+              "Filter": "(($0 = '__system__'::text) OR (\"accountId\" = $1))",
+              "Rows Removed by Filter": 0,
+              "Heap Fetches": 0,
+              "Shared Hit Blocks": 362,
               "Shared Read Blocks": 0,
               "Shared Dirtied Blocks": 0,
               "Shared Written Blocks": 0,
@@ -2638,37 +2816,7 @@ SELECT count(*) AS n FROM "Post" p
               "Local Dirtied Blocks": 0,
               "Local Written Blocks": 0,
               "Temp Read Blocks": 0,
-              "Temp Written Blocks": 0,
-              "Plans": [
-                {
-                  "Node Type": "Seq Scan",
-                  "Parent Relationship": "Outer",
-                  "Parallel Aware": false,
-                  "Async Capable": false,
-                  "Relation Name": "Project",
-                  "Alias": "pr",
-                  "Startup Cost": 0,
-                  "Total Cost": 23.63,
-                  "Plan Rows": 19,
-                  "Plan Width": 30,
-                  "Actual Startup Time": 0.018,
-                  "Actual Total Time": 0.053,
-                  "Actual Rows": 100,
-                  "Actual Loops": 1,
-                  "Filter": "((\"deletedAt\" IS NULL) AND (\"accountId\" = 'tif-ab-a'::text) AND ((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true))))",
-                  "Rows Removed by Filter": 417,
-                  "Shared Hit Blocks": 12,
-                  "Shared Read Blocks": 0,
-                  "Shared Dirtied Blocks": 0,
-                  "Shared Written Blocks": 0,
-                  "Local Hit Blocks": 0,
-                  "Local Read Blocks": 0,
-                  "Local Dirtied Blocks": 0,
-                  "Local Written Blocks": 0,
-                  "Temp Read Blocks": 0,
-                  "Temp Written Blocks": 0
-                }
-              ]
+              "Temp Written Blocks": 0
             }
           ]
         }
@@ -2686,9 +2834,9 @@ SELECT count(*) AS n FROM "Post" p
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.176,
+    "Planning Time": 0.193,
     "Triggers": [],
-    "Execution Time": 4.765
+    "Execution Time": 2.227
   }
 ]
 ```
@@ -2700,11 +2848,13 @@ SELECT count(*) AS n FROM "Post" p
 - **Source site**: `apps/api/src/infrastructure/repositories/PrismaPostRepository.ts:226`
 - **Why it is here**: the command-side listing. EMISSION CHANGED: when §Before was captured it carried NO account predicate at all (its tenant scope came from the guard and RLS), and the required `TenantScope` now puts `accountId` in the `where` explicitly
 - **Mirror fidelity**: match — the case's own comparison returned `tif-ab-a-post-000001,tif-ab-a-post-000101,tif-ab-a-post-000201,tif-ab-a-post-000301,tif-ab-a-post-000401,tif-ab-a-post-0… (419 chars)` from the Prisma call and `tif-ab-a-post-000001,tif-ab-a-post-000101,tif-ab-a-post-000201,tif-ab-a-post-000301,tif-ab-a-post-000401,tif-ab-a-post-0… (419 chars)` from the mirror.
-- **Prisma call wall time**: 1.12 ms
-- **Planning time (ms, per run)**: 0.056 / 0.055 / 0.058
-- **Execution time (ms, per run)**: 0.080 / 0.072 / 0.074
-- **Plan nodes**: Limit → Sort → Index Scan
-- **Indexes used**: Post_accountId_projectId_idx
+- **Prisma call wall time**: 1.05 ms
+- **Planning time (ms, per run)**: 0.067 / 0.063 / 0.063
+- **Execution time (ms, per run)**: 0.028 / 0.024 / 0.025
+- **Scan-node time on `Post` (ms, per run)**: 0.018 / 0.016 / 0.017 — Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation
+- **Medians over 3 run(s)**: scan-node **0.017 ms** · statement-time 0.025 ms. The scan-node figure is the one to compare across phases: the statement total also carries sort, aggregate, join and output work that neither the policy form nor the index shape touches.
+- **Plan nodes**: Limit → Result → Result → Index Scan
+- **Indexes used (union across runs)**: Post_accountId_projectId_createdAt_idx
 
 Query text (the mirror; `EXPLAIN` is taken from exactly this):
 
@@ -2726,15 +2876,15 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
       "Node Type": "Limit",
       "Parallel Aware": false,
       "Async Capable": false,
-      "Startup Cost": 89.56,
-      "Total Cost": 89.61,
-      "Plan Rows": 20,
+      "Startup Cost": 0.44,
+      "Total Cost": 84.86,
+      "Plan Rows": 10,
       "Plan Width": 80,
-      "Actual Startup Time": 0.065,
-      "Actual Total Time": 0.066,
+      "Actual Startup Time": 0.012,
+      "Actual Total Time": 0.018,
       "Actual Rows": 20,
       "Actual Loops": 1,
-      "Shared Hit Blocks": 102,
+      "Shared Hit Blocks": 23,
       "Shared Read Blocks": 0,
       "Shared Dirtied Blocks": 0,
       "Shared Written Blocks": 0,
@@ -2746,23 +2896,20 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
       "Temp Written Blocks": 0,
       "Plans": [
         {
-          "Node Type": "Sort",
-          "Parent Relationship": "Outer",
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
           "Parallel Aware": false,
           "Async Capable": false,
-          "Startup Cost": 89.56,
-          "Total Cost": 89.62,
-          "Plan Rows": 24,
-          "Plan Width": 80,
-          "Actual Startup Time": 0.064,
-          "Actual Total Time": 0.065,
-          "Actual Rows": 20,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
           "Actual Loops": 1,
-          "Sort Key": ["\"createdAt\" DESC"],
-          "Sort Method": "top-N heapsort",
-          "Sort Space Used": 27,
-          "Sort Space Type": "Memory",
-          "Shared Hit Blocks": 102,
+          "Shared Hit Blocks": 0,
           "Shared Read Blocks": 0,
           "Shared Dirtied Blocks": 0,
           "Shared Written Blocks": 0,
@@ -2771,41 +2918,64 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
           "Local Dirtied Blocks": 0,
           "Local Written Blocks": 0,
           "Temp Read Blocks": 0,
-          "Temp Written Blocks": 0,
-          "Plans": [
-            {
-              "Node Type": "Index Scan",
-              "Parent Relationship": "Outer",
-              "Parallel Aware": false,
-              "Async Capable": false,
-              "Scan Direction": "Forward",
-              "Index Name": "Post_accountId_projectId_idx",
-              "Relation Name": "Post",
-              "Alias": "p",
-              "Startup Cost": 0.29,
-              "Total Cost": 89.01,
-              "Plan Rows": 24,
-              "Plan Width": 80,
-              "Actual Startup Time": 0.008,
-              "Actual Total Time": 0.047,
-              "Actual Rows": 100,
-              "Actual Loops": 1,
-              "Index Cond": "((\"accountId\" = 'tif-ab-a'::text) AND (\"projectId\" = 'tif-ab-a-proj-0001'::text))",
-              "Rows Removed by Index Recheck": 0,
-              "Filter": "((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true)))",
-              "Rows Removed by Filter": 0,
-              "Shared Hit Blocks": 102,
-              "Shared Read Blocks": 0,
-              "Shared Dirtied Blocks": 0,
-              "Shared Written Blocks": 0,
-              "Local Hit Blocks": 0,
-              "Local Read Blocks": 0,
-              "Local Dirtied Blocks": 0,
-              "Local Written Blocks": 0,
-              "Temp Read Blocks": 0,
-              "Temp Written Blocks": 0
-            }
-          ]
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Scan Direction": "Backward",
+          "Index Name": "Post_accountId_projectId_createdAt_idx",
+          "Relation Name": "Post",
+          "Alias": "p",
+          "Startup Cost": 0.41,
+          "Total Cost": 84.84,
+          "Plan Rows": 10,
+          "Plan Width": 80,
+          "Actual Startup Time": 0.011,
+          "Actual Total Time": 0.017,
+          "Actual Rows": 20,
+          "Actual Loops": 1,
+          "Index Cond": "((\"accountId\" = 'tif-ab-a'::text) AND (\"projectId\" = 'tif-ab-a-proj-0001'::text))",
+          "Rows Removed by Index Recheck": 0,
+          "Filter": "(($0 = '__system__'::text) OR (\"accountId\" = $1))",
+          "Rows Removed by Filter": 0,
+          "Shared Hit Blocks": 23,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
         }
       ]
     },
@@ -2821,9 +2991,9 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.058,
+    "Planning Time": 0.063,
     "Triggers": [],
-    "Execution Time": 0.074
+    "Execution Time": 0.025
   }
 ]
 ```
@@ -2835,11 +3005,13 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
 - **Source site**: `apps/api/src/infrastructure/repositories/PrismaPostRepository.ts:492`
 - **Why it is here**: runs before every bulk mutation; the join into Project IS the isolation check the method still writes. Emission UNCHANGED between the two phases
 - **Mirror fidelity**: match — the case's own comparison returned `tif-ab-a-post-000001,tif-ab-a-post-000101,tif-ab-a-post-000201,tif-ab-a-post-000301,tif-ab-a-post-000401,tif-ab-a-post-0… (419 chars)` from the Prisma call and `tif-ab-a-post-000001,tif-ab-a-post-000101,tif-ab-a-post-000201,tif-ab-a-post-000301,tif-ab-a-post-000401,tif-ab-a-post-0… (419 chars)` from the mirror.
-- **Prisma call wall time**: 3.67 ms
-- **Planning time (ms, per run)**: 0.178 / 0.169 / 0.175
-- **Execution time (ms, per run)**: 0.164 / 0.154 / 0.154
-- **Plan nodes**: Hash Join → Index Scan → Hash → Seq Scan
-- **Indexes used**: Post_pkey
+- **Prisma call wall time**: 3.79 ms
+- **Planning time (ms, per run)**: 0.198 / 0.176 / 0.173
+- **Execution time (ms, per run)**: 0.143 / 0.138 / 0.137
+- **Scan-node time on `Post` (ms, per run)**: 0.085 / 0.082 / 0.081 — Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation
+- **Medians over 3 run(s)**: scan-node **0.082 ms** · statement-time 0.138 ms. The scan-node figure is the one to compare across phases: the statement total also carries sort, aggregate, join and output work that neither the policy form nor the index shape touches.
+- **Plan nodes**: Nested Loop → Result → Result → Index Scan → Index Only Scan
+- **Indexes used (union across runs)**: Post_pkey, Project_id_accountId_key
 
 Query text (the mirror; `EXPLAIN` is taken from exactly this):
 
@@ -2857,21 +3029,20 @@ SELECT p.id FROM "Post" p
 [
   {
     "Plan": {
-      "Node Type": "Hash Join",
+      "Node Type": "Nested Loop",
       "Parallel Aware": false,
       "Async Capable": false,
       "Join Type": "Inner",
-      "Startup Cost": 24.17,
-      "Total Cost": 114.21,
+      "Startup Cost": 0.59,
+      "Total Cost": 107.83,
       "Plan Rows": 1,
       "Plan Width": 21,
-      "Actual Startup Time": 0.068,
-      "Actual Total Time": 0.143,
+      "Actual Startup Time": 0.018,
+      "Actual Total Time": 0.126,
       "Actual Rows": 20,
       "Actual Loops": 1,
       "Inner Unique": true,
-      "Hash Cond": "(p.\"projectId\" = pr.id)",
-      "Shared Hit Blocks": 72,
+      "Shared Hit Blocks": 101,
       "Shared Read Blocks": 0,
       "Shared Dirtied Blocks": 0,
       "Shared Written Blocks": 0,
@@ -2883,6 +3054,56 @@ SELECT p.id FROM "Post" p
       "Temp Written Blocks": 0,
       "Plans": [
         {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0.001,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
           "Node Type": "Index Scan",
           "Parent Relationship": "Outer",
           "Parallel Aware": false,
@@ -2892,16 +3113,16 @@ SELECT p.id FROM "Post" p
           "Relation Name": "Post",
           "Alias": "p",
           "Startup Cost": 0.29,
-          "Total Cost": 90.3,
-          "Plan Rows": 10,
+          "Total Cost": 90.2,
+          "Plan Rows": 4,
           "Plan Width": 40,
-          "Actual Startup Time": 0.013,
-          "Actual Total Time": 0.086,
+          "Actual Startup Time": 0.014,
+          "Actual Total Time": 0.081,
           "Actual Rows": 20,
           "Actual Loops": 1,
           "Index Cond": "(id = ANY ('{tif-ab-a-post-000001,tif-ab-a-post-000101,tif-ab-a-post-000201,tif-ab-a-post-000301,tif-ab-a-post-000401,tif-ab-a-post-000501,tif-ab-a-post-000601,tif-ab-a-post-000701,tif-ab-a-post-000801,tif-ab-a-post-000901,tif-ab-a-post-001001,tif-ab-a-post-001101,tif-ab-a-post-001201,tif-ab-a-post-001301,tif-ab-a-post-001401,tif-ab-a-post-001501,tif-ab-a-post-001601,tif-ab-a-post-001701,tif-ab-a-post-001801,tif-ab-a-post-001901}'::text[]))",
           "Rows Removed by Index Recheck": 0,
-          "Filter": "((\"deletedAt\" IS NULL) AND ((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true))))",
+          "Filter": "((\"deletedAt\" IS NULL) AND (($0 = '__system__'::text) OR (\"accountId\" = $1)))",
           "Rows Removed by Filter": 0,
           "Shared Hit Blocks": 60,
           "Shared Read Blocks": 0,
@@ -2915,24 +3136,28 @@ SELECT p.id FROM "Post" p
           "Temp Written Blocks": 0
         },
         {
-          "Node Type": "Hash",
+          "Node Type": "Index Only Scan",
           "Parent Relationship": "Inner",
           "Parallel Aware": false,
           "Async Capable": false,
-          "Startup Cost": 23.63,
-          "Total Cost": 23.63,
-          "Plan Rows": 20,
+          "Scan Direction": "Forward",
+          "Index Name": "Project_id_accountId_key",
+          "Relation Name": "Project",
+          "Alias": "pr",
+          "Startup Cost": 0.28,
+          "Total Cost": 4.3,
+          "Plan Rows": 1,
           "Plan Width": 30,
-          "Actual Startup Time": 0.053,
-          "Actual Total Time": 0.054,
-          "Actual Rows": 100,
-          "Actual Loops": 1,
-          "Hash Buckets": 1024,
-          "Original Hash Buckets": 1024,
-          "Hash Batches": 1,
-          "Original Hash Batches": 1,
-          "Peak Memory Usage": 13,
-          "Shared Hit Blocks": 12,
+          "Actual Startup Time": 0.002,
+          "Actual Total Time": 0.002,
+          "Actual Rows": 1,
+          "Actual Loops": 20,
+          "Index Cond": "((id = p.\"projectId\") AND (\"accountId\" = 'tif-ab-a'::text))",
+          "Rows Removed by Index Recheck": 0,
+          "Filter": "((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true)))",
+          "Rows Removed by Filter": 0,
+          "Heap Fetches": 0,
+          "Shared Hit Blocks": 41,
           "Shared Read Blocks": 0,
           "Shared Dirtied Blocks": 0,
           "Shared Written Blocks": 0,
@@ -2941,37 +3166,7 @@ SELECT p.id FROM "Post" p
           "Local Dirtied Blocks": 0,
           "Local Written Blocks": 0,
           "Temp Read Blocks": 0,
-          "Temp Written Blocks": 0,
-          "Plans": [
-            {
-              "Node Type": "Seq Scan",
-              "Parent Relationship": "Outer",
-              "Parallel Aware": false,
-              "Async Capable": false,
-              "Relation Name": "Project",
-              "Alias": "pr",
-              "Startup Cost": 0,
-              "Total Cost": 23.63,
-              "Plan Rows": 20,
-              "Plan Width": 30,
-              "Actual Startup Time": 0.014,
-              "Actual Total Time": 0.045,
-              "Actual Rows": 100,
-              "Actual Loops": 1,
-              "Filter": "((\"accountId\" = 'tif-ab-a'::text) AND ((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true))))",
-              "Rows Removed by Filter": 417,
-              "Shared Hit Blocks": 12,
-              "Shared Read Blocks": 0,
-              "Shared Dirtied Blocks": 0,
-              "Shared Written Blocks": 0,
-              "Local Hit Blocks": 0,
-              "Local Read Blocks": 0,
-              "Local Dirtied Blocks": 0,
-              "Local Written Blocks": 0,
-              "Temp Read Blocks": 0,
-              "Temp Written Blocks": 0
-            }
-          ]
+          "Temp Written Blocks": 0
         }
       ]
     },
@@ -2987,9 +3182,9 @@ SELECT p.id FROM "Post" p
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.175,
+    "Planning Time": 0.173,
     "Triggers": [],
-    "Execution Time": 0.154
+    "Execution Time": 0.137
   }
 ]
 ```
@@ -3001,11 +3196,13 @@ SELECT p.id FROM "Post" p
 - **Source site**: `apps/api/src/infrastructure/repositories/PrismaPostRepository.ts:527`
 - **Why it is here**: the per-request ownership gate; the composite key MAKES this join optional but the method still writes it, so its emission is UNCHANGED between the two phases
 - **Mirror fidelity**: match — the case's own comparison returned `tif-ab-a` from the Prisma call and `tif-ab-a` from the mirror.
-- **Prisma call wall time**: 2.74 ms
-- **Planning time (ms, per run)**: 0.149 / 0.155 / 0.150
-- **Execution time (ms, per run)**: 0.021 / 0.020 / 0.020
-- **Plan nodes**: Limit → Nested Loop → Index Scan → Index Only Scan
-- **Indexes used**: Post_id_accountId_key, Project_id_accountId_key
+- **Prisma call wall time**: 2.68 ms
+- **Planning time (ms, per run)**: 0.165 / 0.163 / 0.156
+- **Execution time (ms, per run)**: 0.024 / 0.023 / 0.022
+- **Scan-node time on `Post` (ms, per run)**: 0.008 / 0.007 / 0.007 — Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation
+- **Medians over 3 run(s)**: scan-node **0.007 ms** · statement-time 0.023 ms. The scan-node figure is the one to compare across phases: the statement total also carries sort, aggregate, join and output work that neither the policy form nor the index shape touches.
+- **Plan nodes**: Limit → Result → Result → Nested Loop → Index Scan → Index Only Scan
+- **Indexes used (union across runs)**: Post_id_accountId_key, Project_id_accountId_key
 
 Query text (the mirror; `EXPLAIN` is taken from exactly this):
 
@@ -3025,12 +3222,12 @@ SELECT pr."accountId" FROM "Post" p
       "Node Type": "Limit",
       "Parallel Aware": false,
       "Async Capable": false,
-      "Startup Cost": 0.56,
-      "Total Cost": 12.7,
+      "Startup Cost": 0.59,
+      "Total Cost": 12.72,
       "Plan Rows": 1,
       "Plan Width": 26,
-      "Actual Startup Time": 0.01,
-      "Actual Total Time": 0.011,
+      "Actual Startup Time": 0.011,
+      "Actual Total Time": 0.012,
       "Actual Rows": 1,
       "Actual Loops": 1,
       "Shared Hit Blocks": 6,
@@ -3045,17 +3242,67 @@ SELECT pr."accountId" FROM "Post" p
       "Temp Written Blocks": 0,
       "Plans": [
         {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
           "Node Type": "Nested Loop",
           "Parent Relationship": "Outer",
           "Parallel Aware": false,
           "Async Capable": false,
           "Join Type": "Inner",
           "Startup Cost": 0.56,
-          "Total Cost": 12.7,
+          "Total Cost": 12.69,
           "Plan Rows": 1,
           "Plan Width": 26,
-          "Actual Startup Time": 0.01,
-          "Actual Total Time": 0.01,
+          "Actual Startup Time": 0.011,
+          "Actual Total Time": 0.011,
           "Actual Rows": 1,
           "Actual Loops": 1,
           "Inner Unique": true,
@@ -3083,13 +3330,13 @@ SELECT pr."accountId" FROM "Post" p
               "Total Cost": 8.31,
               "Plan Rows": 1,
               "Plan Width": 19,
-              "Actual Startup Time": 0.006,
-              "Actual Total Time": 0.006,
+              "Actual Startup Time": 0.007,
+              "Actual Total Time": 0.007,
               "Actual Rows": 1,
               "Actual Loops": 1,
               "Index Cond": "(id = 'tif-ab-a-post-000001'::text)",
               "Rows Removed by Index Recheck": 0,
-              "Filter": "((\"deletedAt\" IS NULL) AND ((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true))))",
+              "Filter": "((\"deletedAt\" IS NULL) AND (($0 = '__system__'::text) OR (\"accountId\" = $1)))",
               "Rows Removed by Filter": 0,
               "Shared Hit Blocks": 3,
               "Shared Read Blocks": 0,
@@ -3151,9 +3398,9 @@ SELECT pr."accountId" FROM "Post" p
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.15,
+    "Planning Time": 0.156,
     "Triggers": [],
-    "Execution Time": 0.02
+    "Execution Time": 0.022
   }
 ]
 ```
@@ -3165,11 +3412,13 @@ SELECT pr."accountId" FROM "Post" p
 - **Source site**: `apps/api/src/infrastructure/repositories/PrismaPostRepository.ts:389 (base at :386)`
 - **Why it is here**: five counts issued together per project dashboard load. EMISSION CHANGED: the shared `base` where carried no account predicate when §Before was captured and carries the required scope's `accountId` now
 - **Mirror fidelity**: match — the case's own comparison returned `0` from the Prisma call and `0` from the mirror. This case is a DECLARED miss probe: the empty result is the measured subject, and the run fails if it ever starts matching rows.
-- **Prisma call wall time**: 0.98 ms
-- **Planning time (ms, per run)**: 0.055 / 0.059 / 0.057
-- **Execution time (ms, per run)**: 0.014 / 0.015 / 0.014
-- **Plan nodes**: Aggregate → Index Scan
-- **Indexes used**: Post_projectId_status_idx
+- **Prisma call wall time**: 1.11 ms
+- **Planning time (ms, per run)**: 0.066 / 0.064 / 0.055
+- **Execution time (ms, per run)**: 0.018 / 0.017 / 0.014
+- **Scan-node time on `Post` (ms, per run)**: 0.007 / 0.007 / 0.005 — Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation
+- **Medians over 3 run(s)**: scan-node **0.007 ms** · statement-time 0.017 ms. The scan-node figure is the one to compare across phases: the statement total also carries sort, aggregate, join and output work that neither the policy form nor the index shape touches.
+- **Plan nodes**: Aggregate → Result → Result → Index Scan
+- **Indexes used (union across runs)**: Post_projectId_status_idx
 
 Query text (the mirror; `EXPLAIN` is taken from exactly this):
 
@@ -3192,12 +3441,12 @@ SELECT count(*) AS n FROM "Post" p
       "Partial Mode": "Simple",
       "Parallel Aware": false,
       "Async Capable": false,
-      "Startup Cost": 71.58,
-      "Total Cost": 71.59,
+      "Startup Cost": 71.47,
+      "Total Cost": 71.48,
       "Plan Rows": 1,
       "Plan Width": 8,
       "Actual Startup Time": 0.006,
-      "Actual Total Time": 0.007,
+      "Actual Total Time": 0.006,
       "Actual Rows": 1,
       "Actual Loops": 1,
       "Shared Hit Blocks": 2,
@@ -3212,6 +3461,56 @@ SELECT count(*) AS n FROM "Post" p
       "Temp Written Blocks": 0,
       "Plans": [
         {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 0,
+          "Actual Loops": 0,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 0,
+          "Actual Loops": 0,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
           "Node Type": "Index Scan",
           "Parent Relationship": "Outer",
           "Parallel Aware": false,
@@ -3221,16 +3520,16 @@ SELECT count(*) AS n FROM "Post" p
           "Relation Name": "Post",
           "Alias": "p",
           "Startup Cost": 0.29,
-          "Total Cost": 71.56,
-          "Plan Rows": 6,
+          "Total Cost": 71.44,
+          "Plan Rows": 2,
           "Plan Width": 0,
-          "Actual Startup Time": 0.006,
-          "Actual Total Time": 0.006,
+          "Actual Startup Time": 0.005,
+          "Actual Total Time": 0.005,
           "Actual Rows": 0,
           "Actual Loops": 1,
           "Index Cond": "((\"projectId\" = 'tif-ab-a-proj-0001'::text) AND (status = 'DRAFT'::text))",
           "Rows Removed by Index Recheck": 0,
-          "Filter": "((\"accountId\" = 'tif-ab-a'::text) AND ((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true))))",
+          "Filter": "((\"accountId\" = 'tif-ab-a'::text) AND (($0 = '__system__'::text) OR (\"accountId\" = $1)))",
           "Rows Removed by Filter": 0,
           "Shared Hit Blocks": 2,
           "Shared Read Blocks": 0,
@@ -3257,7 +3556,7 @@ SELECT count(*) AS n FROM "Post" p
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.057,
+    "Planning Time": 0.055,
     "Triggers": [],
     "Execution Time": 0.014
   }
@@ -3272,14 +3571,16 @@ These two tables are the ones the leg-1 index exemption governs: the design give
 
 #### Q9 — PostContent — batched postId-led read for one listing page
 
-- **Source site**: `include `contents` on PrismaPostQueryRepository.ts:155 / PrismaPostRepository.ts:229`
+- **Source site**: `include `contents` on PrismaPostQueryRepository.ts:160 / PrismaPostRepository.ts:229`
 - **Why it is here**: shape-1b evidence: the read stays parent-key-led, and the exemption's revisit trigger is measured from whether the policy qual moves it off that index
 - **Mirror fidelity**: match — the case's own comparison returned `tif-ab-a-content-000001,tif-ab-a-content-000101,tif-ab-a-content-000201,tif-ab-a-content-000301,tif-ab-a-content-000401,… (479 chars)` from the Prisma call and `tif-ab-a-content-000001,tif-ab-a-content-000101,tif-ab-a-content-000201,tif-ab-a-content-000301,tif-ab-a-content-000401,… (479 chars)` from the mirror.
-- **Prisma call wall time**: 1.43 ms
-- **Planning time (ms, per run)**: 0.036 / 0.032 / 0.029
-- **Execution time (ms, per run)**: 0.104 / 0.100 / 0.097
-- **Plan nodes**: Index Scan
-- **Indexes used**: PostContent_postId_locale_revision_key
+- **Prisma call wall time**: 1.76 ms
+- **Planning time (ms, per run)**: 0.046 / 0.040 / 0.040
+- **Execution time (ms, per run)**: 0.099 / 0.097 / 0.094
+- **Scan-node time on `PostContent` (ms, per run)**: 0.091 / 0.089 / 0.086 — Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation
+- **Medians over 3 run(s)**: scan-node **0.089 ms** · statement-time 0.097 ms. The scan-node figure is the one to compare across phases: the statement total also carries sort, aggregate, join and output work that neither the policy form nor the index shape touches.
+- **Plan nodes**: Index Scan → Result → Result
+- **Indexes used (union across runs)**: PostContent_postId_locale_revision_key
 
 Query text (the mirror; `EXPLAIN` is taken from exactly this):
 
@@ -3302,17 +3603,17 @@ SELECT c.id, c."postId", c.locale, c.title, c.summary, c.revision
       "Index Name": "PostContent_postId_locale_revision_key",
       "Relation Name": "PostContent",
       "Alias": "c",
-      "Startup Cost": 0.29,
-      "Total Cost": 124.68,
-      "Plan Rows": 10,
+      "Startup Cost": 0.31,
+      "Total Cost": 124.04,
+      "Plan Rows": 4,
       "Plan Width": 96,
-      "Actual Startup Time": 0.016,
-      "Actual Total Time": 0.092,
+      "Actual Startup Time": 0.017,
+      "Actual Total Time": 0.086,
       "Actual Rows": 20,
       "Actual Loops": 1,
       "Index Cond": "(\"postId\" = ANY ('{tif-ab-a-post-000001,tif-ab-a-post-000101,tif-ab-a-post-000201,tif-ab-a-post-000301,tif-ab-a-post-000401,tif-ab-a-post-000501,tif-ab-a-post-000601,tif-ab-a-post-000701,tif-ab-a-post-000801,tif-ab-a-post-000901,tif-ab-a-post-001001,tif-ab-a-post-001101,tif-ab-a-post-001201,tif-ab-a-post-001301,tif-ab-a-post-001401,tif-ab-a-post-001501,tif-ab-a-post-001601,tif-ab-a-post-001701,tif-ab-a-post-001801,tif-ab-a-post-001901}'::text[]))",
       "Rows Removed by Index Recheck": 0,
-      "Filter": "((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true)))",
+      "Filter": "(($0 = '__system__'::text) OR (\"accountId\" = $1))",
       "Rows Removed by Filter": 0,
       "Shared Hit Blocks": 60,
       "Shared Read Blocks": 0,
@@ -3323,7 +3624,59 @@ SELECT c.id, c."postId", c.locale, c.title, c.summary, c.revision
       "Local Dirtied Blocks": 0,
       "Local Written Blocks": 0,
       "Temp Read Blocks": 0,
-      "Temp Written Blocks": 0
+      "Temp Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0.001,
+          "Actual Total Time": 0.001,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        }
+      ]
     },
     "Planning": {
       "Shared Hit Blocks": 0,
@@ -3337,9 +3690,9 @@ SELECT c.id, c."postId", c.locale, c.title, c.summary, c.revision
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.029,
+    "Planning Time": 0.04,
     "Triggers": [],
-    "Execution Time": 0.097
+    "Execution Time": 0.094
   }
 ]
 ```
@@ -3351,11 +3704,13 @@ SELECT c.id, c."postId", c.locale, c.title, c.summary, c.revision
 - **Source site**: `include `contents` on PrismaPostRepository.findById (:66)`
 - **Why it is here**: the aggregate-load shape; the narrowest postId-led child read there is
 - **Mirror fidelity**: match — the case's own comparison returned `tif-ab-a-content-000001` from the Prisma call and `tif-ab-a-content-000001` from the mirror.
-- **Prisma call wall time**: 0.82 ms
-- **Planning time (ms, per run)**: 0.022 / 0.023 / 0.021
-- **Execution time (ms, per run)**: 0.013 / 0.012 / 0.012
-- **Plan nodes**: Index Scan
-- **Indexes used**: PostContent_postId_locale_revision_key
+- **Prisma call wall time**: 1.09 ms
+- **Planning time (ms, per run)**: 0.032 / 0.029 / 0.039
+- **Execution time (ms, per run)**: 0.017 / 0.019 / 0.020
+- **Scan-node time on `PostContent` (ms, per run)**: 0.010 / 0.013 / 0.012 — Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation
+- **Medians over 3 run(s)**: scan-node **0.012 ms** · statement-time 0.019 ms. The scan-node figure is the one to compare across phases: the statement total also carries sort, aggregate, join and output work that neither the policy form nor the index shape touches.
+- **Plan nodes**: Index Scan → Result → Result
+- **Indexes used (union across runs)**: PostContent_postId_locale_revision_key
 
 Query text (the mirror; `EXPLAIN` is taken from exactly this):
 
@@ -3378,17 +3733,17 @@ SELECT c.id, c."postId", c.locale, c.title, c.summary, c.revision
       "Index Name": "PostContent_postId_locale_revision_key",
       "Relation Name": "PostContent",
       "Alias": "c",
-      "Startup Cost": 0.29,
-      "Total Cost": 8.31,
+      "Startup Cost": 0.31,
+      "Total Cost": 8.34,
       "Plan Rows": 1,
       "Plan Width": 96,
-      "Actual Startup Time": 0.007,
-      "Actual Total Time": 0.007,
+      "Actual Startup Time": 0.011,
+      "Actual Total Time": 0.012,
       "Actual Rows": 1,
       "Actual Loops": 1,
       "Index Cond": "(\"postId\" = 'tif-ab-a-post-000001'::text)",
       "Rows Removed by Index Recheck": 0,
-      "Filter": "((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true)))",
+      "Filter": "(($0 = '__system__'::text) OR (\"accountId\" = $1))",
       "Rows Removed by Filter": 0,
       "Shared Hit Blocks": 3,
       "Shared Read Blocks": 0,
@@ -3399,7 +3754,59 @@ SELECT c.id, c."postId", c.locale, c.title, c.summary, c.revision
       "Local Dirtied Blocks": 0,
       "Local Written Blocks": 0,
       "Temp Read Blocks": 0,
-      "Temp Written Blocks": 0
+      "Temp Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0.001,
+          "Actual Total Time": 0.001,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        }
+      ]
     },
     "Planning": {
       "Shared Hit Blocks": 0,
@@ -3413,9 +3820,9 @@ SELECT c.id, c."postId", c.locale, c.title, c.summary, c.revision
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.021,
+    "Planning Time": 0.039,
     "Triggers": [],
-    "Execution Time": 0.012
+    "Execution Time": 0.02
   }
 ]
 ```
@@ -3427,11 +3834,13 @@ SELECT c.id, c."postId", c.locale, c.title, c.summary, c.revision
 - **Source site**: `include `media` on PrismaPostRepository.ts:230`
 - **Why it is here**: shape-1b evidence for the second exempted table
 - **Mirror fidelity**: match — the case's own comparison returned `tif-ab-a-media-000201,tif-ab-a-media-000501,tif-ab-a-media-000801,tif-ab-a-media-001101,tif-ab-a-media-001401,tif-ab-a-m… (131 chars)` from the Prisma call and `tif-ab-a-media-000201,tif-ab-a-media-000501,tif-ab-a-media-000801,tif-ab-a-media-001101,tif-ab-a-media-001401,tif-ab-a-m… (131 chars)` from the mirror.
-- **Prisma call wall time**: 0.95 ms
-- **Planning time (ms, per run)**: 0.023 / 0.022 / 0.020
-- **Execution time (ms, per run)**: 0.075 / 0.078 / 0.075
-- **Plan nodes**: Index Scan
-- **Indexes used**: PostMedia_postId_idx
+- **Prisma call wall time**: 1.25 ms
+- **Planning time (ms, per run)**: 0.035 / 0.036 / 0.030
+- **Execution time (ms, per run)**: 0.080 / 0.084 / 0.079
+- **Scan-node time on `PostMedia` (ms, per run)**: 0.073 / 0.078 / 0.074 — Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation
+- **Medians over 3 run(s)**: scan-node **0.074 ms** · statement-time 0.080 ms. The scan-node figure is the one to compare across phases: the statement total also carries sort, aggregate, join and output work that neither the policy form nor the index shape touches.
+- **Plan nodes**: Index Scan → Result → Result
+- **Indexes used (union across runs)**: PostMedia_postId_idx
 
 Query text (the mirror; `EXPLAIN` is taken from exactly this):
 
@@ -3453,17 +3862,17 @@ SELECT m.id, m."postId", m.url, m.type FROM "PostMedia" m
       "Index Name": "PostMedia_postId_idx",
       "Relation Name": "PostMedia",
       "Alias": "m",
-      "Startup Cost": 0.28,
-      "Total Cost": 86.2,
+      "Startup Cost": 0.31,
+      "Total Cost": 86.13,
       "Plan Rows": 10,
       "Plan Width": 82,
-      "Actual Startup Time": 0.018,
-      "Actual Total Time": 0.072,
+      "Actual Startup Time": 0.023,
+      "Actual Total Time": 0.074,
       "Actual Rows": 6,
       "Actual Loops": 1,
       "Index Cond": "(\"postId\" = ANY ('{tif-ab-a-post-000001,tif-ab-a-post-000101,tif-ab-a-post-000201,tif-ab-a-post-000301,tif-ab-a-post-000401,tif-ab-a-post-000501,tif-ab-a-post-000601,tif-ab-a-post-000701,tif-ab-a-post-000801,tif-ab-a-post-000901,tif-ab-a-post-001001,tif-ab-a-post-001101,tif-ab-a-post-001201,tif-ab-a-post-001301,tif-ab-a-post-001401,tif-ab-a-post-001501,tif-ab-a-post-001601,tif-ab-a-post-001701,tif-ab-a-post-001801,tif-ab-a-post-001901}'::text[]))",
       "Rows Removed by Index Recheck": 0,
-      "Filter": "((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true)))",
+      "Filter": "(($0 = '__system__'::text) OR (\"accountId\" = $1))",
       "Rows Removed by Filter": 0,
       "Shared Hit Blocks": 46,
       "Shared Read Blocks": 0,
@@ -3474,7 +3883,59 @@ SELECT m.id, m."postId", m.url, m.type FROM "PostMedia" m
       "Local Dirtied Blocks": 0,
       "Local Written Blocks": 0,
       "Temp Read Blocks": 0,
-      "Temp Written Blocks": 0
+      "Temp Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        }
+      ]
     },
     "Planning": {
       "Shared Hit Blocks": 0,
@@ -3488,9 +3949,9 @@ SELECT m.id, m."postId", m.url, m.type FROM "PostMedia" m
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.02,
+    "Planning Time": 0.03,
     "Triggers": [],
-    "Execution Time": 0.075
+    "Execution Time": 0.079
   }
 ]
 ```
@@ -3499,14 +3960,16 @@ SELECT m.id, m."postId", m.url, m.type FROM "PostMedia" m
 
 #### Q12 — PostMedia — the `_count` aggregate over one listing page
 
-- **Source site**: ``_count: { select: { media: true } }` on PrismaPostQueryRepository.ts:156`
+- **Source site**: ``_count: { select: { media: true } }` on PrismaPostQueryRepository.ts:161`
 - **Why it is here**: the aggregate arm of the same child read; grouping changes the plan, so it is captured apart
 - **Mirror fidelity**: match — the case's own comparison returned `tif-ab-a-post-000201:1,tif-ab-a-post-000501:1,tif-ab-a-post-000801:1,tif-ab-a-post-001101:1,tif-ab-a-post-001401:1,tif-a… (137 chars)` from the Prisma call and `tif-ab-a-post-000201:1,tif-ab-a-post-000501:1,tif-ab-a-post-000801:1,tif-ab-a-post-001101:1,tif-ab-a-post-001401:1,tif-a… (137 chars)` from the mirror.
-- **Prisma call wall time**: 2.2 ms
-- **Planning time (ms, per run)**: 0.034 / 0.036 / 0.045
-- **Execution time (ms, per run)**: 0.086 / 0.083 / 0.088
-- **Plan nodes**: Aggregate → Index Scan
-- **Indexes used**: PostMedia_postId_idx
+- **Prisma call wall time**: 2.09 ms
+- **Planning time (ms, per run)**: 0.038 / 0.039 / 0.034
+- **Execution time (ms, per run)**: 0.083 / 0.084 / 0.082
+- **Scan-node time on `PostMedia` (ms, per run)**: 0.073 / 0.072 / 0.071 — Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation
+- **Medians over 3 run(s)**: scan-node **0.072 ms** · statement-time 0.083 ms. The scan-node figure is the one to compare across phases: the statement total also carries sort, aggregate, join and output work that neither the policy form nor the index shape touches.
+- **Plan nodes**: Aggregate → Result → Result → Index Scan
+- **Indexes used (union across runs)**: PostMedia_postId_idx
 
 Query text (the mirror; `EXPLAIN` is taken from exactly this):
 
@@ -3527,15 +3990,15 @@ SELECT m."postId", count(*) AS n FROM "PostMedia" m
       "Partial Mode": "Simple",
       "Parallel Aware": false,
       "Async Capable": false,
-      "Startup Cost": 0.28,
-      "Total Cost": 86.35,
+      "Startup Cost": 0.31,
+      "Total Cost": 86.28,
       "Plan Rows": 10,
       "Plan Width": 29,
-      "Actual Startup Time": 0.034,
-      "Actual Total Time": 0.078,
+      "Actual Startup Time": 0.031,
+      "Actual Total Time": 0.074,
       "Actual Rows": 6,
       "Actual Loops": 1,
-      "Group Key": ["\"postId\""],
+      "Group Key": ["m.\"postId\""],
       "Shared Hit Blocks": 46,
       "Shared Read Blocks": 0,
       "Shared Dirtied Blocks": 0,
@@ -3548,6 +4011,56 @@ SELECT m."postId", count(*) AS n FROM "PostMedia" m
       "Temp Written Blocks": 0,
       "Plans": [
         {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
           "Node Type": "Index Scan",
           "Parent Relationship": "Outer",
           "Parallel Aware": false,
@@ -3557,16 +4070,16 @@ SELECT m."postId", count(*) AS n FROM "PostMedia" m
           "Relation Name": "PostMedia",
           "Alias": "m",
           "Startup Cost": 0.28,
-          "Total Cost": 86.2,
+          "Total Cost": 86.1,
           "Plan Rows": 10,
           "Plan Width": 21,
-          "Actual Startup Time": 0.023,
-          "Actual Total Time": 0.075,
+          "Actual Startup Time": 0.02,
+          "Actual Total Time": 0.071,
           "Actual Rows": 6,
           "Actual Loops": 1,
           "Index Cond": "(\"postId\" = ANY ('{tif-ab-a-post-000001,tif-ab-a-post-000101,tif-ab-a-post-000201,tif-ab-a-post-000301,tif-ab-a-post-000401,tif-ab-a-post-000501,tif-ab-a-post-000601,tif-ab-a-post-000701,tif-ab-a-post-000801,tif-ab-a-post-000901,tif-ab-a-post-001001,tif-ab-a-post-001101,tif-ab-a-post-001201,tif-ab-a-post-001301,tif-ab-a-post-001401,tif-ab-a-post-001501,tif-ab-a-post-001601,tif-ab-a-post-001701,tif-ab-a-post-001801,tif-ab-a-post-001901}'::text[]))",
           "Rows Removed by Index Recheck": 0,
-          "Filter": "((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true)))",
+          "Filter": "(($0 = '__system__'::text) OR (\"accountId\" = $1))",
           "Rows Removed by Filter": 0,
           "Shared Hit Blocks": 46,
           "Shared Read Blocks": 0,
@@ -3593,9 +4106,9 @@ SELECT m."postId", count(*) AS n FROM "PostMedia" m
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.045,
+    "Planning Time": 0.034,
     "Triggers": [],
-    "Execution Time": 0.088
+    "Execution Time": 0.082
   }
 ]
 ```
@@ -3607,11 +4120,13 @@ SELECT m."postId", count(*) AS n FROM "PostMedia" m
 - **Source site**: `include `media` on PrismaPostRepository.findById (:67)`
 - **Why it is here**: the aggregate-load counterpart of Q10, over a parent that actually HAS media
 - **Mirror fidelity**: match — the case's own comparison returned `tif-ab-a-media-000201` from the Prisma call and `tif-ab-a-media-000201` from the mirror.
-- **Prisma call wall time**: 0.88 ms
-- **Planning time (ms, per run)**: 0.022 / 0.020 / 0.028
-- **Execution time (ms, per run)**: 0.012 / 0.011 / 0.017
-- **Plan nodes**: Index Scan
-- **Indexes used**: PostMedia_postId_idx
+- **Prisma call wall time**: 0.67 ms
+- **Planning time (ms, per run)**: 0.017 / 0.020 / 0.032
+- **Execution time (ms, per run)**: 0.011 / 0.010 / 0.020
+- **Scan-node time on `PostMedia` (ms, per run)**: 0.006 / 0.006 / 0.012 — Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading that relation
+- **Medians over 3 run(s)**: scan-node **0.006 ms** · statement-time 0.011 ms. The scan-node figure is the one to compare across phases: the statement total also carries sort, aggregate, join and output work that neither the policy form nor the index shape touches.
+- **Plan nodes**: Index Scan → Result → Result
+- **Indexes used (union across runs)**: PostMedia_postId_idx
 
 Query text (the mirror; `EXPLAIN` is taken from exactly this):
 
@@ -3633,17 +4148,17 @@ SELECT m.id, m."postId", m.url, m.type FROM "PostMedia" m
       "Index Name": "PostMedia_postId_idx",
       "Relation Name": "PostMedia",
       "Alias": "m",
-      "Startup Cost": 0.28,
-      "Total Cost": 8.31,
+      "Startup Cost": 0.31,
+      "Total Cost": 8.33,
       "Plan Rows": 1,
       "Plan Width": 82,
-      "Actual Startup Time": 0.011,
-      "Actual Total Time": 0.011,
+      "Actual Startup Time": 0.012,
+      "Actual Total Time": 0.012,
       "Actual Rows": 1,
       "Actual Loops": 1,
       "Index Cond": "(\"postId\" = 'tif-ab-a-post-000201'::text)",
       "Rows Removed by Index Recheck": 0,
-      "Filter": "((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true)))",
+      "Filter": "(($0 = '__system__'::text) OR (\"accountId\" = $1))",
       "Rows Removed by Filter": 0,
       "Shared Hit Blocks": 3,
       "Shared Read Blocks": 0,
@@ -3654,7 +4169,59 @@ SELECT m.id, m."postId", m.url, m.type FROM "PostMedia" m
       "Local Dirtied Blocks": 0,
       "Local Written Blocks": 0,
       "Temp Read Blocks": 0,
-      "Temp Written Blocks": 0
+      "Temp Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0.001,
+          "Actual Total Time": 0.001,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        }
+      ]
     },
     "Planning": {
       "Shared Hit Blocks": 0,
@@ -3668,9 +4235,9 @@ SELECT m.id, m."postId", m.url, m.type FROM "PostMedia" m
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.028,
+    "Planning Time": 0.032,
     "Triggers": [],
-    "Execution Time": 0.017
+    "Execution Time": 0.02
   }
 ]
 ```
@@ -3686,6 +4253,25 @@ it. Every number below is a MEDIAN of the capture's three runs, read from the pl
 the block above rather than from their flattened one-line summaries — a node sequence
 rendered as `A → B → C` loses which side of a join each scan sits on, and the before section
 records a case where reading the summary instead of the tree inverted a join twice.
+
+**Scope, added 2026-09-10: this section reads a capture that the block above NO LONGER
+HOLDS.** Surviving a regeneration is not the same as still describing one. The `--phase after`
+block was re-captured on **2026-09-10T13:31:21Z** against three changes this reading predates —
+the committed trio policy form (`20260910000000_rls_initplan_post_trio`), the reshaped
+`listGlobal`, and the committed `("accountId", "projectId", "createdAt")` index
+(`20260910000100_post_feed_index_winner`) — so every median below belongs to the SUPERSEDED
+capture: the as-shipped `("accountId", "projectId")` index, the bare policy body, and the
+pre-reshape `listGlobal`. It is dated and kept rather than rewritten, because it is the record
+that motivated all three repairs and the reasoning is only checkable against the numbers it was
+written from. The current reading is §"The committed index — the authoritative capture", below;
+where the two disagree, the later one wins and says so.
+
+One thing that scope note **cannot** give you, and it is worth stating rather than papering
+over: the superseded capture's own `Captured <timestamp>` line lived inside the generated
+block, so the regeneration destroyed it. This file can no longer say when the capture read
+below was taken. Only §Before's `2026-09-08T04:48:46.572Z` survives, because that block was not
+regenerated. A hand-written reading that wants to stay datable has to copy the timestamp it was
+written from into its own prose; this one did not, and the omission is only visible now.
 
 ### Two things changed, not one — and which cases that affects
 
@@ -3705,6 +4291,18 @@ rows and the check compares row identity), so this is stated rather than avoided
 So `Q3`, `Q4`, `Q6`, `Q7` and `Q9`–`Q13` carry a delta attributable to the SCHEMA alone —
 the column, the indexes, and the policy. `Q1`, `Q2`, `Q5` and `Q8` do not, and no conclusion
 below rests on them alone.
+
+**Scope of that table: the capture above, and nothing later.** It is a true reading of the
+block it sits under, and it is left alone for that reason. It stopped describing the CURRENT
+mirrors on 2026-09-10, when the `listGlobal` reshape moved `Q3` and `Q4` off the relation
+predicate and onto `Post.accountId`. So a future `--phase after` re-capture inherits a
+different attribution for exactly those two, and the difference is not cosmetic: `Q1`, `Q2`,
+`Q5` and `Q8` moved because the SCHEMA moved under them, whereas `Q3` and `Q4` moved because
+the QUERY was changed against a schema that already held the column. Their delta against
+**this** block is therefore attributable to the query alone, with no schema change mixed in —
+the cleanest attribution any case in this catalog has. Against §Before they still carry both.
+The catalog docblock in `scripts/rls-ab-measurement.ts` names the two classes as
+SCHEMA-MOVED and EMISSION-MOVED so the distinction survives outside this paragraph.
 
 ### Reproducibility, and the noise band this capture can support
 
@@ -3882,6 +4480,13 @@ justifies it.
 
 ### Verdict (c) — the design's cost claim for the ONE new index is NOT borne out
 
+**Pre-repair reading, and the index it is about no longer exists.**
+`20260910000100_post_feed_index_winner` dropped `Post_accountId_projectId_idx` on 2026-09-10
+and built `("accountId", "projectId", "createdAt")` in its place. What follows is kept as the
+measurement that MOTIVATED that migration — it is the evidence the shape decision was made on,
+so deleting it would leave the decision unsourced. The repair is recorded at the end of this
+subsection, with the committed index's own figures rather than the shortlist's.
+
 D-S1-1 justified `@@index([accountId, projectId], where: { deletedAt: null })` with: _"It
 serves the RLS policy's tenant qual AND tenant-wide listings."_ Both halves were measured,
 and both fail on this corpus:
@@ -3921,6 +4526,38 @@ far more posts, or an account with far fewer projects, moves that comparison. An
 justification was never only read performance — it is also the shape a future
 `accountId`-led sweep and the hard-delete cascade would use.
 
+#### The repair, measured against the COMMITTED index (2026-09-10T13:31:21Z)
+
+The displacement table above is what `20260910000100_post_feed_index_winner` was written to
+answer. Read from the regenerated block, the four displaced cases now stand as:
+
+| Case   | Displaced (superseded capture) | Committed, statement median | Committed, scan-node median | Plan on `Post`                                                               |
+| ------ | ------------------------------ | --------------------------- | --------------------------- | ---------------------------------------------------------------------------- |
+| `Q1`   | 0.086                          | **0.031**                   | **0.021**                   | `Limit → Result → Result → Index Scan` — **no `Sort` node**                  |
+| `Q5`   | 0.074                          | **0.025**                   | **0.017**                   | same shape, same repair                                                      |
+| `Q2`   | 0.058                          | **0.046**                   | **0.035**                   | `Aggregate → Result → Result → Index Scan` — an `Index Scan`, not a bitmap   |
+| `Q4` † | 4.77–5.42                      | **2.238**                   | **1.500**                   | `Aggregate → … → Nested Loop → Seq Scan (Project) → Index Only Scan`, heap 0 |
+
+All four read `Post_accountId_projectId_createdAt_idx`. The ordering the shipped key could not
+supply is back on `Q1` and `Q5` — the `Sort` node is absent from both plans, which is the
+structural claim the shortlist made and the one this capture had to reproduce or refute.
+
+**What the arrow in that table is NOT.** It spans more than the index. Between the superseded
+capture and this one, `Q1`, `Q2` and `Q5` also gained the hoisted policy body, and `Q4` gained
+both that and the `listGlobal` reshape, so no row above is an index measurement on its own. The
+index is isolated only by the four-arm shortlist run, which held the policy and the queries
+fixed and moved one index at a time. Both statistics are shown for the same reason: the
+scan-node median is the figure comparable across phases, the statement median is what the old
+displacement table quoted, and mixing the two silently is how a repair gets overstated.
+
+† `Q4` is the row that changed shape rather than speed. Its `Post`-side work is now an
+`Index Only Scan` with `Heap Fetches: 0` and `Rows Removed by Filter: 0` — the tenant
+restriction reaches the `Index Cond` (`"accountId" = 'tif-ab-a' AND "projectId" = pr.id`), so
+the policy filter discards nothing, where the superseded capture had it discarding 9 500 of
+19 000 entries. That is the reshape making the index reachable, not the index arriving: under
+the pre-reshape mirror, every one of the four arms ran `Q4` as a hash join over two sequential
+scans, so no arm could have produced this plan.
+
 ### The regressions, and the adjudication of each
 
 The artifact does not get to contain only the favourable comparisons, so here is the whole
@@ -3928,14 +4565,19 @@ list, each with a named disposition. **None of the three repairs below could be 
 this work unit**: two are migrations and one is a production query change with its own tests,
 and this unit is `docs/` plus the evidence harness. They are recorded as owned follow-ups
 with the measurement that motivates each, which is the difference between an adjudication and
-a silence.
+a silence. **Written at the after-capture, and left standing as that record**: all three have
+since landed, and each row says so in place rather than being quietly rewritten. Two of them
+closed on 2026-09-10 — the `listGlobal` reshape and `20260910000100_post_feed_index_winner` —
+and the third, the trio policy rewrite, closed the day before. A follow-up row that closes is
+worth more than one that disappears: the measurement that motivated the repair and the
+measurement that settled it are then readable side by side.
 
-| Regression                                                               | Cause                                                                                   | Adjudication                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Q3` +2.449 ms, `Q4` +3.49 to +4.14 ms †                                 | the policy qual is evaluated per row and is not indexable                               | **Rewrite the policy's GUC reads as scalar subqueries.** Measured, not proposed: the form decision run below runs that exact form (arm `W`), and on the same sequential scan node it is **~2.1-2.4× cheaper** — 1.833 ms and 1.775 ms across two independent captures, against 3.881–4.146 ms for the shipped form. With the scan-node median now computed, the decision run puts the same comparison at **2.31× on the scan node** (4.163 → 1.804 ms, pooled over 15 samples) and **1.82× on statement time** (5.438 → 2.993 ms) — the band is drawn from the SCAN-NODE statistic, so a statement-time reading outside it is the statistic differing, not the policy regressing. It is a migration, so it is a follow-up, not this unit. |
-| `Q3` does not use the new index                                          | `listGlobal` still expresses its tenant through the relation                            | **Reshape the query** to filter the local `accountId` while keeping the project-liveness predicate. Production code with its own tests; a follow-up.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `Q1` ×2.39, `Q5` ×3.52, `Q2` ×1.66, `Q4` ×3.73 † when it takes the index | the new index displaces `projectId`-led indexes that also supplied ordering or coverage | **Index shape decision**, which is a schema change and therefore token-gated. The two candidates the evidence supports are extending the index to `(accountId, projectId, createdAt)` or dropping it until a query actually needs it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `Q8`, `Q12` lose their index-only path                                   | the qual reads `accountId`, absent from both indexes                                    | **Accepted.** 1-2 µs on this corpus, inside the noise band, and the alternative is widening two indexes to carry a column their queries do not filter on.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Regression                                                               | Cause                                                                                   | Adjudication                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Q3` +2.449 ms, `Q4` +3.49 to +4.14 ms †                                 | the policy qual is evaluated per row and is not indexable                               | **Rewrite the policy's GUC reads as scalar subqueries — since SHIPPED for the trio.** Measured, not proposed: the form decision run below ran that exact form (arm `W`), and on the same sequential scan node it was **~2.1-2.4× cheaper** — 1.833 ms and 1.775 ms across two independent captures, against 3.881–4.146 ms for the body shipped AT THAT TIME (the bare one; the trio's shipped form is now the wrapped one, so read every "shipped form" in this row as "bare form"). With the scan-node median computed, the PRE-MIGRATION decision run put the same comparison at **2.31× on the scan node** (4.163 → 1.804 ms, pooled over 15 samples) and **1.82× on statement time** (5.438 → 2.993 ms) — the band is drawn from the SCAN-NODE statistic, so a statement-time reading outside it is the statistic differing, not the policy regressing. It was a migration and therefore a follow-up rather than that unit's work; `20260910000000_rls_initplan_post_trio` has since committed it for `Post`, `PostContent` and `PostMedia`, and the re-run measures the COMMITTED policy at **2.27× / 2.24× / 2.23×** on `S3` / `Q3` / `Q4` — §The superseded pre-migration capture. The remaining 58 policies are still bare.                                                                                                                                                                                  |
+| `Q3` does not use the new index                                          | `listGlobal` still expresses its tenant through the relation                            | **Reshape the query — SHIPPED 2026-09-10, and it did NOT make `Q3` take an index.** The repair landed as proposed: `listGlobal` now filters `Post."accountId"` directly and keeps `project: { deletedAt: null }` for liveness, with row-equivalence proven on three legs (§"The `listGlobal` reshape"). The cause named in the middle column is therefore closed. `Q3` still runs `Limit → … → Sort → Hash Join → Seq Scan` and reports `Indexes used: (none)`, and the plan says why: the local predicate IS in the scan's `Filter` (`"accountId" = 'tif-ab-a'`), so nothing is missing from the query — **this corpus has two tenants, so `accountId` selects half the table and no index beats a sequential scan at that selectivity.** The two reasons Verdict (a) gave were both real; fixing the query settled one and revealed that the other was never the binding one on this corpus. What the reshape DID buy `Q3` is the hoisted policy: its scan-node median is **1.930 ms** against ~4.2 ms for the same node under the bare body — the policy repair, not the query one. The feed question stays open in both directions until it is asked on a many-tenant corpus.                                                                                                                                                                                                                                     |
+| `Q1` ×2.39, `Q5` ×3.52, `Q2` ×1.66, `Q4` ×3.73 † when it takes the index | the new index displaces `projectId`-led indexes that also supplied ordering or coverage | **Index shape decision — CLOSED 2026-09-10 by measurement: the EXTENSION was taken.** Both candidates this row named were built and measured, and so were the two it did not name. Four arms — as-shipped control, `+createdAt` extension, the `("accountId", "createdAt")` feed shape, and DROP — were each installed inside a rolled-back transaction over 16 probes, 3 EXPLAIN runs × 5 sweeps (§"Reading the index shortlist run"). `("accountId", "projectId", "createdAt")` won on the rule declared before the run: the only arm improving an application case attributably — `Q1` 0.047 → 0.019 and `Q5` 0.048 → 0.019 on the scan node, sign-stable across all five sweeps — with no attributable case regression. **DROP was a first-class arm and lost on evidence, not on preference**: the key is selected by `Q1`, `Q2` and `Q5` under the control, and dropping it regresses the paired count by 17 µs. Shipped as `20260910000100_post_feed_index_winner`, and re-measured against the COMMITTED object, where the mechanism reproduces: the `Sort` node is gone from `Q1` and `Q5` (scan-node **0.021** / **0.017 ms**, inside the run's own ≤ 6 µs band of the arm's figures) and `Q2` keeps an `Index Scan` rather than falling to the bitmap path that disqualified the other two arms. What it does NOT repair is named with it: the account-wide feed, which no arm could order on this corpus. |
+| `Q8`, `Q12` lose their index-only path                                   | the qual reads `accountId`, absent from both indexes                                    | **Accepted.** 1-2 µs on this corpus, inside the noise band, and the alternative is widening two indexes to carry a column their queries do not filter on.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 The first three rows have a durable home, so they are not findings that live only inside a
 change record: **SMELL-93** in `docs/reports/roadmap-detected-smells-backlog.md` carries the
@@ -3944,11 +4586,261 @@ as the expense, and the three repairs sequenced smallest-first. It is filed as a
 OPTIMIZATION rather than a defect: every plan in this report returns the correct rows, and
 the isolation this slice exists to deliver is not in question anywhere in it.
 
+## The committed index — the authoritative capture
+
+Hand-written, outside every generated block, so a later `--phase after` re-run cannot erase
+it. Captured **2026-09-10T13:31:21Z**, `--phase after --runs 3`, against the object the
+migration actually installed. **This capture outranks the shortlist run**, which said so about
+itself before the numbers were in: _"the winner is committed by its own migration and
+re-measured against the committed index; that later capture is the authoritative one, and if it
+disagrees with this section, it wins."_ It does not disagree. That is recorded here as an
+outcome, not as a foregone one — the acceptance criteria below were written so they could fail.
+
+### The four claims this capture had to settle
+
+| Claim                                   | Read from                           | Outcome                                                                                                                                   |
+| --------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Is the `Q1`/`Q5` displacement repaired? | the regenerated `Q1` and `Q5` plans | **Yes.** No `Sort` node in either; `Limit → Result → Result → Index Scan` on the new key. Scan-node medians **0.021** and **0.017 ms**.   |
+| Does `Q2` keep an `Index Scan`?         | the regenerated `Q2` plan           | **Yes** — `Aggregate → Result → Result → Index Scan`. The bitmap fallback that disqualified `IX2` and `IX3` did not arrive on the winner. |
+| Is every out-of-band case adjudicated?  | the case-by-case reading below      | **Yes** — three cases moved materially (`Q1`, `Q5`, `Q4`) and one deliberately did not (`Q3`); each is named with its cause.              |
+| Row-equivalence                         | the harness exit code               | **13/13.** The digest gate is a hard throw, so a mismatch writes nothing; the run exited 0 and rewrote the block, which IS the claim.     |
+
+The corpus was removed afterwards (`--cleanup`), leaving the control count at 354 `Account`
+rows — the same number the capture recorded outside the `tif-ab-%` namespace.
+
+### The headline: a `Sort` node disappearing, reproduced on a committed object
+
+`Q1` and `Q5` are the two cases the shape was chosen for, and both reproduce the mechanism the
+arms predicted. Under the displaced `("accountId", "projectId")` key the listings ran
+`Limit → Sort → Index Scan`: the key carried no ordering, so `ORDER BY "createdAt" DESC LIMIT
+20` had to sort before it could stop. Under the committed key both are `Limit → Index Scan`
+with the scan running **Backward** and `Actual Rows: 20` at the scan node itself — the index
+supplies the ordering, so the limit stops the scan instead of a sort discarding what the scan
+over-read.
+
+The figures land beside the arm's, which is the strongest form of "the shortlist was
+predictive" available here:
+
+| Case | Shortlist control (`IX0`) | Shortlist arm (`IX1`) | Committed | Committed − arm     |
+| ---- | ------------------------- | --------------------- | --------- | ------------------- |
+| `Q1` | 0.047                     | 0.019                 | **0.021** | +2 µs — inside band |
+| `Q5` | 0.048                     | 0.019                 | **0.017** | −2 µs — inside band |
+
+Both differences are inside the ≤ 6 µs band that run declared before it ran, so the committed
+object behaves as the in-transaction arm did. That is a bounded agreement, not a proof of
+equality — but the structural claim, the absent `Sort`, is not a matter of degree.
+
+### `Q3` did not move, and that was predicted rather than discovered
+
+`Q3` still runs `Limit → Result → Result → Sort → Hash Join → Seq Scan → Hash → Seq Scan` and
+still reports `Indexes used: (none)`. Nothing here is a surprise and nothing is a failure of
+the reshape: the `Post` scan's `Filter` now carries `"accountId" = 'tif-ab-a'` — the local
+predicate the reshape added — and the planner declined to use an index for it. The shortlist
+run named this bound in advance and forbade reading it as a finding about the shape: **this
+corpus has two tenants**, so `accountId` selects half the table, and no index beats a
+sequential scan at 50 % selectivity. The generated block's mechanics note compounds it — with
+only `accountId` bound, the extension's range is ordered by `("projectId", "createdAt")`, so it
+could not have ordered this feed even if the selectivity had been there.
+
+What `Q3` DID gain is the policy repair, and the number is attributable because the form run
+isolated it: its scan-node median is **1.930 ms**, against the policy run's measurement of the
+same node at 4.209 ms bare and 1.876 ms wrapped. The committed capture lands within 54 µs of
+that independently-measured wrapped figure, on a 1.9 ms node.
+
+### `Q4` changed shape, and the reshape is what made the index reachable
+
+`Q4` is now `Aggregate → Result → Result → Nested Loop → Seq Scan (Project) → Index Only Scan
+(Post)` on the new key, with `Index Cond: ("accountId" = 'tif-ab-a' AND "projectId" = pr.id)`,
+`Heap Fetches: 0` and `Rows Removed by Filter: 0`. The superseded capture had this case reading
+19 000 index entries to keep 9 500, with the policy filter discarding the other half; the
+tenant restriction now reaches the index condition, so the filter discards nothing.
+
+**That improvement is not the index's alone and is not claimed as such.** Three changes
+separate the two readings for this case — the hoisted policy, the reshape, and the index — and
+this capture cannot decompose them. The one thing it can say cleanly is which change made the
+plan POSSIBLE: under the pre-reshape mirror, all four arms ran `Q4` as
+`Aggregate → Hash Join → Seq Scan → Hash → Seq Scan` with `Indexes used: (none)`, so no index
+shape could have produced this plan. The reshape opened the path; the index is what was waiting
+on it.
+
+### The hoisted policy is visible in all 13 plans — and so is the work still outstanding
+
+Every one of the 13 plans carries two `Result` nodes as `InitPlan 1 (returns $0)` and
+`InitPlan 2 (returns $1)`, and the trio's scan filters read `$0` / `$1` rather than calling
+`current_setting()`. That is the committed policy form showing up in the planner rather than in
+the catalog, on every case in the catalog.
+
+The same plans show what has NOT been rewritten. `Q3`'s and `Q4`'s `Project` scans still filter
+on `(current_setting('app.account_id'::text, true) = '__system__'::text) OR ("accountId" =
+current_setting('app.account_id'::text, true))` — the bare body, evaluated per row, on a scan
+that discards 417 rows to keep 100. `Project` is one of the 58 policies the sweep has yet to
+reach, and this capture is a live citation for that work rather than an argument for it.
+
+### What this capture does not settle
+
+- **It is not an index measurement.** Two changes separate it from the superseded reading for
+  `Q1`/`Q2`/`Q5` and three for `Q3`/`Q4`. The index is isolated only by the four-arm run, which
+  held everything else fixed. Any figure quoted from here as "what the index bought" is a
+  misreading of it.
+- **The arm-built-index inference is now PARTLY converted — and only partly.** The shortlist
+  could not demonstrate an index-only scan on an index one of its arms had built: all 60 clean
+  `Heap Fetches: 0` observations were on pre-existing indexes. `Q4` above is an
+  `Index Only Scan` with `Heap Fetches: 0` on exactly the `IX1` SHAPE, so the shape is settled
+  as index-only-usable on this corpus. What is still open is the narrower question the residual
+  was actually about — whether an index built INSIDE an open transaction is index-only-usable
+  within that same transaction — and this capture cannot close it by construction, because it
+  measures a committed index after a `VACUUM (ANALYZE)`. The residual narrows from "unconverted"
+  to "converted for the shape, open for the arm mode", and it only binds a future `--index-ab`
+  run.
+- **The single-corpus caveat travels with the decision, unchanged.** One shape — 100 projects ×
+  10 000 posts, exactly 100 per project, two tenants — which is the condition under which the
+  displaced `projectId`-led indexes win. A different fan-out moves the selectivity of every
+  index in the comparison and can move the verdict. It is the boundary of what was measured,
+  not a hedge about precision, and it is repeated in `schema.prisma`'s own docblock so it
+  cannot be lost by reading the schema alone.
+- **No write-path number.** Everything here is a read. The extension adds one column to an
+  index that already existed, so the additional `INSERT`/`UPDATE` cost is small and bounded —
+  which is reasoning, and is labelled as reasoning.
+
+## The `listGlobal` reshape — row equivalence, and what each leg can actually prove
+
+Hand-written, outside every generated block. Captured **2026-09-10**, against the committed
+trio policy form and the **as-shipped** `(accountId, projectId)` partial index — the index
+decision had not been applied yet, so **nothing here is a timing claim**. The authoritative
+timing capture is the `--phase after` re-run that follows the index migration. This section
+answers one question only: does the reshaped query return the same rows as the one it
+replaces? It closes the second adjudication row above (“`Q3` does not use the new index →
+**Reshape the query**”) on the correctness side.
+
+The reshape drops the relation's `accountId` half and keeps its `deletedAt` half:
+
+```text
+old  WHERE deletedAt IS NULL AND project: { accountId, deletedAt: null }
+new  WHERE accountId = <server-derived> AND deletedAt IS NULL AND project: { deletedAt: null }
+```
+
+Three legs were required. They are reported with their limits because **no single one of them
+closes the question**, and two of them are much weaker alone than they look.
+
+### Leg (a) — the where-shape evaluator suite
+
+`apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts` — **39 passed / 39**,
+exit 0. Born red: the new assertion failed against the pre-reshape code with
+`expected undefined to be 'd0000000-…-000000000001'`, i.e. no local `accountId` in the emitted
+`where` — a missing predicate, not an evaluator throw. That distinction is the point of the
+preparation the red needed: the evaluator refuses any key it does not model, so without an
+explicit `accountId` branch the suite would have ERRORED, and an error is not a red.
+
+Two fidelity pins keep the exclusion proofs honest, one per half. Each asserts that the
+evaluator itself does no hidden filtering, so a passing exclusion cannot be an artefact of a
+lenient mock:
+
+| Pin                                        | Where evaluated without it                            | Result                        |
+| ------------------------------------------ | ----------------------------------------------------- | ----------------------------- |
+| no `project.deletedAt` predicate           | the soft-deleted project's post **is** returned (2/3) | liveness half is load-bearing |
+| no `accountId` predicate (either spelling) | the foreign account's post **is** returned (2/3)      | tenant half is load-bearing   |
+
+**What it proves**: the shape the repository actually emits, and that both exclusions survive
+the reshape. **What it cannot**: it never touches Postgres, so it says nothing about whether
+that shape selects the same rows on real data.
+
+### Leg (b) — harness mirror fidelity, and the blindness it is known to have
+
+`--phase after --runs 3`, **13/13 `ok`**, exit 0. Run with `--out` pointed at a scratch file
+so no generated block in this report was overwritten by a correctness check.
+
+**This leg is weaker than its name suggests, and the weakness was measured rather than
+assumed.** The check compares each case's SQL mirror against that case's own **Prisma
+mirror** — both hand-written in `scripts/rls-ab-measurement.ts` — on row identity. It is
+therefore blind to any rewrite that preserves rows, which is precisely what a reshape is:
+
+| Plant                                               | Fidelity verdict             | Exit  |
+| --------------------------------------------------- | ---------------------------- | ----- |
+| `Q3` mirror reverted to the OLD relation-tenant SQL | `Q3 ok` — **caught nothing** | **0** |
+| `Q3` mirror with `p."deletedAt" IS NULL` removed    | `Q3 FIDELITY MISMATCH`       | **1** |
+
+The second row is what keeps the first from being an indictment: the check is not vacuous, it
+simply cannot see a row-preserving substitution. The file was restored byte-exact after both
+plants — `sha256 7eb9f2cd…c6bbeec0`, identical to the pre-plant checksum — and re-ran 13/13
+green. On the mismatch the harness wrote **nothing** to the report, which is the behaviour
+that makes a red here safe to produce.
+
+**What it proves**: the SQL mirror and the Prisma mirror agree, so the plans captured for
+`Q3`/`Q4` belong to the reshaped query rather than the old one. **What it cannot**: it does
+not reach the repository. Leg (a) is what binds the repository to the Prisma mirror — the two
+`where` objects are the same literal — and only the pair of legs together spans
+repository → Prisma mirror → SQL mirror.
+
+### Leg (c) — old shape and new shape, one bound transaction, real corpus
+
+Executed as `omnipost_app` (`rolbypassrls = false`, verified in-transaction), corpus
+`tif-ab-a`: 100 projects, 10 000 posts, 9 500 of them live.
+
+| GUC state    | old rows | new rows | digests | only-old | only-new | verdict                                   |
+| ------------ | -------- | -------- | ------- | -------- | -------- | ----------------------------------------- |
+| `tif-ab-a`   | 9 500    | 9 500    | equal   | 0        | 0        | equivalent, non-vacuous                   |
+| `__system__` | 9 500    | 9 500    | equal   | 0        | 0        | equivalent, non-vacuous                   |
+| unset        | 0        | 0        | —       | 0        | 0        | **vacuous** — RLS fail-closed, both empty |
+
+The unset row is recorded and explicitly NOT counted as evidence: two empty results are equal
+no matter what either query says. The `__system__` row is counted, and it is there for the
+reason the trio's own equivalence check needed it — a bound tenant hides any change that RLS
+would have masked anyway.
+
+**And on the corpus as seeded, the bound-tenant row is weaker than it reads.** The probe
+reported `soft_deleted_projects = 0`: nothing under the tenant was soft-deleted, so the
+equality above could not distinguish “liveness preserved” from “liveness dropped”. Planting
+one inside a rolled-back transaction fixes that, and asks each half whether the probe can fail
+at all:
+
+| Variant, with one project soft-deleted   | Rows under `tif-ab-a` | Reads                                                 |
+| ---------------------------------------- | --------------------- | ----------------------------------------------------- |
+| old shape                                | 9 400                 | baseline                                              |
+| new shape                                | 9 400                 | **agrees, and now over a corpus that could disagree** |
+| new shape with the liveness half dropped | 9 500                 | +100 — the probe **can** see a lost liveness filter   |
+| new shape with the tenant half dropped   | 9 400                 | **invisible** — RLS is already filtering the tenant   |
+
+That last row is a genuine limit, not a defect: under a bound tenant the query's own tenant
+predicate is redundant with the policy, so removing it changes nothing observable. Asked again
+under `__system__`, where the policy admits every tenant, the same variant returns **19 000**
+against the new shape's **9 500** — **9 500 foreign rows** that a dropped tenant predicate
+would leak. So the tenant half is discriminable, just not from where a tenant sits. The
+planted soft-delete was rolled back and the project re-read live.
+
+### Why the two halves are not symmetric, and the constraint that says so
+
+Dropping the relation's `accountId` is safe for a reason stronger than “the rows matched on
+this corpus”: `Post.projectId, Post.accountId` is a composite foreign key onto
+`Project.id, Project.accountId`, so a post whose account disagrees with its project's is not a
+row the database will hold. Measured rather than cited:
+
+| Insert into `Post`                                                 | Outcome                           |
+| ------------------------------------------------------------------ | --------------------------------- |
+| `projectId = tif-ab-a-proj-0001`, `accountId = tif-ab-a` (control) | **ACCEPTED**                      |
+| `projectId = tif-ab-a-proj-0001`, `accountId = tif-ab-b`           | **`23503 foreign_key_violation`** |
+
+The control is the half that makes the probe mean something: without it, a rejection could be
+a malformed statement rather than the constraint. Both rows were rolled back and the table
+re-read with zero probe rows left.
+
+The liveness half has no such constraint behind it — soft delete does not cascade, so a
+soft-deleted project's posts keep `deletedAt IS NULL` — which is why it stays in the query and
+why the evaluator pin for it exists.
+
+### Residual this section does not close
+
+Each case in the catalog names its source site as a **line number**, and every one of them was
+re-verified against the current files in this change. Nothing checks them: a docblock edit two
+lines above a call site silently retargets the reference, and no test, gate, or fitness
+function reads them. This is the same failure class as the stale mirror measured above, one
+level weaker, because at least the mirror has a check that fails on row-changing edits. An
+anchor on the enclosing method name would be resilient where a line number is not.
+
 <!-- BEGIN generated:policy-ab -->
 
 ## Policy form decision run — `A′` vs `W` vs `S`
 
-Captured 2026-09-10T01:58:27.936Z in 1.2 s. PostgreSQL: PostgreSQL 16.14 (Debian 16.14-1.pgdg12+1). Every arm installs its policy on all three trio tables (`Post`, `PostContent`, `PostMedia`) inside ONE transaction, reaches `omnipost_app` with `SET LOCAL ROLE` in that same transaction, binds `app.account_id` to `tif-ab-a`, measures, and ROLLS BACK. Nothing is committed; the restore is the rollback itself, and the shipped policies are re-read afterwards and compared.
+Captured 2026-09-10T03:03:11.307Z in 1.1 s. PostgreSQL: PostgreSQL 16.14 (Debian 16.14-1.pgdg12+1). Every arm installs its policy on all three trio tables (`Post`, `PostContent`, `PostMedia`) inside ONE transaction, reaches `omnipost_app` with `SET LOCAL ROLE` in that same transaction, binds `app.account_id` to `tif-ab-a`, measures, and ROLLS BACK. Nothing is committed; the restore is the rollback itself, and the shipped policies are re-read afterwards and compared.
 
 Each arm measures **16 probes**: the three synthetic shapes below, which carry no tenant predicate of their own so the policy is the whole restriction, and the **13 application cases** of the capture sections — entered as their SQL mirrors, because a Prisma call cannot run inside the arm's owner transaction. The mirrors' fidelity to their repository calls is proven on every capture run, and this run consumes that proof rather than restating it.
 
@@ -3978,20 +4870,20 @@ The three `tenant_isolation` policies, read from `pg_policies` before the first 
 
 ```text
 Post:
-  qual       = ((current_setting('app.account_id'::text, true) = '__system__'::text) OR ("accountId" = current_setting('app.account_id'::text, true)))
-  with_check = ((current_setting('app.account_id'::text, true) = '__system__'::text) OR ("accountId" = current_setting('app.account_id'::text, true)))
+  qual       = ((( SELECT current_setting('app.account_id'::text, true) AS current_setting) = '__system__'::text) OR ("accountId" = ( SELECT current_setting('app.account_id'::text, true) AS current_setting)))
+  with_check = ((( SELECT current_setting('app.account_id'::text, true) AS current_setting) = '__system__'::text) OR ("accountId" = ( SELECT current_setting('app.account_id'::text, true) AS current_setting)))
   permissive = PERMISSIVE
   cmd        = ALL
   roles      = {public}
 PostContent:
-  qual       = ((current_setting('app.account_id'::text, true) = '__system__'::text) OR ("accountId" = current_setting('app.account_id'::text, true)))
-  with_check = ((current_setting('app.account_id'::text, true) = '__system__'::text) OR ("accountId" = current_setting('app.account_id'::text, true)))
+  qual       = ((( SELECT current_setting('app.account_id'::text, true) AS current_setting) = '__system__'::text) OR ("accountId" = ( SELECT current_setting('app.account_id'::text, true) AS current_setting)))
+  with_check = ((( SELECT current_setting('app.account_id'::text, true) AS current_setting) = '__system__'::text) OR ("accountId" = ( SELECT current_setting('app.account_id'::text, true) AS current_setting)))
   permissive = PERMISSIVE
   cmd        = ALL
   roles      = {public}
 PostMedia:
-  qual       = ((current_setting('app.account_id'::text, true) = '__system__'::text) OR ("accountId" = current_setting('app.account_id'::text, true)))
-  with_check = ((current_setting('app.account_id'::text, true) = '__system__'::text) OR ("accountId" = current_setting('app.account_id'::text, true)))
+  qual       = ((( SELECT current_setting('app.account_id'::text, true) AS current_setting) = '__system__'::text) OR ("accountId" = ( SELECT current_setting('app.account_id'::text, true) AS current_setting)))
+  with_check = ((( SELECT current_setting('app.account_id'::text, true) AS current_setting) = '__system__'::text) OR ("accountId" = ( SELECT current_setting('app.account_id'::text, true) AS current_setting)))
   permissive = PERMISSIVE
   cmd        = ALL
   roles      = {public}
@@ -4011,22 +4903,22 @@ The two reads are identical, which is what makes the swap provably transaction-s
 
 | Probe | Kind  | Relation      | `A′` control | `W`   | `S`   | S − W   | S − W (%) | In band | Sign stable | Attributable to |
 | ----- | ----- | ------------- | ------------ | ----- | ----- | ------- | --------- | ------- | ----------- | --------------- |
-| `S1`  | shape | `Post`        | 0.006        | 0.006 | 0.006 | 0.0 µs  | 0.00 %    | yes     | **no**      | —               |
-| `S2`  | shape | `Post`        | 0.016        | 0.056 | 0.052 | -4.0 µs | -7.14 %   | yes     | yes         | —               |
-| `S3`  | shape | `Post`        | 4.163        | 1.804 | 1.824 | 20.0 µs | 1.11 %    | **NO**  | **no**      | —               |
-| `Q1`  | case  | `Post`        | 0.046        | 0.034 | 0.033 | -1.0 µs | -2.94 %   | yes     | **no**      | —               |
-| `Q2`  | case  | `Post`        | 0.042        | 0.029 | 0.030 | 1.0 µs  | 3.45 %    | yes     | **no**      | —               |
-| `Q3`  | case  | `Post`        | 4.209        | 1.866 | 1.864 | -2.0 µs | -0.11 %   | yes     | **no**      | —               |
-| `Q4`  | case  | `Post`        | 3.808        | 1.723 | 1.725 | 2.0 µs  | 0.12 %    | yes     | **no**      | —               |
-| `Q5`  | case  | `Post`        | 0.044        | 0.033 | 0.035 | 2.0 µs  | 6.06 %    | yes     | **no**      | —               |
-| `Q6`  | case  | `Post`        | 0.084        | 0.082 | 0.084 | 2.0 µs  | 2.44 %    | yes     | **no**      | —               |
-| `Q7`  | case  | `Post`        | 0.005        | 0.007 | 0.007 | 0.0 µs  | 0.00 %    | yes     | **no**      | —               |
-| `Q8`  | case  | `Post`        | 0.004        | 0.004 | 0.004 | 0.0 µs  | 0.00 %    | yes     | **no**      | —               |
-| `Q9`  | case  | `PostContent` | 0.085        | 0.083 | 0.086 | 3.0 µs  | 3.61 %    | yes     | **no**      | —               |
-| `Q10` | case  | `PostContent` | 0.005        | 0.007 | 0.006 | -1.0 µs | -14.29 %  | yes     | **no**      | —               |
-| `Q11` | case  | `PostMedia`   | 0.073        | 0.072 | 0.073 | 1.0 µs  | 1.39 %    | yes     | **no**      | —               |
-| `Q12` | case  | `PostMedia`   | 0.072        | 0.072 | 0.072 | 0.0 µs  | 0.00 %    | yes     | **no**      | —               |
-| `Q13` | case  | `PostMedia`   | 0.005        | 0.006 | 0.007 | 1.0 µs  | 16.67 %   | yes     | **no**      | —               |
+| `S1`  | shape | `Post`        | 0.007        | 0.008 | 0.007 | -1.0 µs | -12.50 %  | yes     | **no**      | —               |
+| `S2`  | shape | `Post`        | 0.055        | 0.053 | 0.060 | 7.0 µs  | 13.21 %   | **NO**  | **no**      | —               |
+| `S3`  | shape | `Post`        | 1.834        | 1.819 | 1.832 | 13.0 µs | 0.71 %    | yes     | **no**      | —               |
+| `Q1`  | case  | `Post`        | 0.037        | 0.036 | 0.037 | 1.0 µs  | 2.78 %    | yes     | **no**      | —               |
+| `Q2`  | case  | `Post`        | 0.033        | 0.033 | 0.032 | -1.0 µs | -3.03 %   | yes     | **no**      | —               |
+| `Q3`  | case  | `Post`        | 1.876        | 1.873 | 1.880 | 7.0 µs  | 0.37 %    | yes     | **no**      | —               |
+| `Q4`  | case  | `Post`        | 1.707        | 1.699 | 1.719 | 20.0 µs | 1.18 %    | **NO**  | **no**      | —               |
+| `Q5`  | case  | `Post`        | 0.037        | 0.036 | 0.033 | -3.0 µs | -8.33 %   | yes     | **no**      | —               |
+| `Q6`  | case  | `Post`        | 0.085        | 0.083 | 0.083 | 0.0 µs  | 0.00 %    | yes     | **no**      | —               |
+| `Q7`  | case  | `Post`        | 0.007        | 0.007 | 0.007 | 0.0 µs  | 0.00 %    | yes     | **no**      | —               |
+| `Q8`  | case  | `Post`        | 0.005        | 0.005 | 0.004 | -1.0 µs | -20.00 %  | yes     | **no**      | —               |
+| `Q9`  | case  | `PostContent` | 0.086        | 0.088 | 0.083 | -5.0 µs | -5.68 %   | yes     | **no**      | —               |
+| `Q10` | case  | `PostContent` | 0.008        | 0.006 | 0.006 | 0.0 µs  | 0.00 %    | yes     | **no**      | —               |
+| `Q11` | case  | `PostMedia`   | 0.074        | 0.073 | 0.073 | 0.0 µs  | 0.00 %    | yes     | **no**      | —               |
+| `Q12` | case  | `PostMedia`   | 0.073        | 0.072 | 0.072 | 0.0 µs  | 0.00 %    | yes     | **no**      | —               |
+| `Q13` | case  | `PostMedia`   | 0.005        | 0.006 | 0.006 | 0.0 µs  | 0.00 %    | yes     | **no**      | —               |
 
 Medians in ms. `S − W` is positive when `S` is SLOWER.
 
@@ -4034,24 +4926,24 @@ Medians in ms. `S − W` is positive when `S` is SLOWER.
 
 The signed `S − W` delta of each of the 5 sweeps, in µs. A probe whose sign changes down its row has not measured a property of the form.
 
-| Probe | sweep 1  | sweep 2 | sweep 3 | sweep 4 | sweep 5 | Sign stable |
-| ----- | -------- | ------- | ------- | ------- | ------- | ----------- |
-| `S1`  | -2.0 µs  | -1.0 µs | 0.0 µs  | 0.0 µs  | 0.0 µs  | **no**      |
-| `S2`  | -3.0 µs  | -2.0 µs | -4.0 µs | -5.0 µs | -5.0 µs | yes         |
-| `S3`  | -32.0 µs | 12.0 µs | 8.0 µs  | 33.0 µs | 2.0 µs  | **no**      |
-| `Q1`  | -8.0 µs  | 5.0 µs  | -3.0 µs | 6.0 µs  | 1.0 µs  | **no**      |
-| `Q2`  | -3.0 µs  | 3.0 µs  | -1.0 µs | 2.0 µs  | 0.0 µs  | **no**      |
-| `Q3`  | -32.0 µs | 10.0 µs | -5.0 µs | 0.0 µs  | 8.0 µs  | **no**      |
-| `Q4`  | -36.0 µs | 2.0 µs  | 1.0 µs  | 12.0 µs | 4.0 µs  | **no**      |
-| `Q5`  | 1.0 µs   | 4.0 µs  | 0.0 µs  | -1.0 µs | -2.0 µs | **no**      |
-| `Q6`  | 3.0 µs   | 7.0 µs  | -3.0 µs | 0.0 µs  | 1.0 µs  | **no**      |
-| `Q7`  | -1.0 µs  | -1.0 µs | -1.0 µs | 0.0 µs  | 0.0 µs  | **no**      |
-| `Q8`  | 0.0 µs   | 0.0 µs  | 1.0 µs  | -1.0 µs | 0.0 µs  | **no**      |
-| `Q9`  | 4.0 µs   | 3.0 µs  | -2.0 µs | 3.0 µs  | 3.0 µs  | **no**      |
-| `Q10` | -2.0 µs  | 1.0 µs  | 3.0 µs  | -1.0 µs | 0.0 µs  | **no**      |
-| `Q11` | -1.0 µs  | 5.0 µs  | 1.0 µs  | -1.0 µs | -3.0 µs | **no**      |
-| `Q12` | -3.0 µs  | 4.0 µs  | 0.0 µs  | 0.0 µs  | 1.0 µs  | **no**      |
-| `Q13` | -3.0 µs  | 2.0 µs  | 2.0 µs  | 0.0 µs  | 2.0 µs  | **no**      |
+| Probe | sweep 1  | sweep 2 | sweep 3  | sweep 4 | sweep 5 | Sign stable |
+| ----- | -------- | ------- | -------- | ------- | ------- | ----------- |
+| `S1`  | -2.0 µs  | 1.0 µs  | -2.0 µs  | -1.0 µs | 1.0 µs  | **no**      |
+| `S2`  | 6.0 µs   | 0.0 µs  | -1.0 µs  | 38.0 µs | -3.0 µs | **no**      |
+| `S3`  | 34.0 µs  | 19.0 µs | -2.0 µs  | 13.0 µs | -1.0 µs | **no**      |
+| `Q1`  | 1.0 µs   | 2.0 µs  | 1.0 µs   | 2.0 µs  | -4.0 µs | **no**      |
+| `Q2`  | 1.0 µs   | -1.0 µs | -1.0 µs  | 5.0 µs  | -6.0 µs | **no**      |
+| `Q3`  | -5.0 µs  | 15.0 µs | -3.0 µs  | 3.0 µs  | 13.0 µs | **no**      |
+| `Q4`  | -51.0 µs | 8.0 µs  | 110.0 µs | 19.0 µs | 12.0 µs | **no**      |
+| `Q5`  | -10.0 µs | 1.0 µs  | -1.0 µs  | 2.0 µs  | 0.0 µs  | **no**      |
+| `Q6`  | -9.0 µs  | 1.0 µs  | 6.0 µs   | -4.0 µs | 2.0 µs  | **no**      |
+| `Q7`  | -2.0 µs  | 1.0 µs  | -1.0 µs  | 0.0 µs  | 0.0 µs  | **no**      |
+| `Q8`  | -1.0 µs  | 0.0 µs  | -2.0 µs  | 1.0 µs  | -1.0 µs | **no**      |
+| `Q9`  | -12.0 µs | 3.0 µs  | -4.0 µs  | -6.0 µs | -3.0 µs | **no**      |
+| `Q10` | 0.0 µs   | 1.0 µs  | -2.0 µs  | -2.0 µs | 0.0 µs  | **no**      |
+| `Q11` | 0.0 µs   | 2.0 µs  | -1.0 µs  | 2.0 µs  | 1.0 µs  | **no**      |
+| `Q12` | 1.0 µs   | 0.0 µs  | 0.0 µs   | 0.0 µs  | -1.0 µs | **no**      |
+| `Q13` | 1.0 µs   | -1.0 µs | -3.0 µs  | 3.0 µs  | -1.0 µs | **no**      |
 
 #### InitPlan count per arm — read from the plan, not assumed
 
@@ -4059,7 +4951,7 @@ The signed `S − W` delta of each of the 5 sweeps, in µs. A probe whose sign c
 
 | Arm  | InitPlan count(s) across probes | `S3` labels                                      |
 | ---- | ------------------------------- | ------------------------------------------------ |
-| `A′` | 0                               | (none)                                           |
+| `A′` | 2                               | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
 | `W`  | 2                               | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
 | `S`  | 2                               | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
 
@@ -4075,11 +4967,12 @@ The 13-case comparison runs with `app.account_id` bound to ONE tenant, and under
 
 #### Verdict
 
-**`W` wins.** no probe's difference is attributable to the form — 1 probe(s) moved outside the band but their sign FLIPPED between repetitions (S3), which measures the run rather than the form, so the two forms are indistinguishable on this corpus and the PRE-DECLARED tiebreak decides. The winning body, read from the arm list rather than retyped beside it: `USING ((SELECT current_setting('app.account_id', true)) = '__system__' OR "accountId" = (SELECT current_setting('app.account_id', true)))` — so the verdict names the exact predicate the trio migration installs, without a lookup.
+**`W` wins.** no probe's difference is attributable to the form — 2 probe(s) moved outside the band but their sign FLIPPED between repetitions (S2, Q4), which measures the run rather than the form, so the two forms are indistinguishable on this corpus and the PRE-DECLARED tiebreak decides. The winning body, read from the arm list rather than retyped beside it: `USING ((SELECT current_setting('app.account_id', true)) = '__system__' OR "accountId" = (SELECT current_setting('app.account_id', true)))` — so the verdict names the exact predicate the trio migration installs, without a lookup.
 
-**1 out-of-band probe(s)** on the pooled medians, each owed a named adjudication:
+**2 out-of-band probe(s)** on the pooled medians, each owed a named adjudication:
 
-- `S3` — 20.0 µs (1.11 %), sign FLIPPED between sweeps, so it measures the run and not the form: **accepted as noise**, and it is the reason the tiebreak governs rather than this number.
+- `S2` — 7.0 µs (13.21 %), sign FLIPPED between sweeps, so it measures the run and not the form: **accepted as noise**, and it is the reason the tiebreak governs rather than this number.
+- `Q4` — 20.0 µs (1.18 %), sign FLIPPED between sweeps, so it measures the run and not the form: **accepted as noise**, and it is the reason the tiebreak governs rather than this number.
 
 ### The 13 application cases, per arm
 
@@ -4087,45 +4980,45 @@ Scan-node medians on each case's own measured relation, over 3 run(s). Node type
 
 | Case  | Relation      | Arm  | Matched | Scan-node median (ms) | Statement median (ms) | Plan nodes                                                              | Indexes                                         | InitPlan/SubPlan                                 |
 | ----- | ------------- | ---- | ------- | --------------------- | --------------------- | ----------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------ |
-| `Q1`  | `Post`        | `A′` | 20      | **0.046**             | 0.072                 | Limit → Sort → Index Scan                                               | Post_accountId_projectId_idx                    | (none)                                           |
-| `Q1`  | `Post`        | `W`  | 20      | **0.034**             | 0.059                 | Limit → Result → Result → Sort → Index Scan                             | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q1`  | `Post`        | `S`  | 20      | **0.033**             | 0.058                 | Limit → Result → Result → Sort → Index Scan                             | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q2`  | `Post`        | `A′` | 100     | **0.042**             | 0.052                 | Aggregate → Index Scan                                                  | Post_accountId_projectId_idx                    | (none)                                           |
-| `Q2`  | `Post`        | `W`  | 100     | **0.029**             | 0.040                 | Aggregate → Result → Result → Index Scan                                | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q2`  | `Post`        | `S`  | 100     | **0.030**             | 0.041                 | Aggregate → Result → Result → Index Scan                                | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q3`  | `Post`        | `A′` | 20      | **4.209**             | 6.656                 | Limit → Sort → Hash Join → Seq Scan → Hash → Seq Scan                   | (none)                                          | (none)                                           |
-| `Q3`  | `Post`        | `W`  | 20      | **1.866**             | 4.285                 | Limit → Result → Result → Sort → Hash Join → Seq Scan → Hash → Seq Scan | (none)                                          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q3`  | `Post`        | `S`  | 20      | **1.864**             | 4.277                 | Limit → Result → Result → Sort → Hash Join → Seq Scan → Hash → Seq Scan | (none)                                          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q4`  | `Post`        | `A′` | 9500    | **3.808**             | 5.110                 | Aggregate → Hash Join → Seq Scan → Hash → Seq Scan                      | (none)                                          | (none)                                           |
-| `Q4`  | `Post`        | `W`  | 9500    | **1.723**             | 2.991                 | Aggregate → Result → Result → Hash Join → Seq Scan → Hash → Seq Scan    | (none)                                          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q4`  | `Post`        | `S`  | 9500    | **1.725**             | 2.998                 | Aggregate → Result → Result → Hash Join → Seq Scan → Hash → Seq Scan    | (none)                                          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q5`  | `Post`        | `A′` | 20      | **0.044**             | 0.069                 | Limit → Sort → Index Scan                                               | Post_accountId_projectId_idx                    | (none)                                           |
-| `Q5`  | `Post`        | `W`  | 20      | **0.033**             | 0.059                 | Limit → Result → Result → Sort → Index Scan                             | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q5`  | `Post`        | `S`  | 20      | **0.035**             | 0.062                 | Limit → Result → Result → Sort → Index Scan                             | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q6`  | `Post`        | `A′` | 20      | **0.084**             | 0.151                 | Hash Join → Index Scan → Hash → Seq Scan                                | Post_pkey                                       | (none)                                           |
-| `Q6`  | `Post`        | `W`  | 20      | **0.082**             | 0.142                 | Nested Loop → Result → Result → Index Scan → Index Only Scan            | Post_pkey, Project_id_accountId_key             | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q6`  | `Post`        | `S`  | 20      | **0.084**             | 0.143                 | Nested Loop → Result → Result → Index Scan → Index Only Scan            | Post_pkey, Project_id_accountId_key             | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q7`  | `Post`        | `A′` | 1       | **0.005**             | 0.017                 | Limit → Nested Loop → Index Scan → Index Only Scan                      | Post_id_accountId_key, Project_id_accountId_key | (none)                                           |
-| `Q7`  | `Post`        | `W`  | 1       | **0.007**             | 0.021                 | Limit → Result → Result → Nested Loop → Index Scan → Index Only Scan    | Post_id_accountId_key, Project_id_accountId_key | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q7`  | `Post`        | `S`  | 1       | **0.007**             | 0.020                 | Limit → Result → Result → Nested Loop → Index Scan → Index Only Scan    | Post_id_accountId_key, Project_id_accountId_key | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q8`  | `Post`        | `A′` | 0       | **0.004**             | 0.010                 | Aggregate → Index Scan                                                  | Post_projectId_status_idx                       | (none)                                           |
-| `Q8`  | `Post`        | `W`  | 0       | **0.004**             | 0.012                 | Aggregate → Result → Result → Index Scan                                | Post_projectId_status_idx                       | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q1`  | `Post`        | `A′` | 20      | **0.037**             | 0.065                 | Limit → Result → Result → Sort → Index Scan                             | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q1`  | `Post`        | `W`  | 20      | **0.036**             | 0.064                 | Limit → Result → Result → Sort → Index Scan                             | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q1`  | `Post`        | `S`  | 20      | **0.037**             | 0.065                 | Limit → Result → Result → Sort → Index Scan                             | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q2`  | `Post`        | `A′` | 100     | **0.033**             | 0.045                 | Aggregate → Result → Result → Index Scan                                | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q2`  | `Post`        | `W`  | 100     | **0.033**             | 0.046                 | Aggregate → Result → Result → Index Scan                                | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q2`  | `Post`        | `S`  | 100     | **0.032**             | 0.045                 | Aggregate → Result → Result → Index Scan                                | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q3`  | `Post`        | `A′` | 20      | **1.876**             | 4.283                 | Limit → Result → Result → Sort → Hash Join → Seq Scan → Hash → Seq Scan | (none)                                          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q3`  | `Post`        | `W`  | 20      | **1.873**             | 4.273                 | Limit → Result → Result → Sort → Hash Join → Seq Scan → Hash → Seq Scan | (none)                                          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q3`  | `Post`        | `S`  | 20      | **1.880**             | 4.286                 | Limit → Result → Result → Sort → Hash Join → Seq Scan → Hash → Seq Scan | (none)                                          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q4`  | `Post`        | `A′` | 9500    | **1.707**             | 2.974                 | Aggregate → Result → Result → Hash Join → Seq Scan → Hash → Seq Scan    | (none)                                          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q4`  | `Post`        | `W`  | 9500    | **1.699**             | 2.973                 | Aggregate → Result → Result → Hash Join → Seq Scan → Hash → Seq Scan    | (none)                                          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q4`  | `Post`        | `S`  | 9500    | **1.719**             | 2.990                 | Aggregate → Result → Result → Hash Join → Seq Scan → Hash → Seq Scan    | (none)                                          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q5`  | `Post`        | `A′` | 20      | **0.037**             | 0.065                 | Limit → Result → Result → Sort → Index Scan                             | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q5`  | `Post`        | `W`  | 20      | **0.036**             | 0.063                 | Limit → Result → Result → Sort → Index Scan                             | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q5`  | `Post`        | `S`  | 20      | **0.033**             | 0.060                 | Limit → Result → Result → Sort → Index Scan                             | Post_accountId_projectId_idx                    | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q6`  | `Post`        | `A′` | 20      | **0.085**             | 0.146                 | Nested Loop → Result → Result → Index Scan → Index Only Scan            | Post_pkey, Project_id_accountId_key             | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q6`  | `Post`        | `W`  | 20      | **0.083**             | 0.143                 | Nested Loop → Result → Result → Index Scan → Index Only Scan            | Post_pkey, Project_id_accountId_key             | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q6`  | `Post`        | `S`  | 20      | **0.083**             | 0.143                 | Nested Loop → Result → Result → Index Scan → Index Only Scan            | Post_pkey, Project_id_accountId_key             | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q7`  | `Post`        | `A′` | 1       | **0.007**             | 0.022                 | Limit → Result → Result → Nested Loop → Index Scan → Index Only Scan    | Post_id_accountId_key, Project_id_accountId_key | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q7`  | `Post`        | `W`  | 1       | **0.007**             | 0.022                 | Limit → Result → Result → Nested Loop → Index Scan → Index Only Scan    | Post_id_accountId_key, Project_id_accountId_key | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q7`  | `Post`        | `S`  | 1       | **0.007**             | 0.021                 | Limit → Result → Result → Nested Loop → Index Scan → Index Only Scan    | Post_id_accountId_key, Project_id_accountId_key | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q8`  | `Post`        | `A′` | 0       | **0.005**             | 0.015                 | Aggregate → Result → Result → Index Scan                                | Post_projectId_status_idx                       | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q8`  | `Post`        | `W`  | 0       | **0.005**             | 0.015                 | Aggregate → Result → Result → Index Scan                                | Post_projectId_status_idx                       | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
 | `Q8`  | `Post`        | `S`  | 0       | **0.004**             | 0.012                 | Aggregate → Result → Result → Index Scan                                | Post_projectId_status_idx                       | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q9`  | `PostContent` | `A′` | 20      | **0.085**             | 0.089                 | Index Scan                                                              | PostContent_postId_locale_revision_key          | (none)                                           |
-| `Q9`  | `PostContent` | `W`  | 20      | **0.083**             | 0.090                 | Index Scan → Result → Result                                            | PostContent_postId_locale_revision_key          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q9`  | `PostContent` | `S`  | 20      | **0.086**             | 0.093                 | Index Scan → Result → Result                                            | PostContent_postId_locale_revision_key          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q10` | `PostContent` | `A′` | 1       | **0.005**             | 0.008                 | Index Scan                                                              | PostContent_postId_locale_revision_key          | (none)                                           |
-| `Q10` | `PostContent` | `W`  | 1       | **0.007**             | 0.011                 | Index Scan → Result → Result                                            | PostContent_postId_locale_revision_key          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q10` | `PostContent` | `S`  | 1       | **0.006**             | 0.011                 | Index Scan → Result → Result                                            | PostContent_postId_locale_revision_key          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q11` | `PostMedia`   | `A′` | 6       | **0.073**             | 0.077                 | Index Scan                                                              | PostMedia_postId_idx                            | (none)                                           |
-| `Q11` | `PostMedia`   | `W`  | 6       | **0.072**             | 0.078                 | Index Scan → Result → Result                                            | PostMedia_postId_idx                            | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q9`  | `PostContent` | `A′` | 20      | **0.086**             | 0.094                 | Index Scan → Result → Result                                            | PostContent_postId_locale_revision_key          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q9`  | `PostContent` | `W`  | 20      | **0.088**             | 0.096                 | Index Scan → Result → Result                                            | PostContent_postId_locale_revision_key          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q9`  | `PostContent` | `S`  | 20      | **0.083**             | 0.088                 | Index Scan → Result → Result                                            | PostContent_postId_locale_revision_key          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q10` | `PostContent` | `A′` | 1       | **0.008**             | 0.013                 | Index Scan → Result → Result                                            | PostContent_postId_locale_revision_key          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q10` | `PostContent` | `W`  | 1       | **0.006**             | 0.011                 | Index Scan → Result → Result                                            | PostContent_postId_locale_revision_key          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q10` | `PostContent` | `S`  | 1       | **0.006**             | 0.010                 | Index Scan → Result → Result                                            | PostContent_postId_locale_revision_key          | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q11` | `PostMedia`   | `A′` | 6       | **0.074**             | 0.079                 | Index Scan → Result → Result                                            | PostMedia_postId_idx                            | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q11` | `PostMedia`   | `W`  | 6       | **0.073**             | 0.079                 | Index Scan → Result → Result                                            | PostMedia_postId_idx                            | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
 | `Q11` | `PostMedia`   | `S`  | 6       | **0.073**             | 0.077                 | Index Scan → Result → Result                                            | PostMedia_postId_idx                            | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q12` | `PostMedia`   | `A′` | 6       | **0.072**             | 0.080                 | Aggregate → Index Scan                                                  | PostMedia_postId_idx                            | (none)                                           |
-| `Q12` | `PostMedia`   | `W`  | 6       | **0.072**             | 0.082                 | Aggregate → Result → Result → Index Scan                                | PostMedia_postId_idx                            | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q12` | `PostMedia`   | `A′` | 6       | **0.073**             | 0.084                 | Aggregate → Result → Result → Index Scan                                | PostMedia_postId_idx                            | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q12` | `PostMedia`   | `W`  | 6       | **0.072**             | 0.083                 | Aggregate → Result → Result → Index Scan                                | PostMedia_postId_idx                            | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
 | `Q12` | `PostMedia`   | `S`  | 6       | **0.072**             | 0.081                 | Aggregate → Result → Result → Index Scan                                | PostMedia_postId_idx                            | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q13` | `PostMedia`   | `A′` | 1       | **0.005**             | 0.008                 | Index Scan                                                              | PostMedia_postId_idx                            | (none)                                           |
-| `Q13` | `PostMedia`   | `W`  | 1       | **0.006**             | 0.009                 | Index Scan → Result → Result                                            | PostMedia_postId_idx                            | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
-| `Q13` | `PostMedia`   | `S`  | 1       | **0.007**             | 0.013                 | Index Scan → Result → Result                                            | PostMedia_postId_idx                            | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q13` | `PostMedia`   | `A′` | 1       | **0.005**             | 0.009                 | Index Scan → Result → Result                                            | PostMedia_postId_idx                            | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q13` | `PostMedia`   | `W`  | 1       | **0.006**             | 0.011                 | Index Scan → Result → Result                                            | PostMedia_postId_idx                            | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
+| `Q13` | `PostMedia`   | `S`  | 1       | **0.006**             | 0.010                 | Index Scan → Result → Result                                            | PostMedia_postId_idx                            | InitPlan 1 (returns $0), InitPlan 2 (returns $1) |
 
 `Q8` is a declared miss probe: it counts zero on this corpus under every arm, and the run refuses to write if it ever starts matching rows.
 
@@ -4143,9 +5036,9 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
 
 | Arm  | Plan nodes                   | Indexes               | InitPlan/SubPlan                                 | Planning median (ms) | **Scan-node median (ms)** | Statement median (ms) | Scan per run (ms)                                                                                                     |
 | ---- | ---------------------------- | --------------------- | ------------------------------------------------ | -------------------- | ------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `A′` | Index Scan                   | Post_id_accountId_key | (none)                                           | 0.025                | **0.006**                 | 0.010                 | 0.008 / 0.008 / 0.006 / 0.005 / 0.005 / 0.005 / 0.006 / 0.008 / 0.006 / 0.005 / 0.006 / 0.005 / 0.007 / 0.007 / 0.007 |
-| `W`  | Index Scan → Result → Result | Post_id_accountId_key | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.028                | **0.006**                 | 0.012                 | 0.008 / 0.009 / 0.011 / 0.011 / 0.006 / 0.010 / 0.007 / 0.006 / 0.006 / 0.006 / 0.006 / 0.006 / 0.006 / 0.006 / 0.005 |
-| `S`  | Index Scan → Result → Result | Post_id_accountId_key | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.028                | **0.006**                 | 0.012                 | 0.008 / 0.007 / 0.006 / 0.009 / 0.010 / 0.009 / 0.006 / 0.006 / 0.006 / 0.006 / 0.006 / 0.009 / 0.007 / 0.006 / 0.006 |
+| `A′` | Index Scan → Result → Result | Post_id_accountId_key | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.031                | **0.007**                 | 0.013                 | 0.007 / 0.008 / 0.006 / 0.006 / 0.006 / 0.007 / 0.012 / 0.010 / 0.009 / 0.007 / 0.011 / 0.007 / 0.007 / 0.008 / 0.010 |
+| `W`  | Index Scan → Result → Result | Post_id_accountId_key | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.031                | **0.008**                 | 0.013                 | 0.008 / 0.010 / 0.006 / 0.007 / 0.006 / 0.007 / 0.008 / 0.009 / 0.008 / 0.009 / 0.010 / 0.009 / 0.007 / 0.006 / 0.006 |
+| `S`  | Index Scan → Result → Result | Post_id_accountId_key | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.029                | **0.007**                 | 0.013                 | 0.007 / 0.006 / 0.006 / 0.008 / 0.008 / 0.008 / 0.008 / 0.006 / 0.006 / 0.009 / 0.008 / 0.006 / 0.007 / 0.007 / 0.006 |
 
 Medians are over 15 run(s). The **scan-node median** is the figure this comparison is about: Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading `Post`, which is where a policy qual is evaluated. The statement median is kept beside it because the two are NOT interchangeable, and quoting the statement total as the effect of a policy swap is what forced the retraction of a previously published figure.
 
@@ -4162,17 +5055,17 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
       "Index Name": "Post_id_accountId_key",
       "Relation Name": "Post",
       "Alias": "p",
-      "Startup Cost": 0.29,
-      "Total Cost": 8.31,
+      "Startup Cost": 0.31,
+      "Total Cost": 8.34,
       "Plan Rows": 1,
       "Plan Width": 80,
-      "Actual Startup Time": 0.007,
-      "Actual Total Time": 0.007,
+      "Actual Startup Time": 0.009,
+      "Actual Total Time": 0.01,
       "Actual Rows": 1,
       "Actual Loops": 1,
       "Index Cond": "(id = 'tif-ab-a-post-000001'::text)",
       "Rows Removed by Index Recheck": 0,
-      "Filter": "((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true)))",
+      "Filter": "(($0 = '__system__'::text) OR (\"accountId\" = $1))",
       "Rows Removed by Filter": 0,
       "Shared Hit Blocks": 3,
       "Shared Read Blocks": 0,
@@ -4183,7 +5076,59 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
       "Local Dirtied Blocks": 0,
       "Local Written Blocks": 0,
       "Temp Read Blocks": 0,
-      "Temp Written Blocks": 0
+      "Temp Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0.001,
+          "Actual Total Time": 0.001,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        }
+      ]
     },
     "Planning": {
       "Shared Hit Blocks": 0,
@@ -4197,9 +5142,9 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.031,
+    "Planning Time": 0.037,
     "Triggers": [],
-    "Execution Time": 0.012
+    "Execution Time": 0.018
   }
 ]
 ```
@@ -4224,7 +5169,7 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
       "Plan Rows": 1,
       "Plan Width": 80,
       "Actual Startup Time": 0.005,
-      "Actual Total Time": 0.005,
+      "Actual Total Time": 0.006,
       "Actual Rows": 1,
       "Actual Loops": 1,
       "Index Cond": "(id = 'tif-ab-a-post-000001'::text)",
@@ -4308,7 +5253,7 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
     },
     "Planning Time": 0.023,
     "Triggers": [],
-    "Execution Time": 0.009
+    "Execution Time": 0.01
   }
 ]
 ```
@@ -4332,7 +5277,7 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
       "Total Cost": 8.34,
       "Plan Rows": 1,
       "Plan Width": 80,
-      "Actual Startup Time": 0.005,
+      "Actual Startup Time": 0.006,
       "Actual Total Time": 0.006,
       "Actual Rows": 1,
       "Actual Loops": 1,
@@ -4415,9 +5360,9 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.024,
+    "Planning Time": 0.027,
     "Triggers": [],
-    "Execution Time": 0.01
+    "Execution Time": 0.011
   }
 ]
 ```
@@ -4439,9 +5384,9 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
 
 | Arm  | Plan nodes                                                            | Indexes                       | InitPlan/SubPlan                                 | Planning median (ms) | **Scan-node median (ms)** | Statement median (ms) | Scan per run (ms)                                                                                                     |
 | ---- | --------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------ | -------------------- | ------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `A′` | Limit → Index Scan                                                    | Post_projectId_createdAt_idx  | (none)                                           | 0.046                | **0.016**                 | 0.022                 | 0.016 / 0.020 / 0.018 / 0.016 / 0.014 / 0.015 / 0.018 / 0.025 / 0.022 / 0.015 / 0.015 / 0.015 / 0.019 / 0.015 / 0.016 |
-| `W`  | Limit → Result → Result → Sort → Bitmap Heap Scan → Bitmap Index Scan | Post_projectId_archivedAt_idx | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.060                | **0.056**                 | 0.084                 | 0.072 / 0.059 / 0.053 / 0.061 / 0.060 / 0.052 / 0.055 / 0.051 / 0.064 / 0.069 / 0.056 / 0.056 / 0.055 / 0.054 / 0.048 |
-| `S`  | Limit → Result → Result → Sort → Bitmap Heap Scan → Bitmap Index Scan | Post_projectId_archivedAt_idx | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.055                | **0.052**                 | 0.080                 | 0.059 / 0.056 / 0.050 / 0.069 / 0.058 / 0.052 / 0.056 / 0.051 / 0.049 / 0.063 / 0.051 / 0.050 / 0.053 / 0.049 / 0.048 |
+| `A′` | Limit → Result → Result → Sort → Bitmap Heap Scan → Bitmap Index Scan | Post_projectId_archivedAt_idx | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.059                | **0.055**                 | 0.082                 | 0.081 / 0.053 / 0.060 / 0.057 / 0.055 / 0.052 / 0.076 / 0.057 / 0.054 / 0.057 / 0.051 / 0.051 / 0.068 / 0.054 / 0.052 |
+| `W`  | Limit → Result → Result → Sort → Bitmap Heap Scan → Bitmap Index Scan | Post_projectId_archivedAt_idx | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.056                | **0.053**                 | 0.084                 | 0.065 / 0.053 / 0.055 / 0.062 / 0.060 / 0.053 / 0.075 / 0.052 / 0.056 / 0.057 / 0.051 / 0.049 / 0.053 / 0.050 / 0.053 |
+| `S`  | Limit → Result → Result → Sort → Bitmap Heap Scan → Bitmap Index Scan | Post_projectId_archivedAt_idx | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.060                | **0.060**                 | 0.087                 | 0.065 / 0.060 / 0.061 / 0.066 / 0.060 / 0.056 / 0.059 / 0.055 / 0.049 / 0.089 / 0.089 / 0.078 / 0.056 / 0.050 / 0.048 |
 
 Medians are over 15 run(s). The **scan-node median** is the figure this comparison is about: Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading `Post`, which is where a policy qual is evaluated. The statement median is kept beside it because the two are NOT interchangeable, and quoting the statement total as the effect of a policy swap is what forced the retraction of a previously published figure.
 
@@ -4454,95 +5399,12 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
       "Node Type": "Limit",
       "Parallel Aware": false,
       "Async Capable": false,
-      "Startup Cost": 0.29,
-      "Total Cost": 101.01,
-      "Plan Rows": 20,
-      "Plan Width": 80,
-      "Actual Startup Time": 0.009,
-      "Actual Total Time": 0.018,
-      "Actual Rows": 20,
-      "Actual Loops": 1,
-      "Shared Hit Blocks": 22,
-      "Shared Read Blocks": 0,
-      "Shared Dirtied Blocks": 0,
-      "Shared Written Blocks": 0,
-      "Local Hit Blocks": 0,
-      "Local Read Blocks": 0,
-      "Local Dirtied Blocks": 0,
-      "Local Written Blocks": 0,
-      "Temp Read Blocks": 0,
-      "Temp Written Blocks": 0,
-      "Plans": [
-        {
-          "Node Type": "Index Scan",
-          "Parent Relationship": "Outer",
-          "Parallel Aware": false,
-          "Async Capable": false,
-          "Scan Direction": "Backward",
-          "Index Name": "Post_projectId_createdAt_idx",
-          "Relation Name": "Post",
-          "Alias": "p",
-          "Startup Cost": 0.29,
-          "Total Cost": 242.02,
-          "Plan Rows": 48,
-          "Plan Width": 80,
-          "Actual Startup Time": 0.008,
-          "Actual Total Time": 0.016,
-          "Actual Rows": 20,
-          "Actual Loops": 1,
-          "Index Cond": "(\"projectId\" = 'tif-ab-a-proj-0001'::text)",
-          "Rows Removed by Index Recheck": 0,
-          "Filter": "((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true)))",
-          "Rows Removed by Filter": 0,
-          "Shared Hit Blocks": 22,
-          "Shared Read Blocks": 0,
-          "Shared Dirtied Blocks": 0,
-          "Shared Written Blocks": 0,
-          "Local Hit Blocks": 0,
-          "Local Read Blocks": 0,
-          "Local Dirtied Blocks": 0,
-          "Local Written Blocks": 0,
-          "Temp Read Blocks": 0,
-          "Temp Written Blocks": 0
-        }
-      ]
-    },
-    "Planning": {
-      "Shared Hit Blocks": 0,
-      "Shared Read Blocks": 0,
-      "Shared Dirtied Blocks": 0,
-      "Shared Written Blocks": 0,
-      "Local Hit Blocks": 0,
-      "Local Read Blocks": 0,
-      "Local Dirtied Blocks": 0,
-      "Local Written Blocks": 0,
-      "Temp Read Blocks": 0,
-      "Temp Written Blocks": 0
-    },
-    "Planning Time": 0.056,
-    "Triggers": [],
-    "Execution Time": 0.024
-  }
-]
-```
-
-</details>
-
-<details><summary>Full plan (last run) — S2 under `W` (both halves wrapped — the disjunction, each GUC read hoisted)</summary>
-
-```json
-[
-  {
-    "Plan": {
-      "Node Type": "Limit",
-      "Parallel Aware": false,
-      "Async Capable": false,
       "Startup Cost": 209.84,
       "Total Cost": 209.88,
       "Plan Rows": 19,
       "Plan Width": 80,
-      "Actual Startup Time": 0.065,
-      "Actual Total Time": 0.067,
+      "Actual Startup Time": 0.069,
+      "Actual Total Time": 0.071,
       "Actual Rows": 20,
       "Actual Loops": 1,
       "Shared Hit Blocks": 102,
@@ -4567,7 +5429,7 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
           "Plan Rows": 1,
           "Plan Width": 32,
           "Actual Startup Time": 0,
-          "Actual Total Time": 0,
+          "Actual Total Time": 0.001,
           "Actual Rows": 1,
           "Actual Loops": 1,
           "Shared Hit Blocks": 0,
@@ -4615,8 +5477,8 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
           "Total Cost": 209.86,
           "Plan Rows": 19,
           "Plan Width": 80,
-          "Actual Startup Time": 0.065,
-          "Actual Total Time": 0.066,
+          "Actual Startup Time": 0.069,
+          "Actual Total Time": 0.069,
           "Actual Rows": 20,
           "Actual Loops": 1,
           "Sort Key": ["p.\"createdAt\" DESC"],
@@ -4645,8 +5507,8 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
               "Total Cost": 209.41,
               "Plan Rows": 19,
               "Plan Width": 80,
-              "Actual Startup Time": 0.012,
-              "Actual Total Time": 0.048,
+              "Actual Startup Time": 0.014,
+              "Actual Total Time": 0.052,
               "Actual Rows": 100,
               "Actual Loops": 1,
               "Recheck Cond": "((\"projectId\" = 'tif-ab-a-proj-0001'::text) AND (\"deletedAt\" IS NULL))",
@@ -4676,8 +5538,8 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
                   "Total Cost": 5,
                   "Plan Rows": 95,
                   "Plan Width": 0,
-                  "Actual Startup Time": 0.005,
-                  "Actual Total Time": 0.005,
+                  "Actual Startup Time": 0.006,
+                  "Actual Total Time": 0.006,
                   "Actual Rows": 100,
                   "Actual Loops": 1,
                   "Index Cond": "(\"projectId\" = 'tif-ab-a-proj-0001'::text)",
@@ -4710,9 +5572,200 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.051,
+    "Planning Time": 0.054,
     "Triggers": [],
-    "Execution Time": 0.074
+    "Execution Time": 0.079
+  }
+]
+```
+
+</details>
+
+<details><summary>Full plan (last run) — S2 under `W` (both halves wrapped — the disjunction, each GUC read hoisted)</summary>
+
+```json
+[
+  {
+    "Plan": {
+      "Node Type": "Limit",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 209.84,
+      "Total Cost": 209.88,
+      "Plan Rows": 19,
+      "Plan Width": 80,
+      "Actual Startup Time": 0.071,
+      "Actual Total Time": 0.072,
+      "Actual Rows": 20,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 102,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0.001,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 209.81,
+          "Total Cost": 209.86,
+          "Plan Rows": 19,
+          "Plan Width": 80,
+          "Actual Startup Time": 0.07,
+          "Actual Total Time": 0.071,
+          "Actual Rows": 20,
+          "Actual Loops": 1,
+          "Sort Key": ["p.\"createdAt\" DESC"],
+          "Sort Method": "top-N heapsort",
+          "Sort Space Used": 27,
+          "Sort Space Type": "Memory",
+          "Shared Hit Blocks": 102,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0,
+          "Plans": [
+            {
+              "Node Type": "Bitmap Heap Scan",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Relation Name": "Post",
+              "Alias": "p",
+              "Startup Cost": 5,
+              "Total Cost": 209.41,
+              "Plan Rows": 19,
+              "Plan Width": 80,
+              "Actual Startup Time": 0.015,
+              "Actual Total Time": 0.053,
+              "Actual Rows": 100,
+              "Actual Loops": 1,
+              "Recheck Cond": "((\"projectId\" = 'tif-ab-a-proj-0001'::text) AND (\"deletedAt\" IS NULL))",
+              "Rows Removed by Index Recheck": 0,
+              "Filter": "(($0 = '__system__'::text) OR (\"accountId\" = $1))",
+              "Rows Removed by Filter": 0,
+              "Exact Heap Blocks": 100,
+              "Lossy Heap Blocks": 0,
+              "Shared Hit Blocks": 102,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0,
+              "Plans": [
+                {
+                  "Node Type": "Bitmap Index Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Index Name": "Post_projectId_archivedAt_idx",
+                  "Startup Cost": 0,
+                  "Total Cost": 5,
+                  "Plan Rows": 95,
+                  "Plan Width": 0,
+                  "Actual Startup Time": 0.006,
+                  "Actual Total Time": 0.006,
+                  "Actual Rows": 100,
+                  "Actual Loops": 1,
+                  "Index Cond": "(\"projectId\" = 'tif-ab-a-proj-0001'::text)",
+                  "Shared Hit Blocks": 2,
+                  "Shared Read Blocks": 0,
+                  "Shared Dirtied Blocks": 0,
+                  "Shared Written Blocks": 0,
+                  "Local Hit Blocks": 0,
+                  "Local Read Blocks": 0,
+                  "Local Dirtied Blocks": 0,
+                  "Local Written Blocks": 0,
+                  "Temp Read Blocks": 0,
+                  "Temp Written Blocks": 0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.058,
+    "Triggers": [],
+    "Execution Time": 0.08
   }
 ]
 ```
@@ -4901,7 +5954,7 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.049,
+    "Planning Time": 0.05,
     "Triggers": [],
     "Execution Time": 0.073
   }
@@ -4924,9 +5977,9 @@ SELECT p.id, p."projectId", p.status, p."scheduledAt", p."publishedAt", p."creat
 
 | Arm  | Plan nodes                                | Indexes | InitPlan/SubPlan                                 | Planning median (ms) | **Scan-node median (ms)** | Statement median (ms) | Scan per run (ms)                                                                                                     |
 | ---- | ----------------------------------------- | ------- | ------------------------------------------------ | -------------------- | ------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `A′` | Limit → Sort → Seq Scan                   | (none)  | (none)                                           | 0.039                | **4.163**                 | 5.438                 | 4.225 / 4.163 / 4.115 / 4.136 / 4.292 / 4.194 / 4.287 / 4.199 / 4.182 / 4.180 / 4.075 / 4.134 / 4.150 / 4.096 / 4.154 |
-| `W`  | Limit → Result → Result → Sort → Seq Scan | (none)  | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.044                | **1.804**                 | 2.993                 | 1.898 / 1.841 / 1.793 / 1.853 / 1.804 / 1.794 / 1.841 / 1.804 / 1.800 / 1.841 / 1.791 / 1.785 / 1.826 / 1.827 / 1.792 |
-| `S`  | Limit → Result → Result → Sort → Seq Scan | (none)  | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.045                | **1.824**                 | 3.001                 | 1.863 / 1.809 / 1.798 / 1.869 / 1.816 / 1.808 / 1.848 / 1.805 / 1.812 / 1.879 / 1.824 / 1.795 / 1.828 / 1.832 / 1.824 |
+| `A′` | Limit → Result → Result → Sort → Seq Scan | (none)  | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.050                | **1.834**                 | 3.017                 | 1.894 / 1.840 / 1.834 / 1.833 / 1.822 / 1.808 / 1.898 / 1.828 / 1.835 / 1.847 / 1.840 / 1.827 / 1.859 / 1.815 / 1.820 |
+| `W`  | Limit → Result → Result → Sort → Seq Scan | (none)  | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.047                | **1.819**                 | 3.010                 | 1.861 / 1.817 / 1.810 / 1.876 / 1.818 / 1.818 / 1.879 / 1.833 / 1.819 / 1.858 / 1.815 / 1.819 / 1.847 / 1.827 / 1.808 |
+| `S`  | Limit → Result → Result → Sort → Seq Scan | (none)  | InitPlan 1 (returns $0), InitPlan 2 (returns $1) | 0.048                | **1.832**                 | 3.013                 | 1.906 / 1.851 / 1.816 / 1.881 / 1.837 / 1.823 / 1.875 / 1.831 / 1.817 / 1.910 / 1.832 / 1.824 / 1.871 / 1.815 / 1.826 |
 
 Medians are over 15 run(s). The **scan-node median** is the figure this comparison is about: Σ(`Actual Total Time` × `Actual Loops`) over the nodes reading `Post`, which is where a policy qual is evaluated. The statement median is kept beside it because the two are NOT interchangeable, and quoting the statement total as the effect of a policy swap is what forced the retraction of a previously published figure.
 
@@ -4939,121 +5992,12 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
       "Node Type": "Limit",
       "Parallel Aware": false,
       "Async Capable": false,
-      "Startup Cost": 962.08,
-      "Total Cost": 962.13,
-      "Plan Rows": 20,
-      "Plan Width": 80,
-      "Actual Startup Time": 5.427,
-      "Actual Total Time": 5.429,
-      "Actual Rows": 20,
-      "Actual Loops": 1,
-      "Shared Hit Blocks": 308,
-      "Shared Read Blocks": 0,
-      "Shared Dirtied Blocks": 0,
-      "Shared Written Blocks": 0,
-      "Local Hit Blocks": 0,
-      "Local Read Blocks": 0,
-      "Local Dirtied Blocks": 0,
-      "Local Written Blocks": 0,
-      "Temp Read Blocks": 0,
-      "Temp Written Blocks": 0,
-      "Plans": [
-        {
-          "Node Type": "Sort",
-          "Parent Relationship": "Outer",
-          "Parallel Aware": false,
-          "Async Capable": false,
-          "Startup Cost": 962.08,
-          "Total Cost": 985.94,
-          "Plan Rows": 9546,
-          "Plan Width": 80,
-          "Actual Startup Time": 5.427,
-          "Actual Total Time": 5.427,
-          "Actual Rows": 20,
-          "Actual Loops": 1,
-          "Sort Key": ["\"createdAt\" DESC"],
-          "Sort Method": "top-N heapsort",
-          "Sort Space Used": 27,
-          "Sort Space Type": "Memory",
-          "Shared Hit Blocks": 308,
-          "Shared Read Blocks": 0,
-          "Shared Dirtied Blocks": 0,
-          "Shared Written Blocks": 0,
-          "Local Hit Blocks": 0,
-          "Local Read Blocks": 0,
-          "Local Dirtied Blocks": 0,
-          "Local Written Blocks": 0,
-          "Temp Read Blocks": 0,
-          "Temp Written Blocks": 0,
-          "Plans": [
-            {
-              "Node Type": "Seq Scan",
-              "Parent Relationship": "Outer",
-              "Parallel Aware": false,
-              "Async Capable": false,
-              "Relation Name": "Post",
-              "Alias": "p",
-              "Startup Cost": 0,
-              "Total Cost": 708.06,
-              "Plan Rows": 9546,
-              "Plan Width": 80,
-              "Actual Startup Time": 0.002,
-              "Actual Total Time": 4.154,
-              "Actual Rows": 9500,
-              "Actual Loops": 1,
-              "Filter": "((\"deletedAt\" IS NULL) AND ((current_setting('app.account_id'::text, true) = '__system__'::text) OR (\"accountId\" = current_setting('app.account_id'::text, true))))",
-              "Rows Removed by Filter": 10503,
-              "Shared Hit Blocks": 308,
-              "Shared Read Blocks": 0,
-              "Shared Dirtied Blocks": 0,
-              "Shared Written Blocks": 0,
-              "Local Hit Blocks": 0,
-              "Local Read Blocks": 0,
-              "Local Dirtied Blocks": 0,
-              "Local Written Blocks": 0,
-              "Temp Read Blocks": 0,
-              "Temp Written Blocks": 0
-            }
-          ]
-        }
-      ]
-    },
-    "Planning": {
-      "Shared Hit Blocks": 0,
-      "Shared Read Blocks": 0,
-      "Shared Dirtied Blocks": 0,
-      "Shared Written Blocks": 0,
-      "Local Hit Blocks": 0,
-      "Local Read Blocks": 0,
-      "Local Dirtied Blocks": 0,
-      "Local Written Blocks": 0,
-      "Temp Read Blocks": 0,
-      "Temp Written Blocks": 0
-    },
-    "Planning Time": 0.039,
-    "Triggers": [],
-    "Execution Time": 5.438
-  }
-]
-```
-
-</details>
-
-<details><summary>Full plan (last run) — S3 under `W` (both halves wrapped — the disjunction, each GUC read hoisted)</summary>
-
-```json
-[
-  {
-    "Plan": {
-      "Node Type": "Limit",
-      "Parallel Aware": false,
-      "Async Capable": false,
       "Startup Cost": 711.21,
       "Total Cost": 711.26,
       "Plan Rows": 20,
       "Plan Width": 80,
-      "Actual Startup Time": 2.961,
-      "Actual Total Time": 2.962,
+      "Actual Startup Time": 2.991,
+      "Actual Total Time": 2.992,
       "Actual Rows": 20,
       "Actual Loops": 1,
       "Shared Hit Blocks": 308,
@@ -5077,7 +6021,7 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
           "Total Cost": 0.01,
           "Plan Rows": 1,
           "Plan Width": 32,
-          "Actual Startup Time": 0,
+          "Actual Startup Time": 0.001,
           "Actual Total Time": 0.001,
           "Actual Rows": 1,
           "Actual Loops": 1,
@@ -5126,8 +6070,8 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
           "Total Cost": 720.87,
           "Plan Rows": 3876,
           "Plan Width": 80,
-          "Actual Startup Time": 2.96,
-          "Actual Total Time": 2.961,
+          "Actual Startup Time": 2.99,
+          "Actual Total Time": 2.991,
           "Actual Rows": 20,
           "Actual Loops": 1,
           "Sort Key": ["p.\"createdAt\" DESC"],
@@ -5156,8 +6100,8 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
               "Total Cost": 608.05,
               "Plan Rows": 3876,
               "Plan Width": 80,
-              "Actual Startup Time": 0.003,
-              "Actual Total Time": 1.792,
+              "Actual Startup Time": 0.004,
+              "Actual Total Time": 1.82,
               "Actual Rows": 9500,
               "Actual Loops": 1,
               "Filter": "((\"deletedAt\" IS NULL) AND (($0 = '__system__'::text) OR (\"accountId\" = $1)))",
@@ -5189,16 +6133,16 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.037,
+    "Planning Time": 0.046,
     "Triggers": [],
-    "Execution Time": 2.969
+    "Execution Time": 3
   }
 ]
 ```
 
 </details>
 
-<details><summary>Full plan (last run) — S3 under `S` (single hoisted read, set-membership against the two admissible values)</summary>
+<details><summary>Full plan (last run) — S3 under `W` (both halves wrapped — the disjunction, each GUC read hoisted)</summary>
 
 ```json
 [
@@ -5211,7 +6155,7 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
       "Total Cost": 711.26,
       "Plan Rows": 20,
       "Plan Width": 80,
-      "Actual Startup Time": 2.987,
+      "Actual Startup Time": 2.986,
       "Actual Total Time": 2.988,
       "Actual Rows": 20,
       "Actual Loops": 1,
@@ -5236,7 +6180,7 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
           "Total Cost": 0.01,
           "Plan Rows": 1,
           "Plan Width": 32,
-          "Actual Startup Time": 0,
+          "Actual Startup Time": 0.001,
           "Actual Total Time": 0.001,
           "Actual Rows": 1,
           "Actual Loops": 1,
@@ -5315,8 +6259,167 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
               "Total Cost": 608.05,
               "Plan Rows": 3876,
               "Plan Width": 80,
-              "Actual Startup Time": 0.003,
-              "Actual Total Time": 1.824,
+              "Actual Startup Time": 0.004,
+              "Actual Total Time": 1.808,
+              "Actual Rows": 9500,
+              "Actual Loops": 1,
+              "Filter": "((\"deletedAt\" IS NULL) AND (($0 = '__system__'::text) OR (\"accountId\" = $1)))",
+              "Rows Removed by Filter": 10503,
+              "Shared Hit Blocks": 308,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0
+            }
+          ]
+        }
+      ]
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.049,
+    "Triggers": [],
+    "Execution Time": 2.995
+  }
+]
+```
+
+</details>
+
+<details><summary>Full plan (last run) — S3 under `S` (single hoisted read, set-membership against the two admissible values)</summary>
+
+```json
+[
+  {
+    "Plan": {
+      "Node Type": "Limit",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 711.21,
+      "Total Cost": 711.26,
+      "Plan Rows": 20,
+      "Plan Width": 80,
+      "Actual Startup Time": 2.998,
+      "Actual Total Time": 3,
+      "Actual Rows": 20,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 308,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 1 (returns $0)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0.001,
+          "Actual Total Time": 0.001,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "InitPlan 2 (returns $1)",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0,
+          "Total Cost": 0.01,
+          "Plan Rows": 1,
+          "Plan Width": 32,
+          "Actual Startup Time": 0,
+          "Actual Total Time": 0,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 711.18,
+          "Total Cost": 720.87,
+          "Plan Rows": 3876,
+          "Plan Width": 80,
+          "Actual Startup Time": 2.998,
+          "Actual Total Time": 2.998,
+          "Actual Rows": 20,
+          "Actual Loops": 1,
+          "Sort Key": ["p.\"createdAt\" DESC"],
+          "Sort Method": "top-N heapsort",
+          "Sort Space Used": 27,
+          "Sort Space Type": "Memory",
+          "Shared Hit Blocks": 308,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0,
+          "Plans": [
+            {
+              "Node Type": "Seq Scan",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Relation Name": "Post",
+              "Alias": "p",
+              "Startup Cost": 0,
+              "Total Cost": 608.05,
+              "Plan Rows": 3876,
+              "Plan Width": 80,
+              "Actual Startup Time": 0.004,
+              "Actual Total Time": 1.826,
               "Actual Rows": 9500,
               "Actual Loops": 1,
               "Filter": "((\"deletedAt\" IS NULL) AND (($0 = '__system__'::text) OR ($1 = \"accountId\")))",
@@ -5348,9 +6451,9 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.041,
+    "Planning Time": 0.054,
     "Triggers": [],
-    "Execution Time": 2.996
+    "Execution Time": 3.009
   }
 ]
 ```
@@ -5363,9 +6466,21 @@ Medians are over 15 run(s). The **scan-node median** is the figure this comparis
 
 Hand-written, outside the generated block. Written from the plan trees, same rule as above.
 
+**Two runs are read here, and they are not interchangeable.** The generated block above now
+holds the **c1 re-run**, captured `2026-09-10T03:03:11.307Z`, taken AFTER
+`20260910000000_rls_initplan_post_trio` committed the wrapped body for the trio — so its `A′`
+control is the COMMITTED WRAPPED policy, re-read as the live object. Everything from §The PR-1b
+verdict onward reads the **PR-1b run**, captured `2026-09-10T01:58:27.936Z`, taken BEFORE that
+migration, whose `A′` is the BARE body. Both readings are kept, dated and scoped, for the same
+reason §The retired four-arm results is kept: the older numbers are the only surviving record of
+what the bare form cost, and they were not retracted — they were superseded. Reading a
+PR-1b figure as if it described the block above is the one mistake this preamble exists to
+prevent.
+
 ### What was compared, and what was deliberately not
 
-The generated block above measures **three arms × 16 probes**. The three synthetic shapes —
+**This design is common to both runs**; only the object installed in the `A′` arm differs
+between them. The generated block above measures **three arms × 16 probes**. The three synthetic shapes —
 point read by id, `projectId`-filtered listing, listing with no selective predicate — carry
 **no tenant predicate of their own**, which is the whole design of that half: with the query
 silent about the tenant, the policy is the only thing restricting rows, so the difference
@@ -5382,37 +6497,124 @@ trivially the fastest. And the swap is transaction-scoped: each arm installs its
 all three trio tables, reaches `omnipost_app` with `SET LOCAL ROLE` in the same transaction,
 measures, and rolls back, so the restore is the rollback itself rather than a repair step
 that could fail. The three shipped policies were re-read afterwards and are byte-identical on
-all five attributes (printed in the block above).
+all five attributes — printed in the block above for the c1 re-run, and equally true of the
+PR-1b run against the bare bodies it found installed.
 
-### The verdict, and the adjudications it owes
+### The current reading — the c1 re-run (`2026-09-10T03:03:11.307Z`)
 
-**`W` wins, by the pre-declared tiebreak.** Not by a hair, and not by a number: **not one of
-the 16 probes clears BOTH conditions** a difference must clear to be the form's. This run
-separates the two conditions cleanly, which the previous one did not, and that makes it the
+**The verdict is unchanged: `W` wins by the pre-declared tiebreak.** Not one of the 16 probes
+clears BOTH conditions a difference must clear to be the form's, so the two candidate bodies
+remain indistinguishable on this corpus and the tiebreak decides — the same verdict the
+migration was authored from, now re-derived with the migration in place.
+
+What changed between the two runs is WHICH probes sit where, and it changed in both directions:
+
+| Probe | `S − W` | Relative | Band    | Sign across 5 sweeps | Adjudication                                                                       |
+| ----- | ------- | -------- | ------- | -------------------- | ---------------------------------------------------------------------------------- |
+| `S3`  | 13.0 µs | 0.71 %   | in      | FLIPPED              | Inside on the relative limit; unattributable twice over. In PR-1b it was OUT.      |
+| `S2`  | 7.0 µs  | 13.21 %  | **OUT** | FLIPPED              | **Accepted as noise** — measures the run, not the form. In PR-1b: IN, sign STABLE. |
+| `Q4`  | 20.0 µs | 1.18 %   | **OUT** | FLIPPED              | **Accepted as noise** — same rule. In PR-1b: IN, at +2 µs / 0.12 %.                |
+
+Every other probe is inside the band with a flipped sign. Two probes out of band, both
+sign-unstable, none attributable: that is the "no difference belongs to the form" outcome
+spelled out, and it is why a pre-declared tiebreak is doing the deciding rather than a number.
+
+**That the out-of-band probes swapped identity between the two runs is itself the finding.**
+PR-1b's out-of-band probe was `S3`; this run's are `S2` and `Q4` — and PR-1b's one sign-STABLE
+probe (`S2`, at −4 µs) is sign-unstable here. A rule that attributed the verdict to whichever
+probe happened to fall out of band would have named a different winner across two captures of
+the same two forms taken 65 minutes apart. The pre-declared conjunction — out of band AND
+sign-stable — is what makes both runs agree.
+
+The `A′` → `W` column of the block above is now ≈0 by construction, because after the migration
+BOTH arms carry the wrapped form (`S3`: `A′` 1.834, `W` 1.819). The comparison that column used
+to carry — wrapped against bare — is recorded next, because it is the number this change exists
+to produce and a fresh run can no longer reproduce it.
+
+### The superseded pre-migration capture — what the committed rewrite actually moved
+
+**Scoped, and kept deliberately.** `A′` names the live shipped object in both runs, so the arm
+label is stable while the object under it is not: in PR-1b `A′` was the BARE body, and in the
+c1 re-run it is the COMMITTED WRAPPED body. That is the whole effect of this change, and
+without this subsection it is legible only by diffing two generated blocks across a commit.
+
+**The planner's own verdict, which is independent of the clock and of the catalog text:**
+
+| Capture                       | `A′` InitPlan count | `A′` `S3` plan nodes                        |
+| ----------------------------- | ------------------- | ------------------------------------------- |
+| PR-1b — bare body             | **0**               | `Limit → Sort → Seq Scan`                   |
+| c1 re-run — committed wrapped | **2**               | `Limit → Result → Result → Sort → Seq Scan` |
+
+`0 → 2` is PostgreSQL agreeing that the GUC read is now statement-scoped: two InitPlans
+(`$0`, `$1`) evaluated once, and the two `Result` nodes that carry them, where the bare body
+had neither and re-read the setting per candidate row.
+
+**And the cost the InitPlans removed**, on the three row-scanning probes:
+
+| Probe | `A′` scan-node, bare | `A′` scan-node, committed | Ratio     | `A′` statement, bare | `A′` statement, committed | Ratio |
+| ----- | -------------------- | ------------------------- | --------- | -------------------- | ------------------------- | ----- |
+| `S3`  | 4.163 ms             | **1.834 ms**              | **2.27×** | 5.438 ms             | 3.017 ms                  | 1.80× |
+| `Q3`  | 4.209 ms             | **1.876 ms**              | **2.24×** | 6.656 ms             | 4.283 ms                  | 1.55× |
+| `Q4`  | 3.808 ms             | **1.707 ms**              | **2.23×** | 5.110 ms             | 2.974 ms                  | 1.72× |
+
+All three scan-node ratios sit inside the 2.1–2.4× band this change was authored against. **The
+statement ratios do not, and that is expected rather than a discrepancy**: the statement median
+also carries planning and result assembly, which this change does not touch, and the ratio
+between the two statistics differs per case — 1.80×, 1.55× and 1.72× for the same three probes
+whose scan nodes agree to within 0.04×. A reader checking the statement figure against a
+SCAN-NODE band would open a defect against a policy that is behaving exactly as measured.
+
+Two caveats, so this table is not over-read.
+
+**It compares across captures, and it compares like with like.** Both columns are `A′` figures
+— the live shipped object in each run — so the ratio measures what the migration did to the
+deployed policy, not a control against a candidate. It deliberately does NOT reuse PR-1b's `W`
+column, which holds the same body under a different arm in a different run.
+
+**PR-1b's `W` and the c1 run's `A′` are the same body, and they still differ.** `S3` reads
+1.804 ms in one and 1.834 ms in the other: 30 µs of run-to-run drift on a probe whose form did
+not change. That drift is the resolution of this instrument, and it is an order of magnitude
+below the 2.3-ish gap the table reports — which is why the gap survives it and why the µs-scale
+probes in §The current reading do not.
+
+### The PR-1b verdict, and the adjudications it owed
+
+**Reads the PR-1b capture (`2026-09-10T01:58:27.936Z`), NOT the generated block above.** It is
+the record of the decision the migration was authored from, and its `A′` column is the last
+measurement of the bare shipped form. Superseded by §The current reading, whose verdict is the
+same; every figure below is a bare-`A′` figure.
+
+**`W` won, by the pre-declared tiebreak.** Not by a hair, and not by a number: **not one of
+the 16 probes cleared BOTH conditions** a difference must clear to be the form's. That capture
+separated the two conditions cleanly, which the one before it did not, and that makes it the
 better illustration of why the rule needs both halves. `S3` moved **outside** the band
 (20 µs, 1.11 %) but its `S − W` sign FLIPPED across the five sweeps — −32, +12, +8, +33,
 +2 µs — so it measures the run, not the form. `S2` did the converse: its sign is **stable**
 across all five sweeps, every one favouring `S`, but the whole move is 4 µs, **inside** the
 band on the absolute limit. Out-of-band-but-unstable and stable-but-in-band are both
-unattributable, and the two candidate forms are therefore indistinguishable by this harness —
-which is what a pre-declared tiebreak is FOR.
+unattributable, and the two candidate forms were therefore indistinguishable by this harness —
+which is what a pre-declared tiebreak is FOR. (In the c1 re-run both of those probes land
+differently and the verdict is unchanged; the two runs are compared in §The current reading.)
 
-`S2` is also the clearest demonstration of why the band is an OR of an absolute and a
-relative limit rather than either alone. At −7.14 % a relative-only band would call it out of
-band and hand `S` an attributable win on 4 µs of a 56 µs probe; at 4 µs the absolute limit
-correctly holds it inside. The band's shape, declared before this run, is what keeps a
-sign-stable microsecond from deciding the policy form of 61 tables.
+In THAT capture `S2` was also the clearest demonstration of why the band is an OR of an
+absolute and a relative limit rather than either alone. At −7.14 % a relative-only band would
+have called it out of band and handed `S` an attributable win on 4 µs of a 56 µs probe; at 4 µs
+the absolute limit correctly held it inside. The band's shape, declared before that run, is what
+keeps a sign-stable microsecond from deciding the policy form of 61 tables.
 
 That conclusion is the opposite of what a single sweep says, which is the finding worth
 keeping. Six consecutive single sweeps of this same comparison announced `S` wins, `W` wins,
 `UNDECIDED`, `UNDECIDED`, `S` wins and `UNDECIDED` — `Q4` alone ranged from 111 µs in `S`'s
-favour to 112 µs in `W`'s. Pooled over 15 samples that same probe settles at **+2 µs /
-0.12 %**, inside the band. A decision rule reading one sweep would have picked a policy form
-for 61 tables out of the resolution of its own instrument.
+favour to 112 µs in `W`'s. Pooled over 15 samples that same probe settled at **+2 µs /
+0.12 %** in that capture, inside the band — and at 20 µs / 1.18 %, outside it, in the c1
+re-run, still sign-unstable and still unattributable. A decision rule reading one sweep would
+have picked a policy form for 61 tables out of the resolution of its own instrument.
 
 **The `A′` → `W` comparison is a different question and is adjudicated here**, because the
 band applies to it too and an artifact reporting only the favourable cases does not satisfy
-the requirement:
+the requirement. **This is the wrapped-against-BARE comparison** — `A′` is the bare body here —
+and it is the PR-1b counterpart of the committed-policy table in §The superseded pre-migration
+capture:
 
 | Probe      | `A′`  | `W`   | Δ                 | Adjudication                                                                                                                                                                                                                                                                                                                             |
 | ---------- | ----- | ----- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -5422,21 +6624,26 @@ the requirement:
 | `Q1`       | 0.046 | 0.034 | 1.35× faster      | **Accepted.** 12 µs on a 20-row page; the qual is evaluated over fewer candidate rows, so the win is proportionally smaller.                                                                                                                                                                                                             |
 | `Q2`       | 0.042 | 0.029 | 1.45× faster      | **Accepted.** 13 µs, same mechanism as `Q1`.                                                                                                                                                                                                                                                                                             |
 | `Q5`       | 0.044 | 0.033 | 1.33× faster      | **Accepted.** 11 µs, same mechanism.                                                                                                                                                                                                                                                                                                     |
-| `S2`       | 0.016 | 0.056 | **3.50× SLOWER**  | **Accepted, bounded, and named — the one regression.** See §The wrapped form moves two plans below.                                                                                                                                                                                                                                      |
+| `S2`       | 0.016 | 0.056 | **3.50× SLOWER**  | **Accepted, bounded, and named — the one regression.** See §The wrapped form moves two plans in the PR-1b capture, below.                                                                                                                                                                                                                |
 | `S1`       | 0.006 | 0.006 | no measurable Δ   | **Accepted.** The previous capture read 2 µs slower here and explained it as two InitPlans amortising over a single row; at this resolution that cost is not separable from zero. Both readings are inside the band, and the honest statement is that the point read is where the form stops mattering — not that it costs exactly 2 µs. |
 | `Q6`–`Q13` | —     | —     | ≤ 2 µs either way | **Inside the band.** The child reads and point lookups touch too few rows for the qual's form to matter; `Q6` is the exception and moves its plan — below.                                                                                                                                                                               |
 
-### The wrapped form moves two plans — recorded, not omitted
+### The wrapped form moves two plans in the PR-1b capture — recorded, not omitted
 
-A moved plan is a finding even when the rows are identical, and this run produced two. Both
-are visible in the generated tables' node and index columns.
+**Also reads the PR-1b capture**, for the same reason as the section above: a bare-vs-wrapped
+plan move is only observable while one arm is still bare, which the block above no longer has.
 
-**`S2` — the regression.** Under `A′` the planner chooses `Post_projectId_createdAt_idx` and
-a plain `Index Scan`, whose output is already ordered, so no `Sort` node is needed. Under
-`W` and `S` alike it switches to `Post_projectId_archivedAt_idx` with a `Bitmap Heap Scan`
-plus an explicit `Sort`, and the scan-node median goes 0.016 → 0.056 ms. The 15 samples do
-not overlap (`A′` 0.014–0.025, `W` 0.048–0.072 — both ranges are printed in §S2 of the block
-above), so this is a real effect and not the noise that governs the W-vs-S question. It also
+A moved plan is a finding even when the rows are identical, and that run produced two. Both
+were visible in its generated tables' node and index columns.
+
+**`S2` — the regression.** Under PR-1b's bare `A′` the planner chooses
+`Post_projectId_createdAt_idx` and a plain `Index Scan`, whose output is already ordered, so no
+`Sort` node is needed. Under `W` and `S` alike it switches to `Post_projectId_archivedAt_idx`
+with a `Bitmap Heap Scan` plus an explicit `Sort`, and the scan-node median goes
+0.016 → 0.056 ms. The 15 samples do not overlap (`A′` 0.014–0.025, `W` 0.048–0.072, both from
+that capture's §S2 — the block above now runs all three arms in the wrapped form, so the
+contrast is no longer readable there and lives only here), so this is a real effect and not the
+noise that governs the W-vs-S question. It also
 reproduces independently in the retired four-arm capture below (0.024 → 0.063), taken before
 anyone was looking for it. The plausible mechanism — stated as plausible, because nothing
 here measures it — is that a qual reading InitPlan `Param`s is estimated differently from one
@@ -5453,10 +6660,12 @@ exactly the class of surprise the 58-table sweep has to look for (its own per-po
 pass carries this same obligation), not because anything here is broken.
 
 **`Q6` — the same mechanism, the other direction.** `Hash Join → Index Scan → Hash → Seq
-Scan` under `A′` becomes `Nested Loop → Index Scan → Index Only Scan` under both wrapped
-forms, newly using `Project_id_accountId_key`, and the case gets slightly faster (0.084 →
-0.082, inside the band). Recorded for symmetry: the wrapper moves plans in both directions,
-so "the plan moved" is not by itself a regression signal.
+Scan` under PR-1b's bare `A′` becomes `Nested Loop → Index Scan → Index Only Scan` under both
+wrapped forms, newly using `Project_id_accountId_key`, and the case gets slightly faster
+(0.084 → 0.082, inside the band). Recorded for symmetry: the wrapper moves plans in both
+directions, so "the plan moved" is not by itself a regression signal. In the c1 re-run all
+three arms sit on the `Nested Loop` plan, which is the same finding seen from the other side:
+the move happened once, at the migration, and has stayed.
 
 **The sweep's own evidence pass inherits more than this obligation.** Task 8.9 rewrites 57
 policies plus the `AIPromptTemplate` variant, and its per-policy digest pass binds ONE tenant
