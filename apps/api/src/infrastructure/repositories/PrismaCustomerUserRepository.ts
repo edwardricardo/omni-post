@@ -7,12 +7,14 @@
  * @layer infrastructure
  */
 
-import type { PrismaClient } from "@infra/prisma";
+import type { Prisma, PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
 import { CustomerUser, type CustomerUserProps } from "@core/domain/entities/CustomerUser.js";
 import { EntityNotFoundError, type DomainError } from "@core/domain/errors/index.js";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
+import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { authLogger } from "../../lib/logger.js";
 
 /**
  * Prisma row shape including the joined CustomerRole + permissions. This is
@@ -63,9 +65,44 @@ const CUSTOMER_ROLE_INCLUDE = {
 export class PrismaCustomerUserRepository implements CustomerUserRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  /**
+   * Resolve the active Unit-of-Work transaction client, else the base client.
+   * A query that reaches the base client while a transaction is open runs on a
+   * SECOND pooled connection: it commits independently of the enclosing rollback,
+   * and it passes the per-operation tenant binding unwrapped because the open
+   * transaction already owns GUC adjudication for the connection it holds.
+   */
+  private getClient(): PrismaClient | Prisma.TransactionClient {
+    return PrismaUnitOfWork.getTransactionClient() ?? this.prisma;
+  }
+
+  /**
+   * Report a write failure as what it is, without echoing what it was about.
+   * A tenant-context failure carries `TENANT_CONTEXT_MISSING` /
+   * `TENANT_CONTEXT_MISMATCH` on its `code`, so the logs keep a fail-closed
+   * security signal distinguishable from an ordinary persistence error — which
+   * the caller's response deliberately cannot do, since distinguishing them
+   * would rebuild the token oracle.
+   *
+   * Only the error's name and code are recorded. A driver message can echo the
+   * offending value, and on this path the offending value is a reset token.
+   */
+  private logWriteFailure(operation: string, error: unknown): void {
+    const raised = error as { name?: unknown; code?: unknown };
+    authLogger.error(
+      {
+        layer: "infrastructure",
+        operation: `customerUser.${operation}`,
+        error_name: typeof raised?.name === "string" ? raised.name : "UnknownError",
+        ...(typeof raised?.code === "string" && { error_code: raised.code }),
+      },
+      "customer-user write failed"
+    );
+  }
+
   async findById(id: string): Promise<Result<CustomerUser, DomainError>> {
     try {
-      const row = await this.prisma.customerUser.findFirst({
+      const row = await this.getClient().customerUser.findFirst({
         where: { id, deletedAt: null },
         include: CUSTOMER_ROLE_INCLUDE,
       });
@@ -83,7 +120,7 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
 
   async findByEmail(email: string, accountId: string): Promise<Result<CustomerUser, DomainError>> {
     try {
-      const row = await this.prisma.customerUser.findFirst({
+      const row = await this.getClient().customerUser.findFirst({
         where: { email: normalizeEmail(email), accountId, deletedAt: null },
         include: CUSTOMER_ROLE_INCLUDE,
       });
@@ -100,7 +137,7 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
   }
 
   async findByEmailAcrossAccounts(email: string): Promise<CustomerUser[]> {
-    const rows = await this.prisma.customerUser.findMany({
+    const rows = await this.getClient().customerUser.findMany({
       where: { email: normalizeEmail(email), deletedAt: null },
       include: CUSTOMER_ROLE_INCLUDE,
     });
@@ -108,7 +145,7 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
   }
 
   async findByAccountId(accountId: string): Promise<CustomerUser[]> {
-    const rows = await this.prisma.customerUser.findMany({
+    const rows = await this.getClient().customerUser.findMany({
       where: { accountId, deletedAt: null },
       include: CUSTOMER_ROLE_INCLUDE,
       orderBy: { createdAt: "desc" },
@@ -117,7 +154,7 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
   }
 
   async findByProjectId(projectId: string): Promise<CustomerUser[]> {
-    const memberships = await this.prisma.projectMember.findMany({
+    const memberships = await this.getClient().projectMember.findMany({
       where: { projectId },
       include: {
         member: { include: CUSTOMER_ROLE_INCLUDE },
@@ -130,7 +167,7 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
 
   async findByInviteToken(token: string): Promise<Result<CustomerUser, DomainError>> {
     try {
-      const row = await this.prisma.customerUser.findFirst({
+      const row = await this.getClient().customerUser.findFirst({
         where: { inviteToken: token, deletedAt: null },
         include: CUSTOMER_ROLE_INCLUDE,
       });
@@ -150,7 +187,7 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
 
   async findByResetToken(token: string): Promise<Result<CustomerUser, DomainError>> {
     try {
-      const row = await this.prisma.customerUser.findFirst({
+      const row = await this.getClient().customerUser.findFirst({
         where: { resetToken: token, deletedAt: null },
         include: CUSTOMER_ROLE_INCLUDE,
       });
@@ -165,6 +202,52 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
           `resetToken query failed: ${error instanceof Error ? error.message : String(error)}`
         )
       );
+    }
+  }
+
+  async claimPasswordReset(
+    token: string,
+    newPasswordHash: string
+  ): Promise<Result<void, "INVALID_TOKEN" | "INTERNAL_ERROR">> {
+    try {
+      // ONE conditional write. The predicate names the token, a strictly future
+      // expiry and a live owner together, so the database decides who claims the
+      // token — there is no window between deciding and writing for a second
+      // caller to slip into. `resetToken` is globally unique, so a match caps at
+      // one row by construction and `count` is the whole verdict.
+      const { count } = await this.getClient().customerUser.updateMany({
+        where: {
+          resetToken: token,
+          resetTokenExpiry: { gt: new Date() },
+          deletedAt: null,
+        },
+        data: { passwordHash: newPasswordHash, resetToken: null, resetTokenExpiry: null },
+      });
+
+      // INVALID_TOKEN is reachable ONLY from the count gate. A throw below is a
+      // failure to ASK the question, not an answer to it, and reporting it as a
+      // bad token is what made a dead endpoint read as normal behaviour.
+      return count === 1 ? ok(undefined) : err("INVALID_TOKEN");
+    } catch (error: unknown) {
+      this.logWriteFailure("claimPasswordReset", error);
+      return err("INTERNAL_ERROR");
+    }
+  }
+
+  async issueResetToken(
+    userId: string,
+    token: string,
+    expiresAt: Date
+  ): Promise<Result<void, "USER_NOT_FOUND" | "INTERNAL_ERROR">> {
+    try {
+      const { count } = await this.getClient().customerUser.updateMany({
+        where: { id: userId, deletedAt: null },
+        data: { resetToken: token, resetTokenExpiry: expiresAt },
+      });
+      return count === 1 ? ok(undefined) : err("USER_NOT_FOUND");
+    } catch (error: unknown) {
+      this.logWriteFailure("issueResetToken", error);
+      return err("INTERNAL_ERROR");
     }
   }
 
@@ -204,7 +287,7 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
         deletedAt: user.deletedAt ?? null,
       };
 
-      await this.prisma.customerUser.upsert({
+      await this.getClient().customerUser.upsert({
         where: { id: user.id },
         create: { id: user.id, accountId: user.accountId, ...baseData },
         update: baseData,
@@ -226,7 +309,7 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     passwordHash: string
   ): Promise<Result<void, DomainError>> {
     try {
-      await this.prisma.customerUser.update({
+      await this.getClient().customerUser.update({
         where: { id: userId },
         data: { passwordHash },
       });
@@ -243,7 +326,7 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
 
   async delete(userId: string): Promise<Result<void, DomainError>> {
     try {
-      await this.prisma.customerUser.delete({ where: { id: userId } });
+      await this.getClient().customerUser.delete({ where: { id: userId } });
       return ok(undefined);
     } catch (error: unknown) {
       return err(

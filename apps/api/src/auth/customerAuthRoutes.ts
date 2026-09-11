@@ -11,6 +11,12 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "./customerAuthMiddleware.js";
 import { withSystemContext } from "../security/tenantContext.js";
+import {
+  CUSTOMER_REGISTER_SYSTEM_REASON,
+  CUSTOMER_REFRESH_SYSTEM_REASON,
+  CUSTOMER_REQUEST_PASSWORD_RESET_SYSTEM_REASON,
+  CUSTOMER_RESET_PASSWORD_SYSTEM_REASON,
+} from "./customerAuthSystemReasons.js";
 import { resolveClientIp } from "../security/resolveClientIp.js";
 import { authLogger } from "../lib/logger.js";
 import type {
@@ -114,15 +120,23 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
       body: z.infer<typeof RegisterSchema>;
     };
 
-    const result = await this.registerUseCase.execute({
-      accountName: body.accountName,
-      accountEmail: body.accountEmail ?? body.email,
-      firstName: body.firstName,
-      lastName: body.lastName,
-      email: body.email,
-      password: body.password,
-      ...(body.plan !== undefined && { plan: body.plan }),
-    });
+    // Register is pre-identity in the strongest sense: the account it will create
+    // does not exist yet, and the duplicate-address check that precedes it spans
+    // EVERY account. Neither operation can be scoped to a tenant, so the whole
+    // handler runs under the declared system context. The extent is the whole
+    // handler because every enrolled-model reach in this flow is part of creating
+    // the tenant; nothing here reads another tenant's data by a caller-supplied id.
+    const result = await withSystemContext(CUSTOMER_REGISTER_SYSTEM_REASON, () =>
+      this.registerUseCase.execute({
+        accountName: body.accountName,
+        accountEmail: body.accountEmail ?? body.email,
+        firstName: body.firstName,
+        lastName: body.lastName,
+        email: body.email,
+        password: body.password,
+        ...(body.plan !== undefined && { plan: body.plan }),
+      })
+    );
 
     if (!result.ok) {
       const errorMap = {
@@ -351,9 +365,18 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
       body: z.infer<typeof RefreshSchema>;
     };
 
-    const result = await this.refreshUseCase.execute({
-      refreshToken: body.refreshToken,
-    });
+    // Refresh is pre-identity: the request carries no access token, so no
+    // `TenantContext` is bound, and the subject is named by the refresh token's
+    // own signed claims. The extent is the whole handler because the single
+    // enrolled-model reach in this flow (`findById` on the token's subject) is
+    // keyed by a value the signature already authenticated — the lookup is
+    // self-scoping, so re-entering a tenant context would only re-derive a scope
+    // the token has already fixed.
+    const result = await withSystemContext(CUSTOMER_REFRESH_SYSTEM_REASON, () =>
+      this.refreshUseCase.execute({
+        refreshToken: body.refreshToken,
+      })
+    );
 
     if (!result.ok) {
       const errorMap = {
@@ -410,15 +433,39 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
       body: z.infer<typeof RequestPasswordResetSchema>;
     };
 
-    const result = await this.requestResetUseCase.execute({
-      email: body.email,
-    });
+    // The reset request is pre-identity and genuinely cross-tenant: one address can
+    // be registered on several accounts, and the lookup has to find ALL of them
+    // before any of them is attributable. The extent is the whole handler because
+    // every write that follows is keyed by a row id that the cross-account lookup
+    // itself returned — no step takes a caller-supplied identifier.
+    const result = await withSystemContext(CUSTOMER_REQUEST_PASSWORD_RESET_SYSTEM_REASON, () =>
+      this.requestResetUseCase.execute({
+        email: body.email,
+      })
+    );
 
     if (!result.ok) {
       return this.sendError(ctx, 500, "Internal server error");
     }
 
-    return this.sendSuccess(ctx, result.value, 200);
+    if (result.value.unpersistedCount > 0) {
+      // A row whose token never landed cannot be sent a link, so the recipient
+      // silently receives fewer links than they have accounts. Discarding that
+      // result is what made the condition invisible.
+      authLogger.warn(
+        {
+          threat_type: "customer_reset_token_unpersisted",
+          layer: "infrastructure",
+          unpersisted_count: result.value.unpersistedCount,
+        },
+        "one or more customer reset tokens could not be persisted"
+      );
+    }
+
+    // A CONSTANT body. This makes the anti-enumeration silhouette a property of the
+    // transport rather than a value the use case has to remember to keep identical,
+    // so the diagnostic above can never widen it.
+    return this.sendSuccess(ctx, { message: result.value.message }, 200);
   }
 
   /**
@@ -439,15 +486,26 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
       body: z.infer<typeof ResetPasswordSchema>;
     };
 
-    const result = await this.resetPasswordUseCase.execute({
-      token: body.token,
-      newPassword: body.newPassword,
-    });
+    // The confirm is pre-identity: the subject is named only by the reset token.
+    // The extent is the whole handler, which is defensible because the single write
+    // in this flow is one conditional statement whose own predicate names a
+    // globally-`@unique` token plus a live owner — the write is self-scoping, so
+    // guard injection could not narrow it further. Re-entering a tenant context
+    // would require a read issued purely to learn the account, restoring the
+    // read-then-write shape the single claim exists to delete.
+    const result = await withSystemContext(CUSTOMER_RESET_PASSWORD_SYSTEM_REASON, () =>
+      this.resetPasswordUseCase.execute({
+        token: body.token,
+        newPassword: body.newPassword,
+      })
+    );
 
     if (!result.ok) {
+      // One code for every unusable token. Unknown, expired, already-claimed and
+      // soft-deleted-owner are indistinguishable on purpose: telling them apart is
+      // a token-validity oracle.
       const errorMap = {
         INVALID_TOKEN: { code: 400, message: "Invalid or expired reset token" },
-        TOKEN_EXPIRED: { code: 400, message: "Reset token has expired" },
         VALIDATION_ERROR: { code: 400, message: "Invalid input data" },
         INTERNAL_ERROR: { code: 500, message: "Internal server error" },
       };
