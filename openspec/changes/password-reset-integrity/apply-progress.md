@@ -1,9 +1,10 @@
 # Apply progress — password-reset-integrity
 
-> **CURRENT STATUS (link 2): PR-1 COMPLETE. 28 of 29 PR-1 tasks done; only the 8.1 gate task is
-> left, and it is the orchestrator's.** Jump to "Link 2" below. Link 1's blocker record is kept
-> verbatim underneath because it is the evidence for why a sub-agent cannot clear tripwire #7 on
-> its own, and the next person to hit that guard needs it.
+> **CURRENT STATUS (link 3): PR-1 and PR-2a both IMPLEMENTED. 28 of 29 PR-1 tasks and 11 of 12
+> PR-2a tasks are done; the two left (8.1 and 12.1) are the gate tasks, and both belong to the
+> orchestrator.** Jump to "Link 3" at the bottom for this link. Link 2 (PR-1) is kept above it,
+> and Link 1's blocker record is kept underneath that because it is the evidence for why a
+> sub-agent cannot clear tripwire #7 on its own, and the next person to hit that guard needs it.
 
 ---
 
@@ -353,3 +354,202 @@ spot-set, and covering 10/10 PR-1 requirements / 31/31 scenarios against the tes
    (+50 EVIDENCE, tree-collected) — pins the four constants' exact values, the bounded
    fixed-set grammar no interpolation can match, and non-duplication. 3/3 green; prettier and
    eslint clean. Landed after the gate's snapshot; trivially inspectable.
+
+---
+
+# Link 3 — PR-2a IMPLEMENTED
+
+**Status: 11 of 12 PR-2a tasks complete (9.1 → 11.4). Task 12.1 (the 0-defect gate) is
+deliberately left unchecked — it belongs to the orchestrator.**
+**Mode: Strict TDD (resolved active, and followed: 9.1–9.5 were authored and observed RED on the
+tree PR-1 left behind, before a single production line of this link was written).**
+
+PR-1's tasks (1.1 → 7.3) stay complete and untouched; 8.1 stays the orchestrator's. Nothing in
+this link reworked a PR-1 seam — it added, deleted the orphan, and migrated callers, exactly as
+the design's "PR-2 deletes, never reworks" instruction requires.
+
+## TDD Cycle Evidence
+
+| Task | Test file                                                                    | Layer       | Safety net                          | RED (observed on the tree as PR-1 left it)                                                                                                              | GREEN       | Triangulate                                                              | Refactor                  |
+| ---- | ---------------------------------------------------------------------------- | ----------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------ | ------------------------- |
+| 9.1  | `tests/unit/infrastructure/repositories/customerUserWriteInvariants.test.ts` | Unit        | 46/46 api + 29/29 customer-auth     | `TypeError: repo.create is not a function` (and `recordLogin` / `upgradePasswordHash` / `changeRole` / `deactivate`) — **14 failed / 6 passed, exit 1** | 10.1 + 10.2 | 6 table rows × 2 fixtures (live + soft-deleted)                          | shared `updateOneLiveRow` |
+| 9.2  | same                                                                         | Unit        | same                                | same five names, on the soft-deleted fixture                                                                                                            | 10.2        | every command, plus the create-over-a-deleted-pair case                  | —                         |
+| 9.3  | same                                                                         | Unit        | same                                | the live half was red through the missing methods                                                                                                       | 10.2        | declared-set disjointness + observed diff                                | —                         |
+| 9.4  | same                                                                         | Unit        | same                                | `TypeError: repo.recordLogin is not a function`                                                                                                         | 10.2 + 11.1 | ➖ single behaviour                                                      | —                         |
+| 9.5  | `tests/integration/customerPasswordReset.integration.test.ts`                | Integration | 12/12 pre-existing in the same file | login answered **200** and the row still held `$argon2id$v=19$m=19456,t=2,p=1$…`, **byte-identical** to the pre-login hash                              | 11.1        | paired with `needsRehash(stored) === false` and a non-null `lastLoginAt` | —                         |
+
+9.5's red is the whole reason this link exists and it was measured, not argued: a
+security-parameter upgrade wrote itself and was then put back by the snapshot save, while the
+endpoint reported success.
+
+## Work Unit Evidence
+
+| Evidence          | Value                                                                                                                                                                                                                                                                                          |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test      | `vitest run tests/unit/infrastructure/repositories/customerUserWriteInvariants.test.ts` → **20/20 pass**                                                                                                                                                                                       |
+| Runtime harness   | DBUP + `TIER=pr-integration pnpm --filter @apps/api test:integration` → **497 tests, 497 pass, 0 fail, 0 cancel, 0 skip**, incl. `integration:customer-auth` **13/13** and `integration:tenant-isolation` **246/246**                                                                          |
+| Database state    | Out-of-band read in a SEPARATE process on its own client: `{leftover_customerUser:0, leftover_account:0, leftover_resetTokens:0, leftover_roles:0}`                                                                                                                                            |
+| Rollback boundary | One revert restores the five port declarations, their adapter bodies, the orphaned `findByResetToken`, and the three caller edits together. `save()` is still present on the port, so every caller compiles on revert — which is precisely why the callers seam was chosen as the split point. |
+
+## Gate readings (12.1 inputs, collected but NOT checked off)
+
+- **TSC** `pnpm --filter @apps/api exec tsc -b` → exit **0**
+- **LINT** `eslint apps packages infra --max-warnings 0` → exit **0**
+- **format** `prettier --check` over all eleven touched files → clean
+- Unit: `apps/api` **566 files / 8,795 tests, all pass**; `@core/customer-auth` 29/29;
+  `@core/team` 3/3; `@core/domain` 55/55
+- Fitness **#2 #3 #4 #5 #8 #9 #10 #21 #23 #31A #32 #38(swept) #40(A violations, B underived)** →
+  all **0**; **#31B** guards present (2 and 1); **#30** ratchet **21, unchanged**; **#38**
+  db-prisma ratchet **11, unchanged**; **#40** floors held (seams 3, sites 13)
+
+## Measured CODE / EVIDENCE split
+
+Measured by edit accounting (additions + deletions, git-diff semantics) — this writer never runs
+git, so the numbers are derived from the exact spans replaced rather than from `git diff --stat`.
+The orchestrator should confirm them against the real diff before they reach the PR body.
+
+| Tier         | File                                            | Changed  |
+| ------------ | ----------------------------------------------- | -------- |
+| **CODE**     | `CustomerUserRepository.ts` (port)              | 83       |
+| **CODE**     | `PrismaCustomerUserRepository.ts`               | 133      |
+| **CODE**     | `LoginCustomerUseCase.ts`                       | 46       |
+| **CODE**     | `CompleteCustomerMfaLoginUseCase.ts`            | 47       |
+| **CODE**     | `RegisterCustomerUseCase.ts`                    | 15       |
+| **CODE**     | **total**                                       | **324**  |
+| **EVIDENCE** | `customerUserWriteInvariants.test.ts` (new)     | 500      |
+| **EVIDENCE** | `customerPasswordReset.integration.test.ts`     | ~118     |
+| **EVIDENCE** | `customerAuthUseCases.test.ts`                  | ~14      |
+| **EVIDENCE** | `onboarding/onboarding.test.ts`                 | 2        |
+| **EVIDENCE** | `LoginCustomerUseCase.test.ts` (pkg)            | ~8       |
+| **EVIDENCE** | `CompleteCustomerMfaLoginUseCase.test.ts` (pkg) | ~8       |
+| **EVIDENCE** | **total**                                       | **~650** |
+
+**CODE is inside the 400 hard budget (324) but over its own 190–230 forecast.** The gap is
+almost entirely canon-mandated JSDoc: of the 78 added port lines, **64 are comment**; of the 89
+added adapter-method lines, 21 are; of the 24-line P2002 helper, 9 are. Non-comment CODE is
+**≈205**, which lands inside the forecast — so the forecast was evidently a non-comment estimate
+and the budget is a changed-line one. Named rather than absorbed, and **no `size:exception` is
+requested**: the link is inside the hard budget either way.
+
+**EVIDENCE measured ~650 against a ~310 forecast.** One file drives it: the invariant suite is
+500 lines because the authority criterion is three separate claims (completeness, exclusivity,
+no side channel) and exclusivity is only worth anything if the writer list is written down per
+shared column. Flagged for Edward under the two-tier rule, which pre-approves the EVIDENCE tier
+for the change as a whole.
+
+## Decisions taken while implementing (named, not absorbed)
+
+1. **`findByResetToken` was DELETED here, not carried to PR-2b.** The launch brief said all three
+   of `save` / `updatePasswordHash` / `findByResetToken` survive this link. `tasks.md` says the
+   opposite about the third one, in three places (the split description, 10.1 and 10.2), and the
+   design's File-Changes row assigns the adapter deletion to PR-2 as well. The tasks artifact is
+   the binding one and is self-consistent, so the orphan is gone: `rg 'findByResetToken'` returns
+   **zero** across the tree. `save` and `updatePasswordHash` DO survive, with zero credential
+   callers — `save` keeps exactly the three team callers PR-2b migrates.
+2. **`recordLogin`'s failure is fatal to the login, not merely logged.** The task says "with its
+   `Result` **checked** (today it is discarded)", and the only honest reading of a check is that
+   it changes an outcome. `USER_NOT_FOUND` at that point means no LIVE row matched at the instant
+   of the stamp — the account stopped existing mid-login — and minting a session afterwards would
+   outlive its owner. `CompleteCustomerMfaLoginUseCase` already failed closed on exactly this
+   signal before this change, so the two halves of the same login now agree rather than diverge.
+3. **The rehash write itself stays best-effort.** It is the pre-existing documented decision and
+   the spec's requirement is that a landed upgrade SURVIVES, not that a failed one denies the
+   login. The discard is now explicit and explained at the call site instead of implicit.
+4. **`create`'s P2002 mapping is narrow.** `EMAIL_EXISTS` is returned only when the collided
+   constraint names the e-mail; a row-id or invite-token collision stays `INTERNAL_ERROR`. A
+   blanket P2002 → `EMAIL_EXISTS` would tell a caller something false about what failed. The
+   e-mail-verification token cannot be the matching constraint because it is not in the creation
+   projection.
+5. **`issueResetToken` was NOT refactored onto the new shared `updateOneLiveRow`,** even though
+   its body is now a duplicate of it. The design states PR-1's seams are final and PR-2 deletes
+   rather than reworks; collapsing a PR-1 body would put an already-reviewed line back in front
+   of a reviewer for no behavioural reason. The duplication is named here so PR-2b can decide it
+   deliberately rather than inherit it silently.
+6. **The stale-hash fixture forces `needsRehash`, it does not change production parameters.** The
+   integration seed hashes at `m=19456,t=2,p=1` so `needsRehash` against the canonical
+   `ARGON2_PARAMS` is true. `apps/api/src/auth/passwordHashing.ts` is untouched; a canon-decision
+   advisory fired on the parameter literal and is answered here — the literal exists only to
+   build a stale fixture, which the spec explicitly requires ("the test SHALL force that
+   condition rather than wait for a production bump").
+7. **The login use case is now genuinely wired in the integration suite** (it used to be an
+   `unexercised` placeholder). The brute-force gate and the MFA challenge store are admissive
+   doubles: neither participates in the persistence outcome under test, and using the real Redis
+   adapters would make a credential-persistence assertion depend on a cache being up.
+
+## PostgreSQL-cascade latent finding (orchestrator amendment item 5) — OWNERSHIP JUDGMENT
+
+**This link did NOT reach that neighbourhood, so per the amendment's own terms it goes to the
+backlog with its paragraph.**
+
+The finding is about `RequestPasswordResetUseCase.doWork()` continuing past a per-row failure
+inside one UoW transaction while PostgreSQL aborts the whole transaction on a failed statement.
+PR-2a's assigned phases touch the port, the adapter, and the three CREDENTIAL callers (Login,
+CompleteMfa, Register). `RequestPasswordResetUseCase` is not among them and was not opened; the
+write it calls, `issueResetToken`, is a PR-1 seam this link deliberately left byte-identical
+(decision 5 above). Reaching in to change its loop would have meant editing a use case no task in
+this link names, on the strength of a conditional, which is how scope creep gets laundered into
+a PR.
+
+Backlog entry, carried verbatim so nothing is lost: _`RequestPasswordResetUseCase.doWork()`
+`continue`s past a per-row failure inside one UoW transaction, but PostgreSQL aborts the whole
+transaction on a failed statement — the unit fake has no transaction semantics, so the
+continue-path is only proven fake-deep. Spec obligations hold either way (a cascaded failure
+still e-mails no unpersisted link and the response stays uniform)._ Saved to engram alongside
+this link's record.
+
+## Deviations from design
+
+None. D-4's port surface is implemented exactly as tabled — signatures, Prisma shapes and error
+contracts — including the gate-accepted `upgradePasswordHash` divergence with its
+only-sanctioned-caller JSDoc. The authority criterion is implemented as D-4 describes it: a
+table-driven test diffing the fake's row before and after each method and asserting
+changed-column-set equality.
+
+## Issues found
+
+- **The launch brief and `tasks.md` disagree about `findByResetToken`.** Resolved in favour of
+  `tasks.md` (decision 1). Flagged so the orchestrator can confirm rather than discover it in
+  review.
+- **`apps/api/tests/integration/customerPasswordReset.integration.test.ts` still calls
+  `repo.updatePasswordHash`** in the UoW-rollback probe, as a vehicle for "a write through the
+  adapter". It is a harness call, not a credential caller, so the link's exit condition holds —
+  but PR-2b deletes that method and will have to move the probe onto `upgradePasswordHash`.
+
+## Files changed
+
+| File                                                                                  | Action   | What                                                                                                                                           |
+| ------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/tests/unit/infrastructure/repositories/customerUserWriteInvariants.test.ts` | Created  | The authority criterion as a table: declared write sets, pinned writer lists, soft-delete and MFA guards                                       |
+| `packages/core/domain/src/repositories/CustomerUserRepository.ts`                     | Modified | +5 intent declarations with JSDoc; `findByResetToken` declaration deleted                                                                      |
+| `apps/api/src/infrastructure/repositories/PrismaCustomerUserRepository.ts`            | Modified | +`create` (genuine create, narrow P2002 mapping), +4 count-gated commands via `updateOneLiveRow`; `findByResetToken` impl deleted              |
+| `packages/core/customer-auth/src/LoginCustomerUseCase.ts`                             | Modified | Rehash → `upgradePasswordHash`; login stamp → `recordLogin` with the Result checked; the stale-entity comment rewritten to its real conclusion |
+| `packages/core/customer-auth/src/CompleteCustomerMfaLoginUseCase.ts`                  | Modified | Login stamp → `recordLogin` inside the same UoW, typed failure kept                                                                            |
+| `packages/core/customer-auth/src/RegisterCustomerUseCase.ts`                          | Modified | `save` → `create`, `EMAIL_EXISTS` mapped onto the existing code                                                                                |
+| `apps/api/tests/integration/customerPasswordReset.integration.test.ts`                | Modified | Login use case really wired; the rehashing-login scenario; a stored-hash seed override                                                         |
+| `apps/api/tests/unit/customerAuthUseCases.test.ts`                                    | Modified | Double gains the five commands; register/login assertions moved onto `create` / `recordLogin`                                                  |
+| `apps/api/tests/unit/onboarding/onboarding.test.ts`                                   | Modified | Registration double moved onto `create`                                                                                                        |
+| `packages/core/customer-auth/tests/unit/LoginCustomerUseCase.test.ts`                 | Modified | Double and its negative assertions moved onto `recordLogin` / `upgradePasswordHash`                                                            |
+| `packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts`      | Modified | Double and its three assertions moved onto `recordLogin`                                                                                       |
+| `openspec/changes/password-reset-integrity/tasks.md`                                  | Modified | 11 boxes checked, per-phase evidence added                                                                                                     |
+
+## Next recommended
+
+`sdd-verify` for PR-2a, then `sdd-apply` again for PR-2b. PR-2b is unblocked by this link: its
+three team callers still compile against the surviving `save()`, the five intent writes it needs
+are in place, and its `create` conflict row (13.1) extends a suite that already exists.
+
+## Orchestrator amendment — PR-2a gate outcome (same night)
+
+Fresh gate: **PASS WITH WARNINGS (0 CRITICAL / 1 WARNING / 2 SUGGESTION)**, all re-run
+evidence reproduced (batch 497/497 twice, vitest 8,795, invariants 20/20, fitness set 0).
+Dispositions: **WARNING 1** (failure branches of the three migrated credential callers have
+zero coverage — Login's INTERNAL_ERROR branch, Register's EMAIL_EXISTS arm at use-case
+level) routed into task 13.2, WIDENED to name all six callers so the MERGE-BLOCKING
+"each caller" scenario closes whole in PR-2b. **SUGGESTION 2**: the link's CODE is **290**
+(+241/−49, gate-measured via git diff) — the writer's 324 was self-accounting; 290 is the
+number for the PR body. **SUGGESTION 3** (create's P2002 duplicate path proven fake-only;
+happy path real-DB proven) stays named for PR-2b's integration additions or the backlog.
+Database-as-found re-proven by the orchestrator's own out-of-band read (separate client):
+catalog census unchanged, 0 leftover fixtures. The gate's verify record lives in Engram
+(#659) with its mid-chain scope note — no terminal verify artifact exists yet, by
+construction (native status: 40/58, next: apply).

@@ -59,6 +59,28 @@ const CUSTOMER_ROLE_INCLUDE = {
 } as const;
 
 /**
+ * Decide whether a failed write is the account/e-mail pair already being taken.
+ *
+ * Narrow on purpose. A creation can also collide on the row id or on an invite
+ * token, and answering `EMAIL_EXISTS` to those would tell a caller something
+ * false about what went wrong. Prisma reports the collided fields either as an
+ * array of column names or as the constraint's own name, so both shapes are
+ * read; the e-mail verification token is not part of the creation projection,
+ * so it cannot be the constraint that matched here.
+ */
+function isEmailUniqueViolation(error: unknown): boolean {
+  const raised = error as { code?: unknown; meta?: { target?: unknown } };
+  if (raised?.code !== "P2002") return false;
+  const target = raised.meta?.target;
+  const fields = Array.isArray(target)
+    ? target.join(",")
+    : typeof target === "string"
+      ? target
+      : "";
+  return fields.toLowerCase().includes("email");
+}
+
+/**
  * @class PrismaCustomerUserRepository
  * @description Adapter for CustomerUserRepository using Prisma.
  */
@@ -185,26 +207,6 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     }
   }
 
-  async findByResetToken(token: string): Promise<Result<CustomerUser, DomainError>> {
-    try {
-      const row = await this.getClient().customerUser.findFirst({
-        where: { resetToken: token, deletedAt: null },
-        include: CUSTOMER_ROLE_INCLUDE,
-      });
-      if (!row) {
-        return err(new EntityNotFoundError("CustomerUser", `resetToken:${token}`));
-      }
-      return ok(this.toDomain(row as unknown as PrismaCustomerUserRowWithRole));
-    } catch (error: unknown) {
-      return err(
-        new EntityNotFoundError(
-          "CustomerUser",
-          `resetToken query failed: ${error instanceof Error ? error.message : String(error)}`
-        )
-      );
-    }
-  }
-
   async claimPasswordReset(
     token: string,
     newPasswordHash: string
@@ -247,6 +249,95 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
       return count === 1 ? ok(undefined) : err("USER_NOT_FOUND");
     } catch (error: unknown) {
       this.logWriteFailure("issueResetToken", error);
+      return err("INTERNAL_ERROR");
+    }
+  }
+
+  async create(
+    user: CustomerUser,
+    passwordHash: string
+  ): Promise<Result<void, "EMAIL_EXISTS" | "INTERNAL_ERROR">> {
+    try {
+      await this.getClient().customerUser.create({
+        data: {
+          id: user.id,
+          accountId: user.accountId,
+          // Both e-mail reads normalize their argument, so the write must store
+          // the same form or they stop finding this row.
+          email: normalizeEmail(user.email),
+          passwordHash,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          // The role is persisted solely via the `roleId` FK to CustomerRole.
+          // An empty roleId is the `toDomain` fallback for a role-less row; it
+          // must be written as NULL, never "", which would violate the FK.
+          roleId: user.roleId === "" ? null : user.roleId,
+          isActive: user.isActive,
+          isEmailVerified: user.isEmailVerified,
+          invitedBy: user.invitedBy ?? null,
+          inviteToken: user.inviteToken ?? null,
+          inviteTokenExpiry: user.inviteTokenExpiry ?? null,
+          joinedAt: user.joinedAt,
+        },
+      });
+      return ok(undefined);
+    } catch (error: unknown) {
+      if (isEmailUniqueViolation(error)) {
+        return err("EMAIL_EXISTS");
+      }
+      this.logWriteFailure("create", error);
+      return err("INTERNAL_ERROR");
+    }
+  }
+
+  async recordLogin(
+    userId: string,
+    at: Date
+  ): Promise<Result<void, "USER_NOT_FOUND" | "INTERNAL_ERROR">> {
+    return this.updateOneLiveRow("recordLogin", userId, { lastLoginAt: at });
+  }
+
+  async upgradePasswordHash(
+    userId: string,
+    newHash: string
+  ): Promise<Result<void, "USER_NOT_FOUND" | "INTERNAL_ERROR">> {
+    return this.updateOneLiveRow("upgradePasswordHash", userId, { passwordHash: newHash });
+  }
+
+  async changeRole(
+    userId: string,
+    roleId: string
+  ): Promise<Result<void, "USER_NOT_FOUND" | "INTERNAL_ERROR">> {
+    return this.updateOneLiveRow("changeRole", userId, { roleId });
+  }
+
+  async deactivate(userId: string): Promise<Result<void, "USER_NOT_FOUND" | "INTERNAL_ERROR">> {
+    return this.updateOneLiveRow("deactivate", userId, { isActive: false });
+  }
+
+  /**
+   * The shared body of every single-intent update: one count-gated `updateMany`
+   * naming the caller's columns and a live owner, with the count as the whole
+   * verdict. Sharing it is what makes the column projection the ONLY thing that
+   * differs between these commands, so the declared write set of each is
+   * readable at its call site instead of buried in a repeated try/catch.
+   */
+  private async updateOneLiveRow(
+    operation: string,
+    userId: string,
+    // The unchecked variant is the one that admits scalar foreign keys such as
+    // `roleId`; the checked variant models the relation instead and would leave
+    // `changeRole` unable to name the column it exists to write.
+    data: Prisma.CustomerUserUncheckedUpdateManyInput
+  ): Promise<Result<void, "USER_NOT_FOUND" | "INTERNAL_ERROR">> {
+    try {
+      const { count } = await this.getClient().customerUser.updateMany({
+        where: { id: userId, deletedAt: null },
+        data,
+      });
+      return count === 1 ? ok(undefined) : err("USER_NOT_FOUND");
+    } catch (error: unknown) {
+      this.logWriteFailure(operation, error);
       return err("INTERNAL_ERROR");
     }
   }

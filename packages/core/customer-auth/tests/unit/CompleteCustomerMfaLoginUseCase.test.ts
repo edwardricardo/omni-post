@@ -57,7 +57,7 @@ function makeUser(overrides?: Record<string, unknown>) {
 function makeUserRepo(userFactory: () => ReturnType<typeof makeUser>): CustomerUserRepository {
   return {
     findById: vi.fn(async () => ok(userFactory())),
-    save: vi.fn(async () => ok(undefined)),
+    recordLogin: vi.fn(async () => ok(undefined)),
   } as unknown as CustomerUserRepository;
 }
 
@@ -158,7 +158,7 @@ describe("CompleteCustomerMfaLoginUseCase", () => {
       assert.strictEqual(typeof result.value.accessToken, "string");
       assert.strictEqual(typeof result.value.refreshToken, "string");
       expect(store.consume).toHaveBeenCalledWith(JTI);
-      expect(userRepo.save).toHaveBeenCalledTimes(1);
+      expect(userRepo.recordLogin).toHaveBeenCalledTimes(1);
       expect(uow.executeInTransaction).toHaveBeenCalledTimes(1);
     });
 
@@ -194,7 +194,7 @@ describe("CompleteCustomerMfaLoginUseCase", () => {
       assert.strictEqual(result.error, "ACCOUNT_DEACTIVATED");
       expect(tokenService.signAccessToken).not.toHaveBeenCalled();
       expect(tokenService.signRefreshToken).not.toHaveBeenCalled();
-      expect(userRepo.save).not.toHaveBeenCalled();
+      expect(userRepo.recordLogin).not.toHaveBeenCalled();
       expect(bruteForce.recordSuccessfulAttempt).not.toHaveBeenCalled();
       // Mirrors USER_INACTIVE: the block is an account-state verdict, not a
       // legitimate attempt to spend the challenge.
@@ -293,7 +293,7 @@ describe("CompleteCustomerMfaLoginUseCase", () => {
       const result = await build().execute(INPUT_BASE);
       assert.ok(!result.ok);
       assert.strictEqual(result.error, "MFA_UNAVAILABLE");
-      expect(userRepo.save).not.toHaveBeenCalled();
+      expect(userRepo.recordLogin).not.toHaveBeenCalled();
     });
 
     it("returns USER_INACTIVE when the row was deactivated between steps", async () => {

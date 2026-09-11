@@ -40,6 +40,7 @@ import {
 import { ok } from "@shared/types";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 import { RegisterCustomerUseCase } from "@core/customer-auth/RegisterCustomerUseCase.js";
+import { LoginCustomerUseCase } from "@core/customer-auth/LoginCustomerUseCase.js";
 import { RefreshCustomerTokenUseCase } from "@core/customer-auth/RefreshCustomerTokenUseCase.js";
 import { RequestPasswordResetUseCase } from "@core/customer-auth/RequestPasswordResetUseCase.js";
 import { ResetPasswordUseCase } from "@core/customer-auth/ResetPasswordUseCase.js";
@@ -60,6 +61,7 @@ import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnit
 import { Argon2PasswordHasher } from "../../src/infrastructure/adapters/Argon2PasswordHasher.js";
 import { CustomerTokenServiceAdapter } from "../../src/infrastructure/adapters/CustomerTokenServiceAdapter.js";
 import { customerAuthRoutes } from "../../src/auth/customerAuthRoutes.js";
+import { needsRehash } from "../../src/auth/passwordHashing.js";
 
 assertSeedChannelConfigured();
 
@@ -69,9 +71,24 @@ const RESET_URL = "/auth/customer/reset-password";
 const REQUEST_URL = "/auth/customer/request-password-reset";
 const REFRESH_URL = "/auth/customer/refresh";
 const REGISTER_URL = "/auth/customer/register";
+const LOGIN_URL = "/auth/customer/login";
 
 const hasher = new Argon2PasswordHasher();
 const tokenService = new CustomerTokenServiceAdapter();
+
+/**
+ * Argon2id parameters deliberately weaker than the canonical ones, used only to
+ * seed a stored hash that `needsRehash` reports as stale. The condition has to be
+ * FORCED: waiting for a production parameter bump to make the rehash path live
+ * would leave the revert it triggers unproven until the day it fires.
+ */
+const STALE_ARGON2_PARAMS = {
+  type: argon2.argon2id,
+  memoryCost: 19456,
+  timeCost: 2,
+  parallelism: 1,
+  hashLength: 32,
+} as const;
 
 interface SeededUser {
   accountId: string;
@@ -136,10 +153,12 @@ describe("Customer password reset — persisted outcomes through the guarded cli
       tokenExpiry?: Date | null;
       deletedAt?: Date | null;
       withToken?: boolean;
+      /** Store this exact hash instead of one produced at canonical parameters. */
+      storedHash?: string;
     } = {}
   ): Promise<SeededUser> {
     const password = options.password ?? "seeded-password-value";
-    const passwordHash = await hasher.hash(password);
+    const passwordHash = options.storedHash ?? (await hasher.hash(password));
     const email = options.email ?? `${TAG}-user-${randomUUID()}@test.local`;
     const token = `${TAG}-token-${randomUUID()}`;
     const withToken = options.withToken !== false;
@@ -235,16 +254,44 @@ describe("Customer password reset — persisted outcomes through the guarded cli
       TOKENS.ResetPasswordUseCase,
       new ResetPasswordUseCase(customerUserRepo, hasher, unitOfWork)
     );
-    // Login, MFA login and logout are registered because the plugin resolves every
-    // handler at registration time. They are NOT the subject of this suite — the
-    // two login seams were already declared before this change — and no assertion
+    // The login use case IS exercised: the transparent rehash writes an upgraded
+    // credential, and whether that credential survives the rest of the login is a
+    // property only a real end-to-end run can settle. The brute-force gate and the
+    // challenge store are the two collaborators a password login does not depend
+    // on for its persistence outcome, so they are admissive doubles rather than
+    // real adapters — Redis is not part of what this asserts.
+    const permissiveBruteForce = {
+      checkLoginAttempt: async () => ({
+        allowed: true,
+        delaySeconds: 0,
+        captchaRequired: false,
+      }),
+      recordFailedAttempt: async () => undefined,
+      recordSuccessfulAttempt: async () => undefined,
+    };
+    const unusedChallengeStore = {
+      issue: async () => ok(undefined),
+      consume: async () => ok("CONSUMED" as const),
+    };
+    container.registerInstance(
+      TOKENS.LoginCustomerUseCase,
+      new LoginCustomerUseCase(
+        customerUserRepo,
+        new PrismaAccountRepository(guarded),
+        hasher,
+        tokenService,
+        permissiveBruteForce as never,
+        unusedChallengeStore as never
+      )
+    );
+    // MFA login and logout are registered because the plugin resolves every handler
+    // at registration time. They are NOT the subject of this suite and no assertion
     // below exercises them.
     const unexercised = {
       execute: async () => {
         throw new Error("not exercised by this suite");
       },
     };
-    container.registerInstance(TOKENS.LoginCustomerUseCase, unexercised);
     container.registerInstance(TOKENS.CompleteCustomerMfaLoginUseCase, unexercised);
     container.registerInstance(TOKENS.LogoutCustomerUseCase, unexercised);
 
@@ -583,6 +630,62 @@ describe("Customer password reset — persisted outcomes through the guarded cli
       assert.ok(
         outcome.visible.length > 0 && outcome.visible.every((row) => row.accountId === accountA),
         "a guarded read AFTER the request must still scope to A — the handler's system context must not escape forward"
+      );
+    });
+  });
+
+  describe("a login that upgrades the stored hash keeps the upgrade", () => {
+    it("leaves the UPGRADED hash stored once the whole login completes", async () => {
+      const accountId = await seedAccount("rehash");
+      const password = "rehash-password-value";
+      const staleHash = await argon2.hash(password, STALE_ARGON2_PARAMS);
+      const user = await seedUser(accountId, { password, storedHash: staleHash, withToken: false });
+
+      // The fixture is only meaningful while the stored hash genuinely asks to be
+      // upgraded. Asserting it up front stops this from degrading into a test that
+      // passes because the rehash branch never ran.
+      assert.strictEqual(
+        needsRehash(staleHash),
+        true,
+        "the seeded hash must require a rehash, otherwise the branch under test is never entered"
+      );
+      assert.strictEqual(
+        await storedHash(user.userId),
+        staleHash,
+        "the stale hash must be what the row holds before the login"
+      );
+
+      const res = await app.inject({
+        method: "POST",
+        url: LOGIN_URL,
+        payload: { email: user.email, password },
+      });
+      assert.strictEqual(res.statusCode, 200, `login must succeed, got ${res.body}`);
+
+      const afterLogin = await base.customerUser.findUniqueOrThrow({
+        where: { id: user.userId },
+        select: { passwordHash: true, lastLoginAt: true },
+      });
+
+      assert.strictEqual(
+        await argon2.verify(afterLogin.passwordHash, password),
+        true,
+        "the stored hash must still verify the password"
+      );
+      assert.notStrictEqual(
+        afterLogin.passwordHash,
+        staleHash,
+        "the UPGRADED hash must be the one that survives — a later write in the same login must not restore the hash the login set out to replace"
+      );
+      assert.strictEqual(
+        needsRehash(afterLogin.passwordHash),
+        false,
+        "the surviving hash must be at the canonical parameters, not merely different"
+      );
+      assert.notStrictEqual(
+        afterLogin.lastLoginAt,
+        null,
+        "the login must also have been recorded — the upgrade surviving because nothing else was written would prove nothing"
       );
     });
   });

@@ -199,25 +199,32 @@ export class CompleteCustomerMfaLoginUseCase {
         return err("INVALID_CHALLENGE");
       }
 
-      // 8. Record the login + persist inside the Unit of Work (DB writes only).
+      // 8. Record the login inside the Unit of Work (DB writes only). One column
+      // is stamped: `user` was loaded before the second factor was verified, so a
+      // write shaped from the whole entity would replay state this flow never
+      // meant to touch. The typed failure branch is kept distinguishable — a
+      // login that cannot be recorded does not mint a session.
       user.recordLogin();
-      const doSave = async (): Promise<Result<void, CompleteCustomerMfaLoginError>> => {
-        const saved = await this.customerUserRepo.save(user);
-        if (!saved.ok) {
+      const doRecordLogin = async (): Promise<Result<void, CompleteCustomerMfaLoginError>> => {
+        const recorded = await this.customerUserRepo.recordLogin(
+          user.id,
+          user.lastLoginAt ?? new Date()
+        );
+        if (!recorded.ok) {
           return err("INTERNAL_ERROR");
         }
         return ok(undefined);
       };
-      let saveResult: Result<void, CompleteCustomerMfaLoginError> = ok(undefined);
+      let recordResult: Result<void, CompleteCustomerMfaLoginError> = ok(undefined);
       if (this.unitOfWork) {
         await this.unitOfWork.executeInTransaction(async () => {
-          saveResult = await doSave();
+          recordResult = await doRecordLogin();
         });
       } else {
-        saveResult = await doSave();
+        recordResult = await doRecordLogin();
       }
-      if (!saveResult.ok) {
-        return err(saveResult.error);
+      if (!recordResult.ok) {
+        return err(recordResult.error);
       }
 
       // 9. Clear the per-identifier BF counter (Redis — OUTSIDE the transaction).

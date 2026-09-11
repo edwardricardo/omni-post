@@ -45,8 +45,8 @@ function makeUserRepo(users: ReturnType<typeof makeUser>[]): CustomerUserReposit
   return {
     findByEmailAcrossAccounts: vi.fn(async () => users),
     findById: vi.fn(async () => null),
-    save: vi.fn(async () => undefined),
-    updatePasswordHash: vi.fn(async () => undefined),
+    recordLogin: vi.fn(async () => ok(undefined)),
+    upgradePasswordHash: vi.fn(async () => ok(undefined)),
   } as unknown as CustomerUserRepository;
 }
 
@@ -256,7 +256,7 @@ describe("LoginCustomerUseCase", () => {
       expect(tokenService.signAccessToken).not.toHaveBeenCalled();
       expect(tokenService.signRefreshToken).not.toHaveBeenCalled();
       expect(user.recordLogin).not.toHaveBeenCalled();
-      expect(repo.save).not.toHaveBeenCalled();
+      expect(repo.recordLogin).not.toHaveBeenCalled();
       expect(bruteForce.recordSuccessfulAttempt).not.toHaveBeenCalled();
       expect(bruteForce.recordFailedAttempt).toHaveBeenCalledWith(
         expect.objectContaining({ failureReason: "ACCOUNT_DEACTIVATED" })
@@ -332,7 +332,7 @@ describe("LoginCustomerUseCase", () => {
       assert.deepStrictEqual([...result.value.methods], ["totp", "backup_code"]);
     });
 
-    it("performs NO recordLogin/save/recordSuccessfulAttempt/mint on the MFA branch", async () => {
+    it("performs NO recordLogin/recordSuccessfulAttempt/mint on the MFA branch", async () => {
       const mfaUser = makeUser({ mfaEnabled: true });
       const mfaRepo = makeUserRepo([mfaUser]);
       const useCase = new LoginCustomerUseCase(
@@ -347,7 +347,7 @@ describe("LoginCustomerUseCase", () => {
       await useCase.execute(INPUT_BASE);
 
       expect(mfaUser.recordLogin).not.toHaveBeenCalled();
-      expect(mfaRepo.save).not.toHaveBeenCalled();
+      expect(mfaRepo.recordLogin).not.toHaveBeenCalled();
       expect(bruteForce.recordSuccessfulAttempt).not.toHaveBeenCalled();
       expect(tokenService.signAccessToken).not.toHaveBeenCalled();
       expect(tokenService.signRefreshToken).not.toHaveBeenCalled();
