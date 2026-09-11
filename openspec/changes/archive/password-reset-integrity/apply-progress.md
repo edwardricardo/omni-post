@@ -813,3 +813,12 @@ are rows in `docs/reports/roadmap-detected-smells-backlog.md`, and box 425 is ti
 naming them. 8.1 and 16.1 closed with their collected+reproduced evidence; the four
 chain-level boxes ticked — **tasks 58/58**. The formal verify-report and archive are the
 MORNING close ritual (after Edward's push/merges), per the SMELL-93 precedent.
+
+## Edward's ruling — PR-1 CODE overrun (2026-09-12 morning)
+
+**ACCEPTED as-is.** The 510-vs-400 overrun is 167 lines of canon-mandated JSDoc (~343
+non-comment, inside forecast) plus the D3 multi-account email composition Edward himself
+chose; the candidate passed two fresh-gate rounds and a burned 4R panel, so a
+post-review refactor would reorganize already-reviewed lines without reducing them.
+Recorded here and in the PR body. Forward lesson folded into the two-tier rule: the CODE
+forecast must count mandatory JSDoc, not just statements.
