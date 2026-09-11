@@ -7506,3 +7506,63 @@ literal read back from `pg_policies`.
   database on the same host. The per-environment posture table above is unchanged by this link.
 - **The catalog is uniform; the gate that says so is not here.** The form-uniformity assertion
   ships in the following link, over this state, with its own planted red.
+
+## Completion — `tenant-rls-cost-repair`
+
+Hand-written, and deliberately the last section: a change that spent six links refusing to
+report numbers it had not measured owes a closing statement about what it still has not.
+
+### The uniformity result, as a measured count
+
+Read from `pg_policies` on 2026-09-10 after the sweep committed, with the gate's own rule
+applied to both clauses of every policy:
+
+| Reading                                                  | Count   |
+| -------------------------------------------------------- | ------- |
+| `tenant_isolation` policies in the catalog               | **61**  |
+| …matching `getTenantScopedModels().size`                 | **61**  |
+| Policies COMPLIANT with the canonical wrapped form       | **61**  |
+| Policies non-compliant                                   | **0**   |
+| Policies declaring no `WITH CHECK` (all compliant if so) | **0**   |
+| Policies carrying the 3-arm `IS NULL` variant            | **1**   |
+| Hoisted GUC reads across the enrollment (2 per clause)   | **244** |
+| Un-hoisted GUC reads remaining                           | **0**   |
+
+Stated as a count rather than as "the sweep completed", because those are different claims and
+only the first can be checked. The catalog 5-tuple digest over all 61 policies is
+`70322c28db1c0684897b49e4d70de014`, and the integration gate that re-derives this on every pull
+request is `describe("form-uniformity gate — every enrolled policy, read from the catalog")` in
+`apps/api/tests/integration/rls-tenant-isolation.test.ts` — expected population read from the
+guard's enrolled-model Set, never a literal.
+
+### What this change does NOT claim
+
+- **No write-path speedup.** The wrapped form went onto `WITH CHECK` as well as `USING`, and
+  the `WITH CHECK` cost is **unmeasured**: every number in this report is a read. `INSERT` and
+  `UPDATE` throughput under the hoisted form was never captured, and the wider committed index
+  costs more on every write of its columns — bounded and small by reasoning, which is not a
+  measurement and is not offered as one.
+- **No repair of `Q4`'s 0.11 % planner tie.** `Q4` flips between an index-only path costed at
+  707.29 and a sequential scan costed at 708.06 across reseeds. Nothing here changes that, no
+  conclusion in this report rests on `Q4`, and its per-sweep range of ±112 µs is the reason the
+  form decision needed five repetitions and a sign-stability rule instead of one run.
+- **No resolution of the `Post_projectId_createdAt_idx` redundancy.** The committed capture
+  measures zero readers among the 13 cases, which is an INPUT to that question and not an
+  answer: `S2` still takes it, the corpus carries two tenants, and dropping an index is a
+  write-path decision this report has no write-path number for. Filed as **SMELL-94**.
+- **No fix for SMELL-91.** `scripts/rls-ab-measurement.ts` — the harness every number above
+  came from — is still typechecked by nothing in CI and still covered by no fitness scope. It
+  was typechecked by hand at each of this change's gates, which is a practice rather than a
+  gate. The form-uniformity test names this limit in its own comment so the next reader finds
+  it where the evidence is used, not only where the debt is filed.
+- **No feed speedup.** The `listGlobal` reshape ships on row-equivalence, not on a number:
+  `Q3` is unchanged because this corpus has two tenants and no index beats a sequential scan at
+  50 % selectivity. That bound was declared before the run and is restated here so the reshape
+  is not later read as having been measured faster.
+- **Nothing about production.** Every figure is the development database or a scratch database
+  on the same host, on one corpus shape — 100 projects × 10 000 posts, exactly 100 per project.
+  The single-corpus caveat travels with the index decision, the form decision, and this
+  section.
+- **No timing claim for any of the 58 swept policies.** Stated in that link's own section and
+  repeated here: 52 of the 58 carry `reltuples` of 0 or −1, so timing them would be a number
+  about an empty table. Timing claims in this report are trio-only.
