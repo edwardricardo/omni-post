@@ -72,8 +72,6 @@ function makeCustomerUserRepo() {
     upgradePasswordHash: vi.fn().mockResolvedValue(ok(undefined)),
     changeRole: vi.fn().mockResolvedValue(ok(undefined)),
     deactivate: vi.fn().mockResolvedValue(ok(undefined)),
-    save: vi.fn().mockResolvedValue(ok(undefined)),
-    updatePasswordHash: vi.fn().mockResolvedValue(ok(undefined)),
     delete: vi.fn().mockResolvedValue(ok(undefined)),
   };
 }
@@ -199,6 +197,46 @@ describe("RegisterCustomerUseCase", () => {
 
     assert.ok(!result.ok);
     assert.strictEqual(result.error, "EMAIL_EXISTS");
+  });
+
+  it("reports EMAIL_EXISTS when the creation write itself reports the address taken", async () => {
+    // The pre-flight lookup finds nothing, so this is the race it cannot close:
+    // the database's unique constraint answers instead, and the use case must
+    // report the SAME class it reports for a duplicate it did see. Anything else
+    // makes a registration that lost a race read as a server fault.
+    customerUserRepo.create.mockResolvedValue(err("EMAIL_EXISTS"));
+
+    const result = await useCase.execute({
+      accountName: "TestCo",
+      accountEmail: "admin@testco.com",
+      firstName: "Alice",
+      lastName: "Smith",
+      email: "alice@testco.com",
+      password: "securepass123",
+    });
+
+    assert.ok(!result.ok);
+    assert.strictEqual(result.error, "EMAIL_EXISTS");
+  });
+
+  it("reports INTERNAL_ERROR when the creation write fails for any other reason", async () => {
+    customerUserRepo.create.mockResolvedValue(err("INTERNAL_ERROR"));
+
+    const result = await useCase.execute({
+      accountName: "TestCo",
+      accountEmail: "admin@testco.com",
+      firstName: "Alice",
+      lastName: "Smith",
+      email: "alice@testco.com",
+      password: "securepass123",
+    });
+
+    assert.ok(!result.ok);
+    assert.strictEqual(
+      result.error,
+      "INTERNAL_ERROR",
+      "the duplicate branch must not absorb every write failure — the two classes stay distinguishable"
+    );
   });
 
   it("rejects short password", async () => {
@@ -558,14 +596,27 @@ describe("ResetPasswordUseCase", () => {
 
     assert.ok(result.ok, `Expected ok, got: ${!result.ok ? result.error : ""}`);
     expect(customerUserRepo.claimPasswordReset).toHaveBeenCalledTimes(1);
-    // The prohibition is on the flow's SHAPE, not only on its outcome: a
-    // whole-entity snapshot write after the claim reverts the hash the claim just
-    // stored, which is the defect this flow exists to retire.
-    expect(customerUserRepo.save).not.toHaveBeenCalled();
-    expect(customerUserRepo.updatePasswordHash).not.toHaveBeenCalled();
-    // The token READ that used to precede the write is not asserted absent here
-    // any more: it no longer exists on the port or the adapter, so there is
-    // nothing left to call.
+    // The prohibition is on the flow's SHAPE, not only on its outcome: a second
+    // write after the claim can revert the hash the claim just stored, which is
+    // the defect this flow exists to retire. The snapshot writers themselves are
+    // no longer named here because they no longer exist on the port or the
+    // adapter — there is nothing left to call, exactly as with the token READ
+    // that used to precede the write. What remains assertable, and what this
+    // pins, is that NO other write command follows the claim.
+    for (const command of [
+      "create",
+      "recordLogin",
+      "upgradePasswordHash",
+      "changeRole",
+      "deactivate",
+      "issueResetToken",
+      "delete",
+    ] as const) {
+      expect(
+        customerUserRepo[command],
+        `${command} must not follow the claim`
+      ).not.toHaveBeenCalled();
+    }
 
     const [claimedToken, claimedHash] = customerUserRepo.claimPasswordReset.mock.calls[0] as [
       string,

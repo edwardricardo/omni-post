@@ -108,15 +108,25 @@ export class InviteTeamMemberUseCase implements UseCase<
     const member = createResult.value;
 
     const doWork = async (): Promise<Result<string, UseCaseError>> => {
-      const saveResult = await this.customerUserRepo.save(member);
-      if (!saveResult.ok) {
-        return err(
-          new UseCaseError(
-            "Failed to save team member",
-            USE_CASE_ERRORS.INTERNAL_ERROR,
-            saveResult.error
-          )
-        );
+      // Creation, not an upsert. The invitation always meant to create a row —
+      // the id above is a fresh `randomUUID`, so the upsert this replaces could
+      // only ever take its create branch — and saying so lets the database's own
+      // unique constraint answer the duplicate the pre-flight lookup raced past,
+      // instead of that collision surfacing as an unexplained internal failure.
+      // The credential is the explicit `""` stub: the invitee has none until
+      // they accept, and passing it rather than reading it off the entity is
+      // what makes forgetting it a compile error.
+      const createResult = await this.customerUserRepo.create(member, "");
+      if (!createResult.ok) {
+        if (createResult.error === "EMAIL_EXISTS") {
+          return err(
+            new UseCaseError(
+              `Member with email "${input.email}" already exists in this account`,
+              USE_CASE_ERRORS.CONFLICT
+            )
+          );
+        }
+        return err(new UseCaseError("Failed to save team member", USE_CASE_ERRORS.INTERNAL_ERROR));
       }
       return ok(member.id);
     };

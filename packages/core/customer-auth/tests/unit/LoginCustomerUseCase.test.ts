@@ -41,11 +41,14 @@ function makeUser(overrides?: Record<string, unknown>) {
   };
 }
 
-function makeUserRepo(users: ReturnType<typeof makeUser>[]): CustomerUserRepository {
+function makeUserRepo(
+  users: ReturnType<typeof makeUser>[],
+  recordLoginFails?: "USER_NOT_FOUND" | "INTERNAL_ERROR"
+): CustomerUserRepository {
   return {
     findByEmailAcrossAccounts: vi.fn(async () => users),
     findById: vi.fn(async () => null),
-    recordLogin: vi.fn(async () => ok(undefined)),
+    recordLogin: vi.fn(async () => (recordLoginFails ? err(recordLoginFails) : ok(undefined))),
     upgradePasswordHash: vi.fn(async () => ok(undefined)),
   } as unknown as CustomerUserRepository;
 }
@@ -217,6 +220,64 @@ describe("LoginCustomerUseCase", () => {
 
       assert.ok(!result.ok);
       assert.strictEqual(result.error, "USER_INACTIVE");
+    });
+  });
+
+  describe("the login-stamp write fails", () => {
+    for (const writeFailure of ["USER_NOT_FOUND", "INTERNAL_ERROR"] as const) {
+      it(`returns INTERNAL_ERROR and mints nothing when the stamp answers ${writeFailure}`, async () => {
+        const failingRepo = makeUserRepo([makeUser()], writeFailure);
+        const useCase = new LoginCustomerUseCase(
+          failingRepo,
+          accountRepo,
+          hasher,
+          tokenService,
+          bruteForce,
+          challengeStore
+        );
+
+        const result = await useCase.execute(INPUT_BASE);
+
+        assert.ok(!result.ok, "a login that could not be recorded must not succeed");
+        assert.strictEqual(
+          result.error,
+          "INTERNAL_ERROR",
+          "a stamp that matched no live row means the account stopped existing mid-login; a session minted after it would outlive its owner"
+        );
+        expect(tokenService.signAccessToken).not.toHaveBeenCalled();
+        expect(tokenService.signRefreshToken).not.toHaveBeenCalled();
+        expect(bruteForce.recordSuccessfulAttempt).not.toHaveBeenCalled();
+      });
+    }
+
+    it("keeps INTERNAL_ERROR separable from the credential failures around it", async () => {
+      const failingRepo = makeUserRepo([makeUser()], "INTERNAL_ERROR");
+      const stampFailure = await new LoginCustomerUseCase(
+        failingRepo,
+        accountRepo,
+        hasher,
+        tokenService,
+        bruteForce,
+        challengeStore
+      ).execute(INPUT_BASE);
+
+      const wrongPassword = await new LoginCustomerUseCase(
+        userRepo,
+        accountRepo,
+        makeHasher(false),
+        tokenService,
+        bruteForce,
+        challengeStore
+      ).execute(INPUT_BASE);
+
+      assert.ok(!stampFailure.ok && !wrongPassword.ok);
+      assert.strictEqual(stampFailure.error, "INTERNAL_ERROR");
+      assert.strictEqual(wrongPassword.error, "INVALID_CREDENTIALS");
+      assert.notStrictEqual(
+        stampFailure.error,
+        wrongPassword.error,
+        "the two failure classes this flow distinguished before the migration must still be distinguishable after it"
+      );
     });
   });
 

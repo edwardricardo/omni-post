@@ -171,19 +171,6 @@ export interface CustomerUserRepository {
   deactivate(userId: string): Promise<Result<void, "USER_NOT_FOUND" | "INTERNAL_ERROR">>;
 
   /**
-   * @method save
-   * @description Upserts a customer user. If passwordHash is provided it is
-   *   persisted; otherwise the existing hash is preserved on update.
-   */
-  save(user: CustomerUser, passwordHash?: string): Promise<Result<void, DomainError>>;
-
-  /**
-   * @method updatePasswordHash
-   * @description Updates only the password hash for a specific user.
-   */
-  updatePasswordHash(userId: string, passwordHash: string): Promise<Result<void, DomainError>>;
-
-  /**
    * @method delete
    * @description Hard-deletes a customer user record.
    */
