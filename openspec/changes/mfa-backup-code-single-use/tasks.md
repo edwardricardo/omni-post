@@ -56,23 +56,23 @@ green output) per task in the apply-progress artifact.
 
 ## 1. Non-negotiable guards on every task below
 
-- [ ] **G-a — 100% tokenless.** ZERO edits to `.github/workflows/**` (fitness #30's baseline
+- [x] **G-a — 100% tokenless.** ZERO edits to `.github/workflows/**` (fitness #30's baseline
       literal stays **21**; D4 records the 21→20 measurement as EVIDENCE only). ZERO edits to
       `infra/prisma/schema.prisma` or `infra/prisma/migrations/**`. ZERO `.env*` reads or
       writes. No `omnipost-allow sensitive-edit` token is consumed. If a task appears to need
       one, the task is wrong — STOP and report, do not edit.
-- [ ] **G-b — writers never run git.** No `git` command, no commit, no push, no PR creation.
+- [x] **G-b — writers never run git.** No `git` command, no commit, no push, no PR creation.
       Work-unit boundaries below are commit CANDIDATES for the orchestrator.
-- [ ] **G-c — canon gate at 0/0 before the work unit is called done.** `pnpm lint
-    --max-warnings 0` · `tsc` clean · every touched-area fitness check at its threshold ·
+- [x] **G-c — canon gate at 0/0 before the work unit is called done.** `pnpm lint
+--max-warnings 0` · `tsc` clean · every touched-area fitness check at its threshold ·
       the tiers named in the work unit green. Fix pre-existing errors found in touched files;
       never defer.
-- [ ] **G-d — JSDoc canon.** Every new file carries `@file` / `@description` / `@layer`
+- [x] **G-d — JSDoc canon.** Every new file carries `@file` / `@description` / `@layer`
       (fitness #9/#10; tests are `@layer infrastructure`). Every new public method carries
       `@method`/`@param`/`@returns`. No sprint/phase/`§n.n` reference in any comment
       (fitness #8) — and no `// TODO`, `// temporary`, `// workaround`-class marker anywhere
       (pre-edit tripwire blocker).
-- [ ] **G-e — the double is never weakened.** `InMemoryMfaUserRepository`'s refusal at
+- [x] **G-e — the double is never weakened.** `InMemoryMfaUserRepository`'s refusal at
       `apps/api/tests/unit/helpers/InMemoryMfaUserRepository.ts:107-109` (verified) is the
       CONTRACT. Only its comment at `:104-106` changes. Re-stubbing anything un-stubbed is
       prohibited.
@@ -89,7 +89,7 @@ but WU5 depends on it.
 
 ### RED (natural — authored before the fix, observed failing)
 
-- [ ] **T1.1** Add to `apps/api/tests/unit/infrastructure/adapters/PrismaCustomerMfaUserRepository.test.ts`,
+- [x] **T1.1** Add to `apps/api/tests/unit/infrastructure/adapters/PrismaCustomerMfaUserRepository.test.ts`,
       inside the existing `describe("markBackupCodeUsed")` (verified at `:304`), a sequential-reuse
       test over the EXISTING honest fake `makeFakePrisma` (`:79-130`, whose `updateMany` at
       `:105-127` evaluates the real `usedAtEqualsMatches` predicate at `:55-68`): seed the row with
@@ -98,12 +98,12 @@ but WU5 depends on it.
       `{ "0": T1 }` byte-for-byte. Distinct timestamps are mandatory — an assertion over two equal
       values cannot distinguish "preserved" from "overwritten with the same value".
       _Covers: claim R1 §sequential replay, R2 §existing key never overwritten, R4._
-- [ ] **T1.2** Author the exact twin in
+- [x] **T1.2** Author the exact twin in
       `apps/api/tests/unit/infrastructure/adapters/PrismaAdminMfaUserRepository.test.ts` (its
       `describe("markBackupCodeUsed")` is at `:297`, its `makeFakePrisma` twin at the head of the
       file). Same fixture, same assertions, `admin-1` / `adminUser`. No assertion may distinguish the
       two adapters. _Covers: R4 both scenarios._
-- [ ] **T1.3** Create `apps/api/tests/unit/infrastructure/adapters/mfaUserRepositoryConformance.test.ts`:
+- [x] **T1.3** Create `apps/api/tests/unit/infrastructure/adapters/mfaUserRepositoryConformance.test.ts`:
       one parametrized suite over THREE implementation factories — the customer adapter over its own
       minimal stateful Prisma-client fake, the admin adapter over its twin fake (see decision
       `D-fake`), and `InMemoryMfaUserRepository`. **Its FIRST assertion is sequential reuse** (spec
@@ -112,30 +112,30 @@ but WU5 depends on it.
       subject. No per-implementation exception, no skip, no `.only`. Collected automatically by
       vitest from `tests/unit/**` — **no runner wiring needed or permitted here.**
       _Covers: R5 §same assertions over all three, R9 §doubles fake the client._
-- [ ] **T1.4 — OBSERVE RED.** Run `pnpm --filter @apps/api test`. T1.1/T1.2 MUST fail with a
+- [x] **T1.4 — OBSERVE RED.** Run `pnpm --filter @apps/api test`. T1.1/T1.2 MUST fail with a
       returned `ok` where `ALREADY_USED` is required and an overwritten stored timestamp; T1.3 MUST
       fail for the two adapter parametrizations and PASS for the in-memory double (the double was
       right all along — that asymmetry IS the finding). Record the failure output.
 
 ### GREEN
 
-- [ ] **T1.5** Insert the D1 pre-check in `apps/api/src/infrastructure/adapters/PrismaCustomerMfaUserRepository.ts`
+- [x] **T1.5** Insert the D1 pre-check in `apps/api/src/infrastructure/adapters/PrismaCustomerMfaUserRepository.ts`
       **between `:97` and `:98`** (verified: `:96` snapshot, `:97` `normalizeUsedAt`, `:98` the
       unconditional overwrite, `:104-115` the CAS): refuse with `err("ALREADY_USED")` when
       `Object.prototype.hasOwnProperty.call(usedMap, String(codeIndex))`. Use design D1's comment
       verbatim in intent — it must state that the refusal is a claim verdict and that the CAS below
       covers every other interleaving. **The CAS at `:104-115` and the count-0 disambiguation at
       `:116-123` are untouched.**
-- [ ] **T1.6** Insert the twin in `apps/api/src/infrastructure/adapters/PrismaAdminMfaUserRepository.ts`
+- [x] **T1.6** Insert the twin in `apps/api/src/infrastructure/adapters/PrismaAdminMfaUserRepository.ts`
       **between `:92` and `:93`** (verified: `:91` snapshot, `:92` `normalizeUsedAt`, `:93` overwrite,
       `:99-110` CAS). Same twin-comment convention the CAS already uses at `:94-98`. Byte-parallel with
       T1.5 apart from the delegate name.
-- [ ] **T1.7 — OBSERVE GREEN.** Re-run the unit tier. T1.1–T1.3 green, and NO previously-green test
+- [x] **T1.7 — OBSERVE GREEN.** Re-run the unit tier. T1.1–T1.3 green, and NO previously-green test
       regressed. _Covers: R1 §sequential replay (unit), R2 §unit, R4, R5._
 
 ### Un-stub (evidence integrity — spec R9)
 
-- [ ] **T1.8** Un-stub the CONCURRENCY-titled test in the customer suite (verified `:324-342`, its
+- [x] **T1.8** Un-stub the CONCURRENCY-titled test in the customer suite (verified `:324-342`, its
       hardcoded `updateMany: async () => ({ count: 0 })` at `:333`). Replace the ad-hoc `raceFake`
       with the honest `makeFakePrisma` plus a post-snapshot hook (a `findUnique` wrapper that, after
       returning the snapshot, mutates the stored row — the "concurrent writer"), so the fake's REAL
@@ -144,16 +144,16 @@ but WU5 depends on it.
       (`:329`), so a naive un-stub would be refused by the D1 pre-check BEFORE the CAS runs and
       would go green for the WRONG reason. Seed a map that lacks the claimed index. 2. The test MUST assert the fake's `updateMany` actually executed (a call counter, asserted
       `=== 1`). Without it, "the predicate was evaluated" is an unverified claim.
-- [ ] **T1.9** Un-stub the admin twin (verified `:317-335`, hardcoded `{ count: 0 }` at `:326`) under
+- [x] **T1.9** Un-stub the admin twin (verified `:317-335`, hardcoded `{ count: 0 }` at `:326`) under
       the identical two criteria.
-- [ ] **T1.10** Verify — **no edit expected** — that the "row vanished between the snapshot read and
+- [x] **T1.10** Verify — **no edit expected** — that the "row vanished between the snapshot read and
       the CAS write" tests (customer `:344-363`, admin `:337-356`) still exercise their intended
       NOT_FOUND-disambiguation branch after T1.5/T1.6: they seed `mfaBackupUsedAt: {}` and claim index
       `0`, so the pre-check does not fire and control still reaches the CAS. Their hardcoded
       `{ count: 0 }` is OUT of spec R9's scope (R9 names "the two adapter tests titled for
       concurrency"). If the verification shows otherwise, STOP and report — do not silently rewrite a
       test outside the spec's scope.
-- [ ] **T1.11 — mutation proof for the conformance suite (spec R5 §permissive implementation).**
+- [x] **T1.11 — mutation proof for the conformance suite (spec R5 §permissive implementation).**
       Planted red: remove ONE implementation's refusal (e.g. comment out the T1.5 pre-check), run the
       conformance suite, observe THAT implementation fail; restore byte-exact (checksum verified);
       re-run green. Record both observations. _Covers: R5 §an implementation that stops refusing
@@ -170,7 +170,7 @@ adapter could satisfy. Doc-only; no behaviour changes.
 **Files:** `packages/ports/src/MfaUserRepositoryPort.ts`, `apps/api/tests/unit/helpers/InMemoryMfaUserRepository.ts`.
 **Parallel:** fully independent of WU1 and WU3 — safe in any order.
 
-- [ ] **T2.1** Replace the `markBackupCodeUsed` JSDoc at `packages/ports/src/MfaUserRepositoryPort.ts:96-112`
+- [x] **T2.1** Replace the `markBackupCodeUsed` JSDoc at `packages/ports/src/MfaUserRepositoryPort.ts:96-112`
       (verified; the method signature is `:113-117`) with design §Interfaces' replacement text. It
       MUST state: at most ONE caller ever receives Ok for a given `(userId, codeIndex)` under
       sequential replay and every concurrent interleaving; an existing claim is immutable;
@@ -179,15 +179,15 @@ adapter could satisfy. Doc-only; no behaviour changes.
       snapshot, and **no** column encoding — the current text names all three (`:99-103` says
       "Compare-and-swap on the used-map snapshot", `:109` says "a concurrent writer won the
       compare-and-swap"). _Covers: unified R3 all three scenarios._
-- [ ] **T2.2** The same JSDoc states the sibling-claim residual: a refusal MAY be a concurrent claim
+- [x] **T2.2** The same JSDoc states the sibling-claim residual: a refusal MAY be a concurrent claim
       of a DIFFERENT index for the same user, in which case the code is NOT consumed and a fresh
       user-initiated verification succeeds — while THIS attempt is still rejected.
       _Covers: claim R10 §the residual is stated where an operator will meet it (contract leg)._
-- [ ] **T2.3** Assert the signature is byte-identical: parameter list and return type at `:113-117`
+- [x] **T2.3** Assert the signature is byte-identical: parameter list and return type at `:113-117`
       unchanged, and `tsc` clean across the workspace with **zero** call-site edits. ~25 existing
       `new MfaService(` / `markBackupCodeUsed(` consumers must compile untouched. _Covers: R3
       §the signature is unchanged._
-- [ ] **T2.4** Correct `apps/api/tests/unit/helpers/InMemoryMfaUserRepository.ts:104-106` (verified):
+- [x] **T2.4** Correct `apps/api/tests/unit/helpers/InMemoryMfaUserRepository.ts:104-106` (verified):
       the comment currently claims to "Mirror the Prisma adapter's compare-and-swap single-use" and
       frames the refusal as losing a race. Rewrite it to name the CLAIM contract the double
       implements (an index already present was consumed; the caller must reject). **The refusal at
@@ -209,14 +209,14 @@ editing the same hunk.
 
 ### RED (natural)
 
-- [ ] **T3.1** In `apps/api/tests/unit/unifiedMfaService.test.ts`, thread an optional metrics spy
+- [x] **T3.1** In `apps/api/tests/unit/unifiedMfaService.test.ts`, thread an optional metrics spy
       through `makeHarness()` (verified `:63-69`, currently `new MfaService(adminRepo, customerRepo,
-    audit)`): because `metrics` is the LAST constructor param it is reached as
+audit)`): because `metrics` is the LAST constructor param it is reached as
       `new MfaService(adminRepo, customerRepo, audit, undefined, metricsSpy)`. Shape the spy like the
       existing precedents — `{ metrics: { securityThreats: { inc: vi.fn() } } }`
       (`apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts:132`,
       `apps/api/tests/unit/fileUploadValidator.test.ts:46`).
-- [ ] **T3.2** Author the service unit scenarios (RED): - a refused claim returns the invalid-token verdict, never `verified`, never a database error
+- [x] **T3.2** Author the service unit scenarios (RED): - a refused claim returns the invalid-token verdict, never `verified`, never a database error
       — reuse the existing `RaceLosingMfaUserRepository` double at `:50-54`; - **a refusal that never reached a write still alarms**: the HIGH `MFA_BACKUP_CODE_REUSE_REJECTED`
       event AND `securityThreats.inc({ threat_type: "mfa_backup_code_reuse", endpoint: "mfa_verify" })`
       are emitted exactly as for a refusal produced by a lost write; - **the emitted event carries no secret material**: no TOTP secret, no backup code, no code hash
@@ -228,22 +228,22 @@ editing the same hunk.
       _Covers: unified U1 §refused claim never reports verified + §audited remaining count, U2 both
       scenarios, claim R6 §a refusal that never reached a write still alarms + §no secret material,
       R7 §counter increments._
-- [ ] **T3.3 — OBSERVE RED.** Run the unit tier; record which assertions fail and why (the metric
+- [x] **T3.3 — OBSERVE RED.** Run the unit tier; record which assertions fail and why (the metric
       does not exist yet; `remaining` is computed at `:232` from the pre-verification snapshot).
 
 ### GREEN
 
-- [ ] **T3.4** Add the optional LAST constructor param `metrics?: ApiMetrics` to `MfaService`
+- [x] **T3.4** Add the optional LAST constructor param `metrics?: ApiMetrics` to `MfaService`
       (constructor verified at `:88-95`, after `unitOfWork` at `:92`). **This introduces NO DI token
       and NO container registration** — design-gate Finding 2: spec R3's "no DI change" is
       port-scoped, and the composition root passes the ALREADY-registered `TOKENS.ApiMetrics`
       (`types.ts:188`, registered in `setup.ts:82`). Do NOT invent a token. Update the class JSDoc at
       `:77-83` to name the new optional collaborator.
-- [ ] **T3.5** In `apps/api/src/infrastructure/container/setupServices.ts`, pass
+- [x] **T3.5** In `apps/api/src/infrastructure/container/setupServices.ts`, pass
       `container.resolve<ApiMetrics>(TOKENS.ApiMetrics)` as the fifth argument of the `MfaService`
       construction (verified `:193-203`, args at `:196-201`). The `ApiMetrics` type is already
       imported at `:71` — no new import expected.
-- [ ] **T3.6 — D5 metric.** At the refusal site (verified `:261-269`, inside the
+- [x] **T3.6 — D5 metric.** At the refusal site (verified `:261-269`, inside the
       `markResult.error === "ALREADY_USED"` branch), emit
       `this.metrics?.metrics.securityThreats.inc({ threat_type: "mfa_backup_code_reuse", endpoint: "mfa_verify" })`
       alongside the existing HIGH audit. Label names match the counter's declaration
@@ -251,7 +251,7 @@ editing the same hunk.
       **The emission must NOT branch on which interleaving or which mechanism produced the refusal** —
       it branches only on the claim's verdict. _Covers: R6 §emission is not gated on the refusal's
       cause (static), R7 §counter increments._
-- [ ] **T3.7 — D2 read-back.** Inside the same `runInTransaction` callback (verified `:239-253`),
+- [x] **T3.7 — D2 read-back.** Inside the same `runInTransaction` callback (verified `:239-253`),
       AFTER the `isErr(markResult)` guard at `:245` and BEFORE the audit at `:246`, re-read via
       `repo.findById(subject.id)` and compute
       `remaining = mfaBackupCodes.length − Object.keys(mfaBackupUsedAt).length`. Delete the stale
@@ -260,14 +260,14 @@ editing the same hunk.
       `remainingCodes` via conditional spread rather than reporting a stale number. The `audit`
       helper's `details?: Record<string, unknown>` param (verified `:525-532`) accepts the spread
       directly.
-- [ ] **T3.8 — D3 filter re-comment.** The used-index filter at `:226-228` SURVIVES as a `continue`.
+- [x] **T3.8 — D3 filter re-comment.** The used-index filter at `:226-228` SURVIVES as a `continue`.
       Rewrite its surrounding comment (the current block at `:233-237` frames the mark as the control
       and the filter as implicit) so it states: this skip is an **argon2-cost optimisation** (up to 8
       serial verifies at m=64MiB, t=3, p=4) and the ADAPTER CLAIM is the authority for single-use.
       It must NOT describe itself as preventing reuse. Also update the `verifyMfaToken` JSDoc at
       `:184-192` ("marks that code single-use") to the claim wording. _Covers: U2 §the filter is
       documented as cost, not control._
-- [ ] **T3.9 — OBSERVE GREEN.** Unit tier green; the ~25 untouched `new MfaService(` call sites still
+- [x] **T3.9 — OBSERVE GREEN.** Unit tier green; the ~25 untouched `new MfaService(` call sites still
       compile (`tsc` clean).
 
 **Work-unit exit:** unit tier green, lint/tsc 0/0, fitness #13/#14/#16 unaffected.
@@ -282,7 +282,7 @@ metric.
 **Files:** `prometheus/alerts/api.yml`, `docs/runbooks/alert-mfa-backup-code-reuse.md` (new).
 **Depends on:** WU3 (the `threat_type` label value must already be final).
 
-- [ ] **T4.1** Append ONE rule to the existing `api` group in `prometheus/alerts/api.yml` (verified:
+- [x] **T4.1** Append ONE rule to the existing `api` group in `prometheus/alerts/api.yml` (verified:
       group `api` at `:4`, `interval: 30s` at `:5`, rules from `:6`):
       `alert: MfaBackupCodeReuseRejected`,
       `expr: increase(api_security_threats_total{threat_type="mfa_backup_code_reuse"}[15m]) > 0`,
@@ -292,25 +292,25 @@ metric.
       `slo:` (D-slo). Severity is `warning`, not `critical`, even though the audit event is HIGH —
       the sibling-claim false positive is a documented non-incident, and the threshold is tuned HERE,
       never suppressed in code.
-- [ ] **T4.2** Create `docs/runbooks/alert-mfa-backup-code-reuse.md` following the sibling structure
+- [x] **T4.2** Create `docs/runbooks/alert-mfa-backup-code-reuse.md` following the sibling structure
       (`# Runbook — \`MfaBackupCodeReuseRejected\``, `> Alert:`pointer back to the rule,`## Síntoma`,
-    `## Severidad`, `## Diagnóstico`, `## Remediation`, `## Cuándo escalar`, `## Links`), prose in
-    **neutral professional Spanish** per L3. It MUST state two things an operator would otherwise
-    re-derive from source:
-    1. **The broadened volume profile** (design D3): the HIGH stream widens from "lost a concurrent
-       write" to "every refusal the adapter returns" — the staggered attack, racing reuse, and
-       stale-snapshot replays. Fresh-snapshot sequential replays stay filtered at the service and
-       end as `MFA_VERIFICATION_FAILED` (MEDIUM), so steady-state volume stays near zero and any
-      sustained firing is signal. 2. **The accepted sibling-claim false positive** (claim R10): two concurrent claims of DIFFERENT
-      indices for the same user may collide; the loser is refused and alarms without earning it,
-      the code is NOT consumed, and **a user retry is the correct response** — an availability
-      blip, never a lost credential. It exists identically before this change.
-- [ ] **T4.3** Verify the two point at each other: the rule's `runbook:` annotation resolves to the
+`## Severidad`, `## Diagnóstico`, `## Remediation`, `## Cuándo escalar`, `## Links`), prose in
+      **neutral professional Spanish** per L3. It MUST state two things an operator would otherwise
+      re-derive from source:
+  1. **The broadened volume profile** (design D3): the HIGH stream widens from "lost a concurrent
+     write" to "every refusal the adapter returns" — the staggered attack, racing reuse, and
+     stale-snapshot replays. Fresh-snapshot sequential replays stay filtered at the service and
+     end as `MFA_VERIFICATION_FAILED` (MEDIUM), so steady-state volume stays near zero and any
+     sustained firing is signal. 2. **The accepted sibling-claim false positive** (claim R10): two concurrent claims of DIFFERENT
+     indices for the same user may collide; the loser is refused and alarms without earning it,
+     the code is NOT consumed, and **a user retry is the correct response** — an availability
+     blip, never a lost credential. It exists identically before this change.
+- [x] **T4.3** Verify the two point at each other: the rule's `runbook:` annotation resolves to the
       new file, and the runbook's `> Alert:` pointer resolves to `prometheus/alerts/api.yml`. Confirm
       exactly ONE new rule watches this series (no second rule anywhere under `prometheus/alerts/`).
       _Covers: R7 §one alert rule and one runbook exist and point at each other, R10 §residual stated
       (runbook leg)._
-- [ ] **T4.4 — PLANTED RED for the static pair.** This work unit has no test runner, so its red is
+- [x] **T4.4 — PLANTED RED for the static pair.** This work unit has no test runner, so its red is
       the pointer check itself: temporarily point the `runbook:` annotation at a nonexistent path,
       run T4.3's verification, observe it report the broken pointer, restore byte-exact (checksum
       verified). A verification that cannot fail is not a verification.
@@ -329,18 +329,18 @@ names** — an unwired suite reads as coverage while never executing.
 `apps/api/scripts/run-tests.sh`.
 **Depends on:** WU1 (pre-check) + WU3 (metric/alarm). Requires `pnpm db:up`.
 
-- [ ] **T5.1 — repair: distinct timestamps.** The existing adapter-level racer at `:95-99` (verified)
+- [x] **T5.1 — repair: distinct timestamps.** The existing adapter-level racer at `:95-99` (verified)
       hands BOTH racers the SAME `usedAt` (`new Date("2026-04-04T10:00:00.000Z")`), so its
       `deepStrictEqual` at `:107` cannot distinguish "preserved" from "overwritten with the same
       value" and would pass under the defect. Give each attempt a DISTINCT pinned timestamp and
       assert the STORED value is the WINNER's and that the loser's value appears nowhere in the row.
       _Covers: R2 §the stored timestamp survives + §the racers present distinguishable timestamps._
-- [ ] **T5.2 — repair: real Unit of Work.** The service-level racer builds
+- [x] **T5.2 — repair: real Unit of Work.** The service-level racer builds
       `new MfaService(adminRepo, customerRepoLocal, auditRepo)` at `:118` (verified) with NO UoW, so
       it never exercises the transaction D2's read-back lives in. Construct it with a real
       `PrismaUnitOfWork` and a metrics spy (fifth arg). Keep the existing simultaneous-racer
       assertions at `:132-146`. _Covers: R1 §simultaneous racers still yield exactly one success._
-- [ ] **T5.3 — D6 staggered racer (the whole subject).** Add the deterministic staggered test. No
+- [x] **T5.3 — D6 staggered racer (the whole subject).** Add the deterministic staggered test. No
       production seam: build racer B's `MfaService` over a test-local `BarrierMfaUserRepository`
       implementing `MfaUserRepositoryPort`, delegating every method to the real Prisma adapter except
       `markBackupCodeUsed`, which first awaits a gate promise and then substitutes a pinned,
@@ -353,18 +353,18 @@ names** — an unwired suite reads as coverage while never executing.
       methods a double recorded (this red fails by SUCCEEDING TWICE — a green-looking red).
       _Covers: R1 §staggered racers yield exactly one success, U1 §one code two staggered logins one
       session._
-- [ ] **T5.4 — refused claim changes nothing.** Fold into T5.3's assertions (same pair, same row):
+- [x] **T5.4 — refused claim changes nothing.** Fold into T5.3's assertions (same pair, same row):
       after both complete, reading the row back yields a used-map byte-identical to the winner's and
       no other column of the row changed. _Covers: R1 §a refused claim changes nothing in the row._
-- [ ] **T5.5 — alarm + metric on the attack.** Assert that the staggered loser produced a HIGH
+- [x] **T5.5 — alarm + metric on the attack.** Assert that the staggered loser produced a HIGH
       `MFA_BACKUP_CODE_REUSE_REJECTED` audit row for that subject AND that the security-threat
       counter incremented. _Covers: R6 §the staggered attack raises the alarm and the metric._
-- [ ] **T5.6 — sibling residual.** Add the residual test: two concurrent verifications of DIFFERENT
+- [x] **T5.6 — sibling residual.** Add the residual test: two concurrent verifications of DIFFERENT
       backup codes for the same user; when one is refused, the refused caller's RETRY succeeds, and
       the index it claims was absent from the stored map between the two attempts. This test DOCUMENTS
       the residual — it must not be turned into a fix. _Covers: R10 §a spuriously refused sibling
       claim consumes nothing._
-- [ ] **T5.7 — D7 wiring, SAME work unit.** Add to `apps/api/scripts/run-tests.sh`, in the DB-only
+- [x] **T5.7 — D7 wiring, SAME work unit.** Add to `apps/api/scripts/run-tests.sh`, in the DB-only
       section (after the `integration:customer-auth` batch at `:297-304`, before the
       `integration:saga-recovery` batch at `:306-317` — all verified):
       `CONCURRENCY=1 run_batch "integration:mfa-backup-single-use" tests/integration/mfaBackupCodeSingleUse.integration.test.ts`
@@ -373,12 +373,12 @@ names** — an unwired suite reads as coverage while never executing.
       ambiguous — the same rationale `integration:customer-auth` states in-file at `:299-302`.
       **EXACTLY ONE file is wired.** The four sibling orphan MFA suites stay SMELL-75 and MUST NOT be
       wired here. _Covers: R8 §the file is named by exactly one batch._
-- [ ] **T5.8 — PLANTED RED for the staggered racer.** The pre-check already landed in WU1, so the red
+- [x] **T5.8 — PLANTED RED for the staggered racer.** The pre-check already landed in WU1, so the red
       is demonstrated, not assumed: comment out the D1 pre-check in BOTH adapters, run the new batch,
       observe the staggered test fail **with TWO successes and two sessions**, restore both files
       byte-exact (checksum verified), re-run, re-confirm green. Record both outputs.
       _Covers: R9 §the staggered scenario is RED before the change._
-- [ ] **T5.9 — OBSERVE the wired suite executes.** Run `pnpm db:up`, then the batch via
+- [x] **T5.9 — OBSERVE the wired suite executes.** Run `pnpm db:up`, then the batch via
       `apps/api/scripts/run-tests.sh` (`TIER=pr-integration`). Confirm a NON-ZERO collected count (a
       zero-collection run parses as success — the exact failure mode fitness #31 exists for) and a
       green result. On LXC, run heap-capped under a `timeout` wrapper per repo convention.
@@ -395,18 +395,18 @@ names** — an unwired suite reads as coverage while never executing.
 carry. No source edits.
 **Depends on:** WU5.
 
-- [ ] **T6.1 — fitness #30 measurement.** Run check #30 verbatim from `CLAUDE.md`. Record BOTH
+- [x] **T6.1 — fitness #30 measurement.** Run check #30 verbatim from `CLAUDE.md`. Record BOTH
       numbers: the pre-change count (expected **21**, the documented baseline) and the post-change
       count (expected **20**), and NAME the file that left the list
       (`apps/api/tests/integration/mfaBackupCodeSingleUse.integration.test.ts`). If the pre-change
       count is not 21, STOP and report the divergence — do not adjust anything to fit.
       _Covers: R8 §the unreached count falls by exactly one._
-- [ ] **T6.2 — D4 residual, recorded not absorbed.** Confirm `.github/workflows/fitness.yml` is
+- [x] **T6.2 — D4 residual, recorded not absorbed.** Confirm `.github/workflows/fitness.yml` is
       **untouched** and its #30 ratchet baseline literal still reads **21**. State in the PR body
       that the measured count is 20, that the literal is deliberately NOT tightened (a workflow edit
       needs a token; this change is token-free), and that tightening belongs to the next slice that
       edits that file. The gate's rule holds: the count may fall and must never rise.
-- [ ] **T6.3 — PR body content** (the orchestrator creates the PR; this task produces the TEXT): - the two-tier **CODE / EVIDENCE split, measured** (not estimated) with both numbers and the
+- [x] **T6.3 — PR body content** (the orchestrator creates the PR; this task produces the TEXT): - the two-tier **CODE / EVIDENCE split, measured** (not estimated) with both numbers and the
       note that EVIDENCE is pre-approved as ONE declared budget; - the **§6.1 SQL capture verdict**: all three claim shapes are plain single-statement
       `UPDATE … WHERE qual` (no `IN (SELECT …)`), so EvalPlanQual re-evaluates the qual under Read
       Committed and the CAS is sound — one capture retro-validating `claimTotpStep` and
@@ -419,8 +419,8 @@ carry. No source edits.
       SMELL-97's slice (Edward's decision (b)); `codeIndex` positional remodelling and G4–G8 /
       G13–G15 stay out; - **rollback**: a single revert of one PR — no migration, no schema change, no data movement,
       port signature unchanged; reverting the `run-tests.sh` line restores the prior collector state.
-- [ ] **T6.4 — final canon gate at 0/0** before declaring the change ready: `pnpm lint
-    --max-warnings 0`, `tsc`, the unit tier, the new integration batch, and fitness #8/#9/#10/#30.
+- [x] **T6.4 — final canon gate at 0/0** before declaring the change ready: `pnpm lint
+--max-warnings 0`, `tsc`, the unit tier, the new integration batch, and fitness #8/#9/#10/#30.
       Report any pre-existing failure found — never defer it as "already there".
 
 ---
