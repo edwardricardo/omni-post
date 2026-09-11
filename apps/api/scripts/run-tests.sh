@@ -294,6 +294,15 @@ CONCURRENCY=1 run_batch "integration:tenant-isolation" \
   tests/integration/tenant-composite-fk.test.ts \
   tests/integration/post-trio-tenant-isolation.test.ts
 
+# Customer pre-identity auth proofs. DB-only: the suite drives the four bare
+# `/auth/customer/*` handlers over `app.inject` against the guarded client, so it
+# needs Postgres but no live server. Its OWN batch at CONCURRENCY=1 because two of
+# its cases race the SAME reset token on purpose — one pair of genuinely concurrent
+# confirms, one sequential replay — and a sibling suite sharing the runner would
+# make which statement won ambiguous, which is the only thing those cases measure.
+CONCURRENCY=1 run_batch "integration:customer-auth" \
+  tests/integration/customerPasswordReset.integration.test.ts
+
 # Saga recovery proofs. DB-only by dependency (Postgres + Redis; the crash suite
 # also owns a real BullMQ queue and worker), so they belong to the tier that
 # also runs on pull requests — a merge-blocking gate that only ran after the

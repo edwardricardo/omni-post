@@ -41,7 +41,6 @@ import { CustomerTokenServiceAdapter } from "../../src/infrastructure/adapters/C
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 import { CustomerUser } from "@core/domain/entities/CustomerUser.js";
 import { Account } from "@core/domain/entities/Account.js";
-import { EntityNotFoundError } from "@core/domain/errors/index.js";
 import { AccountId } from "@core/domain/value-objects/EntityId.js";
 
 // ---- Real adapters (stateless; sign/hash with the production implementations
@@ -52,6 +51,14 @@ const tokenService = new CustomerTokenServiceAdapter();
 
 // ---- Mock factories ----
 
+/**
+ * Use-case-level ERROR-CONTRACT double. It decides what each repository call
+ * ANSWERS, so the tests below can pin how a use case reacts to each failure class.
+ * It deliberately holds no state, so it can say nothing about what ends up stored —
+ * every persisted-outcome assertion lives in `customerPasswordResetClaim.test.ts`
+ * and `customerPasswordResetRequest.test.ts`, which drive the REAL adapter over a
+ * stateful fake of the Prisma client.
+ */
 function makeCustomerUserRepo() {
   return {
     findById: vi.fn(),
@@ -59,6 +66,8 @@ function makeCustomerUserRepo() {
     findByEmailAcrossAccounts: vi.fn().mockResolvedValue([]),
     findByAccountId: vi.fn().mockResolvedValue([]),
     findByResetToken: vi.fn(),
+    claimPasswordReset: vi.fn().mockResolvedValue(ok(undefined)),
+    issueResetToken: vi.fn().mockResolvedValue(ok(undefined)),
     save: vi.fn().mockResolvedValue(ok(undefined)),
     updatePasswordHash: vi.fn().mockResolvedValue(ok(undefined)),
     delete: vi.fn().mockResolvedValue(ok(undefined)),
@@ -421,11 +430,17 @@ describe("LogoutCustomerUseCase", () => {
 describe("RequestPasswordResetUseCase", () => {
   let useCase: RequestPasswordResetUseCase;
   let customerUserRepo: ReturnType<typeof makeCustomerUserRepo>;
+  let emailPort: { send: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     vi.clearAllMocks();
     customerUserRepo = makeCustomerUserRepo();
-    useCase = new RequestPasswordResetUseCase(customerUserRepo, "http://localhost:3200");
+    emailPort = { send: vi.fn().mockResolvedValue(ok(undefined)) };
+    useCase = new RequestPasswordResetUseCase(
+      customerUserRepo,
+      "http://localhost:3200",
+      emailPort as never
+    );
   });
 
   it("returns ok even when email does not exist (no enumeration)", async () => {
@@ -434,17 +449,44 @@ describe("RequestPasswordResetUseCase", () => {
     const result = await useCase.execute({ email: "nobody@example.com" });
 
     assert.ok(result.ok);
-    expect(customerUserRepo.save).not.toHaveBeenCalled();
+    expect(customerUserRepo.issueResetToken).not.toHaveBeenCalled();
+    expect(emailPort.send).not.toHaveBeenCalled();
   });
 
-  it("sets reset token when user exists", async () => {
+  it("issues one token per matched row and reports none unpersisted", async () => {
     const user = makeExistingUser();
     customerUserRepo.findByEmailAcrossAccounts.mockResolvedValue([user]);
 
     const result = await useCase.execute({ email: "existing@example.com" });
 
     assert.ok(result.ok);
-    expect(customerUserRepo.save).toHaveBeenCalledTimes(1);
+    assert.strictEqual(result.value.unpersistedCount, 0);
+    expect(customerUserRepo.issueResetToken).toHaveBeenCalledTimes(1);
+    const [issuedFor, token, expiresAt] = customerUserRepo.issueResetToken.mock.calls[0] as [
+      string,
+      string,
+      Date,
+    ];
+    assert.strictEqual(
+      issuedFor,
+      user.id,
+      "the token is issued for the matched ROW, not the address"
+    );
+    assert.ok(token.length >= 32, "the token must be high-entropy");
+    assert.ok(expiresAt.getTime() > Date.now(), "the token must be issued with a future expiry");
+    expect(emailPort.send).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts a row whose token could not be persisted instead of discarding it", async () => {
+    const user = makeExistingUser();
+    customerUserRepo.findByEmailAcrossAccounts.mockResolvedValue([user]);
+    customerUserRepo.issueResetToken.mockResolvedValue(err("INTERNAL_ERROR"));
+
+    const result = await useCase.execute({ email: "existing@example.com" });
+
+    assert.ok(result.ok, "the uniform response survives a per-row failure");
+    assert.strictEqual(result.value.unpersistedCount, 1);
+    expect(emailPort.send).not.toHaveBeenCalled();
   });
 });
 
@@ -458,10 +500,8 @@ describe("ResetPasswordUseCase", () => {
     useCase = new ResetPasswordUseCase(customerUserRepo, hasher);
   });
 
-  it("returns INVALID_TOKEN when token not found", async () => {
-    customerUserRepo.findByResetToken.mockResolvedValue(
-      err(new EntityNotFoundError("CustomerUser", "token"))
-    );
+  it("returns INVALID_TOKEN when the claim matches no row", async () => {
+    customerUserRepo.claimPasswordReset.mockResolvedValue(err("INVALID_TOKEN"));
 
     const result = await useCase.execute({
       token: "bad-token",
@@ -472,10 +512,30 @@ describe("ResetPasswordUseCase", () => {
     assert.strictEqual(result.error, "INVALID_TOKEN");
   });
 
-  it("returns TOKEN_EXPIRED when token is expired", async () => {
-    const user = makeExistingUser();
-    user.setResetToken("valid-token", new Date(Date.now() - 100000));
-    customerUserRepo.findByResetToken.mockResolvedValue(ok(user));
+  it("returns INVALID_TOKEN for an expired token, produced by the claim predicate", async () => {
+    // The expiry is enforced INSIDE the claim's own `where` (a strictly future
+    // `resetTokenExpiry`), so an expired token simply matches zero rows and is
+    // reported as the single unusable-token code. There is no separate expiry
+    // verdict left to emit: distinguishing "expired" from "unknown" would be a
+    // token-validity oracle.
+    customerUserRepo.claimPasswordReset.mockResolvedValue(err("INVALID_TOKEN"));
+
+    const result = await useCase.execute({
+      token: "expired-token",
+      newPassword: "newsecurepass",
+    });
+
+    assert.ok(!result.ok);
+    assert.strictEqual(result.error, "INVALID_TOKEN");
+    assert.notStrictEqual(
+      result.error as string,
+      "TOKEN_EXPIRED",
+      "the expired-token code is gone from this flow"
+    );
+  });
+
+  it("surfaces INTERNAL_ERROR from the claim without collapsing it into a token verdict", async () => {
+    customerUserRepo.claimPasswordReset.mockResolvedValue(err("INTERNAL_ERROR"));
 
     const result = await useCase.execute({
       token: "valid-token",
@@ -483,22 +543,34 @@ describe("ResetPasswordUseCase", () => {
     });
 
     assert.ok(!result.ok);
-    assert.strictEqual(result.error, "TOKEN_EXPIRED");
+    assert.strictEqual(result.error, "INTERNAL_ERROR");
   });
 
-  it("resets password when token is valid and not expired", async () => {
-    const user = makeExistingUser();
-    user.setResetToken("valid-token", new Date(Date.now() + 3600000));
-    customerUserRepo.findByResetToken.mockResolvedValue(ok(user));
-
+  it("reaches the row with exactly ONE write, carrying a hash of the new password", async () => {
     const result = await useCase.execute({
       token: "valid-token",
       newPassword: "newsecurepass",
     });
 
     assert.ok(result.ok, `Expected ok, got: ${!result.ok ? result.error : ""}`);
-    expect(customerUserRepo.updatePasswordHash).toHaveBeenCalledTimes(1);
-    expect(customerUserRepo.save).toHaveBeenCalledTimes(1);
+    expect(customerUserRepo.claimPasswordReset).toHaveBeenCalledTimes(1);
+    // The prohibition is on the flow's SHAPE, not only on its outcome: a
+    // whole-entity snapshot write after the claim reverts the hash the claim just
+    // stored, which is the defect this flow exists to retire.
+    expect(customerUserRepo.save).not.toHaveBeenCalled();
+    expect(customerUserRepo.updatePasswordHash).not.toHaveBeenCalled();
+    expect(customerUserRepo.findByResetToken).not.toHaveBeenCalled();
+
+    const [claimedToken, claimedHash] = customerUserRepo.claimPasswordReset.mock.calls[0] as [
+      string,
+      string,
+    ];
+    assert.strictEqual(claimedToken, "valid-token");
+    assert.strictEqual(
+      await argon2.verify(claimedHash, "newsecurepass"),
+      true,
+      "the claim must carry a hash of the NEW password"
+    );
   });
 
   it("rejects short password", async () => {

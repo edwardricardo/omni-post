@@ -19,6 +19,7 @@ import { env } from "../../config/env.js";
 import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
 import type { CustomerRoleRepository } from "@core/domain/repositories/CustomerRoleRepository.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
+import type { AccountQueryRepositoryPort } from "@core/domain/repositories/AccountQueryRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { WelcomeMailer } from "@core/domain/repositories/WelcomeMailer.js";
@@ -140,7 +141,10 @@ export function setupCustomerAuthUseCases(container: Container): void {
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
         env.CLIENT_URL ?? "http://localhost:3200",
         container.resolve<EmailPort>(TOKENS.EmailPort),
-        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
+        // Supplies the per-account label on each reset link when one address is
+        // registered on several accounts.
+        container.resolve<AccountQueryRepositoryPort>(TOKENS.AccountQueryRepository)
       ),
     true
   );
