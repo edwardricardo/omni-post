@@ -101,9 +101,10 @@ export class InMemoryMfaUserRepository implements MfaUserRepositoryPort {
   ): Promise<Result<void, "NOT_FOUND" | "ALREADY_USED">> {
     const row = this.rows.get(userId);
     if (!row) return err("NOT_FOUND");
-    // Mirror the Prisma adapter's compare-and-swap single-use: a code index
-    // already present in the used-map was consumed by a prior verification, so
-    // a re-mark loses the race — the caller must reject, never re-consume it.
+    // The claim contract this double implements: an index already present in the
+    // used-map was consumed, so the claim is refused and the first consumption's
+    // timestamp stays untouched. The caller must reject the verification and must
+    // not retry. Refusing is a verdict about state, not the outcome of a race.
     if (Object.prototype.hasOwnProperty.call(row.mfaBackupUsedAt, String(codeIndex))) {
       return err("ALREADY_USED");
     }
