@@ -7327,3 +7327,182 @@ typecheck files were all created outside the repo and removed. The steps above a
 enough to rebuild it — a `spike.prisma` with the model shown, a `prisma.config.ts` pointing
 at a throwaway database, then `validate` → `migrate diff --script` → apply → `generate` →
 `tsc` → `db pull` → `diff`.
+
+## The committed 58-policy sweep — what it proves, and the timing claim it does not make
+
+Hand-written. `20260910000200_rls_initplan_sweep` carries the hoisted form from the three
+tables the trio migration rewrote to the whole `tenant_isolation` enrollment. This section is
+the evidence for that link, and its most important sentence is the one about what is missing:
+**no timing claim is made for the 58, because this repo can build no corpus on which one would
+mean anything.** Timing claims remain trio-only, exactly where the earlier sections left them.
+
+### What moved in the catalog
+
+Read from `pg_policy`/`pg_class`/`pg_namespace` outside any transaction, immediately before
+the apply and again after it. The digest is `md5` over the ordered per-table 5-tuple
+(`permissive`, `cmd`, `roles`, `qual`, `with_check`), so it moves on any member, not only on
+the two the sweep rewrites.
+
+| Reading                               | total | wrapped | bare   | `with_check` NULL | three-arm | trio wrapped | 5-tuple digest                     |
+| ------------------------------------- | ----- | ------- | ------ | ----------------- | --------- | ------------ | ---------------------------------- |
+| Before apply                          | 61    | 3       | **58** | 0                 | 1         | 3            | `b4a803bbc8e027a225b0f36757618f9f` |
+| After apply (`migrate deploy` exit 0) | 61    | **61**  | **0**  | 0                 | 1         | 3            | `70322c28db1c0684897b49e4d70de014` |
+
+The enrollment count does not move: the sweep rewrites bodies with `ALTER POLICY` and creates
+and drops nothing. Afterwards the catalog holds **two distinct `qual` renderings** — the
+wrapped standard on 60 policies and the wrapped three-arm variant on `AIPromptTemplate` — and
+**one distinct `with_check` rendering**, the wrapped strict standard, on all 61. The variant's
+write arm is deliberately the strict two-arm form: a tenant may read global rows and may not
+write one.
+
+The migration's own deploy-time arithmetic, verbatim from the apply:
+
+```text
+NOTICE:  tenant_isolation sweep: 58 policies rewritten (57 standard, 1 variant), 3 trio
+policies already wrapped, 0 policies declaring no WITH CHECK, 61 enrolled and uniform.
+```
+
+`prisma validate` reports the schema valid and `prisma migrate status` reports the tree up to
+date at 83 migrations. The Prisma models are untouched by this link, so no drift is possible
+from it.
+
+### Claim 1 — the plan shape, which does not depend on a clock
+
+The rewrite's whole purpose is that PostgreSQL evaluates `current_setting('app.account_id')`
+once per statement instead of once per candidate row. That is visible in the plan as the GUC
+read becoming an InitPlan whose result the filter references as a `Param`. Captured with
+`EXPLAIN (ANALYZE, TIMING off, SUMMARY off)` as `omnipost_app`, on the three data-bearing
+sample tables, in all three GUC states — before-half inside a rolled-back transaction
+immediately prior to the apply, after-half against the committed object:
+
+| Table              | Filter before                                              | Filter after            | InitPlans before → after | Top node            |
+| ------------------ | ---------------------------------------------------------- | ----------------------- | ------------------------ | ------------------- |
+| `Project`          | `current_setting(...) = '__system__' OR "accountId" = ...` | `$0 = '__system__'` …   | **0 → 2**                | `Seq Scan`, unmoved |
+| `SagaInstance`     | same, inline twice                                         | `$0` / `$1`             | **0 → 2**                | `Seq Scan`, unmoved |
+| `AIPromptTemplate` | same, inline twice, plus `"accountId" IS NULL`             | `$0` / `$1`, arm intact | **0 → 2**                | `Seq Scan`, unmoved |
+
+Two statements, kept apart because they are different claims:
+
+1. **The transformation happened.** Every `current_setting` occurrence in these filters became
+   a `Param` reference backed by an `InitPlan`, and the variant's third arm survived it.
+2. **No plan moved.** The top node is the same in every sample and every state, so this link
+   owes no adjudication. That is not a foregone conclusion — an earlier capture in this same
+   report recorded the wrapped form CHANGING the chosen index, and under a deliberately
+   mutilated policy `SagaInstance` moved from `Seq Scan` to `Bitmap Heap Scan` — which is why
+   the sweep does not inherit the trio's verdict.
+
+**This is a sample of 3 of 58**, and it is labelled as one. The remaining 55 tables have no
+rows to plan against on this corpus, which is the subject of the bound below.
+
+### Claim 2 — row identity, in all three GUC states
+
+One state cannot audit this rewrite. A bound tenant sees a lost tenant arm and a lost `IS NULL`
+arm but is blind to a lost `__system__` disjunct; `__system__` sees a lost sentinel and is
+blind to a lost tenant arm. A sweep audited in one state can drop an arm from any of the 58 and
+still report green. So the pass runs all three, capturing row count plus a whole-row `md5`
+digest for each of the 58 tables, as `omnipost_app`, before and after:
+
+| GUC state                              | tables | identical | divergent | rows before | rows after | tables with rows |
+| -------------------------------------- | ------ | --------- | --------- | ----------- | ---------- | ---------------- |
+| bound tenant `0683f9c3-…-c8b79d879444` | 58     | **58**    | **0**     | 21          | 21         | 6                |
+| `__system__` sentinel                  | 58     | **58**    | **0**     | 588         | 588        | 8                |
+| UNSET (`current_setting` reads NULL)   | 58     | **58**    | **0**     | 6           | 6          | 1                |
+
+The UNSET leg is not vacuous, and what it shows is worth stating rather than leaving to be
+rediscovered: with no GUC bound, `omnipost_app` still reads **6 rows** — the `AIPromptTemplate`
+globals, because `"accountId" IS NULL` is true regardless of the GUC. The 57 standard policies
+are fail-closed; the variant is, by design, not fail-closed for its global rows. The sweep does
+not change that (6 before, 6 after) and it is not this change's to alter.
+
+### The bound, stated as a measurement rather than as "most tables are empty"
+
+| Population                           | Count  |
+| ------------------------------------ | ------ |
+| Tables the sweep rewrites            | 58     |
+| Of those, `reltuples` of `0` or `−1` | **52** |
+| Carrying rows under `__system__`     | 8      |
+| Carrying rows under a bound tenant   | 6      |
+| Carrying rows with the GUC UNSET     | 1      |
+
+The first two data rows overlap rather than partition — 52 + 8 exceeds 58 — because
+`reltuples` is the planner's estimate, refreshed only by `(auto)vacuum`/`ANALYZE`, not a row
+count: two of the eight row-bearing tables still read `−1`/`0` at capture time. The census is
+captured, not derived (`pr3-evidence/reltuples-census.txt`), which is how the overlap
+surfaced — an earlier draft of this bound wrote 58 − 8 = 50 as if the two sets partitioned,
+and the capture refuted the arithmetic.
+
+A timing figure taken on a table with no rows measures the harness. So this pass proves the
+qual becomes a `Param`/InitPlan reference in the plan, and that the rows are identical wherever
+rows exist — and it proves nothing about how long anything takes for the 58. That is the
+maximum closable portion of the question on a corpus this repo can build, and the sentence
+exists so a later reader does not promote claim 1 into a performance result.
+
+### The reds
+
+A count assertion nobody has watched fire is a count assertion nobody has tested. Both of the
+sweep's guards were fired on a scratch database (`omnipost_rls_downtest`, created and dropped
+by the run), not on the development database.
+
+**Enrollment guard.** A 62nd `tenant_isolation` policy planted on `Account`, then the forward
+migration run against it:
+
+```text
+ERROR:  tenant_isolation enrollment is 62 policies, expected 61. This migration was authored
+against a catalog of 61 and its counts below would be meaningless against any other. …
+```
+
+`psql` exited **3**, the transaction rolled back, and the catalog read back
+`62 | 3 | 59 | 1 | 1 | 3 | 09212c8bc1de0dc2e861c7c7fd66d230` — the planted state unchanged, not
+a partial sweep. With the plant dropped the catalog returned to `b4a803bb…` and the migration
+re-ran clean, emitting the NOTICE quoted above.
+
+**Round trip, by per-table 5-tuple.** On the same scratch database, all 83 migrations deployed
+onto an EMPTY database — which is also how the fresh-tree state was validated, since
+`migrate dev --create-only` was unusable here (see the apply-progress note on the pre-existing
+checksum drift):
+
+| Step                              | 5-tuple digest                     |
+| --------------------------------- | ---------------------------------- |
+| Fresh deploy of the whole tree    | `70322c28db1c0684897b49e4d70de014` |
+| After the operator-run `down.sql` | `b4a803bbc8e027a225b0f36757618f9f` |
+| After re-applying forward         | `70322c28db1c0684897b49e4d70de014` |
+
+The fresh-deploy digest is byte-identical to the development database's post-apply digest, and
+the down digest is the exact pre-sweep baseline. The comparison is **per table, line by line
+over all 61 rows**, not by digest alone: a digest match is sufficient to pass and insufficient
+to name which table drifted. The rollback's own arithmetic:
+
+```text
+NOTICE:  tenant_isolation sweep rollback: 58 policies restored to the bare form (57 standard,
+1 variant), 0 declaring no WITH CHECK; trio left wrapped (3).
+```
+
+**Squawk.** The pinned 2.49.0 binary, sha-verified, the same one `audit.yml` downloads:
+**0 issues, exit 0** on the new `migration.sql`. That green was not taken on trust, because the
+file is a `DO $$` block with nested dollar quoting and a parser that gave up at the outer
+delimiter would report exactly the same zero. A `CREATE INDEX` planted at line 381 — past the
+entire nested block — fired `require-concurrent-index-creation` with exit 1, so squawk parsed
+through it. The open question is closed and this migration needs no adjudication in
+`audit.yml`.
+
+### The suite assertion this link expired
+
+`apps/api/tests/integration/rls-tenant-isolation.test.ts` carried the trio migration's
+blast-radius proof: _no policy outside the trio was rewritten by this migration_. The sweep is
+the change that deliberately widens that radius, so the assertion evaluated to **58 offenders**
+the moment it applied — every non-trio enrolled table — and the batch went red before any gate
+ran. It was replaced in the same commit, not deleted and not weakened into the form-uniformity
+gate that ships in the next link: what stands in its place is a set equality pinning the
+`IS NULL` third arm to `{AIPromptTemplate}` in both directions, a check that the variant's
+`WITH CHECK` did NOT acquire that arm, and a comparison of the trio's committed body against a
+literal read back from `pg_policies`.
+
+### What this section does not claim
+
+- **No timing number for any of the 58.** Stated twice on purpose.
+- **The `EXPLAIN` pass is a 3-table sample.** The row-identity pass covers all 58; the plan
+  pass does not, and cannot, on a corpus where only 8 of them carry rows.
+- **Nothing about production.** Every figure here is the development database or a scratch
+  database on the same host. The per-environment posture table above is unchanged by this link.
+- **The catalog is uniform; the gate that says so is not here.** The form-uniformity assertion
+  ships in the following link, over this state, with its own planted red.

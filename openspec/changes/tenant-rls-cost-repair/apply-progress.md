@@ -1999,3 +1999,323 @@ that names the state it measured.
 Phase 7's 0-defect gate, then the PR-2 delivery decision. Nothing in Phase 6 is waiting on
 anything: the migration is applied, the catalog is read back, the capture is authoritative and
 its superseded prose is reconciled in the same commit that superseded it.
+
+---
+
+# Batch 7 — PR-3 sweep apply (tasks 8.1–8.11)
+
+`20260910000200_rls_initplan_sweep` carries the hoisted form from the trio to the whole
+`tenant_isolation` enrollment. Tasks 8.1–8.11 are complete; **8.12 (the 0-defect gate) is NOT**
+— it is the orchestrator's and has not run. _(Stale as of later the same day: 8.12 ran and
+passed after this section was written — see the dated Amendment at the end of this batch.)_
+
+## The window, and the tool that refused
+
+The migration folder was **created by hand**, not by `prisma migrate dev --create-only`, and
+the reason is a defect this change did not introduce and does not own:
+
+```text
+migration `20260901120000_deletion_record_retention_and_partial_uniques` was modified after it
+was applied
+```
+
+`migrate dev` detects that pre-existing checksum drift on a migration from an earlier
+workstream, refuses to generate, and demands a database reset. Resetting the development
+database to obtain a generated folder name is a far larger action than writing the folder, so
+the folder was authored directly and **the validation `migrate dev` would have given was
+recovered another way**: task 8.11's fresh deploy of the entire 83-migration tree onto an EMPTY
+scratch database, which is a strictly stronger check than the shadow-database validation
+`migrate dev` performs.
+
+**This drift predates this branch and is NOT this change's to fix** — recorded here as a found
+vice so the next person who meets it does not re-derive it, and so nobody reads the hand-created
+folder as a shortcut. It belongs to whoever owns `20260901120000`.
+
+## Enrollment before the apply
+
+`pg_policy` read outside any transaction, immediately before `migrate deploy`:
+
+```text
+total | wrapped | bare | with_check_null | three_arm | trio_wrapped | catalog_5tuple_digest
+61    | 3       | 58   | 0               | 1         | 3            | b4a803bbc8e027a225b0f36757618f9f
+```
+
+61 policies, all named `tenant_isolation`; 57 bare standard, 3 wrapped trio, 1 bare three-arm
+variant (`AIPromptTemplate`).
+
+## The apply, and the state it left
+
+`prisma migrate deploy` exit 0. The folder sorts after the index winner, so the tree is at **83**
+migrations; `prisma validate` reports the schema valid and `migrate status` reports up to date.
+The migration's own NOTICE:
+
+```text
+tenant_isolation sweep: 58 policies rewritten (57 standard, 1 variant), 3 trio policies already
+wrapped, 0 policies declaring no WITH CHECK, 61 enrolled and uniform.
+```
+
+Post-apply catalog:
+
+```text
+total | wrapped | bare | with_check_null | three_arm | trio_wrapped | catalog_5tuple_digest
+61    | 61      | 0    | 0               | 1         | 3            | 70322c28db1c0684897b49e4d70de014
+```
+
+That digest is **byte-identical to the forward state validated overnight** in a rolled-back
+transaction, so the committed object is the one the evidence was taken against. Two distinct
+`qual` renderings remain (wrapped standard ×60, wrapped variant ×1) and exactly one distinct
+`with_check` rendering (wrapped strict standard ×61).
+
+## 8.9 — the three-GUC-state pass, in full
+
+Before-half captured as `omnipost_app` inside a rolled-back transaction **immediately before**
+the apply, because the bare form ceases to exist on this database the moment the migration
+commits and a restored-by-`down.sql` bare form is a copy, not the thing that was there.
+After-half captured against the COMMITTED object.
+
+| GUC state                              | tables | identical | divergent | rows before | rows after | tables with rows |
+| -------------------------------------- | ------ | --------- | --------- | ----------- | ---------- | ---------------- |
+| bound tenant `0683f9c3-…-c8b79d879444` | 58     | **58**    | **0**     | 21          | 21         | 6                |
+| `__system__` sentinel                  | 58     | **58**    | **0**     | 588         | 588        | 8                |
+| UNSET                                  | 58     | **58**    | **0**     | 6           | 6          | 1                |
+
+Identity is row count PLUS a whole-row `md5` digest per table, compared pairwise; the comparison
+was re-derived from the captured files rather than trusted from the harness summary, and it is
+58/58 in each state.
+
+`EXPLAIN (ANALYZE, TIMING off, SUMMARY off)` on the three data-bearing samples, every state:
+`Project`, `SagaInstance`, `AIPromptTemplate` all move **InitPlan lines 0 → 2** with the filter
+changing from an inline `current_setting('app.account_id'::text, true)` to `$0` / `$1`, and the
+top node stays `Seq Scan` in every case. **No plan moved, so this link owes no adjudication
+entry.** The `EXPLAIN` half is a 3-of-58 sample and is labelled as one everywhere it appears —
+50 of the 58 carry `reltuples` of 0 or −1, and a plan for an empty table decides nothing.
+_(50 was an uncaptured 58 − 8 derivation; the census reads **52** and overlaps the row-bearing
+set by 2 — see the Amendment at the end of this batch.)_
+
+## 8.6 — the red, verbatim
+
+Scratch database `omnipost_rls_downtest`, created and dropped by the run. PLANT A: a 62nd
+`tenant_isolation` policy on `Account`, then the real forward migration:
+
+```text
+psql:…/20260910000200_rls_initplan_sweep/migration.sql:379: ERROR:  tenant_isolation enrollment
+is 62 policies, expected 61. This migration was authored against a catalog of 61 and its counts
+below would be meaningless against any other. If a policy was legitimately added or removed,
+that change owns updating these constants and re-running the sweep evidence — not this
+migration silently sweeping a population nobody measured.
+CONTEXT:  PL/pgSQL function inline_code_block line 62 at RAISE
+```
+
+`psql` exit **3**. Catalog after the abort: `62|3|59|1|1|3|09212c8bc1de0dc2e861c7c7fd66d230` —
+the planted state exactly, not a partial sweep. Plant dropped → `61|3|58|0|1|3|b4a803bb…` →
+clean re-run emitting the NOTICE quoted above.
+
+**Which guard fired, stated precisely.** The task asks for 8.3's abort; what fired on the
+scratch database is the ENROLLMENT precondition, which is 8.3's own counter (a population of 62
+makes every count in the file meaningless, so it aborts before the loop). The five other abort
+guards were each fired against the real 61-policy catalog in rolled-back transactions during
+validation: an unrecognised policy body (PLANT C), the variant's third arm already lost
+(PLANT D), a second three-arm table (PLANT E), the trio rolled back (PLANT F), and a
+RESTRICTIVE/command-/role-scoped policy (PLANT G) — six observed reds in total, one of them
+re-run on a scratch database for the letter of the task. The in-loop `rewritten = found`
+assertion has NO red and none is claimed for it: between the `v_found` and `v_rewritten`
+increments every branch either RAISEs (aborting the whole `DO`) or reaches the `EXECUTE`, so
+the single-pass enumeration makes the mismatch unreachable by construction. It is kept as a
+defensive restatement for readers; atomicity belongs to the `DO` block, not to that guard.
+
+## 8.11 — the round trip, per table
+
+Same scratch database, all 83 migrations deployed onto an EMPTY database:
+
+| Step                           | 5-tuple digest                     |
+| ------------------------------ | ---------------------------------- |
+| Fresh deploy of the whole tree | `70322c28db1c0684897b49e4d70de014` |
+| Operator-run `down.sql`        | `b4a803bbc8e027a225b0f36757618f9f` |
+| Re-applied forward             | `70322c28db1c0684897b49e4d70de014` |
+
+The fresh-deploy digest equals the development database's post-apply digest, and the down digest
+is the exact pre-sweep baseline. The forward/re-forward comparison is the **per-table 5-tuple
+listing, line by line over all 61 rows** — a digest match passes but cannot name which table
+drifted, which is why the listing is what was compared. Rollback NOTICE:
+
+```text
+tenant_isolation sweep rollback: 58 policies restored to the bare form (57 standard, 1 variant),
+0 declaring no WITH CHECK; trio left wrapped (3).
+```
+
+## SQUAWK — the green, and the red that makes it mean something
+
+Pinned 2.49.0, sha-verified, the same binary `audit.yml` downloads: **0 issues, exit 0** on the
+new `migration.sql`. Taken alone that green is not evidence, because the file is a `DO $$` block
+with NESTED dollar quoting and a parser that stopped at the outer delimiter would report the
+same zero. A `CREATE INDEX` planted at line 381 — past the whole nested block — fired
+`require-concurrent-index-creation` with exit **1**. **The open question "does squawk parse
+nested dollar quoting" is closed: yes.** No adjudication is owed in `audit.yml` for this
+migration.
+
+## The suite assertion this link expired — red, then replaced
+
+`rls-tenant-isolation.test.ts` carried the trio migration's blast-radius proof,
+`it("no policy outside the trio was rewritten by this migration")`. The sweep is the change that
+deliberately widens that radius, so the assertion expired on apply. Measured, before any edit:
+
+```text
+  integration:tenant-isolation  240 tests   239 pass  1 fail  0 cancel  0 skip  exit 1  [FAIL]
+        not ok 4 - no policy outside the trio was rewritten by this migration
+            policies outside the trio must keep the form they shipped with
+            + actual - expected
+            + [ 'AIPromptTemplate', 'AccountCredential', 'AccountOnboarding', … ]
+            - []
+```
+
+**58 offenders** — every non-trio enrolled table, counted from the diff block. The two sibling
+assertions in that describe block filter to `TRIO` and were unaffected, as forecast.
+
+It was **replaced, not deleted and not weakened into PR-4's gate.** What stands in its place:
+
+| Replacement                                                                      | What it fails on                                                                                                                                                                                             |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `exactly the policies expected to carry the IS NULL third arm carry one`         | set equality against `["AIPromptTemplate"]` — fires on an arm LOST (globals invisible) and on one GAINED (cross-tenant read) alike; plus a check that the variant's `WITH CHECK` did NOT acquire the arm     |
+| `the sweep left the trio's committed body and the enrolled population untouched` | the trio's `qual` and `with_check` compared against a literal read back from `pg_policies`, whitespace-collapsed on both sides; plus enrollment derived from `getTenantScopedModels().size`, never a literal |
+
+Deliberately NOT written here: the form-uniformity gate ("all 61 wrapped"). That is PR-4's, it
+ships over a catalog that is already uniform, and landing it early would leave that link gating
+nothing and would skip the read-back that gives its pinned rendering provenance.
+
+## Work Unit Evidence
+
+| Evidence                    | Value                                                                                                                                                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command/result | `node --test … tests/integration/rls-tenant-isolation.test.ts` — **27 pass / 0 fail / 0 cancelled / 0 skipped, exit 0** (was 25 tests / 1 fail before the edit)                                         |
+| Runtime harness/result      | `bash ./scripts/run-tests.sh` from `apps/api` — batch `integration:tenant-isolation` **242 tests / 242 pass / 0 fail / 0 cancel / 0 skip, exit 0**; `TIER=pr-integration` whole run **480/480, exit 0** |
+| Rollback boundary           | Four files: the integration suite, the report section, `tasks.md` 8.1–8.11, this section. Reverting them leaves the applied migration and everything Batches 1–6 landed intact.                         |
+
+## The batch, before and after
+
+| Run                                      | `integration:tenant-isolation`                            | Whole run                                                          |
+| ---------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------ |
+| Before the edit (the expired assertion)  | 240 tests, 239 pass, **1 fail**, 0 cancel, 0 skip, exit 1 | `TOTAL: 9554 tests, 9488 pass, 1 fail, 32 cancel, 33 skip`         |
+| After                                    | **242 tests, 242 pass, 0 fail, 0 cancel, 0 skip, exit 0** | `TOTAL: 9556 tests, 9491 pass, 0 fail, 32 cancel, 33 skip`         |
+| After, gate tier (`TIER=pr-integration`) | same, 242/242                                             | **`TOTAL: 480 tests, 480 pass, 0 fail, 0 cancel, 0 skip`**, exit 0 |
+
+Two counts in that table need naming rather than leaving to be noticed:
+
+- **+2 tests** — one expired assertion removed, two PR-3-owned ones and the 8.8 behavioural test
+  added. The gate tier moves 478 → 480 for the same reason.
+- **The 32 cancelled / 33 skipped in the untiered run are unchanged and are NOT this diff's.**
+  They are three LIVE-API batches — `integration:flows`, `integration:saga-live`, `api-ready` —
+  and the run says why in its own output: `api-ready /health never returned 200 in 60s`. No API
+  server is running on this box, and an untiered local run includes the batches that fetch one.
+  They failed identically in the pre-edit baseline, batch for batch. `TIER=pr-integration`, which
+  is the tier CI runs on a PR and the tier Phase 7's gate reported, excludes them and is
+  **480/480 with zero cancelled and zero skipped**.
+
+## TDD Cycle Evidence — every new assertion has an observed red
+
+Strict TDD is active. The subject here is a database object that was already applied, so the
+cycle is the canon's "a gate is born with its red demonstrated" form: plant → real non-zero exit
+→ restore byte-exact → re-confirm green. The file's `sha256` was `f530180726f1…` for the first
+five plants and `602fec0d1df7…` after one comment was corrected to the measured global count;
+every restore was verified against the checksum, not assumed.
+
+| #   | Plant                                                         | Assertion under test                          | Result                                                                                         |
+| --- | ------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 1   | `EXPECTED_THREE_ARM = []`                                     | three-arm set equality (arm GAINED direction) | exit 1, `expected [], catalog holds [AIPromptTemplate]`                                        |
+| 2   | `EXPECTED_THREE_ARM = ["AIPromptTemplate", "Campaign"]`       | same (arm LOST direction)                     | exit 1, `expected [AIPromptTemplate, Campaign], catalog holds [AIPromptTemplate]`              |
+| 3   | the `WITH CHECK` pattern widened to any GUC read              | variant's write arm stays strict              | exit 1, message quotes the catalog's actual `with_check`                                       |
+| 4   | one token of the pinned trio body corrupted (`'__systemX__'`) | trio body survived the sweep                  | exit 1, `Post: USING no longer holds the body the trio migration installed`                    |
+| 5   | expected enrollment `+ 1`                                     | population unchanged                          | exit 1, `the sweep changed the enrolled population`                                            |
+| 6   | the planted template re-tenanted to B                         | 8.8, own-row half                             | exit 1, `Missing the own row means the "accountId" = <guc> arm was lost`                       |
+| 7   | the second tenant's read bound to A                           | 8.8, cross-tenant half                        | exit 1, `Seeing tenant A's row here would mean the third arm admits owned rows across tenants` |
+
+**Limit, stated rather than implied.** Plants 1–5 are on the declared expectation, not on the
+catalog: this executor has no direct database channel, so an `ALTER POLICY` red was not
+available to it. That form of the red is already banked — a planted flattening of the variant
+was fired against the real catalog during validation and caught by both the migration's own
+postcondition and a check of this shape — and PR-4's 9.5 still owes the catalog-plant red for
+the uniformity gate. Plants 6 and 7 ARE on the subject: they change what the database holds and
+what tenant asks for it.
+
+## Files written in this batch
+
+| File                                                        | Action   | What                                                                                                             |
+| ----------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `apps/api/tests/integration/rls-tenant-isolation.test.ts`   | Modified | the expired blast-radius `it()` replaced by two PR-3-owned assertions; the 8.8 behavioural variant test added    |
+| `docs/reports/TENANT_RLS_AB_MEASUREMENT.md`                 | Modified | one appended section: `## The committed 58-policy sweep — what it proves, and the timing claim it does not make` |
+| `openspec/changes/tenant-rls-cost-repair/tasks.md`          | Modified | 8.1–8.11 checked with per-task evidence; 8.12 left open _(closed post-batch — see Amendment)_                    |
+| `openspec/changes/tenant-rls-cost-repair/apply-progress.md` | Modified | this section                                                                                                     |
+
+The migration pair (`migration.sql`, `down.sql`) was authored and applied before this batch and
+was not touched by it.
+
+## Deviations, stated
+
+| #   | Deviation                                                                   | Why it is not a silent one                                                                                                                                                                                                                    |
+| --- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | 58 `ALTER POLICY`, not 116 `DROP`+`CREATE` (8.1 says 116 DDLs)              | only two of a policy's five members move; `ALTER POLICY` cannot touch the other three and leaves an absent `WITH CHECK` absent. Halves the DDL count and the lock window.                                                                     |
+| D2  | one enumeration asserting `rewritten = found = 58`, not `found = 57` + tail | the `57 / 1` split is asserted separately, so nothing 8.3 pinned is lost and a right total with a wrong split still aborts.                                                                                                                   |
+| D3  | the variant is keyed by deparsed PRE-IMAGE, name cross-checked, not by name | a name key flattens a second three-arm policy silently, and no bound-tenant digest would see it.                                                                                                                                              |
+| D4  | 8.9's `EXPLAIN` half is 3 tables of 58                                      | 52 of the 58 have `reltuples` 0 or −1 (captured: `pr3-evidence/reltuples-census.txt`; overlaps the 8 row-bearing tables by 2 — see Amendment). The row-identity half IS all 58 in three states; the sample is labelled everywhere it appears. |
+| D5  | 8.8 derives its expected global set instead of asserting `6 + 1 = 7`        | the literal encodes this host's corpus into a test that also runs against a freshly seeded CI database. The control is the RLS-exempt owner channel, a different source from the connection under test.                                       |
+
+## Residuals — named, not fixed
+
+- **The `20260901120000` checksum drift** blocks `prisma migrate dev` on this database for
+  everyone, not just this change. Owned by that migration's workstream. _(Repaired post-batch
+  under Edward's explicit, separate authorization — see Amendment.)_
+- **Timing for the 58 is unobtainable here**, and stays unobtainable until a corpus exists with
+  rows in more than 8 of them. The report says so twice rather than implying a performance
+  result from the plan shape.
+- **PR-4 still owes** 9.1's population-wide read-back, the uniformity gate, and its planted
+  catalog red.
+
+## Not done in this batch (by instruction)
+
+- 8.12, the PR-3 0-defect gate, in full: workspace + standalone `tsc`, `eslint --max-warnings 0`
+  across the diff, the seven fitness counts, repo-wide `prettier -c .`, and the database
+  left-as-found read. _(Ran and passed after this batch — see Amendment.)_
+- Any git operation: branch, add, commit, push, PR.
+- Any RDD review lifecycle step.
+- Phase 9 in any part.
+
+## Amendment — 2026-09-10, after this batch was written
+
+Three things happened after the sections above were frozen; each is recorded here with a
+pointer FROM its now-stale line rather than by rewriting history in place.
+
+1. **8.12 ran and PASSED** (orchestrator-run, then independently re-run by the fresh gate):
+   fitness #8/#9/#10/#23/#32/#39 all 0 and #30 held at its ratchet of 21; #39 reads 61 enrolled
+   models against 61 catalog policies; `tsc -b apps/api` exit 0; `eslint --max-warnings 0` exit
+   0 on the touched suite; prettier clean on all four touched files; `prisma validate` +
+   `migrate status` up to date (83 migrations); SQUAWK 2.49.0 zero issues on BOTH migration
+   files with its reach RED-proven past the nested `DO $$` (transcript:
+   `pr3-evidence/squawk-transcript.txt`); BATCH `pr-integration` 480/480, 0 cancelled /
+   0 skipped. `tasks.md` 8.12 is checked on this evidence.
+2. **The `20260901120000` checksum-drift residual was repaired**, as a SEPARATE action outside
+   this change's scope, under Edward's explicit authorization given the same day: a one-row
+   `UPDATE _prisma_migrations SET checksum = '6c90d4f2…'` (the current file's sha256, algorithm
+   verified against the never-edited companion `20260901120100`) replacing the stale
+   `1bb5ee4e…`. Verified before/after; schema untouched — dev's constraint was already
+   `convalidated = true`, the single executable delta of the offending edit (`NOT VALID` +
+   companion `VALIDATE`) converges to the same end state, and the fresh-tree deploy's catalog
+   digest matches dev. `prisma migrate dev` works on this database again.
+3. **The database-as-found term of 8.12 was satisfied by an out-of-band read taken AFTER both
+   of the above** (the Batch 2 lesson: an as-found claim from the happy path is not a check):
+   catalog `61|61|0|0|1|3|70322c28…` (the by-design post-migration state), `Account` control
+   354, `omnipost_rls_downtest` absent, `migrate status` up to date — captured
+   2026-09-10T21:05Z, `pr3-evidence/asfound-outofband.txt`.
+
+One measured correction also lands with this amendment: the emptiness bound's "50 of 58 with
+`reltuples` 0 or −1" was an un-captured 58 − 8 = 50 derivation, and the capture refutes the
+arithmetic — the census reads **52** (`pr3-evidence/reltuples-census.txt`), because `reltuples`
+is a planner estimate refreshed only by vacuum/analyze and the set OVERLAPS the 8 row-bearing
+tables by 2. Report, tasks 8.9/8.10 and D4 above now carry the measured figure; the 8.9
+section's own 3-of-58 rationale above keeps its original 50 with a pointer here, and the
+report's "does not claim" bullet states the bound as "only 8 carry rows" — the one framing
+with no second population.
+
+## Next
+
+The PR-3 delivery decision: RDD review, attempt settle, commit (size:exception accepted by
+Edward — 647/31 total, 192/31 code, the rest the evidence artifacts this phase exists to
+produce).
