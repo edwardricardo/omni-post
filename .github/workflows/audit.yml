@@ -449,11 +449,79 @@ jobs:
           POST_TRIO_MIGRATION="infra/prisma/migrations/20260909000200_post_trio_tenant_not_null_and_uniques/migration.sql"
           POST_TRIO_DIGEST="d0d109427c2fc423ffb66581be197a59f31ea00ac4784cb4e7fc8ae79af51f4d"
 
+          # ADJUDICATION 4 — two concurrency rules on the Post feed-index winner.
+          # This migration REPLACES the account-led read index on "Post": it
+          # drops ("accountId", "projectId") and builds
+          # ("accountId", "projectId", "createdAt"), both partial on
+          # "deletedAt" IS NULL. Two statements, two rules, one cause.
+          #  - require-concurrent-index-deletion (x1, the DROP INDEX) and
+          #    require-concurrent-index-creation (x1, the CREATE INDEX):
+          #    UNSATISFIABLE here, not unfixed — the same finding ADJUDICATION
+          #    2 measured and ADJUDICATION 3 inherited. `CREATE INDEX
+          #    CONCURRENTLY` / `DROP INDEX CONCURRENTLY` cannot run inside a
+          #    transaction block, and Prisma wraps every migration in one, which
+          #    is why .squawk.toml pins assume_in_transaction = true. Rewriting
+          #    either statement with CONCURRENTLY fires
+          #    ban-concurrent-index-creation-in-transaction instead. There is no
+          #    formulation of these two statements that this config accepts
+          #    without leaving Prisma's migration engine for a hand-run runbook,
+          #    and the migration header names that runbook explicitly (build the
+          #    new index CONCURRENTLY first, verify indisvalid, then drop the old
+          #    one — the reverse of the file's in-transaction order, because a
+          #    live path must never leave "Post" without an accountId-led index).
+          #    The header's lock analysis argues why it is not worth it for
+          #    today's single deployable: dev and CI, no production traffic.
+          # WHY THIS FILE EXISTS AT ALL, so the waiver is not read as a waiver of
+          # the change: the shape was chosen by a four-arm measurement, not by
+          # argument, and DROP was one of the four arms and lost on evidence
+          # (docs/reports/TENANT_RLS_AB_MEASUREMENT.md, section "Reading the
+          # index shortlist run"). The two rules above are the only findings; the
+          # timeout settings squawk also requires are present at the top of the
+          # file. Nothing about the index's correctness is being waived here —
+          # only the CONCURRENTLY spelling, which this engine cannot emit.
+          # TRIGGER: squawk reports either rule for this exact file content.
+          # REMOVE-WHEN: both rules together, when these statements no longer run
+          # under Prisma's per-migration transaction — i.e. when the live-path
+          # CONCURRENTLY runbook named in the migration header is adopted, which
+          # is mandatory before this schema carries production traffic. Also
+          # delete the entry outright if a baseline squash folds this migration
+          # away, in that same change.
+          IX1_MIGRATION="infra/prisma/migrations/20260910000100_post_feed_index_winner/migration.sql"
+          IX1_DIGEST="e7789b995f83f3fc4127807f4d605fdbe75f750a6cedd3889af81a94d2babc42"
+
+          # ADJUDICATION 5 — the same two concurrency rules on that migration's
+          # OPERATOR-RUN down.sql. The rollback mirrors the swap in reverse
+          # (drop the three-column index, rebuild the two-column one, both
+          # partial on "deletedAt" IS NULL), so the same two statements fire the
+          # same two rules for the same cause, and ADJUDICATION 4's measured
+          # unsatisfiability applies unchanged: .squawk.toml pins
+          # assume_in_transaction = true, so rewriting either statement with
+          # CONCURRENTLY fires ban-concurrent-index-creation-in-transaction
+          # instead. down.sql is never applied by Prisma — it is the operator
+          # rollback the migration header documents — but it is linted to the
+          # same standard deliberately, because a rollback linted more leniently
+          # than the change it reverses is a second, unreviewed migration.
+          # Nothing about the rollback's correctness is waived — only the
+          # CONCURRENTLY spelling, exactly as for the forward file.
+          # RED, observed LIVE rather than planted: PR #237's Squawk lane fired
+          # exactly these two rules on exactly this file (run 34536890517) while
+          # the forward file linted clean under ADJUDICATION 4 — the
+          # unadjudicated-sibling red this entry closes.
+          # TRIGGER: squawk reports either rule for this exact file content.
+          # REMOVE-WHEN: together with ADJUDICATION 4 — the two files adjudicate
+          # and retire as a pair (the live-path CONCURRENTLY runbook adoption
+          # that is mandatory before production traffic, or a baseline squash
+          # deleting the migration folder, in that same change).
+          IX1_DOWN="infra/prisma/migrations/20260910000100_post_feed_index_winner/down.sql"
+          IX1_DOWN_DIGEST="59d787d3aca0a21cbc5531f130749a48ff79085a75b21db3dee058f42921d2c9"
+
           exception_rules_for() {
             case "$1" in
               "$ALIGNMENT_MIGRATION") echo "ban-drop-not-null" ;;
               "$RETENTION_MIGRATION") echo "adding-not-nullable-field,ban-drop-not-null,prefer-bigint-over-int,require-concurrent-index-creation,require-concurrent-index-deletion" ;;
               "$POST_TRIO_MIGRATION") echo "adding-not-nullable-field,require-concurrent-index-creation" ;;
+              "$IX1_MIGRATION") echo "require-concurrent-index-creation,require-concurrent-index-deletion" ;;
+              "$IX1_DOWN") echo "require-concurrent-index-creation,require-concurrent-index-deletion" ;;
               *) echo "" ;;
             esac
           }
@@ -462,6 +530,8 @@ jobs:
               "$ALIGNMENT_MIGRATION") echo "$ALIGNMENT_DIGEST" ;;
               "$RETENTION_MIGRATION") echo "$RETENTION_DIGEST" ;;
               "$POST_TRIO_MIGRATION") echo "$POST_TRIO_DIGEST" ;;
+              "$IX1_MIGRATION") echo "$IX1_DIGEST" ;;
+              "$IX1_DOWN") echo "$IX1_DOWN_DIGEST" ;;
               *) echo "" ;;
             esac
           }
@@ -470,7 +540,11 @@ jobs:
           # could be recreated under and inherit unlinted — the same stale-name
           # failure the fitness suite fails closed on. Checked on every run, not
           # only when the file is in the changed set.
-          for p in "$ALIGNMENT_MIGRATION" "$RETENTION_MIGRATION"; do
+          # Every adjudicated path, without exception: the two arms of the case
+          # statements above are the list this loop must mirror, and it silently
+          # stopped mirroring them when POST_TRIO landed. Adding a name here is
+          # part of adding an adjudication, not a follow-up to it.
+          for p in "$ALIGNMENT_MIGRATION" "$RETENTION_MIGRATION" "$POST_TRIO_MIGRATION" "$IX1_MIGRATION" "$IX1_DOWN"; do
             if [ ! -f "$p" ]; then
               echo "::error title=Squawk exception names a file that no longer exists::$p is adjudicated in this step but is not in the tree. Delete the entry, or a migration recreated under that path inherits the waiver without ever being adjudicated."
               exit 1

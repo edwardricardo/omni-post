@@ -481,6 +481,148 @@ describe("Row Level Security — tenant_isolation policy", () => {
     });
   });
 
+  describe("policy form — the GUC read is hoisted, and the catalog says so", () => {
+    // The subject here is the DEPLOYED rendering, never the migration source
+    // bytes. `pg_get_expr` re-prints a policy body from the parsed tree, adding
+    // casts, collapsing whitespace and naming sub-select outputs, so a pattern
+    // written from the SQL a migration contains asserts an intent that the
+    // database may not hold. Everything below reads pg_policies.
+    const TRIO = ["Post", "PostContent", "PostMedia"] as const;
+
+    // A hoisted read renders as a sub-select wrapping the call. The exact
+    // spelling of the interior (`'app.account_id'::text`, the trailing
+    // `AS current_setting` alias) is the deparser's business and is
+    // deliberately NOT pinned — what this change is about is whether the call
+    // sits inside a sub-select at all, because that is what makes PostgreSQL
+    // evaluate it once per statement instead of once per candidate row.
+    const HOISTED = /\(\s*SELECT\s+current_setting\s*\(/gi;
+    const ANY_READ = /current_setting\s*\(/gi;
+    const countOf = (haystack: string, pattern: RegExp): number =>
+      haystack.match(new RegExp(pattern.source, pattern.flags))?.length ?? 0;
+
+    interface PolicyRow {
+      readonly tablename: string;
+      readonly qual: string | null;
+      readonly with_check: string | null;
+    }
+
+    const readPolicies = async (): Promise<PolicyRow[]> =>
+      prisma.$queryRawUnsafe<PolicyRow[]>(
+        `SELECT tablename, qual, with_check FROM pg_policies
+          WHERE policyname = 'tenant_isolation' ORDER BY tablename`
+      );
+
+    it("every GUC read in the trio's policies is hoisted into a sub-select", async () => {
+      const rows = (await readPolicies()).filter((r) =>
+        (TRIO as readonly string[]).includes(r.tablename)
+      );
+      assert.strictEqual(rows.length, TRIO.length, "all three trio policies must be installed");
+
+      for (const row of rows) {
+        assert.ok(row.qual !== null, `${row.tablename}: policy declares no USING clause`);
+        const qual = row.qual;
+        const hoisted = countOf(qual, HOISTED);
+        const reads = countOf(qual, ANY_READ);
+        // Both terms of the disjunction, and nothing left behind: an equal
+        // count is what proves no bare read survived. A policy with one arm
+        // wrapped and one arm bare still pays the per-row cost on every row
+        // the bare arm evaluates, and would satisfy a "contains a sub-select"
+        // check that only looked for the pattern once.
+        assert.strictEqual(
+          hoisted,
+          2,
+          `${row.tablename}: expected 2 hoisted GUC reads in USING, catalog holds: ${qual}`
+        );
+        assert.strictEqual(
+          reads,
+          hoisted,
+          `${row.tablename}: ${reads - hoisted} un-hoisted GUC read(s) remain in USING: ${qual}`
+        );
+      }
+    });
+
+    it("both clauses of each trio policy are rendered in one and the same form", async () => {
+      const rows = (await readPolicies()).filter((r) =>
+        (TRIO as readonly string[]).includes(r.tablename)
+      );
+
+      for (const row of rows) {
+        // These three declared a WITH CHECK, so they must still declare one:
+        // silently dropping it would leave row mutation ungated while reads
+        // stayed correct, which no read-path assertion in this file would see.
+        assert.ok(
+          row.with_check !== null,
+          `${row.tablename}: WITH CHECK disappeared — row mutation would be ungated`
+        );
+        assert.strictEqual(
+          row.with_check,
+          row.qual,
+          `${row.tablename}: visibility and mutation are gated by different expressions`
+        );
+      }
+    });
+
+    // Every enrolled tenant_isolation policy declares WITH CHECK explicitly
+    // today, so the expected set is empty. It is a LITERAL rather than a
+    // derivation on purpose: the property under test is that this set does not
+    // move on its own. A policy that legitimately drops its WITH CHECK —
+    // leaving row mutation to another layer — updates this list deliberately,
+    // in a diff a reviewer reads, instead of being absorbed by a rule that
+    // recomputes the answer from the same catalog it is supposed to be
+    // checking.
+    const EXPECTED_NO_WITH_CHECK: string[] = [];
+
+    it("exactly the policies expected to declare no WITH CHECK declare none", async () => {
+      // The converse guard, and it has to be an equality against a declared set
+      // rather than a filter. Selecting the rows whose with_check is already
+      // null and then asserting that those rows have a null with_check cannot
+      // fail: it re-states its own selector, so it passes on an empty catalog,
+      // on a catalog where every policy lost its WITH CHECK, and on every state
+      // in between. Comparing the WHOLE set against the literal fails in both
+      // directions instead — a policy that LOST its WITH CHECK leaves row
+      // mutation ungated while every read-path assertion in this file stays
+      // green, and one that GAINED a WITH CHECK it never declared tightens
+      // writes another layer was deliberately gating.
+      const rows = await readPolicies();
+      assert.ok(rows.length > 0, "at least one tenant_isolation policy must exist");
+      const withoutCheck = rows.filter((r) => r.with_check === null).map((r) => r.tablename);
+      assert.deepStrictEqual(
+        withoutCheck,
+        EXPECTED_NO_WITH_CHECK,
+        `the set of tenant_isolation policies declaring no WITH CHECK moved. ` +
+          `expected [${EXPECTED_NO_WITH_CHECK.join(", ")}], ` +
+          `catalog holds [${withoutCheck.join(", ")}]. A policy that LOST its WITH CHECK ` +
+          `leaves row mutation ungated; one that GAINED it tightens writes another layer ` +
+          `was gating. Either way the change is deliberate or it is a defect — update this ` +
+          `literal only for the former.`
+      );
+    });
+
+    it("no policy outside the trio was rewritten by this migration", async () => {
+      // Blast-radius proof. This migration names three tables explicitly and
+      // touches nothing else; an accidental sweep would show up here as a
+      // hoisted read on a table that was never in scope.
+      //
+      // BOTH clauses are read, because both clauses are what the rewrite moves:
+      // the migration wraps the GUC read in USING and in WITH CHECK alike, so a
+      // sweep that reached an out-of-scope policy would leave a hoisted read in
+      // either one. A qual-only check would miss the WITH CHECK half entirely
+      // and report a clean blast radius over a policy whose mutation gate had
+      // already been rewritten.
+      const others = (await readPolicies()).filter(
+        (r) => !(TRIO as readonly string[]).includes(r.tablename)
+      );
+      const rewritten = others.filter(
+        (r) => countOf(r.qual ?? "", HOISTED) > 0 || countOf(r.with_check ?? "", HOISTED) > 0
+      );
+      assert.deepStrictEqual(
+        rewritten.map((r) => r.tablename),
+        [],
+        "policies outside the trio must keep the form they shipped with"
+      );
+    });
+  });
+
   describe("as the application role", () => {
     it("returns 0 rows when app.account_id is unset (fail-closed)", async () => {
       const projects = await asAppRole(null, async (tx) => {

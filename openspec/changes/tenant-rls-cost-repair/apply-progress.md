@@ -1158,3 +1158,844 @@ with two non-blocking findings, both closed:
 `size:exception` for this link was accepted by Edward (2026-09-10) with the measured
 rationale: the apparatus/decision seam yields ~545/~472 — both over budget — so a split buys
 no compliance and costs a chain link.
+
+---
+
+# Batch 4 — PR-2 commit c1 (the trio policy rewrite)
+
+Tasks **4.1–4.8**, all eight closed. Phase 5 onward was NOT started, by instruction.
+
+## What landed
+
+| File                                                                          | Kind           | What                                                                                 |
+| ----------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------ |
+| `infra/prisma/migrations/20260910000000_rls_initplan_post_trio/migration.sql` | new, SENSITIVE | Rewrites the three trio `tenant_isolation` policies to the `W` body, both clauses    |
+| `infra/prisma/migrations/20260910000000_rls_initplan_post_trio/down.sql`      | new, SENSITIVE | Restores the bare bodies verbatim; RLS stays enabled and the policies stay installed |
+| `apps/api/tests/integration/rls-tenant-isolation.test.ts`                     | edited         | +1 describe, +4 tests: the deployed-catalog form assertions (task 4.5)               |
+| `docs/reports/TENANT_RLS_AB_MEASUREMENT.md`                                   | regenerated    | The authoritative `--policy-ab` capture against the committed form (task 4.6)        |
+
+The migration and its `down.sql` were authored under the active `sensitive-edit` token, first
+and fast, before any measurement work. Nothing else in this batch was token-gated.
+
+## The headline number, and what actually proves it
+
+The `A′` arm of the re-run is the COMMITTED policy, re-read and reported unchanged — not a
+copy, not the rollback arm. Its scan-node medians moved:
+
+| Probe | `A′` before (bare) | `A′` after (committed) | Ratio |
+| ----- | ------------------ | ---------------------- | ----- |
+| `S3`  | 4.163 ms           | **1.834 ms**           | 2.27× |
+| `Q3`  | 4.209 ms           | **1.876 ms**           | 2.24× |
+| `Q4`  | 3.808 ms           | **1.707 ms**           | 2.23× |
+
+All three sit inside task 4.6's expected 2.1–2.4× band and inside the 2.21–2.31× band Batch 2
+handed forward. **The scan-vs-statement distinction Batch 2 flagged was load-bearing exactly as
+predicted**: the statement medians move ~1.81×, which is OUTSIDE that band, and a reader
+checking the wrong statistic would have opened a defect against a policy that is behaving.
+
+The strongest evidence is not the timing at all — it is that **`A′`'s InitPlan count moved 0 → 2**.
+That is the PLANNER agreeing that the GUC read is now statement-scoped, and it is independent of
+both the catalog text and the clock.
+
+## Row-equivalence and the adjudications
+
+Row-equivalence is **13/13**. The harness's digest gate is a hard throw naming the probe, the
+arms and the digests, so a green exit IS the proof rather than a line to read; the run exited 0.
+Alongside it, the three-GUC-state semantic table reports **0 three-valued divergences** in every
+state (bound tenant, `__system__`, UNSET) — the leg the bound-tenant case run structurally
+cannot reach.
+
+Two probes moved out of band, and each is adjudicated by the pre-declared rule rather than by
+opinion:
+
+| Probe | Delta            | Sign across 5 sweeps | Adjudication                           |
+| ----- | ---------------- | -------------------- | -------------------------------------- |
+| `S2`  | 7.0 µs (13.21 %) | FLIPPED              | Noise. Measures the run, not the form. |
+| `Q4`  | 20.0 µs (1.18 %) | FLIPPED              | Noise. Measures the run, not the form. |
+
+Neither is attributable, so the verdict re-computes to **`W` wins** by the pre-declared tiebreak
+— the same verdict the migration was authored from, now re-derived with the migration in place.
+
+## The catalog, and the red that proves the assertion can fail
+
+Task 4.5's assertions read `pg_policies`, never the migration bytes. The deployed rendering for
+all three tables, in both clauses:
+
+```text
+((( SELECT current_setting('app.account_id'::text, true) AS current_setting) = '__system__'::text)
+ OR ("accountId" = ( SELECT current_setting('app.account_id'::text, true) AS current_setting)))
+```
+
+`permissive = PERMISSIVE`, `cmd = ALL`, `roles = {public}` on all three — the full 5-tuple, which
+is the comparison that matters here because an arm re-created with `USING (...)` alone leaves
+`qual` byte-identical while silently dropping `with_check` to null.
+
+Task 4.8's scratch-database run (`omnipost_rls_downtest`, created and dropped by the run) walked
+bare → forward → down → forward and read the 5-tuple at each step:
+
+- **down restores the bare 5-tuple exactly: YES**
+- **re-apply reproduces the forward 5-tuple: YES**
+- **forward differs from bare (not a no-op): YES**
+
+That run is also the **RED for 4.5**. The matcher evaluates FAIL on the bare form — both at the
+start and after the rollback — and PASS on the wrapped form. The assertion is therefore proven
+capable of failing, on precisely the form this change replaces, which is the only red a
+catalog-pinning test over already-committed state can honestly produce.
+
+## Gate results for this batch
+
+| Check                       | Result                                                                  |
+| --------------------------- | ----------------------------------------------------------------------- |
+| SQUAWK (pinned v2.49.0)     | `Found 0 issues in 1 file`, exit 0 — **no rule fired, nothing waived**  |
+| `prisma validate`           | valid                                                                   |
+| `prisma migrate status`     | up to date, 81 migrations                                               |
+| INT `rls-tenant-isolation`  | 25 pass / 0 fail / **0 cancelled / 0 skipped**, run twice               |
+| policy↔guard parity         | 61, unchanged                                                           |
+| `eslint --max-warnings 0`   | exit 0 on the touched test file                                         |
+| prettier                    | clean, including the regenerated report                                 |
+| fitness #32 (`.only/.skip`) | 0 on the touched test file                                              |
+| Database left as found      | migration APPLIED (this one persists); fixture corpus cleaned to 0 rows |
+
+## Deviations, stated
+
+1. **`--repetitions 5`, not the default 3.** Task 4.6 pins `--runs 3` and is silent on
+   repetitions. PR-1b's authoritative capture used 5, and the sign-stability rule is vacuous
+   below 2 sweeps, so matching 5 keeps this run's adjudications comparable with the verdict it
+   is checking. Recorded rather than assumed.
+2. **The AB legend command in `tasks.md` does not run.** `pnpm exec tsx scripts/rls-ab-measurement.ts`
+   exits 1 with "no database channel configured"; the harness prints the canonical form itself,
+   and the report's reproduction block carries it:
+   `node --import tsx --conditions development --env-file=.env scripts/rls-ab-measurement.ts …`.
+   The legend is missing `--env-file=.env`. Not fixed here — `tasks.md` is the change's own
+   planning artifact and correcting the legend is a one-line edit the orchestrator should make
+   deliberately, not a writer's drive-by. Flagged for the PR-2 gate.
+
+## Not done in this batch (by instruction)
+
+Phase 5 onward: the `listGlobal` reshape and its mirrors, the index winner and its migration,
+the `audit.yml` adjudication (orchestrator-owned), `schema.prisma`, the PR-2 gate, and the
+58-policy sweep.
+
+## Next
+
+`sdd-apply` for **PR-2 commit c2** (Phase 5, tasks 5.1–5.6, then Phase 6). c2 inherits from here:
+the trio's committed form is `W`, verified in the catalog and by the planner, and the index work
+in Phase 6 measures against THIS policy form rather than the bare one.
+
+---
+
+# Batch 4b — corrective pass on c1 (fresh-gate findings F1, F2, F3; F4 prepared)
+
+No new tasks. This pass repairs three defects the fresh gate found in Batch 4's own output,
+before c1 is committed. **The c1 commit is DEFERRED pending F4** — see §F4 below.
+
+## F1 — the tautological test
+
+`apps/api/tests/integration/rls-tenant-isolation.test.ts`, the assertion that was titled
+_"a policy that declared no WITH CHECK still declares none"_. It filtered `pg_policies` to the
+rows whose `with_check` is null and then asserted that those rows have a null `with_check` — it
+re-stated its own selector, so it could not fail. It passed on an empty catalog, and it would
+have passed on a catalog where every policy had silently lost its `WITH CHECK`.
+
+Replaced with an equality against a declared literal beside the test:
+
+```ts
+const EXPECTED_NO_WITH_CHECK: string[] = [];
+const withoutCheck = rows.filter((r) => r.with_check === null).map((r) => r.tablename);
+assert.deepStrictEqual(withoutCheck, EXPECTED_NO_WITH_CHECK, ...);
+```
+
+Empty because every enrolled policy declares `WITH CHECK` explicitly today — verified against
+the live catalog, not assumed. A literal rather than a derivation on purpose: a policy that
+legitimately drops its `WITH CHECK` updates this list in a diff a reviewer reads, instead of
+being absorbed by a rule that recomputes the answer from the catalog it is checking. Now fails
+on a GAINED and on a LOST `WITH CHECK` alike. Renamed to _"exactly the policies expected to
+declare no WITH CHECK declare none"_.
+
+### RED 1 — planted literal, real non-zero exit
+
+Planted `EXPECTED_NO_WITH_CHECK = ["PostMedia"]`, ran the INT file. Verbatim:
+
+```text
+✖ exactly the policies expected to declare no WITH CHECK declare none (4.365965ms)
+  AssertionError [ERR_ASSERTION]: the set of tenant_isolation policies declaring no WITH CHECK
+  moved. expected [PostMedia], catalog holds []. A policy that LOST its WITH CHECK leaves row
+  mutation ungated; one that GAINED it tightens writes another layer was gating. Either way the
+  change is deliberate or it is a defect — update this literal only for the former.
+  + actual - expected
+  + []
+  - [ 'PostMedia' ]
+ℹ tests 25   ℹ pass 24   ℹ fail 1   ℹ cancelled 0   ℹ skipped 0
+=== EXIT: 1 ===
+```
+
+Restored and verified **byte-exact** (`sha256sum -c` →
+`ca3c55ca51ca331f081cbc2a25f122ce3efc4713ba767fa073ccb6ef799c44b9  OK`).
+
+### RED 2 — transaction-scoped CATALOG change, and the comparison that matters
+
+A planted literal proves the assertion reads its literal. It does not prove it reads the
+CATALOG. So a throwaway probe (planted under `apps/api/tests/integration/`, run, deleted —
+tree confirmed clean afterwards) made a real policy lose its `WITH CHECK` inside a transaction
+and rolled back, per this suite's own `SET LOCAL` / rollback pattern. It ran **both** forms
+against the same planted state. Verbatim:
+
+```text
+BEFORE PostMedia with_check is null? false
+BEFORE Project qual hoisted count: 0
+(a) OLD tautological form: PASSED on a lost WITH CHECK  <- the defect
+(a) RED: Expected values to be strictly deep-equal:
+(a) catalog holds: ["PostMedia"]
+(b) qual-only predicate flags it?  false   <- the blind spot
+(b) widened predicate flags it?   true   <- the widening
+RESTORE PostMedia 5-tuple identical? true
+RESTORE Project 5-tuple identical? true
+```
+
+**Line 3 is the finding.** On a real `WITH CHECK` disappearing from a live trio policy — the
+exact state that leaves row mutation ungated while every read-path assertion in the file stays
+green — the form Batch 4 shipped PASSED and the corrective form FAILED. Measured, not argued.
+
+## F1b — the non-blocking widening (blast radius)
+
+_"no policy outside the trio was rewritten by this migration"_ read only `r.qual`, while the
+migration's own header says **BOTH CLAUSES MOVE**. A sweep that reached an out-of-scope policy's
+`WITH CHECK` only would have been invisible to it. Widened to
+`countOf(qual, HOISTED) > 0 || countOf(with_check, HOISTED) > 0`.
+
+Its red is line (b) of RED 2 above: with an out-of-trio policy (`Project`) rewritten in
+`WITH CHECK` only, the qual-only predicate returns **false** and the widened predicate returns
+**true**. Both 5-tuples identical after rollback.
+
+## F2 — the self-contradicting report section
+
+`docs/reports/TENANT_RLS_AB_MEASUREMENT.md` §_Reading the form decision run_ claimed to read
+"the generated block above" while reading **PR-1b's** superseded numbers. Both were true when
+written and the c1 re-run regenerated the block underneath them, so the prose and the table it
+cited disagreed: the prose said `S3` was out of band and `S2` in-band-and-sign-stable; the block
+says `S3` 13.0 µs / 0.71 % **in** band, `S2` 7.0 µs / 13.21 % **out**, `Q4` 20.0 µs / 1.18 %
+**out**, all three sign-unstable.
+
+Repaired with the file's own established pattern (§_The retired four-arm results_) — date it,
+scope it, keep it, do not retract it:
+
+| Change                                                                    | Effect                                                                                                                         |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Section lead now maps **two runs**, each with its capture timestamp       | PR-1b `2026-09-10T01:58:27.936Z` (bare `A′`) vs c1 re-run `2026-09-10T03:03:11.307Z` (committed wrapped `A′`)                  |
+| NEW §_The current reading — the c1 re-run_                                | Written FROM the generated table: verdict unchanged (`W` by tiebreak), the three probes with their real band/sign/adjudication |
+| §_The verdict…_ → §_The PR-1b verdict, and the adjudications it owed_     | Opens by naming the capture it reads and that it is superseded; tense moved to past                                            |
+| §_The wrapped form moves two plans_ → _…in the PR-1b capture_             | A bare-vs-wrapped plan move is only observable while one arm is bare, which the block above no longer has                      |
+| Stale cross-reference "both ranges are printed in §S2 of the block above" | Now says they are from that capture's §S2 and that the current block runs all three arms wrapped                               |
+| `Q4` "+2 µs / 0.12 %, inside the band"                                    | Kept as the PR-1b reading, with the c1 figure (20 µs / 1.18 %, outside) stated beside it                                       |
+| `Q6` plan-move paragraph                                                  | Attributed to "PR-1b's bare `A′`", plus what the c1 run shows (all three arms on the `Nested Loop` plan)                       |
+
+Also fixed the stale ratio line in §_The regressions, and the adjudication of each_: it called
+the BARE body "the shipped form", which the trio's shipped form no longer is, and said the
+rewrite "is a follow-up, not this unit" after it had shipped. Now marked **since SHIPPED for the
+trio**, naming the migration, the committed ratios, and that the remaining 58 policies are still
+bare. The section's historical framing is preserved rather than rewritten.
+
+**A finding worth keeping, surfaced by writing the current reading:** the out-of-band probes
+SWAPPED identity between the two captures — PR-1b's was `S3`, c1's are `S2` and `Q4`, and
+PR-1b's one sign-STABLE probe is sign-unstable in c1. Two captures of the same two forms 65
+minutes apart. A rule attributing the verdict to whichever probe fell out of band would have
+named a different winner each time; the pre-declared out-of-band **AND** sign-stable conjunction
+is what makes both runs agree.
+
+## F3 — the headline evidence into the artifact
+
+New §_The superseded pre-migration capture — what the committed rewrite actually moved_,
+hand-written and OUTSIDE the generated block so a regeneration cannot erase it. It records what
+was previously legible only by diffing two generated blocks across a commit:
+
+| Capture                       | `A′` InitPlan count | `A′` `S3` plan nodes                        |
+| ----------------------------- | ------------------- | ------------------------------------------- |
+| PR-1b — bare body             | **0**               | `Limit → Sort → Seq Scan`                   |
+| c1 re-run — committed wrapped | **2**               | `Limit → Result → Result → Sort → Seq Scan` |
+
+| Probe | scan-node bare | scan-node committed | Ratio     | statement bare | statement committed | Ratio |
+| ----- | -------------- | ------------------- | --------- | -------------- | ------------------- | ----- |
+| `S3`  | 4.163 ms       | **1.834 ms**        | **2.27×** | 5.438 ms       | 3.017 ms            | 1.80× |
+| `Q3`  | 4.209 ms       | **1.876 ms**        | **2.24×** | 6.656 ms       | 4.283 ms            | 1.55× |
+| `Q4`  | 3.808 ms       | **1.707 ms**        | **2.23×** | 5.110 ms       | 2.974 ms            | 1.72× |
+
+**Every figure verified from the artifact, not retyped from the brief**: the bare column and the
+`InitPlan 0` from `git show HEAD:docs/reports/TENANT_RLS_AB_MEASUREMENT.md`, the committed column
+from the working-tree generated block, both cross-checked against Batch 4's own headline table.
+
+The statement ratios are carried deliberately: they spread 1.80× / 1.55× / 1.72× where the scan
+nodes agree to within 0.04×, which is the "not interchangeable" warning made concrete instead of
+asserted. Two caveats are stated in the section — the comparison is `A′`-to-`A′` across captures
+(like with like, not control-vs-candidate), and PR-1b's `W` reads 1.804 ms against c1's `A′`
+1.834 ms on `S3`, i.e. 30 µs of run-to-run drift on a body that did not change.
+
+## F4 — PREPARED, NOT APPLIED
+
+`infra/prisma/**` is token-gated and the token is expired, so **nothing under it was touched**.
+The migration on disk is byte-identical to what c1 authored.
+
+Prepared at
+`/tmp/claude-0/-root-omni-post/0c4404f3-535e-4fdd-84ff-6c4c1dcf6a70/scratchpad/c1-f4-migration-header.md`:
+the exact current bytes of `migration.sql:12-25`, the exact replacement (citation repointed to
+§_The superseded pre-migration capture…_ by its real title; figures restated 4.163→1.834 etc. at
+2.27× / 2.24× / 2.23×; the `InitPlan 0 → 2` corroboration added), plus **Hunk B** for lines 27-30
+— which Hunk A forces, because it deletes the `2.26x` that line 27 back-references as "the 2.26x
+above" — an optional Hunk C for `down.sql`, and the apply runbook.
+
+**Why the runbook is not just an edit.** The migration is APPLIED (`prisma migrate status` → 81
+migrations, up to date). Prisma checksums applied migrations and a comment-only change moves the
+checksum, so the sequence is: token → edit → `psql $MIGRATE_DATABASE_URL -f down.sql` → delete
+the `_prisma_migrations` row for `20260910000000_rls_initplan_post_trio` (expect `DELETE 1`) →
+`pnpm db:up && pnpm db:migrate` re-applies with a fresh checksum → re-verify the catalog 5-tuple
+→ re-run the INT file. The runbook also names the abort path: if the revert/delete cannot be run,
+do NOT edit the migration — a modified applied migration fails CI on every subsequent run, and
+the report already holds the correct regeneration-proof section, so only the pointer is lost.
+
+**c1-commit-deferred-pending-F4.** The commit should carry the migration header and the report in
+one change; committing now would ship a citation pointing at a section that no longer holds its
+numbers.
+
+## Gate results for this pass
+
+| Check                                    | Result                                                                      |
+| ---------------------------------------- | --------------------------------------------------------------------------- |
+| INT `rls-tenant-isolation` (green)       | **25 pass / 0 fail / 0 cancelled / 0 skipped**, exit 0                      |
+| INT with F1 planted (red)                | 24 pass / **1 fail**, **exit 1** — real failure, verbatim above             |
+| Catalog-side red (F1) + widening red     | Both demonstrated in-transaction; 5-tuples identical after rollback         |
+| `eslint --max-warnings 0` (touched file) | exit 0                                                                      |
+| prettier                                 | clean on both touched files                                                 |
+| fitness #32 (`.only` / `.skip`)          | 0 on the touched test file                                                  |
+| fitness #8 (sprint/phase refs)           | 0 on the touched test file                                                  |
+| Generated block integrity                | untouched — prettier proven a **no-op** on the committed report (see below) |
+| `infra/prisma/**`                        | **not touched** — F4 prepared only                                          |
+| git                                      | **not run** — orchestrator-owned                                            |
+
+**The generated-block check is not a claim, it is a measurement.** `git diff` shows hunks inside
+the `generated:policy-ab` markers, which would be alarming if they were mine — they are the c1
+regeneration that was already uncommitted in the working tree. Proven two ways: two generated
+lines re-read byte-identical to their pre-edit values, and a copy of the COMMITTED report run
+through prettier at the same path came back `(unchanged)` with a clean `diff`. A first attempt at
+that second proof was **false** — `pnpm exec` failed outside the workspace, prettier never ran,
+and the `diff` passed trivially on an unmodified copy. It is recorded because a proof that passes
+without executing is exactly the failure mode this gate exists to catch.
+
+## Files changed in this pass
+
+| File                                                        | Action   | What                                                                       |
+| ----------------------------------------------------------- | -------- | -------------------------------------------------------------------------- |
+| `apps/api/tests/integration/rls-tenant-isolation.test.ts`   | Modified | F1 assertion rewritten; F1b blast-radius predicate widened to both clauses |
+| `docs/reports/TENANT_RLS_AB_MEASUREMENT.md`                 | Modified | F2 rescoping + F3 new superseded-capture section + stale ratio line fixed  |
+| `openspec/changes/tenant-rls-cost-repair/apply-progress.md` | Modified | This section                                                               |
+
+Rollback boundary: the two content files revert independently of each other and of Batch 4's
+migration, which this pass did not touch.
+
+---
+
+# Batch 5 — PR-2 commit c2, first half: the `listGlobal` reshape and its mirrors (tasks 5.1–5.6)
+
+**Assigned slice: Phase 5 only.** The index-winner migration, the schema edit and the
+`audit.yml` adjudication are token-gated and orchestrator-scheduled, and none of them was
+touched. Nothing under `infra/prisma/**`, `.github/**` or any `.env*` was opened.
+
+Native attempt authority acquired before any read: `sdd-attempt acquire … --request-id
+pr2c2a-acq-001` → `state: proceed`. The two migration paths in that invocation are ledger
+arguments; the files were not opened.
+
+## What landed
+
+`listGlobal` filters the tenant on `Post`'s own column and keeps project liveness relational:
+
+```text
+old  WHERE deletedAt IS NULL AND project: { accountId, deletedAt: null }
+new  WHERE accountId = <server-derived> AND deletedAt IS NULL AND project: { deletedAt: null }
+```
+
+Port signature unchanged, account value still server-derived, no caller-supplied scope
+selector introduced. Everything below rides in the SAME commit, which is the phase's own
+constraint: a mirror updated one commit later than the query it mirrors is a mirror that was
+briefly lying, and nothing in the harness could have said so.
+
+## TDD evidence — the red is a missing predicate, not a thrown evaluator
+
+| Task | RED                                                                                           | GREEN                        | REFACTOR                                                         |
+| ---- | --------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------- |
+| 5.1  | `1 failed / 38 passed` — `AssertionError: expected undefined to be 'd0000000-…-000000000001'` | n/a (this task IS the red)   | second fidelity pin added for the tenant half                    |
+| 5.2  | inherits 5.1's red                                                                            | `39 passed / 39`, exit 0     | docblock states the FK reason rather than the fact alone         |
+| 5.3  | mirror plant → `Q3 FIDELITY MISMATCH`, exit 1 (see below)                                     | `13/13 ok`, exit 0           | catalog docblock reclassified into SCHEMA-MOVED / EMISSION-MOVED |
+| 5.4  | n/a — docblock tidies carry no behaviour                                                      | `39 passed / 39`             | applied before 5.3's ref refresh so the refs commit true         |
+| 5.5  | n/a — the confirming run                                                                      | `39 passed / 39 / 0 skipped` | —                                                                |
+| 5.6  | old-mirror plant proves the blindness; `deletedAt` plant proves the check can fail            | all three legs green         | corpus discrimination planted so the equality can fail           |
+
+**Why 5.1 needed to be its own task, confirmed in practice.** `applyWhere` throws on any key
+it does not model. Without the `accountId` branch the suite would have ERRORED on the first
+call after the reshape, and an error is not a red — it says the mock is behind, not that the
+code is wrong. The observed failure is `expected undefined to be '<account id>'`: the
+predicate is absent from the emitted `where`. That is the reshape's contract failing, which
+is the only red worth having.
+
+## Finding 1 — the mirror blindness this phase warns about is REAL, and now measured
+
+`tasks.md` calls this "the highest mechanical risk in this change": fidelity validates the
+QUERY, not the REFERENCE, so a stale mirror returns the same rows and passes. It was asserted
+by the design and is now a measurement:
+
+| Plant on `Q3`'s mirror                         | Verdict                      | Exit  | Report written |
+| ---------------------------------------------- | ---------------------------- | ----- | -------------- |
+| reverted to the OLD relation-tenant SQL        | `Q3 ok` — **caught nothing** | **0** | yes            |
+| `p."deletedAt" IS NULL` removed (row-CHANGING) | `Q3 FIDELITY MISMATCH`       | **1** | **nothing**    |
+
+The second row is what stops the first from being an indictment: the check is not vacuous, it
+is specifically blind to row-preserving substitution — which is exactly what a reshape is.
+File restored byte-exact after both plants (`sha256 7eb9f2cd…c6bbeec0`, identical to the
+pre-plant checksum) and re-ran 13/13 green.
+
+**What this buys the reshape**: leg (b) alone would have been worthless as row-equivalence
+evidence, because it compares a case's SQL mirror against that case's own PRISMA mirror —
+two hand-written objects — not against the repository. Leg (a) is what binds the repository
+to the Prisma mirror (the two `where` objects are the same literal). Only the pair spans
+repository → Prisma mirror → SQL mirror, and the report now says so instead of letting
+"13/13" read as more than it is.
+
+## Finding 2 — the corpus could not discriminate the liveness half, and the tenant half is invisible from where a tenant sits
+
+The cross-shape probe returned old = new = 9500, digests equal, `EXCEPT` 0 both ways, under
+bound tenant AND `__system__`. It also reported **`soft_deleted_projects = 0`** — the seeded
+corpus has none, so that equality could not tell "liveness preserved" from "liveness dropped".
+Planting one inside a rolled-back transaction, and asking each half whether the probe can
+fail at all:
+
+| Variant (one project soft-deleted) | Rows under `tif-ab-a` | Reads                                    |
+| ---------------------------------- | --------------------- | ---------------------------------------- |
+| old shape                          | 9400                  | baseline                                 |
+| new shape                          | 9400                  | agrees over a corpus that could disagree |
+| new shape, liveness half dropped   | **9500**              | +100 — the probe CAN see it              |
+| new shape, tenant half dropped     | 9400                  | **invisible** — RLS already filters it   |
+
+That last row is a limit, not a defect, and it is the same blindness class task 2.5 closed
+for the trio: under a bound tenant the query's own tenant predicate is redundant with the
+policy. Asked again under `__system__`, the tenant-dropped variant returns **19000 against
+9500** — 9500 foreign rows a dropped predicate would leak. So the tenant half IS
+discriminable, just not from inside a tenant. Both plants rolled back; project re-read live.
+
+The UNSET-GUC state is recorded and explicitly NOT counted: `0 = 0` holds no matter what
+either query says, which is the harness's own `nonEmpty` rule applied by hand.
+
+## Finding 3 — the composite FK was asked directly, with a control
+
+The reshape's whole justification is that a `Post` whose `accountId` disagrees with its
+`Project`'s cannot exist. Rather than cite `schema.prisma:706`:
+
+| Insert into `Post`                                                 | Outcome                           |
+| ------------------------------------------------------------------ | --------------------------------- |
+| `projectId = tif-ab-a-proj-0001`, `accountId = tif-ab-a` (control) | **ACCEPTED**                      |
+| `projectId = tif-ab-a-proj-0001`, `accountId = tif-ab-b`           | **`23503 foreign_key_violation`** |
+
+The control is the half that makes it evidence: without it a rejection could be a malformed
+statement rather than the constraint refusing. Both rows rolled back; zero probe rows left.
+
+## Finding 4 — the catalog docblock was stale in the same way the mirrors would have been
+
+`scripts/rls-ab-measurement.ts`'s `CASES` header asserted "`Q3`, `Q4`, `Q6`, `Q7` and every
+child read are textually identical across the two phases". This task falsifies it for `Q3`
+and `Q4`, and nothing in the harness reads that sentence, so it would have sat there as a
+false claim about the very cases the phase moves. It now names two classes, because the
+attribution genuinely differs: **SCHEMA-MOVED** (`Q1`/`Q2`/`Q5`/`Q8` — emission moved because
+`Post` gained the column, so their §Before→§After delta mixes schema and query) and
+**EMISSION-MOVED** (`Q3`/`Q4` — the column already existed when §After was captured, so their
+delta against §After is attributable to the QUERY alone, the cleanest in the catalog).
+
+The report's own §"Two things changed, not one" table was **left alone**: it is a true reading
+of the capture it sits under, and rewriting it would falsify a historical reading. A dated,
+scoped paragraph beneath it records that the table stopped describing the current mirrors on
+2026-09-10 and why a future re-capture inherits a different attribution.
+
+## Files written
+
+| File                                                                    | Action   | What                                                                                   |
+| ----------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------- |
+| `apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts` | Modified | the reshape + both docblock tidies (`getById`, `listGlobal`)                           |
+| `apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts`  | Modified | local `accountId` on fixtures, foreign one on a3, evaluator branch, 2 new tests        |
+| `scripts/rls-ab-measurement.ts`                                         | Modified | `Q3`/`Q4` mirrors (both halves) + `why` lines, catalog docblock, 6 `sourceSite` refs   |
+| `docs/reports/TENANT_RLS_AB_MEASUREMENT.md`                             | Modified | new hand-written row-equivalence section + the scoped note under the attribution table |
+| `openspec/changes/tenant-rls-cost-repair/tasks.md`                      | Modified | 5.1–5.6 marked `[x]` with evidence                                                     |
+| `openspec/changes/tenant-rls-cost-repair/apply-progress.md`             | Modified | this section                                                                           |
+
+**No file was created and none was deleted**, so the attempt ledger's untracked inventory is
+unchanged.
+
+Rollback boundary: the reshape is a single-file revert; the mirrors + `sourceSite` refresh is
+a second single-file revert; the two report edits are hand-written sections that lift out
+without touching any generated block. None of the three depends on the others to compile, but
+reverting the reshape WITHOUT the mirrors would leave the harness measuring a query the
+application no longer issues — so they revert together or not at all, which is why they are
+one commit.
+
+## Work Unit Evidence
+
+| Evidence             | Value                                                                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command | `VITEST tests/unit/infrastructure/PrismaPostQueryRepository.test.ts` → **39 passed / 39**, exit 0                                                   |
+| Runtime harness      | `--phase after --runs 3 --out <scratch>` → **13/13 `ok`**, exit 0; plus the psql cross-shape probe in one bound transaction across three GUC states |
+| Rollback boundary    | the three reverts above; database left as found (`--cleanup` → 0/0/0/0/0, control 354)                                                              |
+
+## Gate results for this batch
+
+| Check                                       | Result                                                                         |
+| ------------------------------------------- | ------------------------------------------------------------------------------ |
+| VITEST (the assigned unit file)             | **39 pass / 0 fail / 0 skipped**, exit 0                                       |
+| Harness fidelity                            | **13/13**, exit 0 — and its red demonstrated, then restored byte-exact         |
+| Workspace `tsc` (`apps/api`)                | exit 0 (`tsc --noEmit` + `tsconfig.type-tests.json`)                           |
+| Standalone script typecheck (SMELL-91)      | **exit 0**                                                                     |
+| `eslint --max-warnings 0` (3 touched files) | exit 0 (needed `--max-old-space-size=6144`; the default heap OOMs in this LXC) |
+| prettier                                    | clean — 3 source files `(unchanged)`, report reformatted then re-verified      |
+| Generated-block integrity                   | all four blocks **byte-identical** after prettier, by per-block `sha256`       |
+| fitness #3 / #5 / #8 / #9 / #10 / #23 / #32 | **0 / 0 / 0 / 0 / 0 / 0 / 0**                                                  |
+| fitness #38                                 | swept tree **0**; db-prisma ratchet **11**, at baseline — did not rise         |
+| Database                                    | corpus removed; namespace counts 0 across all five tables                      |
+| `infra/prisma/**`, `.github/**`, `.env*`    | **not touched**                                                                |
+| git                                         | **not run** — orchestrator-owned                                               |
+
+## Deviations, stated
+
+1. **5.4 applied before 5.3's `sourceSite` refresh, although numbered after it.** The
+   docblocks shift the very line numbers 5.3 records; the file order would have committed
+   refs that were stale on arrival. Same commit, so no ordering constraint in `tasks.md`
+   §Ordering constraints is affected.
+2. **Leg (b) run with `--out` at a scratch path.** A correctness check must not overwrite the
+   committed `§policy-ab` capture that the trio's provenance rests on, and the authoritative
+   `--phase after` re-capture belongs to the index-winner link, against the COMMITTED index.
+   Running it into the report here would have destroyed one capture to prove something the
+   scratch run proves identically.
+3. **Two probes the tasks did not ask for.** The corpus-discrimination plant and the FK
+   control/violation pair. Both exist because the evidence the task DID ask for turned out to
+   be weaker than it reads — an equality over a corpus with no soft-deleted project, and a
+   fidelity check that is blind to exactly this kind of edit.
+
+## Residuals — named, not fixed
+
+- **`sourceSite` line refs are unchecked by anything.** All 16 were re-verified by reading the
+  target line, and 6 had to move because of two docblock edits in one file. No test, gate or
+  fitness function reads them, so the next docblock edit retargets them silently. Same class
+  as the stale mirror, one level weaker — the mirror at least has a check that fires on
+  row-changing edits. An anchor on the enclosing method name would be resilient where a line
+  number is not. Recorded in the report's own §Residual.
+- **SMELL-91** — unchanged: `scripts/` is outside every tsconfig project and every collector,
+  so the standalone invocation recorded in Batch 1 §Commands remains its only typecheck.
+- **`eslint` OOMs at the default heap in this LXC** on any invocation that loads the boundaries
+  plugin. Worked around per-invocation with `--max-old-space-size=6144`; not investigated,
+  because it is an environment property rather than anything this change introduced.
+
+## Review budget
+
+Authored lines this batch (estimate — the exact count needs `git`, which writers do not run):
+~23 in the repository, ~63 in the unit test, ~77 in the harness, ~150 of hand-written report
+prose = **~310**. Added to c1's authored content, **PR-2 as a whole is likely to exceed the
+400-line budget**, which is the condition `tasks.md` §Review Workload Forecast pre-authorised
+a split for, at exactly the c1/c2 commit boundary. The orchestrator owns that call; this batch
+is the natural PR-2b if it is taken.
+
+## Not done in this batch (by instruction)
+
+- Phase 6 in full — the index-winner migration, the `schema.prisma` edit, SQUAWK adjudication,
+  the `audit.yml` ADJUDICATION 4 and stale-file loop repair, the authoritative `--phase after`
+  capture, and the index `down.sql` scratch-database proof.
+- Phase 7's PR-2 gate.
+- Any git operation, any RDD lifecycle step.
+
+## Next
+
+Phase 6 (token-gated, orchestrator-scheduled). Its `--phase after` run is the authoritative
+capture that supersedes the scratch fidelity run recorded here, and the report's new section
+states plainly that it makes no timing claim, so nothing in it needs retracting when that
+capture lands.
+
+---
+
+# Batch 6 — PR-2 commit c2, second half: the index winner (tasks 6.1–6.8)
+
+**Split of duties, stated first because this batch had two hands on it.** Tasks 6.1–6.6 are
+token-gated writes under `infra/prisma/**` and `.github/**` plus the database work that follows
+them; the **orchestrator** executed those inside the `sensitive-edit` window and the post-window
+sequence, from artifacts prepared the night before. This pass performed the CLOSING work the
+runbook's steps 10–11 assign — the superseded-prose reconciliation in the report, the task
+ledger, and this record — and **verified every claim it writes by reading the committed
+artifact**, not by transcribing a summary: the migration's statement order, the recomputed
+digest, the `audit.yml` wiring, the `schema.prisma` docblock, and the regenerated capture's own
+plan trees. Runtime results (psql, squawk, `migrate deploy`, the harness) are recorded from that
+run and attributed to it. Nothing under `infra/prisma/**`, `.github/**` or any `.env*` was
+opened for writing in this pass.
+
+## The window — 70 seconds of edits, and the budget it was measured against
+
+The runbook's design goal was that the token window contain EDITS ONLY, with every database,
+harness, test and gate step outside it. Measured from the file mtimes, the window's six writes
+span **13:27:19 → 13:28:29 — 70 seconds** against a ~4 minute budget and a 15 minute TTL:
+
+| Time     | Write                                                      | Runbook step |
+| -------- | ---------------------------------------------------------- | ------------ |
+| 13:27:19 | c1 `migration.sql` — header citation repoint, hunks A + B  | 0.1 / 0.2    |
+| 13:27:22 | c1 `down.sql` — hunk C, the `2.26x` → `2.23-2.27x` restate | 0.3          |
+| 13:27:44 | new `migration.sql` + `down.sql`                           | 1.1 / 1.2    |
+| 13:28:03 | `schema.prisma` — `@@index` + the 31-line docblock         | 2.1          |
+| 13:28:29 | `audit.yml` — ADJUDICATION 4, the two arms, the loop       | 4.1–4.4      |
+
+Nothing was composed inside the window; every edit was copied from the prepared directory. The
+ordering constraint that most easily rots is **visible in those timestamps rather than asserted**:
+the digest pin was taken after the migration was final (`audit.yml` at 13:28:29, migration at
+13:27:44) and the migration has not been touched since — its recomputed digest still equals the
+pinned `e7789b99…c42`, so no edit slipped in behind the pin. That is the failure the pin exists
+to catch, and it fails hours later in CI when it happens.
+
+## What landed
+
+The as-shipped account-led read index on `Post` is REPLACED, not supplemented:
+
+```text
+old  ("accountId", "projectId")                partial WHERE "deletedAt" IS NULL
+new  ("accountId", "projectId", "createdAt")   partial WHERE "deletedAt" IS NULL
+```
+
+Migration `20260910000100_post_feed_index_winner`, its `down.sql`, the matching
+`schema.prisma` `@@index` and its rewritten docblock, and the `audit.yml` ADJUDICATION 4 all
+ride in ONE commit — the constraint `tasks.md` names twice, for two different reasons: schema
+and migration apart drift `migrate diff --from-migrations`, and a migration committed without
+its adjudication is a red required check whose only recovery is another commit.
+
+The F4 citation repoint rode along in the same window, and the coupling is real rather than
+convenience: `migrate deploy` verifies the checksum of every applied migration, so editing c1
+without first deleting its ledger row makes the run fail on that checksum **before it ever
+reaches the index migration**. A skipped precondition there does not just break F4, it blocks
+task 6.6 outright. The edit itself is confined to comment lines by construction — hunks A and B
+sit in the header block, hunk C in `down.sql`'s — and the proof that the policy bodies are
+untouched is not the diff but the **catalog**: 6.6 read the trio 5-tuple back from
+`pg_policies` and found the wrapped form on both clauses of all three tables. `down.sql` now
+restates the ratio as `2.23-2.27x`, replacing the single `2.26x` figure hunk A removed;
+Prisma never checksums `down.sql`, so that half costs nothing.
+
+## Work Unit Evidence
+
+| Evidence             | Value                                                                                                                                                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command | `INT tests/integration/rls-tenant-isolation.test.ts` → **25 pass / 0 fail / 0 cancelled / 0 skipped**, policy↔guard parity **61**                                                                                               |
+| Runtime harness      | `--phase after --runs 3` → **13/13** row-equivalent, exit 0, block rewritten; plus the `pg_indexes` / `pg_policies` catalog read-backs and the Step 9 scratch-database rollback replay                                          |
+| Rollback boundary    | the migration directory reverts as a unit with its `schema.prisma` hunk and its `audit.yml` adjudication; `down.sql` is proven to restore the as-shipped index (below); the report and `openspec/` edits lift out independently |
+
+## The Squawk red, the green, and the control that stops it reading as a blanket
+
+Task 6.3 predicted two rules and the repo canon requires a NEW gate entry to ship with its red
+demonstrated. Both were done on the pinned artifact — v2.49.0 installed exactly as
+`audit.yml` installs it, `sha256sum -c` verified against the workflow's own digest, so the local
+run enforces what CI enforces rather than something adjacent:
+
+| Run                                        | Command shape                           | Result                                                                                                                                       |
+| ------------------------------------------ | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **7a — RED**, new migration, unadjudicated | `squawk --config .squawk.toml -- <new>` | **exit 1**, exactly two findings: `require-concurrent-index-deletion` ×1 (the `DROP`), `require-concurrent-index-creation` ×1 (the `CREATE`) |
+| **7b — GREEN**, with the adjudication      | same + the workflow's `--exclude` list  | **exit 0**, `Found 0 issues in 1 file`                                                                                                       |
+| **7c — CONTROL**, F4-edited c1, no waiver  | `squawk --config .squawk.toml -- <c1>`  | **exit 0**, `Found 0 issues in 1 file` — unchanged from task 4.3                                                                             |
+
+7a proves the rules really fire. 7b proves the adjudication silences exactly those two. **7c is
+the one that keeps the pair honest**: c1 carries no adjudication at all, so if the exclude list
+were somehow global, or if the comment-only F4 edit had disturbed something, that run would say
+so. A comment-only edit not moving a linter is the kind of thing that is assumed rather than
+confirmed, and this batch confirmed it.
+
+The abort path was pre-declared and did not have to be taken: had 7a reported a THIRD rule, it
+would not have been added to the exclude list — silently widening it is precisely the defect
+ADJUDICATION 2's digest pin exists to prevent.
+
+## Step 9 — the index rollback, three readings on a scratch database
+
+Run on `omnipost_index_downtest`, created and dropped by the run, with a full `migrate deploy`
+replay so the rollback is proven against a real migration history rather than a hand-built
+table — Batch 4.8's precedent, kept for the same reason. The three readings are recorded as
+three SEPARATE claims because a single "it round-trips" would hide the one that carries the
+proof:
+
+| Claim                                                                                          | Reading                                                                                                                                                                                                            | Verdict |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
+| 1. AFTER DOWN restores the as-shipped definition, compared as an `(indexname, indexdef)` TUPLE | `Post_accountId_projectId_idx :: CREATE INDEX "Post_accountId_projectId_idx" ON public."Post" USING btree ("accountId", "projectId") WHERE ("deletedAt" IS NULL)` — byte-identical to the pre-migration definition | **YES** |
+| 2. FORWARD and RE-APPLIED FORWARD are identical to each other and both differ from AFTER DOWN  | the 3-column partial in both forwards; the 2-column partial after down                                                                                                                                             | **YES** |
+| 3. `Post_accountId_projectId_createdAt_idx` absent after down, present in both forwards        | absent / present / present                                                                                                                                                                                         | **YES** |
+
+Claim 2 is what makes the rollback more than a name check: it says the down is not a no-op in
+either direction. Claim 1's TUPLE comparison is the distinction task 3.5 red-proved — an index
+re-created under the same name with a different key satisfies a name-only proof and fails this
+one.
+
+## The authoritative capture, judged against its own acceptance table
+
+The runbook wrote task 6.7's acceptance criteria **so they could fail**, and stated in advance
+that a capture disagreeing with the shortlist would be reported as the finding rather than
+smoothed or re-run. It did not disagree. Recorded as the outcome of a test that had a real
+negative branch:
+
+| Claim to settle                                        | Pass condition                                                      | Read                                                                                                                          |
+| ------------------------------------------------------ | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `Q1`/`Q5` displacement repaired on the COMMITTED index | **no `Sort` node**, `Limit → Index Scan` on the new key             | **PASS** — `Limit → Result → Result → Index Scan` Backward, `Actual Rows: 20` at the scan; scan-node **0.021** / **0.017 ms** |
+| `Q2` still `Index Scan`, **not** `Bitmap Heap Scan`    | the `IX2`/`IX3` failure mode must not arrive on the winner          | **PASS** — `Aggregate → Result → Result → Index Scan`, scan-node **0.035 ms**                                                 |
+| every out-of-band case adjudicated                     | each named with its cause                                           | **PASS** — `Q1`, `Q5`, `Q4` moved; `Q3` deliberately did not; all four named in the report                                    |
+| the single-corpus caveat travels with the decision     | present verbatim wherever the decision is recorded                  | **PASS** — in the new report section AND in the `schema.prisma` docblock                                                      |
+| row-equivalence                                        | harness exit 0 IS the 13/13 claim (the digest gate is a hard throw) | **PASS** — exit 0, block rewritten, `--cleanup` left the control at 354                                                       |
+
+**The predictive check that mattered most.** The shortlist arm put `Q1` and `Q5` at 0.019 /
+0.019 ms on the scan node; the committed object reads **0.021 / 0.017** — ±2 µs, inside the ≤ 6
+µs band that run declared before it ran. An in-transaction arm and a committed index agreeing
+to within their own noise band is the strongest available statement that the shortlist filter
+was predictive, and it is a bounded one: the structural claim (the absent `Sort`) is what is
+proven outright, the magnitudes agree only to within the band.
+
+**Three things the capture showed that nobody asked it for**, each recorded in the report:
+
+1. **`Q4` changed shape.** It is now `Nested Loop → Seq Scan (Project) → Index Only Scan (Post)`
+   on the new key, `Heap Fetches: 0`, `Rows Removed by Filter: 0` — the tenant restriction
+   reaches the `Index Cond`, so the policy filter discards nothing where the superseded capture
+   had it discarding 9 500 of 19 000 entries. Attribution stated rather than claimed: three
+   changes separate the two readings, and the one thing provable is which made the plan
+   POSSIBLE — under the pre-reshape mirror all four arms ran `Q4` as a hash join over two
+   sequential scans, so no index shape could have produced this plan.
+2. **The hoisted policy is visible in the planner on every case.** All 13 plans carry
+   `InitPlan 1 (returns $0)` and `InitPlan 2 (returns $1)` — counted, 13 and 13 — and the trio's
+   scan filters read `$0` / `$1` instead of calling `current_setting()`.
+3. **So is the work still outstanding.** `Q3`'s and `Q4`'s `Project` scans still filter on the
+   BARE body, `current_setting()` evaluated per row, discarding 417 rows to keep 100. `Project`
+   is one of the 58 policies Phase 8 has yet to reach; this capture is a live citation for that
+   work rather than an argument for it.
+
+## The prose reconciliation, and why it is not optional
+
+A regeneration rewrites the generated block and leaves every hand-written reading of it
+standing. That is how the c1 report contradicted itself in Batch 4b, and Batch 6 inherited the
+same trap at a larger scale: §"Reading the after capture" is ~280 lines of prose reading a
+capture the block above no longer holds. Reconciled in this pass, all outside every generated
+marker:
+
+| Section                             | What it said                                                          | What it says now                                                                                                                                                                          |
+| ----------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| §"Reading the after capture", intro | "outside the generated block, so a re-run does not overwrite it"      | plus a dated scope note: surviving a regeneration is not the same as still describing one; the block was re-captured 2026-09-10T13:31:21Z and every median below is the superseded one    |
+| Verdict (c)                         | a displacement table for `Post_accountId_projectId_idx`               | marked the **pre-repair reading**, kept as the evidence the shape decision was made on, with a new sub-table giving the four displaced cases against the COMMITTED index, both statistics |
+| regressions row 2 (`listGlobal`)    | "Reshape the query … a follow-up"                                     | **SHIPPED, and it did NOT make `Q3` take an index** — the local predicate is in the plan's `Filter`; the binding constraint is the two-tenant corpus, not the query                       |
+| regressions row 3 (index shape)     | "two candidates the evidence supports are extending … or dropping it" | **CLOSED by measurement: the extension was taken**, with the four arms, the decision rule, DROP losing on evidence, and the committed re-measurement — the shape row 1 uses for the trio  |
+| regressions preamble                | "the first of the three has since landed"                             | all three have landed; each row closes in place, so the motivating and the settling measurement stay readable side by side                                                                |
+| new §"The committed index"          | —                                                                     | the dated headline section, outside every block, carrying the acceptance table, the ±2 µs agreement, `Q3`'s bound, `Q4`'s shape change, and four things the capture does not settle       |
+
+**One thing the reconciliation could not do, and it is a finding rather than an omission.** The
+superseded capture's own `Captured <timestamp>` line lived INSIDE the generated block, so the
+regeneration destroyed it. The report can no longer say when the reading in §"Reading the after
+capture" was taken; only §Before's `2026-09-08T04:48:46.572Z` survives, because that block was
+not regenerated. A hand-written reading that wants to stay datable has to copy the timestamp it
+was written from into its own prose. This one did not, the omission was invisible until the
+regeneration, and it is now stated in the report itself so the next reading does copy it.
+
+## Files written
+
+| File                                                        | Action   | What                                                                                                                             |
+| ----------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/reports/TENANT_RLS_AB_MEASUREMENT.md`                 | Modified | scope note, Verdict (c) dated + repair sub-table, regressions rows 2/3 and preamble, the new hand-written §"The committed index" |
+| `openspec/changes/tenant-rls-cost-repair/tasks.md`          | Modified | 6.1–6.8 marked `[x]` with evidence; 7.1 left `[ ]` with its discharged arms recorded                                             |
+| `openspec/changes/tenant-rls-cost-repair/apply-progress.md` | Modified | this section                                                                                                                     |
+
+Written in the token window by the orchestrator, verified read-only here:
+`infra/prisma/migrations/20260910000100_post_feed_index_winner/{migration,down}.sql` (created),
+`infra/prisma/schema.prisma`, `.github/workflows/audit.yml`, and the F4 comment-only edits to
+`infra/prisma/migrations/20260910000000_rls_initplan_post_trio/{migration,down}.sql`.
+
+Rollback boundary for this pass: all three files are `.md` and every edit is hand-written prose
+outside every generated marker, so they lift out without touching a measurement.
+
+## Gate results for this batch
+
+| Check                                               | Result                                                                                       |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `prisma validate`                                   | valid                                                                                        |
+| `prisma migrate status`                             | **up to date, 82 migrations**                                                                |
+| `migrate diff --from-config-datasource --to-schema` | **exit 0** — and pre-verified as discriminating (exit 2 against a schema carrying the index) |
+| `migrate diff --from-migrations` (shadow database)  | **exit 0**                                                                                   |
+| `pg_indexes` on `Post`                              | **10 rows** — old index gone, new present with the expected `indexdef`, **nine untouched**   |
+| `pg_policies` trio 5-tuple                          | **wrapped on BOTH clauses ×3**, `PERMISSIVE / ALL / {public}` — c1 survived the F4 re-apply  |
+| SQUAWK                                              | **red exit 1 (2 rules) → green exit 0 with the adjudication → c1 control exit 0**            |
+| Digest pin                                          | recomputed and re-verified: `digest pin OK`                                                  |
+| INT suite file `rls-tenant-isolation.test.ts`       | **25 pass / 0 fail / 0 cancelled / 0 skipped**; parity **61**                                |
+| Harness `--phase after --runs 3`                    | **13/13**, exit 0                                                                            |
+| Index `down.sql` scratch replay                     | three readings, all three claims **YES**; scratch database dropped                           |
+| prettier                                            | `--write` on the report and both `openspec/` artifacts; clean                                |
+| Generated-block integrity                           | all **four** blocks byte-identical after prettier, by per-block `sha256`                     |
+| Database left as found                              | `--cleanup` ran, control **354** `Account` rows; `omnipost_index_downtest` dropped           |
+| git                                                 | **not run** — orchestrator-owned                                                             |
+
+`tsc`, `eslint --max-warnings 0` and the twelve fitness counts are Phase 7's, deliberately not
+run here; task 7.1 records which of its arms this batch already discharged.
+
+## Deviations, stated
+
+**None.** Checked rather than assumed, against the three ordering constraints `tasks.md` calls
+non-negotiable and against the runbook's step sequence:
+
+1. The c1 ledger row was deleted before any `db:migrate` that followed a c1 edit — confirmed by
+   `migrate deploy` applying two migrations in one run rather than failing on a checksum.
+2. Migration, `schema.prisma` and `audit.yml` are one commit — confirmed by both `migrate diff`
+   invocations at exit 0 and by all three files being in the same window.
+3. The digest was computed after the migration was final and before the pin — confirmed by
+   mtime ordering and by the recomputed digest still matching.
+
+The runbook's one optional step (Hunk C on c1's `down.sql`) was taken; it is comment-only and
+`down.sql` is never checksummed by Prisma, so it costs nothing and removes a stale figure.
+
+## Residuals — named, not fixed
+
+- **The arm-built-index inference is now PARTLY converted, and the honest statement is the
+  narrow one.** Batch 3 recorded that no plan took an index-only scan on an index an arm had
+  BUILT — all 60 clean `Heap Fetches: 0` observations were on pre-existing indexes. `Q4` in this
+  capture IS an `Index Only Scan` with `Heap Fetches: 0` on exactly the `IX1` SHAPE, so **the
+  shape is settled as index-only-usable on this corpus**. What is still open is the narrower
+  question the residual was about — whether an index built INSIDE an open transaction is
+  index-only-usable within that transaction — and this capture cannot close it **by
+  construction**, because it measures a committed index after a `VACUUM (ANALYZE)`. The residual
+  narrows from "unconverted" to "converted for the shape, open for the arm mode", and it binds
+  only a future `--index-ab` run.
+- **The account-wide feed is still undecided in both directions** (Batch 3 Finding 1), and this
+  phase makes it doubly relevant rather than closing it. The reshape moved `Q3`'s tenant
+  predicate local, so the query is no longer the obstacle — and `Q3` still sequentially scans,
+  because at **two tenants** `accountId` selects half the table. This corpus cannot tell you
+  whether an index would serve that feed on a realistic tenant distribution, and no link may
+  read `IX2`'s loss as a finding about `("accountId", "createdAt")`.
+- **`sourceSite` line refs are unchecked by anything** (Batch 5), unchanged. No test, gate or
+  fitness function reads them, so the next docblock edit retargets them silently. This phase
+  edited no harness source, so none moved.
+- **SMELL-91** — unchanged: `scripts/` is outside every tsconfig project and every collector,
+  so the standalone invocation recorded in Batch 1 §Commands remains its only typecheck.
+- **The 58 bare policies**, now with a live citation rather than an inventory count: `Project`'s
+  per-row `current_setting()` filter is visible in `Q3`'s and `Q4`'s plans in the committed
+  capture. Phase 8's subject, recorded here because the evidence arrived here.
+
+## Review budget and the commit shape
+
+Authored lines this pass are hand-written Markdown only (~230 in the report, ~90 across the two
+`openspec/` artifacts); the window's own writes are the migration pair, one `schema.prisma`
+hunk, four `audit.yml` hunks and the F4 comments. Exact counts need `git`, which writers do not
+run.
+
+**PR-2 commits as THREE commits — c1, c2a, c2b — and the reason is attributability, not size.**
+`policy-ab` is the capture that justifies the trio rewrite, and it was taken against the
+COMMITTED c1 body with the as-shipped index and the pre-reshape queries. Folding c1 into the
+same commit as the reshape or the index would leave that capture describing a state the history
+never held, and the migration header's citation would point at a measurement of something else.
+c2a (the reshape and its mirrors) and c2b (the index, its schema hunk and its adjudication) are
+separated for the constraint each carries internally: the mirrors must land with the query they
+mirror, and the schema must land with the migration. Three commits, one PR, each with a capture
+that names the state it measured.
+
+## Not done in this batch (by instruction)
+
+- Phase 7's gate in full — `tsc`, `eslint`, the twelve fitness counts, the BATCH invocation, and
+  repo-wide `prettier -c .`.
+- Any git operation: branch, commit, push, PR create or retarget.
+- Any RDD review lifecycle step.
+- Phase 8 (the 58-policy sweep) and Phase 9 (the form-uniformity gate). `20260910000200` is
+  deliberately left free for the sweep.
+
+## Next
+
+Phase 7's 0-defect gate, then the PR-2 delivery decision. Nothing in Phase 6 is waiting on
+anything: the migration is applied, the catalog is read back, the capture is authoritative and
+its superseded prose is reconciled in the same commit that superseded it.

@@ -28,6 +28,10 @@ function baseRow() {
   return {
     id: POST_ID,
     projectId: PROJECT_ID,
+    // Post carries its own tenant column; the composite foreign key
+    // (projectId, accountId) → Project makes it unable to disagree with the
+    // parent's. Fixtures model the column because the feed reads it directly.
+    accountId: ACCOUNT_ID,
     status: "DRAFT",
     scheduledAt: null as Date | null,
     publishedAt: null as Date | null,
@@ -525,8 +529,12 @@ describe("PrismaPostQueryRepository", () => {
 
     /**
      * Rows as Postgres holds them: every post is LIVE (deletedAt: null); what
-     * varies is the parent project's state. `project` carries the columns the
-     * relation filter consults.
+     * varies is the parent project's state. Each row carries BOTH the local
+     * `accountId` column and the `project` columns a relation filter consults,
+     * so the same corpus can be evaluated against either shape — which is what
+     * lets the exclusion tests below keep their meaning across the reshape.
+     * The foreign row's two halves agree, because the composite foreign key
+     * makes a post whose `accountId` differs from its project's unrepresentable.
      */
     function feedRows() {
       return [
@@ -544,6 +552,7 @@ describe("PrismaPostQueryRepository", () => {
         {
           ...baseRow(),
           id: "c0000000-0000-4000-8000-0000000000a3",
+          accountId: FOREIGN_ACCOUNT_ID,
           project: { accountId: FOREIGN_ACCOUNT_ID, deletedAt: null as Date | null },
         },
       ];
@@ -554,15 +563,20 @@ describe("PrismaPostQueryRepository", () => {
      * Evaluates the where-shapes listGlobal builds with Postgres relation-filter
      * semantics. Mock-fidelity rule: it THROWS on any key it does not model, so
      * a new predicate can never silently pass through this evaluator — and it
-     * applies ONLY the predicates actually present in the where, so the RED
-     * state (no project.deletedAt predicate) honestly returns the deleted
-     * project's post.
+     * applies ONLY the predicates actually present in the where, so a where
+     * missing a predicate honestly returns the rows that predicate would have
+     * excluded. It models the local `accountId` column and the relational
+     * `project.accountId` alike, deliberately: an evaluator that understood only
+     * the shape being adopted could not evaluate the shape being replaced, and
+     * the exclusion proofs below have to hold under both.
      */
     function applyWhere(rows: FeedRow[], where: Record<string, unknown>): FeedRow[] {
       return rows.filter((row) => {
         for (const [key, value] of Object.entries(where)) {
           if (key === "deletedAt") {
             if (row.deletedAt !== value) return false;
+          } else if (key === "accountId") {
+            if (row.accountId !== value) return false;
           } else if (key === "status") {
             if (row.status !== value) return false;
           } else if (key === "project") {
@@ -607,6 +621,39 @@ describe("PrismaPostQueryRepository", () => {
       });
       expect(visible.map((r) => r.projectId)).toContain(DELETED_PROJECT_ID);
       expect(visible.length).toBe(2);
+    });
+
+    it("evaluator fidelity: without an accountId predicate the foreign account's post IS returned", () => {
+      // The local-column counterpart of the pin above. Without it, the tenant
+      // exclusion below could be satisfied by an evaluator that never consults
+      // the column the reshaped query filters on, and the proof would be empty.
+      const visible = applyWhere(feedRows(), {
+        deletedAt: null,
+        project: { deletedAt: null },
+      });
+      expect(visible.map((r) => r.accountId)).toContain(FOREIGN_ACCOUNT_ID);
+      expect(visible.length).toBe(2);
+    });
+
+    it("filters the caller account on Post's own column, not through the project relation", async () => {
+      wireFilteringMock();
+
+      await repo.listGlobal(accountId);
+
+      const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as {
+        where: Record<string, unknown>;
+      };
+      const where = findManyArgs.where;
+
+      // The tenant predicate is local: the composite foreign key makes a Post
+      // whose accountId disagrees with its Project's unrepresentable, so
+      // reaching through the relation to re-assert it buys nothing and costs a
+      // join on the most frequently served account-wide read.
+      expect(where["accountId"]).toBe(ACCOUNT_ID);
+      // Project liveness stays relational and is the ONLY thing left in the
+      // relation predicate — soft delete does not cascade, so it is a real
+      // filter, not a duplicate of the tenant scope.
+      expect(where["project"]).toEqual({ deletedAt: null });
     });
 
     it("excludes a soft-deleted project's posts from the account-wide feed", async () => {
