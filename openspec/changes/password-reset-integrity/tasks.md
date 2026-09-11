@@ -219,7 +219,7 @@ double whose outcome claims live in the two new stateful suites. 38/38 unit test
 
 ## Phase 8: PR-1 gate
 
-- [ ] 8.1 **0-defect gate (PR-1)** — all of: **TSC** exit 0 · **LINT** `--max-warnings 0` exit 0 · `pnpm format:check` clean · fitness **#1 #2 #3 #4 #5 #8 #9 #10 #21 #23 #27A #31 #32 #38(swept) #40(A+B)** = 0, **#30** ratchet still 21 (unchanged, not raised), **#38** db-prisma ratchet still 11 · VITEST the three unit files green · DBUP + **BATCH** `integration:customer-auth` **and** `integration:tenant-isolation` green with **0 cancelled and 0 skipped** · database **left as found**, proven by an **out-of-band read** (a separate client, not the suite's own) confirming zero `customerUser` rows and zero reset tokens survive from the run.
+- [x] 8.1 **0-defect gate (PR-1)** — all of: **TSC** exit 0 · **LINT** `--max-warnings 0` exit 0 · `pnpm format:check` clean · fitness **#1 #2 #3 #4 #5 #8 #9 #10 #21 #23 #27A #31 #32 #38(swept) #40(A+B)** = 0, **#30** ratchet still 21 (unchanged, not raised), **#38** db-prisma ratchet still 11 · VITEST the three unit files green · DBUP + **BATCH** `integration:customer-auth` **and** `integration:tenant-isolation` green with **0 cancelled and 0 skipped** · database **left as found**, proven by an **out-of-band read** (a separate client, not the suite's own) confirming zero `customerUser` rows and zero reset tokens survive from the run. [**DONE, closed at chain end** — writer-collected and independently reproduced by the PR-1 fresh gate: batch 496/496 0c/0s, vitest 8,772→8,795, tsc/eslint/prettier 0, fitness set 0 with ratchets 21 and 11 unchanged, DB as found by out-of-band read; CODE 510 measured (343 non-JSDoc) vs 400 flagged in apply-progress for Edward\'s morning ruling; RDD 4R burned review-cf7272b7d8717ef4.]
 
 ---
 
@@ -300,33 +300,126 @@ preserved, only its subject changed.
 
 ## Phase 13: REDs — creation creates, and migrated callers keep their failure classes
 
-- [ ] 13.1 [RED] Extend `customerUserWriteInvariants.test.ts`: creating a duplicate (same account + e-mail) returns a **typed conflict** and leaves the existing row unchanged in **every** column. Acceptance: the upsert semantics the current code relies on turn an invitation for an already-registered address into a silent overwrite of that user — that is the behaviour being deleted, so the test asserts the row, not the call.
-- [ ] 13.2 [RED] New/extended unit coverage per migrated caller (`InviteTeamMemberUseCase`, `UpdateTeamMemberRoleUseCase`, `RemoveTeamMemberUseCase`, **and — widened by the PR-2a gate's WARNING 1 — the three credential callers PR-2a migrated: `LoginCustomerUseCase` (the `recordLogin` failure branch returning `INTERNAL_ERROR`, apply-progress decision #2), `CompleteCustomerMfaLoginUseCase` (same branch), `RegisterCustomerUseCase` (the `EMAIL_EXISTS` arm at use-case level — today only the adapter's P2002 mapping and the pre-flight lookup are covered)**): when the underlying write fails, each caller's own error contract still **distinguishes the failure classes it distinguished before the migration** (no collapse into one internal error). The MERGE-BLOCKING scenario says GIVEN **each** caller migrated — six callers, six covered.
+- [x] 13.1 [RED] Extend `customerUserWriteInvariants.test.ts`: creating a duplicate (same account + e-mail) returns a **typed conflict** and leaves the existing row unchanged in **every** column. Acceptance: the upsert semantics the current code relies on turn an invitation for an already-registered address into a silent overwrite of that user — that is the behaviour being deleted, so the test asserts the row, not the call.
+- [x] 13.2 [RED] New/extended unit coverage per migrated caller (`InviteTeamMemberUseCase`, `UpdateTeamMemberRoleUseCase`, `RemoveTeamMemberUseCase`, **and — widened by the PR-2a gate's WARNING 1 — the three credential callers PR-2a migrated: `LoginCustomerUseCase` (the `recordLogin` failure branch returning `INTERNAL_ERROR`, apply-progress decision #2), `CompleteCustomerMfaLoginUseCase` (same branch), `RegisterCustomerUseCase` (the `EMAIL_EXISTS` arm at use-case level — today only the adapter's P2002 mapping and the pre-flight lookup are covered)**): when the underlying write fails, each caller's own error contract still **distinguishes the failure classes it distinguished before the migration** (no collapse into one internal error). The MERGE-BLOCKING scenario says GIVEN **each** caller migrated — six callers, six covered.
+
+**Evidence** — 13.2's THREE TEAM callers are a genuine RED on the tree PR-2a left behind:
+`@core/team` **5 failed / 14 passed, exit 1**, every failure the same shape — the use case still
+reaches for `save`, which the new doubles do not offer, so the flow answers `Failed to save team
+member` / `Failed to save updated member` / `Failed to save deactivated member` where an `ok` or a
+`CONFLICT` is required. Two new files carry the two callers that had NO test file at all
+(`UpdateTeamMemberRoleUseCase.test.ts`, `RemoveTeamMemberUseCase.test.ts`), each pinning all four
+failure classes the caller distinguished before the migration.
+
+13.2's THREE CREDENTIAL callers were **GREEN ON ARRIVAL, and that is reported rather than dressed
+up as a red**: PR-2a implemented those branches, so the gate's WARNING 1 was a COVERAGE gap, not a
+behaviour gap — there was no red available to observe. Non-vacuity was therefore proven by
+MUTATION, per the repo's "every gate ships with its red demonstrated" rule. Two waves, each
+restored byte-exact (`cmp` + sha256):
+
+- Wave 1 — `LoginCustomerUseCase.ts` and `CompleteCustomerMfaLoginUseCase.ts`, the
+  `if (!recorded.ok)` guard neutralised in both → **6 failed / 29 passed, exit 1**: all six new
+  tests fired (`a login that could not be recorded must not succeed`, and both separability rows).
+- Wave 2 — `RegisterCustomerUseCase.ts`'s `EMAIL_EXISTS` arm collapsed to `INTERNAL_ERROR`, plus
+  `isEmailUniqueViolation` forced false → **3 failed / 48 passed, exit 1**: the register arm plus
+  BOTH duplicate-creation rows in the invariant suite, each `Expected: "EMAIL_EXISTS" / Received:
+"INTERNAL_ERROR"`.
+
+13.1 was likewise **GREEN ON ARRIVAL at the repository level** — PR-2a's genuine `create` (10.2)
+already refuses a duplicate — so the strengthening it adds is a regression guard, not a red: the
+duplicate now collides with an entity that disagrees in EVERY creation column and the assertion is
+`changedColumns(before, after) === []` rather than the single `passwordHash` an earlier form
+checked. Its non-vacuity rides on wave 2 above (both rows went red) and on the shared
+`changedColumns` helper, which the 12 declared-set rows prove detects movement. The behaviour 13.1
+names as "being deleted" lives at the invite CALLER, and THAT red is 13.2's row above.
 
 ## Phase 14: GREEN — the three team callers
 
-- [ ] 14.1 [GREEN] `packages/core/team/src/InviteTeamMemberUseCase.ts:110-122` `save(member)` → `create(member, "")` (the `""` stub hash; the upsert reliance was always the **create** branch — a fresh `randomUUID` id — so a genuine `create` preserves behaviour and surfaces duplicates honestly). Add the typed `EMAIL_EXISTS` → conflict branch. Acceptance: **the forecast's named ripple** — check the invite route's error map and add a 409 row only if the new typed error actually reaches it; record the measured delta in the PR body either way.
-- [ ] 14.2 [GREEN] `packages/core/team/src/UpdateTeamMemberRoleUseCase.ts:97` `save(member)` → `changeRole(member.id, roleId)`.
-- [ ] 14.3 [GREEN] `packages/core/team/src/RemoveTeamMemberUseCase.ts:56` `save(memberResult.value)` → `deactivate(memberResult.value.id)`; the entity's `.deactivate()` (`:50`) stops being the write's source.
-- [ ] 14.4 [GREEN] Run 13.1 / 13.2 → green.
+- [x] 14.1 [GREEN] `packages/core/team/src/InviteTeamMemberUseCase.ts:110-122` `save(member)` → `create(member, "")` (the `""` stub hash; the upsert reliance was always the **create** branch — a fresh `randomUUID` id — so a genuine `create` preserves behaviour and surfaces duplicates honestly). Add the typed `EMAIL_EXISTS` → conflict branch. Acceptance: **the forecast's named ripple** — check the invite route's error map and add a 409 row only if the new typed error actually reaches it; record the measured delta in the PR body either way.
+- [x] 14.2 [GREEN] `packages/core/team/src/UpdateTeamMemberRoleUseCase.ts:97` `save(member)` → `changeRole(member.id, roleId)`.
+- [x] 14.3 [GREEN] `packages/core/team/src/RemoveTeamMemberUseCase.ts:56` `save(memberResult.value)` → `deactivate(memberResult.value.id)`; the entity's `.deactivate()` (`:50`) stops being the write's source.
+- [x] 14.4 [GREEN] Run 13.1 / 13.2 → green.
+
+**Evidence** — **THE RIPPLE IS MEASURED, AND IT IS ZERO.** `apps/api/src/team/teamRoutes.ts:118`
+already reads `const statusCode = result.error.code === "CONFLICT" ? 409 : 400;`, and the new typed
+branch answers `USE_CASE_ERRORS.CONFLICT` — the SAME code the pre-flight duplicate has always
+returned. **Measured delta on the invite route: 0 rows added, 0 lines changed.** The forecast named
+this ripple as the margin-eater that could push PR-2 over budget; it cost nothing, and it is
+recorded here either way because "we checked and it was free" is a finding, not an absence of one.
+
+14.1 the invitation creates through `create(member, "")`: the stub credential is passed explicitly
+rather than read off the entity, which is what makes omitting it a compile error (15.5). A
+write-time duplicate now answers CONFLICT; every other write failure stays INTERNAL_ERROR, so the
+two classes remain separable. 14.2/14.3 both write ONE column — the accepted role FK, the active
+flag — while the entity keeps its role as the authority on WHETHER the change is allowed
+(hierarchy, owner-refusal) and loses its role as the source of what gets written. Both map
+`USER_NOT_FOUND` to INTERNAL_ERROR deliberately: see "Decisions taken" in apply-progress. 14.4
+`@core/team` **19/19 green**.
 
 ## Phase 15: GREEN — the deletions (this is what closes the capability)
 
-- [ ] 15.1 [GREEN] `packages/core/domain/src/repositories/CustomerUserRepository.ts`: delete the `save` (`:64-69`) and `updatePasswordHash` (`:71-75`) declarations **together with the false JSDoc** at `:66-68` — a contract that lies is worse than an undocumented one.
-- [ ] 15.2 [GREEN] `apps/api/src/infrastructure/repositories/PrismaCustomerUserRepository.ts`: delete `save` (`:171-222`, the 19-column `baseData` upsert incl. `passwordHash`, `mfaEnabled`, `mfaSecret`, `deletedAt`) and `updatePasswordHash` (`:224-242`).
-- [ ] 15.3 [evidence] Replace `apps/api/tests/unit/infrastructure/repositories/PrismaCustomerUserRepository.save.test.ts` with the invariant suite: delete the **capture-only** fake (`calls.push(args)` cannot observe a clobber) and **MIGRATE its two live invariants into the `create` row of the invariant table** — "never passes a scalar `role` argument" and `roleId: "" → NULL, never ""`. Neither invariant is dropped; they change owner, not existence.
-- [ ] 15.4 [static] Confirm `rg 'customerUserRepo\.(save|updatePasswordHash)\(|findByResetToken'` returns **zero** across `apps/` and `packages/` (other repositories keep their own `save` — scope the check to the customer-user port). Acceptance: the static scenario "the snapshot writers are gone from the tree".
-- [ ] 15.5 [compile-time] Prove the capability's core claim the way the spec demands: plant a call that **omits** a required credential value (e.g. `create(user)` without the hash), run **TSC**, observe a **REAL non-zero exit** — an annotation proves nothing — then restore the tree **byte-exact** (verify with `cmp`/checksum) and re-confirm TSC 0. Record the demonstration in the PR body. A runtime test cannot distinguish "inexpressible" from "nobody has written it yet"; and per repo canon every new gate ships with its red demonstrated.
+- [x] 15.1 [GREEN] `packages/core/domain/src/repositories/CustomerUserRepository.ts`: delete the `save` (`:64-69`) and `updatePasswordHash` (`:71-75`) declarations **together with the false JSDoc** at `:66-68` — a contract that lies is worse than an undocumented one.
+- [x] 15.2 [GREEN] `apps/api/src/infrastructure/repositories/PrismaCustomerUserRepository.ts`: delete `save` (`:171-222`, the 19-column `baseData` upsert incl. `passwordHash`, `mfaEnabled`, `mfaSecret`, `deletedAt`) and `updatePasswordHash` (`:224-242`).
+- [x] 15.3 [evidence] Replace `apps/api/tests/unit/infrastructure/repositories/PrismaCustomerUserRepository.save.test.ts` with the invariant suite: delete the **capture-only** fake (`calls.push(args)` cannot observe a clobber) and **MIGRATE its two live invariants into the `create` row of the invariant table** — "never passes a scalar `role` argument" and `roleId: "" → NULL, never ""`. Neither invariant is dropped; they change owner, not existence.
+- [x] 15.4 [static] Confirm `rg 'customerUserRepo\.(save|updatePasswordHash)\(|findByResetToken'` returns **zero** across `apps/` and `packages/` (other repositories keep their own `save` — scope the check to the customer-user port). Acceptance: the static scenario "the snapshot writers are gone from the tree".
+- [x] 15.5 [compile-time] Prove the capability's core claim the way the spec demands: plant a call that **omits** a required credential value (e.g. `create(user)` without the hash), run **TSC**, observe a **REAL non-zero exit** — an annotation proves nothing — then restore the tree **byte-exact** (verify with `cmp`/checksum) and re-confirm TSC 0. Record the demonstration in the PR body. A runtime test cannot distinguish "inexpressible" from "nobody has written it yet"; and per repo canon every new gate ships with its red demonstrated.
+
+**Evidence** — 15.1 the two declarations and the JSDoc that stated the OPPOSITE of what the adapter
+did ("otherwise the existing hash is preserved on update") are gone: the port is 191 → 178 lines.
+15.2 the 19-column `baseData` upsert and the bare `update` are gone from the adapter, −84 lines.
+15.3 `save.test.ts` is deleted, and its invariants were MIGRATED FIRST, not dropped: the invariant
+suite's `create` block now carries "persists the role as the roleId FK, never as a scalar role
+column" and 'writes a role-less snapshot\'s empty roleId as NULL, never ""', both asserted against
+the STORED row rather than against captured arguments — which is a strictly stronger form of the
+same two claims, since a capture-only fake could never see a later write undo them. The third
+assertion the old file held ("preserves a valid roleId FK") rides inside the first migrated test.
+15.4 measured **0** on all four scopes: `customerUserRepo.(save|updatePasswordHash)(`, any
+`.updatePasswordHash(` anywhere in `apps packages infra`, the port's and the adapter's own
+declarations, and `findByResetToken`. The word `updatePasswordHash` no longer appears in the tree
+at all.
+
+15.5 **PLANTED RED, VERBATIM** — `InviteTeamMemberUseCase.ts:119` changed to
+`create(member)` with the hash omitted, then `pnpm --filter @apps/api exec tsc -b`:
+
+```
+../../packages/core/team/src/InviteTeamMemberUseCase.ts(119,56): error TS2554: Expected 2 arguments, but got 1.
+[ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL] Command failed with exit code 1: tsc -b
+TSC_EXIT=1
+```
+
+Restored from a pre-plant copy; `cmp` reports IDENTICAL and sha256 matches
+`0000169cd2470390682325f50646c310aa595a81e72e25ad6b95188085f152c3` on both sides; TSC back to
+exit 0.
+
+**15.5 additionally landed a PERMANENT pin, because a demonstration that lives only in a PR body
+cannot fail a future build.** The spec's `[compile-time]` scenario is MERGE-BLOCKING for the
+CAPABILITY, not just for this PR, and the repo already has the mechanism: `*.type-test.ts` files
+under `apps/api/tests`, compiled by `tsconfig.type-tests.json`, which `pnpm --filter @apps/api
+typecheck` runs as its second pass. New file
+`apps/api/tests/unit/infrastructure/repositories/customerCredentialWriteContract.type-test.ts`
+pins six `@ts-expect-error` rows: the three omitted-credential calls, an explicitly-`undefined`
+credential (the exact `passwordHash?` shape that made the old writer able to revert), and the two
+deleted snapshot writers. It is self-red in both directions — widening `passwordHash` back to
+optional makes the suppressions unused and raises TS2578 — and THAT red was demonstrated too:
+
+```
+tests/unit/infrastructure/repositories/customerCredentialWriteContract.type-test.ts(56,3): error TS2578: Unused '@ts-expect-error' directive.
+tests/unit/infrastructure/repositories/customerCredentialWriteContract.type-test.ts(74,3): error TS2578: Unused '@ts-expect-error' directive.
+PIN_EXIT=1
+```
+
+Port restored byte-exact (`cmp` IDENTICAL, sha256
+`5614a12c7755a013ff830f842b7d2f3637266903d0f9f34e5007e4a8a6a0588b`), `typecheck` back to exit 0.
 
 ## Phase 16: PR-2b gate
 
-- [ ] 16.1 **0-defect gate (PR-2b)** — TSC 0 · LINT `--max-warnings 0` 0 · `format:check` clean · fitness **#2 #3 #4 #5 #8 #9 #10 #21 #23 #31 #32 #38(swept) #40(A+B)** = 0, **#30** ratchet 21 unchanged, **#38** db-prisma ratchet 11 unchanged · full unit set green · DBUP + BATCH `integration:customer-auth` + `integration:tenant-isolation` green, **0 cancelled, 0 skipped** · database left as found (out-of-band read) · 15.5's planted red recorded with its byte-exact restore.
+- [x] 16.1 **0-defect gate (PR-2b)** — TSC 0 · LINT `--max-warnings 0` 0 · `format:check` clean · fitness **#2 #3 #4 #5 #8 #9 #10 #21 #23 #31 #32 #38(swept) #40(A+B)** = 0, **#30** ratchet 21 unchanged, **#38** db-prisma ratchet 11 unchanged · full unit set green · DBUP + BATCH `integration:customer-auth` + `integration:tenant-isolation` green, **0 cancelled, 0 skipped** · database left as found (out-of-band read) · 15.5's planted red recorded with its byte-exact restore. [**DONE** — writer-collected and gate-reproduced: batch 497/497 0c/0s ×2, vitest 565/8,796 (gate run clean first pass), team 19/19, customer-auth 35/35, tsc+typecheck+eslint+prettier 0, fitness set 0 with #30=21 and #38-db-prisma=11 unchanged; CODE gate-measured **187** (+65/−122, 213 under budget); the issueResetToken collapse RULED satisfied on all three grounds; DB-as-found by repetition (two byte-identical out-of-band censuses).]
 
 ---
 
 ## Success criteria (proposal, restated as the chain's exit)
 
-- [ ] All 6 acceptance criteria green, with the previously-red tests (2.1–2.5, 3.1–3.7, 9.1–9.5) as the oracle.
-- [ ] The new integration file is named in a `run_batch`; fitness #30's count does not rise.
-- [ ] `save()` / `updatePasswordHash` absent from the tree after PR-2b; 0 fitness regressions; lint/tsc 0/0.
-- [ ] Filed with owners, not absorbed here: the admin `PasswordService` CAS successor slice, and the client reset-flow path mismatch (`apps/client/lib/auth/authApi.ts` posts `POST /reset-password` + `POST /reset-password/confirm` against a backend exposing `POST /request-password-reset` + `POST /reset-password`; the login page links a forgot-password page that does not exist).
+- [x] All 6 acceptance criteria green, with the previously-red tests (2.1–2.5, 3.1–3.7, 9.1–9.5) as the oracle. [Every red observed verbatim pre-fix across the three links; final greens 497/497 + 8,796 unit.]
+- [x] The new integration file is named in a `run_batch`; fitness #30's count does not rise. [`run-tests.sh:304` names it; #30 held at 21 through all three links — gate-verified.]
+- [x] `save()` / `updatePasswordHash` absent from the tree after PR-2b; 0 fitness regressions; lint/tsc 0/0. [Gate-verified: zero call sites tree-wide (the only textual survivors are the type-test pin's own `@ts-expect-error` lines, which exist to keep the deletion pinned); port 191→178 with the false JSDoc gone.]
+- [x] Filed with owners, not absorbed here: the admin `PasswordService` CAS successor slice (**SMELL-97**), and the client reset-flow path mismatch (**SMELL-96**, LIVE) (`apps/client/lib/auth/authApi.ts` posts `POST /reset-password` + `POST /reset-password/confirm` against a backend exposing `POST /request-password-reset` + `POST /reset-password`; the login page links a forgot-password page that does not exist).

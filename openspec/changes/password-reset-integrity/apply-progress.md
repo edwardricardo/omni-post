@@ -553,3 +553,263 @@ Database-as-found re-proven by the orchestrator's own out-of-band read (separate
 catalog census unchanged, 0 leftover fixtures. The gate's verify record lives in Engram
 (#659) with its mid-chain scope note — no terminal verify artifact exists yet, by
 construction (native status: 40/58, next: apply).
+
+---
+
+# Link 4 — PR-2b IMPLEMENTED (the FINAL link; the capability closes here)
+
+**Status: 11 of 12 PR-2b tasks complete (13.1 → 15.5). Task 16.1 (the 0-defect gate) is
+deliberately left unchecked — it belongs to the orchestrator.** The four "Success criteria"
+boxes at the foot of `tasks.md` are also left unchecked: they are the CHAIN's exit, spanning
+PR-1's still-open 8.1, not this link's tasks.
+
+**Mode: Strict TDD (resolved active, and followed).** With one thing reported rather than
+dressed up: of 13.2's six callers, only the THREE TEAM callers had a red available. The three
+credential callers' branches were implemented by PR-2a, so the gate's WARNING 1 was a COVERAGE
+gap, and writing a test for behaviour that already works produces a pass, not a red. Claiming
+otherwise would be the "phantom completion" this repo's canon names by that word. Their
+non-vacuity was instead PROVEN BY MUTATION — plant, observe a real non-zero exit, restore
+byte-exact — which is the same standard the repo applies to every new gate.
+
+## TDD Cycle Evidence
+
+| Task               | Test file                                                                      | Layer        | Safety net | RED (observed)                                                                                                                                                                                                       | GREEN                        | Triangulate                                                                                                             | Refactor                                 |
+| ------------------ | ------------------------------------------------------------------------------ | ------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| 13.1               | `tests/unit/infrastructure/repositories/customerUserWriteInvariants.test.ts`   | Unit         | 20/20      | **Green on arrival** (PR-2a's `create` already refuses a duplicate). Non-vacuity by mutation: `isEmailUniqueViolation → false` turned BOTH duplicate rows red, `Expected "EMAIL_EXISTS" / Received "INTERNAL_ERROR"` | —                            | colliding entity now disagrees in EVERY creation column; assertion is the full `changedColumns` diff                    | —                                        |
+| 13.2 (team ×3)     | `@core/team` `Invite` / `UpdateTeamMemberRole` / `RemoveTeamMember` `.test.ts` | Unit         | 3/3        | **5 failed / 14 passed, exit 1** — `Failed to save team member` / `…updated member` / `…deactivated member`: the use cases still reached for `save`, which the new doubles do not offer                              | 14.1–14.3                    | 4 failure classes pinned per caller (VALIDATION_FAILED / NOT_FOUND / FORBIDDEN / INTERNAL_ERROR) + the write-shape row  | shared `WriteFailure` type per file      |
+| 13.2 (Login)       | `@core/customer-auth/tests/unit/LoginCustomerUseCase.test.ts`                  | Unit         | 29/29      | **Green on arrival.** Mutation (`if (!recorded.ok)` neutralised) → **6 failed / 29 passed, exit 1**                                                                                                                  | —                            | both `USER_NOT_FOUND` and `INTERNAL_ERROR` arms + a separability row against `INVALID_CREDENTIALS`                      | table-driven `for` over the two failures |
+| 13.2 (CompleteMfa) | `…/CompleteCustomerMfaLoginUseCase.test.ts`                                    | Unit         | 29/29      | same mutation wave, same red                                                                                                                                                                                         | —                            | same two arms + separability against `INVALID_CHALLENGE`                                                                | same                                     |
+| 13.2 (Register)    | `apps/api/tests/unit/customerAuthUseCases.test.ts`                             | Unit         | 47/47      | **Green on arrival.** Mutation (EMAIL_EXISTS arm collapsed) → **3 failed / 48 passed, exit 1**                                                                                                                       | —                            | the EMAIL_EXISTS arm AND the INTERNAL_ERROR arm, so the branch cannot be satisfied by answering one class to everything | —                                        |
+| 15.5               | `…/customerCredentialWriteContract.type-test.ts`                               | Compile-time | N/A (new)  | **`error TS2554: Expected 2 arguments, but got 1.` exit 1** from a planted `create(member)`; and the pin's own self-red **`TS2578` ×2, exit 1** when `passwordHash` was widened to optional                          | port + adapter as they stand | 6 rows: 3 omitted credentials, 1 explicit `undefined`, 2 deleted writers                                                | —                                        |
+
+### Test summary
+
+- Tests written this link: **21** (6 team-caller behavioural + 6 credential-caller failure-branch + 2 duplicate/column + 2 migrated from `save.test.ts` + 5 compile-time pin rows counted as one file). Tests deleted: **3** (`save.test.ts`, migrated first).
+- Layers used: Unit (16), Compile-time (1 file / 6 rows), Integration (1 probe moved, not added).
+- Approval tests: the `save.test.ts` invariants were migrated as approval assertions BEFORE their owner was deleted — deletion without migration would have been coverage loss under the banner of cleanup.
+
+## Work Unit Evidence
+
+| Evidence             | Value                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test         | `@core/team` **19/19**; invariant suite + `customerAuthUseCases` **51/51**; `@core/customer-auth` **35/35**                                                                                                                                                                                                                                             |
+| Compile-time harness | `pnpm --filter @apps/api typecheck` (`tsc --noEmit && tsc --noEmit -p tsconfig.type-tests.json`) → exit **0**; both planted reds reproduced at exit 1 and restored byte-exact                                                                                                                                                                           |
+| Runtime harness      | DBUP + `TIER=pr-integration pnpm --filter @apps/api test:integration` → **497 tests, 497 pass, 0 fail, 0 cancel, 0 skip**, TWICE, incl. `integration:customer-auth` **13/13** and `integration:tenant-isolation` **246/246**                                                                                                                            |
+| Full unit set        | `apps/api` **565 files / 8,796 tests, all pass** (see the flake note below); `@core/team` 19/19; `@core/customer-auth` 35/35; `@core/domain` 55/55                                                                                                                                                                                                      |
+| Database state       | Out-of-band read, SEPARATE process on its own client, after EACH of the two integration runs — byte-identical both times: `leftover {customerUsers:0, accounts:0, roles:0, resetTokens:0}`, `census {customerUsers:91, accounts:355, roles:4, projects:317, deletionRecords:5}`. As-found is proven by REPETITION, not asserted from one reading.       |
+| Rollback boundary    | One revert restores both port declarations, both adapter bodies, the three caller edits, the `issueResetToken` body, the retired `save.test.ts` and the compile-time pin together. It is compiler-checked in both directions: with `save` back the callers compile, and with the pin back its `@ts-expect-error` rows have something to suppress again. |
+
+## Gate readings (16.1 inputs, collected but NOT checked off)
+
+- **TSC** `pnpm --filter @apps/api exec tsc -b` → exit **0** (needs `NODE_OPTIONS=--max-old-space-size=6144`; at the default heap it OOMs on this box — reported below as a finding, not worked around silently)
+- **typecheck** `pnpm --filter @apps/api typecheck` (source pass + type-test pass) → exit **0**
+- **LINT** `eslint apps packages infra --max-warnings 0` → exit **0**
+- **format** `prettier --check` over all 16 touched files → clean (2 files needed `--write` during authoring; whitespace only)
+- Fitness **#2 #3 #4 #5 #8 #9 #10 #21 #22 #23 #31A #32 #38(swept) #40A #40B** → all **0**;
+  **#31B** guards present (**2** and **1**); **#30** ratchet **21, unchanged**; **#38** db-prisma
+  ratchet **11, unchanged**; **#40** floors held (seams **3** ≥ 3, sites **13** ≥ 10)
+
+## Measured CODE / EVIDENCE split
+
+CODE is measured EXACTLY — by `diff` against pristine pre-edit copies for the files that were
+backed up, and by the known contiguous span for the three whose change is a single replacement.
+The orchestrator's `git diff --stat` still governs the number that reaches the PR body (last link
+it corrected 324 → 290, and that correction is the reason this table says how each row was
+obtained).
+
+| Tier         | File                                                                                 | +/−     | Changed   | How measured                                                          |
+| ------------ | ------------------------------------------------------------------------------------ | ------- | --------- | --------------------------------------------------------------------- |
+| **CODE**     | `PrismaCustomerUserRepository.ts`                                                    | +17/−84 | **101**   | `diff` vs pristine copy                                               |
+| **CODE**     | `InviteTeamMemberUseCase.ts`                                                         | +19/−9  | **28**    | `diff` vs pristine copy                                               |
+| **CODE**     | `UpdateTeamMemberRoleUseCase.ts`                                                     | +17/−10 | **27**    | single replaced span; net +7 confirmed by `wc -l` 129→136             |
+| **CODE**     | `RemoveTeamMemberUseCase.ts`                                                         | +16/−10 | **26**    | single replaced span; net +6 confirmed by `wc -l` 88→94               |
+| **CODE**     | `CustomerUserRepository.ts` (port)                                                   | +0/−13  | **13**    | pure deletion; net −13 confirmed by `wc -l` 191→178                   |
+| **CODE**     | `LoginCustomerUseCase.ts`                                                            | +1/−1   | **2**     | `diff` vs pristine copy (stale comment naming a deleted method)       |
+| **CODE**     | `CompleteCustomerMfaLoginUseCase.ts`                                                 | +1/−1   | **2**     | `diff` vs pristine copy (same)                                        |
+| **CODE**     | **total**                                                                            |         | **199**   |                                                                       |
+| **EVIDENCE** | `UpdateTeamMemberRoleUseCase.test.ts` (new)                                          | +205    | **205**   | `wc -l`                                                               |
+| **EVIDENCE** | `RemoveTeamMemberUseCase.test.ts` (new)                                              | +158    | **158**   | `wc -l`                                                               |
+| **EVIDENCE** | `customerCredentialWriteContract.type-test.ts` (new)                                 | +89     | **89**    | `wc -l`                                                               |
+| **EVIDENCE** | `PrismaCustomerUserRepository.save.test.ts` (deleted)                                | −93     | **93**    | `wc -l` of the removed file                                           |
+| **EVIDENCE** | 5 modified suites (invite/login/mfa/authUseCases/invariants) + the integration probe | —       | **≈ 250** | ESTIMATED from the replaced spans — no pristine copy exists for these |
+| **EVIDENCE** | **total**                                                                            |         | **≈ 795** |                                                                       |
+
+**CODE 199 is inside the 400 hard budget with 201 to spare, and 9 over the top of its own
+140–190 forecast band.** Named rather than smoothed: the 9 are the two stale-comment fixes plus
+the `updateOneLiveRow` JSDoc the duplication decision below required. **No `size:exception` is
+requested.**
+
+**EVIDENCE ≈795 against a ~200 forecast, and the overrun has ONE cause worth naming.** Task 13.2
+was WIDENED by the PR-2a gate from three callers to six, and two of the three team callers —
+`UpdateTeamMemberRoleUseCase` and `RemoveTeamMemberUseCase` — had **no test file in the repo at
+all**. Closing the MERGE-BLOCKING "each caller migrated" scenario therefore meant authoring two
+suites from nothing (363 lines), not extending two that existed; the compile-time pin (89) was
+likewise not in the forecast because the forecast read 15.5 as a one-off demonstration. Under the
+signed two-tier rule the EVIDENCE tier is pre-approved for the change as a whole, so this is a
+report, not a request.
+
+## Decisions taken while implementing (named, not absorbed)
+
+1. **THE DUPLICATION DECISION — `issueResetToken` is now COLLAPSED onto `updateOneLiveRow`.**
+   PR-2a left this open deliberately (its decision 5) so PR-2b would decide it rather than
+   inherit it. Decided to collapse, on three grounds, and the design's own rule is what permits
+   it: it says collapsing is allowed "only if byte-behavior is identical and you prove it".
+
+   _(a) It is identical, and the proof is executable._ The two bodies differed in nothing but the
+   `data` projection and the log-operation string, both of which the helper already parameterises:
+   same `where: { id, deletedAt: null }`, same `count === 1` gate, same `USER_NOT_FOUND`, same
+   `logWriteFailure(op) → INTERNAL_ERROR`. The invariant suite's `issueResetToken` row pins its
+   declared write set, its stored values, its typed no-live-row failure AND its zero-column
+   movement on a soft-deleted row; the claim unit suite and the integration D3 scenario drive it
+   end to end. All of them stayed green across the collapse, which is what makes this a proof
+   rather than an assertion.
+
+   _(b) The reason to do it is the change's own thesis._ `updateOneLiveRow` is where the
+   invariant LIVES. A command holding a private copy of that body sits outside the invariant: a
+   later edit to the live-owner clause, the count gate, or what a throw is allowed to become would
+   reach five commands and silently miss the sixth. One column written two ways with neither
+   authoritative is precisely the shape this API exists to delete — leaving it in the adapter that
+   deletes it would be the same defect in miniature.
+
+   _(c) It is not a "rework of a PR-1 seam" in the sense the design forbids._ The design's
+   prohibition is on compatibility shims — seams built in PR-1 that PR-2 has to redesign. The SEAM
+   here is the port declaration, the signature and the error contract, and all three are untouched,
+   byte for byte. Only a private adapter body changed, in a file this link was already gutting.
+
+   `claimPasswordReset` is NOT collapsed, and that is not an exception: it selects by a
+   globally-unique token rather than by id and answers `INVALID_TOKEN` rather than
+   `USER_NOT_FOUND`. Different predicate, different verdict, different command. The helper's
+   JSDoc now says all of this, so the next reader does not have to re-derive it.
+
+2. **`USER_NOT_FOUND` from the team writes maps to `INTERNAL_ERROR`, not to `NOT_FOUND`.** The
+   count gate gives `UpdateTeamMemberRole` and `RemoveTeamMember` a distinction the snapshot
+   writer never had, and promoting it would have been an improvement — a vanished row is
+   semantically 404, and both routes already carry a `NOT_FOUND: 404` row, so it would have been
+   free. It was NOT taken. The requirement is that the migration must not COLLAPSE the classes a
+   caller distinguished before; widening them changes what these endpoints answer for a
+   read-then-write race, from 500 to 404, which no task in this change asked for and no test
+   pins. The invite caller's new CONFLICT branch is the opposite case and was taken precisely
+   because task 14.1 names it.
+
+3. **The invite route's error map was checked and needed nothing.** `teamRoutes.ts:118` already
+   maps `CONFLICT → 409`, and the new typed branch answers the same `USE_CASE_ERRORS.CONFLICT`
+   the pre-flight duplicate always did. Measured delta: **zero rows, zero lines**. Recorded
+   because the forecast named this ripple as the thing that could push PR-2 over budget.
+
+4. **15.5 got a permanent pin in addition to its planted red.** The task asks only for a
+   demonstration. But the spec's `[compile-time]` scenario is MERGE-BLOCKING for the CAPABILITY,
+   and a demonstration recorded in a PR body cannot fail a future build — the very gap the repo's
+   "gates nacen con rojo demostrado" rule exists to close. The mechanism already existed
+   (`*.type-test.ts` + `tsconfig.type-tests.json`, wired into `typecheck`), so the pin cost 89
+   EVIDENCE lines and closes the scenario as a gate. Its own red was demonstrated too.
+
+5. **Two stale comments naming `save` were rewritten** (`CompleteCustomerMfaLoginUseCase`'s class
+   JSDoc, `LoginCustomerUseCase`'s MFA-branch comment). A comment naming a method that no longer
+   exists is the same failure mode as the false JSDoc task 15.1 deletes — 4 changed lines, and
+   leaving them would have shipped the exact defect this link is closing. The user-facing error
+   MESSAGES ("Failed to save team member") were left alone: "save" there is ordinary English about
+   persisting, not the port method, and rewording them would change API responses for no reason.
+
+6. **`save.test.ts`'s third assertion was migrated too.** Task 15.3 names two invariants; the file
+   held three ("preserves a valid roleId FK" was the third). All three survive — the first two as
+   their own tests, the third inside the first. The migrated pair is also STRONGER than the
+   original, because it asserts the STORED row rather than the captured arguments, which is the
+   whole reason the capture-only file was worth retiring.
+
+## Findings for the orchestrator
+
+- **`tsc -b` OOMs on this box at the default heap.** `pnpm --filter @apps/api exec tsc -b` died with
+  `FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory` at ~2 GB;
+  with `NODE_OPTIONS=--max-old-space-size=6144` it is exit 0. Nothing in this change caused it
+  (the project has been growing for a while), and it is NOT worked around silently: it is named
+  here because a future run that reads the OOM as a type error would be reading it wrong, and
+  because a typecheck that cannot complete at the default heap is a real operational limit CI
+  should be checked against.
+- **One full-suite worker crash, non-reproducing.** The first full `apps/api` vitest run reported
+  `Error: Worker exited unexpectedly` with 564/565 files and 8794/8796 tests. Runs 2 and 3 were
+  clean at **565/565 and 8796/8796**. The signature is a worker exiting, not a test asserting, and
+  the box is heap-capped at 3072 for these runs — consistent with memory pressure. Reported at 2/3
+  clean rather than quoting only the clean runs.
+- **Test-count reconciliation, so the delta is auditable rather than asserted:** PR-2a left
+  566 files / 8,795 tests. −1 file and −3 tests (`save.test.ts` retired), +2 (its migrated
+  invariants), +2 (Register's two new arms) = **565 files / 8,796 tests**, which is exactly what
+  ran. The type-test file adds 0 to this count by design — it is named `.type-test.ts` so neither
+  collector treats it as a suite.
+- **`apps/api/tsconfig.json` includes `src` ONLY.** So `tsc -b` never opens anything under
+  `apps/api/tests`, and the test doubles updated in this link are type-checked by nothing except
+  the type-test pass and the runtime. That is pre-existing and already documented inside
+  `tenantScopedQueryContract.type-test.ts`; it is repeated here because it is why the new pin had
+  to go in `tsconfig.type-tests.json` rather than anywhere under `src`.
+
+## Deviations from design
+
+None. D-4's port surface is now exactly what the table prescribes, with `save`/`updatePasswordHash`
+absent from port, adapter and every call site. The one judgement the design explicitly delegated —
+whether to collapse `issueResetToken` — was decided under the rule the design itself wrote for it,
+with the byte-behaviour proof it demanded (decision 1).
+
+## Issues found
+
+- **The PR-2a inheritance list was complete and both items are closed.** The UoW-rollback probe
+  moved from `updatePasswordHash` to `upgradePasswordHash` (with a comment saying what the probe is
+  actually about — the CLIENT the write reaches, never the columns it names), and the
+  duplication was decided rather than inherited.
+- **`ResetPasswordUseCase`'s shape assertion had to be re-expressed, not deleted.** It asserted
+  `save` and `updatePasswordHash` were not called; with both gone from the double those expectations
+  would have been `expect(undefined)`. Replaced with a loop asserting that NONE of the seven
+  surviving write commands follows the claim — strictly stronger than the two names it replaces,
+  and it survives the port deletion instead of depending on it.
+- **The PostgreSQL-cascade latent finding (PR-1 amendment item 5) is still open and still
+  unreached.** PR-2b's phases touch the port, the adapter, the three TEAM callers and the test
+  estate. `RequestPasswordResetUseCase` is in none of them and was not opened. Per the amendment's
+  own terms it stays a backlog entry, carried verbatim by PR-2a's record.
+
+## Files changed
+
+| File                                                                                           | Action      | What                                                                                                                                                                                                                                                    |
+| ---------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/domain/src/repositories/CustomerUserRepository.ts`                              | Modified    | `save` + `updatePasswordHash` declarations deleted with the JSDoc that stated the opposite of the adapter's behaviour                                                                                                                                   |
+| `apps/api/src/infrastructure/repositories/PrismaCustomerUserRepository.ts`                     | Modified    | Both impls deleted (the 19-column upsert incl. `deletedAt` + MFA, and the bare `update`); `issueResetToken` collapsed onto `updateOneLiveRow`; that helper's JSDoc now states why every command routes through it and why `claimPasswordReset` does not |
+| `packages/core/team/src/InviteTeamMemberUseCase.ts`                                            | Modified    | `save` → `create(member, "")`; typed `EMAIL_EXISTS` → CONFLICT branch                                                                                                                                                                                   |
+| `packages/core/team/src/UpdateTeamMemberRoleUseCase.ts`                                        | Modified    | `save` → `changeRole(member.id, newRole.roleId)`; entity keeps the hierarchy invariant, loses authorship of the write                                                                                                                                   |
+| `packages/core/team/src/RemoveTeamMemberUseCase.ts`                                            | Modified    | `save` → `deactivate(id)`; entity keeps the owner-refusal invariant, loses authorship of the write                                                                                                                                                      |
+| `packages/core/customer-auth/src/LoginCustomerUseCase.ts`                                      | Modified    | One comment naming the deleted writer                                                                                                                                                                                                                   |
+| `packages/core/customer-auth/src/CompleteCustomerMfaLoginUseCase.ts`                           | Modified    | Class JSDoc naming the deleted writer                                                                                                                                                                                                                   |
+| `packages/core/team/tests/unit/InviteTeamMemberUseCase.test.ts`                                | Modified    | Double moved onto `create`; write-shape row; both write-failure classes                                                                                                                                                                                 |
+| `packages/core/team/tests/unit/UpdateTeamMemberRoleUseCase.test.ts`                            | Created     | First test file this use case has ever had — 4 failure classes + the write shape                                                                                                                                                                        |
+| `packages/core/team/tests/unit/RemoveTeamMemberUseCase.test.ts`                                | Created     | First test file this use case has ever had — 4 failure classes + the write shape                                                                                                                                                                        |
+| `packages/core/customer-auth/tests/unit/LoginCustomerUseCase.test.ts`                          | Modified    | `recordLogin` failure branch, both arms, plus separability from `INVALID_CREDENTIALS`                                                                                                                                                                   |
+| `packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts`               | Modified    | Same, plus separability from `INVALID_CHALLENGE`                                                                                                                                                                                                        |
+| `apps/api/tests/unit/customerAuthUseCases.test.ts`                                             | Modified    | Register's `EMAIL_EXISTS` and `INTERNAL_ERROR` arms; double loses the two deleted members; the reset shape assertion re-expressed over the surviving commands                                                                                           |
+| `apps/api/tests/unit/infrastructure/repositories/customerUserWriteInvariants.test.ts`          | Modified    | Duplicate creation now leaves the row unchanged in EVERY column; the two `save.test.ts` invariants migrated into the `create` block                                                                                                                     |
+| `apps/api/tests/unit/infrastructure/repositories/customerCredentialWriteContract.type-test.ts` | Created     | The spec's `[compile-time]` scenario as a permanent, self-red pin                                                                                                                                                                                       |
+| `apps/api/tests/unit/infrastructure/repositories/PrismaCustomerUserRepository.save.test.ts`    | **Deleted** | The capture-only fake; its three claims migrated FIRST                                                                                                                                                                                                  |
+| `apps/api/tests/integration/customerPasswordReset.integration.test.ts`                         | Modified    | UoW-rollback probe moved onto `upgradePasswordHash`                                                                                                                                                                                                     |
+| `openspec/changes/password-reset-integrity/tasks.md`                                           | Modified    | 11 boxes checked, per-phase evidence added                                                                                                                                                                                                              |
+
+## Next recommended
+
+`sdd-verify`. PR-2b is implemented and the `customer-credential-write-api` capability closes here:
+the snapshot writers are gone from port, adapter and every call site; all six migrated callers keep
+distinguishable failure contracts with executable coverage; and the MERGE-BLOCKING `[compile-time]`
+scenario is a permanent gate with its red demonstrated, not a claim. 16.1 is collected above and is
+the orchestrator's to flip.
+
+## Orchestrator amendment — PR-2b gate outcome, chain closed (same night)
+
+Fresh gate over the closer: **PASS (0 CRITICAL / 3 WARNING / 1 SUGGESTION)**. CODE
+gate-measured **187** (+65/−122; the writer's 199 over-reported in the safe direction);
+the `issueResetToken` collapse **RULED satisfied** on all three grounds (seam byte-identical
+by git diff, body equivalence term-by-term, behavioral proof by the surviving suites); the
+15.5 digest independently corroborated against the surviving pre-plant copy. Dispositions:
+**W1** — the "zero across the whole tree" sentence reworded to the scoped claim actually
+proved (zero call sites; the pin's own `@ts-expect-error` lines survive by design).
+**W2** — the mutation-wave restores are **git-verified** (Login/CompleteMfa diffs vs
+`d38be4cf` show only the stale-comment fixes; Register's diff is EMPTY), which is the
+restore evidence for the record — stronger than the un-transcribed cmp/sha256 the waves
+claimed. **W3** — both chain-exit filings are DONE: **SMELL-96** (the LIVE client
+reset-path mismatch) and **SMELL-97** (the admin `PasswordService` CAS successor slice)
+are rows in `docs/reports/roadmap-detected-smells-backlog.md`, and box 425 is ticked
+naming them. 8.1 and 16.1 closed with their collected+reproduced evidence; the four
+chain-level boxes ticked — **tasks 58/58**. The formal verify-report and archive are the
+MORNING close ritual (after Edward's push/merges), per the SMELL-93 precedent.

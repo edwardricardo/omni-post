@@ -241,16 +241,10 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     token: string,
     expiresAt: Date
   ): Promise<Result<void, "USER_NOT_FOUND" | "INTERNAL_ERROR">> {
-    try {
-      const { count } = await this.getClient().customerUser.updateMany({
-        where: { id: userId, deletedAt: null },
-        data: { resetToken: token, resetTokenExpiry: expiresAt },
-      });
-      return count === 1 ? ok(undefined) : err("USER_NOT_FOUND");
-    } catch (error: unknown) {
-      this.logWriteFailure("issueResetToken", error);
-      return err("INTERNAL_ERROR");
-    }
+    return this.updateOneLiveRow("issueResetToken", userId, {
+      resetToken: token,
+      resetTokenExpiry: expiresAt,
+    });
   }
 
   async create(
@@ -316,11 +310,23 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
   }
 
   /**
-   * The shared body of every single-intent update: one count-gated `updateMany`
+   * The shared body of EVERY single-intent update: one count-gated `updateMany`
    * naming the caller's columns and a live owner, with the count as the whole
    * verdict. Sharing it is what makes the column projection the ONLY thing that
    * differs between these commands, so the declared write set of each is
    * readable at its call site instead of buried in a repeated try/catch.
+   *
+   * Every one of them routes through here, `issueResetToken` included. A command
+   * that kept a private copy of this body would be outside the invariant the
+   * body carries: a later change to the predicate — the live-owner clause, the
+   * count gate, what a throw is allowed to become — would apply to five commands
+   * and silently miss the sixth. One command writing the same columns two ways,
+   * with neither authoritative, is the exact shape this API exists to delete.
+   *
+   * `claimPasswordReset` is NOT here, and that is not an exception: it selects by
+   * a globally-unique token rather than by id, and answers `INVALID_TOKEN` rather
+   * than `USER_NOT_FOUND`. A different predicate and a different verdict is a
+   * different command, not a variation on this one.
    */
   private async updateOneLiveRow(
     operation: string,
@@ -339,79 +345,6 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     } catch (error: unknown) {
       this.logWriteFailure(operation, error);
       return err("INTERNAL_ERROR");
-    }
-  }
-
-  async save(user: CustomerUser, passwordHash?: string): Promise<Result<void, DomainError>> {
-    try {
-      const hash = passwordHash ?? user.passwordHash;
-
-      const baseData = {
-        // Both reads above normalize their argument, so the write must store
-        // the same form or they stop finding this row. `CustomerUser.create`
-        // already normalizes, but `reconstitute` does not — it replays whatever
-        // the row held — so relying on the entity alone would let a legacy
-        // mixed-case row survive a round-trip through `save` unchanged.
-        email: normalizeEmail(user.email),
-        passwordHash: hash,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        // The role is persisted solely via the `roleId` FK to CustomerRole —
-        // there is no scalar `role` column on CustomerUser. An empty roleId is
-        // the `toDomain` fallback for a role-less row (the "VIEWER-like"
-        // snapshot); it must be written as NULL, never "", which would violate
-        // the optional FK.
-        roleId: user.roleId === "" ? null : user.roleId,
-        isActive: user.isActive,
-        isEmailVerified: user.isEmailVerified,
-        emailVerifyToken: user.emailVerifyToken ?? null,
-        emailVerifyExpiry: user.emailVerifyExpiry ?? null,
-        resetToken: user.resetToken ?? null,
-        resetTokenExpiry: user.resetTokenExpiry ?? null,
-        mfaEnabled: user.mfaEnabled,
-        mfaSecret: user.mfaSecret ?? null,
-        lastLoginAt: user.lastLoginAt ?? null,
-        invitedBy: user.invitedBy ?? null,
-        inviteToken: user.inviteToken ?? null,
-        inviteTokenExpiry: user.inviteTokenExpiry ?? null,
-        joinedAt: user.joinedAt,
-        deletedAt: user.deletedAt ?? null,
-      };
-
-      await this.getClient().customerUser.upsert({
-        where: { id: user.id },
-        create: { id: user.id, accountId: user.accountId, ...baseData },
-        update: baseData,
-      });
-
-      return ok(undefined);
-    } catch (error: unknown) {
-      return err(
-        new EntityNotFoundError(
-          "CustomerUser",
-          `save failed: ${error instanceof Error ? error.message : String(error)}`
-        )
-      );
-    }
-  }
-
-  async updatePasswordHash(
-    userId: string,
-    passwordHash: string
-  ): Promise<Result<void, DomainError>> {
-    try {
-      await this.getClient().customerUser.update({
-        where: { id: userId },
-        data: { passwordHash },
-      });
-      return ok(undefined);
-    } catch (error: unknown) {
-      return err(
-        new EntityNotFoundError(
-          "CustomerUser",
-          `updatePasswordHash failed: ${error instanceof Error ? error.message : String(error)}`
-        )
-      );
     }
   }
 

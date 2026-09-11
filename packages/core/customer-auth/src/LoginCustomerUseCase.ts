@@ -229,7 +229,7 @@ export class LoginCustomerUseCase {
 
       // MFA gate: a valid password is NOT terminal success for an MFA-enabled
       // customer. Issue a short-lived, single-use challenge and STOP — no
-      // `recordLogin`/`save`, no `recordSuccessfulAttempt` (the BF counter is
+      // `recordLogin`, no `recordSuccessfulAttempt` (the BF counter is
       // cleared only after the second factor completes), no session mint. This
       // is what makes the BF ordering correct by construction.
       if (targetUser.mfaEnabled) {

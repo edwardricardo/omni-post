@@ -53,14 +53,20 @@ export class RemoveTeamMemberUseCase implements UseCase<RemoveTeamMemberInput, v
     }
 
     const doWork = async (): Promise<Result<void, UseCaseError>> => {
-      const saveResult = await this.customerUserRepo.save(memberResult.value);
-      if (!saveResult.ok) {
+      // The entity's own `deactivate()` above is what refuses to remove an
+      // account owner; it is no longer what supplies the write's contents. One
+      // column moves — the active flag — so removing a member can no longer
+      // carry the rest of a row that was read before the decision was made.
+      //
+      // Both write failures answer INTERNAL_ERROR, exactly as the whole-entity
+      // write did: `USER_NOT_FOUND` here means the row vanished between the
+      // read and the write, and promoting that race to the route's 404 would
+      // change what this endpoint answers for a case no task in this change
+      // asked to redefine.
+      const writeResult = await this.customerUserRepo.deactivate(memberResult.value.id);
+      if (!writeResult.ok) {
         return err(
-          new UseCaseError(
-            "Failed to save deactivated member",
-            USE_CASE_ERRORS.INTERNAL_ERROR,
-            saveResult.error
-          )
+          new UseCaseError("Failed to save deactivated member", USE_CASE_ERRORS.INTERNAL_ERROR)
         );
       }
       return ok(undefined);

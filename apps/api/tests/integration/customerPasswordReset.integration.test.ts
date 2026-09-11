@@ -701,7 +701,12 @@ describe("Customer password reset — persisted outcomes through the guarded cli
       await assert.rejects(
         withTenantContext({ accountId }, () =>
           unitOfWork.executeInTransaction(async () => {
-            const written = await repo.updatePasswordHash(user.userId, rolledBackHash);
+            // The probe needs any write that goes through the adapter's client
+            // resolution; it rode on the snapshot writer until that writer was
+            // deleted, and now rides on the intent-named single-column command
+            // that replaced it. What is under test is the CLIENT the write
+            // reaches, never the columns it names.
+            const written = await repo.upgradePasswordHash(user.userId, rolledBackHash);
             assert.ok(written.ok, "the in-transaction write must report success before the abort");
             throw new Error("deliberate abort");
           })

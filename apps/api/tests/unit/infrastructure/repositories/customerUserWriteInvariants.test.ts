@@ -479,22 +479,75 @@ describe("Customer-user write API — each command writes exactly the columns it
       );
     });
 
-    it("answers a typed conflict instead of overwriting an existing account and e-mail pair", async () => {
+    it("answers a typed conflict and leaves the registered row unchanged in EVERY column", async () => {
       seedRow();
       const before = snapshot(USER_ID);
 
+      // The colliding entity disagrees with the stored row in every creation
+      // column it can. Under the upsert this API replaces, an invitation for an
+      // already-registered address absorbed the collision as an update and these
+      // values landed on someone else's row; the diff below is what proves they
+      // no longer can, rather than the single column an earlier form checked.
+      const colliding = makeEntity({
+        id: OTHER_USER_ID,
+        firstName: "Intruding",
+        lastName: "Entity",
+        roleId: NEW_ROLE_ID,
+        isActive: false,
+        isEmailVerified: true,
+        invitedBy: "someone-else",
+        inviteToken: "colliding-invite-token",
+        inviteTokenExpiry: TOKEN_EXPIRY,
+        joinedAt: new Date("2026-04-04T04:04:04.000Z"),
+      });
+
       const result = await withSystemContext(SEAM_REASON, () =>
-        repo.create(makeEntity({ id: OTHER_USER_ID }), CREATED_HASH)
+        repo.create(colliding, CREATED_HASH)
       );
 
       assert.strictEqual(result.ok, false, "a duplicate must not be absorbed as an update");
       assert.strictEqual(result.error, "EMAIL_EXISTS");
-      assert.strictEqual(
-        snapshot(USER_ID).passwordHash,
-        before.passwordHash,
-        "the registered user's credential must survive someone else's creation attempt"
+      assert.deepStrictEqual(
+        changedColumns(before, snapshot(USER_ID)),
+        [],
+        "a refused creation must leave the registered row byte-for-byte as it was — not merely its credential"
       );
       assert.strictEqual(fake.read(OTHER_USER_ID), undefined, "no second row may appear");
+    });
+
+    /**
+     * Migrated here from the retired `PrismaCustomerUserRepository.save.test.ts`,
+     * which captured the arguments handed to `upsert` and therefore could never
+     * observe whether a later write in the same flow undid them. The two claims
+     * it carried belong to whichever command creates a row, so they moved to
+     * `create` rather than being deleted with their old owner.
+     */
+    it("persists the role as the roleId foreign key, never as a scalar role column", async () => {
+      const result = await withSystemContext(SEAM_REASON, () =>
+        repo.create(makeEntity({ roleId: "role-42" }), CREATED_HASH)
+      );
+      assert.ok(result.ok, "creating a row that does not exist must succeed");
+
+      const stored = snapshot(USER_ID);
+      assert.strictEqual(stored.roleId, "role-42", "a valid role FK must reach the row unchanged");
+      assert.strictEqual(
+        "role" in (stored as unknown as Record<string, unknown>),
+        false,
+        "there is no scalar `role` column on CustomerUser — naming one is an Unknown argument that throws at the driver"
+      );
+    });
+
+    it('writes a role-less snapshot\'s empty roleId as NULL, never ""', async () => {
+      const result = await withSystemContext(SEAM_REASON, () =>
+        repo.create(makeEntity({ roleId: "", roleName: "VIEWER", roleLevel: 0 }), CREATED_HASH)
+      );
+      assert.ok(result.ok, "a role-less user must still be creatable");
+
+      assert.strictEqual(
+        snapshot(USER_ID).roleId,
+        null,
+        'the "VIEWER-like" fallback must be stored as NULL — "" would violate the optional FK to CustomerRole'
+      );
     });
   });
 });

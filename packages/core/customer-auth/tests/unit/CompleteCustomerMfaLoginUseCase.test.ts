@@ -54,10 +54,13 @@ function makeUser(overrides?: Record<string, unknown>) {
   };
 }
 
-function makeUserRepo(userFactory: () => ReturnType<typeof makeUser>): CustomerUserRepository {
+function makeUserRepo(
+  userFactory: () => ReturnType<typeof makeUser>,
+  recordLoginFails?: "USER_NOT_FOUND" | "INTERNAL_ERROR"
+): CustomerUserRepository {
   return {
     findById: vi.fn(async () => ok(userFactory())),
-    recordLogin: vi.fn(async () => ok(undefined)),
+    recordLogin: vi.fn(async () => (recordLoginFails ? err(recordLoginFails) : ok(undefined))),
   } as unknown as CustomerUserRepository;
 }
 
@@ -315,6 +318,45 @@ describe("CompleteCustomerMfaLoginUseCase", () => {
       const result = await build().execute(INPUT_BASE);
       assert.ok(!result.ok);
       assert.strictEqual(result.error, "RATE_LIMITED");
+    });
+  });
+
+  describe("the login-stamp write fails", () => {
+    for (const writeFailure of ["USER_NOT_FOUND", "INTERNAL_ERROR"] as const) {
+      it(`returns INTERNAL_ERROR and mints nothing when the stamp answers ${writeFailure}`, async () => {
+        userRepo = makeUserRepo(() => makeUser(), writeFailure);
+
+        const result = await build().execute(INPUT_BASE);
+
+        assert.ok(!result.ok, "a login that could not be recorded must not succeed");
+        assert.strictEqual(
+          result.error,
+          "INTERNAL_ERROR",
+          "the persistence failure keeps its own class — collapsing it into INVALID_CHALLENGE or MFA_UNAVAILABLE would tell the caller the second factor was the problem"
+        );
+        expect(tokenService.signAccessToken).not.toHaveBeenCalled();
+        expect(tokenService.signRefreshToken).not.toHaveBeenCalled();
+        expect(bruteForce.recordSuccessfulAttempt).not.toHaveBeenCalled();
+      });
+    }
+
+    it("keeps INTERNAL_ERROR separable from the challenge failures around it", async () => {
+      userRepo = makeUserRepo(() => makeUser(), "INTERNAL_ERROR");
+      const stampFailure = await build().execute(INPUT_BASE);
+
+      vi.clearAllMocks();
+      userRepo = makeUserRepo(() => makeUser());
+      store = makeStore([]);
+      const unknownChallenge = await build().execute(INPUT_BASE);
+
+      assert.ok(!stampFailure.ok && !unknownChallenge.ok);
+      assert.strictEqual(stampFailure.error, "INTERNAL_ERROR");
+      assert.strictEqual(unknownChallenge.error, "INVALID_CHALLENGE");
+      assert.notStrictEqual(
+        stampFailure.error,
+        unknownChallenge.error,
+        "the two failure classes this flow distinguished before the migration must still be distinguishable after it"
+      );
     });
   });
 });

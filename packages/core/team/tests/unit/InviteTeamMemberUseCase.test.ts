@@ -1,8 +1,11 @@
 /**
  * @file InviteTeamMemberUseCase.test.ts
  * @description Unit tests for InviteTeamMemberUseCase — happy path, duplicate
- *   member conflict, and role not-found against mocked CustomerUserRepository and
- *   CustomerRoleRepository.
+ *   member conflict (both the pre-flight lookup and the database's own unique
+ *   constraint), role not-found, and the write-failure branch. The repository
+ *   double offers only the intention-named commands the port actually exposes,
+ *   so an invitation that still reached for a whole-entity snapshot writer would
+ *   fail here rather than pass silently.
  * @layer infrastructure
  */
 
@@ -29,22 +32,23 @@ const passthroughUow: UnitOfWork = {
   executeInTransaction: async (fn) => fn(),
 };
 
+/** The typed failures `create` can answer, as the port declares them. */
+type CreateFailure = "EMAIL_EXISTS" | "INTERNAL_ERROR";
+
 function makeMockUserRepo(
   opts: {
     existingMember?: boolean;
-    saveFails?: boolean;
+    createFails?: CreateFailure;
   } = {}
 ): CustomerUserRepository {
-  const { existingMember = false, saveFails = false } = opts;
+  const { existingMember = false, createFails } = opts;
   return {
     findByEmail: vi.fn(async () =>
       existingMember
         ? ok({ id: "existing-user-id" })
         : err(new DomainError("not found", "NOT_FOUND"))
     ),
-    save: vi.fn(async () =>
-      saveFails ? err(new DomainError("DB error", "INTERNAL_ERROR")) : ok(undefined)
-    ),
+    create: vi.fn(async () => (createFails ? err(createFails) : ok(undefined))),
     findById: vi.fn(async () => err(new DomainError("not found", "NOT_FOUND"))),
     findByEmailAcrossAccounts: vi.fn(async () => []),
     listByAccount: vi.fn(async () => ok([])),
@@ -83,6 +87,33 @@ describe("InviteTeamMemberUseCase", () => {
     assert.ok(r.value.length > 0);
   });
 
+  it("creates the stub through the creation command, never a snapshot write", async () => {
+    const userRepo = makeMockUserRepo();
+    const roleRepo = makeMockRoleRepo();
+    const uc = new InviteTeamMemberUseCase(userRepo, roleRepo, passthroughUow);
+
+    const r = await uc.execute(BASE_INPUT);
+
+    assert.ok(r.ok, `expected ok: ${r.ok ? "" : r.error.message}`);
+    const create = vi.mocked(userRepo.create);
+    assert.strictEqual(create.mock.calls.length, 1, "the invitation must issue exactly one write");
+    const [entity, passwordHash] = create.mock.calls[0]!;
+    assert.strictEqual(
+      entity.id,
+      r.value,
+      "the row created must be the one whose id the caller is handed"
+    );
+    assert.strictEqual(
+      passwordHash,
+      "",
+      "the invitee has no credential yet, and the stub must be passed explicitly rather than read off the entity"
+    );
+    assert.ok(
+      entity.inviteToken !== undefined && entity.inviteToken.length > 0,
+      "the stub must carry the invitation token that lets the invitee complete it"
+    );
+  });
+
   it("returns CONFLICT when a member with that email already exists in the account", async () => {
     const userRepo = makeMockUserRepo({ existingMember: true });
     const roleRepo = makeMockRoleRepo();
@@ -90,6 +121,36 @@ describe("InviteTeamMemberUseCase", () => {
     const r = await uc.execute(BASE_INPUT);
     assert.ok(!r.ok);
     assert.strictEqual(r.error.code, USE_CASE_ERRORS.CONFLICT);
+  });
+
+  it("returns CONFLICT when the write itself reports the address already taken", async () => {
+    const userRepo = makeMockUserRepo({ createFails: "EMAIL_EXISTS" });
+    const roleRepo = makeMockRoleRepo();
+    const uc = new InviteTeamMemberUseCase(userRepo, roleRepo, passthroughUow);
+
+    const r = await uc.execute(BASE_INPUT);
+
+    assert.ok(!r.ok);
+    assert.strictEqual(
+      r.error.code,
+      USE_CASE_ERRORS.CONFLICT,
+      "a duplicate the pre-flight lookup missed is still a duplicate, not an internal fault — the pre-flight narrows the race, the unique constraint closes it"
+    );
+  });
+
+  it("returns INTERNAL_ERROR when the write fails for any other reason", async () => {
+    const userRepo = makeMockUserRepo({ createFails: "INTERNAL_ERROR" });
+    const roleRepo = makeMockRoleRepo();
+    const uc = new InviteTeamMemberUseCase(userRepo, roleRepo, passthroughUow);
+
+    const r = await uc.execute(BASE_INPUT);
+
+    assert.ok(!r.ok);
+    assert.strictEqual(
+      r.error.code,
+      USE_CASE_ERRORS.INTERNAL_ERROR,
+      "the conflict branch must not swallow every write failure — the two classes stay distinguishable"
+    );
   });
 
   it("returns VALIDATION_FAILED when the requested role does not exist", async () => {

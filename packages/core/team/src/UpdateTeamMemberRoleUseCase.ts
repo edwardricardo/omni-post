@@ -94,14 +94,21 @@ export class UpdateTeamMemberRoleUseCase implements UseCase<
     }
 
     const doWork = async (): Promise<Result<void, UseCaseError>> => {
-      const saveResult = await this.customerUserRepo.save(member);
-      if (!saveResult.ok) {
+      // The entity above enforces the hierarchy and is the authority on WHETHER
+      // the change is allowed; it is no longer the authority on what gets
+      // written. One column moves — the role foreign key the domain accepted —
+      // so a member loaded before this point can no longer replay their stale
+      // credential, MFA state or soft-delete state on the way past.
+      //
+      // Both write failures answer INTERNAL_ERROR, exactly as the whole-entity
+      // write did: `USER_NOT_FOUND` here means the row vanished between the
+      // read and the write, and promoting that race to the route's 404 would
+      // change what this endpoint answers for a case no task in this change
+      // asked to redefine.
+      const writeResult = await this.customerUserRepo.changeRole(member.id, newRole.roleId);
+      if (!writeResult.ok) {
         return err(
-          new UseCaseError(
-            "Failed to save updated member",
-            USE_CASE_ERRORS.INTERNAL_ERROR,
-            saveResult.error
-          )
+          new UseCaseError("Failed to save updated member", USE_CASE_ERRORS.INTERNAL_ERROR)
         );
       }
       return ok(undefined);

@@ -61,7 +61,7 @@ export type CompleteCustomerMfaLoginError =
 /**
  * @class CompleteCustomerMfaLoginUseCase
  * @description Verifies the challenge + second factor and mints the session.
- *   Mutating use case: the `recordLogin` + `save` writes run inside the injected
+ *   Mutating use case: the single-column `recordLogin` write runs inside the injected
  *   Unit of Work; the brute-force `recordSuccessfulAttempt` (an external Redis
  *   call) runs OUTSIDE the transaction per ARCHITECTURE_CANON.
  */
