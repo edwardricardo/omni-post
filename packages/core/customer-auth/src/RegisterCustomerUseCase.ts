@@ -145,10 +145,15 @@ export class RegisterCustomerUseCase {
         });
       }
 
-      // Persist customer user
-      const saveUserResult = await this.customerUserRepo.save(user, passwordHash);
-      if (!saveUserResult.ok) {
-        return err("INTERNAL_ERROR");
+      // Create the customer user. Creation is the intent, so a duplicate is a
+      // typed conflict rather than a silent update of whoever already holds the
+      // address — the pre-flight lookup above narrows the window but cannot
+      // close it, and the database's own unique constraint is what does.
+      const createUserResult = await this.customerUserRepo.create(user, passwordHash);
+      if (!createUserResult.ok) {
+        return createUserResult.error === "EMAIL_EXISTS"
+          ? err("EMAIL_EXISTS")
+          : err("INTERNAL_ERROR");
       }
 
       // Sign tokens for immediate login

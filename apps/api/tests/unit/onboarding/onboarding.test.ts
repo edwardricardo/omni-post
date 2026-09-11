@@ -18,7 +18,7 @@ const tokenService = new CustomerTokenServiceAdapter();
 function makeMockCustomerUserRepo(): CustomerUserRepository {
   return {
     findByEmailAcrossAccounts: vi.fn().mockResolvedValue([]),
-    save: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    create: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
     findById: vi.fn(),
     findByEmail: vi.fn(),
   } as unknown as CustomerUserRepository;

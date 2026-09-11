@@ -208,16 +208,23 @@ export class LoginCustomerUseCase {
         return err("ACCOUNT_DEACTIVATED");
       }
 
-      // Transparent rehash: if the stored hash uses parameters weaker than
-      // the current canon (e.g. after a server-side cost bump), upgrade it
-      // silently while we still have the plaintext on the stack. Failure
-      // here is non-fatal — the user logs in successfully either way. The
-      // upgraded hash is persisted via the repository; the in-memory entity
-      // keeps its original `passwordHash` field (readonly) since the user
-      // is about to be released back to the caller.
+      // Transparent rehash: if the stored hash uses parameters weaker than the
+      // current canon (e.g. after a server-side cost bump), upgrade it silently
+      // while the plaintext is still on the stack.
+      //
+      // `targetUser` was loaded BEFORE this write, so from here on its
+      // `passwordHash` is stale relative to the row. That is the precondition,
+      // and the conclusion it forces is that nothing later in this flow may
+      // write a column shaped from the entity — a whole-entity write would
+      // restore the very hash this upgrade replaced, and the login would report
+      // success while quietly undoing a security-parameter upgrade.
+      //
+      // The upgrade itself is best-effort: the credential just verified against
+      // the stored hash, so a failed re-encoding leaves a working password and
+      // the next login tries again.
       if (this.hasher.needsRehash(targetUser.passwordHash)) {
         const upgraded = await this.hasher.hash(input.password);
-        await this.customerUserRepo.updatePasswordHash(targetUser.id, upgraded);
+        await this.customerUserRepo.upgradePasswordHash(targetUser.id, upgraded);
       }
 
       // MFA gate: a valid password is NOT terminal success for an MFA-enabled
@@ -248,9 +255,20 @@ export class LoginCustomerUseCase {
         });
       }
 
-      // Record login
+      // Record the login by stamping ONE column. The entity keeps its own copy
+      // of the timestamp for the response projection below.
       targetUser.recordLogin();
-      await this.customerUserRepo.save(targetUser);
+      const recorded = await this.customerUserRepo.recordLogin(
+        targetUser.id,
+        targetUser.lastLoginAt ?? new Date()
+      );
+      if (!recorded.ok) {
+        // Checked rather than discarded. `USER_NOT_FOUND` means no LIVE row
+        // matched at the instant of the stamp — the account stopped existing
+        // during this login — and a session minted afterwards would outlive its
+        // owner. The MFA branch of this same login already fails closed here.
+        return err("INTERNAL_ERROR");
+      }
 
       // Successful authentication — clear per-identifier counters.
       await this.bruteForce.recordSuccessfulAttempt({

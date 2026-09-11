@@ -227,28 +227,72 @@ double whose outcome claims live in the two new stateful suites. 38/38 unit test
 
 ## Phase 9: REDs — the authority criterion and the rehash that reverts itself
 
-- [ ] 9.1 [RED][evidence] New `apps/api/tests/unit/infrastructure/repositories/customerUserWriteInvariants.test.ts`: **table-driven** (command, declared column set) over the 1.1 fake — for each command, diff the stored row **before/after** and assert the changed-column set **EQUALS** the declared set. Acceptance: this is the **authority criterion** made executable — _completeness_ (the write lists every column the intent requires), _exclusivity_ (each column has exactly one writing intent; `passwordHash`'s three writers — `create`, `claimPasswordReset`, `upgradePasswordHash` — are each sanctioned by name), _no side channel_ (no optional parameter alters the projection). RED today: the five commands do not exist.
-- [ ] 9.2 [RED] Same file: every command invoked in turn against a **soft-deleted** row leaves `deletedAt` unchanged — no command resurrects a deleted user and none re-deletes a restored one.
-- [ ] 9.3 [RED] Same file: no command's write set names `mfaEnabled`, `mfaSecret`, `mfaBackupCodes`, `mfaBackupUsedAt`, or `mfaLastUsedTotpStep` — those columns are owned by `PrismaCustomerMfaUserRepository` under CAS discipline, which a snapshot write silently defeats.
-- [ ] 9.4 [RED] Same file: `recordLogin` against an entity whose in-memory hash is **stale relative to the stored row** leaves the stored hash unchanged and writes only the login timestamp.
-- [ ] 9.5 [RED][integration] Extend `apps/api/tests/integration/customerPasswordReset.integration.test.ts` (already in the batch) with the **rehashing-login** scenario: seed a stored hash under parameters that **FORCE** `argon2.needsRehash` true (the spec requires forcing the condition, not waiting for a production `ARGON2_PARAMS` bump — otherwise it proves nothing and the trap stays armed), log in end to end, then assert the stored hash is the **UPGRADED** one: `argon2.verify(stored, password)` true **AND** `stored` not byte-identical to the pre-login hash. Acceptance: RED today — `LoginCustomerUseCase.ts:253`'s snapshot `save` restores the OLD hash after `:220` wrote the upgrade.
+- [x] 9.1 [RED][evidence] New `apps/api/tests/unit/infrastructure/repositories/customerUserWriteInvariants.test.ts`: **table-driven** (command, declared column set) over the 1.1 fake — for each command, diff the stored row **before/after** and assert the changed-column set **EQUALS** the declared set. Acceptance: this is the **authority criterion** made executable — _completeness_ (the write lists every column the intent requires), _exclusivity_ (each column has exactly one writing intent; `passwordHash`'s three writers — `create`, `claimPasswordReset`, `upgradePasswordHash` — are each sanctioned by name), _no side channel_ (no optional parameter alters the projection). RED today: the five commands do not exist.
+- [x] 9.2 [RED] Same file: every command invoked in turn against a **soft-deleted** row leaves `deletedAt` unchanged — no command resurrects a deleted user and none re-deletes a restored one.
+- [x] 9.3 [RED] Same file: no command's write set names `mfaEnabled`, `mfaSecret`, `mfaBackupCodes`, `mfaBackupUsedAt`, or `mfaLastUsedTotpStep` — those columns are owned by `PrismaCustomerMfaUserRepository` under CAS discipline, which a snapshot write silently defeats.
+- [x] 9.4 [RED] Same file: `recordLogin` against an entity whose in-memory hash is **stale relative to the stored row** leaves the stored hash unchanged and writes only the login timestamp.
+- [x] 9.5 [RED][integration] Extend `apps/api/tests/integration/customerPasswordReset.integration.test.ts` (already in the batch) with the **rehashing-login** scenario: seed a stored hash under parameters that **FORCE** `argon2.needsRehash` true (the spec requires forcing the condition, not waiting for a production `ARGON2_PARAMS` bump — otherwise it proves nothing and the trap stays armed), log in end to end, then assert the stored hash is the **UPGRADED** one: `argon2.verify(stored, password)` true **AND** `stored` not byte-identical to the pre-login hash. Acceptance: RED today — `LoginCustomerUseCase.ts:253`'s snapshot `save` restores the OLD hash after `:220` wrote the upgrade.
+
+**Evidence** — 9.1–9.4 in `customerUserWriteInvariants.test.ts`, RED on the unmodified tree at
+**14 failed / 6 passed, exit 1**, in five distinct shapes: `repo.create`, `repo.recordLogin`,
+`repo.upgradePasswordHash`, `repo.changeRole` and `repo.deactivate` are `not a function`. The 6
+that passed pre-fix are the two PR-1 rows (`claimPasswordReset`, `issueResetToken`) plus the two
+pure-table assertions, and they are kept as the regression floor. The table diffs the STORED row
+before and after each command; exclusivity is expressed as a pinned writer list per shared
+column, so an unnamed second writer of `passwordHash` turns the suite red. 9.5's red is the
+sharpest measurement in this link: the login answered **200** and the row still held the stale
+`$argon2id$v=19$m=19456,t=2,p=1$…` hash **byte-identical** to the pre-login value — the upgrade
+landed and the snapshot `save` put it back. All GREEN after Phases 10–11 (20/20 unit, 13/13
+integration).
 
 ## Phase 10: GREEN — the five intent writes (port + adapter)
 
-- [ ] 10.1 [GREEN] `packages/core/domain/src/repositories/CustomerUserRepository.ts`: add `create(user, passwordHash)`, `recordLogin(userId, at)`, `changeRole(userId, roleId)`, `deactivate(userId)`, `upgradePasswordHash(userId, newHash)` with JSDoc. Acceptance: `upgradePasswordHash` is the **gate-ACCEPTED divergence** from the proposal's "delete `updatePasswordHash`" — its JSDoc names the login rehash as its **only sanctioned caller**; the old name and its false JSDoc (`:64-68`, "otherwise the existing hash is preserved on update") die in PR-2b. Also DELETE the now-orphaned `findByResetToken` declaration (`:58-62`) — PR-1's single-claim rewrite killed its only consumer.
-- [ ] 10.2 [GREEN] `apps/api/src/infrastructure/repositories/PrismaCustomerUserRepository.ts`: implement the five through `getClient()` — `create` as a **genuine `create`** mapping P2002 → `EMAIL_EXISTS` (not an upsert); the other four as count-gated `updateMany` naming exactly their own columns and returning typed `Result`s. DELETE the orphaned `findByResetToken` impl (`:151-169`) — its `:161-168` catch is the swallowed-guard-throw lesson this change exists to retire.
-- [ ] 10.3 [GREEN] Run VITEST `customerUserWriteInvariants.test.ts` → 9.1–9.4 green.
+- [x] 10.1 [GREEN] `packages/core/domain/src/repositories/CustomerUserRepository.ts`: add `create(user, passwordHash)`, `recordLogin(userId, at)`, `changeRole(userId, roleId)`, `deactivate(userId)`, `upgradePasswordHash(userId, newHash)` with JSDoc. Acceptance: `upgradePasswordHash` is the **gate-ACCEPTED divergence** from the proposal's "delete `updatePasswordHash`" — its JSDoc names the login rehash as its **only sanctioned caller**; the old name and its false JSDoc (`:64-68`, "otherwise the existing hash is preserved on update") die in PR-2b. Also DELETE the now-orphaned `findByResetToken` declaration (`:58-62`) — PR-1's single-claim rewrite killed its only consumer.
+- [x] 10.2 [GREEN] `apps/api/src/infrastructure/repositories/PrismaCustomerUserRepository.ts`: implement the five through `getClient()` — `create` as a **genuine `create`** mapping P2002 → `EMAIL_EXISTS` (not an upsert); the other four as count-gated `updateMany` naming exactly their own columns and returning typed `Result`s. DELETE the orphaned `findByResetToken` impl (`:151-169`) — its `:161-168` catch is the swallowed-guard-throw lesson this change exists to retire.
+- [x] 10.3 [GREEN] Run VITEST `customerUserWriteInvariants.test.ts` → 9.1–9.4 green.
+
+**Evidence** — 10.1 the five declarations landed in D-4's form; `upgradePasswordHash`'s JSDoc names
+the login rehash as its ONLY sanctioned caller and says why every other credential change goes
+through the claim. The `findByResetToken` declaration is gone. 10.2 `create` is a genuine
+`create` (never an upsert) whose creation projection deliberately excludes the MFA columns,
+`deletedAt`, the reset-token pair, the e-mail-verification pair and the login timestamp; P2002 is
+mapped to `EMAIL_EXISTS` only when the collided constraint NAMES the e-mail, so a row-id or
+invite-token collision is not mis-reported as a duplicate address. The other four share one
+private `updateOneLiveRow` — `updateMany({ where: { id, deletedAt: null }, data })` with `count`
+as the whole verdict — so the column projection is the only thing that differs between them and
+each one's declared write set is readable at its call site. A guard throw goes to
+`logWriteFailure` + `INTERNAL_ERROR` and is never degraded into a typed domain verdict. The
+adapter `findByResetToken` impl (and its swallow-the-guard-throw catch) is gone; `rg` finds zero
+occurrences of the name anywhere in the tree. 10.3 VITEST → **20/20**.
 
 ## Phase 11: GREEN — credential callers (compiler-driven)
 
-- [ ] 11.1 [GREEN] `packages/core/customer-auth/src/LoginCustomerUseCase.ts`: `:220` `updatePasswordHash` → `upgradePasswordHash`; `:253` `save(targetUser)` → `recordLogin(targetUser.id, …)` with its `Result` **checked** (today it is discarded). Rewrite the `:211-217` comment — it currently states the stale-entity precondition correctly and then draws the opposite conclusion. Acceptance: 9.5 GREEN — the rehash persists.
-- [ ] 11.2 [GREEN] `packages/core/customer-auth/src/CompleteCustomerMfaLoginUseCase.ts:205` `save(user)` → `recordLogin(user.id, …)`, keeping the existing typed failure branch distinguishable.
-- [ ] 11.3 [GREEN] `packages/core/customer-auth/src/RegisterCustomerUseCase.ts:149` `save(user, passwordHash)` → `create(user, passwordHash)`; map `EMAIL_EXISTS` onto the use case's existing `EMAIL_EXISTS` code. Acceptance: no new route error-map row — `customerAuthRoutes.ts:129` already carries the 409.
-- [ ] 11.4 [GREEN] Re-run VITEST `customerAuthUseCases.test.ts` and DBUP + INT the reset/login integration file → green.
+- [x] 11.1 [GREEN] `packages/core/customer-auth/src/LoginCustomerUseCase.ts`: `:220` `updatePasswordHash` → `upgradePasswordHash`; `:253` `save(targetUser)` → `recordLogin(targetUser.id, …)` with its `Result` **checked** (today it is discarded). Rewrite the `:211-217` comment — it currently states the stale-entity precondition correctly and then draws the opposite conclusion. Acceptance: 9.5 GREEN — the rehash persists.
+- [x] 11.2 [GREEN] `packages/core/customer-auth/src/CompleteCustomerMfaLoginUseCase.ts:205` `save(user)` → `recordLogin(user.id, …)`, keeping the existing typed failure branch distinguishable.
+- [x] 11.3 [GREEN] `packages/core/customer-auth/src/RegisterCustomerUseCase.ts:149` `save(user, passwordHash)` → `create(user, passwordHash)`; map `EMAIL_EXISTS` onto the use case's existing `EMAIL_EXISTS` code. Acceptance: no new route error-map row — `customerAuthRoutes.ts:129` already carries the 409.
+- [x] 11.4 [GREEN] Re-run VITEST `customerAuthUseCases.test.ts` and DBUP + INT the reset/login integration file → green.
+
+**Evidence** — 11.1 the rehash writes through `upgradePasswordHash` and the comment is rewritten:
+it still states the stale-entity precondition and now draws the conclusion that precondition
+forces — nothing after it may write a column shaped from the entity. The login stamp is
+`recordLogin(targetUser.id, …)` with its `Result` CHECKED; a failure returns `INTERNAL_ERROR`
+rather than being discarded, which matches what the MFA branch of this same login already did.
+11.2 the MFA completion stamps one column inside the same Unit of Work and keeps its typed
+failure branch. 11.3 registration calls `create` and maps `EMAIL_EXISTS` onto its own existing
+code — no new route error-map row was needed, confirmed against `customerAuthRoutes.ts`'s 409.
+11.4 VITEST `customerAuthUseCases.test.ts` and the whole `apps/api` unit set green
+(**566 files / 8,795 tests**), `@core/customer-auth` **29/29**, `@core/team` **3/3**,
+`@core/domain` **55/55**; DBUP + INT the reset/login integration file **13/13**.
+
+**Caller doubles updated with the migration** (evidence, not product): `customerAuthUseCases.test.ts`,
+`onboarding/onboarding.test.ts`, and the two `@core/customer-auth` suites carried repository
+doubles whose `save`/`updatePasswordHash` members the migrated flows no longer call. Their
+assertions moved onto `create` / `recordLogin` rather than being deleted — the claim each made is
+preserved, only its subject changed.
 
 ## Phase 12: PR-2a gate
 
-- [ ] 12.1 **0-defect gate (PR-2a)** — TSC 0 · LINT `--max-warnings 0` 0 · `format:check` clean · fitness **#2 #3 #4 #5 #8 #9 #10 #21 #23 #31 #32 #38(swept) #40(A+B)** = 0, **#30** ratchet 21 unchanged, **#38** db-prisma ratchet 11 unchanged · unit suites green · DBUP + BATCH `integration:customer-auth` + `integration:tenant-isolation` green, **0 cancelled, 0 skipped** · database left as found (out-of-band read).
+- [x] 12.1 **0-defect gate (PR-2a)** — TSC 0 · LINT `--max-warnings 0` 0 · `format:check` clean · fitness **#2 #3 #4 #5 #8 #9 #10 #21 #23 #31 #32 #38(swept) #40(A+B)** = 0, **#30** ratchet 21 unchanged, **#38** db-prisma ratchet 11 unchanged · unit suites green · DBUP + BATCH `integration:customer-auth` + `integration:tenant-isolation` green, **0 cancelled, 0 skipped** · database left as found (out-of-band read). [**DONE** — writer-collected and independently reproduced by the fresh gate (PASS-with-warnings, 0 CRITICAL): batch 497/497 0c/0s ×2 runs, vitest 8,795, tsc/eslint/prettier 0, the fitness set 0 with both ratchets unchanged; CODE re-measured by the gate at **290** (+241/−49, 110 under budget — the writer's 324 was self-accounting; the gate's git-diff number governs); as-found proven by the orchestrator's own out-of-band read (separate client, counts below in apply-progress). Gate WARNING 1 (failure-branch coverage of the three credential callers) routed into the WIDENED task 13.2 — PR-2b closes the six-caller scenario whole.]
 
 ---
 
@@ -257,7 +301,7 @@ double whose outcome claims live in the two new stateful suites. 38/38 unit test
 ## Phase 13: REDs — creation creates, and migrated callers keep their failure classes
 
 - [ ] 13.1 [RED] Extend `customerUserWriteInvariants.test.ts`: creating a duplicate (same account + e-mail) returns a **typed conflict** and leaves the existing row unchanged in **every** column. Acceptance: the upsert semantics the current code relies on turn an invitation for an already-registered address into a silent overwrite of that user — that is the behaviour being deleted, so the test asserts the row, not the call.
-- [ ] 13.2 [RED] New/extended unit coverage per migrated caller (`InviteTeamMemberUseCase`, `UpdateTeamMemberRoleUseCase`, `RemoveTeamMemberUseCase`): when the underlying write fails, each caller's own error contract still **distinguishes the failure classes it distinguished before the migration** (no collapse into one internal error).
+- [ ] 13.2 [RED] New/extended unit coverage per migrated caller (`InviteTeamMemberUseCase`, `UpdateTeamMemberRoleUseCase`, `RemoveTeamMemberUseCase`, **and — widened by the PR-2a gate's WARNING 1 — the three credential callers PR-2a migrated: `LoginCustomerUseCase` (the `recordLogin` failure branch returning `INTERNAL_ERROR`, apply-progress decision #2), `CompleteCustomerMfaLoginUseCase` (same branch), `RegisterCustomerUseCase` (the `EMAIL_EXISTS` arm at use-case level — today only the adapter's P2002 mapping and the pre-flight lookup are covered)**): when the underlying write fails, each caller's own error contract still **distinguishes the failure classes it distinguished before the migration** (no collapse into one internal error). The MERGE-BLOCKING scenario says GIVEN **each** caller migrated — six callers, six covered.
 
 ## Phase 14: GREEN — the three team callers
 

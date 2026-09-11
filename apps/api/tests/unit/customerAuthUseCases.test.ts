@@ -65,9 +65,13 @@ function makeCustomerUserRepo() {
     findByEmail: vi.fn(),
     findByEmailAcrossAccounts: vi.fn().mockResolvedValue([]),
     findByAccountId: vi.fn().mockResolvedValue([]),
-    findByResetToken: vi.fn(),
     claimPasswordReset: vi.fn().mockResolvedValue(ok(undefined)),
     issueResetToken: vi.fn().mockResolvedValue(ok(undefined)),
+    create: vi.fn().mockResolvedValue(ok(undefined)),
+    recordLogin: vi.fn().mockResolvedValue(ok(undefined)),
+    upgradePasswordHash: vi.fn().mockResolvedValue(ok(undefined)),
+    changeRole: vi.fn().mockResolvedValue(ok(undefined)),
+    deactivate: vi.fn().mockResolvedValue(ok(undefined)),
     save: vi.fn().mockResolvedValue(ok(undefined)),
     updatePasswordHash: vi.fn().mockResolvedValue(ok(undefined)),
     delete: vi.fn().mockResolvedValue(ok(undefined)),
@@ -177,7 +181,7 @@ describe("RegisterCustomerUseCase", () => {
     expect(result.value.user).toBeDefined();
     expect(result.value.account).toBeDefined();
     expect(accountRepo.save).toHaveBeenCalledTimes(1);
-    expect(customerUserRepo.save).toHaveBeenCalledTimes(1);
+    expect(customerUserRepo.create).toHaveBeenCalledTimes(1);
     expect(unitOfWork.executeInTransaction).toHaveBeenCalledTimes(1);
   });
 
@@ -275,7 +279,7 @@ describe("LoginCustomerUseCase", () => {
     assert.ok(result.ok, `Expected ok, got: ${!result.ok ? result.error : ""}`);
     expect(result.value.accessToken).toBeDefined();
     expect(result.value.refreshToken).toBeDefined();
-    expect(customerUserRepo.save).toHaveBeenCalledTimes(1); // recordLogin
+    expect(customerUserRepo.recordLogin).toHaveBeenCalledTimes(1);
   });
 
   it("returns INVALID_CREDENTIALS for wrong password", async () => {
@@ -559,7 +563,9 @@ describe("ResetPasswordUseCase", () => {
     // stored, which is the defect this flow exists to retire.
     expect(customerUserRepo.save).not.toHaveBeenCalled();
     expect(customerUserRepo.updatePasswordHash).not.toHaveBeenCalled();
-    expect(customerUserRepo.findByResetToken).not.toHaveBeenCalled();
+    // The token READ that used to precede the write is not asserted absent here
+    // any more: it no longer exists on the port or the adapter, so there is
+    // nothing left to call.
 
     const [claimedToken, claimedHash] = customerUserRepo.claimPasswordReset.mock.calls[0] as [
       string,
