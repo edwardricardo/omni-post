@@ -489,12 +489,39 @@ jobs:
           IX1_MIGRATION="infra/prisma/migrations/20260910000100_post_feed_index_winner/migration.sql"
           IX1_DIGEST="e7789b995f83f3fc4127807f4d605fdbe75f750a6cedd3889af81a94d2babc42"
 
+          # ADJUDICATION 5 — the same two concurrency rules on that migration's
+          # OPERATOR-RUN down.sql. The rollback mirrors the swap in reverse
+          # (drop the three-column index, rebuild the two-column one, both
+          # partial on "deletedAt" IS NULL), so the same two statements fire the
+          # same two rules for the same cause, and ADJUDICATION 4's measured
+          # unsatisfiability applies unchanged: .squawk.toml pins
+          # assume_in_transaction = true, so rewriting either statement with
+          # CONCURRENTLY fires ban-concurrent-index-creation-in-transaction
+          # instead. down.sql is never applied by Prisma — it is the operator
+          # rollback the migration header documents — but it is linted to the
+          # same standard deliberately, because a rollback linted more leniently
+          # than the change it reverses is a second, unreviewed migration.
+          # Nothing about the rollback's correctness is waived — only the
+          # CONCURRENTLY spelling, exactly as for the forward file.
+          # RED, observed LIVE rather than planted: PR #237's Squawk lane fired
+          # exactly these two rules on exactly this file (run 34536890517) while
+          # the forward file linted clean under ADJUDICATION 4 — the
+          # unadjudicated-sibling red this entry closes.
+          # TRIGGER: squawk reports either rule for this exact file content.
+          # REMOVE-WHEN: together with ADJUDICATION 4 — the two files adjudicate
+          # and retire as a pair (the live-path CONCURRENTLY runbook adoption
+          # that is mandatory before production traffic, or a baseline squash
+          # deleting the migration folder, in that same change).
+          IX1_DOWN="infra/prisma/migrations/20260910000100_post_feed_index_winner/down.sql"
+          IX1_DOWN_DIGEST="59d787d3aca0a21cbc5531f130749a48ff79085a75b21db3dee058f42921d2c9"
+
           exception_rules_for() {
             case "$1" in
               "$ALIGNMENT_MIGRATION") echo "ban-drop-not-null" ;;
               "$RETENTION_MIGRATION") echo "adding-not-nullable-field,ban-drop-not-null,prefer-bigint-over-int,require-concurrent-index-creation,require-concurrent-index-deletion" ;;
               "$POST_TRIO_MIGRATION") echo "adding-not-nullable-field,require-concurrent-index-creation" ;;
               "$IX1_MIGRATION") echo "require-concurrent-index-creation,require-concurrent-index-deletion" ;;
+              "$IX1_DOWN") echo "require-concurrent-index-creation,require-concurrent-index-deletion" ;;
               *) echo "" ;;
             esac
           }
@@ -504,6 +531,7 @@ jobs:
               "$RETENTION_MIGRATION") echo "$RETENTION_DIGEST" ;;
               "$POST_TRIO_MIGRATION") echo "$POST_TRIO_DIGEST" ;;
               "$IX1_MIGRATION") echo "$IX1_DIGEST" ;;
+              "$IX1_DOWN") echo "$IX1_DOWN_DIGEST" ;;
               *) echo "" ;;
             esac
           }
@@ -516,7 +544,7 @@ jobs:
           # statements above are the list this loop must mirror, and it silently
           # stopped mirroring them when POST_TRIO landed. Adding a name here is
           # part of adding an adjudication, not a follow-up to it.
-          for p in "$ALIGNMENT_MIGRATION" "$RETENTION_MIGRATION" "$POST_TRIO_MIGRATION" "$IX1_MIGRATION"; do
+          for p in "$ALIGNMENT_MIGRATION" "$RETENTION_MIGRATION" "$POST_TRIO_MIGRATION" "$IX1_MIGRATION" "$IX1_DOWN"; do
             if [ ! -f "$p" ]; then
               echo "::error title=Squawk exception names a file that no longer exists::$p is adjudicated in this step but is not in the tree. Delete the entry, or a migration recreated under that path inherits the waiver without ever being adjudicated."
               exit 1
