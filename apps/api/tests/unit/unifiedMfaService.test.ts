@@ -33,9 +33,10 @@ vi.mock("../../src/lib/logger.js", () => {
 });
 
 import { authenticator } from "otplib";
-import { err, type Result } from "@shared/types";
-import { MFA_SUBJECT_TYPE, type MfaSubject } from "@ports/core";
+import { ok, err, type Result } from "@shared/types";
+import { MFA_SUBJECT_TYPE, type MfaSubject, type MfaUserRecord } from "@ports/core";
 import { MfaService } from "../../src/admin/auth/MfaService.js";
+import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 import { InMemoryMfaUserRepository } from "./helpers/InMemoryMfaUserRepository.js";
 import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
@@ -53,20 +54,78 @@ class RaceLosingMfaUserRepository extends InMemoryMfaUserRepository {
   }
 }
 
+/**
+ * The staggered interleaving at unit scale: `findById` hands back the current
+ * record and THEN lets a "concurrent" verification claim an index, so the
+ * service's deciding read is already stale when the argon2 loop ends. The claim,
+ * not the service's own filter, decides the outcome — and when the claimed index
+ * is the one this caller presents, the refusal comes from the claim's state
+ * check with no write attempted.
+ */
+class ConcurrentClaimMfaUserRepository extends InMemoryMfaUserRepository {
+  private pendingIndex: number | null = null;
+
+  /** Arm a concurrent claim of `codeIndex`, fired right after the next read. */
+  claimAfterNextRead(codeIndex: number): void {
+    this.pendingIndex = codeIndex;
+  }
+
+  override async findById(userId: string): Promise<Result<MfaUserRecord, "NOT_FOUND">> {
+    const found = await super.findById(userId);
+    const index = this.pendingIndex;
+    if (index !== null && found.ok) {
+      this.pendingIndex = null;
+      await super.markBackupCodeUsed(userId, index, new Date("2026-06-06T06:06:06.000Z"));
+    }
+    return found;
+  }
+}
+
+/**
+ * The used-index filter, neutered: `findById` reports an EMPTY used-map while the
+ * stored state keeps every real claim, so the service cannot skip an
+ * already-consumed index and the verdict can only come from the claim.
+ */
+class FilterBlindMfaUserRepository extends InMemoryMfaUserRepository {
+  override async findById(userId: string): Promise<Result<MfaUserRecord, "NOT_FOUND">> {
+    const found = await super.findById(userId);
+    if (!found.ok) return found;
+    return ok({ ...found.value, mfaBackupUsedAt: {} });
+  }
+}
+
 interface Harness {
   service: MfaService;
   adminRepo: InMemoryMfaUserRepository;
   customerRepo: InMemoryMfaUserRepository;
   audit: InMemoryAuditLogRepository;
+  securityThreatsInc: ReturnType<typeof vi.fn>;
 }
 
-function makeHarness(): Harness {
-  const adminRepo = new InMemoryMfaUserRepository();
-  const customerRepo = new InMemoryMfaUserRepository();
-  const audit = new InMemoryAuditLogRepository();
-  const service = new MfaService(adminRepo, customerRepo, audit);
-  return { service, adminRepo, customerRepo, audit };
+interface HarnessOptions {
+  adminRepo?: InMemoryMfaUserRepository;
+  customerRepo?: InMemoryMfaUserRepository;
 }
+
+function makeHarness(options: HarnessOptions = {}): Harness {
+  const adminRepo = options.adminRepo ?? new InMemoryMfaUserRepository();
+  const customerRepo = options.customerRepo ?? new InMemoryMfaUserRepository();
+  const audit = new InMemoryAuditLogRepository();
+  const securityThreatsInc = vi.fn();
+  // Shaped like the live collector the composition root injects
+  // (`metrics.metrics.securityThreats.inc`), per the RedisBruteForceAdapter and
+  // fileUploadValidator precedents.
+  const metrics = {
+    metrics: { securityThreats: { inc: securityThreatsInc } },
+  } as unknown as ApiMetrics;
+  const service = new MfaService(adminRepo, customerRepo, audit, undefined, metrics);
+  return { service, adminRepo, customerRepo, audit, securityThreatsInc };
+}
+
+const REUSE_THREAT_LABELS = {
+  threat_type: "mfa_backup_code_reuse",
+  endpoint: "mfa_verify",
+} as const;
 
 function repoFor(h: Harness, subject: MfaSubject): InMemoryMfaUserRepository {
   return subject.type === MFA_SUBJECT_TYPE.CUSTOMER ? h.customerRepo : h.adminRepo;
@@ -238,32 +297,110 @@ describe("Unified MfaService", () => {
     expect(bad.ok).toBe(false);
   });
 
-  it("rejects a backup code as INVALID_TOKEN (never success) when the single-use mark loses the CAS race", async () => {
+  it("rejects a backup code as INVALID_TOKEN (never success) when the claim is refused by a lost write", async () => {
     // Two step-1 logins (two challenge jtis) submit the SAME backup code
     // concurrently: both read it unused, both verify the hash, but the atomic
-    // single-use mark lets exactly one win. The loser MUST be rejected as an
-    // invalid token — a lost race can never mint a session from an already-used
-    // code (nor surface as an opaque DATABASE_ERROR that the login step would
-    // still turn into a hard failure with the wrong signal).
-    const adminRepo = new InMemoryMfaUserRepository();
-    const raceCustomerRepo = new RaceLosingMfaUserRepository();
-    const audit = new InMemoryAuditLogRepository();
-    const service = new MfaService(adminRepo, raceCustomerRepo, audit);
-    raceCustomerRepo.seed({ id: CUSTOMER.id, email: "race@example.com" });
+    // claim lets exactly one win. The loser MUST be rejected as an invalid token
+    // — a refused claim can never mint a session from an already-consumed code
+    // (nor surface as an opaque DATABASE_ERROR that the login step would still
+    // turn into a hard failure with the wrong signal).
+    const h2 = makeHarness({ customerRepo: new RaceLosingMfaUserRepository() });
+    const { backupCodes } = await enroll(h2, CUSTOMER, "race@example.com");
 
-    const setup = await service.setupMfa(CUSTOMER);
-    expect(setup.ok).toBe(true);
-    if (!setup.ok) return;
-    const enabled = await service.verifyMfaSetup(
-      CUSTOMER,
-      authenticator.generate(setup.value.secret)
-    );
-    expect(enabled.ok).toBe(true);
-
-    const result = await service.verifyMfaToken(CUSTOMER, setup.value.backupCodes[0] as string);
+    const result = await h2.service.verifyMfaToken(CUSTOMER, backupCodes[0] as string);
 
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error).toBe("INVALID_TOKEN");
+
+    const rejected = h2.audit.rows.filter((r) => r.action === "MFA_BACKUP_CODE_REUSE_REJECTED");
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0]?.details as { severity?: string } | undefined)?.severity).toBe("HIGH");
+    expect(h2.securityThreatsInc).toHaveBeenCalledWith(REUSE_THREAT_LABELS);
+  });
+
+  it("alarms and increments the metric on a refusal that never reached a write", async () => {
+    // The staggered interleaving: a concurrent verification claims the SAME code
+    // after this caller's deciding read, so the service's own filter still sees
+    // it unused and the refusal comes from the claim's state check with no write
+    // attempted. That refusal must alarm exactly as the lost-write refusal above
+    // — the emission branches on the claim's verdict, never on its cause.
+    const adminRepo = new ConcurrentClaimMfaUserRepository();
+    const h2 = makeHarness({ adminRepo });
+    const { backupCodes } = await enroll(h2, ADMIN, "staggered@example.com");
+    adminRepo.claimAfterNextRead(0);
+
+    const result = await h2.service.verifyMfaToken(ADMIN, backupCodes[0] as string);
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toBe("INVALID_TOKEN");
+
+    const rejected = h2.audit.rows.filter((r) => r.action === "MFA_BACKUP_CODE_REUSE_REJECTED");
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0]?.details as { severity?: string } | undefined)?.severity).toBe("HIGH");
+    expect(h2.securityThreatsInc).toHaveBeenCalledWith(REUSE_THREAT_LABELS);
+    expect(h2.securityThreatsInc).toHaveBeenCalledTimes(1);
+  });
+
+  it("emits the reuse event with no secret material in its payload", async () => {
+    const adminRepo = new ConcurrentClaimMfaUserRepository();
+    const h2 = makeHarness({ adminRepo });
+    const { secret, backupCodes } = await enroll(h2, ADMIN, "no-secrets@example.com");
+    const storedHash = adminRepo.raw(ADMIN.id)?.mfaBackupCodes[0] as string;
+    adminRepo.claimAfterNextRead(0);
+
+    await h2.service.verifyMfaToken(ADMIN, backupCodes[0] as string);
+
+    const rejected = h2.audit.rows.find((r) => r.action === "MFA_BACKUP_CODE_REUSE_REJECTED");
+    expect(rejected).toBeTruthy();
+    const payload = JSON.stringify(rejected);
+    expect(payload).toContain(ADMIN.id);
+    expect(payload).not.toContain(secret);
+    expect(payload).not.toContain(storedHash);
+    for (const code of backupCodes) {
+      expect(payload).not.toContain(code);
+    }
+  });
+
+  it("audits a remaining count read back from post-claim state, not from the deciding read", async () => {
+    // A sibling index is claimed inside this caller's argon2 window, so the
+    // pre-verification snapshot is stale by the time the claim commits: the
+    // audited count must reflect what the claim persisted.
+    const adminRepo = new ConcurrentClaimMfaUserRepository();
+    const h2 = makeHarness({ adminRepo });
+    const { backupCodes } = await enroll(h2, ADMIN, "remaining@example.com");
+    adminRepo.claimAfterNextRead(1);
+
+    const result = await h2.service.verifyMfaToken(ADMIN, backupCodes[0] as string);
+
+    expect(result.ok && result.value.verified).toBe(true);
+    const consumed = adminRepo.raw(ADMIN.id)?.mfaBackupUsedAt ?? {};
+    expect(Object.keys(consumed).sort()).toEqual(["0", "1"]);
+    const used = h2.audit.rows.find((r) => r.action === "MFA_BACKUP_CODE_USED");
+    const staleCount = backupCodes.length - 1;
+    expect((used?.details as { remainingCodes?: number } | undefined)?.remainingCodes).toBe(
+      backupCodes.length - 2
+    );
+    expect((used?.details as { remainingCodes?: number } | undefined)?.remainingCodes).not.toBe(
+      staleCount
+    );
+  });
+
+  it("keeps the single-use verdict when the used-index filter is neutered in the harness", async () => {
+    // The filter is an argon2-cost optimisation, not the control: deprived of its
+    // input it changes cost and nothing else — the claim still refuses the
+    // already-consumed code.
+    const adminRepo = new FilterBlindMfaUserRepository();
+    const h2 = makeHarness({ adminRepo });
+    const { backupCodes } = await enroll(h2, ADMIN, "filter-blind@example.com");
+
+    const first = await h2.service.verifyMfaToken(ADMIN, backupCodes[0] as string);
+    const replay = await h2.service.verifyMfaToken(ADMIN, backupCodes[0] as string);
+
+    expect(first.ok && first.value.verified).toBe(true);
+    expect(replay.ok).toBe(false);
+    expect(!replay.ok && replay.error).toBe("INVALID_TOKEN");
+    expect(Object.keys(adminRepo.raw(ADMIN.id)?.mfaBackupUsedAt ?? {})).toEqual(["0"]);
+    expect(h2.securityThreatsInc).toHaveBeenCalledWith(REUSE_THREAT_LABELS);
   });
 
   it("returns USER_NOT_FOUND for an unknown subject", async () => {

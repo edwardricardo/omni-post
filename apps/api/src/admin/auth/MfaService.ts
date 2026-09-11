@@ -25,6 +25,7 @@ import {
 } from "@ports/core";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import type { ApiMetrics } from "../../metrics/apiMetrics.js";
 import { AuditableService, auditActor, type AuditActor } from "../../services/AuditableService.js";
 import { authLogger } from "../../lib/logger.js";
 import { hashPassword, verifyPassword } from "../../auth/passwordHashing.js";
@@ -77,9 +78,12 @@ type StatusError = "USER_NOT_FOUND" | "DATABASE_ERROR";
 /**
  * @class MfaService
  * @description Subject-agnostic MFA orchestrator. Receives one adapter per subject
- *              type plus the audit port and (optionally) a Unit of Work by
- *              constructor injection — it never imports a Prisma singleton nor
- *              constructs an adapter inline.
+ *              type plus the audit port and (optionally) a Unit of Work and the
+ *              metrics collector by constructor injection — it never imports a
+ *              Prisma singleton nor constructs an adapter inline. The metrics
+ *              collector carries the security-threat counter a refused backup-code
+ *              claim increments; it is optional so every existing caller (and
+ *              every unit harness) keeps constructing the service unchanged.
  */
 export class MfaService extends AuditableService implements MfaVerificationPort {
   private readonly issuer = adminAuthConfig.mfa.issuer;
@@ -89,7 +93,8 @@ export class MfaService extends AuditableService implements MfaVerificationPort 
     private readonly adminRepo: MfaUserRepositoryPort,
     private readonly customerRepo: MfaUserRepositoryPort,
     auditLog: AuditLogRepository,
-    private readonly unitOfWork?: UnitOfWork
+    private readonly unitOfWork?: UnitOfWork,
+    private readonly metrics?: ApiMetrics
   ) {
     super("MfaService", auditLog);
   }
@@ -184,8 +189,10 @@ export class MfaService extends AuditableService implements MfaVerificationPort 
   /**
    * @method verifyMfaToken
    * @description Login-time verification. Tries the TOTP first; on a miss, checks
-   *              each UNUSED backup-code hash and, on a match, marks that code
-   *              single-use (by array index) so it cannot be presented again.
+   *              each backup-code hash and, on a match, CLAIMS that code (by array
+   *              index). The claim is the sole authority for whether this caller
+   *              consumed the code: a refused claim rejects the verification with
+   *              an invalid-token verdict and grants no session.
    * @param subject - The subject verifying.
    * @param token - A TOTP or a backup code.
    * @returns Ok({verified,usedBackupCode}) on success, or a typed verify error.
@@ -225,39 +232,55 @@ export class MfaService extends AuditableService implements MfaVerificationPort 
 
       const usedIndexes = new Set(Object.keys(record.mfaBackupUsedAt));
       for (let index = 0; index < record.mfaBackupCodes.length; index++) {
+        // Argon2-cost optimisation, NOT the single-use control: skipping an index
+        // this snapshot already shows consumed avoids up to 8 serial argon2
+        // verifies (m=64MiB, t=3, p=4). The snapshot is read before that
+        // hundreds-of-milliseconds window, so it is stale exactly when it would
+        // matter — the adapter claim below is the authority for single-use, and
+        // removing this skip changes cost and nothing else.
         if (usedIndexes.has(String(index))) continue;
         const hash = record.mfaBackupCodes[index];
         if (!hash) continue;
         if (await verifyPassword(hash, token)) {
-          const remaining = record.mfaBackupCodes.length - usedIndexes.size - 1;
-          // Atomic single-use mark. A concurrent verification of the SAME code
-          // may have committed first (compare-and-swap lost → ALREADY_USED); the
-          // per-challenge `jti` gate does NOT close that cross-challenge race, so
-          // this mark is the control that makes one backup code mint at most one
-          // session.
+          // The claim is the SOLE authority for whether THIS caller consumed the
+          // code: at most one caller ever receives Ok for a given index, under
+          // sequential replay and under every concurrent interleaving, so one
+          // backup code mints at most one session.
           let markResult: Result<void, "NOT_FOUND" | "ALREADY_USED"> = err("NOT_FOUND");
           await this.runInTransaction(async () => {
             markResult = await repo.markBackupCodeUsed(subject.id, index, new Date());
-            // On a lost CAS the update wrote nothing — commit the empty
-            // transaction WITHOUT the audit rather than record a code this
-            // caller never actually consumed. A genuine fault still throws and
-            // is mapped to DATABASE_ERROR by the outer catch.
+            // A refused claim wrote nothing — commit the empty transaction
+            // WITHOUT the audit rather than record a code this caller never
+            // actually consumed. A genuine fault still throws and is mapped to
+            // DATABASE_ERROR by the outer catch.
             if (isErr(markResult)) return;
+            // Remaining count read back AFTER the claim, on the same connection,
+            // so it reports persisted state rather than the pre-verification
+            // snapshot that was already stale when the argon2 loop began. If the
+            // row vanished mid-transaction the audit OMITS the count instead of
+            // reporting a stale number.
+            const afterClaim = await repo.findById(subject.id);
+            const remaining = afterClaim.ok
+              ? afterClaim.value.mfaBackupCodes.length -
+                Object.keys(afterClaim.value.mfaBackupUsedAt).length
+              : undefined;
             await this.audit(
               subject,
               "MFA_BACKUP_CODE_USED",
               "MEDIUM",
-              { remainingCodes: remaining },
+              { ...(remaining !== undefined && { remainingCodes: remaining }) },
               record.accountId
             );
           });
           if (markResult.ok) {
             return ok({ verified: true, usedBackupCode: true });
           }
-          // Lost the race (or the row vanished mid-flight): reject as an invalid
-          // token — NEVER success, NEVER an opaque DATABASE_ERROR. Record a
-          // concurrent-reuse loss as a HIGH-severity attack indicator (symmetric
-          // with the TOTP replay signal above).
+          // The claim was refused (or the row vanished mid-flight): reject as an
+          // invalid token — NEVER success, NEVER an opaque DATABASE_ERROR. The
+          // alarm and the counter branch on the claim's VERDICT alone, never on
+          // which interleaving or which mechanism produced it, so the staggered
+          // attack raises them as loudly as a lost write does (symmetric with the
+          // TOTP replay signal above).
           if (markResult.error === "ALREADY_USED") {
             await this.audit(
               subject,
@@ -266,6 +289,10 @@ export class MfaService extends AuditableService implements MfaVerificationPort 
               undefined,
               record.accountId
             );
+            this.metrics?.metrics.securityThreats.inc({
+              threat_type: "mfa_backup_code_reuse",
+              endpoint: "mfa_verify",
+            });
           }
           return err("INVALID_TOKEN");
         }

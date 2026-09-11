@@ -197,7 +197,8 @@ export function setupServices(
         container.resolve<MfaUserRepositoryPort>(TOKENS.AdminMfaUserRepository),
         container.resolve<MfaUserRepositoryPort>(TOKENS.CustomerMfaUserRepository),
         container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository),
-        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
+        container.resolve<ApiMetrics>(TOKENS.ApiMetrics)
       ),
     true
   );
