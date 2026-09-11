@@ -11,8 +11,15 @@
 > `callerAccountId?`. Extended by change `post-read-ownership-gate`, archived 2026-07-17,
 > which closed the LIVE cross-tenant **read** IDOR (CWE-639) across four customer-facing
 > read surfaces by threading a server-derived `callerAccountId` into the read use cases and
-> scoping the Prisma WHERE via the transitive `project.accountId` relation (Post has no
-> direct `accountId`).
+> scoping the Prisma WHERE via the transitive `project.accountId` relation — at the time,
+> Post carried no direct `accountId` column, so the relation was the only stored expression
+> of ownership. **Modified by change `tenant-rls-cost-repair`, archived 2026-09-11**: the A′
+> trio slice gave Post a local `accountId` column backed by a composite foreign key to its
+> project, making a disagreement between the two unrepresentable, and this change moved the
+> **global unfiltered list**'s scoping mechanism (only) from the transitive relation to that
+> local column — proven row-equivalent across every measured case. The single-post read,
+> thread-expanded read, and by-project list below are untouched by that move and still scope
+> via the transitive relation.
 >
 > RFC 2119 keywords (MUST / SHALL / SHOULD / MAY) are normative. Each requirement carries
 > Given/When/Then acceptance scenarios.
@@ -209,12 +216,59 @@ restricting the unfiltered global list to admin principals (returning 403 to
 customers). In neither case SHALL a customer receive posts belonging to another
 account.
 
-#### Scenario: Customer global list never leaks other accounts
+Where the implementation satisfies this by SCOPING, the tenant predicate SHALL be the post's
+**local `accountId` column**, not the transitive `project.accountId` relation. The two are not
+independent facts: the composite foreign key makes disagreement between them unrepresentable,
+so carrying both is a redundant join predicate rather than a second guarantee. The account
+value SHALL continue to be server-derived from the authenticated principal — the port already
+receives it, so this move SHALL NOT change any call signature or introduce a client-supplied
+scope selector.
+
+The **project-liveness predicate SHALL be RETAINED**. Soft deletion does not cascade from a
+project to its posts, so `project.deletedAt IS NULL` is load-bearing: it is what excludes the
+posts of a soft-deleted project, and it is NOT part of what moves local. Dropping it would
+change the returned rows, which this requirement forbids.
+
+The returned row set SHALL be **unchanged** by this move, across every measured case.
+**Row-equivalence is the HARD GATE; timing is evidence.** A faster shape that returns a
+different row set FAILS this requirement.
+
+(Previously: the global list's scoping was expressed through the transitive `project.accountId`
+relation, because Post carried no local tenant column and the relation was the only stored
+expression of ownership. Superseded by change `tenant-rls-cost-repair`, archived 2026-09-11.)
+
+#### Scenario: Customer global list never leaks other accounts [integration]
 
 - GIVEN an authenticated customer in account A while account B also has posts
 - WHEN the caller sends `GET /posts` with no `projectId`
 - THEN the response either contains only account A's posts, or is 403 FORBIDDEN
 - AND it NEVER contains any post owned by account B
+
+#### Scenario: the scoping predicate is the local column [static]
+
+- GIVEN the global-list read after this change
+- WHEN its tenant predicate is inspected
+- THEN it filters on the post's own `accountId` column and no longer carries the relation's `accountId`
+- AND the account value still originates from the authenticated principal
+
+#### Scenario: rows are identical before and after the reshape [integration]
+
+- GIVEN the same corpus and the same caller account
+- WHEN the global list (and its count) is executed under the pre-reshape and post-reshape forms
+- THEN both return the identical row set and the identical count — any divergence FAILS the reshape
+
+#### Scenario: posts of a soft-deleted project stay excluded [integration]
+
+- GIVEN a caller in account A owning project Q, where Q is soft-deleted while its posts are not
+- WHEN the caller sends `GET /posts` with no `projectId`
+- THEN Q's posts are absent from the result, exactly as before the reshape
+
+#### Scenario: timing evidence does not gate the reshape [evidence]
+
+- GIVEN the reshape's measured re-run
+- WHEN a case moves outside the ≤6 µs / <1 % band
+- THEN it is recorded with an adjudication and does not by itself block the change
+- AND a case returning different rows blocks it regardless of how it timed
 
 ### Requirement: Read account derived from authenticated principal
 
