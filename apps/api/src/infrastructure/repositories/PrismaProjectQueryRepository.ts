@@ -13,6 +13,8 @@ import type {
   PostWithAnalytics,
   PublishedPost,
   MediaTypeCount,
+  ChannelRefDto,
+  PostExportRowDto,
 } from "@core/domain/repositories/ProjectQueryRepository.js";
 import type { ProjectDto, ChannelDto } from "@core/domain/repositories/ReadModelDtos.js";
 
@@ -183,5 +185,40 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
     });
     // Prisma enum values are identical string literals at runtime — safe cast.
     return rows as unknown as ChannelDto[];
+  }
+
+  /**
+   * Return a project's live channels as narrow references.
+   *
+   * The select is the security boundary, not a performance nicety: the channel
+   * row carries encrypted credential material, and the caller spreads this
+   * result into a payload the tenant downloads. Narrowing after the query would
+   * leave the wide row one spread away from that payload.
+   */
+  async listChannelRefsByProject(projectId: string): Promise<ChannelRefDto[]> {
+    const rows = await this.prisma.channel.findMany({
+      where: { projectId, deletedAt: null },
+      select: { id: true, provider: true, handle: true },
+    });
+    // Prisma enum values are identical string literals at runtime — safe cast.
+    return rows as unknown as ChannelRefDto[];
+  }
+
+  /**
+   * Return a project's live posts as export rows, newest first, capped at `take`.
+   */
+  async listPostExportRows(projectId: string, take: number): Promise<PostExportRowDto[]> {
+    return this.prisma.post.findMany({
+      where: { projectId, deletedAt: null },
+      select: {
+        id: true,
+        status: true,
+        scheduledAt: true,
+        publishedAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take,
+    });
   }
 }

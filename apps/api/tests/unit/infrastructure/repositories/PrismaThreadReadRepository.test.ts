@@ -106,6 +106,30 @@ describe("PrismaThreadReadRepository", () => {
     });
   });
 
+  it("listThreadRefsByProject selects four columns, keeps the bound, and adds NO ordering", async () => {
+    prisma.thread.findMany.mockResolvedValue([]);
+    await repo.listThreadRefsByProject("proj-1", 1000);
+    const arg = prisma.thread.findMany.mock.calls[0]?.[0];
+    expect(arg).toEqual({
+      where: { post: { projectId: "proj-1", deletedAt: null } },
+      select: { id: true, postId: true, strategy: true, createdAt: true },
+      take: 1000,
+    });
+    // No include: the export emits these rows verbatim, so a joined relation
+    // would add keys to a payload that is supposed to be unchanged.
+    expect(arg.include).toBeUndefined();
+    // No orderBy either. The read this replaces has none, and imposing one would
+    // change WHICH rows a truncated take returns — a behaviour change dressed as
+    // a tidy-up. Callers get storage order by contract.
+    expect(arg.orderBy).toBeUndefined();
+  });
+
+  it("listThreadRefsByProject passes the caller's bound through", async () => {
+    prisma.thread.findMany.mockResolvedValue([]);
+    await repo.listThreadRefsByProject("proj-2", 10);
+    expect(prisma.thread.findMany.mock.calls[0]?.[0].take).toBe(10);
+  });
+
   it("countByProjectId counts threads filtered by post.projectId", async () => {
     prisma.thread.count.mockResolvedValue(7);
     const count = await repo.countByProjectId("proj-1");

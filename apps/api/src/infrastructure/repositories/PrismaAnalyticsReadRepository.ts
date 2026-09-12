@@ -17,6 +17,7 @@ import type {
   DailySummaryDto,
   MonthlySummaryDto,
   HistoricalTrendDto,
+  ProjectEntriesOptions,
 } from "@core/domain/repositories/AnalyticsReadRepository.js";
 import type { AnalyticsDto } from "@core/domain/repositories/ReadModelDtos.js";
 
@@ -98,6 +99,45 @@ export class PrismaAnalyticsReadRepository implements AnalyticsReadRepositoryPor
       ...(options.skip !== undefined && { skip: options.skip }),
       orderBy: options.orderBy ?? { capturedAt: "desc" },
     });
+    return rows as unknown as AnalyticsDto[];
+  }
+
+  /**
+   * Return a project's analytics entries in one bounded nested-join read.
+   *
+   * The explicit select names the nine columns the analytics table holds today,
+   * which are also exactly the nine the export emits. It is a no-op against the
+   * current schema and that is the point: without it, adding a tenth column
+   * would silently add a key to a tenant-facing payload, and no test could catch
+   * it — the mock the route characterization runs against does not project
+   * selects either, so only naming the columns here states the intent.
+   */
+  async listProjectEntries(
+    projectId: string,
+    options: ProjectEntriesOptions
+  ): Promise<AnalyticsDto[]> {
+    const rows = await this.prisma.analytics.findMany({
+      where: {
+        post: { projectId, deletedAt: null },
+        // Conditional spread, not `capturedAt: undefined`: under
+        // exactOptionalPropertyTypes the explicit undefined is a different value.
+        ...(options.since !== undefined && { capturedAt: { gte: options.since } }),
+      },
+      select: {
+        id: true,
+        postId: true,
+        channelId: true,
+        provider: true,
+        views: true,
+        likes: true,
+        comments: true,
+        shares: true,
+        capturedAt: true,
+      },
+      orderBy: { capturedAt: "desc" },
+      take: options.take,
+    });
+    // Prisma enum values are identical string literals at runtime — safe cast.
     return rows as unknown as AnalyticsDto[];
   }
 
