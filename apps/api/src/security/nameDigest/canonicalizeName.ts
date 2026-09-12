@@ -32,13 +32,13 @@ export type CanonicalizeFailureReason =
   (typeof CANONICALIZE_FAILURE_REASONS)[keyof typeof CANONICALIZE_FAILURE_REASONS];
 
 /** A name that canonicalised cleanly, carrying the bytes to digest. */
-export interface CanonicalizeNameSuccess {
+interface CanonicalizeNameSuccess {
   readonly ok: true;
   readonly bytes: Buffer;
 }
 
 /** A name that was refused. It carries NO bytes, so it cannot be digested by accident. */
-export interface CanonicalizeNameFailure {
+interface CanonicalizeNameFailure {
   readonly ok: false;
   readonly reason: CanonicalizeFailureReason;
 }
