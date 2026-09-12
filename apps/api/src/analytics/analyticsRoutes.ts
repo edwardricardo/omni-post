@@ -15,13 +15,14 @@ import {
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { AuthenticatedUser } from "../auth/authService.js";
-import type { PrismaClient } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { ThreadAnalytics } from "./threadAnalytics.js";
 import type { RealtimeAnalyticsService } from "./realtimeAnalytics.js";
 import type { AnalyticsStreamBroadcaster } from "../services/AnalyticsStreamBroadcaster.js";
 import type { StreamConnectionTracker } from "../services/StreamConnectionTracker.js";
 import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
+import type { ThreadReadRepositoryPort } from "@core/domain/repositories/ThreadReadRepository.js";
 import type {
   CalculateROIUseCase,
   GetCrossPlatformAnalyticsUseCase,
@@ -129,9 +130,10 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
   protected routeName = "analytics";
 
   constructor(
-    private readonly prisma: PrismaClient,
     private readonly threadAnalytics: ThreadAnalytics,
     private readonly projectRepository: ProjectQueryRepositoryPort,
+    private readonly analyticsRepository: AnalyticsReadRepositoryPort,
+    private readonly threadRepository: ThreadReadRepositoryPort,
     private readonly broadcaster: AnalyticsStreamBroadcaster,
     private readonly scheduler: BackgroundTaskScheduler,
     private readonly realtimeService: RealtimeAnalyticsService,
@@ -572,20 +574,10 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
       // Fetch posts, channels, and analytics in parallel
       const [postCount, channels, analytics] = await Promise.all([
-        this.prisma.post.count({ where: { projectId, deletedAt: null } }),
-        this.prisma.channel.findMany({
-          where: { projectId, deletedAt: null },
-          select: { id: true, provider: true, handle: true },
-        }),
-        this.prisma.analytics.findMany({
-          where: {
-            post: { projectId, deletedAt: null },
-            capturedAt: { gte: startDate },
-          },
-          include: {
-            post: { select: { id: true } },
-          },
-          orderBy: { capturedAt: "desc" },
+        this.projectRepository.countPosts(projectId),
+        this.projectRepository.listChannelRefsByProject(projectId),
+        this.analyticsRepository.listProjectEntries(projectId, {
+          since: startDate,
           take: 500,
         }),
       ]);
@@ -697,11 +689,10 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
     }
 
     try {
-      // findFirst + deletedAt: null so a soft-deleted project reads as not-found
-      // (defense in depth behind the getProjectAccess gate above).
-      const project = await this.prisma.project.findFirst({
-        where: { id: projectId, deletedAt: null },
-      });
+      // The port's find-by-id filters `deletedAt`, so a soft-deleted project
+      // reads as not-found (defense in depth behind the getProjectAccess gate
+      // above, which already applies a strictly narrower predicate).
+      const project = await this.projectRepository.findById(projectId);
 
       if (!project) {
         return this.sendError(ctx, 404, "Project not found");
@@ -713,55 +704,17 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
       // Fetch data sections in parallel based on include flags
       const [posts, channels, analytics, threads] = await Promise.all([
         includePosts
-          ? this.prisma.post.findMany({
-              where: { projectId, deletedAt: null },
-              select: {
-                id: true,
-                status: true,
-                scheduledAt: true,
-                publishedAt: true,
-                createdAt: true,
-              },
-              orderBy: { createdAt: "desc" },
-              take: 1000,
-            })
+          ? this.projectRepository.listPostExportRows(projectId, 1000)
           : Promise.resolve([]),
-        this.prisma.channel.findMany({
-          where: { projectId, deletedAt: null },
-          select: { id: true, provider: true, handle: true },
-        }),
+        this.projectRepository.listChannelRefsByProject(projectId),
         includeAnalytics
-          ? this.prisma.analytics.findMany({
-              where: {
-                post: { projectId, deletedAt: null },
-                capturedAt: { gte: startDate },
-              },
-              select: {
-                id: true,
-                postId: true,
-                channelId: true,
-                provider: true,
-                views: true,
-                likes: true,
-                comments: true,
-                shares: true,
-                capturedAt: true,
-              },
-              orderBy: { capturedAt: "desc" },
+          ? this.analyticsRepository.listProjectEntries(projectId, {
+              since: startDate,
               take: 5000,
             })
           : Promise.resolve([]),
         includeThreads
-          ? this.prisma.thread.findMany({
-              where: { post: { projectId, deletedAt: null } },
-              select: {
-                id: true,
-                postId: true,
-                strategy: true,
-                createdAt: true,
-              },
-              take: 1000,
-            })
+          ? this.threadRepository.listThreadRefsByProject(projectId, 1000)
           : Promise.resolve([]),
       ]);
 
@@ -939,12 +892,8 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
     try {
       const [postCount, analytics] = await Promise.all([
-        this.prisma.post.count({ where: { projectId, deletedAt: null } }),
-        this.prisma.analytics.findMany({
-          where: { post: { projectId, deletedAt: null } },
-          orderBy: { capturedAt: "desc" },
-          take: 100,
-        }),
+        this.projectRepository.countPosts(projectId),
+        this.analyticsRepository.listProjectEntries(projectId, { take: 100 }),
       ]);
 
       const totalViews = analytics.reduce((s, a) => s + (a.views ?? 0), 0);
@@ -971,13 +920,22 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
 /**
  * Analytics Routes Plugin
- * Resolves ThreadAnalytics, GeoAnalyticsService and PrismaClient from the DI container.
+ *
+ * Resolves the handler's collaborators from the DI container. Every data read
+ * this file performs goes through a read-model port; the handler receives no
+ * database client, so a query cannot be written here without first giving the
+ * port a method for it.
  */
 const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
-  const prisma = fastify.container.resolve<PrismaClient>(TOKENS.PrismaClient);
   const threadAnalytics = fastify.container.resolve<ThreadAnalytics>(TOKENS.ThreadAnalytics);
   const projectQueryRepository = fastify.container.resolve<ProjectQueryRepositoryPort>(
     TOKENS.ProjectQueryRepository
+  );
+  const analyticsReadRepository = fastify.container.resolve<AnalyticsReadRepositoryPort>(
+    TOKENS.AnalyticsReadRepository
+  );
+  const threadReadRepository = fastify.container.resolve<ThreadReadRepositoryPort>(
+    TOKENS.ThreadReadRepository
   );
   const broadcaster = fastify.container.resolve<AnalyticsStreamBroadcaster>(
     TOKENS.AnalyticsStreamBroadcaster
@@ -1001,9 +959,10 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   const handler = new AnalyticsRouteHandler(
-    prisma,
     threadAnalytics,
     projectQueryRepository,
+    analyticsReadRepository,
+    threadReadRepository,
     broadcaster,
     scheduler,
     realtimeService,
