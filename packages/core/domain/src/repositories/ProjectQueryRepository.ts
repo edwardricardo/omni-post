@@ -11,7 +11,32 @@ import type {
   ProjectDto,
   AnalyticsDto,
   ChannelDto,
+  ProviderKind,
 } from "./ReadModelDtos.js";
+
+/**
+ * Channel reference — the only channel projection an analytics response may
+ * embed. The channel row also carries encrypted credential material, and the
+ * analytics export spreads its channels into a payload the tenant downloads, so
+ * the narrowing happens in the query and never after it.
+ */
+export interface ChannelRefDto {
+  id: string;
+  provider: ProviderKind;
+  handle: string;
+}
+
+/**
+ * Export row for a post: the five columns the analytics export exposes, and no
+ * others — a wider row would add keys to that payload.
+ */
+export interface PostExportRowDto {
+  id: string;
+  status: string;
+  scheduledAt: Date | null;
+  publishedAt: Date | null;
+  createdAt: Date;
+}
 
 /**
  * Pagination / ordering options used by several read methods.
@@ -113,6 +138,20 @@ export interface ProjectQueryRepositoryPort {
    * cross-platform analytics to enumerate a project's connected channels.
    */
   getChannelsByProject(projectId: string): Promise<ChannelDto[]>;
+
+  /**
+   * Return a project's live channels as narrow references. Prefer this over
+   * `getChannelsByProject` wherever the result is embedded in a response: this
+   * one names the columns it wants, so credential material cannot ride along.
+   */
+  listChannelRefsByProject(projectId: string): Promise<ChannelRefDto[]>;
+
+  /**
+   * Return a project's live posts as export rows, newest first, capped at `take`.
+   * The bound is the caller's: it is part of the response the caller produces,
+   * not a policy this port gets to choose.
+   */
+  listPostExportRows(projectId: string, take: number): Promise<PostExportRowDto[]>;
 }
 
 /**

@@ -8,7 +8,10 @@
  */
 import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import type { ThreadReadRepositoryPort } from "@core/domain/repositories/ThreadReadRepository.js";
+import type {
+  ThreadReadRepositoryPort,
+  ThreadRefDto,
+} from "@core/domain/repositories/ThreadReadRepository.js";
 import type {
   ThreadWithRelations,
   ThreadWithTweets,
@@ -97,6 +100,15 @@ class InMemoryThreadReadRepository implements ThreadReadRepositoryPort {
 
   async countByProjectId(projectId: string): Promise<number> {
     return this.threads.filter((t) => t.post.projectId === projectId).length;
+  }
+
+  async listThreadRefsByProject(projectId: string, take: number): Promise<ThreadRefDto[]> {
+    // No sort: the port promises storage order, so a reference implementation
+    // that ordered would promise more than every adapter can honour.
+    return this.threads
+      .filter((t) => t.post.projectId === projectId)
+      .slice(0, take)
+      .map((t) => ({ id: t.id, postId: t.postId, strategy: t.strategy, createdAt: t.createdAt }));
   }
 }
 

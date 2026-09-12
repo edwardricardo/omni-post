@@ -41,6 +41,22 @@ export interface AnalyticsQueryOptions {
   orderBy?: Record<string, "asc" | "desc">;
 }
 
+/**
+ * Options for the bounded project-entries read.
+ *
+ * Narrower than `AnalyticsQueryOptions` on purpose rather than by oversight: it
+ * offers one optional lower bound instead of a date range plus provider plus
+ * skip plus a caller-supplied ordering, and it makes `take` REQUIRED. The read
+ * it serves is on a hot response path where an unbounded result is a defect, so
+ * the bound is not something a caller may forget to pass.
+ */
+export interface ProjectEntriesOptions {
+  /** Inclusive lower bound on capture time. Omit to read the whole history. */
+  since?: Date;
+  /** Maximum rows to return. Required — see above. */
+  take: number;
+}
+
 // ---------------------------------------------------------------------------
 // Aggregation result
 // ---------------------------------------------------------------------------
@@ -148,6 +164,17 @@ export interface AnalyticsReadRepositoryPort {
    * Return analytics records for all posts in a project.
    */
   getByProjectId(projectId: string, options?: AnalyticsQueryOptions): Promise<AnalyticsDto[]>;
+
+  /**
+   * Return a project's analytics entries in one bounded nested-join read,
+   * newest capture first.
+   *
+   * Exists beside `getByProjectId` because that one resolves the project's posts
+   * into an unbounded id list and then reads analytics against it — two queries
+   * whose first result grows with the project. This keeps the single join plan
+   * the analytics responses were measured on.
+   */
+  listProjectEntries(projectId: string, options: ProjectEntriesOptions): Promise<AnalyticsDto[]>;
 
   /**
    * Return analytics records for a channel, with their parent post joined.

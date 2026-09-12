@@ -9,6 +9,17 @@
 import type { ThreadWithRelations, ThreadWithTweets } from "./ReadModelDtos.js";
 
 /**
+ * Thread reference row — the four columns the analytics export exposes, without
+ * the tweet bodies every other read on this port eagerly joins.
+ */
+export interface ThreadRefDto {
+  id: string;
+  postId: string;
+  strategy: string;
+  createdAt: Date;
+}
+
+/**
  * ThreadReadRepositoryPort — read-only flat-DTO access to thread data.
  *
  * This port must NOT use domain entities or Prisma types — it returns plain
@@ -66,4 +77,14 @@ export interface ThreadReadRepositoryPort {
    * Count all threads belonging to a project.
    */
   countByProjectId(projectId: string): Promise<number>;
+
+  /**
+   * Return thread references under a project's live posts, capped at `take`.
+   *
+   * UNORDERED BY CONTRACT: callers get whatever order storage yields, so which
+   * rows survive the cap is not promised. That is deliberate — the read this
+   * serves has never ordered, and adding an order would change which rows a
+   * truncated result contains.
+   */
+  listThreadRefsByProject(projectId: string, take: number): Promise<ThreadRefDto[]>;
 }

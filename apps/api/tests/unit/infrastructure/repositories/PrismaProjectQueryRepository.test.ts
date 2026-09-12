@@ -138,6 +138,88 @@ describe("PrismaProjectQueryRepository soft-delete contract", () => {
   });
 });
 
+describe("PrismaProjectQueryRepository narrow reads for the analytics export", () => {
+  let prisma: MockPrisma;
+  let repo: InstanceType<typeof PrismaProjectQueryRepository>;
+
+  beforeEach(() => {
+    prisma = makePrisma();
+    repo = new PrismaProjectQueryRepository(prisma as never);
+  });
+
+  describe("listChannelRefsByProject", () => {
+    it("asks for exactly id, provider and handle on non-deleted channels, and no include", async () => {
+      prisma.channel.findMany.mockResolvedValue([]);
+      await repo.listChannelRefsByProject("proj-1");
+      const arg = prisma.channel.findMany.mock.calls[0]?.[0];
+      expect(arg).toEqual({
+        where: { projectId: "proj-1", deletedAt: null },
+        select: { id: true, provider: true, handle: true },
+      });
+      // An include would re-widen the row the select exists to narrow.
+      expect(arg.include).toBeUndefined();
+    });
+
+    it("cannot return credential columns even though the underlying rows carry them", async () => {
+      // The stub projects the select the way the database does, so the assertion
+      // below can only hold while the adapter actually asks for a narrow row.
+      prisma.channel.findMany.mockImplementation(
+        async ({ select }: { select?: Record<string, boolean> }) =>
+          [
+            {
+              id: "ch-1",
+              projectId: "proj-1",
+              provider: "X",
+              handle: "@one",
+              credentialsCiphertext: "ciphertext",
+              credentialsIv: "iv",
+              credentialsAuthTag: "tag",
+              credentialsKeyVersion: 3,
+            },
+          ].map((row) =>
+            Object.fromEntries(Object.entries(row).filter(([key]) => select?.[key] === true))
+          )
+      );
+
+      const refs = await repo.listChannelRefsByProject("proj-1");
+
+      expect(refs).toHaveLength(1);
+      // This assertion is a property of the projection stub above, not of the
+      // adapter. The load-bearing proof is the call-args pin in the previous
+      // test: it fails if the select is dropped, widened, or moved after the
+      // query. This one fails if a wide row ever reaches the caller.
+      expect(Object.keys(refs[0]!).sort()).toEqual(["handle", "id", "provider"]);
+    });
+  });
+
+  describe("listPostExportRows", () => {
+    it("preserves the five-field projection, the descending order and the caller's bound", async () => {
+      prisma.post.findMany.mockResolvedValue([]);
+      await repo.listPostExportRows("proj-1", 1000);
+      const arg = prisma.post.findMany.mock.calls[0]?.[0];
+      expect(arg).toEqual({
+        where: { projectId: "proj-1", deletedAt: null },
+        select: {
+          id: true,
+          status: true,
+          scheduledAt: true,
+          publishedAt: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 1000,
+      });
+      expect(arg.include).toBeUndefined();
+    });
+
+    it("passes the caller's bound through rather than imposing its own", async () => {
+      prisma.post.findMany.mockResolvedValue([]);
+      await repo.listPostExportRows("proj-2", 25);
+      expect(prisma.post.findMany.mock.calls[0]?.[0].take).toBe(25);
+    });
+  });
+});
+
 describe("getProjectAccess behavioral gate closure (honest count semantics)", () => {
   interface ProjectRow {
     id: string;
