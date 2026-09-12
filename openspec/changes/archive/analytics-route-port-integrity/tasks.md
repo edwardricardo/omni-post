@@ -5,7 +5,7 @@
 
 Carries the design-gate verdict (obs 684, PASS-with-findings): C1-C3, W1-W6, S1-S7 land here as explicit tasks. No design re-run.
 
-**APPLY STATUS (2026-09-12, batch 1):** implementation COMPLETE and green (568 test files / 8834 tests, eslint 0, tsc 0, fitness #8/#9/#10/#22/#38 at threshold). TWO items open: **4.3 BLOCKED** on PR #247's merge (SMELL-98 row absent from this branch AND origin/main), and the **EVIDENCE tier breached its declared hard stop** (measured 1019 vs stop 770) — reported, NOT trimmed, per the overrun rule.
+**APPLY STATUS (2026-09-12, batch 1):** implementation COMPLETE and green (568 test files / 8834 tests, eslint 0, tsc 0, fitness #8/#9/#10/#22/#38 at threshold). Two items were open at apply time (**4.3 BLOCKED** on the SMELL-98 row landing, and **1.13** pending an orchestrator commit) — both RECONCILED at archive: PR #249 merged to main `f16b8c43` (five commits: `27f54cb3` planning, `8d512dd6` WU1, `62f48504` WU2, `9c93a9cd` WU3, `a9f6ba01` WU4/backlog). The EVIDENCE tier breached its declared hard stop (measured 1019 vs stop 770) — reported, NOT trimmed, per the overrun rule, and **ratified by Edward** (see archive-report).
 
 ## Review Workload Forecast
 
@@ -57,7 +57,7 @@ Chain strategy: size-exception
 - [x] 1.10 **C2.** Layer B implemented as `toMatchSnapshot()` over the RAW `res.body` STRING after deterministic regex normalization of `exportedAt`. No object snapshots, no property matchers.
 - [x] 1.11 Credential assertion at the hazard site: every export `channels[]` element carries no `credential*` key, plus a whole-body `not.toMatch(/ciphertext/i)`.
 - [x] 1.12 **RED proof DEMONSTRATED (3/3, real non-zero exits, byte-exact restores).** See apply-progress for verbatim output.
-- [ ] 1.13 WU1 commit — **orchestrator's step** (writers never run git). **BLOCKER FOUND:** `.gitignore:24` ignores `**/__snapshots__/`, so the goldens cannot be committed without `git add -f`. Byte-identity was proven by a pinned sha256 pair instead; see apply-progress.
+- [x] 1.13 WU1 commit — **orchestrator's step** (writers never run git). **BLOCKER FOUND:** `.gitignore:24` ignores `**/__snapshots__/`, so the goldens cannot be committed without `git add -f`. Byte-identity was proven by a pinned sha256 pair instead; see apply-progress. **RECONCILED at archive**: committed as `8d512dd6` ("characterization net, red-proven") in PR #249, merged to main `f16b8c43`.
 
 ## Phase 2: WU2 — ports, adapters, adapter units (additive)
 
@@ -88,7 +88,7 @@ Chain strategy: size-exception
 
 - [x] 4.1 Layer-B `toMatchSnapshot` assertions and the generated snapshot file deleted. Layer A shape pins remain; the two refusal tests gained a verbatim body pin so they did not lose their assertion with the golden.
 - [x] 4.2 **W3(b) run — and the gate as written is DEFECTIVE.** `fd -e snap apps/api/tests` treats the path as a pattern (dead scope), and even the path-corrected form is blind because `fd` honours `.gitignore` and `**/__snapshots__/` is ignored. PROVEN by planting a `.snap`: both forms report 0, `fd -u -e snap . apps/api/tests` reports 1. Working gate: `fd -u -e snap . apps/api/tests | wc -l` → 0 and `rg -uu -c "toMatchSnapshot" apps/api/tests | wc -l` → 0. Both pass.
-- [ ] 4.3 **BLOCKED on 0.2** — the SMELL-98 row does not exist on this branch or origin/main. Not synthesized. Exact drafted text for closing 98 and adding SMELL-99/100/101/102 is in apply-progress for the orchestrator to apply after PR #247 merges.
+- [x] 4.3 **BLOCKED on 0.2** — the SMELL-98 row does not exist on this branch or origin/main. Not synthesized. Exact drafted text for closing 98 and adding SMELL-99/100/101/102 is in apply-progress for the orchestrator to apply after sequencing lands. **RECONCILED at archive**: applied and committed as `a9f6ba01` ("backlog: SMELL-98 DONE, rows 99-103 born") in PR #249, merged to main `f16b8c43` — SMELL-98 closed, rows 99-103 born (101 absorbed the export's dead-404 branch; 103 is the untypechecked-`implements` gap named separately per verify S-2).
 - [x] 4.4 **No SMELL-101 defect repaired.** Responses exhibit all four exactly as before — the goldens recorded the per-channel double count verbatim (two same-provider channels each reporting the whole provider's totals).
 - [x] 4.5 Gate: eslint `--max-warnings 0` EXIT 0 · `tsc -b --force apps/api packages/core` EXIT 0 · full unit tier 568 files / 8834 tests PASS, 0 skipped, 0 cancelled, 0 snapshots · fitness #8=0 #9=0 #10=0 #22=0 · #38 swept-tree 0 with db-prisma ratchet UNCHANGED at 11 and no name added to the exception list · zero files under `packages/adapters/db-prisma` · tokenless honoured.
 - [x] 4.6 PR body drafted in full (measured two-tier split, EVIDENCE ratification note, the three red-proof demonstrations, the new-seam mutation proof, SMELL filings, W1 select decision, rollback).
@@ -103,7 +103,7 @@ Chain strategy: size-exception
 | R4 Narrow channel projection [MB] | 4         | 2.7, 2.3 + 1.11, 3.2, 1.9/1.10 | MET                                                                                                                                                                   |
 | R5 Query-shape preservation       | 4         | 2.9+2.10, 2.8, 2.7, 2.2, 3.2   | MET                                                                                                                                                                   |
 | R6 Soft-delete posture            | 3         | 2.7+2.8, 4.5, 4.5              | MET — and PROVEN non-vacuous (removing one inline filter moves #38 from 0 to 1)                                                                                       |
-| R7 Debt filed, not absorbed       | 2         | 4.3, 4.4                       | PARTIAL — 4.4 met; 4.3 blocked on PR #247                                                                                                                             |
+| R7 Debt filed, not absorbed       | 2         | 4.3, 4.4                       | MET — 4.4 met; 4.3 RECONCILED at archive via `a9f6ba01` (PR #249, merged `f16b8c43`)                                                                                  |
 | R8 Zero-defect gate               | 1         | 4.5                            | MET on every gate; EVIDENCE budget breached and reported                                                                                                              |
 
 ## Threat matrix
