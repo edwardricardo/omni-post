@@ -534,6 +534,7 @@ export const TOKENS = {
   // Compliance
   ComplianceService: Symbol.for("ComplianceService"),
   DataRetentionService: Symbol.for("DataRetentionService"),
+  DeletionRecordDegrader: Symbol.for("DeletionRecordDegrader"),
   GdprSettingsRepository: Symbol.for("GdprSettingsRepository"),
   SecuritySettingsRepository: Symbol.for("SecuritySettingsRepository"),
   DsarRequestRepository: Symbol.for("DsarRequestRepository"),

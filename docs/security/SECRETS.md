@@ -88,6 +88,71 @@ documented as a feasibility study in
 
 ---
 
+## 3a. Keyed-MAC rings (append-only)
+
+A separate top-level section rather than an entry under §3, and the distinction
+is the whole point. A master key **wraps** data and rotates by **re-wrapping**
+what it protected. A keyed-MAC ring **authenticates** data and can never
+re-wrap anything: the plaintext it digested is deliberately gone by the time
+rotation comes around. Filing this under "master keys" would tell a reader
+exactly the thing the separate category exists to stop saying.
+
+| Name                            | Format                                    | Used by                  | Protects                                                  | Rotation cadence  | Notes                                                                           |
+| ------------------------------- | ----------------------------------------- | ------------------------ | --------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------- |
+| `DELETION_NAME_DIGEST_KEY_RING` | JSON `{"<version>":"<64 lowercase hex>"}` | `DeletionRecordDegrader` | `DeletionRecord.nameDigest` — the degraded tombstone name | NIST 1 year (MAC) | **APPEND-ONLY.** An entry is never deleted and never edited; boot refuses a gap |
+
+`DELETION_NAME_DIGEST_ACTIVE_VERSION` is the companion **pointer**: which
+generation new digests are computed under. It carries no key material, is not a
+secret, and is deliberately NOT in the secret catalogue.
+
+**Generation.** `openssl rand -hex 32` — exactly 32 bytes, rendered as 64
+lowercase hex characters. Uppercase hex is refused at boot: the ring is
+compared and documented in one spelling, and accepting both would make two env
+values that look different produce the same key.
+
+**Write the value in SINGLE quotes**, in every `.env*` file:
+
+```
+DELETION_NAME_DIGEST_KEY_RING='{"1":"<64 lowercase hex>"}'
+```
+
+Not a style preference — these files have two readers that disagree, measured
+rather than assumed. `apps/api/scripts/run-tests.sh` SOURCES the root env file
+with bash whenever `DATABASE_URL` is unset, and bash strips the inner double
+quotes from an unquoted `{"1":"…"}`, producing `{1:…}` — which is not JSON, so
+the app refuses to boot with an error naming the RING rather than the quoting.
+Escaped double quotes have the mirror defect: bash reads them correctly while
+dotenv keeps the backslashes. Only the single-quoted form survives both.
+
+**Why entries are never deleted.** Every degraded row pins the generation it was
+computed under, and that row's plaintext no longer exists — so the digest can
+never be recomputed under a newer key. Delete a generation and every row pinned
+to it becomes permanently unverifiable. The env schema enforces this
+structurally: versions must be contiguous from 1, so a removed entry refuses
+boot with an error naming the missing version.
+
+### Rotation runbook
+
+1. **Generate** a new generation: `openssl rand -hex 32`.
+2. **Append** it to `DELETION_NAME_DIGEST_KEY_RING` under the next version
+   number. Keep every existing entry byte-for-byte.
+3. **Bump** `DELETION_NAME_DIGEST_ACTIVE_VERSION` to that number.
+4. **Restart** the API so the ring is re-read and re-validated at boot.
+5. **Verify**: newly degraded rows pin the new version, and a row degraded under
+   an earlier generation still verifies under **its own** pin.
+
+**What of this is actually tested, stated plainly.** Steps 2, 3 and 5 are
+executed by `apps/api/tests/integration/deletionRecordDegradation.test.ts`
+("round-trips a rotation"), so the procedure above is not a prescription with no
+runnable implementation. Steps 1 and 4 are operator actions — key generation and
+a process restart — and are **not** test-covered.
+
+Do **not** reuse §3's re-wrap procedure here. It does not apply (nothing is
+re-wrapped), and the script it prescribes does not exist (filed as a backlog
+row of its own).
+
+---
+
 ## 4. Infrastructure secrets
 
 Runtime infrastructure credentials loaded from `process.env`. All are

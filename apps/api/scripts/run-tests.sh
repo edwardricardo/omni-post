@@ -234,7 +234,8 @@ CONCURRENCY=1 run_batch "integration:repositories" \
 # PrismaClient opened on a hostile session time zone, so folding it into a batch that
 # shares the singleton would make which client a failure belongs to ambiguous.
 CONCURRENCY=1 run_batch "integration:retention" \
-  tests/integration/deletionRecordRetentionFloor.test.ts
+  tests/integration/deletionRecordRetentionFloor.test.ts \
+  tests/integration/deletionRecordDegradation.test.ts
 
 # Serializable hard-delete race. Its OWN batch for the same reason as the retention
 # sweep, and one more: it holds TWO PrismaClients and deliberately parks one of them
