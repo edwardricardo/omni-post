@@ -27,3 +27,17 @@ groups:
           description: "Tasa de 5xx ha excedido 5% por más de 5min. Crítico — afecta a usuarios reales. Investigá deploys recientes + logs Sentry + Grafana api-performance dashboard."
           runbook: docs/runbooks/alert-api-error-rate.md
           slo: docs/observability/SLO.md#api
+
+      # Sin `for:`: la ventana [15m] del `increase()` ya es el suavizado, y un
+      # `for:` agregaría una segunda demora sobre una serie que en estado normal
+      # se mantiene en cero. Sin `slo:`: ninguna definición de SLO cubre
+      # api_security_threats_total.
+      - alert: MfaBackupCodeReuseRejected
+        expr: increase(api_security_threats_total{threat_type="mfa_backup_code_reuse"}[15m]) > 0
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "MFA backup code reuse refused — a consumed recovery code was presented again"
+          description: "El claim del backup code rechazó al menos un intento de consumir un código ya consumido en los últimos 15 minutos. En estado normal esta serie se mantiene en cero, por lo que cualquier emisión sostenida es señal de reutilización de credenciales de recuperación. Consultar el runbook antes de escalar: una colisión entre claims de índices distintos del mismo usuario produce un falso positivo documentado."
+          runbook: docs/runbooks/alert-mfa-backup-code-reuse.md

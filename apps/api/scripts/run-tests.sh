@@ -303,6 +303,15 @@ CONCURRENCY=1 run_batch "integration:tenant-isolation" \
 CONCURRENCY=1 run_batch "integration:customer-auth" \
   tests/integration/customerPasswordReset.integration.test.ts
 
+# MFA backup-code claim proofs. DB-only: the suite drives the real Prisma MFA
+# adapters and the unified MfaService directly, no live server. Its OWN batch at
+# CONCURRENCY=1 because its cases race the SAME credential on purpose — a
+# staggered pair, a simultaneous pair, and a sibling-index collision — and a
+# sibling suite sharing the runner would make which statement won ambiguous,
+# which is the only thing those cases measure.
+CONCURRENCY=1 run_batch "integration:mfa-backup-single-use" \
+  tests/integration/mfaBackupCodeSingleUse.integration.test.ts
+
 # Saga recovery proofs. DB-only by dependency (Postgres + Redis; the crash suite
 # also owns a real BullMQ queue and worker), so they belong to the tier that
 # also runs on pull requests — a merge-blocking gate that only ran after the

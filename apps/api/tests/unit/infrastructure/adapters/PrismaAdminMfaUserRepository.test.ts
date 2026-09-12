@@ -307,6 +307,21 @@ describe("PrismaAdminMfaUserRepository", () => {
       });
     });
 
+    it("refuses a replayed index and leaves the first consumption's timestamp in place", async () => {
+      // The seeded row already carries index 0 at T1; this replay presents a
+      // DISTINCT T2, so an overwrite is observable — an assertion over two equal
+      // timestamps could not tell "preserved" from "overwritten with the same
+      // value" and would pass under the defect.
+      const firstClaimedAt = "2026-01-01T00:00:00.000Z";
+      const replayAt = new Date("2026-03-03T09:30:00.000Z");
+
+      const result = await repo.markBackupCodeUsed("admin-1", 0, replayAt);
+
+      expect(result.ok).toBe(false);
+      expect(!result.ok && result.error).toBe("ALREADY_USED");
+      expect(rows.get("admin-1")?.mfaBackupUsedAt).toEqual({ "0": firstClaimedAt });
+    });
+
     it("returns NOT_FOUND when the user does not exist", async () => {
       const result = await repo.markBackupCodeUsed("ghost", 0, new Date());
 
@@ -319,19 +334,63 @@ describe("PrismaAdminMfaUserRepository", () => {
       // compare-and-swap `updateMany` matches zero rows. The row still exists, so
       // the adapter must disambiguate count-0 as ALREADY_USED (not NOT_FOUND) —
       // the single-use guarantee the read-modify-write version could not give.
-      const present = { id: "admin-1", mfaBackupUsedAt: { "0": "2026-01-01T00:00:00.000Z" } };
-      const raceFake = {
+      //
+      // The honest fake decides that: its REAL `equals` predicate computes the
+      // zero, and the seeded map deliberately does NOT carry the index this call
+      // claims. Only the post-snapshot hook below (the concurrent writer) adds
+      // it, so control reaches the compare-and-swap instead of being refused by
+      // the snapshot pre-check — the branch this test exists to cover.
+      const concurrentMap = { "0": "2026-01-01T00:00:00.000Z" };
+      const fake = makeFakePrisma([makeRow({ mfaBackupUsedAt: {} })]);
+      const honest = (
+        fake.prisma as unknown as {
+          adminUser: {
+            findUnique: (args: { where: { id: string } }) => Promise<FakeAdminUserRow | null>;
+            updateMany: (args: {
+              where: Record<string, unknown>;
+              data: Record<string, unknown>;
+            }) => Promise<{ count: number }>;
+          };
+        }
+      ).adminUser;
+      let updateManyCalls = 0;
+      let writerCommitted = false;
+      const racedPrisma = {
         adminUser: {
-          findUnique: async (): Promise<typeof present> => present,
-          updateMany: async (): Promise<{ count: number }> => ({ count: 0 }),
+          findUnique: async (args: { where: { id: string } }): Promise<FakeAdminUserRow | null> => {
+            const snapshot = await honest.findUnique(args);
+            if (!writerCommitted) {
+              writerCommitted = true;
+              const stored = fake.rows.get("admin-1");
+              if (stored) {
+                fake.rows.set("admin-1", { ...stored, mfaBackupUsedAt: concurrentMap });
+              }
+            }
+            return snapshot;
+          },
+          updateMany: async (args: {
+            where: Record<string, unknown>;
+            data: Record<string, unknown>;
+          }): Promise<{ count: number }> => {
+            updateManyCalls += 1;
+            return honest.updateMany(args);
+          },
         },
       } as unknown as PrismaClient;
-      const raceRepo = new PrismaAdminMfaUserRepository(raceFake);
+      const raceRepo = new PrismaAdminMfaUserRepository(racedPrisma);
 
-      const result = await raceRepo.markBackupCodeUsed("admin-1", 0, new Date());
+      const result = await raceRepo.markBackupCodeUsed(
+        "admin-1",
+        0,
+        new Date("2026-05-05T05:05:05.000Z")
+      );
 
       expect(result.ok).toBe(false);
       expect(!result.ok && result.error).toBe("ALREADY_USED");
+      // The predicate was actually evaluated: without this the "the fake decided
+      // it" claim would be unverified.
+      expect(updateManyCalls).toBe(1);
+      expect(fake.rows.get("admin-1")?.mfaBackupUsedAt).toEqual(concurrentMap);
     });
 
     it("returns NOT_FOUND when the row vanished between the snapshot read and the CAS write", async () => {

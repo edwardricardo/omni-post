@@ -90,6 +90,13 @@ export class PrismaAdminMfaUserRepository implements MfaUserRepositoryPort {
     if (!row) return err("NOT_FOUND");
     const snapshot = row.mfaBackupUsedAt;
     const usedMap = normalizeUsedAt(snapshot);
+    // Claim pre-check: our own snapshot already carries this index, so the code
+    // is consumed. Refuse without writing — an existing claim (the winner's
+    // forensic timestamp) is immutable. This is a claim verdict, not a race
+    // outcome; the CAS below covers every other interleaving.
+    if (Object.prototype.hasOwnProperty.call(usedMap, String(codeIndex))) {
+      return err("ALREADY_USED");
+    }
     usedMap[String(codeIndex)] = usedAt.toISOString();
     // Compare-and-swap: advance the used-map only if it still equals the snapshot
     // we just read. A concurrent verification of the same backup code that

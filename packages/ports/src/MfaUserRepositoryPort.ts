@@ -94,21 +94,22 @@ export interface MfaUserRepositoryPort {
   setMfaEnabled(userId: string, enabled: boolean): Promise<Result<void, "NOT_FOUND">>;
 
   /**
-   * Atomically mark a single backup code (by its array index) consumed at
-   * `usedAt`, merging into the existing used-map so prior single-use marks are
-   * retained. Compare-and-swap on the used-map snapshot: the write commits only
-   * when the stored map still equals the snapshot the adapter read, so two
-   * racing verifications of the same code yield exactly one success — the
-   * single-use serializer that closes the cross-challenge race the per-challenge
-   * `jti` gate cannot (two step-1 logins submitting the same code concurrently).
+   * Claim a single backup code (by array index) as consumed at `usedAt`,
+   * retaining all prior claims. Guarantee: for a given `(userId, codeIndex)`, at
+   * most ONE caller ever receives Ok — under sequential replay and under every
+   * concurrent interleaving. An existing claim is immutable: the first
+   * consumption's timestamp is never overwritten by any later attempt.
    *
    * @param userId - Target user primary key.
    * @param codeIndex - Zero-based index into `mfaBackupCodes`.
    * @param usedAt - Consumption timestamp.
-   * @returns Ok(void) when THIS caller marked the code; Err("ALREADY_USED") when
-   *          a concurrent writer won the compare-and-swap (the code is already
-   *          consumed — the caller MUST reject the verification, never retry);
-   *          Err("NOT_FOUND") when the user is gone.
+   * @returns Ok(void) when THIS caller claimed the code. Err("ALREADY_USED")
+   *          when the claim is refused: the code is already consumed — the
+   *          caller MUST reject the verification and MUST NOT retry the claim. A
+   *          refusal can also be a sibling-claim collision (a concurrent claim of
+   *          a DIFFERENT index for the same user); the code is then NOT consumed
+   *          and a fresh user-initiated verification succeeds — this attempt is
+   *          still rejected. Err("NOT_FOUND") when the user is gone.
    */
   markBackupCodeUsed(
     userId: string,
