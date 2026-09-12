@@ -6,7 +6,10 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { ThreadReadRepositoryPort } from "@core/domain/repositories/ThreadReadRepository.js";
+import type {
+  ThreadReadRepositoryPort,
+  ThreadRefDto,
+} from "@core/domain/repositories/ThreadReadRepository.js";
 import type {
   ThreadWithRelations,
   ThreadWithTweets,
@@ -140,6 +143,21 @@ export class PrismaThreadReadRepository implements ThreadReadRepositoryPort {
   async countByProjectId(projectId: string): Promise<number> {
     return this.prisma.thread.count({
       where: { post: { projectId, deletedAt: null } },
+    });
+  }
+
+  /**
+   * Return thread references under a project's live posts, capped at `take`.
+   *
+   * Carries no `orderBy` on purpose: the read this serves has never ordered, and
+   * imposing one would change which rows survive the cap. See the port's
+   * unordered-take contract.
+   */
+  async listThreadRefsByProject(projectId: string, take: number): Promise<ThreadRefDto[]> {
+    return this.prisma.thread.findMany({
+      where: { post: { projectId, deletedAt: null } },
+      select: { id: true, postId: true, strategy: true, createdAt: true },
+      take,
     });
   }
 }
