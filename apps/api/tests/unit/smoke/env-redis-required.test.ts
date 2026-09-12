@@ -35,6 +35,8 @@ const VALID_ENV: Record<string, string> = {
   COOKIE_SECRET: "a-very-long-cookie-secret-for-testing-purposes-only",
   PLATFORM_ENCRYPTION_KEY: "a-very-long-platform-encryption-key-testing-only",
   OAUTH_ENCRYPTION_KEY: "a-very-long-oauth-encryption-key-for-testing-only",
+  DELETION_NAME_DIGEST_KEY_RING:
+    '{"1":"1111111111111111111111111111111111111111111111111111111111111111"}',
 };
 
 /**

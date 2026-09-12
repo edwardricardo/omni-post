@@ -18,3 +18,14 @@
 # are better reviewed via tooling (Renovate, pnpm-audit) than line diff.
 pnpm-lock.yaml -diff linguist-generated=true
 pnpm-lock.yaml.baseline -diff linguist-generated=true
+
+# Generated Unicode tables for the DeletionRecord name digest. Reviewing the
+# ~2,400 data lines by eye proves nothing the gate does not prove better:
+# `apps/api/tests/unit/security/nameDigestUnicodeTable.test.ts` re-runs the
+# generator and demands these exact bytes back, and pins the sha256 of every
+# vendored UCD input it read. Marked generated so review attention goes to the
+# generator and the known-answer vectors instead.
+apps/api/src/security/nameDigest/unicodeData.generated.ts linguist-generated=true
+
+# Vendored Unicode Character Database inputs — upstream data, not our source.
+apps/api/ucd/** linguist-vendored=true

@@ -15,8 +15,8 @@ import {
 } from "@core/domain/security/secretCatalog.js";
 
 describe("SECRETS_CATALOG", () => {
-  it("contains 29 entries (every secret listed in SECRETS.md §3-§5)", () => {
-    assert.equal(SECRETS_CATALOG.length, 29);
+  it("contains 30 entries (every secret listed in SECRETS.md §3-§5)", () => {
+    assert.equal(SECRETS_CATALOG.length, 30);
   });
 
   it("has unique secret names — no duplicates", () => {

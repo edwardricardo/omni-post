@@ -18,6 +18,7 @@ export const SECRET_CATEGORY_VALUES = [
   "ANALYTICS_API_KEY",
   "PAYMENT_API_KEY",
   "OAUTH_PROVIDER",
+  "MAC",
 ] as const;
 
 export type SecretCategory = (typeof SECRET_CATEGORY_VALUES)[number];
@@ -45,6 +46,11 @@ export const SECRET_CATEGORIES: Record<SecretCategory, SecretCategoryRule> = {
     cadenceDays: 365,
     description: "Provider OAuth client secrets (re-issue cap)",
   },
+  MAC: {
+    cadenceDays: 365,
+    description:
+      "Keyed-MAC secrets (append-only rings; rotation = append + pointer bump, never re-wrap)",
+  },
 };
 
 export interface SecretEntry {
@@ -70,6 +76,21 @@ export const SECRETS_CATALOG: readonly SecretEntry[] = [
     name: "OAUTH_ENCRYPTION_KEY",
     category: "KEK",
     description: "AES-256-GCM master key for ProviderConnection token columns",
+  },
+
+  // §3a — Keyed-MAC rings
+  // Deliberately its OWN grouping rather than an entry under master keys: a KEK
+  // WRAPS key material and rotates by re-wrapping what it protected, while this
+  // ring AUTHENTICATES names and can never re-wrap anything — the plaintext it
+  // digested is gone by design. Filing it under master keys would tell a reader
+  // the one thing the category was chosen to stop saying.
+  // Only the ring is catalogued; DELETION_NAME_DIGEST_ACTIVE_VERSION is a
+  // pointer, carries no key material, and is not a secret.
+  {
+    name: "DELETION_NAME_DIGEST_KEY_RING",
+    category: "MAC",
+    description:
+      "HMAC-SHA-256 key ring for DeletionRecord name digests (append-only; entries are never deleted — digests never re-wrap)",
   },
 
   // §4.1 — Database

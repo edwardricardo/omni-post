@@ -38,6 +38,13 @@ export default {
     "!src/audit/**/*.test.ts",
     "src/security/**/*.ts",
     "!src/security/**/*.test.ts",
+    // The pinned Unicode tables are DATA, not logic: ~2,300 numeric literals
+    // extracted from vendored UCD files. Their correctness is asserted by the
+    // regenerate-and-diff gate plus the sha256 pins on the inputs, which is a
+    // stronger claim than "a mutant died" — a flipped codepoint there produces
+    // thousands of mutants that only restate the same table, at real runtime
+    // cost, while the pipeline logic that consumes them stays mutated normally.
+    "!src/security/nameDigest/unicodeData.generated.ts",
 
     // Infrastructure & middleware
     "src/billing/**/*.ts",

@@ -1,0 +1,2 @@
+# Test-vector false positives (documented non-secret fixed keys in unit suites).
+apps/api/tests/unit/security/nameDigest.test.ts:generic-api-key:30
