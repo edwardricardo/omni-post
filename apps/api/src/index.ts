@@ -348,9 +348,10 @@ async function createApp(): Promise<FastifyInstance> {
   setPublishQueueHealthProvider(() => queueAdapter.health());
 
   // Tombstones past their retention horizon that still hold plaintext PII. The
-  // degradation job that should empty this population does not exist yet
-  // (SMELL-88), so without this series the standing GDPR exposure is a number
-  // nobody anywhere can see. Deliberately UNSCOPED by tenant: DeletionRecord is
+  // `deletion-record-degrader` tick registered below is what empties this
+  // population; the series is its witness, so a tick that silently stopped
+  // working shows up as a level that stops draining rather than as nothing at
+  // all. Deliberately UNSCOPED by tenant: DeletionRecord is
   // a documented global table that outlives the account it records, so the
   // level is a property of the deployment, not of any one tenant.
   setDeletionRecordOverdueProvider(async () =>
@@ -930,6 +931,31 @@ async function start() {
       () =>
         withSystemContext("system:data-retention-cleanup", async () => {
           await dataRetention.runRetentionCleanup();
+        }),
+      24 * 60 * 60 * 1000
+    );
+
+    // Stage two of the tombstone retention lifecycle — daily. Once a
+    // DeletionRecord passes its own `retainUntil`, the plaintext name it holds
+    // has outlived the lawful basis written on the row, so it is replaced by a
+    // keyed digest: the erasure evidence survives, the personal data does not.
+    // The sweep reads across every account, which is exactly what
+    // `withSystemContext` exists to declare.
+    const { DeletionRecordDegrader: _DeletionRecordDegraderType } =
+      await import("./infrastructure/retention/DeletionRecordDegrader.js");
+    const deletionRecordDegrader = app.container!.resolve<
+      InstanceType<typeof _DeletionRecordDegraderType>
+    >(TOKENS.DeletionRecordDegrader);
+    scheduler.register(
+      "deletion-record-degrader",
+      () =>
+        withSystemContext("system:deletion-record-degrader", async () => {
+          // The triple is AWAITED and logged rather than discarded: a run that
+          // flagged or failed every row must be distinguishable from one that
+          // found nothing to do, and a `.then(() => undefined)` would throw that
+          // difference away at the only place anyone watches.
+          const summary = await deletionRecordDegrader.degrade();
+          logger.info({ ...summary }, "DeletionRecord degradation tick finished");
         }),
       24 * 60 * 60 * 1000
     );

@@ -1493,7 +1493,12 @@ Three reasons converging:
    describes no longer exists as a principal. Every legitimate reader
    (erasure evidence, retention sweeps, the Phase-2 digest-degradation
    job) operates across accounts, exactly like the `AuditLog` readers
-   above.
+   above. That degradation job now EXISTS — the daily
+   `deletion-record-degrader` tick registered in `apps/api/src/index.ts`,
+   which runs inside `withSystemContext("system:deletion-record-degrader")`.
+   It is the documented cross-account seam this note describes, not an
+   exception to it: `DeletionRecord` stays denylisted, and the sweep
+   declares its system scope rather than borrowing a tenant's.
 3. **Writes happen inside the hard-delete transaction under its
    system-level binding**, not under a customer tenant context. The
    `accountId` column records WHICH tenant the tombstone witnesses

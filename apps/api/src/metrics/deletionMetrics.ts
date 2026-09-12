@@ -8,8 +8,9 @@
  *              size guard measures every tenant's cascade and discards the count unless it
  *              trips the ceiling, so a tenant creeping toward the wall is invisible until
  *              the day an erasure is refused. And the two-phase retention design ends at a
- *              deadline no job enforces yet, so an overdue tombstone is a GDPR exposure that
- *              no query, alert or dashboard would report.
+ *              deadline whose enforcement — the daily `deletion-record-degrader` tick — is
+ *              invisible without a level to watch: a sweep that silently stopped working and
+ *              a population that was already empty look identical from the outside.
  *
  *              Shapes follow `sagaRecoveryMetrics.ts`: a HISTOGRAM for a per-operation
  *              distribution, a GAUGE with a scrape-time `collect` for a re-observed level.
@@ -119,8 +120,10 @@ export const DELETION_RECORD_OVERDUE_UNKNOWN = -1;
 const deletionRecordOverduePlaintext = getOrCreateGauge(
   "deletion_record_overdue_plaintext",
   "Tombstones past their retainUntil horizon that still hold the plaintext name. The " +
-    "two-phase retention design says these should have been degraded to a keyed digest by " +
-    "now; nothing performs that degradation yet, so this level is the standing exposure. " +
+    "daily deletion-record-degrader tick replaces that plaintext with a keyed digest, so a " +
+    "healthy population drains to 0; a level that stays above 0 means rows the sweep could " +
+    "not process — typically names holding a codepoint the pinned Unicode version leaves " +
+    "unassigned, which are flagged and left intact by design. " +
     "-1 means the level could not be read — UNKNOWN, never zero",
   async function collectOverduePlaintext(this: client.Gauge): Promise<void> {
     if (!overduePlaintextProvider) return;

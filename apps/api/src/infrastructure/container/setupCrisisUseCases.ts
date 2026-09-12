@@ -1,7 +1,8 @@
 /**
  * @file setupCrisisUseCases.ts
- * @description Registers outbox relay/cleaner, crisis mode, and scheduled report
- *              use cases in the DI container. Extracted from setupUseCases.ts.
+ * @description Registers outbox relay/cleaner, the DeletionRecord degradation
+ *              sweep, crisis mode, and scheduled report use cases in the DI
+ *              container. Extracted from setupUseCases.ts.
  * @layer infrastructure
  */
 import type { Container } from "./Container.js";
@@ -13,6 +14,10 @@ import { OutboxRelay } from "../outbox/OutboxRelay.js";
 import { OutboxCleaner } from "../outbox/OutboxCleaner.js";
 import { OutboxClaimService } from "../outbox/OutboxClaimService.js";
 import { OutboxBackoff } from "../outbox/OutboxBackoff.js";
+import { DeletionRecordDegrader } from "../retention/DeletionRecordDegrader.js";
+import { parseNameDigestKeyRing } from "../../security/nameDigest/keyRing.js";
+import { env } from "../../config/env.js";
+import { createLogger } from "../../lib/logger.js";
 import { hostname } from "os";
 import type { CrisisProjectRepository } from "@core/crisis/types.js";
 import {
@@ -72,6 +77,31 @@ export function setupCrisisUseCases(container: Container): void {
         container.resolve(TOKENS.PrismaClient),
         container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
       ),
+    true
+  );
+
+  // The DeletionRecord degradation sweep. It is a sibling of the outbox cleaner
+  // — a periodic, cross-account maintenance sweep — so it is wired here rather
+  // than beside the use cases. It does NOT self-register a tick: the bootstrap
+  // owns that, which is what lets the tick-scope scan see its tenant scope.
+  container.register<DeletionRecordDegrader>(
+    TOKENS.DeletionRecordDegrader,
+    () => {
+      const ring = parseNameDigestKeyRing(env.DELETION_NAME_DIGEST_KEY_RING);
+      if (!ring.ok) {
+        // Unreachable in a booted process — the env schema refuses a malformed
+        // ring at startup. Kept so a degrader can never be constructed without
+        // key material, which would otherwise mean a sweep that nulls names
+        // while writing digests nobody can verify.
+        throw new Error(ring.reason);
+      }
+      return new DeletionRecordDegrader(
+        container.resolve(TOKENS.PrismaClient),
+        ring.ring,
+        env.DELETION_NAME_DIGEST_ACTIVE_VERSION,
+        createLogger("deletion-record-degrader")
+      );
+    },
     true
   );
 

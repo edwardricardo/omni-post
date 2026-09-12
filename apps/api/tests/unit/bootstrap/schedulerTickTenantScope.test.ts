@@ -50,7 +50,7 @@ const SYSTEM_REASON_PREFIX = "system:";
  * finds fewer has stopped seeing the call shape (a rename, an extraction, a helper) and would
  * otherwise report green over ticks it never read.
  */
-const MINIMUM_TICKS = 9;
+const MINIMUM_TICKS = 10;
 
 /**
  * Returns a copy of `source` whose line comments, block comments and string/template literal
