@@ -19,7 +19,8 @@ type SecretCategory =
   | "EMAIL_API_KEY"
   | "ANALYTICS_API_KEY"
   | "PAYMENT_API_KEY"
-  | "OAUTH_PROVIDER";
+  | "OAUTH_PROVIDER"
+  | "MAC";
 
 export interface SecretRotationStatusDTO {
   secretName: string;

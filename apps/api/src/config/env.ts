@@ -22,6 +22,7 @@ dotenv.config({ path: path.resolve(__dirname, "../../../..", envFile) });
 
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
+import { firstMissingRingVersion, parseNameDigestKeyRing } from "../security/nameDigest/keyRing.js";
 import { TRUSTED_PROXY_MODES, parseTrustedProxyRanges } from "../security/trustedProxy.js";
 
 /**
@@ -126,6 +127,36 @@ const serverSchema = {
   PLATFORM_ENCRYPTION_KEY_V1: z.string().min(SECRET_MIN).optional(),
   PLATFORM_ENCRYPTION_KEY_V2: z.string().min(SECRET_MIN).optional(),
   PLATFORM_ENCRYPTION_KEY_V3: z.string().min(SECRET_MIN).optional(),
+
+  // The HMAC key ring that degrades a tombstone's plaintext `name` into a
+  // keyed digest once its retention window closes. REQUIRED with no default:
+  // a fallback here would mint digests under a key nobody chose, and unlike a
+  // ciphertext a digest can never be re-computed — the plaintext it described
+  // is deliberately gone by then (CWE-798, SECURITY_CANON §Secrets).
+  //
+  // Shape: one JSON object, `{"1":"<64 lowercase hex>"}`, one entry per
+  // generation. It is NOT the KEK `_V1.._V3` slot pattern, because those slots
+  // exist to be DRAINED by a re-wrap and then dropped, while a digest
+  // generation can never be drained: every row pinned to it needs its key
+  // forever. So the ring is append-only and an entry is never deleted — a
+  // constraint the contiguity rule in `createFinalSchema` below enforces.
+  //
+  // `PLATFORM_ENCRYPTION_KEY` is deliberately NOT reused: that key wraps
+  // secrets under one threat model and rotates by re-wrapping; this one
+  // authenticates names under another and rotates by appending. Sharing them
+  // would couple two rotations that must stay independent.
+  DELETION_NAME_DIGEST_KEY_RING: z.string().superRefine((raw, ctx) => {
+    const parsed = parseNameDigestKeyRing(raw);
+    if (!parsed.ok) {
+      ctx.addIssue({ code: "custom", message: parsed.reason });
+    }
+  }),
+
+  // Which generation NEW digests are computed under. A pointer, not a secret:
+  // it is not catalogued, and it says nothing about key material. Existing rows
+  // keep their own pin and are verified under it regardless of this value —
+  // which is what makes rotation append-and-bump rather than a migration.
+  DELETION_NAME_DIGEST_ACTIVE_VERSION: z.coerce.number().int().min(1).default(1),
 
   // ── URLs (frontends + base) ─────────────────────────────────────────
   ADMIN_URL: urlString.optional(),
@@ -402,6 +433,42 @@ export function parseApiEnv(runtimeEnv: Record<string, string | undefined>) {
               "forwarding header, so the list would never be consulted while reading as " +
               "though it were. Set TRUSTED_PROXY_MODE=trusted-ranges, or clear the ranges.",
           });
+        }
+
+        // Ring consistency. Both rules live here rather than on the field
+        // because both are about the ring AS A WHOLE, and the second one needs
+        // the pointer, which a per-key schema cannot see. The ring's SHAPE was
+        // already validated on the field, so a re-parse here either succeeds or
+        // the field issue is already reported and this block is moot.
+        const ringSource = (value as { DELETION_NAME_DIGEST_KEY_RING?: string })
+          .DELETION_NAME_DIGEST_KEY_RING;
+        const ring = parseNameDigestKeyRing(ringSource ?? "");
+        if (ring.ok) {
+          const missing = firstMissingRingVersion(ring.ring);
+          if (missing !== undefined) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["DELETION_NAME_DIGEST_KEY_RING"],
+              message:
+                `DELETION_NAME_DIGEST_KEY_RING is missing version ${missing} ` +
+                "(versions must be contiguous from 1). A generation removed from the ring " +
+                "cannot verify the rows still pinned to it, and those rows can never be " +
+                "re-digested — the name they recorded is gone. Restore the entry.",
+            });
+          }
+
+          const active = (value as { DELETION_NAME_DIGEST_ACTIVE_VERSION?: number })
+            .DELETION_NAME_DIGEST_ACTIVE_VERSION;
+          if (active !== undefined && !ring.ring.has(active)) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["DELETION_NAME_DIGEST_ACTIVE_VERSION"],
+              message:
+                `DELETION_NAME_DIGEST_ACTIVE_VERSION=${active} names no ring entry. ` +
+                "Refusing to boot rather than degrading to an arbitrary generation, which " +
+                "would pin new rows to a key the operator never chose.",
+            });
+          }
         }
 
         // Removal tripwire for TRUSTED_PROXY_HOP_COUNT. Read from the RAW env

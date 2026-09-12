@@ -26,6 +26,11 @@ const REQUIRED_BASE_ENV = {
   COOKIE_SECRET: "f".repeat(32),
   PLATFORM_ENCRYPTION_KEY: "g".repeat(32),
   OAUTH_ENCRYPTION_KEY: "h".repeat(32),
+  // The name-digest key ring is REQUIRED with no default, so it belongs in the
+  // base fixture like every other must-be-present key. Its own contract —
+  // shape, contiguity, pointer — is exercised in `nameDigestRing.test.ts`.
+  DELETION_NAME_DIGEST_KEY_RING:
+    '{"1":"1111111111111111111111111111111111111111111111111111111111111111"}',
 } as const;
 
 async function loadEnvWith(overrides: Record<string, string | undefined> = {}): Promise<unknown> {

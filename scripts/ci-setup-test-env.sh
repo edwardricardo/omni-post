@@ -28,6 +28,15 @@ MIGRATE_URL="${MIGRATE_DATABASE_URL:-${DATABASE_URL}}"
 # EncryptionService.decodeKey(). Generate 32 fixed bytes -> base64 (no literal).
 PLATFORM_KEY="$(head -c 32 /dev/zero | tr '\0' 'c' | base64 | tr -d '\n')"
 
+# DELETION_NAME_DIGEST_KEY_RING must be a JSON object of version -> 64 LOWERCASE
+# hex characters (32 bytes) — see apps/api/src/security/nameDigest/keyRing.ts. It
+# is REQUIRED with no default, so this synthesis is not a convenience: without it
+# every job that boots apps/api or imports its env module fails at module load.
+# DERIVED from a printed, obviously-non-secret phrase rather than written as a
+# literal, so the repo still stores no secret-shaped string (same rule as
+# PLATFORM_KEY above).
+DIGEST_RING_KEY="$(printf 'omnipost-citest-name-digest-ring' | sha256sum | cut -d' ' -f1)"
+
 {
   echo "NODE_ENV=test"
   echo "PORT=3001"
@@ -42,6 +51,18 @@ PLATFORM_KEY="$(head -c 32 /dev/zero | tr '\0' 'c' | base64 | tr -d '\n')"
     echo "${k}=citest-${k}-deterministic-nonproduction-padding-string"
   done
   echo "PLATFORM_ENCRYPTION_KEY=${PLATFORM_KEY}"
+  # SINGLE-quoted, and it has to be. These files have TWO readers that disagree,
+  # measured rather than assumed:
+  #   unquoted  {"1":"x"}   -> bash `source` strips the inner quotes and yields
+  #                            {1:x}, which is not JSON; dotenv reads it fine.
+  #   "escaped"             -> bash yields the right value; dotenv keeps the
+  #                            backslashes and yields {\"1\":\"x\"}.
+  #   'single'              -> BOTH yield {"1":"x"}.
+  # `apps/api/scripts/run-tests.sh` sources the root env file with bash whenever
+  # DATABASE_URL is unset, so the unquoted form breaks the whole integration
+  # tier with a boot refusal that names the ring rather than the quoting.
+  echo "DELETION_NAME_DIGEST_KEY_RING='{\"1\":\"${DIGEST_RING_KEY}\"}'"
+  echo "DELETION_NAME_DIGEST_ACTIVE_VERSION=1"
   echo "LOG_LEVEL=warn"
   echo "ENABLE_RATE_LIMITING=false"
   echo "PAYMENT_PROVIDER=none"
