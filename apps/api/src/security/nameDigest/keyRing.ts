@@ -27,13 +27,13 @@ const VERSION_KEY = /^[1-9][0-9]*$/;
 const KEY_MATERIAL = /^[0-9a-f]{64}$/;
 
 /** A parsed ring, ready to hand to the digest. */
-export interface KeyRingParseSuccess {
+interface KeyRingParseSuccess {
   readonly ok: true;
   readonly ring: NameDigestKeyRing;
 }
 
 /** A refusal, carrying the message the boot failure should show. */
-export interface KeyRingParseFailure {
+interface KeyRingParseFailure {
   readonly ok: false;
   readonly reason: string;
 }

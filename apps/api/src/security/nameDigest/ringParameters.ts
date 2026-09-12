@@ -21,7 +21,7 @@ const MAC_ALGORITHMS = {
 } as const;
 
 /** A MAC algorithm a ring generation may declare. */
-export type MacAlgorithm = (typeof MAC_ALGORITHMS)[keyof typeof MAC_ALGORITHMS];
+type MacAlgorithm = (typeof MAC_ALGORITHMS)[keyof typeof MAC_ALGORITHMS];
 
 /** Everything a verifier needs, resolvable from a row's pinned version alone. */
 export interface RingParameters {

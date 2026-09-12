@@ -24,6 +24,7 @@ import {
   UCD_VERSION,
   renderUnicodeDataModule,
 } from "../../../scripts/generate-unicode-fold-table.js";
+import { UNICODE_DATA_VERSION } from "../../../src/security/nameDigest/unicodeData.generated.js";
 
 /** apps/api — the root both the generator and the committed module are relative to. */
 const API_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -33,6 +34,7 @@ const sha256 = (value: Buffer | string): string => createHash("sha256").update(v
 describe("pinned UCD inputs", () => {
   it("pins exactly the three inputs the canonicalisation pipeline consumes", () => {
     expect(UCD_VERSION).toBe("17.0.0");
+    expect(UNICODE_DATA_VERSION).toBe(UCD_VERSION);
     expect(UCD_INPUTS.map((input) => input.relativePath)).toEqual([
       "ucd/17.0.0/CaseFolding.txt",
       "ucd/17.0.0/PropList.txt",

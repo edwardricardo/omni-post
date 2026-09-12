@@ -34,19 +34,19 @@ const NAME_DIGEST_FAILURE_REASONS = {
 } as const;
 
 /** Why a digest could not be produced. */
-export type NameDigestFailureReason =
+type NameDigestFailureReason =
   | CanonicalizeFailureReason
   | (typeof NAME_DIGEST_FAILURE_REASONS)[keyof typeof NAME_DIGEST_FAILURE_REASONS];
 
 /** A computed digest and the generation it must be pinned to. */
-export interface NameDigestSuccess {
+interface NameDigestSuccess {
   readonly ok: true;
   readonly digest: string;
   readonly keyVersion: number;
 }
 
 /** A refusal. It carries NO digest, so nothing can be written by accident. */
-export interface NameDigestFailure {
+interface NameDigestFailure {
   readonly ok: false;
   readonly reason: NameDigestFailureReason;
 }
