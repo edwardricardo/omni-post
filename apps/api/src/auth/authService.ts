@@ -13,6 +13,7 @@ import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUse
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
 import type { AdminSessionRepository } from "@core/domain/repositories/AdminSessionRepository.js";
+import type { ApiMetrics } from "../metrics/apiMetrics.js";
 import { AuthServiceCore } from "./authServiceCore.js";
 import { AuthServiceSession } from "./authServiceSession.js";
 import type {
@@ -51,10 +52,14 @@ export class AuthService {
     mfaSvc: MfaService,
     roleRepo: RoleRepository,
     sessionRepo: AdminSessionRepository,
-    auditLog: AuditLogRepository
+    auditLog: AuditLogRepository,
+    // Optional, exactly as on MfaService: it carries the security-threat counter a
+    // refused rotation increments, and leaving it optional keeps every existing
+    // caller and unit harness constructing the facade unchanged.
+    metrics?: ApiMetrics
   ) {
     this.core = new AuthServiceCore(userRepo, mfaSvc, roleRepo, sessionRepo, auditLog);
-    this.session = new AuthServiceSession(prisma, this.core);
+    this.session = new AuthServiceSession(prisma, this.core, metrics);
   }
 
   async registerAdmin(

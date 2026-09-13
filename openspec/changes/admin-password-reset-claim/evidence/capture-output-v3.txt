@@ -1,0 +1,116 @@
+# capture v3 — 2026-09-12T23:59:35.914Z
+# PG_SESSION_OPTIONS = "-c timezone=UTC"
+# connection host/db = omnipost-infra:5432/omnipostdb?schema=public
+
+### pre-flight  (DB reachable: Role rows=3, AdminUser rows=2; fixture refreshTokenHash collisions=0; pre-existing probe residue=0)
+   [OK  ] pre-flight: no pre-existing AdminSession holds the fixture hashes
+   [OK  ] pre-flight: no residue from an earlier probe run
+
+### seed  (role=cmtz1rhiu00003w05f1ng1kmm name=probe-reset-claim-17fd40f1-81c0-4e6d-9905-500fb5bb5bac; adminUser=b7ed5ec6-9fd4-4731-a207-aa302e3d7ed7; adminSession=26f90ed6-dd34-4f74-997e-4691209b26eb; seeded passwordHistory=[] isActive=true)
+   [OK  ] seed: the seeded row really carries the DEFAULT empty '{}' history (P1's subject)
+
+### P1 reset claim, TRUE EMPTY history snapshot (real row)  (count=1, data statements=1, query events=2, driver statements=4)
+UPDATE "public"."AdminUser" SET "passwordHash" = $1, "passwordHashAlgo" = $2, "passwordChangedAt" = $3, "passwordResetToken" = $4, "passwordResetExpires" = $5, "mustChangePassword" = $6, "failedLoginAttempts" = $7, "lockedUntil" = $8, "lockReason" = $9, "passwordHistory" = $10, "updatedAt" = $11 WHERE ("public"."AdminUser"."id" = $12 AND "public"."AdminUser"."passwordResetToken" = $13 AND "public"."AdminUser"."passwordResetExpires" > $14 AND "public"."AdminUser"."isActive" = $15 AND "public"."AdminUser"."passwordHash" = $16 AND "public"."AdminUser"."passwordHistory" = $17)
+   -- params ["$argon2id$next","argon2id","2026-09-12T23:59:36.069Z",null,null,false,0,null,null,["$argon2id$prior"],"2026-09-12T23:59:36.074Z","b7ed5ec6-9fd4-4731-a207-aa302e3d7ed7","bf2bd8ba-2361-4db9-b31f-edccd95ddb51","2026-09-12T23:59:36.069Z",true,"$argon2id$prior",[]]
+COMMIT
+   -- params []
+conn.startTransaction()
+tx.executeRaw: UPDATE "public"."AdminUser" SET "passwordHash" = $1, "passwordHashAlgo" = $2, "passwordChangedAt" = $3, "passwordResetToken" = $4, "passwordResetExpires" = $5, "mustChangePassword" = $6, "failedLoginAttempts" = $7, "lockedUntil" = $8, "lockReason" = $9, "passwordHistory" = $10, "updatedAt" = $11 WHERE ("public"."AdminUser"."id" = $12 AND "public"."AdminUser"."passwordResetToken" = $13 AND "public"."AdminUser"."passwordResetExpires" > $14 AND "public"."AdminUser"."isActive" = $15 AND "public"."AdminUser"."passwordHash" = $16 AND "public"."AdminUser"."passwordHistory" = $17)
+tx.executeRaw: COMMIT
+tx.commit()
+   [OK  ] P1 reset claim, TRUE EMPTY history snapshot (real row): exactly ONE data statement (saw 1)
+   [OK  ] P1 reset claim, TRUE EMPTY history snapshot (real row): a single plain UPDATE on AdminUser/AdminSession
+   [OK  ] P1 reset claim, TRUE EMPTY history snapshot (real row): WHERE is a bound-equality compare-and-swap (no SELECT, no containment operator)
+   [OK  ] P1 reset claim, TRUE EMPTY history snapshot (real row): layer 2 recorded the same UPDATE (transaction hop wrapped)
+   [OK  ] P1: `equals: []` matched the real '{}' row (a miss = every first reset is CONCURRENT_MODIFICATION forever; contingency: isEmpty arm)
+   -- P1 readback: passwordResetToken=null passwordHistory=["$argon2id$prior"]
+   [OK  ] P1: the data was applied (token cleared, history advanced to one entry)
+
+### P2 reset claim, TRUE two-entry history snapshot  (count=1, data statements=1, query events=2, driver statements=4)
+UPDATE "public"."AdminUser" SET "passwordHash" = $1, "passwordHashAlgo" = $2, "passwordChangedAt" = $3, "passwordResetToken" = $4, "passwordResetExpires" = $5, "mustChangePassword" = $6, "failedLoginAttempts" = $7, "lockedUntil" = $8, "lockReason" = $9, "passwordHistory" = $10, "updatedAt" = $11 WHERE ("public"."AdminUser"."id" = $12 AND "public"."AdminUser"."passwordResetToken" = $13 AND "public"."AdminUser"."passwordResetExpires" > $14 AND "public"."AdminUser"."isActive" = $15 AND "public"."AdminUser"."passwordHash" = $16 AND "public"."AdminUser"."passwordHistory" = $17)
+   -- params ["$argon2id$next","argon2id","2026-09-12T23:59:36.142Z",null,null,false,0,null,null,["$argon2id$a","$argon2id$b","$argon2id$prior2"],"2026-09-12T23:59:36.144Z","b7ed5ec6-9fd4-4731-a207-aa302e3d7ed7","be6daa21-5e0f-4601-9efe-194e4271698b","2026-09-12T23:59:36.142Z",true,"$argon2id$prior2",["$argon2id$a","$argon2id$b"]]
+COMMIT
+   -- params []
+conn.startTransaction()
+tx.executeRaw: UPDATE "public"."AdminUser" SET "passwordHash" = $1, "passwordHashAlgo" = $2, "passwordChangedAt" = $3, "passwordResetToken" = $4, "passwordResetExpires" = $5, "mustChangePassword" = $6, "failedLoginAttempts" = $7, "lockedUntil" = $8, "lockReason" = $9, "passwordHistory" = $10, "updatedAt" = $11 WHERE ("public"."AdminUser"."id" = $12 AND "public"."AdminUser"."passwordResetToken" = $13 AND "public"."AdminUser"."passwordResetExpires" > $14 AND "public"."AdminUser"."isActive" = $15 AND "public"."AdminUser"."passwordHash" = $16 AND "public"."AdminUser"."passwordHistory" = $17)
+tx.executeRaw: COMMIT
+tx.commit()
+   [OK  ] P2 reset claim, TRUE two-entry history snapshot: exactly ONE data statement (saw 1)
+   [OK  ] P2 reset claim, TRUE two-entry history snapshot: a single plain UPDATE on AdminUser/AdminSession
+   [OK  ] P2 reset claim, TRUE two-entry history snapshot: WHERE is a bound-equality compare-and-swap (no SELECT, no containment operator)
+   [OK  ] P2 reset claim, TRUE two-entry history snapshot: layer 2 recorded the same UPDATE (transaction hop wrapped)
+   [OK  ] P2: a true two-entry snapshot matched
+   -- P2 readback: passwordResetToken=null passwordHistory=["$argon2id$a","$argon2id$b","$argon2id$prior2"]
+   [OK  ] P2: the data was applied (token cleared, history advanced to three entries)
+
+### P3 reset claim, MOVED history snapshot  (count=0, data statements=1, query events=2, driver statements=4)
+UPDATE "public"."AdminUser" SET "passwordHash" = $1, "passwordHashAlgo" = $2, "passwordChangedAt" = $3, "passwordResetToken" = $4, "passwordResetExpires" = $5, "mustChangePassword" = $6, "failedLoginAttempts" = $7, "lockedUntil" = $8, "lockReason" = $9, "passwordHistory" = $10, "updatedAt" = $11 WHERE ("public"."AdminUser"."id" = $12 AND "public"."AdminUser"."passwordResetToken" = $13 AND "public"."AdminUser"."passwordResetExpires" > $14 AND "public"."AdminUser"."isActive" = $15 AND "public"."AdminUser"."passwordHash" = $16 AND "public"."AdminUser"."passwordHistory" = $17)
+   -- params ["$argon2id$next","argon2id","2026-09-12T23:59:36.210Z",null,null,false,0,null,null,["$argon2id$a","$argon2id$prior3"],"2026-09-12T23:59:36.211Z","b7ed5ec6-9fd4-4731-a207-aa302e3d7ed7","cea855ff-9f1e-4055-a7ca-c4af6bb6095e","2026-09-12T23:59:36.210Z",true,"$argon2id$prior3",["$argon2id$a"]]
+COMMIT
+   -- params []
+conn.startTransaction()
+tx.executeRaw: UPDATE "public"."AdminUser" SET "passwordHash" = $1, "passwordHashAlgo" = $2, "passwordChangedAt" = $3, "passwordResetToken" = $4, "passwordResetExpires" = $5, "mustChangePassword" = $6, "failedLoginAttempts" = $7, "lockedUntil" = $8, "lockReason" = $9, "passwordHistory" = $10, "updatedAt" = $11 WHERE ("public"."AdminUser"."id" = $12 AND "public"."AdminUser"."passwordResetToken" = $13 AND "public"."AdminUser"."passwordResetExpires" > $14 AND "public"."AdminUser"."isActive" = $15 AND "public"."AdminUser"."passwordHash" = $16 AND "public"."AdminUser"."passwordHistory" = $17)
+tx.executeRaw: COMMIT
+tx.commit()
+   [OK  ] P3 reset claim, MOVED history snapshot: exactly ONE data statement (saw 1)
+   [OK  ] P3 reset claim, MOVED history snapshot: a single plain UPDATE on AdminUser/AdminSession
+   [OK  ] P3 reset claim, MOVED history snapshot: WHERE is a bound-equality compare-and-swap (no SELECT, no containment operator)
+   [OK  ] P3 reset claim, MOVED history snapshot: layer 2 recorded the same UPDATE (transaction hop wrapped)
+   [OK  ] P3: a moved history snapshot did NOT match (the predicate is a compare-and-swap)
+   [OK  ] P3: the refused claim left the row byte-untouched (updatedAt included)
+
+### P4 reset claim, MOVED passwordHash snapshot  (count=0, data statements=1, query events=2, driver statements=4)
+UPDATE "public"."AdminUser" SET "passwordHash" = $1, "passwordHashAlgo" = $2, "passwordChangedAt" = $3, "passwordResetToken" = $4, "passwordResetExpires" = $5, "mustChangePassword" = $6, "failedLoginAttempts" = $7, "lockedUntil" = $8, "lockReason" = $9, "passwordHistory" = $10, "updatedAt" = $11 WHERE ("public"."AdminUser"."id" = $12 AND "public"."AdminUser"."passwordResetToken" = $13 AND "public"."AdminUser"."passwordResetExpires" > $14 AND "public"."AdminUser"."isActive" = $15 AND "public"."AdminUser"."passwordHash" = $16 AND "public"."AdminUser"."passwordHistory" = $17)
+   -- params ["$argon2id$next","argon2id","2026-09-12T23:59:36.274Z",null,null,false,0,null,null,["$argon2id$a","$argon2id$b","$argon2id$stale"],"2026-09-12T23:59:36.275Z","b7ed5ec6-9fd4-4731-a207-aa302e3d7ed7","cea855ff-9f1e-4055-a7ca-c4af6bb6095e","2026-09-12T23:59:36.274Z",true,"$argon2id$stale",["$argon2id$a","$argon2id$b"]]
+COMMIT
+   -- params []
+conn.startTransaction()
+tx.executeRaw: UPDATE "public"."AdminUser" SET "passwordHash" = $1, "passwordHashAlgo" = $2, "passwordChangedAt" = $3, "passwordResetToken" = $4, "passwordResetExpires" = $5, "mustChangePassword" = $6, "failedLoginAttempts" = $7, "lockedUntil" = $8, "lockReason" = $9, "passwordHistory" = $10, "updatedAt" = $11 WHERE ("public"."AdminUser"."id" = $12 AND "public"."AdminUser"."passwordResetToken" = $13 AND "public"."AdminUser"."passwordResetExpires" > $14 AND "public"."AdminUser"."isActive" = $15 AND "public"."AdminUser"."passwordHash" = $16 AND "public"."AdminUser"."passwordHistory" = $17)
+tx.executeRaw: COMMIT
+tx.commit()
+   [OK  ] P4 reset claim, MOVED passwordHash snapshot: exactly ONE data statement (saw 1)
+   [OK  ] P4 reset claim, MOVED passwordHash snapshot: a single plain UPDATE on AdminUser/AdminSession
+   [OK  ] P4 reset claim, MOVED passwordHash snapshot: WHERE is a bound-equality compare-and-swap (no SELECT, no containment operator)
+   [OK  ] P4 reset claim, MOVED passwordHash snapshot: layer 2 recorded the same UPDATE (transaction hop wrapped)
+   [OK  ] P4: a moved passwordHash did NOT match
+   [OK  ] P4: the refused claim left the row byte-untouched
+
+### S1 rotation CAS, TRUE prior hash  (count=1, data statements=1, query events=2, driver statements=4)
+UPDATE "public"."AdminSession" SET "refreshTokenHash" = $1, "expiresAt" = $2 WHERE ("public"."AdminSession"."id" = $3 AND "public"."AdminSession"."refreshTokenHash" = $4 AND "public"."AdminSession"."isActive" = $5)
+   -- params ["1111111111111111111111111111111111111111111111111111111111111111","2026-09-13T00:59:36.337Z","26f90ed6-dd34-4f74-997e-4691209b26eb","0000000000000000000000000000000000000000000000000000000000000000",true]
+COMMIT
+   -- params []
+conn.startTransaction()
+tx.executeRaw: UPDATE "public"."AdminSession" SET "refreshTokenHash" = $1, "expiresAt" = $2 WHERE ("public"."AdminSession"."id" = $3 AND "public"."AdminSession"."refreshTokenHash" = $4 AND "public"."AdminSession"."isActive" = $5)
+tx.executeRaw: COMMIT
+tx.commit()
+   [OK  ] S1 rotation CAS, TRUE prior hash: exactly ONE data statement (saw 1)
+   [OK  ] S1 rotation CAS, TRUE prior hash: a single plain UPDATE on AdminUser/AdminSession
+   [OK  ] S1 rotation CAS, TRUE prior hash: WHERE is a bound-equality compare-and-swap (no SELECT, no containment operator)
+   [OK  ] S1 rotation CAS, TRUE prior hash: layer 2 recorded the same UPDATE (transaction hop wrapped)
+   [OK  ] S1: the true prior hash matched
+   -- S1 readback: refreshTokenHash=11111111...
+   [OK  ] S1: the hash was rotated
+
+### S2 rotation CAS, REPLAYED prior hash  (count=0, data statements=1, query events=2, driver statements=4)
+UPDATE "public"."AdminSession" SET "refreshTokenHash" = $1, "expiresAt" = $2 WHERE ("public"."AdminSession"."id" = $3 AND "public"."AdminSession"."refreshTokenHash" = $4 AND "public"."AdminSession"."isActive" = $5)
+   -- params ["1111111111111111111111111111111111111111111111111111111111111111","2026-09-13T00:59:36.402Z","26f90ed6-dd34-4f74-997e-4691209b26eb","0000000000000000000000000000000000000000000000000000000000000000",true]
+COMMIT
+   -- params []
+conn.startTransaction()
+tx.executeRaw: UPDATE "public"."AdminSession" SET "refreshTokenHash" = $1, "expiresAt" = $2 WHERE ("public"."AdminSession"."id" = $3 AND "public"."AdminSession"."refreshTokenHash" = $4 AND "public"."AdminSession"."isActive" = $5)
+tx.executeRaw: COMMIT
+tx.commit()
+   [OK  ] S2 rotation CAS, REPLAYED prior hash: exactly ONE data statement (saw 1)
+   [OK  ] S2 rotation CAS, REPLAYED prior hash: a single plain UPDATE on AdminUser/AdminSession
+   [OK  ] S2 rotation CAS, REPLAYED prior hash: WHERE is a bound-equality compare-and-swap (no SELECT, no containment operator)
+   [OK  ] S2 rotation CAS, REPLAYED prior hash: layer 2 recorded the same UPDATE (transaction hop wrapped)
+   [OK  ] S2: a replayed hash did NOT match (rotation is a claim)
+   [OK  ] S2: the refused rotation left the row byte-untouched
+
+### cleanup  (AdminSession deleted=1, AdminUser deleted=1, Role deleted=1)
+
+### residue check  (AdminUser=0, Role=0, AdminSession with fixture hashes=0) -> residue rows: 0
+   [OK  ] cleanup left 0 probe row(s)
+
+ACCEPT: every shape rule and every count control holds

@@ -108,6 +108,7 @@ export async function requireAdminAuth(
       USER_NOT_FOUND: "User not found",
       INVALID_REQUEST: "Invalid request",
       INTERNAL_ERROR: "Internal error",
+      CONCURRENT_MODIFICATION: "Concurrent modification, retry the request",
     };
 
     const errorCode = result.error as AuthErrorCode;

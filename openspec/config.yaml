@@ -18,7 +18,8 @@ context: |
     (apps/api/tests/integration/, node --import tsx --test); frontend = vitest + @testing-library;
     E2E = Playwright; mutation = Stryker. Test env auto-loads .env.test. Strict TDD ENABLED.
   Style: conventional commits (NO AI attribution); deps exact-pinned; canon-exception markers required;
-    pre-edit tripwire hooks active. Docs only under /docs/. 27 CI fitness functions (hard-zero each).
+    pre-edit tripwire hooks active. Docs only under /docs/. 40 CI fitness functions (hard-zero
+    except the documented ratchets: #30 baseline 21, #38 db-prisma sub-count baseline 11).
   Env: LXC dev box ~9GB RAM cap. NO docker build locally. NO full test suite at once — run single
     files with --max-old-space-size + timeout. pnpm db:up before migrations/integration tests.
 
@@ -58,7 +59,7 @@ testing:
 rules:
   proposal:
     - Include a rollback plan for risky changes.
-    - State which fitness functions (#1-#26) the change interacts with.
+    - State which fitness functions (#1-#40) the change interacts with.
   specs:
     - Use Given/When/Then for scenarios.
     - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
@@ -82,7 +83,7 @@ rules:
     build_command: "pnpm build"
     coverage_threshold: 85
     rules:
-      - Run all 27 fitness functions; each must be hard-zero.
+      - Run all 40 fitness functions; hard-zero except the documented ratchets (#30, #38 db-prisma), which must never rise.
   archive:
     - Warn before merging destructive deltas.
     - Archive is an audit trail — never delete or modify archived changes.

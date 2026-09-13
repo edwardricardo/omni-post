@@ -6,7 +6,7 @@
  */
 
 import jwt from "jsonwebtoken";
-import { randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { hashRefreshToken } from "./refreshTokenHash.js";
 import { hashPassword, verifyPassword, needsRehash } from "./passwordHashing.js";
 import { ok, err, type Result } from "@shared/types";
@@ -424,8 +424,15 @@ export class AuthServiceCore extends AuditableService {
 
     const accessToken = jwt.sign(payload, this.jwtSecret, jwtOptions);
 
+    // The refresh token only: rotation consumes it by a write, so every mint must differ.
+    // Without a per-mint `jti` two mints of one payload inside one second are byte-identical
+    // (whole-second iat/exp), and a rotation that re-mints the presented token becomes a
+    // compare-and-swap that swaps a hash for itself — the replay goes undetected. Unique
+    // regardless of Redis, which is the deployment shape where nothing else makes a mint
+    // unique. The access token is left as is: nothing consumes it by a write.
     const refreshToken = jwt.sign(payload, this.refreshSecret, {
       expiresIn: this.refreshTokenTtl,
+      jwtid: randomUUID(),
       ...(this.hasRedis && {
         issuer: this.issuer,
         audience: this.audience,

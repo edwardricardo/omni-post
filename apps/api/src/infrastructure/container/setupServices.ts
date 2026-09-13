@@ -211,7 +211,8 @@ export function setupServices(
         container.resolve<MfaService>(TOKENS.MfaService),
         container.resolve<RoleRepository>(TOKENS.RoleRepository),
         container.resolve<AdminSessionRepository>(TOKENS.AdminSessionRepository),
-        container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository)
+        container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository),
+        container.resolve<ApiMetrics>(TOKENS.ApiMetrics)
       ),
     true
   );

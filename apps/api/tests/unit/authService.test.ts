@@ -7,7 +7,10 @@
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
+import jwt from "jsonwebtoken";
 import { MFA_SUBJECT_TYPE } from "@ports/core";
+import type { AuthTokens } from "../../src/auth/authTypes.js";
+import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
@@ -45,6 +48,8 @@ vi.mock("../../src/lib/logger.js", () => {
 // ---------------------------------------------------------------------------
 
 const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
+const { AuthServiceCore } = await import("../../src/auth/authServiceCore.js");
+const { hashRefreshToken } = await import("../../src/auth/refreshTokenHash.js");
 const { MfaService } = await import("../../src/admin/auth/MfaService.js");
 const { PrismaAdminMfaUserRepository } =
   await import("../../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js");
@@ -69,6 +74,13 @@ const testName = "Test Auth User";
 describe("AuthService", () => {
   let authService: InstanceType<typeof AuthService>;
   let mfaService: InstanceType<typeof MfaService>;
+  // Captured rather than constructed inline: the rotation cases below read the rows back
+  // to prove a refused rotation is AUDITED, not silently dropped.
+  let auditLog: InMemoryAuditLogRepository;
+  // The replay counter the rotation increments. Captured so a case can assert the
+  // alarm FIRED (or, for a benign revocation, that it did not) rather than only
+  // that the caller was refused — the two refusals share one caller-visible code.
+  let securityThreatsInc: ReturnType<typeof vi.fn>;
   let testEmail: string;
   let testUserId: string;
   let accessToken: string;
@@ -99,13 +111,21 @@ describe("AuthService", () => {
     // of the suite reads from.
     const adminMfaRepo = new PrismaAdminMfaUserRepository(mockPrisma.prisma as never);
     mfaService = new MfaService(adminMfaRepo, adminMfaRepo, new InMemoryAuditLogRepository());
+    auditLog = new InMemoryAuditLogRepository();
+    securityThreatsInc = vi.fn();
+    // Shaped like the live collector the composition root injects
+    // (`metrics.metrics.securityThreats.inc`), per the MfaService precedent.
+    const metrics = {
+      metrics: { securityThreats: { inc: securityThreatsInc } },
+    } as unknown as ApiMetrics;
     authService = new AuthService(
       mockPrisma.prisma,
       adminUserRepo,
       mfaService,
       roleRepo,
       sessionRepo,
-      new InMemoryAuditLogRepository()
+      auditLog,
+      metrics
     );
   });
 
@@ -325,9 +345,9 @@ describe("AuthService", () => {
       if (result.ok) {
         expect(result.value.accessToken.length > 0).toBeTruthy();
         expect(result.value.refreshToken.length > 0).toBeTruthy();
-        // Without Redis, tokenVersion is not embedded in the JWT payload,
-        // so the new token may be identical if generated in the same second.
-        // We only assert that valid tokens are returned.
+        // Redis is absent here, so the per-mint id is the only thing separating this token
+        // from the one it replaces — and the login above happened in the same second.
+        expect(result.value.refreshToken).not.toBe(refreshToken);
         accessToken = result.value.accessToken;
         refreshToken = result.value.refreshToken;
       }
@@ -340,6 +360,307 @@ describe("AuthService", () => {
       if (!result.ok) {
         expect(result.error).toBe("INVALID_TOKEN");
       }
+    });
+  });
+
+  describe("Refresh Token Rotation", () => {
+    // The stored refresh-token hash is a single-use credential, so rotating it is a
+    // compare-and-swap on the hash being replaced: a token another caller has already
+    // rotated must mint no second pair. Redis stays absent unless a case installs a
+    // double, which is the deployment shape where the row is the only thing able to
+    // refuse a replay.
+
+    /** Mirrors the production key prefix, which is module-private to the Redis helpers. */
+    const TOKEN_BLACKLIST_PREFIX = "auth:blacklist:";
+
+    /** The exact label set the rotation's replay alarm carries. */
+    const REPLAY_THREAT_LABELS = {
+      threat_type: "admin_refresh_token_replay",
+      endpoint: "admin_auth_refresh",
+    } as const;
+
+    let sessionId: string;
+
+    const loginFresh = async (): Promise<void> => {
+      const reg = await authService.registerAdmin(testEmail, testPassword, testName, "ADMIN");
+      expect(reg.ok).toBe(true);
+      if (reg.ok) testUserId = reg.value.id;
+
+      const login = await authService.login(
+        { email: testEmail, password: testPassword },
+        "192.168.1.100",
+        "Mozilla/5.0"
+      );
+      expect(login.ok).toBe(true);
+      if (login.ok && "user" in login.value) {
+        refreshToken = login.value.tokens.refreshToken;
+        sessionId = login.value.tokens.sessionId;
+      }
+    };
+
+    const sessionRow = (): Record<string, unknown> => {
+      const row = stores.adminSession.all().find((s) => s.id === sessionId);
+      expect(row).toBeTruthy();
+      return row as Record<string, unknown>;
+    };
+
+    /**
+     * A concurrent writer landing BETWEEN the deciding read and the claim: the read
+     * resolves against the row as it stood, and only then is the stored row moved. It is
+     * the interleaving an attacker gets for free, expressed without timing.
+     */
+    const concurrentWriteAfterRead = (mutation: Record<string, unknown>): void => {
+      const findUnique = mockPrisma.prisma.adminSession.findUnique as unknown as {
+        getMockImplementation: () => ((args: unknown) => Promise<unknown>) | undefined;
+        mockImplementationOnce: (fn: (args: unknown) => Promise<unknown>) => unknown;
+      };
+      const read = findUnique.getMockImplementation();
+      findUnique.mockImplementationOnce(async (args: unknown) => {
+        const row = await read?.(args);
+        stores.adminSession.update(sessionId, mutation);
+        return row;
+      });
+    };
+
+    /** Records only what the ordering cases need: which keys were written, in order. */
+    const makeRecordingRedis = (
+      events: string[]
+    ): Record<string, (...args: never[]) => Promise<unknown>> => ({
+      get: vi.fn(async () => null),
+      setex: vi.fn(async (key: string) => {
+        if (key.startsWith(TOKEN_BLACKLIST_PREFIX)) events.push("blacklist");
+        return "OK";
+      }),
+      del: vi.fn(async () => 1),
+      sadd: vi.fn(async () => 1),
+      expire: vi.fn(async () => 1),
+      scard: vi.fn(async () => 0),
+      lpush: vi.fn(async () => 1),
+      ltrim: vi.fn(async () => "OK"),
+    });
+
+    it("stores the hash of the newly issued refresh token", async () => {
+      await loginFresh();
+      const presentedHash = hashRefreshToken(refreshToken);
+      expect(sessionRow().refreshTokenHash).toBe(presentedHash);
+
+      const result = await authService.refreshTokens(refreshToken, "192.168.1.100");
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(sessionRow().refreshTokenHash).toBe(hashRefreshToken(result.value.refreshToken));
+      expect(sessionRow().refreshTokenHash).not.toBe(presentedHash);
+    });
+
+    it("refuses a token already rotated by a concurrent caller, and leaves that hash alone", async () => {
+      await loginFresh();
+      const rotatedByRacer = "rotated-by-a-concurrent-caller";
+      concurrentWriteAfterRead({ refreshTokenHash: rotatedByRacer });
+
+      const result = await authService.refreshTokens(refreshToken, "192.168.1.100");
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toBe("TOKEN_BLACKLISTED");
+      expect(sessionRow().refreshTokenHash).toBe(rotatedByRacer);
+      const replayed = auditLog.rows.filter(
+        (row) => (row.details as Record<string, unknown>).reason === "ROTATED_TOKEN_REPLAYED"
+      );
+      expect(replayed).toHaveLength(1);
+      expect((replayed[0]?.details as Record<string, unknown>).severity).toBe("HIGH");
+      expect(securityThreatsInc).toHaveBeenCalledWith(REPLAY_THREAT_LABELS);
+      expect(securityThreatsInc).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a token whose session was deactivated between the read and the claim", async () => {
+      await loginFresh();
+      concurrentWriteAfterRead({ isActive: false });
+
+      const result = await authService.refreshTokens(refreshToken, "192.168.1.100");
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toBe("TOKEN_BLACKLISTED");
+      expect(sessionRow().refreshTokenHash).toBe(hashRefreshToken(refreshToken));
+      expect(sessionRow().isActive).toBe(false);
+    });
+
+    it("audits a revocation landing mid-flight as a revocation, and raises no replay alarm", async () => {
+      // A logout or an admin revocation committing between the deciding read and the
+      // claim refuses the caller for a reason that is not an attack. Reporting it as
+      // ROTATED_TOKEN_REPLAYED would put a HIGH row and a threat counter increment on
+      // an ordinary sign-out — the noise that teaches an operator to ignore the alarm.
+      await loginFresh();
+      concurrentWriteAfterRead({ isActive: false });
+
+      const result = await authService.refreshTokens(refreshToken, "192.168.1.100");
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      // The caller-visible refusal is deliberately IDENTICAL to the replay refusal:
+      // the disambiguation is for the operator, never an oracle for the caller.
+      expect(result.error).toBe("TOKEN_BLACKLISTED");
+      const reasons = auditLog.rows.map((row) => (row.details as Record<string, unknown>).reason);
+      expect(reasons).not.toContain("ROTATED_TOKEN_REPLAYED");
+      const revoked = auditLog.rows.filter(
+        (row) => (row.details as Record<string, unknown>).reason === "SESSION_REVOKED_MIDFLIGHT"
+      );
+      expect(revoked).toHaveLength(1);
+      expect((revoked[0]?.details as Record<string, unknown>).severity).toBe("MEDIUM");
+      expect(securityThreatsInc).not.toHaveBeenCalled();
+    });
+
+    it("surfaces a blacklist failure after the claim committed, and leaves the rotation persisted", async () => {
+      // The blacklist write moved AFTER the claim, so this narrow path — the row
+      // committed, Redis then refused — is the one the old order did not have. The
+      // caller sees DATABASE_ERROR and holds a pair that IS the stored credential:
+      // the rotation is not rolled back, and retrying with the presented token now
+      // fails at the claim. Stranding the caller is the accepted cost of never
+      // blacklisting a token the claim did not rotate.
+      const throwingRedis = {
+        get: vi.fn(async () => null),
+        // Only the blacklist write fails. Failing every `setex` would break the login
+        // that sets the fixture up, and the point here is the post-claim write alone.
+        setex: vi.fn(async (key: string) => {
+          if (key.startsWith(TOKEN_BLACKLIST_PREFIX)) throw new Error("redis unavailable");
+          return "OK";
+        }),
+        del: vi.fn(async () => 1),
+        sadd: vi.fn(async () => 1),
+        expire: vi.fn(async () => 1),
+        scard: vi.fn(async () => 0),
+        lpush: vi.fn(async () => 1),
+        ltrim: vi.fn(async () => "OK"),
+      };
+      setRedisInstance(throwingRedis as unknown as import("ioredis").default);
+      await loginFresh();
+      const presentedHash = hashRefreshToken(refreshToken);
+
+      const result = await authService.refreshTokens(refreshToken, "192.168.1.100");
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toBe("DATABASE_ERROR");
+      // The claim committed before the throw: the stored hash moved off the presented
+      // token, so the rotation persisted while its caller was told it failed.
+      expect(sessionRow().refreshTokenHash).not.toBe(presentedHash);
+      expect(securityThreatsInc).not.toHaveBeenCalled();
+    });
+
+    it("refuses the same token on a second presentation", async () => {
+      await loginFresh();
+      const rotated = await authService.refreshTokens(refreshToken, "192.168.1.100");
+      expect(rotated.ok).toBe(true);
+      if (!rotated.ok) return;
+
+      const replay = await authService.refreshTokens(refreshToken, "192.168.1.100");
+
+      expect(replay.ok).toBe(false);
+      expect(sessionRow().refreshTokenHash).toBe(hashRefreshToken(rotated.value.refreshToken));
+    });
+
+    it("blacklists nothing when the claim refuses", async () => {
+      const events: string[] = [];
+      setRedisInstance(makeRecordingRedis(events) as unknown as import("ioredis").default);
+      await loginFresh();
+      concurrentWriteAfterRead({ refreshTokenHash: "rotated-by-a-concurrent-caller" });
+
+      const result = await authService.refreshTokens(refreshToken, "192.168.1.100");
+
+      expect(result.ok).toBe(false);
+      // A refused attempt that blacklisted the token would kill the credential the WINNER
+      // is still holding — the reason the blacklist write belongs after the claim.
+      expect(events).toEqual([]);
+    });
+
+    it("blacklists the presented token exactly once, and only after the claim commits", async () => {
+      const events: string[] = [];
+      setRedisInstance(makeRecordingRedis(events) as unknown as import("ioredis").default);
+      await loginFresh();
+      const model = mockPrisma.prisma.adminSession as unknown as {
+        updateMany: (args: unknown) => Promise<{ count: number }>;
+      };
+      const claim = model.updateMany;
+      model.updateMany = async (args: unknown) => {
+        events.push("claim");
+        return claim(args);
+      };
+
+      try {
+        const result = await authService.refreshTokens(refreshToken, "192.168.1.100");
+
+        expect(result.ok).toBe(true);
+        expect(events).toEqual(["claim", "blacklist"]);
+      } finally {
+        model.updateMany = claim;
+      }
+    });
+  });
+
+  describe("Refresh Token Minting", () => {
+    // A rotation is a compare-and-swap on the stored refresh-token hash, and a swap is
+    // only a swap when it changes the row. Without a per-mint id the refresh payload is
+    // {userId,email,role,sessionId} with whole-second iat/exp, so two mints of one payload
+    // inside one second are byte-identical and a rotation re-mints the token it consumed.
+    // Redis is absent here by construction (the suite nulls the instance), which is exactly
+    // the deployment shape where nothing else makes a mint unique.
+    const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    const decodeToken = (token: string): jwt.JwtPayload => jwt.decode(token) as jwt.JwtPayload;
+
+    /** Builds the core directly: `generateTokens` is core surface, not part of the facade. */
+    const buildCore = (): InstanceType<typeof AuthServiceCore> =>
+      new AuthServiceCore(
+        new PrismaAdminUserRepository(mockPrisma.prisma as never),
+        mfaService,
+        new PrismaRoleRepository(mockPrisma.prisma as never),
+        new PrismaAdminSessionRepository(mockPrisma.prisma as never),
+        new InMemoryAuditLogRepository()
+      );
+
+    /** Both mints are started before either is awaited, so they share one tick. */
+    const mintTwiceInOneTick = async (): Promise<[AuthTokens, AuthTokens]> => {
+      const core = buildCore();
+      const args = [
+        "admin-user-1",
+        "minting@example.com",
+        "ADMIN",
+        "session-1",
+        { userAgent: "Mozilla/5.0", ipAddress: "192.168.1.100" },
+        1,
+      ] as const;
+
+      const [first, second] = await Promise.all([
+        core.generateTokens(...args),
+        core.generateTokens(...args),
+      ]);
+
+      return [first, second];
+    };
+
+    it("mints two distinct refresh tokens when one payload is signed twice in the same tick", async () => {
+      const [first, second] = await mintTwiceInOneTick();
+
+      expect(first.refreshToken).not.toBe(second.refreshToken);
+      expect(hashRefreshToken(first.refreshToken)).not.toBe(hashRefreshToken(second.refreshToken));
+      expect(decodeToken(first.refreshToken).jti).toMatch(UUID_V4);
+      expect(decodeToken(second.refreshToken).jti).toMatch(UUID_V4);
+      expect(decodeToken(first.refreshToken).jti).not.toBe(decodeToken(second.refreshToken).jti);
+    });
+
+    it("carries an identical payload across those two mints apart from the per-mint id", async () => {
+      const [first, second] = await mintTwiceInOneTick();
+
+      const withoutJti = (token: string): jwt.JwtPayload => {
+        const { jti: _jti, ...rest } = decodeToken(token);
+        return rest;
+      };
+
+      // Uniqueness must come from the per-mint id alone. A mint that changed the session,
+      // the subject or the role to become unique would rotate a different session's row.
+      expect(withoutJti(first.refreshToken)).toEqual(withoutJti(second.refreshToken));
+      expect(decodeToken(first.refreshToken).sessionId).toBe("session-1");
+      expect(decodeToken(first.refreshToken).jti).not.toBe(decodeToken(second.refreshToken).jti);
     });
   });
 

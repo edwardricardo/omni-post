@@ -14,6 +14,8 @@ export interface TokenPayload {
   sessionId: string;
   deviceFingerprint?: string;
   tokenVersion?: number;
+  /** Registered per-mint id. Present on refresh tokens, which are consumed by a write. */
+  jti?: string;
   iss?: string;
   aud?: string;
   exp?: number;

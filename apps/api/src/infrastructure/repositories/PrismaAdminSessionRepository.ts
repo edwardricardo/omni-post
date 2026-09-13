@@ -49,7 +49,18 @@ export class PrismaAdminSessionRepository implements AdminSessionRepository {
   }
 
   /**
-   * Rotate the stored refresh-token hash for a session.
+   * Write the stored refresh-token hash for a session.
+   *
+   * This is the second step of session ISSUANCE, not a consumption of anything a caller
+   * presented: `AuthServiceCore.createSession` inserts a throwaway hash nobody holds, mints
+   * the JWT that embeds the new session id, then swaps the real hash in. Keying the write
+   * on `{ id }` alone is therefore correct here — there is no prior credential to name, and
+   * naming the throwaway would only restate what the insert just wrote. It is the single
+   * named exception to the class rule that a consuming write must name the credential it
+   * consumes in its own `where`, and the exemption is held to this one site: `createSession`
+   * is the only caller tree-wide (verified at the time of writing).
+   * Remove-when: the session id is minted before the insert and the final hash is written on
+   * create, at which point this method — and its exemption — can go.
    *
    * @param id - AdminSession primary key
    * @param refreshTokenHash - New SHA-256 hex digest of the refresh token
