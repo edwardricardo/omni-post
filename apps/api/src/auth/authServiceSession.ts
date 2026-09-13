@@ -113,10 +113,6 @@ export class AuthServiceSession {
         }
       }
 
-      if (this.core.hasRedis && decoded.exp) {
-        await blacklistToken(refreshToken, decoded.exp);
-      }
-
       const sessionFingerprint = fingerprint || {
         userAgent: session.userAgent || "",
         ipAddress: session.ipAddress || "",
@@ -131,13 +127,66 @@ export class AuthServiceSession {
         (decoded.tokenVersion || 0) + 1
       );
 
-      await this.prisma.adminSession.update({
-        where: { id: session.id },
+      // Compare-and-swap on the hash being replaced: the rotation names the credential it
+      // consumes, so the database — not this process — decides who gets to consume it.
+      // `AdminSession.refreshTokenHash` is `@unique` (infra/prisma/schema.prisma), so the
+      // index caps the match at one row and `count === 1` IS the whole verdict here. The
+      // admin password-reset claim deliberately gates on `count > 0` instead: its token
+      // column carries no unique index and the row key does the capping there, so copying
+      // either gate onto the other site would be wrong in one of the two places.
+      //
+      // A count of 0 means the presented token was rotated — or its session revoked —
+      // between the read above and this write: a replay in flight. The pair minted a few
+      // lines up is then never returned and reaches no row.
+      //
+      // Two costs of refusing here, both accepted and named rather than engineered around:
+      // a benign double refresh from two browser tabs leaves the losing tab to log in
+      // again, and a detected replay is refused WITHOUT revoking the rest of the session
+      // family, so where the loser was the legitimate holder the other pair stays live
+      // until it expires. Acting on the detection is a follow-up of its own, and pairs
+      // with the customer refresh flow, which has no server-side rotation at all
+      // (SMELL-113).
+      const { count } = await this.prisma.adminSession.updateMany({
+        where: {
+          id: session.id,
+          refreshTokenHash: hashRefreshToken(refreshToken),
+          isActive: true,
+        },
         data: {
           refreshTokenHash: hashRefreshToken(newTokens.refreshToken),
           expiresAt: newTokens.expiresAt,
         },
       });
+
+      if (count !== 1) {
+        await this.core.writeAuditLogPublic({
+          action: "SESSION_CREATED",
+          category: "SECURITY",
+          severity: "HIGH",
+          actor: auditActor.system(),
+          details: {
+            tokenHash: createHash("sha256").update(refreshToken).digest("hex").substring(0, 16),
+            ...(fingerprint && { fingerprint: hashFingerprint(fingerprint) }),
+            reason: "ROTATED_TOKEN_REPLAYED",
+          },
+          ...(fingerprint?.ipAddress && { ipAddress: fingerprint.ipAddress }),
+          ...(ipAddress && !fingerprint?.ipAddress && { ipAddress }),
+          ...(fingerprint?.userAgent && { userAgent: fingerprint.userAgent }),
+        });
+        return err("TOKEN_BLACKLISTED");
+      }
+
+      // Blacklist only what the claim actually rotated. The row is the source of truth and
+      // Redis is defence in depth, so an attempt that lost the claim — or threw on the way
+      // to it — never kills a token that is still live for whoever holds it. Writing it
+      // first would also mask the race: the winner's entry lands before the loser's write,
+      // and a later probe cannot then tell whether the row or the cache did the refusing.
+      // Caller-visible half: a throw inside this call after the claim has committed returns
+      // DATABASE_ERROR while the rotation persisted — the same shape the audit write below
+      // has always had.
+      if (this.core.hasRedis && decoded.exp) {
+        await blacklistToken(refreshToken, decoded.exp);
+      }
 
       await this.core.logUserActionPublic(auditActor.admin(decoded.userId), {
         action: "SESSION_CREATED",
