@@ -422,7 +422,10 @@ export type AuthErrorCode =
   | "PERMISSION_DENIED"
   | "USER_NOT_FOUND"
   | "INVALID_REQUEST"
-  | "INTERNAL_ERROR";
+  | "INTERNAL_ERROR"
+  // A concurrent password write moved the row between a flow's read and its
+  // claim; the credential presented is still live, so the caller should retry.
+  | "CONCURRENT_MODIFICATION";
 
 /**
  * Authentication context (extracted from request)

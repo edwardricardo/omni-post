@@ -12,6 +12,7 @@ import type { AuthErrorCode, PasswordValidation, SecurityEventType } from "./adm
 import { validatePasswordStrength } from "./adminAuthSchemas.js";
 import { adminAuthConfig } from "./adminAuthConfig.js";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
+import { authLogger } from "../../lib/logger.js";
 import {
   hashPassword as argonHashPassword,
   verifyPassword as argonVerifyPassword,
@@ -213,7 +214,24 @@ export class PasswordService {
   }
 
   /**
-   * Confirm password reset with token
+   * @method confirmPasswordReset
+   * @description Completes a password reset by CLAIMING the reset token: for a
+   *   given token at most ONE caller ever receives success, under every
+   *   interleaving, and the winner's password is the one that persists. Every
+   *   exit that does not consume the token leaves that token exactly as usable
+   *   as it was, so a refused attempt never costs the holder a new email.
+   *
+   *   Four exits: `INVALID_TOKEN` (the token is unusable — unknown, expired,
+   *   already consumed, or its owner deactivated), `PASSWORD_TOO_WEAK` and
+   *   `PASSWORD_REUSED` (the request was refused before anything was consumed),
+   *   `CONCURRENT_MODIFICATION` (the token is fine; another password write moved
+   *   the row, so the same token may be presented again), and `INTERNAL_ERROR`
+   *   (the question could not be asked — never reported as a bad token).
+   * @param token - The reset token presented by the caller.
+   * @param newPassword - The replacement password, still to be policy-checked.
+   * @param onSecurityEvent - Audit sink for the completion event.
+   * @returns `ok(true)` for the single caller that consumed the token; otherwise
+   *   the `AuthErrorCode` naming which of the exits above was taken.
    */
   async confirmPasswordReset(
     token: string,
@@ -225,88 +243,142 @@ export class PasswordService {
       timestamp: Date;
     }) => Promise<void>
   ): Promise<Result<boolean, AuthErrorCode>> {
-    // Find user with valid reset token
-    const user = await this.prisma.adminUser.findFirst({
-      where: {
-        passwordResetToken: token,
-        passwordResetExpires: { gt: new Date() },
-      },
-      select: {
-        id: true,
-        passwordHistory: true,
-      },
-    });
+    let userId: string;
+    try {
+      // ONE read. `isActive: true` mirrors the claim below, so a deactivated
+      // owner never reaches argon2 work; `passwordHash` is selected here so the
+      // second read — and the `|| ""` history poison it fed — is gone.
+      const user = await this.prisma.adminUser.findFirst({
+        where: {
+          passwordResetToken: token,
+          passwordResetExpires: { gt: new Date() },
+          isActive: true,
+        },
+        select: { id: true, passwordHash: true, passwordHistory: true },
+      });
 
-    if (!user) {
-      return err("INVALID_TOKEN");
-    }
-
-    // Validate new password strength
-    const validation = validatePasswordStrength(newPassword);
-    if (!validation.valid) {
-      return err("PASSWORD_TOO_WEAK");
-    }
-
-    // Check password reuse
-    const passwordReusePrevented = adminAuthConfig.passwordPolicy.preventPasswordReuse;
-    const recentPasswords = user.passwordHistory.slice(-passwordReusePrevented);
-
-    for (const oldHash of recentPasswords) {
-      const { valid: isReused } = await this.verifyPassword(newPassword, oldHash);
-      if (isReused) {
-        return err("PASSWORD_REUSED");
+      if (!user) {
+        return err("INVALID_TOKEN");
       }
+
+      const validation = validatePasswordStrength(newPassword);
+      if (!validation.valid) {
+        return err("PASSWORD_TOO_WEAK");
+      }
+
+      const keep = adminAuthConfig.passwordPolicy.preventPasswordReuse;
+      for (const oldHash of user.passwordHistory.slice(-keep)) {
+        const { valid: isReused } = await this.verifyPassword(newPassword, oldHash);
+        if (isReused) {
+          return err("PASSWORD_REUSED");
+        }
+      }
+
+      const { hash, algorithm } = await this.hashPassword(newPassword);
+
+      // Only real stored hashes enter the history. The column is NOT NULL and no
+      // production writer stores "", so this filter is unreachable from the tree
+      // today; it holds the invariant by construction instead of by auditing
+      // writers, and it purges any "" a retired fallback left behind on the next
+      // successful reset. The claim below still names the history exactly as
+      // READ — unfiltered — because the guard is on what is WRITTEN, and a
+      // predicate naming a value the row never held could never match.
+      const updatedHistory = [...user.passwordHistory, user.passwordHash]
+        .filter((entry) => entry.length > 0)
+        .slice(-keep);
+
+      // ONE conditional write — the claim. The predicate names the row (`id`),
+      // the credential and its liveness (token, strictly-future expiry, live
+      // owner), and BOTH values the `data` below derives from (`passwordHash`,
+      // `passwordHistory`), so the DATABASE decides who consumes the token and
+      // whether the history this write appends to is still the one it read.
+      // Under Read Committed a concurrent committed writer makes EvalPlanQual
+      // re-check exactly the columns this WHERE names, and the loser matches
+      // zero rows.
+      //
+      // `id` caps the match at one row, so `count > 0` and `count === 1` coincide
+      // here. That cap comes from `id` alone: `AdminUser.passwordResetToken`
+      // carries NO unique index (adding one is blocked by the "CHANGE_REQUIRED"
+      // sentinel that occupies the column for a different feature — SMELL-110),
+      // so the token is a claim PREDICATE here, not the row key. The fact that
+      // tokens are `crypto.randomUUID()` is NOT what caps the count either;
+      // collision resistance bounds the odds, it does not bound the rows.
+      //
+      // Typed `StringNullableListFilter` equality — no raw SQL.
+      const { count } = await this.prisma.adminUser.updateMany({
+        where: {
+          id: user.id,
+          passwordResetToken: token,
+          passwordResetExpires: { gt: new Date() },
+          isActive: true,
+          passwordHash: user.passwordHash,
+          passwordHistory: { equals: user.passwordHistory },
+        },
+        data: {
+          passwordHash: hash,
+          passwordHashAlgo: algorithm,
+          passwordHistory: updatedHistory,
+          passwordChangedAt: new Date(),
+          passwordResetToken: null,
+          passwordResetExpires: null,
+          mustChangePassword: false,
+          // Clearing the lockout on a successful reset is DELIBERATE: completing
+          // a reset proves control of the mailbox, which is the stronger signal.
+          // A refused claim never reaches here, so a failed attempt can never
+          // launder a lockout away.
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+          lockReason: null,
+        },
+      });
+
+      if (count === 0) {
+        // Disambiguate, never retry in place. A dead, consumed or expired token,
+        // or a deactivated owner, is INVALID_TOKEN. A token that is still live
+        // means only the snapshot columns moved — a concurrent password write on
+        // this admin — which is a RETRYABLE conflict and must never read as a bad
+        // token: the two are opposite instructions to the caller.
+        //
+        // The verdict names the row as of THIS read's instant, not the claim's: a
+        // consumption landing between the two is reported INVALID_TOKEN (true by
+        // then), and a history move landing after it is invisible here and is
+        // caught by the retry's own claim.
+        const now = await this.prisma.adminUser.findUnique({
+          where: { id: user.id },
+          select: { passwordResetToken: true, passwordResetExpires: true, isActive: true },
+        });
+        const tokenLive =
+          now !== null &&
+          now.passwordResetToken === token &&
+          now.isActive &&
+          now.passwordResetExpires !== null &&
+          now.passwordResetExpires > new Date();
+        return err(tokenLive ? "CONCURRENT_MODIFICATION" : "INVALID_TOKEN");
+      }
+
+      userId = user.id;
+    } catch (error: unknown) {
+      // A throw is a failure to ASK the question, not an answer to it, so it is
+      // never reported as a bad token.
+      authLogger.error({ err: error }, "confirmPasswordReset claim failed");
+      return err("INTERNAL_ERROR");
     }
 
-    // Hash new password
-    const { hash, algorithm } = await this.hashPassword(newPassword);
-
-    // Update password history
-    const currentHash = await this.prisma.adminUser.findUnique({
-      where: { id: user.id },
-      select: { passwordHash: true },
-    });
-
-    const updatedHistory = [...user.passwordHistory, currentHash?.passwordHash || ""].slice(
-      -passwordReusePrevented
-    );
-
-    // Update user record
-    await this.prisma.adminUser.update({
-      where: { id: user.id },
-      data: {
-        passwordHash: hash,
-        passwordHashAlgo: algorithm,
-        passwordHistory: updatedHistory,
-        passwordChangedAt: new Date(),
-        passwordResetToken: null,
-        passwordResetExpires: null,
-        mustChangePassword: false,
-        failedLoginAttempts: 0,
-        lockedUntil: null,
-        lockReason: null,
-      },
-    });
-
-    // Log security event
+    // Post-claim side effects, deliberately OUTSIDE the claim and outside the try,
+    // exactly as before. Known residual, pre-existing and NOT closed here: a throw
+    // in either of these leaves the password already changed while the caller
+    // receives a 500. Folding them in would require a transaction around a flow
+    // that is deliberately one statement, and would blur the claim's proof.
     await onSecurityEvent({
       type: "PASSWORD_RESET_COMPLETED",
-      userId: user.id,
+      userId,
       success: true,
       timestamp: new Date(),
     });
 
-    // Revoke all active sessions
     await this.prisma.adminSession.updateMany({
-      where: {
-        userId: user.id,
-        isActive: true,
-      },
-      data: {
-        isActive: false,
-        revokedAt: new Date(),
-        revokeReason: "PASSWORD_RESET",
-      },
+      where: { userId, isActive: true },
+      data: { isActive: false, revokedAt: new Date(), revokeReason: "PASSWORD_RESET" },
     });
 
     return ok(true);
