@@ -28,7 +28,7 @@ import {
   revokeSessionSchema,
   validatePasswordSchema,
 } from "./adminAuthSchemas.js";
-import type { DeviceFingerprint } from "./adminAuthTypes.js";
+import type { AuthErrorCode, DeviceFingerprint } from "./adminAuthTypes.js";
 import { env } from "../../config/env.js";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 
@@ -337,10 +337,11 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
     const result = await this.adminAuthService.confirmPasswordReset(token, newPassword);
 
     if (!result.ok) {
-      const statusMap: Record<string, number> = {
+      const statusMap: Partial<Record<AuthErrorCode, number>> = {
         INVALID_TOKEN: 400,
         PASSWORD_TOO_WEAK: 400,
         PASSWORD_REUSED: 400,
+        CONCURRENT_MODIFICATION: 409,
       };
       const status = statusMap[result.error] || 500;
       return this.sendError(ctx, status, result.error);

@@ -313,6 +313,17 @@ CONCURRENCY=1 run_batch "integration:customer-auth" \
 CONCURRENCY=1 run_batch "integration:mfa-backup-single-use" \
   tests/integration/mfaBackupCodeSingleUse.integration.test.ts
 
+# Admin single-use claim proofs. DB-only: the reset suite drives PasswordService
+# over the seed client and the refresh suite drives the real AuthService over real
+# adapters — no live server, and no Redis on purpose: the rotation claim is the
+# subject, so the Redis blacklist stays structurally absent. ONE batch at
+# CONCURRENCY=1 because every suite here races the SAME credential on purpose
+# (staggered + simultaneous pairs), and a sibling suite sharing the runner would
+# make which statement won ambiguous, which is the only thing those cases measure.
+CONCURRENCY=1 run_batch "integration:admin-single-use-claims" \
+  tests/integration/adminPasswordResetClaim.integration.test.ts \
+  tests/integration/adminRefreshRotationClaim.integration.test.ts
+
 # Saga recovery proofs. DB-only by dependency (Postgres + Redis; the crash suite
 # also owns a real BullMQ queue and worker), so they belong to the tier that
 # also runs on pull requests — a merge-blocking gate that only ran after the

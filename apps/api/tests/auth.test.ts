@@ -283,9 +283,9 @@ describe("Authentication Service", () => {
     });
 
     it("should refresh tokens with valid refresh token", async () => {
-      // Wait 1 second to ensure new JWT has different iat timestamp
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
+      // No sleep: the per-mint id makes every refresh JWT unique, so the assertion below
+      // holds when the login and the refresh land inside one second. This test used to wait
+      // a full second for the iat to move, which was the tree's own record of the defect.
       const result = await authService.refreshTokens(refreshToken, "127.0.0.1");
 
       assert.ok(result.ok, `Token refresh failed: ${result.ok ? "" : result.error}`);
