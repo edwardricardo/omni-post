@@ -11,7 +11,8 @@
  *   names a stored value.
  *
  *   Fail-closed by construction: an unknown column, an unsupported filter operator,
- *   or an unsupported `select` key throws instead of quietly matching nothing. A
+ *   an unsupported `select` key, or a list-shaped value reaching scalar equality
+ *   throws instead of quietly matching nothing. A
  *   predicate the fake cannot evaluate would otherwise answer "zero rows matched" —
  *   the same answer a correct count gate gives — and an invisible false green is the
  *   defect class this harness exists to make visible. The scalar-list `equals` the
@@ -165,7 +166,20 @@ function comparable(value: unknown): number | string | undefined {
   return undefined;
 }
 
-function equalScalar(value: unknown, operand: unknown): boolean {
+/**
+ * Scalar equality, fail-closed on a list. `===` between two arrays holding
+ * identical entries is `false`, and "false" is the SAME answer a correct count
+ * gate gives — so a list column missing from `LIST_COLUMNS` would quietly turn
+ * every predicate over it into "zero rows matched", the invisible false green
+ * this harness exists to prevent. A shape this function cannot compare is named
+ * out loud instead, at the point it arrives.
+ */
+function equalScalar(column: string, value: unknown, operand: unknown): boolean {
+  if (Array.isArray(value) || Array.isArray(operand)) {
+    return fail(
+      `list-shaped value on column "${column}" reached scalar equality — add the column to LIST_COLUMNS rather than letting "===" answer "zero rows" for a list it cannot compare`
+    );
+  }
   if (value instanceof Date && operand instanceof Date) {
     return value.getTime() === operand.getTime();
   }
@@ -179,7 +193,7 @@ function equalList(value: unknown, operand: unknown): boolean {
 }
 
 function equalColumn(column: string, value: unknown, operand: unknown): boolean {
-  return LIST_COLUMNS.has(column) ? equalList(value, operand) : equalScalar(value, operand);
+  return LIST_COLUMNS.has(column) ? equalList(value, operand) : equalScalar(column, value, operand);
 }
 
 function compare(column: string, value: unknown, operand: unknown, operator: string): boolean {
@@ -203,7 +217,7 @@ function compare(column: string, value: unknown, operand: unknown, operator: str
 
 function matchesColumn(column: string, value: unknown, predicate: unknown): boolean {
   if (predicate === null) return value === null;
-  if (predicate instanceof Date) return equalScalar(value, predicate);
+  if (predicate instanceof Date) return equalScalar(column, value, predicate);
   if (Array.isArray(predicate)) {
     return fail(
       `bare array predicate on "${column}" is not supported — use { equals: [...] } for a list column or { in: [...] } for a scalar`
@@ -226,7 +240,7 @@ function matchesColumn(column: string, value: unknown, predicate: unknown): bool
           break;
         case "in":
           if (!Array.isArray(operand)) return fail(`"in" on column "${column}" requires an array`);
-          satisfied = operand.some((candidate) => equalScalar(value, candidate));
+          satisfied = operand.some((candidate) => equalScalar(column, value, candidate));
           break;
         default:
           satisfied = compare(column, value, operand, operator);

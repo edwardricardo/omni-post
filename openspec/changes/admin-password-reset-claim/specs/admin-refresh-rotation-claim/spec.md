@@ -40,7 +40,12 @@
 > and it is NOT signed. This capability closes the mint-twice hole and leaves acting on the
 > detection to a follow-up, which pairs with the customer-side non-rotation row (SMELL-113).
 >
-> **Non-goals.** The customer refresh flow, which has no server-side rotation at all (SMELL-113);
+> **Non-goals.** The SIBLING admin endpoint: `AdminAuthService.refreshToken`
+> (`apps/api/src/admin/auth/AdminAuthService.ts`, serving `POST /admin/auth/refresh`) performs
+> NO rotation of the stored refresh-token hash and is therefore untouched by this capability —
+> naming it by file so "the admin refresh flow is a claim now" is not read as covering it; its
+> backlog row lands at close. The customer refresh flow, which likewise has no server-side
+> rotation at all (SMELL-113);
 > any change to fingerprint checking, session revocation, or token issuance beyond the rotation
 > write itself and the per-mint `jti` the rotation claim requires to be a claim (design D9);
 > any schema change — `AdminSession.refreshTokenHash` is ALREADY `@unique`

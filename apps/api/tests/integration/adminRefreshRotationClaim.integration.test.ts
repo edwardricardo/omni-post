@@ -109,6 +109,11 @@ function buildRotationAttempt(client: PrismaClient): RotationAttempt {
  * Both `update` and `updateMany` are gated deliberately: a rotation keyed on the session
  * id alone is written as `update`, and gating only the claim form would leave the red
  * racing real time instead of a barrier.
+ *
+ * Near-duplicate of the reset racer's decorator by DESIGN, not by oversight: each racing
+ * suite owns its own barrier so one suite's timing fix can never move the other's red.
+ * The duplication buys that isolation and is owed back when a THIRD racing suite appears
+ * — two copies is a pair, three is a pattern that belongs in a shared helper.
  */
 function gateConsumingWrites(
   realClient: PrismaClient,
@@ -277,7 +282,7 @@ describe("Admin refresh-rotation claim (integration)", () => {
       assert.deepStrictEqual(
         rowAfterLoser,
         rowAfterWinner,
-        "the refused rotation changed no column of the session row — @updatedAt included"
+        "the refused rotation changed no column of the session row — every column, compared whole"
       );
       assert.strictEqual(rowAfterLoser.isActive, true, "the winner's session is still live");
       await assertMintsUnstored(

@@ -10,6 +10,7 @@ import { describe, it, beforeEach, expect, vi } from "vitest";
 import jwt from "jsonwebtoken";
 import { MFA_SUBJECT_TYPE } from "@ports/core";
 import type { AuthTokens } from "../../src/auth/authTypes.js";
+import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
@@ -76,6 +77,10 @@ describe("AuthService", () => {
   // Captured rather than constructed inline: the rotation cases below read the rows back
   // to prove a refused rotation is AUDITED, not silently dropped.
   let auditLog: InMemoryAuditLogRepository;
+  // The replay counter the rotation increments. Captured so a case can assert the
+  // alarm FIRED (or, for a benign revocation, that it did not) rather than only
+  // that the caller was refused — the two refusals share one caller-visible code.
+  let securityThreatsInc: ReturnType<typeof vi.fn>;
   let testEmail: string;
   let testUserId: string;
   let accessToken: string;
@@ -107,13 +112,20 @@ describe("AuthService", () => {
     const adminMfaRepo = new PrismaAdminMfaUserRepository(mockPrisma.prisma as never);
     mfaService = new MfaService(adminMfaRepo, adminMfaRepo, new InMemoryAuditLogRepository());
     auditLog = new InMemoryAuditLogRepository();
+    securityThreatsInc = vi.fn();
+    // Shaped like the live collector the composition root injects
+    // (`metrics.metrics.securityThreats.inc`), per the MfaService precedent.
+    const metrics = {
+      metrics: { securityThreats: { inc: securityThreatsInc } },
+    } as unknown as ApiMetrics;
     authService = new AuthService(
       mockPrisma.prisma,
       adminUserRepo,
       mfaService,
       roleRepo,
       sessionRepo,
-      auditLog
+      auditLog,
+      metrics
     );
   });
 
@@ -361,6 +373,12 @@ describe("AuthService", () => {
     /** Mirrors the production key prefix, which is module-private to the Redis helpers. */
     const TOKEN_BLACKLIST_PREFIX = "auth:blacklist:";
 
+    /** The exact label set the rotation's replay alarm carries. */
+    const REPLAY_THREAT_LABELS = {
+      threat_type: "admin_refresh_token_replay",
+      endpoint: "admin_auth_refresh",
+    } as const;
+
     let sessionId: string;
 
     const loginFresh = async (): Promise<void> => {
@@ -450,6 +468,8 @@ describe("AuthService", () => {
       );
       expect(replayed).toHaveLength(1);
       expect((replayed[0]?.details as Record<string, unknown>).severity).toBe("HIGH");
+      expect(securityThreatsInc).toHaveBeenCalledWith(REPLAY_THREAT_LABELS);
+      expect(securityThreatsInc).toHaveBeenCalledTimes(1);
     });
 
     it("refuses a token whose session was deactivated between the read and the claim", async () => {
@@ -463,6 +483,68 @@ describe("AuthService", () => {
       expect(result.error).toBe("TOKEN_BLACKLISTED");
       expect(sessionRow().refreshTokenHash).toBe(hashRefreshToken(refreshToken));
       expect(sessionRow().isActive).toBe(false);
+    });
+
+    it("audits a revocation landing mid-flight as a revocation, and raises no replay alarm", async () => {
+      // A logout or an admin revocation committing between the deciding read and the
+      // claim refuses the caller for a reason that is not an attack. Reporting it as
+      // ROTATED_TOKEN_REPLAYED would put a HIGH row and a threat counter increment on
+      // an ordinary sign-out — the noise that teaches an operator to ignore the alarm.
+      await loginFresh();
+      concurrentWriteAfterRead({ isActive: false });
+
+      const result = await authService.refreshTokens(refreshToken, "192.168.1.100");
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      // The caller-visible refusal is deliberately IDENTICAL to the replay refusal:
+      // the disambiguation is for the operator, never an oracle for the caller.
+      expect(result.error).toBe("TOKEN_BLACKLISTED");
+      const reasons = auditLog.rows.map((row) => (row.details as Record<string, unknown>).reason);
+      expect(reasons).not.toContain("ROTATED_TOKEN_REPLAYED");
+      const revoked = auditLog.rows.filter(
+        (row) => (row.details as Record<string, unknown>).reason === "SESSION_REVOKED_MIDFLIGHT"
+      );
+      expect(revoked).toHaveLength(1);
+      expect((revoked[0]?.details as Record<string, unknown>).severity).toBe("MEDIUM");
+      expect(securityThreatsInc).not.toHaveBeenCalled();
+    });
+
+    it("surfaces a blacklist failure after the claim committed, and leaves the rotation persisted", async () => {
+      // The blacklist write moved AFTER the claim, so this narrow path — the row
+      // committed, Redis then refused — is the one the old order did not have. The
+      // caller sees DATABASE_ERROR and holds a pair that IS the stored credential:
+      // the rotation is not rolled back, and retrying with the presented token now
+      // fails at the claim. Stranding the caller is the accepted cost of never
+      // blacklisting a token the claim did not rotate.
+      const throwingRedis = {
+        get: vi.fn(async () => null),
+        // Only the blacklist write fails. Failing every `setex` would break the login
+        // that sets the fixture up, and the point here is the post-claim write alone.
+        setex: vi.fn(async (key: string) => {
+          if (key.startsWith(TOKEN_BLACKLIST_PREFIX)) throw new Error("redis unavailable");
+          return "OK";
+        }),
+        del: vi.fn(async () => 1),
+        sadd: vi.fn(async () => 1),
+        expire: vi.fn(async () => 1),
+        scard: vi.fn(async () => 0),
+        lpush: vi.fn(async () => 1),
+        ltrim: vi.fn(async () => "OK"),
+      };
+      setRedisInstance(throwingRedis as unknown as import("ioredis").default);
+      await loginFresh();
+      const presentedHash = hashRefreshToken(refreshToken);
+
+      const result = await authService.refreshTokens(refreshToken, "192.168.1.100");
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toBe("DATABASE_ERROR");
+      // The claim committed before the throw: the stored hash moved off the presented
+      // token, so the rotation persisted while its caller was told it failed.
+      expect(sessionRow().refreshTokenHash).not.toBe(presentedHash);
+      expect(securityThreatsInc).not.toHaveBeenCalled();
     });
 
     it("refuses the same token on a second presentation", async () => {

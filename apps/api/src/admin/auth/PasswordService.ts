@@ -117,6 +117,9 @@ export class PasswordService {
     const { hash, algorithm } = await this.hashPassword(newPassword);
 
     // Update password history
+    // Read-modify-write, unguarded: two concurrent changes on one admin can each
+    // append to the history they read and the loser's entry is lost. Deliberately
+    // out of scope for the reset claim — owned by SMELL-114.
     const updatedHistory = [...user.passwordHistory, user.passwordHash].slice(
       -passwordReusePrevented
     );
@@ -296,13 +299,24 @@ export class PasswordService {
       // re-check exactly the columns this WHERE names, and the loser matches
       // zero rows.
       //
-      // `id` caps the match at one row, so `count > 0` and `count === 1` coincide
-      // here. That cap comes from `id` alone: `AdminUser.passwordResetToken`
-      // carries NO unique index (adding one is blocked by the "CHANGE_REQUIRED"
-      // sentinel that occupies the column for a different feature — SMELL-110),
-      // so the token is a claim PREDICATE here, not the row key. The fact that
+      // `id` caps the match at one row, so the `count === 0` refusal this site
+      // spells and a `count !== 1` refusal coincide here. That cap comes from
+      // `id` alone: `AdminUser.passwordResetToken` carries NO unique index, so
+      // the token is a claim PREDICATE here, not the row key. The fact that
       // tokens are `crypto.randomUUID()` is NOT what caps the count either;
       // collision resistance bounds the odds, it does not bound the rows.
+      //
+      // The missing index is the SMALL half of the "CHANGE_REQUIRED" problem
+      // (SMELL-110). The large half is an AUTHENTICATION HAZARD:
+      // `AccountSessionService.resetPassword` stores that literal string in this
+      // very column with a 24h expiry, so it is a guessable, shared, non-secret
+      // value that satisfies every term of the predicate below — anyone reaching
+      // this method with the token `"CHANGE_REQUIRED"` would claim a real admin's
+      // password. Nothing HERE stops that: the method takes an unconstrained
+      // `string`. The only thing standing in the way is the route's
+      // `z.string().uuid()` on `resetPasswordConfirmSchema`, one layer out and one
+      // caller away, which is why a second caller of this method — a CLI, a job, a
+      // test harness — reintroduces the hole in full.
       //
       // Typed `StringNullableListFilter` equality — no raw SQL.
       const { count } = await this.prisma.adminUser.updateMany({

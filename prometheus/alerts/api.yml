@@ -41,3 +41,17 @@ groups:
           summary: "MFA backup code reuse refused — a consumed recovery code was presented again"
           description: "El claim del backup code rechazó al menos un intento de consumir un código ya consumido en los últimos 15 minutos. En estado normal esta serie se mantiene en cero, por lo que cualquier emisión sostenida es señal de reutilización de credenciales de recuperación. Consultar el runbook antes de escalar: una colisión entre claims de índices distintos del mismo usuario produce un falso positivo documentado."
           runbook: docs/runbooks/alert-mfa-backup-code-reuse.md
+
+      # Misma forma que la regla de arriba y por las mismas razones: sin `for:`
+      # (la ventana [15m] del `increase()` ya suaviza una serie que en estado
+      # normal está en cero) y sin `slo:` (ningún SLO cubre
+      # api_security_threats_total).
+      - alert: AdminRefreshTokenReplayRejected
+        expr: increase(api_security_threats_total{threat_type="admin_refresh_token_replay"}[15m]) > 0
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "Admin refresh token replay refused — a rotated refresh token was presented again"
+          description: "El claim de rotación rechazó al menos un refresh token ya rotado en los últimos 15 minutos. La revocación en vuelo (logout o revocación administrativa entre la lectura y la escritura) NO emite esta serie: se audita aparte como SESSION_REVOKED_MIDFLIGHT. Consultar el runbook antes de escalar: un refresh simultáneo desde dos pestañas produce un falso positivo documentado."
+          runbook: docs/runbooks/alert-admin-refresh-token-replay.md

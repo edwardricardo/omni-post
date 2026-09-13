@@ -472,4 +472,35 @@ describe("PasswordService.confirmPasswordReset — the reset claim", () => {
       assertNoPostClaimEffects(fixture);
     });
   });
+
+  describe("the fake refuses a shape it cannot model", () => {
+    it("throws when a list-shaped value reaches scalar equality, instead of answering zero rows", async () => {
+      // The fake routes `equals` element-wise only for the columns named in
+      // LIST_COLUMNS. A list column absent from that set falls through to `===`,
+      // which is false for two arrays holding identical entries — and "false" here
+      // is indistinguishable from a correct count gate refusing. That is the exact
+      // invisible false green this harness exists to prevent, so the miss has to be
+      // loud at the point the shape arrives, not at the point a suite reads green.
+      const fake = createStatefulAdminUserPrismaFake();
+      fake.seedAdmin({ id: ADMIN_ID, mfaBackupUsedAt: ["0"] });
+      const client = fake.client as unknown as {
+        adminUser: { updateMany: (args: unknown) => Promise<{ count: number }> };
+      };
+
+      await assert.rejects(
+        () =>
+          client.adminUser.updateMany({
+            where: { id: ADMIN_ID, mfaBackupUsedAt: { equals: ["0"] } },
+            data: { mustChangePassword: true },
+          }),
+        /list-shaped value on column "mfaBackupUsedAt"/,
+        "a list column missing from LIST_COLUMNS must throw, never silently match nothing"
+      );
+      assert.strictEqual(
+        storedRow(fake).mustChangePassword,
+        false,
+        "and the refused statement wrote nothing"
+      );
+    });
+  });
 });
