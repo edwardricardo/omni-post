@@ -101,7 +101,15 @@ SHALL NOT mint a pair. Which member is used is a DESIGN choice; what is normativ
 caller is refused, receives no tokens, and that the outcome is expressible without widening the
 union or adding a route mapping.
 
-The refusal SHALL be produced by the rotation claim itself, not by a preceding cache lookup.
+In the RACING interleavings (staggered and simultaneous), the refusal SHALL be produced by the
+rotation claim itself, not by a preceding cache lookup — the claim, not the cache, is the
+authority under contention, and the racer proves it with Redis structurally absent. For the
+SEQUENTIAL replay of an already-rotated token, an EARLIER guard MAY answer first (measured:
+the session read misses → `SESSION_EXPIRED` Redis-less; the blacklist answers `TOKEN_BLACKLISTED`
+with Redis) — a pre-existing asymmetry the design records as D2, deliberately unchanged by this
+change; what stays normative in every path is that the caller is refused and no pair is minted.
+(Amended per verify W1, 2026-09-13: the original unqualified sentence stated a SHALL the
+adjudicated implementation does not meet on the sequential path.)
 
 #### Scenario: sequential replay is refused with no pair issued [integration]
 
