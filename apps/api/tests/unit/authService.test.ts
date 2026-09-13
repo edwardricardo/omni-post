@@ -7,7 +7,9 @@
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
+import jwt from "jsonwebtoken";
 import { MFA_SUBJECT_TYPE } from "@ports/core";
+import type { AuthTokens } from "../../src/auth/authTypes.js";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
@@ -45,6 +47,8 @@ vi.mock("../../src/lib/logger.js", () => {
 // ---------------------------------------------------------------------------
 
 const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
+const { AuthServiceCore } = await import("../../src/auth/authServiceCore.js");
+const { hashRefreshToken } = await import("../../src/auth/refreshTokenHash.js");
 const { MfaService } = await import("../../src/admin/auth/MfaService.js");
 const { PrismaAdminMfaUserRepository } =
   await import("../../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js");
@@ -325,9 +329,9 @@ describe("AuthService", () => {
       if (result.ok) {
         expect(result.value.accessToken.length > 0).toBeTruthy();
         expect(result.value.refreshToken.length > 0).toBeTruthy();
-        // Without Redis, tokenVersion is not embedded in the JWT payload,
-        // so the new token may be identical if generated in the same second.
-        // We only assert that valid tokens are returned.
+        // Redis is absent here, so the per-mint id is the only thing separating this token
+        // from the one it replaces — and the login above happened in the same second.
+        expect(result.value.refreshToken).not.toBe(refreshToken);
         accessToken = result.value.accessToken;
         refreshToken = result.value.refreshToken;
       }
@@ -340,6 +344,73 @@ describe("AuthService", () => {
       if (!result.ok) {
         expect(result.error).toBe("INVALID_TOKEN");
       }
+    });
+  });
+
+  describe("Refresh Token Minting", () => {
+    // A rotation is a compare-and-swap on the stored refresh-token hash, and a swap is
+    // only a swap when it changes the row. Without a per-mint id the refresh payload is
+    // {userId,email,role,sessionId} with whole-second iat/exp, so two mints of one payload
+    // inside one second are byte-identical and a rotation re-mints the token it consumed.
+    // Redis is absent here by construction (the suite nulls the instance), which is exactly
+    // the deployment shape where nothing else makes a mint unique.
+    const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    const decodeToken = (token: string): jwt.JwtPayload => jwt.decode(token) as jwt.JwtPayload;
+
+    /** Builds the core directly: `generateTokens` is core surface, not part of the facade. */
+    const buildCore = (): InstanceType<typeof AuthServiceCore> =>
+      new AuthServiceCore(
+        new PrismaAdminUserRepository(mockPrisma.prisma as never),
+        mfaService,
+        new PrismaRoleRepository(mockPrisma.prisma as never),
+        new PrismaAdminSessionRepository(mockPrisma.prisma as never),
+        new InMemoryAuditLogRepository()
+      );
+
+    /** Both mints are started before either is awaited, so they share one tick. */
+    const mintTwiceInOneTick = async (): Promise<[AuthTokens, AuthTokens]> => {
+      const core = buildCore();
+      const args = [
+        "admin-user-1",
+        "minting@example.com",
+        "ADMIN",
+        "session-1",
+        { userAgent: "Mozilla/5.0", ipAddress: "192.168.1.100" },
+        1,
+      ] as const;
+
+      const [first, second] = await Promise.all([
+        core.generateTokens(...args),
+        core.generateTokens(...args),
+      ]);
+
+      return [first, second];
+    };
+
+    it("mints two distinct refresh tokens when one payload is signed twice in the same tick", async () => {
+      const [first, second] = await mintTwiceInOneTick();
+
+      expect(first.refreshToken).not.toBe(second.refreshToken);
+      expect(hashRefreshToken(first.refreshToken)).not.toBe(hashRefreshToken(second.refreshToken));
+      expect(decodeToken(first.refreshToken).jti).toMatch(UUID_V4);
+      expect(decodeToken(second.refreshToken).jti).toMatch(UUID_V4);
+      expect(decodeToken(first.refreshToken).jti).not.toBe(decodeToken(second.refreshToken).jti);
+    });
+
+    it("carries an identical payload across those two mints apart from the per-mint id", async () => {
+      const [first, second] = await mintTwiceInOneTick();
+
+      const withoutJti = (token: string): jwt.JwtPayload => {
+        const { jti: _jti, ...rest } = decodeToken(token);
+        return rest;
+      };
+
+      // Uniqueness must come from the per-mint id alone. A mint that changed the session,
+      // the subject or the role to become unique would rotate a different session's row.
+      expect(withoutJti(first.refreshToken)).toEqual(withoutJti(second.refreshToken));
+      expect(decodeToken(first.refreshToken).sessionId).toBe("session-1");
+      expect(decodeToken(first.refreshToken).jti).not.toBe(decodeToken(second.refreshToken).jti);
     });
   });
 
