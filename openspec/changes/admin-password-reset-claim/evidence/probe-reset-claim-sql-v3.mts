@@ -77,9 +77,10 @@ const recording = new Proxy(factory, {
     const value = Reflect.get(target, prop, receiver);
     if (prop !== "connect" || typeof value !== "function") return value;
     return async (...args: unknown[]) => {
-      const conn = await (
-        value as (...a: unknown[]) => Promise<Record<string, unknown>>
-      ).apply(target, args);
+      const conn = await (value as (...a: unknown[]) => Promise<Record<string, unknown>>).apply(
+        target,
+        args
+      );
       const wrapSql = (o: Record<string, unknown>, tag: string): Record<string, unknown> =>
         new Proxy(o, {
           get(c, p, r) {
@@ -93,9 +94,10 @@ const recording = new Proxy(factory, {
             if (p === "startTransaction" && typeof v === "function") {
               return async (...a: unknown[]) => {
                 driverSql.push(`${tag}startTransaction()`);
-                const tx = await (
-                  v as (...x: unknown[]) => Promise<Record<string, unknown>>
-                ).apply(c, a);
+                const tx = await (v as (...x: unknown[]) => Promise<Record<string, unknown>>).apply(
+                  c,
+                  a
+                );
                 return wrapSql(tx, "tx.");
               };
             }
@@ -270,9 +272,7 @@ try {
 
     // CONTINGENCY — armed only if P1 failed its count rule.
     if (!p1Matched) {
-      say(
-        `\n!!! P1 MISSED — arming the isEmpty contingency (design.md L740) and re-running P1.`
-      );
+      say(`\n!!! P1 MISSED — arming the isEmpty contingency (design.md L740) and re-running P1.`);
       const c1b = await capture("P1b CONTINGENCY reset claim, EMPTY snapshot via isEmpty", () =>
         prisma.adminUser.updateMany({
           where: {
@@ -317,7 +317,10 @@ try {
     c = await capture("P3 reset claim, MOVED history snapshot", () =>
       claim(token3, H("prior3"), [H("a")], [H("a"), H("prior3")])
     );
-    must(c === 0, "P3: a moved history snapshot did NOT match (the predicate is a compare-and-swap)");
+    must(
+      c === 0,
+      "P3: a moved history snapshot did NOT match (the predicate is a compare-and-swap)"
+    );
     must(
       JSON.stringify(await row()) === before3,
       "P3: the refused claim left the row byte-untouched (updatedAt included)"
@@ -390,7 +393,9 @@ try {
 }
 
 if (fatal !== null) {
-  say(`\nREJECT (fatal)\n${fatal instanceof Error ? (fatal.stack ?? fatal.message) : String(fatal)}`);
+  say(
+    `\nREJECT (fatal)\n${fatal instanceof Error ? (fatal.stack ?? fatal.message) : String(fatal)}`
+  );
   finish();
   process.exit(1);
 }
