@@ -302,7 +302,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **40 checks, numbered #1-#40**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **41 checks, numbered #1-#41**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -1484,6 +1484,187 @@ echo "$BCOUNT"   # expect 0
 # a scope from) and is declared in this change's tasks under 6b.7; converting that seam belongs
 # to the links that own the worker process. It is named HERE because a residual a future reader
 # cannot see in the gate is not a stated residual, and this is the check they will read.
+
+# 41. Single-use claim shape. An ALLOWLIST-by-shape gate in the #28/#40 form, and the CLASS gate the
+# admin reset/rotation slice (SMELL-97) owes: a Prisma write whose `data` carries a CONSUMPTION MARKER
+# for a single-use credential must name that credential's prior state in the SAME call's `where`.
+#
+# Threat, in one line: a consuming write that does not name the credential it consumes lets two callers
+# consume it once each. Keyed on `{ id }` alone the write matches whether or not the credential still
+# exists — EvalPlanQual re-checks only the columns the WHERE names, and `id` is never contested — so two
+# presentations of ONE token both pass the read and both write, and the last writer owns the account.
+# Named, the write is a compare-and-swap the database serialises, and `count` is the verdict.
+#
+# POPULATION, measured when the gate landed: 8 marker sites = 7 claim sites + 1 named issuance exception.
+# Of the 7 claims, 2 were unsound before this gate's slice and 0 after —
+# PasswordService.confirmPasswordReset and authServiceSession.refreshTokens are the two it converted; the
+# customer reset claim and the four MFA claims were already sound. SITE_FLOOR holds that population: the
+# floor may fall and must never rise — it falls only with the deliberate removal of a site, never to
+# absorb a new violation.
+# ALLOWLIST by shape: the dangerous set is open-ended, the admissible shape is one sentence. MARKERS are
+# the literal `data` forms that consume a credential today:
+#   passwordResetToken: null     admin reset consumed
+#   resetToken: null             customer reset consumed
+#   mfaBackupUsedAt: <value>     backup-code used-map extended (`{}` is a re-enrolment
+#                                RESET, excluded by the lookahead)
+#   mfaLastUsedTotpStep: <value> TOTP step advanced
+#   refreshTokenHash <: , }>     refresh token rotated — the property-shorthand form
+#                                `{ refreshTokenHash }` is matched too, so a rotation
+#                                is never exempt by syntax
+# STRUCTURAL, not line-windowed: each `.update(` / `.updateMany(` / `.upsert(` call's argument is sliced
+# to its balanced close (the #36 string/comment-aware slicer); the `data:` literal (`update:` for upsert)
+# is tested for a marker, whose column must then appear as a key in that SAME call's `where:` literal. A
+# `select:` cannot satisfy the gate — a line window could not tell the two apart.
+# NAMED EXCEPTION, exactly one, held to exactly ONE site so a second write in that file fails closed:
+# PrismaAdminSessionRepository.updateRefreshTokenHash is the second step of session ISSUANCE —
+# createSession inserts a throwaway hash nobody holds, mints the JWT that embeds the new session id, then
+# swaps the real hash in — so no presented credential is consumed. Remove-when: the session id is minted
+# before the insert and the final hash written on create. The exemption keys on FILE + COLUMN while its
+# justification is a property of the CALLERS: it is sound only while updateRefreshTokenHash has ONE
+# caller (verified tree-wide at apply: authServiceCore.ts:383, inside createSession) — a second consuming
+# caller would inherit it unseen.
+# OUT OF CLASS by decision, not oversight — writes this gate is silent on, and why: idempotent session
+# revocations (`isActive: false` keyed on `isActive: true`; revoking twice is one state); the outbox
+# work-item lease (a lease, not a credential); the customer refresh flow (a stateless JWT with NO
+# server-side consumption marker — SMELL-113's subject, not a marker site); the SECOND admin refresh flow
+# (`AdminAuthService.refreshToken`, the ADMIN_JWT_*/TokenService family: compares the stored hash and
+# issues only a new ACCESS token — it never rotates, so there is no consuming write for this gate to see;
+# its lifetime-of-token non-rotation is its own backlog row, the admin twin of SMELL-113); and the admin
+# reset ISSUANCE that writes the "CHANGE_REQUIRED" sentinel (an issuance, not a consumption — SMELL-110).
+# FAIL-CLOSED: a missing scope directory, fewer than SITE_FLOOR marker sites, or an exception count other
+# than 1 is a blind scan, not a clean one — exit 1. SCOPE: apps/api/src apps/workers/src packages
+# infra/prisma/src, *.ts, minus node_modules/dist/tests/generated/ .stryker. infra/prisma/scripts is OUT
+# by path: the backfill's `data: { passwordResetToken: null }` keyed on id is the `migration`
+# canon-exception scenario (a one-off over rows it selected itself), and so is every future script there
+# — stated, not hidden.
+# RESIDUAL LIMITS, stated rather than implied. (1) Textual, not a type-checker: `data` or `where` passed
+# by identifier, spread, or built by a helper is invisible — the generic `update(id, data)` helpers on
+# the admin-user and MFA adapters are exactly that shape; a claim routed through one must be enrolled by
+# hand. (2) The gate proves the column is NAMED in `where`, not that the predicate is right
+# (`refreshTokenHash: { not: null }` would pass); the racers own the predicate. (3) The marker list is
+# enumerated, not derived from the schema — "single-use" is not a schema property — so a NEW credential
+# column is invisible until its marker is added (the How-to-extend step). (4) Cache-backed consumption
+# (`OAuthFlowStore.consume`, a read-then-delete outside Prisma) and raw SQL (fitness #23's domain, itself
+# blind to tagged templates — SMELL-111) are outside. (5) `upsert`'s `create` arm is not checked:
+# creation issues, never consumes. (6) The slicer keeps string-literal bytes and knows no regex literals:
+# a marker inside a string is a false positive it does not filter, and a regex literal with an unbalanced
+# brace or quote inside a write call mis-slices that call — at a marker site the site is dropped, which
+# the floor turns into exit 1 (fail-closed); neither exists in scope today. (7) Line-window matching is
+# NOT a limit here: the #38 form pairs `data` and `where` inside a bounded window and misses a call whose
+# halves sit further apart; this gate slices the whole argument, so that residual is eliminated and (6)
+# replaces it.
+# Hard-zero.
+set -uo pipefail
+for d in apps/api/src apps/workers/src packages infra/prisma/src; do
+  [ -d "$d" ] || { echo "fitness #41 scope error: '$d' does not exist — the scan would skip it silently and print 0."; exit 1; }
+done
+VIOLATIONS=$(node --input-type=module <<'EOF'
+import { readFileSync } from "node:fs";
+import { glob } from "node:fs/promises";
+
+const SCOPE = ["apps/api/src", "apps/workers/src", "packages", "infra/prisma/src"];
+const SKIP = /(^|\/)(node_modules|dist|tests|generated|\.stryker[^/]*)\//;
+const MARKERS = [
+  { column: "passwordResetToken", re: /\bpasswordResetToken\s*:\s*null\b/ },
+  { column: "resetToken", re: /\bresetToken\s*:\s*null\b/ },
+  { column: "mfaBackupUsedAt", re: /\bmfaBackupUsedAt\s*:\s*(?!\{\s*\})/ },
+  { column: "mfaLastUsedTotpStep", re: /\bmfaLastUsedTotpStep\s*:/ },
+  { column: "refreshTokenHash", re: /\brefreshTokenHash\s*[:,}]/ },
+];
+const SITE_FLOOR = 8;
+const EXCEPTION = {
+  file: "apps/api/src/infrastructure/repositories/PrismaAdminSessionRepository.ts",
+  column: "refreshTokenHash",
+};
+// Slice from `open` at `from` to its balanced `close`, dropping comment bytes and
+// skipping brackets inside string/template literals (the #36 slicer, generalised).
+const sliceBalanced = (src, from, open, close) => {
+  let depth = 0;
+  let i = from;
+  let body = "";
+  while (i < src.length) {
+    const c = src[i];
+    if (c === '"' || c === "'" || c === "`") {
+      let j = i + 1;
+      while (j < src.length && src[j] !== c) j += src[j] === "\\" ? 2 : 1;
+      body += src.slice(i, j + 1);
+      i = j + 1;
+      continue;
+    }
+    if (c === "/" && src[i + 1] === "/") {
+      const nl = src.indexOf("\n", i);
+      i = nl === -1 ? src.length : nl;
+      continue;
+    }
+    if (c === "/" && src[i + 1] === "*") {
+      const end = src.indexOf("*/", i + 2);
+      i = end === -1 ? src.length : end + 2;
+      continue;
+    }
+    if (c === open) depth += 1;
+    if (c === close && --depth === 0) return body + c;
+    body += c;
+    i += 1;
+  }
+  return null;
+};
+const literalOf = (args, key) => {
+  const m = new RegExp(`(^|[{,\\s])${key}\\s*:\\s*\\{`).exec(args);
+  return m === null ? null : sliceBalanced(args, m.index + m[0].length - 1, "{", "}");
+};
+const files = [];
+for (const dir of SCOPE) {
+  for await (const f of glob("**/*.ts", { cwd: dir })) {
+    const path = `${dir}/${f}`;
+    if (!SKIP.test(path) && !path.endsWith(".test.ts")) files.push(path);
+  }
+}
+files.sort();
+let sites = 0;
+let exceptionHits = 0;
+const violations = [];
+for (const file of files) {
+  const src = readFileSync(file, "utf8");
+  const call = /\.(update|updateMany|upsert)\s*\(/g;
+  let m;
+  while ((m = call.exec(src)) !== null) {
+    const args = sliceBalanced(src, m.index + m[0].length - 1, "(", ")");
+    if (args === null) continue;
+    const data = literalOf(args, m[1] === "upsert" ? "update" : "data");
+    if (data === null) continue;
+    const line = src.slice(0, m.index).split("\n").length;
+    for (const { column, re } of MARKERS) {
+      if (!re.test(data)) continue;
+      sites += 1;
+      if (file === EXCEPTION.file && column === EXCEPTION.column) {
+        exceptionHits += 1;
+        continue;
+      }
+      const where = literalOf(args, "where");
+      if (where === null) {
+        violations.push(`${file}:${line}: ${column} consumed in data, and the call has no where literal to name it`);
+        continue;
+      }
+      if (!new RegExp(`\\b${column}\\s*:`).test(where)) {
+        violations.push(`${file}:${line}: ${column} consumed in data but not named in where`);
+      }
+    }
+  }
+}
+if (sites < SITE_FLOOR) {
+  console.error(`fitness #41 scope error: ${sites} marker sites found against a floor of ${SITE_FLOOR} — a marker was renamed, a claim moved out of scope, or the scan stopped matching. Failing closed rather than reporting a clean zero over code it never read.`);
+  process.exit(1);
+}
+if (exceptionHits !== 1) {
+  console.error(`fitness #41 scope error: the named exception matched ${exceptionHits} site(s) in ${EXCEPTION.file}; it covers exactly one issuance write. A second write there is not covered by its reasoning, and zero means the site moved — delete the exception with it.`);
+  process.exit(1);
+}
+console.log(violations.join("\n"));
+EOF
+) || { echo "fitness #41: the scan crashed or the scope is invalid — failing closed (needs node >= 22 for fs.glob)"; exit 1; }
+COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
+COUNT=${COUNT:-0}
+echo "$COUNT"   # expect 0
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One
