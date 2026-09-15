@@ -160,6 +160,7 @@ describe("UpdateChannelAuthStateUseCase", () => {
     });
     const useCase = new UpdateChannelAuthStateUseCase(repo, {
       executeInTransaction: uowExecute,
+      executeResultInTransaction: async (fn) => fn(),
     });
     const result = await useCase.execute({
       channelId: VALID_CHANNEL_ID,

@@ -183,6 +183,7 @@ describe("ReplaceOidcClientSecretUseCase", () => {
     });
     const useCase = new ReplaceOidcClientSecretUseCase(makeRepo(), makeProbe(), {
       executeInTransaction: uowExecute,
+      executeResultInTransaction: async (fn) => fn(),
     });
     const result = await useCase.execute({
       accountId: ACCOUNT_ID,

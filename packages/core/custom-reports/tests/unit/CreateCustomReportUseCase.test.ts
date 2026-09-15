@@ -14,6 +14,7 @@ import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
 const passthroughUow: UnitOfWork = {
   executeInTransaction: async (fn) => fn(),
+  executeResultInTransaction: async (fn) => fn(),
 };
 
 function makeMockRepo(saveFails = false): CustomReportRepository {

@@ -95,6 +95,7 @@ function makeUnitOfWork() {
     executeInTransaction: vi.fn(async (fn: () => Promise<void>) => {
       await fn();
     }),
+    executeResultInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   };
 }
 

@@ -99,6 +99,7 @@ describe("ArchivePostsBatchUseCase", () => {
         executeInTransaction: vi.fn(async (fn: () => Promise<void>) => {
           await fn();
         }),
+        executeResultInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
       };
       const useCaseWithUow = new ArchivePostsBatchUseCase(repo as never, uow as never);
 

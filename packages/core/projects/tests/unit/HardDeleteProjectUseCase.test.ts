@@ -107,6 +107,7 @@ function markLive(repo: MockedRepo): void {
 function makeUow(): UnitOfWork & { executeInTransaction: ReturnType<typeof vi.fn> } {
   const uow = {
     executeInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
+    executeResultInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   };
   return uow as unknown as UnitOfWork & { executeInTransaction: ReturnType<typeof vi.fn> };
 }

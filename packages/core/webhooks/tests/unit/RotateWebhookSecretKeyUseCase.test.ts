@@ -17,6 +17,7 @@ const SUB_ID = "sub-00000000-0000-4000-8000-000000000001";
 
 const passthroughUow: UnitOfWork = {
   executeInTransaction: async (fn) => fn(),
+  executeResultInTransaction: async (fn) => fn(),
 };
 
 const FIXED_SECRET = "aabbccdd".repeat(8); // 64 hex chars

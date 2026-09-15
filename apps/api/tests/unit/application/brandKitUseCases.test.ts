@@ -143,7 +143,10 @@ describe("UpsertBrandKitUseCase", () => {
     const executeFn = vi.fn(async (cb: () => Promise<void>) => {
       await cb();
     });
-    const uow = { executeInTransaction: executeFn };
+    const uow = {
+      executeInTransaction: executeFn,
+      executeResultInTransaction: async (cb: () => Promise<unknown>) => cb(),
+    };
     const ucWithUow = new UpsertBrandKitUseCase(repo, uow);
     const r = await ucWithUow.execute(makeInput());
     assert.ok(r.ok);
@@ -241,7 +244,10 @@ describe("DeleteBrandKitUseCase", () => {
     const executeFn = vi.fn(async (cb: () => Promise<void>) => {
       await cb();
     });
-    const uow = { executeInTransaction: executeFn };
+    const uow = {
+      executeInTransaction: executeFn,
+      executeResultInTransaction: async (cb: () => Promise<unknown>) => cb(),
+    };
     const ucWithUow = new DeleteBrandKitUseCase(repo, uow);
     const r = await ucWithUow.execute({ accountId: "acc-1" });
     assert.ok(r.ok);

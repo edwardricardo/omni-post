@@ -18,6 +18,7 @@ const TEMPLATE_ID = "tpl-0000-0000-0000-0001";
 
 const passthroughUow: UnitOfWork = {
   executeInTransaction: async (fn) => fn(),
+  executeResultInTransaction: async (fn) => fn(),
 };
 
 function makeMockRepo(): AIPromptTemplateRepository {

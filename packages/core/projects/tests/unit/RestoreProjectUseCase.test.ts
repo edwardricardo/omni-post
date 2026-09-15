@@ -95,6 +95,14 @@ function makeTrackingUnitOfWork(): { uow: UnitOfWork; isInside: () => boolean } 
         insideTransaction = false;
       }
     },
+    executeResultInTransaction: async (fn: () => Promise<unknown>) => {
+      insideTransaction = true;
+      try {
+        return (await fn()) as never;
+      } finally {
+        insideTransaction = false;
+      }
+    },
   } as UnitOfWork;
   return { uow, isInside: () => insideTransaction };
 }

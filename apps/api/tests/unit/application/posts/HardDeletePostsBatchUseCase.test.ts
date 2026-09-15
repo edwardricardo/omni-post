@@ -87,6 +87,7 @@ describe("HardDeletePostsBatchUseCase", () => {
         executeInTransaction: vi.fn(async (fn: () => Promise<void>) => {
           await fn();
         }),
+        executeResultInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
       };
       const useCaseWithUow = new HardDeletePostsBatchUseCase(repo as never, uow as never);
 

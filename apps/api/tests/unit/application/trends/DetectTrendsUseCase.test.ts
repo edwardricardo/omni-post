@@ -191,6 +191,10 @@ describe("DetectTrendsUseCase", () => {
         txUsed = true;
         await fn();
       },
+      executeResultInTransaction: async (fn: () => Promise<unknown>) => {
+        txUsed = true;
+        return fn();
+      },
     };
 
     const uc = new DetectTrendsUseCase(fetch, score, port, uow as never);

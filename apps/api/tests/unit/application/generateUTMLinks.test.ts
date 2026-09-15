@@ -70,6 +70,7 @@ describe("GenerateUTMLinksUseCase", () => {
       executeInTransaction: vi.fn(async (cb: () => Promise<void>) => {
         await cb();
       }),
+      executeResultInTransaction: vi.fn(async (cb: () => Promise<unknown>) => cb()),
     };
     const uc = new GenerateUTMLinksUseCase(repo as never, uow as never);
 

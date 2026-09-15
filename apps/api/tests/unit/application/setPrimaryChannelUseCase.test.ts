@@ -73,6 +73,7 @@ function createMockUnitOfWork() {
     executeInTransaction: vi.fn(async (work: () => Promise<void>) => {
       await work();
     }),
+    executeResultInTransaction: vi.fn(async (work: () => Promise<unknown>) => work()),
   };
 }
 

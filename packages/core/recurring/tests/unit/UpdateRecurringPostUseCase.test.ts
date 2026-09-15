@@ -27,6 +27,7 @@ const NEW_CHANNEL_ID = "e2000000-0000-4000-8000-000000000001";
 
 const passthroughUow: UnitOfWork = {
   executeInTransaction: async (fn) => fn(),
+  executeResultInTransaction: async (fn) => fn(),
 };
 
 const storedData = (): RecurringPostData => ({

@@ -20,13 +20,17 @@ import { UpdatePostUseCase } from "@core/posts/UpdatePostUseCase.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { PostRepository, EventDispatcher } from "@core/domain/index.js";
 import { AccountId } from "@core/domain/index.js";
-import { ok, err } from "@shared/types";
+import { ok, err, type Result } from "@shared/types";
 
 /** Minimal mock that tracks UoW calls */
 function createMockUoW(): UnitOfWork & { calls: number } {
   return {
     calls: 0,
     async executeInTransaction<T>(fn: () => Promise<T>): Promise<T> {
+      this.calls++;
+      return fn();
+    },
+    async executeResultInTransaction<T, E>(fn: () => Promise<Result<T, E>>): Promise<Result<T, E>> {
       this.calls++;
       return fn();
     },

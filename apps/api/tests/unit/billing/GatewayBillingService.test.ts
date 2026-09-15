@@ -102,6 +102,7 @@ function makeEmailPort(): EmailPort {
 function makeUnitOfWork(): UnitOfWork {
   return {
     executeInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
+    executeResultInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   };
 }
 
