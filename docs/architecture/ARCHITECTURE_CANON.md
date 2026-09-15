@@ -148,6 +148,10 @@ export class MyUseCase {
 - DI container MUST pass `container.resolve<UnitOfWork>(TOKENS.UnitOfWork)` to every mutating use case
 - `PrismaUnitOfWork` uses `AsyncLocalStorage` — repositories auto-detect the active transaction via `PrismaUnitOfWork.getTransactionClient()`
 
+### The second sanctioned shape: `executeResultInTransaction` (ADR-0023)
+
+**When the work returns a `Result` whose `err` must abort the transaction, use `executeResultInTransaction`, not `executeInTransaction`.** The `let result` capture in the pattern above is what makes the distinction load-bearing: it stores an `err` in a variable and lets the callback RESOLVE, so the Unit of Work sees a success and Prisma COMMITS. For a single-statement save that is harmless — the statement either ran or it did not. For a multi-statement save (an aggregate whose update writes the row, then its content, then its media, then its outbox rows) a failure raised on the JS side after the first statement is caught by the repository, returned as `err`, and the partial write commits. `executeResultInTransaction<T, E>(fn)` closes that hole with the same seam: `ok` commits, `err` rolls back and is returned unchanged as a value, and a genuine `throw` still propagates. The abort signal is the `Result` itself, so the application core keeps returning `Result` and gains no raised control flow — this is fitness **#4**'s own documented remove-when, satisfied without adding a name to its exception list. `executeInTransaction` is unchanged and remains correct for work that signals failure by raising.
+
 ---
 
 ## Event-Driven Architecture

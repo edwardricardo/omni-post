@@ -354,8 +354,12 @@ grep -rnE "(:\s+any\b|\bas any\b|<any>)" \
 #     rollback signal inside `unitOfWork.executeInTransaction()` — an interactive
 #     Prisma transaction aborts only by throwing — and the method's own
 #     try/catch converts it to `err(...)`. It never leaves the service.
-#     Remove-when: UnitOfWork exposes an explicit abort so a callback can signal
-#     rollback without throwing.
+#     Remove-when: MET (ADR-0023). `UnitOfWork.executeResultInTransaction` IS the
+#     explicit abort this asked for: a callback that resolves to `err` rolls the
+#     transaction back and gets its `err` returned unchanged, with no throw in
+#     the core. Migrating these 15 throws onto it is a NAMED SEPARATE CHANGE —
+#     own bounded context, own regressions — so the exception stays listed until
+#     that change lands, and it is now scheduled debt, not open-ended debt.
 #   - DeletePostUseCase.ts: exhaustiveness guard on a `never`, unreachable by
 #     construction; deleting it would make a new caller kind fall through in
 #     silence. Remove-when: the caller union is closed by a compiler-checked
