@@ -79,6 +79,14 @@ describe("DeleteAccountUseCase", () => {
             insideTransaction = false;
           }
         },
+        executeResultInTransaction: async (fn: () => Promise<unknown>) => {
+          insideTransaction = true;
+          try {
+            return (await fn()) as never;
+          } finally {
+            insideTransaction = false;
+          }
+        },
       } as UnitOfWork;
 
       const result = await new DeleteAccountUseCase(repo, uow).execute({

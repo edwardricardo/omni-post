@@ -272,6 +272,7 @@ describe("ImportFromGoogleDriveUseCase", () => {
         executeInTransaction: vi.fn(async (fn: () => Promise<void>) => {
           await fn();
         }),
+        executeResultInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
       };
       const uowUseCase = new ImportFromGoogleDriveUseCase(repo, mockUoW);
 

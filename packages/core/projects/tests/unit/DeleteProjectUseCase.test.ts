@@ -94,6 +94,14 @@ describe("DeleteProjectUseCase", () => {
             insideTransaction = false;
           }
         },
+        executeResultInTransaction: async (fn: () => Promise<unknown>) => {
+          insideTransaction = true;
+          try {
+            return (await fn()) as never;
+          } finally {
+            insideTransaction = false;
+          }
+        },
       } as UnitOfWork;
 
       const result = await new DeleteProjectUseCase(repo, uow).execute({

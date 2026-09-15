@@ -11,7 +11,10 @@ import { FailBulkScheduleRowUseCase } from "@core/bulk-scheduling/FailBulkSchedu
 import type { BulkScheduleBatchRepository } from "@core/domain/repositories/BulkScheduleBatchRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
-const passthroughUow: UnitOfWork = { executeInTransaction: async (fn) => fn() };
+const passthroughUow: UnitOfWork = {
+  executeInTransaction: async (fn) => fn(),
+  executeResultInTransaction: async (fn) => fn(),
+};
 
 const makeBatchRepo = (
   overrides?: Partial<BulkScheduleBatchRepository>

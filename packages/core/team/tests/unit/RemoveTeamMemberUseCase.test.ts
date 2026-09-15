@@ -24,6 +24,7 @@ const CHANGER_ID = "changer-0001";
 
 const passthroughUow: UnitOfWork = {
   executeInTransaction: async (fn) => fn(),
+  executeResultInTransaction: async (fn) => fn(),
 };
 
 /** The typed failures every count-gated command answers, as the port declares them. */

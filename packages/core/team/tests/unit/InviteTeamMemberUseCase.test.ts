@@ -30,6 +30,7 @@ const ROLE_SNAPSHOT: CustomerRoleSnapshot = {
 
 const passthroughUow: UnitOfWork = {
   executeInTransaction: async (fn) => fn(),
+  executeResultInTransaction: async (fn) => fn(),
 };
 
 /** The typed failures `create` can answer, as the port declares them. */

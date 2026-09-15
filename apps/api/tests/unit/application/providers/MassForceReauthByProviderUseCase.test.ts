@@ -148,6 +148,7 @@ describe("MassForceReauthByProviderUseCase", () => {
     });
     const useCase = new MassForceReauthByProviderUseCase(makeChannelRepo(), {
       executeInTransaction: uowExecute,
+      executeResultInTransaction: async (fn) => fn(),
     });
     const result = await useCase.execute({ provider: "FACEBOOK", reason: "x" });
     assert.ok(result.ok);

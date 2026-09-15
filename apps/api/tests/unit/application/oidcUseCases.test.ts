@@ -51,6 +51,7 @@ function makeMockUoW() {
     executeInTransaction: vi.fn(async (fn: () => Promise<unknown>) => {
       await fn();
     }),
+    executeResultInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   };
 }
 

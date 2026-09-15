@@ -18,6 +18,7 @@ const CREATED_BY = "usr-0000-0000-0000-0001";
 
 const passthroughUow: UnitOfWork = {
   executeInTransaction: async (fn) => fn(),
+  executeResultInTransaction: async (fn) => fn(),
 };
 
 function makeMockRepo(saveFails = false): TaskRepository {

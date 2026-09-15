@@ -74,6 +74,7 @@ function makeOutboxWriter(): OutboxWriter {
 function makeUnitOfWork(): UnitOfWork {
   return {
     executeInTransaction: vi.fn(async (fn: () => Promise<void>) => fn()),
+    executeResultInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   } as unknown as UnitOfWork;
 }
 

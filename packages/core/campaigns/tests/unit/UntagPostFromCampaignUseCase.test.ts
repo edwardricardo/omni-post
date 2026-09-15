@@ -22,6 +22,7 @@ const VALID_POST_ID = "660e8400-e29b-41d4-a716-446655440111";
 
 const passthroughUow: UnitOfWork = {
   executeInTransaction: async (fn) => fn(),
+  executeResultInTransaction: async (fn) => fn(),
 };
 
 type MockCampaignRepo = CampaignRepository & {

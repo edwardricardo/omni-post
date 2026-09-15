@@ -10,6 +10,7 @@ import type { PrismaClient } from "@infra/prisma";
 import { Prisma } from "@infra/prisma";
 import { runWithBoundGuc } from "@infra/prisma/extensions/tenantGuc.js";
 import type { UnitOfWork } from "@core/domain/index.js";
+import type { Result } from "@shared/types";
 import { getAmbientGucScope } from "../../security/tenantContext.js";
 
 type TxClient = Prisma.TransactionClient;
@@ -32,6 +33,25 @@ export interface TransactionOptions {
  * sin necesidad de una referencia directa a la instancia de UnitOfWork.
  */
 const txStorage = new AsyncLocalStorage<TxClient>();
+
+/**
+ * Rollback signal for `executeResultInTransaction`, private to this module.
+ *
+ * An interactive Prisma transaction aborts only when its callback rejects, so a
+ * `Result` whose `err` must roll back has to leave the callback as a rejection.
+ * A fresh instance is created per call and compared by identity, so the signal
+ * cannot be confused with a failure the work itself raised, and it is unwrapped
+ * by the same method that created it: it never reaches a caller, and no
+ * application code ever has to know it exists. The domain port keeps returning
+ * `Result`; this is the one place where the abort is expressed as a rejection,
+ * and it lives in infrastructure.
+ */
+class TransactionRollbackSignal extends Error {
+  constructor() {
+    super("PrismaUnitOfWork: rolling back because the work returned an err Result");
+    this.name = "TransactionRollbackSignal";
+  }
+}
 
 /**
  * PrismaUnitOfWork — Implementación Prisma del puerto UnitOfWork.
@@ -99,6 +119,40 @@ export class PrismaUnitOfWork implements UnitOfWork {
         ...(opts.isolationLevel !== undefined && { isolationLevel: opts.isolationLevel }),
       }
     );
+  }
+
+  /**
+   * @method executeResultInTransaction
+   * @description Runs `fn` in a transaction whose outcome is decided by the `Result` it
+   *   resolves to: `ok` commits, `err` rolls back and is returned unchanged, and a genuine
+   *   failure raised by the work propagates untouched. Implemented ON TOP of
+   *   `executeInTransaction`, so the GUC binding, the `runWithBoundGuc` marker and the
+   *   AsyncLocalStorage transaction client are the same ones every repository already sees —
+   *   there is no second `$transaction` call and no second way to open a unit of work.
+   * @param fn - The work to run inside the transaction.
+   * @returns The `Result` the work produced, with its identity preserved on both branches.
+   */
+  async executeResultInTransaction<T, E>(fn: () => Promise<Result<T, E>>): Promise<Result<T, E>> {
+    const rollbackSignal = new TransactionRollbackSignal();
+    let failure: Result<T, E> | undefined;
+
+    try {
+      return await this.executeInTransaction(async () => {
+        const result = await fn();
+        if (!result.ok) {
+          // Captured before the rejection so the caller receives the SAME object
+          // the work produced — the signal carries no payload of its own.
+          failure = result;
+          throw rollbackSignal;
+        }
+        return result;
+      });
+    } catch (error: unknown) {
+      if (error === rollbackSignal && failure !== undefined) {
+        return failure;
+      }
+      throw error;
+    }
   }
 
   /**

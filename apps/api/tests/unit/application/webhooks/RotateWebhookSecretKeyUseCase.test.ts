@@ -144,6 +144,7 @@ describe("RotateWebhookSecretKeyUseCase", () => {
     });
     const useCase = new RotateWebhookSecretKeyUseCase(makeRepo(), {
       executeInTransaction: uowExecute,
+      executeResultInTransaction: async (fn) => fn(),
     });
     const result = await useCase.execute({ webhookSubscriptionId: SUB_ID });
     assert.ok(result.ok);

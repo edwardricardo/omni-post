@@ -17,7 +17,10 @@ import type { EventDispatcher } from "@core/domain/events/DomainEvent.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
-const passthroughUow: UnitOfWork = { executeInTransaction: async (fn) => fn() };
+const passthroughUow: UnitOfWork = {
+  executeInTransaction: async (fn) => fn(),
+  executeResultInTransaction: async (fn) => fn(),
+};
 
 function makeMockRepo(): PostRepository {
   return {

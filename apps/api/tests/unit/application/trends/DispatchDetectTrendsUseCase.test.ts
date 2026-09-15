@@ -96,6 +96,10 @@ describe("DispatchDetectTrendsUseCase", () => {
         txUsed = true;
         await fn();
       },
+      executeResultInTransaction: async (fn: () => Promise<unknown>) => {
+        txUsed = true;
+        return fn();
+      },
     };
     const uc = new DispatchDetectTrendsUseCase(
       makeChannelQuery([ch("c1", "acc-1")]),

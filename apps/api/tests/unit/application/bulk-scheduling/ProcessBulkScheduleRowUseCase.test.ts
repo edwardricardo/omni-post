@@ -20,7 +20,10 @@ import type { PostCreationPort } from "@ports/core";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
 const PROJECT_ID = "550e8400-e29b-41d4-a716-446655440000";
-const passthroughUow: UnitOfWork = { executeInTransaction: async (fn) => fn() };
+const passthroughUow: UnitOfWork = {
+  executeInTransaction: async (fn) => fn(),
+  executeResultInTransaction: async (fn) => fn(),
+};
 
 const makeBatchRepo = (item: BulkScheduleItemState | null): BulkScheduleBatchRepository => ({
   createBatch: vi.fn(async () => {}),

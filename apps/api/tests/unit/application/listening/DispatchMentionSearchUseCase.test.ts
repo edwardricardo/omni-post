@@ -141,7 +141,12 @@ describe("DispatchMentionSearchUseCase", () => {
     const executeInTransaction = vi.fn().mockImplementation(async (fn: () => Promise<void>) => {
       await fn();
     });
-    const uow = { executeInTransaction };
+    // Mirrors the seam that RETURNS: a void double here would hand a caller
+    // `undefined` where the port promises the callback's own Result back.
+    const executeResultInTransaction = vi
+      .fn()
+      .mockImplementation(async (fn: () => Promise<unknown>) => fn());
+    const uow = { executeInTransaction, executeResultInTransaction };
     const withUow = new DispatchMentionSearchUseCase(
       termQuery,
       channelQuery,

@@ -34,6 +34,7 @@ function createMockWorkflowRepo(): ApprovalWorkflowRepository {
 function createMockUoW() {
   return {
     executeInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
+    executeResultInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   };
 }
 

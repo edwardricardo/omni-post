@@ -19,6 +19,7 @@ const TRACKED_LINK_ID = "550e8400-e29b-41d4-a716-446655440010";
 
 const passthroughUow: UnitOfWork = {
   executeInTransaction: async (fn) => fn(),
+  executeResultInTransaction: async (fn) => fn(),
 };
 
 const UTM_URL = "https://example.com/page?utm_source=twitter&utm_medium=social&utm_campaign=launch";
