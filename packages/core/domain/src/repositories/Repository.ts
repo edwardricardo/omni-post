@@ -179,4 +179,27 @@ export interface UnitOfWork {
    * se revierte automáticamente.
    */
   executeInTransaction<T>(fn: () => Promise<T>): Promise<T>;
+
+  /**
+   * Runs `fn` inside a database transaction whose outcome is decided by the
+   * `Result` it resolves to, rather than by control flow.
+   *
+   * Contract:
+   * - `ok(value)` COMMITS the transaction and is returned unchanged.
+   * - `err(error)` ROLLS BACK the transaction and is returned unchanged, as a
+   *   value. The caller narrows on `.ok`; no failure signal crosses the layer
+   *   boundary, so the application core keeps returning `Result` and never
+   *   raises to abort a transaction.
+   * - A genuine failure raised by the work itself — a transaction timeout, a
+   *   lost connection, the tenant guard refusing an unscoped query — is not a
+   *   `Result` at all: such a throw propagates to the caller untouched and is
+   *   never converted into an `err`.
+   *
+   * Use this form when the work returns a `Result` whose `err` must abort the
+   * transaction: with `executeInTransaction`, an `err` captured as a value lets
+   * the callback resolve, and a multi-statement write that failed part-way
+   * COMMITS. `executeInTransaction` remains correct for work that signals
+   * failure by raising, and is unchanged. See ADR-0023.
+   */
+  executeResultInTransaction<T, E>(fn: () => Promise<Result<T, E>>): Promise<Result<T, E>>;
 }

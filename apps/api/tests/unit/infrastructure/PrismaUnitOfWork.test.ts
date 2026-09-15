@@ -1,7 +1,6 @@
 /**
  * Unit tests for PrismaUnitOfWork
  *
- * Part of P2-4: UnitOfWork for multi-step use cases.
  * Verifica la propagación de transacciones mediante AsyncLocalStorage.
  * Tier 0: Sin base de datos real requerida.
  *
@@ -11,6 +10,8 @@
  */
 
 import { describe, it, beforeAll, afterAll, vi, expect } from "vitest";
+import { ok, err } from "@shared/types";
+import { withTenantContext } from "../../../src/security/tenantContext.js";
 // ── Supresión de console.log para evitar corrupción del protocolo TAP ─────────
 
 let _originalConsoleLog: typeof console.log;
@@ -42,6 +43,40 @@ function createMockPrismaClient() {
   };
 
   return { client, tx: mockTx };
+}
+
+/**
+ * A Prisma mock that reports the transaction's OUTCOME, which the plain mock
+ * above cannot: it records `commit` when the callback resolves and `rollback`
+ * when it rejects, because an interactive transaction aborts only by rejecting.
+ * `statements` records the order in which statements reached the tx client, so
+ * "the GUC binding is the FIRST statement" is an assertion rather than a claim.
+ */
+function createOutcomeRecordingPrismaClient() {
+  const statements: string[] = [];
+  const outcomes: string[] = [];
+
+  const mockTx = {
+    $queryRaw: vi.fn(async () => {
+      statements.push("set_config");
+      return [];
+    }),
+  };
+
+  const client = {
+    $transaction: vi.fn(async (fn: (tx: typeof mockTx) => Promise<unknown>, _opts?: unknown) => {
+      try {
+        const value = await fn(mockTx);
+        outcomes.push("commit");
+        return value;
+      } catch (error) {
+        outcomes.push("rollback");
+        throw error;
+      }
+    }),
+  };
+
+  return { client, tx: mockTx, statements, outcomes };
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -135,6 +170,73 @@ describe("PrismaUnitOfWork", () => {
       expect("timeout" in opts).toBeFalsy();
       expect("maxWait" in opts).toBeFalsy();
       expect("isolationLevel" in opts).toBeFalsy();
+    });
+  });
+
+  // ── executeResultInTransaction ────────────────────────────────────────────
+
+  describe("executeResultInTransaction", () => {
+    it("rolls back and returns the same err object when the work resolves to err", async () => {
+      const { client, outcomes } = createOutcomeRecordingPrismaClient();
+      const { PrismaUnitOfWork } =
+        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
+      const uow = new PrismaUnitOfWork(client as never);
+      const failure = err(new Error("save failed after the first statement"));
+
+      const result = await uow.executeResultInTransaction(async () => failure);
+
+      // The transaction aborted: an interactive Prisma transaction commits
+      // unless its callback rejects, so `rollback` here IS the rollback proof.
+      expect(outcomes).toEqual(["rollback"]);
+      // Identity, not shape: the err the work produced is handed back untouched.
+      expect(result).toBe(failure);
+    });
+
+    it("commits and returns the same ok object when the work resolves to ok", async () => {
+      const { client, outcomes } = createOutcomeRecordingPrismaClient();
+      const { PrismaUnitOfWork } =
+        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
+      const uow = new PrismaUnitOfWork(client as never);
+      const success = ok({ postId: "post-1" });
+
+      const result = await uow.executeResultInTransaction(async () => success);
+
+      expect(outcomes).toEqual(["commit"]);
+      expect(result).toBe(success);
+    });
+
+    it("propagates a genuine thrown error instead of converting it into an err", async () => {
+      const { client, outcomes } = createOutcomeRecordingPrismaClient();
+      const { PrismaUnitOfWork } =
+        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
+      const uow = new PrismaUnitOfWork(client as never);
+      const connectionLost = new Error("connection lost");
+
+      // A rejection is the assertion: had the method swallowed the failure into
+      // an err Result, the caller would have received a value and this would
+      // not reject at all.
+      await expect(
+        uow.executeResultInTransaction(async () => {
+          throw connectionLost;
+        })
+      ).rejects.toBe(connectionLost);
+      expect(outcomes).toEqual(["rollback"]);
+    });
+
+    it("binds the GUC as the first statement of the transaction, as executeInTransaction does", async () => {
+      const { client, statements } = createOutcomeRecordingPrismaClient();
+      const { PrismaUnitOfWork } =
+        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
+      const uow = new PrismaUnitOfWork(client as never);
+
+      await withTenantContext({ accountId: "acc-guc-0001" }, async () =>
+        uow.executeResultInTransaction(async () => {
+          statements.push("work");
+          return ok(undefined);
+        })
+      );
+
+      expect(statements).toEqual(["set_config", "work"]);
     });
   });
 
