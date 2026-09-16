@@ -184,29 +184,35 @@ export const CreatePostCommandSchema = z.object({
 export type CreatePostCommand = z.infer<typeof CreatePostCommandSchema>;
 
 /**
- * Update Post Command.
+ * Update Post Command — CONTENT ONLY.
+ *
+ * It declares no `status` and no `publishedAt`, and `data` is `.strict()`, so a
+ * command carrying either is REJECTED with `unrecognized_keys` rather than
+ * stripped and silently ignored. Both halves are load-bearing. The field used
+ * to exist while no consumer honoured it, which is exactly how a status
+ * transition was routed into a content-only command and reported as success;
+ * and Zod strips unknown keys by default, so removing the field without
+ * `.strict()` would only move the silent drop from the handler into the parser.
+ * The status transition has its own command — `post.complete-publishing` —
+ * which carries the publish outcome and lets the aggregate decide the status.
  *
  * `expectedVersion` carries the OCC token from the caller (Azure saga §15-20).
- * Saga retryable steps that update Post post-pivot pass createData.version so
- * the use case can detect concurrent writes. Optional — when omitted, only the
- * repository-level WHERE-clause guard applies.
+ * Optional — when omitted, only the repository-level WHERE-clause guard applies.
  */
 export const UpdatePostCommandSchema = z.object({
   id: z.string(),
   type: z.literal(POST_COMMANDS.UPDATE_POST),
   aggregateId: z.string(),
   aggregateType: z.literal("Post"),
-  data: z.object({
-    title: z.string().optional(),
-    body: z.string().optional(),
-    tags: z.array(z.string()).optional(),
-    mediaIds: z.array(z.string()).optional(),
-    // FAILED is a legitimate terminal status — emitted by saga UpdatePostStatusStep
-    // when WaitForPublishingCompletionStep reports any failed worker job. The
-    // command schema must accept it for the saga to reach a terminal state.
-    status: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED"]).optional(),
-    expectedVersion: z.number().int().nonnegative().optional(),
-  }),
+  data: z
+    .object({
+      title: z.string().optional(),
+      body: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+      mediaIds: z.array(z.string()).optional(),
+      expectedVersion: z.number().int().nonnegative().optional(),
+    })
+    .strict(),
   metadata: z.object({
     userId: z.string().optional(),
     sessionId: z.string().optional(),

@@ -163,9 +163,11 @@ export class CreatePostCommandHandler implements CommandHandler<
       return {
         success: true,
         // version: 0 — every freshly-created Post starts at version 0 (the
-        // schema default + AggregateRoot default). The saga step propagates
-        // this as expectedVersion to UpdateStatusStep so OCC matches the
-        // persisted row instead of fabricating a phantom version.
+        // schema default + AggregateRoot default). The saga's promotion step no
+        // longer forwards it as an OCC token: a create-time version never
+        // refreshes, so seeding one made every retry of a still-editable DRAFT
+        // conflict. Concurrency is guarded by the repository's in-transaction
+        // compare-and-swap, which re-reads on each attempt.
         data: { postId, version: 0 },
         events,
       };
@@ -214,17 +216,13 @@ export class UpdatePostCommandHandler implements CommandHandler<
       const validatedCommand = validation.data as UpdatePostCommand;
       const { data, metadata, aggregateId } = validatedCommand;
 
-      // Warn about unsupported fields
+      // Warn about unsupported fields. There is no `status` branch here, and
+      // there cannot be one: the schema declares no such field and rejects it,
+      // so a status can no longer reach this handler to be logged and dropped.
       if (data.mediaIds) {
         log.warn(
           { postId: aggregateId, mediaIds: data.mediaIds },
           "UpdatePostCommand contains mediaIds which are not supported by the use case — ignored"
-        );
-      }
-      if (data.status) {
-        log.warn(
-          { postId: aggregateId, status: data.status },
-          "UpdatePostCommand contains status which is not supported by the use case — ignored"
         );
       }
 

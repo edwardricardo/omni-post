@@ -22,6 +22,7 @@ import type { PostDTO } from "@core/posts/GetPostUseCase.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { EntityNotFoundError } from "@core/domain/index.js";
 import type { PostCommandHandlersConfig } from "../../src/cqrs/handlers/PostCommandHandlers.js";
+import type { UpdatePostCommand } from "@shared/types/cqrs.js";
 
 // ---------------------------------------------------------------------------
 // Stable UUIDs for deterministic tests
@@ -430,6 +431,19 @@ export function buildCreatePostCommand(
   };
 }
 
+/**
+ * Builds a content-update command. There is deliberately NO `status` override:
+ * the contract no longer declares that field, so a builder that could still
+ * produce one would let a positive test drift back into treating the
+ * content-update command as a status-transition command. The one test that
+ * needs the removed shape adds the key explicitly at its own call site, where
+ * it reads as the violation it is.
+ *
+ * `data` is typed as the command's own schema type rather than widened to
+ * `Record<string, unknown>`: a widened `data` would silently re-open that drift
+ * for every call site at once, since any key would type-check again. The two
+ * negative tests widen it themselves, each at its own line.
+ */
 export function buildUpdatePostCommand(
   overrides?: Partial<{
     id: string;
@@ -438,7 +452,6 @@ export function buildUpdatePostCommand(
     body: string;
     tags: string[];
     mediaIds: string[];
-    status: string;
     userId: string;
     correlationId: string;
     source: string;
@@ -454,8 +467,7 @@ export function buildUpdatePostCommand(
       ...(overrides?.body && { body: overrides.body }),
       ...(overrides?.tags && { tags: overrides.tags }),
       ...(overrides?.mediaIds && { mediaIds: overrides.mediaIds }),
-      ...(overrides?.status && { status: overrides.status }),
-    },
+    } satisfies UpdatePostCommand["data"],
     metadata: {
       correlationId: overrides?.correlationId ?? "corr-1",
       source: overrides?.source ?? "test",

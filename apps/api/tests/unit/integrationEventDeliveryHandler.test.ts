@@ -66,6 +66,24 @@ describe("IntegrationEventDeliveryHandler", () => {
     expect(trigger.fire).not.toHaveBeenCalled();
   });
 
+  it("does not deliver PostPublishingStarted to subscribers", async () => {
+    // The hop that emits it runs AFTER the provider has already published, so a
+    // subscriber would be told publishing started at a moment when it had
+    // finished. The outbox row is still written — it is the aggregate's own
+    // event — but it is not projected outward.
+    await handler.handle(makeOutboxEvent({ eventType: "PostPublishingStarted" }));
+    expect(trigger.fire).not.toHaveBeenCalled();
+  });
+
+  it("the public catalog declares no publishing_started event", () => {
+    expect(INTEGRATION_EVENT_NAMES.PostPublishingStarted).toBeUndefined();
+    expect(Object.values(INTEGRATION_EVENT_NAMES)).not.toContain("post.publishing_started");
+    // HANDLED_EVENT_TYPES derives from the keys, so boot registration shrinks
+    // with the catalog rather than keeping a dispatcher entry that maps to
+    // nothing.
+    expect(HANDLED_EVENT_TYPES).not.toContain("PostPublishingStarted");
+  });
+
   it("propagates fire() failures so the outbox relay can retry", async () => {
     const error = new Error("subscription repo unreachable");
     trigger.fire.mockRejectedValueOnce(error);

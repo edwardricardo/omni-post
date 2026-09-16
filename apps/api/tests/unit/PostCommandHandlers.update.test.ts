@@ -39,7 +39,42 @@ describe("UpdatePostCommandHandler", () => {
 
     expect(result.success).toBeTruthy();
     expect(result.data).toBeTruthy();
-    expect(result.data.version).toBe(2);
+    // No version assertion here on purpose. The handler returns a hardcoded
+    // literal (SMELL-119 in docs/reports/roadmap-detected-smells-backlog.md);
+    // pinning it in a test would turn the defect into a contract this suite
+    // defends.
+  });
+
+  it("rejects a content update that carries a status, naming the unrecognized key", async () => {
+    // The status transition has its own command now. The content-update
+    // contract is strict, so the removed field is REFUSED rather than stripped
+    // and silently ignored — silent stripping is how a status transition was
+    // routed into a content-only command and reported as success.
+    const command = buildUpdatePostCommand({ body: "Updated body" });
+    // The builder's `data` is typed to the contract, which no longer declares
+    // this key, so the removed shape is constructed HERE and only here. A
+    // builder widened to accept it would hand the same licence to every other
+    // call site.
+    (command.data as unknown as Record<string, unknown>).status = "PUBLISHED";
+
+    const result = await handler.handle(command);
+
+    expect(result.success).toBe(false);
+    expect(result.validationErrors?.some((issue) => issue.code === "unrecognized_keys")).toBe(true);
+    expect(ctx.updatePostUseCase.executeCalls.length).toBe(0);
+  });
+
+  it("rejects a content update that carries a publishedAt", async () => {
+    // The second half of the same class: no path reachable from the
+    // content-update command may set a publication timestamp either.
+    const command = buildUpdatePostCommand({ body: "Updated body" });
+    (command.data as unknown as Record<string, unknown>).publishedAt = new Date();
+
+    const result = await handler.handle(command);
+
+    expect(result.success).toBe(false);
+    expect(result.validationErrors?.some((issue) => issue.code === "unrecognized_keys")).toBe(true);
+    expect(ctx.updatePostUseCase.executeCalls.length).toBe(0);
   });
 
   it("should delegate to updatePostUseCase.execute with correct input", async () => {
