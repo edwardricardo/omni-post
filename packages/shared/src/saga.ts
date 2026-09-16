@@ -14,8 +14,8 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { EventStoreEvent } from "./events.js";
-import type { Result } from "./types.js";
-import { Command } from "./cqrs.js";
+import { ok, err, type Result } from "./types.js";
+import { Command, POST_COMMANDS } from "./cqrs.js";
 
 // ============================================================================
 // Saga state
@@ -398,6 +398,16 @@ interface CreateStepData {
 
 interface ScheduleStepData {
   jobIds?: string[];
+  /**
+   * The channel identities the pivot actually enqueued, index-aligned with
+   * `jobIds` and in the same order.
+   *
+   * Recorded because the promotion that runs later must decide totality from
+   * the channels that were SCHEDULED, not from a count: a count can only say
+   * how many finished, never which ones, so an outcome naming fewer channels
+   * than were scheduled would be indistinguishable from a complete one.
+   */
+  channelIds?: string[];
   channelCount?: number;
   scheduledAt?: Date;
 }
@@ -414,9 +424,86 @@ export type PublishJobsStatusReader = (
   jobIds: string[]
 ) => Promise<Result<{ completed: number; failed: number; pending: number }, string>>;
 
+/**
+ * What the wait step learned about the publish jobs, as it recorded it.
+ *
+ * Every field is named rather than reached through an index signature: the
+ * promotion step reads all four to decide whether the publish was total, and an
+ * index signature would let a typo read `undefined` and fall through a
+ * comparison that looks like it was made.
+ */
 interface CompletionStepData {
+  totalJobs?: number;
+  completed?: number;
+  failed?: number;
+  completedAt?: Date;
   publishingComplete?: boolean;
-  [key: string]: unknown;
+}
+
+/** One channel's share of the publish outcome, as the saga observed it. */
+interface PublishChannelReport {
+  channelId: string;
+  success: boolean;
+}
+
+/**
+ * Builds the publish outcome the promotion command carries, or names the fact
+ * the step could not establish.
+ *
+ * FAIL-CLOSED over ignorance, not only over known failure. `getJobStates` puts
+ * every scheduled id in exactly one bucket and reads a missing job as failed,
+ * so `failed === 0` together with `completed === totalJobs === channelIds.length`
+ * is what makes "every channel the pivot enqueued published" decidable — and it
+ * is decidable ONLY here, because the promotion sees no scheduled set beyond
+ * the command it is handed. An outcome that cannot be shown to be total is not
+ * total, so each branch below refuses instead of assuming.
+ */
+function readTotalPublishOutcome(context: SagaContext): Result<PublishChannelReport[], string> {
+  const scheduling = context.stepData["schedule-publishing-jobs"] as ScheduleStepData | undefined;
+  const channelIds = scheduling?.channelIds;
+  const jobIds = scheduling?.jobIds;
+
+  if (!Array.isArray(channelIds) || !Array.isArray(jobIds)) {
+    // A saga persisted before the pivot recorded channel identities lands here
+    // and fails closed rather than promoting an outcome nobody can match to a
+    // scheduled set.
+    return err(
+      "The scheduling step recorded no channel identities: refusing to promote an outcome whose scheduled set is unknown"
+    );
+  }
+
+  if (channelIds.length === 0) {
+    return err("The scheduling step enqueued zero channels: a vacuous total is not a publish");
+  }
+
+  if (channelIds.length !== jobIds.length) {
+    return err(
+      `The scheduling step recorded ${channelIds.length} channels against ${jobIds.length} jobs: refusing an outcome that cannot be matched to the channels scheduled`
+    );
+  }
+
+  const completion = context.stepData["wait-publishing-completion"] as
+    CompletionStepData | undefined;
+
+  if (completion?.publishingComplete !== true) {
+    return err(
+      "The wait step did not report publishing complete: refusing to promote an unfinished publish"
+    );
+  }
+
+  if (completion.failed !== 0) {
+    return err(
+      `The wait step reported ${String(completion.failed)} failed publishing jobs: a partial publish is not promoted by this step`
+    );
+  }
+
+  if (completion.completed !== channelIds.length || completion.totalJobs !== channelIds.length) {
+    return err(
+      `The wait step reported ${String(completion.completed)} of ${String(completion.totalJobs)} jobs complete for ${channelIds.length} scheduled channels: refusing an outcome that does not account for every channel`
+    );
+  }
+
+  return ok(channelIds.map((channelId) => ({ channelId, success: true })));
 }
 
 // ============================================================================
@@ -661,7 +748,7 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
       const mode = readMode(context);
 
       if (mode === "draft") {
-        context.stepData[this.id] = { jobIds: [], channelCount: 0 };
+        context.stepData[this.id] = { jobIds: [], channelIds: [], channelCount: 0 };
         return {
           outcome: "succeeded",
           data: { skipped: true, reason: "draft-mode", jobIds: [], channelCount: 0 },
@@ -702,6 +789,12 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
       const accountId = rawAccountId;
 
       const jobIds: string[] = [];
+      // The channels this step actually enqueued, appended in lockstep with
+      // their job ids so index i of one names index i of the other. The
+      // promotion that runs later decides totality from THIS list rather than
+      // from `channelCount`, because a count cannot say which channels were
+      // scheduled and an outcome naming fewer would read as complete.
+      const enqueuedChannelIds: string[] = [];
 
       for (const channelId of channelIds) {
         const jobId = await this.queueJob({
@@ -715,9 +808,15 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
           correlationId: context.correlationId,
         });
         jobIds.push(jobId);
+        enqueuedChannelIds.push(channelId);
       }
 
-      context.stepData[this.id] = { jobIds, channelCount: channelIds.length, scheduledAt };
+      context.stepData[this.id] = {
+        jobIds,
+        channelIds: enqueuedChannelIds,
+        channelCount: channelIds.length,
+        scheduledAt,
+      };
 
       return {
         outcome: "succeeded",
@@ -820,9 +919,10 @@ export class WaitForPublishingCompletionStep implements RetryableStep {
         completed: status.completed,
         failed: status.failed,
         completedAt: new Date(),
-        // Surface for UpdatePostStatusStep — distinguishes the publish-now
-        // success path (all jobs completed) from the partial-failure path so
-        // the next step can promote to PUBLISHED vs mark FAILED.
+        // Surface for UpdatePostStatusStep, which chooses no status of its own:
+        // this flag and the three counters beside it are the facts it needs to
+        // establish that EVERY scheduled channel published, and it refuses to
+        // emit a promotion when any of them falls short.
         publishingComplete: status.failed === 0,
       };
 
@@ -853,11 +953,26 @@ export class WaitForPublishingCompletionStep implements RetryableStep {
 /**
  * UpdatePostStatusStep — class: retryable.
  *
- * Promotes Post.status to PUBLISHED (or FAILED) after worker completion.
- * Post-pivot: if this step fails after retries, the saga is FAILED but
- * cannot rollback (provider already received the post). Idempotent: the
- * use case accepts an `expectedVersion` for OCC and tolerates re-application
- * of the same status transition.
+ * A THIN FORWARDER of the publish outcome, and nothing else. It chooses no
+ * target status: it reports which channels the pivot scheduled and whether each
+ * published, and the aggregate decides what that means. Choosing here is what
+ * let a saga report COMPLETED over a row that never left DRAFT — the emitter
+ * picked a status and sent it on a command whose handler did not honour it.
+ *
+ * It FAILS CLOSED. Unless every precondition of a total success holds, no
+ * command is emitted at all and the step reports the failed outcome naming the
+ * fact it could not establish. A refusal that still emitted would hand the
+ * promotion an outcome nobody vouched for.
+ *
+ * Post-pivot: if this step fails after retries, the saga is FAILED but cannot
+ * roll back (the provider already received the post). Idempotent by
+ * construction — the promotion answers an already-published post with success
+ * and writes nothing — so a redelivered completion event never fails the saga.
+ *
+ * It forwards no `expectedVersion`. A create-time version never refreshes, so
+ * seeding one made every retry of a still-editable DRAFT conflict; the
+ * repository's in-transaction compare-and-swap, re-read on each attempt, is the
+ * concurrency guard.
  *
  * For mode="draft" / "schedule", short-circuits with success (post already
  * left in DRAFT/SCHEDULED status by the create step).
@@ -878,38 +993,39 @@ export class UpdatePostStatusStep implements RetryableStep {
       }
 
       const createData = context.stepData["create-post"] as CreateStepData | undefined;
-      const completionData = context.stepData["wait-publishing-completion"] as
-        CompletionStepData | undefined;
-
       const postId = createData?.postId;
-      const publishingSuccess = completionData?.publishingComplete;
 
       if (!postId) {
         return { outcome: "failed", error: "Post ID not found" };
       }
 
-      const newStatus = publishingSuccess ? "PUBLISHED" : "FAILED";
+      // A redundant restatement of the pivot's own guard (see the
+      // `rawAccountId` check in the schedule step), and deliberately so: this
+      // value does not scope the promotion — `runAsSagaTenant` establishes the
+      // tenant context from the saga row before the step runs, and the command
+      // below carries no account field. D1 requires every precondition of this
+      // step to be checked against THIS step's inputs, so a context that
+      // reached the post-pivot step without an account is refused here rather
+      // than trusted because an earlier step would have caught it.
+      const accountId = context.metadata.accountId;
+      if (typeof accountId !== "string" || accountId.length === 0) {
+        return {
+          outcome: "failed",
+          error: "Saga metadata carries no accountId: refusing to promote an unscoped post",
+        };
+      }
 
-      // Pass createData.version as expectedVersion (Azure saga §15-20 OCC).
-      // The use case rejects with CONFLICT when the persisted version has
-      // advanced past this — meaning a concurrent writer mutated the post
-      // between Create and UpdateStatus. This step is RetryableStep, so the
-      // engine schedules a retry; the next attempt re-reads (via the
-      // pivot's RereadCheck if still pre-pivot, or directly by the use case
-      // load) and proceeds with the fresh version.
-      const expectedVersion =
-        typeof createData?.version === "number" ? createData.version : undefined;
+      const outcome = readTotalPublishOutcome(context);
+      if (!outcome.ok) {
+        return { outcome: "failed", error: outcome.error };
+      }
 
-      const updateCommand: Command = {
+      const promoteCommand: Command = {
         id: `cmd-${context.sagaId}-${this.id}`,
-        type: "post.update",
+        type: POST_COMMANDS.COMPLETE_PUBLISHING,
         aggregateId: postId,
         aggregateType: "Post",
-        data: {
-          status: newStatus,
-          ...(publishingSuccess && { publishedAt: new Date() }),
-          ...(expectedVersion !== undefined && { expectedVersion }),
-        },
+        data: { outcome: { channels: outcome.value } },
         metadata: {
           ...(context.userId && { userId: context.userId }),
           correlationId: context.correlationId,
@@ -918,28 +1034,28 @@ export class UpdatePostStatusStep implements RetryableStep {
         timestamp: new Date(),
       };
 
-      const result = (await this.executeCommand(updateCommand)) as CommandResult;
+      const result = (await this.executeCommand(promoteCommand)) as CommandResult;
 
       if (!result.success) {
         return {
           outcome: "failed",
-          error: result.error ?? "The post status update was rejected",
+          error: result.error ?? "The post publish promotion was rejected",
         };
       }
 
       context.stepData[this.id] = {
-        newStatus,
-        updatedAt: new Date(),
+        promotedChannelCount: outcome.value.length,
+        promotedAt: new Date(),
       };
 
       return {
         outcome: "succeeded",
-        data: { status: newStatus, postId },
+        data: { postId, channelCount: outcome.value.length },
       };
     } catch (error) {
       return {
         outcome: "failed",
-        error: error instanceof Error ? error.message : "Failed to update post status",
+        error: error instanceof Error ? error.message : "Failed to promote the published post",
       };
     }
   }
