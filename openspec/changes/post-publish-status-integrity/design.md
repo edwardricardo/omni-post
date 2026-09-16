@@ -116,11 +116,16 @@ export const CompletePostPublishingCommandSchema = z.object({
 
 // packages/core/posts/src/CompletePostPublishingUseCase.ts
 interface CompletePostPublishingInput  { postId: string; outcome: { channels: PublishChannelOutcome[] }; expectedVersion?: number }
-interface CompletePostPublishingOutput { postId: string; status: "PUBLISHED"; publishedAt: Date; version: number; applied: boolean; unresolvedChannelIds: string[] }
+interface CompletePostPublishingOutput { postId: string; projectId: string; status: "PUBLISHED"; publishedAt: Date; version: number; applied: boolean; unresolvedChannelIds: string[] }
+// `projectId` was NOT in the rev-2 shape; D8 keys cache invalidation by project, so the handler needs it and the
+// aggregate already holds it inside the transaction — a post-commit re-read would buy the same value at the price
+// of another query that can fail.
 // constructor(postRepository, channelRepository, unitOfWork?) — UoW last, optional (canon); no EventDispatcher (D11)
 ```
 
-**Use-case order (S1, S3, W2 — stated once).** _Before the UoW, no I/O:_ invalid `postId` → `VALIDATION_FAILED` · `channels.length === 0` → `VALIDATION_FAILED` ("a vacuous total is not a publish" — `every()` is true on `[]`, so the guard precedes it) · any `success === false` → `NOT_IMPLEMENTED` ("partial outcome is N-COR-2"). _Inside `executeResultInTransaction`:_ `findById` → `NOT_FOUND` · `isPublished` → `ok({applied:false})` (before the token: the promotion outdates its own token) · `expectedVersion` supplied and ≠ loaded → `CONFLICT` · resolve providers (D7) · `isPublishing ? skip : startPublishing(providers)` (`InvalidStateTransitionError` → `FORBIDDEN`) · `markAsPublished(byChannel)` (→ `FORBIDDEN`) · `save()` → on `err`: `saveResult.error instanceof VersionConflictError` → `CONFLICT`, else `INTERNAL_ERROR` — **both roll back** (S2: narrowed on the Result, not caught) · `clearDomainEvents()` · `ok({applied:true, …})`. _Outer `try/catch`_ (genuine throws: tx timeout, connection, the tenant guard's `TenantContextMissingError`): `classifyPersistenceFailure` (`UseCase.ts:143-152`, precedent `RestoreProjectUseCase.ts:65-76`) → `TRANSIENT_FAILURE` / `INTERNAL_ERROR`.
+**Use-case order (S1, S3, W2 — stated once).** _Before the UoW, no I/O:_ invalid `postId` → `VALIDATION_FAILED` · `channels.length === 0` → `VALIDATION_FAILED` ("a vacuous total is not a publish" — `every()` is true on `[]`, so the guard precedes it) · any `success === false` → `NOT_IMPLEMENTED` ("partial outcome is N-COR-2"). _Inside `executeResultInTransaction`:_ `findById` → `NOT_FOUND` · `isPublished` → `ok({applied:false})` (before the token: the promotion outdates its own token) · `expectedVersion` supplied and ≠ loaded → `CONFLICT` · `isPublishing ? skip : (resolve providers (D7) → startPublishing(providers))` (`InvalidStateTransitionError` → `FORBIDDEN`) · `markAsPublished(byChannel)` (→ `FORBIDDEN`) · `save()` → on `err`: the error's `code === VERSION_CONFLICT_CODE` → `CONFLICT`, else `INTERNAL_ERROR` — **both roll back** (S2: narrowed on the Result, not caught) · `clearDomainEvents()` · `ok({applied:true, …})`.
+
+**Two corrections applied at apply time, both measured rather than argued.** (1) **Resolution moved INSIDE the `!isPublishing` branch.** Its only consumer is the `PostPublishingStarted` payload; the already-PUBLISHING path emits no such event, so resolving there spent one sequential `ChannelRepository.findById` per channel inside the interactive transaction on a value nothing read (measured: 2 reads for a 2-channel outcome, now 0). The DTO's `unresolvedChannelIds` therefore means "channels the started event could not name" and is empty on that path **because no started event exists**, which the field's JSDoc and a unit case now both state. (2) **The `save()` narrowing is by `code`, never `instanceof`.** `@core/domain` ships a dual conditional export (`development` → `src`, `default` → `dist`) — the resolution shape fitness #27 polices — under which the adapter's `VersionConflictError` constructor and the use case's can be two distinct objects in one process. Class identity then goes false and every CAS conflict downgrades to `INTERNAL_ERROR`: a lost update reported as an infrastructure blip, with the suite green. `VERSION_CONFLICT_CODE` is now exported from `DomainError.ts` and used by the class itself, so the discriminator has one source; the unit case feeds the use case a DIFFERENT class carrying that code and asserts `CONFLICT`, so the property is executable. This was the only `instanceof` narrowing of a domain error across the core↔adapter boundary in `packages/core` (measured tree-wide). _Outer `try/catch`_ (genuine throws: tx timeout, connection, the tenant guard's `TenantContextMissingError`): `classifyPersistenceFailure` (`UseCase.ts:143-152`, precedent `RestoreProjectUseCase.ts:65-76`) → `TRANSIENT_FAILURE` / `INTERNAL_ERROR`.
 
 **Step contract.** `ScheduleStepData { jobIds; channelIds; channelCount; scheduledAt }`, `channelIds.length === jobIds.length`, same order. The step refuses (outcome `failed`, named reason, **no command**) on: missing `accountId`, missing/short `channelIds`, or any D1 count precondition. A persisted saga from before this change lacks `channelIds` and fails closed. `cmd-{sagaId}-update-post-status` stays deterministic (#7).
 
@@ -144,6 +149,21 @@ No migration (Q2), no backfill (Q3). Code-only revert. A saga persisted before t
 
 ## Residuals and backlog rows (named, not hidden)
 
+- **W-C — a `FAILED` origin promotes, and the FSM is what governs.** The design-gate flagged a
+  tension between R5's prose ("a post that has since been cancelled, **failed**, or otherwise moved
+  out of the publishable state is never promoted") and the state machine, which makes
+  `FAILED → PUBLISHING` a legal edge (`PublishStatus.ts:46-50`, measured). **The FSM governs, and
+  the promotion of a `FAILED` post SUCCEEDS.** The reason is what the two statements are actually
+  about. A post reaches `FAILED` because some path — a prior attempt, the wait step, a manual
+  intervention — recorded a failure; the promotion runs only when the provider has ALREADY
+  published every scheduled channel. Refusing it would leave the database asserting a failure that
+  reality contradicts, which is the exact defect this capability exists to delete, merely with the
+  sign flipped. R5's clause is about the TOKENLESS refusal set — the states from which the publish
+  promotion is illegal — and `FAILED` is not one of them; `CANCELLED` and `PENDING_REVIEW` are
+  (`CANCELLED → [DRAFT]` only, `PENDING_REVIEW → [SCHEDULED, DRAFT]`), and both are refused with
+  `FORBIDDEN`. Pinned by two unit cases in `CompletePostPublishingUseCase.test.ts` — a `CANCELLED`
+  origin refused, a `FAILED` origin promoted — so the adjudication is executable, not only written.
+  The PR 2 body carries it too.
 - **W5 — evicted completed job.** The publish consumer sets no `removeOnComplete` (`publishWorker.ts:193-196`), so the adapter default `{ count: 100 }` applies (`consumer-adapter.ts:60`); `getJobStates` reads a missing job as `failed` (`queue-adapter.ts:219-223`); the **wait step** then fails (`saga.ts:829-834`), the saga FAILs post-pivot, and the post stays DRAFT while the provider holds it — the N-COR-1 observable through another door. The harness stub (`sagaCrashRecovery.test.ts:108-113` and this suite) hides it by construction; only the live tier with >100 completions between a job's completion and the poll could reach it. Backlog: explicit retention outliving the poll window, or a reader that distinguishes evicted from failed.
 - **W4 — lossy mapper.** `PostAggregateMapper.toDomain:107-121` drops any media row whose `MediaAttachment.create` fails, and `doUpdate:741-746` then deletes those rows; every `save()` inherits it, this one included. Backlog: fail closed (`reconstitute`), never drop.
 - **W1 — direct status writers.** `SchedulingPostHandlers.ts:254,:354` bypass the aggregate and the version; reschedule has no status guard. Backlog.

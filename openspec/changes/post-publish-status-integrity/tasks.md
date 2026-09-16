@@ -98,26 +98,37 @@ publish-now still exhibits the defect. That is deliberate — see the ordering c
 
 ## WU3 — `CompletePostPublishingUseCase` (the single writer)
 
-- [ ] **T2.1** _(RED)_ Create `packages/core/posts/tests/unit/CompletePostPublishingUseCase.test.ts` with mock-port factories modelled on `CreatePostUseCase.test.ts`. Doubles are of the **ports**, never of the use case under test. All of T2.2, T2.3, T2.4, T2.6 and the test half of T2.8 are written here BEFORE the implementation lands in T2.7; record the natural RED.
-- [ ] **T2.2** _(RED)_ Pure-refusal cases, all asserting **zero repository calls**: invalid `postId` → `VALIDATION_FAILED`; `channels: []` → `VALIDATION_FAILED` (**W2 — the emptiness guard must precede the totality check, because `[].every()` is `true`**; "a vacuous total is not a publish", R3); any `success === false` → `NOT_IMPLEMENTED` naming N-COR-2 (R3).
-- [ ] **T2.3** _(RED)_ Idempotency (R4): a post already `PUBLISHED` → `ok({ applied: false })`, **zero saves**, zero events, and `publishedAt` asserted **equal to the fixture value** (`2024-01-01T…`), never `now` — an assertion over two identical values cannot distinguish preserved from overwritten.
-- [ ] **T2.4** _(RED)_ Ordering + OCC (R5): stale `expectedVersion` on a **DRAFT** post → `CONFLICT`, nothing written; stale `expectedVersion` on an **already-PUBLISHED** post → **success, not `CONFLICT`** (the already-published check resolves FIRST); no token supplied → the persisted status decides. **W-C origin cases:** `CANCELLED` origin → `FORBIDDEN` (`PublishStatus.ts:51` allows only `→ DRAFT`); **`FAILED` origin → SUCCEEDS**, because `PublishStatus.ts:46-50` makes `FAILED → PUBLISHING` legal.
-- [ ] **T2.5** _(W-C — resolve the spec/FSM tension in writing, do not let the code decide it silently)_ Add a short subsection to `design.md` §Residuals stating which reading governs: **the FSM governs** — a post the provider genuinely published is truthfully `PUBLISHED` even if another path had marked it `FAILED`, and R5's prose ("a post that has since … failed … is never promoted") is about the _tokenless_ refusal set, not about overriding a legal FSM edge. Name it in the PR 2 body too, so the divergence is adjudicated rather than discovered later.
-- [ ] **T2.6** _(RED)_ Transaction semantics: the UoW double records that **every `err` was returned from inside the callback** (pattern: `apps/api/tests/unit/unitOfWork.useCases.test.ts`) — `save()` returning `err(VersionConflictError)` → `CONFLICT`; any other `save()` err → `INTERNAL_ERROR`; **both narrowed on the Result, never caught** (S2), both reaching the caller through `executeResultInTransaction` so the transaction aborts. Tenant negative (R8): a thrown `TenantContextMissingError` → classified, error Result, nothing written.
-- [ ] **T2.7** Create `packages/core/posts/src/CompletePostPublishingUseCase.ts`. Order is fixed by the design and is not an implementation detail: _before the UoW, no I/O_ → invalid id · empty channels · non-total. _Inside `executeResultInTransaction`_ → `findById` (`NOT_FOUND`) · `isPublished` → `ok({applied:false})` · `expectedVersion` compare (`CONFLICT`) · resolve providers (D7) · `isPublishing ? skip : startPublishing(providers)` · `markAsPublished(byChannel)` · `save()` with the two-way err narrowing · `clearDomainEvents()` · `ok`. _Outer `try/catch`_ → `classifyPersistenceFailure` (`UseCase.ts:143-152`, precedent `RestoreProjectUseCase.ts:65-76`). Constructor `(postRepository, channelRepository, unitOfWork?)` — UoW **last and optional** per canon; **no `EventDispatcher`** (A5/D11). JSDoc `@file`/`@description`/`@layer application` (#9/#10); no phase or sprint reference (#8); no raw `throw` (#4); no framework import (#2); no `any` (#3).
-- [ ] **T2.8** _(RED→GREEN)_ Provider resolution (D7): each `channelId` → `ChannelRepository.findById` → `provider.type`, deduplicated; unresolvable channels collected into `unresolvedChannelIds`, **never blocking** the promotion (S4 — totality is decided from the outcome, not from resolution). One test: an unresolvable channel still promotes and reports the id.
-- [ ] **T2.9** Export from `packages/core/posts/src/index.ts`.
-- [ ] **T2.10** Confirm the core unit suite is reached by `turbo run test` (new files under `packages/core/*/tests/unit/` are collected by construction — verify the run names the new file, do not assume it).
+- [x] **T2.1** _(RED)_ Create `packages/core/posts/tests/unit/CompletePostPublishingUseCase.test.ts` with mock-port factories modelled on `CreatePostUseCase.test.ts`. Doubles are of the **ports**, never of the use case under test. All of T2.2, T2.3, T2.4, T2.6 and the test half of T2.8 are written here BEFORE the implementation lands in T2.7; record the natural RED.
+- [x] **T2.2** _(RED)_ Pure-refusal cases, all asserting **zero repository calls**: invalid `postId` → `VALIDATION_FAILED`; `channels: []` → `VALIDATION_FAILED` (**W2 — the emptiness guard must precede the totality check, because `[].every()` is `true`**; "a vacuous total is not a publish", R3); any `success === false` → `NOT_IMPLEMENTED` naming N-COR-2 (R3).
+- [x] **T2.3** _(RED)_ Idempotency (R4): a post already `PUBLISHED` → `ok({ applied: false })`, **zero saves**, zero events, and `publishedAt` asserted **equal to the fixture value** (`2024-01-01T…`), never `now` — an assertion over two identical values cannot distinguish preserved from overwritten.
+- [x] **T2.4** _(RED)_ Ordering + OCC (R5): stale `expectedVersion` on a **DRAFT** post → `CONFLICT`, nothing written; stale `expectedVersion` on an **already-PUBLISHED** post → **success, not `CONFLICT`** (the already-published check resolves FIRST); no token supplied → the persisted status decides. **W-C origin cases:** `CANCELLED` origin → `FORBIDDEN` (`PublishStatus.ts:51` allows only `→ DRAFT`); **`FAILED` origin → SUCCEEDS**, because `PublishStatus.ts:46-50` makes `FAILED → PUBLISHING` legal.
+- [x] **T2.5** _(W-C — resolve the spec/FSM tension in writing, do not let the code decide it silently)_ Add a short subsection to `design.md` §Residuals stating which reading governs: **the FSM governs** — a post the provider genuinely published is truthfully `PUBLISHED` even if another path had marked it `FAILED`, and R5's prose ("a post that has since … failed … is never promoted") is about the _tokenless_ refusal set, not about overriding a legal FSM edge. Name it in the PR 2 body too, so the divergence is adjudicated rather than discovered later.
+- [x] **T2.6** _(RED)_ Transaction semantics: the UoW double records that **every `err` was returned from inside the callback** (pattern: `apps/api/tests/unit/unitOfWork.useCases.test.ts`) — `save()` returning `err(VersionConflictError)` → `CONFLICT`; any other `save()` err → `INTERNAL_ERROR`; **both narrowed on the Result, never caught** (S2), both reaching the caller through `executeResultInTransaction` so the transaction aborts. Tenant negative (R8): a thrown `TenantContextMissingError` → classified, error Result, nothing written.
+- [x] **T2.7** Create `packages/core/posts/src/CompletePostPublishingUseCase.ts`. Order is fixed by the design and is not an implementation detail: _before the UoW, no I/O_ → invalid id · empty channels · non-total. _Inside `executeResultInTransaction`_ → `findById` (`NOT_FOUND`) · `isPublished` → `ok({applied:false})` · `expectedVersion` compare (`CONFLICT`) · resolve providers (D7) · `isPublishing ? skip : startPublishing(providers)` · `markAsPublished(byChannel)` · `save()` with the two-way err narrowing · `clearDomainEvents()` · `ok`. _Outer `try/catch`_ → `classifyPersistenceFailure` (`UseCase.ts:143-152`, precedent `RestoreProjectUseCase.ts:65-76`). Constructor `(postRepository, channelRepository, unitOfWork?)` — UoW **last and optional** per canon; **no `EventDispatcher`** (A5/D11). JSDoc `@file`/`@description`/`@layer application` (#9/#10); no phase or sprint reference (#8); no raw `throw` (#4); no framework import (#2); no `any` (#3).
+- [x] **T2.8** _(RED→GREEN)_ Provider resolution (D7): each `channelId` → `ChannelRepository.findById` → `provider.type`, deduplicated; unresolvable channels collected into `unresolvedChannelIds`, **never blocking** the promotion (S4 — totality is decided from the outcome, not from resolution). One test: an unresolvable channel still promotes and reports the id.
+- [x] **T2.9** Export from `packages/core/posts/src/index.ts`.
+- [x] **T2.10** Confirm the core unit suite is reached by `turbo run test` (new files under `packages/core/*/tests/unit/` are collected by construction — verify the run names the new file, do not assume it).
 
 ## WU4 — Command contract (additive), handler, DI
 
-- [ ] **T2.11** _(RED)_ Create `apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts`: schema acceptance/rejection (unknown key → `unrecognized_keys` via `.strict()`; `channels` `.min(1)`); delegation to the use case with the outcome forwarded verbatim; **one user-action audit event only when `applied === true`**; cache invalidation keys matching the update handler; the **real** version returned (never a hardcoded one); the `FAILED`-origin case from T2.4 surfacing as success through the handler.
-- [ ] **T2.12** Add to `packages/shared/src/cqrs.ts` — **addition only, no removal in this PR**: `POST_COMMANDS.COMPLETE_PUBLISHING`, `CompletePostPublishingCommandSchema` (shape per design §Interfaces: `data.strict()`, `outcome.channels` `.min(1)`, optional `expectedVersion`), and the derived type.
-- [ ] **T2.13** Add `CompletePostPublishingCommandHandler` to `apps/api/src/cqrs/handlers/PostCommandHandlers.ts` (config field + factory wiring). **No `EVENT_TYPES.POST_PUBLISHED` CQRS integration event** (D8 — the schema needs `externalId`, which is N-COR-2); domain events reach consumers through the outbox only. No `prisma.*` in the handler (#6).
-- [ ] **T2.14** DI: `TOKENS.CompletePostPublishingUseCase` in `apps/api/src/infrastructure/container/types.ts`; singleton registration in `setupPostUseCases.ts` with `PostRepository`, `ChannelRepository`, `UnitOfWork` (**no dispatcher**, D11). Composition root only (#21/#22).
-- [ ] **T2.15** Pass the use case into `createPostCommandHandlers` at `apps/api/src/index.ts:714`.
-- [ ] **T2.16** Add the new use case's mock to `apps/api/tests/unit/PostCommandHandlers.test-helpers.ts` so existing handler suites keep compiling. **Do not touch the `status` builder or the phantom `version: 2` here** — those belong to PR 3 (T3.2).
-- [ ] **T2.17** Dead-code gate: run `knip` and confirm green — the handler is registered on the bus and the use case is resolved from the container, so neither is unreachable even though no producer emits the command until PR 3. If knip disagrees, report it rather than adding an ignore.
+- [x] **T2.11** _(RED)_ Create `apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts`: schema acceptance/rejection (unknown key → `unrecognized_keys` via `.strict()`; `channels` `.min(1)`); delegation to the use case with the outcome forwarded verbatim; **one user-action audit event only when `applied === true`**; cache invalidation keys matching the update handler; the **real** version returned (never a hardcoded one); the `FAILED`-origin case from T2.4 surfacing as success through the handler.
+- [x] **T2.12** Add to `packages/shared/src/cqrs.ts` — **addition only, no removal in this PR**: `POST_COMMANDS.COMPLETE_PUBLISHING`, `CompletePostPublishingCommandSchema` (shape per design §Interfaces: `data.strict()`, `outcome.channels` `.min(1)`, optional `expectedVersion`), and the derived type.
+- [x] **T2.13** Add `CompletePostPublishingCommandHandler` to `apps/api/src/cqrs/handlers/PostCommandHandlers.ts` (config field + factory wiring). **No `EVENT_TYPES.POST_PUBLISHED` CQRS integration event** (D8 — the schema needs `externalId`, which is N-COR-2); domain events reach consumers through the outbox only. No `prisma.*` in the handler (#6).
+- [x] **T2.14** DI: `TOKENS.CompletePostPublishingUseCase` in `apps/api/src/infrastructure/container/types.ts`; singleton registration in `setupPostUseCases.ts` with `PostRepository`, `ChannelRepository`, `UnitOfWork` (**no dispatcher**, D11). Composition root only (#21/#22).
+- [x] **T2.15** Pass the use case into `createPostCommandHandlers` at `apps/api/src/index.ts:714`.
+- [x] **T2.16** Add the new use case's mock to `apps/api/tests/unit/PostCommandHandlers.test-helpers.ts` so existing handler suites keep compiling. **Do not touch the `status` builder or the phantom `version: 2` here** — those belong to PR 3 (T3.2).
+- [x] **T2.17** Dead-code gate: run `knip` and confirm green — the handler is registered on the bus and the use case is resolved from the container, so neither is unreachable even though no producer emits the command until PR 3. If knip disagrees, report it rather than adding an ignore.
+
+## WU4-C — PR-2 gatekeeper corrective (PASS-WITH-WARNINGS, 0 CRITICAL)
+
+Scope held to the five named findings; no PR-3 work pulled forward, `saga.ts` /
+`UpdatePostCommandSchema` / the `PostPublishingStarted` catalog / every integration suite untouched.
+
+- [x] **T2.18** _(W1 — phantom completion)_ The handler case named _"reports success for a promotion whose origin was FAILED — the use case decides the FSM, not the handler"_ claimed an FSM proof its body never exercised: it set `applied`/`version` on a MOCK use case, with no FAILED origin anywhere in the handler path, and duplicated the real-version case beside it. Renamed to what it actually proves — the handler forwards an applied promotion as a success carrying `applied: true` — and its `version` assertion dropped, since the neighbouring case owns that half. The genuine FSM proof stays where it belongs, in the core suite.
+- [x] **T2.19** _(W2 — the CAS-conflict proof gap, RED→GREEN)_ `saveResult.error instanceof VersionConflictError` was the ONLY `instanceof` narrowing of a domain error across the core↔adapter boundary in `packages/core` (measured tree-wide). `@core/domain` ships a dual conditional export (`development` → src, `default` → dist), so two module copies mean two constructors and the narrowing silently downgrades every conflict to `INTERNAL_ERROR` while green. Exported `VERSION_CONFLICT_CODE` from `DomainError.ts` (the class now uses it, so there is one source), narrowed on the code, and added a unit case feeding the use case a DIFFERENT class carrying that code. **Natural RED measured: `CONFLICT` expected, `INTERNAL_ERROR` received.**
+- [x] **T2.20** _(W3 — make "no I/O before the UoW" executable, PLANTED RED)_ The three pure-refusal cases asserted zero repository calls but never `uow.calls === 0`, so an opened-empty transaction would have passed all three. Added the assertion, then planted one (`executeResultInTransaction` opened before the guards): **4 real failures** — the three new assertions plus the "one transaction" case seeing 2. Restored byte-exact, sha256 `a880065be18f87c5d06efa4ab74ed15b96e4dd45f279d72ae64a56da8b4fbf9e` before and after, suite back to green.
+- [x] **T2.21** _(S2 — the other half of the refusal set, PLANTED RED)_ The design names `CANCELLED` **and** `PENDING_REVIEW` as R5's tokenless refusals; only `CANCELLED` had a case. Added the `PENDING_REVIEW` → `FORBIDDEN` case and proved it bites by planting `PENDING_REVIEW → PUBLISHING` into the FSM: **1 real failure**. Restored byte-exact, sha256 `0788738fcc26bf9b406940e76d5885dbd788506fcb3fb279c14ee1d438ab3ae8` before and after.
+- [x] **T2.22** _(S4 — resolution moved under the branch, RED→GREEN, **not the free change it looked like**)_ `resolveProviders` ran unconditionally, spending one sequential channel read per channel inside the interactive transaction even when `isPublishing` made the providers unused. Moved inside `!post.isPublishing`. **It is not purely a perf move:** `unresolvedChannelIds` is read on BOTH paths, so skipping resolution makes it `[]` on the already-PUBLISHING path. That is honest only because the field means "channels the started event could not name" and no started event is emitted there — so the field's JSDoc now says exactly that, and a unit case pins both halves (**natural RED measured: 2 channel reads where 0 are needed**).
 
 ---
 
@@ -200,7 +211,62 @@ measured CODE/EVIDENCE split, and the rollback boundary.
 | **PR 3** | `saga.ts`, `cqrs.ts` (removal + `.strict()`), `PostCommandHandlers.ts` (delete `:220-225`), `IntegrationEventDeliveryHandler.ts`                                               | **~155**                 | step rewrite ~120 changed + pivot/`ScheduleStepData`/`CompletionStepData` ~20; removal ~10; catalog ~5                                               |
 |          | **Total CODE**                                                                                                                                                                 | **~575**                 |                                                                                                                                                      |
 
-Every PR is under the 400 hard budget. **No `size:exception` is requested or needed.**
+> **MEASURED AT APPLY — the PR 2 forecast was WRONG and the claim below no longer holds.**
+> PR 2's production source came in at **544 changed lines (544 add / 0 del)** against a ~365
+> forecast and the **400 hard** budget — **36% over**. The two files that missed are the ones the
+> forecast reasoned about least precisely: the use case at **336** (forecast ~240, extrapolated
+> from `CreatePostUseCase.ts` ≈ 220 — but that sibling carries one guard, while this one carries
+> an ordered chain of six plus a two-way `save()` narrowing and provider resolution), and the
+> handler at **129** (forecast ~72). `cqrs.ts` 55 · `setupPostUseCases.ts` 16 · `posts/index.ts` 6
+> · `container/types.ts` 1 · `apps/api/src/index.ts` 1.
+>
+> The work is written, green and gate-clean; what is NOT decided is how it ships. **Apply STOPPED
+> here rather than choosing**, because the budget is Edward's one decision per change and because
+> the two obvious ways to make the number smaller — deleting the mandated JSDoc (#9) or the
+> comments that carry the guard-order reasoning — would buy the number by destroying the evidence.
+>
+> **The D7 split named as the remedy does not work, and that is measured, not assumed.** Removing
+> provider resolution takes `resolveProviders` (30 lines), its imports, constructor parameter, DTO
+> field and call-site plumbing (~10), and the handler's unresolved-channel WARN (6) — **~46 lines,
+> landing PR 2 at ~498. Still 98 over.** Recommending it would have traded a real split for a
+> number that still fails.
+>
+> **The split that does work is the work-unit boundary tasks.md already draws:**
+>
+> | Slice | Content                                                                                              | Measured CODE |
+> | ----- | ---------------------------------------------------------------------------------------------------- | ------------- |
+> | PR 2a | WU3 — `CompletePostPublishingUseCase.ts` (336) + barrel (6)                                          | **342**       |
+> | PR 2b | WU4 — `cqrs.ts` (55) + handler (129) + `setupPostUseCases.ts` (16) + `types.ts` (1) + `index.ts` (1) | **202**       |
+>
+> **RE-MEASURED after the PR-2 gatekeeper corrective (W1/W2/W3/S2/S4).** The corrective added 32
+> production lines to the use case (the `isVersionConflict` helper and its JSDoc, the resolution
+> move, the `unresolvedChannelIds` JSDoc) and a new 2-file pair in `@core/domain` carrying
+> `VERSION_CONFLICT_CODE` (15 + 1). PR 2b is byte-unchanged by the corrective.
+>
+> | Slice | Content                                                                                                    | Measured CODE |
+> | ----- | ---------------------------------------------------------------------------------------------------------- | ------------- |
+> | PR 2a | `CompletePostPublishingUseCase.ts` (368) + barrel (6) + `DomainError.ts` (+14/−1) + `errors/index.ts` (+1) | **390**       |
+> | PR 2b | unchanged                                                                                                  | **202**       |
+>
+> **PR 2a now has 10 lines of headroom, and that is the number to watch.** If anything further is
+> added to WU3, the `VERSION_CONFLICT_CODE` pair (`DomainError.ts` + `errors/index.ts`, **16 CODE**,
+> zero behaviour change) is a self-contained additive domain slice that can ship as its own micro-PR
+> ahead of 2a, which drops 2a to **374**. Named here so the relief valve is a decision already
+> costed, not one improvised under the budget.
+>
+> Both are under 400, both leave main sound (nothing resolves the use case until 2b, nothing emits
+> the command until PR 3), and each has its own rollback boundary. The one risk worth checking was
+> whether WU3 alone trips the dead-code ratchet, since T2.17's whole argument is that the container
+> registration is what makes the use case reachable. **Measured by planting it:** with the DI
+> registration removed, `pnpm run check:dead-code` still reports **0 regressions** and raw `knip`'s
+> findings are byte-identical — the barrel export is treated as the package's public API, so the
+> registration is not load-bearing for that gate. Restored byte-exact (sha256
+> `7a967b14…b9a5` before and after). Limit of the measurement, stated: only the DI registration was
+> removed, not all of WU4, so this is strong evidence rather than a full PR-2a dry run.
+>
+> ~~Every PR is under the 400 hard budget. **No `size:exception` is requested or needed.**~~
+> (PR 1 shipped at 77, measured. PR 3's ~155 is still a forecast and should be read with the same
+> suspicion this row earned.)
 
 ### EVIDENCE (tests + docs + PR bodies — pre-approved band, ONE decision for the whole change)
 
