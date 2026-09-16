@@ -78,16 +78,30 @@ interface MockPostRepo {
 
 function makePostRepo(options?: {
   post?: PostAggregate;
+  /**
+   * One aggregate per `findById` call, in order — the shape a concurrent writer
+   * that settles BETWEEN two attempts leaves behind. The last entry answers
+   * every further call, so a sequence never runs out.
+   */
+  reads?: readonly PostAggregate[];
   findByIdResult?: Result<PostAggregate, EntityNotFoundError>;
   findByIdThrows?: Error;
   saveResult?: Result<void, Error>;
 }): MockPostRepo {
+  let readIndex = 0;
   const findById = vi.fn(async () => {
     if (options?.findByIdThrows) {
       throw options.findByIdThrows;
     }
     if (options?.findByIdResult) {
       return options.findByIdResult;
+    }
+    const reads = options?.reads;
+    if (reads !== undefined && reads.length > 0) {
+      const read = reads[Math.min(readIndex, reads.length - 1)];
+      readIndex += 1;
+      assert.ok(read, "the read sequence answers every call");
+      return ok(read);
     }
     return ok(options?.post ?? makePost());
   });
@@ -361,6 +375,45 @@ describe("CompletePostPublishingUseCase", () => {
       assert.ok(result.ok, "the idempotent answer resolves BEFORE the version comparison");
       assert.strictEqual(result.value.applied, false);
       assert.strictEqual(repo.save.mock.calls.length, 0);
+    });
+
+    it("recovers on the next attempt: a refused CONFLICT re-reads and promotes against the settled version", async () => {
+      // R5's third scenario, and the two halves belong in ONE case: a CONFLICT
+      // that is not recoverable fails a saga that in fact completed, and a
+      // recovery that never conflicted proves nothing about the token. The
+      // double answers the SETTLED version on the second read — the concurrent
+      // writer committed between the attempts — so a promotion that carried the
+      // refused attempt's aggregate over would report 8 here instead of 9.
+      const repo = makePostRepo({ reads: [makePost({ version: 7 }), makePost({ version: 8 })] });
+      const uow = makeRecordingUow();
+      const useCase = new CompletePostPublishingUseCase(repo.port, makeChannelRepo(), uow);
+
+      const refused = await useCase.execute({
+        postId: POST_UUID,
+        outcome: TOTAL_OUTCOME,
+        expectedVersion: 3,
+      });
+
+      assert.ok(!refused.ok, "the stale token is refused");
+      assert.strictEqual(refused.error.code, USE_CASE_ERRORS.CONFLICT);
+      assert.strictEqual(repo.save.mock.calls.length, 0, "a refused promotion writes nothing");
+
+      // The retry carries NO token: the saga step forwards none (D4), so
+      // recovery must not depend on the caller computing a fresh one.
+      const recovered = await useCase.execute({ postId: POST_UUID, outcome: TOTAL_OUTCOME });
+
+      assert.ok(recovered.ok, "the next attempt promotes instead of conflicting again");
+      assert.strictEqual(recovered.value.applied, true);
+      assert.strictEqual(recovered.value.status, "PUBLISHED");
+      assert.strictEqual(
+        recovered.value.version,
+        9,
+        "the SETTLED version (8) advanced by this promotion's own save: proof the aggregate was " +
+          "re-read inside the second transaction rather than carried over from the refusal"
+      );
+      assert.strictEqual(repo.save.mock.calls.length, 1, "exactly one save, on the second attempt");
+      assert.strictEqual(repo.findById.mock.calls.length, 2, "one load per attempt");
+      assert.strictEqual(uow.calls, 2, "and each attempt ran in its own transaction");
     });
 
     it("refuses a CANCELLED origin — the state machine allows only CANCELLED to DRAFT", async () => {

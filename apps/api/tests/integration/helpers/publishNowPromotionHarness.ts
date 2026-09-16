@@ -101,6 +101,10 @@ export class PublishNowPromotionHarness {
   secondChannelId = "";
   accessToken = "";
 
+  /** The second tenant's identifiers, populated only by `seedForeignTenantPost`. */
+  foreignAccountId = "";
+  foreignPostId = "";
+
   /** The promotion writer the suite exercises directly, wired as production wires it. */
   promotionUseCase!: CompletePostPublishingUseCase;
 
@@ -274,6 +278,18 @@ export class PublishNowPromotionHarness {
       })
       .catch(() => undefined);
 
+    if (this.foreignAccountId !== "") {
+      const foreign = { where: { accountId: this.foreignAccountId } };
+      await this.base.outboxEvent
+        .deleteMany({ where: { aggregateId: this.foreignPostId } })
+        .catch(() => undefined);
+      await this.base.post.deleteMany(foreign).catch(() => undefined);
+      await this.base.project.deleteMany(foreign).catch(() => undefined);
+      await this.base.account
+        .deleteMany({ where: { id: this.foreignAccountId } })
+        .catch(() => undefined);
+    }
+
     if (this.accountId !== "") {
       const scope = { where: { accountId: this.accountId } };
       await this.base.channel.deleteMany(scope).catch(() => undefined);
@@ -383,6 +399,58 @@ export class PublishNowPromotionHarness {
       },
     });
     return postId;
+  }
+
+  /**
+   * @method seedForeignTenantPost
+   * @description Seeds a SECOND tenant — its own account, project and DRAFT post — so
+   *   the cross-tenant clause of R8 has a row that must stay exactly as it was while
+   *   a promotion runs under this harness's account.
+   * @returns The foreign tenant's post id.
+   */
+  async seedForeignTenantPost(): Promise<string> {
+    const suffix = randomUUID();
+    const account = await this.base.account.create({
+      data: {
+        name: `${this.tag}-foreign`,
+        email: `${this.tag}-foreign-${suffix}@test.local`,
+        slug: `${this.tag}-foreign-${suffix}`,
+      },
+    });
+    const project = await this.base.project.create({
+      data: { name: `${this.tag}-foreign-project`, accountId: account.id, locale: "en" },
+    });
+    const post = await this.base.post.create({
+      data: { projectId: project.id, accountId: account.id, status: "DRAFT", version: 0 },
+    });
+    this.foreignAccountId = account.id;
+    this.foreignPostId = post.id;
+    return post.id;
+  }
+
+  /**
+   * @method rewindToStep
+   * @description Rewinds a saga's DURABLE row to one step index and drops the hot-cache
+   *   copy — the pair of facts a redelivered completion event leaves behind: the row
+   *   says "about to run this step" while everything the step already did is committed.
+   *   It touches the SAGA row only; the aggregate is left exactly as the run left it.
+   * @param sagaId - The saga to rewind.
+   * @param stepIndex - The step index to re-enter.
+   * @returns Nothing.
+   */
+  async rewindToStep(sagaId: string, stepIndex: number): Promise<void> {
+    await this.base.sagaInstance.update({
+      where: { id: sagaId },
+      data: {
+        status: "RUNNING",
+        currentStep: stepIndex,
+        completedAt: null,
+        nextRetryAt: null,
+        retryCount: 0,
+        error: null,
+      },
+    });
+    await this.redis.del(`saga:${sagaId}`);
   }
 
   /**
