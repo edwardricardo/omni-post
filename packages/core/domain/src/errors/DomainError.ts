@@ -118,6 +118,19 @@ export class InvariantViolationError extends DomainError {
 }
 
 /**
+ * The stable discriminator for {@link VersionConflictError}.
+ *
+ * Exported so a consumer can recognise a version conflict WITHOUT `instanceof`.
+ * Class identity is not stable across this package's dual conditional export
+ * (`development` -> `src`, `default` -> `dist`): two resolutions put two
+ * distinct constructors in one process, `instanceof` goes false, and a caller
+ * that narrows on it silently reclassifies every optimistic-concurrency
+ * conflict — a lost update reported as an infrastructure blip. A string
+ * compares by value, so it survives duplicate module instances.
+ */
+export const VERSION_CONFLICT_CODE = "VERSION_CONFLICT";
+
+/**
  * Optimistic Concurrency Control conflict (Azure saga §15-20). Raised when a
  * write detects that the aggregate version in the database has advanced past
  * the version held by the caller — another process has committed in the
@@ -137,7 +150,7 @@ export class VersionConflictError extends DomainError {
   ) {
     super(
       `${entityType} "${entityId}" version conflict: expected ${expectedVersion}, found ${actualVersion ?? "missing"}`,
-      "VERSION_CONFLICT"
+      VERSION_CONFLICT_CODE
     );
     this.entityType = entityType;
     this.entityId = entityId;

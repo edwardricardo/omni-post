@@ -39,3 +39,9 @@ export {
   type DuplicatePostsBatchInput,
   type DuplicatePostsBatchOutput,
 } from "./DuplicatePostsBatchUseCase.js";
+export {
+  CompletePostPublishingUseCase,
+  type CompletePostPublishingInput,
+  type CompletePostPublishingOutput,
+  type PublishChannelOutcome,
+} from "./CompletePostPublishingUseCase.js";
