@@ -164,6 +164,32 @@ No migration (Q2), no backfill (Q3). Code-only revert. A saga persisted before t
   `FORBIDDEN`. Pinned by two unit cases in `CompletePostPublishingUseCase.test.ts` — a `CANCELLED`
   origin refused, a `FAILED` origin promoted — so the adjudication is executable, not only written.
   The PR 2 body carries it too.
+- **W-E — the D10 trade, named rather than discovered in an incident.** With the
+  transaction now aborting on a returned `err`, a **deterministic** JS-side save failure
+  no longer commits a partial write — and it no longer commits anything at all. The
+  promotion retries to exhaustion and the saga FAILs **post-pivot**, leaving the post
+  `DRAFT` while the provider holds the published content. That is the correct trade and it
+  is deliberate: a wrong committed state ("PUBLISHED, no event, nobody downstream will ever
+  learn of it") is worse than a visible failure, because the first is silent and the second
+  is on the operator surface. It is also the SAME observable as W5's evicted-job path, so it
+  adds no new failure mode to operate — only a new way to reach an existing one. **Measured
+  during apply, not argued:** planting the rev-1 shape (`executeInTransaction` plus the canon
+  `let result` capture) into the use case and injecting an outbox failure after
+  `tx.post.update` succeeded committed the row as `PUBLISHED` with **zero** outbox rows while
+  the caller received an error `Result` — the exact forbidden state R1 names. Restoring the
+  seam turned it into `DRAFT` / no rows.
+- **NEW (measured during apply) — the promotion decrypts credentials it never reads.**
+  `resolveProviders` needs one field, `channel.provider.type`, and reaches it through
+  `ChannelRepository.findById`, which reconstitutes the whole `Channel` and therefore
+  decrypts its credentials envelope. Two consequences. (1) Cost: N credential decryptions per
+  promotion, inside the interactive transaction, for a value nothing uses. (2) Correctness of
+  a kind D7 intended to rule out: an undecryptable envelope makes the adapter THROW rather
+  than return `err`, so it escapes `resolveProviders`' unresolved-channel path, reaches the
+  outer `classifyPersistenceFailure`, and blocks a promotion whose publish genuinely
+  completed — N-COR-1's own observable through another door. It is not fixed here because the
+  sound fix is a port method that resolves a provider WITHOUT credentials, which is a domain
+  port change with its own adapter and its own tests. Backlog. Its cost was paid visibly in
+  this change: two integration harnesses had to stop seeding inert credential columns.
 - **W5 — evicted completed job.** The publish consumer sets no `removeOnComplete` (`publishWorker.ts:193-196`), so the adapter default `{ count: 100 }` applies (`consumer-adapter.ts:60`); `getJobStates` reads a missing job as `failed` (`queue-adapter.ts:219-223`); the **wait step** then fails (`saga.ts:829-834`), the saga FAILs post-pivot, and the post stays DRAFT while the provider holds it — the N-COR-1 observable through another door. The harness stub (`sagaCrashRecovery.test.ts:108-113` and this suite) hides it by construction; only the live tier with >100 completions between a job's completion and the poll could reach it. Backlog: explicit retention outliving the poll window, or a reader that distinguishes evicted from failed.
 - **W4 — lossy mapper.** `PostAggregateMapper.toDomain:107-121` drops any media row whose `MediaAttachment.create` fails, and `doUpdate:741-746` then deletes those rows; every `save()` inherits it, this one included. Backlog: fail closed (`reconstitute`), never drop.
 - **W1 — direct status writers.** `SchedulingPostHandlers.ts:254,:354` bypass the aggregate and the version; reschedule has no status guard. Backlog.

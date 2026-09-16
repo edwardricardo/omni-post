@@ -13,6 +13,7 @@
 | Suite                                                                      | Services                                 | Runner batch                   |
 | -------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------ |
 | `tests/integration/sagaCrashRecovery.test.ts`                              | Postgres + Redis (owns its BullMQ queue) | `integration:saga-recovery`    |
+| `tests/integration/sagaPublishNowPromotion.test.ts`                        | Postgres + Redis (queue is a double)     | `integration:saga-recovery`    |
 | `tests/integration/sagaTenantIsolation.test.ts`                            | Postgres                                 | `integration:tenant-isolation` |
 | `tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts` | Postgres                                 | `integration:tenant-isolation` |
 | `tests/chaos/saga-step-retry-recovery.test.ts`                             | none (in-memory doubles)                 | `chaos`                        |
@@ -22,6 +23,17 @@ Unit suites under `tests/unit/saga/` are collected by the Vitest phase and need
 nothing. A static invariant asserts that every node:test saga suite on disk appears
 explicitly in `scripts/run-tests.sh`, because a suite that belongs to no batch never
 runs while still reading as coverage.
+
+`sagaPublishNowPromotion` doubles the QUEUE rather than owning a real one: it reports
+every scheduled job as completed, which is what puts the saga on the total-success
+path without a worker, and it records each enqueue, which is what makes "the rejected
+second start enqueued nothing" a direct observation. Everything else is real —
+Postgres, the real `PrismaPostRepository` with the real outbox writer, and the real
+`SagaIntegration` composition — because the property under test is the PERSISTED row
+and the outbox, and only a real row decides atomicity. It shares
+`integration:saga-recovery` with the two suites above for the reason the batch exists:
+all three boot real managers, and a boot dispatches every non-terminal row in the
+table.
 
 ---
 

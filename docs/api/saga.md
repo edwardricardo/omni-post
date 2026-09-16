@@ -272,7 +272,7 @@ The post-publishing saga orchestrates end-to-end post publication across social 
 ### Step 3: Schedule Publishing Jobs
 
 - **Step ID:** `schedule-publishing-jobs`
-- **Execute:** Creates a BullMQ publishing job per channel. Stores `jobIds` and `channelCount` in context.
+- **Execute:** Creates a BullMQ publishing job per channel. Stores `jobIds`, `channelIds` (index-aligned with `jobIds`, same order) and `channelCount` in context. The identities matter, not only the count: step 5 decides whether the publish was TOTAL from the channels that were actually scheduled, and a count cannot say which ones finished.
 - **Compensate:** Cancels all queued jobs by their stored `jobIds`. Tolerates individual cancellation failures.
 
 ### Step 4: Wait for Publishing Completion
@@ -281,11 +281,11 @@ The post-publishing saga orchestrates end-to-end post publication across social 
 - **Execute:** Polls job statuses. Fails if any jobs are still pending or if any jobs failed. Stores completion stats.
 - **Compensate:** None (read-only check).
 
-### Step 5: Update Post Status
+### Step 5: Complete Post Publishing
 
 - **Step ID:** `update-post-status`
-- **Execute:** Issues a `post.update` command setting status to `PUBLISHED` (all jobs succeeded) or `FAILED`. Stores previous status for compensation.
-- **Compensate:** Reverts the post status to its previous value (`DRAFT`) and clears `publishedAt`.
+- **Execute:** A THIN FORWARDER. It chooses no target status: it issues a `post.complete-publishing` command carrying the publish OUTCOME — one entry per channel step 3 scheduled, with whether that channel published — and the aggregate decides what the outcome means. The handler delegates to `CompletePostPublishingUseCase`, which walks `DRAFT -> PUBLISHING -> PUBLISHED` and persists the status, `publishedAt` and both transition events in ONE transaction. It FAILS CLOSED: unless every precondition of a total success holds (channel identities recorded, one job per channel, publishing complete, zero failed, every scheduled job completed), no command is emitted at all and the step reports `failed` naming the fact it could not establish. It forwards no `expectedVersion` — a create-time version never refreshes, so seeding one made every retry of a still-editable DRAFT conflict; the repository's in-transaction compare-and-swap is the guard. Re-application is idempotent: a post already `PUBLISHED` is answered with success, no second event and the ORIGINAL `publishedAt`.
+- **Compensate:** None. The step is `retryable` and sits after the pivot, so forward recovery is the only canon-valid direction — the earlier text here documented a compensation that does not exist in the code.
 
 ---
 
