@@ -199,5 +199,12 @@ No migration (Q2), no backfill (Q3). Code-only revert. A saga persisted before t
 
 ## Open Questions
 
-- [ ] **Scope decision (Edward): D10 extends the `UnitOfWork` domain port additively** and adds one paragraph to `ARCHITECTURE_CANON.md §Unit of Work`. It changes no existing caller's behaviour and is fitness #4's own documented remove-when. Accept within this change (recommended; extension, no ADR), or require an ADR first? If declined, the contained fallback is (b′) — `PrismaPostRepository.save()` rethrowing inside a UoW — which is correct for this path but is an instance fix with a designed cross-boundary throw; it is not recommended.
-- [ ] CI reach of `integration:saga-live` (needs `pnpm dev`): the DoD is carried in CI by the engine-harness suite; the HTTP guard + queue-count assertion lives in the live suite. Confirm at tasks.
+- [x] **RESOLVED by `tasks.md` A1 (Edward, signed): accepted within this change, WITH an ADR** —
+      `docs/technical/ADR-0023-unit-of-work-result-aware-transaction.md` (A2 verified it as the next
+      free number). The (b′) fallback was not taken. **Scope decision (Edward): D10 extends the
+      `UnitOfWork` domain port additively** and adds one paragraph to `ARCHITECTURE_CANON.md §Unit of Work`. It changes no existing caller's behaviour and is fitness #4's own documented remove-when. Accept within this change (recommended; extension, no ADR), or require an ADR first? If declined, the contained fallback is (b′) — `PrismaPostRepository.save()` rethrowing inside a UoW — which is correct for this path but is an instance fix with a designed cross-boundary throw; it is not recommended.
+- [x] **RESOLVED by `tasks.md` A7**: R7's merge-blocking `[integration]` proof runs in the
+      engine-harness suite (`integration:saga-recovery`, in the PR CI job, invoking `SagaIntegration`'s
+      start path directly); `integration:saga-live` carries only the HTTP 400 shape as a secondary,
+      because a merge-blocking proof that only runs in a tier CI does not execute is not a proof.
+      CI reach of `integration:saga-live` (needs `pnpm dev`): the DoD is carried in CI by the engine-harness suite; the HTTP guard + queue-count assertion lives in the live suite. Confirm at tasks.

@@ -9,6 +9,128 @@ is ticked.
 
 ---
 
+# ===== Verify corrective (2026-09-16) — the two UNPROVEN scenarios, and four named warnings =====
+
+`sdd-verify` returned **FAIL** on two CRITICAL findings, both **proof gaps, not behaviour defects**:
+one spec scenario in each of R4 and R5 had no covering test anywhere in the tree. This corrective
+closes exactly those two, plus W3, W5, W7 and the S1/S2 counts. **No production line was changed** —
+`git diff --numstat` for this corrective touches tests, `docs/reports/` and `openspec/` only.
+
+## What was added
+
+| Finding | Scenario                                                                        | What shipped                                                                                                                                                                                                                                                                                  |
+| ------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **C1**  | R4 `a retry after the promotion committed does not fail the saga [integration]` | `sagaPublishNowPromotion.test.ts` → "a completed saga whose promotion step is re-entered by a redelivered completion" (2 cases). One publish-now saga is driven to `COMPLETED`, then the **saga row only** is rewound to the post-pivot promotion step and resumed via `manager.continueSaga` |
+| **C2**  | R5 `a conflict is recoverable on the next attempt [unit]`                       | `CompletePostPublishingUseCase.test.ts` → "recovers on the next attempt: a refused CONFLICT re-reads and promotes against the settled version" (1 case, both halves in one test)                                                                                                              |
+| **W3**  | R8's cross-tenant clause                                                        | `sagaPublishNowPromotion.test.ts` → "a promotion running under one tenant, with a second tenant's post alongside it" (1 case) + `seedForeignTenantPost` on the harness and its teardown                                                                                                       |
+
+**Why C1 needed the saga and not another direct call.** The existing R4 case re-executes the USE CASE;
+the three neighbouring crash-recovery scenarios rewind to the PIVOT (refused by its reread
+countermeasure — the saga ends **FAILED**) or rewind the POST to `DRAFT` (so the promotion applies
+fresh). None of them re-enters a post-pivot step over an already-promoted post, and the nearest one
+ends in the OPPOSITE terminal state. The new case leaves the post exactly as the first run left it —
+`PUBLISHED` with P1 — and rewinds only the durable saga row, which is the pair of facts a redelivered
+completion event actually produces.
+
+**What C1's step index is read from.** `createPostPublishingSagaDefinition(...).steps.findIndex(s => s.id === "update-post-status")`,
+with a `before`-hook assertion that the index is **greater than** `pivotStepIndex`. A literal `4` would
+state the premise in prose only; the engine reads the definition.
+
+## RED evidence — every plant measured, every restore verified byte-exact
+
+`sha256(packages/core/posts/src/CompletePostPublishingUseCase.ts)` **before any plant and after every
+restore**: `d839398ad9ec0ce4b58d6b2c76320d824f506370b0b544c79e79bf4689ade3b8` (identical, three times).
+
+| #   | Plant (production, unless stated)                                                                   | Measured RED                                                                                                                                                                                                                                                 |
+| --- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| C2a | `if (input.expectedVersion !== undefined && …)` → `if (false && …)` (the OCC guard)                 | `AssertionError: the stale token is refused` on the new case (and on the sibling stale-token case). **2 failed / 25 passed**                                                                                                                                 |
+| C2b | the in-transaction re-read memoized on a private field, so the second attempt reuses the first read | `AssertionError: the SETTLED version (8) advanced by this promotion's own save …` → **`8 !== 9`**. **1 failed / 26 passed — the ONLY failing case was the new one.** Every other case in the suite is blind to a missing re-read, which is the gap C2 closes |
+| C1  | `if (post.isPublished) { return this.idempotentAnswer(post); }` → `if (false)`                      | `not ok 4 - a completed saga whose promotion step is re-entered by a redelivered completion`, `failureType: 'hookFailed'`, `error: 'saga saga-post-publishing-saga-99ee02e8-… never terminalized: status=RUNNING step=4 error=null'` — exit 1, 5 cancelled   |
+| W3  | **test-side** (see below): the observed row seeded in account A and made the promotion's target     | `status, version and publishedAt are byte-identical …` → `+ {publishedAt: 2026-09-16T21:07:30.068Z, status: 'PUBLISHED', version: 1}` vs `- {publishedAt: null, status: 'DRAFT', version: 0}`                                                                |
+
+**C1's red reads as a timeout, and that is the engine's own mechanics, not a weak assertion.** A failed
+post-pivot step persists `nextRetryAt` instead of an in-process timer (`SagaManagerExecution.ts:598`),
+and this harness wires a `NoopBackgroundTaskScheduler`, so a refused promotion leaves the row `RUNNING`
+forever rather than reaching `FAILED`. The assertion that fires names the saga, its status and the step
+index — `step=4`, the promotion step — so the red is unambiguous about WHICH step refused.
+
+**W3's plant is test-side, deliberately, and the reason is stated rather than skipped.** There is no
+minimal PRODUCTION plant that makes a promotion write across tenants: the promotion addresses one
+aggregate by id, and the thing that refuses a foreign row is the Prisma `$extends` tenant guard plus
+RLS — composition-wide machinery whose removal would redden every tenant-scoped suite in the repo and
+would isolate nothing. What the plant proves instead is that the comparison has TEETH: pointed at a row
+the transaction really does reach, it fails with the exact diff above. The case therefore asserts
+cross-tenant unreachability **for WRITE**; it does not attempt a cross-tenant READ inside the promoting
+transaction, and the test comment says so where a reader meets it.
+
+## Documentation corrections
+
+- **W7** — `design.md` §Open Questions: both boxes ticked. Q1 is resolved by `tasks.md` **A1**
+  (accepted in scope, with ADR-0023, per A2); Q2 by **A7** (the merge-blocking proof runs in
+  `integration:saga-recovery`, which the PR CI job executes; `integration:saga-live` carries only the
+  HTTP shape).
+- **T3.11 row honesty** — the row now says WHICH half shipped when: the direct re-execution half landed
+  in the original apply, the redelivered-completion half did NOT and the row read `[x]` over it; it
+  shipped here, named by its `describe`.
+- **S1** — `tasks.md:3` said "33 scenarios". Re-counted with the native rule:
+  `grep -c '^#### Scenario:'` = **32**, `grep -c '^### Requirement:'` = **10**. Corrected to 32, with
+  the measurement written next to it.
+- **S2 — REFUTED, with evidence, and NOT edited.** The finding says `openspec/config.yaml` cites
+  `#1-#40`. Measured: the file cites **41** in all three places (`:21`, `:62`, `:86`), and
+  `git log -- openspec/config.yaml` shows `8ec9f4a7` ("chore(fitness): add check #41") already on
+  `main` as the commit that changed it. `grep -n "40" openspec/config.yaml` returns exactly one line —
+  the 400-line review budget, a different number. The proposal's risk row and the verify report's S2
+  both predate that commit. Nothing was edited because there is nothing left to edit; backlog **B9**
+  now records the measurement so the next reader is not sent to fix a closed item.
+- **W5** — **SMELL-124** appended to `docs/reports/roadmap-detected-smells-backlog.md`. Re-measured
+  independently under an ad-hoc project extending `apps/api/tsconfig.json` (the instrument the PR 3
+  corrective used): **8 diagnostics across 7 distinct lines** in
+  `apps/api/tests/unit/PostCommandHandlers.update.test.ts` — `TS18048` at `:111`, `:128` (cols 7 and
+  52), `:181`, `:182`, `:194`, `:217`, and `TS2322` `"FORBIDDEN"` vs `"NOT_FOUND"` at `:117`. The
+  invisibility is confirmed at the source: `apps/api/tsconfig.json` includes `src` only and
+  `tsconfig.type-tests.json` includes `tests/**/*.type-test.ts` only. Remedy recorded on the row: a
+  `tsconfig.tests.json` program over `tests/**/*.test.ts` wired into `turbo typecheck`, with its own
+  baseline.
+
+## Budget of this corrective, and the one instruction it exceeded
+
+| File                                    | Added          | Note                                                                                                                   |
+| --------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `sagaPublishNowPromotion.test.ts`       | +131           | final **437** lines (the instruction's guide was ≤ ~400)                                                               |
+| `publishNowPromotionHarness.ts`         | +68            | final **620** lines — `rewindToStep` (~27) for C1, the foreign-tenant seed + its fields + its teardown (**41**) for W3 |
+| `CompletePostPublishingUseCase.test.ts` | +53            | final **691** lines                                                                                                    |
+| `roadmap-detected-smells-backlog.md`    | +1             | SMELL-124 (the table's column widths absorbed it: 1 added, 0 removed)                                                  |
+| `tasks.md` / `design.md`                | +15/−13, +9/−2 | prose only                                                                                                             |
+
+Two guides were exceeded and neither was hidden: the suite is **437** lines against a ≤ ~400 guide, and
+W3 cost **41** harness lines against a "~30, otherwise report" guide. Splitting the suite was the stated
+alternative for the first, and it was declined on the instruction's own terms ("prefer staying in the
+file") — a second file would also need its own `run_batch` entry, and fitness #30's rule is that exactly
+one batch names every suite. For the second: 25 of the 41 lines are the three `create` calls a second
+tenant needs (account → project → post, in FK order) and 12 are its teardown, which is not optional —
+this suite asserts a clean-table precondition at `setUp`, so rows left behind by a foreign account would
+fail the NEXT run rather than this one.
+
+## Re-run after the corrective — every gate, measured
+
+| Gate                                   | Command                                                                                                                                                     | Exit | Result                                                                                                                            |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Unit (core posts)                      | `pnpm exec vitest run` in `packages/core/posts`                                                                                                             | 0    | **2 files / 27 tests** (26 before this corrective)                                                                                |
+| Unit (api, 2 suites)                   | `pnpm exec vitest run tests/unit/sagaDeterministicIds.test.ts tests/unit/PostCommandHandlers.complete-publishing.test.ts`                                   | 0    | **2 files / 34 tests**                                                                                                            |
+| Integration                            | `integration:saga-recovery` as `run-tests.sh:336-339` defines it (same 3 files, `--test-concurrency=1 --test-timeout=120000`)                               | 0    | **33 tests / 33 pass / 0 fail / 0 cancelled / 0 skipped** (30 before; +3)                                                         |
+| Typecheck (api)                        | `NODE_OPTIONS=--max-old-space-size=6144 pnpm exec tsc --noEmit`                                                                                             | 0    | clean (`turbo run typecheck` still OOMs at 134 on this box)                                                                       |
+| Typecheck (core/posts)                 | `pnpm exec tsc --noEmit`                                                                                                                                    | 0    | clean                                                                                                                             |
+| Typecheck (the new TEST code, by hand) | ad-hoc projects extending `apps/api/tsconfig.json` and `packages/core/posts/tsconfig.json`, each carrying the full `src` program plus the touched test file | 0, 0 | clean — run because SMELL-124 is precisely that no gate opens these files, so "the suite is green" says nothing about their types |
+| Lint                                   | `pnpm exec eslint --max-warnings 0` on the 3 touched `.ts`                                                                                                  | 0    | clean                                                                                                                             |
+| Format                                 | `pnpm exec prettier --check` on all 6 touched files                                                                                                         | 0    | clean (`tasks.md` and the backlog needed `--write`, re-checked clean)                                                             |
+| Fitness #30                            | unreached suites                                                                                                                                            | —    | **20** — baseline 21, not risen; the new cases live in a suite exactly one `run_batch` already names                              |
+| Fitness #32 / #9 / #10                 | committed `.skip`/`.only` · `@file` present · `@layer` valid                                                                                                | —    | **0** · **0** · **0**                                                                                                             |
+
+Every file in this corrective was written with the Edit/Write tools; no repository path was written by a
+Bash heredoc or redirection (the S4 recovery of the previous corrective is not repeated here).
+
+---
+
 # ===== PR 3 (WU5–WU8) — 2026-09-16, branch `workstream/post-publish-status-integrity-pr2` =====
 
 ## What landed
