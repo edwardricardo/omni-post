@@ -715,6 +715,7 @@ async function createApp(): Promise<FastifyInstance> {
       createPostUseCase: container.resolve(TOKENS.CreatePostUseCase),
       updatePostUseCase: container.resolve(TOKENS.UpdatePostUseCase),
       deletePostUseCase: container.resolve(TOKENS.DeletePostUseCase),
+      completePostPublishingUseCase: container.resolve(TOKENS.CompletePostPublishingUseCase),
       postRepository: container.resolve(TOKENS.PostRepository),
       channelRepository: container.resolve(TOKENS.ChannelRepository),
       redis,

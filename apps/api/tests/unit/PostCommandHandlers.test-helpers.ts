@@ -17,6 +17,7 @@ console.warn = () => {};
 import { ok, err, type Result } from "@shared/types";
 import { randomUUID } from "crypto";
 import type { CreatePostOutput } from "@core/posts/CreatePostUseCase.js";
+import type { CompletePostPublishingOutput } from "@core/posts/CompletePostPublishingUseCase.js";
 import type { PostDTO } from "@core/posts/GetPostUseCase.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { EntityNotFoundError } from "@core/domain/index.js";
@@ -118,6 +119,50 @@ export class MockDeletePostUseCase {
     this.shouldFail = false;
     this.failMessage = "Post not found";
     this.failCode = USE_CASE_ERRORS.NOT_FOUND;
+  }
+}
+
+/**
+ * Double for the promotion writer. `applied` and `version` are settable per
+ * test because the handler's whole job is to report what the use case decided —
+ * a double that always answers the same thing could not tell a real version
+ * from a constant.
+ */
+export class MockCompletePostPublishingUseCase {
+  public executeCalls: unknown[] = [];
+  public shouldFail = false;
+  public failMessage = "Promotion refused";
+  public failCode = USE_CASE_ERRORS.NOT_IMPLEMENTED;
+  public applied = true;
+  public version = 1;
+  public publishedAt = new Date("2024-01-01T00:00:00.000Z");
+  public unresolvedChannelIds: string[] = [];
+
+  async execute(input: unknown): Promise<Result<CompletePostPublishingOutput, UseCaseError>> {
+    this.executeCalls.push(input);
+    if (this.shouldFail) {
+      return err(new UseCaseError(this.failMessage, this.failCode));
+    }
+    return ok({
+      postId: (input as Record<string, string>).postId ?? TEST_POST_ID,
+      projectId: TEST_PROJECT_ID,
+      status: "PUBLISHED",
+      publishedAt: this.publishedAt,
+      version: this.version,
+      applied: this.applied,
+      unresolvedChannelIds: this.unresolvedChannelIds,
+    });
+  }
+
+  reset(): void {
+    this.executeCalls = [];
+    this.shouldFail = false;
+    this.failMessage = "Promotion refused";
+    this.failCode = USE_CASE_ERRORS.NOT_IMPLEMENTED;
+    this.applied = true;
+    this.version = 1;
+    this.publishedAt = new Date("2024-01-01T00:00:00.000Z");
+    this.unresolvedChannelIds = [];
   }
 }
 
@@ -298,6 +343,7 @@ export interface TestContext {
   createPostUseCase: MockCreatePostUseCase;
   updatePostUseCase: MockUpdatePostUseCase;
   deletePostUseCase: MockDeletePostUseCase;
+  completePostPublishingUseCase: MockCompletePostPublishingUseCase;
   postRepository: MockPostRepository;
   channelRepository: MockChannelRepository;
   redis: MockRedis;
@@ -307,6 +353,7 @@ export function createTestConfig(): TestContext {
   const createPostUseCase = new MockCreatePostUseCase();
   const updatePostUseCase = new MockUpdatePostUseCase();
   const deletePostUseCase = new MockDeletePostUseCase();
+  const completePostPublishingUseCase = new MockCompletePostPublishingUseCase();
   const postRepository = new MockPostRepository();
   const channelRepository = new MockChannelRepository();
   const redis = new MockRedis();
@@ -318,6 +365,8 @@ export function createTestConfig(): TestContext {
       updatePostUseCase as unknown as PostCommandHandlersConfig["updatePostUseCase"],
     deletePostUseCase:
       deletePostUseCase as unknown as PostCommandHandlersConfig["deletePostUseCase"],
+    completePostPublishingUseCase:
+      completePostPublishingUseCase as unknown as PostCommandHandlersConfig["completePostPublishingUseCase"],
     postRepository: postRepository as unknown as PostCommandHandlersConfig["postRepository"],
     channelRepository:
       channelRepository as unknown as PostCommandHandlersConfig["channelRepository"],
@@ -329,6 +378,7 @@ export function createTestConfig(): TestContext {
     createPostUseCase,
     updatePostUseCase,
     deletePostUseCase,
+    completePostPublishingUseCase,
     postRepository,
     channelRepository,
     redis,
@@ -430,6 +480,44 @@ export function buildDeletePostCommand(
     aggregateId: overrides?.aggregateId ?? TEST_POST_ID,
     aggregateType: "Post" as const,
     data: {},
+    metadata: {
+      correlationId: overrides?.correlationId ?? "corr-1",
+      source: overrides?.source ?? "test",
+      ...(overrides?.userId && { userId: overrides.userId }),
+    },
+    timestamp: new Date(),
+  };
+}
+
+export function buildCompletePostPublishingCommand(
+  overrides?: Partial<{
+    id: string;
+    aggregateId: string;
+    channels: Array<{
+      channelId: string;
+      success: boolean;
+      externalId?: string;
+      error?: string;
+    }>;
+    expectedVersion: number;
+    userId: string;
+    correlationId: string;
+    source: string;
+  }>
+) {
+  return {
+    id: overrides?.id ?? `cmd-${Date.now()}`,
+    type: "post.complete-publishing" as const,
+    aggregateId: overrides?.aggregateId ?? TEST_POST_ID,
+    aggregateType: "Post" as const,
+    data: {
+      outcome: {
+        channels: overrides?.channels ?? [{ channelId: TEST_CHANNEL_ID_1, success: true }],
+      },
+      ...(overrides?.expectedVersion !== undefined && {
+        expectedVersion: overrides.expectedVersion,
+      }),
+    } as Record<string, unknown>,
     metadata: {
       correlationId: overrides?.correlationId ?? "corr-1",
       source: overrides?.source ?? "test",

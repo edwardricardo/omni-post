@@ -31,6 +31,7 @@ import {
   ArchivePostsBatchUseCase,
   HardDeletePostsBatchUseCase,
   DuplicatePostsBatchUseCase,
+  CompletePostPublishingUseCase,
 } from "@core/posts/index.js";
 import { ParseBulkScheduleCsvUseCase } from "@core/bulk-scheduling/ParseBulkScheduleCsvUseCase.js";
 import { ConfirmBulkScheduleUseCase } from "@core/bulk-scheduling/ConfirmBulkScheduleUseCase.js";
@@ -113,6 +114,21 @@ export function setupPostUseCases(container: Container): void {
       new DuplicatePostsBatchUseCase(
         container.resolve<PostRepository>(TOKENS.PostRepository),
         container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+
+  // Promotion writer. Takes NO EventDispatcher on purpose: its events must be
+  // delivered once, AFTER the commit, by the outbox relay — dispatching inside
+  // the transaction would tell subscribers a post was published while the
+  // transaction could still roll back.
+  container.register<CompletePostPublishingUseCase>(
+    TOKENS.CompletePostPublishingUseCase,
+    () =>
+      new CompletePostPublishingUseCase(
+        container.resolve<PostRepository>(TOKENS.PostRepository),
+        container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

@@ -75,6 +75,7 @@ export const TOKENS = {
   ArchivePostsBatchUseCase: Symbol.for("ArchivePostsBatchUseCase"),
   HardDeletePostsBatchUseCase: Symbol.for("HardDeletePostsBatchUseCase"),
   DuplicatePostsBatchUseCase: Symbol.for("DuplicatePostsBatchUseCase"),
+  CompletePostPublishingUseCase: Symbol.for("CompletePostPublishingUseCase"),
 
   // Use Cases (project + account lifecycle). The NORMAL delete is the
   // reversible soft delete; the irreversible erasure path lives under its own

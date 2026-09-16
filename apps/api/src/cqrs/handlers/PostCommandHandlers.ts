@@ -11,16 +11,19 @@ import {
   type CreatePostCommand,
   type UpdatePostCommand,
   type PublishPostCommand,
+  type CompletePostPublishingCommand,
   POST_COMMANDS,
   validateCommand,
   CreatePostCommandSchema,
   UpdatePostCommandSchema,
   PublishPostCommandSchema,
+  CompletePostPublishingCommandSchema,
 } from "@shared/types/cqrs.js";
 import { createPostEvent, createUserActionEvent, EVENT_TYPES } from "@shared/types/events.js";
 import type { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
 import type { UpdatePostUseCase } from "@core/posts/UpdatePostUseCase.js";
 import type { DeletePostUseCase } from "@core/posts/DeletePostUseCase.js";
+import type { CompletePostPublishingUseCase } from "@core/posts/CompletePostPublishingUseCase.js";
 import {
   PostId,
   ChannelId,
@@ -41,6 +44,7 @@ export interface PostCommandHandlersConfig {
   createPostUseCase: CreatePostUseCase;
   updatePostUseCase: UpdatePostUseCase;
   deletePostUseCase: DeletePostUseCase;
+  completePostPublishingUseCase: CompletePostPublishingUseCase;
   postRepository: PostRepository;
   channelRepository: ChannelRepository;
   redis: Redis;
@@ -472,6 +476,130 @@ export class PublishPostCommandHandler implements CommandHandler<
 }
 
 // ---------------------------------------------------------------------------
+// CompletePostPublishingCommandHandler
+// ---------------------------------------------------------------------------
+
+/**
+ * Promotes a post whose every scheduled channel published. It chooses no status
+ * and writes no field itself: the outcome goes to the use case verbatim and the
+ * aggregate decides, which is what keeps the persisted state and the providers'
+ * reality in agreement.
+ */
+export class CompletePostPublishingCommandHandler implements CommandHandler<
+  Command<unknown>,
+  { postId: string; version: number; applied: boolean }
+> {
+  readonly commandType = POST_COMMANDS.COMPLETE_PUBLISHING;
+
+  constructor(private config: PostCommandHandlersConfig) {}
+
+  async handle(
+    command: Command<unknown>
+  ): Promise<CommandResult<{ postId: string; version: number; applied: boolean }>> {
+    try {
+      const validation = validateCommand(command, CompletePostPublishingCommandSchema);
+      if (!validation.success) {
+        return {
+          success: false,
+          ...(validation.error && { error: validation.error }),
+          ...(validation.validationErrors && { validationErrors: validation.validationErrors }),
+        };
+      }
+
+      const validatedCommand = validation.data as CompletePostPublishingCommand;
+      const { data, metadata, aggregateId } = validatedCommand;
+
+      const result = await this.config.completePostPublishingUseCase.execute({
+        postId: aggregateId,
+        outcome: {
+          // Same values, key for key. The spread is not a reshape: Zod types an
+          // absent `.optional()` as `string | undefined`, and under
+          // `exactOptionalPropertyTypes` an absent key and a key holding
+          // `undefined` are different things. Omitting rather than assigning is
+          // what keeps them different.
+          channels: data.outcome.channels.map((channel) => ({
+            channelId: channel.channelId,
+            success: channel.success,
+            ...(channel.externalId !== undefined && { externalId: channel.externalId }),
+            ...(channel.error !== undefined && { error: channel.error }),
+          })),
+        },
+        ...(data.expectedVersion !== undefined && { expectedVersion: data.expectedVersion }),
+      });
+
+      if (!result.ok) {
+        return { success: false, error: result.error.message };
+      }
+
+      const promotion = result.value;
+
+      if (promotion.unresolvedChannelIds.length > 0) {
+        log.warn(
+          { postId: aggregateId, unresolvedChannelIds: promotion.unresolvedChannelIds },
+          "Promotion could not resolve every channel to a provider; the publishing-started event names fewer providers than channels published"
+        );
+      }
+
+      // No POST_PUBLISHED integration event here: its payload requires the
+      // provider's externalId, which this capability does not yet carry, and a
+      // fabricated one would be worse than none. The aggregate's own events
+      // reach consumers through the outbox, written by the same transaction.
+      const events = [];
+
+      if (promotion.applied) {
+        events.push(
+          createUserActionEvent(
+            metadata.userId || "system",
+            "COMPLETE_POST_PUBLISHING",
+            "Post",
+            aggregateId,
+            {
+              source: metadata.source || "API",
+              ...(metadata.userId && { userId: metadata.userId }),
+              ...(metadata.sessionId && { sessionId: metadata.sessionId }),
+            },
+            {
+              channelCount: data.outcome.channels.length,
+              publishedAt: promotion.publishedAt,
+            }
+          )
+        );
+
+        await this.invalidateCaches(promotion.projectId, aggregateId);
+      }
+
+      return {
+        success: true,
+        data: {
+          postId: promotion.postId,
+          // The version the repository actually persisted, read back off the
+          // aggregate — never a literal.
+          version: promotion.version,
+          applied: promotion.applied,
+        },
+        events,
+      };
+    } catch (error) {
+      log.error({ err: error }, "CompletePostPublishingCommand failed");
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+      };
+    }
+  }
+
+  private async invalidateCaches(projectId: string, postId: string): Promise<void> {
+    await invalidateQueryCache(this.config.redis, [
+      `post.get:${postId}`,
+      `post.list:${projectId}`,
+      `post.search:${projectId}`,
+      `post.analytics:${postId}`,
+      "dashboard:stats",
+    ]);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // DeletePostCommandHandler
 // ---------------------------------------------------------------------------
 
@@ -590,6 +718,7 @@ export function createPostCommandHandlers(
     new CreatePostCommandHandler(config),
     new UpdatePostCommandHandler(config),
     new PublishPostCommandHandler(config),
+    new CompletePostPublishingCommandHandler(config),
     new DeletePostCommandHandler(config),
   ];
 }
