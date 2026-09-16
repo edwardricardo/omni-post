@@ -324,18 +324,19 @@ CONCURRENCY=1 run_batch "integration:admin-single-use-claims" \
   tests/integration/adminPasswordResetClaim.integration.test.ts \
   tests/integration/adminRefreshRotationClaim.integration.test.ts
 
-# Saga recovery proofs. DB-only by dependency (Postgres + Redis; the crash suite
-# also owns a real BullMQ queue and worker), so they belong to the tier that
-# also runs on pull requests — a merge-blocking gate that only ran after the
-# merge would gate nothing. The raised timeout is for the CRASH suite, which
-# drives a real queue round trip and walks a retry envelope; the compensation
-# suite is quick but shares the batch because both boot real managers, and a
-# boot loads and dispatches every non-terminal row in the table — running them
-# in one serialized batch is what keeps that from being two suites executing
-# each other's sagas.
+# Saga recovery + promotion proofs. DB-only by dependency (Postgres + Redis; the
+# crash suite also owns a real BullMQ queue and worker), so they belong to the
+# tier that also runs on pull requests — a merge-blocking gate that only ran
+# after the merge would gate nothing. The raised timeout is for the CRASH suite,
+# which drives a real queue round trip and walks a retry envelope; the
+# compensation and promotion suites are quick but share the batch because all
+# three boot real managers, and a boot loads and dispatches every non-terminal
+# row in the table — running them in one serialized batch is what keeps that
+# from being three suites executing each other's sagas.
 CONCURRENCY=1 TIMEOUT=120000 run_batch "integration:saga-recovery" \
   tests/integration/sagaCrashRecovery.test.ts \
-  tests/integration/sagaCompensationRecovery.test.ts
+  tests/integration/sagaCompensationRecovery.test.ts \
+  tests/integration/sagaPublishNowPromotion.test.ts
 
 fi # run_db_batches
 

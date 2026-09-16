@@ -138,9 +138,12 @@ describe("Saga customer flow integration", () => {
     });
 
     // Two channels so we can test multi-channel publishes. The encrypted-
-    // credential columns are populated with placeholder strings — the saga
-    // path doesn't decrypt them; only the worker pipeline does, and the
-    // publish-now test accepts a FAILED terminal as valid (no real creds).
+    // credential columns are populated with placeholder strings, which is why
+    // the publish-now tests accept a FAILED terminal as valid: the worker
+    // pipeline decrypts them and the provider call cannot succeed. The
+    // promotion step decrypts them too, on the total-success path — a path
+    // this tier therefore never reaches, which is exactly why the promotion's
+    // own proof lives in the engine-harness suite with real envelopes.
     const channelStub = {
       handle: "test-handle",
       credentialsCiphertext: "test-ciphertext",
@@ -491,14 +494,43 @@ describe("Saga customer flow integration", () => {
     }
   });
 
-  it("rejects scheduling an already PUBLISHED post (must be DRAFT)", async () => {
+  it("rejects scheduling an already PUBLISHED post, and starts nothing", async () => {
+    // The guard keys off the PERSISTED status, so it was inert for as long as a
+    // completed publish-now left the row in DRAFT. The harm it closes is a
+    // duplicate send to a provider, and the DIRECT proof of that — the publish
+    // queue receiving no new job — lives in the engine-harness suite
+    // (`sagaPublishNowPromotion.test.ts`), which runs in the pull-request CI
+    // job that this live tier is not part of. What is reachable here is the
+    // link in the same chain: no saga was started, so no pivot ran, so nothing
+    // was enqueued.
+    const sagasBefore = await prisma.sagaInstance.count({
+      where: { accountId: fixture.accountId },
+    });
+
     const result = await startSaga(fixture.authHeader, {
       mode: "publish-now",
       projectId: fixture.projectId,
       postId: fixture.publishedPostId, // PUBLISHED, not DRAFT
       channelIds: [fixture.channelIds[0]!],
     });
+
     assert.strictEqual(result.status, 400);
+    assert.match(
+      JSON.stringify(result.body),
+      /PUBLISHED/,
+      "the rejection names the status that makes the post ineligible"
+    );
+    assert.strictEqual(
+      await prisma.sagaInstance.count({ where: { accountId: fixture.accountId } }),
+      sagasBefore,
+      "and no saga was started, so no publish job could have been enqueued"
+    );
+
+    const post = await prisma.post.findUniqueOrThrow({
+      where: { id: fixture.publishedPostId },
+      select: { status: true },
+    });
+    assert.strictEqual(post.status, "PUBLISHED", "the refused start wrote nothing");
   });
 
   // -----------------------------------------------------------------------
