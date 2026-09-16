@@ -1,17 +1,17 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: "sha256:ef71ad6beadf057a1806be0db3eae57b458fd9dd32a71676b9e57ddacdad46d6"
+evidence_revision: sha256:0156d6b63b7606e232a10de513c9f037b4ca346b0ee178e571c56c129ed339b3
 verdict: pass_with_warnings
 blockers: 0
 critical_findings: 0
-requirements: "10/10"
-scenarios: "32/32"
+requirements: 10/10
+scenarios: 32/32
 test_command: "pnpm --dir apps/api exec vitest run tests/unit/sagaDeterministicIds.test.ts tests/unit/PostCommandHandlers.update.test.ts tests/unit/integrationEventDeliveryHandler.test.ts tests/unit/PostCommandHandlers.create.test.ts tests/unit/PostCommandHandlers.publish.test.ts tests/unit/PostCommandHandlers.complete-publishing.test.ts && pnpm --dir packages/core/posts exec vitest run"
 test_exit_code: 0
-test_output_hash: "ba58d31bb94df88eb2c861bcbeb70567d86d318032b7315fa9e14e6489da07e4"
+test_output_hash: sha256:ba58d31bb94df88eb2c861bcbeb70567d86d318032b7315fa9e14e6489da07e4
 build_command: "NODE_OPTIONS=--max-old-space-size=6144 pnpm exec tsc --noEmit"
 build_exit_code: 0
-build_output_hash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+build_output_hash: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 ```
 
 # Verification Report — post-publish-status-integrity (N-COR-1) — rev 2
