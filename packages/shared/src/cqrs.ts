@@ -143,6 +143,7 @@ export const POST_COMMANDS = {
   UPDATE_POST: "post.update",
   SCHEDULE_POST: "post.schedule",
   PUBLISH_POST: "post.publish",
+  COMPLETE_PUBLISHING: "post.complete-publishing",
   DELETE_POST: "post.delete",
   CANCEL_SCHEDULED_POST: "post.cancel-schedule",
 } as const;
@@ -183,29 +184,35 @@ export const CreatePostCommandSchema = z.object({
 export type CreatePostCommand = z.infer<typeof CreatePostCommandSchema>;
 
 /**
- * Update Post Command.
+ * Update Post Command — CONTENT ONLY.
+ *
+ * It declares no `status` and no `publishedAt`, and `data` is `.strict()`, so a
+ * command carrying either is REJECTED with `unrecognized_keys` rather than
+ * stripped and silently ignored. Both halves are load-bearing. The field used
+ * to exist while no consumer honoured it, which is exactly how a status
+ * transition was routed into a content-only command and reported as success;
+ * and Zod strips unknown keys by default, so removing the field without
+ * `.strict()` would only move the silent drop from the handler into the parser.
+ * The status transition has its own command — `post.complete-publishing` —
+ * which carries the publish outcome and lets the aggregate decide the status.
  *
  * `expectedVersion` carries the OCC token from the caller (Azure saga §15-20).
- * Saga retryable steps that update Post post-pivot pass createData.version so
- * the use case can detect concurrent writes. Optional — when omitted, only the
- * repository-level WHERE-clause guard applies.
+ * Optional — when omitted, only the repository-level WHERE-clause guard applies.
  */
 export const UpdatePostCommandSchema = z.object({
   id: z.string(),
   type: z.literal(POST_COMMANDS.UPDATE_POST),
   aggregateId: z.string(),
   aggregateType: z.literal("Post"),
-  data: z.object({
-    title: z.string().optional(),
-    body: z.string().optional(),
-    tags: z.array(z.string()).optional(),
-    mediaIds: z.array(z.string()).optional(),
-    // FAILED is a legitimate terminal status — emitted by saga UpdatePostStatusStep
-    // when WaitForPublishingCompletionStep reports any failed worker job. The
-    // command schema must accept it for the saga to reach a terminal state.
-    status: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED"]).optional(),
-    expectedVersion: z.number().int().nonnegative().optional(),
-  }),
+  data: z
+    .object({
+      title: z.string().optional(),
+      body: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+      mediaIds: z.array(z.string()).optional(),
+      expectedVersion: z.number().int().nonnegative().optional(),
+    })
+    .strict(),
   metadata: z.object({
     userId: z.string().optional(),
     sessionId: z.string().optional(),
@@ -244,6 +251,60 @@ export const PublishPostCommandSchema = z.object({
 });
 
 export type PublishPostCommand = z.infer<typeof PublishPostCommandSchema>;
+
+/**
+ * Complete Post Publishing Command.
+ *
+ * Carries the publish OUTCOME — the channels that were scheduled and, for each
+ * one, whether it published — so the promotion is decided from what actually
+ * happened rather than from a target status the emitter chose. `data` is
+ * `.strict()`: a key this contract does not declare is REJECTED with
+ * `unrecognized_keys`, never stripped and silently ignored, because a command
+ * that accepts a field nobody honours is how a status transition was routed
+ * into a content-only command and reported as success.
+ *
+ * `channels` is `.min(1)`: an empty set would satisfy `every(success)` and read
+ * as a vacuous total success.
+ *
+ * `expectedVersion` is optional — the reused-draft path holds no token and must
+ * not fabricate one; when it is absent the persisted status decides.
+ */
+export const CompletePostPublishingCommandSchema = z.object({
+  id: z.string(),
+  type: z.literal(POST_COMMANDS.COMPLETE_PUBLISHING),
+  aggregateId: z.string(),
+  aggregateType: z.literal("Post"),
+  data: z
+    .object({
+      outcome: z.object({
+        channels: z
+          .array(
+            z.object({
+              channelId: z.string().min(1),
+              success: z.boolean(),
+              // Provider receipts travel with the outcome once the publish
+              // workers report them; nothing decides totality from them.
+              externalId: z.string().optional(),
+              error: z.string().optional(),
+            })
+          )
+          .min(1),
+      }),
+      expectedVersion: z.number().int().nonnegative().optional(),
+    })
+    .strict(),
+  metadata: z.object({
+    userId: z.string().optional(),
+    sessionId: z.string().optional(),
+    correlationId: z.string(),
+    source: z.string(),
+    userAgent: z.string().optional(),
+    ipAddress: z.string().optional(),
+  }),
+  timestamp: z.date(),
+});
+
+export type CompletePostPublishingCommand = z.infer<typeof CompletePostPublishingCommandSchema>;
 
 // Query Types - Post Management
 

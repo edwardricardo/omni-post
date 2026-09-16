@@ -75,6 +75,9 @@ describe("PublishPostCommandHandler", () => {
   });
 
   it("should return error when post is already published", async () => {
+    // This guard keys off the PERSISTED status, so it was inert for as long as
+    // a completed publish left the row in DRAFT. The harm it closes is a second
+    // send to a provider, so the refusal must also produce no jobs.
     ctx.postRepository.mockAggregate = createMockPostAggregate({
       status: "PUBLISHED",
     });
@@ -85,6 +88,8 @@ describe("PublishPostCommandHandler", () => {
     expect(result.success).toBe(false);
     expect(result.error).toBeTruthy();
     expect(result.error.includes("already published")).toBeTruthy();
+    expect(result.data).toBeUndefined();
+    expect(result.events).toBeUndefined();
   });
 
   it("should return error for invalid channel IDs", async () => {

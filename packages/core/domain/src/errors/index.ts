@@ -14,5 +14,6 @@ export {
   EntityNotFoundError,
   InvariantViolationError,
   VersionConflictError,
+  VERSION_CONFLICT_CODE,
   type DomainErrorType,
 } from "./DomainError.js";

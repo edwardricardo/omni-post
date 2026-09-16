@@ -68,7 +68,12 @@ import {
 import { ok } from "@shared/types";
 import type { Command, CommandResult } from "@shared/types/cqrs.js";
 import { InMemoryEventDispatcher } from "@core/domain/index.js";
-import { CreatePostUseCase, UpdatePostUseCase, DeletePostUseCase } from "@core/posts/index.js";
+import {
+  CreatePostUseCase,
+  UpdatePostUseCase,
+  DeletePostUseCase,
+  CompletePostPublishingUseCase,
+} from "@core/posts/index.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
 import {
   getSystemContext,
@@ -90,7 +95,9 @@ import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import {
   CreatePostCommandHandler,
   UpdatePostCommandHandler,
+  CompletePostPublishingCommandHandler,
 } from "../../src/cqrs/handlers/PostCommandHandlers.js";
+import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
 
 const TAG = `saga-crash-${Date.now()}`;
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
@@ -354,6 +361,13 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     });
     cqrsBus.registerCommandHandler(recordingHandler(new CreatePostCommandHandler(handlerConfig)));
     cqrsBus.registerCommandHandler(recordingHandler(new UpdatePostCommandHandler(handlerConfig)));
+    // The promotion the post-pivot step now emits. Registered as the REAL
+    // handler over the REAL use case, so the replay property under test — that
+    // re-applying the post-pivot transition produces no second outcome — is
+    // measured against the code that actually decides it.
+    cqrsBus.registerCommandHandler(
+      recordingHandler(new CompletePostPublishingCommandHandler(handlerConfig))
+    );
 
     const integration = new SagaIntegration({
       fastify,
@@ -756,23 +770,30 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     });
     projectId = project.id;
 
-    // The credentials envelope is never decrypted by this suite — no step here
-    // resolves a channel — so the columns carry inert values rather than a real
-    // encryption round trip.
-    const channelFixture = {
+    // The credentials envelope IS decrypted by this suite now: the promotion
+    // step resolves each published channel to its provider through the real
+    // repository, and that read reconstitutes the whole Channel. Inert columns
+    // used to be sound here because no step resolved a channel; they would now
+    // make every promotion fail on an auth-tag error that production would
+    // never see. The id is minted up front because it is bound as AAD.
+    const credentialsCrypto = new ChannelCredentialsCrypto(new EncryptionService());
+    const channelFixture = (id: string, handle: string) => ({
+      id,
       accountId,
       projectId,
       provider: "X" as const,
-      credentialsCiphertext: "unused-by-this-suite",
-      credentialsIv: "unused-by-this-suite",
-      credentialsAuthTag: "unused-by-this-suite",
-    };
+      handle,
+      ...credentialsCrypto.encrypt(
+        { accessToken: `${TAG}-token`, tokenType: "bearer" },
+        { recordId: id, caller: "sagaCrashRecovery fixture" }
+      ),
+    });
     const delivering = await base.channel.create({
-      data: { ...channelFixture, handle: `${TAG}-delivering` },
+      data: channelFixture(randomUUID(), `${TAG}-delivering`),
     });
     deliveringChannelId = delivering.id;
     const rejecting = await base.channel.create({
-      data: { ...channelFixture, handle: `${TAG}-rejecting` },
+      data: channelFixture(randomUUID(), `${TAG}-rejecting`),
     });
     rejectingChannelId = rejecting.id;
 
@@ -795,6 +816,11 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       ),
       updatePostUseCase: new UpdatePostUseCase(postRepository, new InMemoryEventDispatcher()),
       deletePostUseCase: new DeletePostUseCase(postRepository, businessMetrics),
+      completePostPublishingUseCase: new CompletePostPublishingUseCase(
+        postRepository,
+        channelRepository,
+        new PrismaUnitOfWork(guarded)
+      ),
       postRepository,
       channelRepository,
       redis,
@@ -925,9 +951,9 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       const issued = commandsForSaga(inheritedSagaId, commandsBeforeBoot);
       assert.deepStrictEqual(
         issued.map((command) => command.type),
-        ["post.create", "post.update"],
+        ["post.create", "post.complete-publishing"],
         "exactly one command per remaining command-issuing step: a second create or a second " +
-          "update would mean the resume replayed a step the row had already passed"
+          "promotion would mean the resume replayed a step the row had already passed"
       );
     });
 
@@ -1093,12 +1119,14 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       // This is the evidence the parking decision rests on, kept executable so
       // it cannot quietly stop being true.
       //
-      // The post-pivot step's own documentation claims the update use case
-      // TOLERATES re-application of the same transition — the claim that would
-      // make an automatic resume safe. Measured, it does not: the replayed
-      // command carries the version the create step recorded, the first run
-      // already advanced the persisted one, and the use case rejects the stale
-      // token. A saga that genuinely succeeded therefore ends FAILED.
+      // The verdict is unchanged and the MECHANISM moved, which is worth
+      // reading carefully. A deliberate replay of a saga that already succeeded
+      // is now refused at the PIVOT, by its own reread countermeasure, because
+      // the first run left the post truthfully PUBLISHED and the pivot's plan
+      // requires DRAFT. It used to be refused one step later, by the post-pivot
+      // command carrying a create-time version the first run had already
+      // advanced. So the replay still cannot be made automatic — it just fails
+      // earlier, on a fact about the aggregate rather than on a stale token.
 
       // The absorber half of the verdict: the pivot really is replay-safe.
       const byId = await jobsWithId(dedupeKey);
@@ -1145,8 +1173,14 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       );
       assert.match(
         String(terminal.error),
-        /version conflict/i,
-        "and it fails for the stale optimistic-concurrency token, not for a queue side effect"
+        /Reread check failed/i,
+        "and it fails on the pivot's own countermeasure, not on a queue side effect"
+      );
+      assert.match(
+        String(terminal.error),
+        /PUBLISHED/,
+        "naming the persisted status the first run left behind — the countermeasure can only " +
+          "refuse a replay because that status is now truthful"
       );
     });
   });
@@ -1263,15 +1297,20 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       postId = interrupted.postId;
       dedupeKey = interrupted.dedupeKey;
 
-      // Standing in for the ONE production path that promotes a post out of
-      // DRAFT: the inbound provider webhook processors
-      // (`apps/api/src/webhooks/processors/*WebhookProcessor.ts`, each writing
-      // `status: "PUBLISHED"` on the correlated post). NOT the publish worker
-      // and NOT the saga — neither of those ever writes the column, which is
-      // why the promotion is applied here explicitly and why the window in which
-      // the post is still DRAFT is a real residual rather than a test artefact.
-      // The sibling scenario below covers that window.
-      await base.post.update({ where: { id: postId }, data: { status: "PUBLISHED" } });
+      // The saga's own promotion step left the post PUBLISHED on the run above,
+      // which is the state this scenario needs — the pivot's plan requires
+      // DRAFT, so a re-entry must be refused. It is asserted rather than
+      // written: the point of the scenario is that the SAGA produced this
+      // status, and writing it here would make the test pass even if the
+      // promotion had done nothing. The sibling scenario below covers the
+      // opposite window, where the promotion had not happened yet.
+      const promoted = await postSnapshot(postId);
+      assert.strictEqual(
+        promoted.status,
+        "PUBLISHED",
+        "the premise: a completed publish-now saga leaves the post PUBLISHED, which is what " +
+          "gives the pivot's reread countermeasure something to refuse"
+      );
 
       // A pivot-step retry that outlived its process: the row carries a due
       // `nextRetryAt`, so the boot pass hands it to the checker rather than
@@ -1354,13 +1393,16 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
 
     before(async () => {
       // The other half of the pivot re-entry story, and the honest one: the
-      // RereadCheck only refuses once SOMETHING has moved the post out of DRAFT,
-      // and on the saga's own path nothing does — the promotion is the inbound
-      // provider webhook, which is asynchronous and may never arrive. In that
-      // window the countermeasure PASSES and the pivot really is re-entered, so
-      // the only thing standing between a restart and a second publish is the
-      // retention-bounded job-id dedupe. This pins WHICH absorber is load-bearing
-      // here, rather than letting the stronger claim cover both cases.
+      // RereadCheck can only refuse once the post has left DRAFT, so the window
+      // it protects nothing in is the one BEFORE the promotion commits — a
+      // crash between the pivot's enqueue and the post-pivot promotion. That
+      // window is real and is reconstructed here rather than assumed: the post
+      // is put back to DRAFT while the durable row is rewound to the pivot,
+      // which is exactly the pair of facts such a crash leaves behind. In it
+      // the countermeasure PASSES, the pivot really is re-entered, and the only
+      // thing standing between a restart and a second publish is the
+      // retention-bounded job-id dedupe. This pins WHICH absorber is
+      // load-bearing here, rather than letting the stronger claim cover both.
       const { harness: crashed } = await bootHarness("draft-retry-crashed");
       const interrupted = await seedPivotInterruptedSaga(crashed, "draftretry");
       sagaId = interrupted.sagaId;
@@ -1369,10 +1411,14 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
 
       assert.strictEqual(
         interrupted.postBefore.status,
-        "DRAFT",
-        "the premise: a full saga run leaves the post in DRAFT, because neither the saga's " +
-          "post-pivot step nor the publish worker ever writes the status column"
+        "PUBLISHED",
+        "the run this rewinds really did promote the post, so the DRAFT below is a state this " +
+          "scenario constructs deliberately and not one the saga leaves behind"
       );
+      await base.post.update({
+        where: { id: postId },
+        data: { status: "DRAFT", publishedAt: null },
+      });
 
       await base.sagaInstance.update({
         where: { id: sagaId },
@@ -1401,18 +1447,24 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     it("really re-enters the pivot: the reread countermeasure does NOT refuse a DRAFT post", async () => {
       // Without this the scenario would be indistinguishable from the promoted
       // one — a refused replay also leaves the queue untouched. The saga walking
-      // PAST the pivot and dying on the post-pivot OCC token is the proof that
-      // the pivot itself ran.
-      assert.doesNotMatch(
-        String(terminal.error),
-        /Reread check failed/i,
-        "the countermeasure passes while the post is still DRAFT, which is exactly the window " +
-          "in which it protects nothing"
+      // PAST the pivot and reaching a terminal state of its own is the proof
+      // that the pivot itself ran. COMPLETED carries the reread check on its
+      // own: a refusal terminates the saga FAILED with that error, so a
+      // separate `doesNotMatch(/Reread check failed/)` would assert nothing the
+      // next assertion does not already decide.
+      assert.strictEqual(
+        terminal.status,
+        "COMPLETED",
+        "and the saga settles by PROMOTING the post rather than dying on a stale token: the " +
+          "post-pivot step re-reads the aggregate on every attempt, so a re-entry that finds " +
+          "the post unpublished finishes the publication instead of failing a saga that " +
+          "genuinely succeeded"
       );
-      assert.match(
-        String(terminal.error),
-        /version conflict/i,
-        "the saga advanced past the re-entered pivot and settled on the post-pivot conflict"
+      const postAfter = await postSnapshot(postId);
+      assert.strictEqual(
+        postAfter.status,
+        "PUBLISHED",
+        "measured on the row, not inferred from the saga status"
       );
     });
 

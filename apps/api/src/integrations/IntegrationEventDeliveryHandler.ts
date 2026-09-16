@@ -24,13 +24,24 @@ import { logger } from "../lib/logger.js";
  * `POST /zapier/subscribe { event, targetUrl }`. Internal renames must NOT
  * leak through this surface — change the right column only when the public
  * contract changes (breaking change for subscribers).
+ *
+ * `PostPublishingStarted` is DELIBERATELY ABSENT, and its absence is a decision
+ * rather than an omission. Two facts make delivering it unsound. Its timing is
+ * COUNTERFACTUAL: the hop that emits it runs after the provider has already
+ * published, so a subscriber would be told publishing started at a moment when
+ * it had finished. And the fan-out is BEST-EFFORT — `fire()` is a
+ * `Promise.allSettled` with no per-subscription retry, and the relay marks the
+ * outbox row published once dispatch resolves — so "a subscriber never sees
+ * started without published" could not be guaranteed across two independently
+ * delivered rows. Keeping the event internal makes that invariant hold by
+ * construction. The outbox row is still written: it is the aggregate's own
+ * transition event, committed by the same transaction as the status.
  */
 export const INTEGRATION_EVENT_NAMES: Readonly<Record<string, string>> = Object.freeze({
   PostCreated: "post.created",
   PostContentUpdated: "post.updated",
   PostScheduled: "post.scheduled",
   PostUnscheduled: "post.unscheduled",
-  PostPublishingStarted: "post.publishing_started",
   PostPublished: "post.published",
   PostPublishingFailed: "post.failed",
   PostCancelled: "post.cancelled",

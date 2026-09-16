@@ -39,8 +39,11 @@ describe("CreatePostCommandHandler", () => {
     expect(result.success).toBeTruthy();
     expect(result.data).toBeTruthy();
     expect(result.data.postId).toBe(TEST_POST_ID);
-    // Fresh Posts start at version 0 — the OCC seed propagated to the saga's
-    // UpdatePostStatusStep as expectedVersion (Azure saga §15-20).
+    // Fresh Posts start at version 0 (the schema default + the AggregateRoot
+    // default). The saga's promotion step no longer forwards it as an OCC
+    // token: a create-time version never refreshes, so every retry of a
+    // still-editable DRAFT conflicted. The value is still reported to the
+    // caller, which is what this pins.
     expect(result.data.version).toBe(0);
   });
 
