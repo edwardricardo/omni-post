@@ -16,6 +16,7 @@ export const PUBLISH_STATUS = {
   SCHEDULED: "SCHEDULED",
   PUBLISHING: "PUBLISHING",
   PUBLISHED: "PUBLISHED",
+  PARTIALLY_PUBLISHED: "PARTIALLY_PUBLISHED",
   FAILED: "FAILED",
   CANCELLED: "CANCELLED",
 } as const;
@@ -41,8 +42,16 @@ const VALID_TRANSITIONS: Record<PublishStatusValue, PublishStatusValue[]> = {
     PUBLISH_STATUS.CANCELLED,
     PUBLISH_STATUS.DRAFT,
   ],
-  [PUBLISH_STATUS.PUBLISHING]: [PUBLISH_STATUS.PUBLISHED, PUBLISH_STATUS.FAILED],
+  [PUBLISH_STATUS.PUBLISHING]: [
+    PUBLISH_STATUS.PUBLISHED,
+    PUBLISH_STATUS.PARTIALLY_PUBLISHED,
+    PUBLISH_STATUS.FAILED,
+  ],
   [PUBLISH_STATUS.PUBLISHED]: [], // Terminal state
+  // A resting state, not a terminal one: the channels that did not publish can be
+  // re-driven, and that re-drive re-enters the publication family. There is
+  // deliberately NO edge back to DRAFT, SCHEDULED or CANCELLED — content is live.
+  [PUBLISH_STATUS.PARTIALLY_PUBLISHED]: [PUBLISH_STATUS.PUBLISHING],
   [PUBLISH_STATUS.FAILED]: [
     PUBLISH_STATUS.DRAFT,
     PUBLISH_STATUS.SCHEDULED,
@@ -108,6 +117,10 @@ export class PublishStatus {
     return new PublishStatus(PUBLISH_STATUS.PUBLISHED);
   }
 
+  static partiallyPublished(): PublishStatus {
+    return new PublishStatus(PUBLISH_STATUS.PARTIALLY_PUBLISHED);
+  }
+
   static failed(): PublishStatus {
     return new PublishStatus(PUBLISH_STATUS.FAILED);
   }
@@ -154,6 +167,23 @@ export class PublishStatus {
 
   isPublished(): boolean {
     return this._value === PUBLISH_STATUS.PUBLISHED;
+  }
+
+  isPartiallyPublished(): boolean {
+    return this._value === PUBLISH_STATUS.PARTIALLY_PUBLISHED;
+  }
+
+  /**
+   * Whether the word belongs to the publication family — the words a post can only
+   * hold because its per-channel record says so.
+   */
+  isPublicationFamily(): boolean {
+    return (
+      this._value === PUBLISH_STATUS.PUBLISHING ||
+      this._value === PUBLISH_STATUS.PUBLISHED ||
+      this._value === PUBLISH_STATUS.PARTIALLY_PUBLISHED ||
+      this._value === PUBLISH_STATUS.FAILED
+    );
   }
 
   isFailed(): boolean {
