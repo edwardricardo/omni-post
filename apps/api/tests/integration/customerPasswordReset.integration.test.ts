@@ -46,6 +46,7 @@ import { RequestPasswordResetUseCase } from "@core/customer-auth/RequestPassword
 import { ResetPasswordUseCase } from "@core/customer-auth/ResetPasswordUseCase.js";
 import { createSeedPrismaClient, assertSeedChannelConfigured } from "./helpers/seedPrismaClient.js";
 import {
+  ambientTenantContextProvider,
   getTenantContext,
   getSystemContext,
   withTenantContext,
@@ -57,7 +58,7 @@ import { PrismaCustomerUserRepository } from "../../src/infrastructure/repositor
 import { PrismaCustomerRoleRepository } from "../../src/infrastructure/repositories/PrismaCustomerRoleRepository.js";
 import { PrismaAccountRepository } from "../../src/infrastructure/repositories/PrismaAccountRepository.js";
 import { PrismaAccountQueryRepository } from "../../src/infrastructure/repositories/PrismaAccountQueryRepository.js";
-import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { Argon2PasswordHasher } from "../../src/infrastructure/adapters/Argon2PasswordHasher.js";
 import { CustomerTokenServiceAdapter } from "../../src/infrastructure/adapters/CustomerTokenServiceAdapter.js";
 import { customerAuthRoutes } from "../../src/auth/customerAuthRoutes.js";
@@ -215,7 +216,7 @@ describe("Customer password reset — persisted outcomes through the guarded cli
     guarded = base.$extends(tenantGuardExtension(observingProvider)) as unknown as PrismaClient;
 
     const customerUserRepo = new PrismaCustomerUserRepository(guarded);
-    const unitOfWork = new PrismaUnitOfWork(guarded);
+    const unitOfWork = new PrismaUnitOfWork(guarded, ambientTenantContextProvider);
     const emailPort = {
       send: async (options: { to: string[]; subject: string; body: string; html?: string }) => {
         sentEmails.push({ to: options.to, body: options.body });
@@ -695,7 +696,7 @@ describe("Customer password reset — persisted outcomes through the guarded cli
       const accountId = await seedAccount("rollback");
       const user = await seedUser(accountId, { withToken: false });
       const repo = new PrismaCustomerUserRepository(guarded);
-      const unitOfWork = new PrismaUnitOfWork(guarded);
+      const unitOfWork = new PrismaUnitOfWork(guarded, ambientTenantContextProvider);
       const rolledBackHash = await hasher.hash("rolled-back-password-value");
 
       await assert.rejects(

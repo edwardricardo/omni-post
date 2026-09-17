@@ -29,17 +29,24 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isGucBound } from "../../../../../infra/prisma/src/extensions/tenantGuc.js";
-import { PrismaUnitOfWork } from "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { withTenantTransaction } from "../../../src/infrastructure/unitofwork/tenantTransaction.js";
+import { ambientTenantContextProvider } from "../../../src/security/tenantContext.js";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
-const apiSrc = join(currentDir, "..", "..", "..", "src");
+/**
+ * Keys are repo-root-relative because the seam sites no longer share one root: the Post
+ * persistence adapters live in `@adapters/db-prisma`, so a key relative to the API source
+ * tree could not name them at all.
+ */
+const repoRoot = join(currentDir, "..", "..", "..", "..", "..");
+const apiSrc = join(repoRoot, "apps", "api", "src");
 
 /**
  * The ONE module allowed to call the seam on another site's behalf. Everything else either
  * goes through it or answers the nesting question in its own file.
  */
-const HELPER = "infrastructure/unitofwork/tenantTransaction.ts";
+const HELPER = "apps/api/src/infrastructure/unitofwork/tenantTransaction.ts";
 
 /**
  * Sites that adjudicate nesting IN FILE, by checking for an active unit of work before
@@ -47,9 +54,9 @@ const HELPER = "infrastructure/unitofwork/tenantTransaction.ts";
  * is actually there — a name here with no check is a violation, not an exemption.
  */
 const INLINE_ADJUDICATED = [
-  "infrastructure/repositories/PrismaPostRepository.ts",
-  "infrastructure/repositories/PrismaProjectRepository.ts",
-  "infrastructure/repositories/PrismaAccountRepository.ts",
+  "packages/adapters/db-prisma/src/post/PrismaPostRepository.ts",
+  "apps/api/src/infrastructure/repositories/PrismaProjectRepository.ts",
+  "apps/api/src/infrastructure/repositories/PrismaAccountRepository.ts",
 ];
 
 /**
@@ -58,18 +65,20 @@ const INLINE_ADJUDICATED = [
  * same thing at the call site; this list is what keeps the set closed.
  */
 const INDEPENDENT_BY_DESIGN: Record<string, string> = {
-  "events/EventStore.ts":
+  "apps/api/src/events/EventStore.ts":
     "the event store offers appendInTx(tx, ...) as its enlisting door, so a caller that " +
     "wants its events in the caller's transaction asks for it explicitly",
-  "saga/sagaTenant.ts":
+  "apps/api/src/saga/sagaTenant.ts":
     "the saga primitives OPEN the transaction a saga step runs in; they are never reached " +
     "from inside one",
-  "infrastructure/outbox/OutboxClaimService.ts":
+  "apps/api/src/infrastructure/outbox/OutboxClaimService.ts":
     "the claim loop is a top-level background pass, not a step of anyone's unit of work",
-  "outbox/outboxAdminRoutes.ts": "a route handler is the outermost frame of its own request",
-  "billing/gatewaySwitchProcessor.ts": "a queue processor is the outermost frame of its job",
-  "admin/SchedulingPostHandlers.ts": "an admin route handler is the outermost frame",
-  "admin/SchedulingSlotHandlers.ts": "an admin route handler is the outermost frame",
+  "apps/api/src/outbox/outboxAdminRoutes.ts":
+    "a route handler is the outermost frame of its own request",
+  "apps/api/src/billing/gatewaySwitchProcessor.ts":
+    "a queue processor is the outermost frame of its job",
+  "apps/api/src/admin/SchedulingPostHandlers.ts": "an admin route handler is the outermost frame",
+  "apps/api/src/admin/SchedulingSlotHandlers.ts": "an admin route handler is the outermost frame",
 };
 
 /** Every `.ts` under a directory, excluding declaration files. */
@@ -114,7 +123,7 @@ describe("withTenantTransaction", () => {
         return fn(tx);
       },
     };
-    const unitOfWork = new PrismaUnitOfWork(client as never);
+    const unitOfWork = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
     let receivedTheUnitOfWorksClient = false;
     await unitOfWork.executeInTransaction(async () => {
@@ -177,7 +186,7 @@ describe("nesting adjudication across the transaction seam", () => {
       .filter((path) =>
         /withGucBoundTransaction\(|withTenantTransaction\(/.test(readFileSync(path, "utf8"))
       )
-      .map((path) => relative(apiSrc, path).split("\\").join("/"));
+      .map((path) => relative(repoRoot, path).split("\\").join("/"));
 
     // Non-vacuity: the seam has a known population, and a scan that suddenly matches almost
     // nothing has stopped measuring rather than started passing.
@@ -186,7 +195,7 @@ describe("nesting adjudication across the transaction seam", () => {
     const unadjudicated = openers.filter((relPath) => {
       if (relPath === HELPER) return false;
       if (INDEPENDENT_BY_DESIGN[relPath] !== undefined) return false;
-      const source = readFileSync(join(apiSrc, relPath), "utf8");
+      const source = readFileSync(join(repoRoot, relPath), "utf8");
       // Through the helper, or by checking for the active unit of work in this very file.
       if (/withTenantTransaction\(/.test(source)) return false;
       return !/PrismaUnitOfWork\.getTransactionClient\(\)/.test(source);
@@ -197,7 +206,7 @@ describe("nesting adjudication across the transaction seam", () => {
 
   it("keeps the inline adjudicators honest — a name is not an exemption", () => {
     for (const relPath of INLINE_ADJUDICATED) {
-      const source = readFileSync(join(apiSrc, relPath), "utf8");
+      const source = readFileSync(join(repoRoot, relPath), "utf8");
       expect(
         /PrismaUnitOfWork\.getTransactionClient\(\)/.test(source),
         `${relPath} is listed as adjudicating nesting in file but does not check for an active unit of work`
@@ -207,7 +216,7 @@ describe("nesting adjudication across the transaction seam", () => {
 
   it("states a reason beside every site declared independent of its caller's transaction", () => {
     for (const [relPath, reason] of Object.entries(INDEPENDENT_BY_DESIGN)) {
-      const source = readFileSync(join(apiSrc, relPath), "utf8");
+      const source = readFileSync(join(repoRoot, relPath), "utf8");
       expect(reason.length, `${relPath} is declared independent with no reason`).toBeGreaterThan(
         20
       );

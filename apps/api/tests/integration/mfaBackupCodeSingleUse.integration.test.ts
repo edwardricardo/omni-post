@@ -35,7 +35,8 @@ import type { Result } from "@shared/types";
 import { PrismaCustomerMfaUserRepository } from "../../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js";
 import { PrismaAdminMfaUserRepository } from "../../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js";
 import { PrismaAuditLogRepository } from "../../src/infrastructure/repositories/PrismaAuditLogRepository.js";
-import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
+import { ambientTenantContextProvider } from "../../src/security/tenantContext.js";
 import { MfaService } from "../../src/admin/auth/MfaService.js";
 import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 import {
@@ -346,7 +347,7 @@ describe("Backup-code single-use (integration)", () => {
       adminRepo,
       customerRepoLocal,
       auditRepo,
-      new PrismaUnitOfWork(prisma),
+      new PrismaUnitOfWork(prisma, ambientTenantContextProvider),
       makeMetricsSpy().metrics
     );
     const subject = { type: MFA_SUBJECT_TYPE.CUSTOMER, id: fixture.customerId } as const;
@@ -388,7 +389,7 @@ describe("Backup-code single-use (integration)", () => {
       adminRepo,
       plainRepo,
       auditRepo,
-      new PrismaUnitOfWork(prisma),
+      new PrismaUnitOfWork(prisma, ambientTenantContextProvider),
       spy.metrics
     );
     const enrolled = await createEnrolledCustomer(prisma, winner, `mfa-staggered-${Date.now()}`);
@@ -407,7 +408,7 @@ describe("Backup-code single-use (integration)", () => {
       adminRepo,
       barrierRepo,
       auditRepo,
-      new PrismaUnitOfWork(prisma, { timeout: 30_000 }),
+      new PrismaUnitOfWork(prisma, ambientTenantContextProvider, { timeout: 30_000 }),
       spy.metrics
     );
 
@@ -484,7 +485,7 @@ describe("Backup-code single-use (integration)", () => {
       adminRepo,
       plainRepo,
       auditRepo,
-      new PrismaUnitOfWork(prisma),
+      new PrismaUnitOfWork(prisma, ambientTenantContextProvider),
       spy.metrics
     );
     const enrolled = await createEnrolledCustomer(prisma, service, `mfa-sibling-${Date.now()}`);

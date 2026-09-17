@@ -142,8 +142,9 @@ describe("setupAccountUseCases", () => {
 
   it("delivers Serializable isolation and the sized timeout to the ACTUAL transaction it opens", async () => {
     // The test above proves WHICH tokens the factory resolves. That is not the
-    // guarantee: `new PrismaUnitOfWork(prisma)` resolves exactly the same tokens as
-    // `new PrismaUnitOfWork(prisma, HARD_DELETE_TX_OPTIONS)`, so dropping the options
+    // guarantee: `new PrismaUnitOfWork(prisma, tenantProvider)` resolves exactly the same
+    // tokens as `new PrismaUnitOfWork(prisma, tenantProvider, HARD_DELETE_TX_OPTIONS)`,
+    // so dropping the options
     // argument — the ONLY live carrier of Serializable isolation on the production
     // path, because the adapter's own `$transaction` branch is dead whenever a Unit of
     // Work is active — left the whole suite green. So this drives the composed use

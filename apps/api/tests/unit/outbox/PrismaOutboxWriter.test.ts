@@ -10,7 +10,7 @@
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
-import { PrismaOutboxWriter } from "../../../src/infrastructure/outbox/PrismaOutboxWriter.js";
+import { PrismaOutboxWriter } from "@adapters/db-prisma";
 import type { DomainEvent } from "@core/domain/events/DomainEvent.js";
 
 describe("PrismaOutboxWriter", () => {

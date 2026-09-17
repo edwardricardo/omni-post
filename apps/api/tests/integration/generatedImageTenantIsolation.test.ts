@@ -31,10 +31,14 @@ import type {
   ImageGenerationPort,
   ImageGenerationOptions,
 } from "@core/domain/repositories/ImageGenerationPort.js";
-import { getTenantContext, getSystemContext } from "../../src/security/tenantContext.js";
+import {
+  ambientTenantContextProvider,
+  getTenantContext,
+  getSystemContext,
+} from "../../src/security/tenantContext.js";
 import { Container } from "../../src/infrastructure/container/Container.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
-import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { PrismaProjectRepository } from "../../src/infrastructure/repositories/PrismaProjectRepository.js";
 import { PrismaGeneratedImageRepository } from "../../src/infrastructure/repositories/PrismaGeneratedImageRepository.js";
 import { PrismaUsageMetricRepository } from "../../src/infrastructure/repositories/PrismaUsageMetricRepository.js";
@@ -157,7 +161,11 @@ describe("GeneratedImage — two-tenant isolation (MERGE-BLOCKING)", () => {
     container.registerInstance(TOKENS.GeneratedImageRepository, generatedImageRepo);
     container.registerInstance(TOKENS.UsageMetricRepository, usageRepo);
     // UnitOfWork is transient per canon (new instance per resolve).
-    container.register(TOKENS.UnitOfWork, () => new PrismaUnitOfWork(guarded), false);
+    container.register(
+      TOKENS.UnitOfWork,
+      () => new PrismaUnitOfWork(guarded, ambientTenantContextProvider),
+      false
+    );
     // Override the image-generation port with the sentinel spy fake.
     container.registerInstance(TOKENS.ImageGenerationPort, sentinelImageGen);
     container.register(

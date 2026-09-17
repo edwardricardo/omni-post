@@ -76,6 +76,7 @@ import {
 } from "@core/posts/index.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
 import {
+  ambientTenantContextProvider,
   getSystemContext,
   getTenantContext,
   withTenantContext,
@@ -86,7 +87,7 @@ import type { SagaManagerLifecycle } from "../../src/saga/SagaManagerLifecycle.j
 import { CQRSBusImpl } from "../../src/cqrs/CQRSBus.js";
 import { EventService } from "../../src/events/EventService.js";
 import { logger } from "../../src/lib/logger.js";
-import { PrismaPostRepository } from "../../src/infrastructure/repositories/PrismaPostRepository.js";
+import { PrismaPostRepository, PrismaUnitOfWork } from "@adapters/db-prisma";
 import { PrismaChannelRepository } from "../../src/infrastructure/repositories/PrismaChannelRepository.js";
 import { PrismaProjectRepository } from "../../src/infrastructure/repositories/PrismaProjectRepository.js";
 import { ChannelCredentialsCrypto } from "../../src/security/ChannelCredentialsCrypto.js";
@@ -97,7 +98,6 @@ import {
   UpdatePostCommandHandler,
   CompletePostPublishingCommandHandler,
 } from "../../src/cqrs/handlers/PostCommandHandlers.js";
-import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
 
 const TAG = `saga-crash-${Date.now()}`;
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
@@ -802,7 +802,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     // real use case and the real version-guarded repository update. A harness
     // that answered the command itself would be asserting its own tolerance,
     // not the engine's.
-    postRepository = new PrismaPostRepository(guarded);
+    postRepository = new PrismaPostRepository(guarded, undefined, ambientTenantContextProvider);
     projectRepository = new PrismaProjectRepository(guarded);
     channelRepository = new PrismaChannelRepository(
       guarded,
@@ -819,7 +819,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       completePostPublishingUseCase: new CompletePostPublishingUseCase(
         postRepository,
         channelRepository,
-        new PrismaUnitOfWork(guarded)
+        new PrismaUnitOfWork(guarded, ambientTenantContextProvider)
       ),
       postRepository,
       channelRepository,

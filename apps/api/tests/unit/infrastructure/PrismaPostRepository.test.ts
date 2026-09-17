@@ -11,8 +11,9 @@
  */
 
 import { describe, it, beforeEach, beforeAll, afterAll, vi, expect } from "vitest";
-import { PrismaPostRepository } from "../../../src/infrastructure/repositories/PrismaPostRepository.js";
+import { PrismaPostRepository } from "@adapters/db-prisma";
 import { PostId, ProjectId, PUBLISH_STATUS } from "@core/domain/index.js";
+import { ambientTenantContextProvider } from "../../../src/security/tenantContext.js";
 
 // ── console suppression ───────────────────────────────────────────────────────
 
@@ -103,6 +104,9 @@ function makeTransactionMockClient() {
     contentVersion: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     tweet: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     thread: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    // The seam binds `app.account_id` as the transaction's first statement whenever
+    // the resolved scope is defined, and it issues that through `$executeRaw`.
+    $executeRaw: vi.fn(async () => 1),
   };
 }
 
@@ -147,7 +151,7 @@ describe("PrismaPostRepository", () => {
 
   beforeEach(() => {
     prisma = makeMockPrisma();
-    repo = new PrismaPostRepository(prisma as never);
+    repo = new PrismaPostRepository(prisma as never, undefined, ambientTenantContextProvider);
   });
 
   // ── findById ────────────────────────────────────────────────────────────────
@@ -394,6 +398,33 @@ describe("PrismaPostRepository", () => {
       };
       expect(postArgs?.data?.accountId).toBe(ACCOUNT_ID);
       expect(contentArgs?.data?.accountId).toBe(ACCOUNT_ID);
+    });
+
+    it("binds the scope the INJECTED provider reports as the transaction's first statement", async () => {
+      // exists() returns false → the standalone create path, which opens its own
+      // GUC-bound transaction because no unit of work is active.
+      prisma.post.count.mockImplementation(async () => 0);
+      const injectedProvider = {
+        getTenantContext: () => ({ accountId: "acc-injected" }),
+        getSystemContext: () => undefined,
+      };
+      const injectedRepo = new PrismaPostRepository(prisma as never, undefined, injectedProvider);
+
+      const postResult = await import("@core/domain/index.js").then((m) =>
+        m.PostAggregate.create({
+          projectId: ProjectId.fromStringUnsafe(PROJECT_ID),
+          body: "New post content",
+        })
+      );
+      expect(postResult.ok).toBeTruthy();
+
+      const saveResult = await injectedRepo.save(postResult.value);
+
+      expect(saveResult.ok).toBeTruthy();
+      const tx = prisma._txClient;
+      const gucCall = tx.$executeRaw.mock.calls[0] as unknown as
+        [TemplateStringsArray, string] | undefined;
+      expect(gucCall?.[1]).toBe("acc-injected");
     });
 
     it("returns err when $transaction throws during create", async () => {

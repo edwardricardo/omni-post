@@ -44,13 +44,14 @@ import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 import { ChannelId, ProjectId } from "@core/domain/index.js";
 import { SetPrimaryChannelUseCase } from "@core/channels/index.js";
 import {
+  ambientTenantContextProvider,
   getTenantContext,
   getSystemContext,
   withTenantContext,
 } from "../../src/security/tenantContext.js";
 import { Container } from "../../src/infrastructure/container/Container.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
-import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { PrismaProjectRepository } from "../../src/infrastructure/repositories/PrismaProjectRepository.js";
 import { PrismaChannelRepository } from "../../src/infrastructure/repositories/PrismaChannelRepository.js";
 import { EncryptionService } from "../../src/security/EncryptionService.js";
@@ -156,7 +157,7 @@ describe("Channel — two-tenant isolation (MERGE-BLOCKING)", () => {
     const projectRepo = new PrismaProjectRepository(guarded);
     const setPrimaryUseCase = new SetPrimaryChannelUseCase(
       channelRepo,
-      new PrismaUnitOfWork(guarded)
+      new PrismaUnitOfWork(guarded, ambientTenantContextProvider)
     );
 
     const container = new Container();

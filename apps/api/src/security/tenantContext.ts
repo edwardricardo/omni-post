@@ -7,7 +7,7 @@
  *
  *   Mirror of `decryptAuditContext.ts` — same ALS pattern, separate store.
  *   Independent of the UnitOfWork transaction ALS in
- *   `apps/api/src/infrastructure/unitofwork/PrismaUnitOfWork.ts`.
+ *   `packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts`.
  *
  *   ## Three contexts model
  *

@@ -1413,6 +1413,14 @@ echo "$COUNT"   # expect 0
 # THROUGH the helper), and `db-prisma/ChannelRepository.ts` (the shipped worker-side explicit
 # pattern). Comment lines are dropped so prose naming `prisma.$transaction()` is not counted.
 #
+# `PrismaUnitOfWork` lives at `packages/adapters/db-prisma/src/unitofwork/` since the Post
+# persistence adapters were relocated there. The `/saga/sagaTenant\.ts:` term is INERT —
+# measured: `apps/api/src/saga/sagaTenant.ts` holds ZERO `.$transaction(` calls (its two
+# primitives open THROUGH `withGucBoundTransaction`), so the floor of 3 is carried by TWO
+# files: `PrismaUnitOfWork.ts` once and `db-prisma/src/ChannelRepository.ts` twice. The term
+# stays listed until its deletion is authorised, and it is named here so a reader does not
+# trust a list that is one-third fiction.
+#
 # FAIL-CLOSED. A zero that comes from the pattern no longer matching anything is not a clean
 # scan, it is a blind one: renaming the client method, moving the seams, or dropping the
 # scope directory would each print 0 forever. So the seams' own occurrences are counted and
@@ -1421,7 +1429,7 @@ set -uo pipefail
 for d in apps/api/src packages/adapters/db-prisma/src; do
   [ -d "$d" ] || { echo "fitness #40 scope error: '$d' does not exist — the scan would skip it silently and print 0."; exit 1; }
 done
-TX_SEAMS='/infrastructure/unitofwork/PrismaUnitOfWork\.ts:|/saga/sagaTenant\.ts:|/db-prisma/src/ChannelRepository\.ts:'
+TX_SEAMS='/db-prisma/src/unitofwork/PrismaUnitOfWork\.ts:|/saga/sagaTenant\.ts:|/db-prisma/src/ChannelRepository\.ts:'
 tx_calls() {
   grep -rnE "\.\\\$transaction\(" apps/api/src packages/adapters/db-prisma/src --include="*.ts" | \
     grep -vE "/node_modules/|/dist/|\.stryker|/tests/|\.test\.ts:" | \

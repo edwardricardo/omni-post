@@ -13,7 +13,8 @@ import { PrismaRoleRepository } from "../repositories/PrismaRoleRepository.js";
 import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
 import { PrismaAuditLogRepository } from "../repositories/PrismaAuditLogRepository.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
-import { PrismaPostRepository } from "../repositories/PrismaPostRepository.js";
+import { PrismaPostRepository, PrismaOutboxWriter, PrismaUnitOfWork } from "@adapters/db-prisma";
+import { ambientTenantContextProvider } from "../../security/tenantContext.js";
 import { PrismaPostQueryRepository } from "../repositories/PrismaPostQueryRepository.js";
 import { PrismaAccountRepository } from "../repositories/PrismaAccountRepository.js";
 import { PrismaAccountQueryRepository } from "../repositories/PrismaAccountQueryRepository.js";
@@ -36,9 +37,7 @@ import type { AnalyticsQueryRepository } from "@core/domain/repositories/Analyti
 import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import { PrismaApiKeyRepository } from "../repositories/PrismaApiKeyRepository.js";
 import type { ApiKeyRepository } from "@core/domain/repositories/ApiKeyRepository.js";
-import { PrismaOutboxWriter } from "../outbox/PrismaOutboxWriter.js";
 import type { OutboxWriter } from "@core/domain/repositories/OutboxWriter.js";
-import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 import type { UnitOfWork } from "@core/domain/index.js";
 import type { TrackedLinkRepository } from "@core/domain/repositories/TrackedLinkRepository.js";
 import { PrismaTrackedLinkRepository } from "../repositories/PrismaTrackedLinkRepository.js";
@@ -103,7 +102,8 @@ export function setupRepositories(container: Container): void {
     () =>
       new PrismaPostRepository(
         container.resolve(TOKENS.PrismaClient),
-        container.resolve<OutboxWriter>(TOKENS.OutboxWriter)
+        container.resolve<OutboxWriter>(TOKENS.OutboxWriter),
+        ambientTenantContextProvider
       ),
     true
   );
@@ -214,7 +214,8 @@ export function setupRepositories(container: Container): void {
   // Register Unit of Work
   container.register<UnitOfWork>(
     TOKENS.UnitOfWork,
-    () => new PrismaUnitOfWork(container.resolve(TOKENS.PrismaClient)),
+    () =>
+      new PrismaUnitOfWork(container.resolve(TOKENS.PrismaClient), ambientTenantContextProvider),
     true
   );
 

@@ -68,12 +68,14 @@ import {
   type GucBindingHost,
 } from "@infra/prisma/extensions/tenantGucBinding.js";
 import { PostAggregate, ProjectId, TrackedLink } from "@core/domain/index.js";
-import { PrismaPostRepository } from "../../src/infrastructure/repositories/PrismaPostRepository.js";
+import { PrismaPostRepository, PrismaUnitOfWork } from "@adapters/db-prisma";
 import { PrismaCrisisProjectRepository } from "../../src/infrastructure/repositories/PrismaCrisisProjectRepository.js";
 import { PrismaProjectRepository } from "../../src/infrastructure/repositories/PrismaProjectRepository.js";
 import { PrismaTrackedLinkRepository } from "../../src/infrastructure/repositories/PrismaTrackedLinkRepository.js";
-import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
-import { withTenantContext } from "../../src/security/tenantContext.js";
+import {
+  ambientTenantContextProvider,
+  withTenantContext,
+} from "../../src/security/tenantContext.js";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { assertAppRoleSession, createAppRoleClient } from "./helpers/appRoleClient.js";
 
@@ -172,7 +174,7 @@ describe("GUC binding and a repository-opened transaction", () => {
     extendedClient = guarded.$extends(
       bindingProbeExtension(guarded, accountId, control)
     ) as unknown as PrismaClient;
-    repository = new PrismaPostRepository(extendedClient);
+    repository = new PrismaPostRepository(extendedClient, undefined, ambientTenantContextProvider);
   });
 
   after(async () => {
@@ -269,10 +271,11 @@ describe("GUC binding and a repository-opened transaction", () => {
     const aggregate = created.value;
     createdPostIds.push(aggregate.id.value);
 
-    const unitOfWork = new PrismaUnitOfWork(extendedClient);
+    const unitOfWork = new PrismaUnitOfWork(extendedClient, ambientTenantContextProvider);
 
-    // The tenant context is bound because the unit of work resolves its own GUC scope from
-    // the ambient request context, and a scope-less run would never reach the branch this
+    // The tenant context is bound because the unit of work resolves its scope from the
+    // provider it was constructed with — here the ambient one — and a scope-less run would
+    // never reach the branch this
     // test is about: with no scope the binding passes everything through, so the write could
     // not escape even with the marker gone, and the assertion below would pass vacuously.
     await assert.rejects(
@@ -355,7 +358,7 @@ describe("a repository write inside a unit of work runs on the transaction's con
         getSystemContext: () => undefined,
       })
     ) as unknown as PrismaClient;
-    unitOfWork = new PrismaUnitOfWork(guardedClient);
+    unitOfWork = new PrismaUnitOfWork(guardedClient, ambientTenantContextProvider);
   });
 
   after(async () => {

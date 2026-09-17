@@ -43,14 +43,14 @@ import {
 import { createApp } from "../../src/index.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
 import {
+  ambientTenantContextProvider,
   getTenantContext,
   getSystemContext,
   withTenantContext,
   withSystemContext,
 } from "../../src/security/tenantContext.js";
-import { PrismaPostRepository } from "../../src/infrastructure/repositories/PrismaPostRepository.js";
+import { PrismaPostRepository, PrismaUnitOfWork } from "@adapters/db-prisma";
 import { PrismaRecurringPostRepository } from "../../src/infrastructure/repositories/PrismaRecurringPostRepository.js";
-import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { ProcessRecurrenceUseCase } from "@core/recurring/index.js";
 import { CreatePostUseCase } from "@core/posts/index.js";
@@ -436,7 +436,11 @@ describe("Post trio — data-layer tenant isolation", () => {
 
   describe("the create path refuses a foreign project without leaking an engine error", () => {
     it("CreatePostUseCase with B's projectId under A's context is NOT_FOUND and persists nothing", async () => {
-      const postRepository = new PrismaPostRepository(guarded);
+      const postRepository = new PrismaPostRepository(
+        guarded,
+        undefined,
+        ambientTenantContextProvider
+      );
       const useCase = new CreatePostUseCase(postRepository, new InMemoryEventDispatcher(), {
         incrementPostCreated: () => undefined,
         incrementPostPublished: () => undefined,
@@ -526,7 +530,7 @@ describe("Post trio — data-layer tenant isolation", () => {
     it("succeeds inside withSystemContext and derives the tenant from the recurrence's owner", async () => {
       const useCase = new ProcessRecurrenceUseCase(
         new PrismaRecurringPostRepository(guarded),
-        new PrismaUnitOfWork(guarded)
+        new PrismaUnitOfWork(guarded, ambientTenantContextProvider)
       );
       const result = await withSystemContext("recurrence-sweep", () => useCase.execute({}));
       assert.ok(
@@ -540,7 +544,7 @@ describe("Post trio — data-layer tenant isolation", () => {
     it("is blocked without a context wrap, proving the guard is active on the write path", async () => {
       const useCase = new ProcessRecurrenceUseCase(
         new PrismaRecurringPostRepository(guarded),
-        new PrismaUnitOfWork(guarded)
+        new PrismaUnitOfWork(guarded, ambientTenantContextProvider)
       );
       const result = await useCase.execute({});
       assert.ok(

@@ -22,8 +22,8 @@ import type { PrismaClient } from "@infra/prisma";
 import { InMemoryEventDispatcher } from "@core/domain/index.js";
 import { PrismaBulkScheduleBatchRepository } from "../../src/infrastructure/repositories/PrismaBulkScheduleBatchRepository.js";
 import { PrismaChannelRepository } from "../../src/infrastructure/repositories/PrismaChannelRepository.js";
-import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
-import { PrismaOutboxWriter } from "../../src/infrastructure/outbox/PrismaOutboxWriter.js";
+import { PrismaUnitOfWork, PrismaOutboxWriter } from "@adapters/db-prisma";
+import { ambientTenantContextProvider } from "../../src/security/tenantContext.js";
 import { ConfirmBulkScheduleUseCase } from "@core/bulk-scheduling/ConfirmBulkScheduleUseCase.js";
 import { BulkScheduleDispatchEventHandler } from "../../src/bulk-scheduling/BulkScheduleDispatchEventHandler.js";
 import type { SchedulingCsvRow } from "@core/bulk-scheduling/schedulingCsv.js";
@@ -81,7 +81,7 @@ describe("BulkSchedule outbox path — smoke e2e", () => {
     const batchRepo = new PrismaBulkScheduleBatchRepository(prisma);
     const channelRepo = new PrismaChannelRepository(prisma);
     const outboxWriter = new PrismaOutboxWriter();
-    const uow = new PrismaUnitOfWork(prisma);
+    const uow = new PrismaUnitOfWork(prisma, ambientTenantContextProvider);
 
     const confirmUseCase = new ConfirmBulkScheduleUseCase(
       batchRepo,
@@ -186,7 +186,7 @@ describe("BulkSchedule outbox path — smoke e2e", () => {
     const batchRepo = new PrismaBulkScheduleBatchRepository(prisma);
     const channelRepo = new PrismaChannelRepository(prisma);
     const outboxWriter = new PrismaOutboxWriter();
-    const uow = new PrismaUnitOfWork(prisma);
+    const uow = new PrismaUnitOfWork(prisma, ambientTenantContextProvider);
 
     const confirmUseCase = new ConfirmBulkScheduleUseCase(
       batchRepo,
@@ -248,7 +248,7 @@ describe("BulkSchedule outbox path — smoke e2e", () => {
     const batchRepo = new PrismaBulkScheduleBatchRepository(prisma);
     const channelRepo = new PrismaChannelRepository(prisma);
     const outboxWriter = new PrismaOutboxWriter();
-    const uow = new PrismaUnitOfWork(prisma);
+    const uow = new PrismaUnitOfWork(prisma, ambientTenantContextProvider);
 
     const confirmUseCase = new ConfirmBulkScheduleUseCase(
       batchRepo,

@@ -13,7 +13,7 @@ import type { CustomerUserRepository } from "@core/domain/repositories/CustomerU
 import { CustomerUser, type CustomerUserProps } from "@core/domain/entities/CustomerUser.js";
 import { EntityNotFoundError, type DomainError } from "@core/domain/errors/index.js";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
-import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { authLogger } from "../../lib/logger.js";
 
 /**

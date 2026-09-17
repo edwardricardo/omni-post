@@ -8,7 +8,8 @@
  *              (no DI container needed); workers import this directly.
  *
  *              The OutboxEvent row shape is the contract between this
- *              recorder and `OutboxRelay`/`PrismaOutboxWriter` in apps/api;
+ *              recorder, `PrismaOutboxWriter` in `@adapters/db-prisma` and
+ *              `OutboxRelay` in apps/api;
  *              both produce rows with `eventType`, `aggregateId`,
  *              `aggregateType`, `payload` (JSONB), `version`, `occurredAt`.
  *              Downstream consumers route by `eventType === "ChannelAuthFailed"`.

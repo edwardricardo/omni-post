@@ -14,8 +14,9 @@ import {
 } from "@core/accounts/index.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
+import { ambientTenantContextProvider } from "../../security/tenantContext.js";
 
 /**
  * @method setupAccountUseCases
@@ -70,6 +71,7 @@ export function setupAccountUseCases(container: Container): void {
         container.resolve<AccountRepositoryPort>(TOKENS.AccountRepository),
         new PrismaUnitOfWork(
           container.resolve<PrismaClient>(TOKENS.PrismaClient),
+          ambientTenantContextProvider,
           HARD_DELETE_TX_OPTIONS
         )
       ),

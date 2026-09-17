@@ -9,7 +9,7 @@ import type { Prisma, PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import { Project, ProjectId, AccountId, EntityNotFoundError } from "@core/domain/index.js";
 import type { CrisisProjectRepository } from "@core/crisis/types.js";
-import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 
 /** The interactive-transaction client Prisma hands a `$transaction` callback. */
 type TxClient = Prisma.TransactionClient;

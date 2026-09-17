@@ -8,10 +8,10 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { PrismaClient } from "@infra/prisma";
 import { Prisma } from "@infra/prisma";
-import { runWithBoundGuc } from "@infra/prisma/extensions/tenantGuc.js";
+import { resolveGucScope, runWithBoundGuc } from "@infra/prisma/extensions/tenantGuc.js";
+import type { TenantContextProvider } from "@infra/prisma/extensions/tenantGuard.js";
 import type { UnitOfWork } from "@core/domain/index.js";
 import type { Result } from "@shared/types";
-import { getAmbientGucScope } from "../../security/tenantContext.js";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -74,6 +74,7 @@ class TransactionRollbackSignal extends Error {
 export class PrismaUnitOfWork implements UnitOfWork {
   constructor(
     private readonly prisma: PrismaClient,
+    private readonly tenantProvider: TenantContextProvider,
     private readonly defaultOptions?: TransactionOptions
   ) {}
 
@@ -100,7 +101,7 @@ export class PrismaUnitOfWork implements UnitOfWork {
         // `set_config(name, value, is_local)` with is_local=true is the SQL
         // function form of `SET LOCAL` — scoped to this tx, auto-reset on
         // COMMIT/ROLLBACK, safe under pgbouncer/connection-pooled deploys.
-        const scope = getAmbientGucScope();
+        const scope = resolveGucScope(this.tenantProvider);
         if (scope !== undefined) {
           await tx.$queryRaw`SELECT set_config('app.account_id', ${scope}, true)`;
         }

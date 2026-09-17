@@ -14,7 +14,7 @@
 import { Prisma, type PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
 import type { MfaUserRecord, MfaUserRepositoryPort } from "@ports/core";
-import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 
 /**
  * Coerce the persisted `mfaBackupUsedAt` JSON into an index→ISO string map,

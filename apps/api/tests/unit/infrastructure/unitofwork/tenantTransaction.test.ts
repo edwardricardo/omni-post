@@ -16,7 +16,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { withTenantTransaction } from "../../../../src/infrastructure/unitofwork/tenantTransaction.js";
-import { PrismaUnitOfWork } from "../../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import * as tenantGuc from "@infra/prisma/extensions/tenantGuc.js";
 import { withTenantContext } from "../../../../src/security/tenantContext.js";
 

@@ -23,15 +23,15 @@ import { type PrismaClient } from "@infra/prisma";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
 import {
+  ambientTenantContextProvider,
   getTenantContext,
   getSystemContext,
   withSystemContext,
 } from "../../src/security/tenantContext.js";
 import { Container } from "../../src/infrastructure/container/Container.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
-import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork, PrismaPostRepository } from "@adapters/db-prisma";
 import { PrismaProjectRepository } from "../../src/infrastructure/repositories/PrismaProjectRepository.js";
-import { PrismaPostRepository } from "../../src/infrastructure/repositories/PrismaPostRepository.js";
 import { PrismaChannelRepository } from "../../src/infrastructure/repositories/PrismaChannelRepository.js";
 import { PrismaRecurringPostRepository } from "../../src/infrastructure/repositories/PrismaRecurringPostRepository.js";
 import {
@@ -135,7 +135,7 @@ describe("RecurringPost — two-tenant isolation (MERGE-BLOCKING)", () => {
 
     const recurringRepo = new PrismaRecurringPostRepository(guarded);
     const projectRepo = new PrismaProjectRepository(guarded);
-    const postRepo = new PrismaPostRepository(guarded);
+    const postRepo = new PrismaPostRepository(guarded, undefined, ambientTenantContextProvider);
     const channelRepo = new PrismaChannelRepository(guarded as never);
 
     const container = new Container();
@@ -144,7 +144,11 @@ describe("RecurringPost — two-tenant isolation (MERGE-BLOCKING)", () => {
     container.registerInstance(TOKENS.PostRepository, postRepo);
     container.registerInstance(TOKENS.ChannelRepository, channelRepo);
     container.registerInstance(TOKENS.RecurringPostRepository, recurringRepo);
-    container.register(TOKENS.UnitOfWork, () => new PrismaUnitOfWork(guarded), false);
+    container.register(
+      TOKENS.UnitOfWork,
+      () => new PrismaUnitOfWork(guarded, ambientTenantContextProvider),
+      false
+    );
     container.register(
       TOKENS.CreateRecurringPostUseCase,
       () =>
@@ -405,7 +409,7 @@ describe("RecurringPost — two-tenant isolation (MERGE-BLOCKING)", () => {
     it("ProcessRecurrenceUseCase SUCCEEDS inside withSystemContext('recurrence-sweep')", async () => {
       const processUseCase = new ProcessRecurrenceUseCase(
         new PrismaRecurringPostRepository(guarded),
-        new PrismaUnitOfWork(guarded)
+        new PrismaUnitOfWork(guarded, ambientTenantContextProvider)
       );
       // This is exactly the wrap RecurrenceScheduler.tick applies. Under the
       // system context the guard bypasses enforcement, so the cross-account
@@ -417,7 +421,7 @@ describe("RecurringPost — two-tenant isolation (MERGE-BLOCKING)", () => {
     it("the same sweep is BLOCKED without a context wrap (proves the guard is active on RecurringPost)", async () => {
       const processUseCase = new ProcessRecurrenceUseCase(
         new PrismaRecurringPostRepository(guarded),
-        new PrismaUnitOfWork(guarded)
+        new PrismaUnitOfWork(guarded, ambientTenantContextProvider)
       );
       // No tenant context bound: the guard throws TenantContextMissingError on the
       // enrolled RecurringPost findMany. The repo's defensive try/catch surfaces

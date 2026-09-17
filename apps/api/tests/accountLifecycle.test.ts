@@ -16,7 +16,8 @@ import { PrismaRoleRepository } from "../src/infrastructure/repositories/PrismaR
 import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/PrismaAuditLogRepository.js";
 import { AccountLifecycleQueryService } from "../src/admin/accountLifecycleQueryService.js";
 import { AccountSessionService } from "../src/admin/AccountSessionService.js";
-import { PrismaUnitOfWork } from "../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
+import { ambientTenantContextProvider } from "../src/security/tenantContext.js";
 import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.js";
 
 /**
@@ -49,7 +50,7 @@ const accountLifecycleService = new AccountLifecycleService(
   auditLogRepo,
   new AccountLifecycleQueryService(prisma),
   new AccountSessionService(adminUserRepo, sessionRepo, new PrismaAuditLogRepository(prisma)),
-  new PrismaUnitOfWork(prisma)
+  new PrismaUnitOfWork(prisma, ambientTenantContextProvider)
 );
 
 describe("Account Lifecycle Management", () => {
