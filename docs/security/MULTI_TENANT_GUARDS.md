@@ -1662,14 +1662,19 @@ either role posture. The GUC exists so provisioning a `NOSUPERUSER NOBYPASSRLS`
 role later cannot silently filter worker reads to zero rows and break publishing.
 
 **Fitness #23 scope note.** Check #23 (no raw `$queryRaw`/`$executeRaw` outside
-the sanctioned exceptions) greps `apps/api/src` and `apps/workers/src`.
+the sanctioned exceptions) greps `apps/api/src`, `apps/workers/src` and
+`packages/adapters/db-prisma/src` — the third joined the scope when the Post
+persistence adapters were relocated there, so the `PrismaUnitOfWork` exception
+follows the file instead of pointing at an address it left.
 `tenantGuc.ts` lives in `infra/prisma/src/extensions/` — the canonical home for
 tenant-isolation primitives, next to the guard and the RLS migrations — so it is
 outside the grep's scope **by placement, not by evasion**, exactly like the
-`PrismaUnitOfWork` `set_config` exception #23 already lists. Its raw statement
+`PrismaUnitOfWork` `set_config` exception #23 already lists at
+`packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts`. Its raw statement
 takes no caller-supplied SQL: `accountId` is a template parameter, and the helper
-has no other statement. Any NEW raw query under `apps/api/src` or
-`apps/workers/src` still needs an explicit exception and an ADR.
+has no other statement. Any NEW raw query under `apps/api/src`,
+`apps/workers/src` or `packages/adapters/db-prisma/src` still needs an explicit
+exception and an ADR.
 
 > **Blind spot found while verifying that scope claim (2026-07-27).** #23's regex
 > requires the CALL form `.$executeRaw(`, so the **tagged-template** form

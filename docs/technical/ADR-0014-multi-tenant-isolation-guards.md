@@ -117,7 +117,7 @@ production code path.
 **Files:**
 
 - `infra/prisma/migrations/20260527000000_add_rls_tenant_isolation/migration.sql`
-- `apps/api/src/unitofwork/PrismaUnitOfWork.ts` (set_config binding)
+- `packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts` (set_config binding)
 
 ### Layer 3 — Fitness function #23 (S2.1d, ratchet to hard-zero)
 

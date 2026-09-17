@@ -1,9 +1,10 @@
 # Apply progress: `post-persistence-adapter-relocation`
 
-**Batch 1 — work unit W1 only (T1.1 … T1.22).** Branch `workstream/post-persistence-adapter-relocation`
-(base `main` @ `c23ec2c8`). Artifact store: openspec. Mode: **Strict TDD** (active).
-Delivery: single PR, five work-unit commits; this batch ends at the W1 boundary and the
-ORCHESTRATOR commits. W2–W5 are batch 2.
+**Batch 1 — work unit W1 (T1.1 … T1.22)** and **batch 2 — work units W2–W5 (T2.1 … T5.4)**.
+Branch `workstream/post-persistence-adapter-relocation` (base `main` @ `c23ec2c8`, W1 committed
+as `ad8b7992`). Artifact store: openspec. Mode: **Strict TDD** (active).
+Delivery: single PR, five work-unit commits; each batch ends at a work-unit boundary and the
+ORCHESTRATOR commits. Batch 2 begins below at §"Batch 2".
 
 Every number below was produced by RUNNING the command quoted beside it in this batch. No
 number is carried over from the tasks forecast without re-measurement, and no command output
@@ -32,6 +33,14 @@ Consequences, all handled here:
 - No task changes meaning; **no other artifact needs amending**, but `design.md` D1/D8 and
   `tasks.md` T1.5 now name a path the tree does not have. Flagged for the verify phase rather
   than edited here — this batch does not own the design.
+- **RESOLVED in batch 2 (W5), as correction C10.** The file is NOT moved back: the flat layout
+  is what N-COR-8's own design already names (`post-publish-partial-failure/design.md:58` puts
+  the mapper "beside" the repository, and `:281` names
+  `packages/adapters/db-prisma/src/post/{PrismaPostRepository,PostAggregateMapper}.ts` — both
+  read at apply time). `design.md` (`:34`, D1 prose, the D8 barrel, the D13 accent grep),
+  `tasks.md` (T1.5 and the rename-headroom line) and `proposal.md:66` were amended to the flat
+  path, and a `C10` row was added to the design's corrections table. `explore.md:27-28` was NOT
+  touched: it describes the PRE-move tree and is still true.
 
 ---
 
@@ -360,17 +369,351 @@ PrismaCustomerUserRepository, PrismaAdminUserRepository, PrismaAccountSubscripti
 
 ## Backlog rows confirmed or added by this batch
 
-| Row      | Note                                                                                                                                                                                                                                                                             |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| B1       | `/saga/sagaTenant\.ts:` in #40 A is inert — **re-measured here**: the floor of 3 is carried by two files (`PrismaUnitOfWork.ts` ×1, `db-prisma/src/ChannelRepository.ts` ×2). Deletion still needs authorisation.                                                                |
-| B12      | The `autoUpdate` raise (59.2 / 59.5 / 49.6 / 58.7) is measured and unshipped.                                                                                                                                                                                                    |
-| B13      | Re-confirmed: no tsc project type-checks `apps/api/tests/**`; the 26 edited test files were validated by RUNNING them.                                                                                                                                                           |
-| SMELL-75 | Re-confirmed on two files this change edits (`bulkScheduleMediaPath`, `bulkScheduleRelayRetry`): no `run_batch` names them.                                                                                                                                                      |
-| **NEW**  | The mapper landed at `src/post/PostAggregateMapper.ts` rather than `src/post/mappers/`; `design.md` D1/D8 and `tasks.md` T1.5 name a path the tree does not have. Either amend those two artifacts or move the file in W2 — a decision for the orchestrator, not for this batch. |
+| Row      | Note                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B1       | `/saga/sagaTenant\.ts:` in #40 A is inert — **re-measured here**: the floor of 3 is carried by two files (`PrismaUnitOfWork.ts` ×1, `db-prisma/src/ChannelRepository.ts` ×2). Deletion still needs authorisation.                                                                                                                                                                               |
+| B12      | The `autoUpdate` raise (59.2 / 59.5 / 49.6 / 58.7) is measured and unshipped.                                                                                                                                                                                                                                                                                                                   |
+| B13      | Re-confirmed: no tsc project type-checks `apps/api/tests/**`; the 26 edited test files were validated by RUNNING them.                                                                                                                                                                                                                                                                          |
+| SMELL-75 | Re-confirmed on two files this change edits (`bulkScheduleMediaPath`, `bulkScheduleRelayRetry`): no `run_batch` names them.                                                                                                                                                                                                                                                                     |
+| **NEW**  | The mapper landed at `src/post/PostAggregateMapper.ts` rather than `src/post/mappers/`; `design.md` D1/D8 and `tasks.md` T1.5 name a path the tree does not have. Either amend those two artifacts or move the file in W2 — a decision for the orchestrator, not for this batch. **CLOSED in batch 2 as C10** — the artifacts were amended to the flat path, which is the one N-COR-8 consumes. |
+
+---
+
+# Batch 2 — work units W2, W3, W4, W5 (T2.1 … T5.4)
+
+Same rules as batch 1: every number below was produced by RUNNING the command quoted beside it,
+no git command was issued (fitness **#37** remains the one disclosed exception — its own shipped
+script performs read-only `git rev-parse` / `git show`, and there is no other way to evaluate it),
+and each edited gate ships with a red path that produced a REAL non-zero exit before a
+checksum-verified restore.
+
+## W2–W5 — task ledger
+
+| Task     | Status | Evidence                                                                                                                                                                                                                                                                                                                         |
+| -------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **T2.1** | [x]    | 13 Spanish comment blocks in `PrismaUnitOfWork.ts` translated (the `TransactionOptions` doc + its 3 field docs, the `txStorage` block, the class JSDoc, `executeInTransaction`'s doc, `getTransactionClient`'s doc and its two in-`@example` comments). The `@example` now shows `new PrismaUnitOfWork(prisma, tenantProvider)`. |
+| **T2.2** | [x]    | 5 single-line Spanish comments in `PrismaPostRepository.ts` translated (`:143`, `:559`, `:614`, `:655`, `:675` at batch-2 line numbers). The `DELIBERATE soft-delete-sweep exception` markers were not touched — see the measured correction C11 below.                                                                          |
+| **T2.3** | [x]    | Accent grep **0** over the four relocated files; the unaccented-Spanish sweep (a 24-word stop-list over comment lines) also **0**; every block explore §6 enumerates read back and confirmed English. `tsc -b` 0, fitness #8 / #9 / #10 all **0**. No sprint/phase/work-unit reference introduced.                               |
+| **T3.1** | [x]    | RED — `SEAM_FILE_POPULATION = 16` + the `toContain` loop added against W1's single-root walk. **Both halves observed** (transcript below): the count red, then the `toContain` red with the counting mask lowered.                                                                                                               |
+| **T3.2** | [x]    | GREEN — `SEAM_ROOTS` (4 roots) + `SEAM_ROOTS.flatMap((root) => walk(join(repoRoot, root)))`. Population back to **16**; suite 6/6 green. `apiSrc` was deleted because the flatMap retired its last use — leaving it would have been an unused binding and a lint error.                                                          |
+| **T3.3** | [x]    | The three D6 reds each produced a real failing run, then a byte-exact restore (`sha256sum -c` → OK) and a green re-run. Transcripts below.                                                                                                                                                                                       |
+| **T4.0** | [x]    | The `sensitive-edit` token was ACTIVE: every `CLAUDE.md` / `fitness.yml` edit went through the Edit tool, including the #23 bullet whose line carries the pre-existing `(S2.1c)` section marker (R13). No edit was blocked, nothing was paraphrased, no Bash write was used on either file.                                      |
+| **T4.1** | [x]    | #40 Part B: `PART_B_SCOPE` + its own fail-closed existence loop, `seam_call_sites()` repointed at `$PART_B_SCOPE`, the window test widened to `grep -qE "getAmbientGucScope\(\)\|resolveGucScope\(this\.tenantProvider\)"`, floor kept at **10**, `SCOPE_EXEMPT` kept at ONE file. Residuals (2), (4) AND (5) rewritten.         |
+| **T4.2** | [x]    | Three reds: (i) plant → `BCOUNT=1`, **exit 1**; (ii) same plant, scope narrowed to `apps/api/src` → `BCOUNT=0`, `SITES=10`; (iii) misspelled directory → scope error, **exit 1**. Restore `sha256sum -c` → OK; `SITES=13`, `BCOUNT=0`.                                                                                           |
+| **T4.3** | [x]    | #23 scope extended to `packages/adapters/db-prisma/src` in both files, the "Scope:" sentence updated, the UoW exception re-pathed to `/db-prisma/src/unitofwork/PrismaUnitOfWork\.ts`, and its bullet replaced by D4's TWO English bullets (the exception is INERT; `resilience.ts:308` gets NO exception line).                 |
+| **T4.4** | [x]    | #23 red, C2-corrected — planted in the relocated REPOSITORY, not the UoW: old scope **0** (the dead scope proving itself), new scope **1** with **exit 1**, restored **0**. Transcript below.                                                                                                                                    |
+| **T4.5** | [x]    | #3 names `packages/adapters/db-prisma` in the existence loop and the grep scope, with D5's one-sentence comment. Measured 0 at entry.                                                                                                                                                                                            |
+| **T4.6** | [x]    | #5 names `packages/adapters/db-prisma/src/` explicitly, with D5's comment stating WHY the one-level `packages/*/src/` glob never reached it and that the general widening is unmeasured.                                                                                                                                         |
+| **T4.7** | [x]    | #3 red: `const leak = {} as any;` → 1, **exit 1**, old scope 0. #5 red: `// @ts-ignore` → 1, **exit 1**, old scope 0. Byte-exact restore after each, both back to **0**.                                                                                                                                                         |
+| **T4.8** | [x]    | All **41** fitness checks run locally from the repo root; counts below. The edited grep expressions and scope lists compared token-by-token across the pair — identical.                                                                                                                                                         |
+| **T5.1** | [x]    | The 6 stale file-path citations re-pathed: ADR-0023 ×4, ADR-0014 `:120`, ADR-0005 `:195`.                                                                                                                                                                                                                                        |
+| **T5.2** | [x]    | `MULTI_TENANT_GUARDS.md` — BOTH #23 scope sentences extended (C9) and the exception mention now names the new UoW location. The two symbol-level mentions inside the DATED 2026-07-27 blind-spot blockquote were deliberately left — see C12.                                                                                    |
+| **T5.3** | [x]    | `TENANT_RLS_AB_MEASUREMENT.md` — ONE dated blockquote added under the title. Not one `Source site` citation touched; the `scripts/rls-ab-measurement.ts` `sourceSite` literals untouched (B10).                                                                                                                                  |
+| **T5.4** | [x]    | The C8 FILE-level deciding grep over `docs/technical docs/security` → **0** (6 before). `pnpm format:check` clean for every source, doc and this change's artifacts.                                                                                                                                                             |
+
+---
+
+## Corrections measured in batch 2
+
+| #       | Artifact said                                                                           | Measured now                                                                                                                                                                                                                                                                                  | Action                                                                                                                                                                                                                       |
+| ------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **C10** | D1/D8/T1.5: the mapper lands at `…/src/post/mappers/PostAggregateMapper.ts`             | It is FLAT at `…/src/post/PostAggregateMapper.ts`, which is the path N-COR-8's design already names                                                                                                                                                                                           | Artifacts amended (design `:34` + D1 prose + D8 barrel + D13 grep, tasks T1.5 + rename-headroom line, proposal `:66`, a `C10` row in the design corrections table). The file is NOT moved.                                   |
+| **C11** | T2.2: "leave the **three** `DELIBERATE soft-delete-sweep exception` markers byte-exact" | `PrismaPostRepository.ts` holds **TWO** (`:146` hard-delete probe, `:710` version-conflict recovery) — which is exactly what `CLAUDE.md` #38's own exception note for that file names. The other two `DELIBERATE` markers in db-prisma live in the FLAT `PostRepository.ts`, a different file | Nothing to do — both surviving markers are untouched and #38 re-measured **0 / 11**, unchanged. The tasks-time count of three was one too many; recorded so the next reader does not hunt for a marker that was never there. |
+| **C12** | T5.2: name the new UoW location in the exception mentions at `:1669` **and** `:1682`    | `:1682` / `:1687` sit INSIDE the dated `> **Blind spot found while verifying that scope claim (2026-07-27).**` blockquote, and both are SYMBOL-level (`PrismaUnitOfWork`), carrying no path — so nothing there is stale                                                                       | `:1669` updated; the dated blockquote left byte-exact. Rewriting a dated finding is the same class spec R8 forbids for `TENANT_RLS_AB_MEASUREMENT.md`. The file carries no full old path — the C8 grep confirms 0.           |
+| **C13** | The prompt's expected fitness counts include "#30 ratchet **21**"                       | The tree measures **20** unreached suites. Batch 2 edited exactly ONE test file, `tests/unit/infrastructure/tenantTransactionNesting.test.ts`, which #30's population EXCLUDES by path (`-not -path "*/tests/unit/*"`), so this batch cannot have moved it                                    | Reported, not absorbed. 20 ≤ 21 satisfies the ratchet (it may fall, never rise). The 20 names are listed below so the number is attributable rather than asserted. **The baseline in `CLAUDE.md` was NOT lowered.**          |
+
+---
+
+## TDD Cycle Evidence — batch 2 (Strict TDD)
+
+W2, W4 and W5 carry **no behaviour**: W2 is comment text, W4 is two shell gates, W5 is
+documentation. Their hard gate is the RED PATH of each edited gate, transcribed below, which is
+the same instrument applied to a non-code artifact. W3 is the one unit with a test change, and it
+ran RED → GREEN → REFACTOR.
+
+| Task     | RED (observed BEFORE the change that makes it pass)                                                                                                                                                                                            | GREEN                                                                                              | REFACTOR                                                                                                              |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **T3.1** | `AssertionError: expected 15 to be greater than or equal to 16` — then, with the counting mask lowered to 15, `AssertionError: packages/adapters/db-prisma/src/post/PrismaPostRepository.ts is named but was not walked`. **Both halves red.** | `SEAM_ROOTS.flatMap(...)` → population 16, `6 passed (6)`, exit 0                                  | `apiSrc` removed (its last use went with the flatMap); the `SEAM_ROOTS` JSDoc states why the FLAT files stay outside. |
+| **T2.x** | N/A — comment text. The standing proof is the accent grep + the unaccented-Spanish sweep + the block-by-block read-back, all **0** / confirmed.                                                                                                | `tsc -b` 0, 577 files / 8986 tests green, #8 / #9 / #10 = 0                                        | none                                                                                                                  |
+| **T4.x** | Five gate reds, each a REAL non-zero exit, transcribed below                                                                                                                                                                                   | every edited gate back to its expected count after a `sha256sum -c` restore                        | residual (5) rewritten so the gate's own comment stops claiming Part B is `apps/api/src` alone                        |
+| **T5.x** | The C8 FILE-level grep reported **6** stale citations before the edits                                                                                                                                                                         | the same grep reports **0** after, with `TENANT_RLS_AB_MEASUREMENT.md` outside the scope by design | none                                                                                                                  |
+
+---
+
+## Work Unit Evidence — W2, W3, W4, W5
+
+| WU     | Focused test command and exact result                                                                                                                | Runtime harness                                                                                                                                                  | Rollback boundary                                                                                                                     |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **W2** | `pnpm --filter @apps/api test` → **577 files / 8986 tests passed**, exit 0; `pnpm --filter @adapters/db-prisma test` → **4 files / 70 tests passed** | **N/A** — comments only, no runtime boundary exists. Stated rather than skipped: the bytes changed are inside `/** */` and `//` and cannot reach a runtime path. | Independently revertible; carries no behaviour.                                                                                       |
+| **W3** | `vitest run tests/unit/infrastructure/tenantTransactionNesting.test.ts` → **1 file / 6 tests passed**, exit 0                                        | **N/A** — the suite IS a filesystem walk over the repo; it needs no service. That is also why it is the guard that survives a relocation.                        | Independently revertible; the guard returns to W1's single-root walk, which is still green and still LOUD-half correct.               |
+| **W4** | the five edited gate blocks, each red then green (transcripts below); all **41** fitness checks green from the repo root                             | **N/A** — shell gates. Both surfaces were exercised: the `CLAUDE.md` block for the COUNT and the transcribed `fitness.yml` step for the REAL `exit 1`.           | Independently revertible, but NOT before W1 — W1 depends on the #40 Part A term it ships, and reverting W4 alone re-opens the window. |
+| **W5** | `pnpm format:check` clean for sources, docs and this change's artifacts; the C8 FILE-level grep → **0**                                              | **N/A** — documentation and SDD artifacts.                                                                                                                       | Independently revertible; docs only.                                                                                                  |
+
+---
+
+## T3.3 — nesting guard red transcripts
+
+Checksum before the plants: `05a99492226b0a8d421e5fe1cdf5a5ec3564d2bd6657876b773929701b9a747c`.
+
+```text
+### (i) the relocated root dropped from SEAM_ROOTS
+AssertionError: expected 15 to be greater than or equal to 16
+Test Files 1 failed (1) | Tests 1 failed | 5 passed (6)      EXIT=1
+
+### (iii) same drop, SEAM_FILE_POPULATION lowered to 15 — the counting mask stays closed
+AssertionError: packages/adapters/db-prisma/src/post/PrismaPostRepository.ts is named but was
+not walked: expected [ …(15) ] to include 'packages/adapters/db-prisma/src/post/…'
+Test Files 1 failed (1) | Tests 1 failed | 5 passed (6)      EXIT=1
+
+### (ii) one root misspelled — loud by design
+Error: ENOENT: no such file or directory, scandir
+'/root/omni-post/packages/adapters/db-prisma/src/postt'
+Test Files 1 failed (1) | Tests 1 failed | 5 passed (6)      EXIT=1
+
+### restore
+sha256sum -c → tenantTransactionNesting.test.ts: OK
+Test Files 1 passed (1) | Tests 6 passed (6)                 EXIT=0
+```
+
+---
+
+## T4.2 / T4.4 / T4.7 — gate red transcripts
+
+Checksum of the planted file before every plant:
+`c32abb08551269007e947673eb2c6aa3fdacf28be5d2bc97075f24d563446194`
+(`packages/adapters/db-prisma/src/post/PrismaPostRepository.ts`). `sha256sum -c` returned `OK`
+after each restore, and every gate was re-run green afterwards.
+
+**Method note.** The `CLAUDE.md` blocks and the `fitness.yml` steps were both executed. The
+`CLAUDE.md` block yields the COUNT; only the workflow step carries a failure mechanism, so the
+`exit 1` evidence comes from a verbatim transcription of the shipped step (10-space indent
+stripped, nothing else altered). The gate files themselves were never edited to manufacture a
+red — the one apparent exception, #40 Part B red (iii), mutates the TRANSCRIPTION's
+`PART_B_SCOPE` by a single character, because "a missing directory fails closed" is a property
+of the gate that cannot be provoked from the source tree without deleting a live directory.
+
+```text
+### #40 Part B (i) — scope derivation replaced at the relocated `create` site
+plant: resolveGucScope(this.tenantProvider) -> this.tenantProvider.getTenantContext()?.accountId
+Fitness #40 part A: 0 transactions opened outside the seam (expect 0)
+Fitness #40 part B: 1 seam calls with an underived scope (expect 0)
+::error title=Fitness #40 violation (part B)::1 seam call(s) bind a scope that is not
+`getAmbientGucScope()` or `resolveGucScope(this.tenantProvider)`. …
+packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:568:      await withGucBoundTransaction(
+EXIT=1                    CLAUDE.md block: SEAM_HITS=3 COUNT=0 SITES=13 BCOUNT=1
+
+### #40 Part B (ii) — SAME plant, Part B scope narrowed back to apps/api/src
+SEAM_HITS=3  COUNT=0  SITES=10  BCOUNT=0        EXIT=0
+                      ^^^^^^^^ floor exactly; the extension is what sees the violation
+
+### #40 Part B (iii) — one relocated directory misspelled in PART_B_SCOPE
+::error title=Fitness #40 scope error::Part B scope
+'packages/adapters/db-prisma/src/postt' does not exist — a relocated adapter home is gone, and
+the scan would skip it silently and print 0.
+EXIT=1
+
+### restored
+sha256sum -c → PrismaPostRepository.ts: OK
+Fitness #40 part A: 0 …   Fitness #40 part B: 0 …   EXIT=0
+SEAM_HITS=3  COUNT=0  SITES=13  BCOUNT=0
+```
+
+```text
+### #23 — plant in the relocated REPOSITORY (C2: the UoW is a whole-file exception)
+plant: await tx.$queryRawUnsafe("SELECT 1");   inside doCreate
+
+OLD scope (apps/api/src + apps/workers/src, old exception filter)
+  EXIT=0            ← the dead scope proving itself: 0 over a live violation
+
+NEW scope (shipped)
+::error title=Fitness #23 violation::1 raw Prisma query(s) outside tenant guard + composition root. …
+packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:621:    await tx.$queryRawUnsafe("SELECT 1");
+  EXIT=1            CLAUDE.md #23 block: 1
+
+restored → sha256sum -c OK · fitness.yml step EXIT=0 · CLAUDE.md #23 block: 0
+```
+
+```text
+### #3 — plant: const leak = {} as any;
+NEW scope: ::error title=Fitness #3 violation::1 `any` usages …
+           packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:621:    const leak = {} as any;
+           EXIT=1        CLAUDE.md #3 block: 1
+OLD scope: EXIT=0
+
+### #5 — plant: // @ts-ignore
+NEW scope: ::error title=Fitness #5 violation::1 @ts-ignore/@ts-nocheck in production source …
+           packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:621:    // @ts-ignore
+           EXIT=1        CLAUDE.md #5 block: 1
+OLD scope: EXIT=0
+
+### restored
+sha256sum -c → PrismaPostRepository.ts: OK ; #3 = 0, #5 = 0, #23 = 0, #40 A/B = 0/0
+```
+
+---
+
+## Guard-pair byte identity (spec R5, T4.8)
+
+Compared after trimming the `fitness.yml` indentation. The grep EXPRESSIONS and scope lists are
+identical; the shell plumbing and the messages differ by design, exactly as the design's rev 1.1
+qualifier states (`CLAUDE.md` pipes to `wc -l`, `fitness.yml` captures `MATCHES=$(…)` and exits
+under `::error title=…`).
+
+```text
+PART_B_SCOPE="apps/api/src packages/adapters/db-prisma/src/post packages/adapters/db-prisma/src/outbox packages/adapters/db-prisma/src/unitofwork"   IDENTICAL
+for d in $PART_B_SCOPE; do                                                                        IDENTICAL
+grep -rnE "withGucBoundTransaction\(" $PART_B_SCOPE --include="*.ts" | \                          IDENTICAL
+sed -n "${ln},$((ln + 3))p" "$file" | grep -qE "getAmbientGucScope\(\)|resolveGucScope\(this\.tenantProvider\)"   IDENTICAL
+SCOPE_EXEMPT='/saga/sagaTenant\.ts:'                                                              IDENTICAL   (still ONE file)
+floor literal  -lt 10                                                                             IDENTICAL
+TX_SEAMS='…' (W1)                                                                                 IDENTICAL
+#3  scope list: packages/core apps/api/src/infrastructure packages/adapters/db-prisma             IDENTICAL
+#5  scope list: apps/api/src/ packages/*/src/ packages/adapters/db-prisma/src/                    IDENTICAL
+#23 scope list: apps/api/src apps/workers/src packages/adapters/db-prisma/src --include="*.ts" 2>/dev/null   IDENTICAL
+#23 exception filter: grep -vE "/db-prisma/src/unitofwork/PrismaUnitOfWork\.ts"                   IDENTICAL
+```
+
+---
+
+## Final gate — batch 2
+
+| Gate                         | Command                                                                                        | Result                                                                                                                                                                                          |
+| ---------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lint                         | `pnpm exec eslint apps packages infra --ext .ts,.tsx --max-warnings 0`                         | **exit 0** — 0 errors, 0 warnings (the only output is 3 pre-existing `[boundaries]` plugin deprecation notices, which the plugin prints on every run and which `--max-warnings` does not count) |
+| Types                        | `NODE_OPTIONS=--max-old-space-size=6144 pnpm exec tsc -b apps/api packages/adapters/db-prisma` | **exit 0**, no output                                                                                                                                                                           |
+| Types (package, incl. tests) | `pnpm --filter @adapters/db-prisma typecheck`                                                  | **exit 0**                                                                                                                                                                                      |
+| Format                       | `pnpm format:check`                                                                            | clean for `apps/**`, `packages/**`, `infra/**`, `docs/**` and every artifact of THIS change                                                                                                     |
+| Unit (affected)              | `vitest run` over the 7 suites this change touches                                             | **7 files / 93 tests passed**, exit 0                                                                                                                                                           |
+| Unit (api, full)             | `pnpm --filter @apps/api test`                                                                 | **577 files / 8986 tests passed**, exit 0 — identical to W1 (batch 2 adds no test)                                                                                                              |
+| Unit (package)               | `pnpm --filter @adapters/db-prisma test`                                                       | **4 files / 70 tests passed**, exit 0                                                                                                                                                           |
+| Fitness                      | all 41, run from the repo root out of the shipped `CLAUDE.md` block                            | 41/41 green — counts below                                                                                                                                                                      |
+| Boundary (spec R2)           | `rg -n "apps/api\|security/tenantContext" packages/adapters/db-prisma/src`                     | **0** — the new English comments were worded to keep it 0                                                                                                                                       |
+| Comments (spec R6)           | accent grep over the four relocated files + a 24-word unaccented-Spanish sweep                 | **0** for both, plus a block-by-block read-back against explore §6                                                                                                                              |
+| Docs (spec R8)               | the C8 FILE-level grep over `docs/technical docs/security`                                     | **0** (6 before)                                                                                                                                                                                |
+
+### The 41 fitness counts, as printed
+
+```text
+#1  0   #2  0   #3  0   #4  0   #5  0   #6  0   #7  0   #8  0   #9  0   #10 0
+#11 0   #12 0   #13 0   #14 0   #15 0   #16 0   #17 0   #18 0   #19 0   #20 0
+#21 0   #22 0   #23 0   #24 (no output = pass)   #25 0 / 0      #26 0
+#27 0 / 0       #28 0   #29 0   #30 20 (ratchet, baseline 21 — see C13)
+#31 0 / 2 / 1   (Part A 0; Part B both floors held: 2 and 1, each ≥ 1)
+#32 0   #33 0   #34 0   #35 0   #36 0   #37 0   #38 0 / 11      #39 0
+#40 0 / 0       (internals: SEAM_HITS=3, COUNT=0, SITES=13 over floor 10, BCOUNT=0)
+#41 0
+```
+
+### #40 Part B — the 13 sites the extended scope now reads
+
+```text
+apps/api/src/admin/SchedulingSlotHandlers.ts:418
+apps/api/src/admin/SchedulingPostHandlers.ts:249
+apps/api/src/admin/SchedulingPostHandlers.ts:349
+apps/api/src/events/EventStore.ts:85
+apps/api/src/outbox/outboxAdminRoutes.ts:73
+apps/api/src/infrastructure/outbox/OutboxClaimService.ts:146
+apps/api/src/infrastructure/repositories/PrismaProjectRepository.ts:383
+apps/api/src/billing/gatewaySwitchProcessor.ts:117
+apps/api/src/infrastructure/unitofwork/tenantTransaction.ts:55
+apps/api/src/infrastructure/repositories/PrismaAccountRepository.ts:404
+packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:185     ← relocated
+packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:568     ← relocated
+packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:664     ← relocated
+```
+
+### #30's 20 unreached suites, named so the ratchet is attributable (C13)
+
+```text
+integration/aiLocalizedRoutes · analyticsPremiumRoutes · analyticsStreamRoutes
+integration/auditActorPolymorphism · bulkScheduleMediaPath · bulkScheduleReconciliation
+integration/bulkScheduleRelayRetry · customerLoginMfa · customerLoginMfaE2e
+integration/data-retention · inboxRoutes · mentionIngest · mfaCustomer · mfaTotpSingleUse
+integration/redisTokenBucketRateLimiter · repurposeRoutes · sendReplyGuardrail
+integration/shareOfVoice · trendRadarRoutes · universal-client-dashboard.integration
+```
+
+None of the 20 is a file batch 2 edited, and the only test file batch 2 DID edit
+(`tests/unit/infrastructure/tenantTransactionNesting.test.ts`) is excluded from #30's population
+by path. The fall from the documented 21 predates this batch in the working tree.
+
+---
+
+## Files touched in batch 2
+
+**W2 — `refactor(persistence): translate relocated adapter comments to English`**
+
+| Path                                                             | Edit                                                                              |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts` | 4 comment hunks (13 blocks), incl. the stale `@example` → 3-parameter constructor |
+| `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts`   | 3 comment hunks (5 single-line comments)                                          |
+
+**W3 — `test(persistence): keep the nesting-adjudication guard over the relocated adapters`**
+
+| Path                                                                  | Edit                                                                           |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `apps/api/tests/unit/infrastructure/tenantTransactionNesting.test.ts` | `SEAM_ROOTS` + `SEAM_FILE_POPULATION` + the `toContain` loop; `apiSrc` removed |
+
+**W4 — `chore(fitness): extend the seam, raw-query, any and ts-ignore scopes to db-prisma`**
+
+| Path                            | Edit                                                                                                                                                           |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CLAUDE.md`                     | #3 scope + comment · #5 scope + comment · #23 scope + sentence + re-pathed inert exception + 2 bullets · #40 Part B scope + loop + token + residuals (2)(4)(5) |
+| `.github/workflows/fitness.yml` | the same four gates, grep expressions and scope lists byte-identical                                                                                           |
+
+**W5 — `docs: re-path the relocated adapters in ADR-0023/0014/0005 and the guards doc`**
+
+| Path                                                                     | Edit                                                                                                   |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `docs/technical/ADR-0023-unit-of-work-result-aware-transaction.md`       | 4 citations re-pathed                                                                                  |
+| `docs/technical/ADR-0014-multi-tenant-isolation-guards.md`               | 1 citation re-pathed (stale before this change)                                                        |
+| `docs/technical/ADR-0005-unit-of-work-asynclocalstorage.md`              | 1 citation re-pathed (stale before this change)                                                        |
+| `docs/security/MULTI_TENANT_GUARDS.md`                                   | both #23 scope sentences + the exception mention (C9); dated blockquote untouched (C12)                |
+| `docs/reports/TENANT_RLS_AB_MEASUREMENT.md`                              | ONE dated blockquote under the title; zero citations touched                                           |
+| `openspec/changes/post-persistence-adapter-relocation/design.md`         | C10 row + the four flat-path amendments; prettier re-padded two tables and collapsed the barrel export |
+| `openspec/changes/post-persistence-adapter-relocation/tasks.md`          | C10 amendments (T1.5, rename headroom) + the 19 W2–W5 `[x]` ticks                                      |
+| `openspec/changes/post-persistence-adapter-relocation/proposal.md`       | C10 amendment at `:66`                                                                                 |
+| `openspec/changes/post-persistence-adapter-relocation/apply-progress.md` | this merged artifact                                                                                   |
+
+---
+
+## Honesty notes — batch 2
+
+1. **`pnpm format:check` at the repo root still exits 1**, on 10 markdown files under
+   `openspec/changes/post-publish-partial-failure/` — the OTHER change's untracked artifacts.
+   They were never touched, and the prompt forbids running prettier on them. Every file this
+   change owns is prettier-clean.
+2. **`pnpm lint --max-warnings 0` at the repo ROOT still exits 1** for the reason W1 recorded:
+   `eslint .` walks `.config/opencode/plugins/*.ts`, untracked local tooling `.gitignore:187`
+   excludes. Scoped to the committed tree (`eslint apps packages infra`) the run is 0/0.
+3. `prettier --write` on `design.md` re-padded the corrections table and the D13 verification
+   table and collapsed the barrel-export snippet onto one line, because the C10 amendment made
+   two cells shorter and one longer. 41 lines moved; every one is a consequence of the
+   amendment, not an independent edit.
+4. **Neither `pnpm build` nor `pnpm --filter @apps/api test:all` was re-run in batch 2.** W1 ran
+   both green (86/86 tasks; 536 integration tests, 0 fail / 0 cancel / 0 skip) and batch 2
+   changes no runtime byte: W2 is comment text, W3 is a test-only guard, W4 is two shell gates,
+   W5 is documentation. `tsc -b` and the full 8986-test unit run are the proof that no comment
+   edit broke a parse. Naming this rather than implying full coverage.
+5. The `sensitive-edit` token was active for every `CLAUDE.md` / `fitness.yml` edit, including
+   the tripwire-carrying `(S2.1c)` line (R13). Nothing was blocked; no gate was paraphrased and
+   no Bash write was used on either file.
+
+## Backlog rows confirmed or added by batch 2
+
+| Row     | Note                                                                                                                                                                                                                                                                                                                                                                         |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B1      | Re-confirmed: `/saga/sagaTenant\.ts:` in #40 A is inert; the floor of 3 is carried by two files. Its honest comment now ships in both gate files. Deletion still needs authorisation.                                                                                                                                                                                        |
+| B2 / B3 | #23's UoW exception is INERT (tagged template vs a `\(`-anchored regex) and now SAYS so in both files; `resilience.ts:308` deliberately got NO exception line. Both close with SMELL-111.                                                                                                                                                                                    |
+| B8      | #5's one-level `packages/*/src/` glob is named explicitly rather than widened; the two-level widening stays unmeasured.                                                                                                                                                                                                                                                      |
+| B10     | Re-confirmed: `TENANT_RLS_AB_MEASUREMENT.md`'s citations and `scripts/rls-ab-measurement.ts:770-853`'s `sourceSite` literals are historical and were not rewritten — only a dated note was added.                                                                                                                                                                            |
+| B15     | Re-confirmed and NOT acted on: `PrismaUnitOfWork.test.ts` still carries Spanish `it(...)` titles. It is not one of the four relocated files, so spec R6 does not reach it.                                                                                                                                                                                                   |
+| **NEW** | `docs/security/MULTI_TENANT_GUARDS.md`'s 2026-07-27 blind-spot blockquote says "Seven live statements in `apps/api/src` are invisible to the check today". That count was taken before this relocation moved two of the statements out of `apps/api/src`; it is a DATED finding and was left alone (C12), but SMELL-111's closure should re-measure it rather than trust it. |
 
 ---
 
 ## Status
 
-**22/22 W1 tasks complete.** W2–W5 (36 tasks) remain and are batch 2. Stopping at the W1
-boundary for the orchestrator's commit, as instructed.
+**41/41 tasks complete** (22 W1 + 19 W2–W5). Batch 2 stops at the W5 boundary for the
+orchestrator's four commits (W2, W3, W4, W5), which are file-disjoint exactly as tasks.md scopes
+them. Ready for `sdd-verify`.

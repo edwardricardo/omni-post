@@ -192,5 +192,5 @@ use cases don't change.
 - Node `AsyncLocalStorage` docs — https://nodejs.org/api/async_context.html
 - Prisma transactions — https://www.prisma.io/docs/orm/prisma-client/queries/transactions
 - OmniPost `CLAUDE.md §Unit of Work`
-- Implementation: `apps/api/src/infrastructure/persistence/PrismaUnitOfWork.ts`
+- Implementation: `packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts`
 - Reference use case: `packages/core/application/billing/GatewayBillingService.ts` (S3.4c)

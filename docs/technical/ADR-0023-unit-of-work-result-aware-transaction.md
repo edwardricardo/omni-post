@@ -30,7 +30,7 @@ nothing had been written.
 For a single-statement save that is harmless: the statement either executed or
 it did not. It stops being harmless the moment a save is **multi-statement**.
 `PrismaPostRepository.save()` catches everything into an `err`
-(`apps/api/src/infrastructure/repositories/PrismaPostRepository.ts:84-98`), and
+(`packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:84-98`), and
 its `doUpdate` issues four groups of statements in sequence: the OCC row update
 with `version: { increment: 1 }` (`:684`), the content rows (`:712`), the media
 rows (`:731-773`), and finally the outbox rows (`:776`). A failure raised on the
@@ -87,7 +87,7 @@ Contract:
   an `err`.
 
 `PrismaUnitOfWork` implements it **on top of `executeInTransaction`**
-(`apps/api/src/infrastructure/unitofwork/PrismaUnitOfWork.ts`): a module-private
+(`packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts`): a module-private
 `TransactionRollbackSignal`, created per call and compared by identity, is
 thrown inside the existing `$transaction` callback when the work resolves to
 `err`, and unwrapped by the same method outside it. Consequences of implementing
@@ -235,6 +235,6 @@ retired.
 - `CLAUDE.md` §Automated Compliance Checks — fitness #4 (raw throws), #40 (one transaction seam)
 - `.github/workflows/fitness.yml` — fitness #4's remove-when, now met
 - Port: `packages/core/domain/src/repositories/Repository.ts`
-- Adapter: `apps/api/src/infrastructure/unitofwork/PrismaUnitOfWork.ts`
+- Adapter: `packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts`
 - Unit proof: `apps/api/tests/unit/infrastructure/PrismaUnitOfWork.test.ts`
-- The hole it closes: `apps/api/src/infrastructure/repositories/PrismaPostRepository.ts:84-98` (`save`), `:684`–`:776` (`doUpdate`)
+- The hole it closes: `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:84-98` (`save`), `:684`–`:776` (`doUpdate`)
