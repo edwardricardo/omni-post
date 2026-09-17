@@ -140,7 +140,7 @@ export class PrismaPostRepository implements PostRepository {
   /**
    * Hard-delete a post and all its data (irreversible).
    * SUPER_ADMIN only. Cascades to contents, media, publishLogs, contentVersions.
-   * Es UoW-aware: si hay una transacción activa en el contexto, la usa directamente.
+   * UoW-aware: when a transaction is active in the context, it uses that one directly.
    */
   async hardDelete(id: PostId): Promise<Result<void, EntityNotFoundError>> {
     // DELIBERATE soft-delete-sweep exception: the hard-delete probe must detect
@@ -556,7 +556,7 @@ export class PrismaPostRepository implements PostRepository {
 
   /**
    * Create a new post in the database.
-   * Es UoW-aware: si hay una transacción activa en el contexto, la usa directamente.
+   * UoW-aware: when a transaction is active in the context, it uses that one directly.
    */
   private async create(aggregate: PostAggregate): Promise<void> {
     const data = PostAggregateMapper.toPrismaCreate(aggregate);
@@ -611,7 +611,7 @@ export class PrismaPostRepository implements PostRepository {
   }
 
   /**
-   * Lógica interna de creación de post — opera sobre un cliente de transacción.
+   * Internal post-creation logic — operates on a transaction client.
    */
   private async doCreate(
     tx: TxClient,
@@ -652,7 +652,7 @@ export class PrismaPostRepository implements PostRepository {
 
   /**
    * Update an existing post in the database.
-   * Es UoW-aware: si hay una transacción activa en el contexto, la usa directamente.
+   * UoW-aware: when a transaction is active in the context, it uses that one directly.
    */
   private async update(aggregate: PostAggregate): Promise<void> {
     const data = PostAggregateMapper.toPrismaUpdate(aggregate);
@@ -672,7 +672,7 @@ export class PrismaPostRepository implements PostRepository {
   }
 
   /**
-   * Lógica interna de actualización de post — opera sobre un cliente de transacción.
+   * Internal post-update logic — operates on a transaction client.
    */
   private async doUpdate(
     tx: TxClient,

@@ -16,21 +16,21 @@ import type { Result } from "@shared/types";
 type TxClient = Prisma.TransactionClient;
 
 /**
- * Opciones de transacción para ajustar el comportamiento.
+ * Transaction options for tuning the behaviour.
  */
 export interface TransactionOptions {
-  /** Tiempo máximo (ms) para esperar adquirir una transacción del pool. Por defecto: 5000 */
+  /** Maximum time (ms) to wait to acquire a transaction from the pool. Default: 5000 */
   maxWait?: number;
-  /** Duración máxima de la transacción (ms) antes del rollback automático. Por defecto: 30000 */
+  /** Maximum transaction duration (ms) before the automatic rollback. Default: 30000 */
   timeout?: number;
-  /** Nivel de aislamiento de la transacción. Por defecto: ReadCommitted */
+  /** Transaction isolation level. Default: ReadCommitted */
   isolationLevel?: Prisma.TransactionIsolationLevel;
 }
 
 /**
- * Instancia de AsyncLocalStorage compartida por todas las instancias de PrismaUnitOfWork.
- * Es estática para que los repositorios puedan acceder a la transacción activa
- * sin necesidad de una referencia directa a la instancia de UnitOfWork.
+ * AsyncLocalStorage instance shared by every PrismaUnitOfWork instance.
+ * It is static so repositories can reach the active transaction without
+ * needing a direct reference to the UnitOfWork instance.
  */
 const txStorage = new AsyncLocalStorage<TxClient>();
 
@@ -54,21 +54,21 @@ class TransactionRollbackSignal extends Error {
 }
 
 /**
- * PrismaUnitOfWork — Implementación Prisma del puerto UnitOfWork.
+ * PrismaUnitOfWork — Prisma implementation of the UnitOfWork port.
  *
- * Envuelve `prisma.$transaction()` y usa `AsyncLocalStorage` para propagar
- * el cliente de transacción a todos los repositorios que operan en el mismo
- * contexto async.
+ * Wraps `prisma.$transaction()` and uses `AsyncLocalStorage` to propagate
+ * the transaction client to every repository operating in the same async
+ * context.
  *
- * Los repositorios detectan una transacción UoW activa mediante el método
- * estático `PrismaUnitOfWork.getTransactionClient()` y usan el cliente tx
- * directamente, evitando transacciones anidadas.
+ * Repositories detect an active UoW transaction through the static
+ * `PrismaUnitOfWork.getTransactionClient()` method and use the tx client
+ * directly, avoiding nested transactions.
  *
  * @example
- * const uow = new PrismaUnitOfWork(prisma);
+ * const uow = new PrismaUnitOfWork(prisma, tenantProvider);
  * await uow.executeInTransaction(async () => {
- *   await postRepository.save(post);       // usa la tx del UoW
- *   await projectRepository.save(project); // misma tx del UoW
+ *   await postRepository.save(post);       // uses the UoW tx
+ *   await projectRepository.save(project); // the same UoW tx
  * });
  */
 export class PrismaUnitOfWork implements UnitOfWork {
@@ -79,10 +79,10 @@ export class PrismaUnitOfWork implements UnitOfWork {
   ) {}
 
   /**
-   * Ejecuta una función dentro de una transacción interactiva de Prisma.
-   * Todas las operaciones de repositorio dentro del callback que usen
-   * `PrismaUnitOfWork.getTransactionClient()` participarán en la misma
-   * transacción de base de datos.
+   * Runs a function inside a Prisma interactive transaction.
+   * Every repository operation inside the callback that uses
+   * `PrismaUnitOfWork.getTransactionClient()` takes part in the same
+   * database transaction.
    */
   async executeInTransaction<T>(fn: () => Promise<T>, options?: TransactionOptions): Promise<T> {
     const opts = { ...this.defaultOptions, ...options };
@@ -157,17 +157,17 @@ export class PrismaUnitOfWork implements UnitOfWork {
   }
 
   /**
-   * Obtiene el cliente de transacción Prisma activo si estamos dentro de un UoW.
-   * Devuelve `undefined` si no hay ninguna transacción activa en el contexto async actual.
+   * Returns the active Prisma transaction client when we are inside a UoW.
+   * Returns `undefined` when no transaction is active in the current async context.
    *
-   * Este es el punto de integración principal para los repositorios.
+   * This is the main integration point for repositories.
    *
    * @example
    * const txClient = PrismaUnitOfWork.getTransactionClient();
    * if (txClient) {
-   *   // Usar txClient directamente — estamos dentro de un UoW
+   *   // Use txClient directly — we are inside a UoW
    * } else {
-   *   // Crear propia transacción o usar PrismaClient directamente
+   *   // Open a transaction of our own, or use PrismaClient directly
    * }
    */
   static getTransactionClient(): TxClient | undefined {
