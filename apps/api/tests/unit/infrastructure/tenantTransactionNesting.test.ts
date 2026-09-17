@@ -40,7 +40,6 @@ const currentDir = dirname(fileURLToPath(import.meta.url));
  * tree could not name them at all.
  */
 const repoRoot = join(currentDir, "..", "..", "..", "..", "..");
-const apiSrc = join(repoRoot, "apps", "api", "src");
 
 /**
  * The ONE module allowed to call the seam on another site's behalf. Everything else either
@@ -80,6 +79,22 @@ const INDEPENDENT_BY_DESIGN: Record<string, string> = {
   "apps/api/src/admin/SchedulingPostHandlers.ts": "an admin route handler is the outermost frame",
   "apps/api/src/admin/SchedulingSlotHandlers.ts": "an admin route handler is the outermost frame",
 };
+
+/**
+ * The homes of every seam site the adjudication covers: the API source tree and the relocated
+ * `@core/domain` adapters under db-prisma. The flat db-prisma files keep the explicit-scope
+ * worker convention and were never inside this adjudication; they stay outside on purpose
+ * (fitness #40 residual (4)). A missing root throws ENOENT — loud by design.
+ */
+const SEAM_ROOTS = [
+  "apps/api/src",
+  "packages/adapters/db-prisma/src/post",
+  "packages/adapters/db-prisma/src/outbox",
+  "packages/adapters/db-prisma/src/unitofwork",
+];
+
+/** Measured population; the #41 convention — it may fall only with a deliberate removal. */
+const SEAM_FILE_POPULATION = 16;
 
 /** Every `.ts` under a directory, excluding declaration files. */
 function walk(dir: string): string[] {
@@ -181,7 +196,7 @@ describe("withTenantTransaction", () => {
 
 describe("nesting adjudication across the transaction seam", () => {
   it("gives every seam site one of the three admissible answers", () => {
-    const openers = walk(apiSrc)
+    const openers = SEAM_ROOTS.flatMap((root) => walk(join(repoRoot, root)))
       .filter((path) => !path.endsWith(".test.ts"))
       .filter((path) =>
         /withGucBoundTransaction\(|withTenantTransaction\(/.test(readFileSync(path, "utf8"))
@@ -189,8 +204,15 @@ describe("nesting adjudication across the transaction seam", () => {
       .map((path) => relative(repoRoot, path).split("\\").join("/"));
 
     // Non-vacuity: the seam has a known population, and a scan that suddenly matches almost
-    // nothing has stopped measuring rather than started passing.
-    expect(openers.length).toBeGreaterThanOrEqual(8);
+    // nothing has stopped measuring rather than started passing. The floor EQUALS the measured
+    // population, so a one-file shrink is red instead of being absorbed by slack.
+    expect(openers.length).toBeGreaterThanOrEqual(SEAM_FILE_POPULATION);
+
+    // Every NAMED file was actually walked — closes the counting mask where one root gains a
+    // file while another silently drops out.
+    for (const named of [HELPER, ...INLINE_ADJUDICATED, ...Object.keys(INDEPENDENT_BY_DESIGN)]) {
+      expect(openers, `${named} is named but was not walked`).toContain(named);
+    }
 
     const unadjudicated = openers.filter((relPath) => {
       if (relPath === HELPER) return false;
