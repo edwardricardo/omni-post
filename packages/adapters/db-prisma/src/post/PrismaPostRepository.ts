@@ -23,18 +23,13 @@ import {
   type TenantScope,
   PUBLISH_STATUS,
   EntityNotFoundError,
-  InvariantViolationError,
   VersionConflictError,
 } from "@core/domain/index.js";
 import { resolveGucScope, withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import type { TenantContextProvider } from "@infra/prisma/extensions/tenantGuard.js";
 import type { OutboxWriter } from "@core/domain/repositories/OutboxWriter.js";
 import { PostAggregateMapper, type PrismaPostWithRelations } from "./PostAggregateMapper.js";
-import {
-  pendingEditEvent,
-  upsertPublications,
-  writePublicationSave,
-} from "./PostPublicationWrites.js";
+import { savePublicationRecord } from "./PostPublicationWrites.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 
 /** Local type alias for Prisma transaction client */
@@ -72,11 +67,9 @@ export class PrismaPostRepository implements PostRepository {
         contentVersions: {
           orderBy: { version: "desc" },
         },
-        // The publication record travels with the aggregate because the aggregate
-        // cannot answer a single question about publication without it: the word, the
-        // content lock, and whether a channel may be attempted again are all read
-        // from it. Loading a post without its records would hand every caller a post
-        // that looks unpublished.
+        // The record travels with the aggregate: the word, the content lock and
+        // re-drivability are all read from it, so a post loaded without its records
+        // is a post that looks unpublished to every caller.
         channelPublications: {
           include: { channel: { select: { provider: true } } },
           orderBy: { createdAt: "asc" },
@@ -112,48 +105,23 @@ export class PrismaPostRepository implements PostRepository {
 
   /**
    * @method savePublication
-   * @description Persists a PUBLICATION outcome and nothing else: the post's word, its
-   *   publication moment, every per-channel record and the outbox, in one transaction.
-   *
-   *   Two refusals come before any statement. The projection invariant, so a word that
-   *   has drifted from its record is never written; and the edit tripwire, so an
-   *   aggregate carrying a pending content or media event is rejected instead of
-   *   having that edit silently dropped by a save that writes no content statement.
+   * @description The narrow publication save — the ONLY production writer of the
+   *   per-channel record. Its refusals, its statements and the reason it writes no
+   *   content live in {@link savePublicationRecord}.
    * @param aggregate - The post to persist
    * @returns Result.ok, or the error that refused the write
    */
   async savePublication(aggregate: PostAggregate): Promise<Result<void, Error>> {
-    const invariant = aggregate.assertPublicationProjection();
-    if (!invariant.ok) {
-      return err(invariant.error);
-    }
-
-    const pendingEdit = pendingEditEvent(aggregate);
-    if (pendingEdit !== undefined) {
-      return err(
-        new InvariantViolationError(
-          `post ${aggregate.id.value} carries a pending ${pendingEdit} event: a publication save writes no content, so the edit would be lost`
-        )
-      );
-    }
-
-    try {
-      const activeTx = PrismaUnitOfWork.getTransactionClient();
-      if (activeTx) {
-        await writePublicationSave(activeTx, aggregate, this.outboxWriter);
-      } else {
-        await withGucBoundTransaction(
-          this.prisma,
-          resolveGucScope(this.tenantProvider),
-          async (tx) => {
-            await writePublicationSave(tx, aggregate, this.outboxWriter);
-          }
-        );
-      }
-      return ok(undefined);
-    } catch (error) {
-      return err(error instanceof Error ? error : new Error(String(error)));
-    }
+    return savePublicationRecord(
+      {
+        outboxWriter: this.outboxWriter,
+        // The binding stays HERE, with the provider both isolation layers read, so a
+        // request can never inject one tenant through the guard and bind another.
+        runInTenantBoundTransaction: (statements) =>
+          withGucBoundTransaction(this.prisma, resolveGucScope(this.tenantProvider), statements),
+      },
+      aggregate
+    );
   }
 
   /**
@@ -705,9 +673,6 @@ export class PrismaPostRepository implements PostRepository {
       });
     }
 
-    // The declared target set is part of the post, so it is written with it.
-    await upsertPublications(tx, aggregate, accountId);
-
     // Persist domain events atomically (Transactional Outbox)
     if (this.outboxWriter) {
       await this.outboxWriter.writeEvents(tx, aggregate.domainEvents);
@@ -845,10 +810,6 @@ export class PrismaPostRepository implements PostRepository {
         },
       });
     }
-
-    // The target set travels with the post on the full save too, so a scheduling
-    // write persists the identities it validated instead of only returning them.
-    await upsertPublications(tx, aggregate, accountId);
 
     // Persist domain events atomically (Transactional Outbox)
     if (this.outboxWriter) {

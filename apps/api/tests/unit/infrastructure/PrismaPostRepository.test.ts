@@ -130,6 +130,28 @@ async function makePublishedAggregate() {
   return post;
 }
 
+/** A post whose targets are declared and nothing else — no attempt, no edit. */
+async function makeDeclaredAggregate() {
+  const domain = await import("@core/domain/index.js");
+  const post = domain.PostAggregate.reconstitute({
+    id: PostId.fromStringUnsafe(POST_ID),
+    projectId: ProjectId.fromStringUnsafe(PROJECT_ID),
+    accountId: ACCOUNT_ID,
+    content: domain.Content.reconstitute({ body: "hello", tags: [], locale: "en" }),
+    status: domain.PublishStatus.scheduled(),
+    media: [],
+    contentVersions: [],
+    createdAt: new Date("2026-01-01"),
+    updatedAt: new Date("2026-01-01"),
+    version: 2,
+  });
+
+  expect(post.declarePublicationTargets([domain.ChannelId.fromStringUnsafe(CHANNEL_ID)]).ok).toBe(
+    true
+  );
+  return post;
+}
+
 /** A post carrying declared targets and a PENDING content edit — the tripwire case. */
 async function makeEditedAggregate() {
   const domain = await import("@core/domain/index.js");
@@ -1100,6 +1122,22 @@ describe("PrismaPostRepository", () => {
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/derives/);
       expect(prisma._txClient.post.update.mock.calls.length).toBe(0);
+    });
+
+    it("writes NO publication row from the full save, even with targets declared", async () => {
+      // The narrow save is the ONLY production writer of the record. The full save
+      // runs neither of the two refusals the narrow one runs — the projection
+      // invariant and the pending-edit tripwire — so a record written through it
+      // would be a record nothing checked.
+      prisma.post.count.mockImplementation(async () => 1);
+      const post = await makeDeclaredAggregate();
+
+      const result = await repo.save(post);
+
+      expect(result.ok).toBeTruthy();
+      expect(post.publications.size).toBe(1);
+      expect(prisma._txClient.post.update.mock.calls.length).toBe(1);
+      expect(prisma._txClient.postChannelPublication.upsert.mock.calls.length).toBe(0);
     });
   });
 });

@@ -15,15 +15,38 @@ import type {
   ChannelRetractionBlock,
   ChannelRetractionClearance,
 } from "@infra/prisma";
+import { type Result, ok, err } from "@shared/types";
 import {
   PostAggregate,
+  InvariantViolationError,
   VersionConflictError,
   isProvidedReference,
   type ChannelPublication,
 } from "@core/domain/index.js";
 import type { OutboxWriter } from "@core/domain/repositories/OutboxWriter.js";
+import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 
 type TxClient = Prisma.TransactionClient;
+
+/**
+ * Opens a tenant-bound transaction and runs the statements on it.
+ *
+ * The save takes this as an ARGUMENT rather than opening the transaction itself, and
+ * the reason is a guarantee rather than a style: both isolation layers must be fed
+ * from the SAME provider object, so the binding belongs in the repository that holds
+ * that provider. A module that reached for a provider of its own could bind one tenant
+ * while the guard injected another.
+ */
+export type TenantBoundRunner = <T>(statements: (tx: TxClient) => Promise<T>) => Promise<T>;
+
+/**
+ * What the publication save needs from the repository that owns it. Passed in rather
+ * than reached for, so this module has no opinion about how the repository was wired.
+ */
+export interface PublicationWriteCollaborators {
+  outboxWriter: OutboxWriter | undefined;
+  runInTenantBoundTransaction: TenantBoundRunner;
+}
 
 /**
  * Events that mean the aggregate carries an EDIT. A publication write must not be the
@@ -219,5 +242,55 @@ export async function writePublicationSave(
 
   if (outboxWriter) {
     await outboxWriter.writeEvents(tx, aggregate.domainEvents);
+  }
+}
+
+/**
+ * @function savePublicationRecord
+ * @description Persists a PUBLICATION outcome and nothing else: the post's word, its
+ *   publication moment, every per-channel record and the outbox, in one transaction.
+ *
+ *   Two refusals come before any statement. The projection invariant, so a word that
+ *   has drifted from its record is never written; and the edit tripwire, so an
+ *   aggregate carrying a pending content or media event is rejected instead of having
+ *   that edit silently dropped by a save that writes no content statement.
+ *
+ *   It reuses an open unit of work when there is one, and otherwise asks the caller's
+ *   runner to open a tenant-bound transaction, so the tenant is bound as the
+ *   transaction's first statement either way.
+ * @param collaborators - The outbox writer and the tenant-bound transaction runner
+ * @param aggregate - The post to persist
+ * @returns Result.ok, or the error that refused the write
+ */
+export async function savePublicationRecord(
+  collaborators: PublicationWriteCollaborators,
+  aggregate: PostAggregate
+): Promise<Result<void, Error>> {
+  const invariant = aggregate.assertPublicationProjection();
+  if (!invariant.ok) {
+    return err(invariant.error);
+  }
+
+  const pendingEdit = pendingEditEvent(aggregate);
+  if (pendingEdit !== undefined) {
+    return err(
+      new InvariantViolationError(
+        `post ${aggregate.id.value} carries a pending ${pendingEdit} event: a publication save writes no content, so the edit would be lost`
+      )
+    );
+  }
+
+  try {
+    const activeTx = PrismaUnitOfWork.getTransactionClient();
+    if (activeTx) {
+      await writePublicationSave(activeTx, aggregate, collaborators.outboxWriter);
+    } else {
+      await collaborators.runInTenantBoundTransaction(async (tx) => {
+        await writePublicationSave(tx, aggregate, collaborators.outboxWriter);
+      });
+    }
+    return ok(undefined);
+  } catch (error) {
+    return err(error instanceof Error ? error : new Error(String(error)));
   }
 }

@@ -451,7 +451,19 @@ export class PostAggregate extends AggregateRoot<PostId> {
   }
 
   /**
-   * Start publishing process
+   * @method startPublishing
+   * @description Enters the publication family through the lifecycle state machine.
+   *
+   *   The parameter is still provider-keyed, and that is a transitional shape rather
+   *   than the intended one. Inside this aggregate nothing asks a caller for providers
+   *   any more: the publication facet resolves them from the records' joined channel
+   *   rows and hands them here. The parameter survives only for the one remaining
+   *   caller outside the aggregate — the publish-completion use case, which still runs
+   *   over posts that carry no record at all and therefore has no record to resolve
+   *   them from. When that use case is rebuilt on the record, this method loses the
+   *   parameter and reads the providers itself.
+   * @param targetProviders - The providers the internal event will name
+   * @returns Result.ok, or InvalidStateTransitionError when the word cannot enter the family
    */
   startPublishing(targetProviders: ProviderType[]): Result<void, InvalidStateTransitionError> {
     if (!this._status.canTransitionTo(PUBLISH_STATUS.PUBLISHING)) {
