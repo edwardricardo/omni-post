@@ -892,7 +892,7 @@ describe("LinkedInAdapter - Threading", { concurrency: 1 }, () => {
     }
   });
 
-  it("publishThread returns VALIDATION error", async () => {
+  it("publishThread returns VALIDATION with no published fragments", async () => {
     const { adapter } = makeAdapter();
     const result = await adapter.publishThread(
       {
@@ -909,9 +909,12 @@ describe("LinkedInAdapter - Threading", { concurrency: 1 }, () => {
       VALID_CREDS
     );
 
-    assert.strictEqual(result.ok, false);
-    if (!result.ok) {
-      assert.strictEqual(result.error, "VALIDATION");
-    }
+    assert.ok(!result.ok, "publishThread should fail");
+    assert.strictEqual(result.error.code, "VALIDATION");
+    assert.deepStrictEqual(
+      result.error.publishedFragments,
+      [],
+      "LinkedIn never sends a fragment, so the live set is empty rather than absent"
+    );
   });
 });

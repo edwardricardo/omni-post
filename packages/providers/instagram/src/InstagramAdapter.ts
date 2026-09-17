@@ -25,6 +25,7 @@ import type {
   RenderedContent,
   ThreadPlan,
   ThreadPublishInput,
+  ThreadPublishFailure,
   ThreadReceipt,
   Result,
   RenderError,
@@ -442,12 +443,15 @@ export class InstagramAdapter implements ProviderAdapter {
 
   /**
    * @method publishThread
-   * @description Publishes a thread plan as a carousel post.
+   * @description Publishes a thread plan as a carousel post. The carousel is one
+   *   container: it publishes whole or not at all, so no failure here can leave a
+   *   fragment live on Instagram. Every error path therefore states an EMPTY
+   *   `publishedFragments` — the empty set is the answer, not a missing one.
    */
   async publishThread(
     input: ThreadPublishInput,
     credentials: unknown
-  ): Promise<Result<ThreadReceipt, PublishError>> {
+  ): Promise<Result<ThreadReceipt, ThreadPublishFailure>> {
     const validation = validateCredentialStructure<InstagramCredentials>(
       credentials,
       REQUIRED_FIELDS,
@@ -455,7 +459,7 @@ export class InstagramAdapter implements ProviderAdapter {
       this.id
     );
     if (!validation.ok) {
-      return err("AUTH");
+      return err({ code: "AUTH", publishedFragments: [] });
     }
 
     try {
@@ -501,10 +505,10 @@ export class InstagramAdapter implements ProviderAdapter {
       this.logError("publishThread", error, { channelId: input.channelId });
 
       if (error instanceof Error && error.message?.includes("Circuit breaker is OPEN")) {
-        return err("NETWORK");
+        return err({ code: "NETWORK", publishedFragments: [] });
       }
 
-      return err(mapErrorToPublishError(error));
+      return err({ code: mapErrorToPublishError(error), publishedFragments: [] });
     }
   }
 

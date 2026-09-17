@@ -431,6 +431,48 @@ export class PublishHandler {
   }
 
   /**
+   * @method markFragmentsPublished
+   * @description Marks the tweet row of every fragment the provider confirmed as
+   *              PUBLISHED, carrying its provider id and timestamp. Used by BOTH
+   *              thread outcomes: a thread that failed part-way still left its
+   *              earlier fragments live, and these rows are what keeps them
+   *              addressable.
+   * @param threadId - Thread whose rows are reconciled.
+   * @param fragments - Fragments the provider confirmed, in order.
+   * @returns Nothing. A repository failure is counted and rethrown.
+   */
+  private async markFragmentsPublished(
+    threadId: string,
+    fragments: ThreadReceipt["tweets"]
+  ): Promise<void> {
+    for (const fragment of fragments) {
+      const dbTimer = this.workerMetrics.metrics.dbOperationDuration.startTimer({
+        operation: "update_tweet",
+        result: "pending",
+      });
+
+      try {
+        const tweets = await this.repo.getTweetsByThread(threadId);
+        if (tweets.ok) {
+          const tweet = tweets.value.find((t) => t.sequenceNumber === fragment.sequence);
+          if (tweet) {
+            await this.repo.updateTweet(tweet.id, {
+              tweetId: fragment.providerTweetId,
+              status: "PUBLISHED",
+              publishedAt: fragment.publishedAt,
+            });
+          }
+        }
+        dbTimer({ result: "success" });
+      } catch (e) {
+        dbTimer({ result: "error" });
+        this.workerMetrics.recordError("database", "tweet_update_failed", true);
+        throw e;
+      }
+    }
+  }
+
+  /**
    * @method publishThreadPost
    * @description Publish a thread (multi-tweet) post: create the thread + tweet
    *              records, invoke the provider's `publishThread`, update tweet
@@ -582,13 +624,21 @@ export class PublishHandler {
 
     if (!publishResult.ok) {
       providerTimer({ status: "error" });
+      const { code, publishedFragments } = publishResult.error;
+
+      // The fragments that DID go out are live on the provider. Record them
+      // before anything else reports the failure: whoever acts on this channel
+      // needs their references, and an unreported live fragment is unretractable.
+      await this.markFragmentsPublished(thread.id, publishedFragments);
+
       await this.repo.logPublish({
         postId,
         provider: providerName,
         channelId,
         status: "ERR",
         payload: {
-          error: publishResult.error,
+          error: code,
+          publishedFragments,
           threadId: thread.id,
           correlationId,
         },
@@ -612,43 +662,25 @@ export class PublishHandler {
       if (sagaId) {
         await this.notifySaga(sagaId, {
           type: "publish.job.failed",
-          data: { postId, channelId, provider: providerName, threadId: thread.id },
+          data: {
+            postId,
+            channelId,
+            provider: providerName,
+            threadId: thread.id,
+            publishedFragments,
+          },
         });
       }
 
       threadEndTimer();
       endTimer();
-      throw new Error(String(publishResult.error));
+      throw new Error(code);
     }
 
     providerTimer({ status: "success" });
 
     // Update tweet records with provider's tweet IDs and published status
-    for (const publishedTweet of publishResult.value.tweets) {
-      const dbTimer = this.workerMetrics.metrics.dbOperationDuration.startTimer({
-        operation: "update_tweet",
-        result: "pending",
-      });
-
-      try {
-        const tweets = await this.repo.getTweetsByThread(thread.id);
-        if (tweets.ok) {
-          const tweet = tweets.value.find((t) => t.sequenceNumber === publishedTweet.sequence);
-          if (tweet) {
-            await this.repo.updateTweet(tweet.id, {
-              tweetId: publishedTweet.providerTweetId,
-              status: "PUBLISHED",
-              publishedAt: publishedTweet.publishedAt,
-            });
-          }
-        }
-        dbTimer({ result: "success" });
-      } catch (e) {
-        dbTimer({ result: "error" });
-        this.workerMetrics.recordError("database", "tweet_update_failed", true);
-        throw e;
-      }
-    }
+    await this.markFragmentsPublished(thread.id, publishResult.value.tweets);
 
     await this.repo.logPublish({
       postId,

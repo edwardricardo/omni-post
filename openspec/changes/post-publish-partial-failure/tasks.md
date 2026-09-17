@@ -132,7 +132,7 @@ entry + the guards-doc row — #39 fails closed if any one is left behind (propo
       `expireRetractionActionWindow({ now, window })` before/after `startedAt + window`, and
       `alertTransition()` over ALL FOUR clauses with clause 1's precedence.
 - [ ] **T1b.6 GREEN** — `packages/core/domain/src/value-objects/{PublicationOutcome,ProviderReference,
-    FragmentReference,ExclusionReason,ContentFingerprint}.ts` and
+FragmentReference,ExclusionReason,ContentFingerprint}.ts` and
       `packages/core/domain/src/entities/ChannelPublication.ts` per the interface block
       (design.md:313-324). `Result` only, no `throw` (#4); `@file`/`@description`/`@layer domain`
       headers (#9/#10); no phase refs (#8). Barrel exports in `value-objects/index.ts`.
@@ -180,7 +180,7 @@ entry + the guards-doc row — #39 fails closed if any one is left behind (propo
       `savePublication(post)`; `packages/adapters/db-prisma/src/post/PostAggregateMapper.ts` maps
       record rows ↔ `ChannelPublication` including `liveFragments` and the joined read-only
       `Channel.provider` (D3, design.md:98); `packages/adapters/db-prisma/src/post/
-    PrismaPostRepository.ts` gains the `findById` include and delegates every new statement to a
+PrismaPostRepository.ts` gains the `findById` include and delegates every new statement to a
       **new** `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`.
       **File-size watch**: the repository ARRIVES at 903 lines from the prerequisite — already over
       the band before this change touches it. The split seam keeps its growth to ≤30 lines; the
@@ -211,7 +211,7 @@ value stays (Postgres cannot drop one in place — design.md:196, named openly).
       `packages/core/notifications/src/SendEmailNotificationService.ts` `EMAIL_ENABLED_TYPES`
       (`:18-23`) admits it.
 - [ ] **T1b2.4 GREEN** — `infra/prisma/schema.prisma` + `infra/prisma/migrations/
-    <ts>_add_retraction_alert_notifications/{migration,down}.sql`: `ALTER TYPE … ADD VALUE` (no row
+<ts>_add_retraction_alert_notifications/{migration,down}.sql`: `ALTER TYPE … ADD VALUE` (no row
       of that value written in the same migration), enum `RetractionAlertMedium`, table
       `RetractionAlertDelivery (id, alertKey, medium, target, notificationId?, deliveredAt)` with
       `@@unique([alertKey, medium, target])` + `@@index([alertKey])`. **`Notification` is NOT
@@ -232,7 +232,7 @@ value stays (Postgres cannot drop one in place — design.md:196, named openly).
       ledger names, then the ledger rows, for every cause including `ACTION_WINDOW_EXPIRED`;
       idempotent.
 - [ ] **T1b2.7 GREEN** — `packages/core/notifications/src/{RaiseRetractionAlertUseCase,
-    ResolveRetractionAlertUseCase}.ts` + barrel;
+ResolveRetractionAlertUseCase}.ts` + barrel;
       `packages/core/domain/src/repositories/RetractionAlertDeliveryLedger.ts` (port, design.md:364);
       `packages/ports/src/RetractionAlertDeliveryPort.ts` (`AlertMedium`, `AlertMediumKind`,
       `RetractionAlertDelivery`, `AlertDeliveryResult`, `AlertDeliveryReport` — design.md:357-362).
@@ -246,7 +246,7 @@ value stays (Postgres cannot drop one in place — design.md:196, named openly).
       `broadcast`, `toEveryActiveConfig: true`). `sms` / `push` have NO adapter and report
       `unavailable`.
 - [ ] **T1b2.10 GREEN** — `apps/api/src/infrastructure/repositories/
-    PrismaRetractionAlertDeliveryLedger.ts` (`claim` returns `false` on P2002);
+PrismaRetractionAlertDeliveryLedger.ts` (`claim` returns `false` on P2002);
       `apps/api/src/notifications/RetractionAlertEventHandler.ts` (two event types, `accountId` from
       the outbox-reconstructed payload, `withTenantContext` — the `TriageDispatchEventHandler.ts:50`
       shape); registration in `apps/api/src/index.ts` beside `:839-845`; tokens in
@@ -268,30 +268,30 @@ value stays (Postgres cannot drop one in place — design.md:196, named openly).
 what went out on EVERY error path; the worker carries it into its log and its `publish.job.failed`
 notification. No record is written here.
 
-- [ ] **T1b3.1 RED** — `packages/providers/x/tests/XAdapter.publish.test.ts`: rewrite the
+- [x] **T1b3.1 RED** — `packages/providers/x/tests/XAdapter.publish.test.ts`: rewrite the
       `THREAD_INTERRUPTED` case (`:183-207`) to assert
       `err({ code: "THREAD_INTERRUPTED", publishedFragments: [2 refs IN ORDER] })`; add mid-thread
       non-4xx → `NETWORK` with the same refs; first-fragment failure → `[]`. Fails today by LOSING
       the ids (measured: `XAdapter.ts:315-317` accumulates `publishedTweets`, `:355-378` discards it
       across four `err` sites at `:312`, `:370`, `:374`, `:377`).
-- [ ] **T1b3.2 GREEN** — `packages/shared/src/types.ts` `ThreadPublishFailure = { code: PublishError;
-    publishedFragments: ThreadReceipt["tweets"] }`; `packages/ports/src/ProviderAdapter.ts:152-155`
+- [x] **T1b3.2 GREEN** — `packages/shared/src/types.ts` `ThreadPublishFailure = { code: PublishError;
+publishedFragments: ThreadReceipt["tweets"] }`; `packages/ports/src/ProviderAdapter.ts:152-155`
       re-typed. A compile error on every implementor is the point (design.md:216).
-- [ ] **T1b3.3 GREEN** — the six implementors, measured: `XAdapter.ts:301-379` (4 `err` sites; move
+- [x] **T1b3.3 GREEN** — the six implementors, measured: `XAdapter.ts:301-379` (4 `err` sites; move
       the `publishedTweets` declaration above the credential check so `:312` returns `[]`
       explicitly); `InstagramAdapter.ts:447-509` (3 `err` sites, carousel is atomic ⇒ always `[]`);
       the four stubs `PinterestAdapter.ts:217-225`, `TelegramAdapter.ts:225-232`,
       `LinkedInAdapter.ts:216-224`, `SnapchatAdapter.ts:222-230` (1 `err` each ⇒ `[]`);
       `packages/providers/_template/src/index.ts:226`, `:294`.
-- [ ] **T1b3.4 RED→GREEN** — the five other provider suites: `TelegramAdapter.test.ts:366-384`
+- [x] **T1b3.4 RED→GREEN** — the five other provider suites: `TelegramAdapter.test.ts:366-384`
       rewritten (`THREAD_INTERRUPTED` with `[]`); Pinterest `:696-…`, LinkedIn `:895-…`, Snapchat
       `:543-…`, Instagram — each `result.error` assertion becomes `result.error.code` plus a
       `publishedFragments` assertion.
-- [ ] **T1b3.5 RED→GREEN** — `apps/workers/src/publishHandler.ts` (`:583-622`): the failure path
+- [x] **T1b3.5 RED→GREEN** — `apps/workers/src/publishHandler.ts` (`:583-622`): the failure path
       carries `publishedFragments` into the tweet-row update loop and into the
       `notifySaga(publish.job.failed)` payload. NO record write yet (that is 1c). Worker unit suite
       asserts the ordering.
-- [ ] **T1b3.6** — gates; #32 (no `.only`/`.skip`), #9/#10 on every touched file.
+- [x] **T1b3.6** — gates; #32 (no `.only`/`.skip`), #9/#10 on every touched file.
 
 ---
 
@@ -321,8 +321,8 @@ sweep and the worker write stay in `1c-3`.** Only the tracker merges to `main`.
       `.../expireRetractionActionWindow.test.ts` (passes the CALLER's `window` to the root; one
       `savePublication`; `applied: false` on the second call).
 - [ ] **T1c.4 GREEN** — `packages/core/posts/src/{OpenPublicationEpisodeUseCase,
-    RecordChannelPublicationAttemptUseCase,ConfirmManualRetractionUseCase,
-    ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTransaction`
+RecordChannelPublicationAttemptUseCase,ConfirmManualRetractionUseCase,
+ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTransaction`
       (ADR-0023), `savePublication`, `Result` only, no own `$transaction` (#40).
 - [ ] **T1c.5 RED→GREEN** — `CompletePostPublishingUseCase.ts`: delete the `NOT_IMPLEMENTED` refusal
       (`:146-153`), `resolveProviders` (`:326-347`) and `toProviderResults` (`:351-368`); become the
@@ -355,7 +355,7 @@ sweep and the worker write stay in `1c-3`.** Only the tracker merges to `main`.
       (`readTotalPublishOutcome` `:461-507` → `readPublishOutcome`, the `failed !== 0` refusal
       dropped); `SchedulePublishingJobsStep` (`:738-832`) issues `open-publication-episode` then one
       job per returned channel; `RereadCheck` (`:1094-1116`) per channel; `dedupeKey =
-    publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`).
+publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`).
       **File-size watch**: `saga.ts` is 1227 lines BEFORE this change. Net ~+50. Splitting it
       (`packages/shared/src/saga/postPublishingSaga.ts`) would double 1c's diff for no behavioural
       gain — it is a NAMED BACKLOG ROW (§7.3), not work for this PR.
@@ -410,7 +410,7 @@ sweep and the worker write stay in `1c-3`.** Only the tracker merges to `main`.
       band. Unit suite `apps/api/tests/unit/postChannelRoutes.confirm.test.ts` (404/409/200).
 - [ ] **T1c.16 RED→GREEN** — D18: `RETRACTION_ACTION_WINDOW_HOURS` in the `server` block of
       `apps/api/src/config/env.ts` (the `SAGA_WAIT_POLL_MS` shape, `:309`; `int().min(1).max(720)
-    .default(72)`) — read ONLY through `env`, ONLY in `apps/api` (#16); `.env.example`,
+.default(72)`) — read ONLY through `env`, ONLY in `apps/api` (#16); `.env.example`,
       `.env.test.example`, `docs/deployment/ENVIRONMENT_VARIABLES.md`; NEW
       `apps/api/src/infrastructure/retention/RetractionActionWindowSweep.ts` registered in
       `apps/api/src/index.ts` beside the deletion-record degrader (`:950-962`) through
@@ -452,7 +452,7 @@ Posted" renders, and the five DoD integration suites are in CI. **Rollback**: co
 - [ ] **T1d.2 GREEN** — truth-reader repoints (D10, design.md:184): `SchedulingPostHandlers.ts:98-125`
       and `:166-184` (include → `channelPublications`), `providers/providerService.ts:189-206`,
       `projects/projectRoutes.ts:351`, `:377-385`, `packages/monitoring/health-checks/src/
-    tenantHealth.ts:433-436` via a NEW `RepoPort.listRecentChannelPublications({ since, limit })` +
+tenantHealth.ts:433-436` via a NEW `RepoPort.listRecentChannelPublications({ since, limit })` +
       `packages/adapters/db-prisma/src/ChannelPublicationReads.ts`.
 - [ ] **T1d.3 GREEN** — the seven status unions (`apps/client/lib/api/types.ts:35`,
       `lib/api/clients/postsClient.ts:13`, `apps/api/src/posts/postsService.ts:16`, `:139`,
@@ -515,7 +515,7 @@ a post with no record and dies `UnrecoverableError` while the post silently rest
 - [ ] **T1e.2 GREEN** — `scripts/migrations/<ts>-reconstruct-publication-records.ts` carrying
       `// canon-exception: migration:<ts>` (the directory does not exist yet — this change creates
       it). For every `SagaInstance` with `definitionId = "post-publishing-saga"`, `status =
-    COMPLETED`, `metadata.mode = "schedule"` whose post reads `SCHEDULED`/`DRAFT` with no records:
+COMPLETED`, `metadata.mode = "schedule"` whose post reads `SCHEDULED`/`DRAFT` with no records:
       bound to the saga's tenant (`SagaIntegration.ts:465`), `declarePublicationTargets(channelIds)` + `openPublicationEpisode({ enterPublishing: false })` THROUGH the use cases, remove the legacy
       delayed jobs by id, enqueue `publish-{p}-{c}-e1` at `runAt = scheduledAt` with `accountId`.
       **Rate-bounded: ≤20 jobs/second (50 ms pause, `--rate` overridable)** — W-new-4.
@@ -569,7 +569,7 @@ a post with no record and dies `UnrecoverableError` while the post silently rest
       `PublishLog`).
 - [ ] **T2b.5 GREEN** — the new type appears as one more toggle in
       `apps/client/components/notifications/NotificationPreferences.tsx` (per `docs/api/
-    notifications.md:96-104`). **No per-medium control** — that is
+notifications.md:96-104`). **No per-medium control** — that is
       `customer-notification-policy`'s (rev 3.2).
 - [ ] **T2b.6** — `@component` JSDoc on every new component (#12); #26; gates.
 

@@ -363,7 +363,7 @@ describe("TelegramAdapter - threading (not supported)", { concurrent: false }, (
     assert.strictEqual(result.error, "THREAD_PLANNING_FAILED");
   });
 
-  it("publishThread returns THREAD_INTERRUPTED error", async () => {
+  it("publishThread returns THREAD_INTERRUPTED with no published fragments", async () => {
     const { adapter } = makeAdapter();
     const result = await adapter.publishThread(
       {
@@ -380,8 +380,13 @@ describe("TelegramAdapter - threading (not supported)", { concurrent: false }, (
       VALID_CREDS
     );
 
-    assert.strictEqual(result.ok, false);
-    assert.strictEqual(result.error, "THREAD_INTERRUPTED");
+    assert.ok(!result.ok, "publishThread should fail");
+    assert.strictEqual(result.error.code, "THREAD_INTERRUPTED");
+    assert.deepStrictEqual(
+      result.error.publishedFragments,
+      [],
+      "Telegram never sends a fragment, so the live set is empty rather than absent"
+    );
   });
 });
 
