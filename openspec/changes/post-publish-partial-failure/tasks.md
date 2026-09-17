@@ -96,12 +96,12 @@ entry + the guards-doc row — #39 fails closed if any one is left behind (propo
 
 ### WU 1b.A — schema, migration, enrollment, red path
 
-- [ ] **T1b.1 RED** — `apps/api/tests/integration/postChannelPublicationTenantIsolation.test.ts`
+- [x] **T1b.1 RED** — `apps/api/tests/integration/postChannelPublicationTenantIsolation.test.ts`
       SKELETON only (the full suite lands in 1d): one case asserting the table exists and rejects a
       row whose `accountId` differs from its post's. Fails: no table. Registered in
       `run-tests.sh`'s `integration:tenant-isolation` batch (`apps/api/scripts/run-tests.sh:274-296`)
       — exactly once (#30).
-- [ ] **T1b.2 GREEN** — `infra/prisma/schema.prisma`: model `PostChannelPublication` with the 24
+- [x] **T1b.2 GREEN** — `infra/prisma/schema.prisma`: model `PostChannelPublication` with the 24
       columns, 8 CHECKs, composite FK `(postId, accountId) → Post(id, accountId)` (the trio pattern,
       `schema.prisma:790`, `:812`), the `Account` relation (S3, design.md:80), `channelId` FK
       `NoAction`, `@@unique([postId, channelId])`, `@@index([channelId])`,
@@ -112,17 +112,17 @@ entry + the guards-doc row — #39 fails closed if any one is left behind (propo
       first, canonical InitPlan-wrapped policy (`20260910000000_rls_initplan_post_trio:56-57`,
       `:63-71`), verbatim inverse down. **Schema edit and migration in ONE commit**
       (`rls-policy-form`). Run `pnpm db:up` first, then the migration — never skip it.
-- [ ] **T1b.3 GREEN** — enrollment: `"postChannelPublication"` in `TENANT_SCOPED_MODELS`
+- [x] **T1b.3 GREEN** — enrollment: `"postChannelPublication"` in `TENANT_SCOPED_MODELS`
       (`infra/prisma/src/extensions/tenantGuard.ts:91-153`) + the rows in
       `docs/security/MULTI_TENANT_GUARDS.md` (`:151`, `:1184-1192`). Fitness #39 back to 0.
-- [ ] **T1b.4 RED PATH (mandatory, #39)** — plant the model unenrolled, run #39, observe a REAL
+- [x] **T1b.4 RED PATH (mandatory, #39)** — plant the model unenrolled, run #39, observe a REAL
       non-zero exit naming `PostChannelPublication`, restore the tree sha256-exact, re-confirm 0.
       Transcript in the PR body. A gate whose red path was never demonstrated does not merge
       (CLAUDE.md §Extending the suite, step 3).
 
 ### WU 1b.B — value objects and the record entity
 
-- [ ] **T1b.5 RED** — `packages/core/domain/tests/unit/channelPublication.test.ts`: the entity table
+- [x] **T1b.5 RED** — `packages/core/domain/tests/unit/channelPublication.test.ts`: the entity table
       from design.md:388 — budget 3, nontransient on attempt 1, unclassifiable bounded then named,
       monotonic `attempts`, `(episode, attemptNo)` idempotency, Q11 all-or-nothing (published with
       fewer fragments than `planSize` refused; failed with `publishedFragments` ⇒ `EXCLUDED` +
@@ -131,26 +131,26 @@ entry + the guards-doc row — #39 fails closed if any one is left behind (propo
       (partial ⇒ smaller set + `supersededAlertKey`; `exhausted` ⇒ window opens),
       `expireRetractionActionWindow({ now, window })` before/after `startedAt + window`, and
       `alertTransition()` over ALL FOUR clauses with clause 1's precedence.
-- [ ] **T1b.6 GREEN** — `packages/core/domain/src/value-objects/{PublicationOutcome,ProviderReference,
+- [x] **T1b.6 GREEN** — `packages/core/domain/src/value-objects/{PublicationOutcome,ProviderReference,
 FragmentReference,ExclusionReason,ContentFingerprint}.ts` and
       `packages/core/domain/src/entities/ChannelPublication.ts` per the interface block
       (design.md:313-324). `Result` only, no `throw` (#4); `@file`/`@description`/`@layer domain`
       headers (#9/#10); no phase refs (#8). Barrel exports in `value-objects/index.ts`.
-- [ ] **T1b.7 RED→GREEN** — `packages/core/domain/tests/unit/channelPublications.derive.test.ts` then
+- [x] **T1b.7 RED→GREEN** — `packages/core/domain/tests/unit/channelPublications.derive.test.ts` then
       `packages/core/domain/src/aggregates/ChannelPublications.ts`: `derive()` total and
       order-independent over every combination (design.md:142 + D15.1), `hasLiveContent()`,
       `noLiveContent()`, `redrivable()`. The empty set has no derivation.
 
 ### WU 1b.C — the root
 
-- [ ] **T1b.8 RED** — `packages/core/domain/tests/unit/postAggregate.publications.test.ts`: the S2
+- [x] **T1b.8 RED** — `packages/core/domain/tests/unit/postAggregate.publications.test.ts`: the S2
       five fixtures verbatim (design.md:121), the lock via the live-content predicate, `isEditable`
       no longer answering from the word, `ContentLockedError` distinct from
       `InvalidStateTransitionError`, W7 (each root method's effect on the word), the C2 edge table,
       Q10 fingerprint, and the **content-write door enumeration** (REC-6 `[static]`):
       `updateContent` / `addMedia` / `removeMedia` (`PostAggregate.ts:261-265`, `:554-592`) each
       refuse; `PrismaApproveVariantAdapter.ts:75-92` creates a NEW post; the seed is not production.
-- [ ] **T1b.9 GREEN** — `packages/core/domain/src/aggregates/PostAggregate.ts`: `publications` in
+- [x] **T1b.9 GREEN** — `packages/core/domain/src/aggregates/PostAggregate.ts`: `publications` in
       `PostAggregateState` (`:53-65`) and the seven root methods of D4 (design.md:104-110) +
       `assertPublicationProjection()` (design.md:119) + `isEditable` (`:252-254`) +
       `markAsPublished`/`markAsFailed` reshaped (`:399-451`);
@@ -163,7 +163,7 @@ FragmentReference,ExclusionReason,ContentFingerprint}.ts` and
 
 ### WU 1b.D — events
 
-- [ ] **T1b.10 RED→GREEN** — `packages/core/domain/src/events/PostEvents.ts`: `PostChannelPublished`
+- [x] **T1b.10 RED→GREEN** — `packages/core/domain/src/events/PostEvents.ts`: `PostChannelPublished`
       and `PostChannelExcluded` (internal, registered v1); `PostPublished.toPayload()` and
       `PostPublishingFailed.toPayload()` rebuilt FROM THE RECORD, byte-equal to the v1 keys
       (design.md:190). Test asserts the exact key set and the values from the record and the joined
@@ -171,12 +171,12 @@ FragmentReference,ExclusionReason,ContentFingerprint}.ts` and
 
 ### WU 1b.E — the narrow save (port + adapter + doubles, W-new-1)
 
-- [ ] **T1b.11 RED** — extend `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts` (824
+- [x] **T1b.11 RED** — extend `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts` (824
       today): `savePublication` writes `status`/`publishedAt`/`version + 1` and the child upsert and
       the outbox, and NO content statement (`:712-727`) and NO media statement (`:729-773`); the
       **tripwire** refuses (`err`, `INVARIANT`) when a `PostContentUpdated` / `PostMediaAdded` /
       `PostMediaRemoved` event is pending (`:294-296`); the CAS returns `CONFLICT`.
-- [ ] **T1b.12 GREEN** — `packages/core/domain/src/repositories/PostRepository.ts` gains
+- [x] **T1b.12 GREEN** — `packages/core/domain/src/repositories/PostRepository.ts` gains
       `savePublication(post)`; `packages/adapters/db-prisma/src/post/PostAggregateMapper.ts` maps
       record rows ↔ `ChannelPublication` including `liveFragments` and the joined read-only
       `Channel.provider` (D3, design.md:98); `packages/adapters/db-prisma/src/post/
@@ -185,9 +185,9 @@ PrismaPostRepository.ts` gains the `findById` include and delegates every new st
       **File-size watch**: the repository ARRIVES at 903 lines from the prerequisite — already over
       the band before this change touches it. The split seam keeps its growth to ≤30 lines; the
       pre-existing oversize is a backlog row owned by the prerequisite (§7.3).
-- [ ] **T1b.13 GREEN** — the ADR-0023 shape-agnostic `PostRepository` double used by the core unit
+- [x] **T1b.13 GREEN** — the ADR-0023 shape-agnostic `PostRepository` double used by the core unit
       tiers gains `savePublication` (compile-forced across every existing implementor).
-- [ ] **T1b.14** — gates: `pnpm lint --max-warnings 0`, `tsc`, `prettier`, fitness #39 (0, red path
+- [x] **T1b.14** — gates: `pnpm lint --max-warnings 0`, `tsc`, `prettier`, fitness #39 (0, red path
       proven), #2/#3/#4/#8/#9/#10/#23/#38 (floor 6 unchanged)/#40, `#30` (the skeleton suite named by
       exactly one `run_batch`).
 

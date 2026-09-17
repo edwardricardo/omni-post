@@ -5,12 +5,21 @@
  * @layer infrastructure
  */
 
-import type { Post, PostContent, PostMedia, ContentVersion, MediaKind } from "@infra/prisma";
+import type {
+  Post,
+  PostContent,
+  PostMedia,
+  ContentVersion,
+  MediaKind,
+  PostChannelPublication,
+  Provider,
+} from "@infra/prisma";
 import {
   PostAggregate,
   type PostAggregateState,
   PostId,
   ProjectId,
+  ChannelId,
   MediaId,
   ContentId,
   Content,
@@ -20,7 +29,28 @@ import {
   ScheduledTime,
   MediaAttachment,
   type MediaType,
+  ChannelPublication,
+  ContentFingerprint,
+  ExclusionReason,
+  FragmentReference,
+  providedReference,
+  noneReturnedReference,
+  type ChannelFailureCode,
+  type ChannelPublicationState,
+  type ChannelRetractionBlock,
+  type ChannelRetractionClearance,
+  type ProviderType,
+  type PublicationOutcomeKind,
 } from "@core/domain/index.js";
+
+/**
+ * One publication row, optionally carrying the channel it belongs to. The provider is
+ * read from that joined row and never from the record: which provider a channel is on
+ * is the channel's fact, and storing a copy would be a second place for it to drift.
+ */
+export interface PrismaPostChannelPublicationWithChannel extends PostChannelPublication {
+  channel?: { provider: Provider } | null;
+}
 
 /**
  * Prisma Post with relations
@@ -29,7 +59,15 @@ export interface PrismaPostWithRelations extends Post {
   contents: PostContent[];
   media: PostMedia[];
   contentVersions: ContentVersion[];
+  channelPublications?: PrismaPostChannelPublicationWithChannel[];
 }
+
+/** The database enum is uppercase; the domain's outcome kinds are not. */
+const OUTCOME_KIND: Record<string, PublicationOutcomeKind> = {
+  UNRESOLVED: "unresolved",
+  PUBLISHED: "published",
+  EXCLUDED: "excluded",
+};
 
 /**
  * Maps Prisma MediaKind to domain MediaType
@@ -61,6 +99,91 @@ function mapMediaTypeToPrisma(type: MediaType): MediaKind {
     default:
       return "image";
   }
+}
+
+/**
+ * Maps one stored publication row back into its record entity.
+ *
+ * Reconstitution re-runs no rule: the row IS the state, and a row that could not have
+ * been produced by the entity is a database defect rather than something to repair
+ * here. Two fields are derived rather than stored — the head reference, which folds
+ * `externalId` and `externalIdMissing` into one explicit value, and `excludedAt`,
+ * which is the attempt that excluded the channel (`lastAttemptAt`) and falls back to
+ * the row's own last write.
+ */
+function toChannelPublication(row: PrismaPostChannelPublicationWithChannel): ChannelPublication {
+  const fragments: FragmentReference[] = [];
+  if (Array.isArray(row.liveFragments)) {
+    for (const entry of row.liveFragments) {
+      const parsed = FragmentReference.fromJSON(entry);
+      if (parsed.ok) {
+        fragments.push(parsed.value);
+      }
+    }
+  }
+
+  const outcomeKind = OUTCOME_KIND[row.outcome] ?? "unresolved";
+
+  let head: ChannelPublicationState["head"];
+  if (row.externalId !== null) {
+    const provided = providedReference(row.externalId);
+    head = provided.ok ? provided.value : noneReturnedReference();
+  } else if (row.externalIdMissing) {
+    head = noneReturnedReference();
+  }
+
+  let reason: ExclusionReason | undefined;
+  if (row.reasonCode !== null) {
+    const built = ExclusionReason.create({
+      code: row.reasonCode as ChannelFailureCode,
+      ...(row.reasonDetail !== null && { detail: row.reasonDetail }),
+    });
+    reason = built.ok ? built.value : undefined;
+  }
+
+  let contentHash: ContentFingerprint | undefined;
+  if (row.contentHash !== null) {
+    const parsed = ContentFingerprint.fromString(row.contentHash);
+    contentHash = parsed.ok ? parsed.value : undefined;
+  }
+
+  return ChannelPublication.reconstitute({
+    id: row.id,
+    channelId: ChannelId.fromStringUnsafe(row.channelId),
+    ...(row.channel?.provider !== undefined && {
+      provider: row.channel.provider as ProviderType,
+    }),
+    outcomeKind,
+    ...(head !== undefined && { head }),
+    liveFragments: fragments,
+    pendingRetraction: row.pendingRetraction,
+    ...(row.retractionBlockedCause !== null && {
+      retractionBlockedCause: row.retractionBlockedCause as ChannelRetractionBlock,
+    }),
+    ...(row.actionWindowStartedAt !== null && { actionWindowStartedAt: row.actionWindowStartedAt }),
+    ...(row.actionWindowExpiredAt !== null && { actionWindowExpiredAt: row.actionWindowExpiredAt }),
+    ...(row.retractionAlertHash !== null && { retractionAlertHash: row.retractionAlertHash }),
+    ...(row.retractionClearedCause !== null && {
+      retractionClearedCause: row.retractionClearedCause as ChannelRetractionClearance,
+    }),
+    ...(row.retractionClearedAt !== null && { retractionClearedAt: row.retractionClearedAt }),
+    ...(contentHash !== undefined && { contentHash }),
+    ...(row.publishedAt !== null && { publishedAt: row.publishedAt }),
+    ...(reason !== undefined && { reason }),
+    ...(row.lastFailureCode !== null && {
+      lastFailure: {
+        code: row.lastFailureCode as ChannelFailureCode,
+        ...(row.lastFailureDetail !== null && { detail: row.lastFailureDetail }),
+        at: row.lastAttemptAt ?? row.updatedAt,
+      },
+    }),
+    ...(outcomeKind === "excluded" && {
+      excludedAt: row.lastAttemptAt ?? row.updatedAt,
+    }),
+    attempts: row.attempts,
+    episode: row.episode,
+    episodeAttempts: row.episodeAttempts,
+  });
 }
 
 /**
@@ -125,10 +248,18 @@ export class PostAggregateMapper {
       ContentId.fromStringUnsafe(cv.id)
     );
 
+    // Map the per-channel publication records. An absent relation means the caller
+    // did not ask for them; an empty array means the post has declared no targets.
+    const publications = (prismaPost.channelPublications ?? []).map(toChannelPublication);
+
     // Create aggregate state
     const state: PostAggregateState = {
       id: PostId.fromStringUnsafe(prismaPost.id),
       projectId: ProjectId.fromStringUnsafe(prismaPost.projectId),
+      ...(typeof (prismaPost as { accountId?: string }).accountId === "string" && {
+        accountId: (prismaPost as { accountId?: string }).accountId as string,
+      }),
+      publications,
       content,
       status: statusResult.value,
       ...(scheduledAt && { scheduledAt }),

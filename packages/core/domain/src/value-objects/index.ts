@@ -27,6 +27,65 @@ export { Content, type ContentProps, type ContentLocale, type PlatformType } fro
 // Status value objects
 export { PublishStatus, type PublishStatusValue, PUBLISH_STATUS } from "./PublishStatus.js";
 
+// Channel-publication value objects — the record's closed vocabulary
+export {
+  FragmentReference,
+  sortFragments,
+  type FragmentReferenceJson,
+  type FragmentReferenceProps,
+} from "./FragmentReference.js";
+export {
+  providedReference,
+  noneReturnedReference,
+  isProvidedReference,
+  PROVIDER_REFERENCE_KINDS,
+  type ProviderReference,
+  type ProviderReferenceKind,
+  type ProvidedReference,
+  type NoneReturnedReference,
+} from "./ProviderReference.js";
+export {
+  ExclusionReason,
+  CHANNEL_FAILURE_CODES,
+  type ChannelFailureCode,
+  type ChannelFailureRecord,
+  type ExclusionReasonProps,
+} from "./ExclusionReason.js";
+export {
+  ContentFingerprint,
+  digestOfFragments,
+  type ContentFingerprintInput,
+} from "./ContentFingerprint.js";
+export {
+  PUBLICATION_OUTCOME_KINDS,
+  CHANNEL_RETRACTION_BLOCKS,
+  CHANNEL_RETRACTION_CLEARANCES,
+  ATTEMPT_CLASSIFICATIONS,
+  unresolvedOutcome,
+  publishedOutcome,
+  excludedOutcome,
+  isPublishedOutcome,
+  isExcludedOutcome,
+  isUnresolvedOutcome,
+  liveFragmentsOf,
+  outcomeHasLiveContent,
+  type PublicationOutcome,
+  type PublicationOutcomeKind,
+  type UnresolvedOutcome,
+  type PublishedOutcome,
+  type ExcludedOutcome,
+  type RetractionState,
+  type RetractionPending,
+  type RetractionNotPending,
+  type RetractionActionWindow,
+  type ChannelRetractionBlock,
+  type ChannelRetractionClearance,
+  type AttemptResult,
+  type AttemptClassification,
+  type PublishedAttemptResult,
+  type FailedAttemptResult,
+} from "./PublicationOutcome.js";
+
 // Media value objects
 export {
   MediaAttachment,
