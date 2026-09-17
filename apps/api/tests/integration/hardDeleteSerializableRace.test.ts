@@ -13,8 +13,8 @@
  *              WHY IT RUNS THROUGH `setupAccountUseCases`. In production the use case opens
  *              the transaction, so the adapter's own `$transaction(..., HARD_DELETE_TX_OPTIONS)`
  *              branch is DEAD: the only live carrier of Serializable isolation is the
- *              `new PrismaUnitOfWork(prisma, HARD_DELETE_TX_OPTIONS)` built in the composition
- *              root. Deleting that second argument left the entire suite green — every unit
+ *              `new PrismaUnitOfWork(prisma, tenantProvider, HARD_DELETE_TX_OPTIONS)` built in
+ *              the composition root. Deleting that options argument left the entire suite green — every unit
  *              test doubles the Unit of Work, so none of them can see an isolation level. This
  *              suite composes the use case with the SAME function the API boots with, so the
  *              guarantee is asserted where it is actually delivered.
@@ -35,10 +35,13 @@ import { Container } from "../../src/infrastructure/container/Container.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { setupAccountUseCases } from "../../src/infrastructure/container/setupAccountUseCases.js";
 import { PrismaAccountRepository } from "../../src/infrastructure/repositories/PrismaAccountRepository.js";
-import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { HARD_DELETE_TX_OPTIONS } from "../../src/infrastructure/hardDeleteTransaction.js";
 import { mapHardDeleteError } from "../../src/lib/hardDeleteErrorMapping.js";
-import { withSystemContext } from "../../src/security/tenantContext.js";
+import {
+  ambientTenantContextProvider,
+  withSystemContext,
+} from "../../src/security/tenantContext.js";
 import { HardDeleteAccountUseCase } from "@core/accounts/index.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { toAdminActorId, type AdminActorId } from "@core/domain/value-objects/AdminActorId.js";
@@ -209,7 +212,7 @@ describe("hard delete under a concurrent project insert (real DB, two connection
     // rather than an `Object.assign(new Error(), { code })` a test wrote for itself.
     const useCase = new HardDeleteAccountUseCase(
       new PrismaAccountRepository(prisma),
-      new PrismaUnitOfWork(prisma, HARD_DELETE_TX_OPTIONS),
+      new PrismaUnitOfWork(prisma, ambientTenantContextProvider, HARD_DELETE_TX_OPTIONS),
       { attempts: 1 }
     );
 

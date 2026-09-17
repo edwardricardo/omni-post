@@ -28,7 +28,7 @@ import {
   type GucTransactionOptions,
 } from "@infra/prisma/extensions/tenantGuc.js";
 import { getAmbientGucScope } from "../../security/tenantContext.js";
-import { PrismaUnitOfWork } from "./PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 
 type TxClient = Prisma.TransactionClient;
 

@@ -34,6 +34,7 @@ import {
 } from "@core/posts/index.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
 import {
+  ambientTenantContextProvider,
   getSystemContext,
   getTenantContext,
   withTenantContext,
@@ -42,11 +43,9 @@ import { SagaIntegration } from "../../../src/saga/SagaIntegration.js";
 import type { SagaManagerImpl } from "../../../src/saga/SagaManager.js";
 import { CQRSBusImpl } from "../../../src/cqrs/CQRSBus.js";
 import { EventService } from "../../../src/events/EventService.js";
-import { PrismaPostRepository } from "../../../src/infrastructure/repositories/PrismaPostRepository.js";
+import { PrismaPostRepository, PrismaOutboxWriter, PrismaUnitOfWork } from "@adapters/db-prisma";
 import { PrismaChannelRepository } from "../../../src/infrastructure/repositories/PrismaChannelRepository.js";
 import { PrismaProjectRepository } from "../../../src/infrastructure/repositories/PrismaProjectRepository.js";
-import { PrismaOutboxWriter } from "../../../src/infrastructure/outbox/PrismaOutboxWriter.js";
-import { PrismaUnitOfWork } from "../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
 import { ChannelCredentialsCrypto } from "../../../src/security/ChannelCredentialsCrypto.js";
 import { EncryptionService } from "../../../src/security/EncryptionService.js";
 import { signCustomerAccessToken } from "../../../src/auth/customerJwt.js";
@@ -196,7 +195,11 @@ export class PublishNowPromotionHarness {
     this.channelId = await this.seedChannel(`${this.tag}-primary`);
     this.secondChannelId = await this.seedChannel(`${this.tag}-secondary`);
 
-    this.postRepository = new PrismaPostRepository(this.guarded, new PrismaOutboxWriter());
+    this.postRepository = new PrismaPostRepository(
+      this.guarded,
+      new PrismaOutboxWriter(),
+      ambientTenantContextProvider
+    );
     this.projectRepository = new PrismaProjectRepository(this.guarded);
     this.channelRepository = new PrismaChannelRepository(
       this.guarded,
@@ -205,7 +208,7 @@ export class PublishNowPromotionHarness {
     this.promotionUseCase = new CompletePostPublishingUseCase(
       this.postRepository,
       this.channelRepository,
-      new PrismaUnitOfWork(this.guarded)
+      new PrismaUnitOfWork(this.guarded, ambientTenantContextProvider)
     );
     this.handlerConfig = {
       createPostUseCase: new CreatePostUseCase(
@@ -351,9 +354,13 @@ export class PublishNowPromotionHarness {
    */
   buildFailingPromotion(): CompletePostPublishingUseCase {
     return new CompletePostPublishingUseCase(
-      new PrismaPostRepository(this.guarded, new ThrowingOutboxWriter()),
+      new PrismaPostRepository(
+        this.guarded,
+        new ThrowingOutboxWriter(),
+        ambientTenantContextProvider
+      ),
       this.channelRepository,
-      new PrismaUnitOfWork(this.guarded)
+      new PrismaUnitOfWork(this.guarded, ambientTenantContextProvider)
     );
   }
 

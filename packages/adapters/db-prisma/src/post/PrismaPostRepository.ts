@@ -25,14 +25,11 @@ import {
   EntityNotFoundError,
   VersionConflictError,
 } from "@core/domain/index.js";
-import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
+import { resolveGucScope, withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
+import type { TenantContextProvider } from "@infra/prisma/extensions/tenantGuard.js";
 import type { OutboxWriter } from "@core/domain/repositories/OutboxWriter.js";
-import {
-  PostAggregateMapper,
-  type PrismaPostWithRelations,
-} from "./mappers/PostAggregateMapper.js";
+import { PostAggregateMapper, type PrismaPostWithRelations } from "./PostAggregateMapper.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
-import { getAmbientGucScope } from "../../security/tenantContext.js";
 
 /** Local type alias for Prisma transaction client */
 type TxClient = Prisma.TransactionClient;
@@ -53,7 +50,8 @@ const MAX_LIMIT = 100;
 export class PrismaPostRepository implements PostRepository {
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly outboxWriter?: OutboxWriter
+    private readonly outboxWriter: OutboxWriter | undefined,
+    private readonly tenantProvider: TenantContextProvider
   ) {}
 
   /**
@@ -142,7 +140,7 @@ export class PrismaPostRepository implements PostRepository {
   /**
    * Hard-delete a post and all its data (irreversible).
    * SUPER_ADMIN only. Cascades to contents, media, publishLogs, contentVersions.
-   * Es UoW-aware: si hay una transacción activa en el contexto, la usa directamente.
+   * UoW-aware: when a transaction is active in the context, it uses that one directly.
    */
   async hardDelete(id: PostId): Promise<Result<void, EntityNotFoundError>> {
     // DELIBERATE soft-delete-sweep exception: the hard-delete probe must detect
@@ -184,7 +182,11 @@ export class PrismaPostRepository implements PostRepository {
     if (activeTx) {
       await doHardDelete(activeTx);
     } else {
-      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), doHardDelete);
+      await withGucBoundTransaction(
+        this.prisma,
+        resolveGucScope(this.tenantProvider),
+        doHardDelete
+      );
     }
 
     return ok(undefined);
@@ -554,7 +556,7 @@ export class PrismaPostRepository implements PostRepository {
 
   /**
    * Create a new post in the database.
-   * Es UoW-aware: si hay una transacción activa en el contexto, la usa directamente.
+   * UoW-aware: when a transaction is active in the context, it uses that one directly.
    */
   private async create(aggregate: PostAggregate): Promise<void> {
     const data = PostAggregateMapper.toPrismaCreate(aggregate);
@@ -563,9 +565,13 @@ export class PrismaPostRepository implements PostRepository {
     if (activeTx) {
       await this.doCreate(activeTx, data, aggregate);
     } else {
-      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
-        await this.doCreate(tx, data, aggregate);
-      });
+      await withGucBoundTransaction(
+        this.prisma,
+        resolveGucScope(this.tenantProvider),
+        async (tx) => {
+          await this.doCreate(tx, data, aggregate);
+        }
+      );
     }
   }
 
@@ -605,7 +611,7 @@ export class PrismaPostRepository implements PostRepository {
   }
 
   /**
-   * Lógica interna de creación de post — opera sobre un cliente de transacción.
+   * Internal post-creation logic — operates on a transaction client.
    */
   private async doCreate(
     tx: TxClient,
@@ -646,7 +652,7 @@ export class PrismaPostRepository implements PostRepository {
 
   /**
    * Update an existing post in the database.
-   * Es UoW-aware: si hay una transacción activa en el contexto, la usa directamente.
+   * UoW-aware: when a transaction is active in the context, it uses that one directly.
    */
   private async update(aggregate: PostAggregate): Promise<void> {
     const data = PostAggregateMapper.toPrismaUpdate(aggregate);
@@ -655,14 +661,18 @@ export class PrismaPostRepository implements PostRepository {
     if (activeTx) {
       await this.doUpdate(activeTx, data, aggregate);
     } else {
-      await withGucBoundTransaction(this.prisma, getAmbientGucScope(), async (tx) => {
-        await this.doUpdate(tx, data, aggregate);
-      });
+      await withGucBoundTransaction(
+        this.prisma,
+        resolveGucScope(this.tenantProvider),
+        async (tx) => {
+          await this.doUpdate(tx, data, aggregate);
+        }
+      );
     }
   }
 
   /**
-   * Lógica interna de actualización de post — opera sobre un cliente de transacción.
+   * Internal post-update logic — operates on a transaction client.
    */
   private async doUpdate(
     tx: TxClient,

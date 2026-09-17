@@ -116,11 +116,14 @@ jobs:
           # layers. Excludes JSDoc/comment lines and tests — a negative test may
           # need `as any` to construct invalid state, which is the `test-fixture`
           # scenario in CLAUDE.md §Pragmatic Exceptions. Mirrors CLAUDE.md #3.
-          for d in packages/core apps/api/src/infrastructure; do
+          # packages/adapters/db-prisma joined the scope with the Post persistence relocation
+          # (measured 0 at entry); its tests/ are excluded by the same /tests/ filter as
+          # everywhere else.
+          for d in packages/core apps/api/src/infrastructure packages/adapters/db-prisma; do
             [ -d "$d" ] || { echo "::error title=Fitness #3 scope missing::'$d' does not exist, so this check would scan nothing and pass. Repoint the scope to where the layer lives now."; exit 1; }
           done
           MATCHES=$(grep -rnE "(:\s+any\b|\bas any\b|<any>)" \
-            packages/core apps/api/src/infrastructure \
+            packages/core apps/api/src/infrastructure packages/adapters/db-prisma \
             --include="*.ts" | \
             grep -vE "/dist/|/node_modules/|/tests/|\.test\.ts:" | \
             grep -vE "//.*any|^[^:]+:[0-9]+:\s*\*" || true)
@@ -184,7 +187,11 @@ jobs:
         if: always()
         run: |
           set -uo pipefail
-          MATCHES=$(grep -rn "@ts-ignore\|@ts-nocheck" apps/api/src/ packages/*/src/ --include="*.ts" 2>/dev/null || true)
+          # packages/*/src/ is ONE directory level deep and never reached
+          # packages/adapters/db-prisma/src/; the relocated Post persistence adapters live
+          # there, so it is named explicitly (0 at entry). The general two-level widening is
+          # unmeasured — backlog.
+          MATCHES=$(grep -rn "@ts-ignore\|@ts-nocheck" apps/api/src/ packages/*/src/ packages/adapters/db-prisma/src/ --include="*.ts" 2>/dev/null || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
@@ -527,14 +534,25 @@ jobs:
           #     CWE-639 closed. See docs/security/MULTI_TENANT_AUDIT_2026-05-27.md.
           #     The regex cannot validate the AND clause on a multi-line
           #     Prisma.sql template literal; exception remains for clarity.
-          #   - unitofwork/PrismaUnitOfWork.ts (S2.1c): emits set_config(
-          #     'app.account_id', ..., true) to bind the RLS GUC at tx start.
-          #     THE canonical entry point for tenant scope in transactions.
+          #   - packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts (relocated from
+          #     apps/api/src/infrastructure/unitofwork/ with the Post persistence adapters):
+          #     emits set_config('app.account_id', ..., true) to bind the RLS GUC at tx start —
+          #     THE canonical entry point for tenant scope in transactions. INERT TODAY, stated
+          #     so nobody reads it as coverage: the statement is a TAGGED TEMPLATE
+          #     (tx.$queryRaw`...`) and this regex is anchored on `\(`, so the line has never
+          #     matched (SMELL-111's class). Kept because it turns live the day SMELL-111 closes
+          #     the regex; deleting it instead needs authorisation (backlog).
+          #   - packages/adapters/db-prisma/src entered this scope with that relocation.
+          #     Measured at entry: 0 paren-form calls. Its one tagged-template site,
+          #     resilience.ts:308 (prisma.$queryRaw`SELECT 1`, a connection probe touching no
+          #     tenant table), is invisible to this regex for the same reason and gets NO
+          #     exception line — a second inert line would be fat, not coverage; SMELL-111's
+          #     closure enrols it.
           MATCHES=$(grep -rnE "\.\\\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe)\(" \
-            apps/api/src apps/workers/src --include="*.ts" 2>/dev/null | \
+            apps/api/src apps/workers/src packages/adapters/db-prisma/src --include="*.ts" 2>/dev/null | \
             grep -vE "/extensions/tenantGuard|/infrastructure/container/|/tests/|\.test\." | \
             grep -vE "/events/EventStore\.ts|/PrismaStyleGuideRuleRepository\.ts|/PrismaGlossaryRepository\.ts" | \
-            grep -vE "/unitofwork/PrismaUnitOfWork\.ts" || true)
+            grep -vE "/db-prisma/src/unitofwork/PrismaUnitOfWork\.ts" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
@@ -1382,11 +1400,20 @@ jobs:
           # both. ALLOWLIST, the #28 form: the dangerous set is open-ended (a raw batch
           # array, a hand-rolled interactive transaction, a helper that forgets the
           # marker, a hand-built scope) while the admissible set is small and nameable.
+          #
+          # `PrismaUnitOfWork` lives at `packages/adapters/db-prisma/src/unitofwork/` since
+          # the Post persistence adapters were relocated there. The `/saga/sagaTenant\.ts:`
+          # term is INERT — measured: `apps/api/src/saga/sagaTenant.ts` holds ZERO
+          # `.$transaction(` calls (its two primitives open THROUGH
+          # `withGucBoundTransaction`), so the floor of 3 is carried by TWO files:
+          # `PrismaUnitOfWork.ts` once and `db-prisma/src/ChannelRepository.ts` twice. The
+          # term stays listed until its deletion is authorised, and it is named here so a
+          # reader does not trust a list that is one-third fiction.
           set -uo pipefail
           for d in apps/api/src packages/adapters/db-prisma/src; do
             [ -d "$d" ] || { echo "::error title=Fitness #40 scope error::'$d' does not exist — the scan would skip it silently and print 0."; exit 1; }
           done
-          TX_SEAMS='/infrastructure/unitofwork/PrismaUnitOfWork\.ts:|/saga/sagaTenant\.ts:|/db-prisma/src/ChannelRepository\.ts:'
+          TX_SEAMS='/db-prisma/src/unitofwork/PrismaUnitOfWork\.ts:|/saga/sagaTenant\.ts:|/db-prisma/src/ChannelRepository\.ts:'
           tx_calls() {
             grep -rnE "\.\\\$transaction\(" apps/api/src packages/adapters/db-prisma/src --include="*.ts" | \
               grep -vE "/node_modules/|/dist/|\.stryker|/tests/|\.test\.ts:" | \
@@ -1412,9 +1439,25 @@ jobs:
           # the accountId layer 1 injected. The saga is the one named exception: its
           # primitives take the account explicitly because a saga step has no ambient
           # request, and that module exists to keep the surface narrow.
+          #
+          # The relocated `@core/domain` adapters under
+          # packages/adapters/db-prisma/src/{post,outbox,unitofwork} have no ambient request
+          # either: they take a TenantContextProvider by constructor and derive the scope as
+          # `resolveGucScope(this.tenantProvider)` — the same function `getAmbientGucScope()`
+          # wraps, over the provider the composition root handed them. That is the second
+          # admissible expression, and those three directories are Part B's second scope; each
+          # must exist or the check fails closed, which also pins the relocation's layout. The
+          # FLAT db-prisma files (MentionRepository.ts, ProjectRepository.ts, PostRepository.ts
+          # — 6 sites measured) keep the explicit-scope worker convention and stay OUTSIDE
+          # Part B, as residual (4) states; they were not exempted by file because the exempt
+          # list may only shrink.
+          PART_B_SCOPE="apps/api/src packages/adapters/db-prisma/src/post packages/adapters/db-prisma/src/outbox packages/adapters/db-prisma/src/unitofwork"
+          for d in $PART_B_SCOPE; do
+            [ -d "$d" ] || { echo "::error title=Fitness #40 scope error::Part B scope '$d' does not exist — a relocated adapter home is gone, and the scan would skip it silently and print 0."; exit 1; }
+          done
           SCOPE_EXEMPT='/saga/sagaTenant\.ts:'
           seam_call_sites() {
-            grep -rnE "withGucBoundTransaction\(" apps/api/src --include="*.ts" | \
+            grep -rnE "withGucBoundTransaction\(" $PART_B_SCOPE --include="*.ts" | \
               grep -vE "/node_modules/|/dist/|\.stryker|/tests/|\.test\.ts:" | \
               grep -vE "^[^:]+:[0-9]+:[[:space:]]*(import|\*|//)" | \
               grep -vE "$SCOPE_EXEMPT"
@@ -1426,13 +1469,13 @@ jobs:
           fi
           UNDERIVED=$(seam_call_sites | while IFS= read -r hit; do
             file=${hit%%:*}; rest=${hit#*:}; ln=${rest%%:*}
-            sed -n "${ln},$((ln + 3))p" "$file" | grep -q "getAmbientGucScope()" || printf '%s\n' "$hit"
+            sed -n "${ln},$((ln + 3))p" "$file" | grep -qE "getAmbientGucScope\(\)|resolveGucScope\(this\.tenantProvider\)" || printf '%s\n' "$hit"
           done)
           BCOUNT=$(printf "%s" "$UNDERIVED" | grep -c . || true)
           BCOUNT=${BCOUNT:-0}
           echo "Fitness #40 part B: $BCOUNT seam calls with an underived scope (expect 0)"
           if [ "$BCOUNT" -gt 0 ]; then
-            echo "::error title=Fitness #40 violation (part B)::$BCOUNT seam call(s) bind a scope that is not \`getAmbientGucScope()\`. Layer 1 (the guard's injected accountId) and layer 2 (the policy's GUC) must come from the SAME provider object, or a request can inject one tenant and bind another. Use \`getAmbientGucScope()\`, or \`withTenantTransaction\` which calls it."
+            echo "::error title=Fitness #40 violation (part B)::$BCOUNT seam call(s) bind a scope that is not \`getAmbientGucScope()\` or \`resolveGucScope(this.tenantProvider)\`. Layer 1 (the guard's injected accountId) and layer 2 (the policy's GUC) must come from the SAME provider object, or a request can inject one tenant and bind another. Use \`getAmbientGucScope()\` (or \`withTenantTransaction\`, which calls it) in apps/api, and \`resolveGucScope(this.tenantProvider)\` in a relocated adapter."
             printf "%s\n" "$UNDERIVED"
             exit 1
           fi
@@ -1442,14 +1485,20 @@ jobs:
           # turn a wholesale rename into a red, but not a single deliberately obfuscated call.
           # (2) Part B proves the scope EXPRESSION, not that the provider behind it is the
           # guard's — that one is structural instead, because `getAmbientGucScope()` and the
-          # guard read the same exported `ambientTenantContextProvider` object. (3) A whole-file
+          # guard read the same exported `ambientTenantContextProvider` object; at the relocated
+          # sites the provider's identity is a property of the composition root instead, proven
+          # by `setupRepositories.test.ts` and `tenantGucTransactionBinding.test.ts`.
+          # (3) A whole-file
           # seam exemption exempts future calls in that file; the exempt list is `sagaTenant.ts`
-          # alone and may only shrink. (4) `packages/adapters/db-prisma` is in Part A's scope but
-          # not Part B's: it has no ambient request to derive from, and its explicit-scope
-          # convention is the shipped worker pattern.
+          # alone and may only shrink. (4) The FLAT `packages/adapters/db-prisma` files are in
+          # Part A's scope but not Part B's: they have no ambient request to derive from, and
+          # their explicit-scope convention is the shipped worker pattern. Its
+          # `{post,outbox,unitofwork}` subdirectories are in BOTH — the relocated adapters
+          # derive their scope from an injected provider, so the derivation is greppable there.
           # (5) `apps/workers/src` IS OUTSIDE BOTH PARTS, and its transactions are therefore
           # UNGATED. Part A's scope is `apps/api/src` + `packages/adapters/db-prisma/src`;
-          # Part B's is `apps/api/src` alone. Measured at the time of writing: 2
+          # Part B's is `apps/api/src` plus those three relocated subdirectories. Measured at
+          # the time of writing: 2
           # `.$transaction(` calls live there — `services/ChannelAuthFailureRecorder.ts` and
           # `mentionIngestWorker.ts` — and neither part reads them. The exclusion is deliberate
           # (the worker process has no ambient request to derive a scope from) and is declared

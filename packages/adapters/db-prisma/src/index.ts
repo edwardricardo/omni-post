@@ -39,6 +39,15 @@ export { createPublishLogRepository } from "./PublishLogRepository.js";
 export { createAnalyticsRepository } from "./AnalyticsRepository.js";
 export { createThreadRepository } from "./ThreadRepository.js";
 export { PrismaMentionRepository } from "./MentionRepository.js";
+// Post write side — the `@core/domain` aggregate adapters. Not to be confused with
+// `createPostRepository` above: that is the `@ports/core` DTO factory composed into
+// `createPrismaRepoAdapter`; these implement the domain `PostRepository` port (aggregate
+// hydration, version CAS, transactional outbox) and the `UnitOfWork` port, and they take
+// the tenant provider by constructor — never from an ambient import.
+export { PrismaPostRepository } from "./post/PrismaPostRepository.js";
+export { PostAggregateMapper, type PrismaPostWithRelations } from "./post/PostAggregateMapper.js";
+export { PrismaOutboxWriter } from "./outbox/PrismaOutboxWriter.js";
+export { PrismaUnitOfWork, type TransactionOptions } from "./unitofwork/PrismaUnitOfWork.js";
 export {
   createDatabaseCircuitBreaker,
   withDatabaseRetry,

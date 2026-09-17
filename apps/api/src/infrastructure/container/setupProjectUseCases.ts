@@ -14,8 +14,9 @@ import {
 } from "@core/projects/index.js";
 import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
+import { ambientTenantContextProvider } from "../../security/tenantContext.js";
 
 /**
  * @method setupProjectUseCases
@@ -70,6 +71,7 @@ export function setupProjectUseCases(container: Container): void {
         container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository),
         new PrismaUnitOfWork(
           container.resolve<PrismaClient>(TOKENS.PrismaClient),
+          ambientTenantContextProvider,
           HARD_DELETE_TX_OPTIONS
         )
       ),

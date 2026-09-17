@@ -61,6 +61,7 @@ import {
   type SagaStepResult,
 } from "@shared/types/saga.js";
 import {
+  ambientTenantContextProvider,
   getSystemContext,
   getTenantContext,
   withTenantContext,
@@ -69,7 +70,7 @@ import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
 import type { SagaManagerImpl } from "../../src/saga/SagaManager.js";
 import { CQRSBusImpl } from "../../src/cqrs/CQRSBus.js";
 import { EventService } from "../../src/events/EventService.js";
-import { PrismaPostRepository } from "../../src/infrastructure/repositories/PrismaPostRepository.js";
+import { PrismaPostRepository } from "@adapters/db-prisma";
 import { PrismaChannelRepository } from "../../src/infrastructure/repositories/PrismaChannelRepository.js";
 import { PrismaProjectRepository } from "../../src/infrastructure/repositories/PrismaProjectRepository.js";
 import { ChannelCredentialsCrypto } from "../../src/security/ChannelCredentialsCrypto.js";
@@ -409,7 +410,7 @@ describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () =
     });
     customerUserId = customerUser.id;
 
-    postRepository = new PrismaPostRepository(guarded);
+    postRepository = new PrismaPostRepository(guarded, undefined, ambientTenantContextProvider);
     projectRepository = new PrismaProjectRepository(guarded);
     channelRepository = new PrismaChannelRepository(
       guarded,

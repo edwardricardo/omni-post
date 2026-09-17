@@ -11,13 +11,15 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { PrismaClient } from "@infra/prisma";
-import { PrismaUnitOfWork } from "../../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork, PrismaPostRepository } from "@adapters/db-prisma";
 import { PrismaProjectRepository } from "../../../../src/infrastructure/repositories/PrismaProjectRepository.js";
 import { PrismaAccountRepository } from "../../../../src/infrastructure/repositories/PrismaAccountRepository.js";
-import { ProjectId, AccountId } from "@core/domain/index.js";
+import { ambientTenantContextProvider } from "../../../../src/security/tenantContext.js";
+import { ProjectId, AccountId, PostId } from "@core/domain/index.js";
 
 const PROJECT_ID = "b0000000-0000-4000-8000-000000000001";
 const ACCOUNT_ID = "a0000000-0000-4000-8000-000000000001";
+const POST_ID = "c0000000-0000-4000-8000-000000000001";
 
 /**
  * Two distinct spy clients: the base client the repository is constructed with,
@@ -34,6 +36,11 @@ function makeClients() {
     account: {
       count: vi.fn(async () => 1),
       update: vi.fn(async () => ({ id: ACCOUNT_ID })),
+    },
+    // The relocated repository's existence probe reads through `post.count`, which is
+    // how "which client did it reach" becomes observable across the package boundary.
+    post: {
+      count: vi.fn(async () => 1),
     },
     $queryRaw: vi.fn(async () => []),
   });
@@ -62,7 +69,7 @@ describe("soft delete joins the ambient Unit of Work transaction", () => {
 
   describe("PrismaProjectRepository.delete", () => {
     it("issues the existence probe and the update on the transaction client, not the base client", async () => {
-      const uow = new PrismaUnitOfWork(asPrisma(clients.base));
+      const uow = new PrismaUnitOfWork(asPrisma(clients.base), ambientTenantContextProvider);
       const repo = new PrismaProjectRepository(asPrisma(clients.base));
 
       let deleted: Awaited<ReturnType<typeof repo.delete>> | undefined;
@@ -78,7 +85,7 @@ describe("soft delete joins the ambient Unit of Work transaction", () => {
     });
 
     it("writes deletedAt through the transaction client", async () => {
-      const uow = new PrismaUnitOfWork(asPrisma(clients.base));
+      const uow = new PrismaUnitOfWork(asPrisma(clients.base), ambientTenantContextProvider);
       const repo = new PrismaProjectRepository(asPrisma(clients.base));
 
       await uow.executeInTransaction(async () => {
@@ -104,7 +111,7 @@ describe("soft delete joins the ambient Unit of Work transaction", () => {
 
   describe("PrismaAccountRepository.delete", () => {
     it("issues the existence probe and the update on the transaction client, not the base client", async () => {
-      const uow = new PrismaUnitOfWork(asPrisma(clients.base));
+      const uow = new PrismaUnitOfWork(asPrisma(clients.base), ambientTenantContextProvider);
       const repo = new PrismaAccountRepository(asPrisma(clients.base));
 
       let deleted: Awaited<ReturnType<typeof repo.delete>> | undefined;
@@ -120,7 +127,7 @@ describe("soft delete joins the ambient Unit of Work transaction", () => {
     });
 
     it("writes deletedAt through the transaction client", async () => {
-      const uow = new PrismaUnitOfWork(asPrisma(clients.base));
+      const uow = new PrismaUnitOfWork(asPrisma(clients.base), ambientTenantContextProvider);
       const repo = new PrismaAccountRepository(asPrisma(clients.base));
 
       await uow.executeInTransaction(async () => {
@@ -144,10 +151,36 @@ describe("soft delete joins the ambient Unit of Work transaction", () => {
     });
   });
 
+  describe("a relocated adapter joins the SAME unit of work as one still in apps/api", () => {
+    it("hands both repositories the unit of work's transaction client, across the package boundary", async () => {
+      const uow = new PrismaUnitOfWork(asPrisma(clients.base), ambientTenantContextProvider);
+      const projectRepo = new PrismaProjectRepository(asPrisma(clients.base));
+      const postRepo = new PrismaPostRepository(
+        asPrisma(clients.base),
+        undefined,
+        ambientTenantContextProvider
+      );
+
+      await uow.executeInTransaction(async () => {
+        await projectRepo.delete(ProjectId.fromStringUnsafe(PROJECT_ID));
+        await postRepo.exists(PostId.fromStringUnsafe(POST_ID));
+      });
+
+      // The static accessor and its module-level storage are ONE instance even though
+      // the two classes now live in different packages. A second module identity would
+      // leave the relocated repository seeing no active transaction and reading the
+      // base client instead — silently outside the caller's transaction and outside
+      // the `app.account_id` binding it carries.
+      expect(clients.tx.project.update).toHaveBeenCalledTimes(1);
+      expect(clients.tx.post.count).toHaveBeenCalledTimes(1);
+      expect(clients.base.post.count).not.toHaveBeenCalled();
+    });
+  });
+
   describe("a missing row is still reported through the transaction client", () => {
     it("returns EntityNotFoundError without issuing an update when the probe finds nothing", async () => {
       clients.tx.project.count.mockResolvedValueOnce(0);
-      const uow = new PrismaUnitOfWork(asPrisma(clients.base));
+      const uow = new PrismaUnitOfWork(asPrisma(clients.base), ambientTenantContextProvider);
       const repo = new PrismaProjectRepository(asPrisma(clients.base));
 
       let deleted: Awaited<ReturnType<typeof repo.delete>> | undefined;

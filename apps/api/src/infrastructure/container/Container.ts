@@ -18,7 +18,8 @@ import type { Token, ServiceFactory, ServiceRegistration, ContainerOptions } fro
  *
  * @example
  * const container = new Container();
- * container.register(TOKENS.PostRepository, () => new PrismaPostRepository(prisma));
+ * container.register(TOKENS.PostRepository, () =>
+ *   new PrismaPostRepository(prisma, outboxWriter, ambientTenantContextProvider));
  * const repo = container.resolve<PostRepository>(TOKENS.PostRepository);
  */
 export class Container {

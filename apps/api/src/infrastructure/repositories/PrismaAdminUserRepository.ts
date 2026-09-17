@@ -8,7 +8,7 @@
 import type { PrismaClient, Prisma, AdminUser, Role } from "@infra/prisma";
 import { ok, err } from "@shared/types";
 import type { Result } from "@shared/types";
-import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 import type {
   AdminUserRepositoryPort,

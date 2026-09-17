@@ -7,7 +7,7 @@
  */
 
 import type { PrismaClient, Prisma } from "@infra/prisma";
-import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import type {
   AdminSessionRepository,
   AdminSessionDto,

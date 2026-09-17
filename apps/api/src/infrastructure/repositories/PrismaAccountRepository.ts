@@ -12,7 +12,7 @@ import { Account, AccountId, EntityNotFoundError } from "@core/domain/index.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 import type { HardDeleteContext, HardDeleteImpact } from "@core/domain/repositories/Repository.js";
 import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
-import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
 import { getAmbientGucScope } from "../../security/tenantContext.js";
 import { DELETION_RECORD_LAWFUL_BASIS, computeRetainUntil } from "./deletionRecordRetention.js";

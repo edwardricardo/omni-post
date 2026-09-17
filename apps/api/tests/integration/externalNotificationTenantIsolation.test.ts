@@ -31,12 +31,16 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { type PrismaClient } from "@infra/prisma";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
-import { getTenantContext, getSystemContext } from "../../src/security/tenantContext.js";
+import {
+  ambientTenantContextProvider,
+  getTenantContext,
+  getSystemContext,
+} from "../../src/security/tenantContext.js";
 import { Container } from "../../src/infrastructure/container/Container.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { EncryptionService } from "../../src/security/EncryptionService.js";
 import { FetchHttpClient } from "../../src/infrastructure/adapters/FetchHttpClient.js";
-import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { PrismaProjectRepository } from "../../src/infrastructure/repositories/PrismaProjectRepository.js";
 import { setupExternalNotificationUseCases } from "../../src/infrastructure/container/setupExternalNotificationUseCases.js";
 import { externalNotificationRoutes } from "../../src/external-notifications/externalNotificationRoutes.js";
@@ -147,7 +151,11 @@ describe("External Notification — two-tenant isolation (Slice 1, MERGE-BLOCKIN
     container.registerInstance(TOKENS.HttpClientPort, new FetchHttpClient());
     container.registerInstance(TOKENS.ProjectRepository, new PrismaProjectRepository(guarded));
     // UnitOfWork is transient per canon (new instance per resolve).
-    container.register(TOKENS.UnitOfWork, () => new PrismaUnitOfWork(guarded), false);
+    container.register(
+      TOKENS.UnitOfWork,
+      () => new PrismaUnitOfWork(guarded, ambientTenantContextProvider),
+      false
+    );
     setupExternalNotificationUseCases(container);
 
     app = Fastify();

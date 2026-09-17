@@ -17,8 +17,8 @@ import { ConfirmBulkScheduleUseCase } from "@core/bulk-scheduling/ConfirmBulkSch
 import type { SchedulingCsvRow } from "@core/bulk-scheduling/schedulingCsv.js";
 import { PrismaBulkScheduleBatchRepository } from "../../src/infrastructure/repositories/PrismaBulkScheduleBatchRepository.js";
 import { PrismaChannelRepository } from "../../src/infrastructure/repositories/PrismaChannelRepository.js";
-import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
-import { PrismaOutboxWriter } from "../../src/infrastructure/outbox/PrismaOutboxWriter.js";
+import { PrismaUnitOfWork, PrismaOutboxWriter } from "@adapters/db-prisma";
+import { ambientTenantContextProvider } from "../../src/security/tenantContext.js";
 import { BulkScheduleDispatchEventHandler } from "../../src/bulk-scheduling/BulkScheduleDispatchEventHandler.js";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import {
@@ -57,7 +57,7 @@ describe("BulkSchedule media path — integration", () => {
       new PrismaBulkScheduleBatchRepository(prisma),
       new PrismaChannelRepository(prisma),
       new PrismaOutboxWriter(),
-      new PrismaUnitOfWork(prisma)
+      new PrismaUnitOfWork(prisma, ambientTenantContextProvider)
     );
 
     const rows: SchedulingCsvRow[] = [

@@ -11,7 +11,11 @@
 
 import { describe, it, beforeAll, afterAll, vi, expect } from "vitest";
 import { ok, err } from "@shared/types";
-import { withTenantContext } from "../../../src/security/tenantContext.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
+import {
+  ambientTenantContextProvider,
+  withTenantContext,
+} from "../../../src/security/tenantContext.js";
 // ── Supresión de console.log para evitar corrupción del protocolo TAP ─────────
 
 let _originalConsoleLog: typeof console.log;
@@ -87,9 +91,7 @@ describe("PrismaUnitOfWork", () => {
   describe("executeInTransaction", () => {
     it("ejecuta el callback dentro de una transacción Prisma", async (_t) => {
       const { client } = createMockPrismaClient();
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-      const uow = new PrismaUnitOfWork(client as never);
+      const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
       let executed = false;
       await uow.executeInTransaction(async () => {
@@ -102,9 +104,7 @@ describe("PrismaUnitOfWork", () => {
 
     it("devuelve el valor retornado por el callback", async (_t) => {
       const { client } = createMockPrismaClient();
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-      const uow = new PrismaUnitOfWork(client as never);
+      const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
       const result = await uow.executeInTransaction(async () => 42);
 
@@ -113,9 +113,7 @@ describe("PrismaUnitOfWork", () => {
 
     it("propaga errores lanzados dentro del callback", async (_t) => {
       const { client } = createMockPrismaClient();
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-      const uow = new PrismaUnitOfWork(client as never);
+      const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
       await expect(() =>
         uow.executeInTransaction(async () => {
@@ -126,9 +124,7 @@ describe("PrismaUnitOfWork", () => {
 
     it("pasa las opciones de transacción a Prisma", async (_t) => {
       const { client } = createMockPrismaClient();
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-      const uow = new PrismaUnitOfWork(client as never);
+      const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
       await uow.executeInTransaction(async () => {}, { timeout: 10_000, maxWait: 2_000 });
 
@@ -140,10 +136,11 @@ describe("PrismaUnitOfWork", () => {
 
     it("combina opciones por defecto con opciones por llamada", async (_t) => {
       const { client } = createMockPrismaClient();
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
       // Opciones por defecto: timeout=5000, maxWait=1000
-      const uow = new PrismaUnitOfWork(client as never, { timeout: 5_000, maxWait: 1_000 });
+      const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider, {
+        timeout: 5_000,
+        maxWait: 1_000,
+      });
 
       // Opciones por llamada: sólo sobreescribe timeout
       await uow.executeInTransaction(async () => {}, { timeout: 15_000 });
@@ -157,9 +154,7 @@ describe("PrismaUnitOfWork", () => {
 
     it("no incluye opciones undefined en el objeto pasado a Prisma", async (_t) => {
       const { client } = createMockPrismaClient();
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-      const uow = new PrismaUnitOfWork(client as never);
+      const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
       await uow.executeInTransaction(async () => {});
 
@@ -173,14 +168,51 @@ describe("PrismaUnitOfWork", () => {
     });
   });
 
+  // ── tenant scope from the injected provider ───────────────────────────────
+
+  describe("tenant scope from the injected provider", () => {
+    it("binds the accountId the INJECTED provider reports, with no ambient context bound", async () => {
+      const { client, tx, statements } = createOutcomeRecordingPrismaClient();
+      // A fixed double, never the ambient one: the ambient storage is empty here, so
+      // a unit of work still reading it would bind nothing and this would fail.
+      const injectedProvider = {
+        getTenantContext: () => ({ accountId: "acc-injected" }),
+        getSystemContext: () => undefined,
+      };
+      const uow = new PrismaUnitOfWork(client as never, injectedProvider);
+
+      await uow.executeInTransaction(async () => {
+        statements.push("work");
+      });
+
+      expect(statements).toEqual(["set_config", "work"]);
+      const gucCall = tx.$queryRaw.mock.calls[0] as unknown as
+        [TemplateStringsArray, string] | undefined;
+      expect(gucCall?.[1]).toBe("acc-injected");
+    });
+
+    it("binds the __system__ sentinel when the injected provider reports a system context", async () => {
+      const { client, tx } = createOutcomeRecordingPrismaClient();
+      const systemProvider = {
+        getTenantContext: () => undefined,
+        getSystemContext: () => ({ reason: "retention sweep" }),
+      };
+      const uow = new PrismaUnitOfWork(client as never, systemProvider);
+
+      await uow.executeInTransaction(async () => {});
+
+      const gucCall = tx.$queryRaw.mock.calls[0] as unknown as
+        [TemplateStringsArray, string] | undefined;
+      expect(gucCall?.[1]).toBe("__system__");
+    });
+  });
+
   // ── executeResultInTransaction ────────────────────────────────────────────
 
   describe("executeResultInTransaction", () => {
     it("rolls back and returns the same err object when the work resolves to err", async () => {
       const { client, outcomes } = createOutcomeRecordingPrismaClient();
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-      const uow = new PrismaUnitOfWork(client as never);
+      const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
       const failure = err(new Error("save failed after the first statement"));
 
       const result = await uow.executeResultInTransaction(async () => failure);
@@ -194,9 +226,7 @@ describe("PrismaUnitOfWork", () => {
 
     it("commits and returns the same ok object when the work resolves to ok", async () => {
       const { client, outcomes } = createOutcomeRecordingPrismaClient();
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-      const uow = new PrismaUnitOfWork(client as never);
+      const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
       const success = ok({ postId: "post-1" });
 
       const result = await uow.executeResultInTransaction(async () => success);
@@ -207,9 +237,7 @@ describe("PrismaUnitOfWork", () => {
 
     it("propagates a genuine thrown error instead of converting it into an err", async () => {
       const { client, outcomes } = createOutcomeRecordingPrismaClient();
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-      const uow = new PrismaUnitOfWork(client as never);
+      const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
       const connectionLost = new Error("connection lost");
 
       // A rejection is the assertion: had the method swallowed the failure into
@@ -225,9 +253,7 @@ describe("PrismaUnitOfWork", () => {
 
     it("binds the GUC as the first statement of the transaction, as executeInTransaction does", async () => {
       const { client, statements } = createOutcomeRecordingPrismaClient();
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-      const uow = new PrismaUnitOfWork(client as never);
+      const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
       await withTenantContext({ accountId: "acc-guc-0001" }, async () =>
         uow.executeResultInTransaction(async () => {
@@ -244,17 +270,13 @@ describe("PrismaUnitOfWork", () => {
 
   describe("getTransactionClient", () => {
     it("devuelve undefined cuando no hay transacción activa", async () => {
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
       const result = PrismaUnitOfWork.getTransactionClient();
       expect(result).toBe(undefined);
     });
 
     it("devuelve el cliente tx cuando se está dentro de una transacción", async (_t) => {
       const { client, tx } = createMockPrismaClient();
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-      const uow = new PrismaUnitOfWork(client as never);
+      const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
       let capturedClient: unknown;
       await uow.executeInTransaction(async () => {
@@ -267,9 +289,7 @@ describe("PrismaUnitOfWork", () => {
 
     it("devuelve undefined después de que la transacción termina", async (_t) => {
       const { client } = createMockPrismaClient();
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-      const uow = new PrismaUnitOfWork(client as never);
+      const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
       await uow.executeInTransaction(async () => {});
 
@@ -281,10 +301,8 @@ describe("PrismaUnitOfWork", () => {
       // Dos transacciones UoW concurrentes no deben ver el cliente tx del otro
       const mock1 = createMockPrismaClient();
       const mock2 = createMockPrismaClient();
-      const { PrismaUnitOfWork } =
-        await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-      const uow1 = new PrismaUnitOfWork(mock1.client as never);
-      const uow2 = new PrismaUnitOfWork(mock2.client as never);
+      const uow1 = new PrismaUnitOfWork(mock1.client as never, ambientTenantContextProvider);
+      const uow2 = new PrismaUnitOfWork(mock2.client as never, ambientTenantContextProvider);
 
       let client1: unknown;
       let client2: unknown;
@@ -319,9 +337,7 @@ describe("PrismaUnitOfWork", () => {
     () => {
       it("el código interno accede al cliente tx del UoW activo", async (_t) => {
         const { client, tx } = createMockPrismaClient();
-        const { PrismaUnitOfWork } =
-          await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-        const uow = new PrismaUnitOfWork(client as never);
+        const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
         let innerClient: unknown;
         await uow.executeInTransaction(async () => {
@@ -334,9 +350,7 @@ describe("PrismaUnitOfWork", () => {
 
       it("múltiples operaciones dentro de executeInTransaction comparten el mismo tx", async (_t) => {
         const { client, tx } = createMockPrismaClient();
-        const { PrismaUnitOfWork } =
-          await import("../../../src/infrastructure/unitofwork/PrismaUnitOfWork.js");
-        const uow = new PrismaUnitOfWork(client as never);
+        const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
         const capturedClients: unknown[] = [];
         await uow.executeInTransaction(async () => {

@@ -10,8 +10,8 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { PrismaPostRepository } from "../../../src/infrastructure/repositories/PrismaPostRepository.js";
-import { PostAggregateMapper } from "../../../src/infrastructure/repositories/mappers/PostAggregateMapper.js";
+import { PrismaPostRepository, PostAggregateMapper } from "@adapters/db-prisma";
+import { ambientTenantContextProvider } from "../../../src/security/tenantContext.js";
 import {
   PostAggregate,
   PostId,
@@ -46,7 +46,7 @@ describe("PrismaPostRepository", () => {
   const tenantScope = (): TenantScope => ({ accountId: testAccountId });
 
   before(async () => {
-    repository = new PrismaPostRepository(prisma);
+    repository = new PrismaPostRepository(prisma, undefined, ambientTenantContextProvider);
 
     // Create test account and project
     const uniqueSuffix = Date.now();

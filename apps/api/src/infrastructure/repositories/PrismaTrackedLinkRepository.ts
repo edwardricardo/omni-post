@@ -20,7 +20,7 @@ import {
 } from "@core/domain/index.js";
 import { ShortCode } from "@core/domain/value-objects/ShortCode.js";
 import { withSystemContext } from "../../security/tenantContext.js";
-import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { withTenantTransaction } from "../unitofwork/tenantTransaction.js";
 
 /** The interactive-transaction client Prisma hands a `$transaction` callback. */

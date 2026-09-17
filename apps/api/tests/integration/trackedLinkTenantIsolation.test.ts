@@ -25,11 +25,15 @@ import type { RateLimiterPort, RateLimitDecision, RateLimitOptions } from "@port
 import { type PrismaClient } from "@infra/prisma";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
-import { getTenantContext, getSystemContext } from "../../src/security/tenantContext.js";
+import {
+  ambientTenantContextProvider,
+  getTenantContext,
+  getSystemContext,
+} from "../../src/security/tenantContext.js";
 import { Container } from "../../src/infrastructure/container/Container.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { RateLimitConfigs } from "../../src/security/httpRateLimitPreHandler.js";
-import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { PrismaProjectRepository } from "../../src/infrastructure/repositories/PrismaProjectRepository.js";
 import { PrismaTrackedLinkRepository } from "../../src/infrastructure/repositories/PrismaTrackedLinkRepository.js";
 import {
@@ -152,7 +156,11 @@ describe("TrackedLink — two-tenant isolation (MERGE-BLOCKING)", () => {
     container.registerInstance(TOKENS.ProjectRepository, projectRepo);
     container.registerInstance(TOKENS.TrackedLinkRepository, linkRepo);
     container.registerInstance(TOKENS.HttpRateLimiter, new CountingRateLimiter());
-    container.register(TOKENS.UnitOfWork, () => new PrismaUnitOfWork(guarded), false);
+    container.register(
+      TOKENS.UnitOfWork,
+      () => new PrismaUnitOfWork(guarded, ambientTenantContextProvider),
+      false
+    );
     container.register(
       TOKENS.CreateTrackedLinkUseCase,
       () =>
