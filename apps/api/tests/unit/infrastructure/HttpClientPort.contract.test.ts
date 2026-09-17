@@ -1,15 +1,15 @@
 /**
  * @file HttpClientPort.contract.test.ts
- * @description Type-level + runtime contract test del HttpClientPort. El port
- *              es solo interface — los tests funcionales del adapter viven en
- *              `FetchHttpClient.test.ts`. Este file verifica que el interface
- *              declara los 5 verbos canon (get/head/post/put/delete) y que
- *              FetchHttpClient los implementa correctamente.
+ * @description Type-level + runtime contract test for the HttpClientPort. The
+ *              port is interface-only — the adapter's functional tests live in
+ *              `FetchHttpClient.test.ts`. This file verifies that the interface
+ *              declares the 5 canonical verbs (get/head/post/put/delete) and
+ *              that FetchHttpClient implements them correctly.
  *
- *              Ubicado en `tests/unit/infrastructure/` (no en `src/domain/
- *              repositories/`) porque el contract test cruza el boundary
- *              dominio→infraestructura, y la regla arquitectural prohíbe
- *              imports de infrastructure desde domain — incluso en tests.
+ *              It lives in `tests/unit/infrastructure/` (not in `src/domain/
+ *              repositories/`) because the contract test crosses the
+ *              domain-to-infrastructure boundary, and the architectural rule
+ *              forbids infrastructure imports from domain — even in tests.
  * @layer infrastructure
  */
 

@@ -1,10 +1,11 @@
 /**
  * @file mentionIngest.test.ts
  * @description Integration tests for the brand-mention listening corpus. Validates
- *   the DoD's "idempotente; menciones aterrizan normalizadas" against a real
- *   database: a normalized mention persists with nullable enrichment fields, and
- *   the (provider, externalId) unique constraint plus the worker's
- *   findFirst-then-create dedup pattern both yield exactly one row.
+ *   the DoD's "idempotente; menciones aterrizan normalizadas" (idempotent;
+ *   mentions land normalized) against a real database: a normalized mention
+ *   persists with nullable enrichment fields, and the (provider, externalId)
+ *   unique constraint plus the worker's findFirst-then-create dedup pattern both
+ *   yield exactly one row.
  * @layer infrastructure
  */
 
