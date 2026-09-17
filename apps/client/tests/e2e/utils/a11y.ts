@@ -1,14 +1,14 @@
 /**
  * @file a11y.ts
- * @description Helper canónico para asserts WCAG en E2E de apps/client.
- *              Espejo del admin (apps/admin/tests/e2e/utils/a11y.ts) per
+ * @description Canonical helper for WCAG assertions in the apps/client E2E suite.
+ *              Mirror of the admin one (apps/admin/tests/e2e/utils/a11y.ts) per
  *              canon `axe-core-playwright-a11y-testing-for-e2e-suites`.
- *              Defaults cubren WCAG 2.0 + 2.1 Level A + AA. Impact threshold
+ *              Defaults cover WCAG 2.0 + 2.1 Level A + AA. Impact threshold
  *              `['serious', 'critical']` per Deque CI guidance — minor /
- *              moderate son informational, no bloquean CI. La function
- *              `CustomAssertions.expectPageToBeAccessible` en `assertions.ts`
- *              ahora delega a esta function (compat backward para callers
- *              existentes).
+ *              moderate are informational and do not block CI. The
+ *              `CustomAssertions.expectPageToBeAccessible` function in
+ *              `assertions.ts` now delegates to this function (backward
+ *              compatibility for existing callers).
  * @layer infrastructure
  */
 import { AxeBuilder } from "@axe-core/playwright";
