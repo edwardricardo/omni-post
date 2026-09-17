@@ -22,6 +22,7 @@ import {
   type RenderedContent,
   type ThreadPlan,
   type ThreadPublishInput,
+  type ThreadPublishFailure,
   type ThreadReceipt,
   type RenderError,
   type PublishError,
@@ -223,18 +224,24 @@ export const templateProviderAdapter: ProviderAdapter = {
     }
   },
 
-  async publishThread(input: ThreadPublishInput): Promise<Result<ThreadReceipt, PublishError>> {
+  // Every exit below answers the same question — which fragments reached the
+  // provider, in order — with the same accumulator. Copy that discipline: an
+  // interrupted thread leaves content live, and only these references locate it.
+  async publishThread(
+    input: ThreadPublishInput
+  ): Promise<Result<ThreadReceipt, ThreadPublishFailure>> {
+    const publishedPosts: ThreadReceipt["tweets"] = [];
+
     if (!this.limits.threadingSupported) {
-      return err("VALIDATION");
+      return err({ code: "VALIDATION", publishedFragments: publishedPosts });
     }
 
     const apiKey = process.env.PROVIDER_API_KEY;
     if (!apiKey) {
-      return err("AUTH");
+      return err({ code: "AUTH", publishedFragments: publishedPosts });
     }
 
     const credentials: ProviderCredentials = { apiKey };
-    const publishedPosts: ThreadReceipt["tweets"] = [];
     let parentPostId: string | null = null;
 
     try {
@@ -285,22 +292,22 @@ export const templateProviderAdapter: ProviderAdapter = {
 
       // Handle specific error types from circuit breaker
       if (e.status === 429) {
-        return err("RATE_LIMIT");
+        return err({ code: "RATE_LIMIT", publishedFragments: publishedPosts });
       }
 
       if (typeof e.status === "number" && e.status >= 400 && e.status < 500) {
-        // If we fail mid-thread, this could be partially published
+        // Failing mid-thread leaves the earlier fragments live on the provider
         if (publishedPosts.length > 0) {
-          return err("THREAD_INTERRUPTED");
+          return err({ code: "THREAD_INTERRUPTED", publishedFragments: publishedPosts });
         }
-        return err("VALIDATION");
+        return err({ code: "VALIDATION", publishedFragments: publishedPosts });
       }
 
       if (e.message?.includes("Circuit breaker is OPEN")) {
-        return err("NETWORK");
+        return err({ code: "NETWORK", publishedFragments: publishedPosts });
       }
 
-      return err("NETWORK");
+      return err({ code: "NETWORK", publishedFragments: publishedPosts });
     }
   },
 

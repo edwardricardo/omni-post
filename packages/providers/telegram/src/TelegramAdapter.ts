@@ -19,6 +19,7 @@ import type {
   RenderedContent,
   ThreadPlan,
   ThreadPublishInput,
+  ThreadPublishFailure,
   ThreadReceipt,
   Result,
   RenderError,
@@ -221,12 +222,14 @@ export class TelegramAdapter implements ProviderAdapter {
   /**
    * @method publishThread
    * @description Telegram does not support threading. Always returns an error.
+   *   Nothing is ever sent, so the failure states an EMPTY set of published
+   *   fragments — the answer to "what went out", not an omission.
    */
   async publishThread(
     _input: ThreadPublishInput,
     _credentials: unknown
-  ): Promise<Result<ThreadReceipt, PublishError>> {
-    return err("THREAD_INTERRUPTED");
+  ): Promise<Result<ThreadReceipt, ThreadPublishFailure>> {
+    return err({ code: "THREAD_INTERRUPTED", publishedFragments: [] });
   }
 
   // ============================================================

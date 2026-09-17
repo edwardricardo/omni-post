@@ -177,6 +177,18 @@ export type RenderError = "UNSUPPORTED_MEDIA" | "TEXT_TOO_LONG" | "VALIDATION_ER
 export type PublishError =
   "RATE_LIMIT" | "NETWORK" | "AUTH" | "VALIDATION" | "THREAD_INTERRUPTED" | "PARENT_TWEET_FAILED";
 
+/**
+ * Failure of a multi-fragment publish. `publishedFragments` names, in order, the
+ * fragments that DID reach the provider before the failure — an empty array means
+ * nothing went out. It is stated on every error path, never inferred from the code:
+ * an interrupted thread leaves content live on the platform, and only the fragment
+ * references make that content addressable by whoever must act on it.
+ */
+export type ThreadPublishFailure = {
+  readonly code: PublishError;
+  readonly publishedFragments: ThreadReceipt["tweets"];
+};
+
 // Provider and analytics types used across the platform
 
 /** Provider names matching the Prisma Provider enum */

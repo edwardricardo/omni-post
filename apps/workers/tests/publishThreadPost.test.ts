@@ -333,7 +333,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
     });
     xProvider.publishThread = async () => ({
       ok: false,
-      error: "RATE_LIMIT" as const,
+      error: { code: "RATE_LIMIT" as const, publishedFragments: [] },
     });
 
     let loggedStatus: string | undefined;
@@ -374,7 +374,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
     });
     xProvider.publishThread = async () => ({
       ok: false,
-      error: "NETWORK" as const,
+      error: { code: "NETWORK" as const, publishedFragments: [] },
     });
 
     try {
@@ -404,6 +404,206 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
     );
     assert.ok(threadErrMatch);
     assert.strictEqual(threadErrMatch.value, 1);
+  });
+
+  // ==========================================================================
+  // Interrupted thread — what went out must survive the failure
+  // ==========================================================================
+
+  describe("when the thread is interrupted mid-way", () => {
+    const SAGA_ID = "saga-thread-001";
+    const LIVE_FRAGMENTS = [
+      {
+        sequence: 1,
+        providerTweetId: "x-live-001",
+        url: "https://x.com/i/status/001",
+        publishedAt: new Date("2026-03-02T12:30:00Z"),
+      },
+      {
+        sequence: 2,
+        providerTweetId: "x-live-002",
+        url: "https://x.com/i/status/002",
+        publishedAt: new Date("2026-03-02T12:30:05Z"),
+      },
+    ];
+
+    /** Ordered trace of the two observable effects, so the order can be asserted. */
+    let callLog: string[];
+    let updatedTweets: Array<{ id: string; data: Record<string, unknown> }>;
+    let sagaMessages: string[];
+
+    beforeEach(() => {
+      callLog = [];
+      updatedTweets = [];
+      sagaMessages = [];
+
+      deps.repo.createThread = async () => ({ ok: true, value: createTestThread() });
+      deps.repo.createTweet = async () => ({ ok: true, value: createTestTweet() });
+      deps.repo.getTweetsByThread = async () => ({
+        ok: true,
+        value: [
+          createTestTweet({ id: "db-tweet-1", sequenceNumber: 1 }),
+          createTestTweet({ id: "db-tweet-2", sequenceNumber: 2 }),
+          createTestTweet({ id: "db-tweet-3", sequenceNumber: 3 }),
+        ],
+      });
+      deps.repo.updateTweet = async (id, data) => {
+        callLog.push(`updateTweet:${id}`);
+        updatedTweets.push({ id, data: data as unknown as Record<string, unknown> });
+        return { ok: true, value: createTestTweet() };
+      };
+      deps.notifyRedis = {
+        publish: async (_channel: string, message: string) => {
+          callLog.push("notifySaga");
+          sagaMessages.push(message);
+          return 1;
+        },
+      };
+      xProvider.publishThread = async () => ({
+        ok: false,
+        error: { code: "THREAD_INTERRUPTED" as const, publishedFragments: LIVE_FRAGMENTS },
+      });
+      handler = new PublishHandler(deps);
+    });
+
+    const runInterruptedThread = async () => {
+      await assert.rejects(() =>
+        handler.publishThreadPost(
+          POST_ID,
+          CHANNEL_ID,
+          DEDUPE_KEY,
+          createTestThreadPlan(),
+          PROVIDER_NAME,
+          xProvider,
+          ACCOUNT_ID,
+          SAGA_ID
+        )
+      );
+    };
+
+    it("should mark every live fragment PUBLISHED and leave the rest untouched", async () => {
+      await runInterruptedThread();
+
+      assert.deepStrictEqual(
+        updatedTweets.map((t) => t.id),
+        ["db-tweet-1", "db-tweet-2"],
+        "only the fragments that reached the provider are marked published"
+      );
+      assert.strictEqual(updatedTweets[0]?.data.tweetId, "x-live-001");
+      assert.strictEqual(updatedTweets[0]?.data.status, "PUBLISHED");
+      assert.strictEqual(updatedTweets[1]?.data.tweetId, "x-live-002");
+      assert.strictEqual(updatedTweets[1]?.data.status, "PUBLISHED");
+    });
+
+    it("should record what went out BEFORE reporting the failure to the saga", async () => {
+      await runInterruptedThread();
+
+      assert.deepStrictEqual(callLog, [
+        "updateTweet:db-tweet-1",
+        "updateTweet:db-tweet-2",
+        "notifySaga",
+      ]);
+    });
+
+    it("should carry the live fragments into the publish.job.failed notification", async () => {
+      await runInterruptedThread();
+
+      assert.strictEqual(sagaMessages.length, 1);
+      const event = JSON.parse(sagaMessages[0] ?? "{}") as {
+        type: string;
+        data: { publishedFragments?: Array<{ sequence: number; providerTweetId: string }> };
+      };
+      assert.strictEqual(event.type, "publish.job.failed");
+      assert.deepStrictEqual(
+        event.data.publishedFragments?.map((f) => [f.sequence, f.providerTweetId]),
+        [
+          [1, "x-live-001"],
+          [2, "x-live-002"],
+        ]
+      );
+    });
+
+    it("should still report the publish failure when a tweet row cannot be written", async () => {
+      // A repository blip must not swallow the provider's verdict: the saga is
+      // waiting on this channel, and a DB error in its place tells it nothing
+      // about what is live.
+      deps.repo.updateTweet = async () => {
+        callLog.push("updateTweet:rejected");
+        throw new Error("DB_UNAVAILABLE");
+      };
+      handler = new PublishHandler(deps);
+
+      await assert.rejects(
+        () =>
+          handler.publishThreadPost(
+            POST_ID,
+            CHANNEL_ID,
+            DEDUPE_KEY,
+            createTestThreadPlan(),
+            PROVIDER_NAME,
+            xProvider,
+            ACCOUNT_ID,
+            SAGA_ID
+          ),
+        (err: Error) => {
+          assert.strictEqual(
+            err.message,
+            "THREAD_INTERRUPTED",
+            "the publish code survives a failure to write the row"
+          );
+          return true;
+        }
+      );
+
+      assert.strictEqual(sagaMessages.length, 1, "the saga is still told the job failed");
+      const event = JSON.parse(sagaMessages[0] ?? "{}") as {
+        type: string;
+        data: { publishedFragments?: Array<{ providerTweetId: string }> };
+      };
+      assert.strictEqual(event.type, "publish.job.failed");
+      assert.deepStrictEqual(
+        event.data.publishedFragments?.map((f) => f.providerTweetId),
+        ["x-live-001", "x-live-002"],
+        "the live set is reported even though its rows could not be written"
+      );
+    });
+
+    it("should carry the live fragments into the ERR publish log", async () => {
+      const errorPayloads: Array<Record<string, unknown>> = [];
+      deps.repo.logPublish = async (input) => {
+        if (input.status === "ERR") {
+          errorPayloads.push(input.payload as Record<string, unknown>);
+        }
+        return { ok: true, value: {} };
+      };
+      handler = new PublishHandler(deps);
+
+      await runInterruptedThread();
+
+      assert.strictEqual(errorPayloads.length, 1);
+      const payload = errorPayloads[0] as {
+        error?: string;
+        publishedFragments?: Array<{ providerTweetId: string }>;
+      };
+      assert.strictEqual(payload.error, "THREAD_INTERRUPTED");
+      assert.deepStrictEqual(
+        payload.publishedFragments?.map((f) => f.providerTweetId),
+        ["x-live-001", "x-live-002"]
+      );
+    });
+
+    it("should touch no tweet row when nothing went out", async () => {
+      xProvider.publishThread = async () => ({
+        ok: false,
+        error: { code: "AUTH" as const, publishedFragments: [] },
+      });
+      handler = new PublishHandler(deps);
+
+      await runInterruptedThread();
+
+      assert.deepStrictEqual(updatedTweets, []);
+      assert.deepStrictEqual(callLog, ["notifySaga"]);
+    });
   });
 
   it("should update tweets with providerTweetId and PUBLISHED status after success", async () => {
