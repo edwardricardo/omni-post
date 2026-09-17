@@ -32,6 +32,8 @@ const POST_ID = "c0000000-0000-4000-8000-000000000001";
 const PROJECT_ID = "b0000000-0000-4000-8000-000000000001";
 const POST_ID_2 = "c0000000-0000-4000-8000-000000000002";
 const ACCOUNT_ID = "a0000000-0000-4000-8000-000000000001";
+const CHANNEL_ID = "aa000000-0000-4000-8000-00000000000a";
+const PUBLISHED_AT = new Date("2026-03-01T09:00:00.000Z");
 // The tenant scope every project-keyed collection/aggregate read now takes
 // as its first argument.
 const scope = { accountId: ACCOUNT_ID };
@@ -40,6 +42,8 @@ function basePostRow() {
   return {
     id: POST_ID,
     projectId: PROJECT_ID,
+    accountId: ACCOUNT_ID,
+    version: 2,
     status: "DRAFT",
     scheduledAt: null as Date | null,
     publishedAt: null as Date | null,
@@ -72,7 +76,109 @@ function basePostRow() {
       hash: string | null;
     }[],
     contentVersions: [] as { id: string; version: number }[],
+    channelPublications: [] as unknown[],
   };
+}
+
+/**
+ * A post that published on its only channel: the word is PUBLISHED, the record
+ * carries the fragment reference, and three events are pending. Built through the
+ * ROOT, so the fixture cannot describe a state the aggregate would refuse.
+ */
+async function makePublishedAggregate() {
+  const domain = await import("@core/domain/index.js");
+  const channelId = domain.ChannelId.fromStringUnsafe(CHANNEL_ID);
+  const post = domain.PostAggregate.reconstitute({
+    id: PostId.fromStringUnsafe(POST_ID),
+    projectId: ProjectId.fromStringUnsafe(PROJECT_ID),
+    accountId: ACCOUNT_ID,
+    content: domain.Content.reconstitute({ body: "hello", tags: [], locale: "en" }),
+    status: domain.PublishStatus.scheduled(),
+    media: [],
+    contentVersions: [],
+    createdAt: new Date("2026-01-01"),
+    updatedAt: new Date("2026-01-01"),
+    version: 2,
+  });
+
+  const declared = post.declarePublicationTargets([channelId]);
+  expect(declared.ok).toBeTruthy();
+  const opened = post.openPublicationEpisode({ enterPublishing: true });
+  expect(opened.ok).toBeTruthy();
+
+  const fragment = domain.FragmentReference.create({ index: 1, externalId: "frag-1" });
+  expect(fragment.ok).toBeTruthy();
+  const head = domain.providedReference("frag-1");
+  expect(head.ok).toBeTruthy();
+
+  const recorded = post.recordChannelAttempt({
+    channelId,
+    episode: 1,
+    attemptNo: 1,
+    planSize: 1,
+    result: {
+      kind: "published",
+      head: head.value,
+      fragments: [fragment.value],
+      publishedAt: PUBLISHED_AT,
+      contentHash: domain.ContentFingerprint.ofContent({ body: "hello", mediaIds: [] }),
+    },
+    now: PUBLISHED_AT,
+  });
+  expect(recorded.ok).toBeTruthy();
+
+  return post;
+}
+
+/** A post carrying declared targets and a PENDING content edit — the tripwire case. */
+async function makeEditedAggregate() {
+  const domain = await import("@core/domain/index.js");
+  const post = domain.PostAggregate.reconstitute({
+    id: PostId.fromStringUnsafe(POST_ID),
+    projectId: ProjectId.fromStringUnsafe(PROJECT_ID),
+    accountId: ACCOUNT_ID,
+    content: domain.Content.reconstitute({ body: "hello", tags: [], locale: "en" }),
+    status: domain.PublishStatus.draft(),
+    media: [],
+    contentVersions: [],
+    createdAt: new Date("2026-01-01"),
+    updatedAt: new Date("2026-01-01"),
+    version: 2,
+  });
+
+  expect(post.declarePublicationTargets([domain.ChannelId.fromStringUnsafe(CHANNEL_ID)]).ok).toBe(
+    true
+  );
+  expect(post.updateContent({ body: "rewritten" }).ok).toBe(true);
+  return post;
+}
+
+/** The same tripwire, entered through the media door instead of the content one. */
+async function makeMediaAddedAggregate() {
+  const domain = await import("@core/domain/index.js");
+  const post = domain.PostAggregate.reconstitute({
+    id: PostId.fromStringUnsafe(POST_ID),
+    projectId: ProjectId.fromStringUnsafe(PROJECT_ID),
+    accountId: ACCOUNT_ID,
+    content: domain.Content.reconstitute({ body: "hello", tags: [], locale: "en" }),
+    status: domain.PublishStatus.draft(),
+    media: [],
+    contentVersions: [],
+    createdAt: new Date("2026-01-01"),
+    updatedAt: new Date("2026-01-01"),
+    version: 2,
+  });
+
+  expect(post.declarePublicationTargets([domain.ChannelId.fromStringUnsafe(CHANNEL_ID)]).ok).toBe(
+    true
+  );
+  const added = post.addMedia({
+    id: domain.MediaId.generate(),
+    type: "image",
+    url: "https://example.com/i.jpg",
+  });
+  expect(added.ok).toBe(true);
+  return post;
 }
 
 function makeTransactionMockClient() {
@@ -98,6 +204,10 @@ function makeTransactionMockClient() {
       createMany: vi.fn(async () => ({ count: 0 })),
       deleteMany: vi.fn(async () => ({ count: 0 })),
       upsert: vi.fn(async () => ({})),
+    },
+    postChannelPublication: {
+      upsert: vi.fn(async () => ({})),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
     },
     publishLog: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     analytics: { deleteMany: vi.fn(async () => ({ count: 0 })) },
@@ -850,6 +960,146 @@ describe("PrismaPostRepository", () => {
 
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/Bulk update failed/);
+    });
+  });
+
+  // ── savePublication (the narrow save) ───────────────────────────────────────
+
+  describe("savePublication — the narrow save", () => {
+    it("writes the status, the publication moment and the version bump, and no content or media statement", async () => {
+      const post = await makePublishedAggregate();
+
+      const result = await repo.savePublication(post);
+
+      expect(result.ok).toBeTruthy();
+      const tx = prisma._txClient;
+      expect(tx.post.update.mock.calls.length).toBe(1);
+      const args = tx.post.update.mock.calls[0]?.[0] as {
+        where: { id: string; version: number };
+        data: Record<string, unknown>;
+      };
+      expect(args.where.id).toBe(POST_ID);
+      expect(args.where.version).toBe(2);
+      expect(args.data.status).toBe("PUBLISHED");
+      expect(args.data.publishedAt).toBeInstanceOf(Date);
+      expect(args.data.version).toEqual({ increment: 1 });
+      // The narrow save touches the word, the moment and the records. Nothing else:
+      // a save that also rewrote content would let a publication write carry an edit
+      // of content that is already live.
+      expect(Object.keys(args.data).sort()).toEqual(["publishedAt", "status", "version"]);
+      expect(tx.postContent.upsert.mock.calls.length).toBe(0);
+      expect(tx.postContent.create.mock.calls.length).toBe(0);
+      expect(tx.postMedia.upsert.mock.calls.length).toBe(0);
+      expect(tx.postMedia.createMany.mock.calls.length).toBe(0);
+      expect(tx.postMedia.deleteMany.mock.calls.length).toBe(0);
+    });
+
+    it("upserts one publication row per record, keyed by (post, channel) and carrying the parent's tenant", async () => {
+      const post = await makePublishedAggregate();
+
+      const result = await repo.savePublication(post);
+
+      expect(result.ok).toBeTruthy();
+      const tx = prisma._txClient;
+      expect(tx.postChannelPublication.upsert.mock.calls.length).toBe(1);
+      const args = tx.postChannelPublication.upsert.mock.calls[0]?.[0] as {
+        where: { postId_channelId: { postId: string; channelId: string } };
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      };
+      expect(args.where.postId_channelId).toEqual({ postId: POST_ID, channelId: CHANNEL_ID });
+      expect(args.create.accountId).toBe(ACCOUNT_ID);
+      expect(args.create.outcome).toBe("PUBLISHED");
+      expect(args.create.externalId).toBe("frag-1");
+      expect(args.create.liveFragments).toEqual([{ index: 1, externalId: "frag-1" }]);
+      expect(args.update.outcome).toBe("PUBLISHED");
+      expect(args.update.attempts).toBe(1);
+      expect(args.update.episode).toBe(1);
+    });
+
+    it("writes the pending domain events to the outbox inside the same transaction", async () => {
+      const writeEvents = vi.fn(async () => {});
+      const outboxRepo = new PrismaPostRepository(
+        prisma as never,
+        { writeEvents } as never,
+        ambientTenantContextProvider
+      );
+      const post = await makePublishedAggregate();
+
+      const result = await outboxRepo.savePublication(post);
+
+      expect(result.ok).toBeTruthy();
+      expect(writeEvents.mock.calls.length).toBe(1);
+      const written = (
+        writeEvents.mock.calls[0] as unknown as [unknown, { eventType: string }[]]
+      )[1];
+      expect(written.map((event) => event.eventType)).toContain("PostChannelPublished");
+      expect(written.map((event) => event.eventType)).toContain("PostPublished");
+    });
+
+    it("refuses when a content event is pending, writing nothing", async () => {
+      const post = await makeEditedAggregate();
+
+      const result = await repo.savePublication(post);
+
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/PostContentUpdated/);
+      const tx = prisma._txClient;
+      expect(tx.post.update.mock.calls.length).toBe(0);
+      expect(tx.postChannelPublication.upsert.mock.calls.length).toBe(0);
+    });
+
+    it("refuses when a media event is pending, writing nothing", async () => {
+      const post = await makeMediaAddedAggregate();
+
+      const result = await repo.savePublication(post);
+
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/PostMediaAdded/);
+      expect(prisma._txClient.post.update.mock.calls.length).toBe(0);
+    });
+
+    it("returns a version conflict when the compare-and-swap matches no row", async () => {
+      prisma._txClient.post.update.mockImplementation(async () => {
+        throw Object.assign(new Error("Record to update not found"), { code: "P2025" });
+      });
+      prisma._txClient.post.findUnique = vi.fn(async () => ({ version: 7 }));
+      const post = await makePublishedAggregate();
+
+      const result = await repo.savePublication(post);
+
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/version conflict/i);
+      expect(prisma._txClient.postChannelPublication.upsert.mock.calls.length).toBe(0);
+    });
+
+    it("refuses when the word has diverged from the record", async () => {
+      const domain = await import("@core/domain/index.js");
+      const post = await makePublishedAggregate();
+      // A word that outran its record: the derivation still reads PUBLISHED for one
+      // channel, so a second, unresolved channel must make the save refuse.
+      const declared = domain.ChannelPublication.declare(
+        domain.ChannelId.fromStringUnsafe("aa000000-0000-4000-8000-00000000000b")
+      );
+      const diverged = domain.PostAggregate.reconstitute({
+        id: PostId.fromStringUnsafe(POST_ID),
+        projectId: ProjectId.fromStringUnsafe(PROJECT_ID),
+        accountId: ACCOUNT_ID,
+        content: post.content,
+        status: post.status,
+        media: [],
+        contentVersions: [],
+        createdAt: new Date("2026-01-01"),
+        updatedAt: new Date("2026-01-01"),
+        version: 2,
+        publications: [...post.publications.all, declared],
+      });
+
+      const result = await repo.savePublication(diverged);
+
+      expect(result.ok).toBeFalsy();
+      expect(result.error.message).toMatch(/derives/);
+      expect(prisma._txClient.post.update.mock.calls.length).toBe(0);
     });
   });
 });

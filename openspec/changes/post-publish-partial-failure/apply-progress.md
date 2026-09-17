@@ -351,3 +351,198 @@ skipped (5)`): `packages/providers/telegram/tests/integration/apiClient.integrat
    class fitness **#30** exists for (`a suite no runner names never executes` — there the ratchet is
    `apps/api`'s 21 unreached suites). It reads as coverage in the tree and in review while running
    nothing. Backlog line recommended: decide whether that suite gets a tier and a service, or goes.
+
+---
+
+## PR 1b — WU 1b.B / 1b.C / 1b.D / 1b.E: the domain, the events, the narrow save
+
+**Branch**: `workstream/ncor8-1b` (the same branch WU 1b.A landed on).
+**Start state**: the table exists and is EMPTY, tenant-enrolled, with no writer and no
+domain vocabulary for it. **Finish state**: the domain can compute every predicate and
+every word from the record; the two channel events and the two alert events exist; the
+port and the relocated adapter can write a publication; still nothing writes one.
+**Rollback boundary**: the twenty source files and nine test files listed below. Reverting
+them removes the whole publication vocabulary at once — the table, the migration and the
+enrollment (WU 1b.A) stay, and the tree is exactly the state 1b.A left: a table nothing
+knows how to write.
+
+**Commit order inside this range is NOT the task order.** WU 1b.D must be committed
+BEFORE WU 1b.C: the root emits the four internal event classes, so a 1b.C commit ahead of
+them would not compile. D is additive and self-contained (four new event classes, no
+behaviour change to the existing ones), so ordering it first costs nothing.
+
+### Tasks
+
+| Task   | WU   | State | What landed                                                                                                                                                                                                                                 |
+| ------ | ---- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T1b.5  | 1b.B | done  | `channelPublication.test.ts` (34 cases): the full entity table — budget, the transient / nontransient / unclassifiable split, Q11 all-or-nothing, the pending-retraction exits, the bounded window, `alertTransition` over all four clauses |
+| T1b.6  | 1b.B | done  | the five value objects + `ChannelPublication`; `PublishStatus` gains `PARTIALLY_PUBLISHED`, its two edges and `isPublicationFamily()`; barrels                                                                                              |
+| T1b.7  | 1b.B | done  | `channelPublications.derive.test.ts` (13 cases, incl. all 39 combinations over 1–3 channels and all 6 permutations of one multiset) then `ChannelPublications`                                                                              |
+| T1b.8  | 1b.C | done  | `postAggregate.publications.test.ts` (32 cases): the S2 five fixtures, the lock from the live-content predicate, `ContentLockedError` distinct from the lifecycle refusal, W7, the C2 edges, Q10, the content-write door enumeration        |
+| T1b.9  | 1b.C | done  | `PostAggregate` gains the publication facet + `assertPublicationProjection()` + the record-read `isEditable`; `markAsPublished`/`markAsFailed` reshaped; `ContentLockedError` added                                                         |
+| T1b.10 | 1b.D | done  | `PostEvents.ts`: `PostChannelPublished`, `PostChannelExcluded` **and the two alert events**; `postEvents.publication.test.ts` (8 cases) pins the v1 key sets byte for byte                                                                  |
+| T1b.11 | 1b.E | done  | `PrismaPostRepository.test.ts` +7 cases: the narrow save's exact `data` key set, the per-record upsert, the outbox, the edit tripwire on both doors, the CAS conflict, the projection refusal                                               |
+| T1b.12 | 1b.E | done  | `PostRepository.savePublication`; `PostPublicationWrites.ts` (new); the mapper reads records back with the joined provider; `findById` includes them                                                                                        |
+| T1b.13 | 1b.E | done  | `savePublication` added to the eight `PostRepository` doubles across the core and api unit tiers                                                                                                                                            |
+| T1b.14 | all  | done  | gates below, all 0                                                                                                                                                                                                                          |
+
+### TDD cycle evidence
+
+| Task            | RED (command · result)                                                                                                                                                                                                                                                       | GREEN (command · result)                          | TRIANGULATE                                                                                                                                                 | REFACTOR                                                                                                                                                                                                                                                                                                                                                            |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T1b.6 (VOs)     | `pnpm exec vitest run tests/unit/publicationValueObjects.test.ts` → **exit 1**, `Cannot find package '@core/domain/value-objects/FragmentReference.js'` — the five modules do not exist                                                                                      | same command → **exit 0**, `Tests 26 passed (26)` | 26 cases over 5 objects; each object has a rejecting case and an accepting one                                                                              | One RED was the TEST's fault, not the code's: the bounded-detail case fed 620 identical characters, which the credential redaction ate BEFORE the bound was reached (`10 !== 500`). The assertion was wrong about which rule it proved, so the fixture became short words and a second case now pins redaction PAST the bound. The production rule was not weakened |
+| T1b.5 (entity)  | `pnpm exec vitest run tests/unit/channelPublication.test.ts` → **exit 1**, `Cannot find package '@core/domain/entities/ChannelPublication.js'`                                                                                                                               | same command → **exit 0**, `Tests 34 passed (34)` | the budget is exercised at 1, 2 and 3 attempts; the interruption at 1 and 2 live fragments; `alertTransition` across all four clauses plus clause 1's veto  | —                                                                                                                                                                                                                                                                                                                                                                   |
+| T1b.7 (derive)  | `pnpm exec vitest run tests/unit/channelPublications.derive.test.ts` → **exit 1**, `Cannot find package '@core/domain/aggregates/ChannelPublications.js'`                                                                                                                    | same command → **exit 0**, `Tests 13 passed (13)` | totality asserted over **39** generated combinations (3 + 9 + 27) and order-independence over all **6** permutations of `{published, excluded, unresolved}` | `record.outcomeKind === "unresolved"` replaced by the exported constant; suite still 13/13                                                                                                                                                                                                                                                                          |
+| T1b.10 (events) | `pnpm exec vitest run tests/unit/postEvents.publication.test.ts` → **exit 1**, `Tests 6 failed \| 2 passed (8)`. The 2 that PASSED are the point: they are the v1 regression pins on `PostPublished` / `PostPublishingFailed`, green before and after                        | same command → **exit 0**, `Tests 8 passed (8)`   | the published payload is asserted with and without an external id; the raised alert with and without a superseded key                                       | —                                                                                                                                                                                                                                                                                                                                                                   |
+| T1b.8 (root)    | `pnpm exec vitest run tests/unit/postAggregate.publications.test.ts` → **exit 1**, `Cannot find package '@core/domain/errors/ContentLockedError.js'`                                                                                                                         | same command → **exit 0**, `Tests 32 passed (32)` | the lock is proven on all three content doors and on both lifecycle exits; the word is driven to all four family values                                     | The 1461-line root was split (below). The split broke 11 cases at once and the suite caught it                                                                                                                                                                                                                                                                      |
+| T1b.11 (save)   | `cd apps/api && pnpm exec vitest run tests/unit/infrastructure/PrismaPostRepository.test.ts` → **exit 1**, `Tests 7 failed \| 50 passed (57)`, every failure `TypeError: repo.savePublication is not a function`. The 50 passing are the adapter's existing contract, intact | same command → **exit 0**, `Tests 57 passed (57)` | the tripwire is proven through the content door AND the media door; the narrow save is proven by an EXACT key-set assertion, not by an absence              | —                                                                                                                                                                                                                                                                                                                                                                   |
+
+### The seam — why `PostAggregate.ts` was split, and what it measured
+
+T1b.9 forecast the root at ~714 lines and named the seam to apply "if it crosses":
+`aggregates/post/PostPublicationMethods.ts`. It crossed, and not narrowly — **measured
+1461** with the facet inline, against a 619-line file before the change and a band of
+400–600 (≤800 only when strictly necessary). The seam was therefore applied, and then
+applied once more inside the companion, because an 874-line companion is the same defect
+one directory down:
+
+| File                                        | Before |   After | Holds                                                    |
+| ------------------------------------------- | -----: | ------: | -------------------------------------------------------- |
+| `aggregates/PostAggregate.ts`               |    619 | **902** | the public entry points and the narrow view it hands out |
+| `aggregates/post/PostPublicationMethods.ts` |      — | **667** | the state machine: targets, episodes, attempts, the word |
+| `aggregates/post/PostPublicationEvents.ts`  |      — | **185** | what the outbox is told, and the two v1 payloads         |
+| `aggregates/post/PostPublicationTypes.ts`   |      — |  **89** | the context and the input shapes both halves need        |
+
+The root is still **102 lines over the ≤800 ceiling**, and that is reported rather than
+smoothed: 619 of its lines pre-date this change, and the 283 it adds are its public
+surface (nine entry points with their JSDoc), the context builder and the imports. They
+cannot move without taking the aggregate's public API with them. Splitting the
+pre-existing 619 is a different change with a different blast radius.
+
+**The split's own red, caught by the suite it was refactoring.** The first context builder
+captured `status`, `publishedAt` and `records` BY VALUE. A companion function that sets the
+word and then re-reads it saw the state before its own write, and 11 cases went red at once
+(`Tests 11 failed | 157 passed`). The three mutable reads are getters now; 168/168 green.
+That failure is the argument for testing the seam through the root rather than directly:
+no test changed, and the refactor still had to prove itself.
+
+### Work unit evidence
+
+| Evidence             | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command | `cd packages/core/domain && NODE_OPTIONS=--max-old-space-size=6144 pnpm exec vitest run` → exit 0, **`Test Files 9 passed (9)`, `Tests 168 passed (168)`** (55 before this range, 113 added). `cd apps/api && … vitest run tests/unit/infrastructure/PrismaPostRepository.test.ts` → exit 0, 57/57                                                                                                                                                                                                  |
+| Regression tiers     | `apps/api` unit tier **577 files / 8999 tests, exit 0** (8992 before, +7 from the narrow save); `@core/posts` 27/27; `@core/recurring` 13/13                                                                                                                                                                                                                                                                                                                                                        |
+| Runtime harness      | `cd apps/api && TIER=pr-integration bash scripts/run-tests.sh` against the real migrated database → **537 tests, 537 pass, 0 fail, 0 cancel, exit 0**, run BOTH before and after the seam split. The harness matters more than a unit double here: `integration:repositories` exercises the real `findById` with its new `channelPublications` include under row security, and `integration:saga-recovery` (33 tests) exercises the record-less promotion path this range deliberately left working |
+| Rollback boundary    | The files listed below. The table, its migration and its enrollment belong to WU 1b.A and are NOT part of this revert; reverting this range returns the tree to "a table nothing knows how to write", which is exactly 1b.A's finish state                                                                                                                                                                                                                                                          |
+
+### Gates — all read 0
+
+| Gate          | Command                                                                                                                                                                | Result                                                                                                                                                |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Types         | `tsc --noEmit` in `@core/domain`, `@core/posts`, `@core/recurring`, `@adapters/db-prisma`, `@shared/types`, `@ports/core`, `apps/api`, `apps/workers`, `@infra/prisma` | exit **0** in all nine                                                                                                                                |
+| Prisma client | `pnpm --filter @infra/prisma build` after adding the model type + four enums to the re-export list                                                                     | exit **0**; `Generated Prisma Client (7.9.1)`                                                                                                         |
+| Lint          | `pnpm exec eslint --max-warnings 0` on all 36 touched files                                                                                                            | exit **0** (the first run surfaced 6 unused-import warnings left by the split; all six removed, none suppressed)                                      |
+| Format        | `pnpm exec prettier --check` on all 36                                                                                                                                 | exit **0**                                                                                                                                            |
+| Fitness       | the 40 runnable steps extracted VERBATIM from the fitness workflow (#1-#36, #38-#41)                                                                                   | **every one exit 0**                                                                                                                                  |
+| Fitness #39   | tenant enrollment                                                                                                                                                      | **0** — this range adds no `accountId`-bearing model                                                                                                  |
+| Fitness #38   | soft-delete read coherence                                                                                                                                             | **0 swept / 11 db-prisma (baseline 11, unmoved)** — the new `tx.post.findUnique` in the narrow save's conflict recovery carries the DELIBERATE marker |
+| Fitness #40   | one transaction seam                                                                                                                                                   | **A: 0 / B: 0** — the narrow save opens no transaction of its own; it reuses the unit of work or the same GUC-bound seam the full save uses           |
+| Fitness #30   | unreached suites                                                                                                                                                       | **20** (baseline 21) — unmoved; every new suite here is vitest-collected by an `include` glob, so none needs a `run_batch`                            |
+| Fitness #2/#4 | core framework-free · no raw throws in the core                                                                                                                        | **0 / 0** — `Result` everywhere, `node:crypto` only (the same import `EntityId` and `ShortCode` already use)                                          |
+| #9/#10/#8     | `@file` headers · valid `@layer` · no phase references                                                                                                                 | **0 / 0 / 0**                                                                                                                                         |
+
+**#37 is again the one check NOT run**, for the same reason as WU 1b.A: it is
+`pull_request`-only and resolves its base through `git fetch`, which this work unit is
+forbidden from running. Its subject is the four coverage-threshold literals in
+`apps/api/vitest.config.ts`, which this range does not touch.
+
+### Files touched
+
+| WU       | File                                                                 | Action   | What                                                                                                                                 |
+| -------- | -------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 1b.B     | `packages/core/domain/src/value-objects/FragmentReference.ts`        | Created  | one live fragment: one-based index, provider id, optional address; parses its own JSON back                                          |
+| 1b.B     | `packages/core/domain/src/value-objects/ProviderReference.ts`        | Created  | `provided` vs `none-returned` — the explicit absence                                                                                 |
+| 1b.B     | `packages/core/domain/src/value-objects/ExclusionReason.ts`          | Created  | the closed failure set; detail redacted THEN bounded, so a secret cannot survive by sitting past the cut                             |
+| 1b.B     | `packages/core/domain/src/value-objects/ContentFingerprint.ts`       | Created  | sha256 over body + ORDERED media ids; plus `digestOfFragments` for the alert dedupe                                                  |
+| 1b.B     | `packages/core/domain/src/value-objects/PublicationOutcome.ts`       | Created  | the three-kind outcome, the retraction state, the attempt result, the outcome-level live-content predicate                           |
+| 1b.B     | `packages/core/domain/src/value-objects/PublishStatus.ts`            | Modified | `PARTIALLY_PUBLISHED` + `PUBLISHING → PARTIALLY_PUBLISHED` + `PARTIALLY_PUBLISHED → PUBLISHING`; `isPublicationFamily()`             |
+| 1b.B     | `packages/core/domain/src/entities/ChannelPublication.ts`            | Created  | the record: episodes, the budget, all-or-nothing, the retraction exits, the window, `alertTransition()`                              |
+| 1b.B     | `packages/core/domain/src/aggregates/ChannelPublications.ts`         | Created  | `derive()` + the three predicates every lock and admission reads                                                                     |
+| 1b.B     | `packages/core/domain/src/value-objects/index.ts`, `src/index.ts`    | Modified | barrels                                                                                                                              |
+| 1b.D     | `packages/core/domain/src/events/PostEvents.ts`                      | Modified | `PostChannelPublished`, `PostChannelExcluded`, `PostChannelRetractionAlertRaised`, `PostChannelRetractionAlertResolved`; union grown |
+| 1b.C     | `packages/core/domain/src/errors/ContentLockedError.ts`              | Created  | names the channel and the live fragments; distinct from the lifecycle refusal                                                        |
+| 1b.C     | `packages/core/domain/src/errors/index.ts`                           | Modified | export                                                                                                                               |
+| 1b.C     | `packages/core/domain/src/aggregates/PostAggregate.ts`               | Modified | the publication entry points, the narrow view, the record-read `isEditable`, the lock on every door and exit, the reshaped `markAs*` |
+| 1b.C     | `packages/core/domain/src/aggregates/post/PostPublicationMethods.ts` | Created  | the facet's state machine (the seam T1b.9 named)                                                                                     |
+| 1b.C     | `packages/core/domain/src/aggregates/post/PostPublicationEvents.ts`  | Created  | the facet's event builders and the two v1 payloads                                                                                   |
+| 1b.C     | `packages/core/domain/src/aggregates/post/PostPublicationTypes.ts`   | Created  | the context and input shapes both halves share                                                                                       |
+| 1b.E     | `packages/core/domain/src/repositories/PostRepository.ts`            | Modified | `savePublication(post)` with the reason it is narrower than `save`                                                                   |
+| 1b.E     | `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`      | Created  | the CAS, the per-record upsert, the edit tripwire                                                                                    |
+| 1b.E     | `packages/adapters/db-prisma/src/post/PostAggregateMapper.ts`        | Modified | reads records back with the joined `Channel.provider`; fills `accountId`                                                             |
+| 1b.E     | `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts`       | Modified | `savePublication`; the `findById` include; the full save now writes the declared set too                                             |
+| 1b.E     | `infra/prisma/src/client.ts`                                         | Modified | re-exports `PostChannelPublication` + the four enums the adapter types against                                                       |
+| 1b.E     | `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`    | Modified | +7 cases and three root-built fixtures                                                                                               |
+| 1b.E     | 7 more test files (core posts ×2, core recurring, api ×4)            | Modified | `savePublication` on every `PostRepository` double                                                                                   |
+| 1b.B/C/D | 5 new suites under `packages/core/domain/tests/unit/`                | Created  | 113 cases                                                                                                                            |
+
+### Deviations from design
+
+Six, each reported rather than absorbed. The first three exist because **1b must be sound
+on `main` alone** (`tasks.md` section 0.1), and the design's literal wording would have
+broken that.
+
+1. **`markAsPublished` / `markAsFailed` keep their arguments, as optional.** D5 reshapes
+   them to "no argument", gated on the derivation. Taken literally at 1b, every publish-now
+   would break the moment this lands: `CompletePostPublishingUseCase` (1c's file, rewritten
+   by T1c.5) calls them today for posts that have NO record, and a record-gated method
+   refuses those. Implemented instead: **with a record** the derivation gates the word and
+   the v1 payload is built FROM the record — exactly D5; **with no record** the caller's
+   arguments and the lifecycle transition decide, as today. 1c deletes the last caller of
+   the second path and can then delete the parameters.
+2. **`startPublishing` keeps its provider-keyed signature.** D5 describes
+   `startPublishing(targetChannelIds)`. The signature is unchanged; what changed is that
+   **no root path asks a caller for providers any more** — `openPublicationEpisode` and the
+   projection resolve them from the records' joined channel rows, which is the stated
+   purpose of the reshape ("`targetProviders` filled from the joined provider attribute").
+   Re-keying the parameter would have forced a rewrite of 1c's use case inside 1b.
+3. **`PostAggregateState.publications` and `.accountId` are OPTIONAL.** Required would
+   break `PostAggregate.create()` (a new post has no tenant until the repository derives it
+   from the project) and every in-memory fixture. The mapper always supplies both.
+4. **The two ALERT events land here, not in 1b2.** T1b.10 names only the two channel
+   events. They were added anyway, and the reason is a live hazard rather than tidiness:
+   `alertTransition()` is 1b's (section 0.1) and it MUTATES the alerted-set digest. A root
+   that writes the digest without emitting the event would leave the first real alert in 1c
+   undeliverable — the digest would already match, so clause 2 would answer "none". 1b2's
+   consumer stays purely additive.
+5. **`PublishStatus.ts` landed in WU 1b.B, not 1b.C.** T1b.9 lists it, but
+   `ChannelPublications.derive()` (T1b.7, WU 1b.B) RETURNS `PARTIALLY_PUBLISHED`, so the
+   value has to exist by then. The whole `PublishStatus` change is the new value and its two
+   edges; the `noLiveContent()`-gated exits T1b.9 also names live in the aggregate, where
+   the record is readable, and those did land in 1b.C.
+6. **The seam was applied and then applied again.** T1b.9 names one companion file; three
+   exist, because the first companion came out at 874 lines.
+
+### Findings (not fixed here — each needs its own decision)
+
+1. **A record read under `withSystemContext` sees an EMPTY record set, and that fails
+   OPEN.** `findById` now includes `channelPublications`, and that include is row-secured
+   like everything else: with no tenant bound the policy returns no child rows, the
+   aggregate reads as "no records", and "no records" means `noLiveContent()`, which means
+   EDITABLE. Inert in 1b (nothing writes a record), but 1c's worker and sweep both read
+   posts under a derived tenant and 1e's reconstruction script runs system-scoped by design.
+   The durable answer is for the loader to distinguish "no records" from "records not
+   visible"; the cheap one is for every system-scoped caller to bind a tenant first. Worth a
+   design line before 1c's worker container lands.
+2. **The internal channel events carry `accountId` OPTIONALLY.** The aggregate has no
+   tenant until it is loaded from persistence, so an event emitted on an in-memory post
+   omits the key. 1b2's `RetractionAlertEventHandler` binds its tenant FROM that payload
+   (T1b2.10), so it must fail closed on an absent key rather than fall back to a system
+   context. Named here because that handler is written in another slice.
+3. **`excludedAt` is not a column.** The design's composed outcome carries it; the D3 column
+   table does not. The mapper reads it from `lastAttemptAt` and falls back to the row's
+   `updatedAt`. Accurate for every exclusion this change can produce (all of them are
+   recorded at an attempt), but it is a derived value and the next revision of D3 should
+   either name it or say so.
+4. **`PostAggregate.ts` remains 102 lines over the ≤800 ceiling** after the split, all of it
+   public surface over a file that was already 619. A backlog row belongs beside the four
+   section 7.2 already names.

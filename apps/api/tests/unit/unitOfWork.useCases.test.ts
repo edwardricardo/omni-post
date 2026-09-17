@@ -41,6 +41,7 @@ function createMockUoW(): UnitOfWork & { calls: number } {
 function createMockPostRepo(overrides?: Partial<PostRepository>): PostRepository {
   return {
     save: async () => ok(undefined),
+    savePublication: async () => ok(undefined),
     findById: async () => err(new Error("not found") as any),
     findByProjectId: async () => ok([]),
     delete: async () => ok(undefined),

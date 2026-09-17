@@ -51,6 +51,22 @@ export type PostSortField = "createdAt" | "updatedAt" | "scheduledAt" | "publish
  */
 export interface PostRepository extends Repository<PostAggregate, PostId> {
   /**
+   * Persist a PUBLICATION outcome: the post's status word, its publication moment,
+   * every per-channel record and the outbox — in ONE transaction, and nothing else.
+   *
+   * It is deliberately narrower than {@link Repository.save}. A publication write
+   * happens while content may already be live on a provider, so it must be incapable
+   * of carrying an edit of that content: no content statement, no media statement.
+   * An aggregate that arrives with a pending content or media event is REFUSED rather
+   * than partially written, because such an aggregate is a caller that mixed an edit
+   * into a publication and the two must not travel together.
+   *
+   * The row update is a compare-and-swap on the aggregate's version, so a concurrent
+   * writer is reported as a conflict instead of being silently overwritten.
+   */
+  savePublication(post: PostAggregate): Promise<Result<void, Error>>;
+
+  /**
    * Find all posts for a project, inside an explicit tenant scope.
    *
    * `scope` is first and required: a projectId alone does not say whose project
