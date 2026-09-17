@@ -17,3 +17,9 @@ export {
   VERSION_CONFLICT_CODE,
   type DomainErrorType,
 } from "./DomainError.js";
+
+export {
+  ContentLockedError,
+  CONTENT_LOCKED_CODE,
+  type ContentLockedErrorProps,
+} from "./ContentLockedError.js";
