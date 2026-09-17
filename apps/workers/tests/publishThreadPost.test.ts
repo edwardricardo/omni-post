@@ -523,6 +523,51 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       );
     });
 
+    it("should still report the publish failure when a tweet row cannot be written", async () => {
+      // A repository blip must not swallow the provider's verdict: the saga is
+      // waiting on this channel, and a DB error in its place tells it nothing
+      // about what is live.
+      deps.repo.updateTweet = async () => {
+        callLog.push("updateTweet:rejected");
+        throw new Error("DB_UNAVAILABLE");
+      };
+      handler = new PublishHandler(deps);
+
+      await assert.rejects(
+        () =>
+          handler.publishThreadPost(
+            POST_ID,
+            CHANNEL_ID,
+            DEDUPE_KEY,
+            createTestThreadPlan(),
+            PROVIDER_NAME,
+            xProvider,
+            ACCOUNT_ID,
+            SAGA_ID
+          ),
+        (err: Error) => {
+          assert.strictEqual(
+            err.message,
+            "THREAD_INTERRUPTED",
+            "the publish code survives a failure to write the row"
+          );
+          return true;
+        }
+      );
+
+      assert.strictEqual(sagaMessages.length, 1, "the saga is still told the job failed");
+      const event = JSON.parse(sagaMessages[0] ?? "{}") as {
+        type: string;
+        data: { publishedFragments?: Array<{ providerTweetId: string }> };
+      };
+      assert.strictEqual(event.type, "publish.job.failed");
+      assert.deepStrictEqual(
+        event.data.publishedFragments?.map((f) => f.providerTweetId),
+        ["x-live-001", "x-live-002"],
+        "the live set is reported even though its rows could not be written"
+      );
+    });
+
     it("should carry the live fragments into the ERR publish log", async () => {
       const errorPayloads: Array<Record<string, unknown>> = [];
       deps.repo.logPublish = async (input) => {

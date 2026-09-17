@@ -185,8 +185,8 @@ export type PublishError =
  * references make that content addressable by whoever must act on it.
  */
 export type ThreadPublishFailure = {
-  code: PublishError;
-  publishedFragments: ThreadReceipt["tweets"];
+  readonly code: PublishError;
+  readonly publishedFragments: ThreadReceipt["tweets"];
 };
 
 // Provider and analytics types used across the platform
