@@ -293,7 +293,8 @@ CONCURRENCY=1 run_batch "integration:tenant-isolation" \
   tests/integration/tenantGucTransactionBinding.test.ts \
   tests/integration/compositionRootTenantBinding.test.ts \
   tests/integration/tenant-composite-fk.test.ts \
-  tests/integration/post-trio-tenant-isolation.test.ts
+  tests/integration/post-trio-tenant-isolation.test.ts \
+  tests/integration/postChannelPublicationTenantIsolation.test.ts
 
 # Customer pre-identity auth proofs. DB-only: the suite drives the four bare
 # `/auth/customer/*` handlers over `app.inject` against the guarded client, so it

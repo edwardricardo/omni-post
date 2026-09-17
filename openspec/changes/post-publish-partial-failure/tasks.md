@@ -96,12 +96,12 @@ entry + the guards-doc row — #39 fails closed if any one is left behind (propo
 
 ### WU 1b.A — schema, migration, enrollment, red path
 
-- [ ] **T1b.1 RED** — `apps/api/tests/integration/postChannelPublicationTenantIsolation.test.ts`
+- [x] **T1b.1 RED** — `apps/api/tests/integration/postChannelPublicationTenantIsolation.test.ts`
       SKELETON only (the full suite lands in 1d): one case asserting the table exists and rejects a
       row whose `accountId` differs from its post's. Fails: no table. Registered in
       `run-tests.sh`'s `integration:tenant-isolation` batch (`apps/api/scripts/run-tests.sh:274-296`)
       — exactly once (#30).
-- [ ] **T1b.2 GREEN** — `infra/prisma/schema.prisma`: model `PostChannelPublication` with the 24
+- [x] **T1b.2 GREEN** — `infra/prisma/schema.prisma`: model `PostChannelPublication` with the 24
       columns, 8 CHECKs, composite FK `(postId, accountId) → Post(id, accountId)` (the trio pattern,
       `schema.prisma:790`, `:812`), the `Account` relation (S3, design.md:80), `channelId` FK
       `NoAction`, `@@unique([postId, channelId])`, `@@index([channelId])`,
@@ -112,10 +112,10 @@ entry + the guards-doc row — #39 fails closed if any one is left behind (propo
       first, canonical InitPlan-wrapped policy (`20260910000000_rls_initplan_post_trio:56-57`,
       `:63-71`), verbatim inverse down. **Schema edit and migration in ONE commit**
       (`rls-policy-form`). Run `pnpm db:up` first, then the migration — never skip it.
-- [ ] **T1b.3 GREEN** — enrollment: `"postChannelPublication"` in `TENANT_SCOPED_MODELS`
+- [x] **T1b.3 GREEN** — enrollment: `"postChannelPublication"` in `TENANT_SCOPED_MODELS`
       (`infra/prisma/src/extensions/tenantGuard.ts:91-153`) + the rows in
       `docs/security/MULTI_TENANT_GUARDS.md` (`:151`, `:1184-1192`). Fitness #39 back to 0.
-- [ ] **T1b.4 RED PATH (mandatory, #39)** — plant the model unenrolled, run #39, observe a REAL
+- [x] **T1b.4 RED PATH (mandatory, #39)** — plant the model unenrolled, run #39, observe a REAL
       non-zero exit naming `PostChannelPublication`, restore the tree sha256-exact, re-confirm 0.
       Transcript in the PR body. A gate whose red path was never demonstrated does not merge
       (CLAUDE.md §Extending the suite, step 3).
