@@ -1,8 +1,8 @@
 /**
  * Unit tests for PrismaUnitOfWork
  *
- * Verifica la propagación de transacciones mediante AsyncLocalStorage.
- * Tier 0: Sin base de datos real requerida.
+ * Verifies transaction propagation through AsyncLocalStorage.
+ * Tier 0: no real database required.
  *
  * @file PrismaUnitOfWork.test.ts
  * @description Tests for PrismaUnitOfWork
@@ -16,7 +16,7 @@ import {
   ambientTenantContextProvider,
   withTenantContext,
 } from "../../../src/security/tenantContext.js";
-// ── Supresión de console.log para evitar corrupción del protocolo TAP ─────────
+// ── console.log suppression to avoid corrupting the TAP protocol ──────────────
 
 let _originalConsoleLog: typeof console.log;
 beforeAll(() => {
@@ -30,9 +30,9 @@ afterAll(() => {
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Crea un mock de PrismaClient con soporte de transacciones.
- * La implementación del mock ejecuta el callback de $transaction
- * con el txClient interno, simulando el comportamiento real de Prisma.
+ * Creates a PrismaClient mock with transaction support.
+ * The mock implementation runs the $transaction callback with the internal
+ * txClient, simulating Prisma's real behaviour.
  */
 function createMockPrismaClient() {
   const mockTx = {
@@ -89,7 +89,7 @@ describe("PrismaUnitOfWork", () => {
   // ── executeInTransaction ──────────────────────────────────────────────────
 
   describe("executeInTransaction", () => {
-    it("ejecuta el callback dentro de una transacción Prisma", async (_t) => {
+    it("runs the callback inside a Prisma transaction", async (_t) => {
       const { client } = createMockPrismaClient();
       const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
@@ -102,7 +102,7 @@ describe("PrismaUnitOfWork", () => {
       expect(client.$transaction.mock.calls.length).toBe(1);
     });
 
-    it("devuelve el valor retornado por el callback", async (_t) => {
+    it("returns the value the callback returned", async (_t) => {
       const { client } = createMockPrismaClient();
       const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
@@ -111,18 +111,18 @@ describe("PrismaUnitOfWork", () => {
       expect(result).toBe(42);
     });
 
-    it("propaga errores lanzados dentro del callback", async (_t) => {
+    it("propagates an error thrown inside the callback", async (_t) => {
       const { client } = createMockPrismaClient();
       const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
       await expect(() =>
         uow.executeInTransaction(async () => {
-          throw new Error("error de prueba");
+          throw new Error("test error");
         })
-      ).rejects.toThrow("error de prueba");
+      ).rejects.toThrow("test error");
     });
 
-    it("pasa las opciones de transacción a Prisma", async (_t) => {
+    it("passes the transaction options through to Prisma", async (_t) => {
       const { client } = createMockPrismaClient();
       const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
@@ -134,15 +134,15 @@ describe("PrismaUnitOfWork", () => {
       expect((callArgs[1] as Record<string, unknown> | undefined)?.maxWait).toBe(2_000);
     });
 
-    it("combina opciones por defecto con opciones por llamada", async (_t) => {
+    it("merges the per-call options over the default options", async (_t) => {
       const { client } = createMockPrismaClient();
-      // Opciones por defecto: timeout=5000, maxWait=1000
+      // Default options: timeout=5000, maxWait=1000
       const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider, {
         timeout: 5_000,
         maxWait: 1_000,
       });
 
-      // Opciones por llamada: sólo sobreescribe timeout
+      // Per-call options: only timeout is overridden
       await uow.executeInTransaction(async () => {}, { timeout: 15_000 });
 
       const callArgs = client.$transaction.mock.calls[0];
@@ -152,7 +152,7 @@ describe("PrismaUnitOfWork", () => {
       expect(opts?.maxWait).toBe(1_000);
     });
 
-    it("no incluye opciones undefined en el objeto pasado a Prisma", async (_t) => {
+    it("omits undefined options from the object passed to Prisma", async (_t) => {
       const { client } = createMockPrismaClient();
       const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
@@ -161,7 +161,7 @@ describe("PrismaUnitOfWork", () => {
       const callArgs = client.$transaction.mock.calls[0];
       expect(callArgs).toBeTruthy();
       const opts = callArgs[1] as Record<string, unknown>;
-      // Con exactOptionalPropertyTypes, las claves undefined no deben aparecer
+      // Under exactOptionalPropertyTypes, undefined keys must not appear
       expect("timeout" in opts).toBeFalsy();
       expect("maxWait" in opts).toBeFalsy();
       expect("isolationLevel" in opts).toBeFalsy();
@@ -269,12 +269,12 @@ describe("PrismaUnitOfWork", () => {
   // ── getTransactionClient ──────────────────────────────────────────────────
 
   describe("getTransactionClient", () => {
-    it("devuelve undefined cuando no hay transacción activa", async () => {
+    it("returns undefined when no transaction is active", async () => {
       const result = PrismaUnitOfWork.getTransactionClient();
       expect(result).toBe(undefined);
     });
 
-    it("devuelve el cliente tx cuando se está dentro de una transacción", async (_t) => {
+    it("returns the tx client when called inside a transaction", async (_t) => {
       const { client, tx } = createMockPrismaClient();
       const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
@@ -287,7 +287,7 @@ describe("PrismaUnitOfWork", () => {
       expect(capturedClient).toBe(tx);
     });
 
-    it("devuelve undefined después de que la transacción termina", async (_t) => {
+    it("returns undefined after the transaction ends", async (_t) => {
       const { client } = createMockPrismaClient();
       const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
@@ -297,8 +297,8 @@ describe("PrismaUnitOfWork", () => {
       expect(result).toBe(undefined);
     });
 
-    it("aísla clientes tx entre contextos async concurrentes", async (_t) => {
-      // Dos transacciones UoW concurrentes no deben ver el cliente tx del otro
+    it("isolates tx clients across concurrent async contexts", async (_t) => {
+      // Two concurrent unit-of-work transactions must not see each other's tx client
       const mock1 = createMockPrismaClient();
       const mock2 = createMockPrismaClient();
       const uow1 = new PrismaUnitOfWork(mock1.client as never, ambientTenantContextProvider);
@@ -310,9 +310,9 @@ describe("PrismaUnitOfWork", () => {
       await Promise.all([
         uow1.executeInTransaction(async () => {
           client1 = PrismaUnitOfWork.getTransactionClient();
-          // Ceder control para que la otra transacción pueda ejecutarse
+          // Yield control so the other transaction can run
           await new Promise<void>((r) => setTimeout(r, 10));
-          // Debe seguir siendo el mismo cliente después de ceder control
+          // It must still be the same client after yielding control
           const afterYield = PrismaUnitOfWork.getTransactionClient();
           expect(afterYield).toBe(client1);
         }),
@@ -327,43 +327,43 @@ describe("PrismaUnitOfWork", () => {
     });
   });
 
-  // ── integración con repositorios ──────────────────────────────────────────
+  // ── integration with repositories ─────────────────────────────────────────
 
   describe(
-    "integración con código de repositorio (detección de UoW activo)",
+    "integration with repository code (active unit of work detection)",
     {
       concurrency: 1,
     },
     () => {
-      it("el código interno accede al cliente tx del UoW activo", async (_t) => {
+      it("exposes the active unit of work's tx client to the code inside it", async (_t) => {
         const { client, tx } = createMockPrismaClient();
         const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
         let innerClient: unknown;
         await uow.executeInTransaction(async () => {
-          // Simula lo que hace un repositorio: verificar si hay un UoW activo
+          // Simulates what a repository does: check whether a unit of work is active
           innerClient = PrismaUnitOfWork.getTransactionClient();
         });
 
         expect(innerClient).toBe(tx);
       });
 
-      it("múltiples operaciones dentro de executeInTransaction comparten el mismo tx", async (_t) => {
+      it("shares one tx client across multiple operations inside executeInTransaction", async (_t) => {
         const { client, tx } = createMockPrismaClient();
         const uow = new PrismaUnitOfWork(client as never, ambientTenantContextProvider);
 
         const capturedClients: unknown[] = [];
         await uow.executeInTransaction(async () => {
-          // Simula múltiples llamadas a repositorios
+          // Simulates multiple repository calls
           capturedClients.push(PrismaUnitOfWork.getTransactionClient());
-          await Promise.resolve(); // ceder el event loop brevemente
+          await Promise.resolve(); // yield the event loop briefly
           capturedClients.push(PrismaUnitOfWork.getTransactionClient());
         });
 
         expect(capturedClients.length).toBe(2);
         expect(capturedClients[0]).toBe(tx);
         expect(capturedClients[1]).toBe(tx);
-        // Ambas capturas son del mismo cliente
+        // Both captures are of the same client
         expect(capturedClients[0]).toBe(capturedClients[1]);
       });
     }

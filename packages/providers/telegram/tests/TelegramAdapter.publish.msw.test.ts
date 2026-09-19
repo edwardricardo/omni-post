@@ -79,11 +79,11 @@ describe("TelegramAdapter.publish — MSW contract", () => {
   });
 
   it("constructs the canonical Telegram Bot API URL with botToken + method", async () => {
-    // Verifica que el adapter está hitting el endpoint correcto (bot{token}/sendMessage)
-    // — si Telegram cambia el path schema, esto rompe primero. El test de éxito de
-    // arriba YA prueba esto implícitamente (si la URL fuera mal, el handler MSW
-    // no matchearía y el `onUnhandledRequest: 'error'` haría fallar), pero acá lo
-    // hacemos explícito grabando los requests.
+    // Verifies the adapter is hitting the correct endpoint (bot{token}/sendMessage)
+    // — if Telegram changes the path schema, this breaks first. The success test
+    // above ALREADY proves this implicitly (were the URL wrong, the MSW handler
+    // would not match and `onUnhandledRequest: 'error'` would fail it), but here
+    // we make it explicit by recording the requests.
 
     let capturedUrl = "";
     server.use(

@@ -1,10 +1,10 @@
 /**
  * @file a11y.spec.ts
- * @description Smoke E2E que valida WCAG 2.0 + 2.1 Level AA en páginas
- *              públicas del cliente (login). Espera al client dev server en
- *              PLAYWRIGHT_BASE_URL (default http://localhost:3200). Usa el
- *              helper canónico `expectPageToBeAccessible` de `../utils/a11y`
- *              (mirror del admin). Canon:
+ * @description E2E smoke test validating WCAG 2.0 + 2.1 Level AA on the client
+ *              public pages (login). Expects the client dev server on
+ *              PLAYWRIGHT_BASE_URL (default http://localhost:3200). Uses the
+ *              canonical `expectPageToBeAccessible` helper from `../utils/a11y`
+ *              (mirror of the admin one). Canon:
  *              `axe-core-playwright-a11y-testing-for-e2e-suites`.
  * @layer infrastructure
  */
