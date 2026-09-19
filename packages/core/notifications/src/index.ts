@@ -26,6 +26,28 @@ export {
 
 export { GetUnreadCountQuery, type GetUnreadCountInput } from "./GetUnreadCountQuery.js";
 
+export { isTypeEnabled } from "./isTypeEnabled.js";
+
+export { SendEmailNotificationService } from "./SendEmailNotificationService.js";
+
+export {
+  buildRetractionAlertMessage,
+  type RetractionAlertMessage,
+  type RetractionAlertMessageInput,
+} from "./retractionAlertMessage.js";
+
+export {
+  RaiseRetractionAlertUseCase,
+  type RaiseRetractionAlertInput,
+  type RaiseRetractionAlertOutput,
+} from "./RaiseRetractionAlertUseCase.js";
+
+export {
+  ResolveRetractionAlertUseCase,
+  type ResolveRetractionAlertInput,
+  type ResolveRetractionAlertOutput,
+} from "./ResolveRetractionAlertUseCase.js";
+
 export {
   NotificationEventHandlers,
   type NotificationEventContext,

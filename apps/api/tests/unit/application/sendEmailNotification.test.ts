@@ -101,4 +101,23 @@ describe("SendEmailNotificationService", () => {
     expect(mailer.sendNotification).toHaveBeenCalledOnce();
     assert.strictEqual(mailer.sendNotification.mock.calls[0]?.[0]?.type, "MENTION");
   });
+
+  it("admits PUBLICATION_RETRACTION_PENDING — the default for the type is a delivered email", async () => {
+    await service.send(makeContext({ type: "PUBLICATION_RETRACTION_PENDING" as never }));
+
+    expect(mailer.sendNotification).toHaveBeenCalledOnce();
+    assert.strictEqual(
+      mailer.sendNotification.mock.calls[0]?.[0]?.type,
+      "PUBLICATION_RETRACTION_PENDING"
+    );
+  });
+
+  it("still honours the per-type opt-out for PUBLICATION_RETRACTION_PENDING", async () => {
+    prefRepo = makeMockPreferenceRepo([{ type: "PUBLICATION_RETRACTION_PENDING", enabled: false }]);
+    service = new SendEmailNotificationService(mailer, prefRepo as never);
+
+    await service.send(makeContext({ type: "PUBLICATION_RETRACTION_PENDING" as never }));
+
+    expect(mailer.sendNotification).not.toHaveBeenCalled();
+  });
 });

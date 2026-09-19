@@ -14,12 +14,20 @@ import type {
   NotificationMailer,
   EmailNotificationContext,
 } from "@core/domain/repositories/NotificationMailer.js";
+import { isTypeEnabled } from "./isTypeEnabled.js";
 
 const EMAIL_ENABLED_TYPES: NotificationTypeValue[] = [
   "APPROVAL_REQUESTED",
   "POST_APPROVED",
   "POST_REJECTED",
   "MENTION",
+  // Admitted because email is the one contact datum the platform holds from signup,
+  // and the default for this type has to be a DELIVERED email rather than a silently
+  // dropped one: the customer is being asked to remove content from a platform this
+  // application cannot reach, and a dashboard they may not open that day is not a
+  // reliable way to ask. The recipient's per-type row still decides — see
+  // isTypeEnabled below.
+  "PUBLICATION_RETRACTION_PENDING",
 ];
 
 export class SendEmailNotificationService {
@@ -35,8 +43,7 @@ export class SendEmailNotificationService {
       }
 
       const preferences = await this.preferenceRepo.findByMember(ctx.recipientId);
-      const pref = preferences.find((p) => p.type === ctx.type);
-      if (pref && !pref.enabled) {
+      if (!isTypeEnabled(preferences, ctx.type)) {
         return;
       }
 

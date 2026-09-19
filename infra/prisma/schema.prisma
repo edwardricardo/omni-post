@@ -457,6 +457,54 @@ enum NotificationType {
   TEAM_INVITE
   INBOX_MESSAGE_RECEIVED
   INBOX_MENTION_RECEIVED
+  PUBLICATION_RETRACTION_PENDING
+}
+
+/// The medium an urgent retraction alert went out on. Two kinds live in one enum
+/// because the ledger below records a claimed delivery for either: IN_APP and EMAIL
+/// (and later SMS, PUSH) address ONE member and are governed by that member's
+/// per-type preference, while SLACK_TEAMS addresses a destination shared by many
+/// people and is governed only by the existence of an active config.
+enum RetractionAlertMedium {
+  IN_APP
+  EMAIL
+  SLACK_TEAMS
+  SMS
+  PUSH
+}
+
+/// One row per (alert, medium, target) claimed for delivery.
+///
+/// It is the SINGLE idempotency mechanism for the retraction alert: the consumer
+/// INSERTs before it delivers, so a redelivered outbox event collides on the unique
+/// index and no second notification, email or webhook goes out. It is also what makes
+/// resolution exact — resolving an alert deletes precisely the notifications this
+/// ledger names, so a member who joined or left the project between the raise and the
+/// resolution neither keeps a stale alert nor loses an unrelated one.
+///
+/// It carries NO accountId, deliberately, and that is why it is absent from
+/// TENANT_SCOPED_MODELS and from the RLS migrations. The row holds an opaque alert
+/// hash, member ids and config ids — never tenant-scoped content — and every read of
+/// it is keyed by an alertKey only a tenant-bound event can produce. It is therefore
+/// not a bearing model, exactly as Notification and NotificationPreference are not.
+model RetractionAlertDelivery {
+  id             String                @id @default(uuid())
+  /// Deterministic identity of the alert: the (post, channel) pair and the digest of
+  /// the live fragment set. A changed fragment set is a DIFFERENT key, which is what
+  /// lets a superseded alert be resolved while the new one is claimed.
+  alertKey       String
+  medium         RetractionAlertMedium
+  /// A member id for the per-member media, an external-notification config id for the
+  /// shared destination. Opaque here on purpose — the ledger records that a target was
+  /// claimed, never what the target is.
+  target         String
+  /// Set once the in-app notification exists, so resolution can delete exactly it.
+  /// Null for media that create no in-app row.
+  notificationId String?
+  deliveredAt    DateTime              @default(now()) @db.Timestamptz(6)
+
+  @@unique([alertKey, medium, target])
+  @@index([alertKey])
 }
 
 model ApprovalWorkflow {
