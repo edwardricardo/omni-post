@@ -200,17 +200,17 @@ nothing yet emits would be consumed, deduplicated per `(alertKey, medium, target
 in-app + by email + to every active Slack/Teams config. **Rollback**: revert + `down.sql`; the enum
 value stays (Postgres cannot drop one in place — design.md:196, named openly).
 
-- [ ] **T1b2.1 RED** — `packages/core/notifications/tests/unit/isTypeEnabled.test.ts`: no row → true;
+- [x] **T1b2.1 RED** — `packages/core/notifications/tests/unit/isTypeEnabled.test.ts`: no row → true;
       row disabled → false. Fails: the predicate does not exist (it is inlined twice today,
       `CreateNotificationUseCase.ts:64-71`, `SendEmailNotificationService.ts:37-41`).
-- [ ] **T1b2.2 GREEN** — `packages/core/notifications/src/isTypeEnabled.ts`; **both existing call
+- [x] **T1b2.2 GREEN** — `packages/core/notifications/src/isTypeEnabled.ts`; **both existing call
       sites refactored to call it** so the three cannot drift (design.md:229). Their own suites stay
       green unchanged — that is the regression proof.
-- [ ] **T1b2.3 GREEN** — `packages/core/domain/src/value-objects/NotificationType.ts`:
+- [x] **T1b2.3 GREEN** — `packages/core/domain/src/value-objects/NotificationType.ts`:
       `PUBLICATION_RETRACTION_PENDING` (closed set 9 → 10) + `isUrgent()` as RANK only;
       `packages/core/notifications/src/SendEmailNotificationService.ts` `EMAIL_ENABLED_TYPES`
       (`:18-23`) admits it.
-- [ ] **T1b2.4 GREEN** — `infra/prisma/schema.prisma` + `infra/prisma/migrations/
+- [x] **T1b2.4 GREEN** — `infra/prisma/schema.prisma` + `infra/prisma/migrations/
 <ts>_add_retraction_alert_notifications/{migration,down}.sql`: `ALTER TYPE … ADD VALUE` (no row
       of that value written in the same migration), enum `RetractionAlertMedium`, table
       `RetractionAlertDelivery (id, alertKey, medium, target, notificationId?, deliveredAt)` with
@@ -219,7 +219,7 @@ value stays (Postgres cannot drop one in place — design.md:196, named openly).
       commit. **#39 stays at zero without enrolling anything**: the ledger carries no `accountId`, so
       it is not a bearing model — the same class as `Notification` / `NotificationPreference`
       (design.md:196). Say so in the PR body; do not add it to `TENANT_SCOPED_MODELS`.
-- [ ] **T1b2.5 RED** — `packages/core/notifications/tests/unit/raiseRetractionAlert.test.ts`: the
+- [x] **T1b2.5 RED** — `packages/core/notifications/tests/unit/raiseRetractionAlert.test.ts`: the
       full design.md:389 list — `typeOn` on BOTH per-member media; the **Q21 shared switch**
       (delivery with every member's row disabled, and again with ZERO recipients, once per active
       config per key; a DEACTIVATED config receives nothing while an active sibling does); the
@@ -228,34 +228,34 @@ value stays (Postgres cannot drop one in place — design.md:196, named openly).
       runs → one in-app row per enabled recipient, one email per enabled recipient, one webhook per
       config); superseded key resolved BEFORE the new claims; one medium's failure leaves the others
       and the record untouched. **No per-medium preference scenario exists** (rev 3.2).
-- [ ] **T1b2.6 RED** — `.../resolveRetractionAlert.test.ts`: deletes exactly the notifications the
+- [x] **T1b2.6 RED** — `.../resolveRetractionAlert.test.ts`: deletes exactly the notifications the
       ledger names, then the ledger rows, for every cause including `ACTION_WINDOW_EXPIRED`;
       idempotent.
-- [ ] **T1b2.7 GREEN** — `packages/core/notifications/src/{RaiseRetractionAlertUseCase,
+- [x] **T1b2.7 GREEN** — `packages/core/notifications/src/{RaiseRetractionAlertUseCase,
 ResolveRetractionAlertUseCase}.ts` + barrel;
       `packages/core/domain/src/repositories/RetractionAlertDeliveryLedger.ts` (port, design.md:364);
       `packages/ports/src/RetractionAlertDeliveryPort.ts` (`AlertMedium`, `AlertMediumKind`,
       `RetractionAlertDelivery`, `AlertDeliveryResult`, `AlertDeliveryReport` — design.md:357-362).
-- [ ] **T1b2.8 GREEN** — `packages/core/domain/src/repositories/ExternalNotifierPort.ts` gains
+- [x] **T1b2.8 GREEN** — `packages/core/domain/src/repositories/ExternalNotifierPort.ts` gains
       `broadcast(projectId, event, payload, { toEveryActiveConfig })`; the method is PROMOTED from
       `ExternalNotificationDispatcher` (`:63-87`) to the port (S-r3-2).
-- [ ] **T1b2.9 GREEN** — three adapters in the composition root: `InAppRetractionAlertDelivery`
+- [x] **T1b2.9 GREEN** — three adapters in the composition root: `InAppRetractionAlertDelivery`
       (→ `CreateNotificationUseCase` + `NotificationBroadcaster.broadcast`, `:126`),
       `EmailRetractionAlertDelivery` (→ `SendEmailNotificationService`, its FIRST production caller —
       SMELL-41's other half stays open), `SlackTeamsRetractionAlertDelivery` (→ the promoted
       `broadcast`, `toEveryActiveConfig: true`). `sms` / `push` have NO adapter and report
       `unavailable`.
-- [ ] **T1b2.10 GREEN** — `apps/api/src/infrastructure/repositories/
+- [x] **T1b2.10 GREEN** — `apps/api/src/infrastructure/repositories/
 PrismaRetractionAlertDeliveryLedger.ts` (`claim` returns `false` on P2002);
       `apps/api/src/notifications/RetractionAlertEventHandler.ts` (two event types, `accountId` from
       the outbox-reconstructed payload, `withTenantContext` — the `TriageDispatchEventHandler.ts:50`
       shape); registration in `apps/api/src/index.ts` beside `:839-845`; tokens in
       `infrastructure/container/{types,setupNotificationUseCases,setupExternalNotificationUseCases}.ts`;
       the two alert events registered v1 in `EventSchemaRegistry.ts`.
-- [ ] **T1b2.11 GREEN** — `TransactionalEmailAdapter.renderNotification` case +
+- [x] **T1b2.11 GREEN** — `TransactionalEmailAdapter.renderNotification` case +
       `infrastructure/email/templates/emailTemplates.tsx`: post excerpt, channel, each fragment with
       its link, cause, action, deadline. No credentials, tokens or provider secrets (AL-2).
-- [ ] **T1b2.12** — `apps/api/tests/unit/RetractionAlertEventHandler.test.ts` (tenant bound from the
+- [x] **T1b2.12** — `apps/api/tests/unit/RetractionAlertEventHandler.test.ts` (tenant bound from the
       payload; ledger `claim` on P2002); `docs/api/notifications.md` (the new type, the ledger, the
       corrected `SendEmailNotificationService` path — the stale `:62` path is a backlog row); gates
       as T1b.14 plus #13/#14/#16.

@@ -124,6 +124,93 @@ describe("TransactionalEmailAdapter", () => {
     assert.ok((call?.subject ?? "").includes("Alice"));
   });
 
+  describe("PUBLICATION_RETRACTION_PENDING", () => {
+    const sendRetractionAlert = async (
+      adapterUnderTest: TransactionalEmailAdapter,
+      metadata?: Record<string, unknown>
+    ) =>
+      adapterUnderTest.sendNotification({
+        recipientId: "m-1",
+        recipientEmail: "user@test.com",
+        type: "PUBLICATION_RETRACTION_PENDING",
+        title: "Content is still live on Acme on X: manual removal required",
+        body: "Part of your post is still published on Acme on X.",
+        accountName: "Acme Corp",
+        metadata: metadata ?? {
+          postId: "post-1",
+          channelId: "channel-1",
+          channelName: "Acme on X",
+          postExcerpt: "Launch week",
+          cause: "NO_CAPABILITY",
+          actionWindowEndsAt: "2026-09-22T09:00:00.000Z",
+          liveFragments: [
+            { index: 1, externalId: "18110001", url: "https://x.test/acme/1" },
+            { index: 2, externalId: "18110002" },
+          ],
+        },
+      });
+
+    it("renders a dedicated template naming the channel, the fragments and the action", async () => {
+      await sendRetractionAlert(adapter);
+
+      const call = emailPort.send.mock.calls[0]?.[0];
+      const html = call?.html ?? "";
+      assert.match(call?.subject ?? "", /Acme on X/);
+      assert.ok(html.includes("18110001"), "the first live fragment is not named");
+      assert.ok(html.includes("18110002"), "the second live fragment is not named");
+      assert.ok(html.includes("https://x.test/acme/1"), "the fragment's link is missing");
+      assert.match(html, /manual/i);
+      assert.ok(html.includes("Launch week"), "the post excerpt is missing");
+    });
+
+    it("states the cause in the customer's vocabulary", async () => {
+      await sendRetractionAlert(adapter);
+      const noCapability = emailPort.send.mock.calls[0]?.[0]?.html ?? "";
+      assert.match(noCapability, /no way to remove it/i);
+
+      emailPort.send.mockClear();
+      await sendRetractionAlert(adapter, {
+        channelName: "Acme on X",
+        cause: "EXHAUSTED",
+        postExcerpt: "Launch week",
+        liveFragments: [{ index: 1, externalId: "18110001" }],
+      });
+      const exhausted = emailPort.send.mock.calls[0]?.[0]?.html ?? "";
+      assert.match(exhausted, /attempted and failed/i);
+    });
+
+    it("names the deadline when a window is open and omits it when there is none", async () => {
+      await sendRetractionAlert(adapter);
+      assert.ok((emailPort.send.mock.calls[0]?.[0]?.html ?? "").includes("2026-09-22"));
+
+      emailPort.send.mockClear();
+      await sendRetractionAlert(adapter, {
+        channelName: "Acme on X",
+        cause: "NO_CAPABILITY",
+        postExcerpt: "Launch week",
+        liveFragments: [{ index: 1, externalId: "18110001" }],
+      });
+      const withoutWindow = emailPort.send.mock.calls[0]?.[0]?.html ?? "";
+      assert.ok(!/act by/i.test(withoutWindow));
+    });
+
+    it("carries no credential-shaped field into the rendered email", async () => {
+      await sendRetractionAlert(adapter);
+
+      const rendered = JSON.stringify(emailPort.send.mock.calls[0]?.[0] ?? {}).toLowerCase();
+      for (const forbidden of ["token", "secret", "credential", "password", "webhookurl"]) {
+        assert.ok(!rendered.includes(forbidden), `the email carries a ${forbidden}-shaped field`);
+      }
+    });
+
+    it("still renders when the metadata carries no fragments at all", async () => {
+      await sendRetractionAlert(adapter, { channelName: "Acme on X", cause: "NO_CAPABILITY" });
+
+      const call = emailPort.send.mock.calls[0]?.[0];
+      assert.match(call?.subject ?? "", /Acme on X/);
+    });
+  });
+
   it("falls back to a plain body for an unmapped notification type", async () => {
     await adapter.sendNotification({
       recipientId: "m-1",

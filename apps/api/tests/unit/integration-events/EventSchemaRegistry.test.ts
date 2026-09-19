@@ -29,7 +29,12 @@ describe("EventSchemaRegistry — default constructor", () => {
     registry = new EventSchemaRegistry();
   });
 
-  it("registers all 12 production events", () => {
+  it("registers all 14 production events", () => {
+    // Exhaustive on purpose: the list is what makes an event added to the registry
+    // visible in review rather than arriving silently. The last two are INTERNAL —
+    // every event that rides the outbox is validated on its way through, which is not
+    // the same as being projected to an integration subscriber, and neither of these
+    // is.
     const expected = [
       "PostCreated",
       "PostContentUpdated",
@@ -41,6 +46,8 @@ describe("EventSchemaRegistry — default constructor", () => {
       "PostCancelled",
       "PostMediaAdded",
       "PostMediaRemoved",
+      "PostChannelRetractionAlertRaised",
+      "PostChannelRetractionAlertResolved",
       "CrisisModeEntered",
       "CrisisModeExited",
     ].sort();

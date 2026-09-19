@@ -143,3 +143,15 @@ export { ReviewDecision, REVIEW_DECISIONS, type ReviewDecisionValue } from "./Re
 
 // Mention context value object — used by mentions, inbox, tasks contexts
 export { MENTION_CONTEXT, type MentionContextType } from "./MentionContext.js";
+
+// Alert delivery vocabulary — shared by the delivery ledger and the delivery ports
+export {
+  ALERT_MEDIA,
+  ALERT_MEDIUM_KINDS,
+  ALERT_DELIVERY_RESULTS,
+  type AlertMedium,
+  type AlertMediumKind,
+  type AlertDeliveryResult,
+  type AlertDeliveryReport,
+  type AlertDeliveryReportEntry,
+} from "./AlertMedium.js";

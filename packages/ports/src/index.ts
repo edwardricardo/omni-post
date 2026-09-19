@@ -26,4 +26,5 @@ export * from "./PostCreationPort.js";
 export * from "./GuardrailEvaluationPort.js";
 export * from "./MentionTrackingPort.js";
 export * from "./NotificationDispatchPort.js";
+export * from "./RetractionAlertDeliveryPort.js";
 export * from "./PlatformCredentialPort.js";
