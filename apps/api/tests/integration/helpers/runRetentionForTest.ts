@@ -29,8 +29,8 @@ import type {
 
 class NoopAuditEmitter implements AuditEmitterPort {
   async emit(_input: AuditEmitterInput): Promise<void> {
-    // Tests no necesitan persistir el audit log del cleanup mismo —
-    // verificamos solo los efectos sobre AuditLog + DsarRequest.
+    // Tests do not need to persist the cleanup's own audit log — we only
+    // verify the effects on AuditLog + DsarRequest.
   }
 }
 

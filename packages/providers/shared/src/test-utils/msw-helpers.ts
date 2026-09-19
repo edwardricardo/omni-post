@@ -1,11 +1,11 @@
 /**
  * @file msw-helpers.ts
- * @description Shared MSW (Mock Service Worker) helpers para tests de
- *   providers. Establece el patrón canónico para mockear HTTP calls de los
- *   providers contra fixtures recorded — alternativa al patrón `vi.fn()` +
- *   factory injection que se usaba históricamente.
+ * @description Shared MSW (Mock Service Worker) helpers for provider tests.
+ *   Establishes the canonical pattern for mocking the providers' HTTP calls
+ *   against recorded fixtures — an alternative to the `vi.fn()` + factory
+ *   injection pattern used historically.
  *
- *   Patrón:
+ *   Pattern:
  *
  *   ```typescript
  *   import {
@@ -23,9 +23,9 @@
  *   afterAll(() => server.close());
  *   ```
  *
- *   Re-exporta `http` y `HttpResponse` para que los tests no tengan que
- *   importar directamente de `msw` — el wrapper permite refactorizar el
- *   pattern en un solo lugar si MSW v3 cambia API.
+ *   It re-exports `http` and `HttpResponse` so tests do not have to import
+ *   from `msw` directly — the wrapper allows refactoring the pattern in a
+ *   single place should MSW v3 change its API.
  *
  * @layer infrastructure
  */
@@ -33,13 +33,13 @@ import { setupServer, type SetupServer } from "msw/node";
 import { http, HttpResponse, type RequestHandler } from "msw";
 
 /**
- * Crea un MSW server con los handlers provistos. Los handlers son lazy —
- * se resuelven solo cuando un test los activa via `server.use(...)` o
- * directamente cuando llegan requests.
+ * Creates an MSW server with the provided handlers. The handlers are lazy —
+ * they resolve only when a test activates them via `server.use(...)` or
+ * directly when requests arrive.
  *
- * @param handlers - Lista de handlers `http.get/post/...` para registrar.
- * @returns El SetupServer listo para `.listen()` / `.resetHandlers()` /
- *   `.close()` en hooks de vitest.
+ * @param handlers - List of `http.get/post/...` handlers to register.
+ * @returns The SetupServer, ready for `.listen()` / `.resetHandlers()` /
+ *   `.close()` in vitest hooks.
  */
 export function createProviderMockServer(handlers: RequestHandler[]): SetupServer {
   return setupServer(...handlers);
