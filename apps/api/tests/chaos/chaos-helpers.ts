@@ -40,9 +40,9 @@ export interface ChaosHarness {
 }
 
 /**
- * Construye un harness chaos con saga manager + noop scheduler. El scheduler
- * es no-op por design — los tests llaman `scheduler.triggerTask("saga-retry-recovery")`
- * para forzar la iteración del recovery checker en momentos deterministas.
+ * Builds a chaos harness with a saga manager + noop scheduler. The scheduler is
+ * a no-op by design — tests call `scheduler.triggerTask("saga-retry-recovery")`
+ * to force the recovery checker's iteration at deterministic moments.
  */
 export async function createChaosHarness(): Promise<ChaosHarness> {
   const mockPrisma = createMockPrisma();
@@ -75,14 +75,14 @@ export async function createChaosHarness(): Promise<ChaosHarness> {
 
 /**
  * @class TransientFailingStep
- * @description Saga step que falla las primeras `failuresBeforeSuccess`
- *   veces y luego succeeds. Cada falla retorna el outcome `failed` con un
- *   error message — el saga manager debería persistir `nextRetryAt` y
- *   esperar el recovery scheduler para reintentar.
+ * @description Saga step that fails the first `failuresBeforeSuccess` times and
+ *   then succeeds. Each failure returns the `failed` outcome with an error
+ *   message — the saga manager should persist `nextRetryAt` and wait for the
+ *   recovery scheduler to retry.
  *
- *   Patrón canónico para chaos testing de retry policy + recovery
- *   scheduler. La cuenta `attempts` es OBSERVABLE desde el test para
- *   asserting que el step fue invocado N veces.
+ *   Canonical pattern for chaos testing of the retry policy + recovery
+ *   scheduler. The `attempts` count is OBSERVABLE from the test so it can
+ *   assert the step was invoked N times.
  */
 export class TransientFailingStep implements SagaStep {
   readonly id = "transient-failing-step";
@@ -114,9 +114,9 @@ export class TransientFailingStep implements SagaStep {
 }
 
 /**
- * Poll `manager.getSaga(sagaId)` hasta que reach `targetStatus` o el timeout
- * expire. Entre polls, el caller debe llamar `scheduler.triggerTask(...)` para
- * forzar el tick del recovery checker — el wait helper solo observa.
+ * Polls `manager.getSaga(sagaId)` until it reaches `targetStatus` or the timeout
+ * expires. Between polls the caller must call `scheduler.triggerTask(...)` to
+ * force the recovery checker's tick — this wait helper only observes.
  */
 export async function waitForSagaStatus(
   manager: SagaManagerImpl,

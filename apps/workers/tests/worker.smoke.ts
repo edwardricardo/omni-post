@@ -24,14 +24,14 @@ async function main() {
     const queue = createBullMQQueueAdapter({ queueName: QUEUE_NAMES.PUBLISH, connection });
     const repo = createPrismaRepoAdapter({ prisma: workerPrisma });
 
-    // Precondiciones ligeras
+    // Lightweight preconditions
     const health = await queue.health();
     if (!health.ok) {
       console.log("Queue unavailable; skipping smoke test");
       return;
     }
 
-    // Usa el canal de seed "dev-x" y crea un post mínimo
+    // Uses the "dev-x" seed channel and creates a minimal post
     const post = await repo.createPost({
       projectId: "dev",
       locale: "es",

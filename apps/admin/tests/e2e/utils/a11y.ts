@@ -1,12 +1,12 @@
 /**
  * @file a11y.ts
- * @description Helper canónico para asserts WCAG en E2E de apps/admin.
+ * @description Canonical helper for WCAG assertions in the apps/admin E2E suite.
  *              Canon: `axe-core-playwright-a11y-testing-for-e2e-suites`.
- *              Defaults cubren WCAG 2.0 + 2.1 Level A + AA. Impact threshold
+ *              Defaults cover WCAG 2.0 + 2.1 Level A + AA. Impact threshold
  *              `['serious', 'critical']` per Deque CI guidance — minor /
- *              moderate son informational, no bloquean CI. Specs hacen
- *              override per-page para tag bumps (e.g., wcag22aa) o auditoría
- *              estricta time-boxed.
+ *              moderate are informational and do not block CI. Specs override
+ *              per page for tag bumps (e.g., wcag22aa) or a time-boxed strict
+ *              audit.
  * @layer infrastructure
  */
 import { AxeBuilder } from "@axe-core/playwright";
