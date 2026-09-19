@@ -1,9 +1,10 @@
 /**
  * @file setupSecretsRotationUseCases.test.ts
- * @description Smoke contract test del setup DI de secrets-rotation status.
- *              Verifica que la función registra los TOKENs esperados sin throw.
- *              No testea la cadena completa de instantiation (responsabilidad
- *              de los tests de cada adapter/use case y los integration tests).
+ * @description Smoke contract test for the secrets-rotation status DI setup.
+ *              Verifies that the function registers the expected TOKENs without
+ *              throwing. It does not test the full instantiation chain (that
+ *              belongs to each adapter/use case's own tests and the integration
+ *              tests).
  * @layer infrastructure
  */
 

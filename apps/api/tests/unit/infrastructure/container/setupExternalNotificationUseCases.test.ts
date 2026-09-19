@@ -1,11 +1,11 @@
 /**
  * @file setupExternalNotificationUseCases.test.ts
- * @description Smoke contract test del setup DI de external notifications.
- *   Verifica que la función registra los TOKENs esperados sin throw, y que la
- *   factory de ConfigureExternalNotificationUseCase resuelve la
- *   ProjectRepository (necesaria para la verificación de ownership del proyecto
- *   en el create path). NO testea la cadena completa de instantiation (eso es
- *   responsabilidad de los tests de cada adapter/use case + integration tests).
+ * @description Smoke contract test for the external-notifications DI setup.
+ *   Verifies that the function registers the expected TOKENs without throwing,
+ *   and that the ConfigureExternalNotificationUseCase factory resolves the
+ *   ProjectRepository (required for the project ownership check on the create
+ *   path). It does NOT test the full instantiation chain (that belongs to each
+ *   adapter/use case's own tests + the integration tests).
  * @layer infrastructure
  */
 
@@ -41,7 +41,7 @@ describe("setupExternalNotificationUseCases", () => {
 
     expect(() => setupExternalNotificationUseCases(container)).not.toThrow();
 
-    // Tokens centrales que este setup debe registrar
+    // Core tokens this setup must register
     expect(registered).toContain(TOKENS.ExternalNotificationConfigRepository);
     expect(registered).toContain(TOKENS.ExternalNotifierPort);
     expect(registered).toContain(TOKENS.ExternalNotificationDispatcher);

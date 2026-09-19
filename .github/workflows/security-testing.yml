@@ -26,7 +26,9 @@ on:
     # fired a redundant second run per push.
     branches: [main, omni-post-cc]
   pull_request:
-    branches: [main, omni-post-cc]
+    # Chained pull requests target a feature tracker or a sibling workstream branch, not main;
+    # without these patterns a child PR ran no checks at all until it merged into the tracker.
+    branches: [main, omni-post-cc, "feature/**", "workstream/**"]
   schedule:
     - cron: "0 3 * * *"
   workflow_dispatch:
