@@ -263,7 +263,8 @@ unreviewable diff is how a behavioural edit rides into a change that promised no
 Translating the relocated comments to English SHALL be a SEPARATE commit, strictly AFTER the move, for
 the same reason. Afterwards, all comments in the four relocated files SHALL be in English
 (`CODING_STANDARDS.md §Comment Quality Rules`), and the Unit of Work's `@example` SHALL show the
-three-parameter constructor — a doc comment that lies is worse than none.
+injected-provider constructor call `new PrismaUnitOfWork(prisma, tenantProvider)` (the third
+parameter, the transaction options, is optional) — a doc comment that lies is worse than none.
 
 #### Scenario: the four files are renames, not rewrites [static]
 
