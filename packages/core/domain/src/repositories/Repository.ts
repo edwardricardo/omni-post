@@ -162,21 +162,21 @@ export interface SortParams<TFields extends string> {
 }
 
 /**
- * Unit of Work interface for operaciones transaccionales.
+ * Unit of Work interface for transactional operations.
  *
- * Usa el patrón de callback (executeInTransaction) que se mapea
- * de forma natural a la API de $transaction() de Prisma. El patrón
- * begin/commit/rollback fue eliminado porque las transacciones
- * interactivas de Prisma manejan commit/rollback automáticamente.
+ * Uses the callback pattern (executeInTransaction), which maps naturally onto
+ * Prisma's $transaction() API. The begin/commit/rollback pattern was removed
+ * because Prisma's interactive transactions handle commit/rollback
+ * automatically.
  *
  */
 export interface UnitOfWork {
   /**
-   * Ejecuta una función dentro de una transacción de base de datos.
-   * Todas las operaciones de repositorio dentro del callback comparten
-   * la misma transacción. En caso de éxito, la transacción se confirma
-   * automáticamente. En caso de error (excepción lanzada), la transacción
-   * se revierte automáticamente.
+   * Runs a function inside a database transaction.
+   * Every repository operation inside the callback shares the same
+   * transaction. On success the transaction is committed automatically. On
+   * failure (a thrown exception) the transaction is rolled back
+   * automatically.
    */
   executeInTransaction<T>(fn: () => Promise<T>): Promise<T>;
 
