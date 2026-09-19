@@ -12,6 +12,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { EmailRetractionAlertDelivery } from "../../../../src/infrastructure/adapters/EmailRetractionAlertDelivery.js";
 import { ALERT_MEDIA, ALERT_MEDIUM_KINDS } from "@ports/core";
+import { ok } from "@shared/types";
+import { NotificationDeliveryError } from "@core/domain/errors/index.js";
 import { ALERT, TARGET } from "./retractionAlertFixtures.js";
 
 describe("EmailRetractionAlertDelivery", () => {
@@ -25,7 +27,7 @@ describe("EmailRetractionAlertDelivery", () => {
   });
 
   it("sends to the recipient's own address with the alert's type and text", async () => {
-    const emails = { send: vi.fn(async () => undefined) };
+    const emails = { send: vi.fn(async () => ok(undefined)) };
     const adapter = new EmailRetractionAlertDelivery(emails as never);
 
     const result = await adapter.deliver(ALERT, [TARGET]);
@@ -44,7 +46,7 @@ describe("EmailRetractionAlertDelivery", () => {
   });
 
   it("refuses a target with no address rather than sending nowhere", async () => {
-    const emails = { send: vi.fn(async () => undefined) };
+    const emails = { send: vi.fn(async () => ok(undefined)) };
     const adapter = new EmailRetractionAlertDelivery(emails as never);
 
     const result = await adapter.deliver(ALERT, [{ id: TARGET.id }]);
@@ -55,12 +57,38 @@ describe("EmailRetractionAlertDelivery", () => {
   });
 
   it("succeeds without work when handed no target", async () => {
-    const emails = { send: vi.fn(async () => undefined) };
+    const emails = { send: vi.fn(async () => ok(undefined)) };
     const adapter = new EmailRetractionAlertDelivery(emails as never);
 
     const result = await adapter.deliver(ALERT, []);
 
     assert.ok(result.ok);
     expect(emails.send).not.toHaveBeenCalled();
+  });
+
+  describe("a transport failure is reported, not absorbed", () => {
+    it("reports FAILED when the service returns err, naming what the transport said", async () => {
+      const emails = {
+        send: vi.fn(async () => ({
+          ok: false as const,
+          error: new NotificationDeliveryError("email", "SMTP 421 service unavailable"),
+        })),
+      };
+      const adapter = new EmailRetractionAlertDelivery(emails as never);
+
+      const result = await adapter.deliver(ALERT, [TARGET]);
+
+      assert.ok(!result.ok, "a mailer outage was reported as a delivered alert");
+      assert.match(result.error, /SMTP 421/);
+    });
+
+    it("reports ok when the service reports ok", async () => {
+      const emails = { send: vi.fn(async () => ok(undefined)) };
+      const adapter = new EmailRetractionAlertDelivery(emails as never);
+
+      const result = await adapter.deliver(ALERT, [TARGET]);
+
+      assert.ok(result.ok);
+    });
   });
 });

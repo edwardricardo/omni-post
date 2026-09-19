@@ -49,7 +49,7 @@ export class EmailRetractionAlertDelivery implements RetractionAlertDelivery {
       return err(`recipient ${target.id} has no email address`);
     }
 
-    await this.emails.send({
+    const sent = await this.emails.send({
       recipientId: target.id,
       recipientEmail: target.email,
       type: NOTIFICATION_TYPES.PUBLICATION_RETRACTION_PENDING,
@@ -58,6 +58,12 @@ export class EmailRetractionAlertDelivery implements RetractionAlertDelivery {
       accountName: alert.accountName,
       metadata: alert.metadata,
     });
+
+    // A mailer outage is reported, never absorbed. Until the service returned a
+    // Result this branch did not exist, so a provider refusing every message still
+    // counted as `delivered` — and the caller's ledger claim then blocked the
+    // redelivery that would have retried it.
+    if (!sent.ok) return err(sent.error.message);
 
     return ok({});
   }

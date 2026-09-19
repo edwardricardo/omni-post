@@ -45,6 +45,24 @@ export interface RetractionAlertDeliveryLedger {
   claim(input: RetractionAlertDeliveryClaim): Promise<{ claimed: boolean }>;
 
   /**
+   * @method release
+   * @description Gives a claimed delivery back, so a later redelivery of the same
+   *   event may try that target again.
+   *
+   *   It exists because claim-first has a cost: the claim is taken BEFORE the send, to
+   *   stop two concurrent deliveries of one event from both sending — but a send that
+   *   then fails would leave the claim standing, the redelivery would collide with it,
+   *   and the customer would never be reached while the telemetry read "delivered".
+   *   Releasing on failure is what turns that permanent loss into a retry.
+   *
+   *   Only a FAILED delivery is released. Releasing a delivered one would hand the
+   *   redelivery permission to send the same alert twice, which is the defect the
+   *   ledger exists to prevent.
+   * @param input - The alert, the medium and the target whose claim is being returned
+   */
+  release(input: RetractionAlertDeliveryClaim): Promise<void>;
+
+  /**
    * @method attachNotification
    * @description Completes a claimed row with the notification it produced, so
    *   resolution can delete precisely that notification later. Safe to call twice.

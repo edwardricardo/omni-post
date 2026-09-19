@@ -3,11 +3,13 @@
  * @description Service that sends email notifications after in-app notifications
  *              are created. Gates on the type allow-list and the recipient's
  *              email preferences, then delegates rendering + delivery to the
- *              NotificationMailer. Never throws — email is a non-blocking side
- *              effect.
+ *              NotificationMailer. Never throws — a transport failure is returned as
+ *              an `err` VALUE, so a caller can decide whether to retry it.
  * @layer application
  */
 
+import { type Result, ok, err } from "@shared/types";
+import { NotificationDeliveryError } from "@core/domain/errors/index.js";
 import type { NotificationPreferenceRepository } from "@core/domain/repositories/NotificationRepository.js";
 import type { NotificationTypeValue } from "@core/domain/value-objects/NotificationType.js";
 import type {
@@ -36,20 +38,51 @@ export class SendEmailNotificationService {
     private readonly preferenceRepo: NotificationPreferenceRepository
   ) {}
 
-  async send(ctx: EmailNotificationContext): Promise<void> {
-    try {
-      if (!EMAIL_ENABLED_TYPES.includes(ctx.type)) {
-        return;
-      }
+  /**
+   * @method send
+   * @description Sends the email for one notification, when the type is admitted and
+   *   the recipient has not opted it out.
+   *
+   *   It reports the transport's outcome instead of hiding it. The earlier shape —
+   *   `Promise<void>` around an empty catch — made three different endings look
+   *   identical to a caller: sent, deliberately skipped, and FAILED. That mattered the
+   *   moment a caller recorded a delivery in a ledger: a silently failed send left a
+   *   claimed row, so the redelivery collided and the customer was never reached while
+   *   the counter read "delivered".
+   *
+   *   A deliberate skip is `ok`, not `err`: the customer's own opt-out and a type that
+   *   carries no email are not failures, and reporting them as failures would make a
+   *   caller retry something nobody wants sent.
+   * @param ctx - The notification to send, with the recipient's resolved address
+   * @returns ok when sent or deliberately skipped, err naming what the transport said
+   */
+  async send(ctx: EmailNotificationContext): Promise<Result<void, NotificationDeliveryError>> {
+    if (!EMAIL_ENABLED_TYPES.includes(ctx.type)) {
+      return ok(undefined);
+    }
 
+    try {
       const preferences = await this.preferenceRepo.findByMember(ctx.recipientId);
       if (!isTypeEnabled(preferences, ctx.type)) {
-        return;
+        return ok(undefined);
       }
 
-      await this.mailer.sendNotification(ctx);
-    } catch {
-      // Email is non-blocking — delivery failures are logged by the mailer adapter.
+      // The mailer reports failure as a VALUE as well as by throwing, and the previous
+      // shape discarded the value: a provider that correctly answered `err` was
+      // ignored exactly as completely as one that blew up.
+      const delivered = await this.mailer.sendNotification(ctx);
+      if (!delivered.ok) {
+        return err(
+          new NotificationDeliveryError("email", delivered.error.message, delivered.error)
+        );
+      }
+
+      return ok(undefined);
+    } catch (error: unknown) {
+      const cause = error instanceof Error ? error : undefined;
+      return err(
+        new NotificationDeliveryError("email", cause?.message ?? "unknown transport failure", cause)
+      );
     }
   }
 }

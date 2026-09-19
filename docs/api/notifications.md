@@ -66,6 +66,14 @@ This document covers the notification and communication subsystems of OmniPost: 
 `isTypeEnabled` predicate. **Registered** as `TOKENS.SendEmailNotificationService`; its
 first production caller is the urgent retraction alert's email medium (below).
 
+**Failure behaviour:** it returns `Result<void, NotificationDeliveryError>` and never
+throws. A transport refusal — whether the mailer throws or returns its own `err` — comes
+back as an `err` carrying the provider's message; a DELIBERATE skip (type off the
+allow-list, or the recipient's opt-out) is `ok`, because a caller must not retry
+something nobody wants sent. It previously returned `void` around an empty catch, which
+made "sent", "skipped" and "failed" indistinguishable to a caller — and a caller that
+records deliveries in a ledger then blocked its own retry.
+
 > The other file paths in this document still name the pre-relocation
 > `apps/api/src/{domain,application}/...` layout. Correcting them wholesale is its own
 > change; this entry was corrected because the alert wires the file it names.
@@ -111,6 +119,10 @@ DEACTIVATING the config is its only off switch.
 **Idempotency** is the `RetractionAlertDelivery` ledger and nothing else. Before each
 delivery the consumer INSERTs `(alertKey, medium, target)` — a unique index — so a
 redelivered outbox event collides and no second notification, email or webhook goes out.
+A medium that reports `failed` has its claim **released**, so the redelivery retries that
+target: claim-first is the concurrency guard, and without the release it would turn a
+transient outage into a permanently undelivered alert. A `delivered` medium is never
+released.
 The in-app row is completed with its `notificationId`, which is how resolution later
 deletes exactly the notifications this alert created rather than guessing from today's
 membership. The ledger carries no `accountId` and is deliberately NOT enrolled in the
@@ -122,7 +134,10 @@ only a tenant-bound event can produce.
 `no-active-config` and `unavailable` — in `retraction_alert_delivery_total{medium,result}`,
 beside `delivered` and `failed`. A single "not delivered" would make the only question an
 operator asks unanswerable. `retraction_alert_no_recipient_total` counts an alert that
-found nobody to address.
+found nobody to address, and `retraction_alert_context_degraded_total{field}` counts an
+alert whose post, channel or account name could not be read and fell back to an
+identifier — the alert still goes out, but a run of them means customers are being asked
+to remove "Post &lt;uuid&gt;".
 
 | File                                                                              | Type          | Description                                                            |
 | --------------------------------------------------------------------------------- | ------------- | ---------------------------------------------------------------------- |

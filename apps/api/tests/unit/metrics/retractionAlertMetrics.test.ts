@@ -12,6 +12,7 @@ import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import client from "prom-client";
 import {
+  recordAlertContextDegraded,
   recordAlertDelivery,
   recordAlertWithoutRecipient,
 } from "../../../src/metrics/retractionAlertMetrics.js";
@@ -27,6 +28,7 @@ describe("retractionAlertMetrics", () => {
   beforeEach(() => {
     client.register.getSingleMetric("retraction_alert_delivery_total")?.reset();
     client.register.getSingleMetric("retraction_alert_no_recipient_total")?.reset();
+    client.register.getSingleMetric("retraction_alert_context_degraded_total")?.reset();
   });
 
   it("counts a delivery under its medium and result", async () => {
@@ -58,5 +60,19 @@ describe("retractionAlertMetrics", () => {
 
     const values = await valuesOf("retraction_alert_no_recipient_total");
     assert.strictEqual(values[0]?.value, 1);
+  });
+
+  describe("degraded context", () => {
+    it("counts a degraded read under the field that could not be resolved", async () => {
+      recordAlertContextDegraded("post");
+      recordAlertContextDegraded("post");
+      recordAlertContextDegraded("channel");
+
+      const values = await valuesOf("retraction_alert_context_degraded_total");
+      const post = values.find((v) => v.labels.field === "post");
+      const channel = values.find((v) => v.labels.field === "channel");
+      assert.strictEqual(post?.value, 2);
+      assert.strictEqual(channel?.value, 1);
+    });
   });
 });

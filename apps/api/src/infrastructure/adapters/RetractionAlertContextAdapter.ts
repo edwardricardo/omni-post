@@ -19,6 +19,10 @@ import type { PostQueryRepository } from "@core/domain/repositories/PostReposito
 import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import type { AccountRepository } from "@core/domain/repositories/AccountRepository.js";
 import { AccountId, ChannelId, PostId } from "@core/domain/value-objects/EntityId.js";
+import { createLogger } from "../../lib/logger.js";
+import { recordAlertContextDegraded } from "../../metrics/retractionAlertMetrics.js";
+
+const logger = createLogger("retraction-alert-context");
 
 /** What the alert needs beyond the ids the event carried. */
 export interface RetractionAlertContext {
@@ -67,32 +71,70 @@ export class RetractionAlertContextAdapter {
     };
   }
 
+  /**
+   * @method degrade
+   * @description Records a fallback so it is OBSERVED rather than merely survived. One
+   *   degraded alert is acceptable; a RUN of them means customers are being asked to
+   *   remove "Post <uuid>", and without this nothing in the system would say so.
+   * @param field - Which lookup degraded
+   * @param reason - `malformed-id` or `unreadable`
+   * @param ids - The identifiers involved, for the log line
+   */
+  private degrade(field: string, reason: string, ids: Record<string, string>): void {
+    recordAlertContextDegraded(field);
+    logger.warn(
+      { field, reason, ...ids },
+      "Retraction alert context degraded to an identifier — the alert still goes out, but the " +
+        "customer is shown an id instead of content"
+    );
+  }
+
   private async readExcerpt(query: RetractionAlertContextQuery): Promise<string> {
     const postId = PostId.fromString(query.postId);
     const accountId = AccountId.fromString(query.accountId);
-    if (!postId.ok || !accountId.ok) return `Post ${query.postId}`;
+    if (!postId.ok || !accountId.ok) {
+      this.degrade("post", "malformed-id", { postId: query.postId });
+      return `Post ${query.postId}`;
+    }
 
     const post = await this.posts.getById(postId.value, accountId.value);
-    if (!post.ok) return `Post ${query.postId}`;
+    if (!post.ok) {
+      this.degrade("post", "unreadable", { postId: query.postId });
+      return `Post ${query.postId}`;
+    }
 
     return excerptOf(post.value.title, post.value.body);
   }
 
   private async readChannel(channelId: string): Promise<{ channelName: string; provider: string }> {
     const id = ChannelId.fromString(channelId);
-    if (!id.ok) return { channelName: `Channel ${channelId}`, provider: "unknown" };
+    if (!id.ok) {
+      this.degrade("channel", "malformed-id", { channelId });
+      return { channelName: `Channel ${channelId}`, provider: "unknown" };
+    }
 
     const channel = await this.channels.findById(id.value);
-    if (!channel.ok) return { channelName: `Channel ${channelId}`, provider: "unknown" };
+    if (!channel.ok) {
+      this.degrade("channel", "unreadable", { channelId });
+      return { channelName: `Channel ${channelId}`, provider: "unknown" };
+    }
 
     return { channelName: channel.value.handle, provider: String(channel.value.provider) };
   }
 
   private async readAccountName(accountId: string): Promise<string> {
     const id = AccountId.fromString(accountId);
-    if (!id.ok) return "your account";
+    if (!id.ok) {
+      this.degrade("account", "malformed-id", { accountId });
+      return "your account";
+    }
 
     const account = await this.accounts.findById(id.value);
-    return account.ok ? account.value.name : "your account";
+    if (!account.ok) {
+      this.degrade("account", "unreadable", { accountId });
+      return "your account";
+    }
+
+    return account.value.name;
   }
 }

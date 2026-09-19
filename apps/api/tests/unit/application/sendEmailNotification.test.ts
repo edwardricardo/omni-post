@@ -85,7 +85,64 @@ describe("SendEmailNotificationService", () => {
     mailer.sendNotification.mockRejectedValue(new Error("Network error"));
 
     await service.send(makeContext());
-    // No error thrown — service swallows it.
+    // No error thrown — a transport failure is a value, not an exception.
+  });
+
+  describe("the transport's outcome reaches the caller", () => {
+    it("returns ok when the mailer accepted the message", async () => {
+      const result = await service.send(makeContext());
+
+      assert.ok(result.ok, "a delivered email must report ok");
+    });
+
+    it("returns err when the mailer REJECTS, naming the cause", async () => {
+      mailer.sendNotification.mockRejectedValue(new Error("SMTP 421 service unavailable"));
+
+      const result = await service.send(makeContext());
+
+      assert.ok(!result.ok, "a rejected send reported success — the alert would be lost");
+      assert.match(result.error.message, /SMTP 421/);
+    });
+
+    it("returns err when the mailer RETURNS an err rather than throwing", async () => {
+      mailer.sendNotification.mockResolvedValue({
+        ok: false as const,
+        error: new Error("provider refused the recipient"),
+      });
+
+      const result = await service.send(makeContext());
+
+      assert.ok(!result.ok, "the mailer's own err Result was discarded");
+      assert.match(result.error.message, /refused the recipient/);
+    });
+
+    it("returns err when the preference lookup fails — an unread preference is not a skip", async () => {
+      prefRepo.findByMember.mockRejectedValue(new Error("connection reset"));
+      service = new SendEmailNotificationService(mailer, prefRepo as never);
+
+      const result = await service.send(makeContext());
+
+      assert.ok(!result.ok);
+      assert.match(result.error.message, /connection reset/);
+      expect(mailer.sendNotification).not.toHaveBeenCalled();
+    });
+
+    it("returns ok for a deliberate skip — off the allow-list is not a failure", async () => {
+      const result = await service.send(makeContext({ type: "COMMENT_ADDED" as never }));
+
+      assert.ok(result.ok);
+      expect(mailer.sendNotification).not.toHaveBeenCalled();
+    });
+
+    it("returns ok for a deliberate skip — the recipient's opt-out is not a failure", async () => {
+      prefRepo = makeMockPreferenceRepo([{ type: "APPROVAL_REQUESTED", enabled: false }]);
+      service = new SendEmailNotificationService(mailer, prefRepo as never);
+
+      const result = await service.send(makeContext());
+
+      assert.ok(result.ok, "an opt-out must not be reported as a delivery failure");
+      expect(mailer.sendNotification).not.toHaveBeenCalled();
+    });
   });
 
   it("delegates POST_APPROVED to the mailer", async () => {

@@ -83,6 +83,23 @@ export class PrismaRetractionAlertDeliveryLedger implements RetractionAlertDeliv
   }
 
   /**
+   * @method release
+   * @description Deletes the ONE claimed row, so a redelivery may retry that target.
+   *   `deleteMany` on the natural key rather than `delete` on the id: a row already
+   *   gone is the same outcome, not an error worth raising during a failure path.
+   * @param input - The alert, the medium and the target whose claim is returned
+   */
+  async release(input: RetractionAlertDeliveryClaim): Promise<void> {
+    await this.prisma.retractionAlertDelivery.deleteMany({
+      where: {
+        alertKey: input.alertKey,
+        medium: toStored(input.medium),
+        target: input.target,
+      },
+    });
+  }
+
+  /**
    * @method attachNotification
    * @description Records the in-app notification a claimed row produced, so resolution
    *   can delete exactly it. `updateMany` rather than `update` because the row is

@@ -44,6 +44,24 @@ const noRecipientTotal = getOrCreateCounter(
   []
 );
 
+const contextDegradedTotal = getOrCreateCounter(
+  "retraction_alert_context_degraded_total",
+  "Retraction alerts whose human-readable context could not be resolved and fell back to an " +
+    "identifier, by field. The alert still goes out — the obligation exists whether or not a " +
+    "title loads — but a run of these means customers are being asked to remove 'Post <uuid>', " +
+    "which is not something they can recognise",
+  ["field"]
+);
+
+/**
+ * @function recordAlertContextDegraded
+ * @description Counts one field that fell back to an identifier.
+ * @param field - Which lookup degraded: `post`, `channel` or `account`
+ */
+export function recordAlertContextDegraded(field: string): void {
+  contextDegradedTotal.inc({ field });
+}
+
 /**
  * @function recordAlertDelivery
  * @description Counts one delivery outcome.

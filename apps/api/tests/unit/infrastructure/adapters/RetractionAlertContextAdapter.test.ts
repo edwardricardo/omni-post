@@ -13,6 +13,7 @@ import assert from "node:assert/strict";
 import { RetractionAlertContextAdapter } from "../../../../src/infrastructure/adapters/RetractionAlertContextAdapter.js";
 import { ok } from "@shared/types";
 import { EntityNotFoundError } from "@core/domain/errors/index.js";
+import client from "prom-client";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -44,8 +45,17 @@ const makeAccountRepo = (name = "Acme Corp") => ({
 // Tests
 // ---------------------------------------------------------------------------
 
+const valuesOf = async (name: string) => {
+  const metric = client.register.getSingleMetric(name);
+  assert.ok(metric, `${name} is not registered`);
+  return (await metric.get()).values;
+};
+
 describe("RetractionAlertContextAdapter", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    client.register.getSingleMetric("retraction_alert_context_degraded_total")?.reset();
+  });
 
   it("names the channel by its handle and DERIVES the provider from it", async () => {
     const adapter = new RetractionAlertContextAdapter(
@@ -140,6 +150,66 @@ describe("RetractionAlertContextAdapter", () => {
     });
 
     assert.ok(context.channelName.length > 0, "an unreadable channel must not empty the alert");
+  });
+
+  describe("a degraded read is OBSERVED, not only survived", () => {
+    it("counts and warns when the post cannot be read", async () => {
+      const postQuery = {
+        getById: vi.fn(async () => ({
+          ok: false as const,
+          error: new EntityNotFoundError("Post", POST_ID),
+        })),
+      };
+      const adapter = new RetractionAlertContextAdapter(
+        postQuery as never,
+        makeChannelRepo() as never,
+        makeAccountRepo() as never
+      );
+
+      await adapter.read({ postId: POST_ID, channelId: CHANNEL_ID, accountId: ACCOUNT_ID });
+
+      const post = (await valuesOf("retraction_alert_context_degraded_total")).find(
+        (v) => v.labels.field === "post"
+      );
+      assert.strictEqual(post?.value, 1, "a degraded post read went uncounted");
+    });
+
+    it("counts and warns when the channel cannot be read", async () => {
+      const channelRepo = {
+        findById: vi.fn(async () => ({
+          ok: false as const,
+          error: new EntityNotFoundError("Channel", CHANNEL_ID),
+        })),
+      };
+      const adapter = new RetractionAlertContextAdapter(
+        makePostQuery() as never,
+        channelRepo as never,
+        makeAccountRepo() as never
+      );
+
+      await adapter.read({ postId: POST_ID, channelId: CHANNEL_ID, accountId: ACCOUNT_ID });
+
+      const channel = (await valuesOf("retraction_alert_context_degraded_total")).find(
+        (v) => v.labels.field === "channel"
+      );
+      assert.strictEqual(channel?.value, 1, "a degraded channel read went uncounted");
+    });
+
+    it("counts nothing when every read resolved", async () => {
+      const adapter = new RetractionAlertContextAdapter(
+        makePostQuery({ title: "Launch week" }) as never,
+        makeChannelRepo() as never,
+        makeAccountRepo() as never
+      );
+
+      await adapter.read({ postId: POST_ID, channelId: CHANNEL_ID, accountId: ACCOUNT_ID });
+
+      assert.deepStrictEqual(
+        await valuesOf("retraction_alert_context_degraded_total"),
+        [],
+        "a clean read was counted as degraded"
+      );
+    });
   });
 
   it("refuses a malformed id instead of building a context over it", async () => {

@@ -206,6 +206,15 @@ export class RaiseRetractionAlertUseCase implements UseCase<
 
       const delivered = await adapter.deliver(alert, [recipient.target]);
       if (!delivered.ok) {
+        // Give the claim back. The claim is taken BEFORE the send so two concurrent
+        // deliveries of one event cannot both send; keeping it after a FAILED send
+        // would turn that guard into a permanent loss, because the redelivery would
+        // collide with a row for a message nobody received.
+        await this.ledger.release({
+          alertKey: alert.alertKey,
+          medium: adapter.medium,
+          target: recipient.target.id,
+        });
         entries.push({
           medium: adapter.medium,
           target: recipient.target.id,
@@ -271,6 +280,22 @@ export class RaiseRetractionAlertUseCase implements UseCase<
     // ONE call with every claimed destination: the shared fan-out reaches the
     // project's configs itself, so calling it per config would multiply the message.
     const delivered = await adapter.deliver(alert, claimed);
+
+    if (!delivered.ok) {
+      // The fan-out is ONE call for all destinations, so its failure is all of theirs:
+      // every claim taken for it goes back and the redelivery tries the whole set
+      // again. A PARTIAL failure never reaches here — the adapter reports ok when at
+      // least one destination accepted, precisely so one unreachable channel cannot
+      // make the others receive the alert twice.
+      for (const target of claimed) {
+        await this.ledger.release({
+          alertKey: alert.alertKey,
+          medium: adapter.medium,
+          target: target.id,
+        });
+      }
+    }
+
     const result = delivered.ok ? ALERT_DELIVERY_RESULTS.DELIVERED : ALERT_DELIVERY_RESULTS.FAILED;
 
     return claimed.map((target) => ({ medium: adapter.medium, target: target.id, result }));

@@ -163,6 +163,39 @@ describe("PrismaRetractionAlertDeliveryLedger", () => {
     });
   });
 
+  describe("release", () => {
+    it("removes exactly the one claimed row, so a redelivery can retry that target", async () => {
+      const prisma = makePrisma();
+      const ledger = new PrismaRetractionAlertDeliveryLedger(prisma as never);
+
+      await ledger.release({
+        alertKey: ALERT_KEY,
+        medium: ALERT_MEDIA.EMAIL,
+        target: "member-1",
+      });
+
+      const call = prisma.retractionAlertDelivery.deleteMany.mock.calls[0]?.[0] as {
+        where: { alertKey: string; medium: string; target: string };
+      };
+      assert.strictEqual(call.where.alertKey, ALERT_KEY);
+      assert.strictEqual(call.where.medium, "EMAIL");
+      assert.strictEqual(call.where.target, "member-1");
+    });
+
+    it("does not mind a row that is already gone", async () => {
+      const prisma = makePrisma({ deleteMany: vi.fn(async () => ({ count: 0 })) });
+      const ledger = new PrismaRetractionAlertDeliveryLedger(prisma as never);
+
+      await ledger.release({
+        alertKey: ALERT_KEY,
+        medium: ALERT_MEDIA.IN_APP,
+        target: "member-1",
+      });
+
+      expect(prisma.retractionAlertDelivery.deleteMany).toHaveBeenCalledOnce();
+    });
+  });
+
   describe("deleteByAlertKey", () => {
     it("removes every row of the alert and does not mind an empty result", async () => {
       const prisma = makePrisma();

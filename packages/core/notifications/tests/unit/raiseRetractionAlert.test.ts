@@ -137,6 +137,10 @@ function makeLedger(): RetractionAlertDeliveryLedger & { claimed: Set<string> } 
       attached.push(`${input.target}:${input.notificationId}`);
       callLog.push(`attach:${input.target}`);
     }),
+    release: vi.fn(async (input: RetractionAlertDeliveryClaim) => {
+      callLog.push(`release:${input.medium}:${input.target}`);
+      claimed.delete(`${input.alertKey}|${input.medium}|${input.target}`);
+    }),
     listByAlertKey: vi.fn(async () => []),
     deleteByAlertKey: vi.fn(async () => undefined),
   } as unknown as RetractionAlertDeliveryLedger & { claimed: Set<string> };
@@ -431,6 +435,49 @@ describe("RaiseRetractionAlertUseCase", () => {
         ALERT_DELIVERY_RESULTS.SUPPRESSED_BY_PREFERENCE,
       ]);
       assert.deepStrictEqual(resultsFor(second.value.report, ALERT_MEDIA.SLACK_TEAMS), []);
+    });
+
+    it("RELEASES the claim of a medium that failed, so a redelivery retries that member", async () => {
+      const h = makeHarness({ failing: ALERT_MEDIA.EMAIL });
+
+      const first = await h.useCase.execute(makeInput());
+      const emailAfterFirst = h.email.calls.flat().length;
+      const second = await h.useCase.execute(makeInput());
+
+      assert.ok(first.ok && second.ok);
+      assert.strictEqual(emailAfterFirst, 1, "the first run should have tried once");
+      assert.strictEqual(
+        h.email.calls.flat().length,
+        2,
+        "the failed member was never retried — the stale claim blocked the redelivery"
+      );
+      assert.ok(
+        callLog.includes(`release:${ALERT_MEDIA.EMAIL}:${MEMBER_ON}`),
+        `the failed claim was not released; log was ${callLog.join(" | ")}`
+      );
+    });
+
+    it("NEVER releases a medium that delivered", async () => {
+      const h = makeHarness({ failing: ALERT_MEDIA.EMAIL });
+
+      await h.useCase.execute(makeInput());
+
+      assert.ok(
+        !callLog.some((c) => c.startsWith(`release:${ALERT_MEDIA.IN_APP}`)),
+        "a delivered in-app alert was released and would be sent twice"
+      );
+      assert.ok(
+        !callLog.some((c) => c.startsWith(`release:${ALERT_MEDIA.SLACK_TEAMS}`)),
+        "a delivered webhook was released and would be sent twice"
+      );
+    });
+
+    it("releases a shared destination's claims only when the whole fan-out failed", async () => {
+      const h = makeHarness({ failing: ALERT_MEDIA.SLACK_TEAMS });
+
+      await h.useCase.execute(makeInput());
+
+      assert.ok(callLog.includes(`release:${ALERT_MEDIA.SLACK_TEAMS}:cfg-active`));
     });
 
     it("attaches the in-app notification id to the claimed ledger row", async () => {

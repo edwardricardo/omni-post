@@ -918,22 +918,60 @@ Four, each reported rather than absorbed.
    three legal ones), so this is a silent mis-tag rather than a gate failure, and it predates this
    change. Not corrected here: re-tagging somebody else's file would put an unrelated edit in the
    diff.
-4. **The email medium can never report `failed`, and the report says `delivered` for it
+4. **FIXED by the corrections below — kept because the consequence was worse than first
+   written.** **The email medium can never report `failed`, and the report says `delivered` for it
    regardless.** `SendEmailNotificationService.send` returns `void` and swallows every error by
    design ("email is a non-blocking side effect"), so the adapter has nothing to inspect. The
-   consequence is precise: `retraction_alert_delivery_total{medium="email",result="failed"}` is
-   unreachable today, and a mailer outage shows up as `delivered`. Fixing it means giving that
-   service a `Result` return and updating its four existing call paths — a change to a shared
-   service that four other notification types depend on, so it is named here rather than smuggled
-   into this PR. **This is the weakest point of the alert's telemetry and a reviewer should know
-   it.**
+   consequence is precise: `retraction_alert_delivery_total{medium="email",result="failed"}` was
+   unreachable, and a mailer outage showed up as `delivered`.
+   **The consequence was worse than that sentence admitted, and the gate was right to flag it.**
+   The claim is taken BEFORE the send, so a silently failed send left a CLAIMED ledger row: the
+   redelivery then collided with it and sent nothing. The alert was not merely mis-counted — it was
+   **permanently lost for that member**, while the counter read `delivered`.
+   **Also measured while fixing it, and also wrong in the original line: "its four existing call
+   paths" is FALSE.** `send` has exactly ONE production caller
+   (`EmailRetractionAlertDelivery.ts:52`); the four figure came from `EMAIL_ENABLED_TYPES` holding
+   four legacy types, none of which has any production email caller at all (that is SMELL-41's
+   other half, still open). And the service did not only swallow THROWN errors — `NotificationMailer`
+   reports failure as an `err` VALUE and the service discarded that too, so a provider answering in
+   the canon-shaped way was ignored just as completely.
 5. **The Slack/Teams fan-out can re-send after a config is ADDED between a raise and its
    redelivery.** The claim is per `(alertKey, medium, configId)`, so a redelivery claims only the
    NEW config — but the fan-out itself is `toEveryActiveConfig`, so the message reaches the old
    ones again. The narrow alternative (broadcasting per config id) would multiply every normal
    delivery instead, which is worse. Design residual, restated: per-medium delivery is best-effort
    by spec.
-6. **`RetractionAlertContextAdapter` degrades instead of failing.** An unreadable post yields
-   `Post <id>` as the excerpt rather than suppressing the alert. That is deliberate — the
-   obligation exists whether or not a title loads — but it means a systematic read failure would
-   produce a run of alerts that name ids instead of content, with nothing counting that.
+6. **FIXED by the corrections below.** **`RetractionAlertContextAdapter` degrades instead of
+   failing.** An unreadable post yields `Post <id>` as the excerpt rather than suppressing the
+   alert. That is deliberate — the obligation exists whether or not a title loads — but it meant a
+   systematic read failure would produce a run of alerts naming ids instead of content, with
+   nothing counting that.
+
+### Corrections applied after the 1b2 gate (PASS WITH WARNINGS, same branch)
+
+Gate verdict: PASS WITH WARNINGS, two warnings, both accepted and reworked rather than deferred.
+The plan-mode guard blocked the first attempt at this round (a `workstream/*` branch with no recent
+plan activity in the parent transcript); it was reported and cleared by the orchestrator rather
+than routed around — in particular the hook's sub-30-line auto-pass was NOT used to slice the
+edits through.
+
+| #        | Correction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | RED (measured)                                                                                                                                                                                                                        | GREEN                               |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| **W1.1** | `SendEmailNotificationService.send` returns `Result<void, NotificationDeliveryError>`; the empty catch is gone. New typed error `packages/core/domain/src/errors/NotificationDeliveryError.ts` carries the transport's own message — no existing domain error models "the outside world refused", and `InvariantViolationError` would have claimed an invariant broke when none did. A deliberate skip (off the allow-list, or the recipient's opt-out) stays `ok`, because reporting it as a failure would make a caller retry something nobody wants sent | `Tests 6 failed \| 8 passed (14)` — all six new cases fail against `Promise<void>`                                                                                                                                                    | `Tests 14 passed (14)`              |
+| **W1.2** | `EmailRetractionAlertDelivery.deliver` maps `err` → the medium's `failed` outcome, so `retraction_alert_delivery_total{medium="email",result="failed"}` is now reachable for an OUTAGE and not only for a missing address                                                                                                                                                                                                                                                                                                                                   | `Tests 1 failed \| 5 passed (6)` — `AssertionError: a mailer outage was reported as a delivered alert`                                                                                                                                | `Tests 6 passed (6)`                |
+| **W1.3** | `release` added to the ledger port and the Prisma repository; the raise use case RELEASES the claim of any medium that reports `failed`, per-member and for the whole claimed set of a failed shared fan-out. **Claim-first is kept** — it is the concurrency guard that stops two deliveries of one event from both sending; releasing on failure is what stops that guard from becoming a permanent loss                                                                                                                                                  | use case `Tests 2 failed \| 20 passed (22)` — `AssertionError: the failed member was never retried — the stale claim blocked the redelivery`; ledger `Tests 2 failed \| 7 passed (9)` — `TypeError: ledger.release is not a function` | `39 passed (39)` and `9 passed (9)` |
+| **W2**   | `retraction_alert_context_degraded_total{field}` + a WARN log on every degraded path (post, channel, account; `malformed-id` and `unreadable` distinguished in the log)                                                                                                                                                                                                                                                                                                                                                                                     | metrics `TypeError: recordAlertContextDegraded is not a function`; adapter `Tests 3 failed \| 6 passed (9)` — `retraction_alert_context_degraded_total is not registered`                                                             | `13 passed (13)` across both        |
+
+**A `delivered` medium is never released** — asserted as its own case, because releasing one would
+hand the redelivery permission to send the same alert twice, which is the exact defect the ledger
+exists to prevent. The shared fan-out releases only when the WHOLE call failed; a partial failure
+never reaches that branch, since the adapter reports `ok` when at least one destination accepted.
+
+**Two `override` modifiers were needed** on `NotificationDeliveryError` (`cause` narrows `Error`'s
+own ES2022 `cause?: unknown`; `toJSON` extends the base's). The compiler caught both — `TS4114`,
+three packages at once — before any test ran.
+
+**Gates after the corrections**: `tsc --noEmit` **0** in `@core/domain`, `@core/notifications` and
+`apps/api` · the 25 affected `apps/api` suites **270 passed** · `@core/notifications` **39/39** ·
+eslint `--max-warnings 0` and prettier `-c` on every touched file **0** · fitness **#4 = 0** (the
+new `err` paths are values, not throws) and **#32 = 0**.
