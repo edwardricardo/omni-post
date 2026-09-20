@@ -962,7 +962,7 @@ state rather than a returned value or an HTTP status:
 
 ### 10.2 · Per-PR gate list (all must read 0/0 — no deferral, no "pre-existing")
 
-`pnpm lint --max-warnings 0` · `tsc` · `pnpm format:check` · the fitness suite with, per PR:
+`pnpm lint --max-warnings 0` · `tsc` · `pnpm format:check` · `pnpm check:circular` (madge over `apps/api/src/ packages/` — PR 1b introduced an errors → value-objects → errors cycle that only CI caught, because this list did not name it) · the fitness suite with, per PR:
 
 | PR  | Fitness checks that must be exercised (beyond the always-on set)                                                                                                                                                                                                                                                                                                                                                |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
