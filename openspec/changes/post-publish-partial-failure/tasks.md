@@ -587,7 +587,17 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       `expr: increase(retraction_alert_context_degraded_total{}[30m]) > 0`, `for: 5m`,
       **`severity: warning`**, `component: notifications`, over the `field` label of
       `apps/api/src/metrics/retractionAlertMetrics.ts` (1b2's correction W2) — the alert went out
-      naming an identifier instead of a title.
+      naming an identifier instead of a title. **Added by the 1b2 hardening (2026-09-20)**: since the
+      alert handler now PROPAGATES a processing failure so the outbox redelivers, a retraction alert
+      event can dead-letter after the relay's retries — a terminus nothing pages on
+      (`prometheus/alerts/outbox.yml` holds only `OutboxLagHigh`, and a dead-lettered row is no longer
+      pending). This task therefore carries a FOURTH rule in the api group, (4)
+      `RetractionAlertEventDeadLettered`, over the outbox's dead-letter series for the two alert event
+      types (name the exact metric from the relay's `archiveToDeadLetter` path — add a labelled counter
+      there if none exists), `severity: critical`, its own section in the same runbook, and its own
+      `promtool` red path (four red paths, not three). The two 1b2 counters without a rule
+      (`retraction_alert_realtime_push_failed_total`, `retraction_alert_refused_total{reason}`) get one
+      warning rule each in the same group, or a written reason why not.
       All three copy `PublishQueueUnattended`'s shape (`prometheus/alerts/saga.yml:158-168`,
       read-only) and point at **ONE** runbook, `docs/runbooks/alert-publish-outcome-unrecorded.md`,
       with **one section per rule** — the `saga.yml:158-179` precedent, where two rules share
