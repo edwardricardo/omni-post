@@ -41,6 +41,13 @@ export default defineConfig({
         root,
         "infra/prisma/src/extensions/tenantGuc.ts"
       ),
+      // Same rule for the guard: PrismaPostRepository raises the guard's own
+      // TenantContextMissingError on an unscoped load, and the worker's suites
+      // reach that adapter through the db-prisma barrel.
+      "@infra/prisma/extensions/tenantGuard.js": path.join(
+        root,
+        "infra/prisma/src/extensions/tenantGuard.ts"
+      ),
       "@infra/prisma": path.join(root, "infra/prisma/src/vitest-entry.ts"),
       "@observability/logger": path.join(root, "packages/observability/logger/src/index.ts"),
       "@monitoring/circuit-breaker": path.join(
