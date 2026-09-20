@@ -44,6 +44,18 @@ export interface BroadcastOptions {
 }
 
 /**
+ * One destination that REFUSED the message, and what it said. The reason travels
+ * because the fan-out is the only place it exists: the webhook answered "403
+ * invalid_token" or "channel_not_found", and a caller that reports the refusal without
+ * it can only ever say "the destination refused" — which does not tell an operator
+ * whether to rotate a token, recreate a channel or wait out an outage.
+ */
+export interface BroadcastFailure {
+  readonly id: string;
+  readonly reason: string;
+}
+
+/**
  * What one fan-out did, per destination rather than in aggregate. Two LISTS rather than
  * two counts: a caller that claimed a row per destination has to release exactly the
  * ones nothing reached, and a count cannot say which those are.
@@ -52,11 +64,13 @@ export interface BroadcastOptions {
  * that stopped being active, or stopped existing, between the caller's read and this
  * fan-out appears in NEITHER — it was never attempted, so it neither took the message
  * nor refused it. Callers derive "not reached" as `asked − sentConfigIds`, which
- * catches that case without a third list to keep in step.
+ * catches that case without a third list to keep in step, and then read `failedConfigs`
+ * to tell a refusal (with the destination's own words) from a destination that had
+ * quietly stopped being one.
  */
 export interface BroadcastReport {
   sentConfigIds: readonly string[];
-  failedConfigIds: readonly string[];
+  failedConfigs: readonly BroadcastFailure[];
 }
 
 /**

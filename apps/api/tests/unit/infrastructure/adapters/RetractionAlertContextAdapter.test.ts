@@ -153,9 +153,15 @@ describe("RetractionAlertContextAdapter", () => {
   });
 
   describe("a repository that THROWS degrades exactly like one that answers err", () => {
+    /**
+     * A STORE failure, shaped the way the store really raises one. The double carries a
+     * Prisma initialization code because that is what "the connection pool is
+     * exhausted" arrives as — a bare `Error` with no code is indistinguishable from a
+     * bug, and the adapter now tells the two apart.
+     */
     const exploding = (method: string) => ({
       [method]: vi.fn(async () => {
-        throw new Error("the connection pool is exhausted");
+        throw Object.assign(new Error("the connection pool is exhausted"), { code: "P1001" });
       }),
     });
 
@@ -226,6 +232,75 @@ describe("RetractionAlertContextAdapter", () => {
         values.map((v) => v.labels.field),
         ["post"]
       );
+    });
+  });
+
+  describe("degrading is for the STORE's failures, not for ours", () => {
+    const throwing = (method: string, error: unknown) => ({
+      [method]: vi.fn(async () => {
+        throw error;
+      }),
+    });
+
+    const readWith = (repo: Record<string, unknown>) =>
+      new RetractionAlertContextAdapter(
+        repo as never,
+        makeChannelRepo() as never,
+        makeAccountRepo() as never
+      ).read({ postId: POST_ID, channelId: CHANNEL_ID, accountId: ACCOUNT_ID });
+
+    it("PROPAGATES a programming error instead of reporting it as an unreachable store", async () => {
+      await assert.rejects(
+        () =>
+          readWith(
+            throwing(
+              "getById",
+              new TypeError("Cannot read properties of undefined (reading 'value')")
+            )
+          ),
+        /Cannot read properties of undefined/,
+        "a bug reads as `unreachable`: every customer is asked to remove `Post <uuid>` while the defect hides in a WARN nobody reads"
+      );
+    });
+
+    it("PROPAGATES a malformed query, which is ours and not the store being down", async () => {
+      const malformed = Object.assign(new Error("Unknown arg `wher` in where"), {
+        name: "PrismaClientValidationError",
+      });
+
+      await assert.rejects(() => readWith(throwing("getById", malformed)), /Unknown arg/);
+    });
+
+    it("still degrades when the store itself cannot answer", async () => {
+      const unreachable = Object.assign(new Error("Can't reach database server"), {
+        name: "PrismaClientInitializationError",
+        code: "P1001",
+      });
+
+      const context = await readWith(throwing("getById", unreachable));
+
+      assert.ok(
+        context.postExcerpt.includes(POST_ID),
+        "the reason this adapter degrades at all is an unreachable store, and it stopped degrading for one"
+      );
+    });
+
+    it("still degrades on a driver connection error", async () => {
+      const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+
+      const context = await readWith(throwing("getById", reset));
+
+      assert.ok(context.postExcerpt.includes(POST_ID));
+    });
+
+    it("still degrades when the query engine panics", async () => {
+      const panic = Object.assign(new Error("the query engine panicked"), {
+        name: "PrismaClientRustPanicError",
+      });
+
+      const context = await readWith(throwing("getById", panic));
+
+      assert.ok(context.postExcerpt.includes(POST_ID));
     });
   });
 

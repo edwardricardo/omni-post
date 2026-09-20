@@ -762,6 +762,25 @@ describe("RaiseRetractionAlertUseCase", () => {
       assert.strictEqual(forTarget("cfg-c"), ALERT_DELIVERY_RESULTS.DELIVERED);
     });
 
+    it("carries the medium's OWN per-destination reason into the report line", async () => {
+      // The last link of the chain that starts at the webhook: the dispatcher knows why
+      // a destination refused, the shared adapter carries it into `failedTargets`, and
+      // this is where it either reaches the operator's warning or is replaced by a
+      // sentence that fits every failure equally and helps with none.
+      const h = makeHarness({
+        partial: ALERT_MEDIA.SLACK_TEAMS,
+        configs: [makeConfig("cfg-a", true), makeConfig("cfg-b", true)],
+      });
+
+      const result = await h.useCase.execute(makeInput());
+
+      assert.ok(result.ok);
+      const failed = result.value.report.find(
+        (r) => r.medium === ALERT_MEDIA.SLACK_TEAMS && r.target === "cfg-b"
+      );
+      assert.strictEqual(failed?.reason, "destination unreachable");
+    });
+
     it("HANDS the medium only the destinations this run claimed, so a redelivery names just the missed one", async () => {
       // What this level can guarantee is the ARGUMENT: the use case claims, then hands
       // the medium exactly what it claimed. That the medium then reaches those

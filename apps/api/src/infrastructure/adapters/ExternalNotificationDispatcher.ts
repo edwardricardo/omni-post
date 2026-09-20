@@ -10,6 +10,7 @@ import { type Result, ok, err } from "@shared/types";
 import { type DomainError, InvariantViolationError } from "@core/domain/errors/index.js";
 import { type ExternalNotificationConfigRepository } from "@core/domain/repositories/ExternalNotificationConfigRepository.js";
 import {
+  type BroadcastFailure,
   type BroadcastOptions,
   type BroadcastReport,
   type ExternalNotifierPort,
@@ -101,18 +102,23 @@ export class ExternalNotificationDispatcher implements ExternalNotifierPort {
     // refused (release it). A config it named that appears in neither was never a
     // destination at all — deactivated or deleted since the caller read it — and the
     // caller reads that absence as "not reached" without a third list to keep in step.
+    //
+    // A refusal carries the channel adapter's own message. This is the ONLY place it
+    // exists: the webhook's answer dies here otherwise, and every caller downstream is
+    // left writing the same generic sentence over a revoked token, a deleted channel
+    // and a provider outage alike.
     const sentConfigIds: string[] = [];
-    const failedConfigIds: string[] = [];
+    const failedConfigs: BroadcastFailure[] = [];
 
     for (const config of destinations) {
       const result = await this.send(config.webhookUrl, config.channel, payload);
       if (result.ok) {
         sentConfigIds.push(config.id);
       } else {
-        failedConfigIds.push(config.id);
+        failedConfigs.push({ id: config.id, reason: result.error.message });
       }
     }
 
-    return ok({ sentConfigIds, failedConfigIds });
+    return ok({ sentConfigIds, failedConfigs });
   }
 }

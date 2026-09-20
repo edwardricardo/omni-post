@@ -151,7 +151,7 @@ describe("ExternalNotificationDispatcher.broadcast", () => {
       assert.ok(result.ok);
       assert.deepStrictEqual(result.value.sentConfigIds, ["cfg-on"]);
       assert.deepStrictEqual(
-        result.value.failedConfigIds,
+        result.value.failedConfigs,
         [],
         "a deactivated config did not refuse anything — it was never a destination"
       );
@@ -188,11 +188,33 @@ describe("ExternalNotificationDispatcher.broadcast", () => {
       assert.ok(result.ok);
       assert.deepStrictEqual(result.value.sentConfigIds, ["cfg-teams"]);
       assert.deepStrictEqual(
-        result.value.failedConfigIds,
+        result.value.failedConfigs.map((failure) => failure.id),
         ["cfg-slack"],
         "a count alone cannot tell a caller which destination to retry"
       );
       expect(teams.send).toHaveBeenCalledOnce();
+    });
+
+    it("carries the channel adapter's OWN reason for each destination that refused", async () => {
+      const failing = {
+        send: vi.fn(async () => ({
+          ok: false as const,
+          error: new Error("403 invalid_token"),
+        })),
+      };
+      const repo = makeConfigRepo([makeConfig("cfg-slack", true, [], "slack")]);
+      const dispatcher = new ExternalNotificationDispatcher(repo, failing, teams);
+
+      const result = await dispatcher.broadcast(PROJECT_ID, "post.retraction_pending", PAYLOAD, {
+        toConfigIds: ["cfg-slack"],
+      });
+
+      assert.ok(result.ok);
+      assert.deepStrictEqual(
+        result.value.failedConfigs,
+        [{ id: "cfg-slack", reason: "403 invalid_token" }],
+        "the adapter said exactly why the webhook refused and the report threw it away, so every refusal reaches the operator as the same generic sentence"
+      );
     });
 
     it("names nothing as failed when every destination took it", async () => {
@@ -204,7 +226,7 @@ describe("ExternalNotificationDispatcher.broadcast", () => {
       });
 
       assert.ok(result.ok);
-      assert.deepStrictEqual(result.value.failedConfigIds, []);
+      assert.deepStrictEqual(result.value.failedConfigs, []);
       assert.deepStrictEqual(result.value.sentConfigIds, ["cfg-slack"]);
     });
 
@@ -218,7 +240,7 @@ describe("ExternalNotificationDispatcher.broadcast", () => {
 
       assert.ok(result.ok);
       assert.deepStrictEqual(result.value.sentConfigIds, ["cfg-slack"]);
-      assert.deepStrictEqual(result.value.failedConfigIds, []);
+      assert.deepStrictEqual(result.value.failedConfigs, []);
     });
 
     it("propagates a repository failure instead of reporting a silent zero", async () => {

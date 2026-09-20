@@ -18,6 +18,9 @@ import { ALERT_MEDIA, ALERT_MEDIUM_KINDS } from "@ports/core";
 import { ok } from "@shared/types";
 import { ALERT } from "./retractionAlertFixtures.js";
 
+/** What the webhook said when it refused — the dispatcher knows this, and it must travel. */
+const REFUSAL_REASON = "403 invalid_token";
+
 /** A fan-out double that reaches exactly the configs it was told to, minus any refusals. */
 const makeNotifier = (refusing: readonly string[] = [], missing: readonly string[] = []) => ({
   broadcast: vi.fn(
@@ -30,7 +33,9 @@ const makeNotifier = (refusing: readonly string[] = [], missing: readonly string
       const asked = options?.toConfigIds ?? [];
       return ok({
         sentConfigIds: asked.filter((id) => !refusing.includes(id) && !missing.includes(id)),
-        failedConfigIds: asked.filter((id) => refusing.includes(id)),
+        failedConfigs: asked
+          .filter((id) => refusing.includes(id))
+          .map((id) => ({ id, reason: REFUSAL_REASON })),
       });
     }
   ),
@@ -123,6 +128,20 @@ describe("SlackTeamsRetractionAlertDelivery", () => {
       result.value.failedTargets?.map((failure) => failure.targetId),
       ["cfg-b"],
       "a refused destination was reported as reached, so its ledger claim stands forever"
+    );
+  });
+
+  it("carries the dispatcher's OWN reason for a destination that refused", async () => {
+    const notifier = makeNotifier(["cfg-b"]);
+    const adapter = new SlackTeamsRetractionAlertDelivery(notifier as never);
+
+    const result = await adapter.deliver(ALERT, [{ id: "cfg-a" }, { id: "cfg-b" }]);
+
+    assert.ok(result.ok);
+    assert.strictEqual(
+      result.value.failedTargets?.[0]?.reason,
+      REFUSAL_REASON,
+      "the webhook said why it refused, the dispatcher knew, and the alert report replaced it with a generic sentence — so the operator WARN cannot tell a revoked token from an outage"
     );
   });
 

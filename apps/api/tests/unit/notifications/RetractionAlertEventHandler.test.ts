@@ -418,6 +418,44 @@ describe("RetractionAlertEventHandler", () => {
 
       assert.deepStrictEqual(await refusalValues(), []);
     });
+
+    it("counts each refused event exactly ONCE across both branches, whatever it omits", async () => {
+      const h = makeHarness();
+      const without = (...fields: string[]) => {
+        const payload = raisedPayload();
+        for (const field of fields) delete (payload as Record<string, unknown>)[field];
+        return payload;
+      };
+      // Every refusal shape the two rules can produce, including the three payloads
+      // that miss fields from BOTH rules: a payload refused by the first rule must not
+      // be counted a second time by the one after it.
+      const refused: [string, Record<string, unknown>][] = [
+        ["PostChannelRetractionAlertRaised", without("accountId")],
+        ["PostChannelRetractionAlertRaised", without("alertKey")],
+        ["PostChannelRetractionAlertRaised", without("channelId")],
+        ["PostChannelRetractionAlertRaised", without("projectId")],
+        ["PostChannelRetractionAlertRaised", without("channelId", "projectId")],
+        ["PostChannelRetractionAlertRaised", without("accountId", "projectId")],
+        ["PostChannelRetractionAlertRaised", without("alertKey", "projectId")],
+        ["PostChannelRetractionAlertResolved", { alertKey: ALERT_KEY }],
+        ["PostChannelRetractionAlertResolved", { accountId: ACCOUNT_ID }],
+      ];
+
+      for (const [eventType, payload] of refused) {
+        await h.handler.handle(makeEvent(eventType, payload));
+      }
+
+      const total = (await refusalValues()).reduce((sum, v) => sum + v.value, 0);
+      assert.strictEqual(
+        total,
+        refused.length,
+        `${refused.length} events were refused but the counter moved ${total} times — a refusal counted twice makes the producer look like it emits more broken events than it does`
+      );
+      assert.strictEqual(
+        (await refusalValues()).every((v) => v.value >= 1),
+        true
+      );
+    });
   });
 
   describe("events it does not own", () => {

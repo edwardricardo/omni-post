@@ -81,7 +81,7 @@ export class SlackTeamsRetractionAlertDelivery implements RetractionAlertDeliver
 
     if (!result.ok) return err(result.error.message);
 
-    const { sentConfigIds, failedConfigIds } = result.value;
+    const { sentConfigIds, failedConfigs } = result.value;
 
     // Unreached is DERIVED from what was reached, never assembled from the refusals.
     // That is what makes the third case — a config deactivated or deleted between the
@@ -89,7 +89,7 @@ export class SlackTeamsRetractionAlertDelivery implements RetractionAlertDeliver
     // as unreached instead of silently counting as delivered. It also means an id the
     // fan-out reports that this call never claimed cannot enter the answer at all.
     const reached = new Set(sentConfigIds);
-    const refused = new Set(failedConfigIds);
+    const refusals = new Map(failedConfigs.map((failure) => [failure.id, failure.reason]));
     const unreached = targets.filter((target) => !reached.has(target.id));
 
     if (reached.size === 0) {
@@ -99,12 +99,19 @@ export class SlackTeamsRetractionAlertDelivery implements RetractionAlertDeliver
     // Partial success is success FOR THE DESTINATIONS THAT TOOK IT, and a named failure
     // for the ones that did not: the caller releases exactly those claims, so the next
     // delivery of this event reaches the unreached channel and nothing else.
+    //
+    // A refusal carries the DESTINATION'S OWN words, not a sentence written here. The
+    // reason is the only thing that reaches the operator's warning, and "the destination
+    // refused the alert" says nothing they did not already know from the counter — while
+    // "403 invalid_token" tells them to rotate a webhook and "channel_not_found" tells
+    // them the channel is gone. The other case keeps its specific sentence, because
+    // there no refusal happened for anyone to quote.
     return ok({
       failedTargets: unreached.map((target) => ({
         targetId: target.id,
-        reason: refused.has(target.id)
-          ? "the destination refused the alert"
-          : "the destination is no longer an active config of this project",
+        reason:
+          refusals.get(target.id) ??
+          "the destination is no longer an active config of this project",
       })),
     });
   }
