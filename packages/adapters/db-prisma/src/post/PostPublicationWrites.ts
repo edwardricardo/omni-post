@@ -240,6 +240,21 @@ export async function writePublicationSave(
 
   await upsertPublications(tx, aggregate, accountId);
 
+  // The aggregate is NOT marked here. The debt this write discharges is the input to the
+  // full save's refusal, so discharging it inside the transaction would invert the very
+  // silence that refusal exists to prevent: the outbox write below, or the commit itself,
+  // can still fail, and an aggregate marked clean by a rolled-back transaction is
+  // accepted by the next full save and has its records dropped. `savePublicationRecord`
+  // discharges it once the transaction it chose has actually committed.
+  //
+  // `incrementVersion` above deliberately does NOT move with it, and the reason is
+  // structural rather than a tolerance: the aggregate's version is read again INSIDE the
+  // same transaction. `SchedulePostUseCase` runs the full save and then this one, so this
+  // compare-and-swap matches on the version the full save just wrote; deferring the bump
+  // to the commit would make this CAS look for a row version the first statement had
+  // already advanced past, and every two-save transaction would fail with a version
+  // conflict. It is in-transaction state because the transaction itself reads it.
+
   if (outboxWriter) {
     await outboxWriter.writeEvents(tx, aggregate.domainEvents);
   }
@@ -281,13 +296,26 @@ export async function savePublicationRecord(
   }
 
   try {
-    const activeTx = PrismaUnitOfWork.getTransactionClient();
-    if (activeTx) {
-      await writePublicationSave(activeTx, aggregate, collaborators.outboxWriter);
+    // ONE read, and both the client and the registration come from it. Reading the
+    // client and then reaching for the hook in a SECOND ambient lookup would let the
+    // two disagree — the second can answer "no transaction" for a caller the first
+    // handed a transaction client, and the mark would then run inside the transaction
+    // it exists to outlive, on writes that can still roll back.
+    const active = PrismaUnitOfWork.activeTransaction();
+    if (active) {
+      await writePublicationSave(active.tx, aggregate, collaborators.outboxWriter);
+      // Someone else owns this transaction and it has NOT committed yet — work that
+      // follows this save in the same unit of work can still roll every statement back.
+      // The unit of work runs this once it has actually committed, and never otherwise.
+      active.onCommitted(() => aggregate.markPublicationsPersisted());
     } else {
       await collaborators.runInTenantBoundTransaction(async (tx) => {
         await writePublicationSave(tx, aggregate, collaborators.outboxWriter);
       });
+      // This save owned the transaction, and the runner resolving IS its commit — so the
+      // debt is discharged here rather than registered, with nothing left that could undo
+      // the rows it just wrote.
+      aggregate.markPublicationsPersisted();
     }
     return ok(undefined);
   } catch (error) {

@@ -19,6 +19,12 @@ import type {
   ProcessBulkScheduleRowInput,
 } from "@core/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
 import type { FailBulkScheduleRowUseCase } from "@core/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+import { withTenantContext } from "../security/tenantContext.js";
+import {
+  BULK_SCHEDULE_REFUSAL_ARMS,
+  incrementBulkScheduleRowRefused,
+  type BulkScheduleRefusalArm,
+} from "../metrics/businessMetrics.js";
 
 /** Minimal logger surface (a pino child satisfies this structurally). */
 export interface BulkScheduleJobLogger {
@@ -30,6 +36,49 @@ export interface BulkScheduleJobLogger {
 /** Falls back to the queue's configured attempts when the job omits them. */
 const DEFAULT_ATTEMPTS = 3;
 
+/**
+ * The refusal BOTH arms answer with when a payload names no tenant.
+ *
+ * One error and one message, because the condition is one condition. The arms differed
+ * before — the row threw and the terminal-failure path logged and returned — and the
+ * asymmetry was not a decision anyone took: it was two edits. A silent return is worst
+ * exactly where it sat, on the terminal path, because nothing retries after it.
+ */
+class BulkScheduleTenantMissingError extends Error {
+  public readonly arm: BulkScheduleRefusalArm;
+
+  constructor(arm: BulkScheduleRefusalArm, itemId: unknown) {
+    super(
+      `Bulk schedule row ${String(itemId)} carries no accountId: it cannot be bound to a tenant`
+    );
+    this.name = "BulkScheduleTenantMissingError";
+    this.arm = arm;
+  }
+}
+
+/**
+ * @function refuseUnboundRow
+ * @description Logs, counts and THROWS the shared refusal. Counted because the state it
+ *   leaves is otherwise invisible: the row is never processed and — on the terminal arm
+ *   — never recorded as failed, so its batch stops settling with nothing naming it.
+ * @param logger - The worker's logger.
+ * @param arm - Which arm refused.
+ * @param ids - The row's identifiers, for the log bindings.
+ * @returns Never: it always throws.
+ */
+function refuseUnboundRow(
+  logger: BulkScheduleJobLogger,
+  arm: BulkScheduleRefusalArm,
+  ids: { itemId: unknown; batchId: unknown; jobId?: string | undefined }
+): never {
+  incrementBulkScheduleRowRefused(arm);
+  logger.error(
+    { ...ids, arm },
+    "Bulk schedule row carries no accountId; refusing to run it unbound"
+  );
+  throw new BulkScheduleTenantMissingError(arm, ids.itemId);
+}
+
 export interface BulkScheduleRowDeps {
   readonly process: ProcessBulkScheduleRowUseCase;
   readonly logger: BulkScheduleJobLogger;
@@ -40,6 +89,16 @@ export interface BulkScheduleRowDeps {
  * @description Runs one row through ProcessBulkScheduleRowUseCase. A transient
  *   failure (INTERNAL_ERROR) throws so BullMQ retries; deterministic outcomes
  *   (SCHEDULED / FAILED / SKIPPED) resolve the job successfully.
+ *
+ *   A queue job carries no request, so the tenant scope is bound HERE, from the
+ *   `accountId` the producer already puts in the payload — the same convention the
+ *   repurpose / triage / trend in-process consumers follow. The row's write path
+ *   reaches `post`, `postContent` and `postMedia`, all tenant-guard-enrolled, so
+ *   without the binding the guard has no context to inject and throws.
+ *
+ *   A payload with no account is REFUSED, never run under the system scope. The
+ *   system scope makes the guard step aside, so an unbound row would write wherever
+ *   its ids pointed — a cross-tenant write produced by a missing field.
  * @param deps - The per-row use case + logger.
  * @param payload - The row job payload.
  */
@@ -48,7 +107,15 @@ export async function processBulkScheduleRowJob(
   payload: Record<string, unknown>
 ): Promise<void> {
   const input = payload as unknown as ProcessBulkScheduleRowInput;
-  const result = await deps.process.execute(input);
+  const accountId = input.accountId;
+  if (typeof accountId !== "string" || accountId.length === 0) {
+    refuseUnboundRow(deps.logger, BULK_SCHEDULE_REFUSAL_ARMS.ROW, {
+      itemId: input.itemId,
+      batchId: input.batchId,
+    });
+  }
+
+  const result = await withTenantContext({ accountId }, () => deps.process.execute(input));
   if (!result.ok) {
     deps.logger.warn(
       { itemId: input.itemId, batchId: input.batchId, error: result.error.message },
@@ -76,17 +143,15 @@ export interface BulkScheduleFailureDeps {
  *   can settle. DLQ enqueue and manifest write are independent — one failing
  *   never blocks the other.
  * @param deps - The fail use case, the DLQ queue port, and a logger.
- * @param job - The failed BullMQ job (undefined if unavailable).
+ * @param job - The failed BullMQ job. An event that carries none is answered by
+ *   {@link onBulkScheduleJobFailed}, which is where the only sink for it exists.
  * @param error - The error that failed the job.
  */
 export async function handleBulkScheduleRowFailure(
   deps: BulkScheduleFailureDeps,
-  job: Job | undefined,
+  job: Job,
   error: Error
 ): Promise<void> {
-  if (!job) {
-    return;
-  }
   const attempts = job.opts?.attempts ?? DEFAULT_ATTEMPTS;
   if (job.attemptsMade < attempts) {
     return; // retries remain
@@ -111,12 +176,25 @@ export async function handleBulkScheduleRowFailure(
     );
   }
 
-  if (payload.batchId !== undefined && payload.itemId !== undefined) {
-    const result = await deps.fail.execute({
-      batchId: payload.batchId,
-      itemId: payload.itemId,
-      reason,
-    });
+  const { batchId, itemId } = payload;
+  if (batchId !== undefined && itemId !== undefined) {
+    // Bound from the SAME payload field the row path binds from. This callback writes
+    // the same tenant-scoped rows — `FailBulkScheduleRowUseCase` updates the item and
+    // then the batch through `completeBatchIfSettled` — so unbound it throws on every
+    // retry-exhausted row and the batch never settles. Binding the success path alone
+    // would leave the failure path broken in exactly the situation it exists for.
+    const accountId = payload.accountId;
+    if (typeof accountId !== "string" || accountId.length === 0) {
+      refuseUnboundRow(deps.logger, BULK_SCHEDULE_REFUSAL_ARMS.TERMINAL_FAILURE, {
+        itemId,
+        batchId,
+        jobId: job.id,
+      });
+    }
+
+    const result = await withTenantContext({ accountId }, () =>
+      deps.fail.execute({ batchId, itemId, reason })
+    );
     if (!result.ok) {
       deps.logger.error(
         { jobId: job.id, itemId: payload.itemId, error: result.error.message },
@@ -124,6 +202,50 @@ export async function handleBulkScheduleRowFailure(
       );
     }
   }
+}
+
+/**
+ * @function onBulkScheduleJobFailed
+ * @description The worker's `failed` listener, named so it can be exercised without a
+ *   queue. It owns the two things a listener must not get wrong.
+ *
+ *   An event that carries NO job is counted and logged here rather than returned from in
+ *   silence. BullMQ emits one when it cannot load the job the event is about — a stalled
+ *   job reclaimed after its key expired, or a payload it cannot deserialize — and the row
+ *   behind it is still in a batch waiting on it. Nothing downstream can be reached for it
+ *   (the DLQ and the manifest both need the payload this event does not have), so the
+ *   counter and the log ARE the recovery path: they are what turns a batch that silently
+ *   stops settling into a batch someone can go and look at.
+ *
+ *   And a rejection from the handler is caught, because a `failed` LISTENER is not
+ *   awaited by BullMQ: it does not re-queue, does not reach the DLQ, and becomes an
+ *   unhandled rejection, which under Node's default takes the process down over a job
+ *   that had already failed. `handleBulkScheduleRowFailure` still throws its refusal,
+ *   because that is the contract its callers hold it to; the boundary is here.
+ * @param deps - The fail use case, the DLQ queue port, and a logger.
+ * @param job - The failed job, or undefined when the event carries none.
+ * @param error - The error that failed the job.
+ */
+export function onBulkScheduleJobFailed(
+  deps: BulkScheduleFailureDeps,
+  job: Job | undefined,
+  error: Error
+): void {
+  if (!job) {
+    incrementBulkScheduleRowRefused(BULK_SCHEDULE_REFUSAL_ARMS.MISSING_JOB);
+    deps.logger.error(
+      { err: error },
+      "Bulk schedule `failed` event carried no job: the row it names cannot be dead-lettered or recorded, so its batch will not settle"
+    );
+    return;
+  }
+
+  void handleBulkScheduleRowFailure(deps, job, error).catch((failureError: unknown) => {
+    deps.logger.error(
+      { jobId: job.id, err: failureError },
+      "Bulk schedule failure handler did not complete; the row's batch may not settle"
+    );
+  });
 }
 
 /** Handle returned by {@link startBulkScheduleWorker} for graceful shutdown. */
@@ -165,7 +287,7 @@ export async function startBulkScheduleWorker(
   );
 
   worker.on("failed", (job, error) => {
-    void handleBulkScheduleRowFailure(
+    onBulkScheduleJobFailed(
       { fail: deps.fail, deadLetter: deps.deadLetter, logger: deps.logger },
       job,
       error

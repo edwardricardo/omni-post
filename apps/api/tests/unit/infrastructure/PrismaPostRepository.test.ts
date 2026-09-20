@@ -1142,6 +1142,62 @@ describe("PrismaPostRepository", () => {
       expect(written.map((event) => event.eventType)).toContain("PostPublished");
     });
 
+    it("leaves the aggregate OWING a publication write when the transaction fails", async () => {
+      // The marker is the loud refusal's input. If it is cleared inside the transaction
+      // and the transaction then rolls back, the aggregate reads CLEAN while the
+      // database holds none of its records — and the next full save accepts it and drops
+      // them, which is precisely the silence the refusal exists to prevent, inverted.
+      const writeEvents = vi.fn(async () => {
+        throw new Error("outbox write failed");
+      });
+      const outboxRepo = new PrismaPostRepository(
+        prisma as never,
+        { writeEvents } as never,
+        ambientTenantContextProvider
+      );
+      const post = await makePublishedAggregate();
+      expect(post.hasUnsavedPublications()).toBe(true);
+
+      const result = await asTenant(() => outboxRepo.savePublication(post));
+
+      expect(result.ok).toBeFalsy();
+      expect(post.hasUnsavedPublications()).toBe(
+        true,
+        "a rolled-back publication write still owes its records"
+      );
+    });
+
+    it("clears the debt only once its transaction has COMMITTED", async () => {
+      const post = await makePublishedAggregate();
+      expect(post.hasUnsavedPublications()).toBe(true);
+
+      const result = await asTenant(() => repo.savePublication(post));
+
+      expect(result.ok).toBeTruthy();
+      expect(post.hasUnsavedPublications()).toBe(false);
+    });
+
+    it("clears the debt only after the ENCLOSING unit of work commits", async () => {
+      const post = await makePublishedAggregate();
+      const uow = new PrismaUnitOfWork(prisma as never, ambientTenantContextProvider);
+      let insideTransaction: boolean | undefined;
+
+      const result = await withTenantContext({ accountId: ACCOUNT_ID }, () =>
+        uow.executeInTransaction(async () => {
+          const saved = await repo.savePublication(post);
+          // Read INSIDE: the enclosing transaction has not committed yet, so the debt
+          // cannot be discharged — the statements can still be rolled back by work that
+          // follows this save in the same transaction.
+          insideTransaction = post.hasUnsavedPublications();
+          return saved;
+        })
+      );
+
+      expect(result.ok).toBeTruthy();
+      expect(insideTransaction).toBe(true, "the debt survives until the commit");
+      expect(post.hasUnsavedPublications()).toBe(false, "and is discharged after it");
+    });
+
     it("refuses when a content event is pending, writing nothing", async () => {
       const post = await makeEditedAggregate();
 
@@ -1239,18 +1295,39 @@ describe("PrismaPostRepository", () => {
       expect(prisma._txClient.postChannelPublication.upsert.mock.calls.length).toBe(0);
     });
 
-    it("writes NO publication row from the full save, even with targets declared", async () => {
-      // The narrow save is the ONLY production writer of the record. The full save
-      // runs neither of the two refusals the narrow one runs — the projection
-      // invariant and the pending-edit tripwire — so a record written through it
-      // would be a record nothing checked.
+    it("REFUSES the full save when the aggregate carries publication changes it will not write", async () => {
+      // RE-DECIDED 2026-09-20. This case was "writes NO publication row from the full
+      // save, even with targets declared" and asserted `result.ok` — it pinned that the
+      // narrow save is the only writer of the record, which still holds, but it also
+      // pinned the SILENCE: `declarePublicationTargets()` + `save()` returned success and
+      // dropped the records. Silence is the half being withdrawn, not the single-writer
+      // rule. The full save still writes no publication row; it now REFUSES rather than
+      // succeeding, and it names the save that would have persisted them.
       prisma.post.count.mockImplementation(async () => 1);
       const post = await makeDeclaredAggregate();
 
       const result = await repo.save(post);
 
-      expect(result.ok).toBeTruthy();
+      expect(result.ok).toBeFalsy();
+      if (result.ok) return;
+      expect(result.error.name).toBe("InvariantViolationError");
+      expect(result.error.message).toMatch(/savePublication/);
       expect(post.publications.size).toBe(1);
+      expect(prisma._txClient.postChannelPublication.upsert.mock.calls.length).toBe(0);
+      expect(prisma._txClient.post.update.mock.calls.length).toBe(0);
+      expect(prisma.$transaction.mock.calls.length).toBe(0);
+    });
+
+    it("admits the full save for an aggregate whose publication records it did not touch", async () => {
+      // The refusal must key on CHANGE, not on the mere presence of records: after 1c
+      // every scheduled post has them, and an ordinary content update must still save.
+      prisma.post.count.mockImplementation(async () => 1);
+      const post = await makeDeclaredAggregate();
+      post.markPublicationsPersisted();
+
+      const result = await repo.save(post);
+
+      expect(result.ok).toBeTruthy();
       expect(prisma._txClient.post.update.mock.calls.length).toBe(1);
       expect(prisma._txClient.postChannelPublication.upsert.mock.calls.length).toBe(0);
     });

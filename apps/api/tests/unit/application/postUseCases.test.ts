@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { ok, err } from "@shared/types";
+import { ok, err, type Result } from "@shared/types";
 import {
   PostAggregate,
   ProjectId,
@@ -15,6 +15,7 @@ import {
   PUBLISH_STATUS,
 } from "@core/domain/index.js";
 import { EntityNotFoundError } from "@core/domain/errors/index.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
 import { UpdatePostUseCase } from "@core/posts/UpdatePostUseCase.js";
 import { SchedulePostUseCase } from "@core/posts/SchedulePostUseCase.js";
@@ -32,20 +33,63 @@ vi.mock("../../../src/metrics/businessMetrics.js", () => ({
 
 // --- Mock factories ---
 
-function createMockPostRepository() {
+/**
+ * @param afterCommit - When given, the narrow save REGISTERS its debt discharge here
+ *   instead of performing it, mirroring production: inside someone else's transaction
+ *   `savePublicationRecord` defers the mark to the commit, and outside one it marks
+ *   immediately because the runner resolving IS the commit. A double that marked inside
+ *   the transaction either way would be testing itself.
+ */
+function createMockPostRepository(afterCommit?: Array<() => void>) {
   const store = new Map<string, PostAggregate>();
+  /**
+   * What each save saw, in call order. `outbox` is what the real adapters hand to the
+   * outbox writer — `aggregate.domainEvents` at the moment of the write — so counting
+   * event ids across the two entries is how a test sees whether an event would reach
+   * the outbox twice. It would: `PrismaOutboxWriter` inserts with `createMany` keyed on
+   * the event id and no `skipDuplicates`, so a second insert of the same id is a P2002
+   * that aborts the whole transaction, not a duplicate row.
+   */
+  const writes: Array<{ save: "full" | "narrow" | "dispatch"; outbox: string[]; records: number }> =
+    [];
+  const recordWrite = (save: "full" | "narrow", post: PostAggregate): void => {
+    writes.push({
+      save,
+      outbox: post.domainEvents.map((event) => event.eventId),
+      records: post.publications.size,
+    });
+  };
   return {
     store,
+    writes,
     findById: vi.fn(async (id: PostId) => {
       const post = store.get(id.value);
       if (!post) return err(new EntityNotFoundError("Post", id.value));
       return ok(post);
     }),
     save: vi.fn(async (post: PostAggregate) => {
+      // The production full save REFUSES an aggregate that still owes a publication
+      // write; the double implements the SAME refusal so this suite is tested against
+      // the production contract instead of a laxer one.
+      if (post.hasUnsavedPublications()) {
+        return err(
+          new Error(
+            `post ${post.id.value} carries unsaved publication records: use savePublication`
+          )
+        );
+      }
+      recordWrite("full", post);
       store.set(post.id.value, post);
       return ok(undefined);
     }),
     savePublication: vi.fn(async (post: PostAggregate) => {
+      recordWrite("narrow", post);
+      const discharge = (): void => post.markPublicationsPersisted();
+      if (afterCommit === undefined) {
+        discharge();
+      } else {
+        afterCommit.push(discharge);
+      }
       store.set(post.id.value, post);
       return ok(undefined);
     }),
@@ -69,11 +113,80 @@ function createMockPostRepository() {
   };
 }
 
-function createMockEventDispatcher() {
+/**
+ * @param order - When given, `dispatchAll` appends itself so a test can see WHERE the
+ *   dispatch sits relative to the saves. The production dispatcher runs in-process
+ *   handlers and then a BullMQ publish, so its position relative to the transaction
+ *   boundary is a correctness property, not an implementation detail.
+ */
+function createMockEventDispatcher(
+  order?: Array<{ save: "full" | "narrow" | "dispatch"; outbox: string[]; records: number }>
+) {
   return {
     dispatch: vi.fn(async () => {}),
-    dispatchAll: vi.fn(async () => {}),
+    dispatchAll: vi.fn(async (events: Array<{ eventId: string }>) => {
+      order?.push({
+        save: "dispatch",
+        outbox: events.map((event) => event.eventId),
+        records: 0,
+      });
+    }),
     register: vi.fn(),
+  };
+}
+
+/**
+ * A unit of work that records WHICH seam a use case opened. The distinction is the
+ * whole point: `executeInTransaction` resolves whatever its callback resolves, so a
+ * use case that stores an `err` in a variable and lets the callback complete tells the
+ * transaction it succeeded and the partial write COMMITS (ADR-0023).
+ * `executeResultInTransaction` reads the `Result` and rolls back on `err`.
+ */
+function createRecordingUnitOfWork(): {
+  state: {
+    plainCalls: number;
+    resultCalls: number;
+    rolledBack: unknown[];
+    afterCommit: Array<() => void>;
+  };
+  port: UnitOfWork;
+} {
+  const state = {
+    plainCalls: 0,
+    resultCalls: 0,
+    rolledBack: [] as unknown[],
+    // Work registered from inside the transaction that must run ONLY on commit — the
+    // production seam's `onCommitted`. Drained on `ok`, never on `err`.
+    afterCommit: [] as Array<() => void>,
+  };
+  const drain = (): void => {
+    for (const hook of state.afterCommit) {
+      hook();
+    }
+    state.afterCommit.length = 0;
+  };
+  return {
+    state,
+    port: {
+      async executeInTransaction<T>(fn: () => Promise<T>): Promise<T> {
+        state.plainCalls++;
+        const value = await fn();
+        drain();
+        return value;
+      },
+      async executeResultInTransaction<T, E>(
+        fn: () => Promise<Result<T, E>>
+      ): Promise<Result<T, E>> {
+        state.resultCalls++;
+        const result = await fn();
+        if (!result.ok) {
+          state.rolledBack.push(result.error);
+          return result;
+        }
+        drain();
+        return result;
+      },
+    },
   };
 }
 
@@ -351,7 +464,9 @@ describe("SchedulePostUseCase", () => {
 
   beforeEach(() => {
     repo = createMockPostRepository();
-    dispatcher = createMockEventDispatcher();
+    // Shares the repo's order log, so a case can assert WHERE the dispatch sits
+    // relative to the two saves.
+    dispatcher = createMockEventDispatcher(repo.writes);
     channelRepo = createMockChannelRepository();
     useCase = new SchedulePostUseCase(
       repo as any,
@@ -457,6 +572,185 @@ describe("SchedulePostUseCase", () => {
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.error.code).toBe(USE_CASE_ERRORS.NOT_FOUND);
+    });
+  });
+
+  describe("the declared target set (REC-1 [static])", () => {
+    it("PERSISTS the validated identities through the narrow save, not only in the DTO", async () => {
+      const second = ChannelId.generate().value;
+      channelRepo.channels.set(second, { id: second, name: "Second Channel" });
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId, second],
+        scheduledFor: future,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(repo.savePublication).toHaveBeenCalledOnce();
+      const saved = repo.savePublication.mock.calls[0]![0] as PostAggregate;
+      expect(saved.publications.size).toBe(2);
+      expect(saved.publications.all.map((record) => record.channelId.value).sort()).toEqual(
+        [channelId, second].sort()
+      );
+      expect(saved.publications.all.every((record) => record.outcome.kind === "unresolved")).toBe(
+        true
+      );
+      expect(saved.hasUnsavedPublications()).toBe(false);
+    });
+
+    it("writes the full save FIRST and the narrow save SECOND, each carrying its own events", async () => {
+      // The order is forced from both ends and neither end is negotiable. The full save
+      // must run BEFORE the declaration, because it refuses an aggregate that owes a
+      // publication write. The narrow save must run AFTER it, because it is the only
+      // writer of the record — and it must not re-carry the events the full save already
+      // put in the outbox, which is a P2002 on the event id, not a duplicate row.
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId],
+        scheduledFor: future,
+      });
+
+      expect(result.ok).toBe(true);
+      const saves = repo.writes.filter((write) => write.save !== "dispatch");
+      expect(saves.map((write) => write.save)).toEqual(["full", "narrow"]);
+      expect(saves).toHaveLength(2);
+      const [fullSave, narrowSave] = saves;
+      expect(fullSave?.records).toBe(0);
+      expect(narrowSave?.records).toBe(1);
+
+      // SAVES only: the dispatch carries the same event ids the full save wrote, and it
+      // is not an outbox write — counting it here would read the outbox contract's own
+      // success as a duplicate.
+      const everyOutboxWrite = saves.flatMap((write) => write.outbox);
+      expect(everyOutboxWrite.length).toBeGreaterThan(0);
+      expect(new Set(everyOutboxWrite).size).toBe(
+        everyOutboxWrite.length,
+        "no event id reaches the outbox twice"
+      );
+      expect(narrowSave?.outbox).toEqual([]);
+    });
+  });
+
+  describe("the transaction seam", () => {
+    let uow: ReturnType<typeof createRecordingUnitOfWork>;
+
+    beforeEach(() => {
+      uow = createRecordingUnitOfWork();
+      // Rebuilt so the narrow save registers its discharge with THIS unit of work, the
+      // way production's `savePublicationRecord` registers with the ambient transaction.
+      repo = createMockPostRepository(uow.state.afterCommit);
+      repo.store.set(draftPost.id.value, draftPost);
+      dispatcher = createMockEventDispatcher(repo.writes);
+      useCase = new SchedulePostUseCase(
+        // canon-exception: test-fixture
+        repo as any,
+        // canon-exception: test-fixture
+        dispatcher as any,
+        // canon-exception: test-fixture
+        channelRepo as any,
+        createMockBusinessMetrics(),
+        // No cast: the double implements the WHOLE `UnitOfWork` port, and typing it as
+        // the port is what makes a future member of that port break this file.
+        uow.port
+      );
+    });
+
+    it("dispatches the events only AFTER the transaction has closed", async () => {
+      // The dispatcher is not a database call. `ComposedEventDispatcher.dispatchAll`
+      // runs the in-process handlers and then publishes a BullMQ batch, which is the
+      // "external API call" ARCHITECTURE_CANON §UoW Rules forbids inside a transaction.
+      // Inside it, the events reach consumers before the transaction that produced them
+      // has committed — and anything fallible after the dispatch can still roll it back.
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId],
+        scheduledFor: future,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(repo.writes.map((write) => write.save)).toEqual(["full", "narrow", "dispatch"]);
+      expect(dispatcher.dispatchAll).toHaveBeenCalledOnce();
+      expect(uow.state.resultCalls).toBe(1);
+    });
+
+    it("dispatches exactly the events the full save put in the outbox", async () => {
+      // Read from the value the dispatch site reads `ok` from, rather than from an outer
+      // mutable the callback assigned. The seam runs its callback exactly ONCE
+      // (`PrismaUnitOfWork.executeInTransaction` calls `prisma.$transaction` once, at
+      // `:104`, with no retry loop), so there is no second attempt to capture an empty
+      // array — but the events still belong to the result, not to a variable beside it.
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId],
+        scheduledFor: future,
+      });
+
+      expect(result.ok).toBe(true);
+      const writes = repo.writes;
+      const fullSave = writes.find((write) => write.save === "full");
+      const dispatch = writes.find((write) => write.save === "dispatch");
+      expect(fullSave?.outbox.length).toBeGreaterThan(0);
+      expect(dispatch?.outbox).toEqual(fullSave?.outbox);
+    });
+
+    it("dispatches NOTHING when the transaction rolls back", async () => {
+      // The phantom completion this closes: consumers told a post was scheduled, by a
+      // transaction that then rolled the schedule back.
+      repo.savePublication.mockResolvedValueOnce(err(new Error("records write failed")));
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId],
+        scheduledFor: future,
+      });
+
+      expect(result.ok).toBe(false);
+      expect(uow.state.rolledBack).toHaveLength(1);
+      expect(dispatcher.dispatchAll).not.toHaveBeenCalled();
+    });
+
+    it("commits the schedule through the Result-aware seam", async () => {
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId],
+        scheduledFor: future,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(uow.state.resultCalls).toBe(1);
+      expect(uow.state.plainCalls).toBe(0);
+    });
+
+    it("aborts the transaction when the save fails, instead of resolving over the failure", async () => {
+      // The save is multi-statement (post row, content, media, outbox), so a failure
+      // raised after the first statement leaves a partial write. Handing the `err` back
+      // as a resolved callback tells the unit of work the work succeeded and COMMITS
+      // that partial write; the Result-aware seam rolls it back (ADR-0023).
+      repo.save.mockResolvedValueOnce(err(new Error("connection reset")));
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId],
+        scheduledFor: future,
+      });
+
+      expect(uow.state.rolledBack).toHaveLength(1);
+      expect(uow.state.plainCalls).toBe(0);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
     });
   });
 });

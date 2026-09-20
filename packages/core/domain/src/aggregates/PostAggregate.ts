@@ -141,6 +141,25 @@ export class PostAggregate extends AggregateRoot<PostId> {
   private readonly _contentVersions: ContentId[];
   private _publications: ChannelPublication[];
 
+  /**
+   * Whether a publication method has REACHED the per-channel records since they were loaded
+   * or last persisted. Set the moment a method touches a record, before that method can
+   * still refuse or answer `applied: false`, so a refusal path never leaves a mutated record
+   * reading clean; the price is that a no-op call (a replayed attempt, a duplicate confirm,
+   * a second sweep tick) also sets it, and the next full save refuses loudly where it could
+   * have proceeded. That is the direction to be wrong in.
+   *
+   * It exists because the two saves write different things and only one of them writes
+   * records: the FULL save persists the post, its content and its media and touches no
+   * publication row, while the NARROW save persists the word and every record. Without
+   * this marker, `declarePublicationTargets()` followed by the full save returns success
+   * and drops the records on the floor — and the domain emits no event for a declaration,
+   * so nothing downstream can notice. The flag is the aggregate's own answer to "do I
+   * still owe someone a publication write?", which is the only question the full save can
+   * ask without a second read.
+   */
+  private _publicationsDirty = false;
+
   private constructor(id: PostId, state: Omit<PostAggregateState, "id">) {
     super(id, state.createdAt, state.version);
     this._projectId = state.projectId;
@@ -260,6 +279,37 @@ export class PostAggregate extends AggregateRoot<PostId> {
    */
   get publications(): ChannelPublications {
     return ChannelPublications.of(this._publications);
+  }
+
+  /**
+   * @method hasUnsavedPublications
+   * @description Whether a publication write is still owed for this aggregate. Read by
+   *   the FULL save, which writes no publication row and must refuse rather than drop
+   *   the change in silence.
+   * @returns true when a publication method reached the records since they were loaded
+   *   or last persisted — including a call that then refused or applied nothing, which
+   *   is deliberate (a false positive refuses loudly; a false negative drops records)
+   */
+  hasUnsavedPublications(): boolean {
+    return this._publicationsDirty;
+  }
+
+  /**
+   * @method markPublicationsPersisted
+   * @description Records that the per-channel records are DURABLE. Called once the
+   *   transaction that wrote them has COMMITTED — not when the statements ran, which is
+   *   a different and weaker fact: statements can still be undone by work that follows
+   *   them in the same transaction, and by the commit itself.
+   *
+   *   The distinction is the whole point. This flag is what the full save reads to refuse
+   *   an aggregate whose records it would not write, so an aggregate marked clean by a
+   *   transaction that then rolled back would be ACCEPTED by that save and have its
+   *   records dropped — the exact silence the refusal exists to prevent, inverted. It is
+   *   deliberately NOT the same placement as {@link incrementVersion}, which must run
+   *   inside the transaction because the transaction itself reads the version again.
+   */
+  markPublicationsPersisted(): void {
+    this._publicationsDirty = false;
   }
 
   get content(): Content {
@@ -745,6 +795,9 @@ export class PostAggregate extends AggregateRoot<PostId> {
       },
       replaceRecords: (records) => {
         this._publications = records;
+        // Replacing the set IS a record change, and it is the one that emits no domain
+        // event — so without this the full save would have nothing at all to notice.
+        this._publicationsDirty = true;
       },
       setStatus: (status) => {
         this._status = status;
@@ -757,6 +810,9 @@ export class PostAggregate extends AggregateRoot<PostId> {
       },
       touch: () => {
         this.markUpdated();
+      },
+      markRecordsChanged: () => {
+        this._publicationsDirty = true;
       },
       startPublishing: (providers) => this.startPublishing(providers),
     };

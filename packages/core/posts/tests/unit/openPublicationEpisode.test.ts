@@ -591,4 +591,46 @@ describe("OpenPublicationEpisodeUseCase", () => {
       );
     });
   });
+
+  describe("without a unit of work — the optional seam the composition root always injects", () => {
+    // The seam is optional so a unit test can construct the use case without one, and
+    // the composition root always injects it — so this branch is unreachable in
+    // production and untested by every case above, which all pass a recording double.
+    // It is still a contract this package states, and an outcome that differed here
+    // from the transactional path would be a silent second behaviour.
+    it("answers a domain refusal exactly as the transactional path does, and writes nothing", async () => {
+      const post = makeOpenedPost([CHANNEL_A, CHANNEL_B]);
+      recordOn(post, CHANNEL_A, publishedResult());
+      recordOn(post, CHANNEL_B, failedResult());
+      const repo = makePostRepo({ post });
+      const useCase = new OpenPublicationEpisodeUseCase(repo.port);
+
+      const result = await useCase.execute({
+        postId: POST_UUID,
+        channelIds: [CHANNEL_B],
+        enterPublishing: true,
+      });
+
+      assert.ok(!result.ok, "a locked post's target set cannot be narrowed");
+      assert.strictEqual(result.error.code, USE_CASE_ERRORS.VALIDATION_FAILED);
+      assert.strictEqual(repo.savePublication.mock.calls.length, 0);
+    });
+
+    it("answers a save failure exactly as the transactional path does", async () => {
+      const repo = makePostRepo({
+        post: makePost(),
+        saveResult: err(new VersionConflictError("Post", POST_UUID, 3, 4)),
+      });
+      const useCase = new OpenPublicationEpisodeUseCase(repo.port);
+
+      const result = await useCase.execute({
+        postId: POST_UUID,
+        channelIds: [CHANNEL_A],
+        enterPublishing: false,
+      });
+
+      assert.ok(!result.ok, "a lost CAS is reported, never swallowed");
+      assert.strictEqual(result.error.code, USE_CASE_ERRORS.CONFLICT);
+    });
+  });
 });

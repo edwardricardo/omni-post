@@ -10,10 +10,7 @@
  */
 
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import { VERSION_CONFLICT_CODE } from "@core/domain/index.js";
-
-/** The stable discriminator a lifecycle refusal carries. */
-const INVALID_STATE_TRANSITION_CODE = "INVALID_STATE_TRANSITION";
+import { INVALID_STATE_TRANSITION_CODE, VERSION_CONFLICT_CODE } from "@core/domain/index.js";
 
 /**
  * @function domainCode

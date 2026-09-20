@@ -567,12 +567,12 @@ broken that.
 
 Commits under correction: `1a1daede` / `17442c74` / `16e4cf73` / `4a90089d`.
 
-| Id  | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Evidence                                                                                                                                                                                                                                                                                                                                                   |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| W1  | **Both `upsertPublications` calls REVERTED out of the full `save()`** (`doCreate` and `doUpdate`). The narrow `savePublication` is now the only production writer of the record. Nothing forced the calls: no domain event and no invariant needed them — they were an unrequested reading of "the target set travels with the post", which is REC-1 and belongs to T1c.6. They were also the worse shape twice over: untested (every upsert assertion sat in the narrow-save describe) and unchecked (the full save runs NEITHER of the narrow save's two refusals) | RED first, and it fails by WRITING: new case `writes NO publication row from the full save, even with targets declared` → **exit 1**, `Tests 1 failed \| 57 passed (58)`, `expected 0 … received 1` on `postChannelPublication.upsert.mock.calls.length`. GREEN after the revert: **58/58**                                                                |
-| W2  | **`savePublication`'s JSDoc and body moved to `PostPublicationWrites.savePublicationRecord`**; the repository keeps one delegating expression. The transaction BINDING deliberately did NOT move — it is passed in as a `TenantBoundRunner`, so `withGucBoundTransaction(this.prisma, resolveGucScope(this.tenantProvider), statements)` stays in the class that holds the provider                                                                                                                                                                                  | The first shape moved the binding too and **fitness #40 part B caught it**: `1 seam call(s) bind a scope that is not getAmbientGucScope() or resolveGucScope(this.tenantProvider)`, naming `PostPublicationWrites.ts:281`, exit 1. Reshaped → **part A 0 / part B 0**. The gate was right: both isolation layers must be fed from the same provider object |
-| S3  | Ledger line counts corrected to the committed measurement                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | `PostAggregate.ts` **900** at the gate (the ledger said 902) and `PostPublicationMethods.ts` **664** (said 667) — the ledger was written before the unused-import cleanup. Overrun at the gate **100**, not 102. After S4's JSDoc the root reads **912**, overrun **112**                                                                                  |
-| S4  | `PostAggregate.startPublishing`'s "Start publishing process" replaced with the rationale for the surviving provider-keyed parameter: nothing inside the aggregate asks a caller for providers any more, and the parameter is held open only for the one caller outside it that runs over posts carrying no record                                                                                                                                                                                                                                                    | Fitness **#8 = 0** (no slice or phase reference in the new text); prettier + eslint clean                                                                                                                                                                                                                                                                  |
+| Id  | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| W1  | **Both `upsertPublications` calls REVERTED out of the full `save()`** (`doCreate` and `doUpdate`). The narrow `savePublication` is now the only production writer of the record. Nothing forced the calls: no domain event and no invariant needed them — they were an unrequested reading of "the target set travels with the post", which is REC-1 and belongs to T1c.6. They were also the worse shape twice over: untested (every upsert assertion sat in the narrow-save describe) and unchecked (the full save runs NEITHER of the narrow save's two refusals). **HALF RE-DECIDED 2026-09-20 in `1c-1d` (Edward's shape (b)), and the half that changed is named rather than the row rewritten.** What STANDS: `savePublication` is still the only writer of the record, and the full save still upserts nothing. What was WITHDRAWN: the SILENCE. This row's own red pinned `result.ok` on a declared-but-unwritten aggregate, so `declarePublicationTargets()` + `save()` reported success and dropped the records — and because a declaration emits no domain event, nothing downstream could notice. The full save now REFUSES such an aggregate (`err(InvariantViolationError)` naming `savePublication`), and the case at `PrismaPostRepository.test.ts:1242` was re-decided in place to assert the refusal | RED first, and it fails by WRITING: new case `writes NO publication row from the full save, even with targets declared` → **exit 1**, `Tests 1 failed \| 57 passed (58)`, `expected 0 … received 1` on `postChannelPublication.upsert.mock.calls.length`. GREEN after the revert: **58/58**. **2026-09-20**: that case is now `REFUSES the full save when the aggregate carries publication changes it will not write`, with its own red (`expected true to be falsy`) |
+| W2  | **`savePublication`'s JSDoc and body moved to `PostPublicationWrites.savePublicationRecord`**; the repository keeps one delegating expression. The transaction BINDING deliberately did NOT move — it is passed in as a `TenantBoundRunner`, so `withGucBoundTransaction(this.prisma, resolveGucScope(this.tenantProvider), statements)` stays in the class that holds the provider                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | The first shape moved the binding too and **fitness #40 part B caught it**: `1 seam call(s) bind a scope that is not getAmbientGucScope() or resolveGucScope(this.tenantProvider)`, naming `PostPublicationWrites.ts:281`, exit 1. Reshaped → **part A 0 / part B 0**. The gate was right: both isolation layers must be fed from the same provider object                                                                                                             |
+| S3  | Ledger line counts corrected to the committed measurement                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | `PostAggregate.ts` **900** at the gate (the ledger said 902) and `PostPublicationMethods.ts` **664** (said 667) — the ledger was written before the unused-import cleanup. Overrun at the gate **100**, not 102. After S4's JSDoc the root reads **912**, overrun **112**                                                                                                                                                                                              |
+| S4  | `PostAggregate.startPublishing`'s "Start publishing process" replaced with the rationale for the surviving provider-keyed parameter: nothing inside the aggregate asks a caller for providers any more, and the parameter is held open only for the one caller outside it that runs over posts carrying no record                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Fitness **#8 = 0** (no slice or phase reference in the new text); prettier + eslint clean                                                                                                                                                                                                                                                                                                                                                                              |
 
 #### Measured line counts, base → HEAD
 
@@ -2013,3 +2013,1437 @@ by the burn), and what becomes of each:
 | -------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `R3-noUowBranchUntested`         | SUGGESTION | `OpenPublicationEpisodeUseCase.ts:88-96`; same shape at `RecordChannelPublicationAttemptUseCase.ts:97-105` | "The `unitOfWork` constructor parameter is optional, and when omitted the use case calls the inner `doWork` closure directly, bypassing `executeResultInTransaction`. No test … exercises this branch — every test constructs the use case with `makeRecordingUow()` — so the behaviour of a `savePublication` failure or a domain refusal returned from the closure when the seam is absent is unproved by this candidate."                                                                                                                                                               | **OWED to `1c-1d`, which adds the two remaining T1c.4 use cases of the same shape**: one case per use case constructed WITHOUT a unit of work, asserting that a domain refusal and a `savePublication` failure both come back as the same outcomes the transactional path answers, and that nothing is written. The branch exists for the canon's own reason (the UoW parameter is optional for tests) and is unreachable from the composition root, which always injects the seam; its behaviour is nonetheless a contract this package states and should be pinned once for all four                                                                                                     |
 | `R3-tripwireContractIsLocalMock` | SUGGESTION | `recordChannelPublicationAttempt.test.ts:135-153`, asserted at `:433-461`                                  | "The narrow-save tripwire is re-implemented inside the test's own `makePostRepo` double via a locally hard-coded `TRIPWIRE_EVENTS` list, then the use-case's INTERNAL_ERROR translation is asserted against it. … if the production adapter's `PUBLICATION_TRIPWIRE_EVENTS` set diverges (event renamed, added, removed), this suite continues to pass while production silently changes behaviour. Consider a cross-package contract test at the adapter tier (or exporting the tripwire set from a package `@core/posts` can depend on) so the two definitions cannot drift undetected." | **ACCEPTED, written at T1c.14 in `tasks.md`, not done here.** The drift the reviewer names is real and the suite's own comment already states the trade-off. The adapter suite (`apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`) pins the production set directly; what is missing is the link between the two definitions. The honest fix is the reviewer's second option — the tripwire set moves to a package both `@core/posts` and the adapter can import (it is a statement about the aggregate's events, which live in `@core/domain`) — a small relocation with its own red, owned by the unit that next touches `PUBLICATION_TRIPWIRE_EVENTS` (T1c.14, `1c-3e`) |
+
+### RDD receipt — the follow-up commit `ff1c41a1` → `8454bab9`
+
+Lineage `review-4ae0d5245ff71220`. The review reached **approved** on its first admitted capture,
+the acknowledgement was executed exactly once and the authority is **burned**. **ZERO advisory
+findings** — no Critical, no WARNING and no SUGGESTION, so unlike the two receipts above this one
+carries nothing forward to another unit. The commit under review is the enterWith measurement test
+(`test(auth): the customer-auth double's tenant binding does not outlive the request that made it`),
+and it is recorded here rather than left out because a receipt nobody wrote is indistinguishable
+from a review nobody ran.
+
+---
+
+## PR 1c — grandchild `1c-1d` (T1c.3, T1c.4 second half, W4, half of T1c.6) — COMPLETE WITH ONE BLOCKER
+
+Branch `workstream/ncor8-1c-1d`, child of `workstream/ncor8-1c-1c` @ `8454bab9` — **order 3 of
+§9.4.1**, the second of the re-ordered writers. Subject: the RED suites for the retraction pair
+(T1c.3), the SECOND HALF of T1c.4's GREEN (`ConfirmManualRetractionUseCase`,
+`ExpireRetractionActionWindowUseCase`, the `@core/posts` barrel and the no-UoW branch for all four
+use cases), the `INVALID_STATE_TRANSITION_CODE` export carried from the `1c-1c` gate (W4), and
+**half of T1c.6** — the `executeResultInTransaction` migration. **T1c.6's `declarePublicationTargets`
+call is NOT here**, and it is the one blocker of this unit; the measurement that stops it is below
+under "For Edward", and the task keeps its `[ ]`.
+
+**Finish state**: the two acts a stranded channel needs — the customer's confirmation that they
+removed the fragments, and the sweep's closure of their action window — are writers of the same
+shape as the two that landed in `1c-1c`, each in one transaction through the narrow save; all four
+are reachable through the package barrel; and a lifecycle refusal is recognised through a constant
+the domain owns instead of a literal each consumer copies. **Rollback**: delete the four new files,
+revert the barrel block, revert the constant in `@core/domain` (the class goes back to its inline
+literal), and revert nine lines of `SchedulePostUseCase`. Nothing outside the change references any
+of it.
+
+### What each mechanism is, as built
+
+| Mechanism                             | As built                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ConfirmManualRetractionUseCase`      | validate ids with zero I/O, then `executeResultInTransaction` → load → `post.clearPendingRetraction({ cause: "manually-removed" })` → `savePublication`. The whole of D4's "available after an expired window" is inherited from the aggregate, which is why the Q17 case needed no branch here — only a case that proves it |
+| the idempotency discrimination        | `retractionClearedCause === MANUALLY_REMOVED` is read BEFORE the act, because afterwards this call's clearance is indistinguishable from an earlier one's. That read is the ONLY thing separating "already confirmed" (`applied: false`, 200) from "nothing was ever pending" (409)                                          |
+| `NOTHING_PENDING`                     | an `err` whose `code` is `CONFLICT` — so every existing route mapping answers 409 unchanged — carrying a `refusal` discriminator read by VALUE through the exported `refusalOf()`. A route switches on that, never on the message                                                                                            |
+| `hasLiveContent` on both outputs      | the predicate the confirm act EXISTS for, and not derivable from `status`: a `FAILED` post with live fragments is locked and one without them is editable, and both read `FAILED`                                                                                                                                            |
+| `ExpireRetractionActionWindowUseCase` | the caller's `now` and `window` travel to the root unchanged; the root re-asserts the cutoff. `applied: false` (not an error) for a window that is unopened, already closed, or unelapsed — a sweep must not fail on a row that raced with a customer                                                                        |
+| the window guard                      | a non-finite or negative `window` is refused BEFORE the load. Not cosmetic: `now < startedAt + NaN` is FALSE, so the record's guard is not taken and every selected row expires. It is the one malformed value here that fails OPEN, and the probe below measures it rather than asserting it                                |
+| `INVALID_STATE_TRANSITION_CODE` (W4)  | declared beside `VERSION_CONFLICT_CODE` and CONSTRUCTED INTO `InvalidStateTransitionError`, so the value has exactly one definition; `publicationWriteOutcome.ts` imports it and its local literal is gone. A new domain suite compares the constant against a REAL error rather than against a second literal               |
+| the `@core/posts` barrel              | all four T1c.4 use cases with their input/output types, plus `RETRACTION_REFUSALS` / `refusalOf` / `RetractionRefusal` for the route. `publicationWriteOutcome.ts` stays UNEXPORTED — it is the writers' shared translation, not package surface                                                                             |
+| the no-UoW branch (R3)                | two cases per use case, eight in all: a domain refusal and a `savePublication` failure answer the same outcomes as the transactional path and write nothing                                                                                                                                                                  |
+| `SchedulePostUseCase` (half of T1c.6) | `executeResultInTransaction` replaces the `let result` capture. The capture stored an `err` and let the callback RESOLVE, so the unit of work saw a success and COMMITTED — and this save is multi-statement (post row, content, media, outbox), which is exactly the partial write ADR-0023 exists to stop                  |
+
+### The recorded reds
+
+**1. W4 — the constant does not exist.** Written first, against an export that had no declaration:
+
+```text
+ FAIL  tests/unit/domainErrorCodes.test.ts > domain error discriminators > exports the code a real
+   InvalidStateTransitionError carries
+AssertionError: a lifecycle refusal must be recognisable by the exported constant
++ actual - expected
++ 'INVALID_STATE_TRANSITION'
+- undefined
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+```
+
+**2. T1c.3 — module absence, both suites, before a line of production code existed:**
+
+```text
+ FAIL  tests/unit/confirmManualRetraction.test.ts [ tests/unit/confirmManualRetraction.test.ts ]
+Error: Cannot find module '../../src/ConfirmManualRetractionUseCase.js' imported from …
+ FAIL  tests/unit/expireRetractionActionWindow.test.ts [ … ]
+Error: Cannot find module '../../src/ExpireRetractionActionWindowUseCase.js' imported from …
+ Test Files  2 failed (2)
+      Tests  no tests
+```
+
+**3. T1c.6's seam — the `err` that used to commit.** RED in `apps/api`, before the migration:
+
+```text
+ FAIL  tests/unit/application/postUseCases.test.ts > SchedulePostUseCase > the transaction seam >
+   aborts the transaction when the save fails, instead of resolving over the failure
+AssertionError: expected [] to have a length of 1 but got +0
+- Expected  1
++ Received  0
+      Tests  2 failed | 45 skipped (47)
+```
+
+**The GREEN of the retraction pair passed 28/28 on its first run, which is a reason to distrust it,
+not to celebrate it.** Two probes were run to decide whether the load-bearing branches are pinned or
+merely unvisited. Both are recorded, both restored sha256-exact.
+
+**Probe A — the window guard.** Condition weakened from
+`!Number.isFinite(input.window) || input.window < 0` to `input.window < 0` (one term, trivially
+reversible) and the single case run. It does not merely pass the guard — it EXPIRES:
+
+```text
+ FAIL  tests/unit/expireRetractionActionWindow.test.ts > … > refuses a window that is not a finite
+   number, which would otherwise expire EVERY row
+AssertionError: the window the malformed value would have closed is still open
++ actual - expected
++ 2026-03-01T11:00:00.000Z
+- undefined
+```
+
+The window assertion was MOVED to the front of that case for this run, so the failure names the
+expiry it caused rather than a code mismatch — the assertion-order lesson from `1c-1c`'s W1, applied
+at write time instead of after a review. Restored and verified:
+`packages/core/posts/src/ExpireRetractionActionWindowUseCase.ts`
+`fafdaca4be0109029c843b545586f38b28fb047edc738b501c28602f8e6bafdd` before the probe, `sha256sum -c`
+→ `OK` after it.
+
+**Probe B — the idempotency discrimination.** `if (alreadyConfirmed)` inverted to
+`if (!alreadyConfirmed)`. Three cases fail, which is the point: the discriminator carries the
+`NOTHING_PENDING` refusal, the duplicate submit AND the no-UoW refusal case at once.
+
+```text
+ × refuses NOTHING_PENDING as a conflict a caller can identify without matching the message
+ × answers a duplicate submit with applied:false and writes nothing a second time
+ × answers a domain refusal exactly as the transactional path does, and writes nothing
+      Tests  3 failed | 10 passed (13)
+```
+
+Restored and verified: `packages/core/posts/src/ConfirmManualRetractionUseCase.ts`
+`8dd9351fdc73c5758f3bd9c50385861042d35017c2cc8adafc7669b260ca7090`, `sha256sum -c` → `OK`.
+
+**Probe C — the eight no-UoW cases, where NO natural red exists and none was invented.** The branch
+already behaves correctly, so writing a test for it cannot fail first; what CAN be measured is
+whether the cases would catch a divergence. In `RecordChannelPublicationAttemptUseCase`,
+`return await doWork()` was replaced by
+`return err(new UseCaseError("no transaction seam", USE_CASE_ERRORS.INTERNAL_ERROR))` — the
+"fail closed without a seam" shape a future author might reasonably add:
+
+```text
+ × answers a domain refusal exactly as the transactional path does, and writes nothing
+ × answers a save failure exactly as the transactional path does
+      Tests  2 failed | 13 passed (15)
+```
+
+Restored and verified: `packages/core/posts/src/RecordChannelPublicationAttemptUseCase.ts`
+`5b833619c7d265ed72c917970a8d474b6b2d4d6388cd35ffa81dd559e2adbd95`, `sha256sum -c` → `OK`. The other
+three use cases carry the identical branch and the identical pair of cases; one probe is reported
+rather than four identical ones.
+
+### Decisions the design does not make, taken here and named
+
+1. **A confirmation is idempotent only against the CUSTOMER'S own act.** D4 says `applied: false` on
+   a second call and design.md:246 says 409 `NOTHING_PENDING` when nothing is live — but the
+   aggregate answers `applied: false` for BOTH, so the use case had to pick a discriminator. It reads
+   `retractionClearedCause === MANUALLY_REMOVED`. **Rejected**: treating every non-pending channel as
+   an idempotent success, which would report "your confirmation was recorded" to a customer
+   confirming a channel that published cleanly, for an act no record holds. The cost of the rule
+   chosen is that a channel cleared by N-COR-10's `RETRACTED` path answers 409 to a customer who
+   clicks afterwards; that path has **no production caller in N-COR-8** (design.md:171), so the
+   decision is cheap today and is flagged here for N-COR-10 rather than discovered by it.
+2. **`NOTHING_PENDING` is carried as a value, not a message prefix.** The `1c-1c` gate's W3 is exactly
+   this defect one refusal over — a route left matching on a message PREFIX — and its owner is
+   `1c-2b`. Repeating the shape here and paying for it later would be the worse trade, so this
+   refusal ships with an exported discriminator and `refusalOf()` reads it by value (the `domainCode`
+   reasoning: `instanceof` cannot survive this package's dual conditional export). **Rejected**: a
+   distinct `USE_CASE_ERRORS` member, which would change the HTTP mapping of an existing code family
+   for every other consumer.
+3. **`hasLiveContent` is on both output DTOs.** **Rejected**: letting the caller re-read the post,
+   which buys the same value at the price of a second query that can fail. It is reported on the
+   EXPIRE path too, where it is always `true`, because "the lock did not release" is the property
+   that path deliberately does not change and a caller should be able to see it rather than infer it.
+4. **`now` and `window` are REQUIRED on the expire input.** D4's signature has them non-optional and
+   a default would let the sweep's discovery and the root's re-assertion disagree — the precise thing
+   S-a-2 makes the window an argument to prevent.
+5. **`publicationWriteOutcome.ts` stays out of the barrel.** It is the writers' shared translation,
+   not package surface; the four use cases are exported, the helper they share is not.
+
+### A design line this unit falsifies
+
+**design.md:189 — "`save(post)` (full) additionally upserts the records; `SchedulePostUseCase` keeps
+it" — is no longer true of the tree.** The 1b gate's correction W1 reverted both `upsertPublications`
+calls out of `doCreate` and `doUpdate` with its own recorded red, leaving the narrow
+`savePublication` as the only production writer of the record. Measured at this tip:
+`tx.postChannelPublication.upsert` appears in `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`
+and nowhere else. The design sentence is not amended here — a design revision is not this unit's to
+write — but it is named so the next reader of T1c.6 does not plan against it. It is the direct cause
+of this unit's blocker.
+
+### Deleted or renamed members — the mandatory `rg` over `**/tests/**`
+
+| Member                                        | Search                                                                           | Result                                                                                                                                                                                                                                                                                                                         |
+| --------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `INVALID_STATE_TRANSITION_CODE` (local const) | `rg -n 'INVALID_STATE_TRANSITION_CODE' apps packages infra --glob '**/tests/**'` | 3 hits, all in the NEW `packages/core/domain/tests/unit/domainErrorCodes.test.ts`. It was module-private, so no double held it                                                                                                                                                                                                 |
+| `SchedulePostUseCase`'s transaction seam      | `rg -n 'new SchedulePostUseCase' apps packages infra`                            | **ONE** production construction site (`setupPostUseCases.ts:141`) — corrected after the gate; `setupRecurringPostUseCases.ts` RESOLVES the token rather than constructing, so it is a consumer, not a second site — and one test file, which constructed it WITHOUT a unit of work before this unit. No existing double breaks |
+
+`executeResultInTransaction` is a REQUIRED member of the `UnitOfWork` port
+(`packages/core/domain/src/repositories/Repository.ts:204`) and `PrismaUnitOfWork` implements it
+(`:136`), so the migration reaches no double that lacks it. **The nesting shape is UNCHANGED**:
+`executeResultInTransaction` is implemented on top of `executeInTransaction`, which has always opened
+its own `$transaction`, so the recurrence path's nested transaction behaves exactly as it did — what
+changes is that an inner failure now rolls that inner transaction back instead of committing it.
+
+### Doubles added or updated
+
+| Double                                              | Where                                                  | Why                                                                                                                |
+| --------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `createRecordingUnitOfWork`                         | `apps/api/tests/unit/application/postUseCases.test.ts` | NEW. Records WHICH seam was opened and what rolled back — the only way to see the ADR-0023 difference from outside |
+| `makePostRepo` / `makeRecordingUow` (two new files) | the two new `@core/posts` suites                       | The `1c-1c` shape, unchanged, including the narrow save's edit tripwire                                            |
+
+### TDD cycle evidence
+
+| Task          | Test file                                                        | Layer | Safety net | RED                                                                | GREEN            | TRIANGULATE                                                                                                                                                        | REFACTOR                                     |
+| ------------- | ---------------------------------------------------------------- | ----- | ---------- | ------------------------------------------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| W4 (at T1c.3) | `packages/core/domain/tests/unit/domainErrorCodes.test.ts`       | Unit  | ✅ 184/184 | ✅ `+ 'INVALID_STATE_TRANSITION' - undefined`                      | ✅ 3/3           | ✅ both discriminators against real errors, plus the distinctness the FORBIDDEN/CONFLICT fork needs                                                                | ➖ nothing to reshape                        |
+| T1c.3 / T1c.4 | `packages/core/posts/tests/unit/confirmManualRetraction.test.ts` | Unit  | ✅ 58/58   | ✅ `Cannot find module '…/ConfirmManualRetractionUseCase.js'`      | ✅ 13/13         | ✅ 13 cases: clears with cause, re-drivable, after expiry, 404 ×2, 409, duplicate, CAS, other save failure, 2 pure refusals, 2 no-UoW                              | ✅ `answer(applied)` closure, one ok-payload |
+| T1c.3 / T1c.4 | `.../expireRetractionActionWindow.test.ts`                       | Unit  | ✅ 58/58   | ✅ `Cannot find module '…/ExpireRetractionActionWindowUseCase.js'` | ✅ 15/15         | ✅ 15 cases: the window pair at one `now`, keeps fragments + lock, second tick, never-opened, 404 ×2, NaN, negative, CAS, other failure, 2 pure refusals, 2 no-UoW | ✅ same `answer(applied)` shape              |
+| T1c.4 (R3)    | the two `1c-1c` suites                                           | Unit  | ✅ 86/86   | ➖ none available (existing branch) — probe C measures instead     | ✅ 90/90 package | ➖ two cases per use case                                                                                                                                          | ➖                                           |
+| T1c.6 (seam)  | `apps/api/tests/unit/application/postUseCases.test.ts`           | Unit  | ✅ 45/45   | ✅ `expected [] to have a length of 1`                             | ✅ 47/47         | ✅ commit path and abort path                                                                                                                                      | ➖ nine lines replaced by one call           |
+
+### Gates
+
+| Gate                                                                               | Result                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@core/domain` vitest                                                              | **10 files, 187 passed** (baseline 9 / 184)                                                                                                                                                                                                                                                                                                                          |
+| `@core/posts` vitest                                                               | **6 files, 90 passed** (baseline 4 / 58)                                                                                                                                                                                                                                                                                                                             |
+| `tsc --noEmit` `@core/domain` · `@core/posts` · `apps/api` (6144)                  | **0 · 0 · 0**, each exit code read directly off `tsc`, never through a pipe                                                                                                                                                                                                                                                                                          |
+| `tsc -p` over `@core/posts` `src` + `tests` (throwaway probe config)               | **`TSC_OWN_EXIT=0`** — no repo tsconfig opens `tests/**`, so this is the only thing that type-checks the new suites. The config lives in the scratchpad, never in the repo                                                                                                                                                                                           |
+| `apps/api` unit tier, full, once                                                   | **586 files, 9118 passed, 0 failed, 0 skipped**, exit 0                                                                                                                                                                                                                                                                                                              |
+| `integration:saga-recovery` (real Postgres + Redis, the per-tip guard)             | **# tests 33 · # pass 33 · # fail 0 · # cancelled 0 · # skipped 0**, runner exit 0 — the previous tip's count, reached                                                                                                                                                                                                                                               |
+| §10.2's PR-1c fitness list (#1, #6, #21, #22, #7, #11, #16, #23, #40 A+B, #41, #4) | **all 0** — and the reason is structural rather than lucky: this candidate touches ZERO files under `apps/api/src`, `apps/workers/src`, `packages/adapters/` or `infra/`, which is the entire scope of #1/#6/#21/#22/#11/#16/#23/#41 and of #40 Part A. The row is listed because a fitness list the gate ran and the ledger did not name reads as a list nobody ran |
+
+### Budget — measured, and the fourth consecutive under-count
+
+Re-measured after the gate's nine corrections; the pre-correction figures were CODE 561 /
+EVIDENCE 1088 / docs 361, which the gate confirmed.
+
+| File                                                                  | Stream   | Changed lines |
+| --------------------------------------------------------------------- | -------- | ------------: |
+| `packages/core/posts/src/ExpireRetractionActionWindowUseCase.ts`      | CODE     |       **237** |
+| `packages/core/posts/src/ConfirmManualRetractionUseCase.ts`           | CODE     |       **227** |
+| `packages/core/posts/src/retractionRefusals.ts`                       | CODE     |        **76** |
+| `packages/core/domain/src/entities/ChannelPublication.ts`             | CODE     |        **27** |
+| `packages/core/posts/src/index.ts`                                    | CODE     |        **22** |
+| `packages/core/domain/src/errors/DomainError.ts`                      | CODE     |        **16** |
+| `packages/core/posts/src/SchedulePostUseCase.ts`                      | CODE     |        **13** |
+| `packages/core/domain/src/aggregates/post/PostPublicationMethods.ts`  | CODE     |         **6** |
+| `packages/core/posts/src/publicationWriteOutcome.ts`                  | CODE     |         **5** |
+| `packages/core/domain/src/errors/index.ts`                            | CODE     |         **1** |
+| `packages/core/posts/tests/unit/confirmManualRetraction.test.ts`      | EVIDENCE |       **561** |
+| `packages/core/posts/tests/unit/expireRetractionActionWindow.test.ts` | EVIDENCE |       **445** |
+| `apps/api/tests/unit/application/postUseCases.test.ts`                | EVIDENCE |        **91** |
+| `packages/core/domain/tests/unit/channelPublication.test.ts`          | EVIDENCE |        **52** |
+| `packages/core/domain/tests/unit/domainErrorCodes.test.ts`            | EVIDENCE |        **50** |
+| `packages/core/posts/tests/unit/openPublicationEpisode.test.ts`       | EVIDENCE |        **42** |
+| `.../recordChannelPublicationAttempt.test.ts`                         | EVIDENCE |        **32** |
+
+| Stream       |                                                                                                                                                                         Measured | Forecast (§9.4.1) | Verdict                                       |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | ----------------: | --------------------------------------------- |
+| **CODE**     |                                                                                                                                                                          **630** |               371 | **1.70× over** — `size:exception` recommended |
+| **EVIDENCE** | **1273** tests, **1848** with this ledger + `tasks.md` + the backlog row (docs 575, measured by the orchestrator's numstat: the first pass carried `tasks.md` at its earlier 50) |               566 | **2.25× over** on tests alone                 |
+
+**630 CODE is 1.58× the hard 400 budget, and it does NOT include T1c.6's record write** — the half
+that is blocked would only have added to it. The cause is the same one `1c-1c` named and is now
+measurable as a pattern rather than a surprise: roughly 190 of the 540 lines in the three new
+`@core/posts` files are JSDoc that `CODING_STANDARDS §Documentation` makes mandatory on every file
+and every public member, and the forecast costs bodies, not the canon they are written under.
+`1c-1a` +135%, `1c-1b` +83%, `1c-1c` +54%, this one **+70%**.
+
+**The +51% → +70% move is itself worth reading**: the corrective pass added 69 CODE lines, and 33 of
+them are two DOMAIN fixes (`ChannelPublication` + its facet) that no forecast line item could have
+predicted, because they are defects the unit's own tests found in code it did not write. The
+line-item method costs what a task PLANS to write; `1c-1a` proved it misses deletions, and this one
+proves it also misses the repairs a task's evidence turns up. **Nothing was compressed to fit**: no
+comment, JSDoc or case was removed to reach a number.
+
+### For Edward — the T1c.6 blocker, and the three shapes it leaves
+
+> **T1c.6 cannot persist the declared target set without a decision that is not this unit's to
+> take.** The task says `SchedulePostUseCase` calls `declarePublicationTargets` after
+> `post.schedule()` and that REC-1's validated identities are PERSISTED. The mechanism the design
+> named for that — the full `save()` upserting the records (design.md:189) — was DELETED by the 1b
+> gate's own correction W1, which reverted both `upsertPublications` calls out of `doCreate`/`doUpdate`
+> with a recorded red and named T1c.6 as the owner of what to do next. So the task's premise is
+> stale, and every substitute costs something:
+>
+> - Calling `declarePublicationTargets` and then `save(post)` would mutate the aggregate and **drop
+>   the records in silence** — measured: `tx.postChannelPublication.upsert` exists only in
+>   `PostPublicationWrites.ts`.
+> - Routing the write through `savePublication` **refuses every recurring and every bulk-scheduled
+>   post**. `savePublication` refuses `undefined` and `__system__` (T1c.4a (v)), and
+>   `RecurrenceScheduler.tick()` runs the whole chain inside `withSystemContext("recurrence-sweep")`
+>   (`apps/api/src/recurring/RecurrenceScheduler.ts:82` → `CreatePostFromRecurrenceUseCase` →
+>   `PostCreationAdapter.schedulePost` → `SchedulePostUseCase`), while `bulkScheduleWorker.ts` binds
+>   no context at all (SMELL-145).
+> - **Any two-save shape needs a `clearDomainEvents()` between the saves, and without it the
+>   transaction ABORTS.** The full save writes `aggregate.domainEvents` to the outbox
+>   (`PrismaPostRepository.ts:560` / `:698`) and so does the narrow one
+>   (`PostPublicationWrites.ts:244`); `PrismaOutboxWriter.ts:55-57` inserts with `createMany` keyed on
+>   `id: event.eventId` and **no `skipDuplicates`**, so the second insert is a P2002 on the same ids.
+>   Not a torn write, a hard failure. The CAS is fine either way — `doUpdate` calls
+>   `aggregate.incrementVersion()` (`PrismaPostRepository.ts:613`), so the narrow save's compare
+>   matches — but the schedule then costs a second version bump.
+>
+> **The three shapes. The honest framing of (c) is the one that changed after the gate.**
+>
+> **(a) Re-add `upsertPublications` to the full save**, this time with the tests and the refusals 1b's
+> W1 said were missing. One write, one version bump, matches design.md:189 literally — but it
+> re-creates a SECOND production writer of the record and reverses a landed gate decision. W1's
+> objection splits: the edit-tripwire half **dissolves** (the tripwire exists because the narrow save
+> writes no content; the full save writes content), the projection-invariant half **does not** —
+> `savePublicationRecord` calls `assertPublicationProjection()` (`PostPublicationWrites.ts:272-275`)
+> and the full save calls nothing equivalent. Cost: invert or delete the red W1 left behind
+> (`apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts:1242`), add the invariant to
+> `doCreate`/`doUpdate`, and re-decide W1's ledger row.
+>
+> **(b) Keep the narrow save as the only writer and convert the recurrence sweep to a per-tenant
+> re-read** — the shape the retraction sweep already uses (design.md:317 step 2). Canon-clean and it
+> fixes a real asymmetry, but it needs `accountId` on `ProcessRecurrenceUseCase`'s output, it needs
+> the **bulk worker bound too** (SMELL-145), it is in no 1c task, and it still needs the full save for
+> `scheduledAt` — so the shape is full save → `clearDomainEvents()` → narrow save, inside one
+> `executeResultInTransaction`.
+>
+> **(c) Is NOT "defer a `[static]` scenario" — it is dropping REC-1 for schedule mode.** The earlier
+> framing understated it and the gate was right to say so. REC-1 is **MERGE-BLOCKING**
+> (`specs/post-channel-publication-record/spec.md:88`: "Scheduling a post SHALL persist one
+> publication record per intended channel … the record set SHALL be the system's answer to 'where was
+> this post meant to go'"), its FIRST scenario is `[integration]` (`:103`: three channels scheduled →
+> three records read back), and `design.md:523` assigns REC-1 ×3 `[integration]` to T1c.6. Under (c) a
+> scheduled post holds ZERO records until the saga runs, so those three scenarios fail and the
+> requirement's own sentence is false for the whole interval. It also blurs REC-13: "no record" stops
+> meaning "a legacy post from before this change" and starts meaning "or any post scheduled normally
+> and not yet published", so the fail-closed refusal can no longer name its own cause.
+> **What (c) does NOT cost, measured**: no reader breaks. The gate found no C3 guard, `/start`
+> admission, sweep or content-lock path that depends on the record between scheduling and publishing
+> — so (c) is cheap in code and expensive in contract, which is exactly the trade that should be
+> stated rather than buried.
+>
+> **The product question under (c), which is not a technical one**: for a post scheduled for later,
+> does the customer see WHERE IT IS GOING? REC-1 says yes and makes the record the answer. (c) says
+> no for the entire interval between scheduling and publishing.
+>
+> Nothing in this unit was changed in anticipation of any of them.
+
+### What is deliberately NOT in this unit
+
+T1c.6's `declarePublicationTargets` call (blocked, above); T1c.7's command token, handlers and
+container registration (`1c-1e`); the confirm ROUTE and the sweep that call these two use cases
+(`1c-3a` and `1c-3b`, orders 6 and 7). No DI token and no route was added here, so both new use
+cases remain unreachable from production at this tip — the same property the order exists to keep,
+re-measured below.
+
+### Unreachable by claim — RE-MEASURED at this tip, not inherited
+
+§9.4.1's ordering audit row 3 claims the retraction pair is unreachable because its only planned
+callers are T1c.15 (order 6) and T1c.16 (order 7). Measured after the code landed: the two classes
+are named by 4 files — the two that declare them, their two suites — plus the barrel this unit adds.
+**The barrel entry is the one thing that changed**, and it makes them IMPORTABLE from `apps/api`
+without making them REACHABLE: no container registration, no route, no handler and no scheduler
+registration names either class, so nothing constructs one. That is a weaker claim than `1c-1c`'s
+and it is stated as the weaker claim rather than copied forward.
+
+### Follow-up after the fresh-context gate of `1c-1d` — PASS WITH WARNINGS, nine items
+
+Every gate and budget figure was confirmed (CODE 561 / EVIDENCE 1088 / docs 361) and the T1c.6
+blocker was confirmed independently. No Critical. The findings are what the unit stopped one
+measurement short of, and three of them are defects in code this unit shipped.
+
+| Id     | Finding                                                                                                                                                                                                                                        | Disposition                                                                                                                             |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **C1** | Shape (c) was framed as deferring a `[static]` scenario. REC-1 is MERGE-BLOCKING with a `[integration]` first scenario, and `design.md:523` assigns it ×3 to T1c.6 — so (c) DROPS a requirement for schedule mode rather than deferring a test | **FIXED** — the `For Edward` block is rewritten above, with the product question it was hiding                                          |
+| **W1** | `refusalOf` compared against ONE literal while its signature promised the union: a second `RETRACTION_REFUSALS` member compiles clean and comes back `undefined` — the W3 defect it exists to prevent                                          | **FIXED** — the reader is now derived from the set; red recorded below                                                                  |
+| **W2** | The ROOT's cutoff did not fail closed on a non-finite or negative window, while two JSDoc blocks said it did. `x < NaN` is false, so the record EXPIRED on it                                                                                  | **FIXED** at the entity, where ARCHITECTURE_CANON puts the invariant; both JSDoc sentences made true                                    |
+| **W3** | `openEpisode` reset four fields but not `_retractionClearedCause`, so confirm → re-drive → confirm answered 200 instead of 409: the idempotency discriminator was not episode-scoped                                                           | **FIXED** — red at the entity AND at the use case, below                                                                                |
+| **W4** | `makePublishedPost()` built a declared-but-unresolved channel, not a published one; and decision (1)'s named cost (a `RETRACTED` clearance answers 409) had no test at all                                                                     | **FIXED** — the fixture is split in two and both states are now exercised; the `markRetractionOutcome` case is added with its own probe |
+| **W5** | Probe C ran the substitution in ONE of four use cases and inferred the rest                                                                                                                                                                    | **FIXED** — run in all four, four restores, transcript below                                                                            |
+| **W6** | The bulk worker binds no tenant context while its siblings do; `accountId` is declared on its input and never read                                                                                                                             | **BACKLOG, not fixed here** — `docs/reports/roadmap-detected-smells-backlog.md`, **SMELL-145**                                          |
+| **W7** | `RETRACTION_REFUSALS` / `RetractionRefusal` / `refusalOf` were package surface living inside a use-case file                                                                                                                                   | **FIXED** — new `packages/core/posts/src/retractionRefusals.ts`; T1c.11 told to extend it, not clone it                                 |
+| **W8** | `as any` went 8 → 12 in `postUseCases.test.ts`, unmarked, and one of them coerced a structurally complete double                                                                                                                               | **FIXED** — the `UnitOfWork` cast is gone (the double is typed as the port), the other three are marked                                 |
+| **W9** | The ledger said `new SchedulePostUseCase` had "2 production sites"; there is ONE. The gates table omitted §10.2's PR-1c fitness list                                                                                                           | **FIXED** — both corrected above                                                                                                        |
+
+**W1's red — a declared member the reader silently drops.** With the literal comparison, adding a
+second member to the set (the probe used `CHANNEL_HAS_LIVE_FRAGMENTS`, which T1c.11 will really add)
+is accepted by the error class, satisfies the return type, keeps `tsc` at 0, and comes back
+`undefined`:
+
+```text
+ FAIL  tests/unit/confirmManualRetraction.test.ts > refusalOf > recognises the declared refusal
+   CHANNEL_HAS_LIVE_FRAGMENTS
+AssertionError: Expected values to be strictly equal:
++ actual - expected
++ undefined
+- 'CHANNEL_HAS_LIVE_FRAGMENTS'
+      Tests  1 failed | 16 passed (17)
+```
+
+The permanent case iterates `Object.values(RETRACTION_REFUSALS)` instead of naming a member, so the
+coverage is a property of the code. Probe restored byte-exact
+(`3ef82d80f44a01b4…`, `sha256sum -c` → OK), the derived-set fix applied, and the probe RE-RUN against
+the fix: **17/17**, then restored again (`add1704afd4d5225…` → OK).
+
+**W2's red — at the entity this time, which is where probe A's hole was.** The use case's refusal
+was real but it was the only one; the record itself expired on both values:
+
+```text
+ FAIL  tests/unit/channelPublication.test.ts > ChannelPublication > the action window > refuses a
+   window that is not a finite number instead of expiring on it
+AssertionError: the window the malformed argument would have closed is still open
++ actual - expected
++ 2026-03-05T13:00:00.000Z
+- undefined
+
+ FAIL  … > refuses a negative window instead of expiring on it
++ 2026-03-01T09:00:00.000Z
+- undefined
+      Tests  2 failed (49)
+```
+
+The negative case is the sharper one: `window: -1` expires the record at the very moment its window
+OPENED. The entity now answers `err(InvariantViolationError)` rather than `applied: false`, and the
+asymmetry is deliberate — `applied: false` means "the RECORD says there is nothing to do", while an
+unusable duration is a fact about the CALLER. Collapsing them would let a misconfigured sweep report
+`skipped` on every row forever, which is indistinguishable from a quiet night.
+
+**W3's red — the discriminator was not episode-scoped.** At the entity:
+
+```text
+ FAIL  tests/unit/channelPublication.test.ts > ChannelPublication > clearing live fragments >
+   returns the clearance FORGOTTEN once a new episode opens over it
+AssertionError: the previous episode's clearance does not describe this one
++ actual - expected
++ 'MANUALLY_REMOVED'
+- undefined
+```
+
+and at the use case, where the consequence is the customer-visible one:
+
+```text
+ FAIL  tests/unit/confirmManualRetraction.test.ts > … > refuses a confirmation of a channel
+   RE-DRIVEN since the customer cleared it
+AssertionError: there is nothing live on the re-driven channel to confirm
+- Expected  true
++ Received  false
+```
+
+`openEpisode` now resets the clearance pair beside the seven fields it already cleared. Checked
+before changing it: `strand()` already resets the same pair (`ChannelPublication.ts:890-891`), so
+this is the entity's own convention through its other door; `alertTransition`'s resolve branch
+cannot read a stale cause because `openEpisode` clears `_retractionAlertHash` first; and
+`UNRESOLVED_FORBIDDEN_FACTS` does not list the pair, so `reconstitute` is unaffected. **Should the
+pair join `UNRESOLVED_FORBIDDEN_FACTS`? Asked, and closed as NO by the re-gate, for two measured
+reasons.** (1) The list cannot take it without changing its meaning: it is typed
+`satisfies readonly (keyof ChannelPublicationState & (keyof PublishedFacts | keyof ExcludedFacts))[]`
+with a compile-time coverage assertion (`ChannelPublication.ts:173-180`), and the clearance pair is
+top-level state, not a member of either facts interface — adding it fails `tsc` until the constraint
+and the coverage check are both loosened, i.e. "settled facts an unresolved record cannot hold" would
+have to mean something else. (2) The remedy is heavier than the defect: the list refuses at
+RECONSTITUTION, so a legacy row carrying the pair would make the whole post fail to hydrate — a
+fail-closed on the entire aggregate for a field one use case reads and no view exposes. The state is
+also unreachable in memory (`clearLiveFragments` leaves `_excluded` intact, so a confirmed channel is
+EXCLUDED, not UNRESOLVED) and the only door to it is a row written by a tip before this correction,
+which no released capability produced. If it ever exists, the proportionate instrument is a
+one-column data migration or an episode-scoped read, not the reconstitution refusal.
+
+**W3's fixture correction, same class as `1c-1c`'s two.** The first draft of the use-case case
+re-drove with `enterPublishing: false` and failed at the FIXTURE line, not the subject: the derived
+word after a stranding is `FAILED`, and a delayed re-drive of a `FAILED` post is refused by the
+aggregate (D9 / Q14). Production was right, the test was wrong; the case re-drives through
+publish-now, which is the only re-drive route.
+
+**W4's probe — the decision that case exists to pin.** Widening the discriminator to
+`retractionClearedCause !== undefined` (the alternative decision (1) rejected) turns the new case
+green-to-red in the direction that matters:
+
+```text
+ FAIL  … > refuses a confirmation of a channel a RETRACTION already cleared
+AssertionError: a clearance nobody's confirmation produced is not a duplicate
+- Expected  true
++ Received  false
+```
+
+Restored byte-exact (`419cd2e812263bca…` → OK).
+
+**W5 — probe C, now in all four.** The same substitution
+(`return await doWork()` → a "no transaction seam" error) applied to all four use cases at once:
+
+```text
+ ❯ tests/unit/expireRetractionActionWindow.test.ts   (15 tests | 2 failed)
+ ❯ tests/unit/confirmManualRetraction.test.ts        (19 tests | 2 failed)
+ ❯ tests/unit/recordChannelPublicationAttempt.test.ts (15 tests | 2 failed)
+ ❯ tests/unit/openPublicationEpisode.test.ts         (20 tests | 2 failed)
+      Tests  8 failed | 88 passed (96)
+```
+
+Two per use case, eight in all — the inference in the first hand-back is now a measurement. All four
+restored byte-exact in one `sha256sum -c` pass.
+
+### Gates re-run after the nine corrections
+
+| Gate                                                                                                         | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@core/domain` vitest                                                                                        | **10 files, 190 passed** (was 187; +3 entity cases)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `@core/posts` vitest                                                                                         | **6 files, 96 passed** (was 90; +6 cases)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `tsc --noEmit` `@core/domain` · `@core/posts` · `apps/api` (6144)                                            | **0 · 0 · 0**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `apps/api` unit tier, full                                                                                   | **586 files, 9118 passed, 0 failed, 0 skipped**, exit 0 — re-run because `openEpisode` changed domain behaviour a consumer could see. This is the SECOND run; see the incident below                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `eslint --max-warnings 0` on every changed `.ts` · `prettier -c` on every changed file · `pnpm format:check` | **0** · clean · clean                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `pnpm check:circular`                                                                                        | clean, **1607** files (the first pass wrote 1606, the count before `retractionRefusals.ts` existed — a copied-forward number, re-measured by the re-gate)                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| fitness #3 / #4 / #5 / #8 / #9 / #10 / #32 · #40 A+B                                                         | 0 · 0 · 0 · 0 · 0 · 0 · 0 · A 3 seams (floor 3) / 0, B 14 sites (floor 10) / 0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `integration:saga-recovery`                                                                                  | NOT re-run after the corrections, on a measurement rather than an assertion: `PostAggregate.openPublicationEpisode` has exactly ONE production caller tree-wide (`OpenPublicationEpisodeUseCase.ts:230`) and the entity's window guard is reachable only through `ExpireRetractionActionWindowUseCase` — both unregistered (zero hits in `apps/api/src` + `apps/workers/src`), so no production path, saga or otherwise, can reach either changed method at this tip; 33/33 stands from the pre-correction tip, and the api unit tier (where a domain consumer would notice) WAS re-run |
+
+**Incident on the FIRST api-tier run, recorded rather than re-rolled.** It exited **1** with **zero
+failed tests**: `Test Files 585 passed (586) · Tests 9116 passed (9118) · Errors 1 error`, the error
+being `[vitest-pool]: Worker forks emitted error … Caused by: Error: write EPIPE`. A worker fork died
+and took one file's two results with it, so that run is a NON-RESULT — neither a pass nor a failure —
+and it is written down because a gate that exits 1 and is quietly re-run until green is not a gate.
+It did NOT reproduce: the second run reached **586 / 9118, exit 0**, the exact count of the
+pre-correction tip, over the identical tree. Host memory at the re-run: 9216 MB total, 7840 MB
+available, so exhaustion is not the explanation and **the cause is UNDIAGNOSED**. What rules this
+candidate out: a behavioural break from the `openEpisode` change would surface as a failing assertion
+in a named suite, not as a dead IPC channel, and both runs bracket the same bytes. The re-gate added
+the measurement that names the victim's shape: the failed run lost ONE file and exactly TWO tests
+(585/586, 9116/9118 — collected totals, so the dead file was collected and held two cases), and no
+file this candidate touches has two tests (`postUseCases.test.ts` has 47; the `packages/core` suites
+are not in the api tier). The fork that died was running a file this candidate does not touch. Loop
+left open: the file is not named — the run log was not kept. If EPIPE recurs on this tier it gets a
+backlog row of its own (a known vitest-forks class: worker crash / pool teardown race), not a
+paragraph per unit; this is the second infrastructure non-result this change has recorded.
+
+### RDD receipt — the committed range `8454bab9` → `6e5408ac`
+
+Lineage `review-ac9ff6594d2303bc`, MEDIUM tier, ONE reliability lens. The review reached
+**approved** on its first admitted capture, the acknowledgement was executed exactly once and the
+authority is **burned**; **zero findings** — no Critical, no WARNING, no SUGGESTION — so nothing is
+carried forward from it to another unit.
+
+---
+
+## PR 1c — grandchild `1c-1d`, SECOND HALF (T1c.6 + T1c.6a + T1c.6b + T1c.6c) — COMPLETE
+
+Same branch, continuing from `6e5408ac`. Subject: **Edward's shape (b) with a LOUD refusal**, decided
+2026-09-20 after the first half reported T1c.6's record write as blocked. The blocker is resolved,
+not worked around: `savePublication` stays the only writer of publication records, the schedule path
+persists the declared target set through it, both schedulers that reach that path are bound per
+tenant, and the FULL save refuses rather than dropping records in silence.
+
+### The ordering constraint, solved by measurement rather than by argument
+
+The instruction posed it as a possible dead end: the narrow save carries a tripwire, the full save
+was to gain its mirror, and a sequence might exist that satisfies neither. Two measurements settled
+it, and the first CORRECTS the instruction's own premise.
+
+**1. `PUBLICATION_TRIPWIRE_EVENTS` is not what the brief described.** It was described as "the set of
+publication-family events the narrow save is FOR". Measured
+(`PostPublicationWrites.ts:57-61`), it is the set of **EDIT** events the narrow save REFUSES —
+`PostContentUpdated`, `PostMediaAdded`, `PostMediaRemoved` — because the narrow save writes no
+content statement and would lose the edit. So the narrow save's tripwire never fires on a
+publication event at all, and "full save → clear → declare → narrow save" cannot refuse at step 1
+for the reason the brief anticipated.
+
+**2. `declarePublicationTargets` emits NO domain event.** It calls `replaceRecords` and `touch` and
+returns (`PostPublicationMethods.ts:90-114`). Two consequences, and the second is the load-bearing
+one:
+
+- the declaration adds nothing to the outbox, so ONE `clearDomainEvents()` before it is sufficient;
+- **an event-based refusal on the full save cannot see the drop it exists to prevent.** The brief
+  proposed the mirror as "the full save refuses an aggregate whose pending events include a
+  publication-family event". Against `declarePublicationTargets()` + `save()` — the exact case
+  Edward's item (5) names — that check passes, because there is no event. Implementing it would have
+  produced a refusal that looks like a guard and guards nothing.
+
+So the refusal keys on the RECORDS, not on the events: the aggregate tracks whether it owes a
+publication write and the full save asks it. **The sequence, and why each step cannot move:**
+
+| #   | Step                                    | Why it is there                                                                                                                                                                                                                                                                           |
+| --- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `post.schedule()`                       | emits `PostScheduled`; changes no record                                                                                                                                                                                                                                                  |
+| 2   | FULL save                               | writes `scheduledAt`, content, media, and `PostScheduled` to the outbox. Must precede the declaration, because it refuses an aggregate that owes a publication write                                                                                                                      |
+| 3   | `dispatchAll` + `clearDomainEvents()`   | the outbox already holds those ids. Both adapters hand `aggregate.domainEvents` to `PrismaOutboxWriter`, which inserts with `createMany` keyed on `id: event.eventId` and NO `skipDuplicates` — carrying them into step 5 is a **P2002 that aborts the transaction**, not a duplicate row |
+| 4   | `declarePublicationTargets(channelIds)` | records the validated identities. Emits nothing, so step 3 stays sufficient                                                                                                                                                                                                               |
+| 5   | NARROW save                             | the only writer of the records. Carries zero events, so the edit tripwire is satisfied by construction, and it clears the aggregate's debt                                                                                                                                                |
+
+Both tripwires hold at their own save, every domain event reaches the outbox exactly once, and both
+saves run inside the ONE `executeResultInTransaction` the use case already opened. Pinned by
+`writes the full save FIRST and the narrow save SECOND, each carrying its own events`, which counts
+event ids across both writes and asserts the set has no duplicate.
+
+### What each mechanism is, as built
+
+| Mechanism                     | As built                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T1c.6 — the schedule path     | the five-step sequence above. The parsed `ChannelId[]` from the existing validation loop is now KEPT rather than discarded — REC-1's `[static]` scenario is satisfied by the identities that were already validated, not by re-parsing them                                                                                                   |
+| T1c.6c — the loud refusal     | `PostAggregate._publicationsDirty`, set by the publication context's `replaceRecords` and by the five facet functions that mutate a RECORD, read by `PrismaPostRepository.save` (which answers `err(InvariantViolationError)` naming `savePublication`, before any statement) and cleared by `writePublicationSave` beside `incrementVersion` |
+| T1c.6a — the recurrence sweep | discovery stays inside `withSystemContext("recurrence-sweep")`; the per-row create-and-schedule chain moved OUT of it into `withTenantContext({ accountId })`. `ProcessedRecurrence` gains `accountId` from the entity that already held it. A row without an account is skipped with a named reason and counted                              |
+| T1c.6b — the bulk worker      | `withTenantContext({ accountId })` around the row, from the payload field that was declared and never read; a payload with no account is refused with a named reason rather than run under the system scope                                                                                                                                   |
+
+### The recorded reds
+
+**T1c.6b** — the row ran with no tenant bound:
+
+```text
+ × runs the use case INSIDE a tenant context bound to the payload's account
+AssertionError: the row runs in the account its payload names
+undefined !== 'a1'
+ × refuses a row whose payload names no account, rather than running unbound
+      Tests  2 failed (8)
+```
+
+**T1c.6a** — the chain ran under the system scope, and the skip path did not exist:
+
+```text
+ × runs the create-and-schedule chain under the ROW's tenant, not the system scope
+AssertionError: expected { account: undefined, system: true } to deeply equal
+                        { account: 'acct-1', system: false }
+ × skips a due recurrence that carries no account, with a named reason
+      Tests  2 failed | 6 passed (8)
+```
+
+**T1c.6c** — the full save accepted an aggregate whose records it would not write:
+
+```text
+ × REFUSES the full save when the aggregate carries publication changes it will not write
+AssertionError: expected true to be falsy
+ × admits the full save for an aggregate whose publication records it did not touch
+TypeError: post.markPublicationsPersisted is not a function
+      Tests  2 failed | 54 passed (56)
+```
+
+**T1c.6** — nothing persisted the targets, and only one save ran:
+
+```text
+ × PERSISTS the validated identities through the narrow save, not only in the DTO
+AssertionError: expected "vi.fn()" to be called once, but got 0 times
+ × writes the full save FIRST and the narrow save SECOND, each carrying its own events
+AssertionError: expected [ 'full' ] to deeply equal [ 'full', 'narrow' ]
+      Tests  2 failed | 47 skipped (49)
+```
+
+### Two corrections the runs forced, both in code this unit wrote
+
+**1. The dirty marker was in the wrong place, and `integration:saga-recovery` is what said so.**
+The first version marked inside the publication context's `touch()`, reasoning that the context is
+built only for the publication facet so marking there covers every mutation and every future one.
+That reasoning is true about REACHABILITY and false about MEANING: `touch()` is the facet's generic
+"something changed" hook, and `markAsPublishedWithoutRecord` calls it while changing the post's WORD
+and no record at all. The publish-now promotion does exactly that and then uses the full save, so
+the refusal fired on a correct caller:
+
+```text
+ integration:saga-recovery   33 tests  10 pass  2 fail  21 cancel  exit 1
+ hookFailed: the pre-crash run must finish cleanly or the replay proves nothing
+             (error=Failed to save the promoted post)
+ + 'FAILED'  - 'COMPLETED'
+```
+
+The marker now keys on RECORD changes: `replaceRecords` (the declaration, which emits nothing) plus
+the five facet functions that mutate a record entity — and NOT `markAsPublished`, `markAsFailed`,
+`startPublishing` or `reconcilePublicationProjection`, which move only the word. After the rework:
+**33/33, exit 0**. The unit tiers were green through both versions; only an end-to-end batch could
+see it, which is the per-tip guard earning its place for the second time in this change.
+
+**2. The REC-1 integration fixture used the wrong enum spelling.** `provider: "x"` against
+`enum Provider { X … }` — `Invalid value for argument 'provider'. Expected Provider.` in the `before`
+hook, which cancels every case in the file. Domain outcome kinds are lowercase and the Prisma enum is
+not, a split the adapter already carries a mapping table for; the suite was written from the domain
+half of it.
+
+### Doubles updated — the mandatory `rg` over `**/tests/**`
+
+| Member                                                                             | Search                                                                    | Result                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ProcessedRecurrence.accountId` (new REQUIRED field)                               | `rg -n 'recurringPostId: "rec-' apps packages infra --glob '**/tests/**'` | 4 fixtures in `apps/api/tests/unit/recurring/RecurrenceScheduler.test.ts` (`rec-1`, `rec-2`, `rec-ok`, `rec-fail`) — all four updated. `CreatePostFromRecurrenceUseCase.test.ts:79` builds that use case's INPUT, not a `ProcessedRecurrence`, and is correctly untouched                                                                                                        |
+| `PostAggregate.markPublicationsPersisted` / `hasUnsavedPublications` (new members) | `rg -n 'savePublication' apps packages --glob '**/tests/**'`              | the `PostRepository` doubles that stub `savePublication`. `postUseCases.test.ts`'s double was updated to implement BOTH halves of the production contract — refuse on `hasUnsavedPublications()`, clear on a narrow save — so the suite is tested against the contract rather than a laxer one. The `@core/posts` doubles need neither: those use cases never call the full save |
+| `PublicationContext.markRecordsChanged` (new member)                               | `rg -n 'PublicationContext' apps packages --glob '**/tests/**'`           | zero hits — no test builds a `PublicationContext`; only the root constructs one                                                                                                                                                                                                                                                                                                  |
+
+### The `run_batch` wiring, proved by the runner's own count
+
+Fitness #30's rule is that a suite no `run_batch` names never executes. The new suite is named by a
+new batch, and the proof is the runner's per-batch line rather than an assertion that the line exists:
+
+```text
+  integration:schedule-target-set    3 tests     3 pass  0 fail  0 cancel  0 skip  exit 0  [OK]
+```
+
+It is its OWN batch rather than an append to `integration:repositories`, because its subject is a
+USE CASE's persistence contract rather than a repository's, and a separate batch makes its count
+independently visible — which is what turned the wiring into a measurement here.
+
+### REC-1's three `[integration]` scenarios, and the one asserted in a weaker form
+
+Scenario 1 (three channels → three unresolved records) and scenario 2 (the set is answerable with no
+saga row in existence — asserted by counting `SagaInstance` rows for the post, which is zero) are
+proved in their full form. **Scenario 3 is not, and the suite says so in its own header**: "a channel
+that never ran is recorded, not missing" is exercised in its SCHEDULE-time form, where no job has run
+for any channel. Its post-publish form — one channel of a real publish never reporting — needs the
+worker's attempt writes and belongs to the unit that adds them. A scenario asserted in a weaker form
+than its text is a scenario half-proved, and naming that is cheaper than discovering it later.
+
+### Design-silent decisions
+
+1. **The refusal keys on records, not events** — forced by measurement (above). The rejected
+   alternative is the one the brief proposed.
+2. **`markRecordsChanged` is a context method, not a `touch()` side effect** — the first shape was
+   the second, and the integration tier refuted it. The separation states that changing the WORD and
+   changing a RECORD are different facts, which is the whole distinction between the two saves.
+3. **The recurrence binding is SEQUENTIAL to discovery, not nested inside it** — not a style choice:
+   `resolveGucScope` answers the system sentinel whenever a system context is present, so a nested
+   `withTenantContext` binds `__system__`.
+4. **The bulk worker refuses rather than skipping** an account-less payload: a skip resolves the job
+   and loses the row silently; a throw lets BullMQ retry and then routes it to the DLQ, which is
+   where a payload that cannot be processed belongs.
+5. **T1c.6b binds at the WORKER, not in `ProcessBulkScheduleRowUseCase`** — the use case is
+   `@core/bulk-scheduling` and the tenant context is `apps/api` infrastructure; binding there would
+   put an infrastructure concern in the core and break the layering fitness gates. The three sibling
+   in-process consumers bind at the handler for the same reason.
+
+### Gates
+
+| Gate                                                                                                          | Result                                                                                     |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `@core/domain` vitest                                                                                         | **10 files, 190 passed**                                                                   |
+| `@core/posts` vitest                                                                                          | **6 files, 96 passed**                                                                     |
+| `@adapters/db-prisma` vitest                                                                                  | **70 passed**                                                                              |
+| `tsc --noEmit` `@core/domain` · `@core/posts` · `@core/recurring` · `@adapters/db-prisma` · `apps/api` (6144) | **0 · 0 · 0 · 0 · 0**                                                                      |
+| `apps/api` unit tier                                                                                          | **586 files, 9125 passed, 0 failed**, exit 0 (JSON reporter run; see the EPIPE note below) |
+| DB integration tier, `TIER=pr-integration` through the real runner                                            | **TOTAL: 534 tests, 534 pass, 0 fail, 0 cancel, 0 skip**, exit 0                           |
+| `integration:schedule-target-set` (new)                                                                       | **3 tests · 3 pass · 0 fail · 0 cancel · 0 skip**, exit 0                                  |
+| `integration:saga-recovery` (the mandatory per-tip guard)                                                     | **33 tests · 33 pass · 0 fail · 0 cancel · 0 skip**, exit 0                                |
+| `integration:repositories` (holds the integration `PrismaPostRepository` suite)                               | included in the tier run above, exit 0                                                     |
+
+**The EPIPE, third occurrence — the log is kept and the file is still NOT named.** The api tier's
+first run this half exited **1** with zero failed tests again:
+`Test Files 585 passed (586) · Tests 9123 passed (9125) · Errors 1 error`,
+`[vitest-pool]: Worker forks emitted error … write EPIPE`. Two runs were then made specifically to
+identify the dead file and BOTH came back clean — a JSON-reporter run (`586 / 9125`, exit 0) and a
+`--reporter=verbose` run that prints every file as it completes (`586 / 9125`, exit 0). So it is
+4 clean runs against 2 failures across the two halves, and the instrumentation that WOULD name it
+was in place for a run that did not fail.
+
+What is known rather than guessed: the dead file holds **exactly two tests** (586 − 585 = 1 file,
+9125 − 9123 = 2 tests), and the previous occurrence lost 2 tests as well, so it is plausibly the
+same file both times. Thirteen files in this tier have exactly two tests, and naming one of them
+would be a guess:
+
+```text
+adminAuthRoutes.resetConfirm · backfillAdminMfaBackupCodesIsolation · sagaRetryRecovery
+GetPostWithThreadQuery.ownership · ListPostsGlobalQuery.ownership · ListPostsUseCase.ownership
+providerOAuthX.pilot · HttpClientPort.contract · mentionFetchEnqueue
+FailBulkScheduleRowUseCase · ListGlossaryByLocaleQuery · ListStyleGuideRulesByLocaleQuery
+setupExternalNotificationUseCases
+```
+
+**The run logs are kept** in this run's scratchpad (`api-unit4.out` is the failing one,
+`api-verbose.out` the instrumented clean one). The instrumentation that names it is
+`--reporter=verbose`: the last `✓` line before the error identifies the file whose worker died. The
+honest state is that this is an intermittent pool failure nobody has yet caught under a reporter
+that would name it, and it has never coincided with a failing assertion.
+
+| Gate                                                      | Result                                                                                                                                         |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm check:circular`                                     | clean, 1607 files                                                                                                                              |
+| `eslint --max-warnings 0` on the 14 changed `.ts`         | **0**                                                                                                                                          |
+| `prettier -c` on every changed file · `pnpm format:check` | clean · clean (`run-tests.sh` excluded from the file list: prettier infers no parser for shell, and the repo script does not format it either) |
+| fitness #3 / #4 / #5 / #8 / #9 / #10 / #32                | 0 · 0 · 0 · 0 · 0 · 0 · 0                                                                                                                      |
+| fitness #21 / #23                                         | 0 · 0                                                                                                                                          |
+| fitness #38                                               | swept **0** · `db-prisma` ratchet **11**, unchanged                                                                                            |
+| fitness #40                                               | A: 3 seams (floor 3) / **0** · B: 14 sites (floor 10) / **0**                                                                                  |
+| fitness #41                                               | sites 8 (floor 8), exception hits 1, violations **0**                                                                                          |
+
+### Budget — this half, measured
+
+| File                                                                   | Stream   | Changed lines |
+| ---------------------------------------------------------------------- | -------- | ------------: |
+| `apps/api/src/recurring/RecurrenceScheduler.ts`                        | CODE     |        **75** |
+| `packages/core/posts/src/SchedulePostUseCase.ts`                       | CODE     |        **49** |
+| `packages/core/domain/src/aggregates/PostAggregate.ts`                 | CODE     |        **43** |
+| `apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`                   | CODE     |        **83** |
+| `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts`         | CODE     |        **23** |
+| `packages/core/domain/src/aggregates/post/PostPublicationTypes.ts`     | CODE     |         **7** |
+| `packages/core/recurring/src/ProcessRecurrenceUseCase.ts`              | CODE     |         **7** |
+| `packages/core/domain/src/aggregates/post/PostPublicationMethods.ts`   | CODE     |         **5** |
+| `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`        | CODE     |         **4** |
+| `apps/api/tests/integration/schedulePostTargetSet.integration.test.ts` | EVIDENCE |       **193** |
+| `apps/api/tests/unit/recurring/RecurrenceScheduler.test.ts`            | EVIDENCE |        **94** |
+| `apps/api/tests/unit/application/postUseCases.test.ts`                 | EVIDENCE |        **84** |
+| `apps/api/tests/unit/bulk-scheduling/bulkScheduleWorker.test.ts`       | EVIDENCE |        **38** |
+| `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`      | EVIDENCE |        **33** |
+| `apps/api/scripts/run-tests.sh`                                        | EVIDENCE |        **10** |
+
+**This half, CORRECTED after the gate re-measured it: CODE 237 · EVIDENCE 442 · SCRIPTS 10 ·
+DOCS 349.** The first figures counted `run-tests.sh`'s 10 lines inside EVIDENCE (it is a harness
+SCRIPT, its own stream) and understated DOCS by 54. With the committed first half (`6e5408ac`, CODE
+630 / EVIDENCE 1273 / docs 550) the unit totals **CODE 867 · EVIDENCE 1715**, against a §9.4.1
+forecast of 371 / 566 — **2.34×** and **3.05×**.
+
+The forecast is not the right comparison and saying so is more useful than restating the ratio:
+**three of the four tasks in this half did not exist when §9.4 was written.** T1c.6a, T1c.6b and
+T1c.6c are Edward's shape-(b) decision, taken after the first half measured T1c.6's blocker, and a
+line-item forecast cannot cost a decision that a later measurement forces. What the number does say
+is that T1c.6 was never a 371-line task: persisting the target set required a tenant binding in two
+schedulers and a refusal in the full save, and the original estimate costed only the call site.
+
+### For Edward — one product question this half raises, unanswered
+
+> **A recurrence whose row carries no `accountId` is now SKIPPED rather than created.** The field is
+> non-optional on the entity, so the case should be unreachable — but the scheduler refuses instead
+> of assuming, because the alternative is creating a post under the system scope and writing it
+> wherever its ids point. The skip is counted in the tick summary (`skipped`) and logged per row.
+> **The question is whether silence is enough**: nothing alerts on it, so a systematic cause (a
+> migration that left rows behind, a repository that stops selecting the column) would show up only
+> as posts quietly not being created. The same applies to the bulk worker's refusal, which at least
+> routes to the DLQ after retries. If these should raise rather than only count, that is a metric and
+> an alert rule, and it belongs with the sweep's own alerting (T1c.18) rather than here.
+>
+> **The PAIR, stated for your eye because two people would not choose it independently.** The two
+> refusals this half added answer the same condition — a job/row that names no account — in opposite
+> ways: the **bulk worker THROWS** (BullMQ retries, exhausts, routes to the DLQ, and the manifest
+> records a terminal failure), the **recurrence sweep SKIPS** (a warn log and a `skipped` counter,
+> and the tick moves on). Each is locally defensible: a queue job has a retry-and-DLQ apparatus to
+> fall into, and a sweep that threw would abandon every later row in the same tick. But they are two
+> local calls that ought to be one stated decision, and nobody has taken it. **A third variant lives
+> inside the bulk worker itself** (re-gate finding): the row path THROWS on a missing account
+> (`bulkScheduleWorker.ts:63-70`), the failure callback RETURNS (`:144-150`, logs and skips) — so an
+> account-less payload's terminal failure is never recorded and its batch never settles, the exact
+> outcome the callback's binding exists to prevent, in the one case it cannot reach. Unreachable in
+> practice (the primary producer guards `accountId` at `BulkScheduleDispatchEventHandler.ts:68-82`);
+> it belongs to the same decision.
+
+### Follow-up after the fresh-context gate of the second half — PASS WITH WARNINGS, one Critical
+
+Every measurable claim was confirmed (three integration counts, five `tsc`, three package suites,
+all fitness), and the loud refusal was judged SOUND. One Critical, eight warnings.
+
+| Id       | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Disposition                                                                                                               |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **C1**   | `SchedulePostUseCase` dispatched events INSIDE its transaction. `ComposedEventDispatcher.dispatchAll` (`:75-92`) runs in-process handlers and then a BullMQ `publishBatch` — the external call ARCHITECTURE_CANON §UoW Rules forbids in a transaction. A pre-existing placement, DORMANT before because nothing fallible followed it; my sequence put `declarePublicationTargets` and `savePublication` after it, so a narrow-save failure or a declare conflict now rolled back a schedule consumers had already been told about | **FIXED** — events captured before the clear, dispatched after the transaction resolves `ok`, nothing dispatched on `err` |
+| **(i)**  | In all five facet functions the mark sat at the END, after `applyDerivedStatus`'s `err` branch — so a refused call left a MUTATED record reading CLEAN                                                                                                                                                                                                                                                                                                                                                                            | **FIXED** — moved to immediately after each entity mutation                                                               |
+| **(ii)** | `PostAggregate.publications` hands out the LIVE mutable entity, so a caller could mutate outside the marking                                                                                                                                                                                                                                                                                                                                                                                                                      | **RECORDED** — measured (4 production call sites, all reads); backlog **SMELL-147**                                       |
+| **W1**   | REC-1 scenario 2 asserted `sagaInstance.count === 0` — "never had one", not "OUTLIVES one" — and the ledger called it full                                                                                                                                                                                                                                                                                                                                                                                                        | **FIXED** — a terminal saga row is seeded and the records are then read without it                                        |
+| **W2**   | `markPublicationsPersisted()` runs before the outbox write and before commit                                                                                                                                                                                                                                                                                                                                                                                                                                                      | **RECORDED** below as the same weakness, not only as a precedent                                                          |
+| **W3**   | The recurrence skip has a log but no metric                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | **ROUTED** to T1c.18, and the PAIR stated for Edward above                                                                |
+| **W4**   | SMELL-145 residual (3) is a LIVE pre-existing defect: `handleBulkScheduleRowFailure` runs outside the binding and writes tenant-scoped rows, so the guard throws for every retry-exhausted row and the batch never settles                                                                                                                                                                                                                                                                                                        | **FIXED** — the failure callback binds from the same payload field, refusing when absent                                  |
+| **W5**   | Three new `!.` in `postUseCases.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | **FIXED** — `toHaveLength` + destructuring; zero `!.` remain in the file                                                  |
+| **W6**   | The EPIPE has no backlog row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | **ADDED** — **SMELL-146**                                                                                                 |
+| **W7**   | Ledger completeness                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | **THIS SECTION**                                                                                                          |
+
+**C1's red, and what it shows.** The order log records the dispatch alongside the saves:
+
+```text
+ × dispatches the events only AFTER the transaction has closed
+AssertionError: expected [ 'full', 'dispatch', 'narrow' ] to deeply equal
+                        [ 'full', 'narrow', 'dispatch' ]
+ × dispatches NOTHING when the transaction rolls back
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+      Tests  2 failed | 3 passed | 46 skipped (51)
+```
+
+`['full','dispatch','narrow']` is the defect in one line: the world was told between the two saves.
+The fix costs nothing in durability — the events are in the OUTBOX from the full save, so a crash
+between the commit and the dispatch is exactly what the relay recovers. One follow-on the red also
+forced: the sequence case now filters the order log to SAVES before counting event ids, because the
+dispatch carries the same ids the full save wrote and counting it would read the outbox contract's
+own success as a duplicate.
+
+**The other four in-transaction dispatchers, measured — and one is NOT dormant.** The gate's premise
+was that they all have nothing fallible after the dispatch. Three do:
+`CreatePostUseCase.ts:204`, `UpdatePostUseCase.ts:183`, `DuplicatePostsBatchUseCase.ts:189` (that one
+inside a LOOP, so later iterations follow earlier dispatches). **`CreatePostFromRecurrenceUseCase.ts:199`
+does not**: it dispatches and then calls `postCreation.schedulePost(...)`, which is fallible. It
+compounds with a second pre-existing defect in the same function — `executeInTransaction` with a
+`let result` capture, the ADR-0023 hazard, so an `err` resolves the callback and the partial write
+commits instead of rolling back. All four are **NOT fixed here** and are backlog **SMELL-148**, with
+the recurrence one named as the live member to take first.
+
+**(i)'s red, and the branch that turned out unreachable.** The instruction suggested driving
+`applyDerivedStatus`'s `err` branch. Measured: **it is not reachable from a real mutation.** The
+three `*FromRecord` arms err only when `derive()` disagrees with the value `applyDerivedStatus` just
+read from it, and the `PUBLISHING` arm calls `startPublishing` only after `canTransitionTo` already
+said yes. A first attempt built a CANCELLED post whose record derives `PUBLISHED` and it did NOT
+refuse — `markAsPublishedFromRecord` sets the status directly and consults no FSM.
+
+A genuinely reachable refusal after a real mutation exists elsewhere, so no probe was needed:
+`openPublicationEpisode` opens the episode on every re-drivable record FIRST and runs the lifecycle
+check that refuses a delayed re-drive of a `FAILED` post (D9 / Q14) AFTER.
+
+```text
+ × reads TRUE after a mutation whose call then REFUSED
+AssertionError: a mutated record is owed a publication write even when the call returned err
+```
+
+The case is permanent rather than probe-only, which is the better outcome of the two the instruction
+allowed.
+
+**W2, named as the weakness it is.** `markPublicationsPersisted()` runs at
+`PostPublicationWrites.ts:242`, before the outbox write at `:245` and before the transaction commits.
+So an aggregate whose transaction later ROLLS BACK reads clean while the database holds none of its
+records. It is the same weakness `incrementVersion` has had in the same function, and citing that
+precedent is an explanation, not a defence: both make the in-memory aggregate claim a durability the
+transaction has not yet granted. It is bounded in practice because the aggregate is discarded with
+the failed request, and the seam that would fix both — persisting these marks after the commit —
+belongs to whoever revisits `writePublicationSave`, not to this unit.
+
+**The nesting sweep.** `withTenantContext` nested inside `withSystemContext` binds the system
+sentinel; `RecurrenceScheduler` was the only instance and it is fixed. Measured across the tree: **no
+second instance**. The durable guard — `withTenantContext` refusing or logging at ERROR when
+`getSystemContext()` is already set — is backlog **SMELL-149**, not done here because it changes a
+primitive every tenant-bound path runs through.
+
+**Figures corrected.** Four carried-forward numbers were wrong and are fixed above: EVIDENCE 442 (not
+452 — `run-tests.sh` is a SCRIPTS stream, not evidence), DOCS 349 (not 295), eslint on 14 changed
+`.ts` (not 17), unit-total EVIDENCE 1715 (not 1725).
+
+### Gates after the corrections
+
+| Gate                                                                                                          | Result                                                        |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `@core/domain` vitest                                                                                         | **10 files, 191 passed** (was 190; +1 marker case)            |
+| `@core/posts` vitest                                                                                          | **6 files, 96 passed**                                        |
+| `@adapters/db-prisma` vitest                                                                                  | **4 files, 70 passed**                                        |
+| `tsc --noEmit` `@core/domain` · `@core/posts` · `@core/recurring` · `@adapters/db-prisma` · `apps/api` (6144) | **0 · 0 · 0 · 0 · 0**                                         |
+| the four touched `apps/api` unit suites                                                                       | **4 files, 125 passed**                                       |
+| `integration:repositories`                                                                                    | **157 tests · 157 pass · 0 fail · 0 cancel · 0 skip**, exit 0 |
+| `integration:schedule-target-set`                                                                             | **3 · 3 · 0 · 0 · 0**, exit 0                                 |
+| **`integration:saga-recovery`**                                                                               | **33 · 33 · 0 · 0 · 0**, exit 0                               |
+| DB tier total (`TIER=pr-integration`)                                                                         | **534 tests, 534 pass, 0 fail, 0 cancel, 0 skip**, exit 0     |
+| `pnpm check:circular`                                                                                         | clean                                                         |
+| `eslint --max-warnings 0` on the 15 changed `.ts` · `prettier -c` · `pnpm format:check`                       | **0** · clean · clean                                         |
+| fitness #3 #4 #5 #8 #9 #10 #32 #21 #23                                                                        | 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0                             |
+| fitness #40                                                                                                   | A 3 seams (floor 3) / **0** · B 14 sites (floor 10) / **0**   |
+| fitness #41                                                                                                   | sites 8 (floor 8), exception hits 1, violations **0**         |
+
+**One gate lied to me, in the way this change has a rule about.** A first eslint invocation piped
+into `rg` to strip the `[boundaries]` deprecation noise and reported exit **1** — which was `rg`'s
+exit for matching no lines, not eslint's. Re-run with the output redirected and the exit read
+directly off `eslint`: **0**. The `1c-1c` lesson ("never read `$?` through a pipe when the number IS
+the gate") was written in this same ledger, and I still did it; it is recorded because catching it
+only because the message looked wrong is luck, not method.
+
+### Budget — the WHOLE second half, re-measured from `git diff --numstat HEAD` at write time
+
+Supersedes the pre-gate table above: these are the figures as the tree stands, not the earlier ones
+plus a correction.
+
+| File                                                                   | Stream   | Changed lines |
+| ---------------------------------------------------------------------- | -------- | ------------: |
+| `packages/core/posts/src/SchedulePostUseCase.ts`                       | CODE     |        **90** |
+| `apps/api/src/recurring/RecurrenceScheduler.ts`                        | CODE     |        **75** |
+| `apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`                   | CODE     |        **83** |
+| `packages/core/domain/src/aggregates/PostAggregate.ts`                 | CODE     |        **43** |
+| `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts`         | CODE     |        **23** |
+| `packages/core/domain/src/aggregates/post/PostPublicationMethods.ts`   | CODE     |         **8** |
+| `packages/core/domain/src/aggregates/post/PostPublicationTypes.ts`     | CODE     |         **7** |
+| `packages/core/recurring/src/ProcessRecurrenceUseCase.ts`              | CODE     |         **7** |
+| `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`        | CODE     |         **4** |
+| `apps/api/tests/integration/schedulePostTargetSet.integration.test.ts` | EVIDENCE |       **220** |
+| `apps/api/tests/unit/application/postUseCases.test.ts`                 | EVIDENCE |       **150** |
+| `apps/api/tests/unit/recurring/RecurrenceScheduler.test.ts`            | EVIDENCE |        **94** |
+| `apps/api/tests/unit/bulk-scheduling/bulkScheduleWorker.test.ts`       | EVIDENCE |        **85** |
+| `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`      | EVIDENCE |        **33** |
+| `packages/core/domain/tests/unit/postAggregate.publications.test.ts`   | EVIDENCE |        **33** |
+| `apps/api/scripts/run-tests.sh`                                        | SCRIPTS  |        **10** |
+
+**Second half: CODE 306 · EVIDENCE 615 · SCRIPTS 10 · DOCS 508** (`apply-progress.md` 450,
+`tasks.md` 50, `roadmap-detected-smells-backlog.md` 6, `design.md` 2). With the committed first half
+(CODE 630 / EVIDENCE 1273 / DOCS 550) the unit totals **CODE 936 · EVIDENCE 1888 · SCRIPTS 10 ·
+DOCS 1058**. The `apply-progress.md` figure counts this section's own lines; the orchestrator's
+numstat at commit is authoritative and will differ by whatever the final formatting pass moved.
+
+The corrective pass added **69 CODE** on top of the pre-gate 237, and every line of it is a defect
+the gate found rather than a feature: the dispatch moved out of the transaction, five marks moved to
+their mutation sites, and a tenant binding on the failure callback that was missing from a task
+whose whole subject is tenant binding. The DOCS figure is dominated by this ledger, which is where
+the reasoning for all of it lives.
+
+### Re-gate of the second half — PASS, three notes closed by the orchestrator before commit
+
+The bounded re-gate confirmed C1 fixed exactly as specified (both reds, the `if (result.ok …)`
+guard, a throw from the commit landing in the outer catch that never dispatches), all five marks
+ahead of every fallible step, the permanent hole-(i) case non-vacuous (the episode assertion), the
+recurrence dispatch live, twenty files, every gate re-run green, and five of six budget streams
+reconciling to the line (DOCS off by the backlog row's one deleted line). Three notes, none
+blocking, closed here rather than carried:
+
+| Note | Disposition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| N1   | **SMELL-148 undercounted its class 4 → 11.** The survey covered `@core/posts` + the recurrence caller; a tree-wide sweep finds seven more in `@core/crisis` and `@core/inbox`, all dormant (`return ok(...)` after the dispatch, verified by the re-gate), plus `SendReplyUseCase` breaking the same rule a second way (the PROVIDER send inside the transaction). The row now sizes the class at eleven with the file:line list. A backlog row's job is to size the class, so the sweep is the whole tree, not the directory at hand                                                                                                                                                      |
+| N2   | **Hole (i)'s fix widened what "dirty" means, and nothing said so.** With the marks ahead of every fallible step, the `applied: false` no-op returns (a replayed attempt, a duplicate confirm, a second sweep tick) also set the flag, so `hasUnsavedPublications()` reads TRUE after a call that changed nothing — a false positive that refuses a full save loudly, where the old false negative dropped records silently. Kept, deliberately: the mark stays adjacent to the mutation because that is what makes the rule legible. Both JSDoc blocks now say "reached the records" instead of "changed", and name the trade (`PostAggregate.ts`, the field and `hasUnsavedPublications`) |
+| N3   | **A third variant of the THROWS/SKIPS pair inside the bulk worker**: the row path throws on a missing account, the failure callback returns — so an account-less payload's terminal failure is never recorded and its batch never settles, unreachable in practice because the producer guards the field. Added to the `For Edward` paragraph as part of the same decision                                                                                                                                                                                                                                                                                                                 |
+
+### RDD receipt — the committed range `6e5408ac` → `8b86b1ca`
+
+Lineage `review-205de02a990a3222`, **HIGH** tier (the range touches `run-tests.sh`), the full
+four-lens fan-out. The review reached **approved**, the acknowledgement was executed exactly once and
+the authority is **burned**. **13 advisory findings, 0 blocking.** Seven WARNINGs, and they are three
+defects seen by several lenses rather than seven separate ones. Claims are quoted from the reviewers.
+
+| Id                                           | Lens        | Sev        | Where                                               | Claim (quoted)                                                                                                                                                                                                                                                                                                              | Disposition                                                                                                                                                                                                                                                                                        |
+| -------------------------------------------- | ----------- | ---------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `R2-mark-persisted-before-commit`            | readability | WARNING    | `PostPublicationWrites.ts:240-245`                  | "on a transaction rollback the in-memory aggregate reads clean while the database holds none of the records — exactly the state the marker exists to prevent, only inverted … leaving the marker here makes the JSDoc … misleading, since the mark runs before persistence is guaranteed"                                   | **FIXED** (A)                                                                                                                                                                                                                                                                                      |
+| `R3-mark-persisted-before-commit`            | reliability | WARNING    | `PostPublicationWrites.ts:242-245`                  | "no test in this PR asserts the behavior on a failed commit — the double in postUseCases.test.ts calls `markPublicationsPersisted()` inside its `savePublication` mock, which does not simulate the commit-failure ordering"                                                                                                | **FIXED** (A), and the double reworked to model the new shape                                                                                                                                                                                                                                      |
+| `R4-markPublicationsPersisted-pre-commit`    | resilience  | WARNING    | `PostPublicationWrites.ts:242-243`                  | "A caller that then attempts a full save on that same aggregate … would pass the `hasUnsavedPublications()` refusal in `PrismaPostRepository.save` and the schedule/declared target set would be silently dropped — the exact silence the loud-refusal mechanism was introduced to prevent"                                 | **FIXED** (A)                                                                                                                                                                                                                                                                                      |
+| `R4-bulk-failure-callback-swallow`           | resilience  | WARNING    | `bulkScheduleWorker.ts:144-150`                     | "a retry-exhausted BullMQ job whose payload lacks accountId will resolve successfully to the queue but never record the terminal failure … the batch can remain in a non-terminal state indefinitely … the terminal-failure path is precisely where a silent skip is worst because there is no further retry to compensate" | **FIXED** (B)                                                                                                                                                                                                                                                                                      |
+| `R3-bulk-failure-callback-error-arity`       | reliability | WARNING    | `bulkScheduleWorker.ts:148-150`                     | "the RETURN after logging (no throw) means BullMQ has no signal that the terminal failure was not recorded … The unit test only asserts `fail.execute` not called; it does not assert that anything alerts on the ghost state produced"                                                                                     | **FIXED** (B) — and its BullMQ premise corrected by measurement, below                                                                                                                                                                                                                             |
+| `R2-pendingEvents-let-capture`               | readability | WARNING    | `SchedulePostUseCase.ts:203-268`                    | "the same pattern is reintroduced here for events … Returning the captured events as part of the doWork Result (e.g. `Result<{ output, events }, ...>`) would make the dispatch site read the events from the same value it reads `ok` from"                                                                                | **FIXED** (C), in exactly that shape                                                                                                                                                                                                                                                               |
+| `R3-schedule-pending-events-shared-closure`  | reliability | WARNING    | `SchedulePostUseCase.ts:189-273`                    | "if `executeResultInTransaction` reruns `doWork` on serialization conflict … the SECOND attempt captures an empty array while the outbox row exists from the retried transaction. The result-aware seam's retry semantics are not proved by the added tests"                                                                | **FIXED** (C); the retry premise **REFUTED** by measurement, below                                                                                                                                                                                                                                 |
+| `R3-schedule-target-set-integration-cleanup` | reliability | SUGGESTION | `schedulePostTargetSet.integration.test.ts:118-131` | "a silent cleanup failure is not surfaced in test output — it becomes invisible pollution of the shared i[ntegration database] … the identifiers use `Date.now()` at `before`, a rerun within the same millisecond boundary could collide"                                                                                  | **FIXED** (D) — a canon violation (`CODING_STANDARDS`: empty catch, zero tolerance), so fixed despite its severity                                                                                                                                                                                 |
+| `R2-throw-check-untyped-catch`               | readability | SUGGESTION | `bulkScheduleWorker.ts:62-70`                       | "the divergent behavior for the same condition (missing account) makes maintainers reason about two failure modes for one invariant. Naming both a shared refusal helper … would keep the two arms readable together"                                                                                                       | **FIXED** (B) — one error class, one message, one helper                                                                                                                                                                                                                                           |
+| `R2-publications-live-mutable-getter`        | readability | SUGGESTION | `PostAggregate.ts:281-283`                          | "the invariant 'every record change sets the dirty flag' is spread across method call sites rather than enforced by the type surface"                                                                                                                                                                                       | **BACKLOG — SMELL-147**, unchanged. A read-only projection changes the shape every publication reader consumes                                                                                                                                                                                     |
+| `R3-publications-getter-live-mutable`        | reliability | SUGGESTION | `PostAggregate.ts:281`                              | "the invariant is bounded only by convention … no test in this PR pins the type-level guarantee"                                                                                                                                                                                                                            | **BACKLOG — SMELL-147** (same defect, second lens)                                                                                                                                                                                                                                                 |
+| `R3-recurrence-account-invariant-unproved`   | reliability | SUGGESTION | `RecurrenceScheduler.ts:110-116`                    | "`ProcessedRecurrence.accountId` is declared `string` (non-optional) … the tests thus only prove the defensive skip triggers for a synthetic fixture"                                                                                                                                                                       | **ACCEPTED as stated, not removed.** The check is a fail-closed net over a boundary the type system does not actually police (the DTO is built from an entity field the compiler trusts, and the sweep reads rows the compiler never sees). Routed to the `For Edward` paragraph and to **T1c.18** |
+| `R4-recurrence-skip-observability`           | resilience  | SUGGESTION | `RecurrenceScheduler.ts:104-110`                    | "a systematic upstream failure … would present only as scheduled posts quietly not being created … recording it in the resilience view as well so it is not lost when the ledger is archived"                                                                                                                               | **ROUTED to T1c.18**, which now names this counter and the bulk one explicitly                                                                                                                                                                                                                     |
+
+### The hardening — three defects, and two reviewer premises corrected by measurement
+
+**A. The mark is now a property of a COMMITTED transaction.** Three lenses saw it and they were
+right: the flag the full save's refusal READS was being cleared by statements that could still be
+rolled back, so a rolled-back publication write left an aggregate the next full save would accept and
+silently drop. Two reds:
+
+```text
+ × leaves the aggregate OWING a publication write when the transaction fails
+ × clears the debt only after the ENCLOSING unit of work commits
+AssertionError: expected false to be true
+```
+
+**The shape chosen, and why it is not the one the instruction preferred. The argument is STRUCTURAL
+first; the doubles are a secondary cost.** `PostPublicationWrites` holds no `UnitOfWork` reference
+and never has: it reaches the ambient transaction through the STATIC
+`PrismaUnitOfWork.getTransactionClient()`, which is the precedent this file already follows. Putting
+`onCommitted` beside that static therefore adds NO coupling — the caller that needs it already
+depends on exactly this surface — whereas routing it through the port would mean handing a
+`UnitOfWork` instance to a module whose whole design is that it does not have one. It is also
+strictly more correct than option (1), because it handles BOTH of the narrow save's branches: inside
+someone else's transaction it registers with the unit of work, and when it opened its own
+transaction through the tenant-bound runner it marks after that runner resolves, which IS that
+transaction's commit. A port method could only ever serve the first.
+
+The doubles are the secondary cost, and the first telling of it overstated the failure mode.
+Measured now: `rg -l "executeInTransaction" … --glob '**/tests/**'` = **67 files** (66 before this
+unit added its own `PrismaUnitOfWork` suite), of which **59** also reference
+`executeResultInTransaction`. No tsconfig opens a `.test.ts`, so `tsc` would indeed have stayed at 0
+— but a double missing a new port member does NOT fail silently: the first test that reaches the
+call fails LOUDLY with `TypeError: uow.onCommitted is not a function`. The real cost is narrower and
+worth stating precisely: loud wherever the member is exercised, invisible in every double that never
+reaches it, and 67 files to audit by hand to tell the two apart. **The port diff is ZERO lines**
+(`git diff HEAD -- packages/core/domain/src/repositories/Repository.ts` = 0) and not one double
+changed.
+
+**`incrementVersion` deliberately does NOT move with it, and the reason is structural.** The
+instruction expected it to ("a rolled-back CAS must not leave the aggregate at N+1"). Measured: the
+aggregate's version is read again INSIDE the same transaction. `SchedulePostUseCase` runs the full
+save and then the narrow one, and the narrow save's compare-and-swap matches on the version the full
+save just wrote; deferring the bump to the commit would make that CAS look for a row version the
+first statement had already advanced past, and every two-save transaction would fail with a version
+conflict. It is in-transaction state because the transaction itself reads it — a different fact from
+the marker, which nothing inside the transaction reads. The `PostAggregate.markPublicationsPersisted`
+JSDoc now states both, and no longer claims the placement it used to have.
+
+**B. One refusal, both arms, counted — and the reviewer's BullMQ premise is wrong.**
+`R3-bulk-failure-callback-error-arity` says a return "means BullMQ has no signal that the terminal
+failure was not recorded", implying a throw would give it one. **Measured: it would not.** The
+callback is a `failed` LISTENER (`worker.on("failed", …)`, invoked as `void handle…(…)`), not a
+handler the queue awaits — the job has already failed by the time it runs. Throwing there does not
+re-queue, does not DLQ, and does not reach the queue at all: it becomes an unhandled promise
+rejection, which under Node's default can take the process down. So the fix is the one that achieves
+the finding's GOAL rather than its mechanism: both arms now share ONE typed refusal
+(`BulkScheduleTenantMissingError`) with one message and one helper, the terminal arm THROWS like the
+row arm so its contract matches, the listener wiring gained a `.catch` that logs (the throw can no
+longer become an unhandled rejection), and the refusal is COUNTED —
+`omnipost_bulk_schedule_rows_refused_total{reason}` with a `row` / `terminal-failure` label, so the
+unsettled batch is observable rather than merely logged. The red asserts all three: the throw, that
+`fail.execute` was never called, and that the counter moved.
+
+**C. The events ride on the Result, and the retry premise is refuted.**
+`R3-schedule-pending-events-shared-closure` worries that a re-run of `doWork` would capture an empty
+array. **Measured: the seam runs its callback exactly ONCE.**
+`PrismaUnitOfWork.executeInTransaction` calls `this.prisma.$transaction(...)` a single time
+(`PrismaUnitOfWork.ts:119` as it now stands) with no retry loop, `executeResultInTransaction` calls
+`fn()` once (`:215`), and the repo's retry helper (`retryOnWriteConflict`) wraps use cases, not this seam. So the
+scenario cannot arise today. The fix landed anyway, because the reviewers' READABILITY point stands
+on its own: `doWork` now returns `Result<{ output, events }, …>` and the dispatch site reads the
+events from the same value it reads `ok` from, so there is no outer mutable to reason about and no
+way to pair one attempt's `ok` with another attempt's events. A new case pins that the dispatched
+ids are exactly the ids the full save wrote.
+
+**D. The cleanup is loud and the identifiers are collision-proof.** Every delete is still attempted
+(a leftover child must not stop the parents being tried) but failures are collected and the hook
+ends in `assert.fail` naming them; the suffix is `randomUUID()` rather than `Date.now()`.
+
+**The double reworked so it does not disagree with production.** `R3` named this precisely: the
+`savePublication` mock marked inside its own body. It now mirrors production's two branches — given
+an after-commit list it REGISTERS the discharge, without one it marks immediately (which is exactly
+what production does outside a transaction) — and the recording unit of work drains that list on
+`ok` and never on `err`. This change has been bitten twice by doubles that disagreed with production
+(`1c-1a`'s two); making the double model the new shape was not optional.
+
+### Gates after the hardening
+
+| Gate                                                                                                          | Result                                                           |
+| ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `@core/domain` · `@core/posts` · `@adapters/db-prisma` vitest                                                 | **10 files / 191** · **6 / 96** · **4 / 70**                     |
+| `tsc --noEmit` `@core/domain` · `@core/posts` · `@core/recurring` · `@adapters/db-prisma` · `apps/api` (6144) | **0 · 0 · 0 · 0 · 0**                                            |
+| `apps/api` unit tier, full (the unit of work was touched)                                                     | **586 files, 9133 passed, 0 failed**, exit 0 — no EPIPE this run |
+| `integration:repositories`                                                                                    | **157 · 157 · 0 · 0 · 0**, exit 0                                |
+| `integration:schedule-target-set`                                                                             | **3 · 3 · 0 · 0 · 0**, exit 0                                    |
+| **`integration:saga-recovery`**                                                                               | **33 · 33 · 0 · 0 · 0**, exit 0                                  |
+| DB tier total (`TIER=pr-integration`)                                                                         | **534 tests, 534 pass, 0 fail, 0 cancel, 0 skip**, exit 0        |
+| `pnpm check:circular`                                                                                         | clean                                                            |
+| `eslint --max-warnings 0` on the 10 changed `.ts` · `prettier -c` · `pnpm format:check`                       | **0** · clean · clean                                            |
+| fitness #3 #4 #5 #8 #9 #10 #32 #21 #23                                                                        | 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0                                |
+| fitness #40                                                                                                   | A 3 seams (floor 3) / **0** · B 14 sites (floor 10) / **0**      |
+| fitness #41                                                                                                   | sites 8 (floor 8), exception hits 1, violations **0**            |
+
+It did not: `git diff HEAD -- packages/core/domain/src/repositories/Repository.ts` is **0 lines**.
+The survey is reported anyway because it is a secondary input to the shape decision (the primary
+one is structural, above): `rg -l "executeInTransaction" apps packages infra --glob
+'**/tests/**'` finds **67 files** — 66 before this unit added its own `PrismaUnitOfWork` suite —
+of which **59** also reference `executeResultInTransaction`. No tsconfig opens any of them, so a
+port change would have been invisible to `tsc`; at runtime it fails LOUDLY wherever the new member
+is actually called (`TypeError: uow.onCommitted is not a function`) and not at all in the doubles
+that never reach it — which is why the cost is 67 files to audit, not 67 files that break.
+
+### Budget — the hardening, measured from `git diff --numstat HEAD` at write time
+
+| File                                                                           | Stream   | Changed lines |
+| ------------------------------------------------------------------------------ | -------- | ------------: |
+| `apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`                           | CODE     |        **83** |
+| `packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts`               | CODE     |        **81** |
+| `packages/core/posts/src/SchedulePostUseCase.ts`                               | CODE     |        **48** |
+| `apps/api/src/metrics/businessMetrics.ts`                                      | CODE     |        **42** |
+| `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`                | CODE     |        **27** |
+| `packages/core/domain/src/aggregates/PostAggregate.ts`                         | CODE     |        **15** |
+| `packages/adapters/db-prisma/tests/prismaUnitOfWork.afterCommit.test.ts` (new) | EVIDENCE |       **138** |
+| `apps/api/tests/unit/application/postUseCases.test.ts`                         | EVIDENCE |        **71** |
+| `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`              | EVIDENCE |        **56** |
+| `apps/api/tests/integration/schedulePostTargetSet.integration.test.ts`         | EVIDENCE |        **48** |
+| `apps/api/tests/unit/bulk-scheduling/bulkScheduleWorker.test.ts`               | EVIDENCE |        **44** |
+
+**Hardening, re-measured at write time after the bounded correction: CODE 296 · EVIDENCE 357 ·
+DOCS 238** (`apply-progress.md` 228, `tasks.md` 10). No SCRIPTS. With the committed halves
+(CODE 630 + 312, EVIDENCE 1273 + 615, SCRIPTS 10, DOCS 550 + 530) the SUM of the three commits'
+deltas is **CODE 1238 · EVIDENCE 2245 · SCRIPTS 10 · DOCS 1318** — lines touched across the three
+commits, which double-counts a line the hardening rewrote after a half had written it. The figure the
+PR shows is the NET diff against the unit's base `8454bab9`, measured by the orchestrator at commit:
+**CODE 1170 · EVIDENCE 2189 · SCRIPTS 10 · DOCS 1353** (docs grow because this ledger keeps growing).
+Both are stated because they answer different questions — how much work the unit did, and how much
+the reviewer reads. The `apply-progress.md` figure counts this section's own lines.
+
+The correction added **41 CODE and 138 EVIDENCE** on the first hardening pass, and the EVIDENCE is
+almost entirely one new file: the `PrismaUnitOfWork` after-commit suite that did not exist when
+`onCommitted` was introduced. A public API shipped with no suite of its own is the gap the gate
+found — the unguarded loop inside it was the symptom.
+
+255 CODE to fix three defects and a canon violation is the price of the mechanism being right rather
+than merely present, and the largest single file is the bulk worker — where one refusal replaced two
+divergent ones and gained a counter. None of it is feature work; all of it is the review's.
+
+### Bounded correction after the hardening gate — PASS, no Critical, four warnings
+
+Both premise refutations (the BullMQ listener, the seam's single run) were judged correct on their
+merits, and the `onCommitted` no-transaction fallback was read as deliberate rather than accidental.
+Four warnings, all fixed.
+
+| Id     | Finding                                                                                                                                                                                                                                                                                                          | Disposition                                                                                                                                                          |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **W1** | `onCommitted` is a public API and the drain was a bare `for … hook()`. A throwing hook would skip every later hook AND propagate out of `executeInTransaction` AFTER the commit succeeded — a committed transaction reported to its caller as a failure. Unreachable today (the only hook is a field assignment) | **FIXED** — each hook in its own `try/catch`, logged at ERROR with its index and the hook count, never changing the transaction's outcome                            |
+| **W2** | `afterCommitStorage` and `txStorage` were two independent `AsyncLocalStorage` instances whose co-scoping was guaranteed only by ONE call site                                                                                                                                                                    | **FIXED structurally** — one store holding `{ tx, afterCommit }`; `getTransactionClient()` reads `.tx`, `onCommitted` reads `.afterCommit`. Public surface identical |
+| **W3** | The port-vs-static decision led with the doubles count; the count was wrong and so was the failure mode                                                                                                                                                                                                          | **FIXED** — both tellings now lead with the structural argument and state the measurement correctly                                                                  |
+| **W4** | DOCS off by one; the `fn()` citation was stale                                                                                                                                                                                                                                                                   | **FIXED** — every figure re-measured at write time, both line citations re-read from the file                                                                        |
+
+**W1's reds.** Two cases, and the second is the one that matters:
+
+```text
+ × runs the later hooks even when an earlier one throws
+ × still resolves with the callback's value when a hook throws
+Error: hook exploded
+      Tests  2 failed | 4 passed (6)
+```
+
+That second red IS the false negative: the throw escaped `executeInTransaction` after
+`$transaction` had already resolved, so a caller would have read a COMMITTED transaction as a
+failure — and retried it, or told a customer their write was lost, over work the database had kept.
+The new suite (`packages/adapters/db-prisma/tests/prismaUnitOfWork.afterCommit.test.ts`, 6 cases)
+also pins three properties nothing tested before: hooks run after the work, hooks do NOT run when
+the transaction rejects, and a hook registered outside a transaction runs immediately.
+
+**W2 has no red available, and that is stated rather than worked around.** It is a CONSTRUCTION
+change: two stores that were always entered together become one value, so no behaviour differs and
+no test can tell before from after. What it buys is that the bad state stops being representable —
+"inside the transaction, with no hook list" was a state the types allowed and one edit at the single
+entry site could produce, and a hook registered in it would have been silently dropped. The existing
+suites are the guard that the refactor changed nothing: `@adapters/db-prisma` **76**, the four
+touched api suites **129**, `integration:repositories` **157**, `integration:schedule-target-set`
+**3**, `integration:saga-recovery` **33**. One new case pins the co-scoping directly — the client
+and the hook list are reachable from the same context.
+
+**The minor, taken.** `incrementBulkScheduleRowRefused(reason: string)` widened the label to
+`string`, which accepts any typo forever while the dashboards quietly split in two. The two labels
+are now declared BESIDE the counter (`BULK_SCHEDULE_REFUSAL_ARMS` in `businessMetrics.ts`) and the
+worker imports them — that direction and not the reverse, because the label set belongs to the
+metric and the metrics module must not depend on a worker.
+
+### Gates after the bounded correction
+
+| Gate                                                                                   | Result                                                                 |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `@adapters/db-prisma` vitest                                                           | **5 files, 76 passed** (was 4 / 70; the new UoW suite is the fifth)    |
+| `@core/posts` vitest                                                                   | **6 files, 96 passed**                                                 |
+| the four touched `apps/api` unit suites                                                | **4 files, 129 passed**                                                |
+| `tsc --noEmit` `@adapters/db-prisma` · `apps/api` (6144)                               | **0 · 0**                                                              |
+| `integration:repositories`                                                             | **157 · 157 · 0 · 0 · 0**, exit 0                                      |
+| `integration:schedule-target-set`                                                      | **3 · 3 · 0 · 0 · 0**, exit 0                                          |
+| **`integration:saga-recovery`**                                                        | **33 · 33 · 0 · 0 · 0**, exit 0                                        |
+| DB tier total (`TIER=pr-integration`)                                                  | **534 tests, 534 pass, 0 fail, 0 cancel, 0 skip**, exit 0              |
+| `eslint --max-warnings 0` on every changed `.ts` · `prettier -c` · `pnpm format:check` | **0** · clean · clean                                                  |
+| fitness #3 · #4 · #5 · #40                                                             | 0 · 0 · 0 · A 3 seams (floor 3) / **0**, B 14 sites (floor 10) / **0** |
+
+### RDD receipt — the committed range `8b86b1ca` → `bf44b48f`
+
+Lineage `review-025d9990cf48f4bb`, **MEDIUM** tier, one reliability lens. The review reached
+**approved**, the acknowledgement was executed exactly once and the authority is **burned**.
+**4 advisory findings, 0 blocking** — one WARNING, three SUGGESTIONs. Claims are quoted from the
+reviewer.
+
+| Id                                                   | Lens        | Sev        | Where                              | Claim (quoted)                                                                                                                                                                                                                                                                                            | Disposition                                                        |
+| ---------------------------------------------------- | ----------- | ---------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `R3-uow-getStore-outside-run-cross-transaction-hook` | reliability | WARNING    | `PrismaUnitOfWork.ts:180-195`      | "a caller that registered from a context which had left `txStorage.run` … will silently run the hook immediately as if there were no transaction … writing may have occurred on the transaction client but the hook … fires before the commit — i.e. the exact inversion the marker was moved to prevent" | **FIXED structurally** (A) — the mixed shape no longer exists      |
+| `R3-bulk-listener-catch-missing-job`                 | reliability | SUGGESTION | `bulkScheduleWorker.ts:248-263`    | "the terminal-failure recording is skipped without a refusal counter increment, because the code never reaches the tenant-missing arm. The new counter therefore does not observe this class of unsettled batch. No test in this candidate exercises the `job === undefined` shape"                       | **FIXED** (B) — a third arm, and the listener is now a tested seam |
+| `R3-schedule-events-readonly-copy`                   | reliability | SUGGESTION | `SchedulePostUseCase.ts:291-294`   | "the dispatch spreads it into a fresh array before dispatching. This is defensive but silent about intent: nothing in the candidate proves the dispatcher does not mutate its argument"                                                                                                                   | **PREMISE CORRECTED** (C) — the copy is required, and now says so  |
+| `R3-integration-cleanup-uuid-account-columns`        | reliability | SUGGESTION | `schedulePostTargetSet…test.ts:69` | "yielding identifiers up to ~42 chars. This is fine for text primary keys but would fail loudly if a schema constraint limited any of these columns to a shorter width … Optional: cap the suffix (e.g. first 8 hex chars)"                                                                               | **REJECTED on measurement** (D) — there is no width to fit         |
+
+#### A. The mixed two-read shape is gone, not guarded against
+
+The WARNING names a real inversion, and its reasoning holds: `AsyncLocalStorage.getStore()` answers
+for the context the CALLER is in, so a caller that reads the client in one ambient read and
+registers the hook in a SECOND one can be handed a transaction by the first and `undefined` by the
+second — after an `await` resumed through a non-propagating callback, an EventEmitter, or a
+scheduled callback. The hook then runs INLINE, inside the transaction it exists to outlive, over
+writes that can still roll back. That is precisely the state the mark was moved after the commit to
+prevent, reintroduced through the door the API left open.
+
+It was fixed by removing the door rather than by testing that nobody walks through it. There is no
+ambient registration function any more. `PrismaUnitOfWork.activeTransaction()` is ONE read that
+returns the whole transaction as a value — the client and, on the same object, `onCommitted` bound
+to THAT transaction's hook list. A caller holds one handle and uses it for both, so "registered
+against a different context than the one I wrote to" is not a sentence the types let you write.
+`getTransactionClient()` stays for the callers that only need a client, and `savePublicationRecord`
+no longer uses it: it takes the captured handle and reads `active.tx` and `active.onCommitted` off
+the same value.
+
+The no-transaction arm changed meaning with it, deliberately. The static used to run the hook
+inline when there was no transaction, which was the honest answer for one caller and a hidden
+decision for every other. `activeTransaction()` returns `undefined` and the CALLER decides — the
+narrow save has already committed through its own runner by that point and marks directly, and
+saying so at the call site is what makes the two paths readable as the two different situations
+they are.
+
+**The red, recorded.** A case that detaches for real rather than simulating it: the registering
+callback is scheduled with `setTimeout` from the TEST's context BEFORE the transaction opens, so
+when it runs the ambient store is genuinely empty — the case asserts that too — and it registers
+against the captured handle. Against the old API the mark would have run inline; against the new
+one there is nothing ambient to call.
+
+```
+× registers on the CAPTURED transaction even from a detached async context 4ms
+  TypeError: PrismaUnitOfWork.activeTransaction is not a function
+  Tests  1 failed | 6 skipped (7)
+```
+
+The reviewer's note that the previous suite "asserts the two isolated shapes … but does not pin the
+mixed shape" was correct and is now closed: the seventh case IS the mixed shape.
+
+#### B. The `failed` event that names no row is counted under its own arm
+
+The reviewer read the `.catch`'s `job?.id` correctly as an admission that BullMQ can invoke the
+listener with no job, and correctly that nothing observed it. One correction to the mechanism it
+describes: `handleBulkScheduleRowFailure` did not throw a `TypeError` on that path — it opened with
+`if (!job) return;`, so the failure was quieter than the finding supposed. The consequence the
+finding names is the same and is the point: a row in a batch waiting on it, and no DLQ entry, no
+manifest write, no log, no counter. The batch stops settling and nothing says why.
+
+BullMQ emits it when it cannot load the job the event is about — a stalled job reclaimed after its
+key expired, or a payload it cannot deserialize. Neither the DLQ nor the manifest can be reached for
+it, because both need the payload the event does not carry. So the counter and the log ARE the
+recovery path here, and they are what turn a silently unsettled batch into one someone can go and
+look at. It gets its own arm, `MISSING_JOB`, declared beside the counter with the other two, because
+the recovery differs: the other two name a row and can be chased to a batch; this one cannot be
+chased to anything from inside the process.
+
+The guard sits at the listener, which is where the only sink exists, and the listener is now a named
+exported function (`onBulkScheduleJobFailed`) so it can be exercised without standing up a queue —
+it could not be before, because `startBulkScheduleWorker` constructs its own consumer. With one
+owner for the absent job, `handleBulkScheduleRowFailure` stops pretending it might be missing: its
+parameter narrowed from `Job | undefined` to `Job` and its silent early return is deleted. The case
+that asserted that silence is deleted with it.
+
+```
+× counts and logs a `failed` event that carries no job, instead of returning in silence 2ms
+× does not let a failure inside the handler escape as an unhandled rejection 0ms
+  TypeError: onBulkScheduleJobFailed is not a function
+  Tests  2 failed | 9 passed (11)
+```
+
+The second case pins the property the previous pass added but never tested from the listener's own
+surface: a rejection out of the handler is caught and logged, because a `failed` LISTENER is not
+awaited by BullMQ and an escaping rejection takes the process down over a job that had already
+failed.
+
+#### C. The spread is required, and the line now says which
+
+The reviewer asked whether the copy proves anything. Measured: `EventDispatcher.dispatchAll` is
+declared `dispatchAll(events: DomainEvent[]): Promise<void>` (`packages/core/domain/src/events/DomainEvent.ts:76`)
+— a MUTABLE array. `result.value.events` is `readonly DomainEvent[]`, which TypeScript will not
+assign to it. The copy is not defensive and cannot be deleted; it is the conversion the signature
+demands. One line at the site says exactly that, so the next reader does not re-open the question.
+Widening `dispatchAll` to `readonly DomainEvent[]` is the real fix and is a change to a domain
+interface with callers outside this unit — not this correction's scope.
+
+#### D. Rejected: there is no column width to fit
+
+Measured in `infra/prisma/schema.prisma` at write time. All four identifiers the cleanup builds are
+unbounded:
+
+| Model     | Column                             |
+| --------- | ---------------------------------- |
+| `Account` | `id  String  @id @default(uuid())` |
+| `Project` | `id  String  @id @default(uuid())` |
+| `Channel` | `id  String  @id @default(uuid())` |
+| `Post`    | `id  String  @id @default(uuid())` |
+
+`@db.VarChar` appears **0 times in the entire schema**, so every one of these is Postgres `text`,
+which has no length limit. The finding's own condition — "would fail loudly if a schema constraint
+limited any of these columns to a shorter width" — is not met, and there is nothing for a cap to
+protect. Truncating to 8 hex characters would cost collision resistance (the exact property the
+widening from `Date.now()` was made to buy, after a rerun inside the same millisecond was identified
+as a real collision) in exchange for fitting a constraint that does not exist. The full
+`randomUUID()` stays.
+
+### Gates after the second bounded hardening
+
+| Gate                                                             | Result                                                                     |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `@adapters/db-prisma` vitest                                     | **5 files, 77 passed** (was 76; the detached-context case is the new one)  |
+| `@core/posts` vitest                                             | **6 files, 96 passed**                                                     |
+| the four touched `apps/api` unit suites                          | **4 files, 130 passed** (was 129; +2 listener cases, −1 deleted)           |
+| `tsc --noEmit` `@adapters/db-prisma` · `apps/api` (6144)         | **0 · 0**                                                                  |
+| `integration:repositories`                                       | **157 · 157 · 0 · 0 · 0**, exit 0                                          |
+| `integration:schedule-target-set`                                | **3 · 3 · 0 · 0 · 0**, exit 0                                              |
+| `integration:saga-recovery`                                      | **33 · 33 · 0 · 0 · 0**, exit 0                                            |
+| DB tier total (`TIER=pr-integration`)                            | **534 tests, 534 pass, 0 fail, 0 cancel, 0 skip**, exit 0                  |
+| `eslint --max-warnings 0` on the 7 changed `.ts` · `prettier -c` | **0** · clean                                                              |
+| fitness #3 · #4 · #5 · #13 · #40                                 | 0 · 0 · 0 · 0 · A 3 seams (floor 3) / **0**, B 14 sites (floor 10) / **0** |
+
+`apps/api`'s typecheck needs `NODE_OPTIONS=--max-old-space-size=6144` on this box: at the default
+ceiling it dies with `Ineffective mark-compacts near heap limit` rather than reporting an error, and
+reading that as a failure of the change would be wrong.
+
+### Budget — the second bounded hardening, measured from `git diff --numstat HEAD` at write time
+
+| File                                                                     | Class    | Changed lines |
+| ------------------------------------------------------------------------ | -------- | ------------: |
+| `packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts`         | CODE     |       **147** |
+| `apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`                     | CODE     |        **68** |
+| `apps/api/src/metrics/businessMetrics.ts`                                | CODE     |        **13** |
+| `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`          | CODE     |        **13** |
+| `packages/core/posts/src/SchedulePostUseCase.ts`                         | CODE     |         **2** |
+| `packages/adapters/db-prisma/tests/prismaUnitOfWork.afterCommit.test.ts` | EVIDENCE |       **140** |
+| `apps/api/tests/unit/bulk-scheduling/bulkScheduleWorker.test.ts`         | EVIDENCE |        **65** |
+| **CODE total**                                                           |          |       **243** |
+| **EVIDENCE total**                                                       |          |       **205** |
+| **Total**                                                                |          |       **448** |
+
+CODE **243** is inside the 400-line ceiling (the figures include W1, below). The CODE figure is larger than the behaviour change
+because the WARNING was answered by construction rather than by a guard: most of `PrismaUnitOfWork`'s
+147 lines are the new handle type and the JSDoc that states why one read is not two, and most of the
+worker's 68 are the listener extracted into a named seam so it could be tested at all.
+
+### Re-gate of the second hardening — PASS, one bounded item (W1)
+
+The gate passed and named one minor, fail-closed today. It belongs beside the handle's design
+rather than in a list of its own, because it is the residual that design CREATED.
+
+**W1 — a handle held past its commit registered into a void.** The drain walked `afterCommit` in
+place and left it populated, so an `ActiveTransaction` captured inside a transaction and used after
+`executeInTransaction` resolved pushed onto an already-walked array. The hook never ran and nothing
+said so. That is the mirror image of the hazard `#### A` removed — a hook that fires at the wrong
+moment, versus a hook that never fires at all — and it is expressible only BECAUSE the handle became
+capturable. The fix that closed one direction opened the other by one notch, and saying so is
+cheaper than discovering it later.
+
+**Unreachable today, and named rather than relied on.** The sole caller, `savePublicationRecord`,
+registers synchronously in the same statement sequence as the write, so no handle survives its
+transaction. Had one, the lost hook would be `markPublicationsPersisted`: the aggregate would stay
+dirty and the next full save would REFUSE it (T1c.6c). So the state is fail-closed, and what was
+missing was not safety but a voice — a refusal nobody can see is indistinguishable from the silence
+it replaced.
+
+**What changed.** The drain now takes the hooks OUT (`registry.hooks.splice(0)`) and marks the
+registry settled BEFORE running any of them, so a hook registered by a hook is caught by the same
+rule. `settled` is not a boolean beside a count; it is `{ hooksRun } | undefined`, one value, for
+the same reason the client and the hook list became one value in `#### A` — a flag and a count can
+disagree, a single value cannot. `onCommitted` on a settled transaction logs at ERROR with that
+count and returns.
+
+**Log, not throw, and the reason is the thread's own rule.** The refusal runs in the REGISTERING
+caller's context, and that caller has by definition just reached a commit that succeeded. Throwing
+would report a COMMITTED transaction to its caller as a failure — the false negative the drain's
+isolation exists to prevent, and the one this entire thread has been closing in every direction. A
+throw here would reintroduce it at the one remaining door. The state left behind already stops
+rather than spreads, so ERROR is the loud half of a failure that is otherwise contained.
+
+#### The red, measured rather than asserted
+
+The correction was written before the case, so the red was taken by reconstructing the pre-fix shape
+under the probe protocol: the fixed file was copied to the scratchpad, the in-place walk and the
+unconditional push were restored, the case was run, and the file was restored and verified
+byte-exact (`sha256` `e19f8fef…` → `OK`).
+
+```
+× logs at ERROR and drops a hook registered AFTER its transaction settled 2ms
+  AssertionError: the drop is LOGGED at ERROR; a dropped hook must not be silent
+  Tests  1 failed | 7 passed (8)
+```
+
+The shape of that failure is the finding itself: the assertion that the late hook did NOT run
+**passed** against the old code — it was already dropped — and the only thing missing was anyone
+being told. The case reads the seam's own ERROR log, because a refusal whose entire effect IS the
+log cannot be told from silence by a case that cannot see it; the logger is mocked through
+`importOriginal` so the rest of the import graph keeps its exports.
+
+One canon point the typecheck forced, kept rather than worked past: the collected `msg` is declared
+`string | undefined` — required and nullable — not optional. The logger's signature makes it
+omissible, so a call really can arrive without one, and under `exactOptionalPropertyTypes` an
+optional property may not be ASSIGNED `undefined`.
+
+#### Gates after W1
+
+| Gate                                             | Result                                                           |
+| ------------------------------------------------ | ---------------------------------------------------------------- |
+| `@adapters/db-prisma` vitest                     | **5 files, 78 passed** (was 77; the settled-refusal case is new) |
+| `tsc --noEmit` `@adapters/db-prisma`             | **0**                                                            |
+| `eslint --max-warnings 0` · `prettier` (2 files) | **0** · clean                                                    |
+| fitness #3 · #4 · #13                            | 0 · 0 · 0                                                        |
+| also: fitness #9 · tripwire words                | 0 · none                                                         |

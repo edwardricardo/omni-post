@@ -496,6 +496,26 @@ describe("ChannelPublication", () => {
       assert.strictEqual(cleared.value.applied, false);
     });
 
+    it("returns the clearance FORGOTTEN once a new episode opens over it", () => {
+      // The clearance is a fact about the episode it settled. Carrying it into the next
+      // one lets a reader that asks "did the customer already confirm this channel?"
+      // read YES about an episode that never stranded anything — which turns the next
+      // confirmation of a genuinely stranded channel into a success it never performed.
+      const record = makeStrandedRecord();
+      const cleared = record.clearPendingRetraction({ cause: "manually-removed", now: NOW });
+      assert.ok(cleared.ok && cleared.value.applied, "the fixture confirms the removal first");
+
+      const opened = record.openEpisode(record.episode + 1);
+
+      assert.ok(opened.ok, "a channel with nothing live is re-drivable");
+      assert.strictEqual(
+        record.retractionClearedCause,
+        undefined,
+        "the previous episode's clearance does not describe this one"
+      );
+      assert.strictEqual(record.retractionClearedAt, undefined);
+    });
+
     it("returns the live fragments unchanged when nothing explicit clears them", () => {
       const record = makeStrandedRecord(2);
 
@@ -615,6 +635,38 @@ describe("ChannelPublication", () => {
 
       assert.ok(expired.ok);
       assert.strictEqual(expired.value.applied, false);
+    });
+
+    it("refuses a window that is not a finite number instead of expiring on it", () => {
+      // `now < startedAt + NaN` is FALSE, so a guard written only as a comparison is
+      // NOT taken and the record expires — the one malformed argument here that fails
+      // OPEN. The invariant belongs to the entity, not to whichever caller remembered
+      // to validate first.
+      const record = makeStrandedRecord();
+
+      const expired = record.expireRetractionActionWindow({
+        now: new Date(NOW.getTime() + 100 * HOUR_MS),
+        window: Number.NaN,
+      });
+
+      assert.strictEqual(
+        record.actionWindowExpiredAt,
+        undefined,
+        "the window the malformed argument would have closed is still open"
+      );
+      assert.ok(!expired.ok, "an unusable duration is refused, never applied");
+    });
+
+    it("refuses a negative window instead of expiring on it", () => {
+      const record = makeStrandedRecord();
+
+      const expired = record.expireRetractionActionWindow({
+        now: NOW,
+        window: -1,
+      });
+
+      assert.strictEqual(record.actionWindowExpiredAt, undefined);
+      assert.ok(!expired.ok);
     });
 
     it("returns the record still clearable after the window expired", () => {

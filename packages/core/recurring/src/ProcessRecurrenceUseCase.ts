@@ -28,6 +28,12 @@ export interface ProcessedRecurrence {
   recurringPostId: string;
   templatePostId: string;
   projectId: string;
+  /**
+   * The owning tenant. Carried because the caller runs its discovery across accounts
+   * and must then bind EACH row to its own account before doing any work for it — the
+   * value is the recurrence entity's, never the caller's guess.
+   */
+  accountId: string;
   channels: string[];
   contentVariation: string;
   newOccurrenceCount: number;
@@ -158,6 +164,7 @@ export class ProcessRecurrenceUseCase implements UseCase<
           recurringPostId: entity.id.value,
           templatePostId: entity.templatePostId,
           projectId: entity.projectId.value,
+          accountId: entity.accountId,
           channels: entity.channels,
           contentVariation: entity.contentVariation,
           newOccurrenceCount: entity.occurrenceCount,

@@ -86,9 +86,30 @@ export class PrismaPostRepository implements PostRepository {
   }
 
   /**
-   * Save a post aggregate (create or update)
+   * @method save
+   * @description The FULL save: the post row, its content, its media and the outbox. It
+   *   writes NO publication row — `savePublication` is the only production writer of the
+   *   per-channel record, and it is the only one that runs the projection invariant.
+   *
+   *   Which is why this refuses an aggregate that still owes a publication write. The
+   *   alternative is not "writes less": it is SILENCE.
+   *   `declarePublicationTargets()` mutates the records and emits no event, so a caller
+   *   that then reached for this save would get `ok` back and lose the intended target
+   *   set with nothing — not a log line, not a failing test, not an event — to say so.
+   *   The refusal names `savePublication` because the caller is one call away from being
+   *   correct, and the message is the only place that tells them which call.
+   * @param aggregate - The post to persist
+   * @returns Result.ok, or the error that refused or failed the write
    */
   async save(aggregate: PostAggregate): Promise<Result<void, Error>> {
+    if (aggregate.hasUnsavedPublications()) {
+      return err(
+        new InvariantViolationError(
+          `post ${aggregate.id.value} carries unsaved publication records: the full save writes none of them, so persist them with savePublication instead of losing them here`
+        )
+      );
+    }
+
     try {
       const exists = await this.exists(aggregate.id);
 

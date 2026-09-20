@@ -15,10 +15,21 @@ import type { QueuePort } from "@ports/core";
 import {
   processBulkScheduleRowJob,
   handleBulkScheduleRowFailure,
+  onBulkScheduleJobFailed,
 } from "../../../src/bulk-scheduling/bulkScheduleWorker.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { ProcessBulkScheduleRowUseCase } from "@core/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
 import type { FailBulkScheduleRowUseCase } from "@core/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+import { getTenantContext } from "../../../src/security/tenantContext.js";
+import client from "prom-client";
+
+/** Reads the live value of the refusal counter for one `reason` label. */
+async function refusalCount(reason: string): Promise<number> {
+  const metric = client.register.getSingleMetric("omnipost_bulk_schedule_rows_refused_total");
+  if (metric === undefined) return 0;
+  const { values } = await (metric as client.Counter).get();
+  return values.find((value) => value.labels.reason === reason)?.value ?? 0;
+}
 
 const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
@@ -59,18 +70,47 @@ describe("processBulkScheduleRowJob", () => {
     };
     await assert.rejects(() => processBulkScheduleRowJob(deps, payload), /failed/i);
   });
+
+  it("runs the use case INSIDE a tenant context bound to the payload's account", async () => {
+    // A queue job carries no request, so the scope is bound from the payload the producer
+    // put the account in — the convention the repurpose / triage / trend consumers already
+    // follow. Without it the row's writes reach `post` / `postContent` / `postMedia`, all
+    // tenant-guard-enrolled, with NO context: the guard throws, and the only thing that has
+    // ever covered this path is a double that never consults the guard.
+    let seen: string | undefined;
+    const deps = {
+      process: makeProcess(async () => {
+        seen = getTenantContext()?.accountId;
+        return ok({ itemId: "i1", status: "SCHEDULED", postId: "post-1" });
+      }),
+      logger,
+    };
+
+    await processBulkScheduleRowJob(deps, payload);
+
+    assert.strictEqual(seen, "a1", "the row runs in the account its payload names");
+  });
+
+  it("refuses a row whose payload names no account, rather than running unbound", async () => {
+    const deps = {
+      process: makeProcess(async () => ok({ itemId: "i1", status: "SCHEDULED", postId: "post-1" })),
+      logger,
+    };
+
+    await assert.rejects(
+      () => processBulkScheduleRowJob(deps, { ...payload, accountId: undefined }),
+      /account/i
+    );
+    assert.strictEqual(
+      (deps.process.execute as ReturnType<typeof vi.fn>).mock.calls.length,
+      0,
+      "an unbound row is never processed — falling back to the system scope would write across tenants"
+    );
+  });
 });
 
 describe("handleBulkScheduleRowFailure", () => {
   beforeEach(() => vi.clearAllMocks());
-
-  it("is a no-op when the job is undefined", async () => {
-    const fail = makeFail(async () => ok(undefined));
-    const deadLetter = makeDeadLetter(async () => ok("x"));
-    await handleBulkScheduleRowFailure({ fail, deadLetter, logger }, undefined, new Error("x"));
-    assert.strictEqual((fail.execute as ReturnType<typeof vi.fn>).mock.calls.length, 0);
-    assert.strictEqual((deadLetter.enqueue as ReturnType<typeof vi.fn>).mock.calls.length, 0);
-  });
 
   it("is a no-op while retries remain", async () => {
     const fail = makeFail(async () => ok(undefined));
@@ -103,6 +143,64 @@ describe("handleBulkScheduleRowFailure", () => {
     assert.match(failArgs.reason, /Exhausted 3 attempts/);
   });
 
+  it("records the terminal failure INSIDE the tenant context the payload names", async () => {
+    // The failure callback is part of the worker and writes the same tenant-scoped rows
+    // the row path does: `FailBulkScheduleRowUseCase` updates `bulkScheduleItem` and then
+    // `bulkScheduleBatch` through `completeBatchIfSettled`. Unbound, the guard throws for
+    // EVERY retry-exhausted row and the batch never settles — so binding only the success
+    // path would leave the failure path broken in precisely the situation it exists for.
+    let seen: string | undefined;
+    const fail = makeFail(async () => {
+      seen = getTenantContext()?.accountId;
+      return ok(undefined);
+    });
+    const deadLetter = makeDeadLetter(async () => ok("dlq-1"));
+
+    await handleBulkScheduleRowFailure(
+      { fail, deadLetter, logger },
+      job({ attemptsMade: 3, opts: { attempts: 3 } }),
+      new Error("still broken")
+    );
+
+    assert.strictEqual(seen, "a1", "the terminal failure is recorded in the row's account");
+  });
+
+  it("THROWS the shared refusal for a payload that names no account, and counts it", async () => {
+    // Both arms of the worker answer the identical condition identically. The terminal
+    // arm used to log and RETURN, which resolved the callback while the item stayed
+    // unrecorded and its batch never settled — the one place a silent skip is worst,
+    // because nothing retries after it. The counter is what makes that state visible:
+    // a log line nobody greps is not an alert.
+    const fail = makeFail(async () => ok(undefined));
+    const deadLetter = makeDeadLetter(async () => ok("dlq-1"));
+    const before = await refusalCount("terminal-failure");
+
+    await assert.rejects(
+      () =>
+        handleBulkScheduleRowFailure(
+          { fail, deadLetter, logger },
+          job({
+            attemptsMade: 3,
+            opts: { attempts: 3 },
+            data: { ...payload, accountId: undefined },
+          }),
+          new Error("still broken")
+        ),
+      /accountId/
+    );
+
+    assert.strictEqual(
+      (fail.execute as ReturnType<typeof vi.fn>).mock.calls.length,
+      0,
+      "an unbound manifest write is refused, never attempted under the system scope"
+    );
+    assert.strictEqual(
+      await refusalCount("terminal-failure"),
+      before + 1,
+      "the refusal is counted so the unsettled batch is observable"
+    );
+  });
+
   it("still records the terminal failure when the DLQ enqueue fails", async () => {
     const fail = makeFail(async () => ok(undefined));
     const deadLetter = makeDeadLetter(async () => err("CONNECTION_ERROR"));
@@ -113,5 +211,61 @@ describe("handleBulkScheduleRowFailure", () => {
     );
     assert.strictEqual((fail.execute as ReturnType<typeof vi.fn>).mock.calls.length, 1);
     assert.ok(logger.error.mock.calls.length >= 1);
+  });
+});
+
+describe("onBulkScheduleJobFailed", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("counts and logs a `failed` event that carries no job, instead of returning in silence", async () => {
+    // BullMQ emits `failed` with an undefined job when it could not load the job the
+    // event is about — a stalled job reclaimed after its key expired, or a payload it
+    // cannot deserialize. The row behind it still exists in a batch that is waiting on
+    // it, and the handler returned without a word: no DLQ entry, no manifest write, no
+    // log, no counter. The batch then never settles and nothing anywhere says why, which
+    // is the same unobservable state the other two arms are counted to prevent.
+    const fail = makeFail(async () => ok(undefined));
+    const deadLetter = makeDeadLetter(async () => ok("x"));
+    const before = await refusalCount("missing-job");
+
+    onBulkScheduleJobFailed({ fail, deadLetter, logger }, undefined, new Error("stalled"));
+
+    assert.strictEqual(
+      await refusalCount("missing-job"),
+      before + 1,
+      "the event is counted under its own arm, not folded into the row or terminal arms"
+    );
+    assert.ok(logger.error.mock.calls.length >= 1, "and logged at ERROR, not warn or info");
+    assert.strictEqual(
+      (fail.execute as ReturnType<typeof vi.fn>).mock.calls.length,
+      0,
+      "with nothing attempted for a row the event cannot name"
+    );
+    assert.strictEqual((deadLetter.enqueue as ReturnType<typeof vi.fn>).mock.calls.length, 0);
+  });
+
+  it("does not let a failure inside the handler escape as an unhandled rejection", async () => {
+    // A `failed` LISTENER is not awaited by BullMQ: a rejection escaping here is
+    // unhandled, and under Node's default that takes the process down over a job that
+    // had already failed. The listener is the boundary; the log is the only sink it has.
+    const fail = makeFail(async () => {
+      throw new Error("manifest write exploded");
+    });
+    const deadLetter = makeDeadLetter(async () => ok("dlq-1"));
+
+    onBulkScheduleJobFailed(
+      { fail, deadLetter, logger },
+      job({ attemptsMade: 3, opts: { attempts: 3 } }),
+      new Error("still broken")
+    );
+
+    await vi.waitFor(() =>
+      assert.ok(
+        logger.error.mock.calls.some(
+          ([, message]) => typeof message === "string" && message.includes("did not complete")
+        ),
+        "the handler's rejection was caught and logged"
+      )
+    );
   });
 });

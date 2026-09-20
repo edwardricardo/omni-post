@@ -184,6 +184,10 @@ export function openPublicationEpisode(
       if (!opened.ok) {
         return err(opened.error);
       }
+      // Marked at the MUTATION, not at the end: the lifecycle check below can still
+      // refuse, and a record already moved to a new episode is owed a write whatever
+      // this call answers.
+      context.markRecordsChanged();
     }
   }
 
@@ -245,6 +249,7 @@ export function recordChannelAttempt(
   if (!applied.ok) {
     return err(applied.error);
   }
+  context.markRecordsChanged();
   if (!applied.value.applied) {
     return ok({ applied: false, outcome: record.outcome });
   }
@@ -294,6 +299,7 @@ export function markRetractionOutcome(
   if (!marked.ok) {
     return err(marked.error);
   }
+  context.markRecordsChanged();
 
   emitAlertTransition(context, record);
   const projected = applyDerivedStatus(context);
@@ -330,6 +336,7 @@ export function clearPendingRetraction(
   if (!cleared.ok) {
     return err(cleared.error);
   }
+  context.markRecordsChanged();
   if (!cleared.value.applied) {
     return ok({ applied: false });
   }
@@ -348,11 +355,13 @@ export function clearPendingRetraction(
  * @function expireRetractionActionWindow
  * @description Closes the customer's window on one channel. The window LENGTH is an
  *   argument: the domain reads no configuration, and the record re-asserts the cutoff
- *   so a mis-parametrized caller cannot expire anything early.
+ *   so a mis-parametrized caller cannot expire anything early. A duration that is not a
+ *   finite non-negative number is REFUSED by the record rather than compared against —
+ *   the comparison would expire on it, not skip it.
  * @param context - The root's narrow view
  * @param input - The channel, the moment and the window length
  * @returns Result with `applied` — false when the window is not open, already closed,
- *   or has not elapsed
+ *   or has not elapsed — or the refusal the record returned
  */
 export function expireRetractionActionWindow(
   context: PublicationContext,
@@ -367,6 +376,7 @@ export function expireRetractionActionWindow(
   if (!expired.ok) {
     return err(expired.error);
   }
+  context.markRecordsChanged();
   if (!expired.value.applied) {
     return ok({ applied: false });
   }
