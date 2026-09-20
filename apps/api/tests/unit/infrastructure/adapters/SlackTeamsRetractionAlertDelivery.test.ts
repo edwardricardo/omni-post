@@ -1,11 +1,13 @@
 /**
  * @file SlackTeamsRetractionAlertDelivery.test.ts
  * @description Unit tests for the shared-destination medium of the urgent retraction
- *   alert. Two things are pinned because they are the opposite of the per-member rule:
- *   the fan-out asks for EVERY active config (the config's events filter predates this
- *   event name, so honouring it would make the alert invisible on every destination
- *   that exists today), and it is called ONCE for all destinations rather than once per
- *   destination, which would multiply the message.
+ *   alert. Three things are pinned because each is the opposite of the per-member rule:
+ *   the fan-out reaches the destinations the CALLER CLAIMED and no others (a retry that
+ *   re-queried every active config would tell the already-notified channels a second
+ *   time), the config's events filter never gates it (the filter predates this event
+ *   name, so honouring it would make the alert invisible on every destination that
+ *   exists today), and every claimed destination gets its own outcome so the caller can
+ *   release exactly the claims nothing reached.
  * @layer infrastructure
  */
 
@@ -15,6 +17,27 @@ import { SlackTeamsRetractionAlertDelivery } from "../../../../src/infrastructur
 import { ALERT_MEDIA, ALERT_MEDIUM_KINDS } from "@ports/core";
 import { ok } from "@shared/types";
 import { ALERT } from "./retractionAlertFixtures.js";
+
+/** A fan-out double that reaches exactly the configs it was told to, minus any refusals. */
+const makeNotifier = (refusing: readonly string[] = [], missing: readonly string[] = []) => ({
+  broadcast: vi.fn(
+    async (
+      _projectId: string,
+      _event: string,
+      _payload: unknown,
+      options?: { toConfigIds: readonly string[] }
+    ) => {
+      const asked = options?.toConfigIds ?? [];
+      return ok({
+        sentConfigIds: asked.filter((id) => !refusing.includes(id) && !missing.includes(id)),
+        failedConfigIds: asked.filter((id) => refusing.includes(id)),
+      });
+    }
+  ),
+});
+
+const optionsOf = (notifier: ReturnType<typeof makeNotifier>, call = 0) =>
+  notifier.broadcast.mock.calls[call]?.[3] as { toConfigIds: readonly string[] } | undefined;
 
 describe("SlackTeamsRetractionAlertDelivery", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -26,36 +49,40 @@ describe("SlackTeamsRetractionAlertDelivery", () => {
     assert.strictEqual(adapter.kind, ALERT_MEDIUM_KINDS.SHARED);
   });
 
-  it("fans out to EVERY active config, bypassing the events filter", async () => {
-    const notifier = { broadcast: vi.fn(async () => ok({ sent: 2, failed: 0 })) };
+  it("fans out to exactly the CLAIMED destinations, not to every active config", async () => {
+    const notifier = makeNotifier();
     const adapter = new SlackTeamsRetractionAlertDelivery(notifier as never);
 
-    const result = await adapter.deliver(ALERT, [{ id: "cfg-a" }, { id: "cfg-b" }]);
+    const result = await adapter.deliver(ALERT, [{ id: "cfg-b" }]);
 
     assert.ok(result.ok);
-    const [projectId, event, payload, options] = notifier.broadcast.mock.calls[0] as [
+    assert.deepStrictEqual(
+      optionsOf(notifier)?.toConfigIds,
+      ["cfg-b"],
+      "the fan-out was not scoped to the claimed destination, so a retry re-sends to its siblings"
+    );
+    const [projectId, event, payload] = notifier.broadcast.mock.calls[0] as [
       string,
       string,
       { title: string; metadata?: Record<string, string> },
-      { toEveryActiveConfig: boolean },
     ];
     assert.strictEqual(projectId, ALERT.projectId);
     assert.strictEqual(event, "post.retraction_pending");
     assert.strictEqual(payload.title, ALERT.title);
-    assert.strictEqual(options.toEveryActiveConfig, true);
   });
 
   it("calls the fan-out ONCE for all destinations, not once per destination", async () => {
-    const notifier = { broadcast: vi.fn(async () => ok({ sent: 2, failed: 0 })) };
+    const notifier = makeNotifier();
     const adapter = new SlackTeamsRetractionAlertDelivery(notifier as never);
 
     await adapter.deliver(ALERT, [{ id: "cfg-a" }, { id: "cfg-b" }]);
 
     expect(notifier.broadcast).toHaveBeenCalledOnce();
+    assert.deepStrictEqual(optionsOf(notifier)?.toConfigIds, ["cfg-a", "cfg-b"]);
   });
 
   it("carries identities in metadata and no webhook url", async () => {
-    const notifier = { broadcast: vi.fn(async () => ok({ sent: 1, failed: 0 })) };
+    const notifier = makeNotifier();
     const adapter = new SlackTeamsRetractionAlertDelivery(notifier as never);
 
     await adapter.deliver(ALERT, [{ id: "cfg-a" }]);
@@ -67,7 +94,7 @@ describe("SlackTeamsRetractionAlertDelivery", () => {
   });
 
   it("reports failure when every destination refused", async () => {
-    const notifier = { broadcast: vi.fn(async () => ok({ sent: 0, failed: 2 })) };
+    const notifier = makeNotifier(["cfg-a", "cfg-b"]);
     const adapter = new SlackTeamsRetractionAlertDelivery(notifier as never);
 
     const result = await adapter.deliver(ALERT, [{ id: "cfg-a" }, { id: "cfg-b" }]);
@@ -77,7 +104,7 @@ describe("SlackTeamsRetractionAlertDelivery", () => {
   });
 
   it("succeeds when at least one destination took it", async () => {
-    const notifier = { broadcast: vi.fn(async () => ok({ sent: 1, failed: 1 })) };
+    const notifier = makeNotifier(["cfg-b"]);
     const adapter = new SlackTeamsRetractionAlertDelivery(notifier as never);
 
     const result = await adapter.deliver(ALERT, [{ id: "cfg-a" }, { id: "cfg-b" }]);
@@ -85,8 +112,54 @@ describe("SlackTeamsRetractionAlertDelivery", () => {
     assert.ok(result.ok);
   });
 
+  it("NAMES the destination a partial fan-out could not reach", async () => {
+    const notifier = makeNotifier(["cfg-b"]);
+    const adapter = new SlackTeamsRetractionAlertDelivery(notifier as never);
+
+    const result = await adapter.deliver(ALERT, [{ id: "cfg-a" }, { id: "cfg-b" }]);
+
+    assert.ok(result.ok);
+    assert.deepStrictEqual(
+      result.value.failedTargets?.map((failure) => failure.targetId),
+      ["cfg-b"],
+      "a refused destination was reported as reached, so its ledger claim stands forever"
+    );
+  });
+
+  it("names NO failed target when every destination took it", async () => {
+    const notifier = makeNotifier();
+    const adapter = new SlackTeamsRetractionAlertDelivery(notifier as never);
+
+    const result = await adapter.deliver(ALERT, [{ id: "cfg-a" }, { id: "cfg-b" }]);
+
+    assert.ok(result.ok);
+    assert.deepStrictEqual(result.value.failedTargets ?? [], []);
+  });
+
+  it("names a destination DEACTIVATED between the claim and the send as unreached", async () => {
+    // Not a refusal — the fan-out never attempted it, because it stopped being an
+    // active config after the caller claimed it. Unreached either way, so its claim
+    // must come back rather than standing for an alert nobody received.
+    const notifier = makeNotifier([], ["cfg-b"]);
+    const adapter = new SlackTeamsRetractionAlertDelivery(notifier as never);
+
+    const result = await adapter.deliver(ALERT, [{ id: "cfg-a" }, { id: "cfg-b" }]);
+
+    assert.ok(result.ok);
+    assert.deepStrictEqual(
+      result.value.failedTargets?.map((failure) => failure.targetId),
+      ["cfg-b"],
+      "a destination that silently stopped being a destination was counted as delivered"
+    );
+    assert.match(
+      result.value.failedTargets?.[0]?.reason ?? "",
+      /active/i,
+      "the reason does not say the destination is no longer active"
+    );
+  });
+
   it("does not call the fan-out when nothing was claimed", async () => {
-    const notifier = { broadcast: vi.fn(async () => ok({ sent: 0, failed: 0 })) };
+    const notifier = makeNotifier();
     const adapter = new SlackTeamsRetractionAlertDelivery(notifier as never);
 
     const result = await adapter.deliver(ALERT, []);

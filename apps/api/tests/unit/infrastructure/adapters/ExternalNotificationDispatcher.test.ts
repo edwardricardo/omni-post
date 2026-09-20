@@ -1,15 +1,21 @@
 /**
- * @file externalNotificationDispatcherBroadcast.test.ts
+ * @file ExternalNotificationDispatcher.test.ts
  * @description Unit tests for the promoted `broadcast` on ExternalNotifierPort. The
  *   method existed on the dispatcher CLASS before; promoting it to the port is what
  *   lets a caller fan out to a project's destinations without importing an
- *   infrastructure class, and the new `toEveryActiveConfig` option is what lets one
- *   caller reach configs whose `events` filter predates the event being announced.
+ *   infrastructure class, and the `toConfigIds` option is what lets one caller reach
+ *   configs whose `events` filter predates the event being announced.
  *
  *   Both branches are pinned here because they are opposites: the default keeps the
- *   filter (every existing caller depends on it), and the option deliberately ignores
- *   it (an alert nobody's filter names would otherwise be invisible on every config
- *   that exists today).
+ *   filter (every existing caller depends on it), and naming destinations deliberately
+ *   ignores it (an alert nobody's filter names would otherwise be invisible on every
+ *   config that exists today).
+ *
+ *   `toConfigIds` is a LIST rather than a "reach everything" flag, and that is the
+ *   property with teeth: a caller holding a per-destination claim retries the ONE
+ *   destination a previous run missed, so the channels that already got the alert are
+ *   not told a second time. The report names both sides for the same reason — a count
+ *   cannot say which claim to release.
  * @layer infrastructure
  */
 
@@ -86,14 +92,14 @@ describe("ExternalNotificationDispatcher.broadcast", () => {
       const result = await dispatcher.broadcast(PROJECT_ID, "post.retraction_pending", PAYLOAD);
 
       assert.ok(result.ok);
-      assert.strictEqual(result.value.sent, 1);
+      assert.deepStrictEqual(result.value.sentConfigIds, ["cfg-named"]);
       expect(slack.send).toHaveBeenCalledOnce();
       expect(repo.findActiveByProjectAndEvent).toHaveBeenCalledOnce();
     });
   });
 
-  describe("toEveryActiveConfig — the ACTIVE config is the switch", () => {
-    it("reaches every active config even when no filter names the event", async () => {
+  describe("toConfigIds — the caller NAMES the destinations, and gets each one's outcome", () => {
+    it("reaches only the named configs, leaving an active sibling alone", async () => {
       const repo = makeConfigRepo([
         makeConfig("cfg-a", true, ["post.published"]),
         makeConfig("cfg-b", true, []),
@@ -101,16 +107,37 @@ describe("ExternalNotificationDispatcher.broadcast", () => {
       const dispatcher = new ExternalNotificationDispatcher(repo, slack, teams);
 
       const result = await dispatcher.broadcast(PROJECT_ID, "post.retraction_pending", PAYLOAD, {
-        toEveryActiveConfig: true,
+        toConfigIds: ["cfg-b"],
       });
 
       assert.ok(result.ok);
-      assert.strictEqual(result.value.sent, 2);
-      assert.strictEqual(slack.send.mock.calls.length, 2);
+      assert.deepStrictEqual(
+        result.value.sentConfigIds,
+        ["cfg-b"],
+        "a caller retrying ONE destination reached its siblings too, telling them twice"
+      );
+      assert.strictEqual(slack.send.mock.calls.length, 1);
+      assert.strictEqual(slack.send.mock.calls[0]?.[0], "https://hooks.example.test/cfg-b");
       expect(repo.findActiveByProjectAndEvent).not.toHaveBeenCalled();
     });
 
-    it("skips a DEACTIVATED config — deactivating it is the only off switch", async () => {
+    it("reaches every named config even when no filter names the event", async () => {
+      const repo = makeConfigRepo([
+        makeConfig("cfg-a", true, ["post.published"]),
+        makeConfig("cfg-b", true, []),
+      ]);
+      const dispatcher = new ExternalNotificationDispatcher(repo, slack, teams);
+
+      const result = await dispatcher.broadcast(PROJECT_ID, "post.retraction_pending", PAYLOAD, {
+        toConfigIds: ["cfg-a", "cfg-b"],
+      });
+
+      assert.ok(result.ok);
+      assert.deepStrictEqual(result.value.sentConfigIds, ["cfg-a", "cfg-b"]);
+      assert.strictEqual(slack.send.mock.calls.length, 2);
+    });
+
+    it("skips a DEACTIVATED config even when the caller named it — deactivating is the only off switch", async () => {
       const repo = makeConfigRepo([
         makeConfig("cfg-off", false, []),
         makeConfig("cfg-on", true, []),
@@ -118,11 +145,16 @@ describe("ExternalNotificationDispatcher.broadcast", () => {
       const dispatcher = new ExternalNotificationDispatcher(repo, slack, teams);
 
       const result = await dispatcher.broadcast(PROJECT_ID, "post.retraction_pending", PAYLOAD, {
-        toEveryActiveConfig: true,
+        toConfigIds: ["cfg-off", "cfg-on"],
       });
 
       assert.ok(result.ok);
-      assert.strictEqual(result.value.sent, 1);
+      assert.deepStrictEqual(result.value.sentConfigIds, ["cfg-on"]);
+      assert.deepStrictEqual(
+        result.value.failedConfigIds,
+        [],
+        "a deactivated config did not refuse anything — it was never a destination"
+      );
       assert.strictEqual(slack.send.mock.calls[0]?.[0], "https://hooks.example.test/cfg-on");
     });
 
@@ -134,14 +166,14 @@ describe("ExternalNotificationDispatcher.broadcast", () => {
       const dispatcher = new ExternalNotificationDispatcher(repo, slack, teams);
 
       await dispatcher.broadcast(PROJECT_ID, "post.retraction_pending", PAYLOAD, {
-        toEveryActiveConfig: true,
+        toConfigIds: ["cfg-slack", "cfg-teams"],
       });
 
       expect(slack.send).toHaveBeenCalledOnce();
       expect(teams.send).toHaveBeenCalledOnce();
     });
 
-    it("counts a failed destination without suppressing its siblings", async () => {
+    it("NAMES both sides — what was reached and what refused", async () => {
       const failing = makeAdapter("fail");
       const repo = makeConfigRepo([
         makeConfig("cfg-slack", true, [], "slack"),
@@ -150,13 +182,43 @@ describe("ExternalNotificationDispatcher.broadcast", () => {
       const dispatcher = new ExternalNotificationDispatcher(repo, failing, teams);
 
       const result = await dispatcher.broadcast(PROJECT_ID, "post.retraction_pending", PAYLOAD, {
-        toEveryActiveConfig: true,
+        toConfigIds: ["cfg-slack", "cfg-teams"],
       });
 
       assert.ok(result.ok);
-      assert.strictEqual(result.value.sent, 1);
-      assert.strictEqual(result.value.failed, 1);
+      assert.deepStrictEqual(result.value.sentConfigIds, ["cfg-teams"]);
+      assert.deepStrictEqual(
+        result.value.failedConfigIds,
+        ["cfg-slack"],
+        "a count alone cannot tell a caller which destination to retry"
+      );
       expect(teams.send).toHaveBeenCalledOnce();
+    });
+
+    it("names nothing as failed when every destination took it", async () => {
+      const repo = makeConfigRepo([makeConfig("cfg-slack", true, [], "slack")]);
+      const dispatcher = new ExternalNotificationDispatcher(repo, slack, teams);
+
+      const result = await dispatcher.broadcast(PROJECT_ID, "post.retraction_pending", PAYLOAD, {
+        toConfigIds: ["cfg-slack"],
+      });
+
+      assert.ok(result.ok);
+      assert.deepStrictEqual(result.value.failedConfigIds, []);
+      assert.deepStrictEqual(result.value.sentConfigIds, ["cfg-slack"]);
+    });
+
+    it("reports a config that no longer exists as neither sent nor failed", async () => {
+      const repo = makeConfigRepo([makeConfig("cfg-slack", true, [], "slack")]);
+      const dispatcher = new ExternalNotificationDispatcher(repo, slack, teams);
+
+      const result = await dispatcher.broadcast(PROJECT_ID, "post.retraction_pending", PAYLOAD, {
+        toConfigIds: ["cfg-slack", "cfg-deleted"],
+      });
+
+      assert.ok(result.ok);
+      assert.deepStrictEqual(result.value.sentConfigIds, ["cfg-slack"]);
+      assert.deepStrictEqual(result.value.failedConfigIds, []);
     });
 
     it("propagates a repository failure instead of reporting a silent zero", async () => {
@@ -170,7 +232,7 @@ describe("ExternalNotificationDispatcher.broadcast", () => {
       const dispatcher = new ExternalNotificationDispatcher(repo, slack, teams);
 
       const result = await dispatcher.broadcast(PROJECT_ID, "post.retraction_pending", PAYLOAD, {
-        toEveryActiveConfig: true,
+        toConfigIds: ["cfg-a"],
       });
 
       assert.ok(!result.ok);

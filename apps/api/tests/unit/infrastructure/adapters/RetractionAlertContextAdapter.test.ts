@@ -152,6 +152,83 @@ describe("RetractionAlertContextAdapter", () => {
     assert.ok(context.channelName.length > 0, "an unreadable channel must not empty the alert");
   });
 
+  describe("a repository that THROWS degrades exactly like one that answers err", () => {
+    const exploding = (method: string) => ({
+      [method]: vi.fn(async () => {
+        throw new Error("the connection pool is exhausted");
+      }),
+    });
+
+    it("degrades the excerpt when the post query throws", async () => {
+      const adapter = new RetractionAlertContextAdapter(
+        exploding("getById") as never,
+        makeChannelRepo() as never,
+        makeAccountRepo() as never
+      );
+
+      const context = await adapter.read({
+        postId: POST_ID,
+        channelId: CHANNEL_ID,
+        accountId: ACCOUNT_ID,
+      });
+
+      assert.ok(
+        context.postExcerpt.includes(POST_ID),
+        "a thrown read escaped the adapter that exists to degrade, taking the whole alert with it"
+      );
+      assert.strictEqual(context.channelName, "@acme");
+    });
+
+    it("degrades the channel when the channel repository throws", async () => {
+      const adapter = new RetractionAlertContextAdapter(
+        makePostQuery() as never,
+        exploding("findById") as never,
+        makeAccountRepo() as never
+      );
+
+      const context = await adapter.read({
+        postId: POST_ID,
+        channelId: CHANNEL_ID,
+        accountId: ACCOUNT_ID,
+      });
+
+      assert.ok(context.channelName.includes(CHANNEL_ID));
+      assert.strictEqual(context.provider, "unknown");
+    });
+
+    it("degrades the account name when the account repository throws", async () => {
+      const adapter = new RetractionAlertContextAdapter(
+        makePostQuery() as never,
+        makeChannelRepo() as never,
+        exploding("findById") as never
+      );
+
+      const context = await adapter.read({
+        postId: POST_ID,
+        channelId: CHANNEL_ID,
+        accountId: ACCOUNT_ID,
+      });
+
+      assert.strictEqual(context.accountName, "your account");
+    });
+
+    it("COUNTS a thrown read, so an outage is not invisible", async () => {
+      const adapter = new RetractionAlertContextAdapter(
+        exploding("getById") as never,
+        makeChannelRepo() as never,
+        makeAccountRepo() as never
+      );
+
+      await adapter.read({ postId: POST_ID, channelId: CHANNEL_ID, accountId: ACCOUNT_ID });
+
+      const values = await valuesOf("retraction_alert_context_degraded_total");
+      assert.deepStrictEqual(
+        values.map((v) => v.labels.field),
+        ["post"]
+      );
+    });
+  });
+
   describe("a degraded read is OBSERVED, not only survived", () => {
     it("counts and warns when the post cannot be read", async () => {
       const postQuery = {

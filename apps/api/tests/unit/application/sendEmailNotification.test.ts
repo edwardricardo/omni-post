@@ -9,7 +9,10 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { SendEmailNotificationService } from "@core/notifications/SendEmailNotificationService.js";
+import {
+  SendEmailNotificationService,
+  EMAIL_SKIP_REASONS,
+} from "@core/notifications/SendEmailNotificationService.js";
 import { ok } from "@shared/types";
 
 function makeMockMailer() {
@@ -142,6 +145,44 @@ describe("SendEmailNotificationService", () => {
 
       assert.ok(result.ok, "an opt-out must not be reported as a delivery failure");
       expect(mailer.sendNotification).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a skip is DISTINGUISHABLE from a send", () => {
+    it("says a message was sent when the mailer took it", async () => {
+      const result = await service.send(makeContext());
+
+      assert.ok(result.ok);
+      assert.strictEqual(
+        result.value.sent,
+        true,
+        "a caller cannot tell a delivered email from a skipped one"
+      );
+    });
+
+    it("NAMES the recipient's opt-out as the reason nothing was sent", async () => {
+      prefRepo = makeMockPreferenceRepo([{ type: "APPROVAL_REQUESTED", enabled: false }]);
+      service = new SendEmailNotificationService(mailer, prefRepo as never);
+
+      const result = await service.send(makeContext());
+
+      assert.ok(result.ok);
+      assert.strictEqual(result.value.sent, false);
+      assert.strictEqual(
+        result.value.sent === false ? result.value.reason : undefined,
+        EMAIL_SKIP_REASONS.SUPPRESSED_BY_PREFERENCE
+      );
+    });
+
+    it("NAMES the allow-list as the reason nothing was sent", async () => {
+      const result = await service.send(makeContext({ type: "COMMENT_ADDED" as never }));
+
+      assert.ok(result.ok);
+      assert.strictEqual(result.value.sent, false);
+      assert.strictEqual(
+        result.value.sent === false ? result.value.reason : undefined,
+        EMAIL_SKIP_REASONS.TYPE_NOT_EMAILED
+      );
     });
   });
 

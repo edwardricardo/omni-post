@@ -14,7 +14,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import {
   RaiseRetractionAlertUseCase,
@@ -113,10 +113,15 @@ const makeConfig = (
   }) as ExternalNotificationConfigData;
 
 function makeConfigRepo(
-  configs: ExternalNotificationConfigData[]
+  configs: ExternalNotificationConfigData[],
+  lookupError?: string
 ): ExternalNotificationConfigRepository {
   return {
-    findByProjectId: vi.fn(async () => ok(configs)),
+    findByProjectId: vi.fn(async () =>
+      lookupError === undefined
+        ? ok(configs)
+        : { ok: false as const, error: new Error(lookupError) }
+    ),
   } as unknown as ExternalNotificationConfigRepository;
 }
 
@@ -150,10 +155,20 @@ interface MediumDouble extends RetractionAlertDelivery {
   calls: AlertTarget[][];
 }
 
+/**
+ * How a medium double answers. `throw` is the contract violation the port forbids and
+ * the use case must survive anyway; `partial` is the shared fan-out reaching some of
+ * its destinations and not others.
+ */
+type MediumBehaviour = "ok" | "fail" | "throw" | "partial" | "suppress";
+
+/** Which target a `partial` double refuses — the second, so first and last succeed. */
+const PARTIAL_FAILURE_INDEX = 1;
+
 function makeMedium(
   medium: AlertMedium,
   kind: (typeof ALERT_MEDIUM_KINDS)[keyof typeof ALERT_MEDIUM_KINDS],
-  behaviour: "ok" | "fail" = "ok",
+  behaviour: MediumBehaviour = "ok",
   notificationId?: string
 ): MediumDouble {
   const calls: AlertTarget[][] = [];
@@ -166,6 +181,25 @@ function makeMedium(
       callLog.push(`deliver:${medium}:${targets.map((t) => t.id).join(",")}`);
       if (behaviour === "fail") {
         return { ok: false as const, error: `${medium} transport refused` };
+      }
+      if (behaviour === "throw") {
+        throw new Error(`${medium} transport exploded`);
+      }
+      if (behaviour === "suppress") {
+        return ok({
+          suppressedTargets: targets.map((target) => ({
+            targetId: target.id,
+            reason: "the recipient's per-type preference is off",
+          })),
+        });
+      }
+      if (behaviour === "partial") {
+        const refused = targets[PARTIAL_FAILURE_INDEX];
+        return ok(
+          refused === undefined
+            ? {}
+            : { failedTargets: [{ targetId: refused.id, reason: "destination unreachable" }] }
+        );
       }
       return ok(notificationId === undefined ? {} : { notificationId });
     }),
@@ -214,26 +248,36 @@ interface Harness {
 function makeHarness(options?: {
   members?: MemberFixture[];
   configs?: ExternalNotificationConfigData[];
+  configsError?: string;
   failing?: AlertMedium;
+  throwing?: AlertMedium;
+  partial?: AlertMedium;
+  suppressing?: AlertMedium;
   notificationId?: string;
 }): Harness {
   const members = options?.members ?? makeMembers();
   const configs = options?.configs ?? [makeConfig("cfg-active", true)];
+  const behaviourOf = (medium: AlertMedium): MediumBehaviour => {
+    if (options?.throwing === medium) return "throw";
+    if (options?.partial === medium) return "partial";
+    if (options?.suppressing === medium) return "suppress";
+    return options?.failing === medium ? "fail" : "ok";
+  };
   const inApp = makeMedium(
     ALERT_MEDIA.IN_APP,
     ALERT_MEDIUM_KINDS.PER_MEMBER,
-    options?.failing === ALERT_MEDIA.IN_APP ? "fail" : "ok",
+    behaviourOf(ALERT_MEDIA.IN_APP),
     options?.notificationId ?? "n1000000-0000-4000-8000-000000000001"
   );
   const email = makeMedium(
     ALERT_MEDIA.EMAIL,
     ALERT_MEDIUM_KINDS.PER_MEMBER,
-    options?.failing === ALERT_MEDIA.EMAIL ? "fail" : "ok"
+    behaviourOf(ALERT_MEDIA.EMAIL)
   );
   const slack = makeMedium(
     ALERT_MEDIA.SLACK_TEAMS,
     ALERT_MEDIUM_KINDS.SHARED,
-    options?.failing === ALERT_MEDIA.SLACK_TEAMS ? "fail" : "ok"
+    behaviourOf(ALERT_MEDIA.SLACK_TEAMS)
   );
   const sms = makeMedium(ALERT_MEDIA.SMS, ALERT_MEDIUM_KINDS.PER_MEMBER);
   const push = makeMedium(ALERT_MEDIA.PUSH, ALERT_MEDIUM_KINDS.PER_MEMBER);
@@ -244,7 +288,7 @@ function makeHarness(options?: {
   const useCase = new RaiseRetractionAlertUseCase(
     makeCustomerUserRepo(members),
     makePreferenceRepo(members),
-    makeConfigRepo(configs),
+    makeConfigRepo(configs, options?.configsError),
     ledger,
     [inApp, email, slack],
     resolver
@@ -397,6 +441,44 @@ describe("RaiseRetractionAlertUseCase", () => {
       );
     });
 
+    it("names the project and the store's own sentence when the config lookup fails", async () => {
+      const h = makeHarness({ configsError: "the config store is unreachable" });
+
+      const result = await h.useCase.execute(makeInput());
+
+      assert.ok(result.ok);
+      const shared = result.value.report.filter((r) => r.medium === ALERT_MEDIA.SLACK_TEAMS);
+      assert.deepStrictEqual(
+        shared.map((r) => r.result),
+        [ALERT_DELIVERY_RESULTS.FAILED]
+      );
+      assert.strictEqual(
+        shared[0]?.target,
+        PROJECT_ID,
+        "the failed line is about nobody, so whoever reads the warning cannot tell which project lost its shared destinations"
+      );
+      assert.match(
+        shared[0]?.reason ?? "",
+        /unreachable/,
+        "the store said what went wrong and the report threw it away"
+      );
+    });
+
+    it("names the project when the project has no active destination", async () => {
+      const h = makeHarness({ configs: [makeConfig("cfg-off", false)] });
+
+      const result = await h.useCase.execute(makeInput());
+
+      assert.ok(result.ok);
+      const shared = result.value.report.find((r) => r.medium === ALERT_MEDIA.SLACK_TEAMS);
+      assert.strictEqual(shared?.result, ALERT_DELIVERY_RESULTS.NO_ACTIVE_CONFIG);
+      assert.strictEqual(shared?.target, PROJECT_ID);
+      assert.ok(
+        (shared?.reason ?? "").length > 0,
+        "the one line that could say why nothing shared went out says nothing"
+      );
+    });
+
     it("keeps all three reasons distinct in one report", async () => {
       const h = makeHarness({
         members: [{ id: MEMBER_OFF, email: "off@example.test", typeEnabled: false }],
@@ -472,12 +554,235 @@ describe("RaiseRetractionAlertUseCase", () => {
       );
     });
 
-    it("releases a shared destination's claims only when the whole fan-out failed", async () => {
+    it("releases a shared destination's claims when the whole fan-out failed", async () => {
       const h = makeHarness({ failing: ALERT_MEDIA.SLACK_TEAMS });
 
       await h.useCase.execute(makeInput());
 
       assert.ok(callLog.includes(`release:${ALERT_MEDIA.SLACK_TEAMS}:cfg-active`));
+    });
+  });
+
+  describe("a failure the medium did not report as err still releases its claim", () => {
+    it("reports failed and releases the claim when a medium THROWS instead of returning err", async () => {
+      const h = makeHarness({ throwing: ALERT_MEDIA.EMAIL });
+
+      const result = await h.useCase.execute(makeInput());
+
+      assert.ok(result.ok, "one medium breaking its contract must not fail the raise");
+      const emailOn = result.value.report.find(
+        (r) => r.medium === ALERT_MEDIA.EMAIL && r.target === MEMBER_ON
+      );
+      assert.strictEqual(
+        emailOn?.result,
+        ALERT_DELIVERY_RESULTS.FAILED,
+        "a thrown transport was not reported as a failed delivery"
+      );
+      assert.ok(
+        callLog.includes(`release:${ALERT_MEDIA.EMAIL}:${MEMBER_ON}`),
+        `the thrown medium kept its claim, so the redelivery will never retry it; log was ${callLog.join(" | ")}`
+      );
+    });
+
+    it("keeps delivering the REMAINING media after one of them threw", async () => {
+      const h = makeHarness({ throwing: ALERT_MEDIA.IN_APP });
+
+      const result = await h.useCase.execute(makeInput());
+
+      assert.ok(result.ok);
+      assert.deepStrictEqual(
+        h.email.calls.flat().map((t) => t.id),
+        [MEMBER_ON],
+        "a throw on the first medium swallowed every medium after it"
+      );
+      assert.deepStrictEqual(resultsFor(result.value.report, ALERT_MEDIA.SLACK_TEAMS), [
+        ALERT_DELIVERY_RESULTS.DELIVERED,
+      ]);
+    });
+
+    it("CARRIES the medium's own reason onto the failed entry", async () => {
+      const h = makeHarness({ throwing: ALERT_MEDIA.EMAIL });
+
+      const result = await h.useCase.execute(makeInput());
+
+      assert.ok(result.ok);
+      const emailOn = result.value.report.find(
+        (r) => r.medium === ALERT_MEDIA.EMAIL && r.target === MEMBER_ON
+      );
+      assert.match(
+        emailOn?.reason ?? "",
+        /exploded/,
+        "the transport said why it failed and the report threw the sentence away"
+      );
+    });
+
+    it("carries the reason of a shared destination that was not reached", async () => {
+      const h = makeHarness({
+        partial: ALERT_MEDIA.SLACK_TEAMS,
+        configs: [makeConfig("cfg-a", true), makeConfig("cfg-b", true)],
+      });
+
+      const result = await h.useCase.execute(makeInput());
+
+      assert.ok(result.ok);
+      const failed = result.value.report.find(
+        (r) => r.medium === ALERT_MEDIA.SLACK_TEAMS && r.target === "cfg-b"
+      );
+      assert.match(failed?.reason ?? "", /unreachable/);
+    });
+
+    it("retries only the thrown medium's target on a redelivery", async () => {
+      const h = makeHarness({ throwing: ALERT_MEDIA.EMAIL });
+
+      await h.useCase.execute(makeInput());
+      await h.useCase.execute(makeInput());
+
+      assert.strictEqual(
+        h.email.calls.flat().length,
+        2,
+        "the thrown member was never retried — the stale claim blocked the redelivery"
+      );
+      assert.strictEqual(
+        h.inApp.calls.flat().length,
+        1,
+        "the delivered in-app alert was sent a second time"
+      );
+    });
+  });
+
+  describe("a target the medium DELIBERATELY did not send to is not a delivery", () => {
+    it("reports a medium's own suppression as suppressed-by-preference, never delivered", async () => {
+      const h = makeHarness({ suppressing: ALERT_MEDIA.IN_APP });
+
+      const result = await h.useCase.execute(makeInput());
+
+      assert.ok(result.ok);
+      const inAppOn = result.value.report.find(
+        (r) => r.medium === ALERT_MEDIA.IN_APP && r.target === MEMBER_ON
+      );
+      assert.strictEqual(
+        inAppOn?.result,
+        ALERT_DELIVERY_RESULTS.SUPPRESSED_BY_PREFERENCE,
+        "a target nothing was sent to was counted as delivered"
+      );
+      assert.match(inAppOn?.reason ?? "", /preference/i);
+    });
+
+    it("releases the claim of a suppressed target", async () => {
+      const h = makeHarness({ suppressing: ALERT_MEDIA.IN_APP });
+
+      await h.useCase.execute(makeInput());
+
+      assert.ok(
+        callLog.includes(`release:${ALERT_MEDIA.IN_APP}:${MEMBER_ON}`),
+        `a member who was not sent to kept a claim nothing owes, so re-enabling the preference could never reach them; log was ${callLog.join(" | ")}`
+      );
+    });
+
+    it("lets a redelivery re-evaluate the preference instead of colliding with a stale claim", async () => {
+      const h = makeHarness({ suppressing: ALERT_MEDIA.IN_APP });
+
+      await h.useCase.execute(makeInput());
+      await h.useCase.execute(makeInput());
+
+      assert.strictEqual(
+        h.inApp.calls.flat().length,
+        2,
+        "the second delivery never asked the medium again — a member who re-enabled the type stays unreachable forever"
+      );
+    });
+
+    it("never attaches a notification id for a suppressed target", async () => {
+      const h = makeHarness({ suppressing: ALERT_MEDIA.IN_APP });
+
+      await h.useCase.execute(makeInput());
+
+      assert.ok(!callLog.some((c) => c.startsWith("attach:")));
+    });
+
+    it("a member whose email preference is off is reported suppressed, not delivered, and the claim is released", async () => {
+      const h = makeHarness({ suppressing: ALERT_MEDIA.EMAIL });
+
+      const result = await h.useCase.execute(makeInput());
+
+      assert.ok(result.ok);
+      const emailOn = result.value.report.find(
+        (r) => r.medium === ALERT_MEDIA.EMAIL && r.target === MEMBER_ON
+      );
+      assert.strictEqual(
+        emailOn?.result,
+        ALERT_DELIVERY_RESULTS.SUPPRESSED_BY_PREFERENCE,
+        "an email nobody received was counted as delivered"
+      );
+      assert.ok(
+        callLog.includes(`release:${ALERT_MEDIA.EMAIL}:${MEMBER_ON}`),
+        `the unsent email kept its claim, so re-enabling the preference could never reach that member; log was ${callLog.join(" | ")}`
+      );
+    });
+  });
+
+  describe("a PARTIAL shared fan-out is per destination, never one verdict for all", () => {
+    it("releases only the claims of the destinations the fan-out could not reach", async () => {
+      const h = makeHarness({
+        partial: ALERT_MEDIA.SLACK_TEAMS,
+        configs: [makeConfig("cfg-a", true), makeConfig("cfg-b", true), makeConfig("cfg-c", true)],
+      });
+
+      await h.useCase.execute(makeInput());
+
+      assert.ok(
+        callLog.includes(`release:${ALERT_MEDIA.SLACK_TEAMS}:cfg-b`),
+        `the unreached destination kept its claim and will never be retried; log was ${callLog.join(" | ")}`
+      );
+      assert.ok(
+        !callLog.includes(`release:${ALERT_MEDIA.SLACK_TEAMS}:cfg-a`),
+        "a destination that received the alert had its claim released and will be told twice"
+      );
+      assert.ok(!callLog.includes(`release:${ALERT_MEDIA.SLACK_TEAMS}:cfg-c`));
+    });
+
+    it("reports the unreached destination as failed while its siblings read delivered", async () => {
+      const h = makeHarness({
+        partial: ALERT_MEDIA.SLACK_TEAMS,
+        configs: [makeConfig("cfg-a", true), makeConfig("cfg-b", true), makeConfig("cfg-c", true)],
+      });
+
+      const result = await h.useCase.execute(makeInput());
+
+      assert.ok(result.ok);
+      const forTarget = (target: string): string | undefined =>
+        result.value.report.find((r) => r.medium === ALERT_MEDIA.SLACK_TEAMS && r.target === target)
+          ?.result;
+      assert.strictEqual(forTarget("cfg-a"), ALERT_DELIVERY_RESULTS.DELIVERED);
+      assert.strictEqual(
+        forTarget("cfg-b"),
+        ALERT_DELIVERY_RESULTS.FAILED,
+        "a destination nobody reached was counted as delivered"
+      );
+      assert.strictEqual(forTarget("cfg-c"), ALERT_DELIVERY_RESULTS.DELIVERED);
+    });
+
+    it("HANDS the medium only the destinations this run claimed, so a redelivery names just the missed one", async () => {
+      // What this level can guarantee is the ARGUMENT: the use case claims, then hands
+      // the medium exactly what it claimed. That the medium then reaches those
+      // destinations AND NO OTHERS is the shared adapter's own guarantee, pinned in
+      // `SlackTeamsRetractionAlertDelivery.test.ts` ("fans out to exactly the CLAIMED
+      // destinations") and in the dispatcher's ("reaches only the named configs").
+      // Naming this one "retries ONLY the unreached destination" claimed the end-to-end
+      // property while asserting against a double that could not break it.
+      const h = makeHarness({
+        partial: ALERT_MEDIA.SLACK_TEAMS,
+        configs: [makeConfig("cfg-a", true), makeConfig("cfg-b", true), makeConfig("cfg-c", true)],
+      });
+
+      await h.useCase.execute(makeInput());
+      await h.useCase.execute(makeInput());
+
+      assert.deepStrictEqual(
+        h.slack.calls.map((call) => call.map((t) => t.id)),
+        [["cfg-a", "cfg-b", "cfg-c"], ["cfg-b"]],
+        "the redelivery handed the medium more than the destination it had claimed"
+      );
     });
 
     it("attaches the in-app notification id to the claimed ledger row", async () => {
@@ -572,6 +877,60 @@ describe("RaiseRetractionAlertUseCase", () => {
 
       assert.ok(result.ok);
       assert.strictEqual(result.value.recipientCount, 2);
+    });
+
+    it("never widens beyond the project's own members while the project HAS members", async () => {
+      const members = makeMembers();
+      const repo = {
+        findByProjectId: vi.fn(async () => [
+          { id: MEMBER_ON, email: "on@example.test", firstName: "T", lastName: "M" },
+        ]),
+        findByAccountId: vi.fn(async () =>
+          members.map((m) => ({ id: m.id, email: m.email, firstName: "T", lastName: "M" }))
+        ),
+      } as unknown as CustomerUserRepository;
+      const inApp = makeMedium(ALERT_MEDIA.IN_APP, ALERT_MEDIUM_KINDS.PER_MEMBER);
+      const useCase = new RaiseRetractionAlertUseCase(
+        repo,
+        makePreferenceRepo(members),
+        makeConfigRepo([]),
+        makeLedger(),
+        [inApp],
+        makeResolver()
+      );
+
+      const result = await useCase.execute(makeInput());
+
+      assert.ok(result.ok);
+      assert.strictEqual(result.value.recipientCount, 1);
+      expect(repo.findByAccountId).not.toHaveBeenCalled();
+      assert.deepStrictEqual(
+        inApp.calls.flat().map((t) => t.id),
+        [MEMBER_ON],
+        "the account-wide set reached a member the project does not hold"
+      );
+    });
+
+    it("keeps the account fallback inside the event's OWN account", async () => {
+      const members = makeMembers();
+      const repo = {
+        findByProjectId: vi.fn(async () => []),
+        findByAccountId: vi.fn(async () =>
+          members.map((m) => ({ id: m.id, email: m.email, firstName: "T", lastName: "M" }))
+        ),
+      } as unknown as CustomerUserRepository;
+      const useCase = new RaiseRetractionAlertUseCase(
+        repo,
+        makePreferenceRepo(members),
+        makeConfigRepo([]),
+        makeLedger(),
+        [makeMedium(ALERT_MEDIA.IN_APP, ALERT_MEDIUM_KINDS.PER_MEMBER)],
+        makeResolver()
+      );
+
+      await useCase.execute(makeInput());
+
+      expect(repo.findByAccountId).toHaveBeenCalledWith(ACCOUNT_ID);
     });
   });
 });

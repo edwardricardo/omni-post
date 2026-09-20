@@ -70,12 +70,47 @@ export interface RetractionAlertView {
   metadata: Record<string, unknown>;
 }
 
+/** One target a delivery did NOT reach, while it reached others in the same call. */
+export interface AlertTargetFailure {
+  targetId: string;
+  reason: string;
+}
+
 /**
- * What a delivery produced. Only the in-app medium fills it: the notification it
- * created has to reach the ledger so resolution can delete exactly that row later.
+ * One target a medium DELIBERATELY did not send to — the recipient's own answer, not a
+ * transport failure. It is its own state rather than a delivery because a delivery
+ * counts a customer as reached who was never written to, and because the two carry
+ * different telemetry: "the customer turned it off" is not "the transport broke".
+ */
+export interface AlertTargetSuppression {
+  targetId: string;
+  reason: string;
+}
+
+/**
+ * What a delivery produced.
+ *
+ * `notificationId` is filled by the in-app medium alone: the notification it created
+ * has to reach the ledger so resolution can delete exactly that row later.
+ *
+ * `failedTargets` is how a medium handed SEVERAL targets says that it reached some and
+ * not others. Absent or empty means every target passed in was reached — a partial
+ * result reported as plain `ok` would leave the unreached targets' ledger claims
+ * standing, and a claim that is never released is an alert nobody can ever be sent
+ * again.
+ *
+ * `suppressedTargets` names the targets the medium deliberately did not send to. They
+ * are neither reached nor failed: the caller reports the customer's own answer rather
+ * than a transport verdict, and — like a failure — releases their claims, because
+ * nothing was written for them.
+ *
+ * Both carry a `reason`. It is the only place a human learns WHY a customer was not
+ * reached, so it is a sentence, not a code.
  */
 export interface AlertDeliveryOutcome {
   notificationId?: string;
+  failedTargets?: readonly AlertTargetFailure[];
+  suppressedTargets?: readonly AlertTargetSuppression[];
 }
 
 /**
@@ -91,13 +126,38 @@ export interface RetractionAlertDelivery {
 
   /**
    * @method deliver
-   * @description Delivers the alert to the given targets. Never throws: a transport
-   *   failure is an `err` with a human-readable reason, because one medium failing must
-   *   not suppress the others and must not roll back the recorded outcome that raised
-   *   the alert.
+   * @description Delivers the alert to the given targets.
+   *
+   *   **The contract, in four rules, because the caller claimed a ledger row for every
+   *   target before calling and releases exactly the ones this answer says were not
+   *   reached.**
+   *
+   *   1. It MUST NOT throw. A transport failure is `err(reason)`, so that one medium
+   *      failing neither suppresses the others nor rolls back the recorded outcome that
+   *      raised the alert. The caller treats a thrown value as `err` anyway — the rule
+   *      is enforced at the seam rather than trusted — but an implementation that
+   *      throws has already lost the reason a human would need.
+   *   2. `err` means NO target was reached. `ok` with `failedTargets` means the named
+   *      ones were not and the rest were. `ok` with none means all were.
+   *   3. A target is "reached" once a durable artifact the customer can read exists for
+   *      it — the in-app notification row, the accepted webhook. A live push that fails
+   *      on top of a stored row is a degraded push, counted where it happens, never a
+   *      failed delivery: releasing that claim would make the redelivery create a
+   *      SECOND row, and an alert that arrives twice is the defect the ledger exists to
+   *      prevent.
+   *   4. A target the medium DECLINED to send to is neither reached nor failed, and it
+   *      says so with `suppressedTargets`. A medium that applies the recipient's own
+   *      preference itself has this case, and a bare `ok` for it is the worst of the
+   *      three readings: the caller counts a customer as reached who was never written
+   *      to. Suppressed means nothing was sent and nothing is owed, so the claim is
+   *      RELEASED and a later redelivery re-evaluates the preference — which is what
+   *      lets a member who switches the type back on be reached, rather than being
+   *      blocked forever by a row recording a message that never existed. Releasing is
+   *      safe by rule 3: with no durable artifact, a redelivery either suppresses again
+   *      (nothing sent twice) or delivers once, and the artifact then holds the claim.
    * @param alert - The resolved alert view
    * @param targets - The targets whose ledger rows this caller already claimed
-   * @returns ok with the delivery's outcome, or err naming why it did not go out
+   * @returns ok with the delivery's outcome, or err naming why nothing went out
    */
   deliver(
     alert: RetractionAlertView,

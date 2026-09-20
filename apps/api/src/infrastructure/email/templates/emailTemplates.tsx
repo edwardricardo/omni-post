@@ -18,6 +18,7 @@ import {
 } from "@react-email/components";
 import { render } from "@react-email/render";
 import * as React from "react";
+import { describeRetractionCause } from "@core/notifications/retractionAlertMessage.js";
 
 // ---------------------------------------------------------------------------
 // Shared styles
@@ -431,13 +432,11 @@ interface RetractionPendingProps {
   accountName: string;
 }
 
-const CAUSE_SENTENCES: Record<string, string> = {
-  NO_CAPABILITY: "this platform offers no way to remove it from OmniPost",
-  EXHAUSTED: "automatic removal was attempted and failed",
-};
-
 function RetractionPendingEmail(props: RetractionPendingProps) {
-  const causeSentence = CAUSE_SENTENCES[props.cause] ?? "it could not be removed automatically";
+  // The vocabulary is shared, not copied: this email used to hold its own map of the
+  // same two sentences, so editing one of them would have left the customer reading a
+  // different explanation in the inbox than on the dashboard about one stranded post.
+  const causeSentence = describeRetractionCause(props.cause);
 
   return (
     <BaseEmailLayout

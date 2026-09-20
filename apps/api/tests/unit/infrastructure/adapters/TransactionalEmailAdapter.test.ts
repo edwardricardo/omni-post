@@ -11,6 +11,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { ok } from "@shared/types";
 import { TransactionalEmailAdapter } from "../../../../src/infrastructure/adapters/TransactionalEmailAdapter.js";
+import { describeRetractionCause } from "@core/notifications/retractionAlertMessage.js";
 
 const CLIENT_URL = "https://app.test";
 
@@ -163,10 +164,16 @@ describe("TransactionalEmailAdapter", () => {
       assert.ok(html.includes("Launch week"), "the post excerpt is missing");
     });
 
-    it("states the cause in the customer's vocabulary", async () => {
+    it("states the cause in the SAME vocabulary the dashboard and the webhook use", async () => {
+      // Asserted against the shared vocabulary rather than a literal: the email used to
+      // carry its own copy of these sentences, so the two could be edited apart and the
+      // customer would read one explanation on the dashboard and another in the inbox.
       await sendRetractionAlert(adapter);
       const noCapability = emailPort.send.mock.calls[0]?.[0]?.html ?? "";
-      assert.match(noCapability, /no way to remove it/i);
+      assert.ok(
+        noCapability.includes(describeRetractionCause("NO_CAPABILITY")),
+        "the email's cause sentence has drifted from the one every other medium states"
+      );
 
       emailPort.send.mockClear();
       await sendRetractionAlert(adapter, {
@@ -176,7 +183,19 @@ describe("TransactionalEmailAdapter", () => {
         liveFragments: [{ index: 1, externalId: "18110001" }],
       });
       const exhausted = emailPort.send.mock.calls[0]?.[0]?.html ?? "";
-      assert.match(exhausted, /attempted and failed/i);
+      assert.ok(exhausted.includes(describeRetractionCause("EXHAUSTED")));
+    });
+
+    it("states the unknown-cause sentence from that same vocabulary", async () => {
+      await sendRetractionAlert(adapter, {
+        channelName: "Acme on X",
+        cause: "SOMETHING_NOBODY_HAS_NAMED_YET",
+        postExcerpt: "Launch week",
+        liveFragments: [{ index: 1, externalId: "18110001" }],
+      });
+
+      const html = emailPort.send.mock.calls[0]?.[0]?.html ?? "";
+      assert.ok(html.includes(describeRetractionCause("SOMETHING_NOBODY_HAS_NAMED_YET")));
     });
 
     it("names the deadline when a window is open and omits it when there is none", async () => {

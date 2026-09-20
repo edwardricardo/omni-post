@@ -13,11 +13,35 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
+import client from "prom-client";
 import { RetractionAlertEventHandler } from "../../../src/notifications/RetractionAlertEventHandler.js";
 import { RETRACTION_ALERT_HANDLED_EVENT_TYPES } from "../../../src/notifications/RetractionAlertEventHandler.js";
 import { ok } from "@shared/types";
 import { getTenantContext } from "../../../src/security/tenantContext.js";
 import type { DomainEvent } from "@core/domain/events/DomainEvent.js";
+
+/** Captured log lines, so what the handler SAYS about a failure is assertable. */
+const { logged } = vi.hoisted(() => ({
+  logged: [] as { level: string; payload: Record<string, unknown>; message: string }[],
+}));
+
+vi.mock("../../../src/lib/logger.js", () => {
+  const record =
+    (level: string) =>
+    (payload: Record<string, unknown>, message: string): void => {
+      logged.push({ level, payload, message });
+    };
+  return {
+    createLogger: () => ({
+      info: record("info"),
+      warn: record("warn"),
+      error: record("error"),
+      debug: record("debug"),
+      trace: record("trace"),
+      fatal: record("fatal"),
+    }),
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -81,8 +105,18 @@ function makeHarness(options?: { boundAccountId?: { value?: string } }) {
 // Tests
 // ---------------------------------------------------------------------------
 
+const refusalValues = async () => {
+  const metric = client.register.getSingleMetric("retraction_alert_refused_total");
+  assert.ok(metric, "retraction_alert_refused_total is not registered");
+  return (await metric.get()).values;
+};
+
 describe("RetractionAlertEventHandler", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    logged.length = 0;
+    client.register.getSingleMetric("retraction_alert_refused_total")?.reset();
+  });
 
   it("subscribes to both alert events and nothing else", () => {
     assert.deepStrictEqual(
@@ -180,14 +214,39 @@ describe("RetractionAlertEventHandler", () => {
       assert.strictEqual(input.liveFragments.length, 1);
     });
 
-    it("does not throw when the use case fails — the outbox must not retry a delivered alert forever", async () => {
+    it("PROPAGATES a raise failure so the outbox redelivers the event", async () => {
       const h = makeHarness();
       h.raise.execute.mockResolvedValueOnce({
         ok: false as const,
-        error: new Error("delivery blew up"),
+        error: new Error("the ledger is unreachable"),
       } as never);
 
+      await assert.rejects(
+        () => h.handler.handle(makeEvent("PostChannelRetractionAlertRaised", raisedPayload())),
+        /the ledger is unreachable/,
+        "the failure was logged and swallowed, so the relay marks the event published and the alert is lost"
+      );
+    });
+
+    it("refuses an event that names no project — there would be no shared destination to reach", async () => {
+      const h = makeHarness();
+      const payload = raisedPayload();
+      delete (payload as Record<string, unknown>).projectId;
+
+      await h.handler.handle(makeEvent("PostChannelRetractionAlertRaised", payload));
+
+      expect(h.raise.execute).not.toHaveBeenCalled();
+    });
+
+    it("raises the alert even when the project has NO member — the shared destinations do not depend on one", async () => {
+      const h = makeHarness();
+      h.raise.execute.mockResolvedValueOnce(ok({ report: [], recipientCount: 0 }) as never);
+
       await h.handler.handle(makeEvent("PostChannelRetractionAlertRaised", raisedPayload()));
+
+      expect(h.raise.execute).toHaveBeenCalledOnce();
+      const input = h.raise.execute.mock.calls[0]?.[0] as Record<string, unknown>;
+      assert.strictEqual(input.projectId, PROJECT_ID);
     });
   });
 
@@ -206,6 +265,158 @@ describe("RetractionAlertEventHandler", () => {
       const input = h.resolve.execute.mock.calls[0]?.[0] as Record<string, unknown>;
       assert.strictEqual(input.alertKey, ALERT_KEY);
       assert.strictEqual(input.cause, "ACTION_WINDOW_EXPIRED");
+    });
+
+    it("PROPAGATES a resolve failure so the outbox redelivers rather than leaving a stale alert", async () => {
+      const h = makeHarness();
+      h.resolve.execute.mockResolvedValueOnce({
+        ok: false as const,
+        error: new Error("the ledger is unreachable"),
+      } as never);
+
+      await assert.rejects(
+        () =>
+          h.handler.handle(
+            makeEvent("PostChannelRetractionAlertResolved", {
+              accountId: ACCOUNT_ID,
+              alertKey: ALERT_KEY,
+            })
+          ),
+        /the ledger is unreachable/,
+        "the alert stays standing and nothing will ever try to take it down again"
+      );
+    });
+  });
+
+  describe("a FAILED delivery says why, where somebody can read it", () => {
+    it("WARNs the medium's own reason beside the failed target", async () => {
+      const h = makeHarness();
+      h.raise.execute.mockResolvedValueOnce(
+        ok({
+          report: [
+            {
+              medium: "email",
+              target: "m-1",
+              result: "failed",
+              reason: "the mailer refused: 550 mailbox unavailable",
+            },
+          ],
+          recipientCount: 1,
+        }) as never
+      );
+
+      await h.handler.handle(makeEvent("PostChannelRetractionAlertRaised", raisedPayload()));
+
+      const warning = logged.find((line) => line.level === "warn");
+      assert.ok(warning, `no warning was logged; levels were ${logged.map((l) => l.level).join()}`);
+      assert.strictEqual(warning.payload.medium, "email");
+      assert.strictEqual(warning.payload.target, "m-1");
+      assert.match(
+        String(warning.payload.reason),
+        /550 mailbox unavailable/,
+        "the reason reached the report and then died there"
+      );
+    });
+
+    it("OMITS the keys it has no value for instead of logging them as undefined", async () => {
+      const h = makeHarness();
+      h.raise.execute.mockResolvedValueOnce(
+        ok({
+          report: [{ medium: "slack-teams", result: "failed" }],
+          recipientCount: 1,
+        }) as never
+      );
+
+      await h.handler.handle(makeEvent("PostChannelRetractionAlertRaised", raisedPayload()));
+
+      const warning = logged.find((line) => line.level === "warn");
+      assert.ok(warning, "a failed medium logged nothing at all");
+      assert.strictEqual(
+        "target" in warning.payload,
+        false,
+        "the line reads `target: undefined`, which looks like a target we failed to resolve rather than one the entry never had"
+      );
+      assert.strictEqual("reason" in warning.payload, false);
+      assert.strictEqual(warning.payload.medium, "slack-teams");
+    });
+
+    it("warns nothing when every medium delivered", async () => {
+      const h = makeHarness();
+      h.raise.execute.mockResolvedValueOnce(
+        ok({
+          report: [{ medium: "in-app", target: "m-1", result: "delivered" }],
+          recipientCount: 1,
+        }) as never
+      );
+
+      await h.handler.handle(makeEvent("PostChannelRetractionAlertRaised", raisedPayload()));
+
+      assert.deepStrictEqual(
+        logged.filter((line) => line.level === "warn"),
+        []
+      );
+    });
+  });
+
+  describe("a structural refusal is COUNTED, not only logged", () => {
+    it("counts a payload with no tenant", async () => {
+      const h = makeHarness();
+      const payload = raisedPayload();
+      delete (payload as Record<string, unknown>).accountId;
+
+      await h.handler.handle(makeEvent("PostChannelRetractionAlertRaised", payload));
+
+      assert.deepStrictEqual(
+        (await refusalValues()).map((v) => [v.labels.reason, v.value]),
+        [["missing-tenant", 1]]
+      );
+    });
+
+    it("counts a payload with no alert key", async () => {
+      const h = makeHarness();
+      const payload = raisedPayload();
+      delete (payload as Record<string, unknown>).alertKey;
+
+      await h.handler.handle(makeEvent("PostChannelRetractionAlertRaised", payload));
+
+      assert.deepStrictEqual(
+        (await refusalValues()).map((v) => [v.labels.reason, v.value]),
+        [["missing-alert-key", 1]]
+      );
+    });
+
+    it("counts a payload with no channel", async () => {
+      const h = makeHarness();
+      const payload = raisedPayload();
+      delete (payload as Record<string, unknown>).channelId;
+
+      await h.handler.handle(makeEvent("PostChannelRetractionAlertRaised", payload));
+
+      assert.deepStrictEqual(
+        (await refusalValues()).map((v) => [v.labels.reason, v.value]),
+        [["missing-channel", 1]]
+      );
+    });
+
+    it("counts a payload with no project", async () => {
+      const h = makeHarness();
+      const payload = raisedPayload();
+      delete (payload as Record<string, unknown>).projectId;
+
+      await h.handler.handle(makeEvent("PostChannelRetractionAlertRaised", payload));
+
+      assert.deepStrictEqual(
+        (await refusalValues()).map((v) => [v.labels.reason, v.value]),
+        [["missing-project", 1]]
+      );
+    });
+
+    it("counts nothing when the payload names everything", async () => {
+      const h = makeHarness();
+
+      await h.handler.handle(makeEvent("PostChannelRetractionAlertRaised", raisedPayload()));
+
+      assert.deepStrictEqual(await refusalValues(), []);
     });
   });
 

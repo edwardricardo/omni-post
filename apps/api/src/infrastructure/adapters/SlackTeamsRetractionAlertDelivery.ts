@@ -10,9 +10,14 @@
  *   even when the project has no members at all, and deactivating the config is the
  *   only way to switch it off.
  *
- *   The fan-out asks for EVERY active config rather than the filtered set, because the
- *   config's `events` filter predates this event name — filtering would make the alert
- *   invisible on every destination that exists today.
+ *   The fan-out names the destinations the CALLER CLAIMED rather than asking for every
+ *   active config. Both halves of that sentence are load-bearing. It bypasses the
+ *   config's `events` filter, which predates this event name, so filtering would make
+ *   the alert invisible on every destination that exists today; and it is scoped to the
+ *   claimed ids, so a redelivery that claimed only the destination a previous run
+ *   missed reaches THAT destination and not the ones already told. Re-querying every
+ *   active config on a retry would deliver the alert twice to the channels that already
+ *   had it — buying the retry with the duplicate the ledger exists to prevent.
  * @layer infrastructure
  */
 
@@ -38,11 +43,11 @@ export class SlackTeamsRetractionAlertDelivery implements RetractionAlertDeliver
 
   /**
    * @method deliver
-   * @description Announces the alert to every active destination of the project, in
-   *   ONE fan-out — calling it per destination would multiply the message.
+   * @description Announces the alert to exactly the claimed destinations, in ONE
+   *   fan-out — calling it per destination would multiply the message.
    * @param alert - The resolved alert view
    * @param targets - The destinations whose ledger rows the caller claimed
-   * @returns ok when at least one destination took it, err when every one refused
+   * @returns ok NAMING every destination it did not reach, err when it reached none
    */
   async deliver(
     alert: RetractionAlertView,
@@ -71,17 +76,36 @@ export class SlackTeamsRetractionAlertDelivery implements RetractionAlertDeliver
           }),
         },
       },
-      { toEveryActiveConfig: true }
+      { toConfigIds: targets.map((target) => target.id) }
     );
 
     if (!result.ok) return err(result.error.message);
 
-    // Partial success is success: a shared channel that refused must not suppress the
-    // one that accepted, and the refusal is already counted by the fan-out.
-    if (result.value.sent === 0 && result.value.failed > 0) {
-      return err(`every destination refused the alert (${result.value.failed} failed)`);
+    const { sentConfigIds, failedConfigIds } = result.value;
+
+    // Unreached is DERIVED from what was reached, never assembled from the refusals.
+    // That is what makes the third case — a config deactivated or deleted between the
+    // claim and this fan-out, which neither took the message nor refused it — come out
+    // as unreached instead of silently counting as delivered. It also means an id the
+    // fan-out reports that this call never claimed cannot enter the answer at all.
+    const reached = new Set(sentConfigIds);
+    const refused = new Set(failedConfigIds);
+    const unreached = targets.filter((target) => !reached.has(target.id));
+
+    if (reached.size === 0) {
+      return err(`every destination refused the alert (${unreached.length} unreached)`);
     }
 
-    return ok({});
+    // Partial success is success FOR THE DESTINATIONS THAT TOOK IT, and a named failure
+    // for the ones that did not: the caller releases exactly those claims, so the next
+    // delivery of this event reaches the unreached channel and nothing else.
+    return ok({
+      failedTargets: unreached.map((target) => ({
+        targetId: target.id,
+        reason: refused.has(target.id)
+          ? "the destination refused the alert"
+          : "the destination is no longer an active config of this project",
+      })),
+    });
   }
 }

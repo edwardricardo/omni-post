@@ -19,7 +19,7 @@
  * @layer infrastructure
  */
 
-import type { PrismaClient } from "@infra/prisma";
+import type { PrismaClient, RetractionAlertMedium } from "@infra/prisma";
 import type {
   RetractionAlertDeliveryClaim,
   RetractionAlertDeliveryLedger,
@@ -27,18 +27,26 @@ import type {
 } from "@core/domain/repositories/RetractionAlertDeliveryLedger.js";
 import { ALERT_MEDIA, type AlertMedium } from "@core/domain/value-objects/AlertMedium.js";
 
-/** The stored spelling of each medium — the Prisma enum's labels. */
-const STORED_MEDIUM = {
+/**
+ * The stored spelling of each medium, CHECKED against the generated enum rather than
+ * merely resembling it. The annotation closes both drifts at compile time: a domain
+ * medium with no mapping leaves `Record<AlertMedium, …>` missing a key, and a label the
+ * database does not hold is not a member of `RetractionAlertMedium`. Untyped, either
+ * one compiled cleanly and failed at the INSERT the whole idempotency rests on.
+ *
+ * The enum is imported as a TYPE, not a value: the generated client's runtime is not
+ * loaded by the unit tier, and importing it for a string would make this adapter
+ * unloadable there while proving nothing the type does not already prove.
+ */
+const STORED_MEDIUM: Record<AlertMedium, RetractionAlertMedium> = {
   [ALERT_MEDIA.IN_APP]: "IN_APP",
   [ALERT_MEDIA.EMAIL]: "EMAIL",
   [ALERT_MEDIA.SLACK_TEAMS]: "SLACK_TEAMS",
   [ALERT_MEDIA.SMS]: "SMS",
   [ALERT_MEDIA.PUSH]: "PUSH",
-} as const;
+};
 
-type StoredMedium = (typeof STORED_MEDIUM)[keyof typeof STORED_MEDIUM];
-
-const toStored = (medium: AlertMedium): StoredMedium => STORED_MEDIUM[medium];
+const toStored = (medium: AlertMedium): RetractionAlertMedium => STORED_MEDIUM[medium];
 
 /**
  * @function isUniqueViolation

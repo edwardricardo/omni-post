@@ -49,11 +49,17 @@ export const ALERT_DELIVERY_RESULTS = {
 export type AlertDeliveryResult =
   (typeof ALERT_DELIVERY_RESULTS)[keyof typeof ALERT_DELIVERY_RESULTS];
 
-/** One line of the per-raise delivery report: which medium, which target, what happened. */
+/**
+ * One line of the per-raise delivery report: which medium, which target, what happened,
+ * and — for anything that is not a delivery — WHY. The reason is the medium's own
+ * sentence, carried rather than summarized: "not delivered" answers nobody, and the
+ * transport already said what went wrong.
+ */
 export interface AlertDeliveryReportEntry {
   readonly medium: AlertMedium;
   readonly target?: string;
   readonly result: AlertDeliveryResult;
+  readonly reason?: string;
 }
 
 export type AlertDeliveryReport = readonly AlertDeliveryReportEntry[];

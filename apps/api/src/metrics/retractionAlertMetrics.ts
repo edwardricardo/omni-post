@@ -53,6 +53,44 @@ const contextDegradedTotal = getOrCreateCounter(
   ["field"]
 );
 
+const realtimePushFailedTotal = getOrCreateCounter(
+  "retraction_alert_realtime_push_failed_total",
+  "In-app retraction alerts whose notification row was stored but whose LIVE push to " +
+    "open sessions failed. The alert is delivered — the dashboard reads the row — so this " +
+    "is not a failed delivery and its ledger claim is kept; what it costs is immediacy, " +
+    "and a run of these means customers see the alert only on their next page load",
+  []
+);
+
+const refusedTotal = getOrCreateCounter(
+  "retraction_alert_refused_total",
+  "Retraction alert events REFUSED before any delivery was attempted, by the field the " +
+    "payload did not name. A refusal is not a retry: the same bytes would be refused " +
+    "again, so the alert is not delivered at all and nothing tries later. Non-zero means " +
+    "a producer is emitting events this consumer cannot act on, and content may be live " +
+    "on a platform with nobody told. Counted ONCE per refused event, labelled by the " +
+    "first field missing in the order tenant, alert key, channel, project",
+  ["reason"]
+);
+
+/**
+ * @function recordAlertRefused
+ * @description Counts one event refused for naming too little to act on.
+ * @param reason - The field that was missing: `missing-tenant`, `missing-alert-key`,
+ *   `missing-channel` or `missing-project`
+ */
+export function recordAlertRefused(reason: string): void {
+  refusedTotal.inc({ reason });
+}
+
+/**
+ * @function recordAlertRealtimePushFailed
+ * @description Counts one stored alert whose live push did not reach the session.
+ */
+export function recordAlertRealtimePushFailed(): void {
+  realtimePushFailedTotal.inc();
+}
+
 /**
  * @function recordAlertContextDegraded
  * @description Counts one field that fell back to an identifier.

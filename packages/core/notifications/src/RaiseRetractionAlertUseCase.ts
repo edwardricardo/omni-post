@@ -34,7 +34,12 @@ import {
   type AlertDeliveryReport,
 } from "@core/domain/value-objects/AlertMedium.js";
 import { NOTIFICATION_TYPES } from "@core/domain/value-objects/NotificationType.js";
-import type { AlertFragmentView, AlertTarget, RetractionAlertDelivery } from "@ports/core";
+import type {
+  AlertDeliveryOutcome,
+  AlertFragmentView,
+  AlertTarget,
+  RetractionAlertDelivery,
+} from "@ports/core";
 import type { RetractionAlertView } from "@ports/core";
 import { isTypeEnabled } from "./isTypeEnabled.js";
 import { buildRetractionAlertMessage } from "./retractionAlertMessage.js";
@@ -68,6 +73,23 @@ interface Recipient {
   target: AlertTarget;
   typeOn: boolean;
 }
+
+/**
+ * What became of ONE claimed target, for the targets that are not plain deliveries.
+ * `reached: false` releases the claim and reports a failure; `suppressed` keeps it and
+ * reports the recipient's own answer. A target with no verdict was delivered.
+ */
+interface TargetVerdict {
+  reached?: false;
+  suppressed?: true;
+  reason: string;
+}
+
+/** What a member's own per-type row says when it silences the alert. */
+const PREFERENCE_IS_OFF = "the recipient's per-type preference is off";
+
+/** What a project with no destination of this kind says: nobody turned anything off. */
+const NO_DESTINATION_IS_SET_UP = "the project has no active destination of this kind";
 
 /** The media this application could in principle carry the alert on. */
 const EVERY_MEDIUM: readonly AlertMedium[] = [
@@ -171,6 +193,98 @@ export class RaiseRetractionAlertUseCase implements UseCase<
   }
 
   /**
+   * @method attempt
+   * @description Calls one medium and answers in the shape the protocol needs, whatever
+   *   the medium actually did. The port forbids throwing, but a claim is already in the
+   *   ledger by the time `deliver` runs: an implementation that breaks that rule would
+   *   otherwise abort the whole fan-out, leave its claim standing and skip every medium
+   *   after it — a permanently unreachable target for a raise that reported nothing.
+   *   The rule is therefore enforced here rather than trusted.
+   * @param adapter - The medium being asked to deliver
+   * @param alert - The resolved alert view
+   * @param targets - The targets whose rows were claimed for this call
+   * @returns The medium's own answer, or `err` carrying what it threw
+   */
+  private async attempt(
+    adapter: RetractionAlertDelivery,
+    alert: RetractionAlertView,
+    targets: readonly AlertTarget[]
+  ): Promise<Result<AlertDeliveryOutcome, string>> {
+    try {
+      return await adapter.deliver(alert, targets);
+    } catch (error: unknown) {
+      return err(
+        `${adapter.medium} threw instead of reporting a failure: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  /**
+   * @method settle
+   * @description Gives back the claim of every target this delivery did not reach, and
+   *   answers what became of each one — with the medium's own reason attached.
+   *
+   *   The claim is taken BEFORE the send so two concurrent deliveries of one event
+   *   cannot both send. Keeping a claim after a send that produced nothing turns that
+   *   guard into a permanent loss: the redelivery collides with a row for a message
+   *   nobody received.
+   *
+   *   So the rule is ONE, not a list of exceptions: **a claim is kept only where a
+   *   durable artifact exists for it.** A DELIVERED target keeps its claim, because
+   *   releasing it would let a redelivery send the alert twice. Everything else — a
+   *   failure, and a target the medium declined to send to — releases, because nothing
+   *   was written and nothing is owed. Releasing a suppressed target is what lets a
+   *   member who re-enables the type be reached by the next redelivery instead of
+   *   staying blocked by a row that records a message that never existed; and it is
+   *   safe for the same reason it is right, since a redelivery either suppresses again
+   *   (nothing sent twice) or delivers once (and the artifact then holds the claim).
+   * @param adapter - The medium that was asked to deliver
+   * @param alert - The resolved alert view
+   * @param claimed - Every target whose row this run claimed
+   * @param outcome - What the medium answered
+   * @returns One verdict per target that is not a plain delivery, with its reason
+   */
+  private async settle(
+    adapter: RetractionAlertDelivery,
+    alert: RetractionAlertView,
+    claimed: readonly AlertTarget[],
+    outcome: Result<AlertDeliveryOutcome, string>
+  ): Promise<ReadonlyMap<string, TargetVerdict>> {
+    const verdicts = new Map<string, TargetVerdict>();
+
+    if (outcome.ok) {
+      for (const failure of outcome.value.failedTargets ?? []) {
+        verdicts.set(failure.targetId, { reached: false, reason: failure.reason });
+      }
+      for (const suppression of outcome.value.suppressedTargets ?? []) {
+        verdicts.set(suppression.targetId, { suppressed: true, reason: suppression.reason });
+      }
+    } else {
+      // `err` means NO target was reached, so the whole claimed set goes back and every
+      // line carries the one reason the medium gave.
+      for (const target of claimed) {
+        verdicts.set(target.id, { reached: false, reason: outcome.error });
+      }
+    }
+
+    // A verdict exists only where nothing was delivered — a failure or a suppression —
+    // so its presence IS the release condition. A delivered target has none and keeps
+    // its claim.
+    for (const target of claimed) {
+      if (!verdicts.has(target.id)) continue;
+      await this.ledger.release({
+        alertKey: alert.alertKey,
+        medium: adapter.medium,
+        target: target.id,
+      });
+    }
+
+    return verdicts;
+  }
+
+  /**
    * @method deliverPerMember
    * @description Delivers to each member individually, so one member's opt-out or one
    *   member's transport failure is its own line in the report rather than a verdict
@@ -189,6 +303,7 @@ export class RaiseRetractionAlertUseCase implements UseCase<
           medium: adapter.medium,
           target: recipient.target.id,
           result: ALERT_DELIVERY_RESULTS.SUPPRESSED_BY_PREFERENCE,
+          reason: PREFERENCE_IS_OFF,
         });
         continue;
       }
@@ -204,26 +319,14 @@ export class RaiseRetractionAlertUseCase implements UseCase<
       // once.
       if (!claim.claimed) continue;
 
-      const delivered = await adapter.deliver(alert, [recipient.target]);
-      if (!delivered.ok) {
-        // Give the claim back. The claim is taken BEFORE the send so two concurrent
-        // deliveries of one event cannot both send; keeping it after a FAILED send
-        // would turn that guard into a permanent loss, because the redelivery would
-        // collide with a row for a message nobody received.
-        await this.ledger.release({
-          alertKey: alert.alertKey,
-          medium: adapter.medium,
-          target: recipient.target.id,
-        });
-        entries.push({
-          medium: adapter.medium,
-          target: recipient.target.id,
-          result: ALERT_DELIVERY_RESULTS.FAILED,
-        });
-        continue;
-      }
+      const delivered = await this.attempt(adapter, alert, [recipient.target]);
+      const verdict = (await this.settle(adapter, alert, [recipient.target], delivered)).get(
+        recipient.target.id
+      );
 
-      if (delivered.value.notificationId !== undefined) {
+      // Only a real delivery has a notification to attach. A suppressed target wrote no
+      // row, so there is no id, and a failed one has already given its claim back.
+      if (verdict === undefined && delivered.ok && delivered.value.notificationId !== undefined) {
         await this.ledger.attachNotification({
           alertKey: alert.alertKey,
           target: recipient.target.id,
@@ -231,14 +334,39 @@ export class RaiseRetractionAlertUseCase implements UseCase<
         });
       }
 
-      entries.push({
-        medium: adapter.medium,
-        target: recipient.target.id,
-        result: ALERT_DELIVERY_RESULTS.DELIVERED,
-      });
+      entries.push(this.entryFor(adapter, recipient.target.id, verdict));
     }
 
     return entries;
+  }
+
+  /**
+   * @method entryFor
+   * @description Turns one target's verdict into its line of the report. ONE mapping
+   *   for both kinds of medium, so "suppressed" cannot come to mean one thing on the
+   *   per-member path and another on the shared one.
+   * @param adapter - The medium the line is about
+   * @param targetId - The target the line is about
+   * @param verdict - What became of it; absent means it was reached
+   * @returns The report line, carrying the medium's own reason when there is one
+   */
+  private entryFor(
+    adapter: RetractionAlertDelivery,
+    targetId: string,
+    verdict: TargetVerdict | undefined
+  ): AlertDeliveryReportEntry {
+    if (verdict === undefined) {
+      return { medium: adapter.medium, target: targetId, result: ALERT_DELIVERY_RESULTS.DELIVERED };
+    }
+    return {
+      medium: adapter.medium,
+      target: targetId,
+      result:
+        verdict.suppressed === true
+          ? ALERT_DELIVERY_RESULTS.SUPPRESSED_BY_PREFERENCE
+          : ALERT_DELIVERY_RESULTS.FAILED,
+      reason: verdict.reason,
+    };
   }
 
   /**
@@ -255,14 +383,32 @@ export class RaiseRetractionAlertUseCase implements UseCase<
   ): Promise<AlertDeliveryReportEntry[]> {
     const configsResult = await this.externalConfigs.findByProjectId(projectId);
     if (!configsResult.ok) {
-      return [{ medium: adapter.medium, result: ALERT_DELIVERY_RESULTS.FAILED }];
+      // Both exits below name the PROJECT and say why. Neither has a config to name —
+      // that is exactly what happened — but a line carrying neither target nor reason
+      // reaches an operator as a warning about a whole project's shared destinations
+      // that says neither which project nor what went wrong.
+      return [
+        {
+          medium: adapter.medium,
+          target: projectId,
+          result: ALERT_DELIVERY_RESULTS.FAILED,
+          reason: configsResult.error.message,
+        },
+      ];
     }
 
     const active = configsResult.value.filter((config) => config.isActive);
     if (active.length === 0) {
       // Distinct from "suppressed": nobody turned this off, there is simply no
       // destination of this kind set up for the project.
-      return [{ medium: adapter.medium, result: ALERT_DELIVERY_RESULTS.NO_ACTIVE_CONFIG }];
+      return [
+        {
+          medium: adapter.medium,
+          target: projectId,
+          result: ALERT_DELIVERY_RESULTS.NO_ACTIVE_CONFIG,
+          reason: NO_DESTINATION_IS_SET_UP,
+        },
+      ];
     }
 
     const claimed: AlertTarget[] = [];
@@ -277,28 +423,16 @@ export class RaiseRetractionAlertUseCase implements UseCase<
 
     if (claimed.length === 0) return [];
 
-    // ONE call with every claimed destination: the shared fan-out reaches the
-    // project's configs itself, so calling it per config would multiply the message.
-    const delivered = await adapter.deliver(alert, claimed);
+    // ONE call with the destinations this run CLAIMED — not "every active config": the
+    // medium delivers to exactly the ids handed to it, so a redelivery that claimed
+    // only the destination a previous run missed reaches that one alone. Its answer is
+    // PER DESTINATION — an `err` means none was reached, while `ok` may still name the
+    // ones that were not. Collapsing that into a single verdict is what used to leave a
+    // refused channel claimed, unreachable and counted as delivered.
+    const delivered = await this.attempt(adapter, alert, claimed);
+    const verdicts = await this.settle(adapter, alert, claimed, delivered);
 
-    if (!delivered.ok) {
-      // The fan-out is ONE call for all destinations, so its failure is all of theirs:
-      // every claim taken for it goes back and the redelivery tries the whole set
-      // again. A PARTIAL failure never reaches here — the adapter reports ok when at
-      // least one destination accepted, precisely so one unreachable channel cannot
-      // make the others receive the alert twice.
-      for (const target of claimed) {
-        await this.ledger.release({
-          alertKey: alert.alertKey,
-          medium: adapter.medium,
-          target: target.id,
-        });
-      }
-    }
-
-    const result = delivered.ok ? ALERT_DELIVERY_RESULTS.DELIVERED : ALERT_DELIVERY_RESULTS.FAILED;
-
-    return claimed.map((target) => ({ medium: adapter.medium, target: target.id, result }));
+    return claimed.map((target) => this.entryFor(adapter, target.id, verdicts.get(target.id)));
   }
 
   /**

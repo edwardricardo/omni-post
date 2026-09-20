@@ -12,9 +12,16 @@
  *   The provider is DERIVED from the channel and never taken as an independent field:
  *   a post targets channels, and the provider is a property of the channel it resolved
  *   to.
+ *
+ *   Degrading is UNIFORM over both ways a read can fail. A repository that answers
+ *   `err` and one that THROWS — a lost connection, an exhausted pool — are the same
+ *   fact to a customer whose content is live on a platform, so a throw is caught here
+ *   rather than escaping the one component whose whole purpose is to keep the alert
+ *   going out.
  * @layer infrastructure
  */
 
+import type { Result } from "@shared/types";
 import type { PostQueryRepository } from "@core/domain/repositories/PostRepository.js";
 import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import type { AccountRepository } from "@core/domain/repositories/AccountRepository.js";
@@ -41,6 +48,33 @@ export interface RetractionAlertContextQuery {
 
 /** How much of a post's body stands in for it when there is no title. */
 const EXCERPT_LIMIT = 160;
+
+/** Why a lookup produced no value: the store said no, or the store could not answer. */
+const READ_FAILURES = {
+  UNREADABLE: "unreadable",
+  UNREACHABLE: "unreachable",
+} as const;
+
+type ReadFailure = (typeof READ_FAILURES)[keyof typeof READ_FAILURES];
+
+/**
+ * @function attemptRead
+ * @description Runs one repository read and answers with its value or with the REASON
+ *   there is none, so a thrown read degrades on the same path as a refused one instead
+ *   of escaping an adapter that must never fail.
+ * @param read - The repository call to attempt
+ * @returns The value, or the failure reason to report
+ */
+async function attemptRead<T, E>(
+  read: () => Promise<Result<T, E>>
+): Promise<{ value: T } | { failure: ReadFailure }> {
+  try {
+    const result = await read();
+    return result.ok ? { value: result.value } : { failure: READ_FAILURES.UNREADABLE };
+  } catch {
+    return { failure: READ_FAILURES.UNREACHABLE };
+  }
+}
 
 const excerptOf = (title: string | undefined, body: string): string => {
   const source = title !== undefined && title.trim().length > 0 ? title : body;
@@ -77,7 +111,8 @@ export class RetractionAlertContextAdapter {
    *   degraded alert is acceptable; a RUN of them means customers are being asked to
    *   remove "Post <uuid>", and without this nothing in the system would say so.
    * @param field - Which lookup degraded
-   * @param reason - `malformed-id` or `unreadable`
+   * @param reason - `malformed-id`, `unreadable` (the store said no) or `unreachable`
+   *   (the store could not answer at all)
    * @param ids - The identifiers involved, for the log line
    */
   private degrade(field: string, reason: string, ids: Record<string, string>): void {
@@ -97,9 +132,9 @@ export class RetractionAlertContextAdapter {
       return `Post ${query.postId}`;
     }
 
-    const post = await this.posts.getById(postId.value, accountId.value);
-    if (!post.ok) {
-      this.degrade("post", "unreadable", { postId: query.postId });
+    const post = await attemptRead(() => this.posts.getById(postId.value, accountId.value));
+    if (!("value" in post)) {
+      this.degrade("post", post.failure, { postId: query.postId });
       return `Post ${query.postId}`;
     }
 
@@ -113,9 +148,9 @@ export class RetractionAlertContextAdapter {
       return { channelName: `Channel ${channelId}`, provider: "unknown" };
     }
 
-    const channel = await this.channels.findById(id.value);
-    if (!channel.ok) {
-      this.degrade("channel", "unreadable", { channelId });
+    const channel = await attemptRead(() => this.channels.findById(id.value));
+    if (!("value" in channel)) {
+      this.degrade("channel", channel.failure, { channelId });
       return { channelName: `Channel ${channelId}`, provider: "unknown" };
     }
 
@@ -129,9 +164,9 @@ export class RetractionAlertContextAdapter {
       return "your account";
     }
 
-    const account = await this.accounts.findById(id.value);
-    if (!account.ok) {
-      this.degrade("account", "unreadable", { accountId });
+    const account = await attemptRead(() => this.accounts.findById(id.value));
+    if (!("value" in account)) {
+      this.degrade("account", account.failure, { accountId });
       return "your account";
     }
 

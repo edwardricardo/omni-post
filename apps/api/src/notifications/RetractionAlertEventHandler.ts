@@ -10,23 +10,37 @@
  *              an empty context and delivered to nobody, silently. A refusal that says
  *              so in the log is the only version of that outcome anyone can act on.
  *
- *              Delivery failures do NOT propagate. The record that raised this alert is
- *              already committed and is the truth; the alert is its announcement, and
- *              throwing here would make the relay retry a fan-out whose claims have
- *              already been taken, which delivers nothing and retries forever.
+ *              It separates the two ways processing can end badly, because they need
+ *              opposite answers:
+ *
+ *              - a payload that does not NAME what it needs (tenant, alert key, channel,
+ *                project) is refused and logged. A redelivery of the same malformed
+ *                bytes would be refused identically, so retrying it buys nothing;
+ *              - a FAILURE while processing propagates, so the outbox redelivers. The
+ *                use case turns any internal throw into an `err`, and logging that and
+ *                returning would let the relay mark the event published — the record's
+ *                obligation would stand while nothing was ever delivered and nothing
+ *                would ever try again. Redelivery is safe because the ledger claim of a
+ *                target that was reached collides, and the claim of one that was not has
+ *                already been released.
+ *
+ *              Neither propagation rolls the record back: it committed in its own
+ *              transaction and stays the truth. What retries is the ANNOUNCEMENT.
  * @layer infrastructure
  */
 
 import type { DomainEvent, DomainEventHandler } from "@core/domain/events/DomainEvent.js";
+import { ALERT_DELIVERY_RESULTS } from "@core/domain/value-objects/AlertMedium.js";
 import type {
   RaiseRetractionAlertUseCase,
   ResolveRetractionAlertUseCase,
 } from "@core/notifications/index.js";
-import type { AlertFragmentView } from "@ports/core";
+import { readAlertFragments } from "@core/notifications/readAlertFragments.js";
 import { withTenantContext } from "../security/tenantContext.js";
 import { createLogger } from "../lib/logger.js";
 import {
   recordAlertDelivery,
+  recordAlertRefused,
   recordAlertWithoutRecipient,
 } from "../metrics/retractionAlertMetrics.js";
 import type { RetractionAlertContextAdapter } from "../infrastructure/adapters/RetractionAlertContextAdapter.js";
@@ -48,28 +62,6 @@ export const RETRACTION_ALERT_HANDLED_EVENT_TYPES: ReadonlyArray<string> = Objec
 const asString = (value: unknown): string | undefined =>
   typeof value === "string" && value.length > 0 ? value : undefined;
 
-/**
- * @function readFragments
- * @description Reads the live-fragment array out of an untyped outbox payload. A
- *   malformed entry is DROPPED rather than failing the alert: the customer still needs
- *   to know that content is live, and naming three of four fragments beats naming none.
- * @param value - The payload's `liveFragments` field, whatever it turned out to be
- * @returns The entries that parse as fragment references
- */
-function readFragments(value: unknown): AlertFragmentView[] {
-  if (!Array.isArray(value)) return [];
-  const fragments: AlertFragmentView[] = [];
-  for (const entry of value) {
-    if (entry === null || typeof entry !== "object") continue;
-    const candidate = entry as Record<string, unknown>;
-    const externalId = asString(candidate.externalId);
-    if (typeof candidate.index !== "number" || externalId === undefined) continue;
-    const url = asString(candidate.url);
-    fragments.push({ index: candidate.index, externalId, ...(url !== undefined && { url }) });
-  }
-  return fragments;
-}
-
 export class RetractionAlertEventHandler implements DomainEventHandler<DomainEvent> {
   constructor(
     private readonly raiseAlert: RaiseRetractionAlertUseCase,
@@ -80,7 +72,8 @@ export class RetractionAlertEventHandler implements DomainEventHandler<DomainEve
   /**
    * @method handle
    * @description Routes the two alert events to their use cases under the payload's
-   *   tenant. Never throws.
+   *   tenant. Refuses a payload that names too little to act on; propagates a failure
+   *   to act so the outbox redelivers.
    * @param event - The outbox-reconstructed domain event
    */
   async handle(event: DomainEvent): Promise<void> {
@@ -91,6 +84,7 @@ export class RetractionAlertEventHandler implements DomainEventHandler<DomainEve
     const alertKey = asString(payload.alertKey);
 
     if (accountId === undefined || alertKey === undefined) {
+      recordAlertRefused(accountId === undefined ? "missing-tenant" : "missing-alert-key");
       logger.error(
         {
           eventId: event.eventId,
@@ -120,10 +114,24 @@ export class RetractionAlertEventHandler implements DomainEventHandler<DomainEve
     payload: Record<string, unknown>
   ): Promise<void> {
     const postId = asString(payload.postId) ?? event.aggregateId;
-    const projectId = asString(payload.projectId) ?? "";
+    const projectId = asString(payload.projectId);
     const channelId = asString(payload.channelId);
-    if (channelId === undefined) {
-      logger.error({ eventId: event.eventId, alertKey }, "Retraction alert names no channel");
+    // ONE refusal rule for the whole payload rather than a refusal for some fields and
+    // a default for others. An empty project id is not a neutral default: it finds no
+    // member and no active config, so the shared destinations would report "no active
+    // config" — a sentence about the customer's setup for a fact about our own payload.
+    if (channelId === undefined || projectId === undefined) {
+      recordAlertRefused(channelId === undefined ? "missing-channel" : "missing-project");
+      logger.error(
+        {
+          eventId: event.eventId,
+          alertKey,
+          hasChannelId: channelId !== undefined,
+          hasProjectId: projectId !== undefined,
+        },
+        "Retraction alert names no channel or no project — refusing it rather than " +
+          "delivering an alert that cannot say where the content is live"
+      );
       return;
     }
 
@@ -141,7 +149,7 @@ export class RetractionAlertEventHandler implements DomainEventHandler<DomainEve
       channelName: resolved.channelName,
       provider: resolved.provider,
       postExcerpt: resolved.postExcerpt,
-      liveFragments: readFragments(payload.liveFragments),
+      liveFragments: readAlertFragments(payload.liveFragments),
       cause: asString(payload.cause) ?? "NO_CAPABILITY",
       ...(actionWindowEndsAt !== undefined && { actionWindowEndsAt }),
       ...(supersededAlertKey !== undefined && { supersededAlertKey }),
@@ -150,13 +158,32 @@ export class RetractionAlertEventHandler implements DomainEventHandler<DomainEve
     if (!result.ok) {
       logger.error(
         { eventId: event.eventId, alertKey, error: result.error.message },
-        "Retraction alert could not be delivered"
+        "Retraction alert could not be delivered — propagating so the outbox redelivers it"
       );
-      return;
+      throw result.error;
     }
 
     for (const entry of result.value.report) {
       recordAlertDelivery(entry.medium, entry.result);
+      // The counter says a medium failed; only this line says WHY. A per-raise info log
+      // carrying the whole report buries it, and the reason is the one thing an
+      // operator needs to tell a mailer outage from a member with no address.
+      if (entry.result === ALERT_DELIVERY_RESULTS.FAILED) {
+        logger.warn(
+          {
+            eventId: event.eventId,
+            alertKey,
+            medium: entry.medium,
+            // Spread rather than assigned: a key whose value is undefined reads as a
+            // target we failed to RESOLVE, which is a different incident from a line
+            // that never had one. An absent key says the second thing and only that.
+            ...(entry.target !== undefined && { target: entry.target }),
+            ...(entry.reason !== undefined && { reason: entry.reason }),
+          },
+          "Retraction alert was not delivered on this medium — nothing durable was " +
+            "written for it, so a redelivery of this event will try it again"
+        );
+      }
     }
     if (result.value.recipientCount === 0) {
       recordAlertWithoutRecipient();
@@ -192,9 +219,11 @@ export class RetractionAlertEventHandler implements DomainEventHandler<DomainEve
     if (!result.ok) {
       logger.error(
         { eventId: event.eventId, alertKey, error: result.error.message },
-        "Retraction alert could not be resolved — a stale alert may still be standing"
+        "Retraction alert could not be resolved — propagating so the outbox redelivers " +
+          "it, because a stale alert that nobody retries keeps asking for an act the " +
+          "customer has already performed"
       );
-      return;
+      throw result.error;
     }
 
     logger.info(

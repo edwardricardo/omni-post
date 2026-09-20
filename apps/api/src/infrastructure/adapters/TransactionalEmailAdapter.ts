@@ -33,38 +33,8 @@ import {
   welcomeEmail,
   teamInvitationEmail,
 } from "../email/templates/emailTemplates.js";
-
-/** One fragment of a post still live on a provider, as the alert's metadata carries it. */
-interface LiveFragmentMetadata {
-  index: number;
-  externalId: string;
-  url?: string;
-}
-
-/**
- * @function readLiveFragments
- * @description Reads the live-fragment array out of a notification's untyped metadata.
- *   A malformed entry is DROPPED rather than failing the render: an email naming three
- *   of four live fragments is worth sending, and one that fails to render names none.
- * @param value - The metadata's `liveFragments` field, whatever it turned out to be
- * @returns The entries that parse as fragment references
- */
-function readLiveFragments(value: unknown): LiveFragmentMetadata[] {
-  if (!Array.isArray(value)) return [];
-  const fragments: LiveFragmentMetadata[] = [];
-  for (const entry of value) {
-    if (entry === null || typeof entry !== "object") continue;
-    const candidate = entry as Record<string, unknown>;
-    if (typeof candidate.index !== "number" || typeof candidate.externalId !== "string") continue;
-    fragments.push({
-      index: candidate.index,
-      externalId: candidate.externalId,
-      ...(typeof candidate.url === "string" && { url: candidate.url }),
-    });
-  }
-  return fragments;
-}
 import { referralRewardEmail } from "../email/templates/referralRewardEmail.js";
+import { readAlertFragments } from "@core/notifications/readAlertFragments.js";
 
 /**
  * @class TransactionalEmailAdapter
@@ -175,7 +145,7 @@ export class TransactionalEmailAdapter
           channelName,
           postExcerpt: typeof raw.postExcerpt === "string" ? raw.postExcerpt : ctx.body,
           cause: typeof raw.cause === "string" ? raw.cause : "NO_CAPABILITY",
-          liveFragments: readLiveFragments(raw.liveFragments),
+          liveFragments: readAlertFragments(raw.liveFragments),
           ...(actionWindowEndsAt !== undefined && { actionWindowEndsAt }),
           postUrl: `${this.clientUrl}/dashboard/posts/${typeof raw.postId === "string" ? raw.postId : ""}`,
           accountName: ctx.accountName,

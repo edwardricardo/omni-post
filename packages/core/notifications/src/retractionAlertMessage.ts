@@ -33,12 +33,23 @@ export interface RetractionAlertMessage {
   metadata: Record<string, unknown>;
 }
 
+/**
+ * Why the content is still live, in the customer's words. Recorded causes are codes;
+ * this is the ONE place they become a sentence, so the dashboard, the email and the team
+ * webhook cannot explain the same stranded post differently.
+ */
 const CAUSE_SENTENCES: Record<string, string> = {
   NO_CAPABILITY: "this platform offers no way to remove it from OmniPost",
   EXHAUSTED: "automatic removal was attempted and failed",
 };
 
-const describeCause = (cause: string): string =>
+/**
+ * @function describeRetractionCause
+ * @description Turns a recorded cause code into the sentence every medium states.
+ * @param cause - The cause the record carried
+ * @returns The customer-facing sentence, or the neutral one for a cause nobody has named
+ */
+export const describeRetractionCause = (cause: string): string =>
   CAUSE_SENTENCES[cause] ?? "it could not be removed automatically";
 
 const describeFragment = (fragment: AlertFragmentView): string => {
@@ -58,7 +69,7 @@ export function buildRetractionAlertMessage(
   const title = `Content is still live on ${input.channelName}: manual removal required`;
 
   const lines = [
-    `Part of your post is still published on ${input.channelName}, and ${describeCause(input.cause)}.`,
+    `Part of your post is still published on ${input.channelName}, and ${describeRetractionCause(input.cause)}.`,
     "",
     `Post: ${input.postExcerpt}`,
     "",
