@@ -7,7 +7,42 @@
  *              constant.
  * @layer infrastructure
  */
-import { describe, it, beforeEach, expect } from "vitest";
+import { describe, it, beforeEach, expect, vi } from "vitest";
+
+// The handler's only externally visible act for a dropped `reasonCode` IS the log
+// line, so the log has to be readable from here — a refusal whose whole effect is a
+// log cannot be told from silence by a case that cannot see it. Only `createLogger`
+// is overridden; the rest of the module keeps its real exports, because other
+// importers in this graph read `logger` from it.
+const logMocks = vi.hoisted(() => {
+  const entries: Array<{ level: string; payload: Record<string, unknown>; message: string }> = [];
+  const record =
+    (level: string) =>
+    (payload: unknown, message?: string): void => {
+      entries.push({
+        level,
+        payload: (payload ?? {}) as Record<string, unknown>,
+        message: message ?? "",
+      });
+    };
+  const logger = {
+    info: record("info"),
+    warn: record("warn"),
+    error: record("error"),
+    debug: record("debug"),
+    child: () => logger,
+  };
+  return { entries, logger };
+});
+
+vi.mock("../../src/lib/logger.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/lib/logger.js")>();
+  return {
+    ...actual,
+    createLogger: () => logMocks.logger as unknown as ReturnType<typeof actual.createLogger>,
+  };
+});
+
 import "./PostCommandHandlers.test-helpers.js";
 import {
   type TestContext,
@@ -29,6 +64,7 @@ describe("CompletePostPublishingCommandHandler", () => {
   beforeEach(() => {
     ctx = createTestConfig();
     handler = new CompletePostPublishingCommandHandler(ctx.config);
+    logMocks.entries.length = 0;
   });
 
   it("should have correct command type", () => {
@@ -99,6 +135,49 @@ describe("CompletePostPublishingCommandHandler", () => {
     // still routes to the promotion use case, which has no field for it. The case
     // pins that the addition changed nothing here: it is a regression guard, and it
     // was green before the field existed as well as after.
+    // The drop is deliberate, but a drop nobody can see is indistinguishable from a
+    // field that was never sent. A producer wired before the reconciliation reader
+    // lands would watch the value cross the parser and vanish at this seam with
+    // nothing to read. The log is the discoverability, and it is asserted rather
+    // than assumed because its entire effect IS the line.
+    it("warns ONCE per command, naming how many codes it dropped and why", async () => {
+      await handler.handle(
+        buildCompletePostPublishingCommand({
+          channels: [
+            { channelId: TEST_CHANNEL_ID_1, success: false, reasonCode: "CONTENT_REJECTED" },
+            { channelId: TEST_CHANNEL_ID_2, success: false, reasonCode: "BUDGET_EXHAUSTED" },
+          ],
+        })
+      );
+
+      const warnings = logMocks.entries.filter((entry) => entry.level === "warn");
+      expect(warnings.length).toBe(1);
+      expect(warnings[0]?.payload.droppedReasonCodes).toBe(2);
+      expect(warnings[0]?.payload.postId).toBe(TEST_POST_ID);
+      expect(warnings[0]?.message).toContain("reasonCode");
+    });
+
+    it("counts only the channels that carried one, not every channel in the outcome", async () => {
+      await handler.handle(
+        buildCompletePostPublishingCommand({
+          channels: [
+            { channelId: TEST_CHANNEL_ID_1, success: true },
+            { channelId: TEST_CHANNEL_ID_2, success: false, reasonCode: "CONTENT_REJECTED" },
+          ],
+        })
+      );
+
+      const warnings = logMocks.entries.filter((entry) => entry.level === "warn");
+      expect(warnings.length).toBe(1);
+      expect(warnings[0]?.payload.droppedReasonCodes).toBe(1);
+    });
+
+    it("stays silent when no channel carried a reasonCode — nothing was dropped", async () => {
+      await handler.handle(buildCompletePostPublishingCommand());
+
+      expect(logMocks.entries.filter((entry) => entry.level === "warn").length).toBe(0);
+    });
+
     it("is not forwarded by this handler — the promotion use case has no field for it yet", async () => {
       await handler.handle(
         buildCompletePostPublishingCommand({

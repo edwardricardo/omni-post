@@ -3704,3 +3704,146 @@ forecast at literally zero.
    no compile error to announce it. The scratchpad probe catches this on demand and has now earned
    its keep in three consecutive units; making it a committed config is a decision nobody has taken
    and it belongs to someone other than this task.
+
+### RDD receipt — the committed range `dfc5cae2` → `886ec0a5`
+
+Lineage `review-cec1598841a2b767`, medium, one reliability lens. **Approved and burned**, with one
+WARNING and two SUGGESTIONs. All three are FIXED below rather than accepted; one of them is fixed
+**and its stated mechanism corrected**, because the fix was worth doing and the reason given for it
+was not the true one.
+
+#### WARNING `R3-harness-uow-missing` — FIXED, and the claim's mechanism corrected
+
+> "The integration harness constructs a real OpenPublicationEpisodeUseCase without the Unit of Work
+> seam. … the constructor accepts UoW as an optional last parameter, so the harness's instance will
+> not surface the divergence at construction time — the moment a scenario reaches it, **the write
+> escapes the tenant-bound transaction** the container's production wiring guarantees."
+> — `publishNowPromotionHarness.ts:223-229`
+
+**Disposition: FIXED.** The harness now builds ONE `PrismaUnitOfWork` into a local and hands it to
+both writers it constructs, so the episode use case runs the wiring the container builds. Holding
+it in a local is the part that outlasts this correction: a writer constructed without it now reads
+as an omission beside a sibling that has it.
+
+**The mechanism in the claim is wrong, and saying so is the point.** The write does NOT escape
+tenant binding without the Unit of Work. Measured in
+`packages/adapters/db-prisma/src/post/PostPublicationWrites.ts:303-318`: `savePublicationRecord`
+reads `PrismaUnitOfWork.activeTransaction()` and, when there is none, calls the collaborator
+`runInTenantBoundTransaction` — which `PrismaPostRepository.savePublication`
+(`PrismaPostRepository.ts:160-164`) supplies as
+`withGucBoundTransaction(this.prisma, resolveGucScope(this.tenantProvider), statements)`. So the
+save opens its OWN tenant-bound transaction and binds the GUC either way; the repository's scope
+refusal (`:146-155`, absent scope or the system sentinel) fires either way too. What the missing
+seam actually costs is the USE CASE's transaction boundary — `executeResultInTransaction` around
+load-admit-save, and the rollback of an `err` returned after a write. For a writer whose write is
+one narrow save that is a real but narrow difference, not an isolation hole.
+
+**No red was available, and this is the plain statement the correction asked for.** Nothing in this
+harness dispatches `post.open-publication-episode`, and — given the fallback above — the two
+wirings are not distinguishable from outside for a single-save use case: both bind the tenant, both
+commit, and both leave the aggregate's publication debt discharged by the time `execute` resolves.
+A one-line "is defined" assertion in the harness suite would pass with or without the seam, so it
+was not written: a case that cannot go red is not evidence, and this repo already refuses that
+shape everywhere else. The regression proof is the batch itself — `integration:saga-recovery`
+**33/33**, unchanged across the fix.
+
+#### SUGGESTION `R3-handler-catch-untested` — FIXED
+
+> "The OpenPublicationEpisodeCommandHandler's catch branch … has no test … no case pins that a
+> thrown error is neither swallowed silently nor re-thrown across the bus boundary."
+> — `PostCommandHandlers.ts:698-704`
+
+**Disposition: FIXED.** Four cases in a new `describe("a fault that escapes the Result
+discipline")`: the shaped `success: false` result with the thrown message and no `data`; the ERROR
+log, because a converted throw nobody records is a fault nobody can find; no cache invalidation,
+because nothing was written to go stale; and **no `code`**, because an unclassified fault must not
+read as a classified refusal — that last one is the case the finding did not ask for and the one
+that matters most now that `CommandResult.code` exists. The double gained `shouldThrow`, kept
+distinct from `shouldFail`: a refusal is a `Result` the use case RETURNS, a throw escapes the
+Result discipline entirely, and only a double that can do both proves the handler converts the
+second into the first.
+
+**The red was taken by the probe protocol**, because the behaviour was already correct and a
+characterization test cannot go red on its own. The catch's conversion was replaced with a bare
+re-throw, the four cases were run, and the file was restored and verified byte-exact
+(`sha256` `5dff4e1d…` → `OK`):
+
+```text
+ ❯ tests/unit/PostCommandHandlers.open-publication-episode.test.ts (21 tests | 4 failed | 17 skipped)
+   × answers a shaped failure instead of letting the throw cross the bus boundary
+   × logs the fault at ERROR — a converted throw that is never recorded is a fault nobody can find
+   × invalidates no cache for a fault — nothing was written to go stale
+   × carries no refusal code for a throw — an unclassified fault must not read as a classified one
+Error: connection terminated unexpectedly
+ ❯ OpenPublicationEpisodeCommandHandler.handle src/cqrs/handlers/PostCommandHandlers.ts:672:70
+```
+
+#### SUGGESTION `R3-reasoncode-declared-not-forwarded` — FIXED with a log, never a marker
+
+> "a producer wired now that populates reasonCode expecting the completion path to persist it will
+> see the value cross the parser and vanish at the handler seam **without any log line**. Recording
+> an explicit warn-log or a schema-level TODO tag on the field would make the parked half
+> discoverable." — `packages/shared/src/cqrs.ts:302-311`
+
+**Disposition: FIXED — with the log. The `TODO` half of the suggestion is REFUSED on canon**: a
+`TODO` marker in a comment is a tripwire in this repo (`CLAUDE.md` §Mandatory Pre-Action Triggers,
+row 1b), and planting one to document a parked reader is exactly the deferral that rule exists to
+stop. The suggestion offered two remedies and only one of them is admissible here.
+
+`CompletePostPublishingCommandHandler` now counts the channels carrying a `reasonCode` and, when
+that count is non-zero, logs ONCE per command at WARN with `{ postId, droppedReasonCodes }`, naming
+that the reconciliation reader is not wired yet. Once per command, not once per channel: a
+ten-channel outcome is one event, and a per-channel line would bury it. The schema field's JSDoc
+now says in as many words that it is **parsed and not yet consumed**, that populating it is safe,
+and that no behaviour may be built on the completion path persisting it. The `toStrictEqual` case
+that guards against accidental forwarding is untouched and still passes.
+
+**The red was genuine** — the handler logged nothing before:
+
+```text
+ FAIL  tests/unit/PostCommandHandlers.complete-publishing.test.ts > the additive reasonCode field >
+   warns ONCE per command, naming how many codes it dropped and why
+AssertionError: expected +0 to be 1
+```
+
+Three cases, not one: the warn with its count, a mixed outcome where only the channel that carried
+a code is counted, and **silence when none did** — the third is what stops the log from degrading
+into noise on every completion, and it passed against the pre-change code too, which is the proof
+that the mock logger was wired and reading zero rather than reading nothing.
+
+#### What the correction changed, measured from `git diff --numstat HEAD` at write time
+
+| File                                                                       | +       | −      | Stream                 |
+| -------------------------------------------------------------------------- | ------- | ------ | ---------------------- |
+| `apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts`      | 80      | 1      | EVIDENCE               |
+| `apps/api/tests/unit/PostCommandHandlers.open-publication-episode.test.ts` | 84      | 3      | EVIDENCE               |
+| `apps/api/src/cqrs/handlers/PostCommandHandlers.ts`                        | 16      | 0      | CODE                   |
+| `apps/api/tests/integration/helpers/publishNowPromotionHarness.ts`         | 15      | 6      | EVIDENCE               |
+| `apps/api/tests/unit/PostCommandHandlers.test-helpers.ts`                  | 11      | 0      | EVIDENCE               |
+| `packages/shared/src/cqrs.ts`                                              | 8       | 0      | CODE                   |
+| **Totals**                                                                 | **214** | **10** | CODE 24 / EVIDENCE 190 |
+
+Unit CODE after the correction: **277** (253 + 24) — still under the 400 hard budget.
+
+#### Gates after the correction
+
+| Gate                                                 | Result                                                            |
+| ---------------------------------------------------- | ----------------------------------------------------------------- |
+| touched `apps/api` suites (7 files)                  | **92 passed** (was 85; +7 cases — 4 fault, 3 reasonCode)          |
+| `integration:saga-recovery`                          | **33 tests / 33 pass / 0 fail / 0 cancelled / 0 skipped**, exit 0 |
+| `tsc --noEmit` `packages/shared` · `apps/api` (6144) | **0** · **0**                                                     |
+| scratchpad tsc probe over the touched test files     | **0**                                                             |
+| `eslint --max-warnings 0`, 6 files, ONE pass at 6144 | **0**                                                             |
+| `prettier -c`, 6 files + this ledger                 | clean                                                             |
+| fitness #3 · #4 · #5 · #6 · #8 · #9 · #10 · #32      | 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0                                     |
+| tripwire words in the six changed files              | none (the refused `TODO` above is why this line is here)          |
+
+#### One thing the correction leaves behind, named rather than carried silently
+
+The logger mock now appears in TWO suites of this family, copied rather than shared, because
+`vi.mock` is hoisted per file and a shared factory would have to be imported before the hoist. It is
+~25 lines duplicated. The right home is a helper the family imports, and the reason it is not
+written here is that `PostCommandHandlers.test-helpers.ts` is imported for its VALUES by five
+suites — moving a hoisted mock into it would apply the mock to all five at once, which is a
+behaviour change to three suites this correction has no business touching. **Backlog-sized, not
+bounded-correction-sized.**

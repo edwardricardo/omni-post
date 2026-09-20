@@ -526,6 +526,22 @@ export class CompletePostPublishingCommandHandler implements CommandHandler<
       const validatedCommand = validation.data as CompletePostPublishingCommand;
       const { data, metadata, aggregateId } = validatedCommand;
 
+      // The contract admits a per-channel `reasonCode`; the reconciliation that reads
+      // it is not wired yet, so this handler drops it. Announced ONCE per command
+      // rather than left silent: a producer populating the field would otherwise watch
+      // it cross the parser and vanish here with nothing to read, and a silent drop of
+      // a value the contract advertises is the same defect as a field nobody honours —
+      // which is why the sibling content command declares `.strict()`.
+      const droppedReasonCodes = data.outcome.channels.filter(
+        (channel) => channel.reasonCode !== undefined
+      ).length;
+      if (droppedReasonCodes > 0) {
+        log.warn(
+          { postId: aggregateId, droppedReasonCodes },
+          "Completion outcome carries a per-channel reasonCode that this handler does not forward: the reconciliation reader that consumes it is not wired yet, so the value is parsed and dropped"
+        );
+      }
+
       const result = await this.config.completePostPublishingUseCase.execute({
         postId: aggregateId,
         outcome: {

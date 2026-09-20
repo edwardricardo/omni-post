@@ -4,11 +4,47 @@
  *              (strict data, a declared-but-optional channel set, a required
  *              publish-now flag), the mapping from the command's aggregate id and
  *              data onto the use case's input, the opened channels travelling back
- *              unchanged, the refusal code surviving the crossing, and the cache
- *              invalidation an episode opening owes the readers of the post.
+ *              unchanged, the refusal code surviving the crossing, the cache
+ *              invalidation an episode opening owes the readers of the post, and the
+ *              catch boundary that converts a thrown fault into the same shaped
+ *              result rather than letting it escape across the bus.
  * @layer infrastructure
  */
-import { describe, it, beforeEach, expect } from "vitest";
+import { describe, it, beforeEach, expect, vi } from "vitest";
+
+// The catch branch's second obligation — that the fault is not swallowed in
+// silence — is observable only through the log, so the log has to be readable from
+// here. Only `createLogger` is overridden; the module keeps its real exports,
+// because other importers in this graph read `logger` from it.
+const logMocks = vi.hoisted(() => {
+  const entries: Array<{ level: string; payload: Record<string, unknown>; message: string }> = [];
+  const record =
+    (level: string) =>
+    (payload: unknown, message?: string): void => {
+      entries.push({
+        level,
+        payload: (payload ?? {}) as Record<string, unknown>,
+        message: message ?? "",
+      });
+    };
+  const logger = {
+    info: record("info"),
+    warn: record("warn"),
+    error: record("error"),
+    debug: record("debug"),
+    child: () => logger,
+  };
+  return { entries, logger };
+});
+
+vi.mock("../../src/lib/logger.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/lib/logger.js")>();
+  return {
+    ...actual,
+    createLogger: () => logMocks.logger as unknown as ReturnType<typeof actual.createLogger>,
+  };
+});
+
 import "./PostCommandHandlers.test-helpers.js";
 import {
   type TestContext,
@@ -33,6 +69,7 @@ describe("OpenPublicationEpisodeCommandHandler", () => {
   beforeEach(() => {
     ctx = createTestConfig();
     handler = new OpenPublicationEpisodeCommandHandler(ctx.config);
+    logMocks.entries.length = 0;
   });
 
   it("answers the post.open-publication-episode command type", () => {
@@ -198,6 +235,50 @@ describe("OpenPublicationEpisodeCommandHandler", () => {
       const result = await handler.handle(buildOpenPublicationEpisodeCommand());
 
       expect(result.events?.length).toBe(0);
+    });
+  });
+
+  // A thrown error is not a refusal: it escapes the Result discipline entirely, and
+  // the bus's own catch would convert it into a result naming nothing about this
+  // handler. Both halves matter and neither implies the other — a handler could
+  // return the shaped result and log nothing (a fault nobody can find), or log and
+  // re-throw (a fault the bus reports as its own).
+  describe("a fault that escapes the Result discipline", () => {
+    it("answers a shaped failure instead of letting the throw cross the bus boundary", async () => {
+      ctx.openPublicationEpisodeUseCase.shouldThrow = true;
+      ctx.openPublicationEpisodeUseCase.throwMessage = "connection terminated unexpectedly";
+
+      const result = await handler.handle(buildOpenPublicationEpisodeCommand());
+
+      expect(result.success).toBeFalsy();
+      expect(result.error).toBe("connection terminated unexpectedly");
+      expect(result.data).toBeUndefined();
+    });
+
+    it("logs the fault at ERROR — a converted throw that is never recorded is a fault nobody can find", async () => {
+      ctx.openPublicationEpisodeUseCase.shouldThrow = true;
+
+      await handler.handle(buildOpenPublicationEpisodeCommand());
+
+      const errors = logMocks.entries.filter((entry) => entry.level === "error");
+      expect(errors.length).toBe(1);
+      expect(errors[0]?.message).toContain("OpenPublicationEpisodeCommand failed");
+    });
+
+    it("invalidates no cache for a fault — nothing was written to go stale", async () => {
+      ctx.openPublicationEpisodeUseCase.shouldThrow = true;
+
+      await handler.handle(buildOpenPublicationEpisodeCommand());
+
+      expect(ctx.redis.getDeletedKeys().length).toBe(0);
+    });
+
+    it("carries no refusal code for a throw — an unclassified fault must not read as a classified one", async () => {
+      ctx.openPublicationEpisodeUseCase.shouldThrow = true;
+
+      const result = await handler.handle(buildOpenPublicationEpisodeCommand());
+
+      expect(result.code).toBeUndefined();
     });
   });
 });

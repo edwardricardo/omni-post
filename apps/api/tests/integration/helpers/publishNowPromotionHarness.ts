@@ -206,10 +206,16 @@ export class PublishNowPromotionHarness {
       this.guarded,
       new ChannelCredentialsCrypto(new EncryptionService())
     );
+    // ONE unit of work for every writer this harness builds, held in a local so a
+    // writer constructed without it reads as the omission it is, next to siblings
+    // that have it. Both writers take the seam as an OPTIONAL last parameter, so a
+    // wiring that drops it compiles and passes — the divergence from the container's
+    // production wiring is invisible until something drives it.
+    const unitOfWork = new PrismaUnitOfWork(this.guarded, ambientTenantContextProvider);
     this.promotionUseCase = new CompletePostPublishingUseCase(
       this.postRepository,
       this.channelRepository,
-      new PrismaUnitOfWork(this.guarded, ambientTenantContextProvider)
+      unitOfWork
     );
     this.handlerConfig = {
       createPostUseCase: new CreatePostUseCase(
@@ -222,11 +228,14 @@ export class PublishNowPromotionHarness {
       completePostPublishingUseCase: this.promotionUseCase,
       // Constructed because the config declares it, not because this suite drives
       // it: no scenario here dispatches `post.open-publication-episode`, and the
-      // saga step that will is not written yet. It is given the same repository
-      // the promotion uses so that, the day a scenario does reach it, it writes
-      // through the tenant-bound client rather than a double that agrees with
-      // whatever the test expects.
-      openPublicationEpisodeUseCase: new OpenPublicationEpisodeUseCase(this.postRepository),
+      // saga step that will is not written yet. It gets the same repository AND the
+      // same unit of work the promotion gets, so the day a scenario does reach it,
+      // it runs the wiring the container builds rather than a narrower one that
+      // happens to compile.
+      openPublicationEpisodeUseCase: new OpenPublicationEpisodeUseCase(
+        this.postRepository,
+        unitOfWork
+      ),
       postRepository: this.postRepository,
       channelRepository: this.channelRepository,
       redis: this.redis,

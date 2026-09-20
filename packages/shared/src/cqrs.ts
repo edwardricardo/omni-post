@@ -289,6 +289,14 @@ export type PublishPostCommand = z.infer<typeof PublishPostCommandSchema>;
  * branches on. Declaring it here is what makes it survive the parser — an
  * undeclared key is stripped by Zod in silence, which would let an emitter
  * believe it had sent a reason that never arrived.
+ *
+ * **It is PARSED and NOT YET CONSUMED.** The reconciliation that reads it is a
+ * separate piece of work; until it lands, `CompletePostPublishingCommandHandler`
+ * accepts the field and drops it, and says so at WARN once per command carrying
+ * one. So the field is safe to populate now — nothing rejects it and nothing is
+ * corrupted by it — but do not build a behaviour on the assumption that the
+ * completion path persists it yet. The handler's log is how a producer finds
+ * that out without reading this comment.
  */
 export const CompletePostPublishingCommandSchema = z.object({
   id: z.string(),

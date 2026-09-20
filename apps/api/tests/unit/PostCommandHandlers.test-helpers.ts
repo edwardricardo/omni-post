@@ -178,6 +178,12 @@ export class MockCompletePostPublishingUseCase {
 export class MockOpenPublicationEpisodeUseCase {
   public executeCalls: unknown[] = [];
   public shouldFail = false;
+  // Distinct from `shouldFail`: a refusal is a `Result` the use case RETURNS, a
+  // throw is a failure that escapes the Result discipline entirely — a driver
+  // fault, a null dereference. The handler must convert the second into the same
+  // shaped result as the first, and only a double that can do both proves it.
+  public shouldThrow = false;
+  public throwMessage = "connection terminated unexpectedly";
   public failMessage = "Episode refused";
   // Typed as the `string` a `UseCaseError` actually carries, not narrowed to the
   // initializer's literal: the point of the field is that a test can plant a
@@ -192,6 +198,9 @@ export class MockOpenPublicationEpisodeUseCase {
 
   async execute(input: unknown): Promise<Result<OpenPublicationEpisodeOutput, UseCaseError>> {
     this.executeCalls.push(input);
+    if (this.shouldThrow) {
+      throw new Error(this.throwMessage);
+    }
     if (this.shouldFail) {
       return err(new UseCaseError(this.failMessage, this.failCode));
     }
@@ -207,6 +216,8 @@ export class MockOpenPublicationEpisodeUseCase {
   reset(): void {
     this.executeCalls = [];
     this.shouldFail = false;
+    this.shouldThrow = false;
+    this.throwMessage = "connection terminated unexpectedly";
     this.failMessage = "Episode refused";
     this.failCode = USE_CASE_ERRORS.CONFLICT;
     this.opened = [{ channelId: TEST_CHANNEL_ID_1, episode: 1 }];
