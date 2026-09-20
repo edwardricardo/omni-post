@@ -2,13 +2,20 @@
 
 **Inputs (read in this order, all binding).** `pre-propose-decisions.md` (Q1–Q21 SIGNED by Edward —
 constraints, never re-decided here) · `proposal.md` · the six specs under `specs/` · `design.md`
-**rev 3.2** (authoritative on the PR chain; every deviation below cites the design line it departs
+**rev 3.4** (authoritative on the PR chain; every deviation below cites the design line it departs
 from and says why) · `research.md` / `explore.md` (evidence only) · canon: `CLAUDE.md` §Automated
 Compliance Checks, `docs/architecture/ARCHITECTURE_CANON.md`, `docs/development/CODING_STANDARDS.md`,
 `docs/security/SECURITY_CANON.md`, `docs/observability/LOGGING_CANON.md`.
 
 **What this file is.** The ordered work breakdown and the MEASURED review-workload forecast. It
 implements nothing and decides no product question. Language: English, neutral register.
+
+**Bounded amendment 2026-09-20 (design rev 3.4).** The seven amendments design rev 3.3/3.4 lists under
+Open Questions, plus three the orchestrator adds. Nothing is renumbered and no tick is cleared: **T1c.4a**
+and **T1c.5a** are NEW beside their neighbours; T1c.12 / T1c.14 / T1c.18, T1d.5 / T1d.8, T1e.2, §7.2,
+§9.4 and §10.2 are amended in place. Every §4 task line now ends `— sha: pending`, which `sdd-apply`
+replaces with the work-unit commit sha (each child's committed range is reviewed with
+`--base-ref <parent tip> --committed-only` before its PR).
 
 **Counts measured in this pass** (not copied from the design's prose): **32 requirements /
 140 scenarios** across six spec files — `post-channel-publication-record` 15/65,
@@ -305,6 +312,11 @@ whole tracker; the record and the tables survive (1b/1b2), unwritten.
 **Child boundaries under `feature-branch-chain`** (0.3): `1c-1` application + CQRS · `1c-2` saga +
 lock · `1c-3` worker + sweep + confirm act + alert rule + C3 guards. **D15.5: the confirm act, the
 sweep and the worker write stay in `1c-3`.** Only the tracker merges to `main`.
+**Re-measured 2026-09-20 (§9.4.1)**: all three children exceed the hard 400-line CODE budget
+(1467 / 620 / 1276), so §9.4.1 proposes **thirteen grandchildren** — and D15.5 is then satisfied by
+ORDER, not by fusion: the confirm act (`1c-3a`) and the sweep (`1c-3b`) land BEFORE the worker's
+record write (`1c-3e`), so no tip ever holds a strandable channel without its exit. The grandchild
+boundaries are a §9.9 ratification, not a fait accompli.
 
 ### WU 1c.A — application use cases (child 1c-1)
 
@@ -312,34 +324,134 @@ sweep and the worker write stay in `1c-3`.** Only the tracker merges to `main`.
       declare then open; records + `noLiveContent()` → set replaced then opened; `hasLiveContent()` →
       the request set must EQUAL the recorded set else `VALIDATION_FAILED`, only `redrivable()`
       channels opened, a named pending-retraction channel refused `CHANNEL_HAS_LIVE_FRAGMENTS` WITH
-      its fragments; `alreadyOpen: true` idempotency; `savePublication` used, never `save`.
+      its fragments; `alreadyOpen: true` idempotency; `savePublication` used, never `save`. — sha: pending
 - [ ] **T1c.2 RED** — `.../recordChannelPublicationAttempt.test.ts`: every `err` from inside the
       callback rolls back; CAS → `CONFLICT`; stale/zero episode → `CONFLICT`;
-      `attemptNo ≤ episodeAttempts` → `applied: false` (PROM-R4 per channel); the W6 tripwire.
+      `attemptNo ≤ episodeAttempts` → `applied: false` (PROM-R4 per channel); the W6 tripwire. — sha: pending
 - [ ] **T1c.3 RED** — `.../confirmManualRetraction.test.ts` (clears with cause; 409 `NOTHING_PENDING`;
       `applied: false` on a duplicate; WORKS AFTER EXPIRY — Q17) and
       `.../expireRetractionActionWindow.test.ts` (passes the CALLER's `window` to the root; one
-      `savePublication`; `applied: false` on the second call).
+      `savePublication`; `applied: false` on the second call). — sha: pending
 - [ ] **T1c.4 GREEN** — `packages/core/posts/src/{OpenPublicationEpisodeUseCase,
 RecordChannelPublicationAttemptUseCase,ConfirmManualRetractionUseCase,
 ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTransaction`
-      (ADR-0023), `savePublication`, `Result` only, no own `$transaction` (#40).
+      (ADR-0023), `savePublication`, `Result` only, no own `$transaction` (#40). — sha: pending
+- [ ] **T1c.4a RED→GREEN (D19, design rev 3.4 C1 — absent is unrepresentable, a publication write has
+      a tenant)** — the AUTHORISED form only. **Edward AUTHORISED the deletion on 2026-09-20**, and
+      extended it: "y también borrar cualquier artefacto asociado que carezca de una funcionalidad
+      real". The declined-branch fallback (`PostListItem`) of D19 (b) is therefore NOT a branch here.
+      **(i) The mapper's input type.** NEW exported `POST_AGGREGATE_INCLUDE` — `contents`, `media`,
+      `contentVersions`, `channelPublications` with the joined `channel.provider` — declared
+      `satisfies Prisma.PostInclude` **and** `as const`; `PostAggregateMapper.toDomain` takes
+      `Prisma.PostGetPayload<{ include: typeof POST_AGGREGATE_INCLUDE }>` and
+      `PrismaPostWithRelations` (`packages/adapters/db-prisma/src/post/PostAggregateMapper.ts:58-63`)
+      becomes its ALIAS, still exported from `packages/adapters/db-prisma/src/index.ts:48`; the
+      optional `channelPublications?` (`:62`) and the `?? []` (`:253`) go. A bare object literal
+      widens each `true` to `boolean` and `PostGetPayload` dissolves into a union of variants — **an
+      assertion is NOT an admissible fix** for the compile error that follows; the `as const` is.
+      **(ii) The five casts DELETED** —
+      `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:84`, `:275`, `:313`, `:339`,
+      `:372`; `findById` passes `POST_AGGREGATE_INCLUDE` to `findFirst` (`:62-78`).
+      **(iii) The four unconsumed list loaders DELETED** — `findByProjectId`, `findByStatus`,
+      `findReadyForPublishing`, `findWithFilters` — from the port
+      (`packages/core/domain/src/repositories/PostRepository.ts:75-102`), the adapter (`:247-375`),
+      the NINE test files that stub them (`packages/core/posts/tests/unit/CreatePostUseCase.test.ts`,
+      `apps/api/tests/unit/cqrsIntegration.test-helpers.ts`,
+      `apps/api/tests/unit/application/postUseCases.test.ts`,
+      `apps/api/tests/unit/application/UseCases.test.ts`,
+      `apps/api/tests/unit/application/posts/ArchivePostsBatchUseCase.test.ts`,
+      `apps/api/tests/unit/application/posts/DuplicatePostsBatchUseCase.test.ts`,
+      `apps/api/tests/unit/application/posts/HardDeletePostsBatchUseCase.test.ts`,
+      `apps/api/tests/unit/application/recurring/CreatePostFromRecurrenceUseCase.test.ts`,
+      `apps/api/tests/unit/sagaIntegration.helpers.ts`) and the two adapter describes
+      (`apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts:624-843`,
+      `apps/api/tests/integration/repositories/PrismaPostRepository.test.ts:249-341`). Canon reason
+      beside the measurement: `PostRepository` is the COMMAND repository and the read side already
+      goes through `PrismaPostQueryRepository`, so this removes the CQRS mix, not a capability.
+      **(iii-b) Associated-artefact sweep, same authorisation.** Every filter/option type (a
+      `PostFilters` / `findWithFilters` options type), DTO, helper, mapping branch and doubles'
+      builder that exists only for those four: MEASURE each with `rg` over `{apps,packages,infra}/**/src`
+      (excluding `node_modules`, `dist`, `.next`, `.stryker*`), DELETE the ones whose production
+      consumer count is zero, and LIST every artefact with its measurement in the PR body. An
+      artefact with a live consumer is KEPT and NAMED — the sweep reports, it does not guess.
+      **(iv) `findById` refuses an unscoped load**: it resolves `resolveGucScope(this.tenantProvider)`
+      BEFORE the query and throws the guard's own `TenantContextMissingError("Post", "findFirst")` on
+      `undefined`, with no statement issued; a `__system__` load is ADMITTED (its hydration is total).
+      **(v) `savePublication` refuses `undefined` AND `SYSTEM_TENANT_SCOPE`** with
+      `err(InvariantViolationError)` before `savePublicationRecord` runs — both of its branches
+      (`packages/adapters/db-prisma/src/post/PostPublicationWrites.ts:284-290`) are covered by
+      refusing first; zero statements, no transaction opened. The binding line
+      `PrismaPostRepository.ts:121` (fitness #40 Part B's token) is UNCHANGED.
+      **(vi) Unit cases (a)–(e)** in `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`,
+      exactly D19 §Tests: (a) a provider answering neither context → `findById` throws,
+      `post.findFirst` never called; (b) a system provider → the `include` argument carries
+      `channelPublications` (the FULL hydration pinned as MEASURED, not assumed); (c)
+      `savePublication` under a system provider and under no scope → `err(InvariantViolationError)`,
+      zero statements, no transaction; (d) the compile RED — a `findFirst` result without
+      `POST_AGGREGATE_INCLUDE` cannot be passed to `toDomain`; (e) the **runtime RED, recorded
+      DELIBERATELY**: with the `?? []` default at
+      `packages/core/domain/src/aggregates/PostAggregate.ts:154` removed in the working tree and a
+      list loader still mapping through `toDomain`, `findByStatus` (`PrismaPostRepository.test.ts:691`)
+      throws `TypeError` from `[...undefined]` — paste the failing output in the PR body, restore the
+      tree sha256-exact, THEN land (iii). It is the list-path proof that the class is real and it must
+      never be hit by accident.
+      **Ordering, LOAD-BEARING**: (i)–(iii) land BEFORE T1c.5a deletes that default. T1d.8 gains the
+      two visibility cases. — sha: pending
 - [ ] **T1c.5 RED→GREEN** — `CompletePostPublishingUseCase.ts`: delete the `NOT_IMPLEMENTED` refusal
       (`:146-153`), `resolveProviders` (`:326-347`) and `toProviderResults` (`:351-368`); become the
       reconciliation of design.md:170 — refuse before I/O on an empty set, `NOT_FOUND`, missing
       record (NAMED), channels outside the record, outcomes disagreeing with the record; then
       `reconcilePublicationProjection()` with `applied: false` on the happy path. Rewrite
       `packages/core/posts/tests/unit/CompletePostPublishingUseCase.test.ts` (691 today): zero saves
-      on the happy path, no provider lookup, `publishedAt` never fabricated.
+      on the happy path, no provider lookup, `publishedAt` never fabricated. — sha: pending
+- [ ] **T1c.5a RED→GREEN (D4 / rev 3.3 A3 — the three 1b compatibility shapes CLOSE)** — the domain
+      side, in the SAME child as T1c.5 and AFTER T1c.4a.
+      **(i)** `markAsPublished()` and `markAsFailed()` lose their arguments and the two
+      `*WithoutRecord` arms are deleted
+      (`packages/core/domain/src/aggregates/post/PostPublicationMethods.ts:477-540`;
+      `packages/core/domain/src/aggregates/PostAggregate.ts:501-516`, `:544-559`); an empty record set
+      answers the `InvariantViolationError` the empty-argument branch already answers — D5's literal
+      form, reached by subtraction.
+      **(ii)** `startPublishing()` takes no argument and fills `PostPublishingStarted.targetProviders`
+      from `providersOf(this._publications)`; the facet already computes it
+      (`PostPublicationMethods.ts:637`, `:663`) and the context signature
+      (`packages/core/domain/src/aggregates/post/PostPublicationTypes.ts:41`) follows. With no record
+      it refuses — unreachable in production after 1c.
+      **(iii)** `PostAggregateState` splits: `reconstitute(state: PersistedPostState)`
+      (`PostAggregate.ts:237-239`) REQUIRES `accountId: string` and
+      `publications: readonly ChannelPublication[]`; the `?? []` default at `:154` is DELETED and
+      `create()` sets `[]` explicitly and stays tenant-less — it has no tenant until
+      `resolveProjectTenant` derives one inside the save
+      (`packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:629-640`); the mapper supplies
+      both unconditionally and its conditional spread on `accountId` goes
+      (`packages/adapters/db-prisma/src/post/PostAggregateMapper.ts:253-262`).
+      **(iv)** the epoch sentinel `excludedAt ?? new Date(0)`
+      (`packages/core/domain/src/entities/ChannelPublication.ts:338`) goes — the mapper supplies the
+      value for every excluded row (`PostAggregateMapper.ts:180-182`), so the outcome view reads the
+      state, never a placeholder (rev 3.3 A4).
+      **Four test files flip**: `packages/core/domain/tests/unit/postAggregate.publications.test.ts`
+      (the `providerResults` fixture at `:331` becomes the refusal case, W7's `startPublishing` cases
+      drop the argument, every `reconstitute` fixture gains both fields or fails `tsc`);
+      `apps/api/tests/unit/domain/aggregates.post.test.ts` (731 today — its 38
+      `markAsPublished(` / `markAsFailed(` / `startPublishing(` call sites rebuilt over record-bearing
+      fixtures, the provider-keyed assertions gone);
+      `packages/core/posts/tests/unit/CompletePostPublishingUseCase.test.ts` (rewritten by T1c.5);
+      `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts` (its three root-built
+      fixtures).
+      **Only legacy callers**: `packages/core/posts/src/CompletePostPublishingUseCase.ts:230` and
+      `:238`, deleted by T1c.5 — so T1c.5 and T1c.5a land TOGETHER or the tree does not compile.
+      **File-size watch, RE-MEASURED 2026-09-20**: `PostAggregate.ts` is **912** lines today, not
+      §9.8's pre-1b ~714 forecast; this task only removes from it, and the stale §9.8 row is a
+      §7.2 backlog line, not silently absorbed. — sha: pending
 - [ ] **T1c.6 RED→GREEN** — `SchedulePostUseCase.ts` (`:139-151`, `:171-200`) calls
       `declarePublicationTargets` after `post.schedule()` and migrates to
       `executeResultInTransaction`. This is REC-1's `[static]` scenario: the validated identities are
-      PERSISTED, not only returned in the DTO.
+      PERSISTED, not only returned in the DTO. — sha: pending
 - [ ] **T1c.7 GREEN** — `packages/shared/src/cqrs.ts`: `POST_COMMANDS.OPEN_PUBLICATION_EPISODE` +
       `reasonCode` on the completion command (`:272-295` already admits `success: false` + `error`);
       `apps/api/src/cqrs/handlers/PostCommandHandlers.ts` + tokens in
       `infrastructure/container/{types,setupPostUseCases}.ts`. Handlers delegate to use cases, never
-      to `prisma.*` (#6).
+      to `prisma.*` (#6). — sha: pending
 
 ### WU 1c.B — the saga (child 1c-2)
 
@@ -347,7 +459,7 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
       the wait-step table: `err` → `failed`; `undefined` or a set missing a scheduled channel →
       `failed` NAMING the missing record; any unresolved → `waiting`; else `succeeded` with
       `stepData.channels`. Plus: the forwarder forwards failures; the pivot rereads PER CHANNEL and
-      refuses a pending-retraction channel; the dedupe key carries `-e{episode}`.
+      refuses a pending-retraction channel; the dedupe key carries `-e{episode}`. — sha: pending
 - [ ] **T1c.9 GREEN** — `packages/shared/src/saga.ts`: `readPublicationRecord` replaces
       `checkJobsStatus` in `createPostPublishingSagaDefinition` (`:1079-1091`);
       `WaitForPublishingCompletionStep` (`:850-951`) rewritten and the `failed > 0` branch (`:929-934`)
@@ -358,18 +470,19 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
 publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`).
       **File-size watch**: `saga.ts` is 1227 lines BEFORE this change. Net ~+50. Splitting it
       (`packages/shared/src/saga/postPublishingSaga.ts`) would double 1c's diff for no behavioural
-      gain — it is a NAMED BACKLOG ROW (§7.3), not work for this PR.
+      gain — it is a NAMED BACKLOG ROW (§7.3), not work for this PR. — sha: pending
 - [ ] **T1c.10 RED→GREEN** — `packages/ports/src/SemanticLockPort.ts` gains `holder(key)`;
       `RedisSemanticLockStore` answers it with `GET` (`:43`); NEW
       `apps/api/tests/unit/doubles/InMemorySemanticLockStore.ts` (Map-backed, four methods,
       `plantHolder`) and `RecordingLockStore` (`apps/api/tests/integration/sagaTenantIsolation.test.ts:126-141`)
-      gains `holder()` — compile-forced (S-new-2).
+      gains `holder()` — compile-forced (S-new-2). — sha: pending
 - [ ] **T1c.11 RED→GREEN** — `apps/api/src/saga/SagaIntegration.ts` (`:283-345`, `:392-433`):
       publish-now admits a post with no record or ≥1 `redrivable()` channel and refuses 400
       otherwise; **schedule mode admits only `DRAFT`/`SCHEDULED`** (Q14 — publish-now is the only
       re-drive route); `holder()` non-null → **409 `{ code: "PUBLICATION_IN_FLIGHT", sagaId }`**;
       foreign channel still 404 (`:392-405`). **Split seam applied here**: the admission logic moves
       to a NEW `apps/api/src/saga/publishAdmission.ts` (SagaIntegration 895 → ~840 + 150 new).
+      — sha: pending
 
 ### WU 1c.C — the worker, the confirm act, the sweep (child 1c-3 — D15.5)
 
@@ -380,7 +493,20 @@ publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`)
       `notifySaga`, NO rethrow when `EXCLUDED` — the provider double counts exactly ONE call); the
       skip path per record state; W4 (a job with no `accountId` or no episode → `UnrecoverableError`,
       nothing written); CAS exhaustion → the durable outcome job carrying the fragments; W9 (the
-      mirror key with `-e{n}` stripped).
+      mirror key with `-e{n}` stripped). **Plus, in
+      `apps/workers/tests/publishThreadPost.test.ts`'s `describe("when the thread is interrupted
+  mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the channel EXCLUDED
+      with the live set after the rows and before the saga" (call order asserted across the
+      repository, use-case and saga doubles); "still records the outcome when a tweet row cannot be
+      written" (extends the existing `:526` case); "completes without rethrow when the record is
+      `EXCLUDED`, and when the recorder answers `err`" (the provider double counts ONE call). The
+      case at `:571` ("carries the live fragments into the ERR publish log") is **DELETED** with the
+      log (D10). **Plus the 1b3 RDD advisory `R3-silent-skip-on-repo-not-ok`** (WARNING,
+      `apply-progress.md` §"RDD receipt — the committed range tracker → 1b3", lineage
+      `review-7c43029e81e41c35`): a RED case proving `markFragmentsPublished`
+      (`apps/workers/src/publishHandler.ts:458-467`) REPORTS a repository `!ok` result instead of
+      skipping it silently with `rows = []` — the swallowed-failure class, fixed inside T1c.14's D16
+      rework of exactly that region, not as a separate follow-up. — sha: pending
 - [ ] **T1c.13 GREEN** — `apps/workers/src/security/workerTenantContext.ts` (new: `withWorkerTenant`,
       `getWorkerTenantContext`, no system context); `apps/workers/src/container/workerContainer.ts`
       (18 lines today) builds `workerGuardedPrisma` via
@@ -388,19 +514,37 @@ publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`)
       shape), `PrismaOutboxWriter`, the relocated `PrismaPostRepository` / `PrismaUnitOfWork` with the
       worker provider, and the two `@core/posts` use cases; `apps/workers/package.json` gains
       `@core/posts`. **Composition root per executable** — the shared core is not duplicated
-      (ARCHITECTURE_CANON §Dependency Injection).
+      (ARCHITECTURE_CANON §Dependency Injection). — sha: pending
 - [ ] **T1c.14 GREEN** — NEW `apps/workers/src/lib/classifyPublishFailure.ts`; NEW
       `apps/workers/src/publishOutcomeRecorder.ts` (the record write + the CAS retry — 8 tries, full
       jitter, 25 ms base doubling to a 400 ms cap, **1.975 s worst case** inside the consumer's 60 s
       `lockDuration` — + the durable `record-publication-outcome` job + the DLQ path with
-      `worker_publish_outcome_unrecorded_total`); `apps/workers/src/publishHandler.ts` — skip path
-      (`:733-739`) reads the RECORD and notifies, W4 deletions (`resolveJobAccountId` `:123-146`,
-      `recordTenantScopeFailure` `:159`, the `publishJobAccountIdSource` metric), D10 (`RUNNING`/`ERR`
-      writes at `:795-806`, `:331-344`, `:285-294`, `:585-596` removed; ONE `OK` receipt after the
-      record commits); `publishHandlerTypes.ts:152` loses its `?` on `accountId`.
-      **File-size watch**: `publishHandler.ts` 867 → ~837 thanks to the two extractions; still over
+      `worker_publish_outcome_unrecorded_total`); `apps/workers/src/publishHandler.ts` — the skip path
+      reads the RECORD and notifies, W4 deletions, D10 (`RUNNING`/`ERR` writes removed; ONE `OK`
+      receipt after the record commits); `apps/workers/src/publishHandlerTypes.ts` loses the `?` on
+      `accountId`.
+      **Anchors RE-MEASURED 2026-09-20 (design rev 3.3 A7 — the rev 3.2 numbers above had drifted)**:
+      `publishHandler.ts` is **935** lines; `resolveJobAccountId` `:124-146`;
+      `recordTenantScopeFailure` `:160`; the `OK`-skip `:800-804`; `publishHandlerTypes.ts:158`;
+      the error counter is `recordError(component, error_type, recoverable)` →
+      `worker_errors_by_type_total` (`apps/workers/src/metrics/workerMetrics.ts:212-216`, `:338-344`).
+      **D16 ordering, tested (T1c.12)**: the record write goes AFTER `markFragmentsPublished`
+      (`publishHandler.ts:653-668`) and BEFORE `notifySaga` (`:698-709`), **OUTSIDE that catch** — so
+      a tweet-row failure still reaches the record; the `logPublish ERR` (`:670-682`) is DELETED and
+      the rethrow (`:713`) becomes conditional (only while the RECORD is unresolved).
+      **The recorder returns `Result` and NEVER throws**: the handler's outer catch (`:908-933`)
+      rethrows to BullMQ, and a thrown recorder error there would re-run the provider over live
+      fragments; on `err` the handler enqueues the durable outcome job and completes.
+      **Absorbs the 1b3 RDD advisory `R3-silent-skip-on-repo-not-ok`** (WARNING, `apply-progress.md`
+      §"RDD receipt — the committed range tracker → 1b3"): in `markFragmentsPublished`
+      (`:458-467`) a repository `!ok` result currently sets `rows = []` and is skipped without a
+      report, so every fragment update is silently dropped. The `!ok` path must REPORT — the ERROR
+      log plus `recordError("publisher", "thread_live_fragments_unrecorded", true)`, the same counter
+      the `catch` at `:667` already feeds, so `ThreadLiveFragmentsUnrecorded` (T1c.18) sees both
+      arms. Its RED is in T1c.12.
+      **File-size watch**: `publishHandler.ts` 935 → ~905 thanks to the two extractions; still over
       the band pre-existing — backlog row (§7.3). **Rule, tested**: after a successful provider call
-      the worker NEVER re-runs the provider call because the RECORD write failed.
+      the worker NEVER re-runs the provider call because the RECORD write failed. — sha: pending
 - [ ] **T1c.15 RED→GREEN** — the confirm act (Q15, D15.5): NEW
       `apps/api/src/posts/postChannelRoutes.ts` with
       `POST /posts/:postId/channels/:channelId/retraction/confirm-removed` (no body) →
@@ -408,6 +552,7 @@ publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`)
       `NOTHING_PENDING`, idempotent on a duplicate submit. Registered from `postRoutes.ts` (702
       today, +6). **The new file is the seam 2a's retry route lands in** — both routes stay under the
       band. Unit suite `apps/api/tests/unit/postChannelRoutes.confirm.test.ts` (404/409/200).
+      — sha: pending
 - [ ] **T1c.16 RED→GREEN** — D18: `RETRACTION_ACTION_WINDOW_HOURS` in the `server` block of
       `apps/api/src/config/env.ts` (the `SAGA_WAIT_POLL_MS` shape, `:309`; `int().min(1).max(720)
 .default(72)`) — read ONLY through `env`, ONLY in `apps/api` (#16); `.env.example`,
@@ -421,22 +566,43 @@ publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`)
       tick summary AWAITED and logged; metrics `retraction_action_window_expired_total` and
       `retraction_action_window_sweep_failures_total`. Unit suite
       `apps/api/tests/unit/RetractionActionWindowSweep.test.ts` incl. **S-a-4** (a failing row is
-      counted and does not stop the tick).
+      counted and does not stop the tick). — sha: pending
 - [ ] **T1c.17 RED→GREEN** — **C3 guards (W-new-2)**, in the PR where the materialized word goes live:
       `apps/api/src/admin/SchedulingPostHandlers.ts` — `reschedulePost` (`:327-360`) re-reads INSIDE
       its `withGucBoundTransaction` with `channelPublications`, refuses 409 when `hasLiveContent()`,
       and its `update` takes `where: { id, status: { in: ["SCHEDULED","DRAFT","FAILED"] } }` (the
       fitness **#41** compare-and-swap shape); `cancelScheduledPost` (`:241-260`) the same. Unit
-      suites `apps/api/tests/unit/SchedulingPostHandlers.*.test.ts`.
-- [ ] **T1c.18 GREEN + RED PATH** — `prometheus/alerts/publish-record.yml` rule
-      `PublishOutcomeUnrecorded` (`expr: increase(worker_publish_outcome_unrecorded_total[10m]) > 0`,
-      `for: 1m`, `severity: critical`, `component: publish`) copied from `PublishQueueUnattended`'s
-      shape (`prometheus/alerts/saga.yml:158-168`) + runbook
-      `docs/runbooks/alert-publish-outcome-unrecorded.md`. **Red path: `promtool test rules`** proves
-      the rule fires and does not fire, restore-exact (S-r3-1).
-- [ ] **T1c.19** — gates: lint/tsc/prettier 0/0; #1/#2/#3/#4/#6/#7/#8/#9/#10/#11/#16/#21/#22/#23/#32/
-      #40 Part A+B/#41 at 0; #30 and #38's db-prisma ratchet not risen; `pnpm db:up` before every
-      integration run.
+      suites `apps/api/tests/unit/SchedulingPostHandlers.*.test.ts`. — sha: pending
+- [ ] **T1c.18 GREEN + RED PATH ×3 (D14 rev 3.3 — THREE rules over two scrape targets)** —
+      `prometheus/alerts/publish-record.yml` holds TWO groups, because both `/metrics` endpoints are
+      already scraped (`prometheus/prometheus.yml:37-41` api on 3000, `:53-57` workers on 3300;
+      `rule_files: alerts/*.yml` `:25-26` — read-only, no scrape config changes).
+      **Workers group**: (1) `PublishOutcomeUnrecorded` —
+      `expr: increase(worker_publish_outcome_unrecorded_total[10m]) > 0`, `for: 1m`,
+      `severity: critical`, `component: publish`; (2) `ThreadLiveFragmentsUnrecorded` —
+      `expr: increase(worker_errors_by_type_total{component="publisher",error_type="thread_live_fragments_unrecorded"}[10m]) > 0`,
+      `for: 1m`, **`severity: warning`**, `component: publish` (warning, not critical: after 1c the
+      RECORD holds the live set, so an unwritten `Tweet` row is a stale secondary).
+      **Api group**: (3) `RetractionAlertContextDegraded` —
+      `expr: increase(retraction_alert_context_degraded_total{}[30m]) > 0`, `for: 5m`,
+      **`severity: warning`**, `component: notifications`, over the `field` label of
+      `apps/api/src/metrics/retractionAlertMetrics.ts` (1b2's correction W2) — the alert went out
+      naming an identifier instead of a title.
+      All three copy `PublishQueueUnattended`'s shape (`prometheus/alerts/saga.yml:158-168`,
+      read-only) and point at **ONE** runbook, `docs/runbooks/alert-publish-outcome-unrecorded.md`,
+      with **one section per rule** — the `saga.yml:158-179` precedent, where two rules share
+      `alert-saga-timeout.md`. **THREE red paths**: `promtool test rules` per rule proving it fires
+      and does not fire, tree restored sha256-exact (S-r3-1).
+      **Named blind spot, stated not closed**: a labelled prom-client counter exposes NO series
+      before its first `inc`, so `increase()` over an absent series cannot fire — that is a correct
+      quiet, not coverage — and the workers' scrape has no observer guard of the
+      `PublishQueueSignalMissing` kind (`saga.yml:170-179`); §7.2 backlog row, not this PR's.
+      — sha: pending
+- [ ] **T1c.19** — gates per §10.2 (lint `--max-warnings 0`, `pnpm format:check` **plus**
+      `pnpm exec prettier -c` over the touched files, `tsc --noEmit` per touched package under
+      `NODE_OPTIONS=--max-old-space-size=6144`, `pnpm check:circular`);
+      #1/#2/#3/#4/#6/#7/#8/#9/#10/#11/#16/#21/#22/#23/#32/#40 Part A+B/#41 at 0; #30 and #38's
+      db-prisma ratchet not risen; `pnpm db:up` before every integration run. — sha: pending
 
 ---
 
@@ -472,6 +638,18 @@ tenantHealth.ts:433-436` via a NEW `RepoPort.listRecentChannelPublications({ sin
       `PostPublishingFailed` outbox row with the v1 keys, `/start` refused NAMING the fragment, and
       exactly ONE `PostChannelRetractionAlertRaised` outbox row IN THE SAME TRANSACTION.
       Batch: `integration:saga-recovery` (`run-tests.sh:336-339`), `CONCURRENCY=1`.
+      **Plus the THREE cases the 1c verification map (design rev 3.3 A8) owes, in the same NEW
+      suite**: **(14)** REC-1 schedule mode — `SchedulePostUseCase` produces three unresolved rows,
+      read back with the saga row DELETED, and a channel whose job never ran is still recorded
+      unresolved (the set outlives the saga); **(15)** REC-12 — a fully published post's re-drive is
+      REFUSED: `/start` answers 400 and enqueues zero jobs (today's R7 in
+      `apps/api/tests/integration/sagaPublishNowPromotion.test.ts` (read-only) stays green as the
+      regression gate); **(16)** REC-12 — the skip path's own `publish.job.completed` advances the
+      saga BEFORE the poll.
+      **Plus ONE case in the EXISTING `apps/api/tests/integration/sagaCustomerFlow.test.ts`** (REC-9's
+      customer path): a partial publish resolves `runSagaAndAwaitTerminal` as a terminal SUCCESS
+      carrying per-channel truth, never a thrown `FAILED`. That suite already runs in a `run_batch`,
+      so **fitness #30 needs no change for it** — T1d.10's batch work covers the four NEW suites only.
 - [ ] **T1d.6 RED→GREEN** — `retractionAlert.test.ts` (own batch): the alert spec's Slack/Teams
       `[integration]` scenario EXACTLY — two ACTIVE configs whose `events` filters do not name the
       type AND no member with the type enabled → both delivered; plus per-member delivery, the
@@ -488,7 +666,10 @@ tenantHealth.ts:433-436` via a NEW `RepoPort.listRecentChannelPublications({ sin
 - [ ] **T1d.8 RED→GREEN** — `postChannelPublicationTenantIsolation.test.ts` completed from T1b.1's
       skeleton (cross-tenant read returns nothing; `accountId == post.accountId`; foreign
       `channelId`/`postId` → 404 and zero rows; the worker-path write bound to the job's tenant).
-      Batch `integration:tenant-isolation`.
+      **Plus the two D19 visibility cases T1c.4a owes it**: a tenant-bound load and a `__system__`
+      load of the SAME post return the SAME record set (the system hydration is total, not empty);
+      and an `omnipost_app` read with the GUC unset sees NO post at all — never a post with empty
+      children. Batch `integration:tenant-isolation`.
 - [ ] **T1d.9 `[static]`** — the `pg_catalog` RLS coverage gate
       (`rls-tenant-isolation.test.ts` → `describe("pg_catalog coverage gate")`) covers the new table
       BY CONSTRUCTION because it enumerates `getTenantScopedModels()`. Confirm green; no new test.
@@ -515,7 +696,11 @@ a post with no record and dies `UnrecoverableError` while the post silently rest
 - [ ] **T1e.2 GREEN** — `scripts/migrations/<ts>-reconstruct-publication-records.ts` carrying
       `// canon-exception: migration:<ts>` (the directory does not exist yet — this change creates
       it). For every `SagaInstance` with `definitionId = "post-publishing-saga"`, `status =
-COMPLETED`, `metadata.mode = "schedule"` whose post reads `SCHEDULED`/`DRAFT` with no records:
+COMPLETED`, `metadata.mode = "schedule"` whose post reads `SCHEDULED`/`DRAFT` with no records —
+      **"has no records" is decided by a SYSTEM-SCOPED
+      `NOT EXISTS (SELECT 1 FROM "PostChannelPublication" …)` over the record table through a
+      dedicated read port, NEVER by an aggregate's empty set** (D19 rule 3: absent and empty are the
+      same value on an aggregate, and that value is the fail-open this change closes) —:
       bound to the saga's tenant (`SagaIntegration.ts:465`), `declarePublicationTargets(channelIds)` + `openPublicationEpisode({ enterPublishing: false })` THROUGH the use cases, remove the legacy
       delayed jobs by id, enqueue `publish-{p}-{c}-e1` at `runAt = scheduledAt` with `accountId`.
       **Rate-bounded: ≤20 jobs/second (50 ms pause, `--rate` overridable)** — W-new-4.
@@ -596,7 +781,25 @@ notifications.md:96-104`). **No per-medium control** — that is
       not stop the delayed job** (pre-existing, design.md:146) · **four oversize files this change
       does not split**: `packages/shared/src/saga.ts` (1227), `apps/api/src/index.ts` (1341),
       `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts` (903, arrives that way from the
-      prerequisite), `apps/workers/src/publishHandler.ts` (867 → ~837).
+      prerequisite), `apps/workers/src/publishHandler.ts` (935 → ~905 after 1c; re-measured
+      2026-09-20) · **`packages/core/domain/src/aggregates/PostAggregate.ts` at 912 lines after 1b**
+      (§9.8's ~714 was the pre-1b forecast; T1c.5a only removes from it).
+      **Added by the rev 3.4 amendment:**
+      · **the tenth CHECK** `jsonb_typeof("liveFragments") = 'array'` — deliberately NOT added in 1b:
+      the three CHECKs that read the array already RAISE on a non-array, so it is fail-closed and a
+      migration for a named refusal alone is not worth its Squawk lane (design rev 3.3 A4)
+      · **the workers-scrape observer guard** of the `PublishQueueSignalMissing` kind
+      (`prometheus/alerts/saga.yml:170-179` guards the api's, nothing guards the workers') — an
+      `absent_over_time` guard over the LABELLED counters was rejected for 1c because it would page
+      from boot (a labelled counter has no series before its first `inc`)
+      · **the `excludedAt` column + its CHECK**, deferred to **N-COR-10**: `markRetractionOutcome
+("exhausted")` is the ONE path that excludes outside an attempt, so the derived
+      `lastAttemptAt` is non-null for every exclusion N-COR-8 can write and the column has no reader
+      until then
+      · **an `as`-residual grep tripwire** over `packages/adapters/db-prisma/src/post/` for
+      `as PrismaPostWithRelations` / `as Prisma.PostGetPayload` — proposed as a **fitness candidate**
+      (D19 mechanism 1's named residual: a future `as` on a query result is the one door the
+      compiler cannot close, and a grep is the right instrument for a textual pattern).
 
 ---
 
@@ -785,49 +988,112 @@ under 600 total.
 
 ### 9.4 · PR 1c — the coupled unit
 
-| Line item                                                      | Reference (measured)                                                         | CODE +   | CODE −  |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------- | -------- | ------- |
-| 4 new use cases (Open, Record, Confirm, Expire)                | `CompletePostPublishingUseCase.ts` **368**, `SchedulePostUseCase.ts` **223** | 700      | 0       |
-| `CompletePostPublishingUseCase.ts` → reconciliation            | **368** today (`:146-153`, `:326-347`, `:351-368` deleted)                   | 90       | 80      |
-| `SchedulePostUseCase.ts` targets + Result seam                 | **223** today                                                                | 45       | 18      |
-| `packages/core/posts/src/index.ts`                             |                                                                              | 8        | 0       |
-| `saga.ts` reader + wait + forwarder + pivot + scheduling step  | **1227** today                                                               | 230      | 180     |
-| `cqrs.ts` command + `reasonCode`                               | **690** today                                                                | 40       | 6       |
-| `SagaIntegration.ts` + new `publishAdmission.ts`               | **895** today                                                                | 140      | 45      |
-| new `postChannelRoutes.ts` (confirm) + registration            | `postRoutes.ts` **702**                                                      | 110      | 0       |
-| `PostCommandHandlers.ts` + container                           | **722** / **251** / **660**                                                  | 90       | 0       |
-| `SemanticLockPort.holder` + `RedisSemanticLockStore`           | `SemanticLockPort.ts` **38**                                                 | 25       | 0       |
-| `workerTenantContext.ts` (new)                                 | `apps/api/src/security/tenantContext.ts` **189**                             | 90       | 0       |
-| `workerContainer.ts`                                           | **18** today                                                                 | 75       | 0       |
-| `classifyPublishFailure.ts` (new)                              | closed `PublishError` union                                                  | 110      | 0       |
-| `publishOutcomeRecorder.ts` (new: CAS ×8 + durable job + DLQ)  |                                                                              | 180      | 0       |
-| `publishHandler.ts` skip path + W4/D10 deletions               | **867** today                                                                | 120      | 150     |
-| `publishHandlerTypes.ts` + `publishWorker.ts` + `package.json` | **157**                                                                      | 20       | 6       |
-| `env.ts` `RETRACTION_ACTION_WINDOW_HOURS`                      | `:309` shape                                                                 | 8        | 0       |
-| `RetractionActionWindowSweep.ts` (new)                         | `DeletionRecordDegrader.ts` **176**                                          | 180      | 0       |
-| `PendingRetractionSweepReads.ts` + port                        | `PublishLogRepository.ts` **117**, `AccountNotificationReader.ts` **19**     | 95       | 0       |
-| `index.ts` sweep registration                                  | **1341** today (`:950-962` shape)                                            | 18       | 0       |
-| `SchedulingPostHandlers.ts` C3 guards                          | **403** today                                                                | 70       | 20      |
-| `prometheus/alerts/publish-record.yml`                         | `saga.yml` **180** total; the rule shape `:158-168` = **11**                 | 14       | 0       |
-| **CODE subtotal**                                              |                                                                              | **2458** | **505** |
+| Line item                                                                                                                                                                                                             | Reference (measured)                                                                              | CODE +   | CODE −  |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------- | ------- |
+| 4 new use cases (Open, Record, Confirm, Expire)                                                                                                                                                                       | `CompletePostPublishingUseCase.ts` **368**, `SchedulePostUseCase.ts` **223**                      | 700      | 0       |
+| `CompletePostPublishingUseCase.ts` → reconciliation                                                                                                                                                                   | **368** today (`:146-153`, `:326-347`, `:351-368` deleted)                                        | 90       | 80      |
+| `SchedulePostUseCase.ts` targets + Result seam                                                                                                                                                                        | **223** today                                                                                     | 45       | 18      |
+| `packages/core/posts/src/index.ts`                                                                                                                                                                                    |                                                                                                   | 8        | 0       |
+| `saga.ts` reader + wait + forwarder + pivot + scheduling step                                                                                                                                                         | **1227** today                                                                                    | 230      | 180     |
+| `cqrs.ts` command + `reasonCode`                                                                                                                                                                                      | **690** today                                                                                     | 40       | 6       |
+| `SagaIntegration.ts` + new `publishAdmission.ts`                                                                                                                                                                      | **895** today                                                                                     | 140      | 45      |
+| new `postChannelRoutes.ts` (confirm) + registration                                                                                                                                                                   | `postRoutes.ts` **702**                                                                           | 110      | 0       |
+| `PostCommandHandlers.ts` + container                                                                                                                                                                                  | **722** / **251** / **660**                                                                       | 90       | 0       |
+| `SemanticLockPort.holder` + `RedisSemanticLockStore`                                                                                                                                                                  | `SemanticLockPort.ts` **38**                                                                      | 25       | 0       |
+| `workerTenantContext.ts` (new)                                                                                                                                                                                        | `apps/api/src/security/tenantContext.ts` **189**                                                  | 90       | 0       |
+| `workerContainer.ts`                                                                                                                                                                                                  | **18** today                                                                                      | 75       | 0       |
+| `classifyPublishFailure.ts` (new)                                                                                                                                                                                     | closed `PublishError` union                                                                       | 110      | 0       |
+| `publishOutcomeRecorder.ts` (new: CAS ×8 + durable job + DLQ)                                                                                                                                                         |                                                                                                   | 180      | 0       |
+| `publishHandler.ts` skip path + W4/D10 deletions                                                                                                                                                                      | **867** today                                                                                     | 120      | 150     |
+| `publishHandlerTypes.ts` + `publishWorker.ts` + `package.json`                                                                                                                                                        | **157**                                                                                           | 20       | 6       |
+| `env.ts` `RETRACTION_ACTION_WINDOW_HOURS`                                                                                                                                                                             | `:309` shape                                                                                      | 8        | 0       |
+| `RetractionActionWindowSweep.ts` (new)                                                                                                                                                                                | `DeletionRecordDegrader.ts` **176**                                                               | 180      | 0       |
+| `PendingRetractionSweepReads.ts` + port                                                                                                                                                                               | `PublishLogRepository.ts` **117**, `AccountNotificationReader.ts` **19**                          | 95       | 0       |
+| `index.ts` sweep registration                                                                                                                                                                                         | **1341** today (`:950-962` shape)                                                                 | 18       | 0       |
+| `SchedulingPostHandlers.ts` C3 guards                                                                                                                                                                                 | **403** today                                                                                     | 70       | 20      |
+| `prometheus/alerts/publish-record.yml`                                                                                                                                                                                | `saga.yml` **180** total; the rule shape `:158-168` = **11**                                      | 14       | 0       |
+| _rev 3.4 amendment — T1c.4a (i)+(ii)_: `POST_AGGREGATE_INCLUDE` + payload input type + `PrismaPostWithRelations` alias + 5 cast deletions + `findById` include repoint                                                | `PostAggregateMapper.ts` **283**, interface `:58-63`; casts `:84`, `:275`, `:313`, `:339`, `:372` | 28       | 22      |
+| _T1c.4a (iii)_: the four list loaders deleted from port + adapter                                                                                                                                                     | port `PostRepository.ts:75-102` = **28**; adapter `:247-375` = **129**                            | 0        | 157     |
+| _T1c.4a (iv)+(v)_: `findById` unscoped refusal + `savePublication` `undefined`/`__system__` refusal                                                                                                                   | the guard's own `TenantContextMissingError` shape                                                 | 18       | 0       |
+| _T1c.5a_: the two `*WithoutRecord` arms (`PostPublicationMethods.ts:477-540` = **64**), the two root branches, `startPublishing()`, `PersistedPostState` + the `:154` default, the mapper spread, the `:338` sentinel | `PostAggregate.ts` **912** today; `PostPublicationMethods.ts` **664**                             | 45       | 120     |
+| _T1c.14_: the `R3-silent-skip-on-repo-not-ok` report path (`publishHandler.ts:458-467`)                                                                                                                               | the `:667` `recordError` call it mirrors                                                          | 8        | 2       |
+| **CODE subtotal**                                                                                                                                                                                                     |                                                                                                   | **2557** | **806** |
 
-| Evidence line item                                                        | Reference (measured)                                          | +        | −       |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------- | -------- | ------- |
-| 4 use-case suites                                                         | 700 × 1.88                                                    | 1320     | 0       |
-| `CompletePostPublishingUseCase.test.ts` rewrite                           | **691** today                                                 | 160      | 140     |
-| `sagaDeterministicIds.test.ts` rewrite + step table                       | **323** today                                                 | 300      | 110     |
-| `InMemorySemanticLockStore.ts` + `RecordingLockStore.holder`              | `publishNowPromotionDoubles.ts` **94**                        | 110      | 0       |
-| `RetractionActionWindowSweep.test.ts`                                     | 180 × 1.3                                                     | 235      | 0       |
-| sweep reader/port suite                                                   | 95 × 0.4                                                      | 40       | 0       |
-| worker suites (classifier, recorder, skip, W4, mirror)                    | 595 × 0.9                                                     | 535      | 0       |
-| `SchedulingPostHandlers.*.test.ts` C3                                     | 70 × 2                                                        | 140      | 0       |
-| `postChannelRoutes.confirm.test.ts`                                       | 110 × 1.1                                                     | 120      | 0       |
-| `alert-publish-outcome-unrecorded.md`                                     | `alert-saga-timeout.md` **122**, `alert-outbox-lag.md` **62** | 100      | 0       |
-| `promtool` rule fixture                                                   |                                                               | 40       | 0       |
-| `.env.example`, `.env.test.example`, `ENVIRONMENT_VARIABLES.md` (**409**) |                                                               | 30       | 0       |
-| **EVIDENCE subtotal**                                                     |                                                               | **3130** | **250** |
+| Evidence line item                                                                                                                                    | Reference (measured)                                                                                                                          | +        | −       |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------- |
+| 4 use-case suites                                                                                                                                     | 700 × 1.88                                                                                                                                    | 1320     | 0       |
+| `CompletePostPublishingUseCase.test.ts` rewrite                                                                                                       | **691** today                                                                                                                                 | 160      | 140     |
+| `sagaDeterministicIds.test.ts` rewrite + step table                                                                                                   | **323** today                                                                                                                                 | 300      | 110     |
+| `InMemorySemanticLockStore.ts` + `RecordingLockStore.holder`                                                                                          | `publishNowPromotionDoubles.ts` **94**                                                                                                        | 110      | 0       |
+| `RetractionActionWindowSweep.test.ts`                                                                                                                 | 180 × 1.3                                                                                                                                     | 235      | 0       |
+| sweep reader/port suite                                                                                                                               | 95 × 0.4                                                                                                                                      | 40       | 0       |
+| worker suites (classifier, recorder, skip, W4, mirror)                                                                                                | 595 × 0.9                                                                                                                                     | 535      | 0       |
+| `SchedulingPostHandlers.*.test.ts` C3                                                                                                                 | 70 × 2                                                                                                                                        | 140      | 0       |
+| `postChannelRoutes.confirm.test.ts`                                                                                                                   | 110 × 1.1                                                                                                                                     | 120      | 0       |
+| `alert-publish-outcome-unrecorded.md`                                                                                                                 | `alert-saga-timeout.md` **122**, `alert-outbox-lag.md` **62**                                                                                 | 100      | 0       |
+| `promtool` rule fixture                                                                                                                               |                                                                                                                                               | 40       | 0       |
+| `.env.example`, `.env.test.example`, `ENVIRONMENT_VARIABLES.md` (**409**)                                                                             |                                                                                                                                               | 30       | 0       |
+| _rev 3.4 — T1c.4a_: the nine stub files' loader stubs, the two adapter describes, the new cases (a)–(e)                                               | stubs ≈ **18**/file measured on `cqrsIntegration.test-helpers.ts:99-131`; unit describe `:624-843` = **220**; integration `:249-341` = **93** | 130      | 473     |
+| _T1c.5a_: `postAggregate.publications.test.ts` (**574**), `aggregates.post.test.ts` (**731**, 38 call sites), `PrismaPostRepository.test.ts` fixtures | `CompletePostPublishingUseCase.test.ts` is already counted above — no double count                                                            | 210      | 195     |
+| _T1c.12_: the three D16 cases in `publishThreadPost.test.ts` (`:413` block), the `:571` deletion, the R3 RED                                          | the block's existing cases `:484-608`                                                                                                         | 95       | 25      |
+| _T1c.18_: two more rules, two more `promtool` fixtures, two more runbook sections                                                                     | the one-rule shape already costed above                                                                                                       | 85       | 0       |
+| **EVIDENCE subtotal**                                                                                                                                 |                                                                                                                                               | **3650** | **943** |
 
-**PR 1c: CODE 2963 · EVIDENCE 3380 · total 6343.** The largest unit in the chain by a factor of 1.5.
+**PR 1c after the rev 3.4 amendment: CODE 3363 · EVIDENCE 4593 · total 7956** (was 2963 / 3380 /
+6343). Still the largest unit in the chain, now by a factor of 1.9.
+
+#### 9.4.1 · 1c per child, RE-MEASURED — and the split the 400-line CODE budget forces
+
+**Method.** Every §9.4 line item above is assigned to exactly one child and summed; the three sums
+reconcile to the CODE subtotal (1467 + 620 + 1276 = 3363) and to the EVIDENCE subtotal
+(2628 + 520 + 1445 = 4593). That reconciliation is why these figures supersede §9.7's earlier
+941 / 630 / 1392 split for 1c: those were allocated by eye and left 116 CODE lines unassigned.
+**Deletions count as changed lines**, so T1c.4a's 157 deleted adapter+port lines and T1c.5a's 120
+are inside the budget, not free.
+
+| Child  | Tasks                             |     CODE | EVIDENCE | >400 CODE |
+| ------ | --------------------------------- | -------: | -------: | --------- |
+| `1c-1` | T1c.1–T1c.7 **+ T1c.4a + T1c.5a** | **1467** | **2628** | 3.7×      |
+| `1c-2` | T1c.8–T1c.11                      |  **620** |  **520** | 1.6×      |
+| `1c-3` | T1c.12–T1c.18                     | **1276** | **1445** | 3.2×      |
+
+**All three children exceed the hard 400-line CODE budget**, so the split below is PROPOSED rather
+than assumed: thirteen grandchildren, every one AT or UNDER 400 CODE except `1c-2a`. Under
+`feature-branch-chain` each grandchild targets the previous grandchild's branch; only the tracker
+merges to `main`. `1c-1c` sits exactly AT 400 — named, because a budget met exactly is a budget one
+refactor away from broken.
+
+| Unit    | Content                                                                                                                  |    CODE | EVIDENCE | Rollback boundary                            |
+| ------- | ------------------------------------------------------------------------------------------------------------------------ | ------: | -------: | -------------------------------------------- |
+| `1c-1a` | **T1c.4a** — the D19 doors (payload type, 5 casts, the four loaders, the two refusals)                                   |     225 |      603 | revert; nothing else depends on the deletion |
+| `1c-1b` | **T1c.5 + T1c.5a** — the reconciliation and the domain closure (inseparable: the arms' only callers die with them)       |     335 |      705 | revert both or neither                       |
+| `1c-1c` | T1c.1, T1c.2 + `OpenPublicationEpisodeUseCase`, `RecordChannelPublicationAttemptUseCase`                                 |     400 |      754 | new files only                               |
+| `1c-1d` | T1c.3 + `ConfirmManualRetractionUseCase`, `ExpireRetractionActionWindowUseCase` + barrel + T1c.6                         |     371 |      566 | new files + one `SchedulePostUseCase` seam   |
+| `1c-1e` | T1c.7 — CQRS command, handlers, container tokens                                                                         |     136 |        0 | wiring only                                  |
+| `1c-2a` | T1c.8 + T1c.9 — `packages/shared/src/saga.ts`                                                                            | **410** |      410 | one file; revert restores the old wait step  |
+| `1c-2b` | T1c.10 + T1c.11 — `holder()`, the lock doubles, `SagaIntegration` + `publishAdmission.ts`                                |     210 |      110 | admission seam removable on its own          |
+| `1c-3a` | **T1c.15 + T1c.17** — the confirm route and the C3 guards (**the EXITS, first**)                                         |     200 |      260 | route + two handler guards                   |
+| `1c-3b` | **T1c.16** — D18 env var, sweep, reader port, registration                                                               |     301 |      305 | unregister the task, drop the port           |
+| `1c-3c` | T1c.13 + `classifyPublishFailure.ts` — the worker root and the classifier                                                |     275 |      150 | worker root only; nothing calls it yet       |
+| `1c-3d` | `publishOutcomeRecorder.ts` + `publishHandlerTypes`/`publishWorker`/`package.json`                                       |     206 |      235 | recorder removable; handler untouched        |
+| `1c-3e` | **T1c.14's `publishHandler.ts` rework + the R3 report fix** + T1c.12's D16 cases (**the stranding-capable WRITE, last**) |     280 |      270 | revert restores the ERR-log path             |
+| `1c-3f` | T1c.18 — the three rules and the runbook                                                                                 |      14 |      225 | delete the rule file                         |
+
+**D15.5 is satisfied by ORDER, not by fusion.** The constraint is that no tip — `main` or the
+tracker — holds a strandable channel without its recorded exit. `1c-3a` (confirm act) and `1c-3b`
+(sweep) land BEFORE `1c-3e` (the worker's record write), so every intermediate tip has the exits and
+no state that needs them. Fusing all of 1c-3 into one 1276-line PR is the only alternative and it
+breaks the CODE budget by 3.2×.
+
+**The one unit that cannot go under 400: `1c-2a` at 410**, and it is ONE file. `readPublishOutcome`
+is shared by the wait step, the forwarder and the scheduling step, so splitting `saga.ts`'s rewrite
+across two PRs produces an intermediate tree that does not compile — the split would buy 10 lines of
+budget with a broken tip. Ratification asked for in §9.9 item 4.
+
+Decision needed before apply: Yes
+Chained PRs recommended: Yes
+Chain strategy: feature-branch-chain
+400-line budget risk: High
 
 ### 9.5 · PR 1d — read model + DoD suites + ADR
 
@@ -874,30 +1140,31 @@ under 600 total.
 
 ### 9.7 · Totals and the standard fields
 
-| PR               | CODE changed | EVIDENCE changed |     Total | >400 CODE | Sound on `main` alone | Split seam if Edward wants children                                                                                                        |
-| ---------------- | -----------: | ---------------: | --------: | --------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1b               |         1991 |             2234 |  **4225** | 5.0×      | Yes                   | **1b-i** schema+migration+#39 (219/194) · **1b-ii** domain (1449/2040) · **1b-iii** port+adapter+doubles (323/180)                         |
-| 1b2              |         1339 |             1395 |  **2734** | 3.3×      | Yes                   | **1b2-i** type+migration+`isTypeEnabled` (179/210) · **1b2-ii** ports+adapters+use cases+handler+ledger (1160/1185)                        |
-| 1b3              |          122 |              376 |   **498** | no        | Yes                   | —                                                                                                                                          |
-| 1c               |         2963 |             3380 |  **6343** | 7.4×      | **Assembled only**    | **1c-1** application+CQRS (941/1480) · **1c-2** saga+lock (630/450) · **1c-3** worker+sweep+confirm+rule+C3 (1392/1450) — D15.5 binds 1c-3 |
-| 1d               |          476 |             2442 |  **2918** | 1.2×      | Yes                   | **1d-i** read model + repoints (476/70) · **1d-ii** DoD suites + ADR (0/2372)                                                              |
-| 1e               |          300 |              378 |   **678** | no        | Yes                   | —                                                                                                                                          |
-| 2a               |          250 |              486 |   **736** | no        | Yes                   | —                                                                                                                                          |
-| 2b               |          585 |              560 |  **1145** | 1.5×      | Yes                   | **2b-i** panel+confirm button · **2b-ii** editor+parity+toggle                                                                             |
-| **Change total** |     **8026** |        **11251** | **19277** |           |                       |                                                                                                                                            |
+| PR               | CODE changed | EVIDENCE changed |     Total | >400 CODE | Sound on `main` alone | Split seam if Edward wants children                                                                                                                                           |
+| ---------------- | -----------: | ---------------: | --------: | --------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1b               |         1991 |             2234 |  **4225** | 5.0×      | Yes                   | **1b-i** schema+migration+#39 (219/194) · **1b-ii** domain (1449/2040) · **1b-iii** port+adapter+doubles (323/180)                                                            |
+| 1b2              |         1339 |             1395 |  **2734** | 3.3×      | Yes                   | **1b2-i** type+migration+`isTypeEnabled` (179/210) · **1b2-ii** ports+adapters+use cases+handler+ledger (1160/1185)                                                           |
+| 1b3              |          122 |              376 |   **498** | no        | Yes                   | —                                                                                                                                                                             |
+| 1c               |         3363 |             4593 |  **7956** | 8.4×      | **Assembled only**    | **§9.4.1 supersedes this cell** — 1c-1 (1467/2628) · 1c-2 (620/520) · 1c-3 (1276/1445), and the 13 grandchildren that bring every unit but `1c-2a` (410) to 400 CODE or under |
+| 1d               |          476 |             2442 |  **2918** | 1.2×      | Yes                   | **1d-i** read model + repoints (476/70) · **1d-ii** DoD suites + ADR (0/2372)                                                                                                 |
+| 1e               |          300 |              378 |   **678** | no        | Yes                   | —                                                                                                                                                                             |
+| 2a               |          250 |              486 |   **736** | no        | Yes                   | —                                                                                                                                                                             |
+| 2b               |          585 |              560 |  **1145** | 1.5×      | Yes                   | **2b-i** panel+confirm button · **2b-ii** editor+parity+toggle                                                                                                                |
+| **Change total** |     **8426** |        **12464** | **20890** |           |                       |                                                                                                                                                                               |
 
-**Measured EVIDENCE:CODE for the change = 1.40×**, well below the ~2.5–3× empirical multiplier from
+**Measured EVIDENCE:CODE for the change = 1.48×**, well below the ~2.5–3× empirical multiplier from
 the two-tier budget. That is not a sign of thin tests: it is what a change dominated by NEW domain,
 port and adapter surface looks like, versus changes dominated by edits to existing behaviour (where
 one changed line buys several assertions). The two heaviest EVIDENCE items — 1d's five integration
 suites (2442) and 1c's use-case suites (1320) — sit at or above their measured pair ratios.
 
 - **Chained PRs recommended: YES** (already the design's shape — eight PRs).
-- **400-line CODE budget: EXCEEDED in 1b, 1b2, 1c, 1d (marginally) and 2b.** Per this change's
-  criterion the 400 CODE figure is reported as a **review signal**, not a gate; the governing rule is
-  Edward's per-file criterion (400–600 lines per file, ≤~800 only when strictly necessary), and §9.8
-  is the file-by-file answer to it.
-- **Decision needed before apply: YES** — three ratifications, §9.9.
+- **400-line CODE budget: EXCEEDED in 1b, 1b2, 1c, 1d (marginally) and 2b.** Under the two-tier
+  budget the CODE 400 is **hard per PR** and EVIDENCE is pre-approved with ONE decision per change,
+  so §9.4.1 proposes the grandchild split that brings every 1c unit but `1c-2a` (410, one file)
+  under it. §9.8's per-file criterion (400–600 lines per file, ≤~800 only when strictly necessary)
+  still governs the FILES; the two answer different questions and neither replaces the other.
+- **Decision needed before apply: YES** — four ratifications, §9.9.
 - **Recommended chain strategy: `feature-branch-chain`.** Not a preference: 1c's three children are
   individually unsound on `main` (§0.3), which is exactly the condition the strategy exists for. A
   draft tracker branch accumulates 1b → 1b2/1b3 → 1c's three children → 1d → 1e → 2a → 2b; PR #1
@@ -939,6 +1206,15 @@ suites (2442) and 1c's use-case suites (1320) — sit at or above their measured
    behaviour level by 1c's unit-tier REDs but **not** at the suite level for them. The alternative is
    to author them inside the 1c tracker, which restores suite-level RED-first at a measured cost of
    **1c EVIDENCE +1900 / 1d EVIDENCE −1900**.
+4. **The 1c grandchild split of §9.4.1** — thirteen units, all under the hard 400-line CODE budget
+   except **`1c-2a` (410, `packages/shared/src/saga.ts` alone)**, which cannot be split without a
+   non-compiling intermediate. Either ratify the 10-line overrun on that ONE unit, or accept the
+   non-compiling intermediate; there is no third shape.
+
+**Already ratified, recorded here so apply does not re-open it: Edward AUTHORISED on 2026-09-20** the
+deletion of the four unconsumed `PostRepository` list loaders and of every associated artefact with
+no real functionality (design rev 3.4, Open Questions "Authorisation for Edward"). T1c.4a is written
+in the AUTHORISED form only; the `PostListItem` fallback is not a branch.
 
 ---
 
@@ -962,7 +1238,14 @@ state rather than a returned value or an HTTP status:
 
 ### 10.2 · Per-PR gate list (all must read 0/0 — no deferral, no "pre-existing")
 
-`pnpm lint --max-warnings 0` · `tsc` · `pnpm format:check` · `pnpm check:circular` (madge over `apps/api/src/ packages/` — PR 1b introduced an errors → value-objects → errors cycle that only CI caught, because this list did not name it) · the fitness suite with, per PR:
+`pnpm lint --max-warnings 0` · **`tsc --noEmit` per TOUCHED package, run with
+`NODE_OPTIONS=--max-old-space-size=6144`** (the turbo `typecheck` task OOMs in this LXC, so the
+per-package invocation is the gate, not a convenience) · `pnpm format:check` **and
+`pnpm exec prettier -c <every touched file>`** (the repo script and the explicit file list answer
+different questions: the script proves the tree is formatted, the file list proves THIS diff is) ·
+`pnpm check:circular` (madge over `apps/api/src/ packages/` — PR 1b introduced an errors →
+value-objects → errors cycle that only CI caught, because this list did not name it) · the fitness
+suite with, per PR:
 
 | PR  | Fitness checks that must be exercised (beyond the always-on set)                                                                                                                                                                                                                                                                                                                                                |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
