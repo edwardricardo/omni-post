@@ -348,11 +348,13 @@ export function clearPendingRetraction(
  * @function expireRetractionActionWindow
  * @description Closes the customer's window on one channel. The window LENGTH is an
  *   argument: the domain reads no configuration, and the record re-asserts the cutoff
- *   so a mis-parametrized caller cannot expire anything early.
+ *   so a mis-parametrized caller cannot expire anything early. A duration that is not a
+ *   finite non-negative number is REFUSED by the record rather than compared against —
+ *   the comparison would expire on it, not skip it.
  * @param context - The root's narrow view
  * @param input - The channel, the moment and the window length
  * @returns Result with `applied` — false when the window is not open, already closed,
- *   or has not elapsed
+ *   or has not elapsed — or the refusal the record returned
  */
 export function expireRetractionActionWindow(
   context: PublicationContext,

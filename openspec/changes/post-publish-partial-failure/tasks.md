@@ -332,15 +332,19 @@ unit ids below are NOT the order**, and its ordering audit is the per-unit reade
 - [x] **T1c.2 RED** — `.../recordChannelPublicationAttempt.test.ts`: every `err` from inside the
       callback rolls back; CAS → `CONFLICT`; stale/zero episode → `CONFLICT`;
       `attemptNo ≤ episodeAttempts` → `applied: false` (PROM-R4 per channel); the W6 tripwire. — sha: pending (orchestrator commits)
-- [ ] **T1c.3 RED** — `.../confirmManualRetraction.test.ts` (clears with cause; 409 `NOTHING_PENDING`;
+- [x] **T1c.3 RED** — `.../confirmManualRetraction.test.ts` (clears with cause; 409 `NOTHING_PENDING`;
       `applied: false` on a duplicate; WORKS AFTER EXPIRY — Q17) and
       `.../expireRetractionActionWindow.test.ts` (passes the CALLER's `window` to the root; one
       `savePublication`; `applied: false` on the second call).
       **Carried from the `1c-1c` gate (W4)**: export an `INVALID_STATE_TRANSITION_CODE` constant
       from `@core/domain` beside `VERSION_CONFLICT_CODE` and import it in
       `packages/core/posts/src/publicationWriteOutcome.ts`, which holds it as a local literal today
-      because the domain exports no equivalent. — sha: pending
-- [ ] **T1c.4 GREEN** — `packages/core/posts/src/{OpenPublicationEpisodeUseCase,
+      because the domain exports no equivalent. **DONE in `1c-1d`**: the constant is declared beside
+      `VERSION_CONFLICT_CODE` and the error class is CONSTRUCTED with it, so the value has one
+      definition; a new `packages/core/domain/tests/unit/domainErrorCodes.test.ts` compares it
+      against a REAL `InvalidStateTransitionError` rather than against another literal.
+      — sha: pending (orchestrator commits)
+- [x] **T1c.4 GREEN** — `packages/core/posts/src/{OpenPublicationEpisodeUseCase,
 RecordChannelPublicationAttemptUseCase,ConfirmManualRetractionUseCase,
 ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTransaction`
       (ADR-0023), `savePublication`, `Result` only, no own `$transaction` (#40).
@@ -351,7 +355,11 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
       optional-`unitOfWork` branch (the closure called directly, no `executeResultInTransaction`)
       is untested in both landed use cases; `1c-1d` pins it ONCE for all four — a case per use case
       constructed without a unit of work, asserting a domain refusal and a `savePublication`
-      failure answer the same outcomes as the transactional path and write nothing. — sha: pending
+      failure answer the same outcomes as the transactional path and write nothing.
+      **CLOSED in `1c-1d`**: the retraction pair, the barrel (all four use cases) and the eight
+      no-UoW cases (two per use case) landed; the branch pins an EXISTING behaviour so no natural
+      red exists, and the cases were proven to bite by a recorded probe instead.
+      — sha: pending (orchestrator commits)
 - [x] **T1c.4a RED→GREEN (D19, design rev 3.4 C1 — absent is unrepresentable, a publication write has
       a tenant)** — the AUTHORISED form only. **Edward AUTHORISED the deletion on 2026-09-20**, and
       extended it: "y también borrar cualquier artefacto asociado que carezca de una funcionalidad
@@ -467,7 +475,57 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
 - [ ] **T1c.6 RED→GREEN** — `SchedulePostUseCase.ts` (`:139-151`, `:171-200`) calls
       `declarePublicationTargets` after `post.schedule()` and migrates to
       `executeResultInTransaction`. This is REC-1's `[static]` scenario: the validated identities are
-      PERSISTED, not only returned in the DTO. — sha: pending
+      PERSISTED, not only returned in the DTO.
+      **HALF LANDED IN `1c-1d`, HALF BLOCKED — the blocker is MEASURED, not argued.** The
+      `executeResultInTransaction` migration is DONE (RED recorded: with the `let result` capture an
+      `err` resolved the callback, so the unit of work committed a partially completed
+      multi-statement save). The `declarePublicationTargets` call is NOT, because the save that was
+      supposed to persist the record no longer does and every substitute costs something Edward
+      owns:
+      **(1) design.md:189's mechanism is gone.** "`save(post)` (full) additionally upserts the
+      records; `SchedulePostUseCase` keeps it" was TRUE when the design was written and the 1b gate
+      DELETED it: correction W1 reverted both `upsertPublications` calls out of `doCreate`/`doUpdate`
+      with its own recorded red ("writes NO publication row from the full save, even with targets
+      declared"), on the grounds that the full save runs neither of the narrow save's refusals, and
+      named T1c.6 as the owner. Measured at this tip: `tx.postChannelPublication.upsert` appears in
+      `PostPublicationWrites.ts` ONLY. So calling `declarePublicationTargets` and then `save(post)`
+      would mutate the aggregate and drop the records in silence.
+      **(2) the narrow save cannot be reached from two of the three callers.**
+      `savePublication` refuses `undefined` and `__system__` (T1c.4a (v)), and
+      `RecurrenceScheduler.tick()` runs the whole create-and-schedule chain inside
+      `withSystemContext("recurrence-sweep")` (`apps/api/src/recurring/RecurrenceScheduler.ts:82` →
+      `CreatePostFromRecurrenceUseCase` → `PostCreationAdapter.schedulePost` →
+      `SchedulePostUseCase`), while `bulkScheduleWorker.ts` binds no context at all. Routing the
+      record write through the narrow save therefore refuses every recurring and every bulk-scheduled
+      post. It also costs a SECOND version bump per schedule, since the narrow save writes no
+      `scheduledAt` and the full save is still needed for it.
+      **(3) Any TWO-SAVE shape aborts without a `clearDomainEvents()` between the saves.** The full
+      save writes `aggregate.domainEvents` to the outbox (`PrismaPostRepository.ts:560`/`:698`) and so
+      does the narrow one (`PostPublicationWrites.ts:244`); `PrismaOutboxWriter.ts:55-57` uses
+      `createMany` keyed on `id: event.eventId` with NO `skipDuplicates`, so the second insert is a
+      P2002 that aborts the whole transaction. The CAS is fine — `doUpdate` calls
+      `aggregate.incrementVersion()` (`:613`) — but the schedule costs a second version bump.
+      **The three shapes, for §9.9**: (a) re-add `upsertPublications` to the full save WITH the tests
+      and refusals 1b's W1 said were missing — one write, one version bump, but a second production
+      writer of the record and a reversal of a landed gate decision; W1's objection SPLITS, the
+      edit-tripwire half dissolving (the full save writes content) and the projection-invariant half
+      standing (`savePublicationRecord` calls `assertPublicationProjection()` at
+      `PostPublicationWrites.ts:272-275`; the full save calls nothing equivalent), so the cost is
+      invert-or-delete `PrismaPostRepository.test.ts:1242` + add the invariant to `doCreate`/`doUpdate` + re-decide W1's ledger row; (b) keep the narrow save as the only writer and convert the
+      recurrence sweep to the per-tenant re-read the retraction sweep already uses (D18 step 2) —
+      canon-clean, but it needs `accountId` on `ProcessRecurrenceUseCase`'s output, needs the BULK
+      worker bound too (**SMELL-145**), is not in any 1c task, and still needs the full save for
+      `scheduledAt` (so: full save → `clearDomainEvents()` → narrow save in one
+      `executeResultInTransaction`); **(c) is NOT "defer a `[static]` scenario" — it DROPS REC-1 for
+      schedule mode.** REC-1 is MERGE-BLOCKING (`specs/post-channel-publication-record/spec.md:88`)
+      with an `[integration]` FIRST scenario (`:103` — three channels scheduled, three records read
+      back) and `design.md:523` assigns it ×3 `[integration]` to T1c.6; under (c) a scheduled post
+      holds ZERO records until the saga runs, so those three fail and REC-13's "no record = legacy"
+      reason stops naming its own cause. What (c) does NOT cost, measured: no reader breaks — no C3
+      guard, `/start` admission, sweep or content-lock path reads the record between scheduling and
+      publishing. **The product question under (c)**: for a post scheduled for later, does the
+      customer see WHERE IT IS GOING? REC-1 says yes; (c) says no for the whole interval.
+      — sha: pending (seam half only; the record write is unwritten)
 - [ ] **T1c.7 GREEN** — `packages/shared/src/cqrs.ts`: `POST_COMMANDS.OPEN_PUBLICATION_EPISODE` +
       `reasonCode` on the completion command (`:272-295` already admits `success: false` + `error`);
       `apps/api/src/cqrs/handlers/PostCommandHandlers.ts` + tokens in
@@ -508,6 +566,12 @@ publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`)
       `CHANNEL_HAS_LIVE_FRAGMENTS`, while D9 wants **409 `{ code: "CHANNEL_HAS_LIVE_FRAGMENTS" }`
       carrying the fragments**. Give the refusal a code a route can switch on instead of a string
       match — a use-case error code, a typed cause, or the record read back at the route.
+      **The home already exists — EXTEND it, do not clone it (`1c-1d` W7)**: add the member to
+      `RETRACTION_REFUSALS` in `packages/core/posts/src/retractionRefusals.ts` and raise it as a
+      `RetractionRefusalError`. `refusalOf` is derived from that set with a `Set`, so a new member is
+      recognised WITHOUT touching the reader (its `1c-1d` red proves a hand-written comparison
+      silently drops one), and the barrel already exports the three symbols a route needs. A second
+      discriminator module for the same concept is the defect this note exists to prevent.
       — sha: pending
 
 ### WU 1c.C — the worker, the confirm act, the sweep (child 1c-3 — D15.5)

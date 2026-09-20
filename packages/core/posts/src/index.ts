@@ -45,3 +45,25 @@ export {
   type CompletePostPublishingOutput,
   type PublishChannelOutcome,
 } from "./CompletePostPublishingUseCase.js";
+export {
+  OpenPublicationEpisodeUseCase,
+  type OpenPublicationEpisodeInput,
+  type OpenPublicationEpisodeOutput,
+  type OpenedEpisodeChannel,
+} from "./OpenPublicationEpisodeUseCase.js";
+export {
+  RecordChannelPublicationAttemptUseCase,
+  type RecordChannelPublicationAttemptInput,
+  type RecordChannelPublicationAttemptOutput,
+} from "./RecordChannelPublicationAttemptUseCase.js";
+export {
+  ConfirmManualRetractionUseCase,
+  type ConfirmManualRetractionInput,
+  type ConfirmManualRetractionOutput,
+} from "./ConfirmManualRetractionUseCase.js";
+export { RETRACTION_REFUSALS, refusalOf, type RetractionRefusal } from "./retractionRefusals.js";
+export {
+  ExpireRetractionActionWindowUseCase,
+  type ExpireRetractionActionWindowInput,
+  type ExpireRetractionActionWindowOutput,
+} from "./ExpireRetractionActionWindowUseCase.js";

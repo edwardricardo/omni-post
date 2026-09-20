@@ -11,6 +11,7 @@ export {
   EmptyValueError,
   ValueTooLongError,
   InvalidStateTransitionError,
+  INVALID_STATE_TRANSITION_CODE,
   EntityNotFoundError,
   InvariantViolationError,
   VersionConflictError,

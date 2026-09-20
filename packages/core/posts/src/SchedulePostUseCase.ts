@@ -201,13 +201,12 @@ export class SchedulePostUseCase implements UseCase<
 
     try {
       if (this.unitOfWork) {
-        let result: Result<SchedulePostOutput, UseCaseError> = err(
-          new UseCaseError("Transaction did not complete", USE_CASE_ERRORS.INTERNAL_ERROR)
-        );
-        await this.unitOfWork.executeInTransaction(async () => {
-          result = await doWork();
-        });
-        return result;
+        // The Result-aware seam: an `err` returned from `doWork` ROLLS BACK and comes
+        // back unchanged. The throw-based form stored that `err` in a variable and let
+        // the callback RESOLVE, so the unit of work saw a success and committed — and
+        // this save is multi-statement (post row, content, media, outbox), so a failure
+        // raised after the first statement committed a partial write (ADR-0023).
+        return await this.unitOfWork.executeResultInTransaction(doWork);
       }
       return await doWork();
     } catch (error: unknown) {

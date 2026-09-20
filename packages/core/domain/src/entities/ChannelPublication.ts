@@ -554,6 +554,13 @@ export class ChannelPublication {
     this._actionWindowExpiredAt = undefined;
     this._retractionAlertHash = undefined;
     this._retractionBlockedCause = undefined;
+    // The clearance describes the episode it settled, not this one. Carried forward, a
+    // reader asking "did the customer already confirm this channel?" reads YES about an
+    // episode that has stranded nothing — and answers the next genuine confirmation with
+    // a success nobody performed. `strand()` already resets the pair for the same
+    // reason; this is the other door into a new episode.
+    this._retractionClearedCause = undefined;
+    this._retractionClearedAt = undefined;
     this._episode = episode;
     this._episodeAttempts = 0;
 
@@ -744,13 +751,31 @@ export class ChannelPublication {
    *   `window` the caller passed, so a stale or mis-parametrized sweep cannot expire a
    *   record early. Every live fragment is kept and the lock stays engaged — elapsed
    *   time cannot know that content came down.
+   *
+   *   An UNUSABLE duration is REFUSED rather than answered `applied: false`, and the
+   *   asymmetry is deliberate. `applied: false` means "the record's state says there is
+   *   nothing to do", which is a fact about the RECORD; a duration that is not a finite
+   *   non-negative number is a fact about the CALLER. Collapsing the second into the
+   *   first would let a misconfigured sweep report `skipped` on every row forever, which
+   *   is indistinguishable from a quiet night. It cannot be left to the comparison
+   *   either: `now < startedAt + NaN` is FALSE, so an unguarded cutoff does not skip the
+   *   row — it EXPIRES it, and a negative duration expires every row the instant its
+   *   window opens.
    * @param input - The moment and the window length
    * @returns Result with `applied` — false when the window is not open, already
-   *   closed, or has not elapsed
+   *   closed, or has not elapsed — or InvariantViolationError for an unusable duration
    */
   expireRetractionActionWindow(
     input: ExpireRetractionActionWindowInput
   ): Result<{ applied: boolean }, InvariantViolationError> {
+    if (!Number.isFinite(input.window) || input.window < 0) {
+      return err(
+        new InvariantViolationError(
+          `channel ${this._channelId.value} cannot expire against an action window of ${String(input.window)}ms`
+        )
+      );
+    }
+
     const startedAt = this._actionWindowStartedAt;
 
     if (

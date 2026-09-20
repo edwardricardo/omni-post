@@ -2013,3 +2013,521 @@ by the burn), and what becomes of each:
 | -------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `R3-noUowBranchUntested`         | SUGGESTION | `OpenPublicationEpisodeUseCase.ts:88-96`; same shape at `RecordChannelPublicationAttemptUseCase.ts:97-105` | "The `unitOfWork` constructor parameter is optional, and when omitted the use case calls the inner `doWork` closure directly, bypassing `executeResultInTransaction`. No test … exercises this branch — every test constructs the use case with `makeRecordingUow()` — so the behaviour of a `savePublication` failure or a domain refusal returned from the closure when the seam is absent is unproved by this candidate."                                                                                                                                                               | **OWED to `1c-1d`, which adds the two remaining T1c.4 use cases of the same shape**: one case per use case constructed WITHOUT a unit of work, asserting that a domain refusal and a `savePublication` failure both come back as the same outcomes the transactional path answers, and that nothing is written. The branch exists for the canon's own reason (the UoW parameter is optional for tests) and is unreachable from the composition root, which always injects the seam; its behaviour is nonetheless a contract this package states and should be pinned once for all four                                                                                                     |
 | `R3-tripwireContractIsLocalMock` | SUGGESTION | `recordChannelPublicationAttempt.test.ts:135-153`, asserted at `:433-461`                                  | "The narrow-save tripwire is re-implemented inside the test's own `makePostRepo` double via a locally hard-coded `TRIPWIRE_EVENTS` list, then the use-case's INTERNAL_ERROR translation is asserted against it. … if the production adapter's `PUBLICATION_TRIPWIRE_EVENTS` set diverges (event renamed, added, removed), this suite continues to pass while production silently changes behaviour. Consider a cross-package contract test at the adapter tier (or exporting the tripwire set from a package `@core/posts` can depend on) so the two definitions cannot drift undetected." | **ACCEPTED, written at T1c.14 in `tasks.md`, not done here.** The drift the reviewer names is real and the suite's own comment already states the trade-off. The adapter suite (`apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`) pins the production set directly; what is missing is the link between the two definitions. The honest fix is the reviewer's second option — the tripwire set moves to a package both `@core/posts` and the adapter can import (it is a statement about the aggregate's events, which live in `@core/domain`) — a small relocation with its own red, owned by the unit that next touches `PUBLICATION_TRIPWIRE_EVENTS` (T1c.14, `1c-3e`) |
+
+### RDD receipt — the follow-up commit `ff1c41a1` → `8454bab9`
+
+Lineage `review-4ae0d5245ff71220`. The review reached **approved** on its first admitted capture,
+the acknowledgement was executed exactly once and the authority is **burned**. **ZERO advisory
+findings** — no Critical, no WARNING and no SUGGESTION, so unlike the two receipts above this one
+carries nothing forward to another unit. The commit under review is the enterWith measurement test
+(`test(auth): the customer-auth double's tenant binding does not outlive the request that made it`),
+and it is recorded here rather than left out because a receipt nobody wrote is indistinguishable
+from a review nobody ran.
+
+---
+
+## PR 1c — grandchild `1c-1d` (T1c.3, T1c.4 second half, W4, half of T1c.6) — COMPLETE WITH ONE BLOCKER
+
+Branch `workstream/ncor8-1c-1d`, child of `workstream/ncor8-1c-1c` @ `8454bab9` — **order 3 of
+§9.4.1**, the second of the re-ordered writers. Subject: the RED suites for the retraction pair
+(T1c.3), the SECOND HALF of T1c.4's GREEN (`ConfirmManualRetractionUseCase`,
+`ExpireRetractionActionWindowUseCase`, the `@core/posts` barrel and the no-UoW branch for all four
+use cases), the `INVALID_STATE_TRANSITION_CODE` export carried from the `1c-1c` gate (W4), and
+**half of T1c.6** — the `executeResultInTransaction` migration. **T1c.6's `declarePublicationTargets`
+call is NOT here**, and it is the one blocker of this unit; the measurement that stops it is below
+under "For Edward", and the task keeps its `[ ]`.
+
+**Finish state**: the two acts a stranded channel needs — the customer's confirmation that they
+removed the fragments, and the sweep's closure of their action window — are writers of the same
+shape as the two that landed in `1c-1c`, each in one transaction through the narrow save; all four
+are reachable through the package barrel; and a lifecycle refusal is recognised through a constant
+the domain owns instead of a literal each consumer copies. **Rollback**: delete the four new files,
+revert the barrel block, revert the constant in `@core/domain` (the class goes back to its inline
+literal), and revert nine lines of `SchedulePostUseCase`. Nothing outside the change references any
+of it.
+
+### What each mechanism is, as built
+
+| Mechanism                             | As built                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ConfirmManualRetractionUseCase`      | validate ids with zero I/O, then `executeResultInTransaction` → load → `post.clearPendingRetraction({ cause: "manually-removed" })` → `savePublication`. The whole of D4's "available after an expired window" is inherited from the aggregate, which is why the Q17 case needed no branch here — only a case that proves it |
+| the idempotency discrimination        | `retractionClearedCause === MANUALLY_REMOVED` is read BEFORE the act, because afterwards this call's clearance is indistinguishable from an earlier one's. That read is the ONLY thing separating "already confirmed" (`applied: false`, 200) from "nothing was ever pending" (409)                                          |
+| `NOTHING_PENDING`                     | an `err` whose `code` is `CONFLICT` — so every existing route mapping answers 409 unchanged — carrying a `refusal` discriminator read by VALUE through the exported `refusalOf()`. A route switches on that, never on the message                                                                                            |
+| `hasLiveContent` on both outputs      | the predicate the confirm act EXISTS for, and not derivable from `status`: a `FAILED` post with live fragments is locked and one without them is editable, and both read `FAILED`                                                                                                                                            |
+| `ExpireRetractionActionWindowUseCase` | the caller's `now` and `window` travel to the root unchanged; the root re-asserts the cutoff. `applied: false` (not an error) for a window that is unopened, already closed, or unelapsed — a sweep must not fail on a row that raced with a customer                                                                        |
+| the window guard                      | a non-finite or negative `window` is refused BEFORE the load. Not cosmetic: `now < startedAt + NaN` is FALSE, so the record's guard is not taken and every selected row expires. It is the one malformed value here that fails OPEN, and the probe below measures it rather than asserting it                                |
+| `INVALID_STATE_TRANSITION_CODE` (W4)  | declared beside `VERSION_CONFLICT_CODE` and CONSTRUCTED INTO `InvalidStateTransitionError`, so the value has exactly one definition; `publicationWriteOutcome.ts` imports it and its local literal is gone. A new domain suite compares the constant against a REAL error rather than against a second literal               |
+| the `@core/posts` barrel              | all four T1c.4 use cases with their input/output types, plus `RETRACTION_REFUSALS` / `refusalOf` / `RetractionRefusal` for the route. `publicationWriteOutcome.ts` stays UNEXPORTED — it is the writers' shared translation, not package surface                                                                             |
+| the no-UoW branch (R3)                | two cases per use case, eight in all: a domain refusal and a `savePublication` failure answer the same outcomes as the transactional path and write nothing                                                                                                                                                                  |
+| `SchedulePostUseCase` (half of T1c.6) | `executeResultInTransaction` replaces the `let result` capture. The capture stored an `err` and let the callback RESOLVE, so the unit of work saw a success and COMMITTED — and this save is multi-statement (post row, content, media, outbox), which is exactly the partial write ADR-0023 exists to stop                  |
+
+### The recorded reds
+
+**1. W4 — the constant does not exist.** Written first, against an export that had no declaration:
+
+```text
+ FAIL  tests/unit/domainErrorCodes.test.ts > domain error discriminators > exports the code a real
+   InvalidStateTransitionError carries
+AssertionError: a lifecycle refusal must be recognisable by the exported constant
++ actual - expected
++ 'INVALID_STATE_TRANSITION'
+- undefined
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+```
+
+**2. T1c.3 — module absence, both suites, before a line of production code existed:**
+
+```text
+ FAIL  tests/unit/confirmManualRetraction.test.ts [ tests/unit/confirmManualRetraction.test.ts ]
+Error: Cannot find module '../../src/ConfirmManualRetractionUseCase.js' imported from …
+ FAIL  tests/unit/expireRetractionActionWindow.test.ts [ … ]
+Error: Cannot find module '../../src/ExpireRetractionActionWindowUseCase.js' imported from …
+ Test Files  2 failed (2)
+      Tests  no tests
+```
+
+**3. T1c.6's seam — the `err` that used to commit.** RED in `apps/api`, before the migration:
+
+```text
+ FAIL  tests/unit/application/postUseCases.test.ts > SchedulePostUseCase > the transaction seam >
+   aborts the transaction when the save fails, instead of resolving over the failure
+AssertionError: expected [] to have a length of 1 but got +0
+- Expected  1
++ Received  0
+      Tests  2 failed | 45 skipped (47)
+```
+
+**The GREEN of the retraction pair passed 28/28 on its first run, which is a reason to distrust it,
+not to celebrate it.** Two probes were run to decide whether the load-bearing branches are pinned or
+merely unvisited. Both are recorded, both restored sha256-exact.
+
+**Probe A — the window guard.** Condition weakened from
+`!Number.isFinite(input.window) || input.window < 0` to `input.window < 0` (one term, trivially
+reversible) and the single case run. It does not merely pass the guard — it EXPIRES:
+
+```text
+ FAIL  tests/unit/expireRetractionActionWindow.test.ts > … > refuses a window that is not a finite
+   number, which would otherwise expire EVERY row
+AssertionError: the window the malformed value would have closed is still open
++ actual - expected
++ 2026-03-01T11:00:00.000Z
+- undefined
+```
+
+The window assertion was MOVED to the front of that case for this run, so the failure names the
+expiry it caused rather than a code mismatch — the assertion-order lesson from `1c-1c`'s W1, applied
+at write time instead of after a review. Restored and verified:
+`packages/core/posts/src/ExpireRetractionActionWindowUseCase.ts`
+`fafdaca4be0109029c843b545586f38b28fb047edc738b501c28602f8e6bafdd` before the probe, `sha256sum -c`
+→ `OK` after it.
+
+**Probe B — the idempotency discrimination.** `if (alreadyConfirmed)` inverted to
+`if (!alreadyConfirmed)`. Three cases fail, which is the point: the discriminator carries the
+`NOTHING_PENDING` refusal, the duplicate submit AND the no-UoW refusal case at once.
+
+```text
+ × refuses NOTHING_PENDING as a conflict a caller can identify without matching the message
+ × answers a duplicate submit with applied:false and writes nothing a second time
+ × answers a domain refusal exactly as the transactional path does, and writes nothing
+      Tests  3 failed | 10 passed (13)
+```
+
+Restored and verified: `packages/core/posts/src/ConfirmManualRetractionUseCase.ts`
+`8dd9351fdc73c5758f3bd9c50385861042d35017c2cc8adafc7669b260ca7090`, `sha256sum -c` → `OK`.
+
+**Probe C — the eight no-UoW cases, where NO natural red exists and none was invented.** The branch
+already behaves correctly, so writing a test for it cannot fail first; what CAN be measured is
+whether the cases would catch a divergence. In `RecordChannelPublicationAttemptUseCase`,
+`return await doWork()` was replaced by
+`return err(new UseCaseError("no transaction seam", USE_CASE_ERRORS.INTERNAL_ERROR))` — the
+"fail closed without a seam" shape a future author might reasonably add:
+
+```text
+ × answers a domain refusal exactly as the transactional path does, and writes nothing
+ × answers a save failure exactly as the transactional path does
+      Tests  2 failed | 13 passed (15)
+```
+
+Restored and verified: `packages/core/posts/src/RecordChannelPublicationAttemptUseCase.ts`
+`5b833619c7d265ed72c917970a8d474b6b2d4d6388cd35ffa81dd559e2adbd95`, `sha256sum -c` → `OK`. The other
+three use cases carry the identical branch and the identical pair of cases; one probe is reported
+rather than four identical ones.
+
+### Decisions the design does not make, taken here and named
+
+1. **A confirmation is idempotent only against the CUSTOMER'S own act.** D4 says `applied: false` on
+   a second call and design.md:246 says 409 `NOTHING_PENDING` when nothing is live — but the
+   aggregate answers `applied: false` for BOTH, so the use case had to pick a discriminator. It reads
+   `retractionClearedCause === MANUALLY_REMOVED`. **Rejected**: treating every non-pending channel as
+   an idempotent success, which would report "your confirmation was recorded" to a customer
+   confirming a channel that published cleanly, for an act no record holds. The cost of the rule
+   chosen is that a channel cleared by N-COR-10's `RETRACTED` path answers 409 to a customer who
+   clicks afterwards; that path has **no production caller in N-COR-8** (design.md:171), so the
+   decision is cheap today and is flagged here for N-COR-10 rather than discovered by it.
+2. **`NOTHING_PENDING` is carried as a value, not a message prefix.** The `1c-1c` gate's W3 is exactly
+   this defect one refusal over — a route left matching on a message PREFIX — and its owner is
+   `1c-2b`. Repeating the shape here and paying for it later would be the worse trade, so this
+   refusal ships with an exported discriminator and `refusalOf()` reads it by value (the `domainCode`
+   reasoning: `instanceof` cannot survive this package's dual conditional export). **Rejected**: a
+   distinct `USE_CASE_ERRORS` member, which would change the HTTP mapping of an existing code family
+   for every other consumer.
+3. **`hasLiveContent` is on both output DTOs.** **Rejected**: letting the caller re-read the post,
+   which buys the same value at the price of a second query that can fail. It is reported on the
+   EXPIRE path too, where it is always `true`, because "the lock did not release" is the property
+   that path deliberately does not change and a caller should be able to see it rather than infer it.
+4. **`now` and `window` are REQUIRED on the expire input.** D4's signature has them non-optional and
+   a default would let the sweep's discovery and the root's re-assertion disagree — the precise thing
+   S-a-2 makes the window an argument to prevent.
+5. **`publicationWriteOutcome.ts` stays out of the barrel.** It is the writers' shared translation,
+   not package surface; the four use cases are exported, the helper they share is not.
+
+### A design line this unit falsifies
+
+**design.md:189 — "`save(post)` (full) additionally upserts the records; `SchedulePostUseCase` keeps
+it" — is no longer true of the tree.** The 1b gate's correction W1 reverted both `upsertPublications`
+calls out of `doCreate` and `doUpdate` with its own recorded red, leaving the narrow
+`savePublication` as the only production writer of the record. Measured at this tip:
+`tx.postChannelPublication.upsert` appears in `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`
+and nowhere else. The design sentence is not amended here — a design revision is not this unit's to
+write — but it is named so the next reader of T1c.6 does not plan against it. It is the direct cause
+of this unit's blocker.
+
+### Deleted or renamed members — the mandatory `rg` over `**/tests/**`
+
+| Member                                        | Search                                                                           | Result                                                                                                                                                                                                                                                                                                                         |
+| --------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `INVALID_STATE_TRANSITION_CODE` (local const) | `rg -n 'INVALID_STATE_TRANSITION_CODE' apps packages infra --glob '**/tests/**'` | 3 hits, all in the NEW `packages/core/domain/tests/unit/domainErrorCodes.test.ts`. It was module-private, so no double held it                                                                                                                                                                                                 |
+| `SchedulePostUseCase`'s transaction seam      | `rg -n 'new SchedulePostUseCase' apps packages infra`                            | **ONE** production construction site (`setupPostUseCases.ts:141`) — corrected after the gate; `setupRecurringPostUseCases.ts` RESOLVES the token rather than constructing, so it is a consumer, not a second site — and one test file, which constructed it WITHOUT a unit of work before this unit. No existing double breaks |
+
+`executeResultInTransaction` is a REQUIRED member of the `UnitOfWork` port
+(`packages/core/domain/src/repositories/Repository.ts:204`) and `PrismaUnitOfWork` implements it
+(`:136`), so the migration reaches no double that lacks it. **The nesting shape is UNCHANGED**:
+`executeResultInTransaction` is implemented on top of `executeInTransaction`, which has always opened
+its own `$transaction`, so the recurrence path's nested transaction behaves exactly as it did — what
+changes is that an inner failure now rolls that inner transaction back instead of committing it.
+
+### Doubles added or updated
+
+| Double                                              | Where                                                  | Why                                                                                                                |
+| --------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `createRecordingUnitOfWork`                         | `apps/api/tests/unit/application/postUseCases.test.ts` | NEW. Records WHICH seam was opened and what rolled back — the only way to see the ADR-0023 difference from outside |
+| `makePostRepo` / `makeRecordingUow` (two new files) | the two new `@core/posts` suites                       | The `1c-1c` shape, unchanged, including the narrow save's edit tripwire                                            |
+
+### TDD cycle evidence
+
+| Task          | Test file                                                        | Layer | Safety net | RED                                                                | GREEN            | TRIANGULATE                                                                                                                                                        | REFACTOR                                     |
+| ------------- | ---------------------------------------------------------------- | ----- | ---------- | ------------------------------------------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| W4 (at T1c.3) | `packages/core/domain/tests/unit/domainErrorCodes.test.ts`       | Unit  | ✅ 184/184 | ✅ `+ 'INVALID_STATE_TRANSITION' - undefined`                      | ✅ 3/3           | ✅ both discriminators against real errors, plus the distinctness the FORBIDDEN/CONFLICT fork needs                                                                | ➖ nothing to reshape                        |
+| T1c.3 / T1c.4 | `packages/core/posts/tests/unit/confirmManualRetraction.test.ts` | Unit  | ✅ 58/58   | ✅ `Cannot find module '…/ConfirmManualRetractionUseCase.js'`      | ✅ 13/13         | ✅ 13 cases: clears with cause, re-drivable, after expiry, 404 ×2, 409, duplicate, CAS, other save failure, 2 pure refusals, 2 no-UoW                              | ✅ `answer(applied)` closure, one ok-payload |
+| T1c.3 / T1c.4 | `.../expireRetractionActionWindow.test.ts`                       | Unit  | ✅ 58/58   | ✅ `Cannot find module '…/ExpireRetractionActionWindowUseCase.js'` | ✅ 15/15         | ✅ 15 cases: the window pair at one `now`, keeps fragments + lock, second tick, never-opened, 404 ×2, NaN, negative, CAS, other failure, 2 pure refusals, 2 no-UoW | ✅ same `answer(applied)` shape              |
+| T1c.4 (R3)    | the two `1c-1c` suites                                           | Unit  | ✅ 86/86   | ➖ none available (existing branch) — probe C measures instead     | ✅ 90/90 package | ➖ two cases per use case                                                                                                                                          | ➖                                           |
+| T1c.6 (seam)  | `apps/api/tests/unit/application/postUseCases.test.ts`           | Unit  | ✅ 45/45   | ✅ `expected [] to have a length of 1`                             | ✅ 47/47         | ✅ commit path and abort path                                                                                                                                      | ➖ nine lines replaced by one call           |
+
+### Gates
+
+| Gate                                                                               | Result                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@core/domain` vitest                                                              | **10 files, 187 passed** (baseline 9 / 184)                                                                                                                                                                                                                                                                                                                          |
+| `@core/posts` vitest                                                               | **6 files, 90 passed** (baseline 4 / 58)                                                                                                                                                                                                                                                                                                                             |
+| `tsc --noEmit` `@core/domain` · `@core/posts` · `apps/api` (6144)                  | **0 · 0 · 0**, each exit code read directly off `tsc`, never through a pipe                                                                                                                                                                                                                                                                                          |
+| `tsc -p` over `@core/posts` `src` + `tests` (throwaway probe config)               | **`TSC_OWN_EXIT=0`** — no repo tsconfig opens `tests/**`, so this is the only thing that type-checks the new suites. The config lives in the scratchpad, never in the repo                                                                                                                                                                                           |
+| `apps/api` unit tier, full, once                                                   | **586 files, 9118 passed, 0 failed, 0 skipped**, exit 0                                                                                                                                                                                                                                                                                                              |
+| `integration:saga-recovery` (real Postgres + Redis, the per-tip guard)             | **# tests 33 · # pass 33 · # fail 0 · # cancelled 0 · # skipped 0**, runner exit 0 — the previous tip's count, reached                                                                                                                                                                                                                                               |
+| §10.2's PR-1c fitness list (#1, #6, #21, #22, #7, #11, #16, #23, #40 A+B, #41, #4) | **all 0** — and the reason is structural rather than lucky: this candidate touches ZERO files under `apps/api/src`, `apps/workers/src`, `packages/adapters/` or `infra/`, which is the entire scope of #1/#6/#21/#22/#11/#16/#23/#41 and of #40 Part A. The row is listed because a fitness list the gate ran and the ledger did not name reads as a list nobody ran |
+
+### Budget — measured, and the fourth consecutive under-count
+
+Re-measured after the gate's nine corrections; the pre-correction figures were CODE 561 /
+EVIDENCE 1088 / docs 361, which the gate confirmed.
+
+| File                                                                  | Stream   | Changed lines |
+| --------------------------------------------------------------------- | -------- | ------------: |
+| `packages/core/posts/src/ExpireRetractionActionWindowUseCase.ts`      | CODE     |       **237** |
+| `packages/core/posts/src/ConfirmManualRetractionUseCase.ts`           | CODE     |       **227** |
+| `packages/core/posts/src/retractionRefusals.ts`                       | CODE     |        **76** |
+| `packages/core/domain/src/entities/ChannelPublication.ts`             | CODE     |        **27** |
+| `packages/core/posts/src/index.ts`                                    | CODE     |        **22** |
+| `packages/core/domain/src/errors/DomainError.ts`                      | CODE     |        **16** |
+| `packages/core/posts/src/SchedulePostUseCase.ts`                      | CODE     |        **13** |
+| `packages/core/domain/src/aggregates/post/PostPublicationMethods.ts`  | CODE     |         **6** |
+| `packages/core/posts/src/publicationWriteOutcome.ts`                  | CODE     |         **5** |
+| `packages/core/domain/src/errors/index.ts`                            | CODE     |         **1** |
+| `packages/core/posts/tests/unit/confirmManualRetraction.test.ts`      | EVIDENCE |       **561** |
+| `packages/core/posts/tests/unit/expireRetractionActionWindow.test.ts` | EVIDENCE |       **445** |
+| `apps/api/tests/unit/application/postUseCases.test.ts`                | EVIDENCE |        **91** |
+| `packages/core/domain/tests/unit/channelPublication.test.ts`          | EVIDENCE |        **52** |
+| `packages/core/domain/tests/unit/domainErrorCodes.test.ts`            | EVIDENCE |        **50** |
+| `packages/core/posts/tests/unit/openPublicationEpisode.test.ts`       | EVIDENCE |        **42** |
+| `.../recordChannelPublicationAttempt.test.ts`                         | EVIDENCE |        **32** |
+
+| Stream       |                                                                                                                                                                         Measured | Forecast (§9.4.1) | Verdict                                       |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | ----------------: | --------------------------------------------- |
+| **CODE**     |                                                                                                                                                                          **630** |               371 | **1.70× over** — `size:exception` recommended |
+| **EVIDENCE** | **1273** tests, **1848** with this ledger + `tasks.md` + the backlog row (docs 575, measured by the orchestrator's numstat: the first pass carried `tasks.md` at its earlier 50) |               566 | **2.25× over** on tests alone                 |
+
+**630 CODE is 1.58× the hard 400 budget, and it does NOT include T1c.6's record write** — the half
+that is blocked would only have added to it. The cause is the same one `1c-1c` named and is now
+measurable as a pattern rather than a surprise: roughly 190 of the 540 lines in the three new
+`@core/posts` files are JSDoc that `CODING_STANDARDS §Documentation` makes mandatory on every file
+and every public member, and the forecast costs bodies, not the canon they are written under.
+`1c-1a` +135%, `1c-1b` +83%, `1c-1c` +54%, this one **+70%**.
+
+**The +51% → +70% move is itself worth reading**: the corrective pass added 69 CODE lines, and 33 of
+them are two DOMAIN fixes (`ChannelPublication` + its facet) that no forecast line item could have
+predicted, because they are defects the unit's own tests found in code it did not write. The
+line-item method costs what a task PLANS to write; `1c-1a` proved it misses deletions, and this one
+proves it also misses the repairs a task's evidence turns up. **Nothing was compressed to fit**: no
+comment, JSDoc or case was removed to reach a number.
+
+### For Edward — the T1c.6 blocker, and the three shapes it leaves
+
+> **T1c.6 cannot persist the declared target set without a decision that is not this unit's to
+> take.** The task says `SchedulePostUseCase` calls `declarePublicationTargets` after
+> `post.schedule()` and that REC-1's validated identities are PERSISTED. The mechanism the design
+> named for that — the full `save()` upserting the records (design.md:189) — was DELETED by the 1b
+> gate's own correction W1, which reverted both `upsertPublications` calls out of `doCreate`/`doUpdate`
+> with a recorded red and named T1c.6 as the owner of what to do next. So the task's premise is
+> stale, and every substitute costs something:
+>
+> - Calling `declarePublicationTargets` and then `save(post)` would mutate the aggregate and **drop
+>   the records in silence** — measured: `tx.postChannelPublication.upsert` exists only in
+>   `PostPublicationWrites.ts`.
+> - Routing the write through `savePublication` **refuses every recurring and every bulk-scheduled
+>   post**. `savePublication` refuses `undefined` and `__system__` (T1c.4a (v)), and
+>   `RecurrenceScheduler.tick()` runs the whole chain inside `withSystemContext("recurrence-sweep")`
+>   (`apps/api/src/recurring/RecurrenceScheduler.ts:82` → `CreatePostFromRecurrenceUseCase` →
+>   `PostCreationAdapter.schedulePost` → `SchedulePostUseCase`), while `bulkScheduleWorker.ts` binds
+>   no context at all (SMELL-145).
+> - **Any two-save shape needs a `clearDomainEvents()` between the saves, and without it the
+>   transaction ABORTS.** The full save writes `aggregate.domainEvents` to the outbox
+>   (`PrismaPostRepository.ts:560` / `:698`) and so does the narrow one
+>   (`PostPublicationWrites.ts:244`); `PrismaOutboxWriter.ts:55-57` inserts with `createMany` keyed on
+>   `id: event.eventId` and **no `skipDuplicates`**, so the second insert is a P2002 on the same ids.
+>   Not a torn write, a hard failure. The CAS is fine either way — `doUpdate` calls
+>   `aggregate.incrementVersion()` (`PrismaPostRepository.ts:613`), so the narrow save's compare
+>   matches — but the schedule then costs a second version bump.
+>
+> **The three shapes. The honest framing of (c) is the one that changed after the gate.**
+>
+> **(a) Re-add `upsertPublications` to the full save**, this time with the tests and the refusals 1b's
+> W1 said were missing. One write, one version bump, matches design.md:189 literally — but it
+> re-creates a SECOND production writer of the record and reverses a landed gate decision. W1's
+> objection splits: the edit-tripwire half **dissolves** (the tripwire exists because the narrow save
+> writes no content; the full save writes content), the projection-invariant half **does not** —
+> `savePublicationRecord` calls `assertPublicationProjection()` (`PostPublicationWrites.ts:272-275`)
+> and the full save calls nothing equivalent. Cost: invert or delete the red W1 left behind
+> (`apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts:1242`), add the invariant to
+> `doCreate`/`doUpdate`, and re-decide W1's ledger row.
+>
+> **(b) Keep the narrow save as the only writer and convert the recurrence sweep to a per-tenant
+> re-read** — the shape the retraction sweep already uses (design.md:317 step 2). Canon-clean and it
+> fixes a real asymmetry, but it needs `accountId` on `ProcessRecurrenceUseCase`'s output, it needs
+> the **bulk worker bound too** (SMELL-145), it is in no 1c task, and it still needs the full save for
+> `scheduledAt` — so the shape is full save → `clearDomainEvents()` → narrow save, inside one
+> `executeResultInTransaction`.
+>
+> **(c) Is NOT "defer a `[static]` scenario" — it is dropping REC-1 for schedule mode.** The earlier
+> framing understated it and the gate was right to say so. REC-1 is **MERGE-BLOCKING**
+> (`specs/post-channel-publication-record/spec.md:88`: "Scheduling a post SHALL persist one
+> publication record per intended channel … the record set SHALL be the system's answer to 'where was
+> this post meant to go'"), its FIRST scenario is `[integration]` (`:103`: three channels scheduled →
+> three records read back), and `design.md:523` assigns REC-1 ×3 `[integration]` to T1c.6. Under (c) a
+> scheduled post holds ZERO records until the saga runs, so those three scenarios fail and the
+> requirement's own sentence is false for the whole interval. It also blurs REC-13: "no record" stops
+> meaning "a legacy post from before this change" and starts meaning "or any post scheduled normally
+> and not yet published", so the fail-closed refusal can no longer name its own cause.
+> **What (c) does NOT cost, measured**: no reader breaks. The gate found no C3 guard, `/start`
+> admission, sweep or content-lock path that depends on the record between scheduling and publishing
+> — so (c) is cheap in code and expensive in contract, which is exactly the trade that should be
+> stated rather than buried.
+>
+> **The product question under (c), which is not a technical one**: for a post scheduled for later,
+> does the customer see WHERE IT IS GOING? REC-1 says yes and makes the record the answer. (c) says
+> no for the entire interval between scheduling and publishing.
+>
+> Nothing in this unit was changed in anticipation of any of them.
+
+### What is deliberately NOT in this unit
+
+T1c.6's `declarePublicationTargets` call (blocked, above); T1c.7's command token, handlers and
+container registration (`1c-1e`); the confirm ROUTE and the sweep that call these two use cases
+(`1c-3a` and `1c-3b`, orders 6 and 7). No DI token and no route was added here, so both new use
+cases remain unreachable from production at this tip — the same property the order exists to keep,
+re-measured below.
+
+### Unreachable by claim — RE-MEASURED at this tip, not inherited
+
+§9.4.1's ordering audit row 3 claims the retraction pair is unreachable because its only planned
+callers are T1c.15 (order 6) and T1c.16 (order 7). Measured after the code landed: the two classes
+are named by 4 files — the two that declare them, their two suites — plus the barrel this unit adds.
+**The barrel entry is the one thing that changed**, and it makes them IMPORTABLE from `apps/api`
+without making them REACHABLE: no container registration, no route, no handler and no scheduler
+registration names either class, so nothing constructs one. That is a weaker claim than `1c-1c`'s
+and it is stated as the weaker claim rather than copied forward.
+
+### Follow-up after the fresh-context gate of `1c-1d` — PASS WITH WARNINGS, nine items
+
+Every gate and budget figure was confirmed (CODE 561 / EVIDENCE 1088 / docs 361) and the T1c.6
+blocker was confirmed independently. No Critical. The findings are what the unit stopped one
+measurement short of, and three of them are defects in code this unit shipped.
+
+| Id     | Finding                                                                                                                                                                                                                                        | Disposition                                                                                                                             |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **C1** | Shape (c) was framed as deferring a `[static]` scenario. REC-1 is MERGE-BLOCKING with a `[integration]` first scenario, and `design.md:523` assigns it ×3 to T1c.6 — so (c) DROPS a requirement for schedule mode rather than deferring a test | **FIXED** — the `For Edward` block is rewritten above, with the product question it was hiding                                          |
+| **W1** | `refusalOf` compared against ONE literal while its signature promised the union: a second `RETRACTION_REFUSALS` member compiles clean and comes back `undefined` — the W3 defect it exists to prevent                                          | **FIXED** — the reader is now derived from the set; red recorded below                                                                  |
+| **W2** | The ROOT's cutoff did not fail closed on a non-finite or negative window, while two JSDoc blocks said it did. `x < NaN` is false, so the record EXPIRED on it                                                                                  | **FIXED** at the entity, where ARCHITECTURE_CANON puts the invariant; both JSDoc sentences made true                                    |
+| **W3** | `openEpisode` reset four fields but not `_retractionClearedCause`, so confirm → re-drive → confirm answered 200 instead of 409: the idempotency discriminator was not episode-scoped                                                           | **FIXED** — red at the entity AND at the use case, below                                                                                |
+| **W4** | `makePublishedPost()` built a declared-but-unresolved channel, not a published one; and decision (1)'s named cost (a `RETRACTED` clearance answers 409) had no test at all                                                                     | **FIXED** — the fixture is split in two and both states are now exercised; the `markRetractionOutcome` case is added with its own probe |
+| **W5** | Probe C ran the substitution in ONE of four use cases and inferred the rest                                                                                                                                                                    | **FIXED** — run in all four, four restores, transcript below                                                                            |
+| **W6** | The bulk worker binds no tenant context while its siblings do; `accountId` is declared on its input and never read                                                                                                                             | **BACKLOG, not fixed here** — `docs/reports/roadmap-detected-smells-backlog.md`, **SMELL-145**                                          |
+| **W7** | `RETRACTION_REFUSALS` / `RetractionRefusal` / `refusalOf` were package surface living inside a use-case file                                                                                                                                   | **FIXED** — new `packages/core/posts/src/retractionRefusals.ts`; T1c.11 told to extend it, not clone it                                 |
+| **W8** | `as any` went 8 → 12 in `postUseCases.test.ts`, unmarked, and one of them coerced a structurally complete double                                                                                                                               | **FIXED** — the `UnitOfWork` cast is gone (the double is typed as the port), the other three are marked                                 |
+| **W9** | The ledger said `new SchedulePostUseCase` had "2 production sites"; there is ONE. The gates table omitted §10.2's PR-1c fitness list                                                                                                           | **FIXED** — both corrected above                                                                                                        |
+
+**W1's red — a declared member the reader silently drops.** With the literal comparison, adding a
+second member to the set (the probe used `CHANNEL_HAS_LIVE_FRAGMENTS`, which T1c.11 will really add)
+is accepted by the error class, satisfies the return type, keeps `tsc` at 0, and comes back
+`undefined`:
+
+```text
+ FAIL  tests/unit/confirmManualRetraction.test.ts > refusalOf > recognises the declared refusal
+   CHANNEL_HAS_LIVE_FRAGMENTS
+AssertionError: Expected values to be strictly equal:
++ actual - expected
++ undefined
+- 'CHANNEL_HAS_LIVE_FRAGMENTS'
+      Tests  1 failed | 16 passed (17)
+```
+
+The permanent case iterates `Object.values(RETRACTION_REFUSALS)` instead of naming a member, so the
+coverage is a property of the code. Probe restored byte-exact
+(`3ef82d80f44a01b4…`, `sha256sum -c` → OK), the derived-set fix applied, and the probe RE-RUN against
+the fix: **17/17**, then restored again (`add1704afd4d5225…` → OK).
+
+**W2's red — at the entity this time, which is where probe A's hole was.** The use case's refusal
+was real but it was the only one; the record itself expired on both values:
+
+```text
+ FAIL  tests/unit/channelPublication.test.ts > ChannelPublication > the action window > refuses a
+   window that is not a finite number instead of expiring on it
+AssertionError: the window the malformed argument would have closed is still open
++ actual - expected
++ 2026-03-05T13:00:00.000Z
+- undefined
+
+ FAIL  … > refuses a negative window instead of expiring on it
++ 2026-03-01T09:00:00.000Z
+- undefined
+      Tests  2 failed (49)
+```
+
+The negative case is the sharper one: `window: -1` expires the record at the very moment its window
+OPENED. The entity now answers `err(InvariantViolationError)` rather than `applied: false`, and the
+asymmetry is deliberate — `applied: false` means "the RECORD says there is nothing to do", while an
+unusable duration is a fact about the CALLER. Collapsing them would let a misconfigured sweep report
+`skipped` on every row forever, which is indistinguishable from a quiet night.
+
+**W3's red — the discriminator was not episode-scoped.** At the entity:
+
+```text
+ FAIL  tests/unit/channelPublication.test.ts > ChannelPublication > clearing live fragments >
+   returns the clearance FORGOTTEN once a new episode opens over it
+AssertionError: the previous episode's clearance does not describe this one
++ actual - expected
++ 'MANUALLY_REMOVED'
+- undefined
+```
+
+and at the use case, where the consequence is the customer-visible one:
+
+```text
+ FAIL  tests/unit/confirmManualRetraction.test.ts > … > refuses a confirmation of a channel
+   RE-DRIVEN since the customer cleared it
+AssertionError: there is nothing live on the re-driven channel to confirm
+- Expected  true
++ Received  false
+```
+
+`openEpisode` now resets the clearance pair beside the seven fields it already cleared. Checked
+before changing it: `strand()` already resets the same pair (`ChannelPublication.ts:890-891`), so
+this is the entity's own convention through its other door; `alertTransition`'s resolve branch
+cannot read a stale cause because `openEpisode` clears `_retractionAlertHash` first; and
+`UNRESOLVED_FORBIDDEN_FACTS` does not list the pair, so `reconstitute` is unaffected. **Should the
+pair join `UNRESOLVED_FORBIDDEN_FACTS`? Asked, and closed as NO by the re-gate, for two measured
+reasons.** (1) The list cannot take it without changing its meaning: it is typed
+`satisfies readonly (keyof ChannelPublicationState & (keyof PublishedFacts | keyof ExcludedFacts))[]`
+with a compile-time coverage assertion (`ChannelPublication.ts:173-180`), and the clearance pair is
+top-level state, not a member of either facts interface — adding it fails `tsc` until the constraint
+and the coverage check are both loosened, i.e. "settled facts an unresolved record cannot hold" would
+have to mean something else. (2) The remedy is heavier than the defect: the list refuses at
+RECONSTITUTION, so a legacy row carrying the pair would make the whole post fail to hydrate — a
+fail-closed on the entire aggregate for a field one use case reads and no view exposes. The state is
+also unreachable in memory (`clearLiveFragments` leaves `_excluded` intact, so a confirmed channel is
+EXCLUDED, not UNRESOLVED) and the only door to it is a row written by a tip before this correction,
+which no released capability produced. If it ever exists, the proportionate instrument is a
+one-column data migration or an episode-scoped read, not the reconstitution refusal.
+
+**W3's fixture correction, same class as `1c-1c`'s two.** The first draft of the use-case case
+re-drove with `enterPublishing: false` and failed at the FIXTURE line, not the subject: the derived
+word after a stranding is `FAILED`, and a delayed re-drive of a `FAILED` post is refused by the
+aggregate (D9 / Q14). Production was right, the test was wrong; the case re-drives through
+publish-now, which is the only re-drive route.
+
+**W4's probe — the decision that case exists to pin.** Widening the discriminator to
+`retractionClearedCause !== undefined` (the alternative decision (1) rejected) turns the new case
+green-to-red in the direction that matters:
+
+```text
+ FAIL  … > refuses a confirmation of a channel a RETRACTION already cleared
+AssertionError: a clearance nobody's confirmation produced is not a duplicate
+- Expected  true
++ Received  false
+```
+
+Restored byte-exact (`419cd2e812263bca…` → OK).
+
+**W5 — probe C, now in all four.** The same substitution
+(`return await doWork()` → a "no transaction seam" error) applied to all four use cases at once:
+
+```text
+ ❯ tests/unit/expireRetractionActionWindow.test.ts   (15 tests | 2 failed)
+ ❯ tests/unit/confirmManualRetraction.test.ts        (19 tests | 2 failed)
+ ❯ tests/unit/recordChannelPublicationAttempt.test.ts (15 tests | 2 failed)
+ ❯ tests/unit/openPublicationEpisode.test.ts         (20 tests | 2 failed)
+      Tests  8 failed | 88 passed (96)
+```
+
+Two per use case, eight in all — the inference in the first hand-back is now a measurement. All four
+restored byte-exact in one `sha256sum -c` pass.
+
+### Gates re-run after the nine corrections
+
+| Gate                                                                                                         | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@core/domain` vitest                                                                                        | **10 files, 190 passed** (was 187; +3 entity cases)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `@core/posts` vitest                                                                                         | **6 files, 96 passed** (was 90; +6 cases)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `tsc --noEmit` `@core/domain` · `@core/posts` · `apps/api` (6144)                                            | **0 · 0 · 0**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `apps/api` unit tier, full                                                                                   | **586 files, 9118 passed, 0 failed, 0 skipped**, exit 0 — re-run because `openEpisode` changed domain behaviour a consumer could see. This is the SECOND run; see the incident below                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `eslint --max-warnings 0` on every changed `.ts` · `prettier -c` on every changed file · `pnpm format:check` | **0** · clean · clean                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `pnpm check:circular`                                                                                        | clean, **1607** files (the first pass wrote 1606, the count before `retractionRefusals.ts` existed — a copied-forward number, re-measured by the re-gate)                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| fitness #3 / #4 / #5 / #8 / #9 / #10 / #32 · #40 A+B                                                         | 0 · 0 · 0 · 0 · 0 · 0 · 0 · A 3 seams (floor 3) / 0, B 14 sites (floor 10) / 0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `integration:saga-recovery`                                                                                  | NOT re-run after the corrections, on a measurement rather than an assertion: `PostAggregate.openPublicationEpisode` has exactly ONE production caller tree-wide (`OpenPublicationEpisodeUseCase.ts:230`) and the entity's window guard is reachable only through `ExpireRetractionActionWindowUseCase` — both unregistered (zero hits in `apps/api/src` + `apps/workers/src`), so no production path, saga or otherwise, can reach either changed method at this tip; 33/33 stands from the pre-correction tip, and the api unit tier (where a domain consumer would notice) WAS re-run |
+
+**Incident on the FIRST api-tier run, recorded rather than re-rolled.** It exited **1** with **zero
+failed tests**: `Test Files 585 passed (586) · Tests 9116 passed (9118) · Errors 1 error`, the error
+being `[vitest-pool]: Worker forks emitted error … Caused by: Error: write EPIPE`. A worker fork died
+and took one file's two results with it, so that run is a NON-RESULT — neither a pass nor a failure —
+and it is written down because a gate that exits 1 and is quietly re-run until green is not a gate.
+It did NOT reproduce: the second run reached **586 / 9118, exit 0**, the exact count of the
+pre-correction tip, over the identical tree. Host memory at the re-run: 9216 MB total, 7840 MB
+available, so exhaustion is not the explanation and **the cause is UNDIAGNOSED**. What rules this
+candidate out: a behavioural break from the `openEpisode` change would surface as a failing assertion
+in a named suite, not as a dead IPC channel, and both runs bracket the same bytes. The re-gate added
+the measurement that names the victim's shape: the failed run lost ONE file and exactly TWO tests
+(585/586, 9116/9118 — collected totals, so the dead file was collected and held two cases), and no
+file this candidate touches has two tests (`postUseCases.test.ts` has 47; the `packages/core` suites
+are not in the api tier). The fork that died was running a file this candidate does not touch. Loop
+left open: the file is not named — the run log was not kept. If EPIPE recurs on this tier it gets a
+backlog row of its own (a known vitest-forks class: worker crash / pool teardown race), not a
+paragraph per unit; this is the second infrastructure non-result this change has recorded.

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { ok, err } from "@shared/types";
+import { ok, err, type Result } from "@shared/types";
 import {
   PostAggregate,
   ProjectId,
@@ -15,6 +15,7 @@ import {
   PUBLISH_STATUS,
 } from "@core/domain/index.js";
 import { EntityNotFoundError } from "@core/domain/errors/index.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
 import { UpdatePostUseCase } from "@core/posts/UpdatePostUseCase.js";
 import { SchedulePostUseCase } from "@core/posts/SchedulePostUseCase.js";
@@ -74,6 +75,39 @@ function createMockEventDispatcher() {
     dispatch: vi.fn(async () => {}),
     dispatchAll: vi.fn(async () => {}),
     register: vi.fn(),
+  };
+}
+
+/**
+ * A unit of work that records WHICH seam a use case opened. The distinction is the
+ * whole point: `executeInTransaction` resolves whatever its callback resolves, so a
+ * use case that stores an `err` in a variable and lets the callback complete tells the
+ * transaction it succeeded and the partial write COMMITS (ADR-0023).
+ * `executeResultInTransaction` reads the `Result` and rolls back on `err`.
+ */
+function createRecordingUnitOfWork(): {
+  state: { plainCalls: number; resultCalls: number; rolledBack: unknown[] };
+  port: UnitOfWork;
+} {
+  const state = { plainCalls: 0, resultCalls: 0, rolledBack: [] as unknown[] };
+  return {
+    state,
+    port: {
+      async executeInTransaction<T>(fn: () => Promise<T>): Promise<T> {
+        state.plainCalls++;
+        return fn();
+      },
+      async executeResultInTransaction<T, E>(
+        fn: () => Promise<Result<T, E>>
+      ): Promise<Result<T, E>> {
+        state.resultCalls++;
+        const result = await fn();
+        if (!result.ok) {
+          state.rolledBack.push(result.error);
+        }
+        return result;
+      },
+    },
   };
 }
 
@@ -457,6 +491,61 @@ describe("SchedulePostUseCase", () => {
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.error.code).toBe(USE_CASE_ERRORS.NOT_FOUND);
+    });
+  });
+
+  describe("the transaction seam", () => {
+    let uow: ReturnType<typeof createRecordingUnitOfWork>;
+
+    beforeEach(() => {
+      uow = createRecordingUnitOfWork();
+      useCase = new SchedulePostUseCase(
+        // canon-exception: test-fixture
+        repo as any,
+        // canon-exception: test-fixture
+        dispatcher as any,
+        // canon-exception: test-fixture
+        channelRepo as any,
+        createMockBusinessMetrics(),
+        // No cast: the double implements the WHOLE `UnitOfWork` port, and typing it as
+        // the port is what makes a future member of that port break this file.
+        uow.port
+      );
+    });
+
+    it("commits the schedule through the Result-aware seam", async () => {
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId],
+        scheduledFor: future,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(uow.state.resultCalls).toBe(1);
+      expect(uow.state.plainCalls).toBe(0);
+    });
+
+    it("aborts the transaction when the save fails, instead of resolving over the failure", async () => {
+      // The save is multi-statement (post row, content, media, outbox), so a failure
+      // raised after the first statement leaves a partial write. Handing the `err` back
+      // as a resolved callback tells the unit of work the work succeeded and COMMITS
+      // that partial write; the Result-aware seam rolls it back (ADR-0023).
+      repo.save.mockResolvedValueOnce(err(new Error("connection reset")));
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId],
+        scheduledFor: future,
+      });
+
+      expect(uow.state.rolledBack).toHaveLength(1);
+      expect(uow.state.plainCalls).toBe(0);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
     });
   });
 });

@@ -81,6 +81,20 @@ export class ValueTooLongError extends DomainError {
 }
 
 /**
+ * The stable discriminator for {@link InvalidStateTransitionError}.
+ *
+ * Exported for the same reason as {@link VERSION_CONFLICT_CODE}, and consumed
+ * by the same callers: a lifecycle refusal is the ONE domain refusal an
+ * application layer answers as a permission failure rather than a conflict, so
+ * recognising it decides an HTTP status. `instanceof` cannot make that decision
+ * across this package's dual conditional export, and a caller holding its own
+ * copy of the literal drifts the moment this one is renamed — silently, because
+ * the two strings are compared by nothing. The class below is constructed with
+ * this constant, so the value has one definition.
+ */
+export const INVALID_STATE_TRANSITION_CODE = "INVALID_STATE_TRANSITION";
+
+/**
  * Entity State Errors
  */
 export class InvalidStateTransitionError extends DomainError {
@@ -90,7 +104,7 @@ export class InvalidStateTransitionError extends DomainError {
   constructor(fromState: string, toState: string, entityType: string) {
     super(
       `Cannot transition ${entityType} from ${fromState} to ${toState}`,
-      "INVALID_STATE_TRANSITION"
+      INVALID_STATE_TRANSITION_CODE
     );
     this.fromState = fromState;
     this.toState = toState;
