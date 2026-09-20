@@ -9,6 +9,7 @@
  */
 
 import type { FastifyRequest, FastifyReply } from "fastify";
+import { enterTenantContext } from "../../../src/security/tenantContext.js";
 
 interface DecodedToken {
   sub?: string;
@@ -167,6 +168,12 @@ export function createCustomerAuthMock() {
         email: decoded.email || "",
         name: decoded.name || "Test User",
       };
+      // The real `requireClientAuth` binds the tenant for the rest of the async chain,
+      // and this double has to as well. Leaving it out made the double diverge from
+      // production on the ONE thing every tenant-scoped read depends on: the guard would
+      // have refused those reads against a real client, and adapters that state the
+      // requirement themselves refuse them here.
+      enterTenantContext({ accountId: userPayload.accountId });
     },
   };
 }

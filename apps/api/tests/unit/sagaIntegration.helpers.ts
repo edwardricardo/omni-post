@@ -305,10 +305,6 @@ function createMockPostRepo() {
       }
       return { ok: false, error: { kind: "NotFound" } } as any;
     },
-    findByProjectId: async () => ({ items: [], total: 0, page: 1, limit: 20 }),
-    findByStatus: async () => ({ items: [], total: 0, page: 1, limit: 20 }),
-    findReadyForPublishing: async () => [],
-    findWithFilters: async () => ({ items: [], total: 0, page: 1, limit: 20 }),
     countByProjectId: async () => 0,
     countByStatus: async () => 0,
     save: async () => ok(undefined),

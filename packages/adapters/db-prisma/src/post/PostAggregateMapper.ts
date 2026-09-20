@@ -5,15 +5,7 @@
  * @layer infrastructure
  */
 
-import type {
-  Post,
-  PostContent,
-  PostMedia,
-  ContentVersion,
-  MediaKind,
-  PostChannelPublication,
-  Provider,
-} from "@infra/prisma";
+import type { MediaKind, PostChannelPublication, Prisma, Provider } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import {
   PostAggregate,
@@ -54,14 +46,43 @@ export interface PrismaPostChannelPublicationWithChannel extends PostChannelPubl
 }
 
 /**
- * Prisma Post with relations
+ * The ONE `include` every aggregate hydration runs under.
+ *
+ * It is a shared constant rather than a literal per query because the aggregate answers
+ * record-derived predicates — the status word, the content lock, re-drivability — and a
+ * load that omitted `channelPublications` would answer them from a record set it never
+ * read. Naming the include once and deriving the mapper's input type from it is what
+ * makes "the records were not loaded" a state no caller can hand to the mapper.
+ *
+ * `as const` is load-bearing and not a style choice: a bare object literal widens each
+ * `true` to `boolean`, and {@link Prisma.PostGetPayload} over that widened type resolves
+ * to a UNION of payload variants in which `channelPublications` is no longer a required
+ * property. `satisfies` then checks the shape against Prisma's own input type without
+ * widening it back.
  */
-export interface PrismaPostWithRelations extends Post {
-  contents: PostContent[];
-  media: PostMedia[];
-  contentVersions: ContentVersion[];
-  channelPublications?: PrismaPostChannelPublicationWithChannel[];
-}
+export const POST_AGGREGATE_INCLUDE = {
+  contents: true,
+  media: true,
+  contentVersions: {
+    orderBy: { version: "desc" },
+  },
+  // The record travels with the aggregate: the word, the content lock and
+  // re-drivability are all read from it, so a post loaded without its records
+  // is a post that looks unpublished to every caller.
+  channelPublications: {
+    include: { channel: { select: { provider: true } } },
+    orderBy: { createdAt: "asc" },
+  },
+} as const satisfies Prisma.PostInclude;
+
+/**
+ * A Post row hydrated under {@link POST_AGGREGATE_INCLUDE} — every relation the
+ * aggregate reads, present by construction. It is the mapper's input type, so a query
+ * issued without that include cannot be passed to the mapper at all.
+ */
+export type PrismaPostWithRelations = Prisma.PostGetPayload<{
+  include: typeof POST_AGGREGATE_INCLUDE;
+}>;
 
 /** The database enum is uppercase; the domain's outcome kinds are not. */
 const OUTCOME_KIND: Record<string, PublicationOutcomeKind> = {
@@ -257,45 +278,24 @@ export class PostAggregateMapper {
    * @method toDomain
    * @description Map Prisma Post with relations to domain PostAggregate.
    *
-   *   The ONE place in this file that raises, and the honest reason is narrower than
-   *   "the list reads have no error channel". The publication refusals can only be
-   *   reached through `findById`, because that is the only read that includes
-   *   `channelPublications` at all; the five list reads never load a publication row and
-   *   so can never meet them. And `findById` DOES have an error channel — it returns
-   *   `Promise<Result<…>>` — it simply does not use it here: the raise passes straight
-   *   through it today, uncaught.
+   *   The ONE place in this file that raises, and its blast radius is now uniform across
+   *   every refusal — publication rows, media rows and the status word alike — because
+   *   {@link PrismaPostRepository.findById} is the ONLY read that reaches this mapper.
+   *   The four list loaders that also mapped through it are gone, so a refusal rejects
+   *   ONE post and can no longer reject a page.
    *
-   *   So the raise survives for exactly one reason: closing it means widening the
+   *   `findById` DOES have an error channel — it returns `Promise<Result<…>>` — it
+   *   simply does not use it here: the raise passes straight through it today, uncaught.
+   *   The raise therefore survives for exactly one reason: closing it means widening the
    *   `PostRepository.findById` port error union past `EntityNotFoundError` and narrowing
    *   every caller on it, which is the rework that owns `findById`, not this mapper.
    *   {@link PostAggregateMapper.reconstitute} is the same mapping as a `Result`, ready
    *   for that caller.
    *
-   *   Blast radius while it stands, and it is NOT uniform across the refusals — saying
-   *   "per-post" of all of them would be false:
-   *
-   *   - The PUBLICATION refusals are per-post. `channelPublications` is included by
-   *     `findById` alone (`PrismaPostRepository.ts:73`), so no list read can meet them.
-   *   - The MEDIA refusal is wider. `media: true` is included by `findById` AND by
-   *     `findByProjectId`, `findByStatus`, `findReadyForPublishing` and
-   *     `findWithFilters`, each of which maps this function over a page with no
-   *     try/catch and returns a `PaginatedResult` that has no error channel. One
-   *     corrupted media row therefore rejects the WHOLE PAGE from those four.
-   *
-   *   That is bounded by a fact about those four loaders rather than by this file: they
-   *   have no production consumer. The API's list reads go through
-   *   `PrismaPostQueryRepository`; the only callers of these four are their own two
-   *   suites, so a corrupted media row can reject a page only inside those suites. The
-   *   bound is the absence of consumers and nothing else: a future production caller of
-   *   any of the four would widen this refusal's reach with nothing in the tree to
-   *   notice, which is one more reason to retire them. Once they are gone, the per-post
-   *   claim is true of both refusals.
-   *
-   *   The drop this replaced was not data loss on the list path, and the distinction is
-   *   worth keeping straight: the deletion mechanism is `doUpdate` removing media the
-   *   aggregate no longer carries, which fires on `save()`. A list read never saves, so
-   *   there the old behaviour under-REPORTED. The loss needs a read followed by a save,
-   *   which is the `findById` path.
+   *   The drop this replaced was real data loss and the mechanism is worth keeping
+   *   straight: `doUpdate` removes media the aggregate no longer carries, which fires on
+   *   `save()`, so a media row dropped during a read is deleted by the next save of that
+   *   post. The loss needs a read followed by a save, which is exactly this path.
    * @param prismaPost - The row with its relations
    * @returns The aggregate
    */
@@ -371,11 +371,10 @@ export class PostAggregateMapper {
       });
 
       if (!mediaResult.ok) {
-        // Dropping it is the worse of the two answers ON THE READ-THEN-SAVE PATH, which
-        // is where it actually costs something: `doUpdate` derives the media to DELETE
-        // from what the aggregate carries, so a row dropped here is removed from the
-        // database by the next save of this post. A list read never saves, so there the
-        // drop under-reported rather than destroyed.
+        // Dropping it is the worse of the two answers, and the read-then-save path is
+        // the only path left: `doUpdate` derives the media to DELETE from what the
+        // aggregate carries, so a row dropped here is removed from the database by the
+        // next save of this post.
         //
         // RESIDUAL, and it is the widest surface this refusal opens: `MediaAttachment`
         // parses the url with `new URL(url)`, which rejects a RELATIVE one, while
@@ -398,12 +397,13 @@ export class PostAggregateMapper {
       ContentId.fromStringUnsafe(cv.id)
     );
 
-    // Map the per-channel publication records. An absent relation means the caller
-    // did not ask for them; an empty array means the post has declared no targets. A
-    // row that will not read back refuses the whole post: a post handed over with one
-    // of its channels missing is the "lost channel" this record exists to prevent.
+    // Map the per-channel publication records. The relation is present by construction
+    // — the input type is the payload of {@link POST_AGGREGATE_INCLUDE} — so an empty
+    // array means the post has declared no targets and nothing else. A row that will
+    // not read back refuses the whole post: a post handed over with one of its channels
+    // missing is the "lost channel" this record exists to prevent.
     const publications: ChannelPublication[] = [];
-    for (const row of prismaPost.channelPublications ?? []) {
+    for (const row of prismaPost.channelPublications) {
       const record = toChannelPublication(row);
       if (!record.ok) {
         return err(record.error);

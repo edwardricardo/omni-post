@@ -10,11 +10,6 @@ import { Prisma } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import {
   type PostRepository,
-  type PostFilterCriteria,
-  type PostSortField,
-  type PaginationParams,
-  type PaginatedResult,
-  type SortParams,
   PostAggregate,
   PostId,
   ProjectId,
@@ -23,24 +18,25 @@ import {
   type TenantScope,
   PUBLISH_STATUS,
   EntityNotFoundError,
+  InvariantViolationError,
   VersionConflictError,
 } from "@core/domain/index.js";
-import { resolveGucScope, withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
-import type { TenantContextProvider } from "@infra/prisma/extensions/tenantGuard.js";
+import {
+  resolveGucScope,
+  withGucBoundTransaction,
+  SYSTEM_TENANT_SCOPE,
+} from "@infra/prisma/extensions/tenantGuc.js";
+import {
+  TenantContextMissingError,
+  type TenantContextProvider,
+} from "@infra/prisma/extensions/tenantGuard.js";
 import type { OutboxWriter } from "@core/domain/repositories/OutboxWriter.js";
-import { PostAggregateMapper, type PrismaPostWithRelations } from "./PostAggregateMapper.js";
+import { PostAggregateMapper, POST_AGGREGATE_INCLUDE } from "./PostAggregateMapper.js";
 import { savePublicationRecord } from "./PostPublicationWrites.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 
 /** Local type alias for Prisma transaction client */
 type TxClient = Prisma.TransactionClient;
-
-/**
- * Default pagination settings
- */
-const DEFAULT_PAGE = 1;
-const DEFAULT_LIMIT = 20;
-const MAX_LIMIT = 100;
 
 /**
  * PrismaPostRepository - Implements PostRepository using Prisma
@@ -56,32 +52,37 @@ export class PrismaPostRepository implements PostRepository {
   ) {}
 
   /**
-   * Find a post by ID (excludes soft-deleted posts)
+   * @method findById
+   * @description Loads a post with every relation the aggregate reads, excluding
+   *   soft-deleted rows.
+   *
+   *   It refuses a load that carries NEITHER a tenant context NOR a system one, before
+   *   any statement is issued. The guard raises the same error for the same condition,
+   *   so this is redundant today and kept deliberately — the invariant belongs beside
+   *   the `include` that depends on it rather than being inherited from whichever
+   *   middleware happened to run first, and the error type is the guard's own so callers
+   *   see one shape and this signature does not widen. A `__system__` load is ADMITTED:
+   *   `withSystemContext()` is the canon's cross-tenant read and its hydration is total
+   *   for the post, so every record-derived predicate is answered from the whole set.
+   * @param id - The post to load
+   * @returns Result with the aggregate, or EntityNotFoundError when no row matches
+   * @throws TenantContextMissingError when no tenant or system scope is bound
    */
   async findById(id: PostId): Promise<Result<PostAggregate, EntityNotFoundError>> {
+    if (resolveGucScope(this.tenantProvider) === undefined) {
+      throw new TenantContextMissingError("Post", "findFirst");
+    }
+
     const post = await this.prisma.post.findFirst({
       where: { id: id.value, deletedAt: null },
-      include: {
-        contents: true,
-        media: true,
-        contentVersions: {
-          orderBy: { version: "desc" },
-        },
-        // The record travels with the aggregate: the word, the content lock and
-        // re-drivability are all read from it, so a post loaded without its records
-        // is a post that looks unpublished to every caller.
-        channelPublications: {
-          include: { channel: { select: { provider: true } } },
-          orderBy: { createdAt: "asc" },
-        },
-      },
+      include: POST_AGGREGATE_INCLUDE,
     });
 
     if (!post) {
       return err(new EntityNotFoundError("Post", id.value));
     }
 
-    return ok(PostAggregateMapper.toDomain(post as PrismaPostWithRelations));
+    return ok(PostAggregateMapper.toDomain(post));
   }
 
   /**
@@ -106,12 +107,32 @@ export class PrismaPostRepository implements PostRepository {
   /**
    * @method savePublication
    * @description The narrow publication save — the ONLY production writer of the
-   *   per-channel record. Its refusals, its statements and the reason it writes no
-   *   content live in {@link savePublicationRecord}.
+   *   per-channel record. Its remaining refusals, its statements and the reason it
+   *   writes no content live in {@link savePublicationRecord}.
+   *
+   *   The SCOPE refusal is here, before that call, so no statement is issued and no
+   *   transaction is opened for a write that cannot be tenant-bound. It refuses BOTH an
+   *   absent scope and the system sentinel, and the second is the one worth stating: a
+   *   system scope bypasses layer 1, so the row would be written with no injected
+   *   tenant. A publication write has a tenant by construction — the job's
+   *   `payload.accountId`, the request's context, the saga's runner, the sweep row's
+   *   re-read — so a system scope arriving here is a consumer that skipped the
+   *   per-tenant re-read, which is the defect rather than the scope.
    * @param aggregate - The post to persist
    * @returns Result.ok, or the error that refused the write
    */
   async savePublication(aggregate: PostAggregate): Promise<Result<void, Error>> {
+    const scope = resolveGucScope(this.tenantProvider);
+    if (scope === undefined || scope === SYSTEM_TENANT_SCOPE) {
+      return err(
+        new InvariantViolationError(
+          `post ${aggregate.id.value}: a publication write needs a tenant scope, and this one runs under ${
+            scope === undefined ? "none" : `the system scope ${SYSTEM_TENANT_SCOPE}`
+          } — re-read the post per tenant and write there`
+        )
+      );
+    }
+
     return savePublicationRecord(
       {
         outboxWriter: this.outboxWriter,
@@ -233,145 +254,6 @@ export class PrismaPostRepository implements PostRepository {
       where: { id: id.value, deletedAt: null },
     });
     return count > 0;
-  }
-
-  /**
-   * Find all posts for a project, inside an explicit tenant scope.
-   *
-   * `scope.accountId` goes into the `where` EXPLICITLY rather than being left to
-   * the guard's injection. The guard would supply it, but then the query would
-   * only be as scoped as the context happened to be; stated here, the guard
-   * VALIDATES it against the bound context instead and disagreement becomes a
-   * mismatch error rather than a silently different result set.
-   */
-  async findByProjectId(
-    scope: TenantScope,
-    projectId: ProjectId,
-    pagination?: PaginationParams,
-    sort?: SortParams<PostSortField>
-  ): Promise<PaginatedResult<PostAggregate>> {
-    const { page, limit } = this.normalizePagination(pagination);
-    const skip = (page - 1) * limit;
-
-    const [posts, total] = await Promise.all([
-      this.prisma.post.findMany({
-        where: { projectId: projectId.value, accountId: scope.accountId, deletedAt: null },
-        include: {
-          contents: true,
-          media: true,
-          contentVersions: {
-            orderBy: { version: "desc" },
-          },
-        },
-        orderBy: this.buildOrderBy(sort),
-        skip,
-        take: limit,
-      }),
-      this.prisma.post.count({
-        where: { projectId: projectId.value, accountId: scope.accountId, deletedAt: null },
-      }),
-    ]);
-
-    const items = posts.map((p) => PostAggregateMapper.toDomain(p as PrismaPostWithRelations));
-
-    return this.buildPaginatedResult(items, total, page, limit);
-  }
-
-  /**
-   * Find posts by status
-   */
-  async findByStatus(
-    status: PublishStatusValue | PublishStatusValue[],
-    pagination?: PaginationParams
-  ): Promise<PaginatedResult<PostAggregate>> {
-    const { page, limit } = this.normalizePagination(pagination);
-    const skip = (page - 1) * limit;
-
-    const statusArray = Array.isArray(status) ? status : [status];
-    const where: Prisma.PostWhereInput = {
-      status: { in: statusArray },
-      deletedAt: null,
-    };
-
-    const [posts, total] = await Promise.all([
-      this.prisma.post.findMany({
-        where,
-        include: {
-          contents: true,
-          media: true,
-          contentVersions: {
-            orderBy: { version: "desc" },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
-      }),
-      this.prisma.post.count({ where }),
-    ]);
-
-    const items = posts.map((p) => PostAggregateMapper.toDomain(p as PrismaPostWithRelations));
-
-    return this.buildPaginatedResult(items, total, page, limit);
-  }
-
-  /**
-   * Find posts ready for publishing (scheduled time has passed)
-   */
-  async findReadyForPublishing(limit = 100): Promise<PostAggregate[]> {
-    const posts = await this.prisma.post.findMany({
-      where: {
-        status: PUBLISH_STATUS.SCHEDULED,
-        scheduledAt: { lte: new Date() },
-        deletedAt: null,
-      },
-      include: {
-        contents: true,
-        media: true,
-        contentVersions: {
-          orderBy: { version: "desc" },
-        },
-      },
-      orderBy: { scheduledAt: "asc" },
-      take: limit,
-    });
-
-    return posts.map((p) => PostAggregateMapper.toDomain(p as PrismaPostWithRelations));
-  }
-
-  /**
-   * Find posts with filters
-   */
-  async findWithFilters(
-    filters: PostFilterCriteria,
-    pagination?: PaginationParams,
-    sort?: SortParams<PostSortField>
-  ): Promise<PaginatedResult<PostAggregate>> {
-    const { page, limit } = this.normalizePagination(pagination);
-    const skip = (page - 1) * limit;
-
-    const where = this.buildWhereClause(filters);
-
-    const [posts, total] = await Promise.all([
-      this.prisma.post.findMany({
-        where,
-        include: {
-          contents: true,
-          media: true,
-          contentVersions: {
-            orderBy: { version: "desc" },
-          },
-        },
-        orderBy: this.buildOrderBy(sort),
-        skip,
-        take: limit,
-      }),
-      this.prisma.post.count({ where }),
-    ]);
-
-    const items = posts.map((p) => PostAggregateMapper.toDomain(p as PrismaPostWithRelations));
-
-    return this.buildPaginatedResult(items, total, page, limit);
   }
 
   /**
@@ -815,128 +697,5 @@ export class PrismaPostRepository implements PostRepository {
     if (this.outboxWriter) {
       await this.outboxWriter.writeEvents(tx, aggregate.domainEvents);
     }
-  }
-
-  /**
-   * Normalize pagination parameters
-   */
-  private normalizePagination(pagination?: PaginationParams): { page: number; limit: number } {
-    return {
-      page: Math.max(DEFAULT_PAGE, pagination?.page ?? DEFAULT_PAGE),
-      limit: Math.min(MAX_LIMIT, Math.max(1, pagination?.limit ?? DEFAULT_LIMIT)),
-    };
-  }
-
-  /**
-   * Build order by clause for Prisma
-   */
-  private buildOrderBy(sort?: SortParams<PostSortField>): Prisma.PostOrderByWithRelationInput {
-    if (!sort) {
-      return { createdAt: "desc" };
-    }
-
-    const direction = sort.direction === "asc" ? "asc" : "desc";
-
-    switch (sort.field) {
-      case "createdAt":
-        return { createdAt: direction };
-      case "updatedAt":
-        return { updatedAt: direction };
-      case "scheduledAt":
-        return { scheduledAt: direction };
-      case "publishedAt":
-        return { publishedAt: direction };
-      case "status":
-        return { status: direction };
-      default:
-        return { createdAt: "desc" };
-    }
-  }
-
-  /**
-   * Build where clause from filters
-   */
-  private buildWhereClause(filters: PostFilterCriteria): Prisma.PostWhereInput {
-    const where: Prisma.PostWhereInput = { deletedAt: null };
-
-    if (filters.projectId) {
-      where.projectId = filters.projectId.value;
-    }
-
-    if (filters.status) {
-      const statusArray = Array.isArray(filters.status) ? filters.status : [filters.status];
-      where.status = { in: statusArray };
-    }
-
-    if (filters.scheduledBefore || filters.scheduledAfter) {
-      where.scheduledAt = {};
-      if (filters.scheduledBefore) {
-        where.scheduledAt.lte = filters.scheduledBefore;
-      }
-      if (filters.scheduledAfter) {
-        where.scheduledAt.gte = filters.scheduledAfter;
-      }
-    }
-
-    if (filters.createdBefore || filters.createdAfter) {
-      where.createdAt = {};
-      if (filters.createdBefore) {
-        where.createdAt.lte = filters.createdBefore;
-      }
-      if (filters.createdAfter) {
-        where.createdAt.gte = filters.createdAfter;
-      }
-    }
-
-    if (filters.hasMedia !== undefined) {
-      if (filters.hasMedia) {
-        where.media = { some: {} };
-      } else {
-        where.media = { none: {} };
-      }
-    }
-
-    if (filters.searchText) {
-      where.OR = [
-        {
-          contents: {
-            some: {
-              body: { contains: filters.searchText, mode: "insensitive" },
-            },
-          },
-        },
-        {
-          contents: {
-            some: {
-              title: { contains: filters.searchText, mode: "insensitive" },
-            },
-          },
-        },
-      ];
-    }
-
-    return where;
-  }
-
-  /**
-   * Build paginated result
-   */
-  private buildPaginatedResult<T>(
-    items: T[],
-    total: number,
-    page: number,
-    limit: number
-  ): PaginatedResult<T> {
-    const totalPages = Math.ceil(total / limit);
-
-    return {
-      items,
-      total,
-      page,
-      limit,
-      totalPages,
-      hasNext: page < totalPages,
-      hasPrevious: page > 1,
-    };
   }
 }

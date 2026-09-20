@@ -11,7 +11,10 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { PrismaPostRepository, PostAggregateMapper } from "@adapters/db-prisma";
-import { ambientTenantContextProvider } from "../../../src/security/tenantContext.js";
+import {
+  ambientTenantContextProvider,
+  withTenantContext,
+} from "../../../src/security/tenantContext.js";
 import {
   PostAggregate,
   PostId,
@@ -44,6 +47,13 @@ describe("PrismaPostRepository", () => {
    * the project belongs to rather than restated per call site.
    */
   const tenantScope = (): TenantScope => ({ accountId: testAccountId });
+
+  /**
+   * Runs `fn` inside that same tenant. `findById` refuses a load carrying neither a
+   * tenant nor a system scope, so every aggregate read binds one — the scope is read
+   * lazily because the fixture account only exists once `before` has run.
+   */
+  const asTenant = <T>(fn: () => Promise<T>): Promise<T> => withTenantContext(tenantScope(), fn);
 
   before(async () => {
     repository = new PrismaPostRepository(prisma, undefined, ambientTenantContextProvider);
@@ -128,7 +138,7 @@ describe("PrismaPostRepository", () => {
       assert.ok(saveResult.ok);
 
       // Retrieve it
-      const findResult = await repository.findById(aggregate.id);
+      const findResult = await asTenant(() => repository.findById(aggregate.id));
       assert.ok(findResult.ok);
 
       if (findResult.ok) {
@@ -164,7 +174,7 @@ describe("PrismaPostRepository", () => {
       assert.ok(updateResult.ok);
 
       // Retrieve and verify
-      const findResult = await repository.findById(aggregate.id);
+      const findResult = await asTenant(() => repository.findById(aggregate.id));
       assert.ok(findResult.ok);
 
       if (findResult.ok) {
@@ -174,7 +184,7 @@ describe("PrismaPostRepository", () => {
 
     it("should return error for non-existent post", async () => {
       const nonExistentId = PostId.generate();
-      const result = await repository.findById(nonExistentId);
+      const result = await asTenant(() => repository.findById(nonExistentId));
 
       assert.ok(!result.ok);
       if (!result.ok) {
@@ -243,99 +253,6 @@ describe("PrismaPostRepository", () => {
       if (!result.ok) {
         assert.equal(result.error.name, "EntityNotFoundError");
       }
-    });
-  });
-
-  describe("findByProjectId", () => {
-    it("should find all posts for a project with pagination", async () => {
-      const projectId = ProjectId.fromStringUnsafe(testProjectId);
-
-      // Create multiple posts
-      for (let i = 0; i < 5; i++) {
-        const result = PostAggregate.create({
-          projectId,
-          body: `Project post ${i}`,
-        });
-        if (result.ok) {
-          createdPostIds.push(result.value.id.value);
-          await repository.save(result.value);
-        }
-      }
-
-      // Find with pagination. The tenant scope is FIRST and required: the fixture's
-      // project belongs to `testAccountId`, so that is the scope this read runs inside.
-      const result = await repository.findByProjectId(tenantScope(), projectId, {
-        page: 1,
-        limit: 3,
-      });
-
-      assert.ok(result.items.length <= 3);
-      assert.ok(result.total >= 5);
-      assert.equal(result.page, 1);
-      assert.equal(result.limit, 3);
-    });
-  });
-
-  describe("findByStatus", () => {
-    it("should find posts by single status", async () => {
-      const projectId = ProjectId.fromStringUnsafe(testProjectId);
-      const result = PostAggregate.create({
-        projectId,
-        body: "Draft post",
-      });
-
-      assert.ok(result.ok);
-      if (!result.ok) return;
-
-      createdPostIds.push(result.value.id.value);
-      await repository.save(result.value);
-
-      const findResult = await repository.findByStatus(PUBLISH_STATUS.DRAFT);
-      assert.ok(findResult.items.length >= 1);
-      assert.ok(findResult.items.every((p) => p.isDraft));
-    });
-
-    it("should find posts by multiple statuses", async () => {
-      const result = await repository.findByStatus([
-        PUBLISH_STATUS.DRAFT,
-        PUBLISH_STATUS.SCHEDULED,
-      ]);
-
-      assert.ok(result.items.every((p) => p.isDraft || p.isScheduled));
-    });
-  });
-
-  describe("findReadyForPublishing", () => {
-    it("should find scheduled posts with passed time", async () => {
-      // This test requires posts with scheduledAt in the past
-      // In real scenarios, this would find posts ready to publish
-      const result = await repository.findReadyForPublishing(10);
-      assert.ok(Array.isArray(result));
-    });
-  });
-
-  describe("findWithFilters", () => {
-    it("should filter posts by project and status", async () => {
-      const projectId = ProjectId.fromStringUnsafe(testProjectId);
-
-      const result = await repository.findWithFilters({
-        projectId,
-        status: PUBLISH_STATUS.DRAFT,
-      });
-
-      assert.ok(result.items.every((p) => p.projectId.value === testProjectId));
-      assert.ok(result.items.every((p) => p.isDraft));
-    });
-
-    it("should filter posts with media", async () => {
-      const projectId = ProjectId.fromStringUnsafe(testProjectId);
-
-      const result = await repository.findWithFilters({
-        projectId,
-        hasMedia: false,
-      });
-
-      assert.ok(result.items.every((p) => p.media.length === 0));
     });
   });
 
@@ -548,6 +465,8 @@ describe("PostAggregateMapper", () => {
         ],
         media: [],
         contentVersions: [],
+        // The aggregate hydration always carries the records; this post declared none.
+        channelPublications: [],
       };
 
       const aggregate = PostAggregateMapper.toDomain(prismaPost);
@@ -586,6 +505,8 @@ describe("PostAggregateMapper", () => {
         ],
         media: [],
         contentVersions: [],
+        // The aggregate hydration always carries the records; this post declared none.
+        channelPublications: [],
       };
 
       const aggregate = PostAggregateMapper.toDomain(prismaPost);
@@ -634,6 +555,8 @@ describe("PostAggregateMapper", () => {
           },
         ],
         contentVersions: [],
+        // The aggregate hydration always carries the records; this post declared none.
+        channelPublications: [],
       };
 
       const aggregate = PostAggregateMapper.toDomain(prismaPost);

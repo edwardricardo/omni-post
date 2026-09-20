@@ -47,10 +47,6 @@ function makeMockPostRepository(template?: PostAggregate) {
       return ok(undefined);
     }),
     delete: vi.fn(),
-    findByProjectId: vi.fn(),
-    findByStatus: vi.fn(),
-    findReadyForPublishing: vi.fn(),
-    findWithFilters: vi.fn(),
     countByProjectId: vi.fn(),
     countByStatus: vi.fn(),
     getProjectStats: vi.fn(),

@@ -47,6 +47,9 @@ const postDefaults = {
   contents: [],
   media: [],
   contentVersions: [],
+  // The aggregate hydration always requests the per-channel records, so the double
+  // returns them; a row without the key is a row the mapper cannot read at all.
+  channelPublications: [],
 };
 
 // Add extra models needed by approval routes and their repositories

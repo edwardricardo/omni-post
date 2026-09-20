@@ -15,6 +15,7 @@ import { PrismaPostRepository, PrismaUnitOfWork, PostRowCorruptedError } from "@
 import { PostId, ProjectId, PUBLISH_STATUS } from "@core/domain/index.js";
 import {
   ambientTenantContextProvider,
+  withSystemContext,
   withTenantContext,
 } from "../../../src/security/tenantContext.js";
 
@@ -37,9 +38,17 @@ const POST_ID_2 = "c0000000-0000-4000-8000-000000000002";
 const ACCOUNT_ID = "a0000000-0000-4000-8000-000000000001";
 const CHANNEL_ID = "aa000000-0000-4000-8000-00000000000a";
 const PUBLISHED_AT = new Date("2026-03-01T09:00:00.000Z");
-// The tenant scope every project-keyed collection/aggregate read now takes
-// as its first argument.
+// The tenant scope every project-keyed count takes as its first argument.
 const scope = { accountId: ACCOUNT_ID };
+
+/**
+ * Runs `fn` inside a bound tenant. `findById` and `savePublication` both refuse a
+ * scopeless call now, so every case that is about something ELSE binds one first —
+ * the refusals have their own cases and this keeps them from firing everywhere.
+ */
+function asTenant<T>(fn: () => Promise<T>): Promise<T> {
+  return withTenantContext({ accountId: ACCOUNT_ID }, fn);
+}
 
 function basePostRow() {
   return {
@@ -336,7 +345,7 @@ describe("PrismaPostRepository", () => {
   describe("findById", () => {
     it("returns ok(PostAggregate) when row exists", async () => {
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.findById(id);
+      const result = await asTenant(() => repo.findById(id));
 
       expect(result.ok).toBeTruthy();
       expect(result.value.id.value).toBe(POST_ID);
@@ -348,7 +357,7 @@ describe("PrismaPostRepository", () => {
 
     it("queries with deletedAt: null to exclude soft-deleted posts", async () => {
       const id = PostId.fromStringUnsafe(POST_ID);
-      await repo.findById(id);
+      await asTenant(() => repo.findById(id));
 
       const callRecord = prisma.post.findFirst.mock.calls[0];
       const args = callRecord?.[0] as { where: { deletedAt: unknown } } | undefined;
@@ -358,7 +367,7 @@ describe("PrismaPostRepository", () => {
     it("returns err(EntityNotFoundError) when row is null", async () => {
       prisma.post.findFirst.mockImplementation(async () => null);
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.findById(id);
+      const result = await asTenant(() => repo.findById(id));
 
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/Post/);
@@ -384,7 +393,7 @@ describe("PrismaPostRepository", () => {
       prisma.post.findFirst.mockImplementation(async () => rowWithMedia);
 
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.findById(id);
+      const result = await asTenant(() => repo.findById(id));
 
       expect(result.ok).toBeTruthy();
       expect(result.value.media.length).toBe(1);
@@ -402,7 +411,7 @@ describe("PrismaPostRepository", () => {
       prisma.post.findFirst.mockImplementation(async () => scheduledRow);
 
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.findById(id);
+      const result = await asTenant(() => repo.findById(id));
 
       expect(result.ok).toBeTruthy();
       expect(result.value.status.value).toBe("SCHEDULED");
@@ -427,7 +436,7 @@ describe("PrismaPostRepository", () => {
         ],
       }));
 
-      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(
+      await expect(asTenant(() => repo.findById(PostId.fromStringUnsafe(POST_ID)))).rejects.toThrow(
         /live fragment/i
       );
     });
@@ -446,7 +455,9 @@ describe("PrismaPostRepository", () => {
         ],
       }));
 
-      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(/fingerprint/i);
+      await expect(asTenant(() => repo.findById(PostId.fromStringUnsafe(POST_ID)))).rejects.toThrow(
+        /fingerprint/i
+      );
     });
 
     it("refuses the post when a published row carries no content fingerprint at all", async () => {
@@ -462,7 +473,9 @@ describe("PrismaPostRepository", () => {
         ],
       }));
 
-      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(/fingerprint/i);
+      await expect(asTenant(() => repo.findById(PostId.fromStringUnsafe(POST_ID)))).rejects.toThrow(
+        /fingerprint/i
+      );
     });
 
     it("refuses the post when an excluded row carries an unrecognised reason code", async () => {
@@ -471,7 +484,9 @@ describe("PrismaPostRepository", () => {
         channelPublications: [publicationRow({ outcome: "EXCLUDED", reasonCode: "NOT_A_REASON" })],
       }));
 
-      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(/reason/i);
+      await expect(asTenant(() => repo.findById(PostId.fromStringUnsafe(POST_ID)))).rejects.toThrow(
+        /reason/i
+      );
     });
 
     it("returns the post with every stored fragment when the row reads back cleanly", async () => {
@@ -491,7 +506,7 @@ describe("PrismaPostRepository", () => {
         ],
       }));
 
-      const result = await repo.findById(PostId.fromStringUnsafe(POST_ID));
+      const result = await asTenant(() => repo.findById(PostId.fromStringUnsafe(POST_ID)));
 
       expect(result.ok).toBeTruthy();
       const records = result.value.publications.all;
@@ -505,9 +520,9 @@ describe("PrismaPostRepository", () => {
         channelPublications: [publicationRow({ outcome: "EXCLUDED", reasonCode: "NOT_A_REASON" })],
       }));
 
-      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toBeInstanceOf(
-        PostRowCorruptedError
-      );
+      await expect(
+        asTenant(() => repo.findById(PostId.fromStringUnsafe(POST_ID)))
+      ).rejects.toBeInstanceOf(PostRowCorruptedError);
     });
 
     it("refuses the post when an unresolved row carries a settled external id", async () => {
@@ -518,7 +533,9 @@ describe("PrismaPostRepository", () => {
         channelPublications: [publicationRow({ outcome: "UNRESOLVED", externalId: "frag-1" })],
       }));
 
-      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(/unresolved/i);
+      await expect(asTenant(() => repo.findById(PostId.fromStringUnsafe(POST_ID)))).rejects.toThrow(
+        /unresolved/i
+      );
     });
 
     it("refuses the post when a stored external id cannot be read as a reference", async () => {
@@ -538,7 +555,7 @@ describe("PrismaPostRepository", () => {
 
       // Reading it as "the provider returned nothing" would flip externalIdMissing from
       // false to true — a different fact about the publication, not a repair of this one.
-      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(
+      await expect(asTenant(() => repo.findById(PostId.fromStringUnsafe(POST_ID)))).rejects.toThrow(
         /external id|reference/i
       );
     });
@@ -563,7 +580,59 @@ describe("PrismaPostRepository", () => {
 
       // Dropping it is worse than refusing: `doUpdate` computes the media to delete from
       // what the aggregate carries, so a dropped row is deleted on the next save.
-      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(/media/i);
+      await expect(asTenant(() => repo.findById(PostId.fromStringUnsafe(POST_ID)))).rejects.toThrow(
+        /media/i
+      );
+    });
+  });
+
+  // ── findById: the load states its own scope requirement ─────────────────────
+
+  describe("findById — the scope the records are hydrated under", () => {
+    it("refuses a load with neither a tenant nor a system context, issuing no statement", async () => {
+      // The guard raises the same error for the same condition. Stating it here too
+      // keeps the invariant beside the `include` that depends on it rather than
+      // inheriting it from whichever middleware happens to run first.
+      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(
+        /No TenantContext or SystemContext bound for Post\.findFirst/
+      );
+      expect(prisma.post.findFirst.mock.calls.length).toBe(0);
+    });
+
+    it("admits a system-scoped load and hydrates the publication records on it", async () => {
+      // `withSystemContext()` IS the canon's cross-tenant read and its hydration is
+      // TOTAL for the post, so the predicates it feeds are answered from every record
+      // the post has. That the include travels with the system load is pinned as
+      // MEASURED behaviour, not assumed: it is the one scope where layer 1 steps aside.
+      const result = await withSystemContext("test:publication-read", () =>
+        repo.findById(PostId.fromStringUnsafe(POST_ID))
+      );
+
+      expect(result.ok).toBeTruthy();
+      expect(prisma.post.findFirst.mock.calls.length).toBe(1);
+      const args = prisma.post.findFirst.mock.calls[0]?.[0] as {
+        include: {
+          channelPublications: { include: { channel: { select: { provider: boolean } } } };
+          contents: boolean;
+          media: boolean;
+        };
+      };
+      expect(args.include.channelPublications).toBeDefined();
+      expect(args.include.channelPublications.include.channel.select.provider).toBe(true);
+      expect(args.include.contents).toBe(true);
+      expect(args.include.media).toBe(true);
+    });
+
+    it("admits a tenant-scoped load and hydrates the same records on it", async () => {
+      const result = await withTenantContext({ accountId: ACCOUNT_ID }, () =>
+        repo.findById(PostId.fromStringUnsafe(POST_ID))
+      );
+
+      expect(result.ok).toBeTruthy();
+      const args = prisma.post.findFirst.mock.calls[0]?.[0] as {
+        include: { channelPublications: unknown };
+      };
+      expect(args.include.channelPublications).toBeDefined();
     });
   });
 
@@ -789,7 +858,7 @@ describe("PrismaPostRepository", () => {
       // exists() returns true → update path
       prisma.post.count.mockImplementation(async () => 1);
 
-      const findResult = await repo.findById(PostId.fromStringUnsafe(POST_ID));
+      const findResult = await asTenant(() => repo.findById(PostId.fromStringUnsafe(POST_ID)));
       expect(findResult.ok).toBeTruthy();
 
       const saveResult = await repo.save(findResult.value);
@@ -808,246 +877,13 @@ describe("PrismaPostRepository", () => {
         throw new Error("Constraint violation");
       });
 
-      const findResult = await repo.findById(PostId.fromStringUnsafe(POST_ID));
+      const findResult = await asTenant(() => repo.findById(PostId.fromStringUnsafe(POST_ID)));
       expect(findResult.ok).toBeTruthy();
 
       const saveResult = await repo.save(findResult.value);
 
       expect(saveResult.ok).toBeFalsy();
       expect(saveResult.error.message).toMatch(/Constraint violation/);
-    });
-  });
-
-  // ── findByProjectId ─────────────────────────────────────────────────────────
-
-  describe("findByProjectId", () => {
-    it("returns paginated result with correct structure", async () => {
-      const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.findByProjectId(scope, projectId);
-
-      expect(result.items.length).toBe(1);
-      expect(result.total).toBe(1);
-      expect(result.page).toBe(1);
-      expect(result.limit).toBe(20);
-      expect(result.totalPages).toBe(1);
-      expect(result.hasNext).toBe(false);
-      expect(result.hasPrevious).toBe(false);
-    });
-
-    it("applies custom pagination correctly", async () => {
-      // Return multiple rows so pagination kicks in
-      prisma.post.findMany.mockImplementation(async () => [
-        basePostRow(),
-        { ...basePostRow(), id: POST_ID_2 },
-      ]);
-      prisma.post.count.mockImplementation(async () => 10);
-
-      const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.findByProjectId(scope, projectId, { page: 2, limit: 2 });
-
-      expect(result.page).toBe(2);
-      expect(result.limit).toBe(2);
-      expect(result.total).toBe(10);
-      expect(result.totalPages).toBe(5);
-      expect(result.hasNext).toBe(true);
-      expect(result.hasPrevious).toBe(true);
-
-      // Verify skip was calculated correctly (page 2, limit 2 → skip 2)
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as { skip: number; take: number } | undefined;
-      expect(args?.skip).toBe(2);
-      expect(args?.take).toBe(2);
-    });
-
-    it("filters by projectId and deletedAt: null", async () => {
-      const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.findByProjectId(scope, projectId);
-
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as { where: Record<string, unknown> } | undefined;
-      expect(args?.where.projectId).toBe(PROJECT_ID);
-      expect(args?.where.deletedAt).toEqual(null);
-    });
-
-    it("applies sort parameter correctly", async () => {
-      const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.findByProjectId(scope, projectId, undefined, {
-        field: "scheduledAt",
-        direction: "asc",
-      });
-
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as { orderBy: Record<string, unknown> } | undefined;
-      expect(args?.orderBy).toEqual({ scheduledAt: "asc" });
-    });
-  });
-
-  // ── findByStatus ────────────────────────────────────────────────────────────
-
-  describe("findByStatus", () => {
-    it("returns paginated posts for a single status", async () => {
-      const scheduledRow = { ...basePostRow(), status: "SCHEDULED" };
-      prisma.post.findMany.mockImplementation(async () => [scheduledRow]);
-      prisma.post.count.mockImplementation(async () => 1);
-
-      const result = await repo.findByStatus(PUBLISH_STATUS.SCHEDULED);
-
-      expect(result.items.length).toBe(1);
-      expect(result.items[0]?.status.value).toBe("SCHEDULED");
-    });
-
-    it("accepts an array of statuses", async () => {
-      await repo.findByStatus([PUBLISH_STATUS.DRAFT, PUBLISH_STATUS.SCHEDULED]);
-
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as { where: { status: { in: string[] } } } | undefined;
-      expect(args?.where.status.in).toEqual(["DRAFT", "SCHEDULED"]);
-    });
-
-    it("always includes deletedAt: null filter", async () => {
-      await repo.findByStatus(PUBLISH_STATUS.DRAFT);
-
-      const callRecord = prisma.post.count.mock.calls[0];
-      const args = callRecord?.[0] as { where: { deletedAt: unknown } } | undefined;
-      expect(args?.where.deletedAt).toEqual(null);
-    });
-  });
-
-  // ── findReadyForPublishing ──────────────────────────────────────────────────
-
-  describe("findReadyForPublishing", () => {
-    it("returns posts with SCHEDULED status and past scheduledAt", async () => {
-      const pastDate = new Date(Date.now() - 3600_000);
-      const scheduledRow = {
-        ...basePostRow(),
-        status: "SCHEDULED",
-        scheduledAt: pastDate,
-      };
-      prisma.post.findMany.mockImplementation(async () => [scheduledRow]);
-
-      const posts = await repo.findReadyForPublishing();
-
-      expect(posts.length).toBe(1);
-      expect(posts[0]?.status.value).toBe("SCHEDULED");
-    });
-
-    it("passes limit to Prisma take", async () => {
-      prisma.post.findMany.mockImplementation(async () => []);
-
-      await repo.findReadyForPublishing(50);
-
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as { take: number } | undefined;
-      expect(args?.take).toBe(50);
-    });
-
-    it("uses default limit of 100 when not specified", async () => {
-      prisma.post.findMany.mockImplementation(async () => []);
-
-      await repo.findReadyForPublishing();
-
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as { take: number } | undefined;
-      expect(args?.take).toBe(100);
-    });
-
-    it("filters by SCHEDULED status and lte scheduledAt", async () => {
-      prisma.post.findMany.mockImplementation(async () => []);
-
-      await repo.findReadyForPublishing();
-
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as
-        | {
-            where: { status: string; scheduledAt: { lte: Date }; deletedAt: unknown };
-          }
-        | undefined;
-      expect(args?.where.status).toBe("SCHEDULED");
-      expect(args?.where.scheduledAt.lte instanceof Date).toBeTruthy();
-      expect(args?.where.deletedAt).toEqual(null);
-    });
-  });
-
-  // ── findWithFilters ─────────────────────────────────────────────────────────
-
-  describe("findWithFilters", () => {
-    it("returns paginated result with no filters (base deletedAt: null)", async () => {
-      const result = await repo.findWithFilters({});
-
-      expect(result.items.length).toBe(1);
-      expect(result.total).toBe(1);
-    });
-
-    it("applies projectId filter", async () => {
-      const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.findWithFilters({ projectId });
-
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as { where: { projectId: string } } | undefined;
-      expect(args?.where.projectId).toBe(PROJECT_ID);
-    });
-
-    it("applies status filter (array)", async () => {
-      await repo.findWithFilters({ status: [PUBLISH_STATUS.DRAFT, PUBLISH_STATUS.PUBLISHED] });
-
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as { where: { status: { in: string[] } } } | undefined;
-      expect(args?.where.status.in).toEqual(["DRAFT", "PUBLISHED"]);
-    });
-
-    it("applies date range filters for scheduledBefore and scheduledAfter", async () => {
-      const before = new Date("2026-02-01");
-      const after = new Date("2026-01-01");
-      await repo.findWithFilters({ scheduledBefore: before, scheduledAfter: after });
-
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as
-        | {
-            where: { scheduledAt: { lte: Date; gte: Date } };
-          }
-        | undefined;
-      expect(args?.where.scheduledAt.lte).toEqual(before);
-      expect(args?.where.scheduledAt.gte).toEqual(after);
-    });
-
-    it("applies date range filters for createdBefore and createdAfter", async () => {
-      const before = new Date("2026-02-01");
-      const after = new Date("2026-01-01");
-      await repo.findWithFilters({ createdBefore: before, createdAfter: after });
-
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as
-        | {
-            where: { createdAt: { lte: Date; gte: Date } };
-          }
-        | undefined;
-      expect(args?.where.createdAt.lte).toEqual(before);
-      expect(args?.where.createdAt.gte).toEqual(after);
-    });
-
-    it("applies hasMedia: true filter using some: {}", async () => {
-      await repo.findWithFilters({ hasMedia: true });
-
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as { where: { media: unknown } } | undefined;
-      expect(args?.where.media).toEqual({ some: {} });
-    });
-
-    it("applies hasMedia: false filter using none: {}", async () => {
-      await repo.findWithFilters({ hasMedia: false });
-
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as { where: { media: unknown } } | undefined;
-      expect(args?.where.media).toEqual({ none: {} });
-    });
-
-    it("applies searchText filter on contents body and title", async () => {
-      await repo.findWithFilters({ searchText: "hello" });
-
-      const callRecord = prisma.post.findMany.mock.calls[0];
-      const args = callRecord?.[0] as { where: { OR: unknown[] } } | undefined;
-      expect(Array.isArray(args?.where.OR)).toBeTruthy();
-      expect(args?.where.OR.length).toBe(2);
     });
   });
 
@@ -1193,7 +1029,7 @@ describe("PrismaPostRepository", () => {
     it("writes the status, the publication moment and the version bump, and no content or media statement", async () => {
       const post = await makePublishedAggregate();
 
-      const result = await repo.savePublication(post);
+      const result = await asTenant(() => repo.savePublication(post));
 
       expect(result.ok).toBeTruthy();
       const tx = prisma._txClient;
@@ -1221,7 +1057,7 @@ describe("PrismaPostRepository", () => {
     it("upserts one publication row per record, keyed by (post, channel) and carrying the parent's tenant", async () => {
       const post = await makePublishedAggregate();
 
-      const result = await repo.savePublication(post);
+      const result = await asTenant(() => repo.savePublication(post));
 
       expect(result.ok).toBeTruthy();
       const tx = prisma._txClient;
@@ -1295,7 +1131,7 @@ describe("PrismaPostRepository", () => {
       );
       const post = await makePublishedAggregate();
 
-      const result = await outboxRepo.savePublication(post);
+      const result = await asTenant(() => outboxRepo.savePublication(post));
 
       expect(result.ok).toBeTruthy();
       expect(writeEvents.mock.calls.length).toBe(1);
@@ -1309,7 +1145,7 @@ describe("PrismaPostRepository", () => {
     it("refuses when a content event is pending, writing nothing", async () => {
       const post = await makeEditedAggregate();
 
-      const result = await repo.savePublication(post);
+      const result = await asTenant(() => repo.savePublication(post));
 
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/PostContentUpdated/);
@@ -1321,7 +1157,7 @@ describe("PrismaPostRepository", () => {
     it("refuses when a media event is pending, writing nothing", async () => {
       const post = await makeMediaAddedAggregate();
 
-      const result = await repo.savePublication(post);
+      const result = await asTenant(() => repo.savePublication(post));
 
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/PostMediaAdded/);
@@ -1335,7 +1171,7 @@ describe("PrismaPostRepository", () => {
       prisma._txClient.post.findUnique = vi.fn(async () => ({ version: 7 }));
       const post = await makePublishedAggregate();
 
-      const result = await repo.savePublication(post);
+      const result = await asTenant(() => repo.savePublication(post));
 
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/version conflict/i);
@@ -1364,11 +1200,43 @@ describe("PrismaPostRepository", () => {
         publications: [...post.publications.all, declared],
       });
 
-      const result = await repo.savePublication(diverged);
+      const result = await asTenant(() => repo.savePublication(diverged));
 
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/derives/);
       expect(prisma._txClient.post.update.mock.calls.length).toBe(0);
+    });
+
+    it("refuses a write with no tenant scope, opening no transaction", async () => {
+      // A publication write has a tenant by construction — the job's payload, the
+      // request's context, the saga's runner, the sweep row's re-read all carry one.
+      // A write arriving without any is a consumer that skipped that re-read.
+      const post = await makePublishedAggregate();
+
+      const result = await repo.savePublication(post);
+
+      expect(result.ok).toBeFalsy();
+      expect(result.error.name).toBe("InvariantViolationError");
+      expect(prisma.$transaction.mock.calls.length).toBe(0);
+      expect(prisma._txClient.post.update.mock.calls.length).toBe(0);
+      expect(prisma._txClient.postChannelPublication.upsert.mock.calls.length).toBe(0);
+    });
+
+    it("refuses a write under the system scope, opening no transaction", async () => {
+      // `__system__` is a READ scope: it bypasses layer 1, so the row this would write
+      // would carry no injected tenant. The cross-tenant consumer re-reads per tenant
+      // and writes there instead.
+      const post = await makePublishedAggregate();
+
+      const result = await withSystemContext("test:publication-write", () =>
+        repo.savePublication(post)
+      );
+
+      expect(result.ok).toBeFalsy();
+      expect(result.error.name).toBe("InvariantViolationError");
+      expect(result.error.message).toMatch(/system/i);
+      expect(prisma.$transaction.mock.calls.length).toBe(0);
+      expect(prisma._txClient.postChannelPublication.upsert.mock.calls.length).toBe(0);
     });
 
     it("writes NO publication row from the full save, even with targets declared", async () => {

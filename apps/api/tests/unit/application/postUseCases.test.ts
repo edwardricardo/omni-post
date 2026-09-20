@@ -54,10 +54,6 @@ function createMockPostRepository() {
       store.delete(id.value);
       return ok(undefined);
     }),
-    findByProjectId: vi.fn(),
-    findByStatus: vi.fn(),
-    findReadyForPublishing: vi.fn(),
-    findWithFilters: vi.fn(),
     countByProjectId: vi.fn(),
     countByStatus: vi.fn(),
     getProjectStats: vi.fn(),

@@ -1339,3 +1339,299 @@ exact `acknowledge-approved` returned `gentle-ai.review-acknowledged/v1` with
 `authority: burned`. No correction was opened and no advisory finding was left. With this
 receipt, every code commit of the hardening on both branches carries a burned committed-range
 review: 1b `cda2c7d4 → 57430ca4`, 1b2 `fcddefa8 → acf91453` and `acf91453 → 1dab4984`.
+
+---
+
+## PR 1c — grandchild `1c-1a` (T1c.4a) — COMPLETE
+
+Branch `workstream/ncor8-1c`, child of `workstream/ncor8-1b2` @ `e6d734b1`. One task, the D19
+doors: the mapper's input type, the five cast deletions, the four unconsumed list loaders and
+their orphaned machinery, and the two scope refusals. Landed in the **authorised (deletion)**
+form — Edward authorised it on 2026-09-20 and extended the authorisation to "cualquier artefacto
+asociado que carezca de una funcionalidad real", so D19 (b)'s declined-branch `PostListItem`
+fallback was never a branch here.
+
+**Finish state**: no object that answers `isEditable`, `hasLiveContent()`, `redrivable()` or
+`derive()` can be produced from a load without the per-channel records — the mapper's parameter
+type is the payload of the one include, so a query issued without it does not compile. A
+publication write without a tenant, or under the system sentinel, is refused before any
+statement.
+
+### What each mechanism is, as built
+
+| Mechanism             | As built                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| (i) input type        | `POST_AGGREGATE_INCLUDE` exported from `PostAggregateMapper.ts`, `as const satisfies Prisma.PostInclude`; `PrismaPostWithRelations` is now `Prisma.PostGetPayload<{ include: typeof POST_AGGREGATE_INCLUDE }>`, still exported from the package barrel at **`packages/adapters/db-prisma/src/index.ts:54`** (the design cites `:48`; as built it is `:54`, and the citation is corrected HERE rather than in the design) — the optional `channelPublications?` and the `?? []` are gone |
+| (ii) casts            | all five `as PrismaPostWithRelations` deleted; `findById` passes the const to `findFirst`                                                                                                                                                                                                                                                                                                                                                                                               |
+| (iii) loaders         | `findByProjectId`, `findByStatus`, `findReadyForPublishing`, `findWithFilters` deleted from the port and the adapter, from **TEN** stubbing test files (tasks.md names nine; the tenth is below) and from the two adapter suites' describes                                                                                                                                                                                                                                             |
+| (iii-b) sweep         | seven orphaned adapter artefacts deleted, measured — table below                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| (iv) `findById`       | resolves `resolveGucScope(this.tenantProvider)` BEFORE the query and throws the guard's own `TenantContextMissingError("Post", "findFirst")` on `undefined`; `__system__` is ADMITTED                                                                                                                                                                                                                                                                                                   |
+| (v) `savePublication` | refuses `undefined` AND `SYSTEM_TENANT_SCOPE` with `err(InvariantViolationError)` before `savePublicationRecord` — zero statements, no transaction. The fitness #40 Part B token is untouched and sits at **`PrismaPostRepository.ts:142`** as built (`withGucBoundTransaction(this.prisma, resolveGucScope(this.tenantProvider), statements)`; the design cites `:121`, which was its pre-change line)                                                                                 |
+
+### The recorded reds
+
+**(e) the runtime RED on the list path — recorded DELIBERATELY, restored sha256-exact.** The
+design predicted `[...undefined]` at `PostAggregate.ts:154`. Measured, the throw lands one frame
+EARLIER: the mapper is the first consumer of the absent relation, so its own `for…of` raises
+before the root's spread is reached. Same class, stricter site — stated rather than smoothed over.
+
+Two further corrections to the design's recipe, both measured:
+
+1. Removing ONLY `PostAggregate.ts:154`'s default was not enough — the run stayed green, because
+   the mapper's `?? []` fills `state.publications` with `[]` before the root ever sees it. BOTH
+   defaults had to go for `undefined` to reach anything.
+2. `PrismaPostRepository.test.ts`'s `basePostRow()` carries `channelPublications: []`, so the
+   suite's own `findByStatus` case could not produce the state either: its double returns the key
+   the production include never requested. The red was therefore recorded against a double that
+   returns exactly what `findByStatus`'s include block yields — a row with no such key — in a
+   temporary file deleted immediately afterwards.
+
+```text
+ FAIL  tests/unit/infrastructure/ncor8RedE.test.ts > D19 (e) — the list loader maps a load without the records
+TypeError: prismaPost.channelPublications is not iterable
+ ❯ PostAggregateMapper.reconstitute ../../packages/adapters/db-prisma/src/post/PostAggregateMapper.ts:406:34
+ ❯ PostAggregateMapper.toDomain ../../packages/adapters/db-prisma/src/post/PostAggregateMapper.ts:303:39
+ ❯ PrismaPostRepository.findByStatus ../../packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:313:25
+```
+
+The fail-open half is recorded too, and it is the half that matters: with both defaults in place
+that SAME row mapped to `publications: []` and the test asserting `publications.size === 0`
+PASSED — a post whose records were never loaded reading as a post with no records.
+
+Restored: `packages/core/domain/src/aggregates/PostAggregate.ts`
+`e2c6a3be0cc7809fe8669bb9ed840c0cd453bed3dcc471b6e139be5c1c928db9` and
+`packages/adapters/db-prisma/src/post/PostAggregateMapper.ts`
+`bd9a33fbc1a7a50c0ec4b27cb446bfce16518a4140f2cb440e1bed903b815022`, both byte-identical to the
+pre-edit hashes; the temporary recorder file was deleted and never entered the diff.
+
+**(d) the compile RED — exactly what D19 predicted.** After (i) and (ii) and BEFORE (iii),
+`tsc -p packages/adapters/db-prisma` refused the four list loaders and passed `findById`:
+
+```text
+src/post/PrismaPostRepository.ts(308,65): error TS2345: Argument of type '{ media: …; contents: …;
+  contentVersions: …; } & { … }' is not assignable to parameter of type '{ media: …;
+  channelPublications: ({ … } & { … })[]; contents: …; contentVer…'.
+  Property 'channelPublications' is missing in type '…' but required in type '…'.
+src/post/PrismaPostRepository.ts(346,65): error TS2345: … (findByStatus)
+src/post/PrismaPostRepository.ts(372,58): error TS2345: … (findReadyForPublishing)
+src/post/PrismaPostRepository.ts(405,65): error TS2345: … (findWithFilters)
+```
+
+The `as const` is what makes that error exist: the property stayed REQUIRED instead of dissolving
+into a union of payload variants. No assertion was added to silence it — the loaders were deleted.
+
+**(a) / (c) the behavioural RED**, recorded before the refusals were written:
+
+```text
+ ❯ tests/unit/infrastructure/PrismaPostRepository.test.ts (74 tests | 3 failed)
+   × refuses a load with neither a tenant nor a system context, issuing no statement
+     AssertionError: promise resolved "{ ok: true, …(1) }" instead of rejecting
+   × refuses a write with no tenant scope, opening no transaction
+     AssertionError: expected true to be falsy
+   × refuses a write under the system scope, opening no transaction
+     AssertionError: expected true to be falsy
+```
+
+**(b) is an APPROVAL case, declared as such.** The system-scoped load already carried the include,
+so the case was green on arrival. That is what D19 asked for — the FULL hydration pinned as
+MEASURED behaviour, not assumed — and it is characterization, not a red-then-green cycle. Its
+tenant-scoped twin was added as the triangulating second admit branch (`getSystemContext` vs
+`getTenantContext` are different arms of `resolveGucScope`).
+
+### Associated-artefact sweep (iii-b) — every artefact measured, none guessed
+
+Method: `rg` over `{apps,packages,infra}/**/src/**/*.ts` excluding `node_modules`, `dist`,
+`.next`, `.stryker*`. Module-private constants and `private` methods are additionally
+structurally unreachable from outside their file, so their in-file count IS their consumer count.
+
+| Artefact                                                                                                                                     | Consumers measured                                                                                                                                                                                                                                                        | Disposition                                                                                                                                                                                                                            |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PostRepository.findByProjectId/findByStatus/findReadyForPublishing/findWithFilters` (port)                                                  | 0 production call sites — every `findByProjectId(` hit in `src/**` is on another repository (campaigns, channels, external configs, customer users, reports, images, recurring, analytics, tracked links); the other three names appear ONLY on this port and its adapter | **DELETED**                                                                                                                                                                                                                            |
+| `PrismaPostRepository.normalizePagination`                                                                                                   | 1 in-file occurrence after the loaders left = its own declaration                                                                                                                                                                                                         | **DELETED**                                                                                                                                                                                                                            |
+| `PrismaPostRepository.buildOrderBy`                                                                                                          | 1 (declaration only)                                                                                                                                                                                                                                                      | **DELETED**                                                                                                                                                                                                                            |
+| `PrismaPostRepository.buildWhereClause`                                                                                                      | 1 (declaration only). The five other files holding that name declare their OWN private copies                                                                                                                                                                             | **DELETED**                                                                                                                                                                                                                            |
+| `PrismaPostRepository.buildPaginatedResult`                                                                                                  | 1 (declaration only)                                                                                                                                                                                                                                                      | **DELETED**                                                                                                                                                                                                                            |
+| `DEFAULT_PAGE` / `DEFAULT_LIMIT` / `MAX_LIMIT` (module consts)                                                                               | 2 each = declaration + the one use inside `normalizePagination`                                                                                                                                                                                                           | **DELETED** with it                                                                                                                                                                                                                    |
+| type imports `PostFilterCriteria`, `PostSortField`, `PaginationParams`, `PaginatedResult`, `SortParams` in the adapter                       | 1 each (the import line)                                                                                                                                                                                                                                                  | **import removed** from the adapter — the types themselves are KEPT                                                                                                                                                                    |
+| `PostFilterCriteria` / `PostSortField` / `PaginationParams` / `PaginatedResult` / `SortParams` (the types in `@core/domain`)                 | LIVE — `PostQueryRepository.listByProject`, `search`, `getUpcoming`, `listGlobal`                                                                                                                                                                                         | **KEPT and NAMED**                                                                                                                                                                                                                     |
+| `PrismaPostChannelPublicationWithChannel`                                                                                                    | LIVE — `toChannelPublication`'s parameter                                                                                                                                                                                                                                 | **KEPT and NAMED**                                                                                                                                                                                                                     |
+| `PrismaPostWithRelations` (the exported name)                                                                                                | LIVE — the package barrel exports it and the 1b ledger's reasoning stands                                                                                                                                                                                                 | **KEPT**, re-typed as the payload alias                                                                                                                                                                                                |
+| `apps/api/tests/unit/cqrsIntegration.test-helpers.ts` (the WHOLE file)                                                                       | **0 importers, tree-wide** — and it is not collected either (`vitest.config.ts` collects `*.test.ts`, this is `.test-helpers.ts`)                                                                                                                                         | **REPORTED, NOT DELETED.** Only its four loader stubs were removed. A whole orphan file is outside the authorisation's subject (the four methods) and "orphan ≠ delete" is the standing rule; it needs its own report-authorise-delete |
+| `apps/api/tests/unit/unitOfWork.useCases.test.ts:46` — `createMockPostRepo(): PostRepository` carrying `findByProjectId: async () => ok([])` | **the TENTH stub file**, missed by the first pass. Caught by the fresh-context gate, not by any tool                                                                                                                                                                      | **DELETED** (suite re-run: **4/4**)                                                                                                                                                                                                    |
+
+**Why the tenth hid, and the rule it forces.** Two mechanisms, both measured. The literal ends in
+`as PostRepository`, which turns EXCESS-PROPERTY checking off, so a member the port no longer
+declares is not an error — the stub did not even return the port's shape (`ok([])` where the deleted
+method declared `PaginatedResult<PostAggregate>`), and that was not an error either. And nothing
+typechecks the file at all: `apps/api/tsconfig.json` includes `src` only, and
+`tsconfig.type-tests.json` opens only `tests/**/*.type-test.ts`. **`tsc` = 0 proves nothing about
+doubles.** For any port NARROWING, an `rg` over `**/tests/**` for EACH deleted member name is
+MANDATORY, not optional — it is the only instrument that sees them. Run here afterwards:
+`findByStatus`, `findReadyForPublishing` and `findWithFilters` return **zero** hits tree-wide, and
+every surviving `findByProjectId` belongs to another repository (channel, analytics, tracked link,
+recurring, campaign, external-notification, customer-user, generated-image, project-member,
+ai-image, providers) — including `PostCommandHandlers.test-helpers.ts:287` and
+`sagaIntegration.helpers.ts:320`, both `MockChannelRepository`, both correctly left alone.
+
+Two doc claims that the deletion falsified were rewritten rather than left standing: the
+`toDomain` JSDoc's "the MEDIA refusal is wider … rejects the WHOLE PAGE from those four"
+paragraph (the blast radius is now uniformly per-post, because `findById` is the only read that
+reaches the mapper), and `PostQueryRepository.listByProject`'s "the same criteria shape used by
+the command-side `findWithFilters`". The port's interface doc gained the reason the four are gone,
+so a future contributor re-adding them meets the argument instead of the absence.
+
+### Two divergences the change surfaced — both measured, neither smoothed over
+
+**1. `createCustomerAuthMock` did not bind the tenant the real middleware binds.** The shared
+double at `apps/api/tests/unit/helpers/mockAuthMiddleware.ts` set `request.customerUser` and
+`request.user` and stopped; production `requireClientAuth` also calls
+`enterTenantContext({ accountId: payload.accountId })`. Nothing noticed because the suites using
+it inject a MOCK Prisma, where the guard never runs — so the double had been standing in for a
+middleware whose one security-relevant side effect it omitted. Probed rather than assumed: with
+the binding restored, `approvalRoutes` is 13/13; with the binding disabled again, it is
+`1 failed | 6 passed | 6 skipped`. Fixed in the double, with the reason in the comment.
+
+**2. A post fixture that the mapper can no longer read.** `approvalRoutes.test.ts`'s `postDefaults`
+had no `channelPublications`, so `SubmitForReviewUseCase`'s `findById` raised and the route
+answered 500 — the SAME class as red (e), found in a route suite. Fixed by making the double
+return the key its include requests. The three hand-built rows in the integration suite's
+`PostAggregateMapper` describes needed the same key for the same reason.
+
+Both are stated as findings because each was a place where a double disagreed with production and
+no gate could tell.
+
+### Tests — the five D19 cases
+
+| Case                                                                                                                              | Where                                | Result                                |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------- |
+| (a) no context → `findById` throws, `post.findFirst` never called                                                                 | `PrismaPostRepository.test.ts`       | RED → GREEN                           |
+| (b) system provider → the `include` argument carries `channelPublications` with the `channel.provider` join                       | same                                 | approval (green on arrival), declared |
+| (b') tenant provider → same include                                                                                               | same                                 | triangulation of (b)                  |
+| (c) `savePublication` under no scope AND under the system scope → `err(InvariantViolationError)`, zero statements, no transaction | same                                 | RED → GREEN                           |
+| (d) compile red                                                                                                                   | `tsc -p packages/adapters/db-prisma` | recorded above                        |
+| (e) runtime red on the list path                                                                                                  | temporary recorder, deleted          | recorded above                        |
+
+Seventeen existing cases in that suite now bind a tenant through a local `asTenant()` helper, and
+three in the integration suite do the same — the refusals have their own cases, so the rest of the
+suite states the precondition instead of tripping over it.
+
+### TDD cycle evidence
+
+| Task          | Test file                                                         | Layer   | Safety net       | RED                                                                      | GREEN                                                                    | TRIANGULATE                                                                                      | REFACTOR                                                 |
+| ------------- | ----------------------------------------------------------------- | ------- | ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| T1c.4a (e)    | temporary recorder, deleted after                                 | Unit    | ✅ 69/69         | ✅ `TypeError: prismaPost.channelPublications is not iterable`           | ➖ deliberately not made green — the loader that produced it was deleted | ✅ the fail-open half recorded too (same row → `publications: []`, PASSING)                      | ➖ file removed                                          |
+| T1c.4a (d)    | `tsc` on `packages/adapters/db-prisma`                            | Compile | ✅ exit 0 before | ✅ 4 × TS2345 `Property 'channelPublications' is missing … but required` | ✅ exit 0 after the four loaders left                                    | ➖ one error shape, four sites                                                                   | ➖ n/a                                                   |
+| T1c.4a (a)(c) | `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts` | Unit    | ✅ 69/69         | ✅ `3 failed \| 71 passed (74)`                                          | ✅ `55 passed (55)`                                                      | ✅ refuse vs admit-system vs admit-tenant; write refused under BOTH `undefined` and `__system__` | ✅ `asTenant()` extracted rather than 17 inline wrappers |
+| T1c.4a (b)    | same                                                              | Unit    | ✅ 69/69         | ➖ approval case — declared, not a red                                   | ✅ passes, pinning the include argument                                  | ✅ the tenant-scoped twin                                                                        | ➖ none needed                                           |
+
+### Gates
+
+| Gate                                                                  | Result                                                                                                       |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `tsc --noEmit` per touched package                                    | `@core/domain` 0 · `@core/posts` 0 · `@adapters/db-prisma` 0 · `apps/api` 0 (`6144`) · `apps/workers` 0      |
+| `eslint --max-warnings 0` on the 16 touched files                     | 0                                                                                                            |
+| `eslint apps packages infra --ext .ts,.tsx --max-warnings 0`          | 0                                                                                                            |
+| `prettier -c` on the 16 touched files + `pnpm format:check`           | clean                                                                                                        |
+| `pnpm check:circular`                                                 | no circular dependency (1596 files)                                                                          |
+| `apps/api` unit tier (full)                                           | **585 files, 9112 passed, 0 failed, 0 skipped**                                                              |
+| `@core/posts` · `@core/domain` · `@adapters/db-prisma` suites         | 27 · 184 · 70, all passing                                                                                   |
+| integration `PrismaPostRepository.test.ts` (node:test, real Postgres) | **16/16**, `# fail 0`                                                                                        |
+| fitness #3 / #4 / #5 / #8 / #9 / #10 / #23 / #32                      | 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0                                                                                |
+| fitness #38                                                           | swept tree 0 · `db-prisma` ratchet **11**, unchanged                                                         |
+| fitness #40                                                           | Part A seams 3 (floor 3), violations 0 · Part B sites 14 (floor 10), underived 0 · the literal token present |
+
+Two environment notes, stated rather than hidden. The repo-wide `pnpm lint` OOMs at node's default
+2 GB heap in this LXC (`FATAL ERROR: Ineffective mark-compacts near heap limit`) — the same class
+as §10.2's note about the turbo `typecheck` task — and passes under
+`NODE_OPTIONS=--max-old-space-size=6144`. Under that heap it reports 5 `no-console` errors, all in
+`/root/omni-post/.config/opencode/plugins/*.ts`; `.config/` is gitignored (`.gitignore:187`), so
+those files are untracked local agent tooling, never reach CI, and are NOT part of this change —
+the tracked tree (`apps packages infra`) is 0/0. The full `apps/api` unit tier ran at the config's
+own `maxWorkers: 1` rather than the suggested 2: that value is the repo's considered OOM setting
+and this LXC has one test process budget.
+
+### Budget — measured, and it does not fit the forecast
+
+Net line deltas (`wc -l` before → after; exact numstat is the orchestrator's measurement):
+
+| File                                                                           | Δ                                      |
+| ------------------------------------------------------------------------------ | -------------------------------------- |
+| `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts`                 | 942 → 701 (**−241**)                   |
+| `packages/adapters/db-prisma/src/post/PostAggregateMapper.ts`                  | 573 → 573 (**0** net; ~34 out, ~34 in) |
+| `packages/core/domain/src/repositories/PostRepository.ts`                      | ~342 → 318 (**−24**)                   |
+| `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`              | 1390 → 1258 (**−132**)                 |
+| `apps/api/tests/integration/repositories/PrismaPostRepository.test.ts`         | 694 → 617 (**−77**)                    |
+| the seven remaining stub files                                                 | **−92** combined                       |
+| `apps/api/tests/unit/helpers/mockAuthMiddleware.ts` · `approvalRoutes.test.ts` | **+7** · **+3**                        |
+
+CHANGED lines (additions + deletions, the budget's unit), from the orchestrator's **numstat** —
+these supersede the reconstructed estimates this paragraph first carried, and they were wrong in
+BOTH directions, so both corrections are stated rather than only the flattering one:
+
+| Stream       |                                                                 Measured | Forecast (§9.4.1) | Verdict                                       |
+| ------------ | -----------------------------------------------------------------------: | ----------------: | --------------------------------------------- |
+| **CODE**     | **519** — adapter 54/295, mapper 59/59, port 14/38 (additions/deletions) |               225 | **2.3× over** — `size:exception` recommended  |
+| **EVIDENCE** |              **611** tests, or **846** counting `tasks.md` + this ledger |               603 | **OVER**, marginally on tests and 1.4× on 846 |
+
+The EVIDENCE line is the correction that matters, because the first estimate (~545) had it
+comfortably UNDER and it is not: `tasks.md:908` defines EVIDENCE as tests **+ docs + runbooks +
+openspec**, and this task rewrote `tasks.md` and this ledger. Counted the way the change's own
+definition counts, EVIDENCE is 846 against 603. Stated so nobody reads an over-budget stream as
+headroom.
+
+`PostAggregateMapper.ts` is the file worth naming twice: **59 / 59** — net zero in `wc -l`, 118
+changed lines in numstat. A `wc -l` delta is not a budget measurement and this file is the proof.
+
+The CODE forecast under-counted the deletion by more than a factor of two: it allowed "157 deleted
+adapter+port lines" and the adapter alone deleted 295, because it counted the four methods and
+NOT the seven private helpers and module constants that existed ONLY for them — artefacts the
+authorisation explicitly covers and that cannot be left behind (they would be dead code the next
+reader has to re-adjudicate). It also counted no line for the two refusals' bodies and JSDoc, for
+the include constant and its payload type, or for the doc paragraphs the deletion falsified.
+
+**It cannot be sliced smaller.** The port, the adapter and the orphaned helpers must move in one
+commit or the tree does not compile: deleting the port methods without the adapter leaves
+`implements PostRepository` unsatisfied in the other direction, and deleting the adapter methods
+without their helpers leaves seven unreferenced privates that `eslint` and the next reviewer both
+have to be told about. Per the review-workload rule the work is reported honestly rather than
+compressed: **`size:exception` is recommended for `1c-1a` on the CODE side**, at **519** against
+400, with deletion accounting for **392 of those 519** — roughly three of every four changed
+lines, and every one of them authorised.
+
+### Follow-up after the fresh-context gate of `1c-1a` — PASS WITH WARNINGS, six items closed
+
+No Critical was raised; every claim in this section was confirmed, no non-loader assertion was
+found lost, and `PostAggregate.ts:154` was verified untouched by hash. The six warnings:
+
+| Id     | Disposition         | What changed                                                                                                                                                                                                                                                                                                                  |
+| ------ | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **W1** | FIXED               | the TENTH stub file — `apps/api/tests/unit/unitOfWork.useCases.test.ts:46`. Deleted under the same authorisation, added as the sweep table's tenth row with the two mechanisms that hid it, and the mandatory `rg` over `**/tests/**` recorded as the rule a port narrowing owes. Suite re-run **4/4**                        |
+| **W2** | FIXED               | the budget paragraph was wrong in BOTH directions and now carries the orchestrator's numstat: CODE **519** (not ~560), EVIDENCE **611** tests / **846** including openspec — **over** the 603 forecast, where the estimate had it under                                                                                       |
+| **W3** | FIXED               | `@throws TenantContextMissingError` documented on the **interface's own JSDoc block**, because `findById` is INHERITED from `Repository<PostAggregate, PostId>` and is not redeclared on `PostRepository`. Documented there rather than redeclaring the signature: a redeclaration would add a member the port never declared |
+| **W4** | RUN                 | `integration:saga-recovery` — the batch that owns `publishNowPromotionHarness.ts`'s only consumer (`sagaPublishNowPromotion.test.ts`, with `sagaCrashRecovery` and `sagaCompensationRecovery` sharing it): **33 tests, 33 pass, 0 fail, 0 cancelled, 0 skipped**, against the live Postgres + Redis                           |
+| **W5** | RECORDED (residual) | the `enterWith` residual, below                                                                                                                                                                                                                                                                                               |
+| **W6** | FIXED               | citations corrected to AS BUILT: the barrel export is `packages/adapters/db-prisma/src/index.ts:54` (design cites `:48`) and the fitness #40 Part B token is `PrismaPostRepository.ts:142` (design cites `:121`, its pre-change line). The design was NOT edited                                                              |
+
+**W5 residual — `enterTenantContext` uses `enterWith`, not `run`.** `apps/api/src/security/tenantContext.ts:88`
+is `tenantStorage.enterWith(context)`, which binds for the REMAINDER of the current async resource
+rather than for a scoped callback. In production that is correct and deliberate — a Fastify
+preHandler has no callback to wrap the rest of the request in. In a TEST process it means the
+binding is NOT torn down when the case that triggered it ends, so a later case in the same file can
+observe a tenant it never bound. Measured today across the ELEVEN suites that consume the double:
+no leak is observable — every one of them passes, and none asserts scopeless behaviour. It is named
+here anyway, because the day someone adds a scope-REFUSAL case to one of those files it will pass
+for the wrong reason: the refusal will not fire, and nothing will say why. The fix when that day
+comes is `tenantStorage.run(context, fn)` in the double (not in production), or an explicit
+`beforeEach` that re-enters an empty store.
+
+Gates re-run after the six items: `@core/domain` tsc **0** · `apps/api` tsc **0** · eslint
+`--max-warnings 0` on the three newly touched files **0** · prettier **clean** ·
+`unitOfWork.useCases.test.ts` **4/4** · `integration:saga-recovery` **33/33**.
+
+**Final numstat expectation after the six items.** The numstat above was taken BEFORE W1 and W3
+landed, so the closing figures move by exactly two edits and nothing else: **CODE 519 → ~532**
+(W3 adds 13 doc lines to `packages/core/domain/src/repositories/PostRepository.ts`, so its 14/38
+becomes ~27/38) and **EVIDENCE 611 → 612** on the tests stream (W1 deletes one line from
+`apps/api/tests/unit/unitOfWork.useCases.test.ts`), or **846 → ~900** counting this ledger's own
+growth. The `size:exception` recommendation is unchanged and its reason is unchanged: the overage
+is deletion the authorisation covers, and the slice does not compile if split.
