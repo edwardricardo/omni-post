@@ -17,12 +17,7 @@ import {
   type FallbackContext,
   CommonFallbackStrategies,
 } from "@adapters/fallback-strategies";
-import {
-  DeadLetterQueueManager as _DeadLetterQueueManager,
-  createDeadLetterQueue,
-  getDeadLetterQueue,
-} from "@adapters/dead-letter-queue";
-import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import { getDeadLetterQueue } from "@adapters/dead-letter-queue";
 
 /**
  * @interface CircuitBreakerStatus
@@ -213,26 +208,34 @@ export class ExternalApiCircuitBreaker {
   private readonly maxCacheEntries: number;
   private readonly maxBreakerEntries: number;
 
+  /**
+   * @constructor
+   * @description Builds a breaker that owns NO connection and NO queue.
+   *
+   *   Every provider `apiClient` calls the shared factory at module scope, so anything this
+   *   constructor opens is opened by the mere act of importing a provider — including inside a
+   *   unit test that only wanted a pure helper. Constructing a dead-letter queue here did exactly
+   *   that: BullMQ's `RedisConnection` calls `connect()` from its own constructor, which defeats
+   *   `lazyConnect` and opens a real socket.
+   *
+   *   Creating the dead-letter queue belongs to a composition root, which knows the deployment's
+   *   Redis and owns the process lifecycle. The breaker only READS the queue a root created, via
+   *   `getDeadLetterQueue()` on the failure path, and does nothing when there is none.
+   *
+   *   `redisUrl` remains load-bearing: the fallback manager caches degraded-mode responses in
+   *   Redis. That client is built with `lazyConnect` and issues no command here, so it stays
+   *   unconnected until a fallback actually runs.
+   *
+   * @param registry - Prometheus registry the breaker's metrics are registered on.
+   * @param redisUrl - Redis URL for the fallback response cache; falls back to `REDIS_URL`.
+   * @param limits - Optional caps for the internal breaker and response caches.
+   */
   constructor(registry: client.Registry, redisUrl?: string, limits: CircuitBreakerLimits = {}) {
     this.registry = registry;
     this.metrics = this.createMetrics();
     this.fallbackManager = createFallbackManager(redisUrl || process.env.REDIS_URL);
     this.maxCacheEntries = limits.maxCacheEntries ?? CACHE_MAX_ENTRIES;
     this.maxBreakerEntries = limits.maxBreakerEntries ?? BREAKERS_MAX_ENTRIES;
-
-    // Initialize dead letter queue if Redis URL is available
-    if (redisUrl || process.env.REDIS_URL) {
-      try {
-        createDeadLetterQueue({
-          redisUrl: redisUrl || process.env.REDIS_URL!,
-          queueName: QUEUE_NAMES.FAILED_OPERATIONS_DLQ,
-          maxRetentionDays: 30,
-          processingConcurrency: 2,
-        });
-      } catch (error) {
-        logger.warn({ err: error }, "Failed to initialize dead letter queue");
-      }
-    }
   }
 
   private createMetrics(): ApiCallMetrics {
@@ -920,6 +923,15 @@ export class ExternalApiCircuitBreaker {
                 "Failed to queue operation for dead letter processing"
               );
             }
+          } else {
+            // No composition root in this process created a dead-letter queue, so the caller
+            // opted into dead-lettering and gets none. Without this branch the write is dropped
+            // in complete silence. Fires once per failed operation (retries are already
+            // exhausted here), not once per call, so it needs no rate limiting.
+            logger.warn(
+              { service, operation },
+              "dead-letter queue not configured in this process; failed operation not recorded"
+            );
           }
         } catch (deadLetterError) {
           logger.error({ err: deadLetterError, service, operation }, "Dead letter queue error");
