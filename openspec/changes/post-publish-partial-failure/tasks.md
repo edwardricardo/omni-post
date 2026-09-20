@@ -324,22 +324,29 @@ unit ids below are NOT the order**, and its ordering audit is the per-unit reade
 
 ### WU 1c.A — application use cases (child 1c-1)
 
-- [ ] **T1c.1 RED** — `packages/core/posts/tests/unit/openPublicationEpisode.test.ts`: no records →
+- [x] **T1c.1 RED** — `packages/core/posts/tests/unit/openPublicationEpisode.test.ts`: no records →
       declare then open; records + `noLiveContent()` → set replaced then opened; `hasLiveContent()` →
       the request set must EQUAL the recorded set else `VALIDATION_FAILED`, only `redrivable()`
       channels opened, a named pending-retraction channel refused `CHANNEL_HAS_LIVE_FRAGMENTS` WITH
-      its fragments; `alreadyOpen: true` idempotency; `savePublication` used, never `save`. — sha: pending
-- [ ] **T1c.2 RED** — `.../recordChannelPublicationAttempt.test.ts`: every `err` from inside the
+      its fragments; `alreadyOpen: true` idempotency; `savePublication` used, never `save`. — sha: pending (orchestrator commits)
+- [x] **T1c.2 RED** — `.../recordChannelPublicationAttempt.test.ts`: every `err` from inside the
       callback rolls back; CAS → `CONFLICT`; stale/zero episode → `CONFLICT`;
-      `attemptNo ≤ episodeAttempts` → `applied: false` (PROM-R4 per channel); the W6 tripwire. — sha: pending
+      `attemptNo ≤ episodeAttempts` → `applied: false` (PROM-R4 per channel); the W6 tripwire. — sha: pending (orchestrator commits)
 - [ ] **T1c.3 RED** — `.../confirmManualRetraction.test.ts` (clears with cause; 409 `NOTHING_PENDING`;
       `applied: false` on a duplicate; WORKS AFTER EXPIRY — Q17) and
       `.../expireRetractionActionWindow.test.ts` (passes the CALLER's `window` to the root; one
-      `savePublication`; `applied: false` on the second call). — sha: pending
+      `savePublication`; `applied: false` on the second call).
+      **Carried from the `1c-1c` gate (W4)**: export an `INVALID_STATE_TRANSITION_CODE` constant
+      from `@core/domain` beside `VERSION_CONFLICT_CODE` and import it in
+      `packages/core/posts/src/publicationWriteOutcome.ts`, which holds it as a local literal today
+      because the domain exports no equivalent. — sha: pending
 - [ ] **T1c.4 GREEN** — `packages/core/posts/src/{OpenPublicationEpisodeUseCase,
 RecordChannelPublicationAttemptUseCase,ConfirmManualRetractionUseCase,
 ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTransaction`
-      (ADR-0023), `savePublication`, `Result` only, no own `$transaction` (#40). — sha: pending
+      (ADR-0023), `savePublication`, `Result` only, no own `$transaction` (#40).
+      **HALF LANDED IN `1c-1c`** (the episode + attempt use cases, plus the shared
+      `publicationWriteOutcome.ts` both translate their refusals through); **the retraction pair
+      and the barrel are `1c-1d`**, so the box stays open until that unit lands. — sha: pending
 - [x] **T1c.4a RED→GREEN (D19, design rev 3.4 C1 — absent is unrepresentable, a publication write has
       a tenant)** — the AUTHORISED form only. **Edward AUTHORISED the deletion on 2026-09-20**, and
       extended it: "y también borrar cualquier artefacto asociado que carezca de una funcionalidad
@@ -408,6 +415,9 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
       `reconcilePublicationProjection()` with `applied: false` on the happy path. Rewrite
       `packages/core/posts/tests/unit/CompletePostPublishingUseCase.test.ts` (691 today): zero saves
       on the happy path, no provider lookup, `publishedAt` never fabricated.
+      **Carried from the `1c-1c` gate (W5)**: this file's private `isVersionConflict` is now
+      duplicated by `publicationWriteOutcome.publicationSaveFailure`; consolidate onto the shared
+      helper in the same edit (pre-existing duplication, one line).
       — sha: 08391306 (parked on `workstream/ncor8-1c-1b`; re-slotted last, see §9.4.1)
 - [ ] **T1c.5a RED→GREEN (D4 / rev 3.3 A3 — the three 1b compatibility shapes CLOSE)** — the domain
       side, in the SAME child as T1c.5 and AFTER T1c.4a.
@@ -488,6 +498,11 @@ publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`)
       re-drive route); `holder()` non-null → **409 `{ code: "PUBLICATION_IN_FLIGHT", sagaId }`**;
       foreign channel still 404 (`:392-405`). **Split seam applied here**: the admission logic moves
       to a NEW `apps/api/src/saga/publishAdmission.ts` (SagaIntegration 895 → ~840 + 150 new).
+      **Carried from the `1c-1c` gate (W3)**: `OpenPublicationEpisodeUseCase` answers a channel
+      pending retraction with a generic `CONFLICT` whose only discriminator is the message PREFIX
+      `CHANNEL_HAS_LIVE_FRAGMENTS`, while D9 wants **409 `{ code: "CHANNEL_HAS_LIVE_FRAGMENTS" }`
+      carrying the fragments**. Give the refusal a code a route can switch on instead of a string
+      match — a use-case error code, a typed cause, or the record read back at the route.
       — sha: pending
 
 ### WU 1c.C — the worker, the confirm act, the sweep (child 1c-3 — D15.5)
@@ -1326,6 +1341,24 @@ suites (2442) and 1c's use-case suites (1320) — sit at or above their measured
    against a 225 forecast (retroactive, `f3caa204`) and `1c-1b` stands at **CODE 614** against 335
    (before its PR opens). Both are over the hard 400 CODE budget. The under-count is systematic —
    deletions and doc corrections — so read every remaining forecast at or near 400 as already over.
+   **A THIRD is now owed**: `1c-1c` measured **CODE 649** against 400, and here the overage is
+   neither deletion nor doc correction — it is mandatory JSDoc plus one file the task list does not
+   name. The split the gate offered does NOT rescue it as measured: `1c-1c-i` (T1c.1 +
+   `OpenPublicationEpisodeUseCase` + the shared helper) is **425** once the gate's own W2 correction
+   is counted, while `1c-1c-ii` (T1c.2 + `RecordChannelPublicationAttemptUseCase`) is **224** — so
+   half i needs an exception too, unless the shared helper travels with half ii instead (351 / 298,
+   both under). `size:exception` or split — apply did neither on its own.
+8. **The equality rule of D9 versus Slice 2's one-channel retry — decision due BEFORE `1c-2b`
+   (order 5), raised by the `1c-1c` gate.** D9 says (1) with `hasLiveContent()` the request set must
+   EQUAL the recorded set, and (2) Slice 2's retry route starts the same saga with
+   `channelIds: [channelId]`. A partially published post HAS live content, so a one-channel retry
+   against a recorded set of 2+ would be refused — which is exactly the retry spec's merge-blocking
+   scenario (`specs/post-channel-publication-retry/spec.md:96`). The equality rule appears in NO
+   spec: only in D9 and T1c.1. Candidate answers: **(i)** the route sends the FULL recorded set and
+   the use case filters to `redrivable()` — but another channel pending retraction would then refuse
+   the whole retry by name; **(ii)** relax to "requested ⊆ recorded" on the retry path.
+   `OpenPublicationEpisodeUseCase` implements the equality rule exactly as D9 states it and was not
+   bent toward either answer.
 
 **Already ratified, recorded here so apply does not re-open it: Edward AUTHORISED on 2026-09-20** the
 deletion of the four unconsumed `PostRepository` list loaders and of every associated artefact with
