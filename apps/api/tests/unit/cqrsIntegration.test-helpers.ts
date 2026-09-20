@@ -96,46 +96,6 @@ export class MockPostRepository {
     return { ok: true as const, value: undefined };
   }
 
-  async findByProjectId() {
-    return {
-      items: [],
-      total: 0,
-      page: 1,
-      limit: 20,
-      totalPages: 0,
-      hasNext: false,
-      hasPrevious: false,
-    };
-  }
-
-  async findByStatus() {
-    return {
-      items: [],
-      total: 0,
-      page: 1,
-      limit: 20,
-      totalPages: 0,
-      hasNext: false,
-      hasPrevious: false,
-    };
-  }
-
-  async findReadyForPublishing() {
-    return [];
-  }
-
-  async findWithFilters() {
-    return {
-      items: [],
-      total: 0,
-      page: 1,
-      limit: 20,
-      totalPages: 0,
-      hasNext: false,
-      hasPrevious: false,
-    };
-  }
-
   async countByProjectId() {
     return 0;
   }

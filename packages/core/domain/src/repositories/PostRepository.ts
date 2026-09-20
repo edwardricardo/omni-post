@@ -48,6 +48,27 @@ export type PostSortField = "createdAt" | "updatedAt" | "scheduledAt" | "publish
  *
  * This is a PORT in the hexagonal architecture - it defines what the domain
  * needs from persistence without specifying how it's implemented.
+ *
+ * It is the COMMAND side, and the only read it owns is {@link findById} — the load a
+ * mutation needs before it can decide anything. Listing belongs to
+ * {@link PostQueryRepository}, which returns DTOs. A list that returned aggregates
+ * would have to hydrate the per-channel publication records to answer the predicates an
+ * aggregate exposes (`isEditable`, `hasLiveContent()`, `redrivable()`), and a list that
+ * skipped them would answer those predicates from a record set it never read: an empty
+ * one, which reads as "nothing is live" and unlocks the post. Aggregate listing is
+ * therefore not a capability this port withholds — it is a shape that cannot be
+ * answered correctly at page scale, and the DTO side answers the question that was
+ * actually being asked.
+ *
+ * `findById` is INHERITED from {@link Repository} rather than redeclared here, so its
+ * one non-`Result` failure mode is documented at the interface instead:
+ *
+ * @throws TenantContextMissingError — a load carrying neither a tenant context nor a
+ *   system one is refused before any statement is issued. It is not a widening of the
+ *   inherited `Result` union: the tenant guard raises the IDENTICAL error for the
+ *   IDENTICAL condition, so a caller already had to handle this shape; the adapter
+ *   states the requirement itself, beside the `include` that depends on it, instead of
+ *   inheriting it from whichever middleware happened to run first.
  */
 export interface PostRepository extends Repository<PostAggregate, PostId> {
   /**
@@ -65,41 +86,6 @@ export interface PostRepository extends Repository<PostAggregate, PostId> {
    * writer is reported as a conflict instead of being silently overwritten.
    */
   savePublication(post: PostAggregate): Promise<Result<void, Error>>;
-
-  /**
-   * Find all posts for a project, inside an explicit tenant scope.
-   *
-   * `scope` is first and required: a projectId alone does not say whose project
-   * it is, and this port used to accept exactly that. See {@link TenantScope}.
-   */
-  findByProjectId(
-    scope: TenantScope,
-    projectId: ProjectId,
-    pagination?: PaginationParams,
-    sort?: SortParams<PostSortField>
-  ): Promise<PaginatedResult<PostAggregate>>;
-
-  /**
-   * Find posts by status
-   */
-  findByStatus(
-    status: PublishStatusValue | PublishStatusValue[],
-    pagination?: PaginationParams
-  ): Promise<PaginatedResult<PostAggregate>>;
-
-  /**
-   * Find posts ready for publishing (scheduled time has passed)
-   */
-  findReadyForPublishing(limit?: number): Promise<PostAggregate[]>;
-
-  /**
-   * Find posts with filters
-   */
-  findWithFilters(
-    filters: PostFilterCriteria,
-    pagination?: PaginationParams,
-    sort?: SortParams<PostSortField>
-  ): Promise<PaginatedResult<PostAggregate>>;
 
   /**
    * Count posts by project, inside an explicit tenant scope.
@@ -280,9 +266,9 @@ export interface PostQueryRepository {
    * posts whose project belongs to it, so a client-supplied `projectId` owned by
    * another account yields an empty page rather than that account's posts.
    *
-   * Optional `filter` narrows the result set with the same criteria shape used
-   * by the command-side `findWithFilters`. `projectId` from the filter is
-   * ignored — the explicit `projectId` parameter is authoritative for scope.
+   * Optional `filter` narrows the result set through {@link PostFilterCriteria}.
+   * `projectId` from the filter is ignored — the explicit `projectId` parameter is
+   * authoritative for scope.
    */
   listByProject(
     scope: TenantScope,

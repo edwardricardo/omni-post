@@ -336,7 +336,7 @@ boundaries are a §9.9 ratification, not a fait accompli.
 RecordChannelPublicationAttemptUseCase,ConfirmManualRetractionUseCase,
 ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTransaction`
       (ADR-0023), `savePublication`, `Result` only, no own `$transaction` (#40). — sha: pending
-- [ ] **T1c.4a RED→GREEN (D19, design rev 3.4 C1 — absent is unrepresentable, a publication write has
+- [x] **T1c.4a RED→GREEN (D19, design rev 3.4 C1 — absent is unrepresentable, a publication write has
       a tenant)** — the AUTHORISED form only. **Edward AUTHORISED the deletion on 2026-09-20**, and
       extended it: "y también borrar cualquier artefacto asociado que carezca de una funcionalidad
       real". The declined-branch fallback (`PostListItem`) of D19 (b) is therefore NOT a branch here.
@@ -396,7 +396,7 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
       tree sha256-exact, THEN land (iii). It is the list-path proof that the class is real and it must
       never be hit by accident.
       **Ordering, LOAD-BEARING**: (i)–(iii) land BEFORE T1c.5a deletes that default. T1d.8 gains the
-      two visibility cases. — sha: pending
+      two visibility cases. — sha: pending (orchestrator commits)
 - [ ] **T1c.5 RED→GREEN** — `CompletePostPublishingUseCase.ts`: delete the `NOT_IMPLEMENTED` refusal
       (`:146-153`), `resolveProviders` (`:326-347`) and `toProviderResults` (`:351-368`); become the
       reconciliation of design.md:170 — refuse before I/O on an empty set, `NOT_FOUND`, missing

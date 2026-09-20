@@ -43,7 +43,6 @@ function createMockPostRepo(overrides?: Partial<PostRepository>): PostRepository
     save: async () => ok(undefined),
     savePublication: async () => ok(undefined),
     findById: async () => err(new Error("not found") as any),
-    findByProjectId: async () => ok([]),
     delete: async () => ok(undefined),
     // The create path resolves the target project's tenant first; a double that
     // answers null would turn every creation into a NOT_FOUND before the unit of
