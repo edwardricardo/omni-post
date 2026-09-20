@@ -1635,3 +1635,381 @@ becomes ~27/38) and **EVIDENCE 611 → 612** on the tests stream (W1 deletes one
 `apps/api/tests/unit/unitOfWork.useCases.test.ts`), or **846 → ~900** counting this ledger's own
 growth. The `size:exception` recommendation is unchanged and its reason is unchanged: the overage
 is deletion the authorisation covers, and the slice does not compile if split.
+
+### RDD receipt — the committed range `e6d734b1` → `f3caa204`
+
+Lineage `review-a2e658c48711714c`, MEDIUM tier, ONE reliability lens. The review reached
+**approved**, the acknowledgement was executed exactly once and the authority is **burned**; no
+Critical was raised. Three ADVISORY findings, and what became of each:
+
+| Finding                                     | Level      | Where                                                       | Disposition                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------- | ---------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `R3-enterWith-leak`                         | WARNING    | `apps/api/tests/unit/helpers/mockAuthMiddleware.ts:171-176` | **CLOSED by MEASUREMENT, not by a change** — the four cases below, landed on `workstream/ncor8-1c-1c`. The W5 residual above is superseded by that measurement                                                                                                                                |
+| `R3-findById-guard-vs-adapter-duplication`  | SUGGESTION | `PrismaPostRepository.findById` vs the tenant guard         | **BACKLOG, deliberately NOT actioned.** The adapter's scope refusal duplicates the guard's ON PURPOSE — the `resolveClientIp` reason the design gives: the adapter states the invariant itself rather than inheriting it, so an upstream change to the guard's walk cannot silently remove it |
+| `R3-savePublication-scope-message-coupling` | SUGGESTION | `PrismaPostRepository.test.ts` refusal cases                | **BACKLOG.** The test couples to the refusal's message WORDING; a code-keyed assertion would survive a re-phrasing. Left as-is because changing it now would edit a case the same review just approved                                                                                        |
+
+**`R3-enterWith-leak`, closed by measurement rather than by a change.** The WARNING said the
+double's `enterTenantContext` uses `AsyncLocalStorage.enterWith`, so in a test process the binding
+could outlive the case that made it and a future scope-REFUSAL case would pass for the wrong reason.
+The instruction was to fix the DOUBLE only, after measuring which shape is honest. **Measured: there
+is nothing to fix.** `apps/api/tests/unit/helpers/mockAuthMiddleware.tenantScope.test.ts` (NEW,
+4 cases) pins it: the handler reads its own account INSIDE the request; the test's own context is
+unbound once the request completed; one request's account does not carry into the next; and an
+UNAUTHENTICATED request leaves the store empty, which is exactly the precondition a refusal case
+needs. **4/4 green with the double unchanged** — `app.inject()` gives each request its own async
+resource, so `enterWith` does not escape it.
+
+The probe was proven able to go RED, because a green assertion nobody can make fail is not a
+measurement. A temporary file calling `enterTenantContext` from the TEST's own async resource and
+asserting the store empty failed as required:
+
+```text
+ × observes a binding made in the test's own async resource
+AssertionError: expected { Object (accountId) } to be undefined
+```
+
+It was deleted and the kept file is byte-identical across the experiment —
+`81c8b7e95f79c6fd3c84937a357295aec4635a4228756013dcaa686b0910cef2` before and after. The four cases
+were first written on the parked `1c-1b` branch (`08391306`) and are carried onto
+`workstream/ncor8-1c-1c` unchanged (same hash, re-run there: 4/4) so the closure travels up the
+chain with the range it closes; the production `enterWith` is untouched (it is correct there, and a
+preHandler has no callback to wrap).
+
+### RDD receipt — the docs commit `7010da92` (the §9.4.1 re-order)
+
+Lineage `review-b44a2a529ed694d2`, MEDIUM tier, ONE reliability lens: **approved**, acknowledged
+once, authority **burned**. Three ADVISORY findings, all on `tasks.md`:
+
+| Finding                        | Level      | Where                | Disposition                                                                                                                                                                                                                                                                                        |
+| ------------------------------ | ---------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `R3-duplicate-order-10`        | WARNING    | `tasks.md:1088-1099` | **REJECTED — the duplication is the finding's own subject.** Order 10 carries `1c-2a` AND `1c-3e` on purpose: the ordering audit found them mutually fail-closed (a true cycle), and the paragraph directly under the table says so and names the three shapes for Edward's decision (§9.9 item 6) |
+| `R3-order-numbering-gap`       | SUGGESTION | `tasks.md:1088-1101` | **REJECTED, same reason.** The numbering is 1–9, 10, 10, 11, 12 — the doubled 10 is the cycle, not a gap; renumbering would hide that two units cannot be ordered against each other                                                                                                               |
+| `R3-forecast-delta-arithmetic` | SUGGESTION | `tasks.md:1163-1166` | **Re-computed, the table is right:** 529 − 225 = +304 = 135 % of 225; 614 − 335 = +279 = 83 % of 335. Left as written                                                                                                                                                                              |
+
+**Process defect, owned.** The three narratives above are reconstructed from the cited lines, not
+quoted: the capture envelope retains only `id`, `lens`, `location` and `severity`, and the reviewer's
+text lives in the transaction store, which the acknowledgement burns. For the 1c-1a range the
+narrative was copied into the ledger BEFORE the acknowledgement (the table above quotes it); for this
+docs commit it was not, and it is gone. Rule from here: the reviewer's narrative is written into the
+ledger between the final capture and the acknowledgement, never after.
+
+---
+
+## PR 1c — grandchild `1c-1c` (T1c.1, T1c.2, T1c.4 first half) — COMPLETE
+
+Branch `workstream/ncor8-1c-1c`, child of `workstream/ncor8-1c` @ `7010da92` — **order 2 of
+§9.4.1**, the first of the re-ordered writers. Three tasks' worth of subject: the two RED suites
+(T1c.1, T1c.2) and the FIRST HALF of T1c.4's GREEN, which is
+`OpenPublicationEpisodeUseCase` and `RecordChannelPublicationAttemptUseCase`. The retraction pair
+and the `@core/posts` barrel are `1c-1d`, so **T1c.4 stays UNTICKED** and carries the half-landed
+note in `tasks.md` instead.
+
+**Finish state**: an episode can be opened over a post's record and an attempt can be recorded
+against one channel of it, each in ONE transaction through `executeResultInTransaction` and the
+narrow `savePublication` — and neither is reachable from production yet, which is the point of the
+order (measurement below). **Rollback**: delete the five new files; nothing else references them.
+
+### What each mechanism is, as built
+
+| Mechanism                                | As built                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OpenPublicationEpisodeUseCase`          | `execute` validates the ids with zero I/O, then `executeResultInTransaction` → load → `admitTargets` → `post.openPublicationEpisode` → `savePublication`. D9's three branches live in `admitTargets` and nowhere else                                                                                                                          |
+| admission, no record                     | the request MUST name channels (an unnamed one is `VALIDATION_FAILED` — there is nothing to declare from); `declarePublicationTargets(requested)` then open                                                                                                                                                                                    |
+| admission, nothing live                  | an unnamed request opens every recorded channel; a named one goes through `declarePublicationTargets`, which no-ops on an identical set and REPLACES a different one                                                                                                                                                                           |
+| admission, live content                  | the requested set must EQUAL the recorded set; the refusal NAMES the differing ids. The root then refuses a named channel pending retraction by itself, with its fragments                                                                                                                                                                     |
+| the conditional write                    | an `alreadyOpen` answer that moved no word and emitted no event writes NOTHING. A re-drive retry therefore does not spend a row version on a step that already ran; the status and pending-event terms are what keep "already open BUT now entering the family" a write                                                                        |
+| `RecordChannelPublicationAttemptUseCase` | load → `post.recordChannelAttempt` → `savePublication`, and `applied: false` returns BEFORE the save: a redelivered ordinal applied nothing, so writing would bump the version for a message the record already accounted for                                                                                                                  |
+| refusal classification                   | a channel OUTSIDE the recorded set answers `NOT_FOUND`; every other aggregate refusal answers `CONFLICT` (or `FORBIDDEN` for a lifecycle one). The aggregate stays the decider — the use case only reads the record to name WHICH refusal it just got, because the worker acts differently on `missing_record` than on `stale_episode` (D6/W4) |
+| `publicationWriteOutcome.ts` (NEW)       | the two translations both writers perform — a domain refusal and a `savePublication` failure — in one module, narrowing on the STABLE `code` string and never on `instanceof` (the dual conditional-export hazard `CompletePostPublishingUseCase` documents). `1c-1d`'s two use cases consume it unchanged                                     |
+
+### The recorded reds
+
+**Module-absence RED, both suites, before a line of production code existed:**
+
+```text
+ FAIL  tests/unit/openPublicationEpisode.test.ts [ tests/unit/openPublicationEpisode.test.ts ]
+Error: Cannot find module '../../src/OpenPublicationEpisodeUseCase.js' imported from …
+ FAIL  tests/unit/recordChannelPublicationAttempt.test.ts [ … ]
+Error: Cannot find module '../../src/RecordChannelPublicationAttemptUseCase.js' imported from …
+ Test Files  2 failed (2)
+      Tests  no tests
+```
+
+**Two fixture corrections the GREEN run forced, both stated rather than smoothed over. Neither
+changed production code — in both the code was right and the TEST was wrong.**
+
+1. **A FAILED post cannot be re-driven in schedule mode, and the aggregate says so.** The first
+   draft of "opens every recorded channel when the caller names none" recorded two nontransient
+   failures and then asked for `enterPublishing: false`. It failed:
+
+   ```text
+   × opens every recorded channel when the caller names none
+     AssertionError: an excluded channel with nothing live is re-drivable
+     - true  + false
+   ```
+
+   The derived word after two exclusions is `FAILED`, and `openPublicationEpisode` admits a
+   non-entering open only from `DRAFT`/`SCHEDULED` — which is D9's "a delayed re-drive of a
+   `FAILED`/`PARTIALLY_PUBLISHED` post is REFUSED; publish-now is the only re-drive route (Q14)",
+   enforced by the domain rather than by the route. The case was corrected to publish-now AND a
+   new case was added that pins the refusal (`FORBIDDEN`), so the rule is now asserted instead of
+   merely not violated.
+
+2. **`type: "IMAGE"` is not a media type, and `tsc` never said so.** The tripwire fixture built its
+   pending edit with the uppercase literal. `MediaType` is `"image" | "video" | "gif"`, so this is
+   a type error — and it reached RUNTIME as `AssertionError: the fixture edit is accepted by the
+aggregate`, because **no tsconfig in `@core/posts` opens `tests/**`** (`include` is
+   `["src/**/*"]`). That is the `1c-1a` W1 lesson arriving from the other direction: there it was a
+   stub of a deleted method, here a wrong literal in a new file. Both are invisible to `tsc = 0`.
+   **Instrument used, and kept as a habit rather than a repo change**: a THROWAWAY
+   `tsconfig.__probe.json` extending the package config with `tests/**` added, run once, then
+   deleted. It is recorded here so the next unit in this chain runs it too; making it a permanent
+   config is a separate decision nobody has taken.
+   **CORRECTION — the first run of this probe was reported as a gate and was not one.** Its command
+   was `tsc … | head -30; echo "EXIT=$?"`, so the `$?` it printed was **`head`'s** status, not
+   `tsc`'s; it printed `EXIT=0` over a tsc whose own exit code was never read. **Nothing surfaced
+   this at runtime, and that is the point**: the pipeline exits 0 and prints `EXIT=0` whatever
+   `tsc` did, so there was no signal to notice. It was found by re-reading the command. (The
+   occasion for re-reading it: the wrapper shell of that command never exited — its trailing
+   `eza | rg probe` pipeline hung after the probe file was already gone — the orchestrator
+   terminated it after the hand-back, and the task was reported as **exit 144**, which is that
+   termination and not a `tsc` failure.) Re-run afterwards with the exit captured directly off
+   `tsc` (no pipe) and the probe removed by a `trap`: **`TSC_OWN_EXIT=0`** — so the claim is true,
+   but it is true by MEASUREMENT now and was an assumption before. The re-run is also strictly
+   stronger than the original, because it covers the two gate corrections (the W1 case and
+   `replacedTargets`) that did not exist when the first probe ran. **The rule it forces: never read
+   `$?` through a pipe when the number IS the gate.** A `| head` or a `| tail` makes the exit code
+   that of the filter, and a gate that reports a filter's success is a gate that cannot go red. The
+   repo already encodes the guard: every newer fitness check in `CLAUDE.md` (#33 through #41) opens
+   with `set -uo pipefail`, which makes a pipeline's status its rightmost non-zero — exactly what
+   the first probe lacked and what its re-run script sets.
+
+### Two decisions the design does not make, taken here and named
+
+1. **An absent channel list under live content is REFUSED.** D9 says "the request set must EQUAL the
+   recorded set (else `VALIDATION_FAILED`)" and says nothing about a request that names no set at
+   all. An unstated set cannot be compared to anything, and reading it as "assume it equals" would
+   let a re-drive of a locked post proceed without naming the channel that is holding content — the
+   exact thing the equality rule exists to prevent. It is refused, with the recorded set named in
+   the message so the caller can restate it. An EMPTY list is refused too, in the pure-validation
+   phase: `declarePublicationTargets([])` would WIPE the record set, and "open nothing" and "open
+   everything" must not collapse into one request shape.
+2. **`publicationWriteOutcome.ts` is a file T1c.4 does not name.** T1c.4 lists four use cases and a
+   barrel. The refusal/save translations are identical in all four, and the alternative to a shared
+   module was either duplicating ~45 lines into each writer or importing one use case from another
+   — the second couples two use cases for no reason. It is reported rather than slipped in, it is
+   NOT exported from the barrel (the barrel is `1c-1d`'s), and its line count is inside this unit's
+   CODE stream below.
+
+### Unreachable by claim — RE-MEASURED at this tip, not inherited
+
+§9.4.1's ordering audit claims row 2 is unreachable. Measured after the code landed
+(`rg` over `apps packages infra`, excluding `node_modules` and `dist`):
+
+| Claim                                              | Measurement                                                                                                                                                                 |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No production reference to either use-case class   | 4 files hold the names: the two that DECLARE them and their two test files. Zero container registrations, routes, handlers                                                  |
+| Not reachable through the package barrel           | `packages/core/posts/src/index.ts` is UNTOUCHED — neither class is exported; `apps/api` depends on `@core/posts` and still cannot reach them                                |
+| The command token arrives at order 4               | `OPEN_PUBLICATION_EPISODE`: **0** occurrences tree-wide                                                                                                                     |
+| `apps/workers` gains `@core/posts` only at order 8 | `"@core/posts"` appears in `apps/api/package.json:98` and **not** in `apps/workers/package.json`                                                                            |
+| The root methods have no new production caller     | `.openPublicationEpisode(` / `.recordChannelAttempt(` / `.declarePublicationTargets(` outside `@core/domain` + `db-prisma`: only the two new use cases and three test files |
+
+So `RecordChannelPublicationAttemptUseCase`'s `CONFLICT` on a stale or zero episode refuses nothing
+that exists, and `OpenPublicationEpisodeUseCase`'s D9 tolerance of an absent record is exercised by
+its suite alone. The tip is sound.
+
+### Deleted or renamed members — the mandatory `rg` over `**/tests/**`
+
+**This unit deletes and renames NOTHING**: five new files, no existing file modified, no port or
+signature changed. The search's subject is empty and that is stated as a RESULT rather than left
+unrun — §10.2's rule is about port narrowings, and this unit performs none.
+
+### TDD cycle evidence
+
+| Task               | Test file                                                       | Layer | Safety net | RED                                                                   | GREEN                     | TRIANGULATE                                                                                                                             | REFACTOR                                                          |
+| ------------------ | --------------------------------------------------------------- | ----- | ---------- | --------------------------------------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| T1c.1              | `packages/core/posts/tests/unit/openPublicationEpisode.test.ts` | Unit  | ✅ 27/27   | ✅ `Cannot find module '…/OpenPublicationEpisodeUseCase.js'`          | ✅ 16/17 → **17/17**      | ✅ 17 cases: three admission branches × named/unnamed/unequal request, alreadyOpen × (no-op \| word moves), CAS \| generic save failure | ✅ `setsDiffer` extracted; `admitTargets` split from `open`       |
+| T1c.2              | `.../recordChannelPublicationAttempt.test.ts`                   | Unit  | ✅ 27/27   | ✅ `Cannot find module '…/RecordChannelPublicationAttemptUseCase.js'` | ✅ 12/13 → **13/13**      | ✅ 13 cases: published \| transient \| stranding result, stale \| zero episode, unknown channel, replay, plan-size, CAS, tripwire       | ✅ the two translations extracted to `publicationWriteOutcome.ts` |
+| T1c.4 (first half) | both files above                                                | Unit  | ✅ 27/27   | ➖ the GREEN of the two RED tasks                                     | ✅ **57/57** package-wide | ➖ covered by the two rows above                                                                                                        | ✅ `answer()` closure removes the duplicated ok-payload           |
+
+### Gates
+
+| Gate                                                                                         | Result                                                                                                                                                                |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tsc --noEmit` on `@core/posts` (the only touched package)                                   | **0**                                                                                                                                                                 |
+| `tsc -p` over `src` + `tests` (throwaway probe config, deleted)                              | **0**, and see the correction above: the FIRST run read `head`'s exit, not `tsc`'s, and the number here comes from the re-run that captured `TSC_OWN_EXIT=0` directly |
+| `eslint --max-warnings 0` on the 5 touched files                                             | **0**                                                                                                                                                                 |
+| `eslint apps packages infra --ext .ts,.tsx --max-warnings 0`                                 | **0**                                                                                                                                                                 |
+| `prettier -c` on the 5 touched files · `pnpm format:check`                                   | clean · clean                                                                                                                                                         |
+| `pnpm check:circular` (madge, 1601 files)                                                    | no circular dependency                                                                                                                                                |
+| `@core/posts` suite                                                                          | **4 files, 57 passed** (baseline was 2 files / 27)                                                                                                                    |
+| `apps/api` unit tier, full, once                                                             | **585 files, 9112 passed, 0 failed, 0 skipped**, exit 0 — identical to the `1c-1a` tip                                                                                |
+| `integration:saga-recovery` (real Postgres + Redis, the per-tip guard)                       | **# tests 33 · # pass 33 · # fail 0 · # cancelled 0 · # skipped 0**, runner exit 0                                                                                    |
+| fitness #1 / #2 / #3 / #4 / #5 / #6 / #7 / #8 / #9 / #10 / #11 / #16 / #21 / #22 / #23 / #32 | 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0                                                                                                         |
+| fitness #38                                                                                  | swept tree **0** · `db-prisma` ratchet **11**, unchanged                                                                                                              |
+| fitness #40                                                                                  | Part A seams 3 (floor 3), violations **0** · Part B sites 14 (floor 10), underived **0**                                                                              |
+| fitness #41                                                                                  | sites 8 (floor 8), exception hits 1, violations **0**                                                                                                                 |
+
+### Budget — measured, and it does not fit the forecast either
+
+Every file in this unit is NEW, so additions equal the line count and deletions are zero: `wc -l`
+IS the numstat here, which is the one case where it is (the `1c-1a` ledger's warning about
+`PostAggregateMapper.ts` applies to MODIFIED files).
+
+| File                                                                | Stream   | Changed lines |
+| ------------------------------------------------------------------- | -------- | ------------: |
+| `packages/core/posts/src/OpenPublicationEpisodeUseCase.ts`          | CODE     |       **318** |
+| `packages/core/posts/src/RecordChannelPublicationAttemptUseCase.ts` | CODE     |       **224** |
+| `packages/core/posts/src/publicationWriteOutcome.ts`                | CODE     |        **74** |
+| `packages/core/posts/tests/unit/openPublicationEpisode.test.ts`     | EVIDENCE |       **563** |
+| `.../recordChannelPublicationAttempt.test.ts`                       | EVIDENCE |       **472** |
+
+| Stream       |                                            Measured | Forecast (§9.4.1) | Verdict                                       |
+| ------------ | --------------------------------------------------: | ----------------: | --------------------------------------------- |
+| **CODE**     |                                             **616** |               400 | **1.54× over** — `size:exception` recommended |
+| **EVIDENCE** | **1035** tests, ~1300 with this ledger + `tasks.md` |               754 | **1.4× over** on tests alone                  |
+
+**The third consecutive under-count, and this one is NOT deletions.** `1c-1a` was +135%, `1c-1b`
++83%, this one +54%. The previous two were under-counted because the line-item method costs what it
+PLANS to write and deletions are discovered while writing; here nothing was deleted, so the cause is
+different and worth naming: the forecast counted two use-case bodies and not the canon they are
+written under. Of the 616 CODE lines, roughly 210 are JSDoc that `CODING_STANDARDS §Documentation`
+makes mandatory on every file and every public member, and 74 are a third file the task list does
+not name. §9.4.1's closing advice — "treat any remaining forecast at or near 400 as already over" —
+held exactly, and the remaining grandchildren at 371, 301, 280 and 275 should be read the same way.
+
+**It was not compressed to fit.** Per the review-workload rule, comments, JSDoc and test cases were
+not deleted and nothing was restyled to reach the number. It could be split further — the two use
+cases are independent files — but the split would be a RE-SLICE of §9.4.1's order 2, which is
+Edward's decision and not this run's: each half's RED suite is one of the two assigned tasks, and
+landing a suite whose subject does not exist is the one shape the order exists to prevent.
+
+### What is deliberately NOT in this unit
+
+`ConfirmManualRetractionUseCase`, `ExpireRetractionActionWindowUseCase`, the `@core/posts` barrel
+entries for all four, T1c.6's `SchedulePostUseCase` seam (all `1c-1d`), and T1c.7's command token,
+handlers and container registration (`1c-1e`). No DI token, no route and no CQRS command was added
+here — which is why the unreachability measurement above reads the way it does.
+
+### Follow-up after the fresh-context gate of `1c-1c` — PASS WITH WARNINGS
+
+No Critical was raised and every claim in this section was confirmed, including the
+unreachability measurement and the byte-exactness of the `1c-1a` restores. Seven findings, two
+FIXED here and five recorded with an owner — a finding whose owner is another unit is written into
+`tasks.md` at that unit's task, not carried in prose alone.
+
+| Id     | Finding                                                                                                                                                                                                                                                                                                       | Disposition                                                                                   |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **W1** | `channelIds: []` was UNTESTED, and the refusal is load-bearing: over a non-empty recorded set with nothing live, `declarePublicationTargets([])` passes the identical-set guard (0 ≠ 2) AND the live-content guard, and reaches `replaceRecords([])` — it WIPES the record                                    | **FIXED** — one case added, with its red recorded below                                       |
+| **W2** | `changed` rested on a CROSS-FILE invariant: it is correct only because `ChannelPublication.declare` builds records at episode 0, so a replaced set can never report `alreadyOpen`. The use case already knew it had replaced the set and did not use that knowledge                                           | **FIXED** — `replacedTargets`, below                                                          |
+| **W3** | `CHANNEL_HAS_LIVE_FRAGMENTS` collapses into a generic `CONFLICT`; the only discriminator left to a route is the message PREFIX, while D9 wants 409 `{ code: "CHANNEL_HAS_LIVE_FRAGMENTS" }` carrying the fragments                                                                                            | **OWNER `1c-2b`** — written at T1c.11 in `tasks.md`                                           |
+| **W4** | `INVALID_STATE_TRANSITION_CODE` is a LOCAL literal in `publicationWriteOutcome.ts` because `@core/domain` exports `VERSION_CONFLICT_CODE` but no equivalent for the lifecycle refusal. Mitigated today by the `FORBIDDEN` case, which drives a REAL `InvalidStateTransitionError` rather than a hand-made one | **OWNER `1c-1d`** — written at T1c.3 in `tasks.md`                                            |
+| **W5** | `CompletePostPublishingUseCase` still carries its own `isVersionConflict`, now duplicated by `publicationSaveFailure`                                                                                                                                                                                         | **PRE-EXISTING; OWNER T1c.5** (parked `1c-1b`) — written at T1c.5 in `tasks.md`               |
+| **W6** | CODE 616 vs forecast 400 as the gate raised it; **649 as shipped** (W2 added 33 to the same file)                                                                                                                                                                                                             | **EDWARD'S DECISION** — `size:exception`, or the split measured below                         |
+| **W7** | REC-8 (`PARTIALLY_PUBLISHED` RESTS) is covered here for `FAILED` only                                                                                                                                                                                                                                         | **NOTED, not a gap** — `PARTIALLY_PUBLISHED` travels the IDENTICAL arm and is T1b.9 / T1d.5's |
+
+**W1 as fixed, and the red that proves the case bites.** The new case builds the state in which the
+aggregate WOULD accept the wipe — two recorded channels, nothing live — asks with `channelIds: []`,
+and asserts on the RECORD rather than only on the returned error. Probe: the refusal in
+`parseChannelIds` was neutralised by changing its condition from `channelIds.length === 0` to
+`channelIds.length === -1` (one token, trivially reversible), the single case was run, and the
+request reached the aggregate exactly as predicted:
+
+```text
+ FAIL  tests/unit/openPublicationEpisode.test.ts > OpenPublicationEpisodeUseCase > a record with
+   nothing live — the set is replaced, then opened (D9) > refuses an empty channel list and leaves
+   the recorded target set intact
+AssertionError: the recorded target set survives an empty request
++ actual - expected
++ []
+- [
+-   'aa000000-0000-4000-8000-00000000000a',
+-   'aa000000-0000-4000-8000-00000000000b'
+- ]
+ Test Files  1 failed (1)
+      Tests  1 failed | 17 skipped (18)
+```
+
+The assertion order is deliberate: the record comes BEFORE the error code, so the failure names the
+WIPE rather than a code mismatch. Restored and verified byte-exact —
+`packages/core/posts/src/OpenPublicationEpisodeUseCase.ts`
+`4f963ae909f4261a7f12b8995767e31b4a5c17fc34c930d8284051d62eac7160` before the probe and
+`4f963ae909f4261a7f12b8995767e31b4a5c17fc34c930d8284051d62eac7160` after it (`sha256sum -c` → `OK`);
+the suite then read **18/18**. That hash is a point-in-time value: W2 edited the same file
+afterwards, so the shipped file does not match it and a later `sha256sum -c` against it reads as a
+failed restore that never happened.
+
+**W2 as fixed.** `admitTargets` now answers an `AdmittedTargets` — `{ channelIds, replacedTargets }`
+— and `replacedTargets` is measured with `setsDiffer` BEFORE `declarePublicationTargets` runs,
+because afterwards the record already holds the requested set and the difference is gone. It is
+`true` exactly when this call handed the aggregate a DIFFERENT set (an empty record answers
+"differs" for any request, which is right: declaring the first targets rewrites the record too), and
+it is OR-ed into `changed` as its first term. The invariant it stops depending on is named in the
+comment at the branch: that a replaced set can never report `alreadyOpen`, which holds today only
+because `ChannelPublication.declare` builds records at episode 0 — a fact of another file. If that
+ever stopped holding, the old form would read "nothing changed" over a rewritten record set and skip
+the write in silence, with every test still green.
+
+**No red is available for W2 without altering the aggregate, and none was invented.** The defect it
+closes is unreachable while `declare` builds at episode 0: to observe it one would have to make
+`openEpisode` preserve episodes across a replacement, which is a change to `@core/domain` and
+outside this unit. Observable behaviour is unmoved and that IS asserted — the no-op case still reads
+`post.version === 3` with zero `savePublication` calls, and the replacement case still writes once.
+
+### For Edward — a product question the gate raised, NOT answered here
+
+> D9 says (1) with `hasLiveContent()` the request set must EQUAL the recorded set, and (2) Slice 2's
+> retry route starts the same saga with `channelIds: [channelId]`. A partially published post has
+> live content, so a one-channel retry against a recorded set of 2+ would be refused — exactly the
+> retry spec's merge-blocking scenario (`specs/post-channel-publication-retry/spec.md:96`). The
+> equality rule appears in no spec, only D9 and T1c.1. Candidate answers: (i) the route sends the
+> full recorded set and the use case filters to `redrivable()` (but another channel pending
+> retraction would then refuse the whole retry by name); (ii) relax to "requested ⊆ recorded" on the
+> retry path.
+
+Due before `1c-2b`; recorded as a new §9.9 item in `tasks.md`. Nothing in this unit was changed in
+anticipation of either answer: the equality rule is implemented exactly as D9 states it.
+
+### The split option for W6, measured
+
+| Unit       | Content                                                                | CODE, as the gate measured it | CODE, re-measured after the corrections |
+| ---------- | ---------------------------------------------------------------------- | ----------------------------: | --------------------------------------: |
+| `1c-1c-i`  | T1c.1 + `OpenPublicationEpisodeUseCase` + `publicationWriteOutcome.ts` |                           392 |                                 **425** |
+| `1c-1c-ii` | T1c.2 + `RecordChannelPublicationAttemptUseCase`                       |                           224 |                                 **224** |
+
+**The re-measured column is the one to decide on, and it changes the answer.** The gate measured the
+split BEFORE correction W2 landed; `replacedTargets` added 33 CODE lines to
+`OpenPublicationEpisodeUseCase.ts` (318 → 351), so half **i** is now **425 — over the 400 budget by
+itself**, and the split no longer makes both halves fit. Stated rather than left standing, because
+"both halves fit" was true of the figures the gate had and is false of the tree that exists. Half
+**ii** is unaffected. The whole unit now measures **CODE 649** (351 + 224 + 74) against the 400
+forecast, and EVIDENCE **1066** on tests (594 + 472).
+
+So the real choice is narrower than it looked: `size:exception` for `1c-1c` at 649, or a split whose
+first half still needs one at 425 — unless the shared helper travels with `1c-1c-ii` instead
+(`1c-1c-i` 351 / `1c-1c-ii` 298, both under budget), which inverts the "the first to need it carries
+it" rule and is offered only because the measurement forces the question. The split is NOT acted on
+here: it re-slices a ratified §9.4.1 order, which is Edward's call.
+
+### Gates re-run after the two corrections
+
+| Gate                                                              | Result                                                                                                                                    |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `@core/posts` vitest suite                                        | **4 files, 58 passed** (was 57; the W1 case is the one added)                                                                             |
+| `tsc --noEmit` in `@core/posts`                                   | **0** (`TSC_EXIT` read directly off `tsc`, no pipe)                                                                                       |
+| `eslint --max-warnings 0` on the two changed `.ts` files          | **0**                                                                                                                                     |
+| `prettier -c` on every changed file, incl. the two `.md`          | clean                                                                                                                                     |
+| `tsc -p` over `src` + `tests`, probe RE-RUN after the corrections | **`TSC_OWN_EXIT=0`** — the honest measurement of the row the section above corrects; it now also covers the W1 case and `replacedTargets` |
+
+### RDD receipt — the committed range `7010da92` → `ff1c41a1`
+
+Lineage `review-e5c939093cdb3581`, MEDIUM tier (7 files / 2,065 lines), ONE reliability lens. The
+review reached **approved** on its first admitted capture, the acknowledgement was executed exactly
+once and the authority is **burned**; no Critical and no WARNING was raised. Two ADVISORY
+SUGGESTIONs, quoted from the reviewer BEFORE the acknowledgement (the transaction store is deleted
+by the burn), and what becomes of each:
+
+| Finding                          | Level      | Where                                                                                                      | Reviewer's claim (quoted)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Disposition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `R3-noUowBranchUntested`         | SUGGESTION | `OpenPublicationEpisodeUseCase.ts:88-96`; same shape at `RecordChannelPublicationAttemptUseCase.ts:97-105` | "The `unitOfWork` constructor parameter is optional, and when omitted the use case calls the inner `doWork` closure directly, bypassing `executeResultInTransaction`. No test … exercises this branch — every test constructs the use case with `makeRecordingUow()` — so the behaviour of a `savePublication` failure or a domain refusal returned from the closure when the seam is absent is unproved by this candidate."                                                                                                                                                               | **OWED to `1c-1d`, which adds the two remaining T1c.4 use cases of the same shape**: one case per use case constructed WITHOUT a unit of work, asserting that a domain refusal and a `savePublication` failure both come back as the same outcomes the transactional path answers, and that nothing is written. The branch exists for the canon's own reason (the UoW parameter is optional for tests) and is unreachable from the composition root, which always injects the seam; its behaviour is nonetheless a contract this package states and should be pinned once for all four                                                                                                     |
+| `R3-tripwireContractIsLocalMock` | SUGGESTION | `recordChannelPublicationAttempt.test.ts:135-153`, asserted at `:433-461`                                  | "The narrow-save tripwire is re-implemented inside the test's own `makePostRepo` double via a locally hard-coded `TRIPWIRE_EVENTS` list, then the use-case's INTERNAL_ERROR translation is asserted against it. … if the production adapter's `PUBLICATION_TRIPWIRE_EVENTS` set diverges (event renamed, added, removed), this suite continues to pass while production silently changes behaviour. Consider a cross-package contract test at the adapter tier (or exporting the tripwire set from a package `@core/posts` can depend on) so the two definitions cannot drift undetected." | **ACCEPTED, written at T1c.14 in `tasks.md`, not done here.** The drift the reviewer names is real and the suite's own comment already states the trade-off. The adapter suite (`apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`) pins the production set directly; what is missing is the link between the two definitions. The honest fix is the reviewer's second option — the tripwire set moves to a package both `@core/posts` and the adapter can import (it is a statement about the aggregate's events, which live in `@core/domain`) — a small relocation with its own red, owned by the unit that next touches `PUBLICATION_TRIPWIRE_EVENTS` (T1c.14, `1c-3e`) |
