@@ -563,11 +563,26 @@ jobs:
           # change it reverses is a second, unreviewed migration. Nothing else in
           # the file is waived — the timeout preamble is present, and the DROP
           # TYPE statements are deliberately not IF EXISTS.
-          # TRIGGER: squawk reports ban-drop-table for this exact file content.
+          # transaction-nesting x2, ALSO on this file, since the rollback became
+          # atomic: the file now opens with BEGIN and ends with COMMIT so an
+          # operator running it with `psql -f` gets all-or-nothing (a DROP that
+          # fails half-way no longer leaves the enum types without their table).
+          # .squawk.toml pins assume_in_transaction = true because Prisma wraps
+          # every FORWARD migration in a transaction of its own, and under that
+          # assumption an explicit BEGIN/COMMIT reads as a nested transaction.
+          # This file is never applied by Prisma — it is operator-run, outside
+          # any migration tool's wrapper — so the assumption the rule models does
+          # not hold for it and the BEGIN/COMMIT are the ONLY transaction it has.
+          # Waiving the rule here is honest; rewriting the file to satisfy it
+          # would make the rollback non-atomic again, which is the defect the
+          # BEGIN/COMMIT closed (ADJUDICATION 6 keeps its own reasons; nothing
+          # about the forward file changes).
+          # TRIGGER: squawk reports ban-drop-table and transaction-nesting for
+          # this exact file content.
           # REMOVE-WHEN: together with ADJUDICATION 6 — the pair retires when a
           # baseline squash deletes the migration folder, in that same change.
           PCP_DOWN="infra/prisma/migrations/20260917093257_add_post_channel_publication/down.sql"
-          PCP_DOWN_DIGEST="cee96c5228534a0ff4e7803ef4c76e7498da7b3e9302c33b821deafa640c4c0f"
+          PCP_DOWN_DIGEST="2cd301369f255b81ba59b6b95eaef96a3bb17f24e662723ce5b46af69c9ada9e"
 
           exception_rules_for() {
             case "$1" in
@@ -577,7 +592,7 @@ jobs:
               "$IX1_MIGRATION") echo "require-concurrent-index-creation,require-concurrent-index-deletion" ;;
               "$IX1_DOWN") echo "require-concurrent-index-creation,require-concurrent-index-deletion" ;;
               "$PCP_MIGRATION") echo "prefer-bigint-over-int" ;;
-              "$PCP_DOWN") echo "ban-drop-table" ;;
+              "$PCP_DOWN") echo "ban-drop-table,transaction-nesting" ;;
               *) echo "" ;;
             esac
           }
