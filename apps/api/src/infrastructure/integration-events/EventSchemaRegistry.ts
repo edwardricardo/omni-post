@@ -100,6 +100,38 @@ const postMediaRemovedV1 = z.object({
   mediaId: z.string(),
 });
 
+/**
+ * PostChannelRetractionAlertRaised v1 — INTERNAL. It is registered here because every
+ * event that rides the outbox is validated on its way through, not because it is
+ * projected outward: no integration subscriber receives it.
+ */
+const postChannelRetractionAlertRaisedV1 = z.object({
+  postId: z.string(),
+  projectId: z.string(),
+  accountId: z.string().optional(),
+  channelId: z.string(),
+  liveFragments: z.array(
+    z.object({
+      index: z.number(),
+      externalId: z.string(),
+      url: z.string().optional(),
+    })
+  ),
+  cause: z.string(),
+  alertKey: z.string(),
+  supersededAlertKey: z.string().optional(),
+});
+
+/** PostChannelRetractionAlertResolved v1 — INTERNAL, as above. */
+const postChannelRetractionAlertResolvedV1 = z.object({
+  postId: z.string(),
+  projectId: z.string(),
+  accountId: z.string().optional(),
+  channelId: z.string(),
+  alertKey: z.string(),
+  cause: z.string(),
+});
+
 /** CrisisModeEntered v1 */
 const crisisModeEnteredV1 = z.object({
   projectId: z.string(),
@@ -148,6 +180,8 @@ export class EventSchemaRegistry {
     this.register("PostCancelled", 1, postCancelledV1);
     this.register("PostMediaAdded", 1, postMediaAddedV1);
     this.register("PostMediaRemoved", 1, postMediaRemovedV1);
+    this.register("PostChannelRetractionAlertRaised", 1, postChannelRetractionAlertRaisedV1);
+    this.register("PostChannelRetractionAlertResolved", 1, postChannelRetractionAlertResolvedV1);
     this.register("CrisisModeEntered", 1, crisisModeEnteredV1);
     this.register("CrisisModeExited", 1, crisisModeExitedV1);
   }

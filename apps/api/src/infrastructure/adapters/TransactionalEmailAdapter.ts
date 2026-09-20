@@ -29,10 +29,12 @@ import {
   approvalRequestedEmail,
   approvalDecisionEmail,
   mentionEmail,
+  retractionPendingEmail,
   welcomeEmail,
   teamInvitationEmail,
 } from "../email/templates/emailTemplates.js";
 import { referralRewardEmail } from "../email/templates/referralRewardEmail.js";
+import { readAlertFragments } from "@core/notifications/readAlertFragments.js";
 
 /**
  * @class TransactionalEmailAdapter
@@ -130,6 +132,25 @@ export class TransactionalEmailAdapter
           contextUrl: `${this.clientUrl}/dashboard/inbox`,
           accountName: ctx.accountName,
         });
+
+      case "PUBLICATION_RETRACTION_PENDING": {
+        // The only notification type whose metadata is structured rather than flat:
+        // the customer has to be told WHICH fragments are still live, one by one, so
+        // the array is read back here rather than flattened into a sentence upstream.
+        const raw = (ctx.metadata ?? {}) as Record<string, unknown>;
+        const channelName = typeof raw.channelName === "string" ? raw.channelName : "the channel";
+        const actionWindowEndsAt =
+          typeof raw.actionWindowEndsAt === "string" ? raw.actionWindowEndsAt : undefined;
+        return retractionPendingEmail({
+          channelName,
+          postExcerpt: typeof raw.postExcerpt === "string" ? raw.postExcerpt : ctx.body,
+          cause: typeof raw.cause === "string" ? raw.cause : "NO_CAPABILITY",
+          liveFragments: readAlertFragments(raw.liveFragments),
+          ...(actionWindowEndsAt !== undefined && { actionWindowEndsAt }),
+          postUrl: `${this.clientUrl}/dashboard/posts/${typeof raw.postId === "string" ? raw.postId : ""}`,
+          accountName: ctx.accountName,
+        });
+      }
 
       default:
         return { subject: ctx.title, html: `<p>${ctx.body}</p>` };

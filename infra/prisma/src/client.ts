@@ -59,6 +59,7 @@ export type {
   ProviderPricingTier,
   AccountPricingTier,
   ProviderBundle,
+  RetractionAlertDelivery,
 } from "../generated/prisma/client/client.js";
 
 // Re-export all enums (used as values: Provider.X, etc.)
@@ -70,6 +71,7 @@ export {
   ChannelExclusionReason,
   ChannelRetractionBlock,
   ChannelRetractionClearance,
+  RetractionAlertMedium,
   ThreadStrategy,
   TweetStatus,
   VersionChangeType,

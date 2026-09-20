@@ -23,3 +23,5 @@ export {
   CONTENT_LOCKED_CODE,
   type ContentLockedErrorProps,
 } from "./ContentLockedError.js";
+
+export { NotificationDeliveryError } from "./NotificationDeliveryError.js";

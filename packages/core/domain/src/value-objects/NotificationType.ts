@@ -17,6 +17,7 @@ export const NOTIFICATION_TYPES = {
   TEAM_INVITE: "TEAM_INVITE",
   INBOX_MESSAGE_RECEIVED: "INBOX_MESSAGE_RECEIVED",
   INBOX_MENTION_RECEIVED: "INBOX_MENTION_RECEIVED",
+  PUBLICATION_RETRACTION_PENDING: "PUBLICATION_RETRACTION_PENDING",
 } as const;
 
 export type NotificationTypeValue = (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICATION_TYPES];
@@ -39,6 +40,16 @@ const TEAM_TYPES: readonly NotificationTypeValue[] = [NOTIFICATION_TYPES.TEAM_IN
 const INBOX_TYPES: readonly NotificationTypeValue[] = [
   NOTIFICATION_TYPES.INBOX_MESSAGE_RECEIVED,
   NOTIFICATION_TYPES.INBOX_MENTION_RECEIVED,
+];
+
+/**
+ * Types that oblige the customer to act OUTSIDE the product — on a third-party
+ * platform — and whose delay has a cost the product cannot undo. Urgency is a RANK
+ * so a surface can order these above routine traffic; it is NOT a permission and
+ * nothing may read it to bypass the recipient's own choice about the type.
+ */
+const URGENT_TYPES: readonly NotificationTypeValue[] = [
+  NOTIFICATION_TYPES.PUBLICATION_RETRACTION_PENDING,
 ];
 
 /**
@@ -121,6 +132,16 @@ export class NotificationType {
    */
   isInboxRelated(): boolean {
     return INBOX_TYPES.includes(this._value);
+  }
+
+  /**
+   * @method isUrgent
+   * @description Returns true when this type ranks above routine notifications.
+   *   RANK ONLY: an urgent type is displayed and ordered first, and it never
+   *   overrides the recipient's per-type choice about whether to receive it at all.
+   */
+  isUrgent(): boolean {
+    return URGENT_TYPES.includes(this._value);
   }
 
   /**

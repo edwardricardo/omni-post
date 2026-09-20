@@ -251,6 +251,15 @@ export const TOKENS = {
   // Notification Event Handlers
   NotificationEventHandlers: Symbol.for("NotificationEventHandlers"),
 
+  // Urgent retraction alert — the consumer side of a channel stranded with live content
+  SendEmailNotificationService: Symbol.for("SendEmailNotificationService"),
+  RetractionAlertDeliveryLedger: Symbol.for("RetractionAlertDeliveryLedger"),
+  RetractionAlertContextAdapter: Symbol.for("RetractionAlertContextAdapter"),
+  RetractionAlertMedia: Symbol.for("RetractionAlertMedia"),
+  RaiseRetractionAlertUseCase: Symbol.for("RaiseRetractionAlertUseCase"),
+  ResolveRetractionAlertUseCase: Symbol.for("ResolveRetractionAlertUseCase"),
+  RetractionAlertEventHandler: Symbol.for("RetractionAlertEventHandler"),
+
   // Comments
   PostCommentRepository: Symbol.for("PostCommentRepository"),
   CreateCommentUseCase: Symbol.for("CreateCommentUseCase"),

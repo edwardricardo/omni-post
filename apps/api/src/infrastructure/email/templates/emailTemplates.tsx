@@ -18,6 +18,7 @@ import {
 } from "@react-email/components";
 import { render } from "@react-email/render";
 import * as React from "react";
+import { describeRetractionCause } from "@core/notifications/retractionAlertMessage.js";
 
 // ---------------------------------------------------------------------------
 // Shared styles
@@ -391,6 +392,89 @@ export async function mentionEmail(
     subject: `${params.mentionerName} mentioned you in a ${params.context}`,
     html: await render(React.createElement(MentionEmail, params)),
   };
+}
+
+/**
+ * @function retractionPendingEmail
+ * @description Renders the urgent "content is still live, remove it manually" email.
+ *   The subject names the channel rather than the post: the customer has to act on a
+ *   third-party platform, and the channel is where they have to go.
+ * @param params - Channel, post excerpt, live fragments, cause and deadline
+ * @returns Subject line and rendered HTML body
+ */
+export async function retractionPendingEmail(
+  params: RetractionPendingProps
+): Promise<{ subject: string; html: string }> {
+  return {
+    subject: `Action required: content is still live on ${params.channelName}`,
+    html: await render(React.createElement(RetractionPendingEmail, params)),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Retraction pending — content live on a provider this application cannot reach
+// ---------------------------------------------------------------------------
+
+/** One fragment of the post that is still published. */
+interface RetractionFragmentProps {
+  index: number;
+  externalId: string;
+  url?: string;
+}
+
+interface RetractionPendingProps {
+  channelName: string;
+  postExcerpt: string;
+  cause: string;
+  liveFragments: readonly RetractionFragmentProps[];
+  actionWindowEndsAt?: string;
+  postUrl: string;
+  accountName: string;
+}
+
+function RetractionPendingEmail(props: RetractionPendingProps) {
+  // The vocabulary is shared, not copied: this email used to hold its own map of the
+  // same two sentences, so editing one of them would have left the customer reading a
+  // different explanation in the inbox than on the dashboard about one stranded post.
+  const causeSentence = describeRetractionCause(props.cause);
+
+  return (
+    <BaseEmailLayout
+      preview={`Content is still live on ${props.channelName}`}
+      accountName={props.accountName}
+      ctaText="Open the post"
+      ctaUrl={props.postUrl}
+    >
+      <Text style={{ fontSize: "18px", fontWeight: 600, color: "#111827", margin: "0 0 12px" }}>
+        Content is still live on {props.channelName}
+      </Text>
+      <Text style={{ color: "#4b5563" }}>
+        Part of your post is still published on <strong>{props.channelName}</strong>, and{" "}
+        {causeSentence}.
+      </Text>
+      <Section style={cardStyle}>
+        <Text style={{ color: "#4b5563", fontSize: "14px", margin: "0 0 8px" }}>
+          {props.postExcerpt}
+        </Text>
+        {props.liveFragments.map((fragment) => (
+          <Text
+            key={fragment.externalId}
+            style={{ color: "#4b5563", fontSize: "14px", margin: "4px 0" }}
+          >
+            {fragment.index}. {fragment.externalId}
+            {fragment.url === undefined ? "" : ` — ${fragment.url}`}
+          </Text>
+        ))}
+      </Section>
+      <Text style={{ color: "#4b5563" }}>
+        Remove these manually on the platform, then confirm the removal in OmniPost. This channel
+        can be retried only once nothing of the post is live on it.
+      </Text>
+      {props.actionWindowEndsAt === undefined ? null : (
+        <Text style={{ color: "#4b5563" }}>Act by {props.actionWindowEndsAt}.</Text>
+      )}
+    </BaseEmailLayout>
+  );
 }
 
 // ---------------------------------------------------------------------------

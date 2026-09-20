@@ -569,6 +569,37 @@ jobs:
           PCP_DOWN="infra/prisma/migrations/20260917093257_add_post_channel_publication/down.sql"
           PCP_DOWN_DIGEST="cee96c5228534a0ff4e7803ef4c76e7498da7b3e9302c33b821deafa640c4c0f"
 
+          # ADJUDICATION 8 — ban-drop-table x1 on the retraction-alert
+          # notifications migration's OPERATOR-RUN down.sql.
+          # Same cause and same disposition as ADJUDICATION 7, on a different
+          # pair of files: the forward migration CREATES "RetractionAlertDelivery",
+          # so its rollback is the statement that drops it, and there is no
+          # formulation of "undo a CREATE TABLE" that does not drop the table. The
+          # rule's concern — breaking existing clients — IS the intended effect of
+          # a rollback, exercised only by an operator who has decided to revert,
+          # never by Prisma (which does not apply down.sql at all).
+          # WHAT IS NOT WAIVED, which is the part worth stating: the FORWARD file
+          # of this pair lints CLEAN and gets no entry here. Squawk fired
+          # require-enum-value-ordering on its ALTER TYPE ... ADD VALUE, and that
+          # finding was FIXED rather than adjudicated — the statement now names
+          # its anchor (AFTER 'INBOX_MENTION_RECEIVED'), which is the same sort
+          # order a bare append produces and states the position instead of
+          # leaving a reader to infer it. A fixable finding does not belong in
+          # this list; that is the ADJUDICATION 2 precedent, where
+          # constraint-missing-not-valid was fixed and only the unsatisfiable five
+          # were adjudicated.
+          # Nothing else in the rollback is waived: the timeout preamble is
+          # present, the DROP TYPE is deliberately not IF EXISTS, and the file
+          # states its own non-total inverse (PostgreSQL cannot drop an enum label
+          # in place, so the added label survives a rollback).
+          # TRIGGER: squawk reports ban-drop-table for this exact file content.
+          # REMOVE-WHEN: a baseline squash deletes this migration folder — delete
+          # the entry in that same change. (Unlike ADJUDICATIONS 4/5 and 6/7 this
+          # is not half of a pair: the forward file carries no waiver to retire
+          # alongside it.)
+          RAD_DOWN="infra/prisma/migrations/20260919222448_add_retraction_alert_notifications/down.sql"
+          RAD_DOWN_DIGEST="9ab334f03f70fa8b0772ffcb6b9a286475eb2ff079844db802727b989f333338"
+
           exception_rules_for() {
             case "$1" in
               "$ALIGNMENT_MIGRATION") echo "ban-drop-not-null" ;;
@@ -578,6 +609,7 @@ jobs:
               "$IX1_DOWN") echo "require-concurrent-index-creation,require-concurrent-index-deletion" ;;
               "$PCP_MIGRATION") echo "prefer-bigint-over-int" ;;
               "$PCP_DOWN") echo "ban-drop-table" ;;
+              "$RAD_DOWN") echo "ban-drop-table" ;;
               *) echo "" ;;
             esac
           }
@@ -590,6 +622,7 @@ jobs:
               "$IX1_DOWN") echo "$IX1_DOWN_DIGEST" ;;
               "$PCP_MIGRATION") echo "$PCP_DIGEST" ;;
               "$PCP_DOWN") echo "$PCP_DOWN_DIGEST" ;;
+              "$RAD_DOWN") echo "$RAD_DOWN_DIGEST" ;;
               *) echo "" ;;
             esac
           }
@@ -602,7 +635,7 @@ jobs:
           # statements above are the list this loop must mirror, and it silently
           # stopped mirroring them when POST_TRIO landed. Adding a name here is
           # part of adding an adjudication, not a follow-up to it.
-          for p in "$ALIGNMENT_MIGRATION" "$RETENTION_MIGRATION" "$POST_TRIO_MIGRATION" "$IX1_MIGRATION" "$IX1_DOWN" "$PCP_MIGRATION" "$PCP_DOWN"; do
+          for p in "$ALIGNMENT_MIGRATION" "$RETENTION_MIGRATION" "$POST_TRIO_MIGRATION" "$IX1_MIGRATION" "$IX1_DOWN" "$PCP_MIGRATION" "$PCP_DOWN" "$RAD_DOWN"; do
             if [ ! -f "$p" ]; then
               echo "::error title=Squawk exception names a file that no longer exists::$p is adjudicated in this step but is not in the tree. Delete the entry, or a migration recreated under that path inherits the waiver without ever being adjudicated."
               exit 1

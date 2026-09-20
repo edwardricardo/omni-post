@@ -59,13 +59,104 @@ This document covers the notification and communication subsystems of OmniPost: 
 **Type:** query
 **Description:** Returns unread notification count for a recipient.
 
-**File:** `apps/api/src/application/notifications/SendEmailNotificationService.ts`
+**File:** `packages/core/notifications/src/SendEmailNotificationService.ts`
 **Type:** service
-**Description:** Sends email notifications for supported notification types.
+**Description:** Sends email notifications for supported notification types. Gates on
+`EMAIL_ENABLED_TYPES` and then on the recipient's per-type preference, via the shared
+`isTypeEnabled` predicate. **Registered** as `TOKENS.SendEmailNotificationService`; its
+first production caller is the urgent retraction alert's email medium (below).
+
+**Failure behaviour:** it returns `Result<void, NotificationDeliveryError>` and never
+throws. A transport refusal — whether the mailer throws or returns its own `err` — comes
+back as an `err` carrying the provider's message; a DELIBERATE skip (type off the
+allow-list, or the recipient's opt-out) is `ok`, because a caller must not retry
+something nobody wants sent. It previously returned `void` around an empty catch, which
+made "sent", "skipped" and "failed" indistinguishable to a caller — and a caller that
+records deliveries in a ledger then blocked its own retry.
+
+> The other file paths in this document still name the pre-relocation
+> `apps/api/src/{domain,application}/...` layout. Correcting them wholesale is its own
+> change; this entry was corrected because the alert wires the file it names.
+
+**File:** `packages/core/notifications/src/isTypeEnabled.ts`
+**Type:** predicate
+**Description:** The ONE per-type delivery predicate. Absence of a preference row means
+ENABLED, so a type nobody has answered for still reaches the member. Called by
+`CreateNotificationUseCase`, `SendEmailNotificationService` and
+`RaiseRetractionAlertUseCase`, so the three cannot drift.
 
 **File:** `apps/api/src/application/notifications/handlers/NotificationEventHandlers.ts`
 **Type:** event handlers
 **Description:** Domain event handlers that create notifications in response to domain events (approvals, comments, mentions).
+
+### Urgent retraction alert
+
+When a channel resolves not-published while fragments of the post are STILL LIVE on the
+platform and the platform offers no way to take them down, the customer is alerted: a
+manual removal is then the only exit, and a state nobody is told about is
+indistinguishable from one that did not happen.
+
+**Type:** `PUBLICATION_RETRACTION_PENDING` — the tenth member of the closed
+`NOTIFICATION_TYPES` set. `NotificationType.isUrgent()` returns true for it so surfaces
+can RANK it above routine traffic. Urgency is rank, never permission: nothing reads
+`isUrgent()` to bypass the customer's own choice about the type.
+
+**Media, and what switches each one.** Two kinds, and the difference is not cosmetic:
+
+| Medium        | Kind               | Switched by                                                          |
+| ------------- | ------------------ | -------------------------------------------------------------------- |
+| in-app        | per-member         | the member's per-type `NotificationPreference` row (default enabled) |
+| email         | per-member         | the same row — one answer speaks for both per-member media           |
+| Slack / Teams | shared destination | the existence of an ACTIVE `ExternalNotificationConfig`              |
+| SMS, push     | —                  | no adapter exists; reported as `unavailable`, never as delivered     |
+
+Default delivery is therefore **in-app + email**, and a single per-type opt-out silences
+both together. The shared destination consults NO member preference: it is delivered even
+when no member has the type enabled and even when the project has no members, its
+config's `events` filter does NOT gate it (that filter predates this event name), and
+DEACTIVATING the config is its only off switch.
+
+**Idempotency** is the `RetractionAlertDelivery` ledger and nothing else. Before each
+delivery the consumer INSERTs `(alertKey, medium, target)` — a unique index — so a
+redelivered outbox event collides and no second notification, email or webhook goes out.
+A medium that reports `failed` has its claim **released**, so the redelivery retries that
+target: claim-first is the concurrency guard, and without the release it would turn a
+transient outage into a permanently undelivered alert. A `delivered` medium is never
+released.
+The in-app row is completed with its `notificationId`, which is how resolution later
+deletes exactly the notifications this alert created rather than guessing from today's
+membership. The ledger carries no `accountId` and is deliberately NOT enrolled in the
+tenant guard, exactly as `Notification` and `NotificationPreference` are not: it holds an
+opaque alert hash, member ids and config ids, and every read is keyed by an `alertKey`
+only a tenant-bound event can produce.
+
+**Telemetry** keeps the three not-delivered reasons apart — `suppressed-by-preference`,
+`no-active-config` and `unavailable` — in `retraction_alert_delivery_total{medium,result}`,
+beside `delivered` and `failed`. A single "not delivered" would make the only question an
+operator asks unanswerable. `retraction_alert_no_recipient_total` counts an alert that
+found nobody to address, and `retraction_alert_context_degraded_total{field}` counts an
+alert whose post, channel or account name could not be read and fell back to an
+identifier — the alert still goes out, but a run of them means customers are being asked
+to remove "Post &lt;uuid&gt;".
+
+| File                                                                              | Type          | Description                                                            |
+| --------------------------------------------------------------------------------- | ------------- | ---------------------------------------------------------------------- |
+| `packages/core/notifications/src/RaiseRetractionAlertUseCase.ts`                  | use case      | Claims and delivers per medium and per target; returns the report      |
+| `packages/core/notifications/src/ResolveRetractionAlertUseCase.ts`                | use case      | Deletes exactly the notifications the ledger names, then its rows      |
+| `packages/core/notifications/src/retractionAlertMessage.ts`                       | pure builder  | The words every medium delivers, built once so the three cannot drift  |
+| `packages/core/domain/src/repositories/RetractionAlertDeliveryLedger.ts`          | port          | `claim` / `attachNotification` / `listByAlertKey` / `deleteByAlertKey` |
+| `packages/ports/src/RetractionAlertDeliveryPort.ts`                               | port          | One medium's delivery seam, plus the alert view every medium renders   |
+| `apps/api/src/infrastructure/repositories/PrismaRetractionAlertDeliveryLedger.ts` | adapter       | The ledger; a unique violation is `claimed: false`, never an error     |
+| `apps/api/src/infrastructure/adapters/InAppRetractionAlertDelivery.ts`            | adapter       | Notification row + realtime push; returns the id for the ledger        |
+| `apps/api/src/infrastructure/adapters/EmailRetractionAlertDelivery.ts`            | adapter       | `SendEmailNotificationService`'s first production caller               |
+| `apps/api/src/infrastructure/adapters/SlackTeamsRetractionAlertDelivery.ts`       | adapter       | One fan-out to every active config                                     |
+| `apps/api/src/infrastructure/adapters/RetractionAlertContextAdapter.ts`           | adapter       | Post excerpt, channel name and DERIVED provider; degrades, never fails |
+| `apps/api/src/notifications/RetractionAlertEventHandler.ts`                       | event handler | Binds the tenant from the payload; refuses an event that carries none  |
+
+**Payload.** Title names the channel; the body names the post excerpt, every live
+fragment with its link, the cause in the customer's vocabulary, the manual action and the
+deadline. `metadata` carries `{ postId, channelId, alertKey, liveFragments,
+actionWindowEndsAt }`. It carries no credentials, tokens or provider secrets.
 
 ### Client Components
 

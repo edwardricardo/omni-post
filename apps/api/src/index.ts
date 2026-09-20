@@ -81,6 +81,10 @@ import {
   TRIAGE_HANDLED_EVENT_TYPES,
 } from "./inbox/handlers/TriageDispatchEventHandler.js";
 import {
+  RetractionAlertEventHandler,
+  RETRACTION_ALERT_HANDLED_EVENT_TYPES,
+} from "./notifications/RetractionAlertEventHandler.js";
+import {
   BulkScheduleDispatchEventHandler,
   BULK_SCHEDULE_HANDLED_EVENT_TYPES,
 } from "./bulk-scheduling/BulkScheduleDispatchEventHandler.js";
@@ -852,6 +856,17 @@ async function start() {
     );
     for (const eventType of TRIAGE_HANDLED_EVENT_TYPES) {
       eventDispatcher.register(eventType, triageDispatchHandler);
+    }
+
+    // Bridge: the two retraction-alert domain events → the customer's media.
+    // Without this wire a channel can reach "content still live, and we cannot take it
+    // down" while nobody is told, which the alert capability calls a defect whatever
+    // the reason.
+    const retractionAlertHandler = app.container!.resolve<RetractionAlertEventHandler>(
+      TOKENS.RetractionAlertEventHandler
+    );
+    for (const eventType of RETRACTION_ALERT_HANDLED_EVENT_TYPES) {
+      eventDispatcher.register(eventType, retractionAlertHandler);
     }
 
     // BulkScheduleRowConfirmed → BULK_SCHEDULE BullMQ job.

@@ -143,6 +143,43 @@ describe("NotificationType", () => {
     }
   });
 
+  it("accepts PUBLICATION_RETRACTION_PENDING, the tenth member of the closed set", () => {
+    const result = NotificationType.create("PUBLICATION_RETRACTION_PENDING");
+    expect(result.ok).toBeTruthy();
+    if (result.ok) {
+      expect(result.value.value).toBe(NOTIFICATION_TYPES.PUBLICATION_RETRACTION_PENDING);
+    }
+  });
+
+  it("returns true for isUrgent given PUBLICATION_RETRACTION_PENDING", () => {
+    const result = NotificationType.create("PUBLICATION_RETRACTION_PENDING");
+    expect(result.ok).toBeTruthy();
+    if (result.ok) {
+      expect(result.value.isUrgent()).toBeTruthy();
+    }
+  });
+
+  it("returns false for isUrgent on every routine type", () => {
+    for (const type of ["APPROVAL_REQUESTED", "MENTION", "COMMENT_ADDED", "TEAM_INVITE"]) {
+      const result = NotificationType.create(type);
+      expect(result.ok).toBeTruthy();
+      if (result.ok) {
+        expect(result.value.isUrgent()).toBeFalsy();
+      }
+    }
+  });
+
+  it("keeps PUBLICATION_RETRACTION_PENDING outside every existing category predicate", () => {
+    const result = NotificationType.create("PUBLICATION_RETRACTION_PENDING");
+    expect(result.ok).toBeTruthy();
+    if (result.ok) {
+      expect(result.value.isApprovalRelated()).toBeFalsy();
+      expect(result.value.isCommentRelated()).toBeFalsy();
+      expect(result.value.isTeamRelated()).toBeFalsy();
+      expect(result.value.isInboxRelated()).toBeFalsy();
+    }
+  });
+
   it("returns true for equals when types match", () => {
     const r1 = NotificationType.create("MENTION");
     const r2 = NotificationType.create("MENTION");

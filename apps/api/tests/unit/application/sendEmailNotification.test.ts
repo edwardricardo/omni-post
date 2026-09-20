@@ -9,7 +9,10 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { SendEmailNotificationService } from "@core/notifications/SendEmailNotificationService.js";
+import {
+  SendEmailNotificationService,
+  EMAIL_SKIP_REASONS,
+} from "@core/notifications/SendEmailNotificationService.js";
 import { ok } from "@shared/types";
 
 function makeMockMailer() {
@@ -85,7 +88,102 @@ describe("SendEmailNotificationService", () => {
     mailer.sendNotification.mockRejectedValue(new Error("Network error"));
 
     await service.send(makeContext());
-    // No error thrown — service swallows it.
+    // No error thrown — a transport failure is a value, not an exception.
+  });
+
+  describe("the transport's outcome reaches the caller", () => {
+    it("returns ok when the mailer accepted the message", async () => {
+      const result = await service.send(makeContext());
+
+      assert.ok(result.ok, "a delivered email must report ok");
+    });
+
+    it("returns err when the mailer REJECTS, naming the cause", async () => {
+      mailer.sendNotification.mockRejectedValue(new Error("SMTP 421 service unavailable"));
+
+      const result = await service.send(makeContext());
+
+      assert.ok(!result.ok, "a rejected send reported success — the alert would be lost");
+      assert.match(result.error.message, /SMTP 421/);
+    });
+
+    it("returns err when the mailer RETURNS an err rather than throwing", async () => {
+      mailer.sendNotification.mockResolvedValue({
+        ok: false as const,
+        error: new Error("provider refused the recipient"),
+      });
+
+      const result = await service.send(makeContext());
+
+      assert.ok(!result.ok, "the mailer's own err Result was discarded");
+      assert.match(result.error.message, /refused the recipient/);
+    });
+
+    it("returns err when the preference lookup fails — an unread preference is not a skip", async () => {
+      prefRepo.findByMember.mockRejectedValue(new Error("connection reset"));
+      service = new SendEmailNotificationService(mailer, prefRepo as never);
+
+      const result = await service.send(makeContext());
+
+      assert.ok(!result.ok);
+      assert.match(result.error.message, /connection reset/);
+      expect(mailer.sendNotification).not.toHaveBeenCalled();
+    });
+
+    it("returns ok for a deliberate skip — off the allow-list is not a failure", async () => {
+      const result = await service.send(makeContext({ type: "COMMENT_ADDED" as never }));
+
+      assert.ok(result.ok);
+      expect(mailer.sendNotification).not.toHaveBeenCalled();
+    });
+
+    it("returns ok for a deliberate skip — the recipient's opt-out is not a failure", async () => {
+      prefRepo = makeMockPreferenceRepo([{ type: "APPROVAL_REQUESTED", enabled: false }]);
+      service = new SendEmailNotificationService(mailer, prefRepo as never);
+
+      const result = await service.send(makeContext());
+
+      assert.ok(result.ok, "an opt-out must not be reported as a delivery failure");
+      expect(mailer.sendNotification).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a skip is DISTINGUISHABLE from a send", () => {
+    it("says a message was sent when the mailer took it", async () => {
+      const result = await service.send(makeContext());
+
+      assert.ok(result.ok);
+      assert.strictEqual(
+        result.value.sent,
+        true,
+        "a caller cannot tell a delivered email from a skipped one"
+      );
+    });
+
+    it("NAMES the recipient's opt-out as the reason nothing was sent", async () => {
+      prefRepo = makeMockPreferenceRepo([{ type: "APPROVAL_REQUESTED", enabled: false }]);
+      service = new SendEmailNotificationService(mailer, prefRepo as never);
+
+      const result = await service.send(makeContext());
+
+      assert.ok(result.ok);
+      assert.strictEqual(result.value.sent, false);
+      assert.strictEqual(
+        result.value.sent === false ? result.value.reason : undefined,
+        EMAIL_SKIP_REASONS.SUPPRESSED_BY_PREFERENCE
+      );
+    });
+
+    it("NAMES the allow-list as the reason nothing was sent", async () => {
+      const result = await service.send(makeContext({ type: "COMMENT_ADDED" as never }));
+
+      assert.ok(result.ok);
+      assert.strictEqual(result.value.sent, false);
+      assert.strictEqual(
+        result.value.sent === false ? result.value.reason : undefined,
+        EMAIL_SKIP_REASONS.TYPE_NOT_EMAILED
+      );
+    });
   });
 
   it("delegates POST_APPROVED to the mailer", async () => {
@@ -100,5 +198,24 @@ describe("SendEmailNotificationService", () => {
 
     expect(mailer.sendNotification).toHaveBeenCalledOnce();
     assert.strictEqual(mailer.sendNotification.mock.calls[0]?.[0]?.type, "MENTION");
+  });
+
+  it("admits PUBLICATION_RETRACTION_PENDING — the default for the type is a delivered email", async () => {
+    await service.send(makeContext({ type: "PUBLICATION_RETRACTION_PENDING" as never }));
+
+    expect(mailer.sendNotification).toHaveBeenCalledOnce();
+    assert.strictEqual(
+      mailer.sendNotification.mock.calls[0]?.[0]?.type,
+      "PUBLICATION_RETRACTION_PENDING"
+    );
+  });
+
+  it("still honours the per-type opt-out for PUBLICATION_RETRACTION_PENDING", async () => {
+    prefRepo = makeMockPreferenceRepo([{ type: "PUBLICATION_RETRACTION_PENDING", enabled: false }]);
+    service = new SendEmailNotificationService(mailer, prefRepo as never);
+
+    await service.send(makeContext({ type: "PUBLICATION_RETRACTION_PENDING" as never }));
+
+    expect(mailer.sendNotification).not.toHaveBeenCalled();
   });
 });

@@ -12,6 +12,7 @@ import type { NotificationPreferenceRepository } from "@core/domain/repositories
 import { NotificationEntity } from "@core/domain/entities/Notification.js";
 import type { NotificationTypeValue } from "@core/domain/value-objects/NotificationType.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import { isTypeEnabled } from "./isTypeEnabled.js";
 
 /**
  * Input DTO for creating a notification
@@ -63,9 +64,8 @@ export class CreateNotificationUseCase implements UseCase<
     const doWork = async (): Promise<Result<CreateNotificationOutput, UseCaseError>> => {
       // Check if recipient has disabled this notification type
       const preferences = await this.preferenceRepo.findByMember(input.recipientId);
-      const preference = preferences.find((p) => p.type === input.type);
 
-      if (preference && !preference.enabled) {
+      if (!isTypeEnabled(preferences, input.type)) {
         // Notification type disabled by recipient -- silently skip
         return ok({ id: "" });
       }

@@ -352,6 +352,22 @@ skipped (5)`): `packages/providers/telegram/tests/integration/apiClient.integrat
    `apps/api`'s 21 unreached suites). It reads as coverage in the tree and in review while running
    nothing. Backlog line recommended: decide whether that suite gets a tier and a service, or goes.
 
+### RDD receipt — the committed range tracker → 1b3 (2026-09-20)
+
+Lineage `review-7c43029e81e41c35`, selected in the docs worktree with `--base-ref c4fa81c1
+--committed-only` (candidate `539bf8ad`): 21 paths / 836 lines, tier **medium**, correction
+budget 200, one `review-reliability` slot. Consent/v3 answered `granted` under Edward's standing
+rule. Terminal state **`approved`**; the exact `acknowledge-approved` returned
+`gentle-ai.review-acknowledged/v1` with `authority: burned`. No correction was opened. With this
+receipt every child of the chain (1b3, 1b, 1b2) carries a burned committed-range review.
+
+**Advisory findings — 3, informational.** `R3-silent-skip-on-repo-not-ok` (WARNING,
+`apps/workers/src/publishHandler.ts:459-466`: a repository `!ok` result is skipped without a
+report), `R3-partial-loop-throw-untested` (SUGGESTION, `:478-489`) and `R3-timer-success-on-no-op`
+(SUGGESTION, `:468-489`). The WARNING is the swallowed-failure class; 1c's D16 rework (the recorder
+returns a `Result` and runs outside the catch) touches exactly this region, so its fix belongs with
+T1c.14 rather than a separate follow-up — to be confirmed in the tasks amendment.
+
 ---
 
 ## PR 1b — WU 1b.B / 1b.C / 1b.D / 1b.E: the domain, the events, the narrow save
@@ -587,3 +603,739 @@ Files touched by the corrections (4):
 `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`,
 `packages/core/domain/src/aggregates/PostAggregate.ts`,
 `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`.
+
+### Correction after CI (`cda2c7d4`, cherry-picked from 1b2's `ae08587a`)
+
+The Code Quality job on PR #268 failed on `pnpm check:circular`: `ContentLockedError.ts` imported
+`FragmentReferenceJson` from the value objects, and every value object imports the errors barrel,
+so 1b had closed an `errors → value-objects → errors` cycle that no local gate named. The error now
+carries a structural `LockedFragmentReference` (index, externalId, url?) that mirrors the value
+object's JSON shape without importing it; madge is clean over `apps/api/src/ packages/`, `tsc` 0
+in `@core/domain` and `apps/api`, `@core/domain` 168/168, eslint and prettier 0. `pnpm
+check:circular` was added to the tasks §10 gate list so the next child cannot repeat this.
+
+### RDD receipt — the committed range 1b3 → 1b (2026-09-20)
+
+Lineage `review-5700b58b95e0941c`, selected in the docs worktree with `--base-ref 539bf8ad
+--committed-only` (gentle-ai resolves the ref to the commit's tree, `201a7e56`; candidate
+`cda2c7d4`): 47 paths / 7,406 lines, tier **high**, correction budget 200. Consent/v3 answered
+`granted` under Edward's standing rule. Four lenses captured concurrently (the resilience capture
+closed the transaction). Terminal state **`approved`**; the exact `acknowledge-approved` returned
+`gentle-ai.review-acknowledged/v1` with `authority: burned` (consumed revision `a89c58ff…`). No
+correction was opened.
+
+**Advisory findings — 12, every one informational**, recorded so nothing stays hidden; each is
+separate later work with its own decision. Ids are the reviewer's.
+
+| Id                                                | Lens        | Severity   | Location                                                                             |
+| ------------------------------------------------- | ----------- | ---------- | ------------------------------------------------------------------------------------ |
+| R1-content-fingerprint-empty-fallback             | risk        | WARNING    | `packages/core/domain/src/entities/ChannelPublication.ts:275-282`                    |
+| R1-exclusion-detail-redaction-scope               | risk        | SUGGESTION | `packages/core/domain/src/value-objects/ExclusionReason.ts:38-46`                    |
+| R1-findById-system-context-lock-bypass            | risk        | WARNING    | `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:70-76`                 |
+| R2-alerthash-vs-supersededalertkey-naming         | readability | SUGGESTION | `packages/core/domain/src/entities/ChannelPublication.ts:80-120`                     |
+| R2-interspersed-export-between-imports            | readability | SUGGESTION | `packages/core/domain/src/aggregates/post/PostPublicationMethods.ts:14-45`           |
+| R3-integration-test-skeleton-coverage-gap         | reliability | SUGGESTION | `apps/api/tests/integration/postChannelPublicationTenantIsolation.test.ts:1-31`      |
+| R3-mapper-reconstitute-drops-invalid-fragment     | reliability | WARNING    | `packages/adapters/db-prisma/src/post/PostAggregateMapper.ts:126-134`                |
+| R3-narrow-save-non-tenant-transaction             | reliability | WARNING    | `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts:266-273`              |
+| R3-publication-events-swallowed-on-missing-reason | reliability | WARNING    | `packages/core/domain/src/aggregates/post/PostPublicationEvents.ts:38-53`            |
+| R3-publications-derive-empty-optional-vs-union    | reliability | SUGGESTION | `packages/core/domain/src/aggregates/ChannelPublications.ts:73-107`                  |
+| R3-published-outcome-null-hash-fallback           | reliability | WARNING    | `packages/core/domain/src/entities/ChannelPublication.ts:308-320`                    |
+| R4-down-sql-non-atomic                            | resilience  | WARNING    | `infra/prisma/migrations/20260917093257_add_post_channel_publication/down.sql:22-28` |
+
+**Proposed disposition (Edward decides; nothing here is applied).** The `findById` system-context
+lock bypass is design D19's subject and is closed by 1c (T1c.4a) — an independent reviewer reached
+the same finding as the 1b gate. The silent-fallback class — an empty content fingerprint, a null
+hash on a published outcome, a reconstitute that drops an invalid fragment, publication events
+swallowed on a missing reason — is the class this ledger is obliged to surface rather than absorb;
+it belongs in one bounded follow-up before the tracker merges. The narrow save's transaction scope
+sits beside the `TenantBoundRunner` binding the 1b gate corrected and needs its own adjudication.
+The naming, import-order, `derive` shape and skeleton-coverage suggestions are backlog rows.
+
+### Hardening after the 1b RDD review (advisory WARNINGs) — `5f054304`
+
+Six advisory WARNINGs from the independent review of the committed 1b range. None was deferred:
+each is fixed with a failing test first, or rejected with a test that proves the rejection. Four
+of them were ONE defect — the record held its settled outcome as six separately-optional fields,
+so `get outcome()` had to invent whatever was missing. The settlement is now one value per kind
+(`_published`, `_excluded`), `outcomeKind` is derived from which one is held, and `reconstitute`
+refuses a state the record could never have produced. Every fabricated fallback deleted itself.
+
+| Id                                                  | Disposition  | What changed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | RED evidence                                                                                                                                                                                                                                                     |
+| --------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `R1-content-fingerprint-empty-fallback`             | FIXED        | `get outcome()` answered a missing fingerprint with `ContentFingerprint.ofContent({ body: "", mediaIds: [] })` — a valid-looking sha256 of empty content. REACHABLE, and the DB CHECK does not close it: `outcome <> 'PUBLISHED' OR contentHash IS NOT NULL` constrains NULL-ness, not FORMAT, so a published row holding `'garbage'` satisfied it, failed `fromString`, and the mapper turned that into `undefined`. `reconstitute` now returns `Result` and refuses it. The gate later found this UNDERSTATED: the migration has NO CHECK for `publishedAt` nor for head presence on a PUBLISHED row, so two fallbacks were reachable on a plain NULL | `vitest run tests/unit/channelPublication.test.ts` → exit 1, `Tests 7 failed \| 34 passed (41)`, `AssertionError: ok(rebuilt.ok)`. GREEN `41 passed (41)`; package 178/178                                                                                       |
+| `R3-published-outcome-null-hash-fallback`           | FIXED        | The same getter's `publishedAt ?? new Date(0)` and `head ?? noneReturnedReference()`, and `PostPublicationEvents`' `publishedAt ?? new Date()` — which stamped the CURRENT time as a publication moment. All read from the one validated settlement now                                                                                                                                                                                                                                                                                                                                                                                                 | Same RED. A post-fix sweep for all five fallback spellings across `core/domain/src` and `db-prisma/src` returns nothing                                                                                                                                          |
+| `R3-mapper-reconstitute-drops-invalid-fragment`     | FIXED        | `toChannelPublication` dropped any `liveFragments` entry that would not parse — live content invisible to the aggregate; the same swallow for the reason, the fingerprint and an unknown outcome. Now `PostAggregateMapper.reconstitute(row): Result<PostAggregate, PostRowCorruptedError>`, with `toDomain` keeping its signature and the file's ONE throw; the pre-existing bare `throw new Error("Invalid status")` became the SAME typed error, so SMELL-126 narrows rather than grows (`rg -c 'throw ' PostAggregateMapper.ts` → 1)                                                                                                                | `vitest run tests/unit/infrastructure/PrismaPostRepository.test.ts` → exit 1, `Tests 5 failed \| 58 passed (63)`, `AssertionError: promise resolved "{ ok: true, …(1) }" instead of rejecting`. GREEN `63 passed (63)`                                           |
+| `R3-publication-events-swallowed-on-missing-reason` | FIXED        | `emitChannelOutcome` decided by a field's ABSENCE. The only transition that legitimately lacks a reason is a failure inside the budget, where the channel is unresolved — now a NAMED third case. The old shape also had the mirror defect: a stale `_reason` survived a later transient attempt, so the emitter announced `PostChannelExcluded` for a channel that was unresolved again                                                                                                                                                                                                                                                                | Planted the old desync (dropped `this._excluded = undefined` from the transient tail) → exit 1, `Tests 1 failed \| 34 passed (35)`, `AssertionError: the channel is unresolved again, so the stale reason must not be re-announced`. Restored → `35 passed (35)` |
+| `R3-narrow-save-non-tenant-transaction`             | **REJECTED** | The reviewer misread the reused-unit-of-work branch. Both branches bind the tenant: the runner through `withGucBoundTransaction(this.prisma, resolveGucScope(this.tenantProvider), …)`, and the ambient one because `PrismaUnitOfWork.executeInTransaction` issues `set_config('app.account_id', …, true)` as its FIRST statement before putting the client in AsyncLocalStorage — and only that method populates `txStorage` (one write site, `PrismaUnitOfWork.ts:115`, confirmed by the gate). Every statement of `writePublicationSave` runs on the one client. No source change; two tests added so the claim is checkable                         | Planted both violations (scope `undefined`; `activeTx` bypassed) → exit 1, `Tests 2 failed \| 63 passed (65)`: `expected +0 to be 1` (the bind never happened) and `expected 2 to be 1` (a SECOND transaction opened). Restored → `65 passed (65)`               |
+| `R4-down-sql-non-atomic`                            | FIXED        | The five DROPs now run inside `BEGIN; … COMMIT;`. Checking the convention first surfaced a SECOND defect the file already had: the four RLS sibling rollbacks use session-level `SET` precisely because `SET LOCAL` outside a transaction block only warns and no-ops — this file used `SET LOCAL` with no block, so both its timeout bounds had never done anything. Opening the block fixes atomicity and makes them effective; the divergence from the siblings is stated in the file, and the runner (`psql -f`) is named beside the atomicity claim with the repo's measured precedent                                                             | Not executed: PostgreSQL is not up on this host and the script is destructive to the dev schema. The change is a transaction wrapper around statements that already existed                                                                                      |
+
+Gates after the hardening — `tsc --noEmit` exit 0 in `@core/domain`, `@adapters/db-prisma`,
+`@core/posts`, `@core/recurring`, `apps/api`, `apps/workers`, `@infra/prisma` · eslint
+`--max-warnings 0` and `prettier --check` exit 0 on all six TS files · `@core/domain` 178/178,
+`@core/posts` 27/27, `@core/recurring` 13/13, `@adapters/db-prisma` 70/70, `apps/api` unit tier
+577 files / 9007 tests · fitness #4 = 0, #23 = 0, #32 = 0, #38 = 0 swept / 11 db-prisma (baseline
+11, unmoved), #40 part A 0 (seams 3, floor 3) / part B 0 (sites 14, floor 10), plus
+#2/#3/#5/#8/#9/#10 all 0. Measured by numstat: CODE 391 / EVIDENCE 339 changed lines.
+
+### Gate corrections after the hardening — `b52047c2`
+
+The fresh-context gate on `5f054304` returned PASS WITH WARNINGS: no Critical, the narrow-save
+rejection confirmed, and the fabrication paths confirmed reachable and UNDERSTATED — the migration
+has CHECKs for `contentHash` and `reasonCode` but NONE for `publishedAt` or for head presence on a
+PUBLISHED row. Seven warnings, all closed in the second work unit; the bounded re-gate then caught
+one Critical inside that unit and it was closed in a single corrective pass.
+
+| Id                                           | Disposition                      | What changed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Evidence                                                                                                                                                                                                            |
+| -------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Export the typed error                       | FIXED                            | `PostRowCorruptedError` now leaves the db-prisma barrel. Unexported, the class `toDomain` RAISES could only be matched by message, which makes the wording of an error an API nobody agreed to                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `AssertionError: The instanceof assertion needs a constructor but undefined was given.` GREEN after the export                                                                                                      |
+| Asymmetric invariant                         | FIXED                            | `reconstitute` refused settlements MISSING their facts but silently DISCARDED an UNRESOLVED state that ARRIVED carrying them — and a discarded `head` is a provider id for content that may still be live. The shape is storable because every CHECK on the table is ONE-DIRECTIONAL. Refusal driven by one `UNRESOLVED_FORBIDDEN_FACTS` list, pinned in BOTH directions after the re-gate: a `satisfies` over the facts unions and a compile-time coverage assertion (`_everySettledFactIsForbidden`), red proven by planting a fact on `PublishedFacts` (`TS2322`, `TSC_EXIT=2`)                                                                                                                                                                                                                                                                                                                                                                               | Table-driven, one row per fact → exit 1, `Tests 3 failed \| 43 passed (46)`, `AssertionError: an unresolved row carrying head is a corrupted row, not a row to strip`; plus the row-level case in the adapter suite |
+| `reconstitute` JSDoc (a) the content default | FIXED — default KEPT             | A post with NO content row is a REAL state: `Post.contents` is a to-many so zero rows is schema-valid; integration fixtures create bare posts (`postHardDeleteCascade.test.ts:70`); and `PrismaApproveVariantAdapter` creates post and content in TWO statements OUTSIDE a transaction (SMELL-142). Refusing it would make a bare post permanently unloadable, including for the delete that would clean it up. The doc now says "ONE value IS defaulted, and it is a default rather than a repair"                                                                                                                                                                                                                                                                                                                                                                                                                                                              | n/a — a documentation correction; the three writers were read to establish it                                                                                                                                       |
+| `reconstitute` JSDoc (b) the media drop      | FIXED — W4's other half          | `if (mediaResult.ok) media.push(…)` dropped the row. Bounded before taking it: one refusal arm, no signature change, and every media fixture in the tree uses a valid absolute URL — including the three integration `toDomain` call sites (`:553`/`:591`/`:639`) — so the refusal is inert for existing tests. The re-gate then corrected the BLAST RADIUS: the publication refusals are `findById`-only, but `media` is included by the four list loaders too, so one corrupted media row rejects a WHOLE PAGE from a `PaginatedResult` loader with no error channel. That reach is bounded by the loaders' zero production consumers (measured three times, receiver-agnostic) and by their retirement; the deletion mechanism (`doUpdate` removes media the aggregate no longer carries) fires only on `save()`, so on a list path the old drop under-REPORTED rather than destroyed. The `media` includes were not dropped and the refusal was not weakened | `AssertionError: promise resolved "{ ok: true, …(1) }" instead of rejecting`                                                                                                                                        |
+| Silent repair on `head`                      | FIXED                            | `head = provided.ok ? provided.value : noneReturnedReference()` flipped `externalIdMissing` false → true. A published row with `externalId = "   "` and `externalIdMissing = false` satisfies CHECK `:120`, so it is storable. Refused now                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | exit 1, `Tests 3 failed \| 66 passed (69)`. GREEN `69 passed (69)`                                                                                                                                                  |
+| `toDomain` justification                     | FIXED — the old reason was FALSE | It claimed the raise survives because five of six reads carry no error channel; `channelPublications` is included by `findById` ONLY (`:73`), which HAS an error channel and raises through it uncaught at `:84`. The truthful reason is recorded: the raise survives until `findById` returns `err(PostRowCorruptedError)` through a widened port error union, which belongs to 1c's `findById` rework. The port was NOT widened here                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | n/a — a documentation correction, measured against the include site                                                                                                                                                 |
+| Guard the attempt                            | FIXED                            | `recordAttempt` guarded only the episode and the replay ordinal, so an attempt on a PUBLISHED or pending-retraction record cleared `_published` while `_liveFragments` stayed populated and `hasLiveContent()` read FALSE. The refusal is `if (this.hasLiveContent())`, THE predicate `openEpisode` already refuses on, placed AFTER the replay check so an at-least-once redelivery still gets `applied: false` (pinned by a test). EXCLUDED-with-nothing-live stays admissible — NOT because it is a no-op (a published result overturns the exclusion; a transient failure resurrects the record to UNRESOLVED and moves the word backwards, SMELL-141) but because refusing would turn a benign late report into an error the worker must special-case                                                                                                                                                                                                       | exit 1, `Tests 3 failed \| 43 passed (46)`: `a published channel would double-post or orphan what is live` and `fragments are still on the provider`. GREEN `46 passed (46)`, package 184/184                       |
+| Name the runner in `down.sql`                | FIXED (orchestrator)             | The writer was blocked by an expired sensitive-edit token; the orchestrator applied the exact clause with a fresh token: the runner is `psql -f`, and the atomicity claim is a claim about how psql executes the file (precedent: `docs/reports/TENANT_RLS_AB_MEASUREMENT.md`, "psql exited 3, the transaction rolled back")                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | n/a — a comment                                                                                                                                                                                                     |
+
+Gates after the second unit — `tsc --noEmit` exit 0 in `@core/domain`, `@adapters/db-prisma`,
+`apps/api` · eslint `--max-warnings 0` and `prettier --check` exit 0 on all touched files ·
+`@core/domain` 184/184, `@adapters/db-prisma` 70/70, `PrismaPostRepository.test.ts` 69/69,
+`apps/api` unit tier 577 files / 9011 tests · fitness #4 = 0, #40 part A 0 / part B 0, plus
+#2/#3/#8/#9/#10/#23/#32 all 0. Measured by numstat: CODE 212 / EVIDENCE 201. Backlog rows opened:
+SMELL-140 (the `mapMediaKind` default arm), SMELL-141 (the excluded-to-unresolved resurrection),
+SMELL-142 (the untransacted approve-variant pair), SMELL-143 (module-scope circuit breaker
+construction in the provider packages).
+
+### CI root cause fix — the circuit breaker no longer opens a dead-letter queue — `57430ca4`
+
+The "Package Tests" job (`turbo run test`, no Redis service) failed in `@apps/workers#test` with
+`EnvironmentTeardownError: Closing rpc while "onUserConsoleLog" was pending`, after a flood of
+`connect ECONNREFUSED 127.0.0.1:6379`. A unit test that imported `mentionIngestWorker` for ONE
+pure helper pulled in ten `@providers/*` packages, each of which calls
+`createExternalApiCircuitBreaker(...)` at module scope, and the breaker's constructor built a
+`DeadLetterQueueManager` whenever `REDIS_URL` was set.
+
+`lazyConnect: true` does not hold under BullMQ: `RedisConnection`'s constructor runs `init()`
+eagerly and `init()` calls `connect()` on a client in `wait` status, for `Queue` and `QueueEvents`
+alike (`redis-connection.js:63-64`, `:84-85`; proven by the gate with a live probe against
+`127.0.0.1:1`). A real socket therefore opened at IMPORT time. With no `error` listener on those
+objects, BullMQ's `emit` override fell through to raw `console.error` (`queue-base.js:80-92`),
+ioredis retried forever, vitest buffered the output over the worker RPC, and the shortest-lived
+test file tore the channel down mid-flush.
+
+Fixed at the root, per the DI canon (only a composition root constructs a singleton):
+
+- `ExternalApiCircuitBreaker`'s constructor no longer creates a dead-letter queue: it constructs
+  no connection and no queue. Its READ path (`getDeadLetterQueue()`, null-safe) is unchanged, so a
+  root that creates the queue still gets dead-lettering; when none is configured the breaker now
+  WARNS once per failed operation, naming service and operation. `redisUrl` is kept because the
+  fallback response cache genuinely uses it — that client is `lazyConnect` and issues no command
+  at construction, so it opens nothing (verified).
+- `DeadLetterQueueManager` is honest when a root DOES build it: `error` listeners on the Queue,
+  the QueueEvents and every retry queue built by `getRetryQueue()`, all routed to the logger;
+  `QueueEvents` built with `autorun: false` and its loop started in `startProcessing()`; the raw
+  `pino({...})` replaced with `createLogger("dead-letter-queue")` per the logging canon; the three
+  pre-existing suites mock `@observability/logger` (the unit's own dependency) and their doubles
+  model `on()` and `run()`.
+
+Behaviour changes, stated: (1) `createDeadLetterQueue()` memoizes a process-global singleton and
+ignores later callers' config. In `apps/api` the breaker won that race at import (`index.ts ->
+setup.ts -> setupServices.ts -> providerService.ts -> providerRegistry.ts -> @providers/x ->
+apiClient.ts` module scope), so the composition root's `queueName: DEAD_LETTER_QUEUE` at
+`index.ts:364` was dead config and dead-lettering landed on `failed-operations-dlq`. The root is
+now the only creator, so the queue name becomes `dead-letter-queue` — the name
+`setupServices.ts`'s job options and the admin queue-health panel already carry; nothing consumed
+the old queue (the constant, one job-options entry, one admin panel row, two i18n keys and two
+docs rows describe it — its deletion is a separate authorisation, and the constant says so).
+(2) `apps/workers` got a dead-letter queue only by the breaker's accident and now gets none; the
+skip is logged. Separately observed, not fixed: `DeadLetterQueueManager.startProcessing()` has no
+production caller anywhere in the repo, so the dead-letter queue is write-only today.
+
+Proof: `apps/workers` vitest with `REDIS_URL` pointed at an unreachable host went from 10
+`ECONNREFUSED` lines across two processes to 0, with 0 teardown errors and 131/131 tests passing.
+Gates re-run sequentially after the LXC incident: prettier and eslint `--max-warnings 0` exit 0;
+`tsc -b` exit 0 for `dead-letter-queue`, `external-apis`, `apps/workers`, `apps/api`;
+`@adapters/dead-letter-queue` 94/94; `@adapters/external-apis` 79/79. Measured: CODE 104 /
+EVIDENCE 541 (+ the lockfile's two workspace links). Residual, named: the eager-queue test mutates
+`process.env.REDIS_URL` with save/restore — the only honest way to exercise the module-scope
+production path.
+
+### RDD receipt — the committed hardening range `cda2c7d4` → `57430ca4` (2026-09-20)
+
+Lineage `review-3a57d384e98346df`, selected with `--base-ref cda2c7d4 --committed-only` over the
+three hardening commits (24 paths / 1,778 lines, tier **medium**, one `review-reliability`
+slot). Consent/v3 answered `granted` under Edward's standing rule. Terminal state
+**`approved`**; the exact `acknowledge-approved` returned `gentle-ai.review-acknowledged/v1`
+with `authority: burned`. No correction was opened. Three advisory SUGGESTIONS, all informational
+and recorded here: `R3-emit-channel-outcome-relies-on-refined-invariant`
+(`PostPublicationEvents.ts:33-56` — the emitter now trusts the entity's refined settlement
+invariant), `R3-mapper-throws-through-result-returning-port`
+(`PostAggregateMapper.ts:257-303` — the same single raise the `toDomain` comment names, owned by
+1c's `findById` rework) and `R3-worker-autorun-inconsistent-with-queueevents-gate`
+(`dead-letter-queue/src/index.ts:316-321` — the BullMQ `Worker` still autoruns while
+`QueueEvents` is gated; both start in `startProcessing()` today, and no production caller starts
+either).
+---
+
+## PR 1b2 — the retraction alert consumer — COMPLETE (T1b2.1 … T1b2.12)
+
+Branch `workstream/ncor8-1b2`, child of `workstream/ncor8-1b` @ `7e4e4be2`. Both halves landed:
+**1b2-i** (the type, the migration, `isTypeEnabled`, the enrollment adjudication) and **1b2-ii**
+(the ports, the three media adapters, the ledger adapter, the two use cases, the event handler,
+the email template, the wiring and the docs).
+
+**Finish state**: a `PostChannelRetractionAlertRaised` event that nothing yet emits would be
+consumed, deduplicated per `(alertKey, medium, target)`, and delivered in-app + by email to every
+member whose per-type row is not disabled, plus to every active Slack/Teams config regardless of
+that config's `events` filter. Inert until an event flows — PR 1c is the producer.
+
+### The blocked first attempt, kept as history
+
+The first run of this batch stopped at T1b2.4: `infra/prisma/schema.prisma` is a token-gated
+sensitive path and the pre-edit hook refused the write.
+
+```text
+BLOCKED [pre-edit]: /root/omni-post/infra/prisma/schema.prisma matchea pattern sensible
+'/infra/prisma/schema.prisma' (token: missing). Autorización time-boxed por token:
+pedíle a Edward que ejecute 'omnipost-allow sensitive-edit' (TTL 15 min), igual que para push.
+```
+
+That refusal was honoured rather than worked around — no Bash write, no reordering of the later
+tasks ahead of the schema — and the batch reported `blocked`. Edward issued the token; this run
+resumed AT T1b2.4 and completed the PR. The entry stays because the refusal is the evidence that
+the gate works, and because the compiler proof below is what made stopping correct rather than
+merely obedient.
+
+### Tasks — all twelve `[x]`
+
+| Task         | Evidence                                                                            |
+| ------------ | ----------------------------------------------------------------------------------- |
+| T1b2.1 / .2  | RED recorded below; both inlined call sites migrated, their own suites unchanged    |
+| T1b2.3       | the tenth type + `isUrgent()` as rank; RED was 5 failures                           |
+| T1b2.4       | migration `20260919222448_add_retraction_alert_notifications`, applied and verified |
+| T1b2.5 / .7  | 19-case raise suite, the ports, the ledger port, the two use cases                  |
+| T1b2.6       | 7-case resolve suite — **test-after, declared**, see the TDD table                  |
+| T1b2.8       | `broadcast` promoted to `ExternalNotifierPort` with `toEveryActiveConfig`           |
+| T1b2.9 / .10 | three media adapters, the ledger adapter, the handler, the wiring, the registry     |
+| T1b2.11      | the email template case, 5 new cases on the adapter's own suite                     |
+| T1b2.12      | the handler suite, `docs/api/notifications.md`, the gates below                     |
+
+### TDD cycle evidence
+
+| Task    | Test file                                                                                                                       | Layer  | Safety net                             | RED                                                                                                                                                                                                                                                                                               | GREEN                                                  | TRIANGULATE                                                                                                                                                                                                                                                                        | REFACTOR                                                             |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| T1b2.1  | `packages/core/notifications/tests/unit/isTypeEnabled.test.ts`                                                                  | Unit   | ✅ 4/4 (`@core/notifications`)         | ✅ `Cannot find module '../../src/isTypeEnabled.js'` — `Test Files 1 failed`, `no tests`                                                                                                                                                                                                          | ✅ `Test Files 2 passed`, `10 passed`                  | ✅ 6 cases: absent row, sibling rows only, disabled, enabled, mixed, unknown type                                                                                                                                                                                                  | ➖ the predicate is one expression                                   |
+| T1b2.2  | the two existing suites, unchanged                                                                                              | Unit   | ✅ 4/4 + 6/6                           | ➖ refactor task — approval reds are the two suites' own pre-existing cases                                                                                                                                                                                                                       | ✅ 4/4 and 6/6 still pass unchanged                    | ➖ covered by T1b2.1's six                                                                                                                                                                                                                                                         | ✅ the inlined predicate is gone from both sites                     |
+| T1b2.3  | `apps/api/tests/unit/domain/notification.test.ts` + `.../application/sendEmailNotification.test.ts`                             | Unit   | ✅ 29/29 and 6/6                       | ✅ `Tests 5 failed \| 36 passed (41)` — `Invalid notification type: "PUBLICATION_RETRACTION_PENDING"` ×2, `result.value.isUrgent is not a function` ×2, allow-list drop ×1                                                                                                                        | ✅ `Tests 41 passed (41)`                              | ✅ 6 new cases: accepts the tenth value, urgent true, urgent false over four routine types, outside every existing category, email admitted, email opt-out still honoured                                                                                                          | ➖ additive                                                          |
+| T1b2.4  | the migration itself, verified against the live database                                                                        | Schema | ✅ `prisma migrate status` clean at 84 | ✅ the compiler: `apps/api` `tsc` exit **2**, `PrismaNotificationRepository.ts(162,7)` `Type '"PUBLICATION_RETRACTION_PENDING"' is not assignable to type 'NotificationType'`                                                                                                                     | ✅ applied, 85 migrations, `apps/api` `tsc` exit **0** | ✅ read-back probe: enum label at sort order 10, the ledger's 6 columns, both indexes, `relrowsecurity=false`                                                                                                                                                                      | ➖ DDL                                                               |
+| T1b2.5  | `packages/core/notifications/tests/unit/raiseRetractionAlert.test.ts`                                                           | Unit   | N/A (new)                              | ✅ `Cannot find module '../../src/RaiseRetractionAlertUseCase.js'` — `no tests`                                                                                                                                                                                                                   | ✅ `Tests 19 passed (19)`                              | ✅ 19 cases over the design's whole list: both per-member media, the Q21 shared switch (zero recipients, every member off, deactivated sibling, events filter ignored), the three reasons kept apart, idempotency as NUMBERS, superseded-before-claim ordering, one medium failing | ✅ two TEST expectations corrected — see below                       |
+| T1b2.6  | `.../resolveRetractionAlert.test.ts`                                                                                            | Unit   | N/A (new)                              | ❌ **test-after, declared rather than claimed** — the resolve use case is a CONSTRUCTOR DEPENDENCY of the raise use case, so its type had to exist for T1b2.5's RED to compile. Per strict TDD this row is a FAILURE of the cycle, not a pass; it is recorded as such instead of being dressed up | ✅ `Tests 7 passed (7)`                                | ✅ 7 cases incl. delete-order, skipped unattached row, `ACTION_WINDOW_EXPIRED`, idempotency, store failure → `INTERNAL_ERROR`                                                                                                                                                      | ➖                                                                   |
+| T1b2.8  | `apps/api/tests/unit/infrastructure/adapters/ExternalNotificationDispatcher.test.ts`                                            | Unit   | N/A (the dispatcher had NO suite)      | ✅ `Tests 5 failed \| 1 passed (6)` — only the pre-existing filtered branch passed                                                                                                                                                                                                                | ✅ `Tests 6 passed (6)`                                | ✅ both branches: filter honoured by default, ignored under the option; deactivated skipped; per-channel routing; partial failure counted; repo failure propagated                                                                                                                 | ➖                                                                   |
+| T1b2.9  | three mirror suites under `tests/unit/infrastructure/adapters/`                                                                 | Unit   | N/A (new)                              | ✅ `Cannot find module '.../InAppRetractionAlertDelivery.js'` — `no tests`                                                                                                                                                                                                                        | ✅ 5 + 4 + 7 = **16 passed**                           | ✅ per adapter: kind declaration, happy path, the preference-skip (no id, no broadcast), the failure path, the empty-target path                                                                                                                                                   | ✅ relocated out of `container/adapters/` mid-cycle — see Deviations |
+| T1b2.10 | `.../repositories/PrismaRetractionAlertDeliveryLedger.test.ts` + `tests/unit/notifications/RetractionAlertEventHandler.test.ts` | Unit   | N/A (new)                              | ✅ both `Cannot find module` — `no tests`                                                                                                                                                                                                                                                         | ✅ `7 passed` and `11 passed`                          | ✅ ledger: claim, P2002 → `false`, any OTHER error rethrown, medium mapping, attach, list, delete. Handler: tenant bound from payload, REFUSED when absent (both event types), superseded carried, malformed fragment dropped, use-case failure swallowed                          | ➖                                                                   |
+| T1b2.11 | `.../adapters/TransactionalEmailAdapter.test.ts` (+5 cases)                                                                     | Unit   | ✅ 9/9                                 | ✅ `Tests 3 failed \| 9 passed (12)`                                                                                                                                                                                                                                                              | ✅ `Tests 12 passed (12)`                              | ✅ 5 cases: fragments + links + excerpt, both causes, deadline present/absent, no credential-shaped field, empty fragment list                                                                                                                                                     | ➖                                                                   |
+| metrics | `tests/unit/metrics/retractionAlertMetrics.test.ts`                                                                             | Unit   | N/A (new)                              | ✅ `Cannot find module`                                                                                                                                                                                                                                                                           | ✅ `3 passed`                                          | ✅ 3 cases, incl. "two reasons collapsed into one series" as an explicit assertion                                                                                                                                                                                                 | ➖                                                                   |
+| context | `.../adapters/RetractionAlertContextAdapter.test.ts`                                                                            | Unit   | N/A (new)                              | ✅ `Cannot find module`                                                                                                                                                                                                                                                                           | ✅ `6 passed`                                          | ✅ 6 cases: provider derived, title preferred, body excerpt BOUNDED at 160, unreadable post / unreadable channel / malformed id all still alertable                                                                                                                                | ➖                                                                   |
+
+**Two test expectations were corrected during T1b2.5's GREEN, and neither weakened the test.**
+Both were MY errors in the test, caught by the implementation: (1) the "one medium failing"
+case asserted the whole medium's result list and forgot the second member, who is legitimately
+reported `suppressed-by-preference` — rewritten to assert per TARGET, which is stricter; (2) the
+second-run case expected an EMPTY report, but a preference is not a claim and does not collide,
+so the opted-out member is still explained on the second run — rewritten to assert that nothing
+is `delivered` twice, which is the invariant that actually matters.
+
+RED transcript, T1b2.1 (verbatim):
+
+```text
+❯ tests/unit/isTypeEnabled.test.ts (0 test)
+Error: Cannot find module '../../src/isTypeEnabled.js' imported from
+  /root/omni-post/packages/core/notifications/tests/unit/isTypeEnabled.test.ts
+Test Files  1 failed (1)      Tests  no tests
+```
+
+RED transcript, T1b2.3 (the two distinct failure shapes):
+
+```text
+FAIL tests/unit/domain/notification.test.ts > NotificationType
+     > accepts PUBLICATION_RETRACTION_PENDING, the tenth member of the closed set
+FAIL tests/unit/domain/notification.test.ts > NotificationType
+     > returns false for isUrgent on every routine type
+TypeError: result.value.isUrgent is not a function
+Test Files  2 failed (2)      Tests  5 failed | 36 passed (41)
+```
+
+### Why T1b2.3 cannot be committed without T1b2.4 — measured, not argued
+
+`NOTIFICATION_TYPES` is not only a TypeScript union. Two things read it at runtime and one reads
+it at compile time, and the third is what turns the coupling from prudence into a build failure:
+
+1. `apps/api/src/notifications/notificationRoutes.ts:43` derives the request-validation enum for
+   BOTH `POST /notifications` and `PUT /notifications/preferences` from `Object.values(NOTIFICATION_TYPES)`.
+   Adding the tenth value widens both schemas immediately, so the API starts ACCEPTING a type the
+   database's own `NotificationType` enum does not hold.
+2. `PrismaNotificationRepository` casts the value straight onto that Postgres enum, so an accepted
+   request would reach the database and be rejected there — a 500 on a route that validated the
+   input as legal.
+3. The compiler refuses the state outright. Measured with the type added and the schema not:
+
+```text
+src/infrastructure/repositories/PrismaNotificationRepository.ts(162,7): error TS2375:
+  Types of property 'type' are incompatible.
+  Type '"PUBLICATION_RETRACTION_PENDING"' is not assignable to type 'NotificationType'.
+```
+
+That was `apps/api` `tsc --noEmit` at exit **2**. It is the design's own instruction
+(design.md:196 — "Schema edit and migration in ONE commit") enforced by the toolchain rather than
+by discipline, and it is why stopping at the refusal was correct rather than merely obedient:
+committing half of 1b2-i would have left `main` unable to compile. **RESOLVED** — the schema and
+the migration landed in this run, `prisma generate` ran, and `apps/api` `tsc` reads **0**. The two
+belong in ONE commit.
+
+### T1b2.4, as applied
+
+Migration **`20260919222448_add_retraction_alert_notifications`** (+ `down.sql`). The schema block
+sits immediately after `enum NotificationType`:
+
+```prisma
+enum NotificationType {
+  ...
+  PUBLICATION_RETRACTION_PENDING
+}
+
+enum RetractionAlertMedium {
+  IN_APP
+  EMAIL
+  SLACK_TEAMS
+  SMS
+  PUSH
+}
+
+model RetractionAlertDelivery {
+  id             String                @id @default(uuid())
+  alertKey       String
+  medium         RetractionAlertMedium
+  target         String
+  notificationId String?
+  deliveredAt    DateTime              @default(now()) @db.Timestamptz(6)
+
+  @@unique([alertKey, medium, target])
+  @@index([alertKey])
+}
+```
+
+It follows `20260917093257_add_post_channel_publication`'s form: the timeout preamble FIRST even
+though no policy is created, then `ALTER TYPE "NotificationType" ADD VALUE` with no row of that
+value written in the same migration, then the medium enum and the table. `Notification` is NOT
+touched (W-a-2). `down.sql` inverts the table and the medium enum and states honestly that
+PostgreSQL cannot drop an enum label in place, so the added label survives a rollback — the one
+documented non-reversal, and the rollback's own cost (dropping the ledger loses the record of
+what was already delivered, so a re-apply delivers again) is named there rather than discovered.
+
+**Applied and verified**: `prisma migrate deploy` → 85 migrations, `migrate status` clean,
+`prisma validate` ok, `pnpm --filter @infra/prisma build` → `Generated Prisma Client (7.9.1)`,
+`apps/api` `tsc` back to **0**. A read-only probe of the live database confirms the DDL rather
+than assuming it: `NotificationType` carries `PUBLICATION_RETRACTION_PENDING` at sort order **10**
+(last, which is what the `AFTER` clause specifies), `RetractionAlertMedium` holds its five labels,
+`RetractionAlertDelivery` has its six columns plus both indexes, and `relrowsecurity` is **false**.
+
+**#39 stays at zero WITHOUT enrolling anything, and that is a decision, not an omission.** The
+ledger carries no `accountId`, so it is not a bearing model — the same class as `Notification` and
+`NotificationPreference` (design.md:196, tasks T1b2.4). It holds an opaque alert hash, member ids
+and external-config ids, and every read of it is keyed by an `alertKey` only a tenant-bound event
+can produce. Nothing was added to `TENANT_SCOPED_MODELS`, no row was added to
+`MULTI_TENANT_GUARDS.md`, and no RLS policy was created. There is therefore **no #39 red path to
+plant for this PR**: the red path belongs to a model that SHOULD be enrolled, and 1b.A already
+proved it for `PostChannelPublication`. Say this in the PR body (tasks 10.2's 1b2 row asks for
+exactly that).
+
+#### Squawk: one finding FIXED, one adjudicated
+
+The forward migration fired `require-enum-value-ordering` on its bare `ADD VALUE`. That was
+**fixed, not waived**: the statement now names its anchor,
+`ADD VALUE 'PUBLICATION_RETRACTION_PENDING' AFTER 'INBOX_MENTION_RECEIVED'`, which produces the
+IDENTICAL sort order (the anchor was already the last label — confirmed by the probe above) and
+states the position instead of leaving a reader to infer it. `squawk lint` on the forward file
+now reads `Found 0 issues`, so it gets NO entry in the workflow's exception list.
+
+`down.sql` fired `ban-drop-table`, which is unsatisfiable by construction — the forward migration
+CREATES the table, so its rollback is the statement that drops it. **ADJUDICATION 8** in
+`.github/workflows/audit.yml`, per-file, per-rule and digest-pinned to
+`9ab334f03f70fa8b0772ffcb6b9a286475eb2ff079844db802727b989f333338`, following ADJUDICATION 7's
+shape for the same situation one migration earlier. The name is added to all three arms the step
+requires (rules, digest, stale-name loop) — verified present exactly once in each.
+
+**Fixing rather than adjudicating was the point.** An exception list that absorbs a finding a
+one-token edit would close is how a gate stops meaning anything; ADJUDICATION 2's own text sets
+that precedent (`constraint-missing-not-valid` was fixed, and only the five unsatisfiable findings
+were adjudicated).
+
+#### The one residual this migration leaves on the DEV database
+
+The forward file was edited AFTER it was applied (the Squawk fix), so its recorded checksum in
+`_prisma_migrations` no longer matches the file: recorded `debb2e70…`, on disk `9c884bf4…` —
+measured, not assumed. It blocks nothing: Prisma 7.9.1's `migrate status` and `migrate deploy`
+both read clean over it (measured both), and CI applies the history to a FRESH database where
+only the on-disk bytes exist. The clean fix is `prisma migrate reset`, and **Prisma's own AI-agent
+gate refuses that command without Edward's explicit consent** — the refusal was honoured, not
+worked around, so the drift is reported here instead of being silently cleared. Anyone who wants
+it gone runs the reset themselves; nothing depends on it.
+
+### Work unit evidence
+
+| Evidence             | Value                                                                                                                                                                                                                                                                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused test command | `cd packages/core/notifications && … vitest run` → exit **0**, `Test Files 4 passed (4)`, `Tests 36 passed (36)` · the eleven new/extended `apps/api` suites → **55 new cases**, all passing                                                                                                                                  |
+| Regression tier      | `apps/api` unit tier **585 files / 9060 tests, exit 0** · `@core/domain` **168/168** · `@core/notifications` **36/36**. The first full run was `1 failed                                                                                                                                                                      | 9059 passed`, and the failure was the RIGHT one — `EventSchemaRegistry.test.ts` asserts an EXHAUSTIVE list of registered events, so the two new schemas broke it by design; the list was extended to 14 with a note on why the two are internal |
+| Runtime harness      | `cd apps/api && TIER=pr-integration bash scripts/run-tests.sh` against the real migrated database → **537 tests, 537 pass, 0 fail, 0 cancel, 0 skip, exit 0** — identical to the 1b baseline, incl. `integration:tenant-isolation` 247 (the `pg_catalog` coverage gate) and `integration:saga-recovery` 33                    |
+| Rollback boundary    | the files listed below, plus `down.sql` for the migration. Reverting the range returns the tree to "email admits four types, the predicate is inlined twice, and no alert consumer exists" — `main`'s state. Nothing in the chain emits the two alert events yet (PR 1c is the producer), so the consumer is inert either way |
+
+### Gates — all 0
+
+| Gate                  | Command                                                                                                                                                   | Result                                                                                                                                 |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Types                 | `tsc --noEmit` in `@core/domain`, `@core/notifications`, `@ports/core`, `@core/posts`, `@adapters/db-prisma`, `apps/api`, `apps/workers`, `@infra/prisma` | exit **0** in all eight                                                                                                                |
+| Prisma                | `prisma validate` · `migrate status` · `pnpm --filter @infra/prisma build`                                                                                | valid · 85 migrations, up to date · `Generated Prisma Client (7.9.1)`                                                                  |
+| Lint                  | `eslint --max-warnings 0` on all 45 touched files, in three batches                                                                                       | exit **0** (44 files at once OOMs the 9 GB LXC — the batching is an environment fact, recorded so the next run does not rediscover it) |
+| Format                | `prettier --check` on every touched file + `prisma format`                                                                                                | exit **0** (10 files reformatted by `--write`, then re-checked AND re-tested)                                                          |
+| Squawk                | `squawk lint` on both migration files                                                                                                                     | forward **0 issues** (the finding was FIXED); `down.sql` adjudicated, digest-pinned                                                    |
+| #2 / #3 / #4 / #5     | core framework-free · no `any` · no raw throws · no `@ts-ignore`                                                                                          | **0 / 0 / 0 / 0**                                                                                                                      |
+| #6 / #7 / #11         | CQRS handlers without prisma · no generated dedupe key · no raw `setInterval`                                                                             | **0 / 0 / 0**                                                                                                                          |
+| #8 / #9 / #10 / #12   | no phase references · `@file` headers · valid `@layer` · `@component`                                                                                     | **0 / 0 / 0 / 0**                                                                                                                      |
+| #13 / #14 / #16       | no direct `pino` · no per-class cache `Map` · no `process.env` outside `config/env.ts`                                                                    | **0 / 0 / 0**                                                                                                                          |
+| #21 / #22 / #23 / #26 | no prisma singleton outside composition roots · no `@layer application` in apps/api · no raw queries · no `.js` in frontend                               | **0 / 0 / 0 / 0**                                                                                                                      |
+| #32 / #34             | no committed `.only` / `.skip` · every `::error` pairs with a real failure (audit.yml was edited)                                                         | **0 / 0**                                                                                                                              |
+| #38                   | soft-delete read coherence                                                                                                                                | **0 swept / 11 db-prisma** (baseline 11, unmoved)                                                                                      |
+| #39                   | tenant enrollment                                                                                                                                         | **0** — unmoved, WITHOUT enrolling the ledger; see the adjudication above                                                              |
+| #40                   | one transaction seam                                                                                                                                      | **A: 3 seams / 0 violations · B: 14 sites / 0 underived**                                                                              |
+| #41                   | single-use claim shape                                                                                                                                    | **8 sites (floor 8), 1 exception hit, 0 violations**                                                                                   |
+| #30                   | unreached suites                                                                                                                                          | **20** (baseline 21) — unmoved; every new suite is vitest-collected by an `include` glob, so none needs a `run_batch`                  |
+
+`#37` is again not run, for the reason WU 1b.A and 1b.B-E both recorded: it is `pull_request`-only
+and resolves its base through `git fetch`, which this batch is forbidden from running. Its subject
+— the four coverage-threshold literals in `apps/api/vitest.config.ts` — is untouched here.
+
+### Files touched
+
+| Half   | File                                                                                                      | Action           | What                                                                                                                                                  |
+| ------ | --------------------------------------------------------------------------------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1b2-i  | `packages/core/notifications/src/isTypeEnabled.ts`                                                        | Created          | the ONE per-type predicate; absence of a row means enabled, stated once                                                                               |
+| 1b2-i  | `packages/core/notifications/src/CreateNotificationUseCase.ts`                                            | Modified         | calls the predicate instead of inlining it (`:64-71` gone)                                                                                            |
+| 1b2-i  | `packages/core/notifications/src/SendEmailNotificationService.ts`                                         | Modified         | same refactor at `:37-41`; `EMAIL_ENABLED_TYPES` admits the new type with the reason it must                                                          |
+| 1b2-i  | `packages/core/notifications/src/index.ts`                                                                | Modified         | exports `isTypeEnabled` and `SendEmailNotificationService` (the latter is about to gain its first production caller)                                  |
+| 1b2-i  | `packages/core/domain/src/value-objects/NotificationType.ts`                                              | Modified         | the tenth value + `isUrgent()` as RANK only, with the "never a permission" rule in its JSDoc                                                          |
+| 1b2-i  | `packages/core/notifications/tests/unit/isTypeEnabled.test.ts`                                            | Created          | 6 cases                                                                                                                                               |
+| 1b2-i  | `apps/api/tests/unit/domain/notification.test.ts`                                                         | Modified         | +4 cases for the new type and the rank predicate                                                                                                      |
+| 1b2-i  | `apps/api/tests/unit/application/sendEmailNotification.test.ts`                                           | Modified         | +2 cases: the allow-list admits the type, and the per-type opt-out still silences it                                                                  |
+| 1b2-i  | `infra/prisma/schema.prisma` **(sensitive)**                                                              | Modified         | the enum value, `RetractionAlertMedium`, `RetractionAlertDelivery` — with the no-`accountId` reasoning in the model's own doc comment                 |
+| 1b2-i  | `infra/prisma/migrations/20260919222448_add_retraction_alert_notifications/migration.sql` **(sensitive)** | Created          | timeout preamble, the anchored `ADD VALUE`, the enum, the table, both indexes                                                                         |
+| 1b2-i  | `.../20260919222448_add_retraction_alert_notifications/down.sql` **(sensitive)**                          | Created          | the inverse, with the enum-label non-reversal and the rollback's own cost named                                                                       |
+| 1b2-i  | `.github/workflows/audit.yml` **(sensitive)**                                                             | Modified         | ADJUDICATION 8 + its three arms (rules, digest, stale-name loop)                                                                                      |
+| 1b2-i  | `infra/prisma/src/client.ts`                                                                              | Modified         | re-exports the model type and the medium enum                                                                                                         |
+| 1b2-ii | `packages/core/domain/src/value-objects/AlertMedium.ts`                                                   | Created          | the medium vocabulary, the two KINDS, and the five delivery results                                                                                   |
+| 1b2-ii | `packages/core/domain/src/value-objects/index.ts`                                                         | Modified         | barrel                                                                                                                                                |
+| 1b2-ii | `packages/core/domain/src/repositories/RetractionAlertDeliveryLedger.ts`                                  | Created          | the ledger port; `claim` answers a boolean because a collision is not a failure                                                                       |
+| 1b2-ii | `packages/core/domain/src/repositories/ExternalNotifierPort.ts`                                           | Modified         | `broadcast` PROMOTED from the dispatcher class to the port, with `BroadcastOptions`                                                                   |
+| 1b2-ii | `packages/ports/src/RetractionAlertDeliveryPort.ts`                                                       | Created          | one medium's seam, the alert view, the targets                                                                                                        |
+| 1b2-ii | `packages/ports/src/index.ts`                                                                             | Modified         | barrel                                                                                                                                                |
+| 1b2-ii | `packages/core/notifications/src/retractionAlertMessage.ts`                                               | Created          | the pure message builder — the whole of AL-2, testable without a double                                                                               |
+| 1b2-ii | `packages/core/notifications/src/RaiseRetractionAlertUseCase.ts`                                          | Created          | claims then delivers, per medium and per target                                                                                                       |
+| 1b2-ii | `packages/core/notifications/src/ResolveRetractionAlertUseCase.ts`                                        | Created          | deletes exactly what the ledger names, rows last                                                                                                      |
+| 1b2-ii | `packages/core/notifications/tests/unit/{raise,resolve}RetractionAlert.test.ts`                           | Created          | 19 + 7 cases                                                                                                                                          |
+| 1b2-ii | `apps/api/src/infrastructure/adapters/{InApp,Email,SlackTeams}RetractionAlertDelivery.ts`                 | Created          | the three media                                                                                                                                       |
+| 1b2-ii | `apps/api/src/infrastructure/adapters/RetractionAlertContextAdapter.ts`                                   | Created          | post excerpt, channel name, DERIVED provider, account name; degrades, never fails                                                                     |
+| 1b2-ii | `apps/api/src/infrastructure/adapters/ExternalNotificationDispatcher.ts`                                  | Modified         | the `toEveryActiveConfig` branch; inactive configs filtered in ONE place                                                                              |
+| 1b2-ii | `apps/api/src/infrastructure/adapters/TransactionalEmailAdapter.ts`                                       | Modified         | the new render case + the fragment reader                                                                                                             |
+| 1b2-ii | `apps/api/src/infrastructure/email/templates/emailTemplates.tsx`                                          | Modified         | `retractionPendingEmail` — fragments with links, cause, action, deadline                                                                              |
+| 1b2-ii | `apps/api/src/infrastructure/repositories/PrismaRetractionAlertDeliveryLedger.ts`                         | Created          | P2002 → `claimed: false`; any OTHER error rethrown                                                                                                    |
+| 1b2-ii | `apps/api/src/notifications/RetractionAlertEventHandler.ts`                                               | Created          | binds the tenant from the payload, REFUSES an event that carries none                                                                                 |
+| 1b2-ii | `apps/api/src/metrics/retractionAlertMetrics.ts`                                                          | Created          | the two series; the three not-delivered reasons stay distinct                                                                                         |
+| 1b2-ii | `apps/api/src/infrastructure/container/{types,setupNotificationUseCases}.ts`                              | Modified         | 7 tokens + the whole wiring, incl. `SendEmailNotificationService`'s first registration                                                                |
+| 1b2-ii | `apps/api/src/infrastructure/integration-events/EventSchemaRegistry.ts`                                   | Modified         | the two alert events at v1 (INTERNAL — validated on the way through, not projected outward)                                                           |
+| 1b2-ii | `apps/api/src/index.ts`                                                                                   | Modified         | registers the handler for both event types beside the triage bridge                                                                                   |
+| 1b2-ii | 8 `apps/api` unit suites                                                                                  | Created/Modified | the three adapter mirrors + fixtures, the dispatcher, the context adapter, the ledger, the handler, the metrics, the email adapter, the registry list |
+
+**Sensitive paths written under the `sensitive-edit` token (4)**: `schema.prisma`, the two
+migration files, `audit.yml`. Each was written with the Edit/Write tool so the hook saw it; none
+was written through Bash.
+
+### Deviations from design
+
+Four, each reported rather than absorbed.
+
+1. **The three media adapters live in `apps/api/src/infrastructure/adapters/`, not under
+   `container/adapters/`.** design.md D17.4 and tasks T1b2.9 say "three adapters in the composition
+   root", which this repo's canon means as INSTANTIATED there — and they are, in
+   `setupNotificationUseCases.ts`. The files themselves sit beside `ExternalNotificationDispatcher`
+   and `TransactionalEmailAdapter`, which is where notification media adapters already live; the
+   `container/` tree wires, it does not host behaviour. (They were first written under
+   `container/adapters/` following `NotificationDispatchAdapter`'s precedent, and relocated
+   mid-batch on that reading.) Their suites mirror the source path exactly, as the repo's stop hook
+   requires: `tests/unit/infrastructure/adapters/<File>.test.ts`.
+2. **`AlertMedium` is defined in `@core/domain` and RE-EXPORTED from `@ports/core`.** D17.4 puts the
+   union in `packages/ports`. Taken literally it is a dependency CYCLE: the ledger port lives in
+   `@core/domain` and records a claim per medium, while `@ports/core` already depends on
+   `@core/domain`. The vocabulary therefore lives in the domain and the port re-exports it, so the
+   design's import surface (`AlertMedium` from `@ports/core`) still resolves.
+3. **`deliver` returns `Result<AlertDeliveryOutcome, string>`, not `Result<void, string>`.** The
+   in-app medium has to hand its `notificationId` back, or `attachNotification` cannot be fed and
+   resolution loses its ability to delete exactly the notifications this alert created. The
+   alternative was handing the ledger to the adapter, which couples a medium to the idempotency
+   mechanism.
+4. **A `RetractionAlertContextAdapter` was added.** The design says the use case gets the channel
+   name and post excerpt "via the read model" without naming a seam. Putting the three lookups
+   behind one adapter keeps the use case free of query repositories and keeps every suite under
+   four doubles; the handler passes the resolved names in as input.
+
+### Findings (not fixed here — each needs its own decision)
+
+1. **The tenth type widens two request schemas the moment it exists.**
+   `notificationRoutes.ts:43` builds its zod enums from `Object.values(NOTIFICATION_TYPES)`, so
+   `NOTIFICATION_TYPES` is a public API surface, not only an internal union. That is convenient
+   (the preference toggle 2b needs appears for free) and it is also why the type and the enum
+   migration are inseparable. Worth stating in the 1b2 PR body so a reviewer does not read the
+   schema edit as bookkeeping.
+2. **`SendEmailNotificationService` is exported from the barrel for the first time.** It was
+   reachable only by deep path before (`@core/notifications/SendEmailNotificationService.js`, which
+   is how its own test imports it). The export is what lets the composition root register it in
+   T1b2.9-.10; SMELL-41's other half — the four older types that still have no production email
+   caller — stays open and untouched.
+3. **`apps/api/tests/unit/domain/notification.test.ts` carries `@layer domain`.** It is a test, so
+   the canon's mapping table says `infrastructure`. Fitness #10 accepts it (the value is one of the
+   three legal ones), so this is a silent mis-tag rather than a gate failure, and it predates this
+   change. Not corrected here: re-tagging somebody else's file would put an unrelated edit in the
+   diff.
+4. **FIXED by the corrections below — kept because the consequence was worse than first
+   written.** **The email medium can never report `failed`, and the report says `delivered` for it
+   regardless.** `SendEmailNotificationService.send` returns `void` and swallows every error by
+   design ("email is a non-blocking side effect"), so the adapter has nothing to inspect. The
+   consequence is precise: `retraction_alert_delivery_total{medium="email",result="failed"}` was
+   unreachable, and a mailer outage showed up as `delivered`.
+   **The consequence was worse than that sentence admitted, and the gate was right to flag it.**
+   The claim is taken BEFORE the send, so a silently failed send left a CLAIMED ledger row: the
+   redelivery then collided with it and sent nothing. The alert was not merely mis-counted — it was
+   **permanently lost for that member**, while the counter read `delivered`.
+   **Also measured while fixing it, and also wrong in the original line: "its four existing call
+   paths" is FALSE.** `send` has exactly ONE production caller
+   (`EmailRetractionAlertDelivery.ts:52`); the four figure came from `EMAIL_ENABLED_TYPES` holding
+   four legacy types, none of which has any production email caller at all (that is SMELL-41's
+   other half, still open). And the service did not only swallow THROWN errors — `NotificationMailer`
+   reports failure as an `err` VALUE and the service discarded that too, so a provider answering in
+   the canon-shaped way was ignored just as completely.
+5. **The Slack/Teams fan-out can re-send after a config is ADDED between a raise and its
+   redelivery.** The claim is per `(alertKey, medium, configId)`, so a redelivery claims only the
+   NEW config — but the fan-out itself is `toEveryActiveConfig`, so the message reaches the old
+   ones again. The narrow alternative (broadcasting per config id) would multiply every normal
+   delivery instead, which is worse. Design residual, restated: per-medium delivery is best-effort
+   by spec.
+6. **FIXED by the corrections below.** **`RetractionAlertContextAdapter` degrades instead of
+   failing.** An unreadable post yields `Post <id>` as the excerpt rather than suppressing the
+   alert. That is deliberate — the obligation exists whether or not a title loads — but it meant a
+   systematic read failure would produce a run of alerts naming ids instead of content, with
+   nothing counting that.
+
+### Corrections applied after the 1b2 gate (PASS WITH WARNINGS, same branch)
+
+Gate verdict: PASS WITH WARNINGS, two warnings, both accepted and reworked rather than deferred.
+The plan-mode guard blocked the first attempt at this round (a `workstream/*` branch with no recent
+plan activity in the parent transcript); it was reported and cleared by the orchestrator rather
+than routed around — in particular the hook's sub-30-line auto-pass was NOT used to slice the
+edits through.
+
+| #        | Correction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | RED (measured)                                                                                                                                                                                                                        | GREEN                               |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| **W1.1** | `SendEmailNotificationService.send` returns `Result<void, NotificationDeliveryError>`; the empty catch is gone. New typed error `packages/core/domain/src/errors/NotificationDeliveryError.ts` carries the transport's own message — no existing domain error models "the outside world refused", and `InvariantViolationError` would have claimed an invariant broke when none did. A deliberate skip (off the allow-list, or the recipient's opt-out) stays `ok`, because reporting it as a failure would make a caller retry something nobody wants sent | `Tests 6 failed \| 8 passed (14)` — all six new cases fail against `Promise<void>`                                                                                                                                                    | `Tests 14 passed (14)`              |
+| **W1.2** | `EmailRetractionAlertDelivery.deliver` maps `err` → the medium's `failed` outcome, so `retraction_alert_delivery_total{medium="email",result="failed"}` is now reachable for an OUTAGE and not only for a missing address                                                                                                                                                                                                                                                                                                                                   | `Tests 1 failed \| 5 passed (6)` — `AssertionError: a mailer outage was reported as a delivered alert`                                                                                                                                | `Tests 6 passed (6)`                |
+| **W1.3** | `release` added to the ledger port and the Prisma repository; the raise use case RELEASES the claim of any medium that reports `failed`, per-member and for the whole claimed set of a failed shared fan-out. **Claim-first is kept** — it is the concurrency guard that stops two deliveries of one event from both sending; releasing on failure is what stops that guard from becoming a permanent loss                                                                                                                                                  | use case `Tests 2 failed \| 20 passed (22)` — `AssertionError: the failed member was never retried — the stale claim blocked the redelivery`; ledger `Tests 2 failed \| 7 passed (9)` — `TypeError: ledger.release is not a function` | `39 passed (39)` and `9 passed (9)` |
+| **W2**   | `retraction_alert_context_degraded_total{field}` + a WARN log on every degraded path (post, channel, account; `malformed-id` and `unreadable` distinguished in the log)                                                                                                                                                                                                                                                                                                                                                                                     | metrics `TypeError: recordAlertContextDegraded is not a function`; adapter `Tests 3 failed \| 6 passed (9)` — `retraction_alert_context_degraded_total is not registered`                                                             | `13 passed (13)` across both        |
+
+**A `delivered` medium is never released** — asserted as its own case, because releasing one would
+hand the redelivery permission to send the same alert twice, which is the exact defect the ledger
+exists to prevent. The shared fan-out releases only when the WHOLE call failed; a partial failure
+never reaches that branch, since the adapter reports `ok` when at least one destination accepted.
+
+**Two `override` modifiers were needed** on `NotificationDeliveryError` (`cause` narrows `Error`'s
+own ES2022 `cause?: unknown`; `toJSON` extends the base's). The compiler caught both — `TS4114`,
+three packages at once — before any test ran.
+
+**Gates after the corrections**: `tsc --noEmit` **0** in `@core/domain`, `@core/notifications` and
+`apps/api` · the 25 affected `apps/api` suites **270 passed** · `@core/notifications` **39/39** ·
+eslint `--max-warnings 0` and prettier `-c` on every touched file **0** · fitness **#4 = 0** (the
+new `err` paths are values, not throws) and **#32 = 0**.
+
+### RDD receipt — the committed range 1b → 1b2 (2026-09-20)
+
+Lineage `review-d1ca099a3e89ec06`, selected with `--base-ref cda2c7d4 --committed-only` (base tree
+`7d81de6a`, candidate tree `2f70e718`): 54 paths / 5,209 lines, tier **high**, correction budget 200. The consent/v3 envelope was answered `granted` under Edward's standing rule for review
+envelopes. Four lenses captured — risk, resilience, reliability, readability (the readability
+capture closed the transaction). Terminal state **`approved`**; the exact `acknowledge-approved`
+returned `gentle-ai.review-acknowledged/v1` with `authority: burned` (consumed revision
+`1424f997…`). No correction was opened.
+
+Two preflight refusals on the orchestrator's side, both retry-safe with nothing consumed: a
+hand-typed STATUS carried a `--target` flag the command does not define, and two captures were
+launched with empty tokens from a mis-scoped shell chain. The bound STATUS re-offered exactly the
+two missing slots under a new revision and they were captured with the re-issued tokens.
+
+**Advisory findings — 26, every one informational.** None opened a correction and none reopens
+this review; they are recorded here so nothing stays hidden, and each is separate later work with
+its own decision. Ids are the reviewer's.
+
+| Id                                             | Lens        | Severity   | Location                                                                                        |
+| ---------------------------------------------- | ----------- | ---------- | ----------------------------------------------------------------------------------------------- |
+| R1-001                                         | risk        | SUGGESTION | `packages/core/domain/src/repositories/RetractionAlertDeliveryLedger.ts:1-96`                   |
+| R1-002                                         | risk        | SUGGESTION | `apps/api/src/infrastructure/adapters/SlackTeamsRetractionAlertDelivery.ts:52-79`               |
+| R1-003                                         | risk        | SUGGESTION | `apps/api/src/notifications/RetractionAlertEventHandler.ts:104-140`                             |
+| R2-CAUSE_SENTENCES-duplicated                  | readability | WARNING    | `apps/api/src/infrastructure/email/templates/emailTemplates.tsx:434-437`                        |
+| R2-EXCERPT-LIMIT-unexplained                   | readability | SUGGESTION | `apps/api/src/infrastructure/adapters/RetractionAlertContextAdapter.ts:41`                      |
+| R2-P2002-hardcoded-string                      | readability | SUGGESTION | `apps/api/src/infrastructure/repositories/PrismaRetractionAlertDeliveryLedger.ts:47-55`         |
+| R2-RETRACTION_PENDING_EVENT-literal-duplicated | readability | SUGGESTION | `apps/api/src/infrastructure/adapters/SlackTeamsRetractionAlertDelivery.ts:31`                  |
+| R2-STORED_MEDIUM-brittle-mapping               | readability | WARNING    | `apps/api/src/infrastructure/repositories/PrismaRetractionAlertDeliveryLedger.ts:29-37`         |
+| R2-duplicated-fragment-reader                  | readability | WARNING    | `apps/api/src/notifications/RetractionAlertEventHandler.ts:50-63`                               |
+| R2-import-after-code-block                     | readability | WARNING    | `apps/api/src/infrastructure/adapters/TransactionalEmailAdapter.ts:67`                          |
+| R2-magic-timeout-literal-duplicated            | readability | SUGGESTION | `infra/prisma/migrations/20260919222448_add_retraction_alert_notifications/migration.sql:35-36` |
+| R2-projectId-fallback-silent                   | readability | WARNING    | `apps/api/src/notifications/RetractionAlertEventHandler.ts:132`                                 |
+| R2-retractionPendingEmail-forward-reference    | readability | SUGGESTION | `apps/api/src/infrastructure/email/templates/emailTemplates.tsx:396-411`                        |
+| R3-account-fallback-may-widen-recipients       | reliability | SUGGESTION | `packages/core/notifications/src/RaiseRetractionAlertUseCase.ts:157-165`                        |
+| R3-context-adapter-throws-not-degrades         | reliability | WARNING    | `apps/api/src/infrastructure/adapters/RetractionAlertContextAdapter.ts:71-77`                   |
+| R3-handler-swallows-context-throws             | reliability | WARNING    | `apps/api/src/notifications/RetractionAlertEventHandler.ts:135-165`                             |
+| R3-in-app-broadcast-failure-swallowed          | reliability | WARNING    | `apps/api/src/infrastructure/adapters/InAppRetractionAlertDelivery.ts:82-101`                   |
+| R3-provider-string-coercion-loses-fidelity     | reliability | SUGGESTION | `apps/api/src/infrastructure/adapters/RetractionAlertContextAdapter.ts:126`                     |
+| R3-release-on-broadcast-exception-missing      | reliability | WARNING    | `packages/core/notifications/src/RaiseRetractionAlertUseCase.ts:206-244`                        |
+| R3-resolve-nonatomic-partial-crash             | reliability | SUGGESTION | `packages/core/notifications/src/ResolveRetractionAlertUseCase.ts:60-73`                        |
+| R3-shared-fanout-partial-failure-lost          | reliability | WARNING    | `packages/core/notifications/src/RaiseRetractionAlertUseCase.ts:271-289`                        |
+| R4-context-adapter-no-timeout                  | resilience  | SUGGESTION | `apps/api/src/infrastructure/adapters/RetractionAlertContextAdapter.ts:66-72`                   |
+| R4-handler-drops-shared-when-no-recipients     | resilience  | WARNING    | `apps/api/src/notifications/RetractionAlertEventHandler.ts:150-160`                             |
+| R4-in-app-broadcast-swallowed                  | resilience  | WARNING    | `apps/api/src/infrastructure/adapters/InAppRetractionAlertDelivery.ts:86-99`                    |
+| R4-listbyalertkey-unbounded                    | resilience  | SUGGESTION | `apps/api/src/infrastructure/repositories/PrismaRetractionAlertDeliveryLedger.ts:129-140`       |
+| R4-raise-partial-shared-orphan-claims          | resilience  | WARNING    | `packages/core/notifications/src/RaiseRetractionAlertUseCase.ts:249-278`                        |
+
+**Proposed disposition (Edward decides; nothing here is applied).** The reliability and resilience
+WARNINGs that describe a thrown exception leaving a CLAIMED ledger row behind — release missing on
+a broadcast exception, a shared fan-out partial failure lost, orphan claims on a partial shared
+raise, the in-app broadcast failure swallowed, the handler swallowing context throws and dropping
+the shared media when there are no recipients — are the same class as gate correction W1 (a failure
+that is not reported is a claim that is never released, and a claim never released is an alert
+lost). They belong in one bounded follow-up on this branch before the tracker merges. The readability
+findings and the remaining suggestions are backlog rows.
+
+### Hardening after the 1b2 RDD review (advisory WARNINGs) — `acf91453`
+
+The RDD receipt above lists THIRTEEN WARNING rows. The in-app finding appears under two lenses, so
+there are **twelve distinct WARNINGs — eleven fixed, one rejected** — plus one SUGGESTION
+(`R3-account-fallback-may-widen-recipients`) rejected with proof. They were taken as one slice on
+this branch rather than deferred, because seven of them are ONE class, and it is the class gate
+correction W1 opened: **a failure that is not reported is a ledger claim that is never released,
+and a claim never released is an alert lost forever.** The rework is therefore in the protocol,
+not at the sites.
+
+**Class A — the protocol** (`RetractionAlertDeliveryPort`, `AlertMedium`, `ExternalNotifierPort`,
+`RaiseRetractionAlertUseCase`, `SendEmailNotificationService`, the dispatcher, the three media
+adapters, the context adapter, the metrics). **Class B — readability** (`retractionAlertMessage`,
+`readAlertFragments`, the notifications barrel, `TransactionalEmailAdapter`, the Prisma ledger,
+`emailTemplates`). `RetractionAlertEventHandler` carries both.
+
+| Id                                                      | Disposition                | What changed                                                                                                                                                                                                            | RED evidence                                                                                                                                                                         |
+| ------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `R3-release-on-broadcast-exception-missing`             | FIXED (A)                  | The port STATES that `deliver` must not throw and the use case ENFORCES it at the seam (`attempt()`): a thrown medium becomes `err`, its claim is released, its target reads `failed`, and the media after it still run | `Tests 6 failed \| 24 passed (30)` — `one medium breaking its contract must not fail the raise`                                                                                      |
+| `R3-shared-fanout-partial-failure-lost`                 | FIXED (A)                  | The fan-out is SCOPED to the claimed destinations (`toConfigIds`) and reports `sentConfigIds`/`failedConfigIds`; the adapter derives unreached as `targets − sent`, and the use case releases exactly those claims      | `a destination nobody reached was counted as delivered`; later `a caller retrying ONE destination reached its siblings too, telling them twice`                                      |
+| `R4-raise-partial-shared-orphan-claims`                 | FIXED (A)                  | Same rework. A redelivery now reaches exactly the destination that was missed — end to end, not only in the argument list                                                                                               | `the fan-out was not scoped to the claimed destination, so a retry re-sends to its siblings`                                                                                         |
+| `R3-in-app-broadcast-failure-swallowed`                 | FIXED (A)                  | Decided with evidence: the STORED ROW is the delivery, the live push is an accelerator. A failed push is counted (`retraction_alert_realtime_push_failed_total`), WARN-logged, and KEEPS its claim                      | `a failed push released the ledger claim, so the redelivery will create a SECOND row`                                                                                                |
+| `R4-in-app-broadcast-swallowed`                         | FIXED (A)                  | Same decision; the push can no longer destroy the run                                                                                                                                                                   | `retraction_alert_realtime_push_failed_total is not registered`                                                                                                                      |
+| `R3-handler-swallows-context-throws`                    | FIXED (A+B)                | The handler propagates a processing failure so the outbox redelivers; only a structurally invalid payload is refused, and every refusal is COUNTED by `retraction_alert_refused_total{reason}`                          | `Missing expected rejection: the failure was logged and swallowed, so the relay marks the event published and the alert is lost`; `retraction_alert_refused_total is not registered` |
+| `R3-context-adapter-throws-not-degrades`                | FIXED (A)                  | `attemptRead` makes a thrown read degrade on the same path as a refused one, `unreadable` and `unreachable` distinguished in the log, counted alike                                                                     | `Error: the connection pool is exhausted` ×4                                                                                                                                         |
+| `R4-handler-drops-shared-when-no-recipients`            | **REJECTED — not present** | The medium loop runs the shared fan-out independently of the recipient set. Pinned by `delivers to the active config when the project has ZERO recipients` and `raises the alert even when the project has NO member`   | both pass unmodified; spec §Delivery ("delivery SHALL happen even when NO member has the type enabled") satisfied                                                                    |
+| `R2-STORED_MEDIUM-brittle-mapping`                      | FIXED (B)                  | `Record<AlertMedium, RetractionAlertMedium>` against the generated enum, imported as a TYPE (a value import breaks the unit tier's vitest entry)                                                                        | planted drift `"SLACK_TEAM"` → `error TS2418`; restored byte-exact (`sha256sum -c` OK)                                                                                               |
+| `R2-projectId-fallback-silent`                          | FIXED (B)                  | The `?? ""` is gone; project joins channel in one refusal rule, and the refusal is counted                                                                                                                              | `expected "vi.fn()" to not be called at all, but actually been called 1 times`                                                                                                       |
+| `R2-duplicated-fragment-reader`                         | FIXED (B)                  | ONE `readAlertFragments` in `@core/notifications`, used by the handler and the email adapter                                                                                                                            | `Cannot find module '../../src/readAlertFragments.js'`                                                                                                                               |
+| `R2-import-after-code-block`                            | FIXED (B)                  | Not a lazy import: it sat after a function block that is now deleted                                                                                                                                                    | safety net — the adapter's own suite                                                                                                                                                 |
+| `R2-CAUSE_SENTENCES-duplicated`                         | FIXED (B)                  | `describeRetractionCause` exported from the message builder; the email test asserts against that function, not a literal                                                                                                | `TypeError: describeRetractionCause is not a function`                                                                                                                               |
+| `R3-account-fallback-may-widen-recipients` (SUGGESTION) | **REJECTED — proven**      | The account query is never called while the project has members, and the fallback is called with the EVENT's `accountId` under `withTenantContext`. Design D17 §5 mandates it                                           | both new cases pass on the unmodified use case                                                                                                                                       |
+
+**Corrections applied after the fresh gate of this slice (PASS WITH WARNINGS) and its re-gate.**
+
+| #      | Correction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | RED                                                                                                                                                                                       | GREEN                      |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| **W1** | The shared fan-out is TARGET-SCOPED. `BroadcastOptions.toEveryActiveConfig` is replaced by `toConfigIds` (one selector, not two — the flag had exactly one caller), `BroadcastReport` returns `sentConfigIds`/`failedConfigIds` instead of counts, and the adapter derives unreached from what was REACHED. The release protocol no longer buys its retry with a duplicate: a redelivery that claimed only the missed destination reaches that one alone. A config deactivated between claim and send becomes unreached and released; the unattributable-refusal guard is deleted; an id outside the claimed set cannot enter the answer by construction                                                                                                                                                                        | `Tests 14 failed \| 5 passed (19)` — `a caller retrying ONE destination reached its siblings too, telling them twice`                                                                     | `19 passed (19)`           |
+| **W2** | `AlertDeliveryReportEntry.reason`; `settle` carries each target's reason; the handler WARNs one line per FAILED entry with `{medium, target, reason}`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `Tests 3 failed \| 32 passed (35)`; handler `no warning was logged; levels were info`                                                                                                     | `56 passed`, handler green |
+| **W4** | `retraction_alert_refused_total{reason}` — one increment per refused event, labelled by the first missing field                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `retraction_alert_refused_total is not registered` ×5                                                                                                                                     | 5 cases green              |
+| **W5** | A target the medium DECLINED to send to is neither delivered nor failed: `AlertTargetSuppression` + `suppressedTargets`, documented as port rule 4. It reports `suppressed-by-preference` (the existing value — the skip IS the per-type preference, so no fourth vocabulary word) and **RELEASES its claim**, exactly as the use case's own `typeOn` suppression never claims: nothing was written, so nothing is owed, and a member who switches the type back on is reached by the next redelivery. Safe by rule 3 — with no durable artifact a redelivery either suppresses again or delivers once. The release condition is now ONE rule (a claim is kept only where a durable artifact exists), which removed a branch from `settle`                                                                                      | `a target nothing was sent to was counted as delivered`; then `a member who was not sent to kept a claim nothing owes, so re-enabling the preference could never reach them`              | `57 passed` / `31 passed`  |
+| **W9** | Counts corrected: 13 WARNING rows → 12 distinct (in-app appears twice) → 11 fixed + 1 rejected; the account-fallback finding is a SUGGESTION                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | —                                                                                                                                                                                         | —                          |
+| **R2** | The email medium did not honour rule 4: `SendEmailNotificationService.send` answered `ok(undefined)` for both skip paths, so a skipped email was byte-identical to a sent one and the member was reported DELIVERED with the claim STANDING. `send` now returns `Result<EmailSendOutcome, …>` whose two reasons ARE the report's own `suppressed-by-preference` / `unavailable`; the adapter maps the recipient's opt-out to `suppressedTargets` (claim released, as in-app) and the allow-list skip to `err` (our gap, not the customer's answer; unreachable today, written out so removing the type from the allow-list goes loudly red). One production caller, measured. The use-case-level pin through the email double passed on arrival: `settle`/`entryFor` are medium-agnostic, so rule 4 is a per-ADAPTER obligation | `sendEmailNotification.test.ts` 3 failed / 14 passed (`TypeError: … reading 'sent'`); `EmailRetractionAlertDelivery.test.ts` 2 failed / 7 passed (`… reading 'SUPPRESSED_BY_PREFERENCE'`) | `60 passed` / `48 passed`  |
+| **R3** | Port JSDoc said "The contract, in three rules" above four; corrected                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | —                                                                                                                                                                                         | —                          |
+| **R4** | The handler compared the bare literal `"failed"`; it compares `ALERT_DELIVERY_RESULTS.FAILED` now, so a value rename cannot disable the WARN in silence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | —                                                                                                                                                                                         | —                          |
+| **R5** | `deliverShared`'s two early exits emitted report lines with no `target` and no `reason`; both name the project and say why (the repository's own message; "the project has no active destination of this kind"), and the handler's WARN omits keys it has no value for                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | use case `Tests 2 failed \| 37 passed (39)`; handler `1 failed \| 21 passed (22)`                                                                                                         | green                      |
+
+**The misleading test and the misleading sentence, both addressed.** `retries ONLY the unreached
+destination on a redelivery` asserted an end-to-end property against a double the shipped adapter
+discarded — "parece proteger y no protege". It is renamed to `HANDS the medium only the
+destinations this run claimed, so a redelivery names just the missed one`, and the adapter and
+dispatcher suites hold the end-to-end pins. The adapter's "and nothing else" sentence is KEPT,
+because after W1 it is true end to end (three hops, each pinned).
+
+**Behaviour changes, stated.** A retraction alert event can now DEAD-LETTER after the relay's
+retries (before: marked published and lost in silence) — T1c.18 carries its rule. A payload with no
+`projectId` is refused and counted instead of delivered to account members (producer-defect-only:
+`emitAlertTransition` emits `projectId` unconditionally); `accountId` is conditional there, so
+`missing-tenant` is the refusal that is reachable by construction — 1c owns the producer question.
+The API's shared destinations are now reached only through the claimed config ids.
+
+Gates after the slice — `tsc --noEmit` exit 0 in `@ports/core`, `@core/domain`,
+`@core/notifications`, `@core/external-notifications`, `apps/api` · eslint `--max-warnings 0` and
+`prettier --check` exit 0 on every touched file · `@core/notifications` 60/60, `@core/domain`
+184/184, the touched `apps/api` suites green (12 files / 122 at the re-gate; the email trio 48/48
+after R2–R5), `apps/api` unit tier 585 files / 9101 before the gate corrections · fitness #4 = 0,
+#32 = 0, #3/#8/#9/#10/#13 = 0. Measured by numstat: **CODE 933 / EVIDENCE 1,165** — over the
+400-line CODE ceiling and recorded for Edward's ratification rather than sliced: the port change,
+its implementers, the dispatcher and the use case cannot be split without an uncompilable
+intermediate, and the class was fixed once rather than at seven sites.
+
+**Backlog rows this opens (with evidence):** (1) `missing-tenant` is reachable by construction
+(`PostPublicationEvents.ts:85-106`) — pre-existing, previously invisible, now counted; 1c owns
+the producer question. (2) A per-medium `failed` is released but not force-retried (forcing a
+retry per target would dead-letter every alert event over one member with no email address);
+D17.5's "redelivery = the outbox's at-least-once meeting a released claim" is unchanged, now
+stated at the seam. (3) `CreateNotificationUseCase` signals "skipped" with a sentinel `""` id
+whose UoW branch gives it a second possible meaning. (4) Two new series have no Prometheus rule
+(`retraction_alert_realtime_push_failed_total`, `retraction_alert_refused_total`) — T1c.18. (5)
+Neither `apps/api/tsconfig.json` nor `packages/core/notifications/tsconfig.json` includes
+`tests/**`, so no `tsc` in this repo type-checks the unit suites; vitest strips types without
+checking them.
+
+### RDD receipt — the committed hardening range `fcddefa8` → `acf91453` (2026-09-20)
+
+Lineage `review-5cddd3d1b371834e`, selected with `--base-ref fcddefa8 --committed-only` over the
+hardening commit (28 paths / 2,098 lines, tier **medium**, one `review-reliability` slot).
+Consent/v3 answered `granted` under Edward's standing rule. Terminal state **`approved`**; the
+exact `acknowledge-approved` returned `gentle-ai.review-acknowledged/v1` with
+`authority: burned`. No correction was opened. Six advisory findings, recorded here: three
+WARNINGs — `R3-refused-counter-double-inc-project` (`RetractionAlertEventHandler.ts:114-132`),
+`R3-context-adapter-throw-catches-all` (`RetractionAlertContextAdapter.ts:71-78`),
+`R3-shared-medium-hides-failed-target-reason` (`SlackTeamsRetractionAlertDelivery.ts:76-111`) —
+taken as a follow-up work unit on this branch (below), and three SUGGESTIONs —
+`R3-attempt-swallows-throw-details-partial` (`RaiseRetractionAlertUseCase.ts:196-221`),
+`R3-email-recipient-id-vs-address` and `R3-inapp-realtime-broadcast-signature-double` (two test
+doubles whose signatures drift from production) — backlog.
+
+### Follow-up after the range review — `1dab4984`
+
+| Id                                            | Disposition                   | What changed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Evidence                                                                                                                                                                                                              |
+| --------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `R3-refused-counter-double-inc-project`       | **REJECTED — false positive** | The refusal counter cannot double-count: the two sites are mutually exclusive by construction (the first `return`s before `withTenantContext`, so the second — inside `raise()` — is unreachable for the same event); `resolve()` holds no refusal counter; `withTenantContext` is a bare `AsyncLocalStorage.run`; `InMemoryEventDispatcher.dispatch` keys handlers by `eventType`, one registration per type, one `handle` call; `recordAlertRefused` is a single `inc` on a get-or-create counter                                                                                                                                                                                                                                                                                                         | Probed with 9 refused events across both branches, including three payloads missing fields from both rules: counter total 9. The probe stays as the regression pin, stating the metric's own help text                |
+| `R3-context-adapter-throw-catches-all`        | FIXED                         | `attemptRead` caught everything, so a `TypeError` from a bad refactor reported as `unreachable` and every alert degraded to an identifier while the defect hid in a WARN. It now degrades on an ALLOWLIST of store-failure shapes (Prisma client class names except `PrismaClientValidationError`, `/^P\d/` codes, eight Node connection codes — duck-typed like `handleAnyError` and `classifyPersistenceFailure`, the repo's two existing classifiers; no ORM import) and propagates anything else after an ERROR log with the stack. Verified end to end: no ledger claim is taken before this read, the handler propagates so the outbox redelivers, `OutboxRelay` dead-letters with the message at `maxRetries`. Residual in the JSDoc: Prisma names and codes by value, failing in the safe direction | RED `2 failed \| 16 passed (18)` — `Missing expected rejection` for a programming error and for a malformed query; GREEN `18 passed`. The `exploding()` double now carries `code: "P1001"` instead of posing as a bug |
+| `R3-shared-medium-hides-failed-target-reason` | FIXED                         | The dispatcher held each refusal's `result.error` and pushed only the id, so a revoked webhook token reached the operator as "no longer an active config". `BroadcastReport.failedConfigIds: string[]` is now `failedConfigs: BroadcastFailure[]` carrying `{ id, reason }` (renamed — a field named for ids must not hold records); the dispatcher fills the reason from the channel adapter; the Slack/Teams medium carries it into `failedTargets`, keeping the specific sentence for a config that stopped being a destination (unreached is still DERIVED from `sentConfigIds`, so that case cannot be lost). Both ends pinned: the dispatcher's reason and the report line                                                                                                                            | RED `6 failed` — `+ 'the destination is no longer an active config of this project' − '403 invalid_token'`; GREEN dispatcher + Slack 21, `@core/notifications` 61                                                     |
+
+Gates — four `apps/api` suites in one invocation 62/62 · `@core/notifications` 61/61 · tsc 0 in
+`@core/domain`, `@core/notifications`, `apps/api` · eslint `--max-warnings 0` and prettier 0 ·
+fitness #4 = 0, #32 = 0. Measured: CODE 164 / EVIDENCE 185. Discovery worth a line: the repo has
+no shared infrastructure-error predicate — the convention is duck-typing on `.code` in two places;
+`isStoreFailure` is the first and is deliberately local to the adapter.
+
+### RDD receipt — the follow-up commit `acf91453` → `1dab4984` (2026-09-20)
+
+Lineage `review-325ed17f72284498`, selected with `--base-ref acf91453 --committed-only` over the
+follow-up commit (9 paths / 349 lines, tier **medium**, one `review-reliability` slot).
+Consent/v3 answered `granted` under Edward's standing rule. Terminal state **`approved`**; the
+exact `acknowledge-approved` returned `gentle-ai.review-acknowledged/v1` with
+`authority: burned`. No correction was opened and no advisory finding was left. With this
+receipt, every code commit of the hardening on both branches carries a burned committed-range
+review: 1b `cda2c7d4 → 57430ca4`, 1b2 `fcddefa8 → acf91453` and `acf91453 → 1dab4984`.
