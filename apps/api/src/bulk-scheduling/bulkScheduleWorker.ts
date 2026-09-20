@@ -143,17 +143,15 @@ export interface BulkScheduleFailureDeps {
  *   can settle. DLQ enqueue and manifest write are independent — one failing
  *   never blocks the other.
  * @param deps - The fail use case, the DLQ queue port, and a logger.
- * @param job - The failed BullMQ job (undefined if unavailable).
+ * @param job - The failed BullMQ job. An event that carries none is answered by
+ *   {@link onBulkScheduleJobFailed}, which is where the only sink for it exists.
  * @param error - The error that failed the job.
  */
 export async function handleBulkScheduleRowFailure(
   deps: BulkScheduleFailureDeps,
-  job: Job | undefined,
+  job: Job,
   error: Error
 ): Promise<void> {
-  if (!job) {
-    return;
-  }
   const attempts = job.opts?.attempts ?? DEFAULT_ATTEMPTS;
   if (job.attemptsMade < attempts) {
     return; // retries remain
@@ -206,6 +204,50 @@ export async function handleBulkScheduleRowFailure(
   }
 }
 
+/**
+ * @function onBulkScheduleJobFailed
+ * @description The worker's `failed` listener, named so it can be exercised without a
+ *   queue. It owns the two things a listener must not get wrong.
+ *
+ *   An event that carries NO job is counted and logged here rather than returned from in
+ *   silence. BullMQ emits one when it cannot load the job the event is about — a stalled
+ *   job reclaimed after its key expired, or a payload it cannot deserialize — and the row
+ *   behind it is still in a batch waiting on it. Nothing downstream can be reached for it
+ *   (the DLQ and the manifest both need the payload this event does not have), so the
+ *   counter and the log ARE the recovery path: they are what turns a batch that silently
+ *   stops settling into a batch someone can go and look at.
+ *
+ *   And a rejection from the handler is caught, because a `failed` LISTENER is not
+ *   awaited by BullMQ: it does not re-queue, does not reach the DLQ, and becomes an
+ *   unhandled rejection, which under Node's default takes the process down over a job
+ *   that had already failed. `handleBulkScheduleRowFailure` still throws its refusal,
+ *   because that is the contract its callers hold it to; the boundary is here.
+ * @param deps - The fail use case, the DLQ queue port, and a logger.
+ * @param job - The failed job, or undefined when the event carries none.
+ * @param error - The error that failed the job.
+ */
+export function onBulkScheduleJobFailed(
+  deps: BulkScheduleFailureDeps,
+  job: Job | undefined,
+  error: Error
+): void {
+  if (!job) {
+    incrementBulkScheduleRowRefused(BULK_SCHEDULE_REFUSAL_ARMS.MISSING_JOB);
+    deps.logger.error(
+      { err: error },
+      "Bulk schedule `failed` event carried no job: the row it names cannot be dead-lettered or recorded, so its batch will not settle"
+    );
+    return;
+  }
+
+  void handleBulkScheduleRowFailure(deps, job, error).catch((failureError: unknown) => {
+    deps.logger.error(
+      { jobId: job.id, err: failureError },
+      "Bulk schedule failure handler did not complete; the row's batch may not settle"
+    );
+  });
+}
+
 /** Handle returned by {@link startBulkScheduleWorker} for graceful shutdown. */
 export interface BulkScheduleWorkerHandle {
   close(): Promise<void>;
@@ -245,23 +287,11 @@ export async function startBulkScheduleWorker(
   );
 
   worker.on("failed", (job, error) => {
-    // MEASURED, and the reason this `catch` exists: a BullMQ `failed` LISTENER is not a
-    // handler BullMQ awaits. The job has already failed by the time it runs, so throwing
-    // here does not re-queue it, does not DLQ it, and does not reach the queue at all —
-    // it becomes an unhandled promise rejection, which under Node's default can take the
-    // process down. `handleBulkScheduleRowFailure` still throws its refusal, because that
-    // is the contract its own callers and tests hold it to; the boundary is here, where
-    // the only sink available is the log and the counter the refusal already incremented.
-    void handleBulkScheduleRowFailure(
+    onBulkScheduleJobFailed(
       { fail: deps.fail, deadLetter: deps.deadLetter, logger: deps.logger },
       job,
       error
-    ).catch((failureError: unknown) => {
-      deps.logger.error(
-        { jobId: job?.id, err: failureError },
-        "Bulk schedule failure handler did not complete; the row's batch may not settle"
-      );
-    });
+    );
   });
 
   return { close: () => consumer.close() };

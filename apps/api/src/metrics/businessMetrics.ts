@@ -83,10 +83,16 @@ const postsDeletedTotal = getOrCreateCounter(
  * them. The worker imports these rather than the metrics module importing the worker: the
  * label set belongs to the metric, and a counter whose label values are `string` accepts
  * any typo forever while its dashboards quietly split in two.
+ *
+ * `MISSING_JOB` is the `failed` event BullMQ emits with no job attached — a stalled job
+ * reclaimed after its key expired, or a payload it cannot deserialize. It is its own arm
+ * rather than folded into the others because the recovery differs: the other two name a
+ * row and can be chased to a batch, this one cannot be chased to anything from here.
  */
 export const BULK_SCHEDULE_REFUSAL_ARMS = {
   ROW: "row",
   TERMINAL_FAILURE: "terminal-failure",
+  MISSING_JOB: "missing-job",
 } as const;
 
 export type BulkScheduleRefusalArm =
@@ -188,9 +194,10 @@ export function incrementPostDeleted(): void {
  *
  * A refused row is a row that will never be processed AND never recorded as failed, so
  * without a counter its batch simply stops settling and nothing says why. The `reason`
- * label separates the two arms that can refuse — the row handler and the terminal-failure
- * callback — because they have different consequences: the first still reaches the DLQ
- * through BullMQ's retries, the second is the end of the line.
+ * label separates the arms that can refuse, because they have different consequences: the
+ * row handler still reaches the DLQ through BullMQ's retries; the terminal-failure
+ * callback is the end of the line; and the `failed` event that carries no job names no
+ * row at all, so neither the DLQ nor the manifest can be reached for it.
  * @param reason - Which arm refused, from {@link BULK_SCHEDULE_REFUSAL_ARMS}.
  */
 export function incrementBulkScheduleRowRefused(reason: BulkScheduleRefusalArm): void {

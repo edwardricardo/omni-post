@@ -15,6 +15,7 @@ import type { QueuePort } from "@ports/core";
 import {
   processBulkScheduleRowJob,
   handleBulkScheduleRowFailure,
+  onBulkScheduleJobFailed,
 } from "../../../src/bulk-scheduling/bulkScheduleWorker.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { ProcessBulkScheduleRowUseCase } from "@core/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
@@ -110,14 +111,6 @@ describe("processBulkScheduleRowJob", () => {
 
 describe("handleBulkScheduleRowFailure", () => {
   beforeEach(() => vi.clearAllMocks());
-
-  it("is a no-op when the job is undefined", async () => {
-    const fail = makeFail(async () => ok(undefined));
-    const deadLetter = makeDeadLetter(async () => ok("x"));
-    await handleBulkScheduleRowFailure({ fail, deadLetter, logger }, undefined, new Error("x"));
-    assert.strictEqual((fail.execute as ReturnType<typeof vi.fn>).mock.calls.length, 0);
-    assert.strictEqual((deadLetter.enqueue as ReturnType<typeof vi.fn>).mock.calls.length, 0);
-  });
 
   it("is a no-op while retries remain", async () => {
     const fail = makeFail(async () => ok(undefined));
@@ -218,5 +211,61 @@ describe("handleBulkScheduleRowFailure", () => {
     );
     assert.strictEqual((fail.execute as ReturnType<typeof vi.fn>).mock.calls.length, 1);
     assert.ok(logger.error.mock.calls.length >= 1);
+  });
+});
+
+describe("onBulkScheduleJobFailed", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("counts and logs a `failed` event that carries no job, instead of returning in silence", async () => {
+    // BullMQ emits `failed` with an undefined job when it could not load the job the
+    // event is about — a stalled job reclaimed after its key expired, or a payload it
+    // cannot deserialize. The row behind it still exists in a batch that is waiting on
+    // it, and the handler returned without a word: no DLQ entry, no manifest write, no
+    // log, no counter. The batch then never settles and nothing anywhere says why, which
+    // is the same unobservable state the other two arms are counted to prevent.
+    const fail = makeFail(async () => ok(undefined));
+    const deadLetter = makeDeadLetter(async () => ok("x"));
+    const before = await refusalCount("missing-job");
+
+    onBulkScheduleJobFailed({ fail, deadLetter, logger }, undefined, new Error("stalled"));
+
+    assert.strictEqual(
+      await refusalCount("missing-job"),
+      before + 1,
+      "the event is counted under its own arm, not folded into the row or terminal arms"
+    );
+    assert.ok(logger.error.mock.calls.length >= 1, "and logged at ERROR, not warn or info");
+    assert.strictEqual(
+      (fail.execute as ReturnType<typeof vi.fn>).mock.calls.length,
+      0,
+      "with nothing attempted for a row the event cannot name"
+    );
+    assert.strictEqual((deadLetter.enqueue as ReturnType<typeof vi.fn>).mock.calls.length, 0);
+  });
+
+  it("does not let a failure inside the handler escape as an unhandled rejection", async () => {
+    // A `failed` LISTENER is not awaited by BullMQ: a rejection escaping here is
+    // unhandled, and under Node's default that takes the process down over a job that
+    // had already failed. The listener is the boundary; the log is the only sink it has.
+    const fail = makeFail(async () => {
+      throw new Error("manifest write exploded");
+    });
+    const deadLetter = makeDeadLetter(async () => ok("dlq-1"));
+
+    onBulkScheduleJobFailed(
+      { fail, deadLetter, logger },
+      job({ attemptsMade: 3, opts: { attempts: 3 } }),
+      new Error("still broken")
+    );
+
+    await vi.waitFor(() =>
+      assert.ok(
+        logger.error.mock.calls.some(
+          ([, message]) => typeof message === "string" && message.includes("did not complete")
+        ),
+        "the handler's rejection was caught and logged"
+      )
+    );
   });
 });

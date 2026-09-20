@@ -289,6 +289,8 @@ export class SchedulePostUseCase implements UseCase<
         return result;
       }
       if (result.value.events.length > 0) {
+        // The copy is required, not defensive: `EventDispatcher.dispatchAll` declares
+        // `events: DomainEvent[]`, and a `readonly DomainEvent[]` is not assignable to it.
         await this.eventDispatcher.dispatchAll([...result.value.events]);
       }
 

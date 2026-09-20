@@ -296,13 +296,18 @@ export async function savePublicationRecord(
   }
 
   try {
-    const activeTx = PrismaUnitOfWork.getTransactionClient();
-    if (activeTx) {
-      await writePublicationSave(activeTx, aggregate, collaborators.outboxWriter);
+    // ONE read, and both the client and the registration come from it. Reading the
+    // client and then reaching for the hook in a SECOND ambient lookup would let the
+    // two disagree — the second can answer "no transaction" for a caller the first
+    // handed a transaction client, and the mark would then run inside the transaction
+    // it exists to outlive, on writes that can still roll back.
+    const active = PrismaUnitOfWork.activeTransaction();
+    if (active) {
+      await writePublicationSave(active.tx, aggregate, collaborators.outboxWriter);
       // Someone else owns this transaction and it has NOT committed yet — work that
       // follows this save in the same unit of work can still roll every statement back.
       // The unit of work runs this once it has actually committed, and never otherwise.
-      PrismaUnitOfWork.onCommitted(() => aggregate.markPublicationsPersisted());
+      active.onCommitted(() => aggregate.markPublicationsPersisted());
     } else {
       await collaborators.runInTenantBoundTransaction(async (tx) => {
         await writePublicationSave(tx, aggregate, collaborators.outboxWriter);

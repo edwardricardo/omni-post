@@ -3219,3 +3219,231 @@ metric and the metrics module must not depend on a worker.
 | DB tier total (`TIER=pr-integration`)                                                  | **534 tests, 534 pass, 0 fail, 0 cancel, 0 skip**, exit 0              |
 | `eslint --max-warnings 0` on every changed `.ts` · `prettier -c` · `pnpm format:check` | **0** · clean · clean                                                  |
 | fitness #3 · #4 · #5 · #40                                                             | 0 · 0 · 0 · A 3 seams (floor 3) / **0**, B 14 sites (floor 10) / **0** |
+
+### RDD receipt — the committed range `8b86b1ca` → `bf44b48f`
+
+Lineage `review-025d9990cf48f4bb`, **MEDIUM** tier, one reliability lens. The review reached
+**approved**, the acknowledgement was executed exactly once and the authority is **burned**.
+**4 advisory findings, 0 blocking** — one WARNING, three SUGGESTIONs. Claims are quoted from the
+reviewer.
+
+| Id                                                   | Lens        | Sev        | Where                              | Claim (quoted)                                                                                                                                                                                                                                                                                            | Disposition                                                        |
+| ---------------------------------------------------- | ----------- | ---------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `R3-uow-getStore-outside-run-cross-transaction-hook` | reliability | WARNING    | `PrismaUnitOfWork.ts:180-195`      | "a caller that registered from a context which had left `txStorage.run` … will silently run the hook immediately as if there were no transaction … writing may have occurred on the transaction client but the hook … fires before the commit — i.e. the exact inversion the marker was moved to prevent" | **FIXED structurally** (A) — the mixed shape no longer exists      |
+| `R3-bulk-listener-catch-missing-job`                 | reliability | SUGGESTION | `bulkScheduleWorker.ts:248-263`    | "the terminal-failure recording is skipped without a refusal counter increment, because the code never reaches the tenant-missing arm. The new counter therefore does not observe this class of unsettled batch. No test in this candidate exercises the `job === undefined` shape"                       | **FIXED** (B) — a third arm, and the listener is now a tested seam |
+| `R3-schedule-events-readonly-copy`                   | reliability | SUGGESTION | `SchedulePostUseCase.ts:291-294`   | "the dispatch spreads it into a fresh array before dispatching. This is defensive but silent about intent: nothing in the candidate proves the dispatcher does not mutate its argument"                                                                                                                   | **PREMISE CORRECTED** (C) — the copy is required, and now says so  |
+| `R3-integration-cleanup-uuid-account-columns`        | reliability | SUGGESTION | `schedulePostTargetSet…test.ts:69` | "yielding identifiers up to ~42 chars. This is fine for text primary keys but would fail loudly if a schema constraint limited any of these columns to a shorter width … Optional: cap the suffix (e.g. first 8 hex chars)"                                                                               | **REJECTED on measurement** (D) — there is no width to fit         |
+
+#### A. The mixed two-read shape is gone, not guarded against
+
+The WARNING names a real inversion, and its reasoning holds: `AsyncLocalStorage.getStore()` answers
+for the context the CALLER is in, so a caller that reads the client in one ambient read and
+registers the hook in a SECOND one can be handed a transaction by the first and `undefined` by the
+second — after an `await` resumed through a non-propagating callback, an EventEmitter, or a
+scheduled callback. The hook then runs INLINE, inside the transaction it exists to outlive, over
+writes that can still roll back. That is precisely the state the mark was moved after the commit to
+prevent, reintroduced through the door the API left open.
+
+It was fixed by removing the door rather than by testing that nobody walks through it. There is no
+ambient registration function any more. `PrismaUnitOfWork.activeTransaction()` is ONE read that
+returns the whole transaction as a value — the client and, on the same object, `onCommitted` bound
+to THAT transaction's hook list. A caller holds one handle and uses it for both, so "registered
+against a different context than the one I wrote to" is not a sentence the types let you write.
+`getTransactionClient()` stays for the callers that only need a client, and `savePublicationRecord`
+no longer uses it: it takes the captured handle and reads `active.tx` and `active.onCommitted` off
+the same value.
+
+The no-transaction arm changed meaning with it, deliberately. The static used to run the hook
+inline when there was no transaction, which was the honest answer for one caller and a hidden
+decision for every other. `activeTransaction()` returns `undefined` and the CALLER decides — the
+narrow save has already committed through its own runner by that point and marks directly, and
+saying so at the call site is what makes the two paths readable as the two different situations
+they are.
+
+**The red, recorded.** A case that detaches for real rather than simulating it: the registering
+callback is scheduled with `setTimeout` from the TEST's context BEFORE the transaction opens, so
+when it runs the ambient store is genuinely empty — the case asserts that too — and it registers
+against the captured handle. Against the old API the mark would have run inline; against the new
+one there is nothing ambient to call.
+
+```
+× registers on the CAPTURED transaction even from a detached async context 4ms
+  TypeError: PrismaUnitOfWork.activeTransaction is not a function
+  Tests  1 failed | 6 skipped (7)
+```
+
+The reviewer's note that the previous suite "asserts the two isolated shapes … but does not pin the
+mixed shape" was correct and is now closed: the seventh case IS the mixed shape.
+
+#### B. The `failed` event that names no row is counted under its own arm
+
+The reviewer read the `.catch`'s `job?.id` correctly as an admission that BullMQ can invoke the
+listener with no job, and correctly that nothing observed it. One correction to the mechanism it
+describes: `handleBulkScheduleRowFailure` did not throw a `TypeError` on that path — it opened with
+`if (!job) return;`, so the failure was quieter than the finding supposed. The consequence the
+finding names is the same and is the point: a row in a batch waiting on it, and no DLQ entry, no
+manifest write, no log, no counter. The batch stops settling and nothing says why.
+
+BullMQ emits it when it cannot load the job the event is about — a stalled job reclaimed after its
+key expired, or a payload it cannot deserialize. Neither the DLQ nor the manifest can be reached for
+it, because both need the payload the event does not carry. So the counter and the log ARE the
+recovery path here, and they are what turn a silently unsettled batch into one someone can go and
+look at. It gets its own arm, `MISSING_JOB`, declared beside the counter with the other two, because
+the recovery differs: the other two name a row and can be chased to a batch; this one cannot be
+chased to anything from inside the process.
+
+The guard sits at the listener, which is where the only sink exists, and the listener is now a named
+exported function (`onBulkScheduleJobFailed`) so it can be exercised without standing up a queue —
+it could not be before, because `startBulkScheduleWorker` constructs its own consumer. With one
+owner for the absent job, `handleBulkScheduleRowFailure` stops pretending it might be missing: its
+parameter narrowed from `Job | undefined` to `Job` and its silent early return is deleted. The case
+that asserted that silence is deleted with it.
+
+```
+× counts and logs a `failed` event that carries no job, instead of returning in silence 2ms
+× does not let a failure inside the handler escape as an unhandled rejection 0ms
+  TypeError: onBulkScheduleJobFailed is not a function
+  Tests  2 failed | 9 passed (11)
+```
+
+The second case pins the property the previous pass added but never tested from the listener's own
+surface: a rejection out of the handler is caught and logged, because a `failed` LISTENER is not
+awaited by BullMQ and an escaping rejection takes the process down over a job that had already
+failed.
+
+#### C. The spread is required, and the line now says which
+
+The reviewer asked whether the copy proves anything. Measured: `EventDispatcher.dispatchAll` is
+declared `dispatchAll(events: DomainEvent[]): Promise<void>` (`packages/core/domain/src/events/DomainEvent.ts:76`)
+— a MUTABLE array. `result.value.events` is `readonly DomainEvent[]`, which TypeScript will not
+assign to it. The copy is not defensive and cannot be deleted; it is the conversion the signature
+demands. One line at the site says exactly that, so the next reader does not re-open the question.
+Widening `dispatchAll` to `readonly DomainEvent[]` is the real fix and is a change to a domain
+interface with callers outside this unit — not this correction's scope.
+
+#### D. Rejected: there is no column width to fit
+
+Measured in `infra/prisma/schema.prisma` at write time. All four identifiers the cleanup builds are
+unbounded:
+
+| Model     | Column                             |
+| --------- | ---------------------------------- |
+| `Account` | `id  String  @id @default(uuid())` |
+| `Project` | `id  String  @id @default(uuid())` |
+| `Channel` | `id  String  @id @default(uuid())` |
+| `Post`    | `id  String  @id @default(uuid())` |
+
+`@db.VarChar` appears **0 times in the entire schema**, so every one of these is Postgres `text`,
+which has no length limit. The finding's own condition — "would fail loudly if a schema constraint
+limited any of these columns to a shorter width" — is not met, and there is nothing for a cap to
+protect. Truncating to 8 hex characters would cost collision resistance (the exact property the
+widening from `Date.now()` was made to buy, after a rerun inside the same millisecond was identified
+as a real collision) in exchange for fitting a constraint that does not exist. The full
+`randomUUID()` stays.
+
+### Gates after the second bounded hardening
+
+| Gate                                                             | Result                                                                     |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `@adapters/db-prisma` vitest                                     | **5 files, 77 passed** (was 76; the detached-context case is the new one)  |
+| `@core/posts` vitest                                             | **6 files, 96 passed**                                                     |
+| the four touched `apps/api` unit suites                          | **4 files, 130 passed** (was 129; +2 listener cases, −1 deleted)           |
+| `tsc --noEmit` `@adapters/db-prisma` · `apps/api` (6144)         | **0 · 0**                                                                  |
+| `integration:repositories`                                       | **157 · 157 · 0 · 0 · 0**, exit 0                                          |
+| `integration:schedule-target-set`                                | **3 · 3 · 0 · 0 · 0**, exit 0                                              |
+| `integration:saga-recovery`                                      | **33 · 33 · 0 · 0 · 0**, exit 0                                            |
+| DB tier total (`TIER=pr-integration`)                            | **534 tests, 534 pass, 0 fail, 0 cancel, 0 skip**, exit 0                  |
+| `eslint --max-warnings 0` on the 7 changed `.ts` · `prettier -c` | **0** · clean                                                              |
+| fitness #3 · #4 · #5 · #13 · #40                                 | 0 · 0 · 0 · 0 · A 3 seams (floor 3) / **0**, B 14 sites (floor 10) / **0** |
+
+`apps/api`'s typecheck needs `NODE_OPTIONS=--max-old-space-size=6144` on this box: at the default
+ceiling it dies with `Ineffective mark-compacts near heap limit` rather than reporting an error, and
+reading that as a failure of the change would be wrong.
+
+### Budget — the second bounded hardening, measured from `git diff --numstat HEAD` at write time
+
+| File                                                                     | Class    | Changed lines |
+| ------------------------------------------------------------------------ | -------- | ------------: |
+| `packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts`         | CODE     |       **147** |
+| `apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`                     | CODE     |        **68** |
+| `apps/api/src/metrics/businessMetrics.ts`                                | CODE     |        **13** |
+| `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`          | CODE     |        **13** |
+| `packages/core/posts/src/SchedulePostUseCase.ts`                         | CODE     |         **2** |
+| `packages/adapters/db-prisma/tests/prismaUnitOfWork.afterCommit.test.ts` | EVIDENCE |       **140** |
+| `apps/api/tests/unit/bulk-scheduling/bulkScheduleWorker.test.ts`         | EVIDENCE |        **65** |
+| **CODE total**                                                           |          |       **243** |
+| **EVIDENCE total**                                                       |          |       **205** |
+| **Total**                                                                |          |       **448** |
+
+CODE **243** is inside the 400-line ceiling (the figures include W1, below). The CODE figure is larger than the behaviour change
+because the WARNING was answered by construction rather than by a guard: most of `PrismaUnitOfWork`'s
+147 lines are the new handle type and the JSDoc that states why one read is not two, and most of the
+worker's 68 are the listener extracted into a named seam so it could be tested at all.
+
+### Re-gate of the second hardening — PASS, one bounded item (W1)
+
+The gate passed and named one minor, fail-closed today. It belongs beside the handle's design
+rather than in a list of its own, because it is the residual that design CREATED.
+
+**W1 — a handle held past its commit registered into a void.** The drain walked `afterCommit` in
+place and left it populated, so an `ActiveTransaction` captured inside a transaction and used after
+`executeInTransaction` resolved pushed onto an already-walked array. The hook never ran and nothing
+said so. That is the mirror image of the hazard `#### A` removed — a hook that fires at the wrong
+moment, versus a hook that never fires at all — and it is expressible only BECAUSE the handle became
+capturable. The fix that closed one direction opened the other by one notch, and saying so is
+cheaper than discovering it later.
+
+**Unreachable today, and named rather than relied on.** The sole caller, `savePublicationRecord`,
+registers synchronously in the same statement sequence as the write, so no handle survives its
+transaction. Had one, the lost hook would be `markPublicationsPersisted`: the aggregate would stay
+dirty and the next full save would REFUSE it (T1c.6c). So the state is fail-closed, and what was
+missing was not safety but a voice — a refusal nobody can see is indistinguishable from the silence
+it replaced.
+
+**What changed.** The drain now takes the hooks OUT (`registry.hooks.splice(0)`) and marks the
+registry settled BEFORE running any of them, so a hook registered by a hook is caught by the same
+rule. `settled` is not a boolean beside a count; it is `{ hooksRun } | undefined`, one value, for
+the same reason the client and the hook list became one value in `#### A` — a flag and a count can
+disagree, a single value cannot. `onCommitted` on a settled transaction logs at ERROR with that
+count and returns.
+
+**Log, not throw, and the reason is the thread's own rule.** The refusal runs in the REGISTERING
+caller's context, and that caller has by definition just reached a commit that succeeded. Throwing
+would report a COMMITTED transaction to its caller as a failure — the false negative the drain's
+isolation exists to prevent, and the one this entire thread has been closing in every direction. A
+throw here would reintroduce it at the one remaining door. The state left behind already stops
+rather than spreads, so ERROR is the loud half of a failure that is otherwise contained.
+
+#### The red, measured rather than asserted
+
+The correction was written before the case, so the red was taken by reconstructing the pre-fix shape
+under the probe protocol: the fixed file was copied to the scratchpad, the in-place walk and the
+unconditional push were restored, the case was run, and the file was restored and verified
+byte-exact (`sha256` `e19f8fef…` → `OK`).
+
+```
+× logs at ERROR and drops a hook registered AFTER its transaction settled 2ms
+  AssertionError: the drop is LOGGED at ERROR; a dropped hook must not be silent
+  Tests  1 failed | 7 passed (8)
+```
+
+The shape of that failure is the finding itself: the assertion that the late hook did NOT run
+**passed** against the old code — it was already dropped — and the only thing missing was anyone
+being told. The case reads the seam's own ERROR log, because a refusal whose entire effect IS the
+log cannot be told from silence by a case that cannot see it; the logger is mocked through
+`importOriginal` so the rest of the import graph keeps its exports.
+
+One canon point the typecheck forced, kept rather than worked past: the collected `msg` is declared
+`string | undefined` — required and nullable — not optional. The logger's signature makes it
+omissible, so a call really can arrive without one, and under `exactOptionalPropertyTypes` an
+optional property may not be ASSIGNED `undefined`.
+
+#### Gates after W1
+
+| Gate                                             | Result                                                           |
+| ------------------------------------------------ | ---------------------------------------------------------------- |
+| `@adapters/db-prisma` vitest                     | **5 files, 78 passed** (was 77; the settled-refusal case is new) |
+| `tsc --noEmit` `@adapters/db-prisma`             | **0**                                                            |
+| `eslint --max-warnings 0` · `prettier` (2 files) | **0** · clean                                                    |
+| fitness #3 · #4 · #13                            | 0 · 0 · 0                                                        |
+| also: fitness #9 · tripwire words                | 0 · none                                                         |
