@@ -268,30 +268,30 @@ PrismaRetractionAlertDeliveryLedger.ts` (`claim` returns `false` on P2002);
 what went out on EVERY error path; the worker carries it into its log and its `publish.job.failed`
 notification. No record is written here.
 
-- [ ] **T1b3.1 RED** — `packages/providers/x/tests/XAdapter.publish.test.ts`: rewrite the
+- [x] **T1b3.1 RED** — `packages/providers/x/tests/XAdapter.publish.test.ts`: rewrite the
       `THREAD_INTERRUPTED` case (`:183-207`) to assert
       `err({ code: "THREAD_INTERRUPTED", publishedFragments: [2 refs IN ORDER] })`; add mid-thread
       non-4xx → `NETWORK` with the same refs; first-fragment failure → `[]`. Fails today by LOSING
       the ids (measured: `XAdapter.ts:315-317` accumulates `publishedTweets`, `:355-378` discards it
       across four `err` sites at `:312`, `:370`, `:374`, `:377`).
-- [ ] **T1b3.2 GREEN** — `packages/shared/src/types.ts` `ThreadPublishFailure = { code: PublishError;
+- [x] **T1b3.2 GREEN** — `packages/shared/src/types.ts` `ThreadPublishFailure = { code: PublishError;
 publishedFragments: ThreadReceipt["tweets"] }`; `packages/ports/src/ProviderAdapter.ts:152-155`
       re-typed. A compile error on every implementor is the point (design.md:216).
-- [ ] **T1b3.3 GREEN** — the six implementors, measured: `XAdapter.ts:301-379` (4 `err` sites; move
+- [x] **T1b3.3 GREEN** — the six implementors, measured: `XAdapter.ts:301-379` (4 `err` sites; move
       the `publishedTweets` declaration above the credential check so `:312` returns `[]`
       explicitly); `InstagramAdapter.ts:447-509` (3 `err` sites, carousel is atomic ⇒ always `[]`);
       the four stubs `PinterestAdapter.ts:217-225`, `TelegramAdapter.ts:225-232`,
       `LinkedInAdapter.ts:216-224`, `SnapchatAdapter.ts:222-230` (1 `err` each ⇒ `[]`);
       `packages/providers/_template/src/index.ts:226`, `:294`.
-- [ ] **T1b3.4 RED→GREEN** — the five other provider suites: `TelegramAdapter.test.ts:366-384`
+- [x] **T1b3.4 RED→GREEN** — the five other provider suites: `TelegramAdapter.test.ts:366-384`
       rewritten (`THREAD_INTERRUPTED` with `[]`); Pinterest `:696-…`, LinkedIn `:895-…`, Snapchat
       `:543-…`, Instagram — each `result.error` assertion becomes `result.error.code` plus a
       `publishedFragments` assertion.
-- [ ] **T1b3.5 RED→GREEN** — `apps/workers/src/publishHandler.ts` (`:583-622`): the failure path
+- [x] **T1b3.5 RED→GREEN** — `apps/workers/src/publishHandler.ts` (`:583-622`): the failure path
       carries `publishedFragments` into the tweet-row update loop and into the
       `notifySaga(publish.job.failed)` payload. NO record write yet (that is 1c). Worker unit suite
       asserts the ordering.
-- [ ] **T1b3.6** — gates; #32 (no `.only`/`.skip`), #9/#10 on every touched file.
+- [x] **T1b3.6** — gates; #32 (no `.only`/`.skip`), #9/#10 on every touched file.
 
 ---
 

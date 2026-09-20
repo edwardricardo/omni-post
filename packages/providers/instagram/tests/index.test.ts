@@ -214,6 +214,66 @@ describe("InstagramAdapter", () => {
   });
 
   // =========================================================================
+  // publishThread — the carousel is atomic, so the live set is always empty
+  // =========================================================================
+
+  describe("publishThread", () => {
+    const CREDENTIALS = { accessToken: "token", userId: "user-1" };
+
+    const threadInput = (slides: Array<{ withMedia: boolean }>) => ({
+      channelId: "channel-ig-1",
+      threadPlan: {
+        strategy: "AUTO" as const,
+        tweets: slides.map((slide, index) => ({
+          sequence: index + 1,
+          text: `Slide ${index + 1}`,
+          estimatedChars: 8,
+          ...(slide.withMedia
+            ? { media: [{ id: `m${index}`, type: "image" as const, url: "https://e.com/i.jpg" }] }
+            : {}),
+        })),
+        totalChars: 8 * slides.length,
+        estimatedReach: slides.length,
+        needsThreading: true,
+      },
+      dedupeKey: "ig-thread-1",
+    });
+
+    it("should return AUTH with no published fragments when credentials are missing", async () => {
+      const result = await adapter.publishThread(threadInput([{ withMedia: true }]), {});
+
+      assert.ok(!result.ok, "publishThread should fail");
+      assert.strictEqual(result.error.code, "AUTH");
+      assert.deepStrictEqual(result.error.publishedFragments, []);
+    });
+
+    it("should report no published fragments when a carousel slide is rejected", async () => {
+      const client = {
+        createCarouselContainer: vi.fn(async () => ({ id: "container-1" })),
+        getContainerStatus: vi.fn(async () => ({ status: "FINISHED" })),
+        publishMedia: vi.fn(async () => ({
+          id: "ig-1",
+          permalink: "https://instagram.com/p/1",
+          timestamp: "2026-03-10T10:00:00Z",
+        })),
+      };
+      const factory: InstagramApiClientFactory = () => client as unknown as InstagramApiClient;
+      const carouselAdapter = new InstagramAdapter({ apiClientFactory: factory });
+
+      // The second slide has no media URL: the carousel is refused as a whole,
+      // so nothing was ever published — not even the first slide.
+      const result = await carouselAdapter.publishThread(
+        threadInput([{ withMedia: true }, { withMedia: false }]),
+        CREDENTIALS
+      );
+
+      assert.ok(!result.ok, "publishThread should fail");
+      assert.deepStrictEqual(result.error.publishedFragments, []);
+      assert.strictEqual(client.createCarouselContainer.mock.calls.length, 0);
+    });
+  });
+
+  // =========================================================================
   // validateCredentials
   // =========================================================================
 

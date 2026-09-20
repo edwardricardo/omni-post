@@ -23,6 +23,7 @@ import type {
   RenderedContent,
   ThreadPlan,
   ThreadPublishInput,
+  ThreadPublishFailure,
   ThreadReceipt,
   Result,
   RenderError,
@@ -296,12 +297,18 @@ export class XAdapter implements ProviderAdapter {
   /**
    * @method publishThread
    * @description Publishes a multi-tweet thread by chaining each tweet as a
-   *   reply to the previous one.
+   *   reply to the previous one. A thread can break part-way, so every failure
+   *   reports the fragments already live on X in `publishedFragments`, in order:
+   *   they cannot be retracted by anyone who does not know they exist.
    */
   async publishThread(
     input: ThreadPublishInput,
     credentials: unknown
-  ): Promise<Result<ThreadReceipt, PublishError>> {
+  ): Promise<Result<ThreadReceipt, ThreadPublishFailure>> {
+    // Declared before the first exit so EVERY failure path answers with the same
+    // accumulator: what actually reached X, in order. Here it is still empty.
+    const publishedTweets: ThreadReceipt["tweets"] = [];
+
     const validation = validateCredentialStructure<XCredentials>(
       credentials,
       REQUIRED_FIELDS,
@@ -309,10 +316,9 @@ export class XAdapter implements ProviderAdapter {
       this.id
     );
     if (!validation.ok) {
-      return err("AUTH");
+      return err({ code: "AUTH", publishedFragments: publishedTweets });
     }
 
-    const publishedTweets: ThreadReceipt["tweets"] = [];
     let parentTweetId: string | null = null;
 
     try {
@@ -367,14 +373,14 @@ export class XAdapter implements ProviderAdapter {
         (error as Error & { status: number }).status >= 400 &&
         (error as Error & { status: number }).status < 500
       ) {
-        return err("THREAD_INTERRUPTED");
+        return err({ code: "THREAD_INTERRUPTED", publishedFragments: publishedTweets });
       }
 
       if (error instanceof Error && error.message?.includes("Circuit breaker is OPEN")) {
-        return err("NETWORK");
+        return err({ code: "NETWORK", publishedFragments: publishedTweets });
       }
 
-      return err(mapErrorToPublishError(error));
+      return err({ code: mapErrorToPublishError(error), publishedFragments: publishedTweets });
     }
   }
 
