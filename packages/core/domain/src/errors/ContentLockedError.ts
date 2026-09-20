@@ -9,15 +9,27 @@
  */
 
 import { DomainError } from "./DomainError.js";
-import { type FragmentReferenceJson } from "../value-objects/FragmentReference.js";
 
 export const CONTENT_LOCKED_CODE = "CONTENT_LOCKED";
+
+/**
+ * The fragment facts this refusal carries. It mirrors the value object's JSON shape
+ * structurally instead of importing it: every value object imports its errors from
+ * this module's barrel, so an error that imported a value object back would close a
+ * dependency cycle (errors -> value-objects -> errors). Callers pass the value
+ * object's `toJSON()` output unchanged.
+ */
+export interface LockedFragmentReference {
+  readonly index: number;
+  readonly externalId: string;
+  readonly url?: string;
+}
 
 export interface ContentLockedErrorProps {
   postId?: string;
   channelId: string;
   /** Empty for a fully published channel; the live prefix for an interrupted one. */
-  fragments?: readonly FragmentReferenceJson[];
+  fragments?: readonly LockedFragmentReference[];
   pendingRetraction?: boolean;
   operation?: string;
 }
@@ -31,7 +43,7 @@ export interface ContentLockedErrorProps {
 export class ContentLockedError extends DomainError {
   public readonly postId: string | undefined;
   public readonly channelId: string;
-  public readonly fragments: readonly FragmentReferenceJson[];
+  public readonly fragments: readonly LockedFragmentReference[];
   public readonly pendingRetraction: boolean;
   public readonly operation: string | undefined;
 
