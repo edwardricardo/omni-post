@@ -17,47 +17,58 @@ import {
 import { type ChannelPublication } from "../../entities/ChannelPublication.js";
 import { type ProviderType } from "../../value-objects/Provider.js";
 import { isProvidedReference } from "../../value-objects/ProviderReference.js";
+import { isExcludedOutcome, isPublishedOutcome } from "../../value-objects/PublicationOutcome.js";
 import { type PublicationContext, type ProviderResultsPayload } from "./PostPublicationTypes.js";
 
 /**
  * @function emitChannelOutcome
  * @description Raises the channel-keyed internal event for the outcome just recorded.
  *   It carries what a consumer needs to act without re-reading the record.
+ *
+ *   The decision is the record's OUTCOME, never the presence of a field. A channel that
+ *   is still unresolved has no outcome to announce — that silence is one of the three
+ *   named cases here, not what is left over when a reason turns out to be missing. The
+ *   fields the payloads read come off the outcome for the same reason: an exclusion
+ *   always carries its reason and a publication always carries its moment and its
+ *   fingerprint, so nothing here has to invent one.
  */
 export function emitChannelOutcome(context: PublicationContext, record: ChannelPublication): void {
-  if (record.isPublished()) {
+  const outcome = record.outcome;
+
+  if (isPublishedOutcome(outcome)) {
+    const head = outcome.head;
     context.emit(
       new PostChannelPublished({
         postId: context.postId,
         projectId: context.projectId,
         ...(context.accountId !== undefined && { accountId: context.accountId }),
         channelId: record.channelId.value,
-        ...(record.externalId !== undefined && { externalId: record.externalId }),
-        fragmentCount: record.liveFragments.length,
-        publishedAt: record.publishedAt ?? new Date(),
-        ...(record.contentHash !== undefined && { contentHash: record.contentHash.value }),
+        ...(isProvidedReference(head) && { externalId: head.id }),
+        fragmentCount: outcome.fragments.length,
+        publishedAt: outcome.publishedAt,
+        contentHash: outcome.contentHash.value,
       })
     );
     return;
   }
 
-  const reason = record.reason;
-  if (reason === undefined) {
-    return;
+  if (isExcludedOutcome(outcome)) {
+    context.emit(
+      new PostChannelExcluded({
+        postId: context.postId,
+        projectId: context.projectId,
+        ...(context.accountId !== undefined && { accountId: context.accountId }),
+        channelId: record.channelId.value,
+        reasonCode: outcome.reason.code,
+        attempts: record.attempts,
+        pendingRetraction: record.pendingRetraction,
+        liveFragmentCount: record.liveFragments.length,
+      })
+    );
   }
 
-  context.emit(
-    new PostChannelExcluded({
-      postId: context.postId,
-      projectId: context.projectId,
-      ...(context.accountId !== undefined && { accountId: context.accountId }),
-      channelId: record.channelId.value,
-      reasonCode: reason.code,
-      attempts: record.attempts,
-      pendingRetraction: record.pendingRetraction,
-      liveFragmentCount: record.liveFragments.length,
-    })
-  );
+  // Unresolved: in flight, or failed inside the budget. There is no outcome yet, so
+  // announcing one would be a claim the record has not made.
 }
 
 /**

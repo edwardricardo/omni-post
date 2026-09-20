@@ -13,12 +13,16 @@ import assert from "node:assert/strict";
 import {
   ChannelPublication,
   CHANNEL_ATTEMPT_BUDGET,
+  type ChannelPublicationState,
 } from "@core/domain/entities/ChannelPublication.js";
 import { ChannelId } from "@core/domain/value-objects/EntityId.js";
 import { FragmentReference } from "@core/domain/value-objects/FragmentReference.js";
 import { ContentFingerprint } from "@core/domain/value-objects/ContentFingerprint.js";
 import { providedReference } from "@core/domain/value-objects/ProviderReference.js";
-import { CHANNEL_FAILURE_CODES } from "@core/domain/value-objects/ExclusionReason.js";
+import {
+  CHANNEL_FAILURE_CODES,
+  ExclusionReason,
+} from "@core/domain/value-objects/ExclusionReason.js";
 import {
   type AttemptResult,
   type FailedAttemptResult,
@@ -111,6 +115,40 @@ function makeStrandedRecord(liveCount = 2): ChannelPublication {
   });
   assert.ok(result.ok, "the stranded fixture records its attempt");
   return record;
+}
+
+/** A complete persisted published state — every field the outcome needs. */
+function publishedState(): ChannelPublicationState {
+  const head = providedReference("frag-1");
+  assert.ok(head.ok);
+  return {
+    id: "11111111-0000-4000-8000-000000000001",
+    channelId: ChannelId.fromStringUnsafe(CHANNEL_A),
+    outcomeKind: PUBLICATION_OUTCOME_KINDS.PUBLISHED,
+    head: head.value,
+    liveFragments: [makeFragment(1)],
+    publishedAt: NOW,
+    contentHash: makeFingerprint(),
+    attempts: 1,
+    episode: 1,
+    episodeAttempts: 1,
+  };
+}
+
+/** A complete persisted excluded state — the reason and the moment it was written. */
+function excludedState(): ChannelPublicationState {
+  const reason = ExclusionReason.create({ code: CHANNEL_FAILURE_CODES.CONTENT_REJECTED });
+  assert.ok(reason.ok);
+  return {
+    id: "11111111-0000-4000-8000-000000000002",
+    channelId: ChannelId.fromStringUnsafe(CHANNEL_A),
+    outcomeKind: PUBLICATION_OUTCOME_KINDS.EXCLUDED,
+    reason: reason.value,
+    excludedAt: NOW,
+    attempts: 1,
+    episode: 1,
+    episodeAttempts: 1,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -685,6 +723,72 @@ describe("ChannelPublication", () => {
       assert.ok(cleared.ok);
 
       assert.strictEqual(record.alertTransition().kind, "none");
+    });
+  });
+
+  describe("reconstitution refuses a state the record could never have produced", () => {
+    it("returns an error when a published state carries no content fingerprint", () => {
+      const rebuilt = ChannelPublication.reconstitute({
+        ...publishedState(),
+        contentHash: undefined,
+      });
+
+      assert.ok(!rebuilt.ok, "a published row without a fingerprint is a corrupted row");
+      assert.match(rebuilt.error.message, /fingerprint/i);
+    });
+
+    it("returns an error when a published state carries no publication moment", () => {
+      const rebuilt = ChannelPublication.reconstitute({
+        ...publishedState(),
+        publishedAt: undefined,
+      });
+
+      assert.ok(!rebuilt.ok, "a published row without a moment is a corrupted row");
+      assert.match(rebuilt.error.message, /moment/i);
+    });
+
+    it("returns an error when a published state carries no head reference", () => {
+      const rebuilt = ChannelPublication.reconstitute({ ...publishedState(), head: undefined });
+
+      assert.ok(!rebuilt.ok, "a published row without a head is a corrupted row");
+      assert.match(rebuilt.error.message, /head/i);
+    });
+
+    it("returns an error when an excluded state carries no reason", () => {
+      const rebuilt = ChannelPublication.reconstitute({ ...excludedState(), reason: undefined });
+
+      assert.ok(!rebuilt.ok, "an exclusion without a reason is the state this record forbids");
+      assert.match(rebuilt.error.message, /reason/i);
+    });
+
+    it("returns an error when an excluded state carries no exclusion moment", () => {
+      const rebuilt = ChannelPublication.reconstitute({
+        ...excludedState(),
+        excludedAt: undefined,
+      });
+
+      assert.ok(!rebuilt.ok, "an exclusion without a moment is a corrupted row");
+      assert.match(rebuilt.error.message, /moment/i);
+    });
+
+    it("returns the stored fingerprint and moment when the published state is complete", () => {
+      const rebuilt = ChannelPublication.reconstitute(publishedState());
+
+      assert.ok(rebuilt.ok);
+      const outcome = rebuilt.value.outcome;
+      assert.ok(isPublishedOutcome(outcome));
+      assert.strictEqual(outcome.contentHash.value, makeFingerprint().value);
+      assert.strictEqual(outcome.publishedAt.getTime(), NOW.getTime());
+    });
+
+    it("returns the stored reason and moment when the excluded state is complete", () => {
+      const rebuilt = ChannelPublication.reconstitute(excludedState());
+
+      assert.ok(rebuilt.ok);
+      const outcome = rebuilt.value.outcome;
+      assert.ok(isExcludedOutcome(outcome));
+      assert.strictEqual(outcome.reason.code, CHANNEL_FAILURE_CODES.CONTENT_REJECTED);
+      assert.strictEqual(outcome.excludedAt.getTime(), NOW.getTime());
     });
   });
 });

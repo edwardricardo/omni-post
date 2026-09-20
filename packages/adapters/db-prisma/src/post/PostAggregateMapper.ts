@@ -14,6 +14,7 @@ import type {
   PostChannelPublication,
   Provider,
 } from "@infra/prisma";
+import { type Result, ok, err } from "@shared/types";
 import {
   PostAggregate,
   type PostAggregateState,
@@ -102,27 +103,56 @@ function mapMediaTypeToPrisma(type: MediaType): MediaKind {
 }
 
 /**
+ * A stored row that cannot be read back into the state it claims to describe.
+ *
+ * It is NOT a validation failure: the writer of this row is the entity itself, so a row
+ * that will not parse is a row the application could not have written — a corrupted
+ * row, or a schema the code no longer agrees with. Both are defects, and both are worse
+ * when answered by dropping the part that would not parse: a fragment silently missing
+ * from a live set is content nobody knows is still on the provider.
+ */
+export class PostRowCorruptedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PostRowCorruptedError";
+  }
+}
+
+/**
  * Maps one stored publication row back into its record entity.
  *
  * Reconstitution re-runs no rule: the row IS the state, and a row that could not have
- * been produced by the entity is a database defect rather than something to repair
- * here. Two fields are derived rather than stored — the head reference, which folds
- * `externalId` and `externalIdMissing` into one explicit value, and `excludedAt`,
- * which is the attempt that excluded the channel (`lastAttemptAt`) and falls back to
- * the row's own last write.
+ * been produced by the entity is a database defect. It is SURFACED rather than repaired
+ * — every value the row carries is either read back whole or the row is refused, so no
+ * caller is handed a record that is quietly missing part of what was stored. Two fields
+ * are derived rather than stored: the head reference, which folds `externalId` and
+ * `externalIdMissing` into one explicit value, and `excludedAt`, which is the attempt
+ * that excluded the channel (`lastAttemptAt`) and falls back to the row's own last write.
  */
-function toChannelPublication(row: PrismaPostChannelPublicationWithChannel): ChannelPublication {
+function toChannelPublication(
+  row: PrismaPostChannelPublicationWithChannel
+): Result<ChannelPublication, PostRowCorruptedError> {
   const fragments: FragmentReference[] = [];
   if (Array.isArray(row.liveFragments)) {
     for (const entry of row.liveFragments) {
       const parsed = FragmentReference.fromJSON(entry);
-      if (parsed.ok) {
-        fragments.push(parsed.value);
+      if (!parsed.ok) {
+        return err(
+          new PostRowCorruptedError(
+            `publication ${row.id}: a stored live fragment could not be read back — ${parsed.error.message}`
+          )
+        );
       }
+      fragments.push(parsed.value);
     }
   }
 
-  const outcomeKind = OUTCOME_KIND[row.outcome] ?? "unresolved";
+  const outcomeKind = OUTCOME_KIND[row.outcome];
+  if (outcomeKind === undefined) {
+    return err(
+      new PostRowCorruptedError(`publication ${row.id}: unknown outcome "${row.outcome}"`)
+    );
+  }
 
   let head: ChannelPublicationState["head"];
   if (row.externalId !== null) {
@@ -138,16 +168,30 @@ function toChannelPublication(row: PrismaPostChannelPublicationWithChannel): Cha
       code: row.reasonCode as ChannelFailureCode,
       ...(row.reasonDetail !== null && { detail: row.reasonDetail }),
     });
-    reason = built.ok ? built.value : undefined;
+    if (!built.ok) {
+      return err(
+        new PostRowCorruptedError(
+          `publication ${row.id}: stored reason "${row.reasonCode}" could not be read back — ${built.error.message}`
+        )
+      );
+    }
+    reason = built.value;
   }
 
   let contentHash: ContentFingerprint | undefined;
   if (row.contentHash !== null) {
     const parsed = ContentFingerprint.fromString(row.contentHash);
-    contentHash = parsed.ok ? parsed.value : undefined;
+    if (!parsed.ok) {
+      return err(
+        new PostRowCorruptedError(
+          `publication ${row.id}: stored content fingerprint could not be read back — ${parsed.error.message}`
+        )
+      );
+    }
+    contentHash = parsed.value;
   }
 
-  return ChannelPublication.reconstitute({
+  const rebuilt = ChannelPublication.reconstitute({
     id: row.id,
     channelId: ChannelId.fromStringUnsafe(row.channelId),
     ...(row.channel?.provider !== undefined && {
@@ -184,6 +228,11 @@ function toChannelPublication(row: PrismaPostChannelPublicationWithChannel): Cha
     episode: row.episode,
     episodeAttempts: row.episodeAttempts,
   });
+
+  if (!rebuilt.ok) {
+    return err(new PostRowCorruptedError(`publication ${row.id}: ${rebuilt.error.message}`));
+  }
+  return ok(rebuilt.value);
 }
 
 /**
@@ -194,9 +243,38 @@ function toChannelPublication(row: PrismaPostChannelPublicationWithChannel): Cha
  */
 export class PostAggregateMapper {
   /**
-   * Map Prisma Post with relations to domain PostAggregate
+   * @method toDomain
+   * @description Map Prisma Post with relations to domain PostAggregate.
+   *
+   *   The ONE place in this file that raises. Five of the six repository reads that
+   *   call it return a `PaginatedResult` with no error channel, so widening them is a
+   *   change of its own; until then the corrupted-row condition is a single TYPED
+   *   error raised here rather than a bare `Error` scattered over the mapping, and
+   *   {@link PostAggregateMapper.reconstitute} is the same mapping as a `Result` for
+   *   any caller that can carry one.
+   * @param prismaPost - The row with its relations
+   * @returns The aggregate
    */
   static toDomain(prismaPost: PrismaPostWithRelations): PostAggregate {
+    const built = PostAggregateMapper.reconstitute(prismaPost);
+    if (!built.ok) {
+      throw built.error;
+    }
+    return built.value;
+  }
+
+  /**
+   * @method reconstitute
+   * @description The mapping itself: every stored value is read back whole, or the row
+   *   is refused naming what could not be read. Nothing is dropped and nothing is
+   *   defaulted, because a row the entity wrote and this cannot read back is a defect
+   *   whichever half is wrong.
+   * @param prismaPost - The row with its relations
+   * @returns Result with the aggregate, or the corrupted-row error
+   */
+  static reconstitute(
+    prismaPost: PrismaPostWithRelations
+  ): Result<PostAggregate, PostRowCorruptedError> {
     // Get the primary content (most recent revision for default locale)
     const primaryContent = prismaPost.contents.sort((a, b) => b.revision - a.revision)[0];
 
@@ -214,7 +292,11 @@ export class PostAggregateMapper {
     // Parse status
     const statusResult = PublishStatus.fromString(prismaPost.status);
     if (!statusResult.ok) {
-      throw new Error(`Invalid status: ${prismaPost.status}`);
+      return err(
+        new PostRowCorruptedError(
+          `post ${prismaPost.id}: invalid status "${prismaPost.status}" — ${statusResult.error.message}`
+        )
+      );
     }
 
     // Create ScheduledTime if present
@@ -249,8 +331,17 @@ export class PostAggregateMapper {
     );
 
     // Map the per-channel publication records. An absent relation means the caller
-    // did not ask for them; an empty array means the post has declared no targets.
-    const publications = (prismaPost.channelPublications ?? []).map(toChannelPublication);
+    // did not ask for them; an empty array means the post has declared no targets. A
+    // row that will not read back refuses the whole post: a post handed over with one
+    // of its channels missing is the "lost channel" this record exists to prevent.
+    const publications: ChannelPublication[] = [];
+    for (const row of prismaPost.channelPublications ?? []) {
+      const record = toChannelPublication(row);
+      if (!record.ok) {
+        return err(record.error);
+      }
+      publications.push(record.value);
+    }
 
     // Create aggregate state
     const state: PostAggregateState = {
@@ -275,7 +366,7 @@ export class PostAggregateMapper {
       version: prismaPost.version,
     };
 
-    return PostAggregate.reconstitute(state);
+    return ok(PostAggregate.reconstitute(state));
   }
 
   /**
