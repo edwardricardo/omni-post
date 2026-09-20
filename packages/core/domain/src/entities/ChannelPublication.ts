@@ -149,6 +149,37 @@ interface ExcludedFacts {
 }
 
 /**
+ * The stored fields that belong to a SETTLEMENT. An unresolved row carrying any of them
+ * describes no state this record can hold, so reconstitution refuses it rather than
+ * dropping the field on the floor.
+ *
+ * Two type-level constraints pin it from BOTH directions, which is what the previous
+ * single `satisfies` did not do — that one caught a typo and would have let a new field
+ * on either facts interface go unlisted:
+ *
+ * - the `satisfies` below says every entry is a settled fact AND a key of the stored
+ *   state, so a name that belongs to neither, or to only one, fails to compile;
+ * - `_everySettledFactIsForbidden` says the converse — that the union of both facts
+ *   interfaces' keys is COVERED by this list. Add a field to `PublishedFacts` or
+ *   `ExcludedFacts` without listing it here and that assertion's type collapses to
+ *   `never`, so `= true` stops compiling.
+ */
+const UNRESOLVED_FORBIDDEN_FACTS = [
+  "head",
+  "publishedAt",
+  "contentHash",
+  "reason",
+  "excludedAt",
+] as const satisfies readonly (keyof ChannelPublicationState &
+  (keyof PublishedFacts | keyof ExcludedFacts))[];
+
+/** Compile-time coverage of both facts interfaces by the list above. */
+const _everySettledFactIsForbidden:
+  keyof PublishedFacts | keyof ExcludedFacts extends (typeof UNRESOLVED_FORBIDDEN_FACTS)[number]
+  ? true
+  : never = true;
+
+/**
  * @class ChannelPublication
  * @description One (post, channel) record. Every state change goes through a method
  *   here; the fields have no setters, so an impossible combination — published with
@@ -227,13 +258,21 @@ export class ChannelPublication {
   /**
    * @method reconstitute
    * @description Rebuilds a record from persistence, re-running no rule but REFUSING a
-   *   state the record could never have produced: a published channel with no head, no
-   *   moment or no fingerprint, and an exclusion with no reason or no moment. Those are
-   *   corrupted rows, and the only honest answers are to refuse them or to invent the
-   *   missing fact — an invented fingerprint is indistinguishable from a real one, so
-   *   this refuses.
+   *   state the record could never have produced. It is symmetric, and deliberately so —
+   *   a settlement that is MISSING its facts and a settlement whose facts arrive under
+   *   the wrong kind are the same defect seen from two sides:
+   *
+   *   - published with no head, no moment or no fingerprint;
+   *   - excluded with no reason or no moment;
+   *   - UNRESOLVED carrying any settled fact at all.
+   *
+   *   The third clause is the one that costs something to get wrong. Keeping the record's
+   *   two settlements as single values means an unresolved state simply has neither, so a
+   *   row that arrives unresolved WITH a `head` would have that head silently discarded —
+   *   and a discarded head is a provider identifier for content that may still be live.
+   *   Both halves therefore answer the same way: refuse, never repair.
    * @param state - The stored state
-   * @returns Result with the record, or InvariantViolationError naming the missing fact
+   * @returns Result with the record, or InvariantViolationError naming the offending fact
    */
   static reconstitute(
     state: ChannelPublicationState
@@ -271,6 +310,17 @@ export class ChannelPublication {
         );
       }
       excluded = { reason, excludedAt };
+    }
+
+    if (state.outcomeKind === PUBLICATION_OUTCOME_KINDS.UNRESOLVED) {
+      const carried = UNRESOLVED_FORBIDDEN_FACTS.filter((fact) => state[fact] !== undefined);
+      if (carried.length > 0) {
+        return err(
+          new InvariantViolationError(
+            `unresolved channel ${channel} carries settled facts it cannot hold: ${carried.join(", ")}`
+          )
+        );
+      }
     }
 
     return ok(new ChannelPublication(state, published, excluded));
@@ -517,6 +567,32 @@ export class ChannelPublication {
    *   ordinal, refuses a published result that does not carry every fragment of the
    *   plan, and turns a failure that left fragments behind into an exclusion pending
    *   retraction whatever the classification and the budget say.
+   *
+   *   Which outcomes admit a NEW attempt, and which do not:
+   *
+   *   - UNRESOLVED — yes. This is the ordinary case; the budget decides what happens.
+   *   - EXCLUDED with nothing live — yes, and NOT because it is a no-op. A higher
+   *     ordinal arriving after an exclusion really does change the record: a published
+   *     result overturns the exclusion into a publication, and a transient failure
+   *     inside the budget clears the exclusion and returns the channel to UNRESOLVED,
+   *     which moves the post's word backwards. It is admitted because refusing it would
+   *     turn a BENIGN late report into an error the worker has to special-case — an
+   *     attempt that was already in flight when a nontransient failure excluded the
+   *     channel arrives with a higher ordinal through no fault of the worker, and
+   *     at-least-once delivery makes that ordinary rather than exceptional.
+   *     The canonical way back remains `openEpisode`, which resets the budget and keeps
+   *     the exclusion as history; the resurrection this admits does neither, and that
+   *     gap is recorded as SMELL-141 in `docs/reports/roadmap-detected-smells-backlog.md`
+   *     rather than closed here.
+   *   - PUBLISHED, or EXCLUDED pending retraction — NO. Both have content ON the
+   *     provider, which is exactly what {@link hasLiveContent} answers, and it is the
+   *     same predicate `openEpisode` refuses on. A new attempt there either double-posts
+   *     or discards the settlement that names what is live, leaving fragments on the
+   *     provider with nothing in the record pointing at them.
+   *
+   *   The live-content refusal sits AFTER the replay check on purpose: a worker
+   *   re-delivering the attempt it already recorded must keep getting `applied: false`,
+   *   not an error, or every at-least-once redelivery becomes a failure.
    * @param input - The episode, the attempt ordinal, the plan size and the result
    * @returns Result with `applied`, or InvariantViolationError
    */
@@ -541,6 +617,14 @@ export class ChannelPublication {
 
     if (input.attemptNo <= this._episodeAttempts) {
       return ok({ applied: false });
+    }
+
+    if (this.hasLiveContent()) {
+      return err(
+        new InvariantViolationError(
+          `channel ${this._channelId.value} already has live content on the provider and cannot record a new attempt`
+        )
+      );
     }
 
     if (input.result.kind === PUBLICATION_OUTCOME_KINDS.PUBLISHED) {

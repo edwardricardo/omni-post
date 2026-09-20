@@ -1,4 +1,13 @@
--- Inverse of 20260917093257_add_post_channel_publication.
+-- Inverse of 20260917093257_add_post_channel_publication (operator-run; Prisma never
+-- applies this).
+--
+-- THE RUNNER IS `psql -f`, and naming it is not decoration: this file's atomicity claim
+-- below is a claim about how psql executes it. `psql -f` sends each statement in order
+-- and, with the explicit block below, commits or rolls back all five DDL statements as a
+-- unit; the same bytes fed through a tool that strips or reorders statements do not carry
+-- that guarantee. The repo has a measured precedent for both the runner and the property
+-- — docs/reports/TENANT_RLS_AB_MEASUREMENT.md records an operator-run rollback where
+-- "psql exited 3, the transaction rolled back" and the catalog read back unchanged.
 --
 -- Prisma NEVER applies a down.sql automatically; it exists so the rollback is a
 -- reviewed artefact rather than something improvised during an incident.

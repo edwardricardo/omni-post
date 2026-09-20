@@ -11,7 +11,7 @@
  */
 
 import { describe, it, beforeEach, beforeAll, afterAll, vi, expect } from "vitest";
-import { PrismaPostRepository, PrismaUnitOfWork } from "@adapters/db-prisma";
+import { PrismaPostRepository, PrismaUnitOfWork, PostRowCorruptedError } from "@adapters/db-prisma";
 import { PostId, ProjectId, PUBLISH_STATUS } from "@core/domain/index.js";
 import {
   ambientTenantContextProvider,
@@ -497,6 +497,73 @@ describe("PrismaPostRepository", () => {
       const records = result.value.publications.all;
       expect(records.length).toBe(1);
       expect(records[0]?.liveFragments.length).toBe(2);
+    });
+
+    it("refuses with the typed error, reachable by name from the package barrel", async () => {
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        channelPublications: [publicationRow({ outcome: "EXCLUDED", reasonCode: "NOT_A_REASON" })],
+      }));
+
+      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toBeInstanceOf(
+        PostRowCorruptedError
+      );
+    });
+
+    it("refuses the post when an unresolved row carries a settled external id", async () => {
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        // Every one-directional CHECK on the table permits this row: they constrain what
+        // a PUBLISHED or EXCLUDED row must carry, never what an UNRESOLVED one must not.
+        channelPublications: [publicationRow({ outcome: "UNRESOLVED", externalId: "frag-1" })],
+      }));
+
+      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(/unresolved/i);
+    });
+
+    it("refuses the post when a stored external id cannot be read as a reference", async () => {
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        channelPublications: [
+          publicationRow({
+            outcome: "PUBLISHED",
+            externalId: "   ",
+            externalIdMissing: false,
+            publishedAt: PUBLISHED_AT,
+            contentHash: "a".repeat(64),
+            liveFragments: [{ index: 1, externalId: "frag-1" }],
+          }),
+        ],
+      }));
+
+      // Reading it as "the provider returned nothing" would flip externalIdMissing from
+      // false to true — a different fact about the publication, not a repair of this one.
+      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(
+        /external id|reference/i
+      );
+    });
+
+    it("refuses the post when a stored media row cannot be read back", async () => {
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        media: [
+          {
+            id: "e0000000-0000-4000-8000-000000000001",
+            postId: POST_ID,
+            type: "image" as const,
+            url: "not a url",
+            width: null,
+            height: null,
+            durationMs: null,
+            alt: null,
+            hash: null,
+          },
+        ],
+      }));
+
+      // Dropping it is worse than refusing: `doUpdate` computes the media to delete from
+      // what the aggregate carries, so a dropped row is deleted on the next save.
+      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(/media/i);
     });
   });
 

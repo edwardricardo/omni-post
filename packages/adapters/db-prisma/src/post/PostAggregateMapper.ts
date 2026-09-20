@@ -157,7 +157,18 @@ function toChannelPublication(
   let head: ChannelPublicationState["head"];
   if (row.externalId !== null) {
     const provided = providedReference(row.externalId);
-    head = provided.ok ? provided.value : noneReturnedReference();
+    if (!provided.ok) {
+      // Falling back to the none-returned reference here would flip `externalIdMissing`
+      // from false to true: "the provider gave us this id" becomes "the provider gave us
+      // nothing". That is a different fact about the publication, stated as if it were
+      // the stored one.
+      return err(
+        new PostRowCorruptedError(
+          `publication ${row.id}: stored external id could not be read as a reference — ${provided.error.message}`
+        )
+      );
+    }
+    head = provided.value;
   } else if (row.externalIdMissing) {
     head = noneReturnedReference();
   }
@@ -246,12 +257,45 @@ export class PostAggregateMapper {
    * @method toDomain
    * @description Map Prisma Post with relations to domain PostAggregate.
    *
-   *   The ONE place in this file that raises. Five of the six repository reads that
-   *   call it return a `PaginatedResult` with no error channel, so widening them is a
-   *   change of its own; until then the corrupted-row condition is a single TYPED
-   *   error raised here rather than a bare `Error` scattered over the mapping, and
-   *   {@link PostAggregateMapper.reconstitute} is the same mapping as a `Result` for
-   *   any caller that can carry one.
+   *   The ONE place in this file that raises, and the honest reason is narrower than
+   *   "the list reads have no error channel". The publication refusals can only be
+   *   reached through `findById`, because that is the only read that includes
+   *   `channelPublications` at all; the five list reads never load a publication row and
+   *   so can never meet them. And `findById` DOES have an error channel — it returns
+   *   `Promise<Result<…>>` — it simply does not use it here: the raise passes straight
+   *   through it today, uncaught.
+   *
+   *   So the raise survives for exactly one reason: closing it means widening the
+   *   `PostRepository.findById` port error union past `EntityNotFoundError` and narrowing
+   *   every caller on it, which is the rework that owns `findById`, not this mapper.
+   *   {@link PostAggregateMapper.reconstitute} is the same mapping as a `Result`, ready
+   *   for that caller.
+   *
+   *   Blast radius while it stands, and it is NOT uniform across the refusals — saying
+   *   "per-post" of all of them would be false:
+   *
+   *   - The PUBLICATION refusals are per-post. `channelPublications` is included by
+   *     `findById` alone (`PrismaPostRepository.ts:73`), so no list read can meet them.
+   *   - The MEDIA refusal is wider. `media: true` is included by `findById` AND by
+   *     `findByProjectId`, `findByStatus`, `findReadyForPublishing` and
+   *     `findWithFilters`, each of which maps this function over a page with no
+   *     try/catch and returns a `PaginatedResult` that has no error channel. One
+   *     corrupted media row therefore rejects the WHOLE PAGE from those four.
+   *
+   *   That is bounded by a fact about those four loaders rather than by this file: they
+   *   have no production consumer. The API's list reads go through
+   *   `PrismaPostQueryRepository`; the only callers of these four are their own two
+   *   suites, so a corrupted media row can reject a page only inside those suites. The
+   *   bound is the absence of consumers and nothing else: a future production caller of
+   *   any of the four would widen this refusal's reach with nothing in the tree to
+   *   notice, which is one more reason to retire them. Once they are gone, the per-post
+   *   claim is true of both refusals.
+   *
+   *   The drop this replaced was not data loss on the list path, and the distinction is
+   *   worth keeping straight: the deletion mechanism is `doUpdate` removing media the
+   *   aggregate no longer carries, which fires on `save()`. A list read never saves, so
+   *   there the old behaviour under-REPORTED. The loss needs a read followed by a save,
+   *   which is the `findById` path.
    * @param prismaPost - The row with its relations
    * @returns The aggregate
    */
@@ -265,10 +309,18 @@ export class PostAggregateMapper {
 
   /**
    * @method reconstitute
-   * @description The mapping itself: every stored value is read back whole, or the row
-   *   is refused naming what could not be read. Nothing is dropped and nothing is
-   *   defaulted, because a row the entity wrote and this cannot read back is a defect
-   *   whichever half is wrong.
+   * @description The mapping itself: a stored value that cannot be read back refuses the
+   *   row, naming what failed. That holds for the status, for every publication row and
+   *   for every media row — nothing is dropped and nothing is repaired, because a value
+   *   the application wrote and this cannot read back is a defect whichever half is wrong.
+   *
+   *   ONE value IS defaulted, and it is a default rather than a repair: a post with no
+   *   content row reads as an EMPTY post (`body: ""`, `locale: "en"`). That is a real
+   *   state, not a corrupted one — `Post.contents` is a to-many, so zero rows is a shape
+   *   the schema admits, and `PrismaApproveVariantAdapter` creates the post and its
+   *   content in two statements OUTSIDE a transaction, so a failure between them leaves
+   *   exactly this post behind. Refusing it would make a bare post permanently
+   *   unloadable, including for the delete that would clean it up.
    * @param prismaPost - The row with its relations
    * @returns Result with the aggregate, or the corrupted-row error
    */
@@ -278,9 +330,7 @@ export class PostAggregateMapper {
     // Get the primary content (most recent revision for default locale)
     const primaryContent = prismaPost.contents.sort((a, b) => b.revision - a.revision)[0];
 
-    // Reconstitute Content from DB data — bypass empty-body validation since
-    // the database is a trusted source. Posts without content records are valid
-    // in the DB schema (e.g., bare posts created before content is added).
+    // An absent content row is the empty post described above, not a failure to read one.
     const content = Content.reconstitute({
       body: primaryContent?.body ?? "",
       ...(primaryContent?.title && { title: primaryContent.title }),
@@ -320,9 +370,27 @@ export class PostAggregateMapper {
         ...(prismaMedia.hash !== null && { hash: prismaMedia.hash }),
       });
 
-      if (mediaResult.ok) {
-        media.push(mediaResult.value);
+      if (!mediaResult.ok) {
+        // Dropping it is the worse of the two answers ON THE READ-THEN-SAVE PATH, which
+        // is where it actually costs something: `doUpdate` derives the media to DELETE
+        // from what the aggregate carries, so a row dropped here is removed from the
+        // database by the next save of this post. A list read never saves, so there the
+        // drop under-reported rather than destroyed.
+        //
+        // RESIDUAL, and it is the widest surface this refusal opens: `MediaAttachment`
+        // parses the url with `new URL(url)`, which rejects a RELATIVE one, while
+        // `PostMedia.url` is an unconstrained String. Our writer cannot produce such a
+        // row — every stored url came from a `MediaAttachment` that already parsed — and
+        // no relative-url fixture or seed exists in the tree, so the refusal is inert
+        // today. A future writer that stores a path instead of an absolute url would
+        // meet it, which is the intended answer rather than a surprise.
+        return err(
+          new PostRowCorruptedError(
+            `post ${prismaPost.id}: stored media ${prismaMedia.id} could not be read back — ${mediaResult.error.message}`
+          )
+        );
       }
+      media.push(mediaResult.value);
     }
 
     // Map content versions

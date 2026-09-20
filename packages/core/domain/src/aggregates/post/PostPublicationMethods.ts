@@ -215,6 +215,13 @@ export function openPublicationEpisode(
  *   word from the whole record. Every effect of an attempt — the outcome, the live set,
  *   the lock, the channel event, the alert and the word — happens here, in one place,
  *   so none of them can be applied without the others.
+ *
+ *   Two refusals, and only the first is this function's own: the channel must be one the
+ *   post declared, and the RECORD then refuses an attempt against a channel that already
+ *   has content live on the provider — published, or excluded pending retraction (see
+ *   `ChannelPublication.recordAttempt` for which outcomes admit a new attempt). A refusal
+ *   returns before anything is emitted, so the word does not move and no channel event is
+ *   raised for an attempt that was not recorded.
  * @param context - The root's narrow view
  * @param input - The channel, the episode, the attempt ordinal, the plan size, the result
  * @returns Result with whether the attempt applied and the channel's outcome

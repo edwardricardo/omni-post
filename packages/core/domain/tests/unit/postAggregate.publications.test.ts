@@ -377,6 +377,26 @@ describe("PostAggregate — the word follows the record", () => {
     );
   });
 
+  it("returns an error and emits nothing when an attempt lands on a channel with live content", () => {
+    const post = makeOpenedPost([CHANNEL_A]);
+    recordAttempt(post, CHANNEL_A, published());
+    const wordAfterPublish = post.status.value;
+    post.clearDomainEvents();
+
+    const second = post.recordChannelAttempt({
+      channelId: CHANNEL_A,
+      episode: 1,
+      attemptNo: 2,
+      planSize: 1,
+      result: transientFailure(),
+      now: NOW,
+    });
+
+    assert.ok(!second.ok, "the record refuses it and the refusal reaches the root");
+    assert.strictEqual(post.status.value, wordAfterPublish, "the word does not move");
+    assert.deepStrictEqual(eventTypes(post), [], "nothing is announced for an attempt not taken");
+  });
+
   it("returns the recorded publication moment on the channel event, never the current time", () => {
     const post = makeOpenedPost([CHANNEL_A]);
 

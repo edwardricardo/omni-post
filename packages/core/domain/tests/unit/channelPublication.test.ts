@@ -135,6 +135,18 @@ function publishedState(): ChannelPublicationState {
   };
 }
 
+/** A persisted unresolved state: no settlement of either kind, which is the whole point. */
+function unresolvedState(): ChannelPublicationState {
+  return {
+    id: "11111111-0000-4000-8000-000000000003",
+    channelId: ChannelId.fromStringUnsafe(CHANNEL_A),
+    outcomeKind: PUBLICATION_OUTCOME_KINDS.UNRESOLVED,
+    attempts: 1,
+    episode: 1,
+    episodeAttempts: 1,
+  };
+}
+
 /** A complete persisted excluded state — the reason and the moment it was written. */
 function excludedState(): ChannelPublicationState {
   const reason = ExclusionReason.create({ code: CHANNEL_FAILURE_CODES.CONTENT_REJECTED });
@@ -789,6 +801,106 @@ describe("ChannelPublication", () => {
       assert.ok(isExcludedOutcome(outcome));
       assert.strictEqual(outcome.reason.code, CHANNEL_FAILURE_CODES.CONTENT_REJECTED);
       assert.strictEqual(outcome.excludedAt.getTime(), NOW.getTime());
+    });
+
+    it("returns an error when an unresolved state carries a settlement fact", () => {
+      const head = providedReference("frag-1");
+      assert.ok(head.ok);
+      const reason = ExclusionReason.create({ code: CHANNEL_FAILURE_CODES.CONTENT_REJECTED });
+      assert.ok(reason.ok);
+
+      const carried: readonly { fact: string; state: Partial<ChannelPublicationState> }[] = [
+        { fact: "head", state: { head: head.value } },
+        { fact: "publishedAt", state: { publishedAt: NOW } },
+        { fact: "contentHash", state: { contentHash: makeFingerprint() } },
+        { fact: "reason", state: { reason: reason.value } },
+        { fact: "excludedAt", state: { excludedAt: NOW } },
+      ];
+
+      for (const { fact, state } of carried) {
+        const rebuilt = ChannelPublication.reconstitute({ ...unresolvedState(), ...state });
+
+        assert.ok(
+          !rebuilt.ok,
+          `an unresolved row carrying ${fact} is a corrupted row, not a row to strip`
+        );
+        assert.match(rebuilt.error.message, /unresolved/i);
+      }
+    });
+
+    it("returns the record when the unresolved state carries no settlement fact", () => {
+      const rebuilt = ChannelPublication.reconstitute(unresolvedState());
+
+      assert.ok(rebuilt.ok);
+      assert.strictEqual(rebuilt.value.outcome.kind, PUBLICATION_OUTCOME_KINDS.UNRESOLVED);
+    });
+  });
+
+  describe("an attempt is refused while content is live on the provider", () => {
+    it("returns an error when an attempt is recorded against a published channel", () => {
+      const record = makeOpenRecord();
+      const first = record.recordAttempt({
+        episode: 1,
+        attemptNo: 1,
+        planSize: 1,
+        result: publishedResult(1),
+        now: NOW,
+      });
+      assert.ok(first.ok);
+
+      const second = record.recordAttempt({
+        episode: 1,
+        attemptNo: 2,
+        planSize: 1,
+        result: failedResult({ classification: ATTEMPT_CLASSIFICATIONS.TRANSIENT }),
+        now: NOW,
+      });
+
+      assert.ok(!second.ok, "a published channel would double-post or orphan what is live");
+      assert.match(second.error.message, /live/i);
+      assert.ok(record.isPublished(), "the settled outcome survives the refusal");
+      assert.strictEqual(record.liveFragments.length, 1);
+      assert.ok(record.hasLiveContent());
+    });
+
+    it("returns an error when an attempt is recorded against a channel pending retraction", () => {
+      const record = makeStrandedRecord();
+
+      const next = record.recordAttempt({
+        episode: 1,
+        attemptNo: 2,
+        planSize: 4,
+        result: failedResult({ classification: ATTEMPT_CLASSIFICATIONS.TRANSIENT }),
+        now: NOW,
+      });
+
+      assert.ok(!next.ok, "fragments are still on the provider");
+      assert.match(next.error.message, /live/i);
+      assert.ok(record.pendingRetraction, "the pending retraction survives the refusal");
+      assert.strictEqual(record.liveFragments.length, 2);
+    });
+
+    it("returns applied false when a published channel replays the attempt it already recorded", () => {
+      const record = makeOpenRecord();
+      const first = record.recordAttempt({
+        episode: 1,
+        attemptNo: 1,
+        planSize: 1,
+        result: publishedResult(1),
+        now: NOW,
+      });
+      assert.ok(first.ok);
+
+      const replay = record.recordAttempt({
+        episode: 1,
+        attemptNo: 1,
+        planSize: 1,
+        result: publishedResult(1),
+        now: NOW,
+      });
+
+      assert.ok(replay.ok, "idempotence comes before the live-content refusal");
+      assert.strictEqual(replay.value.applied, false);
     });
   });
 });
