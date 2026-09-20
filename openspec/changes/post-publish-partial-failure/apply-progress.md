@@ -1636,6 +1636,63 @@ becomes ~27/38) and **EVIDENCE 611 → 612** on the tests stream (W1 deletes one
 growth. The `size:exception` recommendation is unchanged and its reason is unchanged: the overage
 is deletion the authorisation covers, and the slice does not compile if split.
 
+### RDD receipt — the committed range `e6d734b1` → `f3caa204`
+
+Lineage `review-a2e658c48711714c`, MEDIUM tier, ONE reliability lens. The review reached
+**approved**, the acknowledgement was executed exactly once and the authority is **burned**; no
+Critical was raised. Three ADVISORY findings, and what became of each:
+
+| Finding                                     | Level      | Where                                                       | Disposition                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------- | ---------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `R3-enterWith-leak`                         | WARNING    | `apps/api/tests/unit/helpers/mockAuthMiddleware.ts:171-176` | **CLOSED by MEASUREMENT, not by a change** — the four cases below, landed on `workstream/ncor8-1c-1c`. The W5 residual above is superseded by that measurement                                                                                                                                |
+| `R3-findById-guard-vs-adapter-duplication`  | SUGGESTION | `PrismaPostRepository.findById` vs the tenant guard         | **BACKLOG, deliberately NOT actioned.** The adapter's scope refusal duplicates the guard's ON PURPOSE — the `resolveClientIp` reason the design gives: the adapter states the invariant itself rather than inheriting it, so an upstream change to the guard's walk cannot silently remove it |
+| `R3-savePublication-scope-message-coupling` | SUGGESTION | `PrismaPostRepository.test.ts` refusal cases                | **BACKLOG.** The test couples to the refusal's message WORDING; a code-keyed assertion would survive a re-phrasing. Left as-is because changing it now would edit a case the same review just approved                                                                                        |
+
+**`R3-enterWith-leak`, closed by measurement rather than by a change.** The WARNING said the
+double's `enterTenantContext` uses `AsyncLocalStorage.enterWith`, so in a test process the binding
+could outlive the case that made it and a future scope-REFUSAL case would pass for the wrong reason.
+The instruction was to fix the DOUBLE only, after measuring which shape is honest. **Measured: there
+is nothing to fix.** `apps/api/tests/unit/helpers/mockAuthMiddleware.tenantScope.test.ts` (NEW,
+4 cases) pins it: the handler reads its own account INSIDE the request; the test's own context is
+unbound once the request completed; one request's account does not carry into the next; and an
+UNAUTHENTICATED request leaves the store empty, which is exactly the precondition a refusal case
+needs. **4/4 green with the double unchanged** — `app.inject()` gives each request its own async
+resource, so `enterWith` does not escape it.
+
+The probe was proven able to go RED, because a green assertion nobody can make fail is not a
+measurement. A temporary file calling `enterTenantContext` from the TEST's own async resource and
+asserting the store empty failed as required:
+
+```text
+ × observes a binding made in the test's own async resource
+AssertionError: expected { Object (accountId) } to be undefined
+```
+
+It was deleted and the kept file is byte-identical across the experiment —
+`81c8b7e95f79c6fd3c84937a357295aec4635a4228756013dcaa686b0910cef2` before and after. The four cases
+were first written on the parked `1c-1b` branch (`08391306`) and are carried onto
+`workstream/ncor8-1c-1c` unchanged (same hash, re-run there: 4/4) so the closure travels up the
+chain with the range it closes; the production `enterWith` is untouched (it is correct there, and a
+preHandler has no callback to wrap).
+
+### RDD receipt — the docs commit `7010da92` (the §9.4.1 re-order)
+
+Lineage `review-b44a2a529ed694d2`, MEDIUM tier, ONE reliability lens: **approved**, acknowledged
+once, authority **burned**. Three ADVISORY findings, all on `tasks.md`:
+
+| Finding                        | Level      | Where                | Disposition                                                                                                                                                                                                                                                                                        |
+| ------------------------------ | ---------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `R3-duplicate-order-10`        | WARNING    | `tasks.md:1088-1099` | **REJECTED — the duplication is the finding's own subject.** Order 10 carries `1c-2a` AND `1c-3e` on purpose: the ordering audit found them mutually fail-closed (a true cycle), and the paragraph directly under the table says so and names the three shapes for Edward's decision (§9.9 item 6) |
+| `R3-order-numbering-gap`       | SUGGESTION | `tasks.md:1088-1101` | **REJECTED, same reason.** The numbering is 1–9, 10, 10, 11, 12 — the doubled 10 is the cycle, not a gap; renumbering would hide that two units cannot be ordered against each other                                                                                                               |
+| `R3-forecast-delta-arithmetic` | SUGGESTION | `tasks.md:1163-1166` | **Re-computed, the table is right:** 529 − 225 = +304 = 135 % of 225; 614 − 335 = +279 = 83 % of 335. Left as written                                                                                                                                                                              |
+
+**Process defect, owned.** The three narratives above are reconstructed from the cited lines, not
+quoted: the capture envelope retains only `id`, `lens`, `location` and `severity`, and the reviewer's
+text lives in the transaction store, which the acknowledgement burns. For the 1c-1a range the
+narrative was copied into the ledger BEFORE the acknowledgement (the table above quotes it); for this
+docs commit it was not, and it is gone. Rule from here: the reviewer's narrative is written into the
+ledger between the final capture and the acknowledgement, never after.
+
 ---
 
 ## PR 1c — grandchild `1c-1c` (T1c.1, T1c.2, T1c.4 first half) — COMPLETE
@@ -1710,19 +1767,22 @@ aggregate`, because **no tsconfig in `@core/posts` opens `tests/**`** (`include`
    config is a separate decision nobody has taken.
    **CORRECTION — the first run of this probe was reported as a gate and was not one.** Its command
    was `tsc … | head -30; echo "EXIT=$?"`, so the `$?` it printed was **`head`'s** status, not
-   `tsc`'s; it printed `EXIT=0` over a tsc whose own exit code was never read. What surfaced it:
-   the wrapper shell of that command never exited (its trailing `eza | rg probe` pipeline hung after
-   the probe file was already gone), the orchestrator terminated it after the hand-back, and the
-   task was reported as **exit 144** — that termination, not a `tsc` failure. Re-reading the command
-   to explain the number is what exposed the piped `$?`. Re-run afterwards with the exit captured
-   directly off `tsc` (no pipe) and the probe removed by a `trap`:
-   **`TSC_OWN_EXIT=0`** — so the claim is true, but it is true by MEASUREMENT now and was an
-   assumption before. The re-run is also strictly stronger than the original, because it covers the
-   two gate corrections (the W1 case and `replacedTargets`) that did not exist when the first probe
-   ran. **The rule it forces: never read `$?` through a pipe when the number IS the gate.** A
-   `| head`, a `| tail` or a `| wc -l` makes the exit code that of the filter, and every fitness
-   grep in this repo that ends `| wc -l` is counting output for exactly that reason — a gate that
-   reports a filter's success is a gate that cannot go red.
+   `tsc`'s; it printed `EXIT=0` over a tsc whose own exit code was never read. **Nothing surfaced
+   this at runtime, and that is the point**: the pipeline exits 0 and prints `EXIT=0` whatever
+   `tsc` did, so there was no signal to notice. It was found by re-reading the command. (The
+   occasion for re-reading it: the wrapper shell of that command never exited — its trailing
+   `eza | rg probe` pipeline hung after the probe file was already gone — the orchestrator
+   terminated it after the hand-back, and the task was reported as **exit 144**, which is that
+   termination and not a `tsc` failure.) Re-run afterwards with the exit captured directly off
+   `tsc` (no pipe) and the probe removed by a `trap`: **`TSC_OWN_EXIT=0`** — so the claim is true,
+   but it is true by MEASUREMENT now and was an assumption before. The re-run is also strictly
+   stronger than the original, because it covers the two gate corrections (the W1 case and
+   `replacedTargets`) that did not exist when the first probe ran. **The rule it forces: never read
+   `$?` through a pipe when the number IS the gate.** A `| head` or a `| tail` makes the exit code
+   that of the filter, and a gate that reports a filter's success is a gate that cannot go red. The
+   repo already encodes the guard: every newer fitness check in `CLAUDE.md` (#33 through #41) opens
+   with `set -uo pipefail`, which makes a pipeline's status its rightmost non-zero — exactly what
+   the first probe lacked and what its re-run script sets.
 
 ### Two decisions the design does not make, taken here and named
 
@@ -1940,3 +2000,16 @@ here: it re-slices a ratified §9.4.1 order, which is Edward's call.
 | `eslint --max-warnings 0` on the two changed `.ts` files          | **0**                                                                                                                                     |
 | `prettier -c` on every changed file, incl. the two `.md`          | clean                                                                                                                                     |
 | `tsc -p` over `src` + `tests`, probe RE-RUN after the corrections | **`TSC_OWN_EXIT=0`** — the honest measurement of the row the section above corrects; it now also covers the W1 case and `replacedTargets` |
+
+### RDD receipt — the committed range `7010da92` → `ff1c41a1`
+
+Lineage `review-e5c939093cdb3581`, MEDIUM tier (7 files / 2,065 lines), ONE reliability lens. The
+review reached **approved** on its first admitted capture, the acknowledgement was executed exactly
+once and the authority is **burned**; no Critical and no WARNING was raised. Two ADVISORY
+SUGGESTIONs, quoted from the reviewer BEFORE the acknowledgement (the transaction store is deleted
+by the burn), and what becomes of each:
+
+| Finding                          | Level      | Where                                                                                                      | Reviewer's claim (quoted)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Disposition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `R3-noUowBranchUntested`         | SUGGESTION | `OpenPublicationEpisodeUseCase.ts:88-96`; same shape at `RecordChannelPublicationAttemptUseCase.ts:97-105` | "The `unitOfWork` constructor parameter is optional, and when omitted the use case calls the inner `doWork` closure directly, bypassing `executeResultInTransaction`. No test … exercises this branch — every test constructs the use case with `makeRecordingUow()` — so the behaviour of a `savePublication` failure or a domain refusal returned from the closure when the seam is absent is unproved by this candidate."                                                                                                                                                               | **OWED to `1c-1d`, which adds the two remaining T1c.4 use cases of the same shape**: one case per use case constructed WITHOUT a unit of work, asserting that a domain refusal and a `savePublication` failure both come back as the same outcomes the transactional path answers, and that nothing is written. The branch exists for the canon's own reason (the UoW parameter is optional for tests) and is unreachable from the composition root, which always injects the seam; its behaviour is nonetheless a contract this package states and should be pinned once for all four                                                                                                     |
+| `R3-tripwireContractIsLocalMock` | SUGGESTION | `recordChannelPublicationAttempt.test.ts:135-153`, asserted at `:433-461`                                  | "The narrow-save tripwire is re-implemented inside the test's own `makePostRepo` double via a locally hard-coded `TRIPWIRE_EVENTS` list, then the use-case's INTERNAL_ERROR translation is asserted against it. … if the production adapter's `PUBLICATION_TRIPWIRE_EVENTS` set diverges (event renamed, added, removed), this suite continues to pass while production silently changes behaviour. Consider a cross-package contract test at the adapter tier (or exporting the tripwire set from a package `@core/posts` can depend on) so the two definitions cannot drift undetected." | **ACCEPTED, written at T1c.14 in `tasks.md`, not done here.** The drift the reviewer names is real and the suite's own comment already states the trade-off. The adapter suite (`apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`) pins the production set directly; what is missing is the link between the two definitions. The honest fix is the reviewer's second option — the tripwire set moves to a package both `@core/posts` and the adapter can import (it is a statement about the aggregate's events, which live in `@core/domain`) — a small relocation with its own red, owned by the unit that next touches `PUBLICATION_TRIPWIRE_EVENTS` (T1c.14, `1c-3e`) |

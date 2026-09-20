@@ -346,7 +346,12 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
       (ADR-0023), `savePublication`, `Result` only, no own `$transaction` (#40).
       **HALF LANDED IN `1c-1c`** (the episode + attempt use cases, plus the shared
       `publicationWriteOutcome.ts` both translate their refusals through); **the retraction pair
-      and the barrel are `1c-1d`**, so the box stays open until that unit lands. — sha: pending
+      and the barrel are `1c-1d`**, so the box stays open until that unit lands.
+      **Carried from the `1c-1c` range review (`R3-noUowBranchUntested`, SUGGESTION)**: the
+      optional-`unitOfWork` branch (the closure called directly, no `executeResultInTransaction`)
+      is untested in both landed use cases; `1c-1d` pins it ONCE for all four — a case per use case
+      constructed without a unit of work, asserting a domain refusal and a `savePublication`
+      failure answer the same outcomes as the transactional path and write nothing. — sha: pending
 - [x] **T1c.4a RED→GREEN (D19, design rev 3.4 C1 — absent is unrepresentable, a publication write has
       a tenant)** — the AUTHORISED form only. **Edward AUTHORISED the deletion on 2026-09-20**, and
       extended it: "y también borrar cualquier artefacto asociado que carezca de una funcionalidad
@@ -544,6 +549,13 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       reads the RECORD and notifies, W4 deletions, D10 (`RUNNING`/`ERR` writes removed; ONE `OK`
       receipt after the record commits); `apps/workers/src/publishHandlerTypes.ts` loses the `?` on
       `accountId`.
+      **Carried from the `1c-1c` range review (`R3-tripwireContractIsLocalMock`, SUGGESTION)**: the
+      `@core/posts` suite re-implements the narrow-save tripwire in its own repository double
+      (`recordChannelPublicationAttempt.test.ts:135-153`) because the package cannot import the
+      adapter, so a rename or addition in the adapter's `PUBLICATION_TRIPWIRE_EVENTS` leaves that
+      suite green while production changes. The unit that next touches the tripwire set moves it to
+      a package both sides import (it is a statement about the aggregate's events, `@core/domain`),
+      with its own red, and deletes the local copy.
       **Anchors RE-MEASURED 2026-09-20 (design rev 3.3 A7 — the rev 3.2 numbers above had drifted)**:
       `publishHandler.ts` is **935** lines; `resolveJobAccountId` `:124-146`;
       `recordTenantScopeFailure` `:160`; the `OK`-skip `:800-804`; `publishHandlerTypes.ts:158`;
