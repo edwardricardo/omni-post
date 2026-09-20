@@ -495,7 +495,7 @@ publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`)
       nothing written); CAS exhaustion → the durable outcome job carrying the fragments; W9 (the
       mirror key with `-e{n}` stripped). **Plus, in
       `apps/workers/tests/publishThreadPost.test.ts`'s `describe("when the thread is interrupted
-  mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the channel EXCLUDED
+mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the channel EXCLUDED
       with the live set after the rows and before the saga" (call order asserted across the
       repository, use-case and saga doubles); "still records the outcome when a tweet row cannot be
       written" (extends the existing `:526` case); "completes without rethrow when the record is
