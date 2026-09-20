@@ -352,6 +352,22 @@ skipped (5)`): `packages/providers/telegram/tests/integration/apiClient.integrat
    `apps/api`'s 21 unreached suites). It reads as coverage in the tree and in review while running
    nothing. Backlog line recommended: decide whether that suite gets a tier and a service, or goes.
 
+### RDD receipt — the committed range tracker → 1b3 (2026-09-20)
+
+Lineage `review-7c43029e81e41c35`, selected in the docs worktree with `--base-ref c4fa81c1
+--committed-only` (candidate `539bf8ad`): 21 paths / 836 lines, tier **medium**, correction
+budget 200, one `review-reliability` slot. Consent/v3 answered `granted` under Edward's standing
+rule. Terminal state **`approved`**; the exact `acknowledge-approved` returned
+`gentle-ai.review-acknowledged/v1` with `authority: burned`. No correction was opened. With this
+receipt every child of the chain (1b3, 1b, 1b2) carries a burned committed-range review.
+
+**Advisory findings — 3, informational.** `R3-silent-skip-on-repo-not-ok` (WARNING,
+`apps/workers/src/publishHandler.ts:459-466`: a repository `!ok` result is skipped without a
+report), `R3-partial-loop-throw-untested` (SUGGESTION, `:478-489`) and `R3-timer-success-on-no-op`
+(SUGGESTION, `:468-489`). The WARNING is the swallowed-failure class; 1c's D16 rework (the recorder
+returns a `Result` and runs outside the catch) touches exactly this region, so its fix belongs with
+T1c.14 rather than a separate follow-up — to be confirmed in the tasks amendment.
+
 ---
 
 ## PR 1b — WU 1b.B / 1b.C / 1b.D / 1b.E: the domain, the events, the narrow save
@@ -587,6 +603,53 @@ Files touched by the corrections (4):
 `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`,
 `packages/core/domain/src/aggregates/PostAggregate.ts`,
 `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`.
+
+### Correction after CI (`cda2c7d4`, cherry-picked from 1b2's `ae08587a`)
+
+The Code Quality job on PR #268 failed on `pnpm check:circular`: `ContentLockedError.ts` imported
+`FragmentReferenceJson` from the value objects, and every value object imports the errors barrel,
+so 1b had closed an `errors → value-objects → errors` cycle that no local gate named. The error now
+carries a structural `LockedFragmentReference` (index, externalId, url?) that mirrors the value
+object's JSON shape without importing it; madge is clean over `apps/api/src/ packages/`, `tsc` 0
+in `@core/domain` and `apps/api`, `@core/domain` 168/168, eslint and prettier 0. `pnpm
+check:circular` was added to the tasks §10 gate list so the next child cannot repeat this.
+
+### RDD receipt — the committed range 1b3 → 1b (2026-09-20)
+
+Lineage `review-5700b58b95e0941c`, selected in the docs worktree with `--base-ref 539bf8ad
+--committed-only` (gentle-ai resolves the ref to the commit's tree, `201a7e56`; candidate
+`cda2c7d4`): 47 paths / 7,406 lines, tier **high**, correction budget 200. Consent/v3 answered
+`granted` under Edward's standing rule. Four lenses captured concurrently (the resilience capture
+closed the transaction). Terminal state **`approved`**; the exact `acknowledge-approved` returned
+`gentle-ai.review-acknowledged/v1` with `authority: burned` (consumed revision `a89c58ff…`). No
+correction was opened.
+
+**Advisory findings — 12, every one informational**, recorded so nothing stays hidden; each is
+separate later work with its own decision. Ids are the reviewer's.
+
+| Id                                                | Lens        | Severity   | Location                                                                             |
+| ------------------------------------------------- | ----------- | ---------- | ------------------------------------------------------------------------------------ |
+| R1-content-fingerprint-empty-fallback             | risk        | WARNING    | `packages/core/domain/src/entities/ChannelPublication.ts:275-282`                    |
+| R1-exclusion-detail-redaction-scope               | risk        | SUGGESTION | `packages/core/domain/src/value-objects/ExclusionReason.ts:38-46`                    |
+| R1-findById-system-context-lock-bypass            | risk        | WARNING    | `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts:70-76`                 |
+| R2-alerthash-vs-supersededalertkey-naming         | readability | SUGGESTION | `packages/core/domain/src/entities/ChannelPublication.ts:80-120`                     |
+| R2-interspersed-export-between-imports            | readability | SUGGESTION | `packages/core/domain/src/aggregates/post/PostPublicationMethods.ts:14-45`           |
+| R3-integration-test-skeleton-coverage-gap         | reliability | SUGGESTION | `apps/api/tests/integration/postChannelPublicationTenantIsolation.test.ts:1-31`      |
+| R3-mapper-reconstitute-drops-invalid-fragment     | reliability | WARNING    | `packages/adapters/db-prisma/src/post/PostAggregateMapper.ts:126-134`                |
+| R3-narrow-save-non-tenant-transaction             | reliability | WARNING    | `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts:266-273`              |
+| R3-publication-events-swallowed-on-missing-reason | reliability | WARNING    | `packages/core/domain/src/aggregates/post/PostPublicationEvents.ts:38-53`            |
+| R3-publications-derive-empty-optional-vs-union    | reliability | SUGGESTION | `packages/core/domain/src/aggregates/ChannelPublications.ts:73-107`                  |
+| R3-published-outcome-null-hash-fallback           | reliability | WARNING    | `packages/core/domain/src/entities/ChannelPublication.ts:308-320`                    |
+| R4-down-sql-non-atomic                            | resilience  | WARNING    | `infra/prisma/migrations/20260917093257_add_post_channel_publication/down.sql:22-28` |
+
+**Proposed disposition (Edward decides; nothing here is applied).** The `findById` system-context
+lock bypass is design D19's subject and is closed by 1c (T1c.4a) — an independent reviewer reached
+the same finding as the 1b gate. The silent-fallback class — an empty content fingerprint, a null
+hash on a published outcome, a reconstitute that drops an invalid fragment, publication events
+swallowed on a missing reason — is the class this ledger is obliged to surface rather than absorb;
+it belongs in one bounded follow-up before the tracker merges. The narrow save's transaction scope
+sits beside the `TenantBoundRunner` binding the 1b gate corrected and needs its own adjudication.
+The naming, import-order, `derive` shape and skeleton-coverage suggestions are backlog rows.
 
 ---
 
@@ -975,3 +1038,59 @@ three packages at once — before any test ran.
 `apps/api` · the 25 affected `apps/api` suites **270 passed** · `@core/notifications` **39/39** ·
 eslint `--max-warnings 0` and prettier `-c` on every touched file **0** · fitness **#4 = 0** (the
 new `err` paths are values, not throws) and **#32 = 0**.
+
+### RDD receipt — the committed range 1b → 1b2 (2026-09-20)
+
+Lineage `review-d1ca099a3e89ec06`, selected with `--base-ref cda2c7d4 --committed-only` (base tree
+`7d81de6a`, candidate tree `2f70e718`): 54 paths / 5,209 lines, tier **high**, correction budget 200. The consent/v3 envelope was answered `granted` under Edward's standing rule for review
+envelopes. Four lenses captured — risk, resilience, reliability, readability (the readability
+capture closed the transaction). Terminal state **`approved`**; the exact `acknowledge-approved`
+returned `gentle-ai.review-acknowledged/v1` with `authority: burned` (consumed revision
+`1424f997…`). No correction was opened.
+
+Two preflight refusals on the orchestrator's side, both retry-safe with nothing consumed: a
+hand-typed STATUS carried a `--target` flag the command does not define, and two captures were
+launched with empty tokens from a mis-scoped shell chain. The bound STATUS re-offered exactly the
+two missing slots under a new revision and they were captured with the re-issued tokens.
+
+**Advisory findings — 26, every one informational.** None opened a correction and none reopens
+this review; they are recorded here so nothing stays hidden, and each is separate later work with
+its own decision. Ids are the reviewer's.
+
+| Id                                             | Lens        | Severity   | Location                                                                                        |
+| ---------------------------------------------- | ----------- | ---------- | ----------------------------------------------------------------------------------------------- |
+| R1-001                                         | risk        | SUGGESTION | `packages/core/domain/src/repositories/RetractionAlertDeliveryLedger.ts:1-96`                   |
+| R1-002                                         | risk        | SUGGESTION | `apps/api/src/infrastructure/adapters/SlackTeamsRetractionAlertDelivery.ts:52-79`               |
+| R1-003                                         | risk        | SUGGESTION | `apps/api/src/notifications/RetractionAlertEventHandler.ts:104-140`                             |
+| R2-CAUSE_SENTENCES-duplicated                  | readability | WARNING    | `apps/api/src/infrastructure/email/templates/emailTemplates.tsx:434-437`                        |
+| R2-EXCERPT-LIMIT-unexplained                   | readability | SUGGESTION | `apps/api/src/infrastructure/adapters/RetractionAlertContextAdapter.ts:41`                      |
+| R2-P2002-hardcoded-string                      | readability | SUGGESTION | `apps/api/src/infrastructure/repositories/PrismaRetractionAlertDeliveryLedger.ts:47-55`         |
+| R2-RETRACTION_PENDING_EVENT-literal-duplicated | readability | SUGGESTION | `apps/api/src/infrastructure/adapters/SlackTeamsRetractionAlertDelivery.ts:31`                  |
+| R2-STORED_MEDIUM-brittle-mapping               | readability | WARNING    | `apps/api/src/infrastructure/repositories/PrismaRetractionAlertDeliveryLedger.ts:29-37`         |
+| R2-duplicated-fragment-reader                  | readability | WARNING    | `apps/api/src/notifications/RetractionAlertEventHandler.ts:50-63`                               |
+| R2-import-after-code-block                     | readability | WARNING    | `apps/api/src/infrastructure/adapters/TransactionalEmailAdapter.ts:67`                          |
+| R2-magic-timeout-literal-duplicated            | readability | SUGGESTION | `infra/prisma/migrations/20260919222448_add_retraction_alert_notifications/migration.sql:35-36` |
+| R2-projectId-fallback-silent                   | readability | WARNING    | `apps/api/src/notifications/RetractionAlertEventHandler.ts:132`                                 |
+| R2-retractionPendingEmail-forward-reference    | readability | SUGGESTION | `apps/api/src/infrastructure/email/templates/emailTemplates.tsx:396-411`                        |
+| R3-account-fallback-may-widen-recipients       | reliability | SUGGESTION | `packages/core/notifications/src/RaiseRetractionAlertUseCase.ts:157-165`                        |
+| R3-context-adapter-throws-not-degrades         | reliability | WARNING    | `apps/api/src/infrastructure/adapters/RetractionAlertContextAdapter.ts:71-77`                   |
+| R3-handler-swallows-context-throws             | reliability | WARNING    | `apps/api/src/notifications/RetractionAlertEventHandler.ts:135-165`                             |
+| R3-in-app-broadcast-failure-swallowed          | reliability | WARNING    | `apps/api/src/infrastructure/adapters/InAppRetractionAlertDelivery.ts:82-101`                   |
+| R3-provider-string-coercion-loses-fidelity     | reliability | SUGGESTION | `apps/api/src/infrastructure/adapters/RetractionAlertContextAdapter.ts:126`                     |
+| R3-release-on-broadcast-exception-missing      | reliability | WARNING    | `packages/core/notifications/src/RaiseRetractionAlertUseCase.ts:206-244`                        |
+| R3-resolve-nonatomic-partial-crash             | reliability | SUGGESTION | `packages/core/notifications/src/ResolveRetractionAlertUseCase.ts:60-73`                        |
+| R3-shared-fanout-partial-failure-lost          | reliability | WARNING    | `packages/core/notifications/src/RaiseRetractionAlertUseCase.ts:271-289`                        |
+| R4-context-adapter-no-timeout                  | resilience  | SUGGESTION | `apps/api/src/infrastructure/adapters/RetractionAlertContextAdapter.ts:66-72`                   |
+| R4-handler-drops-shared-when-no-recipients     | resilience  | WARNING    | `apps/api/src/notifications/RetractionAlertEventHandler.ts:150-160`                             |
+| R4-in-app-broadcast-swallowed                  | resilience  | WARNING    | `apps/api/src/infrastructure/adapters/InAppRetractionAlertDelivery.ts:86-99`                    |
+| R4-listbyalertkey-unbounded                    | resilience  | SUGGESTION | `apps/api/src/infrastructure/repositories/PrismaRetractionAlertDeliveryLedger.ts:129-140`       |
+| R4-raise-partial-shared-orphan-claims          | resilience  | WARNING    | `packages/core/notifications/src/RaiseRetractionAlertUseCase.ts:249-278`                        |
+
+**Proposed disposition (Edward decides; nothing here is applied).** The reliability and resilience
+WARNINGs that describe a thrown exception leaving a CLAIMED ledger row behind — release missing on
+a broadcast exception, a shared fan-out partial failure lost, orphan claims on a partial shared
+raise, the in-app broadcast failure swallowed, the handler swallowing context throws and dropping
+the shared media when there are no recipients — are the same class as gate correction W1 (a failure
+that is not reported is a claim that is never released, and a claim never released is an alert
+lost). They belong in one bounded follow-up on this branch before the tracker merges. The readability
+findings and the remaining suggestions are backlog rows.
