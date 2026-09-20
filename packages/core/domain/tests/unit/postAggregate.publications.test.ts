@@ -274,6 +274,39 @@ describe("PostAggregate — opening an episode", () => {
   });
 });
 
+describe("PostAggregate — the unsaved-records marker", () => {
+  it("reads TRUE after a mutation whose call then REFUSED", () => {
+    // The marker is what stops the full save from dropping records in silence, so it
+    // must survive the refusal paths too. An aggregate that returns `err` while holding
+    // a MUTATED record and reading CLEAN is precisely the state the marker exists to
+    // prevent: the next full save would accept it and the mutation would be lost.
+    //
+    // The reachable refusal: a FAILED post re-driven in SCHEDULE mode. The episode is
+    // opened on every re-drivable record FIRST, and the lifecycle check that refuses a
+    // delayed re-drive of a FAILED post (D9 / Q14) runs AFTER — so by the time the `err`
+    // is returned, every record already sits at the new episode.
+    const post = makeOpenedPost([CHANNEL_A]);
+    recordAttempt(post, CHANNEL_A, failed());
+    assert.strictEqual(post.status.value, PUBLISH_STATUS.FAILED, "the fixture is FAILED");
+    post.markPublicationsPersisted();
+    const episodeBefore = post.publications.find(CHANNEL_A)?.episode;
+
+    const opened = post.openPublicationEpisode({ enterPublishing: false });
+
+    assert.ok(!opened.ok, "a delayed re-drive of a FAILED post is refused");
+    assert.notStrictEqual(
+      post.publications.find(CHANNEL_A)?.episode,
+      episodeBefore,
+      "the record was moved to a new episode before the refusal"
+    );
+    assert.strictEqual(
+      post.hasUnsavedPublications(),
+      true,
+      "a mutated record is owed a publication write even when the call returned err"
+    );
+  });
+});
+
 describe("PostAggregate — the word follows the record", () => {
   it("returns PUBLISHING on the first recorded attempt of a scheduled post", () => {
     const post = makeOpenedPost();

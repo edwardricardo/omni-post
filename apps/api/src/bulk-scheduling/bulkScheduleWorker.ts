@@ -19,6 +19,7 @@ import type {
   ProcessBulkScheduleRowInput,
 } from "@core/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
 import type { FailBulkScheduleRowUseCase } from "@core/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+import { withTenantContext } from "../security/tenantContext.js";
 
 /** Minimal logger surface (a pino child satisfies this structurally). */
 export interface BulkScheduleJobLogger {
@@ -40,6 +41,16 @@ export interface BulkScheduleRowDeps {
  * @description Runs one row through ProcessBulkScheduleRowUseCase. A transient
  *   failure (INTERNAL_ERROR) throws so BullMQ retries; deterministic outcomes
  *   (SCHEDULED / FAILED / SKIPPED) resolve the job successfully.
+ *
+ *   A queue job carries no request, so the tenant scope is bound HERE, from the
+ *   `accountId` the producer already puts in the payload — the same convention the
+ *   repurpose / triage / trend in-process consumers follow. The row's write path
+ *   reaches `post`, `postContent` and `postMedia`, all tenant-guard-enrolled, so
+ *   without the binding the guard has no context to inject and throws.
+ *
+ *   A payload with no account is REFUSED, never run under the system scope. The
+ *   system scope makes the guard step aside, so an unbound row would write wherever
+ *   its ids pointed — a cross-tenant write produced by a missing field.
  * @param deps - The per-row use case + logger.
  * @param payload - The row job payload.
  */
@@ -48,7 +59,18 @@ export async function processBulkScheduleRowJob(
   payload: Record<string, unknown>
 ): Promise<void> {
   const input = payload as unknown as ProcessBulkScheduleRowInput;
-  const result = await deps.process.execute(input);
+  const accountId = input.accountId;
+  if (typeof accountId !== "string" || accountId.length === 0) {
+    deps.logger.error(
+      { itemId: input.itemId, batchId: input.batchId },
+      "Bulk schedule row carries no accountId; refusing to process it unbound"
+    );
+    throw new Error(
+      `Bulk schedule row ${String(input.itemId)} carries no accountId: it cannot be bound to a tenant`
+    );
+  }
+
+  const result = await withTenantContext({ accountId }, () => deps.process.execute(input));
   if (!result.ok) {
     deps.logger.warn(
       { itemId: input.itemId, batchId: input.batchId, error: result.error.message },
@@ -111,12 +133,25 @@ export async function handleBulkScheduleRowFailure(
     );
   }
 
-  if (payload.batchId !== undefined && payload.itemId !== undefined) {
-    const result = await deps.fail.execute({
-      batchId: payload.batchId,
-      itemId: payload.itemId,
-      reason,
-    });
+  const { batchId, itemId } = payload;
+  if (batchId !== undefined && itemId !== undefined) {
+    // Bound from the SAME payload field the row path binds from. This callback writes
+    // the same tenant-scoped rows — `FailBulkScheduleRowUseCase` updates the item and
+    // then the batch through `completeBatchIfSettled` — so unbound it throws on every
+    // retry-exhausted row and the batch never settles. Binding the success path alone
+    // would leave the failure path broken in exactly the situation it exists for.
+    const accountId = payload.accountId;
+    if (typeof accountId !== "string" || accountId.length === 0) {
+      deps.logger.error(
+        { jobId: job.id, itemId, batchId },
+        "Bulk schedule row carries no accountId; refusing to record its terminal failure unbound"
+      );
+      return;
+    }
+
+    const result = await withTenantContext({ accountId }, () =>
+      deps.fail.execute({ batchId, itemId, reason })
+    );
     if (!result.ok) {
       deps.logger.error(
         { jobId: job.id, itemId: payload.itemId, error: result.error.message },

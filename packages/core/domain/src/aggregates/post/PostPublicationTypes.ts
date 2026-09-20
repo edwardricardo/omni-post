@@ -37,6 +37,13 @@ export interface PublicationContext {
   setPublishedAt(publishedAt: Date): void;
   emit(event: DomainEvent): void;
   touch(): void;
+  /**
+   * Declares that this call changed a per-channel RECORD, as opposed to the post's word.
+   * Only the narrow save writes records, so the full save reads this to refuse rather
+   * than drop the change — and the distinction is why it is separate from `touch()`:
+   * `markAsPublished` touches the context and changes no record at all.
+   */
+  markRecordsChanged(): void;
   /** Enters the publication family through the lifecycle state machine. */
   startPublishing(providers: ProviderType[]): Result<void, InvalidStateTransitionError>;
 }

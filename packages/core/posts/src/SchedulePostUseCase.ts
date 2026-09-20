@@ -9,6 +9,7 @@ import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/U
 import {
   PostId,
   ChannelId,
+  type DomainEvent,
   type PostRepository,
   type EventDispatcher,
   type ChannelRepository,
@@ -136,7 +137,9 @@ export class SchedulePostUseCase implements UseCase<
 
     const post = findResult.value;
 
-    // 5. Verify all channels exist
+    // 5. Verify all channels exist. The parsed identities are KEPT: they are the
+    //    validated set this post is intended for, and step 7 records them.
+    const channelIds: ChannelId[] = [];
     for (const channelId of input.channelIds) {
       const channelIdResult = ChannelId.fromString(channelId);
       if (!channelIdResult.ok) {
@@ -148,6 +151,7 @@ export class SchedulePostUseCase implements UseCase<
       if (!channelResult.ok) {
         return err(new UseCaseError(`Channel not found: ${channelId}`, USE_CASE_ERRORS.NOT_FOUND));
       }
+      channelIds.push(channelIdResult.value);
     }
 
     // 6. Invoke domain method to schedule
@@ -168,7 +172,38 @@ export class SchedulePostUseCase implements UseCase<
       );
     }
 
-    // 7. Persist the aggregate and dispatch domain events
+    // 7. Persist the aggregate, declare its target set, and dispatch domain events.
+    //
+    // THE SEQUENCE IS FORCED FROM BOTH ENDS. It is written out because each step is
+    // there to satisfy a refusal that already exists, and re-ordering any two of them
+    // trips one of those refusals rather than merely changing style:
+    //
+    //   (1) the FULL save runs FIRST. It writes the post row, `scheduledAt`, the content
+    //       and the media — none of which the narrow save writes — and it REFUSES an
+    //       aggregate that already owes a publication write. So it cannot run after the
+    //       declaration.
+    //   (2) the events are CAPTURED and CLEARED next, and dispatched by nobody yet. The
+    //       outbox already holds them from (1), and both adapters hand
+    //       `aggregate.domainEvents` to the outbox writer, which inserts keyed on the
+    //       event id with no `skipDuplicates`. Leaving them on the aggregate makes step
+    //       (4) insert the same ids a second time: a P2002 that aborts this whole
+    //       transaction, not a duplicate row.
+    //   (3) the targets are declared AFTER the full save, for the reason in (1).
+    //       `declarePublicationTargets` emits no domain event, so this step adds nothing
+    //       to the outbox and step (2) stays sufficient.
+    //   (4) the NARROW save writes the records — it is the only writer of them — and
+    //       carries no events, so its own edit tripwire is satisfied by construction.
+    //   (5) the DISPATCH happens after the transaction COMMITS, outside the seam.
+    //
+    // Why (5) is outside, and why it was not before: `dispatchAll` runs the in-process
+    // handlers and then publishes a BullMQ batch — an external call, which
+    // ARCHITECTURE_CANON §UoW Rules keeps out of a transaction. Inside, it told consumers
+    // the post was scheduled while the transaction was still open, and steps (3) and (4)
+    // can both still fail — so a narrow-save failure or a declaration conflict would roll
+    // back a schedule the world had already been told about. Nothing is lost by waiting:
+    // the events are in the OUTBOX from step (1), so a crash between the commit and the
+    // dispatch is exactly what the outbox relay exists to recover.
+    let pendingEvents: DomainEvent[] = [];
     const doWork = async (): Promise<Result<SchedulePostOutput, UseCaseError>> => {
       const saveResult = await this.postRepository.save(post);
       if (!saveResult.ok) {
@@ -181,11 +216,29 @@ export class SchedulePostUseCase implements UseCase<
         );
       }
 
-      // Dispatch domain events (PostScheduled)
-      const events = post.domainEvents;
-      if (events.length > 0) {
-        await this.eventDispatcher.dispatchAll([...events]);
-        post.clearDomainEvents();
+      // Captured, not dispatched: the outbox holds them already, and the dispatch waits
+      // for the commit. Cleared so the narrow save below carries none of them.
+      pendingEvents = [...post.domainEvents];
+      post.clearDomainEvents();
+
+      // REC-1: the channels validated above are the system's answer to "where was this
+      // post meant to go", so they are PERSISTED rather than only echoed in the DTO.
+      const declared = post.declarePublicationTargets(channelIds);
+      if (!declared.ok) {
+        return err(
+          new UseCaseError(declared.error.message, USE_CASE_ERRORS.CONFLICT, declared.error)
+        );
+      }
+
+      const recordsSaved = await this.postRepository.savePublication(post);
+      if (!recordsSaved.ok) {
+        return err(
+          new UseCaseError(
+            "Failed to save the scheduled post's publication targets",
+            USE_CASE_ERRORS.INTERNAL_ERROR,
+            recordsSaved.error
+          )
+        );
       }
 
       // Business metric: post scheduled successfully
@@ -200,15 +253,22 @@ export class SchedulePostUseCase implements UseCase<
     };
 
     try {
-      if (this.unitOfWork) {
-        // The Result-aware seam: an `err` returned from `doWork` ROLLS BACK and comes
-        // back unchanged. The throw-based form stored that `err` in a variable and let
-        // the callback RESOLVE, so the unit of work saw a success and committed — and
-        // this save is multi-statement (post row, content, media, outbox), so a failure
-        // raised after the first statement committed a partial write (ADR-0023).
-        return await this.unitOfWork.executeResultInTransaction(doWork);
+      // The Result-aware seam: an `err` returned from `doWork` ROLLS BACK and comes
+      // back unchanged. The throw-based form stored that `err` in a variable and let
+      // the callback RESOLVE, so the unit of work saw a success and committed — and
+      // this save is multi-statement (post row, content, media, outbox), so a failure
+      // raised after the first statement committed a partial write (ADR-0023).
+      const result = this.unitOfWork
+        ? await this.unitOfWork.executeResultInTransaction(doWork)
+        : await doWork();
+
+      // Step (5). Only after the transaction has closed, and only when it COMMITTED: an
+      // `err` rolled the schedule back, so there is nothing to tell anyone about.
+      if (result.ok && pendingEvents.length > 0) {
+        await this.eventDispatcher.dispatchAll(pendingEvents);
       }
-      return await doWork();
+
+      return result;
     } catch (error: unknown) {
       return err(
         new UseCaseError(

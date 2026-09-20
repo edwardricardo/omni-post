@@ -230,6 +230,16 @@ CONCURRENCY=1 run_batch "integration:repositories" \
   tests/integration/backfillAdminMfaBackupCodes.integration.test.ts \
   tests/integration/postHardDeleteCascade.test.ts
 
+# REC-1: scheduling records the intended target set. DB-only (it drives
+# SchedulePostUseCase against real Postgres through the real repository and unit of
+# work, no live API). Its OWN batch rather than an append to integration:repositories,
+# because its subject is a USE CASE's persistence contract rather than a repository's,
+# and a batch of its own makes its count independently visible. CONCURRENCY=1: every
+# arm counts rows for a post it seeded, so a sibling sharing the runner would make an
+# exact-population assertion ambiguous.
+CONCURRENCY=1 run_batch "integration:schedule-target-set" \
+  tests/integration/schedulePostTargetSet.integration.test.ts
+
 # Retention-floor sweep. DB-only, and deliberately its OWN batch: it holds a second
 # PrismaClient opened on a hostile session time zone, so folding it into a batch that
 # shares the singleton would make which client a failure belongs to ambiguous.

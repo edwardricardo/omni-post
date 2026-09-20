@@ -19,6 +19,7 @@ import {
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { ProcessBulkScheduleRowUseCase } from "@core/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
 import type { FailBulkScheduleRowUseCase } from "@core/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+import { getTenantContext } from "../../../src/security/tenantContext.js";
 
 const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
@@ -58,6 +59,43 @@ describe("processBulkScheduleRowJob", () => {
       logger,
     };
     await assert.rejects(() => processBulkScheduleRowJob(deps, payload), /failed/i);
+  });
+
+  it("runs the use case INSIDE a tenant context bound to the payload's account", async () => {
+    // A queue job carries no request, so the scope is bound from the payload the producer
+    // put the account in — the convention the repurpose / triage / trend consumers already
+    // follow. Without it the row's writes reach `post` / `postContent` / `postMedia`, all
+    // tenant-guard-enrolled, with NO context: the guard throws, and the only thing that has
+    // ever covered this path is a double that never consults the guard.
+    let seen: string | undefined;
+    const deps = {
+      process: makeProcess(async () => {
+        seen = getTenantContext()?.accountId;
+        return ok({ itemId: "i1", status: "SCHEDULED", postId: "post-1" });
+      }),
+      logger,
+    };
+
+    await processBulkScheduleRowJob(deps, payload);
+
+    assert.strictEqual(seen, "a1", "the row runs in the account its payload names");
+  });
+
+  it("refuses a row whose payload names no account, rather than running unbound", async () => {
+    const deps = {
+      process: makeProcess(async () => ok({ itemId: "i1", status: "SCHEDULED", postId: "post-1" })),
+      logger,
+    };
+
+    await assert.rejects(
+      () => processBulkScheduleRowJob(deps, { ...payload, accountId: undefined }),
+      /account/i
+    );
+    assert.strictEqual(
+      (deps.process.execute as ReturnType<typeof vi.fn>).mock.calls.length,
+      0,
+      "an unbound row is never processed — falling back to the system scope would write across tenants"
+    );
   });
 });
 
@@ -101,6 +139,53 @@ describe("handleBulkScheduleRowFailure", () => {
     assert.strictEqual(failArgs.batchId, "b1");
     assert.strictEqual(failArgs.itemId, "i1");
     assert.match(failArgs.reason, /Exhausted 3 attempts/);
+  });
+
+  it("records the terminal failure INSIDE the tenant context the payload names", async () => {
+    // The failure callback is part of the worker and writes the same tenant-scoped rows
+    // the row path does: `FailBulkScheduleRowUseCase` updates `bulkScheduleItem` and then
+    // `bulkScheduleBatch` through `completeBatchIfSettled`. Unbound, the guard throws for
+    // EVERY retry-exhausted row and the batch never settles — so binding only the success
+    // path would leave the failure path broken in precisely the situation it exists for.
+    let seen: string | undefined;
+    const fail = makeFail(async () => {
+      seen = getTenantContext()?.accountId;
+      return ok(undefined);
+    });
+    const deadLetter = makeDeadLetter(async () => ok("dlq-1"));
+
+    await handleBulkScheduleRowFailure(
+      { fail, deadLetter, logger },
+      job({ attemptsMade: 3, opts: { attempts: 3 } }),
+      new Error("still broken")
+    );
+
+    assert.strictEqual(seen, "a1", "the terminal failure is recorded in the row's account");
+  });
+
+  it("refuses to record a terminal failure for a payload that names no account", async () => {
+    const fail = makeFail(async () => ok(undefined));
+    const deadLetter = makeDeadLetter(async () => ok("dlq-1"));
+
+    await handleBulkScheduleRowFailure(
+      { fail, deadLetter, logger },
+      job({
+        attemptsMade: 3,
+        opts: { attempts: 3 },
+        data: { ...payload, accountId: undefined },
+      }),
+      new Error("still broken")
+    );
+
+    assert.strictEqual(
+      (fail.execute as ReturnType<typeof vi.fn>).mock.calls.length,
+      0,
+      "an unbound manifest write is refused, never attempted under the system scope"
+    );
+    assert.ok(
+      logger.error.mock.calls.some(([, msg]) => typeof msg === "string" && /account/i.test(msg)),
+      "the refusal names its reason"
+    );
   });
 
   it("still records the terminal failure when the DLQ enqueue fails", async () => {

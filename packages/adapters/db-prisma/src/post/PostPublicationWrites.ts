@@ -239,6 +239,10 @@ export async function writePublicationSave(
   }
 
   await upsertPublications(tx, aggregate, accountId);
+  // The records are now written, so the aggregate no longer owes a publication write and
+  // the full save may carry it again. Stated here, beside the statements that make it
+  // true, for the same reason `incrementVersion` is.
+  aggregate.markPublicationsPersisted();
 
   if (outboxWriter) {
     await outboxWriter.writeEvents(tx, aggregate.domainEvents);

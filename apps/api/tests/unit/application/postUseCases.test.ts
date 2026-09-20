@@ -35,18 +35,49 @@ vi.mock("../../../src/metrics/businessMetrics.js", () => ({
 
 function createMockPostRepository() {
   const store = new Map<string, PostAggregate>();
+  /**
+   * What each save saw, in call order. `outbox` is what the real adapters hand to the
+   * outbox writer — `aggregate.domainEvents` at the moment of the write — so counting
+   * event ids across the two entries is how a test sees whether an event would reach
+   * the outbox twice. It would: `PrismaOutboxWriter` inserts with `createMany` keyed on
+   * the event id and no `skipDuplicates`, so a second insert of the same id is a P2002
+   * that aborts the whole transaction, not a duplicate row.
+   */
+  const writes: Array<{ save: "full" | "narrow" | "dispatch"; outbox: string[]; records: number }> =
+    [];
+  const recordWrite = (save: "full" | "narrow", post: PostAggregate): void => {
+    writes.push({
+      save,
+      outbox: post.domainEvents.map((event) => event.eventId),
+      records: post.publications.size,
+    });
+  };
   return {
     store,
+    writes,
     findById: vi.fn(async (id: PostId) => {
       const post = store.get(id.value);
       if (!post) return err(new EntityNotFoundError("Post", id.value));
       return ok(post);
     }),
     save: vi.fn(async (post: PostAggregate) => {
+      // The production full save REFUSES an aggregate that still owes a publication
+      // write; the double implements the SAME refusal so this suite is tested against
+      // the production contract instead of a laxer one.
+      if (post.hasUnsavedPublications()) {
+        return err(
+          new Error(
+            `post ${post.id.value} carries unsaved publication records: use savePublication`
+          )
+        );
+      }
+      recordWrite("full", post);
       store.set(post.id.value, post);
       return ok(undefined);
     }),
     savePublication: vi.fn(async (post: PostAggregate) => {
+      recordWrite("narrow", post);
+      post.markPublicationsPersisted();
       store.set(post.id.value, post);
       return ok(undefined);
     }),
@@ -70,10 +101,24 @@ function createMockPostRepository() {
   };
 }
 
-function createMockEventDispatcher() {
+/**
+ * @param order - When given, `dispatchAll` appends itself so a test can see WHERE the
+ *   dispatch sits relative to the saves. The production dispatcher runs in-process
+ *   handlers and then a BullMQ publish, so its position relative to the transaction
+ *   boundary is a correctness property, not an implementation detail.
+ */
+function createMockEventDispatcher(
+  order?: Array<{ save: "full" | "narrow" | "dispatch"; outbox: string[]; records: number }>
+) {
   return {
     dispatch: vi.fn(async () => {}),
-    dispatchAll: vi.fn(async () => {}),
+    dispatchAll: vi.fn(async (events: Array<{ eventId: string }>) => {
+      order?.push({
+        save: "dispatch",
+        outbox: events.map((event) => event.eventId),
+        records: 0,
+      });
+    }),
     register: vi.fn(),
   };
 }
@@ -385,7 +430,9 @@ describe("SchedulePostUseCase", () => {
 
   beforeEach(() => {
     repo = createMockPostRepository();
-    dispatcher = createMockEventDispatcher();
+    // Shares the repo's order log, so a case can assert WHERE the dispatch sits
+    // relative to the two saves.
+    dispatcher = createMockEventDispatcher(repo.writes);
     channelRepo = createMockChannelRepository();
     useCase = new SchedulePostUseCase(
       repo as any,
@@ -494,6 +541,66 @@ describe("SchedulePostUseCase", () => {
     });
   });
 
+  describe("the declared target set (REC-1 [static])", () => {
+    it("PERSISTS the validated identities through the narrow save, not only in the DTO", async () => {
+      const second = ChannelId.generate().value;
+      channelRepo.channels.set(second, { id: second, name: "Second Channel" });
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId, second],
+        scheduledFor: future,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(repo.savePublication).toHaveBeenCalledOnce();
+      const saved = repo.savePublication.mock.calls[0]![0] as PostAggregate;
+      expect(saved.publications.size).toBe(2);
+      expect(saved.publications.all.map((record) => record.channelId.value).sort()).toEqual(
+        [channelId, second].sort()
+      );
+      expect(saved.publications.all.every((record) => record.outcome.kind === "unresolved")).toBe(
+        true
+      );
+      expect(saved.hasUnsavedPublications()).toBe(false);
+    });
+
+    it("writes the full save FIRST and the narrow save SECOND, each carrying its own events", async () => {
+      // The order is forced from both ends and neither end is negotiable. The full save
+      // must run BEFORE the declaration, because it refuses an aggregate that owes a
+      // publication write. The narrow save must run AFTER it, because it is the only
+      // writer of the record — and it must not re-carry the events the full save already
+      // put in the outbox, which is a P2002 on the event id, not a duplicate row.
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId],
+        scheduledFor: future,
+      });
+
+      expect(result.ok).toBe(true);
+      const saves = repo.writes.filter((write) => write.save !== "dispatch");
+      expect(saves.map((write) => write.save)).toEqual(["full", "narrow"]);
+      expect(saves).toHaveLength(2);
+      const [fullSave, narrowSave] = saves;
+      expect(fullSave?.records).toBe(0);
+      expect(narrowSave?.records).toBe(1);
+
+      // SAVES only: the dispatch carries the same event ids the full save wrote, and it
+      // is not an outbox write — counting it here would read the outbox contract's own
+      // success as a duplicate.
+      const everyOutboxWrite = saves.flatMap((write) => write.outbox);
+      expect(everyOutboxWrite.length).toBeGreaterThan(0);
+      expect(new Set(everyOutboxWrite).size).toBe(
+        everyOutboxWrite.length,
+        "no event id reaches the outbox twice"
+      );
+      expect(narrowSave?.outbox).toEqual([]);
+    });
+  });
+
   describe("the transaction seam", () => {
     let uow: ReturnType<typeof createRecordingUnitOfWork>;
 
@@ -511,6 +618,43 @@ describe("SchedulePostUseCase", () => {
         // the port is what makes a future member of that port break this file.
         uow.port
       );
+    });
+
+    it("dispatches the events only AFTER the transaction has closed", async () => {
+      // The dispatcher is not a database call. `ComposedEventDispatcher.dispatchAll`
+      // runs the in-process handlers and then publishes a BullMQ batch, which is the
+      // "external API call" ARCHITECTURE_CANON §UoW Rules forbids inside a transaction.
+      // Inside it, the events reach consumers before the transaction that produced them
+      // has committed — and anything fallible after the dispatch can still roll it back.
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId],
+        scheduledFor: future,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(repo.writes.map((write) => write.save)).toEqual(["full", "narrow", "dispatch"]);
+      expect(dispatcher.dispatchAll).toHaveBeenCalledOnce();
+      expect(uow.state.resultCalls).toBe(1);
+    });
+
+    it("dispatches NOTHING when the transaction rolls back", async () => {
+      // The phantom completion this closes: consumers told a post was scheduled, by a
+      // transaction that then rolled the schedule back.
+      repo.savePublication.mockResolvedValueOnce(err(new Error("records write failed")));
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId],
+        scheduledFor: future,
+      });
+
+      expect(result.ok).toBe(false);
+      expect(uow.state.rolledBack).toHaveLength(1);
+      expect(dispatcher.dispatchAll).not.toHaveBeenCalled();
     });
 
     it("commits the schedule through the Result-aware seam", async () => {

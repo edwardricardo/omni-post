@@ -567,12 +567,12 @@ broken that.
 
 Commits under correction: `1a1daede` / `17442c74` / `16e4cf73` / `4a90089d`.
 
-| Id  | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Evidence                                                                                                                                                                                                                                                                                                                                                   |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| W1  | **Both `upsertPublications` calls REVERTED out of the full `save()`** (`doCreate` and `doUpdate`). The narrow `savePublication` is now the only production writer of the record. Nothing forced the calls: no domain event and no invariant needed them — they were an unrequested reading of "the target set travels with the post", which is REC-1 and belongs to T1c.6. They were also the worse shape twice over: untested (every upsert assertion sat in the narrow-save describe) and unchecked (the full save runs NEITHER of the narrow save's two refusals) | RED first, and it fails by WRITING: new case `writes NO publication row from the full save, even with targets declared` → **exit 1**, `Tests 1 failed \| 57 passed (58)`, `expected 0 … received 1` on `postChannelPublication.upsert.mock.calls.length`. GREEN after the revert: **58/58**                                                                |
-| W2  | **`savePublication`'s JSDoc and body moved to `PostPublicationWrites.savePublicationRecord`**; the repository keeps one delegating expression. The transaction BINDING deliberately did NOT move — it is passed in as a `TenantBoundRunner`, so `withGucBoundTransaction(this.prisma, resolveGucScope(this.tenantProvider), statements)` stays in the class that holds the provider                                                                                                                                                                                  | The first shape moved the binding too and **fitness #40 part B caught it**: `1 seam call(s) bind a scope that is not getAmbientGucScope() or resolveGucScope(this.tenantProvider)`, naming `PostPublicationWrites.ts:281`, exit 1. Reshaped → **part A 0 / part B 0**. The gate was right: both isolation layers must be fed from the same provider object |
-| S3  | Ledger line counts corrected to the committed measurement                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | `PostAggregate.ts` **900** at the gate (the ledger said 902) and `PostPublicationMethods.ts` **664** (said 667) — the ledger was written before the unused-import cleanup. Overrun at the gate **100**, not 102. After S4's JSDoc the root reads **912**, overrun **112**                                                                                  |
-| S4  | `PostAggregate.startPublishing`'s "Start publishing process" replaced with the rationale for the surviving provider-keyed parameter: nothing inside the aggregate asks a caller for providers any more, and the parameter is held open only for the one caller outside it that runs over posts carrying no record                                                                                                                                                                                                                                                    | Fitness **#8 = 0** (no slice or phase reference in the new text); prettier + eslint clean                                                                                                                                                                                                                                                                  |
+| Id  | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| W1  | **Both `upsertPublications` calls REVERTED out of the full `save()`** (`doCreate` and `doUpdate`). The narrow `savePublication` is now the only production writer of the record. Nothing forced the calls: no domain event and no invariant needed them — they were an unrequested reading of "the target set travels with the post", which is REC-1 and belongs to T1c.6. They were also the worse shape twice over: untested (every upsert assertion sat in the narrow-save describe) and unchecked (the full save runs NEITHER of the narrow save's two refusals). **HALF RE-DECIDED 2026-09-20 in `1c-1d` (Edward's shape (b)), and the half that changed is named rather than the row rewritten.** What STANDS: `savePublication` is still the only writer of the record, and the full save still upserts nothing. What was WITHDRAWN: the SILENCE. This row's own red pinned `result.ok` on a declared-but-unwritten aggregate, so `declarePublicationTargets()` + `save()` reported success and dropped the records — and because a declaration emits no domain event, nothing downstream could notice. The full save now REFUSES such an aggregate (`err(InvariantViolationError)` naming `savePublication`), and the case at `PrismaPostRepository.test.ts:1242` was re-decided in place to assert the refusal | RED first, and it fails by WRITING: new case `writes NO publication row from the full save, even with targets declared` → **exit 1**, `Tests 1 failed \| 57 passed (58)`, `expected 0 … received 1` on `postChannelPublication.upsert.mock.calls.length`. GREEN after the revert: **58/58**. **2026-09-20**: that case is now `REFUSES the full save when the aggregate carries publication changes it will not write`, with its own red (`expected true to be falsy`) |
+| W2  | **`savePublication`'s JSDoc and body moved to `PostPublicationWrites.savePublicationRecord`**; the repository keeps one delegating expression. The transaction BINDING deliberately did NOT move — it is passed in as a `TenantBoundRunner`, so `withGucBoundTransaction(this.prisma, resolveGucScope(this.tenantProvider), statements)` stays in the class that holds the provider                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | The first shape moved the binding too and **fitness #40 part B caught it**: `1 seam call(s) bind a scope that is not getAmbientGucScope() or resolveGucScope(this.tenantProvider)`, naming `PostPublicationWrites.ts:281`, exit 1. Reshaped → **part A 0 / part B 0**. The gate was right: both isolation layers must be fed from the same provider object                                                                                                             |
+| S3  | Ledger line counts corrected to the committed measurement                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | `PostAggregate.ts` **900** at the gate (the ledger said 902) and `PostPublicationMethods.ts` **664** (said 667) — the ledger was written before the unused-import cleanup. Overrun at the gate **100**, not 102. After S4's JSDoc the root reads **912**, overrun **112**                                                                                                                                                                                              |
+| S4  | `PostAggregate.startPublishing`'s "Start publishing process" replaced with the rationale for the surviving provider-keyed parameter: nothing inside the aggregate asks a caller for providers any more, and the parameter is held open only for the one caller outside it that runs over posts carrying no record                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Fitness **#8 = 0** (no slice or phase reference in the new text); prettier + eslint clean                                                                                                                                                                                                                                                                                                                                                                              |
 
 #### Measured line counts, base → HEAD
 
@@ -2531,3 +2531,463 @@ are not in the api tier). The fork that died was running a file this candidate d
 left open: the file is not named — the run log was not kept. If EPIPE recurs on this tier it gets a
 backlog row of its own (a known vitest-forks class: worker crash / pool teardown race), not a
 paragraph per unit; this is the second infrastructure non-result this change has recorded.
+
+### RDD receipt — the committed range `8454bab9` → `6e5408ac`
+
+Lineage `review-ac9ff6594d2303bc`, MEDIUM tier, ONE reliability lens. The review reached
+**approved** on its first admitted capture, the acknowledgement was executed exactly once and the
+authority is **burned**; **zero findings** — no Critical, no WARNING, no SUGGESTION — so nothing is
+carried forward from it to another unit.
+
+---
+
+## PR 1c — grandchild `1c-1d`, SECOND HALF (T1c.6 + T1c.6a + T1c.6b + T1c.6c) — COMPLETE
+
+Same branch, continuing from `6e5408ac`. Subject: **Edward's shape (b) with a LOUD refusal**, decided
+2026-09-20 after the first half reported T1c.6's record write as blocked. The blocker is resolved,
+not worked around: `savePublication` stays the only writer of publication records, the schedule path
+persists the declared target set through it, both schedulers that reach that path are bound per
+tenant, and the FULL save refuses rather than dropping records in silence.
+
+### The ordering constraint, solved by measurement rather than by argument
+
+The instruction posed it as a possible dead end: the narrow save carries a tripwire, the full save
+was to gain its mirror, and a sequence might exist that satisfies neither. Two measurements settled
+it, and the first CORRECTS the instruction's own premise.
+
+**1. `PUBLICATION_TRIPWIRE_EVENTS` is not what the brief described.** It was described as "the set of
+publication-family events the narrow save is FOR". Measured
+(`PostPublicationWrites.ts:57-61`), it is the set of **EDIT** events the narrow save REFUSES —
+`PostContentUpdated`, `PostMediaAdded`, `PostMediaRemoved` — because the narrow save writes no
+content statement and would lose the edit. So the narrow save's tripwire never fires on a
+publication event at all, and "full save → clear → declare → narrow save" cannot refuse at step 1
+for the reason the brief anticipated.
+
+**2. `declarePublicationTargets` emits NO domain event.** It calls `replaceRecords` and `touch` and
+returns (`PostPublicationMethods.ts:90-114`). Two consequences, and the second is the load-bearing
+one:
+
+- the declaration adds nothing to the outbox, so ONE `clearDomainEvents()` before it is sufficient;
+- **an event-based refusal on the full save cannot see the drop it exists to prevent.** The brief
+  proposed the mirror as "the full save refuses an aggregate whose pending events include a
+  publication-family event". Against `declarePublicationTargets()` + `save()` — the exact case
+  Edward's item (5) names — that check passes, because there is no event. Implementing it would have
+  produced a refusal that looks like a guard and guards nothing.
+
+So the refusal keys on the RECORDS, not on the events: the aggregate tracks whether it owes a
+publication write and the full save asks it. **The sequence, and why each step cannot move:**
+
+| #   | Step                                    | Why it is there                                                                                                                                                                                                                                                                           |
+| --- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `post.schedule()`                       | emits `PostScheduled`; changes no record                                                                                                                                                                                                                                                  |
+| 2   | FULL save                               | writes `scheduledAt`, content, media, and `PostScheduled` to the outbox. Must precede the declaration, because it refuses an aggregate that owes a publication write                                                                                                                      |
+| 3   | `dispatchAll` + `clearDomainEvents()`   | the outbox already holds those ids. Both adapters hand `aggregate.domainEvents` to `PrismaOutboxWriter`, which inserts with `createMany` keyed on `id: event.eventId` and NO `skipDuplicates` — carrying them into step 5 is a **P2002 that aborts the transaction**, not a duplicate row |
+| 4   | `declarePublicationTargets(channelIds)` | records the validated identities. Emits nothing, so step 3 stays sufficient                                                                                                                                                                                                               |
+| 5   | NARROW save                             | the only writer of the records. Carries zero events, so the edit tripwire is satisfied by construction, and it clears the aggregate's debt                                                                                                                                                |
+
+Both tripwires hold at their own save, every domain event reaches the outbox exactly once, and both
+saves run inside the ONE `executeResultInTransaction` the use case already opened. Pinned by
+`writes the full save FIRST and the narrow save SECOND, each carrying its own events`, which counts
+event ids across both writes and asserts the set has no duplicate.
+
+### What each mechanism is, as built
+
+| Mechanism                     | As built                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T1c.6 — the schedule path     | the five-step sequence above. The parsed `ChannelId[]` from the existing validation loop is now KEPT rather than discarded — REC-1's `[static]` scenario is satisfied by the identities that were already validated, not by re-parsing them                                                                                                   |
+| T1c.6c — the loud refusal     | `PostAggregate._publicationsDirty`, set by the publication context's `replaceRecords` and by the five facet functions that mutate a RECORD, read by `PrismaPostRepository.save` (which answers `err(InvariantViolationError)` naming `savePublication`, before any statement) and cleared by `writePublicationSave` beside `incrementVersion` |
+| T1c.6a — the recurrence sweep | discovery stays inside `withSystemContext("recurrence-sweep")`; the per-row create-and-schedule chain moved OUT of it into `withTenantContext({ accountId })`. `ProcessedRecurrence` gains `accountId` from the entity that already held it. A row without an account is skipped with a named reason and counted                              |
+| T1c.6b — the bulk worker      | `withTenantContext({ accountId })` around the row, from the payload field that was declared and never read; a payload with no account is refused with a named reason rather than run under the system scope                                                                                                                                   |
+
+### The recorded reds
+
+**T1c.6b** — the row ran with no tenant bound:
+
+```text
+ × runs the use case INSIDE a tenant context bound to the payload's account
+AssertionError: the row runs in the account its payload names
+undefined !== 'a1'
+ × refuses a row whose payload names no account, rather than running unbound
+      Tests  2 failed (8)
+```
+
+**T1c.6a** — the chain ran under the system scope, and the skip path did not exist:
+
+```text
+ × runs the create-and-schedule chain under the ROW's tenant, not the system scope
+AssertionError: expected { account: undefined, system: true } to deeply equal
+                        { account: 'acct-1', system: false }
+ × skips a due recurrence that carries no account, with a named reason
+      Tests  2 failed | 6 passed (8)
+```
+
+**T1c.6c** — the full save accepted an aggregate whose records it would not write:
+
+```text
+ × REFUSES the full save when the aggregate carries publication changes it will not write
+AssertionError: expected true to be falsy
+ × admits the full save for an aggregate whose publication records it did not touch
+TypeError: post.markPublicationsPersisted is not a function
+      Tests  2 failed | 54 passed (56)
+```
+
+**T1c.6** — nothing persisted the targets, and only one save ran:
+
+```text
+ × PERSISTS the validated identities through the narrow save, not only in the DTO
+AssertionError: expected "vi.fn()" to be called once, but got 0 times
+ × writes the full save FIRST and the narrow save SECOND, each carrying its own events
+AssertionError: expected [ 'full' ] to deeply equal [ 'full', 'narrow' ]
+      Tests  2 failed | 47 skipped (49)
+```
+
+### Two corrections the runs forced, both in code this unit wrote
+
+**1. The dirty marker was in the wrong place, and `integration:saga-recovery` is what said so.**
+The first version marked inside the publication context's `touch()`, reasoning that the context is
+built only for the publication facet so marking there covers every mutation and every future one.
+That reasoning is true about REACHABILITY and false about MEANING: `touch()` is the facet's generic
+"something changed" hook, and `markAsPublishedWithoutRecord` calls it while changing the post's WORD
+and no record at all. The publish-now promotion does exactly that and then uses the full save, so
+the refusal fired on a correct caller:
+
+```text
+ integration:saga-recovery   33 tests  10 pass  2 fail  21 cancel  exit 1
+ hookFailed: the pre-crash run must finish cleanly or the replay proves nothing
+             (error=Failed to save the promoted post)
+ + 'FAILED'  - 'COMPLETED'
+```
+
+The marker now keys on RECORD changes: `replaceRecords` (the declaration, which emits nothing) plus
+the five facet functions that mutate a record entity — and NOT `markAsPublished`, `markAsFailed`,
+`startPublishing` or `reconcilePublicationProjection`, which move only the word. After the rework:
+**33/33, exit 0**. The unit tiers were green through both versions; only an end-to-end batch could
+see it, which is the per-tip guard earning its place for the second time in this change.
+
+**2. The REC-1 integration fixture used the wrong enum spelling.** `provider: "x"` against
+`enum Provider { X … }` — `Invalid value for argument 'provider'. Expected Provider.` in the `before`
+hook, which cancels every case in the file. Domain outcome kinds are lowercase and the Prisma enum is
+not, a split the adapter already carries a mapping table for; the suite was written from the domain
+half of it.
+
+### Doubles updated — the mandatory `rg` over `**/tests/**`
+
+| Member                                                                             | Search                                                                    | Result                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ProcessedRecurrence.accountId` (new REQUIRED field)                               | `rg -n 'recurringPostId: "rec-' apps packages infra --glob '**/tests/**'` | 4 fixtures in `apps/api/tests/unit/recurring/RecurrenceScheduler.test.ts` (`rec-1`, `rec-2`, `rec-ok`, `rec-fail`) — all four updated. `CreatePostFromRecurrenceUseCase.test.ts:79` builds that use case's INPUT, not a `ProcessedRecurrence`, and is correctly untouched                                                                                                        |
+| `PostAggregate.markPublicationsPersisted` / `hasUnsavedPublications` (new members) | `rg -n 'savePublication' apps packages --glob '**/tests/**'`              | the `PostRepository` doubles that stub `savePublication`. `postUseCases.test.ts`'s double was updated to implement BOTH halves of the production contract — refuse on `hasUnsavedPublications()`, clear on a narrow save — so the suite is tested against the contract rather than a laxer one. The `@core/posts` doubles need neither: those use cases never call the full save |
+| `PublicationContext.markRecordsChanged` (new member)                               | `rg -n 'PublicationContext' apps packages --glob '**/tests/**'`           | zero hits — no test builds a `PublicationContext`; only the root constructs one                                                                                                                                                                                                                                                                                                  |
+
+### The `run_batch` wiring, proved by the runner's own count
+
+Fitness #30's rule is that a suite no `run_batch` names never executes. The new suite is named by a
+new batch, and the proof is the runner's per-batch line rather than an assertion that the line exists:
+
+```text
+  integration:schedule-target-set    3 tests     3 pass  0 fail  0 cancel  0 skip  exit 0  [OK]
+```
+
+It is its OWN batch rather than an append to `integration:repositories`, because its subject is a
+USE CASE's persistence contract rather than a repository's, and a separate batch makes its count
+independently visible — which is what turned the wiring into a measurement here.
+
+### REC-1's three `[integration]` scenarios, and the one asserted in a weaker form
+
+Scenario 1 (three channels → three unresolved records) and scenario 2 (the set is answerable with no
+saga row in existence — asserted by counting `SagaInstance` rows for the post, which is zero) are
+proved in their full form. **Scenario 3 is not, and the suite says so in its own header**: "a channel
+that never ran is recorded, not missing" is exercised in its SCHEDULE-time form, where no job has run
+for any channel. Its post-publish form — one channel of a real publish never reporting — needs the
+worker's attempt writes and belongs to the unit that adds them. A scenario asserted in a weaker form
+than its text is a scenario half-proved, and naming that is cheaper than discovering it later.
+
+### Design-silent decisions
+
+1. **The refusal keys on records, not events** — forced by measurement (above). The rejected
+   alternative is the one the brief proposed.
+2. **`markRecordsChanged` is a context method, not a `touch()` side effect** — the first shape was
+   the second, and the integration tier refuted it. The separation states that changing the WORD and
+   changing a RECORD are different facts, which is the whole distinction between the two saves.
+3. **The recurrence binding is SEQUENTIAL to discovery, not nested inside it** — not a style choice:
+   `resolveGucScope` answers the system sentinel whenever a system context is present, so a nested
+   `withTenantContext` binds `__system__`.
+4. **The bulk worker refuses rather than skipping** an account-less payload: a skip resolves the job
+   and loses the row silently; a throw lets BullMQ retry and then routes it to the DLQ, which is
+   where a payload that cannot be processed belongs.
+5. **T1c.6b binds at the WORKER, not in `ProcessBulkScheduleRowUseCase`** — the use case is
+   `@core/bulk-scheduling` and the tenant context is `apps/api` infrastructure; binding there would
+   put an infrastructure concern in the core and break the layering fitness gates. The three sibling
+   in-process consumers bind at the handler for the same reason.
+
+### Gates
+
+| Gate                                                                                                          | Result                                                                                     |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `@core/domain` vitest                                                                                         | **10 files, 190 passed**                                                                   |
+| `@core/posts` vitest                                                                                          | **6 files, 96 passed**                                                                     |
+| `@adapters/db-prisma` vitest                                                                                  | **70 passed**                                                                              |
+| `tsc --noEmit` `@core/domain` · `@core/posts` · `@core/recurring` · `@adapters/db-prisma` · `apps/api` (6144) | **0 · 0 · 0 · 0 · 0**                                                                      |
+| `apps/api` unit tier                                                                                          | **586 files, 9125 passed, 0 failed**, exit 0 (JSON reporter run; see the EPIPE note below) |
+| DB integration tier, `TIER=pr-integration` through the real runner                                            | **TOTAL: 534 tests, 534 pass, 0 fail, 0 cancel, 0 skip**, exit 0                           |
+| `integration:schedule-target-set` (new)                                                                       | **3 tests · 3 pass · 0 fail · 0 cancel · 0 skip**, exit 0                                  |
+| `integration:saga-recovery` (the mandatory per-tip guard)                                                     | **33 tests · 33 pass · 0 fail · 0 cancel · 0 skip**, exit 0                                |
+| `integration:repositories` (holds the integration `PrismaPostRepository` suite)                               | included in the tier run above, exit 0                                                     |
+
+**The EPIPE, third occurrence — the log is kept and the file is still NOT named.** The api tier's
+first run this half exited **1** with zero failed tests again:
+`Test Files 585 passed (586) · Tests 9123 passed (9125) · Errors 1 error`,
+`[vitest-pool]: Worker forks emitted error … write EPIPE`. Two runs were then made specifically to
+identify the dead file and BOTH came back clean — a JSON-reporter run (`586 / 9125`, exit 0) and a
+`--reporter=verbose` run that prints every file as it completes (`586 / 9125`, exit 0). So it is
+4 clean runs against 2 failures across the two halves, and the instrumentation that WOULD name it
+was in place for a run that did not fail.
+
+What is known rather than guessed: the dead file holds **exactly two tests** (586 − 585 = 1 file,
+9125 − 9123 = 2 tests), and the previous occurrence lost 2 tests as well, so it is plausibly the
+same file both times. Thirteen files in this tier have exactly two tests, and naming one of them
+would be a guess:
+
+```text
+adminAuthRoutes.resetConfirm · backfillAdminMfaBackupCodesIsolation · sagaRetryRecovery
+GetPostWithThreadQuery.ownership · ListPostsGlobalQuery.ownership · ListPostsUseCase.ownership
+providerOAuthX.pilot · HttpClientPort.contract · mentionFetchEnqueue
+FailBulkScheduleRowUseCase · ListGlossaryByLocaleQuery · ListStyleGuideRulesByLocaleQuery
+setupExternalNotificationUseCases
+```
+
+**The run logs are kept** in this run's scratchpad (`api-unit4.out` is the failing one,
+`api-verbose.out` the instrumented clean one). The instrumentation that names it is
+`--reporter=verbose`: the last `✓` line before the error identifies the file whose worker died. The
+honest state is that this is an intermittent pool failure nobody has yet caught under a reporter
+that would name it, and it has never coincided with a failing assertion.
+
+| Gate                                                      | Result                                                                                                                                         |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm check:circular`                                     | clean, 1607 files                                                                                                                              |
+| `eslint --max-warnings 0` on the 14 changed `.ts`         | **0**                                                                                                                                          |
+| `prettier -c` on every changed file · `pnpm format:check` | clean · clean (`run-tests.sh` excluded from the file list: prettier infers no parser for shell, and the repo script does not format it either) |
+| fitness #3 / #4 / #5 / #8 / #9 / #10 / #32                | 0 · 0 · 0 · 0 · 0 · 0 · 0                                                                                                                      |
+| fitness #21 / #23                                         | 0 · 0                                                                                                                                          |
+| fitness #38                                               | swept **0** · `db-prisma` ratchet **11**, unchanged                                                                                            |
+| fitness #40                                               | A: 3 seams (floor 3) / **0** · B: 14 sites (floor 10) / **0**                                                                                  |
+| fitness #41                                               | sites 8 (floor 8), exception hits 1, violations **0**                                                                                          |
+
+### Budget — this half, measured
+
+| File                                                                   | Stream   | Changed lines |
+| ---------------------------------------------------------------------- | -------- | ------------: |
+| `apps/api/src/recurring/RecurrenceScheduler.ts`                        | CODE     |        **75** |
+| `packages/core/posts/src/SchedulePostUseCase.ts`                       | CODE     |        **49** |
+| `packages/core/domain/src/aggregates/PostAggregate.ts`                 | CODE     |        **43** |
+| `apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`                   | CODE     |        **24** |
+| `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts`         | CODE     |        **23** |
+| `packages/core/domain/src/aggregates/post/PostPublicationTypes.ts`     | CODE     |         **7** |
+| `packages/core/recurring/src/ProcessRecurrenceUseCase.ts`              | CODE     |         **7** |
+| `packages/core/domain/src/aggregates/post/PostPublicationMethods.ts`   | CODE     |         **5** |
+| `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`        | CODE     |         **4** |
+| `apps/api/tests/integration/schedulePostTargetSet.integration.test.ts` | EVIDENCE |       **193** |
+| `apps/api/tests/unit/recurring/RecurrenceScheduler.test.ts`            | EVIDENCE |        **94** |
+| `apps/api/tests/unit/application/postUseCases.test.ts`                 | EVIDENCE |        **84** |
+| `apps/api/tests/unit/bulk-scheduling/bulkScheduleWorker.test.ts`       | EVIDENCE |        **38** |
+| `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`      | EVIDENCE |        **33** |
+| `apps/api/scripts/run-tests.sh`                                        | EVIDENCE |        **10** |
+
+**This half, CORRECTED after the gate re-measured it: CODE 237 · EVIDENCE 442 · SCRIPTS 10 ·
+DOCS 349.** The first figures counted `run-tests.sh`'s 10 lines inside EVIDENCE (it is a harness
+SCRIPT, its own stream) and understated DOCS by 54. With the committed first half (`6e5408ac`, CODE
+630 / EVIDENCE 1273 / docs 550) the unit totals **CODE 867 · EVIDENCE 1715**, against a §9.4.1
+forecast of 371 / 566 — **2.34×** and **3.05×**.
+
+The forecast is not the right comparison and saying so is more useful than restating the ratio:
+**three of the four tasks in this half did not exist when §9.4 was written.** T1c.6a, T1c.6b and
+T1c.6c are Edward's shape-(b) decision, taken after the first half measured T1c.6's blocker, and a
+line-item forecast cannot cost a decision that a later measurement forces. What the number does say
+is that T1c.6 was never a 371-line task: persisting the target set required a tenant binding in two
+schedulers and a refusal in the full save, and the original estimate costed only the call site.
+
+### For Edward — one product question this half raises, unanswered
+
+> **A recurrence whose row carries no `accountId` is now SKIPPED rather than created.** The field is
+> non-optional on the entity, so the case should be unreachable — but the scheduler refuses instead
+> of assuming, because the alternative is creating a post under the system scope and writing it
+> wherever its ids point. The skip is counted in the tick summary (`skipped`) and logged per row.
+> **The question is whether silence is enough**: nothing alerts on it, so a systematic cause (a
+> migration that left rows behind, a repository that stops selecting the column) would show up only
+> as posts quietly not being created. The same applies to the bulk worker's refusal, which at least
+> routes to the DLQ after retries. If these should raise rather than only count, that is a metric and
+> an alert rule, and it belongs with the sweep's own alerting (T1c.18) rather than here.
+>
+> **The PAIR, stated for your eye because two people would not choose it independently.** The two
+> refusals this half added answer the same condition — a job/row that names no account — in opposite
+> ways: the **bulk worker THROWS** (BullMQ retries, exhausts, routes to the DLQ, and the manifest
+> records a terminal failure), the **recurrence sweep SKIPS** (a warn log and a `skipped` counter,
+> and the tick moves on). Each is locally defensible: a queue job has a retry-and-DLQ apparatus to
+> fall into, and a sweep that threw would abandon every later row in the same tick. But they are two
+> local calls that ought to be one stated decision, and nobody has taken it. **A third variant lives
+> inside the bulk worker itself** (re-gate finding): the row path THROWS on a missing account
+> (`bulkScheduleWorker.ts:63-70`), the failure callback RETURNS (`:144-150`, logs and skips) — so an
+> account-less payload's terminal failure is never recorded and its batch never settles, the exact
+> outcome the callback's binding exists to prevent, in the one case it cannot reach. Unreachable in
+> practice (the primary producer guards `accountId` at `BulkScheduleDispatchEventHandler.ts:68-82`);
+> it belongs to the same decision.
+
+### Follow-up after the fresh-context gate of the second half — PASS WITH WARNINGS, one Critical
+
+Every measurable claim was confirmed (three integration counts, five `tsc`, three package suites,
+all fitness), and the loud refusal was judged SOUND. One Critical, eight warnings.
+
+| Id       | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Disposition                                                                                                               |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **C1**   | `SchedulePostUseCase` dispatched events INSIDE its transaction. `ComposedEventDispatcher.dispatchAll` (`:75-92`) runs in-process handlers and then a BullMQ `publishBatch` — the external call ARCHITECTURE_CANON §UoW Rules forbids in a transaction. A pre-existing placement, DORMANT before because nothing fallible followed it; my sequence put `declarePublicationTargets` and `savePublication` after it, so a narrow-save failure or a declare conflict now rolled back a schedule consumers had already been told about | **FIXED** — events captured before the clear, dispatched after the transaction resolves `ok`, nothing dispatched on `err` |
+| **(i)**  | In all five facet functions the mark sat at the END, after `applyDerivedStatus`'s `err` branch — so a refused call left a MUTATED record reading CLEAN                                                                                                                                                                                                                                                                                                                                                                            | **FIXED** — moved to immediately after each entity mutation                                                               |
+| **(ii)** | `PostAggregate.publications` hands out the LIVE mutable entity, so a caller could mutate outside the marking                                                                                                                                                                                                                                                                                                                                                                                                                      | **RECORDED** — measured (4 production call sites, all reads); backlog **SMELL-147**                                       |
+| **W1**   | REC-1 scenario 2 asserted `sagaInstance.count === 0` — "never had one", not "OUTLIVES one" — and the ledger called it full                                                                                                                                                                                                                                                                                                                                                                                                        | **FIXED** — a terminal saga row is seeded and the records are then read without it                                        |
+| **W2**   | `markPublicationsPersisted()` runs before the outbox write and before commit                                                                                                                                                                                                                                                                                                                                                                                                                                                      | **RECORDED** below as the same weakness, not only as a precedent                                                          |
+| **W3**   | The recurrence skip has a log but no metric                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | **ROUTED** to T1c.18, and the PAIR stated for Edward above                                                                |
+| **W4**   | SMELL-145 residual (3) is a LIVE pre-existing defect: `handleBulkScheduleRowFailure` runs outside the binding and writes tenant-scoped rows, so the guard throws for every retry-exhausted row and the batch never settles                                                                                                                                                                                                                                                                                                        | **FIXED** — the failure callback binds from the same payload field, refusing when absent                                  |
+| **W5**   | Three new `!.` in `postUseCases.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | **FIXED** — `toHaveLength` + destructuring; zero `!.` remain in the file                                                  |
+| **W6**   | The EPIPE has no backlog row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | **ADDED** — **SMELL-146**                                                                                                 |
+| **W7**   | Ledger completeness                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | **THIS SECTION**                                                                                                          |
+
+**C1's red, and what it shows.** The order log records the dispatch alongside the saves:
+
+```text
+ × dispatches the events only AFTER the transaction has closed
+AssertionError: expected [ 'full', 'dispatch', 'narrow' ] to deeply equal
+                        [ 'full', 'narrow', 'dispatch' ]
+ × dispatches NOTHING when the transaction rolls back
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+      Tests  2 failed | 3 passed | 46 skipped (51)
+```
+
+`['full','dispatch','narrow']` is the defect in one line: the world was told between the two saves.
+The fix costs nothing in durability — the events are in the OUTBOX from the full save, so a crash
+between the commit and the dispatch is exactly what the relay recovers. One follow-on the red also
+forced: the sequence case now filters the order log to SAVES before counting event ids, because the
+dispatch carries the same ids the full save wrote and counting it would read the outbox contract's
+own success as a duplicate.
+
+**The other four in-transaction dispatchers, measured — and one is NOT dormant.** The gate's premise
+was that they all have nothing fallible after the dispatch. Three do:
+`CreatePostUseCase.ts:204`, `UpdatePostUseCase.ts:183`, `DuplicatePostsBatchUseCase.ts:189` (that one
+inside a LOOP, so later iterations follow earlier dispatches). **`CreatePostFromRecurrenceUseCase.ts:199`
+does not**: it dispatches and then calls `postCreation.schedulePost(...)`, which is fallible. It
+compounds with a second pre-existing defect in the same function — `executeInTransaction` with a
+`let result` capture, the ADR-0023 hazard, so an `err` resolves the callback and the partial write
+commits instead of rolling back. All four are **NOT fixed here** and are backlog **SMELL-148**, with
+the recurrence one named as the live member to take first.
+
+**(i)'s red, and the branch that turned out unreachable.** The instruction suggested driving
+`applyDerivedStatus`'s `err` branch. Measured: **it is not reachable from a real mutation.** The
+three `*FromRecord` arms err only when `derive()` disagrees with the value `applyDerivedStatus` just
+read from it, and the `PUBLISHING` arm calls `startPublishing` only after `canTransitionTo` already
+said yes. A first attempt built a CANCELLED post whose record derives `PUBLISHED` and it did NOT
+refuse — `markAsPublishedFromRecord` sets the status directly and consults no FSM.
+
+A genuinely reachable refusal after a real mutation exists elsewhere, so no probe was needed:
+`openPublicationEpisode` opens the episode on every re-drivable record FIRST and runs the lifecycle
+check that refuses a delayed re-drive of a `FAILED` post (D9 / Q14) AFTER.
+
+```text
+ × reads TRUE after a mutation whose call then REFUSED
+AssertionError: a mutated record is owed a publication write even when the call returned err
+```
+
+The case is permanent rather than probe-only, which is the better outcome of the two the instruction
+allowed.
+
+**W2, named as the weakness it is.** `markPublicationsPersisted()` runs at
+`PostPublicationWrites.ts:242`, before the outbox write at `:245` and before the transaction commits.
+So an aggregate whose transaction later ROLLS BACK reads clean while the database holds none of its
+records. It is the same weakness `incrementVersion` has had in the same function, and citing that
+precedent is an explanation, not a defence: both make the in-memory aggregate claim a durability the
+transaction has not yet granted. It is bounded in practice because the aggregate is discarded with
+the failed request, and the seam that would fix both — persisting these marks after the commit —
+belongs to whoever revisits `writePublicationSave`, not to this unit.
+
+**The nesting sweep.** `withTenantContext` nested inside `withSystemContext` binds the system
+sentinel; `RecurrenceScheduler` was the only instance and it is fixed. Measured across the tree: **no
+second instance**. The durable guard — `withTenantContext` refusing or logging at ERROR when
+`getSystemContext()` is already set — is backlog **SMELL-149**, not done here because it changes a
+primitive every tenant-bound path runs through.
+
+**Figures corrected.** Four carried-forward numbers were wrong and are fixed above: EVIDENCE 442 (not
+452 — `run-tests.sh` is a SCRIPTS stream, not evidence), DOCS 349 (not 295), eslint on 14 changed
+`.ts` (not 17), unit-total EVIDENCE 1715 (not 1725).
+
+### Gates after the corrections
+
+| Gate                                                                                                          | Result                                                        |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `@core/domain` vitest                                                                                         | **10 files, 191 passed** (was 190; +1 marker case)            |
+| `@core/posts` vitest                                                                                          | **6 files, 96 passed**                                        |
+| `@adapters/db-prisma` vitest                                                                                  | **4 files, 70 passed**                                        |
+| `tsc --noEmit` `@core/domain` · `@core/posts` · `@core/recurring` · `@adapters/db-prisma` · `apps/api` (6144) | **0 · 0 · 0 · 0 · 0**                                         |
+| the four touched `apps/api` unit suites                                                                       | **4 files, 125 passed**                                       |
+| `integration:repositories`                                                                                    | **157 tests · 157 pass · 0 fail · 0 cancel · 0 skip**, exit 0 |
+| `integration:schedule-target-set`                                                                             | **3 · 3 · 0 · 0 · 0**, exit 0                                 |
+| **`integration:saga-recovery`**                                                                               | **33 · 33 · 0 · 0 · 0**, exit 0                               |
+| DB tier total (`TIER=pr-integration`)                                                                         | **534 tests, 534 pass, 0 fail, 0 cancel, 0 skip**, exit 0     |
+| `pnpm check:circular`                                                                                         | clean                                                         |
+| `eslint --max-warnings 0` on the 15 changed `.ts` · `prettier -c` · `pnpm format:check`                       | **0** · clean · clean                                         |
+| fitness #3 #4 #5 #8 #9 #10 #32 #21 #23                                                                        | 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0                             |
+| fitness #40                                                                                                   | A 3 seams (floor 3) / **0** · B 14 sites (floor 10) / **0**   |
+| fitness #41                                                                                                   | sites 8 (floor 8), exception hits 1, violations **0**         |
+
+**One gate lied to me, in the way this change has a rule about.** A first eslint invocation piped
+into `rg` to strip the `[boundaries]` deprecation noise and reported exit **1** — which was `rg`'s
+exit for matching no lines, not eslint's. Re-run with the output redirected and the exit read
+directly off `eslint`: **0**. The `1c-1c` lesson ("never read `$?` through a pipe when the number IS
+the gate") was written in this same ledger, and I still did it; it is recorded because catching it
+only because the message looked wrong is luck, not method.
+
+### Budget — the WHOLE second half, re-measured from `git diff --numstat HEAD` at write time
+
+Supersedes the pre-gate table above: these are the figures as the tree stands, not the earlier ones
+plus a correction.
+
+| File                                                                   | Stream   | Changed lines |
+| ---------------------------------------------------------------------- | -------- | ------------: |
+| `packages/core/posts/src/SchedulePostUseCase.ts`                       | CODE     |        **90** |
+| `apps/api/src/recurring/RecurrenceScheduler.ts`                        | CODE     |        **75** |
+| `apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`                   | CODE     |        **49** |
+| `packages/core/domain/src/aggregates/PostAggregate.ts`                 | CODE     |        **43** |
+| `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts`         | CODE     |        **23** |
+| `packages/core/domain/src/aggregates/post/PostPublicationMethods.ts`   | CODE     |         **8** |
+| `packages/core/domain/src/aggregates/post/PostPublicationTypes.ts`     | CODE     |         **7** |
+| `packages/core/recurring/src/ProcessRecurrenceUseCase.ts`              | CODE     |         **7** |
+| `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`        | CODE     |         **4** |
+| `apps/api/tests/integration/schedulePostTargetSet.integration.test.ts` | EVIDENCE |       **220** |
+| `apps/api/tests/unit/application/postUseCases.test.ts`                 | EVIDENCE |       **150** |
+| `apps/api/tests/unit/recurring/RecurrenceScheduler.test.ts`            | EVIDENCE |        **94** |
+| `apps/api/tests/unit/bulk-scheduling/bulkScheduleWorker.test.ts`       | EVIDENCE |        **85** |
+| `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`      | EVIDENCE |        **33** |
+| `packages/core/domain/tests/unit/postAggregate.publications.test.ts`   | EVIDENCE |        **33** |
+| `apps/api/scripts/run-tests.sh`                                        | SCRIPTS  |        **10** |
+
+**Second half: CODE 306 · EVIDENCE 615 · SCRIPTS 10 · DOCS 508** (`apply-progress.md` 450,
+`tasks.md` 50, `roadmap-detected-smells-backlog.md` 6, `design.md` 2). With the committed first half
+(CODE 630 / EVIDENCE 1273 / DOCS 550) the unit totals **CODE 936 · EVIDENCE 1888 · SCRIPTS 10 ·
+DOCS 1058**. The `apply-progress.md` figure counts this section's own lines; the orchestrator's
+numstat at commit is authoritative and will differ by whatever the final formatting pass moved.
+
+The corrective pass added **69 CODE** on top of the pre-gate 237, and every line of it is a defect
+the gate found rather than a feature: the dispatch moved out of the transaction, five marks moved to
+their mutation sites, and a tenant binding on the failure callback that was missing from a task
+whose whole subject is tenant binding. The DOCS figure is dominated by this ledger, which is where
+the reasoning for all of it lives.
+
+### Re-gate of the second half — PASS, three notes closed by the orchestrator before commit
+
+The bounded re-gate confirmed C1 fixed exactly as specified (both reds, the `if (result.ok …)`
+guard, a throw from the commit landing in the outer catch that never dispatches), all five marks
+ahead of every fallible step, the permanent hole-(i) case non-vacuous (the episode assertion), the
+recurrence dispatch live, twenty files, every gate re-run green, and five of six budget streams
+reconciling to the line (DOCS off by the backlog row's one deleted line). Three notes, none
+blocking, closed here rather than carried:
+
+| Note | Disposition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| N1   | **SMELL-148 undercounted its class 4 → 11.** The survey covered `@core/posts` + the recurrence caller; a tree-wide sweep finds seven more in `@core/crisis` and `@core/inbox`, all dormant (`return ok(...)` after the dispatch, verified by the re-gate), plus `SendReplyUseCase` breaking the same rule a second way (the PROVIDER send inside the transaction). The row now sizes the class at eleven with the file:line list. A backlog row's job is to size the class, so the sweep is the whole tree, not the directory at hand                                                                                                                                                      |
+| N2   | **Hole (i)'s fix widened what "dirty" means, and nothing said so.** With the marks ahead of every fallible step, the `applied: false` no-op returns (a replayed attempt, a duplicate confirm, a second sweep tick) also set the flag, so `hasUnsavedPublications()` reads TRUE after a call that changed nothing — a false positive that refuses a full save loudly, where the old false negative dropped records silently. Kept, deliberately: the mark stays adjacent to the mutation because that is what makes the rule legible. Both JSDoc blocks now say "reached the records" instead of "changed", and name the trade (`PostAggregate.ts`, the field and `hasUnsavedPublications`) |
+| N3   | **A third variant of the THROWS/SKIPS pair inside the bulk worker**: the row path throws on a missing account, the failure callback returns — so an account-less payload's terminal failure is never recorded and its batch never settles, unreachable in practice because the producer guards the field. Added to the `For Edward` paragraph as part of the same decision                                                                                                                                                                                                                                                                                                                 |

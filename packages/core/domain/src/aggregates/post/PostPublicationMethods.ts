@@ -184,6 +184,10 @@ export function openPublicationEpisode(
       if (!opened.ok) {
         return err(opened.error);
       }
+      // Marked at the MUTATION, not at the end: the lifecycle check below can still
+      // refuse, and a record already moved to a new episode is owed a write whatever
+      // this call answers.
+      context.markRecordsChanged();
     }
   }
 
@@ -245,6 +249,7 @@ export function recordChannelAttempt(
   if (!applied.ok) {
     return err(applied.error);
   }
+  context.markRecordsChanged();
   if (!applied.value.applied) {
     return ok({ applied: false, outcome: record.outcome });
   }
@@ -294,6 +299,7 @@ export function markRetractionOutcome(
   if (!marked.ok) {
     return err(marked.error);
   }
+  context.markRecordsChanged();
 
   emitAlertTransition(context, record);
   const projected = applyDerivedStatus(context);
@@ -330,6 +336,7 @@ export function clearPendingRetraction(
   if (!cleared.ok) {
     return err(cleared.error);
   }
+  context.markRecordsChanged();
   if (!cleared.value.applied) {
     return ok({ applied: false });
   }
@@ -369,6 +376,7 @@ export function expireRetractionActionWindow(
   if (!expired.ok) {
     return err(expired.error);
   }
+  context.markRecordsChanged();
   if (!expired.value.applied) {
     return ok({ applied: false });
   }

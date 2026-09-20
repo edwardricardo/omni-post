@@ -472,7 +472,7 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
       §9.8's pre-1b ~714 forecast; this task only removes from it, and the stale §9.8 row is a
       §7.2 backlog line, not silently absorbed.
       — sha: 08391306 (parked on `workstream/ncor8-1c-1b`; re-slotted last, see §9.4.1)
-- [ ] **T1c.6 RED→GREEN** — `SchedulePostUseCase.ts` (`:139-151`, `:171-200`) calls
+- [x] **T1c.6 RED→GREEN** — `SchedulePostUseCase.ts` (`:139-151`, `:171-200`) calls
       `declarePublicationTargets` after `post.schedule()` and migrates to
       `executeResultInTransaction`. This is REC-1's `[static]` scenario: the validated identities are
       PERSISTED, not only returned in the DTO.
@@ -525,7 +525,53 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
       guard, `/start` admission, sweep or content-lock path reads the record between scheduling and
       publishing. **The product question under (c)**: for a post scheduled for later, does the
       customer see WHERE IT IS GOING? REC-1 says yes; (c) says no for the whole interval.
-      — sha: pending (seam half only; the record write is unwritten)
+      **RESOLVED 2026-09-20 — Edward chose shape (b) with a LOUD refusal, and T1c.6 is now DONE.**
+      The sequence, forced from both ends and proved by a test that counts outbox writes per event
+      id: `post.schedule()` → FULL save (its events to the outbox) → `dispatchAll` +
+      `clearDomainEvents()` → `declarePublicationTargets(channelIds)` → `savePublication` (the
+      records). The full save must come FIRST because it refuses an aggregate that already owes a
+      publication write; the events must be cleared BETWEEN because both adapters hand
+      `aggregate.domainEvents` to an outbox writer that inserts keyed on the event id with no
+      `skipDuplicates`; and the declaration adds nothing to the outbox because it emits no event,
+      which is what makes one clear sufficient. Both saves run inside the ONE
+      `executeResultInTransaction` this use case already opened. The loud refusal, the recurrence
+      sweep and the bulk worker are T1c.6c/T1c.6a/T1c.6b below.
+      — sha: pending (orchestrator commits)
+- [x] **T1c.6a RED→GREEN (NEW — Edward's shape (b), 2026-09-20)** — the recurrence sweep binds each
+      row to its OWN tenant. `ProcessedRecurrence` gains `accountId` (the entity already holds it;
+      only the DTO dropped it), and `apps/api/src/recurring/RecurrenceScheduler.ts` keeps DISCOVERY
+      inside `withSystemContext("recurrence-sweep")` and moves the per-row create-and-schedule chain
+      OUT of it, into `withTenantContext({ accountId })` — D18 step 2's shape. **The two must be
+      SEQUENTIAL, not nested, and the RED proved it**: `resolveGucScope` answers the SYSTEM sentinel
+      whenever a system context is present, so a `withTenantContext` nested inside the sweep's system
+      scope binds `__system__` and the row's account is read by nobody. A row with no account is
+      SKIPPED with a named reason and counted in the tick summary, never run unbound.
+      — sha: pending (orchestrator commits)
+- [x] **T1c.6b RED→GREEN (NEW — Edward's shape (b), 2026-09-20)** — the bulk-schedule worker binds
+      the tenant from the `accountId` its job payload already carries and never read
+      (`ProcessBulkScheduleRowInput.accountId`). `apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`
+      wraps the row in `withTenantContext({ accountId })`, mirroring the repurpose / triage / trend
+      in-process consumers; a payload with no account is REFUSED with a named reason rather than run
+      under the system scope, which would make the guard step aside and write wherever the ids
+      pointed. Closes the BINDING half of SMELL-145; the residual (the unread field's other
+      consumers, and an integration case that drives one real row) stays named there.
+      — sha: pending (orchestrator commits)
+- [x] **T1c.6c RED→GREEN (NEW — Edward's LOUD REFUSAL, 2026-09-20)** — the FULL save refuses an
+      aggregate that still owes a publication write. `PostAggregate` gains `_publicationsDirty`, set
+      by the publication context's `replaceRecords` and by the five facet functions that mutate a
+      RECORD, cleared by the narrow save (`PostPublicationWrites.writePublicationSave`, beside
+      `incrementVersion`, for the same reason); `PrismaPostRepository.save` answers
+      `err(InvariantViolationError)` naming `savePublication`, before any statement.
+      **The marker keys on RECORD changes, not on `touch()`, and the integration tier is what
+      forced that**: a first version marked inside `context.touch()`, which every publication method
+      calls — including `markAsPublishedWithoutRecord`, which changes the post's WORD and no record
+      at all. It refused the publish-now promotion and took `integration:saga-recovery` from 33/33
+      to 2 fail / 24 cancelled. An event-based refusal was measured and REJECTED for the opposite
+      reason: `declarePublicationTargets` emits NO domain event, so events cannot see the very drop
+      the refusal exists to prevent.
+      **Forecast: none — these three tasks did not exist when §9.4 was written, so their lines are
+      measured after the fact rather than compared to a forecast.**
+      — sha: pending (orchestrator commits)
 - [ ] **T1c.7 GREEN** — `packages/shared/src/cqrs.ts`: `POST_COMMANDS.OPEN_PUBLICATION_EPISODE` +
       `reasonCode` on the completion command (`:272-295` already admits `success: false` + `error`);
       `apps/api/src/cqrs/handlers/PostCommandHandlers.ts` + tokens in

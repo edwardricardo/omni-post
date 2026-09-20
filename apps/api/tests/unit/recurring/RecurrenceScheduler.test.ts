@@ -14,6 +14,7 @@ import {
   RECURRENCE_SCHEDULER_TASK_ID,
 } from "../../../src/recurring/RecurrenceScheduler.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { getTenantContext, getSystemContext } from "../../../src/security/tenantContext.js";
 
 function makeMockScheduler() {
   return {
@@ -97,6 +98,7 @@ describe("RecurrenceScheduler", () => {
           recurringPostId: "rec-1",
           templatePostId: "tmpl-1",
           projectId: "proj-1",
+          accountId: "acct-1",
           channels: ["chan-1", "chan-2"],
           contentVariation: "EXACT",
           newOccurrenceCount: 1,
@@ -107,6 +109,7 @@ describe("RecurrenceScheduler", () => {
           recurringPostId: "rec-2",
           templatePostId: "tmpl-2",
           projectId: "proj-1",
+          accountId: "acct-1",
           channels: ["chan-3"],
           contentVariation: "EXACT",
           newOccurrenceCount: 5,
@@ -135,6 +138,95 @@ describe("RecurrenceScheduler", () => {
         dueAt,
         contentVariation: "EXACT",
       });
+    });
+
+    it("runs the create-and-schedule chain under the ROW's tenant, not the system scope", async () => {
+      // Discovery is cross-account and must stay system-scoped; the per-row work must
+      // NOT. Under the system scope the guard steps aside, so every write the chain makes
+      // lands wherever its ids point, and `savePublication` refuses outright — the shape
+      // the retraction sweep already uses (design.md:317 step 2) is the one this mirrors.
+      const dueAt = new Date("2026-05-15T09:00:00Z");
+      const seen: Array<{ account: string | undefined; system: boolean }> = [];
+      const processRec = {
+        execute: vi.fn(async () => {
+          seen.push({
+            account: getTenantContext()?.accountId,
+            system: getSystemContext() !== undefined,
+          });
+          return ok({
+            processed: [
+              {
+                recurringPostId: "rec-1",
+                templatePostId: "tmpl-1",
+                projectId: "proj-1",
+                accountId: "acct-1",
+                channels: ["chan-1"],
+                contentVariation: "EXACT",
+                newOccurrenceCount: 1,
+                deactivated: false,
+                dueAt,
+              },
+            ],
+            totalProcessed: 1,
+          });
+        }),
+      };
+      const createPost = {
+        execute: vi.fn(async () => {
+          seen.push({
+            account: getTenantContext()?.accountId,
+            system: getSystemContext() !== undefined,
+          });
+          return ok({ postId: "new-post-id", scheduled: true });
+        }),
+      };
+      const recScheduler = new RecurrenceScheduler(
+        scheduler as never,
+        processRec as never,
+        createPost as never,
+        logger as never
+      );
+
+      await recScheduler.tick();
+
+      expect(seen).toHaveLength(2);
+      expect(seen[0]).toEqual({ account: undefined, system: true });
+      expect(seen[1]).toEqual({ account: "acct-1", system: false });
+    });
+
+    it("skips a due recurrence that carries no account, with a named reason", async () => {
+      const dueAt = new Date("2026-05-15T09:00:00Z");
+      const processRec = makeProcessRecurrence([
+        {
+          recurringPostId: "rec-orphan",
+          templatePostId: "tmpl-1",
+          projectId: "proj-1",
+          channels: ["chan-1"],
+          contentVariation: "EXACT",
+          newOccurrenceCount: 1,
+          deactivated: false,
+          dueAt,
+        },
+      ]);
+      const createPost = makeCreatePost();
+      const recScheduler = new RecurrenceScheduler(
+        scheduler as never,
+        processRec as never,
+        createPost as never,
+        logger as never
+      );
+
+      await recScheduler.tick();
+
+      expect(createPost.execute).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ recurringPostId: "rec-orphan" }),
+        expect.stringMatching(/account/i)
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ skipped: 1 }),
+        expect.stringMatching(/tick complete/i)
+      );
     });
 
     it("no-ops cleanly when there are no due recurrences", async () => {
@@ -178,6 +270,7 @@ describe("RecurrenceScheduler", () => {
           recurringPostId: "rec-ok",
           templatePostId: "tmpl-ok",
           projectId: "proj-1",
+          accountId: "acct-1",
           channels: ["chan-1"],
           contentVariation: "EXACT",
           newOccurrenceCount: 1,
@@ -188,6 +281,7 @@ describe("RecurrenceScheduler", () => {
           recurringPostId: "rec-fail",
           templatePostId: "tmpl-fail",
           projectId: "proj-1",
+          accountId: "acct-1",
           channels: ["chan-2"],
           contentVariation: "EXACT",
           newOccurrenceCount: 1,

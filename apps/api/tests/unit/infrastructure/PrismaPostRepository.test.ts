@@ -1239,18 +1239,39 @@ describe("PrismaPostRepository", () => {
       expect(prisma._txClient.postChannelPublication.upsert.mock.calls.length).toBe(0);
     });
 
-    it("writes NO publication row from the full save, even with targets declared", async () => {
-      // The narrow save is the ONLY production writer of the record. The full save
-      // runs neither of the two refusals the narrow one runs — the projection
-      // invariant and the pending-edit tripwire — so a record written through it
-      // would be a record nothing checked.
+    it("REFUSES the full save when the aggregate carries publication changes it will not write", async () => {
+      // RE-DECIDED 2026-09-20. This case was "writes NO publication row from the full
+      // save, even with targets declared" and asserted `result.ok` — it pinned that the
+      // narrow save is the only writer of the record, which still holds, but it also
+      // pinned the SILENCE: `declarePublicationTargets()` + `save()` returned success and
+      // dropped the records. Silence is the half being withdrawn, not the single-writer
+      // rule. The full save still writes no publication row; it now REFUSES rather than
+      // succeeding, and it names the save that would have persisted them.
       prisma.post.count.mockImplementation(async () => 1);
       const post = await makeDeclaredAggregate();
 
       const result = await repo.save(post);
 
-      expect(result.ok).toBeTruthy();
+      expect(result.ok).toBeFalsy();
+      if (result.ok) return;
+      expect(result.error.name).toBe("InvariantViolationError");
+      expect(result.error.message).toMatch(/savePublication/);
       expect(post.publications.size).toBe(1);
+      expect(prisma._txClient.postChannelPublication.upsert.mock.calls.length).toBe(0);
+      expect(prisma._txClient.post.update.mock.calls.length).toBe(0);
+      expect(prisma.$transaction.mock.calls.length).toBe(0);
+    });
+
+    it("admits the full save for an aggregate whose publication records it did not touch", async () => {
+      // The refusal must key on CHANGE, not on the mere presence of records: after 1c
+      // every scheduled post has them, and an ordinary content update must still save.
+      prisma.post.count.mockImplementation(async () => 1);
+      const post = await makeDeclaredAggregate();
+      post.markPublicationsPersisted();
+
+      const result = await repo.save(post);
+
+      expect(result.ok).toBeTruthy();
       expect(prisma._txClient.post.update.mock.calls.length).toBe(1);
       expect(prisma._txClient.postChannelPublication.upsert.mock.calls.length).toBe(0);
     });

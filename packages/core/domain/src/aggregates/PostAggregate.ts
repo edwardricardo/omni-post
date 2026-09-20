@@ -141,6 +141,25 @@ export class PostAggregate extends AggregateRoot<PostId> {
   private readonly _contentVersions: ContentId[];
   private _publications: ChannelPublication[];
 
+  /**
+   * Whether a publication method has REACHED the per-channel records since they were loaded
+   * or last persisted. Set the moment a method touches a record, before that method can
+   * still refuse or answer `applied: false`, so a refusal path never leaves a mutated record
+   * reading clean; the price is that a no-op call (a replayed attempt, a duplicate confirm,
+   * a second sweep tick) also sets it, and the next full save refuses loudly where it could
+   * have proceeded. That is the direction to be wrong in.
+   *
+   * It exists because the two saves write different things and only one of them writes
+   * records: the FULL save persists the post, its content and its media and touches no
+   * publication row, while the NARROW save persists the word and every record. Without
+   * this marker, `declarePublicationTargets()` followed by the full save returns success
+   * and drops the records on the floor — and the domain emits no event for a declaration,
+   * so nothing downstream can notice. The flag is the aggregate's own answer to "do I
+   * still owe someone a publication write?", which is the only question the full save can
+   * ask without a second read.
+   */
+  private _publicationsDirty = false;
+
   private constructor(id: PostId, state: Omit<PostAggregateState, "id">) {
     super(id, state.createdAt, state.version);
     this._projectId = state.projectId;
@@ -260,6 +279,30 @@ export class PostAggregate extends AggregateRoot<PostId> {
    */
   get publications(): ChannelPublications {
     return ChannelPublications.of(this._publications);
+  }
+
+  /**
+   * @method hasUnsavedPublications
+   * @description Whether a publication write is still owed for this aggregate. Read by
+   *   the FULL save, which writes no publication row and must refuse rather than drop
+   *   the change in silence.
+   * @returns true when a publication method reached the records since they were loaded
+   *   or last persisted — including a call that then refused or applied nothing, which
+   *   is deliberate (a false positive refuses loudly; a false negative drops records)
+   */
+  hasUnsavedPublications(): boolean {
+    return this._publicationsDirty;
+  }
+
+  /**
+   * @method markPublicationsPersisted
+   * @description Records that the per-channel records have been written. Called by the
+   *   NARROW save once its statements have run — the same place, and for the same
+   *   reason, as {@link incrementVersion}: persistence is what makes the claim true, so
+   *   persistence is what states it.
+   */
+  markPublicationsPersisted(): void {
+    this._publicationsDirty = false;
   }
 
   get content(): Content {
@@ -745,6 +788,9 @@ export class PostAggregate extends AggregateRoot<PostId> {
       },
       replaceRecords: (records) => {
         this._publications = records;
+        // Replacing the set IS a record change, and it is the one that emits no domain
+        // event — so without this the full save would have nothing at all to notice.
+        this._publicationsDirty = true;
       },
       setStatus: (status) => {
         this._status = status;
@@ -757,6 +803,9 @@ export class PostAggregate extends AggregateRoot<PostId> {
       },
       touch: () => {
         this.markUpdated();
+      },
+      markRecordsChanged: () => {
+        this._publicationsDirty = true;
       },
       startPublishing: (providers) => this.startPublishing(providers),
     };
