@@ -11,9 +11,12 @@
  */
 
 import { describe, it, beforeEach, beforeAll, afterAll, vi, expect } from "vitest";
-import { PrismaPostRepository } from "@adapters/db-prisma";
+import { PrismaPostRepository, PrismaUnitOfWork, PostRowCorruptedError } from "@adapters/db-prisma";
 import { PostId, ProjectId, PUBLISH_STATUS } from "@core/domain/index.js";
-import { ambientTenantContextProvider } from "../../../src/security/tenantContext.js";
+import {
+  ambientTenantContextProvider,
+  withTenantContext,
+} from "../../../src/security/tenantContext.js";
 
 // ── console suppression ───────────────────────────────────────────────────────
 
@@ -77,6 +80,45 @@ function basePostRow() {
     }[],
     contentVersions: [] as { id: string; version: number }[],
     channelPublications: [] as unknown[],
+  };
+}
+
+/**
+ * One stored publication row. Defaults describe an unresolved channel; every case
+ * below overrides only the columns it is about, so a row can be made corrupt in
+ * exactly one way at a time.
+ */
+function publicationRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "f0000000-0000-4000-8000-000000000001",
+    postId: POST_ID,
+    accountId: ACCOUNT_ID,
+    channelId: CHANNEL_ID,
+    channel: { provider: "x" },
+    outcome: "UNRESOLVED",
+    externalId: null as string | null,
+    externalIdMissing: false,
+    liveFragments: [] as unknown[],
+    pendingRetraction: false,
+    retractionBlockedCause: null as string | null,
+    actionWindowStartedAt: null as Date | null,
+    actionWindowExpiredAt: null as Date | null,
+    retractionAlertHash: null as string | null,
+    retractionClearedCause: null as string | null,
+    retractionClearedAt: null as Date | null,
+    contentHash: null as string | null,
+    publishedAt: null as Date | null,
+    reasonCode: null as string | null,
+    reasonDetail: null as string | null,
+    lastFailureCode: null as string | null,
+    lastFailureDetail: null as string | null,
+    lastAttemptAt: PUBLISHED_AT as Date | null,
+    attempts: 1,
+    episode: 1,
+    episodeAttempts: 1,
+    createdAt: new Date("2026-01-01"),
+    updatedAt: new Date("2026-01-01"),
+    ...overrides,
   };
 }
 
@@ -237,8 +279,11 @@ function makeTransactionMockClient() {
     tweet: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     thread: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     // The seam binds `app.account_id` as the transaction's first statement whenever
-    // the resolved scope is defined, and it issues that through `$executeRaw`.
+    // the resolved scope is defined, and it issues that through `$executeRaw`. The
+    // unit of work binds the same GUC through `$queryRaw`, so both spellings are here
+    // and each branch can be told apart by which one was called.
     $executeRaw: vi.fn(async () => 1),
+    $queryRaw: vi.fn(async () => [{ set_config: ACCOUNT_ID }]),
   };
 }
 
@@ -362,6 +407,163 @@ describe("PrismaPostRepository", () => {
       expect(result.ok).toBeTruthy();
       expect(result.value.status.value).toBe("SCHEDULED");
       expect(result.value.scheduledAt !== undefined).toBeTruthy();
+    });
+  });
+
+  // ── findById: a corrupted publication row is surfaced, never repaired ────────
+
+  describe("findById — a stored publication row that cannot be read back", () => {
+    it("refuses the post when a stored live fragment cannot be parsed", async () => {
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        channelPublications: [
+          publicationRow({
+            outcome: "EXCLUDED",
+            pendingRetraction: true,
+            reasonCode: "THREAD_INTERRUPTED",
+            actionWindowStartedAt: PUBLISHED_AT,
+            liveFragments: [{ index: 1, externalId: "frag-1" }, { index: 2 }],
+          }),
+        ],
+      }));
+
+      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(
+        /live fragment/i
+      );
+    });
+
+    it("refuses the post when a published row carries an unreadable content fingerprint", async () => {
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        channelPublications: [
+          publicationRow({
+            outcome: "PUBLISHED",
+            externalId: "frag-1",
+            publishedAt: PUBLISHED_AT,
+            contentHash: "not-a-digest",
+            liveFragments: [{ index: 1, externalId: "frag-1" }],
+          }),
+        ],
+      }));
+
+      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(/fingerprint/i);
+    });
+
+    it("refuses the post when a published row carries no content fingerprint at all", async () => {
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        channelPublications: [
+          publicationRow({
+            outcome: "PUBLISHED",
+            externalId: "frag-1",
+            publishedAt: PUBLISHED_AT,
+            liveFragments: [{ index: 1, externalId: "frag-1" }],
+          }),
+        ],
+      }));
+
+      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(/fingerprint/i);
+    });
+
+    it("refuses the post when an excluded row carries an unrecognised reason code", async () => {
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        channelPublications: [publicationRow({ outcome: "EXCLUDED", reasonCode: "NOT_A_REASON" })],
+      }));
+
+      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(/reason/i);
+    });
+
+    it("returns the post with every stored fragment when the row reads back cleanly", async () => {
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        channelPublications: [
+          publicationRow({
+            outcome: "EXCLUDED",
+            pendingRetraction: true,
+            reasonCode: "THREAD_INTERRUPTED",
+            actionWindowStartedAt: PUBLISHED_AT,
+            liveFragments: [
+              { index: 1, externalId: "frag-1" },
+              { index: 2, externalId: "frag-2" },
+            ],
+          }),
+        ],
+      }));
+
+      const result = await repo.findById(PostId.fromStringUnsafe(POST_ID));
+
+      expect(result.ok).toBeTruthy();
+      const records = result.value.publications.all;
+      expect(records.length).toBe(1);
+      expect(records[0]?.liveFragments.length).toBe(2);
+    });
+
+    it("refuses with the typed error, reachable by name from the package barrel", async () => {
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        channelPublications: [publicationRow({ outcome: "EXCLUDED", reasonCode: "NOT_A_REASON" })],
+      }));
+
+      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toBeInstanceOf(
+        PostRowCorruptedError
+      );
+    });
+
+    it("refuses the post when an unresolved row carries a settled external id", async () => {
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        // Every one-directional CHECK on the table permits this row: they constrain what
+        // a PUBLISHED or EXCLUDED row must carry, never what an UNRESOLVED one must not.
+        channelPublications: [publicationRow({ outcome: "UNRESOLVED", externalId: "frag-1" })],
+      }));
+
+      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(/unresolved/i);
+    });
+
+    it("refuses the post when a stored external id cannot be read as a reference", async () => {
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        channelPublications: [
+          publicationRow({
+            outcome: "PUBLISHED",
+            externalId: "   ",
+            externalIdMissing: false,
+            publishedAt: PUBLISHED_AT,
+            contentHash: "a".repeat(64),
+            liveFragments: [{ index: 1, externalId: "frag-1" }],
+          }),
+        ],
+      }));
+
+      // Reading it as "the provider returned nothing" would flip externalIdMissing from
+      // false to true — a different fact about the publication, not a repair of this one.
+      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(
+        /external id|reference/i
+      );
+    });
+
+    it("refuses the post when a stored media row cannot be read back", async () => {
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        media: [
+          {
+            id: "e0000000-0000-4000-8000-000000000001",
+            postId: POST_ID,
+            type: "image" as const,
+            url: "not a url",
+            width: null,
+            height: null,
+            durationMs: null,
+            alt: null,
+            hash: null,
+          },
+        ],
+      }));
+
+      // Dropping it is worse than refusing: `doUpdate` computes the media to delete from
+      // what the aggregate carries, so a dropped row is deleted on the next save.
+      await expect(repo.findById(PostId.fromStringUnsafe(POST_ID))).rejects.toThrow(/media/i);
     });
   });
 
@@ -1037,6 +1239,51 @@ describe("PrismaPostRepository", () => {
       expect(args.update.outcome).toBe("PUBLISHED");
       expect(args.update.attempts).toBe(1);
       expect(args.update.episode).toBe(1);
+    });
+
+    it("binds the tenant as the first statement and runs every write on that one transaction", async () => {
+      const post = await makePublishedAggregate();
+
+      const result = await withTenantContext({ accountId: ACCOUNT_ID }, () =>
+        repo.savePublication(post)
+      );
+
+      expect(result.ok).toBeTruthy();
+      // ONE transaction: the narrow save never splits its statements across two
+      // connections, where the second would commit through the first's rollback.
+      expect(prisma.$transaction.mock.calls.length).toBe(1);
+      const tx = prisma._txClient;
+      // The GUC bind is the transaction's first statement, so every write below it
+      // is governed by `tenant_isolation` for THIS tenant.
+      expect(tx.$executeRaw.mock.calls.length).toBe(1);
+      expect(tx.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        tx.post.update.mock.invocationCallOrder[0] as number
+      );
+      expect(tx.post.update.mock.invocationCallOrder[0]).toBeLessThan(
+        tx.postChannelPublication.upsert.mock.invocationCallOrder[0] as number
+      );
+      // Nothing ran on the injected client, which the enclosing transaction does
+      // not own and which no bind would reach.
+      expect(prisma.post.update.mock.calls.length).toBe(0);
+    });
+
+    it("reuses the open unit of work instead of opening a transaction of its own", async () => {
+      const post = await makePublishedAggregate();
+      const uow = new PrismaUnitOfWork(prisma as never, ambientTenantContextProvider);
+
+      const result = await withTenantContext({ accountId: ACCOUNT_ID }, () =>
+        uow.executeInTransaction(() => repo.savePublication(post))
+      );
+
+      expect(result.ok).toBeTruthy();
+      // Exactly one transaction, opened by the unit of work — which binds the same
+      // GUC from the same provider before handing the client on.
+      expect(prisma.$transaction.mock.calls.length).toBe(1);
+      const tx = prisma._txClient;
+      expect(tx.$queryRaw.mock.calls.length).toBe(1);
+      expect(tx.post.update.mock.calls.length).toBe(1);
+      expect(tx.postChannelPublication.upsert.mock.calls.length).toBe(1);
+      expect(prisma.post.update.mock.calls.length).toBe(0);
     });
 
     it("writes the pending domain events to the outbox inside the same transaction", async () => {

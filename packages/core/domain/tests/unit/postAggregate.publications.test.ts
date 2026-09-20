@@ -91,6 +91,16 @@ function failed(publishedFragments: readonly FragmentReference[] = []): AttemptR
   };
 }
 
+/** A failure inside the budget: the channel stays unresolved and settles nothing. */
+function transientFailure(): AttemptResult {
+  return {
+    kind: "failed",
+    classification: ATTEMPT_CLASSIFICATIONS.TRANSIENT,
+    code: CHANNEL_FAILURE_CODES.RENDER_FAILED,
+    publishedFragments: [],
+  };
+}
+
 /** A post whose targets are declared and whose first episode is open. */
 function makeOpenedPost(channels: readonly ChannelId[] = [CHANNEL_A, CHANNEL_B]): PostAggregate {
   const post = makePost({ status: PublishStatus.scheduled() });
@@ -340,6 +350,63 @@ describe("PostAggregate — the word follows the record", () => {
 
     assert.ok(eventTypes(post).includes("PostChannelPublished"));
     assert.ok(eventTypes(post).includes("PostChannelExcluded"));
+  });
+
+  it("returns no channel outcome event when the attempt left the channel unresolved", () => {
+    const post = makeOpenedPost([CHANNEL_A]);
+
+    recordAttempt(post, CHANNEL_A, transientFailure());
+
+    assert.ok(
+      !eventTypes(post).includes("PostChannelExcluded"),
+      "an unresolved channel has no outcome to announce and must not be reported as excluded"
+    );
+    assert.ok(!eventTypes(post).includes("PostChannelPublished"));
+  });
+
+  it("returns no exclusion event for a channel whose earlier exclusion was superseded", () => {
+    const post = makeOpenedPost([CHANNEL_A]);
+    recordAttempt(post, CHANNEL_A, failed());
+    post.clearDomainEvents();
+
+    recordAttempt(post, CHANNEL_A, transientFailure(), { attemptNo: 2 });
+
+    assert.ok(
+      !eventTypes(post).includes("PostChannelExcluded"),
+      "the channel is unresolved again, so the stale reason must not be re-announced"
+    );
+  });
+
+  it("returns an error and emits nothing when an attempt lands on a channel with live content", () => {
+    const post = makeOpenedPost([CHANNEL_A]);
+    recordAttempt(post, CHANNEL_A, published());
+    const wordAfterPublish = post.status.value;
+    post.clearDomainEvents();
+
+    const second = post.recordChannelAttempt({
+      channelId: CHANNEL_A,
+      episode: 1,
+      attemptNo: 2,
+      planSize: 1,
+      result: transientFailure(),
+      now: NOW,
+    });
+
+    assert.ok(!second.ok, "the record refuses it and the refusal reaches the root");
+    assert.strictEqual(post.status.value, wordAfterPublish, "the word does not move");
+    assert.deepStrictEqual(eventTypes(post), [], "nothing is announced for an attempt not taken");
+  });
+
+  it("returns the recorded publication moment on the channel event, never the current time", () => {
+    const post = makeOpenedPost([CHANNEL_A]);
+
+    recordAttempt(post, CHANNEL_A, published());
+
+    const event = post.domainEvents.find((each) => each.eventType === "PostChannelPublished");
+    assert.ok(event !== undefined);
+    const payload = event.toPayload() as { publishedAt: string; contentHash: string };
+    assert.strictEqual(payload.publishedAt, NOW.toISOString());
+    assert.strictEqual(payload.contentHash, fingerprint().value);
   });
 
   it("returns an alert event naming the fragments when a thread strands content", () => {

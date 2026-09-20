@@ -132,6 +132,54 @@ export type AlertTransition = NoAlertTransition | RaiseAlertTransition | Resolve
 const NO_TRANSITION: AlertTransition = { kind: "none" };
 
 /**
+ * What a PUBLISHED channel carries, held as ONE value so the three facts are written
+ * and cleared together. Separately optional fields let a caller hold "published with
+ * no fingerprint", which the outcome could then only answer by inventing one.
+ */
+interface PublishedFacts {
+  readonly head: ProviderReference;
+  readonly publishedAt: Date;
+  readonly contentHash: ContentFingerprint;
+}
+
+/** What an EXCLUDED channel carries, held as one value for the same reason. */
+interface ExcludedFacts {
+  readonly reason: ExclusionReason;
+  readonly excludedAt: Date;
+}
+
+/**
+ * The stored fields that belong to a SETTLEMENT. An unresolved row carrying any of them
+ * describes no state this record can hold, so reconstitution refuses it rather than
+ * dropping the field on the floor.
+ *
+ * Two type-level constraints pin it from BOTH directions, which is what the previous
+ * single `satisfies` did not do — that one caught a typo and would have let a new field
+ * on either facts interface go unlisted:
+ *
+ * - the `satisfies` below says every entry is a settled fact AND a key of the stored
+ *   state, so a name that belongs to neither, or to only one, fails to compile;
+ * - `_everySettledFactIsForbidden` says the converse — that the union of both facts
+ *   interfaces' keys is COVERED by this list. Add a field to `PublishedFacts` or
+ *   `ExcludedFacts` without listing it here and that assertion's type collapses to
+ *   `never`, so `= true` stops compiling.
+ */
+const UNRESOLVED_FORBIDDEN_FACTS = [
+  "head",
+  "publishedAt",
+  "contentHash",
+  "reason",
+  "excludedAt",
+] as const satisfies readonly (keyof ChannelPublicationState &
+  (keyof PublishedFacts | keyof ExcludedFacts))[];
+
+/** Compile-time coverage of both facts interfaces by the list above. */
+const _everySettledFactIsForbidden:
+  keyof PublishedFacts | keyof ExcludedFacts extends (typeof UNRESOLVED_FORBIDDEN_FACTS)[number]
+  ? true
+  : never = true;
+
+/**
  * @class ChannelPublication
  * @description One (post, channel) record. Every state change goes through a method
  *   here; the fields have no setters, so an impossible combination — published with
@@ -143,8 +191,8 @@ export class ChannelPublication {
   private readonly _channelId: ChannelId;
   private readonly _provider: ProviderType | undefined;
 
-  private _outcomeKind: PublicationOutcomeKind;
-  private _head: ProviderReference | undefined;
+  private _published: PublishedFacts | undefined;
+  private _excluded: ExcludedFacts | undefined;
   private _liveFragments: readonly FragmentReference[];
   private _pendingRetraction: boolean;
   private _retractionBlockedCause: ChannelRetractionBlock | undefined;
@@ -153,21 +201,21 @@ export class ChannelPublication {
   private _retractionAlertHash: string | undefined;
   private _retractionClearedCause: ChannelRetractionClearance | undefined;
   private _retractionClearedAt: Date | undefined;
-  private _contentHash: ContentFingerprint | undefined;
-  private _publishedAt: Date | undefined;
-  private _reason: ExclusionReason | undefined;
   private _lastFailure: ChannelFailureRecord | undefined;
-  private _excludedAt: Date | undefined;
   private _attempts: number;
   private _episode: number;
   private _episodeAttempts: number;
 
-  private constructor(state: ChannelPublicationState) {
+  private constructor(
+    state: ChannelPublicationState,
+    published: PublishedFacts | undefined,
+    excluded: ExcludedFacts | undefined
+  ) {
     this._id = state.id;
     this._channelId = state.channelId;
     this._provider = state.provider;
-    this._outcomeKind = state.outcomeKind;
-    this._head = state.head;
+    this._published = published;
+    this._excluded = excluded;
     this._liveFragments = state.liveFragments ?? [];
     this._pendingRetraction = state.pendingRetraction ?? false;
     this._retractionBlockedCause = state.retractionBlockedCause;
@@ -176,11 +224,7 @@ export class ChannelPublication {
     this._retractionAlertHash = state.retractionAlertHash;
     this._retractionClearedCause = state.retractionClearedCause;
     this._retractionClearedAt = state.retractionClearedAt;
-    this._contentHash = state.contentHash;
-    this._publishedAt = state.publishedAt;
-    this._reason = state.reason;
     this._lastFailure = state.lastFailure;
-    this._excludedAt = state.excludedAt;
     this._attempts = state.attempts ?? 0;
     this._episode = state.episode ?? 0;
     this._episodeAttempts = state.episodeAttempts ?? 0;
@@ -199,22 +243,87 @@ export class ChannelPublication {
     channelId: ChannelId,
     options?: { id?: string; provider?: ProviderType }
   ): ChannelPublication {
-    return new ChannelPublication({
-      id: options?.id ?? ChannelPublication.generateId(),
-      channelId,
-      ...(options?.provider !== undefined && { provider: options.provider }),
-      outcomeKind: PUBLICATION_OUTCOME_KINDS.UNRESOLVED,
-    });
+    return new ChannelPublication(
+      {
+        id: options?.id ?? ChannelPublication.generateId(),
+        channelId,
+        ...(options?.provider !== undefined && { provider: options.provider }),
+        outcomeKind: PUBLICATION_OUTCOME_KINDS.UNRESOLVED,
+      },
+      undefined,
+      undefined
+    );
   }
 
   /**
    * @method reconstitute
-   * @description Rebuilds a record from persistence without re-running any rule.
+   * @description Rebuilds a record from persistence, re-running no rule but REFUSING a
+   *   state the record could never have produced. It is symmetric, and deliberately so —
+   *   a settlement that is MISSING its facts and a settlement whose facts arrive under
+   *   the wrong kind are the same defect seen from two sides:
+   *
+   *   - published with no head, no moment or no fingerprint;
+   *   - excluded with no reason or no moment;
+   *   - UNRESOLVED carrying any settled fact at all.
+   *
+   *   The third clause is the one that costs something to get wrong. Keeping the record's
+   *   two settlements as single values means an unresolved state simply has neither, so a
+   *   row that arrives unresolved WITH a `head` would have that head silently discarded —
+   *   and a discarded head is a provider identifier for content that may still be live.
+   *   Both halves therefore answer the same way: refuse, never repair.
    * @param state - The stored state
-   * @returns The record
+   * @returns Result with the record, or InvariantViolationError naming the offending fact
    */
-  static reconstitute(state: ChannelPublicationState): ChannelPublication {
-    return new ChannelPublication(state);
+  static reconstitute(
+    state: ChannelPublicationState
+  ): Result<ChannelPublication, InvariantViolationError> {
+    const channel = state.channelId.value;
+    let published: PublishedFacts | undefined;
+    let excluded: ExcludedFacts | undefined;
+
+    if (state.outcomeKind === PUBLICATION_OUTCOME_KINDS.PUBLISHED) {
+      const { head, publishedAt, contentHash } = state;
+      if (head === undefined) {
+        return err(new InvariantViolationError(`published channel ${channel} carries no head`));
+      }
+      if (publishedAt === undefined) {
+        return err(
+          new InvariantViolationError(`published channel ${channel} carries no publication moment`)
+        );
+      }
+      if (contentHash === undefined) {
+        return err(
+          new InvariantViolationError(`published channel ${channel} carries no content fingerprint`)
+        );
+      }
+      published = { head, publishedAt, contentHash };
+    }
+
+    if (state.outcomeKind === PUBLICATION_OUTCOME_KINDS.EXCLUDED) {
+      const { reason, excludedAt } = state;
+      if (reason === undefined) {
+        return err(new InvariantViolationError(`excluded channel ${channel} carries no reason`));
+      }
+      if (excludedAt === undefined) {
+        return err(
+          new InvariantViolationError(`excluded channel ${channel} carries no exclusion moment`)
+        );
+      }
+      excluded = { reason, excludedAt };
+    }
+
+    if (state.outcomeKind === PUBLICATION_OUTCOME_KINDS.UNRESOLVED) {
+      const carried = UNRESOLVED_FORBIDDEN_FACTS.filter((fact) => state[fact] !== undefined);
+      if (carried.length > 0) {
+        return err(
+          new InvariantViolationError(
+            `unresolved channel ${channel} carries settled facts it cannot hold: ${carried.join(", ")}`
+          )
+        );
+      }
+    }
+
+    return ok(new ChannelPublication(state, published, excluded));
   }
 
   private static generateId(): string {
@@ -235,21 +344,33 @@ export class ChannelPublication {
     return this._provider;
   }
 
+  /**
+   * DERIVED, never stored: the kind IS which settlement the record holds. Keeping a
+   * separate field would let it disagree with the facts it names.
+   */
   get outcomeKind(): PublicationOutcomeKind {
-    return this._outcomeKind;
+    if (this._published !== undefined) {
+      return PUBLICATION_OUTCOME_KINDS.PUBLISHED;
+    }
+    if (this._excluded !== undefined) {
+      return PUBLICATION_OUTCOME_KINDS.EXCLUDED;
+    }
+    return PUBLICATION_OUTCOME_KINDS.UNRESOLVED;
   }
 
   get head(): ProviderReference | undefined {
-    return this._head;
+    return this._published?.head;
   }
 
   /** True when the provider accepted the content and returned no identifier. */
   get externalIdMissing(): boolean {
-    return this._head !== undefined && !isProvidedReference(this._head);
+    const head = this._published?.head;
+    return head !== undefined && !isProvidedReference(head);
   }
 
   get externalId(): string | undefined {
-    return this._head !== undefined && isProvidedReference(this._head) ? this._head.id : undefined;
+    const head = this._published?.head;
+    return head !== undefined && isProvidedReference(head) ? head.id : undefined;
   }
 
   get liveFragments(): readonly FragmentReference[] {
@@ -285,15 +406,15 @@ export class ChannelPublication {
   }
 
   get contentHash(): ContentFingerprint | undefined {
-    return this._contentHash;
+    return this._published?.contentHash;
   }
 
   get publishedAt(): Date | undefined {
-    return this._publishedAt;
+    return this._published?.publishedAt;
   }
 
   get reason(): ExclusionReason | undefined {
-    return this._reason;
+    return this._excluded?.reason;
   }
 
   get lastFailure(): ChannelFailureRecord | undefined {
@@ -301,7 +422,7 @@ export class ChannelPublication {
   }
 
   get excludedAt(): Date | undefined {
-    return this._excludedAt;
+    return this._excluded?.excludedAt;
   }
 
   get attempts(): number {
@@ -323,19 +444,21 @@ export class ChannelPublication {
    * @returns One of the three outcome kinds
    */
   get outcome(): PublicationOutcome {
-    if (this._outcomeKind === PUBLICATION_OUTCOME_KINDS.PUBLISHED) {
+    const published = this._published;
+    if (published !== undefined) {
       return publishedOutcome({
-        head: this._head ?? noneReturnedReference(),
+        head: published.head,
         fragments: this._liveFragments,
-        publishedAt: this._publishedAt ?? new Date(0),
-        contentHash: this._contentHash ?? ContentFingerprint.ofContent({ body: "", mediaIds: [] }),
+        publishedAt: published.publishedAt,
+        contentHash: published.contentHash,
       });
     }
 
-    if (this._outcomeKind === PUBLICATION_OUTCOME_KINDS.EXCLUDED && this._reason !== undefined) {
+    const excluded = this._excluded;
+    if (excluded !== undefined) {
       return excludedOutcome({
-        reason: this._reason,
-        excludedAt: this._excludedAt ?? new Date(0),
+        reason: excluded.reason,
+        excludedAt: excluded.excludedAt,
         retraction: this._pendingRetraction
           ? {
               pending: true,
@@ -365,7 +488,7 @@ export class ChannelPublication {
    * @returns true when content of this post is live on this channel
    */
   hasLiveContent(): boolean {
-    return this._outcomeKind === PUBLICATION_OUTCOME_KINDS.PUBLISHED || this._pendingRetraction;
+    return this._published !== undefined || this._pendingRetraction;
   }
 
   /**
@@ -375,7 +498,7 @@ export class ChannelPublication {
    * @returns true when the channel can be included in a new episode
    */
   redrivable(): boolean {
-    return this._outcomeKind !== PUBLICATION_OUTCOME_KINDS.PUBLISHED && !this._pendingRetraction;
+    return this._published === undefined && !this._pendingRetraction;
   }
 
   /**
@@ -384,7 +507,7 @@ export class ChannelPublication {
    * @returns true when the channel is fully published
    */
   isPublished(): boolean {
-    return this._outcomeKind === PUBLICATION_OUTCOME_KINDS.PUBLISHED;
+    return this._published !== undefined;
   }
 
   // ── writes ───────────────────────────────────────────────────────────────
@@ -415,21 +538,18 @@ export class ChannelPublication {
       );
     }
 
-    if (this._reason !== undefined) {
+    const excluded = this._excluded;
+    if (excluded !== undefined) {
       this._lastFailure = {
-        code: this._reason.code,
-        ...(this._reason.detail !== undefined && { detail: this._reason.detail }),
-        at: this._excludedAt ?? new Date(),
+        code: excluded.reason.code,
+        ...(excluded.reason.detail !== undefined && { detail: excluded.reason.detail }),
+        at: excluded.excludedAt,
       };
     }
 
-    this._outcomeKind = PUBLICATION_OUTCOME_KINDS.UNRESOLVED;
-    this._reason = undefined;
-    this._excludedAt = undefined;
-    this._head = undefined;
+    this._published = undefined;
+    this._excluded = undefined;
     this._liveFragments = [];
-    this._publishedAt = undefined;
-    this._contentHash = undefined;
     this._actionWindowStartedAt = undefined;
     this._actionWindowExpiredAt = undefined;
     this._retractionAlertHash = undefined;
@@ -447,6 +567,32 @@ export class ChannelPublication {
    *   ordinal, refuses a published result that does not carry every fragment of the
    *   plan, and turns a failure that left fragments behind into an exclusion pending
    *   retraction whatever the classification and the budget say.
+   *
+   *   Which outcomes admit a NEW attempt, and which do not:
+   *
+   *   - UNRESOLVED — yes. This is the ordinary case; the budget decides what happens.
+   *   - EXCLUDED with nothing live — yes, and NOT because it is a no-op. A higher
+   *     ordinal arriving after an exclusion really does change the record: a published
+   *     result overturns the exclusion into a publication, and a transient failure
+   *     inside the budget clears the exclusion and returns the channel to UNRESOLVED,
+   *     which moves the post's word backwards. It is admitted because refusing it would
+   *     turn a BENIGN late report into an error the worker has to special-case — an
+   *     attempt that was already in flight when a nontransient failure excluded the
+   *     channel arrives with a higher ordinal through no fault of the worker, and
+   *     at-least-once delivery makes that ordinary rather than exceptional.
+   *     The canonical way back remains `openEpisode`, which resets the budget and keeps
+   *     the exclusion as history; the resurrection this admits does neither, and that
+   *     gap is recorded as SMELL-141 in `docs/reports/roadmap-detected-smells-backlog.md`
+   *     rather than closed here.
+   *   - PUBLISHED, or EXCLUDED pending retraction — NO. Both have content ON the
+   *     provider, which is exactly what {@link hasLiveContent} answers, and it is the
+   *     same predicate `openEpisode` refuses on. A new attempt there either double-posts
+   *     or discards the settlement that names what is live, leaving fragments on the
+   *     provider with nothing in the record pointing at them.
+   *
+   *   The live-content refusal sits AFTER the replay check on purpose: a worker
+   *   re-delivering the attempt it already recorded must keep getting `applied: false`,
+   *   not an error, or every at-least-once redelivery becomes a failure.
    * @param input - The episode, the attempt ordinal, the plan size and the result
    * @returns Result with `applied`, or InvariantViolationError
    */
@@ -473,6 +619,14 @@ export class ChannelPublication {
       return ok({ applied: false });
     }
 
+    if (this.hasLiveContent()) {
+      return err(
+        new InvariantViolationError(
+          `channel ${this._channelId.value} already has live content on the provider and cannot record a new attempt`
+        )
+      );
+    }
+
     if (input.result.kind === PUBLICATION_OUTCOME_KINDS.PUBLISHED) {
       if (input.result.fragments.length !== input.planSize) {
         return err(
@@ -484,13 +638,13 @@ export class ChannelPublication {
 
       this._attempts += 1;
       this._episodeAttempts = input.attemptNo;
-      this._outcomeKind = PUBLICATION_OUTCOME_KINDS.PUBLISHED;
-      this._head = input.result.head ?? noneReturnedReference();
+      this._published = {
+        head: input.result.head ?? noneReturnedReference(),
+        publishedAt: input.result.publishedAt,
+        contentHash: input.result.contentHash,
+      };
+      this._excluded = undefined;
       this._liveFragments = sortFragments(input.result.fragments);
-      this._publishedAt = input.result.publishedAt;
-      this._contentHash = input.result.contentHash;
-      this._reason = undefined;
-      this._excludedAt = undefined;
       this._pendingRetraction = false;
       this._retractionBlockedCause = undefined;
       return ok({ applied: true });
@@ -520,7 +674,8 @@ export class ChannelPublication {
       return this.exclude(exhaustionCode, input.result.detail, now);
     }
 
-    this._outcomeKind = PUBLICATION_OUTCOME_KINDS.UNRESOLVED;
+    this._published = undefined;
+    this._excluded = undefined;
     return ok({ applied: true });
   }
 
@@ -616,9 +771,11 @@ export class ChannelPublication {
     }
 
     this._actionWindowExpiredAt = input.now;
-    this._outcomeKind = PUBLICATION_OUTCOME_KINDS.EXCLUDED;
-    this._reason = reason.value;
-    this._excludedAt = this._excludedAt ?? input.now;
+    this._published = undefined;
+    this._excluded = {
+      reason: reason.value,
+      excludedAt: this._excluded?.excludedAt ?? input.now,
+    };
 
     return ok({ applied: true });
   }
@@ -698,9 +855,8 @@ export class ChannelPublication {
       return err(new InvariantViolationError(reason.error.message));
     }
 
-    this._outcomeKind = PUBLICATION_OUTCOME_KINDS.EXCLUDED;
-    this._reason = reason.value;
-    this._excludedAt = now;
+    this._published = undefined;
+    this._excluded = { reason: reason.value, excludedAt: now };
     this._lastFailure = {
       code: reason.value.code,
       ...(reason.value.detail !== undefined && { detail: reason.value.detail }),
