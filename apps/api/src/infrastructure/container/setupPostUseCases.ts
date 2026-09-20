@@ -32,6 +32,10 @@ import {
   HardDeletePostsBatchUseCase,
   DuplicatePostsBatchUseCase,
   CompletePostPublishingUseCase,
+  OpenPublicationEpisodeUseCase,
+  RecordChannelPublicationAttemptUseCase,
+  ConfirmManualRetractionUseCase,
+  ExpireRetractionActionWindowUseCase,
 } from "@core/posts/index.js";
 import { ParseBulkScheduleCsvUseCase } from "@core/bulk-scheduling/ParseBulkScheduleCsvUseCase.js";
 import { ConfirmBulkScheduleUseCase } from "@core/bulk-scheduling/ConfirmBulkScheduleUseCase.js";
@@ -129,6 +133,52 @@ export function setupPostUseCases(container: Container): void {
       new CompletePostPublishingUseCase(
         container.resolve<PostRepository>(TOKENS.PostRepository),
         container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+
+  // Per-channel publication writers. All four take the post repository and the
+  // SHARED Unit of Work and nothing else: each loads the aggregate, calls one
+  // root method and writes through the narrow `savePublication`, so the work is
+  // a single-aggregate read-then-write that wants the `app.account_id` GUC bound
+  // at transaction start — not a dedicated Serializable transaction, which would
+  // buy retryable serialization failures and no isolation this work needs.
+  // None takes an EventDispatcher, for the promotion writer's reason above: the
+  // aggregate's events are written to the outbox by the same transaction and
+  // delivered after it commits.
+  container.register<OpenPublicationEpisodeUseCase>(
+    TOKENS.OpenPublicationEpisodeUseCase,
+    () =>
+      new OpenPublicationEpisodeUseCase(
+        container.resolve<PostRepository>(TOKENS.PostRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<RecordChannelPublicationAttemptUseCase>(
+    TOKENS.RecordChannelPublicationAttemptUseCase,
+    () =>
+      new RecordChannelPublicationAttemptUseCase(
+        container.resolve<PostRepository>(TOKENS.PostRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<ConfirmManualRetractionUseCase>(
+    TOKENS.ConfirmManualRetractionUseCase,
+    () =>
+      new ConfirmManualRetractionUseCase(
+        container.resolve<PostRepository>(TOKENS.PostRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<ExpireRetractionActionWindowUseCase>(
+    TOKENS.ExpireRetractionActionWindowUseCase,
+    () =>
+      new ExpireRetractionActionWindowUseCase(
+        container.resolve<PostRepository>(TOKENS.PostRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

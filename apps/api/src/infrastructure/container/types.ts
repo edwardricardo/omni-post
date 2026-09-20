@@ -77,6 +77,17 @@ export const TOKENS = {
   DuplicatePostsBatchUseCase: Symbol.for("DuplicatePostsBatchUseCase"),
   CompletePostPublishingUseCase: Symbol.for("CompletePostPublishingUseCase"),
 
+  // Use Cases (per-channel publication record). Four writers over one aggregate
+  // seam: the episode a publishing run is scoped by, the attempt each channel
+  // reports back, the customer's confirmation that they removed fragments a
+  // provider would not retract, and the sweep that closes an action window
+  // nobody acted on. Each writes through the narrow `savePublication`, so each
+  // gets the shared Unit of Work rather than a transaction of its own.
+  OpenPublicationEpisodeUseCase: Symbol.for("OpenPublicationEpisodeUseCase"),
+  RecordChannelPublicationAttemptUseCase: Symbol.for("RecordChannelPublicationAttemptUseCase"),
+  ConfirmManualRetractionUseCase: Symbol.for("ConfirmManualRetractionUseCase"),
+  ExpireRetractionActionWindowUseCase: Symbol.for("ExpireRetractionActionWindowUseCase"),
+
   // Use Cases (project + account lifecycle). The NORMAL delete is the
   // reversible soft delete; the irreversible erasure path lives under its own
   // token so a customer-facing call site cannot resolve it by mistake. The

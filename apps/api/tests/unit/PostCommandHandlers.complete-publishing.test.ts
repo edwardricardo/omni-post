@@ -19,7 +19,7 @@ import {
   TEST_CHANNEL_ID_2,
 } from "./PostCommandHandlers.test-helpers.js";
 import { CompletePostPublishingCommandHandler } from "../../src/cqrs/handlers/PostCommandHandlers.js";
-import { POST_COMMANDS } from "@shared/types/cqrs.js";
+import { POST_COMMANDS, CompletePostPublishingCommandSchema } from "@shared/types/cqrs.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 describe("CompletePostPublishingCommandHandler", () => {
@@ -60,6 +60,61 @@ describe("CompletePostPublishingCommandHandler", () => {
 
       expect(result.success).toBeFalsy();
       expect(ctx.completePostPublishingUseCase.executeCalls.length).toBe(0);
+    });
+  });
+
+  // The exclusion reason the record keeps per channel. It is DECLARED here before
+  // anything reads it, so the emitter and the contract move in one step rather than
+  // two: an undeclared key is stripped by Zod without a word, which would let the
+  // emitter believe it had sent a reason that never left the parser.
+  describe("the additive reasonCode field", () => {
+    it("is declared by the contract and survives parsing instead of being stripped", () => {
+      const parsed = CompletePostPublishingCommandSchema.safeParse(
+        buildCompletePostPublishingCommand({
+          channels: [
+            {
+              channelId: TEST_CHANNEL_ID_1,
+              success: false,
+              error: "the provider rejected the content",
+              reasonCode: "CONTENT_REJECTED",
+            },
+          ],
+        })
+      );
+
+      expect(parsed.success).toBeTruthy();
+      expect(parsed.data?.data.outcome.channels[0]?.reasonCode).toBe("CONTENT_REJECTED");
+    });
+
+    it("stays optional — a command that carries none still parses", () => {
+      const parsed = CompletePostPublishingCommandSchema.safeParse(
+        buildCompletePostPublishingCommand()
+      );
+
+      expect(parsed.success).toBeTruthy();
+      expect(parsed.data?.data.outcome.channels[0]?.reasonCode).toBeUndefined();
+    });
+
+    // The reconciliation that reads the reason is parked (T1c.5), so THIS handler
+    // still routes to the promotion use case, which has no field for it. The case
+    // pins that the addition changed nothing here: it is a regression guard, and it
+    // was green before the field existed as well as after.
+    it("is not forwarded by this handler — the promotion use case has no field for it yet", async () => {
+      await handler.handle(
+        buildCompletePostPublishingCommand({
+          channels: [
+            { channelId: TEST_CHANNEL_ID_1, success: false, reasonCode: "BUDGET_EXHAUSTED" },
+          ],
+        })
+      );
+
+      const input = ctx.completePostPublishingUseCase.executeCalls[0] as {
+        outcome: { channels: Array<Record<string, unknown>> };
+      };
+      expect(input.outcome.channels[0]).toStrictEqual({
+        channelId: TEST_CHANNEL_ID_1,
+        success: false,
+      });
     });
   });
 
@@ -118,7 +173,7 @@ describe("CompletePostPublishingCommandHandler", () => {
       const result = await handler.handle(buildCompletePostPublishingCommand());
 
       expect(result.success).toBeTruthy();
-      expect(result.data.applied).toBeTruthy();
+      expect(result.data?.applied).toBeTruthy();
     });
   });
 
@@ -128,8 +183,8 @@ describe("CompletePostPublishingCommandHandler", () => {
 
       const result = await handler.handle(buildCompletePostPublishingCommand());
 
-      expect(result.data.version).toBe(37);
-      expect(result.data.postId).toBe(TEST_POST_ID);
+      expect(result.data?.version).toBe(37);
+      expect(result.data?.postId).toBe(TEST_POST_ID);
     });
 
     it("emits exactly one user-action audit event when the promotion applied", async () => {
@@ -147,7 +202,7 @@ describe("CompletePostPublishingCommandHandler", () => {
       const result = await handler.handle(buildCompletePostPublishingCommand());
 
       expect(result.success).toBeTruthy();
-      expect(result.data.applied).toBeFalsy();
+      expect(result.data?.applied).toBeFalsy();
       expect(result.events?.length).toBe(0);
     });
 

@@ -31,6 +31,7 @@ import {
   UpdatePostUseCase,
   DeletePostUseCase,
   CompletePostPublishingUseCase,
+  OpenPublicationEpisodeUseCase,
 } from "@core/posts/index.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
 import {
@@ -219,6 +220,13 @@ export class PublishNowPromotionHarness {
       updatePostUseCase: new UpdatePostUseCase(this.postRepository, new InMemoryEventDispatcher()),
       deletePostUseCase: new DeletePostUseCase(this.postRepository, this.businessMetrics),
       completePostPublishingUseCase: this.promotionUseCase,
+      // Constructed because the config declares it, not because this suite drives
+      // it: no scenario here dispatches `post.open-publication-episode`, and the
+      // saga step that will is not written yet. It is given the same repository
+      // the promotion uses so that, the day a scenario does reach it, it writes
+      // through the tenant-bound client rather than a double that agrees with
+      // whatever the test expects.
+      openPublicationEpisodeUseCase: new OpenPublicationEpisodeUseCase(this.postRepository),
       postRepository: this.postRepository,
       channelRepository: this.channelRepository,
       redis: this.redis,
