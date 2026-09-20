@@ -317,6 +317,10 @@ sweep and the worker write stay in `1c-3`.** Only the tracker merges to `main`.
 ORDER, not by fusion: the confirm act (`1c-3a`) and the sweep (`1c-3b`) land BEFORE the worker's
 record write (`1c-3e`), so no tip ever holds a strandable channel without its exit. The grandchild
 boundaries are a §9.9 ratification, not a fait accompli.
+**Re-ORDERED 2026-09-20 (Edward, option B — §9.9 item 5)**: the WRITERS land first and `1c-1b`
+(T1c.5 + T1c.5a, applied and PARKED at `08391306`) goes LAST, because REC-13 makes it fail closed on
+three writers that do not exist yet at its own tip. **§9.4.1's `Order` column is the chain — the
+unit ids below are NOT the order**, and its ordering audit is the per-unit reader/writer proof.
 
 ### WU 1c.A — application use cases (child 1c-1)
 
@@ -403,7 +407,8 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
       record (NAMED), channels outside the record, outcomes disagreeing with the record; then
       `reconcilePublicationProjection()` with `applied: false` on the happy path. Rewrite
       `packages/core/posts/tests/unit/CompletePostPublishingUseCase.test.ts` (691 today): zero saves
-      on the happy path, no provider lookup, `publishedAt` never fabricated. — sha: pending
+      on the happy path, no provider lookup, `publishedAt` never fabricated.
+      — sha: 08391306 (parked on `workstream/ncor8-1c-1b`; re-slotted last, see §9.4.1)
 - [ ] **T1c.5a RED→GREEN (D4 / rev 3.3 A3 — the three 1b compatibility shapes CLOSE)** — the domain
       side, in the SAME child as T1c.5 and AFTER T1c.4a.
       **(i)** `markAsPublished()` and `markAsFailed()` lose their arguments and the two
@@ -442,7 +447,8 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
       `:238`, deleted by T1c.5 — so T1c.5 and T1c.5a land TOGETHER or the tree does not compile.
       **File-size watch, RE-MEASURED 2026-09-20**: `PostAggregate.ts` is **912** lines today, not
       §9.8's pre-1b ~714 forecast; this task only removes from it, and the stale §9.8 row is a
-      §7.2 backlog line, not silently absorbed. — sha: pending
+      §7.2 backlog line, not silently absorbed.
+      — sha: 08391306 (parked on `workstream/ncor8-1c-1b`; re-slotted last, see §9.4.1)
 - [ ] **T1c.6 RED→GREEN** — `SchedulePostUseCase.ts` (`:139-151`, `:171-200`) calls
       `declarePublicationTargets` after `post.schedule()` and migrates to
       `executeResultInTransaction`. This is REC-1's `[static]` scenario: the validated identities are
@@ -1067,38 +1073,106 @@ are inside the budget, not free.
 | `1c-2` | T1c.8–T1c.11                      |  **620** |  **520** | 1.6×      |
 | `1c-3` | T1c.12–T1c.18                     | **1276** | **1445** | 3.2×      |
 
-**All three children exceed the hard 400-line CODE budget**, so the split below is PROPOSED rather
-than assumed: thirteen grandchildren, every one AT or UNDER 400 CODE except `1c-2a`. Under
-`feature-branch-chain` each grandchild targets the previous grandchild's branch; only the tracker
-merges to `main`. `1c-1c` sits exactly AT 400 — named, because a budget met exactly is a budget one
-refactor away from broken.
+**All three children exceed the hard 400-line CODE budget**, so the split below is thirteen
+grandchildren. **Edward RATIFIED option B on 2026-09-20 (§9.9 item 5): the WRITERS land first and
+`1c-1b` goes LAST.** The unit ids are UNCHANGED — `1c-1b` keeps its name and its applied commit — so
+the `Order` column, not the id, is the chain. Under `feature-branch-chain` each grandchild branches
+from the PREVIOUS grandchild's branch (`workstream/ncor8-1c-1c` off `ncor8-1c`, then `-1d` off
+`-1c`, `-1e` off `-1d`, and so on); `1c-1b` is rebased onto the LAST writer's branch and its PR
+targets that branch; only the tracker merges to `main`.
 
-| Unit    | Content                                                                                                                  |    CODE | EVIDENCE | Rollback boundary                            |
-| ------- | ------------------------------------------------------------------------------------------------------------------------ | ------: | -------: | -------------------------------------------- |
-| `1c-1a` | **T1c.4a** — the D19 doors (payload type, 5 casts, the four loaders, the two refusals)                                   |     225 |      603 | revert; nothing else depends on the deletion |
-| `1c-1b` | **T1c.5 + T1c.5a** — the reconciliation and the domain closure (inseparable: the arms' only callers die with them)       |     335 |      705 | revert both or neither                       |
-| `1c-1c` | T1c.1, T1c.2 + `OpenPublicationEpisodeUseCase`, `RecordChannelPublicationAttemptUseCase`                                 |     400 |      754 | new files only                               |
-| `1c-1d` | T1c.3 + `ConfirmManualRetractionUseCase`, `ExpireRetractionActionWindowUseCase` + barrel + T1c.6                         |     371 |      566 | new files + one `SchedulePostUseCase` seam   |
-| `1c-1e` | T1c.7 — CQRS command, handlers, container tokens                                                                         |     136 |        0 | wiring only                                  |
-| `1c-2a` | T1c.8 + T1c.9 — `packages/shared/src/saga.ts`                                                                            | **410** |      410 | one file; revert restores the old wait step  |
-| `1c-2b` | T1c.10 + T1c.11 — `holder()`, the lock doubles, `SagaIntegration` + `publishAdmission.ts`                                |     210 |      110 | admission seam removable on its own          |
-| `1c-3a` | **T1c.15 + T1c.17** — the confirm route and the C3 guards (**the EXITS, first**)                                         |     200 |      260 | route + two handler guards                   |
-| `1c-3b` | **T1c.16** — D18 env var, sweep, reader port, registration                                                               |     301 |      305 | unregister the task, drop the port           |
-| `1c-3c` | T1c.13 + `classifyPublishFailure.ts` — the worker root and the classifier                                                |     275 |      150 | worker root only; nothing calls it yet       |
-| `1c-3d` | `publishOutcomeRecorder.ts` + `publishHandlerTypes`/`publishWorker`/`package.json`                                       |     206 |      235 | recorder removable; handler untouched        |
-| `1c-3e` | **T1c.14's `publishHandler.ts` rework + the R3 report fix** + T1c.12's D16 cases (**the stranding-capable WRITE, last**) |     280 |      270 | revert restores the ERR-log path             |
-| `1c-3f` | T1c.18 — the three rules and the runbook                                                                                 |      14 |      225 | delete the rule file                         |
+| Order | Unit    | Content                                                                                                             |    CODE | EVIDENCE | Rollback boundary                                        |
+| ----: | ------- | ------------------------------------------------------------------------------------------------------------------- | ------: | -------: | -------------------------------------------------------- |
+|     1 | `1c-1a` | **T1c.4a** — the D19 doors (payload type, 5 casts, the four loaders, the two refusals) — **APPLIED, `f3caa204`**    | **529** |  **612** | revert; nothing else depends on the deletion             |
+|     2 | `1c-1c` | T1c.1, T1c.2 + `OpenPublicationEpisodeUseCase`, `RecordChannelPublicationAttemptUseCase`                            |     400 |      754 | new files only                                           |
+|     3 | `1c-1d` | T1c.3 + `ConfirmManualRetractionUseCase`, `ExpireRetractionActionWindowUseCase` + barrel + **T1c.6 (first writer)** |     371 |      566 | new files + one `SchedulePostUseCase` seam               |
+|     4 | `1c-1e` | T1c.7 — CQRS command, handlers, container tokens                                                                    |     136 |        0 | wiring only                                              |
+|     5 | `1c-2b` | T1c.10 + T1c.11 — `holder()`, the lock doubles, `SagaIntegration` + `publishAdmission.ts`                           |     210 |      110 | admission seam removable on its own                      |
+|     6 | `1c-3a` | **T1c.15 + T1c.17** — the confirm route and the C3 guards (**the EXITS, before any stranding write**)               |     200 |      260 | route + two handler guards                               |
+|     7 | `1c-3b` | **T1c.16** — D18 env var, sweep, reader port, registration                                                          |     301 |      305 | unregister the task, drop the port                       |
+|     8 | `1c-3c` | T1c.13 + `classifyPublishFailure.ts` — the worker root and the classifier                                           |     275 |      150 | the ADDED exports + the new files (see the audit, row 8) |
+|     9 | `1c-3d` | `publishOutcomeRecorder.ts` + `publishHandlerTypes`/`publishWorker`/`package.json`                                  |     206 |      235 | recorder removable; handler untouched                    |
+|    10 | `1c-2a` | T1c.8 + T1c.9 — `packages/shared/src/saga.ts`                                                                       | **410** |      410 | one file; revert restores the old wait step              |
+|    10 | `1c-3e` | **T1c.14's `publishHandler.ts` rework + the R3 report fix** + T1c.12's D16 cases (**the stranding-capable WRITE**)  |     280 |      270 | revert restores the ERR-log path                         |
+|    11 | `1c-3f` | T1c.18 — the three rules and the runbook                                                                            |      14 |      225 | delete the rule file                                     |
+|    12 | `1c-1b` | **T1c.5 + T1c.5a** — the reconciliation and the domain closure — **APPLIED + PARKED, `08391306`**                   | **614** | **1263** | revert both or neither                                   |
+
+**Order 10 carries TWO units on purpose**: `1c-2a` and `1c-3e` are mutually fail-closed (audit row
+10 below) and their shape is a §9.9 item 6 ratification. Nothing between orders 2 and 9 depends on
+that decision, so the chain proceeds to `1c-1c` now and the decision is due before order 10.
 
 **D15.5 is satisfied by ORDER, not by fusion.** The constraint is that no tip — `main` or the
-tracker — holds a strandable channel without its recorded exit. `1c-3a` (confirm act) and `1c-3b`
-(sweep) land BEFORE `1c-3e` (the worker's record write), so every intermediate tip has the exits and
-no state that needs them. Fusing all of 1c-3 into one 1276-line PR is the only alternative and it
-breaks the CODE budget by 3.2×.
+tracker — holds a strandable channel without its recorded exit. `1c-3a` (confirm act, order 6) and
+`1c-3b` (sweep, order 7) land BEFORE `1c-3e` (the worker's record write, order 10), so every
+intermediate tip has the exits and no state that needs them. Fusing all of 1c-3 into one 1276-line
+PR is the only alternative and it breaks the CODE budget by 3.2×.
 
-**The one unit that cannot go under 400: `1c-2a` at 410**, and it is ONE file. `readPublishOutcome`
-is shared by the wait step, the forwarder and the scheduling step, so splitting `saga.ts`'s rewrite
-across two PRs produces an intermediate tree that does not compile — the split would buy 10 lines of
-budget with a broken tip. Ratification asked for in §9.9 item 4.
+##### Ordering audit — every fail-closed reader against the writer it needs
+
+**What a row asserts.** Column 3 names each reader in that unit that REFUSES, BLOCKS or DEGRADES on
+an absent or unresolved record; column 4 names the writer that makes the record present; column 5
+says whether that writer precedes it in the order above. A reader that TOLERATES absence by design
+is named too, with the design line that grants the tolerance — tolerance is never inferred from
+convenience. "Unreachable" is a CLAIM, so each such row carries the measurement that decides it.
+
+| Order | Unit    | Fail-closed reader (or the tolerance that saves it)                                                                                                                                                                                                                                                                                                  | Writer it needs                                                                                 | Precedes?                                                                                                                                                                                                                                                                                     |
+| ----: | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|     1 | `1c-1a` | `findById` refuses an unscoped load; `savePublication` refuses `undefined`/`__system__`. Both refuse on the CALLER's TENANT SCOPE, not on a record — no record reader in the unit                                                                                                                                                                    | none                                                                                            | n/a — applied                                                                                                                                                                                                                                                                                 |
+|     2 | `1c-1c` | `OpenPublicationEpisodeUseCase` TOLERATES absence by design (D9: "with no records → `declarePublicationTargets(channelIds)` then open"); `RecordChannelPublicationAttemptUseCase` refuses `CONFLICT` on a stale/zero episode                                                                                                                         | the episode (T1c.9) — but nothing calls either use case yet                                     | **Unreachable, measured**: zero call sites for `openPublicationEpisode`/`recordChannelAttempt` outside `packages/core/domain/src` + `packages/adapters/db-prisma/src` at `f3caa204`; the command token arrives at order 4 and `apps/workers/package.json` gains `@core/posts` only at order 8 |
+|     3 | `1c-1d` | **T1c.6 is the FIRST production writer** (`declarePublicationTargets` at scheduling). The two retraction use cases are fail-closed (404 outside the recorded set / 409 `NOTHING_PENDING`)                                                                                                                                                            | T1c.6 needs the TOTAL hydration of `1c-1a` (`POST_AGGREGATE_INCLUDE`)                           | **Yes** (order 1). The retraction use cases are **unreachable**: their only planned callers are T1c.15 (order 6) and T1c.16 (order 7) — no route file and no scheduler registration names them before those tasks                                                                             |
+|     4 | `1c-1e` | The `OPEN_PUBLICATION_EPISODE` handler delegates to the tolerant use case; `reasonCode` is ADDITIVE on a command whose handler still routes to the OLD `CompletePostPublishingUseCase` (T1c.5 parked), which ignores it                                                                                                                              | none                                                                                            | **Unreachable**: no dispatcher issues the new command until the saga's scheduling step (order 10)                                                                                                                                                                                             |
+|     5 | `1c-2b` | The `/start` admission reads the record and, per D9, **ADMITS a post with NO record** or with ≥1 `redrivable()` channel — fail-OPEN by absence, deliberately                                                                                                                                                                                         | none                                                                                            | **Yes — and MOVED UP from position 6 to 5**, because it holds no `saga.ts` symbol (`holder()` comes from T1c.10 in the same unit), so it never depended on `1c-2a`                                                                                                                            |
+|     6 | `1c-3a` | The confirm route is fail-closed (404 / 409 `NOTHING_PENDING`) but it is an EXIT for a state that cannot exist yet, so 404/409 IS the right answer at this tip. The C3 guards refuse only when `hasLiveContent()`; with no records they do not refuse                                                                                                | none — by construction it must PRECEDE the write it exits (D15.5)                               | **Yes, required**                                                                                                                                                                                                                                                                             |
+|     7 | `1c-3b` | The sweep's `PendingRetractionSweepReader` returns zero rows over the partial index while no record exists → a no-op tick                                                                                                                                                                                                                            | none                                                                                            | **Yes, required** (same D15.5 reason)                                                                                                                                                                                                                                                         |
+|     8 | `1c-3c` | No record reader. **Correction to the rollback claim**: `apps/workers/src/container/workerContainer.ts` is NOT uncalled — `workerPrisma`/`verifyDatabaseAuth` are imported at `bootstrap.ts:52`, `publishWorker.ts:32` and `:263`, `mentionIngestWorker.ts:42` and `:496` (measured at `f3caa204`). The unit ADDS exports to a LIVE composition root | none                                                                                            | n/a — but the boundary is "the added exports", not "the file"                                                                                                                                                                                                                                 |
+|     9 | `1c-3d` | The recorder WRITES attempts and reads the episode for its CAS, but the handler does not call it until order 10 — no behaviour changes at this tip                                                                                                                                                                                                   | the episode (order 10)                                                                          | **Unreachable until order 10** — that is the unit's own stated boundary ("handler untouched")                                                                                                                                                                                                 |
+|    10 | `1c-2a` | The wait step is fail-closed on ATTEMPTS: D8, "`undefined` or a record set missing any scheduled channel → `failed` naming the missing record; **any unresolved → `waiting`**". With an episode opened and no attempt recorded, every channel is unresolved → `waiting` until the 30-min saga timeout → `FAILED`                                     | **`1c-3e`** — the worker's attempt writes                                                       | **NO — and it cannot be fixed by order (see the cycle below)**                                                                                                                                                                                                                                |
+|    10 | `1c-3e` | The worker is fail-closed on the EPISODE: W4 / D6, "a job with no `accountId` or no episode → `UnrecoverableError`, nothing written". `apps/workers/src/publishHandlerTypes.ts:158` carries `accountId?: string` and **no `episode` field** today                                                                                                    | **`1c-2a`** — T1c.9's `SchedulePublishingJobsStep` is the only producer of an episode           | **NO — the other half of the same cycle**                                                                                                                                                                                                                                                     |
+|    11 | `1c-3f` | Alert rules only; reads no record                                                                                                                                                                                                                                                                                                                    | none                                                                                            | n/a                                                                                                                                                                                                                                                                                           |
+|    12 | `1c-1b` | REC-13: a post with no publication record cannot complete — fail-closed by intent                                                                                                                                                                                                                                                                    | **all three**: targets (T1c.6, order 3), episode (T1c.9, order 10), attempts (T1c.14, order 10) | **Yes, after the re-slot** — which is the whole point of option B                                                                                                                                                                                                                             |
+
+**The cycle at order 10, stated rather than smoothed over.** `1c-2a` needs `1c-3e`'s attempts and
+`1c-3e` needs `1c-2a`'s episode, so **no ordering of the two produces two sound tips**. The
+`accountId` half of W4 is already satisfied and is NOT part of the cycle: `packages/shared/src/saga.ts:782-789`
+refuses to enqueue without an `accountId` and `:806` passes it today. The cycle is the EPISODE
+alone. Three shapes, and only three — §9.9 item 6:
+
+- **(a) FUSE** into one unit at order 10: CODE 410 + 280 = **690**, 1.7× the hard budget, one
+  `size:exception`. Provably sound at its tip; it is the default if nothing else is proven.
+- **(b) SPLIT `saga.ts` BY DIRECTION**: the WRITE half of T1c.9 (the `open-publication-episode`
+  command, one job per returned channel, the `-e{episode}` id, the per-channel `RereadCheck`) before
+  `1c-3e`; the READ half (the wait-step rewrite, `readPublicationRecord`, `readPublishOutcome`)
+  after. §9.4.1's earlier objection was that `readPublishOutcome` is shared by the wait step, the
+  forwarder and the scheduling step — but the WRITE half touches none of it, and the old
+  `readTotalPublishOutcome` keeps its `jobIds` contract (`saga.ts:464-481`, which pairs `channelIds`
+  with `jobIds` 1:1) provided the scheduling step keeps recording one job id per channel.
+  **PLAUSIBLE, UNPROVEN**: it is admissible only if that intermediate is COMPILED and
+  `integration:saga-recovery` is green on it BEFORE the shape is chosen — never on this paragraph's
+  say-so.
+- **(c) Accept ONE knowingly-red tip.** Incompatible with the per-tip guard below; named only so the
+  set is complete, not offered.
+
+**Per-tip guard, MANDATORY (this is what would have caught `1c-1b` before it was written).**
+`integration:saga-recovery` — and every batch that drives publish-now end to end — runs at **EVERY
+grandchild tip**, not only at the tracker. A grandchild whose tip cannot reach the previous tip's
+pass count does not open its PR; it goes back to the order. Seeding records in the integration
+harness to make a tip pass is **REFUSED**: a double standing in for a writer that does not exist
+converts a real ordering defect into a green report (the rejected option C of §9.9 item 5).
+
+**Forecast accuracy, MEASURED on the two applied units.**
+
+| Unit    | Forecast CODE / EVIDENCE | Measured CODE / EVIDENCE |      CODE delta | `size:exception` needed             |
+| ------- | -----------------------: | -----------------------: | --------------: | ----------------------------------- |
+| `1c-1a` |                225 / 603 |            **529 / 612** | **+304 (135%)** | **YES — retroactively, `f3caa204`** |
+| `1c-1b` |                335 / 705 |           **614 / 1263** |  **+279 (83%)** | **YES — before its PR opens**       |
+
+Both exceed the hard 400-line CODE budget, so Edward is asked to record a `size:exception` for each
+(§9.9 item 7). The remaining grandchildren are **NOT** re-forecast here — a re-forecast from the
+same method would inherit the same blind spot — but every one of them must be read with it: the
+under-count is **systematic, and it is deletions and doc corrections**. `1c-1a` grew by seven
+orphaned helpers, two refusals and a set of falsified doc lines that the line-item method never
+listed because it costs what it PLANS to write, and deletions plus corrections are discovered while
+writing. Treat any remaining forecast at or near 400 as already over.
 
 Decision needed before apply: Yes
 Chained PRs recommended: Yes
@@ -1219,7 +1293,39 @@ suites (2442) and 1c's use-case suites (1320) — sit at or above their measured
 4. **The 1c grandchild split of §9.4.1** — thirteen units, all under the hard 400-line CODE budget
    except **`1c-2a` (410, `packages/shared/src/saga.ts` alone)**, which cannot be split without a
    non-compiling intermediate. Either ratify the 10-line overrun on that ONE unit, or accept the
-   non-compiling intermediate; there is no third shape.
+   non-compiling intermediate; there is no third shape. **Superseded in part by item 6**: the
+   ordering audit found that `1c-2a`'s 410 is no longer the binding question — its COUPLING to
+   `1c-3e` is, and the fusion shape would put the pair at 690.
+5. **RATIFIED — the grandchild order (Edward, 2026-09-20, option B).** Recorded here so apply does
+   not re-open it. **Finding**: `1c-1b` (T1c.5 + T1c.5a) was applied on `workstream/ncor8-1c-1b`
+   (`08391306`, every unit/compile/lint gate green), but at that tip **no production code writes a
+   publication record** — `declarePublicationTargets` / `openPublicationEpisode` /
+   `recordChannelAttempt` have zero call sites across `apps/api/src`, `apps/workers/src`,
+   `packages/core/posts/src` and `packages/adapters` (measured). REC-13 makes a post with no record
+   unable to complete, so publish-now stops completing in the deployable:
+   `integration:saga-recovery` drops from **33/33 to 10 pass / 2 fail / 21 cancelled**
+   (`sagaCrashRecovery` and `sagaPublishNowPromotion` fail with T1c.5's own refusal — "carries no
+   publication record: its publication outcome cannot be established"). **Three shapes were on the
+   table**: **(A)** keep the planned order and accept a knowingly-red publish-now across every
+   remaining tip until the writers land; **(B)** writers first, `1c-1b` LAST — the commit stays
+   parked on its branch, opens no PR, and is rebased onto the last writer at the end of 1c;
+   **(C)** seed publication records in the integration harness so the tip reads green.
+   **C was REJECTED**: a double standing in for a writer that does not exist converts a real
+   ordering defect into a green report, which is the exact failure class the per-tip guard in
+   §9.4.1 exists to prevent. **B was CHOSEN.** §9.4.1's `Order` column is that decision; the unit
+   ids did not move so `08391306` keeps its name.
+6. **The `1c-2a` ⊗ `1c-3e` cycle — decision due BEFORE order 10, not before order 2.** The ordering
+   audit in §9.4.1 found that the two are MUTUALLY fail-closed (the wait step needs the attempts;
+   the worker needs the episode), so re-ordering cannot separate them. Ratify one of: **(a)** fuse
+   them into one unit at order 10 (CODE **690**, 1.7× budget, one `size:exception`, provably sound);
+   **(b)** split `saga.ts` by direction — write half before `1c-3e`, read half after — admissible
+   ONLY once that intermediate is compiled and `integration:saga-recovery` is green on it; or
+   **(c)** accept one knowingly-red tip, which contradicts the per-tip guard and is named only for
+   completeness. Nothing between orders 2 and 9 depends on this, so `1c-1c` proceeds now.
+7. **Two `size:exception` records, on measured figures** (§9.4.1): `1c-1a` shipped at **CODE 529**
+   against a 225 forecast (retroactive, `f3caa204`) and `1c-1b` stands at **CODE 614** against 335
+   (before its PR opens). Both are over the hard 400 CODE budget. The under-count is systematic —
+   deletions and doc corrections — so read every remaining forecast at or near 400 as already over.
 
 **Already ratified, recorded here so apply does not re-open it: Edward AUTHORISED on 2026-09-20** the
 deletion of the four unconsumed `PostRepository` list loaders and of every associated artefact with
@@ -1256,6 +1362,23 @@ different questions: the script proves the tree is formatted, the file list prov
 `pnpm check:circular` (madge over `apps/api/src/ packages/` — PR 1b introduced an errors →
 value-objects → errors cycle that only CI caught, because this list did not name it) · the fitness
 suite with, per PR:
+
+**MANDATORY, added 2026-09-20 — `rg` over `**/tests/**` for every DELETED or RENAMED member.**
+`tsc --noEmit` proves nothing about test doubles in this repo: **no tsconfig opens a `.test.ts`**, so
+a stub of a deleted port method, a double implementing a removed signature, or a helper building a
+dropped DTO compiles to a clean `tsc = 0` while the suite is broken — or worse, still green over a
+method that no longer exists. `1c-1a` found a TENTH stub file that way, after a nine-file list had
+already been written from the same reasoning. So for every member the unit deletes or renames, run
+`rg -n '<member>' apps packages infra --glob '**/tests/**' --glob '!**/node_modules/**'` and either
+fix or list every hit in the PR body. An empty result is a RESULT and gets stated; an unrun search
+is not a zero.
+
+**MANDATORY, added 2026-09-20 — `integration:saga-recovery` at EVERY grandchild tip.** Not only at
+the tracker, and not only in the units that touch the saga: `1c-1b` passed every unit, compile and
+lint gate at `08391306` and still took publish-now down, because the gate that would have seen it is
+an end-to-end batch nobody was required to run on a non-saga unit. Every batch that drives
+publish-now end to end runs at each tip; a tip that cannot reach the previous tip's pass count does
+not open its PR. Seeding records into the harness to make a tip pass is REFUSED (§9.9 item 5).
 
 | PR  | Fitness checks that must be exercised (beyond the always-on set)                                                                                                                                                                                                                                                                                                                                                |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
