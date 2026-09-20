@@ -572,11 +572,31 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
       **Forecast: none — these three tasks did not exist when §9.4 was written, so their lines are
       measured after the fact rather than compared to a forecast.**
       — sha: pending (orchestrator commits)
-- [ ] **T1c.7 GREEN** — `packages/shared/src/cqrs.ts`: `POST_COMMANDS.OPEN_PUBLICATION_EPISODE` +
+- [x] **T1c.7 GREEN** — `packages/shared/src/cqrs.ts`: `POST_COMMANDS.OPEN_PUBLICATION_EPISODE` +
       `reasonCode` on the completion command (`:272-295` already admits `success: false` + `error`);
       `apps/api/src/cqrs/handlers/PostCommandHandlers.ts` + tokens in
       `infrastructure/container/{types,setupPostUseCases}.ts`. Handlers delegate to use cases, never
-      to `prisma.*` (#6). — sha: pending
+      to `prisma.*` (#6).
+      **Three things the task's plan did not survive contact with, all measured**: (a) the
+      "exhaustive command-registry/schema suite" it names as the RED does not exist —
+      `packages/shared` has no test tier at all and no suite anywhere asserts over a
+      `*CommandSchema` — so the reds were built from the new handler suite and a case that pins
+      `reasonCode` SURVIVING the parser (asserting mere acceptance would have been green on both
+      sides, because an undeclared key is stripped in silence rather than refused); (b) a genuinely
+      exhaustive command-to-handler gate would be RED on two PRE-EXISTING members,
+      `SCHEDULE_POST` and `CANCEL_SCHEDULED_POST`, which have no handler and no producer anywhere
+      — a backlog row, not this task's work; (c) "failures pass the use case's `code` through
+      unchanged" had no carrier: `CommandResult` gained ONE optional `code`, populated by the new
+      handler alone, which is also the carrier T1c.11's "a code a route can switch on instead of a
+      string match" will need.
+      **The post is named by `aggregateId` only**, per design D9's `{ channelIds?, enterPublishing }`
+      and every sibling Post command; a `postId` inside `data` would be a second carrier for a value
+      the envelope already holds.
+      **Budget: CODE 253 (forecast 136, +86%) — under the 400 hard budget. EVIDENCE 467 against a
+      forecast of 0**, which was never a possible number for a wired handler plus four DI
+      registrations under strict TDD: the seam those registrations exist for is an OPTIONAL
+      constructor parameter, so a registration that forgot it compiles and passes every other suite.
+      — sha: pending (orchestrator commits)
 
 ### WU 1c.B — the saga (child 1c-2)
 
@@ -595,7 +615,14 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
 publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`).
       **File-size watch**: `saga.ts` is 1227 lines BEFORE this change. Net ~+50. Splitting it
       (`packages/shared/src/saga/postPublishingSaga.ts`) would double 1c's diff for no behavioural
-      gain — it is a NAMED BACKLOG ROW (§7.3), not work for this PR. — sha: pending
+      gain — it is a NAMED BACKLOG ROW (§7.3), not work for this PR.
+      **Carried from the `1c-1e` gate (W3)**: `CompletePostPublishingCommandSchema`'s per-channel
+      object is NOT `.strict()`, so Zod strips an undeclared key in silence — which is how a
+      `reasonCode` sent before `1c-1e` declared it would have vanished without a word. `1c-1e` made
+      the NEW command strict and left the completion command as it was (tightening rejects payloads
+      accepted today — a contract change). `UpdatePostStatusStep` here is the producer of
+      `reasonCode`: tighten the per-channel object to `.strict()` in this task, with its red, or
+      write down why the asymmetry stays. — sha: pending
 - [ ] **T1c.10 RED→GREEN** — `packages/ports/src/SemanticLockPort.ts` gains `holder(key)`;
       `RedisSemanticLockStore` answers it with `GET` (`:43`); NEW
       `apps/api/tests/unit/doubles/InMemorySemanticLockStore.ts` (Map-backed, four methods,
@@ -612,6 +639,12 @@ publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`)
       `CHANNEL_HAS_LIVE_FRAGMENTS`, while D9 wants **409 `{ code: "CHANNEL_HAS_LIVE_FRAGMENTS" }`
       carrying the fragments**. Give the refusal a code a route can switch on instead of a string
       match — a use-case error code, a typed cause, or the record read back at the route.
+      **Decided at the `1c-1e` gate — the fork is named, not inherited**: `1c-1e` added
+      `CommandResult.code` as the bus carrier for the use case's coarse `USE_CASE_ERRORS` code
+      (`"CONFLICT"` here). The retraction discriminator travels on `refusalOf`'s OWN field and is
+      surfaced BESIDE `code`, never inside it — one string holding two vocabularies would re-create
+      the ambiguity the carrier was added to remove. `code` stays coarse; the discriminator stays
+      typed and separate.
       **The home already exists — EXTEND it, do not clone it (`1c-1d` W7)**: add the member to
       `RETRACTION_REFUSALS` in `packages/core/posts/src/retractionRefusals.ts` and raise it as a
       `RetractionRefusalError`. `refusalOf` is derived from that set with a `Set`, so a new member is

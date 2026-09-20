@@ -12,18 +12,24 @@ import {
   type UpdatePostCommand,
   type PublishPostCommand,
   type CompletePostPublishingCommand,
+  type OpenPublicationEpisodeCommand,
   POST_COMMANDS,
   validateCommand,
   CreatePostCommandSchema,
   UpdatePostCommandSchema,
   PublishPostCommandSchema,
   CompletePostPublishingCommandSchema,
+  OpenPublicationEpisodeCommandSchema,
 } from "@shared/types/cqrs.js";
 import { createPostEvent, createUserActionEvent, EVENT_TYPES } from "@shared/types/events.js";
 import type { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
 import type { UpdatePostUseCase } from "@core/posts/UpdatePostUseCase.js";
 import type { DeletePostUseCase } from "@core/posts/DeletePostUseCase.js";
 import type { CompletePostPublishingUseCase } from "@core/posts/CompletePostPublishingUseCase.js";
+import type {
+  OpenPublicationEpisodeUseCase,
+  OpenPublicationEpisodeOutput,
+} from "@core/posts/OpenPublicationEpisodeUseCase.js";
 import {
   PostId,
   ChannelId,
@@ -45,9 +51,22 @@ export interface PostCommandHandlersConfig {
   updatePostUseCase: UpdatePostUseCase;
   deletePostUseCase: DeletePostUseCase;
   completePostPublishingUseCase: CompletePostPublishingUseCase;
+  openPublicationEpisodeUseCase: OpenPublicationEpisodeUseCase;
   postRepository: PostRepository;
   channelRepository: ChannelRepository;
   redis: Redis;
+}
+
+/**
+ * What an accepted episode opening reports back: the channels the run is about
+ * with the ordinal each was opened at, whether the answer was the episode that
+ * was already open, and the word the post carries after the write.
+ */
+export interface OpenPublicationEpisodeResult {
+  postId: string;
+  opened: OpenPublicationEpisodeOutput["opened"];
+  alreadyOpen: boolean;
+  status: OpenPublicationEpisodeOutput["status"];
 }
 
 // ---------------------------------------------------------------------------
@@ -507,6 +526,22 @@ export class CompletePostPublishingCommandHandler implements CommandHandler<
       const validatedCommand = validation.data as CompletePostPublishingCommand;
       const { data, metadata, aggregateId } = validatedCommand;
 
+      // The contract admits a per-channel `reasonCode`; the reconciliation that reads
+      // it is not wired yet, so this handler drops it. Announced ONCE per command
+      // rather than left silent: a producer populating the field would otherwise watch
+      // it cross the parser and vanish here with nothing to read, and a silent drop of
+      // a value the contract advertises is the same defect as a field nobody honours —
+      // which is why the sibling content command declares `.strict()`.
+      const droppedReasonCodes = data.outcome.channels.filter(
+        (channel) => channel.reasonCode !== undefined
+      ).length;
+      if (droppedReasonCodes > 0) {
+        log.warn(
+          { postId: aggregateId, droppedReasonCodes },
+          "Completion outcome carries a per-channel reasonCode that this handler does not forward: the reconciliation reader that consumes it is not wired yet, so the value is parsed and dropped"
+        );
+      }
+
       const result = await this.config.completePostPublishingUseCase.execute({
         postId: aggregateId,
         outcome: {
@@ -579,6 +614,105 @@ export class CompletePostPublishingCommandHandler implements CommandHandler<
       };
     } catch (error) {
       log.error({ err: error }, "CompletePostPublishingCommand failed");
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+      };
+    }
+  }
+
+  private async invalidateCaches(projectId: string, postId: string): Promise<void> {
+    await invalidateQueryCache(this.config.redis, [
+      `post.get:${postId}`,
+      `post.list:${projectId}`,
+      `post.search:${projectId}`,
+      `post.analytics:${postId}`,
+      "dashboard:stats",
+    ]);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// OpenPublicationEpisodeCommandHandler
+// ---------------------------------------------------------------------------
+
+/**
+ * Opens an attempt episode over the post's per-channel publication record and
+ * reports the channels it opened, so the caller can enqueue one job per channel
+ * against an ordinal the record already holds.
+ *
+ * It decides nothing about WHICH channels are admissible: the request travels to
+ * the use case as it arrived and the aggregate refuses what it must, by name.
+ * The handler's own contribution is the crossing — validating the command shape,
+ * mapping the aggregate id onto the input, and carrying the refusal's code back
+ * so the caller branches on a value rather than on a message.
+ */
+export class OpenPublicationEpisodeCommandHandler implements CommandHandler<
+  Command<unknown>,
+  OpenPublicationEpisodeResult
+> {
+  readonly commandType = POST_COMMANDS.OPEN_PUBLICATION_EPISODE;
+
+  constructor(private config: PostCommandHandlersConfig) {}
+
+  async handle(command: Command<unknown>): Promise<CommandResult<OpenPublicationEpisodeResult>> {
+    try {
+      const validation = validateCommand(command, OpenPublicationEpisodeCommandSchema);
+      if (!validation.success) {
+        return {
+          success: false,
+          ...(validation.error && { error: validation.error }),
+          ...(validation.validationErrors && { validationErrors: validation.validationErrors }),
+        };
+      }
+
+      const validatedCommand = validation.data as OpenPublicationEpisodeCommand;
+      const { data, aggregateId } = validatedCommand;
+
+      const result = await this.config.openPublicationEpisodeUseCase.execute({
+        postId: aggregateId,
+        // Omitted rather than assigned when the caller named no channel: under
+        // `exactOptionalPropertyTypes` an absent key and a key holding
+        // `undefined` are different things, and the use case reads the absence
+        // as "every recorded channel" — a meaning an explicit `undefined` would
+        // still carry today but only by accident of how the check is written.
+        ...(data.channelIds !== undefined && { channelIds: data.channelIds }),
+        enterPublishing: data.enterPublishing,
+      });
+
+      if (!result.ok) {
+        return {
+          success: false,
+          error: result.error.message,
+          code: result.error.code,
+        };
+      }
+
+      const episode = result.value;
+
+      // Invalidated on every accepted open, including one that answered
+      // `alreadyOpen`. The use case writes when the target set was REPLACED even
+      // though the episode did not move, and it does not report that separately —
+      // so the handler cannot tell a true no-op from a rewritten record set. An
+      // extra DEL costs a round trip; a missed one serves a reader the channels
+      // this run just abandoned.
+      await this.invalidateCaches(episode.projectId, episode.postId);
+
+      return {
+        success: true,
+        data: {
+          postId: episode.postId,
+          opened: episode.opened,
+          alreadyOpen: episode.alreadyOpen,
+          status: episode.status,
+        },
+        // No audit event: the caller is the publishing saga rather than a person,
+        // and the record's own domain events are written by the same transaction
+        // and delivered once by the outbox relay after it commits.
+        events: [],
+      };
+    } catch (error) {
+      log.error({ err: error }, "OpenPublicationEpisodeCommand failed");
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error occurred",
@@ -717,6 +851,7 @@ export function createPostCommandHandlers(
     new UpdatePostCommandHandler(config),
     new PublishPostCommandHandler(config),
     new CompletePostPublishingCommandHandler(config),
+    new OpenPublicationEpisodeCommandHandler(config),
     new DeletePostCommandHandler(config),
   ];
 }

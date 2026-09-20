@@ -83,6 +83,19 @@ export interface CommandResult<T = void> {
   data?: T;
   events?: EventStoreEvent[];
   error?: string;
+  /**
+   * The refusal's stable discriminator, when the handler's use case named one.
+   * Optional because most handlers report a message only, and a caller that
+   * receives none must treat the failure as unclassified rather than guess.
+   *
+   * It exists so a caller can BRANCH on a refusal without matching the message:
+   * a message is prose written for a human, it is rewritten whenever the wording
+   * improves, and a branch keyed on it breaks silently — as a passing branch that
+   * stops being taken, never as a failing one. The bus returns the handler's
+   * object unchanged (`CQRSBus.executeCommand`), so whatever is set here survives
+   * the crossing verbatim.
+   */
+  code?: string;
   validationErrors?: ValidationError[];
 }
 
@@ -144,6 +157,7 @@ export const POST_COMMANDS = {
   SCHEDULE_POST: "post.schedule",
   PUBLISH_POST: "post.publish",
   COMPLETE_PUBLISHING: "post.complete-publishing",
+  OPEN_PUBLICATION_EPISODE: "post.open-publication-episode",
   DELETE_POST: "post.delete",
   CANCEL_SCHEDULED_POST: "post.cancel-schedule",
 } as const;
@@ -268,6 +282,21 @@ export type PublishPostCommand = z.infer<typeof PublishPostCommandSchema>;
  *
  * `expectedVersion` is optional — the reused-draft path holds no token and must
  * not fabricate one; when it is absent the persisted status decides.
+ *
+ * `reasonCode` carries the per-channel exclusion reason the publication record
+ * keeps, beside the human-readable `error`. The two are not interchangeable:
+ * `error` is a message written for a person, `reasonCode` is the value a reader
+ * branches on. Declaring it here is what makes it survive the parser — an
+ * undeclared key is stripped by Zod in silence, which would let an emitter
+ * believe it had sent a reason that never arrived.
+ *
+ * **It is PARSED and NOT YET CONSUMED.** The reconciliation that reads it is a
+ * separate piece of work; until it lands, `CompletePostPublishingCommandHandler`
+ * accepts the field and drops it, and says so at WARN once per command carrying
+ * one. So the field is safe to populate now — nothing rejects it and nothing is
+ * corrupted by it — but do not build a behaviour on the assumption that the
+ * completion path persists it yet. The handler's log is how a producer finds
+ * that out without reading this comment.
  */
 export const CompletePostPublishingCommandSchema = z.object({
   id: z.string(),
@@ -286,6 +315,7 @@ export const CompletePostPublishingCommandSchema = z.object({
               // workers report them; nothing decides totality from them.
               externalId: z.string().optional(),
               error: z.string().optional(),
+              reasonCode: z.string().optional(),
             })
           )
           .min(1),
@@ -305,6 +335,56 @@ export const CompletePostPublishingCommandSchema = z.object({
 });
 
 export type CompletePostPublishingCommand = z.infer<typeof CompletePostPublishingCommandSchema>;
+
+/**
+ * Open Publication Episode Command.
+ *
+ * Opens an attempt episode over the post's per-channel publication record: the
+ * step that decides WHICH channels a publishing run is about, and at which
+ * ordinal, before a single job is enqueued.
+ *
+ * The post is named by `aggregateId`, as in every other Post command — the id
+ * does not also appear in `data`, because two carriers for one value is two
+ * places to disagree and the bus already routes on the aggregate.
+ *
+ * `channelIds` is optional and, when present, `.min(1)`. The three shapes mean
+ * three different things and none may collapse into another: ABSENT is "open
+ * every channel the record already holds"; a NAMED set is the target set this
+ * run declares or must match; an EMPTY list would wipe the recorded set, so it
+ * is refused here rather than at the writer, before any load.
+ *
+ * `enterPublishing` is REQUIRED and has no default. It is true exactly for
+ * publish-now, where the post enters the publication family in the same write;
+ * a default would let a caller that forgot the flag pick a lifecycle transition
+ * by omission.
+ *
+ * `data` is `.strict()` for the reason the sibling commands are: a key this
+ * contract does not declare is REJECTED with `unrecognized_keys`, never stripped
+ * and silently ignored.
+ */
+export const OpenPublicationEpisodeCommandSchema = z.object({
+  id: z.string(),
+  type: z.literal(POST_COMMANDS.OPEN_PUBLICATION_EPISODE),
+  aggregateId: z.string(),
+  aggregateType: z.literal("Post"),
+  data: z
+    .object({
+      channelIds: z.array(z.string().uuid()).min(1).optional(),
+      enterPublishing: z.boolean(),
+    })
+    .strict(),
+  metadata: z.object({
+    userId: z.string().optional(),
+    sessionId: z.string().optional(),
+    correlationId: z.string(),
+    source: z.string(),
+    userAgent: z.string().optional(),
+    ipAddress: z.string().optional(),
+  }),
+  timestamp: z.date(),
+});
+
+export type OpenPublicationEpisodeCommand = z.infer<typeof OpenPublicationEpisodeCommandSchema>;
 
 // Query Types - Post Management
 

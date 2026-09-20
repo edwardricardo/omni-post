@@ -3447,3 +3447,403 @@ optional property may not be ASSIGNED `undefined`.
 | `eslint --max-warnings 0` · `prettier` (2 files) | **0** · clean                                                    |
 | fitness #3 · #4 · #13                            | 0 · 0 · 0                                                        |
 | also: fitness #9 · tripwire words                | 0 · none                                                         |
+
+---
+
+## PR 1c — grandchild `1c-1e` (T1c.7) — COMPLETE
+
+Branch `workstream/ncor8-1c-1e`, child of `workstream/ncor8-1c-1d` @ `dfc5cae2` — **order 4 of
+§9.4.1**, and the first unit of this chain that wires rather than writes. One task: the command the
+saga's scheduling step will issue, the handler that routes it, and the container entries for the
+four use cases `1c-1c` and `1c-1d` left unresolvable.
+
+**Finish state**: `post.open-publication-episode` is a declared command with a strict schema, a
+registered handler that delegates to `OpenPublicationEpisodeUseCase`, and four DI tokens through
+which the publication writers can finally be resolved with the Unit of Work seam attached. Nothing
+issues the command. **Rollback**: revert the six files; the four use cases go back to being
+reachable only through the package barrel, exactly as they were at `dfc5cae2`.
+
+### What each mechanism is, as built
+
+| Mechanism                                | As built                                                                                                                                                                                                                                            |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST_COMMANDS.OPEN_PUBLICATION_EPISODE` | one more member of the existing const map, so the type union widens by construction rather than by a second declaration                                                                                                                             |
+| `OpenPublicationEpisodeCommandSchema`    | `data` is `.strict()` like its siblings; `channelIds` is `z.array(z.string().uuid()).min(1).optional()`; `enterPublishing` is a REQUIRED boolean with no default. The post is named by `aggregateId`, not a second time inside `data`               |
+| the three channel-set shapes             | ABSENT means "open every recorded channel", a NAMED set is the declared or matched target set, an EMPTY list is REFUSED. The `.min(1)` is what keeps the third from collapsing into the first, at the parser, before any load                       |
+| `reasonCode` on the completion command   | one optional string per channel, beside `error`. It is DECLARED so it survives the parser; the handler's explicit per-key mapping does not forward it, which is what makes the addition observably inert at this tip                                |
+| `CommandResult.code`                     | one optional field on the shared result. It exists so a caller can BRANCH on a refusal without matching a message; the bus returns the handler's object unchanged, so the value crosses verbatim                                                    |
+| `OpenPublicationEpisodeCommandHandler`   | validate → map `aggregateId` onto `postId` → delegate → return the opened channels. It decides nothing about admissibility: the request travels to the use case as it arrived and the aggregate refuses what it must                                |
+| the omitted `channelIds`                 | omitted rather than assigned `undefined` when the caller named none, for the `exactOptionalPropertyTypes` reason the promotion handler already documents for `expectedVersion`                                                                      |
+| cache invalidation                       | unconditional on an ACCEPTED open, including one that answered `alreadyOpen` — see the design-silent decisions below                                                                                                                                |
+| the four container entries               | each writer gets the post repository and the SHARED Unit of Work and nothing else. No `EventDispatcher`, for the promotion writer's reason: the aggregate's events are written to the outbox by the same transaction and delivered after it commits |
+
+### The recorded reds
+
+**1. The handler does not exist.** Written first, against a class with no declaration:
+
+```text
+ FAIL  tests/unit/PostCommandHandlers.open-publication-episode.test.ts >
+   OpenPublicationEpisodeCommandHandler > answers the post.open-publication-episode command type
+TypeError: OpenPublicationEpisodeCommandHandler is not a constructor
+ ❯ tests/unit/PostCommandHandlers.open-publication-episode.test.ts:35:15
+      Tests  17 failed (17)
+```
+
+**2. `reasonCode` is stripped in silence, not declared.** This is the red the additive half needed,
+and finding a shape that could GO red took the measurement below: a command carrying `reasonCode`
+was already ACCEPTED before the change, because the per-channel object is not `.strict()` and Zod
+strips an undeclared key without a word. A case asserting acceptance would have been green on both
+sides and proved nothing. The case therefore asserts that the value SURVIVES the parser:
+
+```text
+ FAIL  tests/unit/PostCommandHandlers.complete-publishing.test.ts > the additive reasonCode field >
+   is declared by the contract and survives parsing instead of being stripped
+AssertionError: expected undefined to be 'CONTENT_REJECTED'
+```
+
+**3. The four tokens do not exist.** `TOKENS.X` for an absent member is `undefined`, so the
+container suite fails on the token before it can fail on the registration:
+
+```text
+ FAIL  tests/unit/infrastructure/container/setupPostUseCases.test.ts >
+   registers the four publication writers without throwing
+AssertionError: OpenPublicationEpisodeUseCase has no DI token: expected undefined to be defined
+ …
+      Tests  21 failed | 15 passed (36)
+```
+
+### The exhaustive command-registry suite the task named — MEASURED ABSENT
+
+The task asked for the red to come from "the exhaustive command-registry/schema suite (find it)".
+There is no such suite, and this is the measurement rather than an impression:
+
+| Question                                                  | Measurement                                                                                                                   |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Does `packages/shared` have a test tier at all?           | **No.** No `test` script in `package.json`, no `vitest.config.*`, no `tests/` directory. The gate named for it does not exist |
+| Any suite asserting over a `*CommandSchema`?              | **Zero** — `rg -l "CommandSchema" --glob '**/*.test.ts' apps packages` returns nothing                                        |
+| Any exhaustiveness check over `POST_COMMANDS` in the api? | **No.** The five files naming `POST_COMMANDS` are the declaration and four handler suites, each pinning ONE member            |
+
+So the schema half of this task had no gate to go red, and one was built: the new suite's first two
+cases pin the member's literal value and its presence in what `createPostCommandHandlers` returns.
+**Nothing was loosened** — there was no check to loosen.
+
+**What that absence exposed, and why it is NOT closed here.** A genuinely exhaustive
+"every `POST_COMMANDS` member has a handler" check FAILS today on two members this change did not
+introduce: `SCHEDULE_POST` (`post.schedule`) and `CANCEL_SCHEDULED_POST` (`post.cancel-schedule`)
+have no handler — and, measured tree-wide, no producer either. They are declared contract surface
+nothing issues and nothing routes: a command a caller could legitimately build, dispatch, and
+receive `No handler registered for command type` from at runtime. Writing the exhaustive check here
+would land a knowingly-red gate; deleting the two members is a contract change outside this task.
+**Backlog row, named for Edward below.**
+
+### Design-silent decisions, taken here and named
+
+1. **The post id is `aggregateId` only.** The task text sketched the schema as
+   `{ postId, channelIds?, enterPublishing }`; `design.md` D9 says
+   `post.open-publication-episode { channelIds?, enterPublishing }`. Both were followed by giving
+   `data` exactly D9's two fields and naming the post through `aggregateId`, as every other Post
+   command does. A `postId` inside `data` would be a SECOND carrier for a value the envelope
+   already holds and the bus already routes on — two places to disagree, and no reader that needs
+   the duplicate.
+2. **`CommandResult` gained an optional `code`.** The task requires the use case's code to pass
+   through unchanged, and `CommandResult` had nowhere to put it: `success`, `data`, `events`,
+   `error`, `validationErrors`. The alternatives were to bury the code inside the `error` string —
+   which is the message-matching the retraction work is explicitly moving AWAY from (T1c.11, "give
+   the refusal a code a route can switch on instead of a string match") — or to leave the
+   instruction unimplemented. One optional field is additive for every existing handler and is
+   populated by the new one alone; no existing handler was retrofitted, because changing what the
+   others report is not this unit's subject.
+3. **Caches are invalidated on every accepted open, including `alreadyOpen`.** The use case writes
+   when the target set was REPLACED even though the episode did not move (`replacedTargets`), and
+   its output does not report that separately — so the handler genuinely cannot tell a true no-op
+   from a rewritten record set. An extra `DEL` costs a round trip; a missed one serves a reader the
+   channels the run just abandoned. The asymmetry decides it.
+4. **No audit event.** The promotion handler emits a user-action event; this one emits `[]`. Its
+   caller is the publishing saga rather than a person, so the event would record "system" acting on
+   itself, and the record's own domain events are already written by the same transaction and
+   delivered once by the outbox relay after it commits.
+5. **The container suite asserts the Unit of Work, not just the registration.** All four use cases
+   take `unitOfWork?` as an OPTIONAL last parameter — which is what lets their own unit tests
+   construct them without one. That same optionality means a registration that forgot the seam
+   would compile, pass every existing suite, and write outside a transaction in production. The
+   suite therefore asserts the resolved token set, not merely that a token was registered.
+
+### Unreachable by claim — RE-MEASURED at this tip, not inherited
+
+§9.4.1's ordering audit row 4 claims the unit is unreachable. Measured after the code landed
+(`rg` over `apps packages infra`, excluding `node_modules`, `dist` and `reports`):
+
+| Claim                                                 | Measurement                                                                                                                                                                                                                                                                                                                  |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No dispatcher issues the new command                  | `OPEN_PUBLICATION_EPISODE` + the literal `post.open-publication-episode` appear in **9 places**: the const member, the schema's `z.literal`, the handler's own `commandType`, 5 test lines, and 1 comment. **Zero `executeCommand` call sites**                                                                              |
+| `reasonCode` is additive and inert                    | **Zero producers**: the only `reasonCode` occurrences under `apps/api/src`, `apps/workers/src` and `packages/shared/src` are the field's declaration and its two doc lines. Nothing emits one                                                                                                                                |
+| The old completion handler ignores it                 | Pinned by a case: the forwarded channel is `{ channelId, success }` exactly — asserted with `toStrictEqual`, which fails on an EXTRA key as well as a missing one. Green before and after, by design                                                                                                                         |
+| The three retraction/attempt writers stay unreachable | Registered, never resolved: `rg` finds `TOKENS.RecordChannelPublicationAttemptUseCase` / `ConfirmManualRetractionUseCase` / `ExpireRetractionActionWindowUseCase` **only** in `types.ts`, `setupPostUseCases.ts` and the new container suite. Only the episode token is resolved, by `index.ts`, to build the handler config |
+
+The tip is sound: a command nobody sends, a field nobody sets, and three tokens nobody resolves.
+
+### Doubles added or updated — the mandatory `rg` over `**/tests/**`
+
+This unit deletes and renames nothing, but it WIDENS a required config interface, which is the
+other way a double goes stale. `rg -l "PostCommandHandlersConfig" apps packages` finds three
+construction sites and all three were updated:
+
+| Site                                                               | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/api/src/index.ts:723`                                        | resolves `TOKENS.OpenPublicationEpisodeUseCase` — the only production construction, and the only one `tsc` would have caught                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `apps/api/tests/unit/PostCommandHandlers.test-helpers.ts`          | NEW `MockOpenPublicationEpisodeUseCase` with settable `opened` / `alreadyOpen` / `status` / `failCode`, wired into `createTestConfig` and exposed on `TestContext`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `apps/api/tests/integration/helpers/publishNowPromotionHarness.ts` | constructs a REAL `OpenPublicationEpisodeUseCase` over the harness's tenant-bound repository. **Not compile-forced and that is the point**: `apps/api/tsconfig.json` includes `src` only, and the node:test tier runs through `tsx`, which strips types without checking — so an un-updated harness would have carried `undefined` in a required field in silence. Constructed WITHOUT the unit of work (the optional last parameter; no scenario drives this use case here), so the harness's instance differs from the container's in the one property `setupPostUseCases.test.ts` exists to pin — the day a promotion scenario reaches it, that difference is what bites (gate note W4) |
+
+### The tsc probe over the touched tests — run, and it caught five errors
+
+`1c-1c` recorded the throwaway-tsconfig probe as a habit for the next unit in the chain. Run here,
+with the exit captured directly off `tsc` (no pipe) and the config living in the scratchpad rather
+than the repo, so the working tree stayed clean:
+
+- **First run: `PROBE_TSC_OWN_EXIT=2`, five errors.** One was mine —
+  `Type '"VALIDATION_FAILED"' is not assignable to type '"CONFLICT"'`, because the mock's `failCode`
+  inferred the literal type of its own initializer, which makes the field's entire purpose (plant a
+  DIFFERENT code and watch it cross) a compile error. Annotated as the `string` a `UseCaseError`
+  actually carries.
+- **The other four were PRE-EXISTING** in `PostCommandHandlers.complete-publishing.test.ts`:
+  `'result.data' is possibly 'undefined'` on four existing assertions, invisible to every gate this
+  repo runs because no tsconfig opens `apps/api/tests`. Fixed in place with `?.` (four characters)
+  under the zero-defect rule rather than deferred as "already there". The assertions do not weaken:
+  `expect(undefined).toBeTruthy()` fails exactly as a thrown TypeError would.
+- **Second run: `PROBE_TSC_OWN_EXIT=0`.**
+
+This is the third distinct defect class the probe has caught across three units (a stub of a deleted
+method, a wrong string literal, and now a narrowed literal type plus four latent nullability
+errors). The permanent-config decision is still nobody's, and still worth taking.
+
+### Gates
+
+| Gate                                                        | Result                                                                                                                                                       |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@shared/types` vitest                                      | **N/A — MEASURED ABSENT.** `packages/shared` has no test script, no vitest config and no tests directory; its contract is exercised from the `apps/api` tier |
+| `apps/api` touched suites (7 files)                         | **85 passed**                                                                                                                                                |
+| `apps/api` unit tier (`vitest run --maxWorkers=2`)          | **588 files, 9157 passed**, 0 failed                                                                                                                         |
+| `integration:saga-recovery` (3 suites, concurrency 1)       | **33 tests, 33 pass, 0 fail, 0 cancelled, 0 skipped**, runner exit 0 — level with `1c-1d`                                                                    |
+| `tsc --noEmit` `packages/shared`                            | **0**                                                                                                                                                        |
+| `tsc --noEmit` `apps/api` (6144)                            | **0**                                                                                                                                                        |
+| scratchpad tsc probe over the 5 touched test files          | **0** (after the five fixes above)                                                                                                                           |
+| `pnpm check:circular`                                       | **0** — 1608 files, no circular dependency                                                                                                                   |
+| `eslint --max-warnings 0` (10 changed `.ts`)                | **0** across four invocations                                                                                                                                |
+| `prettier -c` (10 changed files + this ledger + `tasks.md`) | clean (two files needed `--write`, re-checked)                                                                                                               |
+| fitness #3 · #4 · #5 · #6 · #8                              | 0 · 0 · 0 · 0 · 0                                                                                                                                            |
+| fitness #9 · #10 · #21 · #22 · #32                          | 0 · 0 · 0 · 0 · 0                                                                                                                                            |
+| fitness #40 A · B                                           | 0 · 0 (seam floor 3/3, Part B sites 14 ≥ 10)                                                                                                                 |
+
+**One gate ran OOM before it ran clean, and it is recorded rather than hidden**: `eslint` over all
+ten files at once died with `FATAL ERROR: Reached heap limit` under the default 2 GB heap. Re-run at
+`--max-old-space-size=6144` in four batches, every batch exit 0 — and the gate then showed the
+batching was a detour: at that heap ONE pass over all ten files exits 0. The flag is what to record,
+not the batches. The number that matters is the exit code, and it was read off `eslint` directly,
+never through a pipe.
+
+### Budget — measured from `git diff --numstat HEAD` at write time
+
+| Stream                                            | Forecast (§9.4.1 row 4) | Measured | Delta           |
+| ------------------------------------------------- | ----------------------: | -------: | --------------- |
+| CODE (`cqrs.ts`, handlers, container, `index.ts`) |                 **136** |  **253** | **+117 (+86%)** |
+| EVIDENCE (the two new suites, helpers, harness)   |                   **0** |  **472** | **+472**        |
+
+| File                                                                       | +   | −   | Stream   |
+| -------------------------------------------------------------------------- | --- | --- | -------- |
+| `apps/api/src/cqrs/handlers/PostCommandHandlers.ts`                        | 119 | 0   | CODE     |
+| `packages/shared/src/cqrs.ts`                                              | 72  | 0   | CODE     |
+| `apps/api/src/infrastructure/container/setupPostUseCases.ts`               | 50  | 0   | CODE     |
+| `apps/api/src/infrastructure/container/types.ts`                           | 11  | 0   | CODE     |
+| `apps/api/src/index.ts`                                                    | 1   | 0   | CODE     |
+| `apps/api/tests/unit/PostCommandHandlers.open-publication-episode.test.ts` | 203 | 0   | EVIDENCE |
+| `apps/api/tests/unit/infrastructure/container/setupPostUseCases.test.ts`   | 107 | 0   | EVIDENCE |
+| `apps/api/tests/unit/PostCommandHandlers.test-helpers.ts`                  | 89  | 0   | EVIDENCE |
+| `apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts`      | 60  | 5   | EVIDENCE |
+| `apps/api/tests/integration/helpers/publishNowPromotionHarness.ts`         | 8   | 0   | EVIDENCE |
+
+**CODE 253 is UNDER the hard 400-line budget** — the first unit of this chain that is, and no
+`size:exception` is needed for it.
+
+**EVIDENCE 0 was never a possible number, and the forecast should be read as an error rather than as
+a target this unit missed.** The row describes "CQRS command, handlers, container tokens" — a wired
+command handler and four DI registrations. A handler with no suite cannot be shown to route, to map
+its input, to carry a refusal code, or to invalidate anything; four registrations with no suite
+cannot be shown to carry the Unit of Work that is the entire reason they exist rather than a
+`new` at the call site. Under STRICT TDD the evidence is written BEFORE the code, so forecasting
+zero of it forecasts that the code is never tested. The 472 lines break down as 310 in two new
+suites (30 cases), 89 in the shared double, 65 in the additive-field cases (60 added, 5 replaced —
+the four pre-existing `result.data?.` fixes), and 8 in the integration harness. **This is the fifth consecutive under-count** and the first whose under-counted stream was
+forecast at literally zero.
+
+### What is deliberately NOT in this unit
+
+- **No dispatcher.** `SchedulePublishingJobsStep` issues the command at order 10 (T1c.9). Writing it
+  here would put a caller in front of a wait step that cannot yet read attempts — the order-10 cycle
+  §9.4.1 names.
+- **No `CHANNEL_HAS_LIVE_FRAGMENTS` code on the refusal.** The use case still answers a generic
+  `CONFLICT` whose only discriminator is the message prefix. That is carried work (T1c.11, order 5),
+  and it now has a CARRIER waiting for it: `CommandResult.code` already transports whatever code the
+  use case names, so closing T1c.11 needs no second change here.
+- **No retrofit of the other five handlers onto `code`.** Additive means additive.
+- **No exhaustive command-to-handler gate.** It would be red on two pre-existing members — see
+  above.
+
+### For Edward — two findings, neither actionable inside this task
+
+1. **Two declared Post commands have no handler and no producer.** `POST_COMMANDS.SCHEDULE_POST`
+   (`post.schedule`) and `POST_COMMANDS.CANCEL_SCHEDULED_POST` (`post.cancel-schedule`) are members
+   of the command map that nothing issues and nothing routes; dispatching either returns
+   `No handler registered for command type` at runtime. Measured tree-wide (the only other hits are
+   an unrelated React Query mutation key in `apps/client`). They are the reason the exhaustive
+   registry gate this task asked for cannot be written green today. Two exits: delete the two
+   members, or write the handlers. **Backlog row either way** — deleting contract surface is a
+   decision, not a cleanup.
+2. **`apps/api/tests` is typechecked by nothing.** `apps/api/tsconfig.json` includes `src` only, and
+   the node:test tier runs under `tsx`, which strips types without checking. Four latent type errors
+   were sitting in a live suite and a widened required interface reached an integration harness with
+   no compile error to announce it. The scratchpad probe catches this on demand and has now earned
+   its keep in three consecutive units; making it a committed config is a decision nobody has taken
+   and it belongs to someone other than this task.
+
+### RDD receipt — the committed range `dfc5cae2` → `886ec0a5`
+
+Lineage `review-cec1598841a2b767`, medium, one reliability lens. **Approved and burned**, with one
+WARNING and two SUGGESTIONs. All three are FIXED below rather than accepted; one of them is fixed
+**and its stated mechanism corrected**, because the fix was worth doing and the reason given for it
+was not the true one.
+
+#### WARNING `R3-harness-uow-missing` — FIXED, and the claim's mechanism corrected
+
+> "The integration harness constructs a real OpenPublicationEpisodeUseCase without the Unit of Work
+> seam. … the constructor accepts UoW as an optional last parameter, so the harness's instance will
+> not surface the divergence at construction time — the moment a scenario reaches it, **the write
+> escapes the tenant-bound transaction** the container's production wiring guarantees."
+> — `publishNowPromotionHarness.ts:223-229`
+
+**Disposition: FIXED.** The harness now builds ONE `PrismaUnitOfWork` into a local and hands it to
+both writers it constructs, so the episode use case runs the wiring the container builds. Holding
+it in a local is the part that outlasts this correction: a writer constructed without it now reads
+as an omission beside a sibling that has it.
+
+**The mechanism in the claim is wrong, and saying so is the point.** The write does NOT escape
+tenant binding without the Unit of Work. Measured in
+`packages/adapters/db-prisma/src/post/PostPublicationWrites.ts:303-318`: `savePublicationRecord`
+reads `PrismaUnitOfWork.activeTransaction()` and, when there is none, calls the collaborator
+`runInTenantBoundTransaction` — which `PrismaPostRepository.savePublication`
+(`PrismaPostRepository.ts:160-164`) supplies as
+`withGucBoundTransaction(this.prisma, resolveGucScope(this.tenantProvider), statements)`. So the
+save opens its OWN tenant-bound transaction and binds the GUC either way; the repository's scope
+refusal (`:146-155`, absent scope or the system sentinel) fires either way too. What the missing
+seam actually costs is the USE CASE's transaction boundary — `executeResultInTransaction` around
+load-admit-save, and the rollback of an `err` returned after a write. For a writer whose write is
+one narrow save that is a real but narrow difference, not an isolation hole.
+
+**No red was available, and this is the plain statement the correction asked for.** Nothing in this
+harness dispatches `post.open-publication-episode`, and — given the fallback above — the two
+wirings are not distinguishable from outside for a single-save use case: both bind the tenant, both
+commit, and both leave the aggregate's publication debt discharged by the time `execute` resolves.
+A one-line "is defined" assertion in the harness suite would pass with or without the seam, so it
+was not written: a case that cannot go red is not evidence, and this repo already refuses that
+shape everywhere else. The regression proof is the batch itself — `integration:saga-recovery`
+**33/33**, unchanged across the fix.
+
+#### SUGGESTION `R3-handler-catch-untested` — FIXED
+
+> "The OpenPublicationEpisodeCommandHandler's catch branch … has no test … no case pins that a
+> thrown error is neither swallowed silently nor re-thrown across the bus boundary."
+> — `PostCommandHandlers.ts:698-704`
+
+**Disposition: FIXED.** Four cases in a new `describe("a fault that escapes the Result
+discipline")`: the shaped `success: false` result with the thrown message and no `data`; the ERROR
+log, because a converted throw nobody records is a fault nobody can find; no cache invalidation,
+because nothing was written to go stale; and **no `code`**, because an unclassified fault must not
+read as a classified refusal — that last one is the case the finding did not ask for and the one
+that matters most now that `CommandResult.code` exists. The double gained `shouldThrow`, kept
+distinct from `shouldFail`: a refusal is a `Result` the use case RETURNS, a throw escapes the
+Result discipline entirely, and only a double that can do both proves the handler converts the
+second into the first.
+
+**The red was taken by the probe protocol**, because the behaviour was already correct and a
+characterization test cannot go red on its own. The catch's conversion was replaced with a bare
+re-throw, the four cases were run, and the file was restored and verified byte-exact
+(`sha256` `5dff4e1d…` → `OK`):
+
+```text
+ ❯ tests/unit/PostCommandHandlers.open-publication-episode.test.ts (21 tests | 4 failed | 17 skipped)
+   × answers a shaped failure instead of letting the throw cross the bus boundary
+   × logs the fault at ERROR — a converted throw that is never recorded is a fault nobody can find
+   × invalidates no cache for a fault — nothing was written to go stale
+   × carries no refusal code for a throw — an unclassified fault must not read as a classified one
+Error: connection terminated unexpectedly
+ ❯ OpenPublicationEpisodeCommandHandler.handle src/cqrs/handlers/PostCommandHandlers.ts:672:70
+```
+
+#### SUGGESTION `R3-reasoncode-declared-not-forwarded` — FIXED with a log, never a marker
+
+> "a producer wired now that populates reasonCode expecting the completion path to persist it will
+> see the value cross the parser and vanish at the handler seam **without any log line**. Recording
+> an explicit warn-log or a schema-level TODO tag on the field would make the parked half
+> discoverable." — `packages/shared/src/cqrs.ts:302-311`
+
+**Disposition: FIXED — with the log. The `TODO` half of the suggestion is REFUSED on canon**: a
+`TODO` marker in a comment is a tripwire in this repo (`CLAUDE.md` §Mandatory Pre-Action Triggers,
+row 1b), and planting one to document a parked reader is exactly the deferral that rule exists to
+stop. The suggestion offered two remedies and only one of them is admissible here.
+
+`CompletePostPublishingCommandHandler` now counts the channels carrying a `reasonCode` and, when
+that count is non-zero, logs ONCE per command at WARN with `{ postId, droppedReasonCodes }`, naming
+that the reconciliation reader is not wired yet. Once per command, not once per channel: a
+ten-channel outcome is one event, and a per-channel line would bury it. The schema field's JSDoc
+now says in as many words that it is **parsed and not yet consumed**, that populating it is safe,
+and that no behaviour may be built on the completion path persisting it. The `toStrictEqual` case
+that guards against accidental forwarding is untouched and still passes.
+
+**The red was genuine** — the handler logged nothing before:
+
+```text
+ FAIL  tests/unit/PostCommandHandlers.complete-publishing.test.ts > the additive reasonCode field >
+   warns ONCE per command, naming how many codes it dropped and why
+AssertionError: expected +0 to be 1
+```
+
+Three cases, not one: the warn with its count, a mixed outcome where only the channel that carried
+a code is counted, and **silence when none did** — the third is what stops the log from degrading
+into noise on every completion, and it passed against the pre-change code too, which is the proof
+that the mock logger was wired and reading zero rather than reading nothing.
+
+#### What the correction changed, measured from `git diff --numstat HEAD` at write time
+
+| File                                                                       | +       | −      | Stream                 |
+| -------------------------------------------------------------------------- | ------- | ------ | ---------------------- |
+| `apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts`      | 80      | 1      | EVIDENCE               |
+| `apps/api/tests/unit/PostCommandHandlers.open-publication-episode.test.ts` | 84      | 3      | EVIDENCE               |
+| `apps/api/src/cqrs/handlers/PostCommandHandlers.ts`                        | 16      | 0      | CODE                   |
+| `apps/api/tests/integration/helpers/publishNowPromotionHarness.ts`         | 15      | 6      | EVIDENCE               |
+| `apps/api/tests/unit/PostCommandHandlers.test-helpers.ts`                  | 11      | 0      | EVIDENCE               |
+| `packages/shared/src/cqrs.ts`                                              | 8       | 0      | CODE                   |
+| **Totals**                                                                 | **214** | **10** | CODE 24 / EVIDENCE 190 |
+
+Unit CODE after the correction: **277** (253 + 24) — still under the 400 hard budget.
+
+#### Gates after the correction
+
+| Gate                                                 | Result                                                            |
+| ---------------------------------------------------- | ----------------------------------------------------------------- |
+| touched `apps/api` suites (7 files)                  | **92 passed** (was 85; +7 cases — 4 fault, 3 reasonCode)          |
+| `integration:saga-recovery`                          | **33 tests / 33 pass / 0 fail / 0 cancelled / 0 skipped**, exit 0 |
+| `tsc --noEmit` `packages/shared` · `apps/api` (6144) | **0** · **0**                                                     |
+| scratchpad tsc probe over the touched test files     | **0**                                                             |
+| `eslint --max-warnings 0`, 6 files, ONE pass at 6144 | **0**                                                             |
+| `prettier -c`, 6 files + this ledger                 | clean                                                             |
+| fitness #3 · #4 · #5 · #6 · #8 · #9 · #10 · #32      | 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0                                     |
+| tripwire words in the six changed files              | none (the refused `TODO` above is why this line is here)          |
+
+#### One thing the correction leaves behind, named rather than carried silently
+
+The logger mock now appears in TWO suites of this family, copied rather than shared, because
+`vi.mock` is hoisted per file and a shared factory would have to be imported before the hoist. It is
+~25 lines duplicated. The right home is a helper the family imports, and the reason it is not
+written here is that `PostCommandHandlers.test-helpers.ts` is imported for its VALUES by five
+suites — moving a hoisted mock into it would apply the mock to all five at once, which is a
+behaviour change to three suites this correction has no business touching. **Backlog-sized, not
+bounded-correction-sized.**

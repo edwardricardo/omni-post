@@ -18,6 +18,7 @@ import { ok, err, type Result } from "@shared/types";
 import { randomUUID } from "crypto";
 import type { CreatePostOutput } from "@core/posts/CreatePostUseCase.js";
 import type { CompletePostPublishingOutput } from "@core/posts/CompletePostPublishingUseCase.js";
+import type { OpenPublicationEpisodeOutput } from "@core/posts/OpenPublicationEpisodeUseCase.js";
 import type { PostDTO } from "@core/posts/GetPostUseCase.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { EntityNotFoundError } from "@core/domain/index.js";
@@ -164,6 +165,64 @@ export class MockCompletePostPublishingUseCase {
     this.version = 1;
     this.publishedAt = new Date("2024-01-01T00:00:00.000Z");
     this.unresolvedChannelIds = [];
+  }
+}
+
+/**
+ * Double for the episode writer. `opened`, `alreadyOpen` and `status` are settable
+ * per test because the handler's whole job is to report what the use case answered:
+ * a double that always returned the same channel set could not tell a mapped answer
+ * from a fabricated one. `failCode` is settable for the same reason — the code is
+ * the discriminator the caller switches on, so it has to be observable end to end.
+ */
+export class MockOpenPublicationEpisodeUseCase {
+  public executeCalls: unknown[] = [];
+  public shouldFail = false;
+  // Distinct from `shouldFail`: a refusal is a `Result` the use case RETURNS, a
+  // throw is a failure that escapes the Result discipline entirely — a driver
+  // fault, a null dereference. The handler must convert the second into the same
+  // shaped result as the first, and only a double that can do both proves it.
+  public shouldThrow = false;
+  public throwMessage = "connection terminated unexpectedly";
+  public failMessage = "Episode refused";
+  // Typed as the `string` a `UseCaseError` actually carries, not narrowed to the
+  // initializer's literal: the point of the field is that a test can plant a
+  // DIFFERENT code and watch it cross, and a literal type makes that assignment
+  // a compile error instead.
+  public failCode: string = USE_CASE_ERRORS.CONFLICT;
+  public opened: Array<{ channelId: string; episode: number }> = [
+    { channelId: TEST_CHANNEL_ID_1, episode: 1 },
+  ];
+  public alreadyOpen = false;
+  public status = "PUBLISHING";
+
+  async execute(input: unknown): Promise<Result<OpenPublicationEpisodeOutput, UseCaseError>> {
+    this.executeCalls.push(input);
+    if (this.shouldThrow) {
+      throw new Error(this.throwMessage);
+    }
+    if (this.shouldFail) {
+      return err(new UseCaseError(this.failMessage, this.failCode));
+    }
+    return ok({
+      postId: (input as Record<string, string>).postId ?? TEST_POST_ID,
+      projectId: TEST_PROJECT_ID,
+      opened: this.opened,
+      alreadyOpen: this.alreadyOpen,
+      status: this.status as OpenPublicationEpisodeOutput["status"],
+    });
+  }
+
+  reset(): void {
+    this.executeCalls = [];
+    this.shouldFail = false;
+    this.shouldThrow = false;
+    this.throwMessage = "connection terminated unexpectedly";
+    this.failMessage = "Episode refused";
+    this.failCode = USE_CASE_ERRORS.CONFLICT;
+    this.opened = [{ channelId: TEST_CHANNEL_ID_1, episode: 1 }];
+    this.alreadyOpen = false;
+    this.status = "PUBLISHING";
   }
 }
 
@@ -349,6 +408,7 @@ export interface TestContext {
   updatePostUseCase: MockUpdatePostUseCase;
   deletePostUseCase: MockDeletePostUseCase;
   completePostPublishingUseCase: MockCompletePostPublishingUseCase;
+  openPublicationEpisodeUseCase: MockOpenPublicationEpisodeUseCase;
   postRepository: MockPostRepository;
   channelRepository: MockChannelRepository;
   redis: MockRedis;
@@ -359,6 +419,7 @@ export function createTestConfig(): TestContext {
   const updatePostUseCase = new MockUpdatePostUseCase();
   const deletePostUseCase = new MockDeletePostUseCase();
   const completePostPublishingUseCase = new MockCompletePostPublishingUseCase();
+  const openPublicationEpisodeUseCase = new MockOpenPublicationEpisodeUseCase();
   const postRepository = new MockPostRepository();
   const channelRepository = new MockChannelRepository();
   const redis = new MockRedis();
@@ -372,6 +433,8 @@ export function createTestConfig(): TestContext {
       deletePostUseCase as unknown as PostCommandHandlersConfig["deletePostUseCase"],
     completePostPublishingUseCase:
       completePostPublishingUseCase as unknown as PostCommandHandlersConfig["completePostPublishingUseCase"],
+    openPublicationEpisodeUseCase:
+      openPublicationEpisodeUseCase as unknown as PostCommandHandlersConfig["openPublicationEpisodeUseCase"],
     postRepository: postRepository as unknown as PostCommandHandlersConfig["postRepository"],
     channelRepository:
       channelRepository as unknown as PostCommandHandlersConfig["channelRepository"],
@@ -384,6 +447,7 @@ export function createTestConfig(): TestContext {
     updatePostUseCase,
     deletePostUseCase,
     completePostPublishingUseCase,
+    openPublicationEpisodeUseCase,
     postRepository,
     channelRepository,
     redis,
@@ -514,6 +578,7 @@ export function buildCompletePostPublishingCommand(
       success: boolean;
       externalId?: string;
       error?: string;
+      reasonCode?: string;
     }>;
     expectedVersion: number;
     userId: string;
@@ -533,6 +598,41 @@ export function buildCompletePostPublishingCommand(
       ...(overrides?.expectedVersion !== undefined && {
         expectedVersion: overrides.expectedVersion,
       }),
+    } as Record<string, unknown>,
+    metadata: {
+      correlationId: overrides?.correlationId ?? "corr-1",
+      source: overrides?.source ?? "test",
+      ...(overrides?.userId && { userId: overrides.userId }),
+    },
+    timestamp: new Date(),
+  };
+}
+
+/**
+ * Builds an episode-opening command. `channelIds` is omitted unless a test names
+ * one, because "name no channel" and "name an empty set" mean opposite things to
+ * the use case and a builder that defaulted the key would make the first shape
+ * unreachable from here.
+ */
+export function buildOpenPublicationEpisodeCommand(
+  overrides?: Partial<{
+    id: string;
+    aggregateId: string;
+    channelIds: string[];
+    enterPublishing: boolean;
+    userId: string;
+    correlationId: string;
+    source: string;
+  }>
+) {
+  return {
+    id: overrides?.id ?? `cmd-${Date.now()}`,
+    type: "post.open-publication-episode" as const,
+    aggregateId: overrides?.aggregateId ?? TEST_POST_ID,
+    aggregateType: "Post" as const,
+    data: {
+      ...(overrides?.channelIds !== undefined && { channelIds: overrides.channelIds }),
+      enterPublishing: overrides?.enterPublishing ?? true,
     } as Record<string, unknown>,
     metadata: {
       correlationId: overrides?.correlationId ?? "corr-1",
