@@ -6,13 +6,40 @@
 
 import { type Result, ok, err } from "@shared/types";
 import { AggregateRoot } from "./AggregateRoot.js";
-import { PostId, ProjectId, MediaId, ContentId } from "../value-objects/EntityId.js";
+import { PostId, ProjectId, MediaId, ContentId, ChannelId } from "../value-objects/EntityId.js";
 import { Content, type ContentProps, type ContentLocale } from "../value-objects/Content.js";
 import { PublishStatus, PUBLISH_STATUS } from "../value-objects/PublishStatus.js";
 import { ScheduledTime } from "../value-objects/ScheduledTime.js";
 import { MediaAttachment, type MediaAttachmentProps } from "../value-objects/MediaAttachment.js";
 import { type ProviderType } from "../value-objects/Provider.js";
+import { type ChannelPublication } from "../entities/ChannelPublication.js";
+import { ChannelPublications } from "./ChannelPublications.js";
+import { type PublicationOutcome } from "../value-objects/PublicationOutcome.js";
 import {
+  applyDerivedStatus,
+  assertPublicationProjection,
+  clearPendingRetraction,
+  contentLock,
+  declarePublicationTargets,
+  expireRetractionActionWindow,
+  markAsFailedFromRecord,
+  markAsPartiallyPublishedFromRecord,
+  markAsPublishedFromRecord,
+  markAsFailedWithoutRecord,
+  markAsPublishedWithoutRecord,
+  markRetractionOutcome,
+  openPublicationEpisode,
+  recordChannelAttempt,
+  type ClearChannelPendingRetractionInput,
+  type ExpireChannelRetractionWindowInput,
+  type MarkChannelRetractionOutcomeInput,
+  type OpenedPublicationChannel,
+  type OpenPublicationEpisodeInput,
+  type PublicationContext,
+  type RecordChannelAttemptInput,
+} from "./post/PostPublicationMethods.js";
+import {
+  ContentLockedError,
   InvalidStateTransitionError,
   InvariantViolationError,
   EmptyValueError,
@@ -23,8 +50,6 @@ import {
   PostScheduled,
   PostUnscheduled,
   PostPublishingStarted,
-  PostPublished,
-  PostPublishingFailed,
   PostCancelled,
   PostMediaAdded,
   PostMediaRemoved,
@@ -53,16 +78,36 @@ export interface CreatePostAggregateInput {
 export interface PostAggregateState {
   id: PostId;
   projectId: ProjectId;
+  /**
+   * The owning tenant, read from the post row. A post built in memory does not have
+   * one yet — the repository derives it from the project at creation — so the
+   * channel-keyed events omit the key rather than carrying an empty tenant.
+   */
+  accountId?: string;
   content: Content;
   status: PublishStatus;
   scheduledAt?: ScheduledTime;
   publishedAt?: Date;
   media: MediaAttachment[];
   contentVersions: ContentId[];
+  /**
+   * The per-channel publication records. Absent means the post has declared no
+   * targets; the mapper always supplies the loaded set, empty or not.
+   */
+  publications?: readonly ChannelPublication[];
   createdAt: Date;
   updatedAt: Date;
   version: number;
 }
+
+export type {
+  ClearChannelPendingRetractionInput,
+  ExpireChannelRetractionWindowInput,
+  MarkChannelRetractionOutcomeInput,
+  OpenedPublicationChannel,
+  OpenPublicationEpisodeInput,
+  RecordChannelAttemptInput,
+};
 
 /**
  * PostAggregate - Aggregate root for Post domain
@@ -87,22 +132,26 @@ export interface PostAggregateState {
  */
 export class PostAggregate extends AggregateRoot<PostId> {
   private readonly _projectId: ProjectId;
+  private readonly _accountId: string | undefined;
   private _content: Content;
   private _status: PublishStatus;
   private _scheduledAt: ScheduledTime | undefined;
   private _publishedAt: Date | undefined;
   private readonly _media: MediaAttachment[];
   private readonly _contentVersions: ContentId[];
+  private _publications: ChannelPublication[];
 
   private constructor(id: PostId, state: Omit<PostAggregateState, "id">) {
     super(id, state.createdAt, state.version);
     this._projectId = state.projectId;
+    this._accountId = state.accountId;
     this._content = state.content;
     this._status = state.status;
     this._scheduledAt = state.scheduledAt;
     this._publishedAt = state.publishedAt;
     this._media = [...state.media];
     this._contentVersions = [...state.contentVersions];
+    this._publications = [...(state.publications ?? [])];
 
     if (state.updatedAt) {
       this._updatedAt = state.updatedAt;
@@ -199,6 +248,20 @@ export class PostAggregate extends AggregateRoot<PostId> {
     return this._projectId;
   }
 
+  get accountId(): string | undefined {
+    return this._accountId;
+  }
+
+  /**
+   * @method publications
+   * @description The post's per-channel record set — the ONLY source of publication
+   *   truth. Every lock, admission, guard and derived word reads it.
+   * @returns A read view over the records
+   */
+  get publications(): ChannelPublications {
+    return ChannelPublications.of(this._publications);
+  }
+
   get content(): Content {
     return this._content;
   }
@@ -249,8 +312,14 @@ export class PostAggregate extends AggregateRoot<PostId> {
     return this._status.isPendingReview();
   }
 
+  /**
+   * Editability is decided from the RECORD first and the lifecycle word second.
+   * Deciding it from the word alone is the defect this record exists to close: a post
+   * whose content is live on two providers can read `FAILED`, and `FAILED` is an
+   * editable word.
+   */
   get isEditable(): boolean {
-    return this._status.isEditable();
+    return this.publications.noLiveContent() && this._status.isEditable();
   }
 
   // Domain behavior with events
@@ -260,7 +329,11 @@ export class PostAggregate extends AggregateRoot<PostId> {
    */
   updateContent(
     props: Partial<ContentProps>
-  ): Result<void, InvalidStateTransitionError | EmptyValueError> {
+  ): Result<void, InvalidStateTransitionError | EmptyValueError | ContentLockedError> {
+    const locked = this.contentLock("EDIT");
+    if (locked !== undefined) {
+      return err(locked);
+    }
     if (!this.isEditable) {
       return err(new InvalidStateTransitionError(this._status.value, "EDIT", "Post"));
     }
@@ -304,7 +377,11 @@ export class PostAggregate extends AggregateRoot<PostId> {
   schedule(
     scheduledAt: Date,
     timezone?: string
-  ): Result<void, InvalidStateTransitionError | InvariantViolationError> {
+  ): Result<void, InvalidStateTransitionError | InvariantViolationError | ContentLockedError> {
+    const locked = this.contentLock("SCHEDULE");
+    if (locked !== undefined) {
+      return err(locked);
+    }
     if (!this._status.canTransitionTo(PUBLISH_STATUS.SCHEDULED)) {
       return err(
         new InvalidStateTransitionError(this._status.value, PUBLISH_STATUS.SCHEDULED, "Post")
@@ -345,7 +422,11 @@ export class PostAggregate extends AggregateRoot<PostId> {
   /**
    * Unschedule post
    */
-  unschedule(): Result<void, InvalidStateTransitionError> {
+  unschedule(): Result<void, InvalidStateTransitionError | ContentLockedError> {
+    const locked = this.contentLock("UNSCHEDULE");
+    if (locked !== undefined) {
+      return err(locked);
+    }
     if (!this._status.canTransitionTo(PUBLISH_STATUS.DRAFT)) {
       return err(new InvalidStateTransitionError(this._status.value, PUBLISH_STATUS.DRAFT, "Post"));
     }
@@ -370,7 +451,19 @@ export class PostAggregate extends AggregateRoot<PostId> {
   }
 
   /**
-   * Start publishing process
+   * @method startPublishing
+   * @description Enters the publication family through the lifecycle state machine.
+   *
+   *   The parameter is still provider-keyed, and that is a transitional shape rather
+   *   than the intended one. Inside this aggregate nothing asks a caller for providers
+   *   any more: the publication facet resolves them from the records' joined channel
+   *   rows and hands them here. The parameter survives only for the one remaining
+   *   caller outside the aggregate — the publish-completion use case, which still runs
+   *   over posts that carry no record at all and therefore has no record to resolve
+   *   them from. When that use case is rebuilt on the record, this method loses the
+   *   parameter and reads the providers itself.
+   * @param targetProviders - The providers the internal event will name
+   * @returns Result.ok, or InvalidStateTransitionError when the word cannot enter the family
    */
   startPublishing(targetProviders: ProviderType[]): Result<void, InvalidStateTransitionError> {
     if (!this._status.canTransitionTo(PUBLISH_STATUS.PUBLISHING)) {
@@ -394,66 +487,85 @@ export class PostAggregate extends AggregateRoot<PostId> {
   }
 
   /**
-   * Mark as published
+   * @method markAsPublished
+   * @description Resolves the post to `PUBLISHED`.
+   *
+   *   With a record, this is a PROJECTION write gated by the record itself: the
+   *   derivation must already read `PUBLISHED`, and the v1 event payload is built
+   *   FROM the record, so the word can never claim more than the channels did.
+   *   With no record — a post whose targets were never declared — the caller's
+   *   provider results are used and the lifecycle transition decides.
+   * @param providerResults - Only consulted for a post with no record
+   * @returns Result.ok, or the refusal that stopped it
    */
   markAsPublished(
-    providerResults: Record<string, { success: boolean; externalId?: string; error?: string }>
-  ): Result<void, InvalidStateTransitionError> {
-    if (!this._status.canTransitionTo(PUBLISH_STATUS.PUBLISHED)) {
+    providerResults?: Record<string, { success: boolean; externalId?: string; error?: string }>
+  ): Result<void, InvalidStateTransitionError | InvariantViolationError> {
+    const context = this.publicationContext();
+    if (!this.publications.isEmpty()) {
+      return markAsPublishedFromRecord(context);
+    }
+    if (providerResults === undefined) {
       return err(
-        new InvalidStateTransitionError(this._status.value, PUBLISH_STATUS.PUBLISHED, "Post")
+        new InvariantViolationError(
+          `post ${this._id.value} has no publication record to publish from`
+        )
       );
     }
-
-    const transitionResult = this._status.transitionTo(PUBLISH_STATUS.PUBLISHED);
-    if (!transitionResult.ok) {
-      return err(transitionResult.error);
-    }
-
-    this._status = transitionResult.value;
-    this._publishedAt = new Date();
-    this.markUpdated();
-
-    // Raise event
-    this.addDomainEvent(new PostPublished(this._id.value, this._publishedAt, providerResults));
-
-    return ok(undefined);
+    return markAsPublishedWithoutRecord(context, providerResults);
   }
 
   /**
-   * Mark as failed
+   * @method markAsPartiallyPublished
+   * @description Resolves the post to `PARTIALLY_PUBLISHED` — at least one channel
+   *   fully published and at least one did not. No external event: the channel-keyed
+   *   events carry the news, and `publishedAt` stays null because the post did not
+   *   publish everywhere.
+   * @returns Result.ok, or InvariantViolationError when the record does not derive it
+   */
+  markAsPartiallyPublished(): Result<void, InvariantViolationError> {
+    return markAsPartiallyPublishedFromRecord(this.publicationContext());
+  }
+
+  /**
+   * @method markAsFailed
+   * @description Resolves the post to `FAILED`.
+   *
+   *   With a record, the derivation must already read `FAILED` and the v1 payload is
+   *   built FROM the record: the error is the first not-published channel's reason,
+   *   the providers are those of the not-published channels, and `retryable` says
+   *   whether any channel may still be attempted. With no record the caller's
+   *   arguments are used and the lifecycle transition decides.
+   * @param error - Only consulted for a post with no record
+   * @param failedProviders - Only consulted for a post with no record
+   * @param retryable - Only consulted for a post with no record
+   * @returns Result.ok, or the refusal that stopped it
    */
   markAsFailed(
-    error: string,
-    failedProviders: ProviderType[],
+    error?: string,
+    failedProviders?: ProviderType[],
     retryable: boolean = true
-  ): Result<void, InvalidStateTransitionError> {
-    if (!this._status.canTransitionTo(PUBLISH_STATUS.FAILED)) {
+  ): Result<void, InvalidStateTransitionError | InvariantViolationError> {
+    const context = this.publicationContext();
+    if (!this.publications.isEmpty()) {
+      return markAsFailedFromRecord(context);
+    }
+    if (error === undefined) {
       return err(
-        new InvalidStateTransitionError(this._status.value, PUBLISH_STATUS.FAILED, "Post")
+        new InvariantViolationError(`post ${this._id.value} has no publication record to fail from`)
       );
     }
-
-    const transitionResult = this._status.transitionTo(PUBLISH_STATUS.FAILED);
-    if (!transitionResult.ok) {
-      return err(transitionResult.error);
-    }
-
-    this._status = transitionResult.value;
-    this.markUpdated();
-
-    // Raise event
-    this.addDomainEvent(
-      new PostPublishingFailed(this._id.value, error, failedProviders, retryable)
-    );
-
-    return ok(undefined);
+    return markAsFailedWithoutRecord(context, error, failedProviders ?? [], retryable);
   }
 
   /**
    * Cancel post
    */
-  cancel(reason?: string): Result<void, InvalidStateTransitionError> {
+  cancel(reason?: string): Result<void, InvalidStateTransitionError | ContentLockedError> {
+    const locked = this.contentLock("CANCEL");
+    if (locked !== undefined) {
+      return err(locked);
+    }
     if (!this._status.canTransitionTo(PUBLISH_STATUS.CANCELLED)) {
       return err(
         new InvalidStateTransitionError(this._status.value, PUBLISH_STATUS.CANCELLED, "Post")
@@ -551,7 +663,13 @@ export class PostAggregate extends AggregateRoot<PostId> {
   /**
    * Add media attachment
    */
-  addMedia(props: MediaAttachmentProps): Result<MediaAttachment, InvalidStateTransitionError> {
+  addMedia(
+    props: MediaAttachmentProps
+  ): Result<MediaAttachment, InvalidStateTransitionError | ContentLockedError> {
+    const locked = this.contentLock("ADD_MEDIA");
+    if (locked !== undefined) {
+      return err(locked);
+    }
     if (!this.isEditable) {
       return err(new InvalidStateTransitionError(this._status.value, "ADD_MEDIA", "Post"));
     }
@@ -574,7 +692,11 @@ export class PostAggregate extends AggregateRoot<PostId> {
   /**
    * Remove media attachment
    */
-  removeMedia(mediaId: MediaId): Result<void, InvalidStateTransitionError> {
+  removeMedia(mediaId: MediaId): Result<void, InvalidStateTransitionError | ContentLockedError> {
+    const locked = this.contentLock("REMOVE_MEDIA");
+    if (locked !== undefined) {
+      return err(locked);
+    }
     if (!this.isEditable) {
       return err(new InvalidStateTransitionError(this._status.value, "REMOVE_MEDIA", "Post"));
     }
@@ -589,6 +711,177 @@ export class PostAggregate extends AggregateRoot<PostId> {
     }
 
     return ok(undefined);
+  }
+
+  // ── the publication record ───────────────────────────────────────────────
+  //
+  // The facet itself lives in `./post/PostPublicationMethods.ts`. These are its only
+  // entry points: the companion takes the narrow mutable view built below, which
+  // nothing outside this class can construct, so the record set stays behind the
+  // aggregate boundary while this file stays readable.
+
+  /**
+   * @method publicationContext
+   * @description The narrow mutable view the publication companion operates on.
+   * @returns The context bound to this aggregate
+   */
+  private publicationContext(): PublicationContext {
+    // The three mutable reads are GETTERS, not captured values. A companion function
+    // that sets the word and then re-reads it must see what it just wrote; a snapshot
+    // would make the second read answer with the state before the change.
+    const aggregate = this;
+    return {
+      postId: this._id.value,
+      projectId: this._projectId.value,
+      accountId: this._accountId,
+      get records() {
+        return aggregate._publications;
+      },
+      get status() {
+        return aggregate._status;
+      },
+      get publishedAt() {
+        return aggregate._publishedAt;
+      },
+      replaceRecords: (records) => {
+        this._publications = records;
+      },
+      setStatus: (status) => {
+        this._status = status;
+      },
+      setPublishedAt: (publishedAt) => {
+        this._publishedAt = publishedAt;
+      },
+      emit: (event) => {
+        this.addDomainEvent(event);
+      },
+      touch: () => {
+        this.markUpdated();
+      },
+      startPublishing: (providers) => this.startPublishing(providers),
+    };
+  }
+
+  /**
+   * @method declarePublicationTargets
+   * @description Records the channels this post is INTENDED for, so a channel that
+   *   never ran is recorded rather than missing.
+   * @param channelIds - The intended channels
+   * @returns Result.ok, or InvariantViolationError when content is already live
+   */
+  declarePublicationTargets(
+    channelIds: readonly ChannelId[]
+  ): Result<void, InvariantViolationError> {
+    return declarePublicationTargets(this.publicationContext(), channelIds);
+  }
+
+  /**
+   * @method openPublicationEpisode
+   * @description Includes re-drivable channels in a new attempt episode; a channel
+   *   holding live fragments is refused by name.
+   * @param input - The channels to open and whether the post enters the family now
+   * @returns Result with the opened channels and whether the episode was already open
+   */
+  openPublicationEpisode(
+    input: OpenPublicationEpisodeInput
+  ): Result<
+    { opened: readonly OpenedPublicationChannel[]; alreadyOpen: boolean },
+    InvariantViolationError | InvalidStateTransitionError
+  > {
+    return openPublicationEpisode(this.publicationContext(), input);
+  }
+
+  /**
+   * @method recordChannelAttempt
+   * @description Records ONE attempt's result for ONE channel and re-derives the word.
+   * @param input - The channel, the episode, the attempt ordinal, the plan size, the result
+   * @returns Result with whether the attempt applied and the channel's outcome
+   */
+  recordChannelAttempt(
+    input: RecordChannelAttemptInput
+  ): Result<
+    { applied: boolean; outcome: PublicationOutcome },
+    InvariantViolationError | InvalidStateTransitionError
+  > {
+    return recordChannelAttempt(this.publicationContext(), input);
+  }
+
+  /**
+   * @method markRetractionOutcome
+   * @description Records what a retraction attempt achieved on one channel.
+   * @param input - The channel, the retraction outcome and what is still live
+   * @returns Result.ok, or the refusal that stopped it
+   */
+  markRetractionOutcome(
+    input: MarkChannelRetractionOutcomeInput
+  ): Result<void, InvariantViolationError | InvalidStateTransitionError> {
+    return markRetractionOutcome(this.publicationContext(), input);
+  }
+
+  /**
+   * @method clearPendingRetraction
+   * @description The customer's confirmation that they removed the live fragments.
+   * @param input - The channel and the recorded cause
+   * @returns Result with `applied` — false when nothing was pending on that channel
+   */
+  clearPendingRetraction(
+    input: ClearChannelPendingRetractionInput
+  ): Result<{ applied: boolean }, InvariantViolationError | InvalidStateTransitionError> {
+    return clearPendingRetraction(this.publicationContext(), input);
+  }
+
+  /**
+   * @method expireRetractionActionWindow
+   * @description Closes the customer's window on one channel, keeping every fragment.
+   * @param input - The channel, the moment and the window length
+   * @returns Result with `applied` — false when the window has not elapsed
+   */
+  expireRetractionActionWindow(
+    input: ExpireChannelRetractionWindowInput
+  ): Result<{ applied: boolean }, InvariantViolationError | InvalidStateTransitionError> {
+    return expireRetractionActionWindow(this.publicationContext(), input);
+  }
+
+  /**
+   * @method reconcilePublicationProjection
+   * @description Re-derives the word from the record and repairs it when the two have
+   *   drifted. It is the only path that moves a `PUBLISHED` word, and only to the value
+   *   the record proves.
+   * @returns Result with whether the word changed
+   */
+  reconcilePublicationProjection(): Result<
+    { changed: boolean },
+    InvariantViolationError | InvalidStateTransitionError
+  > {
+    const projected = applyDerivedStatus(this.publicationContext());
+    if (!projected.ok) {
+      return err(projected.error);
+    }
+    if (projected.value) {
+      this.markUpdated();
+    }
+    return ok({ changed: projected.value });
+  }
+
+  /**
+   * @method assertPublicationProjection
+   * @description The invariant every save re-asserts, so divergence between the word
+   *   and the record is never representable in committed state.
+   * @returns Result.ok, or InvariantViolationError naming the divergence
+   */
+  assertPublicationProjection(): Result<void, InvariantViolationError> {
+    return assertPublicationProjection(this.publicationContext());
+  }
+
+  /**
+   * @method contentLock
+   * @description The refusal a content write gets while any channel holds content of
+   *   this post on its provider.
+   * @param operation - The write being refused
+   * @returns The refusal, or undefined when nothing is live
+   */
+  private contentLock(operation: string): ContentLockedError | undefined {
+    return contentLock(this.publicationContext(), operation);
   }
 
   /**

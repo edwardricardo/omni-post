@@ -33,6 +33,7 @@ function createMockPostRepository(): PostRepository {
   return {
     findById: vi.fn(async () => err(new EntityNotFoundError("Post", "not-found"))),
     save: vi.fn(async () => ok(undefined)),
+    savePublication: vi.fn(async () => ok(undefined)),
     delete: vi.fn(async () => ok(undefined)),
     findByProjectId: vi.fn(async () => ({
       items: [],

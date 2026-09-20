@@ -99,6 +99,8 @@ const makePostRepo = (projectIdValue: string = PROJECT_ID, found = true) =>
           ? ok({ projectId: { value: projectIdValue } })
           : err(new EntityNotFoundError("Post", TEMPLATE_POST_ID))
       ),
+    save: vi.fn(async () => ok(undefined)),
+    savePublication: vi.fn(async () => ok(undefined)),
   }) as unknown as PostRepository & { findById: ReturnType<typeof vi.fn> };
 
 // Channel ownership is checked via the decryption-free `findIdsByProjectId`

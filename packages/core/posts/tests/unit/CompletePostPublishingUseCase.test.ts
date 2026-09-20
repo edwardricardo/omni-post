@@ -74,6 +74,7 @@ interface MockPostRepo {
   port: PostRepository;
   findById: ReturnType<typeof vi.fn>;
   save: ReturnType<typeof vi.fn>;
+  savePublication: ReturnType<typeof vi.fn>;
 }
 
 function makePostRepo(options?: {
@@ -116,13 +117,24 @@ function makePostRepo(options?: {
     }
     return result;
   });
+  // The narrow publication save bumps the in-memory version exactly as the full one
+  // does, so a double cannot make a caller look correct against a version the
+  // production adapter would never have produced.
+  const savePublication = vi.fn(async (aggregate: PostAggregate) => {
+    const result = options?.saveResult ?? ok(undefined);
+    if (result.ok) {
+      aggregate.incrementVersion();
+    }
+    return result;
+  });
   const port = {
     findById,
     save,
+    savePublication,
     delete: vi.fn(),
     exists: vi.fn(),
   } as unknown as PostRepository;
-  return { port, findById, save };
+  return { port, findById, save, savePublication };
 }
 
 function makeChannel(channelId: string, providerType: string): Channel {

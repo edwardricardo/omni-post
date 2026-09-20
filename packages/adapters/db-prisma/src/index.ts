@@ -45,7 +45,14 @@ export { PrismaMentionRepository } from "./MentionRepository.js";
 // hydration, version CAS, transactional outbox) and the `UnitOfWork` port, and they take
 // the tenant provider by constructor — never from an ambient import.
 export { PrismaPostRepository } from "./post/PrismaPostRepository.js";
-export { PostAggregateMapper, type PrismaPostWithRelations } from "./post/PostAggregateMapper.js";
+// `PostRowCorruptedError` is exported because it is the shape `toDomain` RAISES. A
+// consumer that cannot name the class can only match on the message, which turns the
+// wording of an error into an API nobody agreed to.
+export {
+  PostAggregateMapper,
+  PostRowCorruptedError,
+  type PrismaPostWithRelations,
+} from "./post/PostAggregateMapper.js";
 export { PrismaOutboxWriter } from "./outbox/PrismaOutboxWriter.js";
 export { PrismaUnitOfWork, type TransactionOptions } from "./unitofwork/PrismaUnitOfWork.js";
 export {

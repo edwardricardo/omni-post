@@ -1278,9 +1278,96 @@ describe("tenantGuardExtension", () => {
     });
   });
 
+  // The per-channel publication record is a NEW accountId-bearing child of Post.
+  // An unenrolled model is not merely ungated: the guard SKIPS a model it does not
+  // know, so the omission reads as "no rule applies" and every query runs
+  // cross-tenant while looking exactly like a guarded one. That is why membership
+  // is asserted here as a fact, not inferred from the injection tests below.
+  describe("postChannelPublication enrollment", () => {
+    it("postChannelPublication is a member of getTenantScopedModels()", () => {
+      expect(getTenantScopedModels().has("postChannelPublication")).toBe(true);
+    });
+
+    it("injects accountId into where on findMany (read a post's records)", async () => {
+      const queryFn = vi.fn().mockResolvedValue([]);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "PostChannelPublication",
+        operation: "findMany",
+        args: { where: { postId: "post-1" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; postId: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.postId).toBe("post-1");
+    });
+
+    it("injects accountId into where on update (record an outcome)", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "PostChannelPublication",
+        operation: "update",
+        args: {
+          where: { postId_channelId: { postId: "post-1", channelId: "chan-1" } },
+          data: { outcome: "PUBLISHED" },
+        },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as { where: { accountId: string } };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+    });
+
+    it("injects accountId into create data (declare a target)", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "PostChannelPublication",
+        operation: "create",
+        args: { data: { postId: "post-1", channelId: "chan-1" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as { data: { accountId: string } };
+      expect(calledArgs.data.accountId).toBe("acc-A");
+    });
+
+    it("throws TenantContextMismatchError when create.accountId disagrees with context", async () => {
+      await expect(
+        callGuard({
+          provider: makeProvider({ getTenantContext: () => ({ accountId: "acc-A" }) }),
+          model: "PostChannelPublication",
+          operation: "create",
+          args: { data: { accountId: "acc-B", postId: "post-1", channelId: "chan-1" } },
+        })
+      ).rejects.toThrow(TenantContextMismatchError);
+    });
+
+    it("throws TenantContextMissingError on findMany when no context is bound", async () => {
+      await expect(
+        callGuard({
+          provider: makeProvider(),
+          model: "PostChannelPublication",
+          operation: "findMany",
+          args: { where: { postId: "post-1" } },
+        })
+      ).rejects.toThrow(TenantContextMissingError);
+    });
+  });
+
   describe("model classification", () => {
-    it("getTenantScopedModels returns 61 entries", () => {
-      expect(getTenantScopedModels().size).toBe(61);
+    it("getTenantScopedModels returns 62 entries", () => {
+      expect(getTenantScopedModels().size).toBe(62);
     });
 
     it("includes well-known tenant tables (project, apiKey, mediaAsset)", () => {
