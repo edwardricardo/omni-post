@@ -21,6 +21,7 @@
  */
 
 import { describe, it, before, after } from "node:test";
+import { randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 import { PrismaPostRepository, PrismaUnitOfWork } from "@adapters/db-prisma";
 import { SchedulePostUseCase } from "@core/posts/SchedulePostUseCase.js";
@@ -68,7 +69,10 @@ describe("REC-1 — scheduling records the intended target set", () => {
     );
 
   before(async () => {
-    const suffix = Date.now();
+    // randomUUID, not Date.now(): two runs started in the same millisecond — a retry, or
+    // a parallel runner — would collide on the account's primary key and the second
+    // would fail in its `before` hook, which cancels every case in the file.
+    const suffix = randomUUID();
     accountId = `rec1-account-${suffix}`;
     projectId = `rec1-project-${suffix}`;
 
@@ -122,18 +126,38 @@ describe("REC-1 — scheduling records the intended target set", () => {
   });
 
   after(async () => {
-    try {
-      await prisma.sagaInstance.deleteMany({ where: { id: { in: createdSagaIds } } });
-      await prisma.postChannelPublication.deleteMany({ where: { postId: { in: createdPostIds } } });
-      await prisma.postContent.deleteMany({ where: { postId: { in: createdPostIds } } });
-      await prisma.post.deleteMany({ where: { id: { in: createdPostIds } } });
-      await prisma.channel.deleteMany({ where: { projectId } });
-      await prisma.project.deleteMany({ where: { id: projectId } });
-      await prisma.account.deleteMany({ where: { id: accountId } });
-    } catch {
-      // Ignore cleanup failures
-    }
+    // Each step is attempted even when an earlier one fails — a leftover child row must
+    // not stop the parents from being tried — but NOTHING is swallowed. A silent cleanup
+    // leaves rows behind that the next run inherits, and the run that inherits them is
+    // the one that looks broken (CODING_STANDARDS: empty catch blocks, zero tolerance).
+    const failures: string[] = [];
+    const attempt = async (what: string, run: () => Promise<unknown>): Promise<void> => {
+      try {
+        await run();
+      } catch (error: unknown) {
+        failures.push(`${what}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    };
+
+    await attempt("sagaInstance", () =>
+      prisma.sagaInstance.deleteMany({ where: { id: { in: createdSagaIds } } })
+    );
+    await attempt("postChannelPublication", () =>
+      prisma.postChannelPublication.deleteMany({ where: { postId: { in: createdPostIds } } })
+    );
+    await attempt("postContent", () =>
+      prisma.postContent.deleteMany({ where: { postId: { in: createdPostIds } } })
+    );
+    await attempt("post", () => prisma.post.deleteMany({ where: { id: { in: createdPostIds } } }));
+    await attempt("channel", () => prisma.channel.deleteMany({ where: { projectId } }));
+    await attempt("project", () => prisma.project.deleteMany({ where: { id: projectId } }));
+    await attempt("account", () => prisma.account.deleteMany({ where: { id: accountId } }));
+
     await prisma.$disconnect();
+
+    if (failures.length > 0) {
+      assert.fail(`cleanup left rows behind:\n  ${failures.join("\n  ")}`);
+    }
   });
 
   it("persists one record per intended channel, each unresolved", async () => {

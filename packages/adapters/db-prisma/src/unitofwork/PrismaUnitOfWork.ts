@@ -12,8 +12,11 @@ import { resolveGucScope, runWithBoundGuc } from "@infra/prisma/extensions/tenan
 import type { TenantContextProvider } from "@infra/prisma/extensions/tenantGuard.js";
 import type { UnitOfWork } from "@core/domain/index.js";
 import type { Result } from "@shared/types";
+import { createLogger } from "@observability/logger";
 
 type TxClient = Prisma.TransactionClient;
+
+const logger = createLogger("adapter:db-prisma:unit-of-work");
 
 /**
  * Transaction options for tuning the behaviour.
@@ -28,11 +31,36 @@ export interface TransactionOptions {
 }
 
 /**
+ * Everything an async context needs to know about the transaction it is inside.
+ *
+ * The two halves are ONE value on purpose. They were two independent
+ * `AsyncLocalStorage` instances, co-scoped only because a single call site happened to
+ * enter both — so "inside the transaction but with no hook list" was a state the types
+ * allowed and one edit at that call site could produce, and a hook registered in it would
+ * have been silently dropped. Held together, entering one without the other is
+ * unrepresentable: a context that can reach the client can always reach the hook list.
+ */
+interface ActiveTransaction {
+  /** The client every repository in this context must issue its statements on. */
+  readonly tx: TxClient;
+  /**
+   * Work that must run only if this transaction COMMITS.
+   *
+   * It exists because some state lives on the in-memory aggregate rather than in the
+   * database, and a write inside the transaction cannot be the moment that state becomes
+   * true: the statements can still be rolled back by anything that follows them, and by
+   * the commit itself. An aggregate marked clean by a transaction that then rolled back
+   * is a lie the next save believes.
+   */
+  readonly afterCommit: Array<() => void>;
+}
+
+/**
  * AsyncLocalStorage instance shared by every PrismaUnitOfWork instance.
  * It is static so repositories can reach the active transaction without
  * needing a direct reference to the UnitOfWork instance.
  */
-const txStorage = new AsyncLocalStorage<TxClient>();
+const txStorage = new AsyncLocalStorage<ActiveTransaction>();
 
 /**
  * Rollback signal for `executeResultInTransaction`, private to this module.
@@ -86,8 +114,9 @@ export class PrismaUnitOfWork implements UnitOfWork {
    */
   async executeInTransaction<T>(fn: () => Promise<T>, options?: TransactionOptions): Promise<T> {
     const opts = { ...this.defaultOptions, ...options };
+    const afterCommit: Array<() => void> = [];
 
-    return this.prisma.$transaction(
+    const result = await this.prisma.$transaction(
       async (tx) => {
         // RLS layer 2. Bind `app.account_id` as a transaction-local GUC
         // so the `tenant_isolation` policy on every tenant-scoped table
@@ -112,7 +141,7 @@ export class PrismaUnitOfWork implements UnitOfWork {
         // own — a wrap would move the operation onto a second pooled connection,
         // where it would commit even when this transaction rolls back. Held in
         // the unbound branch too: the connection is owned either way.
-        return runWithBoundGuc(scope, () => txStorage.run(tx, fn));
+        return runWithBoundGuc(scope, () => txStorage.run({ tx, afterCommit }, fn));
       },
       {
         ...(opts.maxWait !== undefined && { maxWait: opts.maxWait }),
@@ -120,6 +149,50 @@ export class PrismaUnitOfWork implements UnitOfWork {
         ...(opts.isolationLevel !== undefined && { isolationLevel: opts.isolationLevel }),
       }
     );
+
+    // Reached only when `$transaction` RESOLVED, which is the commit. A rollback —
+    // including the `err` path of `executeResultInTransaction`, which aborts by
+    // rejecting — leaves this unreached and every registered hook unrun.
+    //
+    // Each hook is ISOLATED, and both halves of that matter. A hook is someone else's
+    // code: letting one throw skip the rest would apply "the transaction committed"
+    // partially, and letting it propagate would report a COMMITTED transaction to its
+    // caller as a failure — a caller that then retries, or tells a customer their write
+    // was lost, over work the database has already kept. The transaction's outcome is
+    // decided before this loop and nothing here may change it; a failing hook is logged
+    // at ERROR with its position, never swallowed in silence.
+    for (const [index, hook] of afterCommit.entries()) {
+      try {
+        hook();
+      } catch (error: unknown) {
+        logger.error(
+          { err: error, hookIndex: index, hookCount: afterCommit.length },
+          "After-commit hook failed; the transaction COMMITTED and its outcome is unchanged"
+        );
+      }
+    }
+    return result;
+  }
+
+  /**
+   * @method onCommitted
+   * @description Registers work to run after the ACTIVE transaction commits, and never
+   *   if it rolls back. For in-memory state a write inside the transaction cannot make
+   *   true: the statements can still be undone by what follows them and by the commit.
+   *
+   *   Outside a transaction there is nothing to wait for — the caller's own statements
+   *   have already committed — so the hook runs immediately. That is the honest answer
+   *   rather than a silent no-op, which would leave the state unset for every caller
+   *   that does not open a unit of work.
+   * @param hook - Work to run once the transaction has committed.
+   */
+  static onCommitted(hook: () => void): void {
+    const active = txStorage.getStore();
+    if (active === undefined) {
+      hook();
+      return;
+    }
+    active.afterCommit.push(hook);
   }
 
   /**
@@ -171,6 +244,6 @@ export class PrismaUnitOfWork implements UnitOfWork {
    * }
    */
   static getTransactionClient(): TxClient | undefined {
-    return txStorage.getStore();
+    return txStorage.getStore()?.tx;
   }
 }

@@ -70,6 +70,34 @@ const postsDeletedTotal = getOrCreateCounter(
   "Total number of posts soft-deleted"
 );
 
+/**
+ * Bulk-schedule rows the worker REFUSED because their payload named no tenant.
+ *
+ * A refusal is not a failure the queue can retry into success: the row is malformed and
+ * will be refused again. It is counted because the state it leaves is otherwise silent —
+ * a row that is never processed and, on the terminal path, never recorded as failed, so
+ * its batch never settles and no log line says which batch is stuck.
+ */
+/**
+ * The arms that can refuse a bulk-schedule row, declared BESIDE the counter that labels
+ * them. The worker imports these rather than the metrics module importing the worker: the
+ * label set belongs to the metric, and a counter whose label values are `string` accepts
+ * any typo forever while its dashboards quietly split in two.
+ */
+export const BULK_SCHEDULE_REFUSAL_ARMS = {
+  ROW: "row",
+  TERMINAL_FAILURE: "terminal-failure",
+} as const;
+
+export type BulkScheduleRefusalArm =
+  (typeof BULK_SCHEDULE_REFUSAL_ARMS)[keyof typeof BULK_SCHEDULE_REFUSAL_ARMS];
+
+const bulkScheduleRowsRefusedTotal = getOrCreateCounter(
+  "omnipost_bulk_schedule_rows_refused_total",
+  "Bulk-schedule rows refused for a missing tenant, by which arm of the worker refused",
+  ["reason"]
+);
+
 // ---------------------------------------------------------------------------
 // Provider-level publish counters
 // ---------------------------------------------------------------------------
@@ -153,6 +181,20 @@ export function incrementPostPublishFailed(): void {
 /** Increment posts.deleted counter. Call after successful soft-delete. */
 export function incrementPostDeleted(): void {
   postsDeletedTotal.inc();
+}
+
+/**
+ * Increment the bulk-schedule refusal counter.
+ *
+ * A refused row is a row that will never be processed AND never recorded as failed, so
+ * without a counter its batch simply stops settling and nothing says why. The `reason`
+ * label separates the two arms that can refuse — the row handler and the terminal-failure
+ * callback — because they have different consequences: the first still reaches the DLQ
+ * through BullMQ's retries, the second is the end of the line.
+ * @param reason - Which arm refused, from {@link BULK_SCHEDULE_REFUSAL_ARMS}.
+ */
+export function incrementBulkScheduleRowRefused(reason: BulkScheduleRefusalArm): void {
+  bulkScheduleRowsRefusedTotal.inc({ reason });
 }
 
 /**

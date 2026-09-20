@@ -33,7 +33,14 @@ vi.mock("../../../src/metrics/businessMetrics.js", () => ({
 
 // --- Mock factories ---
 
-function createMockPostRepository() {
+/**
+ * @param afterCommit - When given, the narrow save REGISTERS its debt discharge here
+ *   instead of performing it, mirroring production: inside someone else's transaction
+ *   `savePublicationRecord` defers the mark to the commit, and outside one it marks
+ *   immediately because the runner resolving IS the commit. A double that marked inside
+ *   the transaction either way would be testing itself.
+ */
+function createMockPostRepository(afterCommit?: Array<() => void>) {
   const store = new Map<string, PostAggregate>();
   /**
    * What each save saw, in call order. `outbox` is what the real adapters hand to the
@@ -77,7 +84,12 @@ function createMockPostRepository() {
     }),
     savePublication: vi.fn(async (post: PostAggregate) => {
       recordWrite("narrow", post);
-      post.markPublicationsPersisted();
+      const discharge = (): void => post.markPublicationsPersisted();
+      if (afterCommit === undefined) {
+        discharge();
+      } else {
+        afterCommit.push(discharge);
+      }
       store.set(post.id.value, post);
       return ok(undefined);
     }),
@@ -131,16 +143,36 @@ function createMockEventDispatcher(
  * `executeResultInTransaction` reads the `Result` and rolls back on `err`.
  */
 function createRecordingUnitOfWork(): {
-  state: { plainCalls: number; resultCalls: number; rolledBack: unknown[] };
+  state: {
+    plainCalls: number;
+    resultCalls: number;
+    rolledBack: unknown[];
+    afterCommit: Array<() => void>;
+  };
   port: UnitOfWork;
 } {
-  const state = { plainCalls: 0, resultCalls: 0, rolledBack: [] as unknown[] };
+  const state = {
+    plainCalls: 0,
+    resultCalls: 0,
+    rolledBack: [] as unknown[],
+    // Work registered from inside the transaction that must run ONLY on commit — the
+    // production seam's `onCommitted`. Drained on `ok`, never on `err`.
+    afterCommit: [] as Array<() => void>,
+  };
+  const drain = (): void => {
+    for (const hook of state.afterCommit) {
+      hook();
+    }
+    state.afterCommit.length = 0;
+  };
   return {
     state,
     port: {
       async executeInTransaction<T>(fn: () => Promise<T>): Promise<T> {
         state.plainCalls++;
-        return fn();
+        const value = await fn();
+        drain();
+        return value;
       },
       async executeResultInTransaction<T, E>(
         fn: () => Promise<Result<T, E>>
@@ -149,7 +181,9 @@ function createRecordingUnitOfWork(): {
         const result = await fn();
         if (!result.ok) {
           state.rolledBack.push(result.error);
+          return result;
         }
+        drain();
         return result;
       },
     },
@@ -606,6 +640,11 @@ describe("SchedulePostUseCase", () => {
 
     beforeEach(() => {
       uow = createRecordingUnitOfWork();
+      // Rebuilt so the narrow save registers its discharge with THIS unit of work, the
+      // way production's `savePublicationRecord` registers with the ambient transaction.
+      repo = createMockPostRepository(uow.state.afterCommit);
+      repo.store.set(draftPost.id.value, draftPost);
+      dispatcher = createMockEventDispatcher(repo.writes);
       useCase = new SchedulePostUseCase(
         // canon-exception: test-fixture
         repo as any,
@@ -638,6 +677,28 @@ describe("SchedulePostUseCase", () => {
       expect(repo.writes.map((write) => write.save)).toEqual(["full", "narrow", "dispatch"]);
       expect(dispatcher.dispatchAll).toHaveBeenCalledOnce();
       expect(uow.state.resultCalls).toBe(1);
+    });
+
+    it("dispatches exactly the events the full save put in the outbox", async () => {
+      // Read from the value the dispatch site reads `ok` from, rather than from an outer
+      // mutable the callback assigned. The seam runs its callback exactly ONCE
+      // (`PrismaUnitOfWork.executeInTransaction` calls `prisma.$transaction` once, at
+      // `:104`, with no retry loop), so there is no second attempt to capture an empty
+      // array — but the events still belong to the result, not to a variable beside it.
+      const future = new Date(Date.now() + 7_200_000).toISOString();
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        channelIds: [channelId],
+        scheduledFor: future,
+      });
+
+      expect(result.ok).toBe(true);
+      const writes = repo.writes;
+      const fullSave = writes.find((write) => write.save === "full");
+      const dispatch = writes.find((write) => write.save === "dispatch");
+      expect(fullSave?.outbox.length).toBeGreaterThan(0);
+      expect(dispatch?.outbox).toEqual(fullSave?.outbox);
     });
 
     it("dispatches NOTHING when the transaction rolls back", async () => {

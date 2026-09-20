@@ -296,10 +296,17 @@ export class PostAggregate extends AggregateRoot<PostId> {
 
   /**
    * @method markPublicationsPersisted
-   * @description Records that the per-channel records have been written. Called by the
-   *   NARROW save once its statements have run — the same place, and for the same
-   *   reason, as {@link incrementVersion}: persistence is what makes the claim true, so
-   *   persistence is what states it.
+   * @description Records that the per-channel records are DURABLE. Called once the
+   *   transaction that wrote them has COMMITTED — not when the statements ran, which is
+   *   a different and weaker fact: statements can still be undone by work that follows
+   *   them in the same transaction, and by the commit itself.
+   *
+   *   The distinction is the whole point. This flag is what the full save reads to refuse
+   *   an aggregate whose records it would not write, so an aggregate marked clean by a
+   *   transaction that then rolled back would be ACCEPTED by that save and have its
+   *   records dropped — the exact silence the refusal exists to prevent, inverted. It is
+   *   deliberately NOT the same placement as {@link incrementVersion}, which must run
+   *   inside the transaction because the transaction itself reads the version again.
    */
   markPublicationsPersisted(): void {
     this._publicationsDirty = false;

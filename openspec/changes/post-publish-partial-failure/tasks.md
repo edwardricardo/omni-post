@@ -741,6 +741,16 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       `promtool` red path (four red paths, not three). The two 1b2 counters without a rule
       (`retraction_alert_realtime_push_failed_total`, `retraction_alert_refused_total{reason}`) get one
       warning rule each in the same group, or a written reason why not.
+      **Added by the `1c-1d` hardening (2026-09-20, RDD `R4-recurrence-skip-observability` +
+      `R3-recurrence-account-invariant-unproved`)**: TWO more counters need a rule or a written
+      reason. (a) `omnipost_bulk_schedule_rows_refused_total{reason}` — added by T1c.6b's hardening;
+      a refused row is never processed and, on the `terminal-failure` arm, never recorded as failed,
+      so its batch stops settling and nothing else names it. (b) the recurrence sweep's account-less
+      SKIP, which today is a warn log and a `skipped` field in the tick summary and is NOT a metric
+      at all — give it one here (the sweep's own counter, beside
+      `retraction_action_window_sweep_failures_total`) or write why a log suffices. Both are the
+      shape D18's poison-row signal names: a FLAT non-zero reading means an upstream producer
+      stopped supplying a tenant, and the remedy is that producer, not a bigger page.
       All three copy `PublishQueueUnattended`'s shape (`prometheus/alerts/saga.yml:158-168`,
       read-only) and point at **ONE** runbook, `docs/runbooks/alert-publish-outcome-unrecorded.md`,
       with **one section per rule** — the `saga.yml:158-179` precedent, where two rules share

@@ -1142,6 +1142,62 @@ describe("PrismaPostRepository", () => {
       expect(written.map((event) => event.eventType)).toContain("PostPublished");
     });
 
+    it("leaves the aggregate OWING a publication write when the transaction fails", async () => {
+      // The marker is the loud refusal's input. If it is cleared inside the transaction
+      // and the transaction then rolls back, the aggregate reads CLEAN while the
+      // database holds none of its records — and the next full save accepts it and drops
+      // them, which is precisely the silence the refusal exists to prevent, inverted.
+      const writeEvents = vi.fn(async () => {
+        throw new Error("outbox write failed");
+      });
+      const outboxRepo = new PrismaPostRepository(
+        prisma as never,
+        { writeEvents } as never,
+        ambientTenantContextProvider
+      );
+      const post = await makePublishedAggregate();
+      expect(post.hasUnsavedPublications()).toBe(true);
+
+      const result = await asTenant(() => outboxRepo.savePublication(post));
+
+      expect(result.ok).toBeFalsy();
+      expect(post.hasUnsavedPublications()).toBe(
+        true,
+        "a rolled-back publication write still owes its records"
+      );
+    });
+
+    it("clears the debt only once its transaction has COMMITTED", async () => {
+      const post = await makePublishedAggregate();
+      expect(post.hasUnsavedPublications()).toBe(true);
+
+      const result = await asTenant(() => repo.savePublication(post));
+
+      expect(result.ok).toBeTruthy();
+      expect(post.hasUnsavedPublications()).toBe(false);
+    });
+
+    it("clears the debt only after the ENCLOSING unit of work commits", async () => {
+      const post = await makePublishedAggregate();
+      const uow = new PrismaUnitOfWork(prisma as never, ambientTenantContextProvider);
+      let insideTransaction: boolean | undefined;
+
+      const result = await withTenantContext({ accountId: ACCOUNT_ID }, () =>
+        uow.executeInTransaction(async () => {
+          const saved = await repo.savePublication(post);
+          // Read INSIDE: the enclosing transaction has not committed yet, so the debt
+          // cannot be discharged — the statements can still be rolled back by work that
+          // follows this save in the same transaction.
+          insideTransaction = post.hasUnsavedPublications();
+          return saved;
+        })
+      );
+
+      expect(result.ok).toBeTruthy();
+      expect(insideTransaction).toBe(true, "the debt survives until the commit");
+      expect(post.hasUnsavedPublications()).toBe(false, "and is discharged after it");
+    });
+
     it("refuses when a content event is pending, writing nothing", async () => {
       const post = await makeEditedAggregate();
 

@@ -20,6 +20,15 @@ import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { ProcessBulkScheduleRowUseCase } from "@core/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
 import type { FailBulkScheduleRowUseCase } from "@core/bulk-scheduling/FailBulkScheduleRowUseCase.js";
 import { getTenantContext } from "../../../src/security/tenantContext.js";
+import client from "prom-client";
+
+/** Reads the live value of the refusal counter for one `reason` label. */
+async function refusalCount(reason: string): Promise<number> {
+  const metric = client.register.getSingleMetric("omnipost_bulk_schedule_rows_refused_total");
+  if (metric === undefined) return 0;
+  const { values } = await (metric as client.Counter).get();
+  return values.find((value) => value.labels.reason === reason)?.value ?? 0;
+}
 
 const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
@@ -163,18 +172,28 @@ describe("handleBulkScheduleRowFailure", () => {
     assert.strictEqual(seen, "a1", "the terminal failure is recorded in the row's account");
   });
 
-  it("refuses to record a terminal failure for a payload that names no account", async () => {
+  it("THROWS the shared refusal for a payload that names no account, and counts it", async () => {
+    // Both arms of the worker answer the identical condition identically. The terminal
+    // arm used to log and RETURN, which resolved the callback while the item stayed
+    // unrecorded and its batch never settled — the one place a silent skip is worst,
+    // because nothing retries after it. The counter is what makes that state visible:
+    // a log line nobody greps is not an alert.
     const fail = makeFail(async () => ok(undefined));
     const deadLetter = makeDeadLetter(async () => ok("dlq-1"));
+    const before = await refusalCount("terminal-failure");
 
-    await handleBulkScheduleRowFailure(
-      { fail, deadLetter, logger },
-      job({
-        attemptsMade: 3,
-        opts: { attempts: 3 },
-        data: { ...payload, accountId: undefined },
-      }),
-      new Error("still broken")
+    await assert.rejects(
+      () =>
+        handleBulkScheduleRowFailure(
+          { fail, deadLetter, logger },
+          job({
+            attemptsMade: 3,
+            opts: { attempts: 3 },
+            data: { ...payload, accountId: undefined },
+          }),
+          new Error("still broken")
+        ),
+      /accountId/
     );
 
     assert.strictEqual(
@@ -182,9 +201,10 @@ describe("handleBulkScheduleRowFailure", () => {
       0,
       "an unbound manifest write is refused, never attempted under the system scope"
     );
-    assert.ok(
-      logger.error.mock.calls.some(([, msg]) => typeof msg === "string" && /account/i.test(msg)),
-      "the refusal names its reason"
+    assert.strictEqual(
+      await refusalCount("terminal-failure"),
+      before + 1,
+      "the refusal is counted so the unsettled batch is observable"
     );
   });
 

@@ -2779,7 +2779,7 @@ that would name it, and it has never coincided with a failing assertion.
 | `apps/api/src/recurring/RecurrenceScheduler.ts`                        | CODE     |        **75** |
 | `packages/core/posts/src/SchedulePostUseCase.ts`                       | CODE     |        **49** |
 | `packages/core/domain/src/aggregates/PostAggregate.ts`                 | CODE     |        **43** |
-| `apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`                   | CODE     |        **24** |
+| `apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`                   | CODE     |        **83** |
 | `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts`         | CODE     |        **23** |
 | `packages/core/domain/src/aggregates/post/PostPublicationTypes.ts`     | CODE     |         **7** |
 | `packages/core/recurring/src/ProcessRecurrenceUseCase.ts`              | CODE     |         **7** |
@@ -2950,7 +2950,7 @@ plus a correction.
 | ---------------------------------------------------------------------- | -------- | ------------: |
 | `packages/core/posts/src/SchedulePostUseCase.ts`                       | CODE     |        **90** |
 | `apps/api/src/recurring/RecurrenceScheduler.ts`                        | CODE     |        **75** |
-| `apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`                   | CODE     |        **49** |
+| `apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`                   | CODE     |        **83** |
 | `packages/core/domain/src/aggregates/PostAggregate.ts`                 | CODE     |        **43** |
 | `packages/adapters/db-prisma/src/post/PrismaPostRepository.ts`         | CODE     |        **23** |
 | `packages/core/domain/src/aggregates/post/PostPublicationMethods.ts`   | CODE     |         **8** |
@@ -2991,3 +2991,231 @@ blocking, closed here rather than carried:
 | N1   | **SMELL-148 undercounted its class 4 → 11.** The survey covered `@core/posts` + the recurrence caller; a tree-wide sweep finds seven more in `@core/crisis` and `@core/inbox`, all dormant (`return ok(...)` after the dispatch, verified by the re-gate), plus `SendReplyUseCase` breaking the same rule a second way (the PROVIDER send inside the transaction). The row now sizes the class at eleven with the file:line list. A backlog row's job is to size the class, so the sweep is the whole tree, not the directory at hand                                                                                                                                                      |
 | N2   | **Hole (i)'s fix widened what "dirty" means, and nothing said so.** With the marks ahead of every fallible step, the `applied: false` no-op returns (a replayed attempt, a duplicate confirm, a second sweep tick) also set the flag, so `hasUnsavedPublications()` reads TRUE after a call that changed nothing — a false positive that refuses a full save loudly, where the old false negative dropped records silently. Kept, deliberately: the mark stays adjacent to the mutation because that is what makes the rule legible. Both JSDoc blocks now say "reached the records" instead of "changed", and name the trade (`PostAggregate.ts`, the field and `hasUnsavedPublications`) |
 | N3   | **A third variant of the THROWS/SKIPS pair inside the bulk worker**: the row path throws on a missing account, the failure callback returns — so an account-less payload's terminal failure is never recorded and its batch never settles, unreachable in practice because the producer guards the field. Added to the `For Edward` paragraph as part of the same decision                                                                                                                                                                                                                                                                                                                 |
+
+### RDD receipt — the committed range `6e5408ac` → `8b86b1ca`
+
+Lineage `review-205de02a990a3222`, **HIGH** tier (the range touches `run-tests.sh`), the full
+four-lens fan-out. The review reached **approved**, the acknowledgement was executed exactly once and
+the authority is **burned**. **13 advisory findings, 0 blocking.** Seven WARNINGs, and they are three
+defects seen by several lenses rather than seven separate ones. Claims are quoted from the reviewers.
+
+| Id                                           | Lens        | Sev        | Where                                               | Claim (quoted)                                                                                                                                                                                                                                                                                                              | Disposition                                                                                                                                                                                                                                                                                        |
+| -------------------------------------------- | ----------- | ---------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `R2-mark-persisted-before-commit`            | readability | WARNING    | `PostPublicationWrites.ts:240-245`                  | "on a transaction rollback the in-memory aggregate reads clean while the database holds none of the records — exactly the state the marker exists to prevent, only inverted … leaving the marker here makes the JSDoc … misleading, since the mark runs before persistence is guaranteed"                                   | **FIXED** (A)                                                                                                                                                                                                                                                                                      |
+| `R3-mark-persisted-before-commit`            | reliability | WARNING    | `PostPublicationWrites.ts:242-245`                  | "no test in this PR asserts the behavior on a failed commit — the double in postUseCases.test.ts calls `markPublicationsPersisted()` inside its `savePublication` mock, which does not simulate the commit-failure ordering"                                                                                                | **FIXED** (A), and the double reworked to model the new shape                                                                                                                                                                                                                                      |
+| `R4-markPublicationsPersisted-pre-commit`    | resilience  | WARNING    | `PostPublicationWrites.ts:242-243`                  | "A caller that then attempts a full save on that same aggregate … would pass the `hasUnsavedPublications()` refusal in `PrismaPostRepository.save` and the schedule/declared target set would be silently dropped — the exact silence the loud-refusal mechanism was introduced to prevent"                                 | **FIXED** (A)                                                                                                                                                                                                                                                                                      |
+| `R4-bulk-failure-callback-swallow`           | resilience  | WARNING    | `bulkScheduleWorker.ts:144-150`                     | "a retry-exhausted BullMQ job whose payload lacks accountId will resolve successfully to the queue but never record the terminal failure … the batch can remain in a non-terminal state indefinitely … the terminal-failure path is precisely where a silent skip is worst because there is no further retry to compensate" | **FIXED** (B)                                                                                                                                                                                                                                                                                      |
+| `R3-bulk-failure-callback-error-arity`       | reliability | WARNING    | `bulkScheduleWorker.ts:148-150`                     | "the RETURN after logging (no throw) means BullMQ has no signal that the terminal failure was not recorded … The unit test only asserts `fail.execute` not called; it does not assert that anything alerts on the ghost state produced"                                                                                     | **FIXED** (B) — and its BullMQ premise corrected by measurement, below                                                                                                                                                                                                                             |
+| `R2-pendingEvents-let-capture`               | readability | WARNING    | `SchedulePostUseCase.ts:203-268`                    | "the same pattern is reintroduced here for events … Returning the captured events as part of the doWork Result (e.g. `Result<{ output, events }, ...>`) would make the dispatch site read the events from the same value it reads `ok` from"                                                                                | **FIXED** (C), in exactly that shape                                                                                                                                                                                                                                                               |
+| `R3-schedule-pending-events-shared-closure`  | reliability | WARNING    | `SchedulePostUseCase.ts:189-273`                    | "if `executeResultInTransaction` reruns `doWork` on serialization conflict … the SECOND attempt captures an empty array while the outbox row exists from the retried transaction. The result-aware seam's retry semantics are not proved by the added tests"                                                                | **FIXED** (C); the retry premise **REFUTED** by measurement, below                                                                                                                                                                                                                                 |
+| `R3-schedule-target-set-integration-cleanup` | reliability | SUGGESTION | `schedulePostTargetSet.integration.test.ts:118-131` | "a silent cleanup failure is not surfaced in test output — it becomes invisible pollution of the shared i[ntegration database] … the identifiers use `Date.now()` at `before`, a rerun within the same millisecond boundary could collide"                                                                                  | **FIXED** (D) — a canon violation (`CODING_STANDARDS`: empty catch, zero tolerance), so fixed despite its severity                                                                                                                                                                                 |
+| `R2-throw-check-untyped-catch`               | readability | SUGGESTION | `bulkScheduleWorker.ts:62-70`                       | "the divergent behavior for the same condition (missing account) makes maintainers reason about two failure modes for one invariant. Naming both a shared refusal helper … would keep the two arms readable together"                                                                                                       | **FIXED** (B) — one error class, one message, one helper                                                                                                                                                                                                                                           |
+| `R2-publications-live-mutable-getter`        | readability | SUGGESTION | `PostAggregate.ts:281-283`                          | "the invariant 'every record change sets the dirty flag' is spread across method call sites rather than enforced by the type surface"                                                                                                                                                                                       | **BACKLOG — SMELL-147**, unchanged. A read-only projection changes the shape every publication reader consumes                                                                                                                                                                                     |
+| `R3-publications-getter-live-mutable`        | reliability | SUGGESTION | `PostAggregate.ts:281`                              | "the invariant is bounded only by convention … no test in this PR pins the type-level guarantee"                                                                                                                                                                                                                            | **BACKLOG — SMELL-147** (same defect, second lens)                                                                                                                                                                                                                                                 |
+| `R3-recurrence-account-invariant-unproved`   | reliability | SUGGESTION | `RecurrenceScheduler.ts:110-116`                    | "`ProcessedRecurrence.accountId` is declared `string` (non-optional) … the tests thus only prove the defensive skip triggers for a synthetic fixture"                                                                                                                                                                       | **ACCEPTED as stated, not removed.** The check is a fail-closed net over a boundary the type system does not actually police (the DTO is built from an entity field the compiler trusts, and the sweep reads rows the compiler never sees). Routed to the `For Edward` paragraph and to **T1c.18** |
+| `R4-recurrence-skip-observability`           | resilience  | SUGGESTION | `RecurrenceScheduler.ts:104-110`                    | "a systematic upstream failure … would present only as scheduled posts quietly not being created … recording it in the resilience view as well so it is not lost when the ledger is archived"                                                                                                                               | **ROUTED to T1c.18**, which now names this counter and the bulk one explicitly                                                                                                                                                                                                                     |
+
+### The hardening — three defects, and two reviewer premises corrected by measurement
+
+**A. The mark is now a property of a COMMITTED transaction.** Three lenses saw it and they were
+right: the flag the full save's refusal READS was being cleared by statements that could still be
+rolled back, so a rolled-back publication write left an aggregate the next full save would accept and
+silently drop. Two reds:
+
+```text
+ × leaves the aggregate OWING a publication write when the transaction fails
+ × clears the debt only after the ENCLOSING unit of work commits
+AssertionError: expected false to be true
+```
+
+**The shape chosen, and why it is not the one the instruction preferred. The argument is STRUCTURAL
+first; the doubles are a secondary cost.** `PostPublicationWrites` holds no `UnitOfWork` reference
+and never has: it reaches the ambient transaction through the STATIC
+`PrismaUnitOfWork.getTransactionClient()`, which is the precedent this file already follows. Putting
+`onCommitted` beside that static therefore adds NO coupling — the caller that needs it already
+depends on exactly this surface — whereas routing it through the port would mean handing a
+`UnitOfWork` instance to a module whose whole design is that it does not have one. It is also
+strictly more correct than option (1), because it handles BOTH of the narrow save's branches: inside
+someone else's transaction it registers with the unit of work, and when it opened its own
+transaction through the tenant-bound runner it marks after that runner resolves, which IS that
+transaction's commit. A port method could only ever serve the first.
+
+The doubles are the secondary cost, and the first telling of it overstated the failure mode.
+Measured now: `rg -l "executeInTransaction" … --glob '**/tests/**'` = **67 files** (66 before this
+unit added its own `PrismaUnitOfWork` suite), of which **59** also reference
+`executeResultInTransaction`. No tsconfig opens a `.test.ts`, so `tsc` would indeed have stayed at 0
+— but a double missing a new port member does NOT fail silently: the first test that reaches the
+call fails LOUDLY with `TypeError: uow.onCommitted is not a function`. The real cost is narrower and
+worth stating precisely: loud wherever the member is exercised, invisible in every double that never
+reaches it, and 67 files to audit by hand to tell the two apart. **The port diff is ZERO lines**
+(`git diff HEAD -- packages/core/domain/src/repositories/Repository.ts` = 0) and not one double
+changed.
+
+**`incrementVersion` deliberately does NOT move with it, and the reason is structural.** The
+instruction expected it to ("a rolled-back CAS must not leave the aggregate at N+1"). Measured: the
+aggregate's version is read again INSIDE the same transaction. `SchedulePostUseCase` runs the full
+save and then the narrow one, and the narrow save's compare-and-swap matches on the version the full
+save just wrote; deferring the bump to the commit would make that CAS look for a row version the
+first statement had already advanced past, and every two-save transaction would fail with a version
+conflict. It is in-transaction state because the transaction itself reads it — a different fact from
+the marker, which nothing inside the transaction reads. The `PostAggregate.markPublicationsPersisted`
+JSDoc now states both, and no longer claims the placement it used to have.
+
+**B. One refusal, both arms, counted — and the reviewer's BullMQ premise is wrong.**
+`R3-bulk-failure-callback-error-arity` says a return "means BullMQ has no signal that the terminal
+failure was not recorded", implying a throw would give it one. **Measured: it would not.** The
+callback is a `failed` LISTENER (`worker.on("failed", …)`, invoked as `void handle…(…)`), not a
+handler the queue awaits — the job has already failed by the time it runs. Throwing there does not
+re-queue, does not DLQ, and does not reach the queue at all: it becomes an unhandled promise
+rejection, which under Node's default can take the process down. So the fix is the one that achieves
+the finding's GOAL rather than its mechanism: both arms now share ONE typed refusal
+(`BulkScheduleTenantMissingError`) with one message and one helper, the terminal arm THROWS like the
+row arm so its contract matches, the listener wiring gained a `.catch` that logs (the throw can no
+longer become an unhandled rejection), and the refusal is COUNTED —
+`omnipost_bulk_schedule_rows_refused_total{reason}` with a `row` / `terminal-failure` label, so the
+unsettled batch is observable rather than merely logged. The red asserts all three: the throw, that
+`fail.execute` was never called, and that the counter moved.
+
+**C. The events ride on the Result, and the retry premise is refuted.**
+`R3-schedule-pending-events-shared-closure` worries that a re-run of `doWork` would capture an empty
+array. **Measured: the seam runs its callback exactly ONCE.**
+`PrismaUnitOfWork.executeInTransaction` calls `this.prisma.$transaction(...)` a single time
+(`PrismaUnitOfWork.ts:119` as it now stands) with no retry loop, `executeResultInTransaction` calls
+`fn()` once (`:215`), and the repo's retry helper (`retryOnWriteConflict`) wraps use cases, not this seam. So the
+scenario cannot arise today. The fix landed anyway, because the reviewers' READABILITY point stands
+on its own: `doWork` now returns `Result<{ output, events }, …>` and the dispatch site reads the
+events from the same value it reads `ok` from, so there is no outer mutable to reason about and no
+way to pair one attempt's `ok` with another attempt's events. A new case pins that the dispatched
+ids are exactly the ids the full save wrote.
+
+**D. The cleanup is loud and the identifiers are collision-proof.** Every delete is still attempted
+(a leftover child must not stop the parents being tried) but failures are collected and the hook
+ends in `assert.fail` naming them; the suffix is `randomUUID()` rather than `Date.now()`.
+
+**The double reworked so it does not disagree with production.** `R3` named this precisely: the
+`savePublication` mock marked inside its own body. It now mirrors production's two branches — given
+an after-commit list it REGISTERS the discharge, without one it marks immediately (which is exactly
+what production does outside a transaction) — and the recording unit of work drains that list on
+`ok` and never on `err`. This change has been bitten twice by doubles that disagreed with production
+(`1c-1a`'s two); making the double model the new shape was not optional.
+
+### Gates after the hardening
+
+| Gate                                                                                                          | Result                                                           |
+| ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `@core/domain` · `@core/posts` · `@adapters/db-prisma` vitest                                                 | **10 files / 191** · **6 / 96** · **4 / 70**                     |
+| `tsc --noEmit` `@core/domain` · `@core/posts` · `@core/recurring` · `@adapters/db-prisma` · `apps/api` (6144) | **0 · 0 · 0 · 0 · 0**                                            |
+| `apps/api` unit tier, full (the unit of work was touched)                                                     | **586 files, 9133 passed, 0 failed**, exit 0 — no EPIPE this run |
+| `integration:repositories`                                                                                    | **157 · 157 · 0 · 0 · 0**, exit 0                                |
+| `integration:schedule-target-set`                                                                             | **3 · 3 · 0 · 0 · 0**, exit 0                                    |
+| **`integration:saga-recovery`**                                                                               | **33 · 33 · 0 · 0 · 0**, exit 0                                  |
+| DB tier total (`TIER=pr-integration`)                                                                         | **534 tests, 534 pass, 0 fail, 0 cancel, 0 skip**, exit 0        |
+| `pnpm check:circular`                                                                                         | clean                                                            |
+| `eslint --max-warnings 0` on the 10 changed `.ts` · `prettier -c` · `pnpm format:check`                       | **0** · clean · clean                                            |
+| fitness #3 #4 #5 #8 #9 #10 #32 #21 #23                                                                        | 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0                                |
+| fitness #40                                                                                                   | A 3 seams (floor 3) / **0** · B 14 sites (floor 10) / **0**      |
+| fitness #41                                                                                                   | sites 8 (floor 8), exception hits 1, violations **0**            |
+
+It did not: `git diff HEAD -- packages/core/domain/src/repositories/Repository.ts` is **0 lines**.
+The survey is reported anyway because it is a secondary input to the shape decision (the primary
+one is structural, above): `rg -l "executeInTransaction" apps packages infra --glob
+'**/tests/**'` finds **67 files** — 66 before this unit added its own `PrismaUnitOfWork` suite —
+of which **59** also reference `executeResultInTransaction`. No tsconfig opens any of them, so a
+port change would have been invisible to `tsc`; at runtime it fails LOUDLY wherever the new member
+is actually called (`TypeError: uow.onCommitted is not a function`) and not at all in the doubles
+that never reach it — which is why the cost is 67 files to audit, not 67 files that break.
+
+### Budget — the hardening, measured from `git diff --numstat HEAD` at write time
+
+| File                                                                           | Stream   | Changed lines |
+| ------------------------------------------------------------------------------ | -------- | ------------: |
+| `apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`                           | CODE     |        **83** |
+| `packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts`               | CODE     |        **81** |
+| `packages/core/posts/src/SchedulePostUseCase.ts`                               | CODE     |        **48** |
+| `apps/api/src/metrics/businessMetrics.ts`                                      | CODE     |        **42** |
+| `packages/adapters/db-prisma/src/post/PostPublicationWrites.ts`                | CODE     |        **27** |
+| `packages/core/domain/src/aggregates/PostAggregate.ts`                         | CODE     |        **15** |
+| `packages/adapters/db-prisma/tests/prismaUnitOfWork.afterCommit.test.ts` (new) | EVIDENCE |       **138** |
+| `apps/api/tests/unit/application/postUseCases.test.ts`                         | EVIDENCE |        **71** |
+| `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`              | EVIDENCE |        **56** |
+| `apps/api/tests/integration/schedulePostTargetSet.integration.test.ts`         | EVIDENCE |        **48** |
+| `apps/api/tests/unit/bulk-scheduling/bulkScheduleWorker.test.ts`               | EVIDENCE |        **44** |
+
+**Hardening, re-measured at write time after the bounded correction: CODE 296 · EVIDENCE 357 ·
+DOCS 238** (`apply-progress.md` 228, `tasks.md` 10). No SCRIPTS. With the committed halves
+(CODE 630 + 312, EVIDENCE 1273 + 615, SCRIPTS 10, DOCS 550 + 530) the SUM of the three commits'
+deltas is **CODE 1238 · EVIDENCE 2245 · SCRIPTS 10 · DOCS 1318** — lines touched across the three
+commits, which double-counts a line the hardening rewrote after a half had written it. The figure the
+PR shows is the NET diff against the unit's base `8454bab9`, measured by the orchestrator at commit:
+**CODE 1170 · EVIDENCE 2189 · SCRIPTS 10 · DOCS 1353** (docs grow because this ledger keeps growing).
+Both are stated because they answer different questions — how much work the unit did, and how much
+the reviewer reads. The `apply-progress.md` figure counts this section's own lines.
+
+The correction added **41 CODE and 138 EVIDENCE** on the first hardening pass, and the EVIDENCE is
+almost entirely one new file: the `PrismaUnitOfWork` after-commit suite that did not exist when
+`onCommitted` was introduced. A public API shipped with no suite of its own is the gap the gate
+found — the unguarded loop inside it was the symptom.
+
+255 CODE to fix three defects and a canon violation is the price of the mechanism being right rather
+than merely present, and the largest single file is the bulk worker — where one refusal replaced two
+divergent ones and gained a counter. None of it is feature work; all of it is the review's.
+
+### Bounded correction after the hardening gate — PASS, no Critical, four warnings
+
+Both premise refutations (the BullMQ listener, the seam's single run) were judged correct on their
+merits, and the `onCommitted` no-transaction fallback was read as deliberate rather than accidental.
+Four warnings, all fixed.
+
+| Id     | Finding                                                                                                                                                                                                                                                                                                          | Disposition                                                                                                                                                          |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **W1** | `onCommitted` is a public API and the drain was a bare `for … hook()`. A throwing hook would skip every later hook AND propagate out of `executeInTransaction` AFTER the commit succeeded — a committed transaction reported to its caller as a failure. Unreachable today (the only hook is a field assignment) | **FIXED** — each hook in its own `try/catch`, logged at ERROR with its index and the hook count, never changing the transaction's outcome                            |
+| **W2** | `afterCommitStorage` and `txStorage` were two independent `AsyncLocalStorage` instances whose co-scoping was guaranteed only by ONE call site                                                                                                                                                                    | **FIXED structurally** — one store holding `{ tx, afterCommit }`; `getTransactionClient()` reads `.tx`, `onCommitted` reads `.afterCommit`. Public surface identical |
+| **W3** | The port-vs-static decision led with the doubles count; the count was wrong and so was the failure mode                                                                                                                                                                                                          | **FIXED** — both tellings now lead with the structural argument and state the measurement correctly                                                                  |
+| **W4** | DOCS off by one; the `fn()` citation was stale                                                                                                                                                                                                                                                                   | **FIXED** — every figure re-measured at write time, both line citations re-read from the file                                                                        |
+
+**W1's reds.** Two cases, and the second is the one that matters:
+
+```text
+ × runs the later hooks even when an earlier one throws
+ × still resolves with the callback's value when a hook throws
+Error: hook exploded
+      Tests  2 failed | 4 passed (6)
+```
+
+That second red IS the false negative: the throw escaped `executeInTransaction` after
+`$transaction` had already resolved, so a caller would have read a COMMITTED transaction as a
+failure — and retried it, or told a customer their write was lost, over work the database had kept.
+The new suite (`packages/adapters/db-prisma/tests/prismaUnitOfWork.afterCommit.test.ts`, 6 cases)
+also pins three properties nothing tested before: hooks run after the work, hooks do NOT run when
+the transaction rejects, and a hook registered outside a transaction runs immediately.
+
+**W2 has no red available, and that is stated rather than worked around.** It is a CONSTRUCTION
+change: two stores that were always entered together become one value, so no behaviour differs and
+no test can tell before from after. What it buys is that the bad state stops being representable —
+"inside the transaction, with no hook list" was a state the types allowed and one edit at the single
+entry site could produce, and a hook registered in it would have been silently dropped. The existing
+suites are the guard that the refactor changed nothing: `@adapters/db-prisma` **76**, the four
+touched api suites **129**, `integration:repositories` **157**, `integration:schedule-target-set`
+**3**, `integration:saga-recovery` **33**. One new case pins the co-scoping directly — the client
+and the hook list are reachable from the same context.
+
+**The minor, taken.** `incrementBulkScheduleRowRefused(reason: string)` widened the label to
+`string`, which accepts any typo forever while the dashboards quietly split in two. The two labels
+are now declared BESIDE the counter (`BULK_SCHEDULE_REFUSAL_ARMS` in `businessMetrics.ts`) and the
+worker imports them — that direction and not the reverse, because the label set belongs to the
+metric and the metrics module must not depend on a worker.
+
+### Gates after the bounded correction
+
+| Gate                                                                                   | Result                                                                 |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `@adapters/db-prisma` vitest                                                           | **5 files, 76 passed** (was 4 / 70; the new UoW suite is the fifth)    |
+| `@core/posts` vitest                                                                   | **6 files, 96 passed**                                                 |
+| the four touched `apps/api` unit suites                                                | **4 files, 129 passed**                                                |
+| `tsc --noEmit` `@adapters/db-prisma` · `apps/api` (6144)                               | **0 · 0**                                                              |
+| `integration:repositories`                                                             | **157 · 157 · 0 · 0 · 0**, exit 0                                      |
+| `integration:schedule-target-set`                                                      | **3 · 3 · 0 · 0 · 0**, exit 0                                          |
+| **`integration:saga-recovery`**                                                        | **33 · 33 · 0 · 0 · 0**, exit 0                                        |
+| DB tier total (`TIER=pr-integration`)                                                  | **534 tests, 534 pass, 0 fail, 0 cancel, 0 skip**, exit 0              |
+| `eslint --max-warnings 0` on every changed `.ts` · `prettier -c` · `pnpm format:check` | **0** · clean · clean                                                  |
+| fitness #3 · #4 · #5 · #40                                                             | 0 · 0 · 0 · A 3 seams (floor 3) / **0**, B 14 sites (floor 10) / **0** |

@@ -48,6 +48,19 @@ export interface SchedulePostOutput {
 }
 
 /**
+ * What the transactional body hands back: the caller's answer and the events that were
+ * taken off the aggregate inside it.
+ *
+ * The events ride on the RESULT rather than in a variable beside it so the dispatch site
+ * reads them from the same value it reads `ok` from — there is no way to hold one attempt's
+ * `ok` next to another attempt's events.
+ */
+interface ScheduledWithEvents {
+  readonly output: SchedulePostOutput;
+  readonly events: readonly DomainEvent[];
+}
+
+/**
  * Schedule Post Use Case
  *
  * Transitions a draft post to SCHEDULED status. Uses the PostAggregate.schedule()
@@ -203,8 +216,12 @@ export class SchedulePostUseCase implements UseCase<
     // back a schedule the world had already been told about. Nothing is lost by waiting:
     // the events are in the OUTBOX from step (1), so a crash between the commit and the
     // dispatch is exactly what the outbox relay exists to recover.
-    let pendingEvents: DomainEvent[] = [];
-    const doWork = async (): Promise<Result<SchedulePostOutput, UseCaseError>> => {
+    // The events travel OUT of the transaction as part of its result, not in a mutable
+    // beside it. An outer `let` assigned from inside the callback is the shape the
+    // paragraph above warns about for `result`, and it would be no better here: the
+    // dispatch site would read `ok` from one place and the events from another, with
+    // nothing tying them to the same attempt.
+    const doWork = async (): Promise<Result<ScheduledWithEvents, UseCaseError>> => {
       const saveResult = await this.postRepository.save(post);
       if (!saveResult.ok) {
         return err(
@@ -218,7 +235,7 @@ export class SchedulePostUseCase implements UseCase<
 
       // Captured, not dispatched: the outbox holds them already, and the dispatch waits
       // for the commit. Cleared so the narrow save below carries none of them.
-      pendingEvents = [...post.domainEvents];
+      const events = [...post.domainEvents];
       post.clearDomainEvents();
 
       // REC-1: the channels validated above are the system's answer to "where was this
@@ -245,10 +262,13 @@ export class SchedulePostUseCase implements UseCase<
       this.businessMetrics.incrementPostPublished();
 
       return ok({
-        id: post.id.value,
-        status: post.status.value,
-        scheduledFor: input.scheduledFor,
-        channelIds: input.channelIds,
+        events,
+        output: {
+          id: post.id.value,
+          status: post.status.value,
+          scheduledFor: input.scheduledFor,
+          channelIds: input.channelIds,
+        },
       });
     };
 
@@ -262,13 +282,17 @@ export class SchedulePostUseCase implements UseCase<
         ? await this.unitOfWork.executeResultInTransaction(doWork)
         : await doWork();
 
-      // Step (5). Only after the transaction has closed, and only when it COMMITTED: an
-      // `err` rolled the schedule back, so there is nothing to tell anyone about.
-      if (result.ok && pendingEvents.length > 0) {
-        await this.eventDispatcher.dispatchAll(pendingEvents);
+      // Step (6). Only after the transaction has closed, and only when it COMMITTED: an
+      // `err` rolled the schedule back, so there is nothing to tell anyone about. The
+      // events come from the SAME value that carries the `ok`.
+      if (!result.ok) {
+        return result;
+      }
+      if (result.value.events.length > 0) {
+        await this.eventDispatcher.dispatchAll([...result.value.events]);
       }
 
-      return result;
+      return ok(result.value.output);
     } catch (error: unknown) {
       return err(
         new UseCaseError(
