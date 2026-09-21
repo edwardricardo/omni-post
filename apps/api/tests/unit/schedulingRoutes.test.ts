@@ -28,6 +28,10 @@ const { mockPrisma } = createMockPrismaModule();
 
 // Scheduling handlers use post, channel, analytics, publishLog, schedulingRule, postContent.
 // Post defaults include empty relation arrays so include: { publishLogs, contents } works.
+// `channelPublications` is here because the C3 guard re-reads it inside the cancel and
+// reschedule transactions: a double that omits it answers `undefined`, and a guard that
+// read `undefined` as "nothing is live" would be fail-open by absence — so the handler
+// lets that crash instead, and the double has to model the read.
 const postDefaults = {
   status: "DRAFT",
   scheduledAt: null,
@@ -35,6 +39,7 @@ const postDefaults = {
   deletedAt: null,
   publishLogs: [],
   contents: [],
+  channelPublications: [],
   project: null,
 };
 const extraModels = {

@@ -33,6 +33,14 @@ export enum ErrorCode {
   PUBLICATION_IN_FLIGHT = "PUBLICATION_IN_FLIGHT",
   CHANNEL_HAS_LIVE_FRAGMENTS = "CHANNEL_HAS_LIVE_FRAGMENTS",
 
+  // The converse conflict, and the reason it is not folded into the flat one: a
+  // customer confirming they removed content from a channel that was never holding
+  // any has asked for something that cannot be recorded, and the client's next move
+  // (refresh the panel — this channel is not yours to clear) differs from every other
+  // 409 on the same resource. It mirrors `RETRACTION_REFUSALS.NOTHING_PENDING`,
+  // which owns the same value in the application vocabulary.
+  NOTHING_PENDING = "NOTHING_PENDING",
+
   // Rate Limiting
   RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED",
 
