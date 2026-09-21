@@ -4410,4 +4410,55 @@ that touched production source was restored byte-exact and verified with `sha256
 production byte differs from `de4b09f1`. Nothing here can reach a suite that was not run.
 
 Line range of this receipt in the canonical ledger: from `### RDD receipt — the committed range
-04299039 → de4b09f1` to EOF.
+04299039 → de4b09f1` to the next receipt heading.
+
+### RDD receipt — the committed range `de4b09f1` → `a9b33bbb`
+
+Lineage `review-d7306d69240f9f31`, MEDIUM tier, ONE reliability lens: **approved**, acknowledged
+once, authority **burned**, **zero advisory findings**. The candidate was the four-findings commit
+above — four test files and this ledger, no production byte moved.
+
+**A provider defect occurred inside this review and is recorded rather than smoothed over**, because
+a reviewer that fails twice and then succeeds is indistinguishable from a flaky gate unless someone
+writes down which it was. The in-process reviewer's own output was refused by its own admission on
+both attempts: attempt 1 `decode reviewer result: json: unknown field "paths_note"`, and the
+automatic corrective attempt 2 `reviewer payload contains no complete JSON object: 2 objects opened,
+1 closed; 3 arrays opened, 3 closed; scan ended at byte 2602`. Recovered by the contract's own path
+and nothing else — a bound STATUS re-query with the same lineage reoffered the identical slot, and
+the relaunch was admitted on the first try. Both payloads are preserved under
+`.git/gentle-ai/rejected-results/review-d7306d69240f9f31/`; measured, the first one's `raw` parses
+cleanly and carries the offending field at `inspection.paths_note` beside `inspection.paths` and
+`inspection.status` (a well-formed object holding a field its own decoder refuses), and the second's
+`raw` is 2604 bytes ending mid-string, which is a truncated generation rather than a schema
+mismatch. **Reported with Edward's explicit consent** as one occurrence comment on the canonical
+tracker `Gentleman-Programming/gentle-ai#3942` — the equivalent by operation, producer and cause,
+whose fix (#3945) is contained in the installed `2.6.0` stable build, so this is a possible
+regression rather than an "install the fix" case. No labels touched, nothing reopened; the comment
+is privacy-scrubbed (no repository name, path, user, host, branch, diff or source symbol). What this
+occurrence adds to the three already on that issue: the relaunch was **admitted**, on the same
+build, OS and lens as the occurrence that reports it refused identically — so on 2.6.0 the refusal
+is not deterministic per slot.
+
+### RDD receipt — the committed range `a9b33bbb` → `19038d40`
+
+Lineage `review-521a8dcfa5b6dbc8`, MEDIUM tier, ONE reliability lens: **approved**, acknowledged
+once, authority **burned**. Two WARNINGs, **both REJECTED WITH PROOF** — quoted before the burn:
+
+| Finding                                | Claim (quoted)                                                                                                                                                                                                                                                                                                                                 | Disposition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `R3-export-removed-admissionrecordsof` | "External importers (including tests that assert its externally observable per-channel record projection) would fail to resolve the symbol. No test or call-site change accompanies this de-export within the candidate scope, so the behavioral contract that previously supported outside observation of admission records is now unproved." | **REJECTED.** There are no external importers, and the claim's own parenthesis is hypothetical rather than measured: `rg -n "admissionRecordsOf" --glob '!*.md' apps packages` finds the declaration and its ONE caller, the line below it, and nothing else — tests included. `tsc --noEmit` on `apps/api` is 0 and the two suites that drive the admission are 37/37. No call-site change accompanies the de-export because there is no call site outside the module to change.                                                                                   |
+| `R3-export-removed-publishstartmode`   | "If any other module in the codebase imports `PublishStartMode` from this file, the build will break; reliability of the change depends on there being no external consumers, **which cannot be verified from within this candidate's single-file scope.**"                                                                                    | **REJECTED, and the finding names its own limit.** It is correct that a single-file candidate cannot verify the absence of consumers; it is not correct that the change is therefore unproved. The absence was verified outside that scope, three ways — the tree-wide `rg` above, `tsc` at 0, and above all **the dead-code gate itself**, which is the tool that PROVED nobody imports these two symbols and is the entire reason the finding existed. The alias names a field of two interfaces in the same file; the tree-wide search finds no other reference. |
+
+**The class, stated so the next reader does not re-litigate it**: when a review finding asks for
+exactly what another gate already measured, the disposition is a rejection citing that measurement,
+not a defensive change. An export nobody imports is a promise the module did not mean to make;
+restoring the `export` to satisfy a hypothetical importer would restore the finding the dead-code
+gate raised in the first place, and the two gates would then contradict each other permanently.
+
+**Why the commit existed at all.** `Code Quality (knip + jscpd + madge)` went red on PR #280.
+Reproduced locally: `pnpm check:dead-code` → `✖ 2 NEW dead-code finding(s) (not in baseline)`,
+naming `exports::apps/api/src/saga/publishAdmission.ts::admissionRecordsOf` and
+`types::…::PublishStartMode`. jscpd (751 clones, 4.49 %, unchanged) and madge (no circular
+dependency) were both green — the job failed on knip alone. Both symbols lost the `export` keyword
+and nothing else moved. After: knip `0 regressions` against its 321-finding baseline, `tsc` 0,
+eslint and prettier 0, `publishAdmission.test.ts` + `sagaStartAdmission.test.ts` **37/37**.
