@@ -4250,4 +4250,164 @@ or drop the counter and re-open W1. **The first is the honest one** — the over
 and a counter the gate itself asked for, not undisciplined growth.
 
 Line range of this correction in the canonical ledger: from `### Gate corrections applied by the
-executor — 1c-2b` to EOF.
+executor — 1c-2b` to the RDD receipt below.
+
+### RDD receipt — the committed range 04299039 → de4b09f1
+
+Lineage `review-fa3de7f6cdd9d2d5`, approved and burned. Four advisory findings, **all test-only** —
+no production behaviour was in question and none changed. All four are FIXED. The narratives are
+quoted verbatim so a later reader is not taking the disposition's word for what was claimed.
+
+|   # | Finding                                          | Severity   | Disposition                                                                       |
+| --: | ------------------------------------------------ | ---------- | --------------------------------------------------------------------------------- |
+|   1 | `R3-counter-shared-registry`                     | WARNING    | **FIXED** — per-metric reset + absolute assertions                                |
+|   2 | `R3-stranded-channel-order-dependent`            | SUGGESTION | **FIXED** — one case; the order is what the code claims, no production change     |
+|   3 | `R3-lock-unreadable-fail-open-untested-at-route` | SUGGESTION | **FIXED** — one route-level case asserting the response, the WARN and the counter |
+|   4 | `R3-inmemory-lock-no-fake-clock`                 | SUGGESTION | **FIXED** — one case with a fake clock, both sides of the lapse                   |
+
+#### 1 — `R3-counter-shared-registry` (WARNING, reliability)
+
+> "The lock-unreadable counter cases read a globally-shared prom-client registry and use
+> before/after deltas rather than resetting, so if the test file is ever run in parallel with any
+> other suite that also increments omnipost_publish_admission_lock_unreadable_total (or if these
+> three cases were reordered/parallelized within the file), the +1 assertion could observe
+> interleaved increments and become flaky. The mitigation relies on file-scoped serial ordering that
+> is not asserted anywhere in the file."
+
+**Reproduced, and deterministically.** The suggested probe was run: the three counter cases marked
+`.concurrent`, three runs, the same two failures each time.
+
+```text
+ FAIL  tests/unit/publishAdmission.test.ts > admitExistingPostStart — gathering what the decision
+   reads > counts nothing when the holder is readable
+AssertionError: expected 1 to be +0 // Object.is equality
+      Tests  2 failed | 24 passed (26)     (runs 1, 2 and 3 — identical)
+```
+
+Restored byte-exact: `sha256 2e7325f5b27811005a0284c5340bb986b35d5642769e485277a313d3627aa6cb`,
+`sha256sum -c` → OK before the fix was written.
+
+**FIXED with a per-metric reset, not a registry clear, and the choice is measured.** The repo has
+both precedents. `client.register.clear()` appears in seven package suites
+(`cache-redis`, `storage-s3`, `storage-cloudinary`, `external-apis`, and
+`PlatformContentAdapter.media-errors.test.ts`) — all of which own their registry. It is the WRONG
+tool here: `businessMetrics.ts` registers its counters at import time and holds module-level
+references to them, so clearing would leave those references pointing at unregistered counters for
+the rest of the process and the scrape would stop finding this one at all. The single-metric
+precedent is `apps/workers/tests/mentionIngestWorker.tenantScope.test.ts:85`
+(`beforeEach` + `mentionChannelUnresolved.reset()`), and that is what was followed — fetched by name
+through `getSingleMetric` rather than by adding a production export the suite is the only consumer
+of. **The three assertions are now absolute (`toBe(1)` / `toBe(0)`) rather than deltas**, so none of
+them reads the registry twice and none depends on what ran before it.
+
+**Stated rather than over-claimed**: the reset removes the ORDER dependency and the double read. It
+does not make the file safe under intra-file concurrency — a concurrent sibling could reset mid-case
+— and no per-metric approach can. These cases are serial by vitest's default and the file does not
+opt out; the comment above the `beforeEach` says so, with the measurement that produced it.
+
+#### 2 — `R3-stranded-channel-order-dependent` (SUGGESTION, reliability)
+
+> "`strandedChannel` returns the FIRST stranded channel in requested order, but no test asserts that
+> behaviour when MULTIPLE requested channels are pending retraction; the added case exercises only
+> one stranded channel plus one clean channel. If iteration order ever changed (e.g. requested set
+> becomes a Set with insertion-order divergence), the refusal's `fragments` payload could point at a
+> different channel than a caller expected, and no test would notice."
+
+**FIXED, and the behaviour is what the code claims — no production change.** One case in
+`openPublicationEpisode.test.ts`: three declared channels, B and C both stranded, A clean, and the
+request naming `[C, B, A]`. It asserts the refusal names **C**, does **not** name B, and carries C's
+fragments — so both the choice and its exclusivity are pinned, not just the choice.
+
+Green on authoring, as a characterization case must be, so the red was taken by probe: the loop
+inverted to `[...requested].reverse()`.
+
+```text
+ FAIL  tests/unit/openPublicationEpisode.test.ts > … > names the FIRST stranded channel in
+   requested order when several are stranded
+AssertionError: the refusal names C, not B
+- Expected: /aa000000-0000-4000-8000-00000000000c/
++ Received: "CHANNEL_HAS_LIVE_FRAGMENTS: channel aa000000-0000-4000-8000-00000000000b still has
+             live fragments (frag-1) …"
+      Tests  1 failed | 21 passed (22)
+```
+
+Restored byte-exact: `sha256 d9097dfa0704f3f65c7f6c13875b74e4ad62ac4e7a196d24be43fa9487179106`,
+`sha256sum -c` → OK.
+
+#### 3 — `R3-lock-unreadable-fail-open-untested-at-route` (SUGGESTION, reliability)
+
+> "The route-wiring suite exercises the lock-held (409 PUBLICATION_IN_FLIGHT) and lock-free (admit)
+> branches through the InMemorySemanticLockStore, but it does not exercise the unreadable-lock arm at
+> the wiring level — the deliberate fail-open on `CONNECTION_ERROR` is only proved against the pure
+> gatherer in publishAdmission.test.ts. There is no route-level assertion that a lock store whose
+> `holder` returns err('CONNECTION_ERROR') still yields a successful start plus the warn+counter
+> side-effects, leaving the wired degraded path unproved end-to-end."
+
+**FIXED.** One case in `sagaStartAdmission.test.ts` drives the route with a lock store whose
+`holder` answers `err("CONNECTION_ERROR")` and whose three mutating members throw if touched, and
+asserts all three observable consequences: the start SUCCEEDS, the counter reads exactly 1, and the
+WARN message was emitted. The log is captured with `vi.spyOn(logger, "warn")` rather than a module
+mock, because `vi.mock` is hoisted per file and would apply to every importer of the logger in that
+graph — a bigger change than one assertion needs. The spy is restored in a `finally`.
+
+Green on authoring, so the red was taken by probe: the route's wiring changed to
+`lockStore: undefined`, which takes the no-store path and produces neither side effect.
+
+```text
+ FAIL  tests/unit/sagaStartAdmission.test.ts > … > admits WIRED when the lock store cannot be read,
+   and counts the degradation
+AssertionError: expected +0 to be 1 // Object.is equality
+      Tests  2 failed | 9 passed (11)
+```
+
+The second failure in that probe run is the existing `PUBLICATION_IN_FLIGHT` case, which is the
+right company to keep: both cases exist to prove the lock store reaches the admission. Restored
+byte-exact: `sha256 c4d9927536927435da0bb91b602339c1f34c36c3839f82b86d1cd9d1a508126e`,
+`sha256sum -c` → OK.
+
+#### 4 — `R3-inmemory-lock-no-fake-clock` (SUGGESTION, reliability)
+
+> "The in-memory lock double claims the TTL lapse behaviour is exercised the same way production
+> experiences it (`a test that advances the clock must see the same lapse production sees`), but no
+> test in this candidate advances Date.now() to prove the lapse path: `plantHolder` is used only with
+> the default 30-minute TTL and every `acquire`/`holder` case in semanticLockHolder.test.ts uses a
+> 60s TTL with immediate reads. The lapse branch at :117-121 is thus unproved by any assertion in
+> this candidate."
+
+**FIXED.** One case with `vi.useFakeTimers()` that walks BOTH sides of the boundary rather than only
+the far side: held at one millisecond short of the 30-minute default, absent at exactly the
+boundary, and then — the part that matters for a deadlock guard — `acquire` succeeds for a different
+saga and that saga becomes the holder. Real timers are restored in a `finally`.
+
+Green on authoring, so the red was taken by probe: the lapse branch deleted from `live()`.
+
+```text
+ FAIL  tests/unit/semanticLockHolder.test.ts > InMemorySemanticLockStore > lets a hold LAPSE at its
+   TTL, so the key frees itself as the Redis one does
+AssertionError: expected 'saga-already-running' to be null
+      Tests  1 failed | 9 passed (10)
+```
+
+Restored byte-exact: `sha256 c6619a3f2409635cac5566c66f72f5ee83cbf7a785550bfddb0111d7e68095cb`,
+`sha256sum -c` → OK.
+
+#### Gates after the RDD corrections
+
+| Gate                                                                    | Result                                   |
+| ----------------------------------------------------------------------- | ---------------------------------------- |
+| touched `apps/api` unit suites (4 files)                                | **54 passed** (was 52; +2 cases)         |
+| `@core/posts` vitest                                                    | **6 files, 99 passed** (was 98; +1 case) |
+| `tsc --noEmit` `apps/api` (6144) · `@core/posts`                        | **0** · **0**                            |
+| scratchpad tsc probes over the touched test files (api · `@core/posts`) | **0** · **0**                            |
+| `eslint --max-warnings 0` (4 changed files, one 6144 pass)              | **0**                                    |
+| `prettier -c` (4 changed files + this ledger)                           | clean                                    |
+| fitness #3 · #4 · #5 · #32                                              | 0 · 0 · 0 · 0                            |
+| tripwire words in the four changed files                                | none                                     |
+
+Not re-run, and stated so the absence is a decision rather than an omission: the `apps/api` unit
+tier and both integration batches. **The delta is four test files and nothing else** — every probe
+that touched production source was restored byte-exact and verified with `sha256sum -c`, so no
+production byte differs from `de4b09f1`. Nothing here can reach a suite that was not run.
+
+Line range of this receipt in the canonical ledger: from `### RDD receipt — the committed range
+04299039 → de4b09f1` to EOF.

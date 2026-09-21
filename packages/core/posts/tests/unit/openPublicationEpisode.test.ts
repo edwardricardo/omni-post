@@ -522,6 +522,39 @@ describe("OpenPublicationEpisodeUseCase", () => {
         "and the fragments travel with it, so the answer needs no second read"
       );
     });
+
+    it("names the FIRST stranded channel in requested order when several are stranded", async () => {
+      // The refusal carries ONE channel and its fragments, so which one it picks is part of
+      // the contract a caller reads — the customer is told what to remove. With one stranded
+      // channel that choice is invisible; this case makes it observable. The request names
+      // C first, so C is the answer even though B is stranded too and A is clean.
+      const post = makeOpenedPost([CHANNEL_A, CHANNEL_B, CHANNEL_C]);
+      recordOn(post, CHANNEL_B, failedResult([makeFragment(1)]));
+      recordOn(post, CHANNEL_C, failedResult([makeFragment(2)]));
+      const repo = makePostRepo({ post });
+      const useCase = new OpenPublicationEpisodeUseCase(repo.port, makeRecordingUow());
+
+      const result = await useCase.execute({
+        postId: POST_UUID,
+        channelIds: [CHANNEL_C, CHANNEL_B, CHANNEL_A],
+        enterPublishing: true,
+      });
+
+      assert.ok(!result.ok, "a request naming two stranded channels is refused");
+      assert.strictEqual(refusalOf(result.error), RETRACTION_REFUSALS.CHANNEL_HAS_LIVE_FRAGMENTS);
+      assert.match(result.error.message, new RegExp(CHANNEL_C), "the refusal names C, not B");
+      assert.doesNotMatch(
+        result.error.message,
+        new RegExp(CHANNEL_B),
+        "and it names only the one it answers for"
+      );
+      assert.deepStrictEqual(
+        (result.error as { fragments?: unknown }).fragments,
+        [{ index: 2, externalId: "frag-2" }],
+        "the fragments belong to the channel the refusal names"
+      );
+      assert.strictEqual(repo.savePublication.mock.calls.length, 0);
+    });
   });
 
   describe("idempotency — a re-drive retry re-runs without opening a second episode", () => {

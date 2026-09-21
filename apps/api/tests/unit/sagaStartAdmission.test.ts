@@ -8,9 +8,12 @@
  *              decided correctly over a record it never read would pass there and fail here.
  * @layer infrastructure
  */
-import { describe, it, afterEach, expect } from "vitest";
-import { AppError, ErrorCode } from "@shared/types";
+import { describe, it, afterEach, expect, vi } from "vitest";
+import client from "prom-client";
+import { AppError, ErrorCode, err } from "@shared/types";
+import type { SemanticLockPort } from "@ports/core";
 import { PublishStatus } from "@core/domain/index.js";
+import { logger } from "../../src/lib/logger.js";
 import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
 import { InMemorySemanticLockStore } from "./doubles/InMemorySemanticLockStore.js";
 import {
@@ -49,6 +52,44 @@ function startRequest(
     }),
   };
   return request;
+}
+
+/**
+ * @function lockUnreadableCounter
+ * @description The degradation counter, fetched by name so this suite takes no production
+ *              export it would not otherwise need.
+ * @returns The registered counter.
+ */
+function lockUnreadableCounter(): client.Counter {
+  const metric = client.register.getSingleMetric(
+    "omnipost_publish_admission_lock_unreadable_total"
+  );
+  if (metric === undefined) {
+    throw new Error(
+      "omnipost_publish_admission_lock_unreadable_total is not registered: the admission " +
+        "degradation is counted nowhere"
+    );
+  }
+  return metric as client.Counter;
+}
+
+/**
+ * @function captureLockWarnings
+ * @description Collects the messages the admission logs, so a case can assert the WARN
+ *              survived the wiring. Spied rather than module-mocked: `vi.mock` is hoisted
+ *              per file and would apply to every importer of the logger in this graph,
+ *              which is a bigger change than one assertion needs.
+ * @returns The collected messages and the restore the caller must run.
+ */
+function captureLockWarnings(): { messages: string[]; restore: () => void } {
+  const messages: string[] = [];
+  const spy = vi.spyOn(logger, "warn").mockImplementation(((...args: unknown[]): void => {
+    const message = args.find((arg) => typeof arg === "string");
+    if (typeof message === "string") {
+      messages.push(message);
+    }
+  }) as never);
+  return { messages, restore: () => spy.mockRestore() };
 }
 
 /**
@@ -160,6 +201,43 @@ describe("POST /sagas/post-publishing/start — admission over the publication r
     // key it acquired here would be released by nobody until the TTL lapsed.
     const held = await lockStore.holder(`post-publishing:${TEST_EXISTING_DRAFT_POST_ID}`);
     expect(held.ok && held.value).toBeNull();
+  });
+
+  it("admits WIRED when the lock store cannot be read, and counts the degradation", async () => {
+    // The fail-open is deliberate, but until now it was proved only against the pure
+    // gatherer. A route that dropped the lock store, swallowed the error, or translated it
+    // into a refusal would still pass there and fail here — which is the whole reason the
+    // wiring gets its own case.
+    const lockUnreadable: SemanticLockPort = {
+      acquire: async () => {
+        throw new Error("the admission must not mutate the lock");
+      },
+      release: async () => {
+        throw new Error("the admission must not mutate the lock");
+      },
+      releaseAllForSaga: async () => {
+        throw new Error("the admission must not mutate the lock");
+      },
+      holder: async () => err("CONNECTION_ERROR"),
+    };
+    const counter = lockUnreadableCounter();
+    counter.reset();
+    const warnings = captureLockWarnings();
+    try {
+      const handler = await boot({ lockStore: lockUnreadable });
+
+      const result = await handler(startRequest("publish-now"), passthroughReply);
+
+      expect(result.success).toBe(true);
+      // Both side effects, because each answers a different question and a route that
+      // dropped either would still look correct from the response alone.
+      expect((await counter.get()).values[0]?.value).toBe(1);
+      expect(warnings.messages).toContain(
+        "Semantic lock holder unreadable; admitting the start on the saga's own lock step"
+      );
+    } finally {
+      warnings.restore();
+    }
   });
 
   it("admits a schedule for a post already SCHEDULED", async () => {

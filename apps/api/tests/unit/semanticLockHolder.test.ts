@@ -6,7 +6,7 @@
  *              Covers the Redis-backed store and the in-memory double the unit tier uses.
  * @layer infrastructure
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { RedisSemanticLockStore } from "../../src/infrastructure/saga/RedisSemanticLockStore.js";
 import { InMemorySemanticLockStore } from "./doubles/InMemorySemanticLockStore.js";
 
@@ -137,6 +137,33 @@ describe("InMemorySemanticLockStore", () => {
     store.plantHolder("post-publishing:post-1", "saga-already-running");
 
     expect(await holderValue(store, "post-publishing:post-1")).toBe("saga-already-running");
+  });
+
+  it("lets a hold LAPSE at its TTL, so the key frees itself as the Redis one does", async () => {
+    // The double claims the lapse behaves as production's does. Every other case here reads
+    // immediately, so nothing crossed the expiry and the branch that applies it was
+    // unproved. The clock is advanced rather than slept on: expiry is checked on read, so a
+    // fake clock reaches it without holding the run open for half an hour.
+    vi.useFakeTimers();
+    try {
+      store.plantHolder("post-publishing:post-1", "saga-already-running");
+      expect(await holderValue(store, "post-publishing:post-1")).toBe("saga-already-running");
+
+      // One millisecond short of the default 30-minute hold: still held.
+      vi.advanceTimersByTime(30 * 60 * 1000 - 1);
+      expect(await holderValue(store, "post-publishing:post-1")).toBe("saga-already-running");
+
+      vi.advanceTimersByTime(1);
+      expect(await holderValue(store, "post-publishing:post-1")).toBeNull();
+
+      // And the key is genuinely free, not merely unreported: a lapsed hold must let the
+      // next saga take it, which is the deadlock guard the TTL exists for.
+      const retaken = await store.acquire("post-publishing:post-1", "saga-next", 60_000);
+      expect(retaken.ok && retaken.value).toBe(true);
+      expect(await holderValue(store, "post-publishing:post-1")).toBe("saga-next");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

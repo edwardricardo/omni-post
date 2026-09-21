@@ -8,7 +8,7 @@
  *              without staging an HTTP request to reach each one.
  * @layer infrastructure
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import client from "prom-client";
 import { ErrorCode, err, ok, type Result } from "@shared/types";
 import { RETRACTION_REFUSALS } from "@core/posts/retractionRefusals.js";
@@ -266,21 +266,37 @@ describe("admitPublishStart — schedule mode admits the lifecycle words only (Q
  * @param answer - What `holder` resolves to.
  * @returns The stub and the keys it was asked for.
  */
+/** The registered name, in one place: the reset and the scrape must not drift apart. */
+const LOCK_UNREADABLE_METRIC = "omnipost_publish_admission_lock_unreadable_total";
+
+/**
+ * @function lockUnreadableCounter
+ * @description The registered counter, fetched by name rather than imported, so the test
+ *              takes no production export it would not otherwise need.
+ * @returns The counter.
+ */
+function lockUnreadableCounter(): client.Counter {
+  const metric = client.register.getSingleMetric(LOCK_UNREADABLE_METRIC);
+  if (metric === undefined) {
+    throw new Error(
+      `${LOCK_UNREADABLE_METRIC} is not registered: the admission degradation is counted nowhere`
+    );
+  }
+  return metric as client.Counter;
+}
+
 /**
  * @function readLockUnreadableCounter
  * @description Scrapes the degradation counter the way Prometheus would, so a case reads
  *              what the endpoint publishes rather than a value someone held a reference to.
- * @returns The current total, or 0 before the counter has ever been incremented.
+ * @returns The current total, or 0 when the counter has no sample yet.
  */
 async function readLockUnreadableCounter(): Promise<number> {
   const metrics = await client.register.getMetricsAsJSON();
-  const counter = metrics.find(
-    (metric) => metric.name === "omnipost_publish_admission_lock_unreadable_total"
-  );
+  const counter = metrics.find((metric) => metric.name === LOCK_UNREADABLE_METRIC);
   if (counter === undefined) {
     throw new Error(
-      "omnipost_publish_admission_lock_unreadable_total is not registered: the admission " +
-        "degradation is counted nowhere"
+      `${LOCK_UNREADABLE_METRIC} is not registered: the admission degradation is counted nowhere`
     );
   }
   return counter.values?.[0]?.value ?? 0;
@@ -326,11 +342,26 @@ describe("admitExistingPostStart — gathering what the decision reads", () => {
     expect(result.error.code).toBe(ErrorCode.PUBLICATION_IN_FLIGHT);
   });
 
+  // The counter is reset before each of the three cases below, which is what lets them
+  // assert an ABSOLUTE value. The before/after delta they used instead was not robust: it
+  // reads the shared registry twice, so any increment landing between the two reads is
+  // absorbed into the answer. Measured with the three cases marked `.concurrent` — three
+  // runs, the same two failures each time, `expected 1 to be +0`.
+  //
+  // Resetting the whole registry is NOT the option here, and that is measured too: the
+  // sibling suites that call `client.register.clear()` own their registry, whereas
+  // `businessMetrics.ts` registers its counters at import time and holds module-level
+  // references to them. Clearing would leave those references pointing at unregistered
+  // counters for the rest of the process, and the scrape below would stop finding this one
+  // at all. One metric, reset by name.
+  beforeEach(() => {
+    lockUnreadableCounter().reset();
+  });
+
   it("counts the degradation when it admits on an UNREADABLE lock", async () => {
     // A log alone would fire once per start for as long as the store stays unreachable —
     // noise, not signal — and nothing would alert. The counter is what makes "we ran
     // without the in-flight check for forty minutes" discoverable afterwards.
-    const before = await readLockUnreadableCounter();
     const { store } = lockStoreAnswering(err("CONNECTION_ERROR"));
 
     await admitExistingPostStart({
@@ -340,11 +371,10 @@ describe("admitExistingPostStart — gathering what the decision reads", () => {
       lockStore: store,
     });
 
-    expect(await readLockUnreadableCounter()).toBe(before + 1);
+    expect(await readLockUnreadableCounter()).toBe(1);
   });
 
   it("counts nothing when the holder is readable", async () => {
-    const before = await readLockUnreadableCounter();
     const { store } = lockStoreAnswering(ok(null));
 
     await admitExistingPostStart({
@@ -354,7 +384,7 @@ describe("admitExistingPostStart — gathering what the decision reads", () => {
       lockStore: store,
     });
 
-    expect(await readLockUnreadableCounter()).toBe(before);
+    expect(await readLockUnreadableCounter()).toBe(0);
   });
 
   it("counts nothing when no lock backend is configured", async () => {
@@ -364,8 +394,6 @@ describe("admitExistingPostStart — gathering what the decision reads", () => {
     // a test-only state in a serving deployment. A label whose only producer is this suite
     // would read as coverage of a condition that cannot occur. Should the backend ever
     // become conditional, this arm needs its own count and this case is where that shows.
-    const before = await readLockUnreadableCounter();
-
     await admitExistingPostStart({
       post: makeExistingPost(),
       mode: "publish-now",
@@ -373,7 +401,7 @@ describe("admitExistingPostStart — gathering what the decision reads", () => {
       lockStore: undefined,
     });
 
-    expect(await readLockUnreadableCounter()).toBe(before);
+    expect(await readLockUnreadableCounter()).toBe(0);
   });
 
   it("admits on an UNREADABLE lock rather than refusing every publish while the store is down", async () => {
