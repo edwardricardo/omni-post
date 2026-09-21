@@ -43,6 +43,7 @@ import { createPostPublishingSagaDefinition, createSagaContext } from "@shared/t
 import type { Command } from "@shared/types/cqrs.js";
 import type { Redis } from "ioredis";
 import { AppError } from "../lib/errors/index.js";
+import { admitExistingPostStart, refusalToAppError } from "./publishAdmission.js";
 import { captureError } from "../observability/sentryInit.js";
 import { logger } from "../lib/logger.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
@@ -404,14 +405,18 @@ export class SagaIntegration {
             }
           }
 
-          // Existing-draft path (schedule/publish-now with postId): verify the
-          // post exists, belongs to this project, and is still in DRAFT status.
-          // Re-publishing a post already in PUBLISHED/SCHEDULED would create
-          // a duplicate publish job — surface as a client error instead.
-          const providedPostId =
-            body.mode !== "draft" && typeof body.postId === "string" ? body.postId : null;
-          if (providedPostId !== null) {
-            const postIdResult = PostId.fromString(providedPostId);
+          // Existing-post path (schedule/publish-now with postId): verify the post
+          // exists, belongs to this project, and may be published or scheduled again.
+          // The mode and the channel set travel with the id because the admission
+          // answers differently per mode and refuses a named channel by name; deriving
+          // them here is also what narrows `body` away from the draft arm.
+          const existingPost =
+            body.mode !== "draft" && typeof body.postId === "string"
+              ? { postId: body.postId, mode: body.mode, channelIds: body.channelIds }
+              : null;
+          const providedPostId = existingPost?.postId ?? null;
+          if (existingPost !== null) {
+            const postIdResult = PostId.fromString(existingPost.postId);
             if (!postIdResult.ok) {
               throw AppError.badRequest("Invalid post ID");
             }
@@ -425,10 +430,14 @@ export class SagaIntegration {
               // post-id enumeration across projects.
               throw AppError.notFound("Post");
             }
-            if (post.status.value !== "DRAFT") {
-              throw AppError.badRequest(
-                `Post is in ${post.status.value} status; only DRAFT posts can be scheduled or published via this saga`
-              );
+            const admission = await admitExistingPostStart({
+              post,
+              mode: existingPost.mode,
+              requestedChannelIds: existingPost.channelIds,
+              lockStore: this.config.lockStore,
+            });
+            if (!admission.ok) {
+              throw refusalToAppError(admission.error);
             }
           }
 

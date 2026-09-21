@@ -104,6 +104,30 @@ const bulkScheduleRowsRefusedTotal = getOrCreateCounter(
   ["reason"]
 );
 
+/**
+ * Publish starts admitted WITHOUT the in-flight check, because the semantic lock's holder
+ * could not be read.
+ *
+ * The admission deliberately proceeds on an unreadable lock — refusing every publish while
+ * the lock store is unreachable trades a rare duplicate for a total outage, and the
+ * guarantee does not rest on that read. But proceeding is a DEGRADED mode, and a WARN log
+ * alone cannot report it: it fires once per start for as long as the store stays
+ * unreachable, which is noise rather than signal, and nothing alerts on it. The counter is
+ * what makes "this deployment ran without the in-flight check for forty minutes" a
+ * question the metrics can answer after the fact.
+ *
+ * NO `reason` label, and the omission is measured rather than assumed: the other way this
+ * check is skipped is an absent lock backend, and the api composition root constructs
+ * `RedisSemanticLockStore` unconditionally outside `SCHEMA_ONLY` (`index.ts:730-733`),
+ * which serves no request. An absent backend is therefore a test-only state, and a label
+ * whose only producer is a test suite reads as coverage of a condition that cannot occur.
+ * Should the backend ever become conditional, that arm needs its own count.
+ */
+const publishAdmissionLockUnreadableTotal = getOrCreateCounter(
+  "omnipost_publish_admission_lock_unreadable_total",
+  "Publish starts admitted without the in-flight check because the semantic lock holder could not be read"
+);
+
 // ---------------------------------------------------------------------------
 // Provider-level publish counters
 // ---------------------------------------------------------------------------
@@ -202,6 +226,17 @@ export function incrementPostDeleted(): void {
  */
 export function incrementBulkScheduleRowRefused(reason: BulkScheduleRefusalArm): void {
   bulkScheduleRowsRefusedTotal.inc({ reason });
+}
+
+/**
+ * Increment the unreadable-lock degradation counter.
+ *
+ * Call it at the moment a publish start is admitted WITHOUT a usable holder answer, beside
+ * the WARN that names the post — the log says which request, this says how long and how
+ * often, and only the second of those can be alerted on.
+ */
+export function incrementPublishAdmissionLockUnreadable(): void {
+  publishAdmissionLockUnreadableTotal.inc();
 }
 
 /**

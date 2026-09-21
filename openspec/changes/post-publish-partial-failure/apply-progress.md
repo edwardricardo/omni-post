@@ -3847,3 +3847,407 @@ written here is that `PostCommandHandlers.test-helpers.ts` is imported for its V
 suites — moving a hoisted mock into it would apply the mock to all five at once, which is a
 behaviour change to three suites this correction has no business touching. **Backlog-sized, not
 bounded-correction-sized.**
+
+---
+
+## PR 1c — grandchild `1c-2b` (T1c.10 + T1c.11) — COMPLETE
+
+Branch `workstream/ncor8-1c-2b`, child of `workstream/ncor8-1c-1e` @ `04299039` — **order 5 of
+§9.4.1**, and the first unit of this chain whose change is REACHABLE from production on the day it
+lands. `/start` is a live customer route; everything before this unit was a writer nobody called or
+a command nobody sent.
+
+**Finish state**: `SemanticLockPort` can be asked who holds a key without taking it; the publish
+admission is a module of its own that reads the post's publication record, answers per mode, and
+names its refusals with codes a client can branch on; `/start` calls it. **Rollback**: revert
+`SagaIntegration.ts` and delete `publishAdmission.ts` — the admission seam comes out on its own and
+`/start` returns to the status comparison. The port member, the Redis read and the doubles are
+additive and can stay or go independently; the `RETRACTION_REFUSALS` member is consumed by
+`OpenPublicationEpisodeUseCase`, so reverting it means reverting that raise too.
+
+### What each mechanism is, as built
+
+| Mechanism                                                         | As built                                                                                                                                                                                                                                                                                                   |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SemanticLockPort.holder(key)`                                    | `Promise<Result<string \| null, SemanticLockError>>`, the shape design.md:460 names and the shape every sibling method already has. A failed read stays a failure IN THE PORT — collapsing it to `null` there would make "the store is unreachable" and "the key is free" the same answer for every caller |
+| `RedisSemanticLockStore.holder`                                   | one `GET` on the namespaced key. Not `EXISTS` plus a fetch: the caller needs the holding saga's id, and two round trips can straddle a release                                                                                                                                                             |
+| `InMemorySemanticLockStore` (new double)                          | Map-backed, all four members, TTL honoured on READ rather than by a timer (a timer would keep the process alive), holder-gated release exactly as the Lua script does, plus `plantHolder` so a case can start from "another saga is already publishing this"                                               |
+| `publishAdmission.ts` (new)                                       | `admitPublishStart` is a PURE function over values — mode, status word, record view, channels named, lock holder — returning `Result<void, PublishAdmissionRefusal>`. `admitExistingPostStart` is the thin async gatherer around it; `refusalToAppError` is the one translation to HTTP                    |
+| the record view                                                   | `AdmissionChannelRecord` carries exactly three facts plus the fragments. A narrow view rather than the entity, so the decision cannot reach for a field it never declared it reads                                                                                                                         |
+| the refusal carrier                                               | `PublishAdmissionRefusal { statusCode, code: ErrorCode, message, details? }`. The discriminator rides in `code` because that is the field the single global error handler puts on the wire in EVERY environment — see the finding below                                                                    |
+| `ErrorCode.PUBLICATION_IN_FLIGHT` / `…CHANNEL_HAS_LIVE_FRAGMENTS` | two additive members of the shared client-facing error vocabulary, the same reason `AUTH_MFA_REQUIRED` is in it: a refusal a client must branch on                                                                                                                                                         |
+| `RETRACTION_REFUSALS.CHANNEL_HAS_LIVE_FRAGMENTS`                  | EXTENDS the existing set, as `1c-1d` W7 required. `refusalOf` is derived from the set with a `Set`, so the new member is recognised without touching the reader — and `confirmManualRetraction.test.ts`'s `Object.values(...)` loop picked it up with no edit                                              |
+| `RetractionRefusalError.fragments`                                | the live fragments travel ON the refusal. The refusal already had the record open; a second read to answer "which fragments" can disagree with the one that decided the refusal                                                                                                                            |
+| the use-case raise                                                | `OpenPublicationEpisodeUseCase` decides the stranded-channel refusal itself, from the record it has already loaded, so it can answer TYPED. The aggregate keeps refusing it too — that is the invariant every caller is owed                                                                               |
+
+### The design correction this unit had to make — D9's admission, as written, breaks R7
+
+**D9's admission sentence is internally inconsistent, and the inconsistency is load-bearing.** It
+says publish-now "admits a post with no record or with at least one `redrivable()` channel and
+refuses 400 otherwise (R7 preserved)". Those two halves disagree for one post: a post with NO record
+and a terminal word. `post-publish-status-promotion` R7 requires a second start on a published post
+to be REJECTED as a client error with no new job enqueued, and "no record" is not evidence of "never
+published" — it is the state of every post published before this change, and of every post published
+at every tip of this chain, because nothing writes a publication record on the publish-now path
+until order 10.
+
+**Measured, not argued.** `sagaPublishNowPromotion.test.ts` drives publish-now to `COMPLETED`, then
+starts again, and asserts a 4xx whose body matches `/PUBLISHED/` plus an unchanged job count. At
+this tip that post has no record. D9's literal rule returns 200 and enqueues.
+
+The design's own verification map settles it: §"1c verification map", REC-12 row — "NEW (15) every
+channel published → `/start` 400, zero jobs (**today's R7 in `sagaPublishNowPromotion.test.ts` stays
+green as the regression gate**)". A rule that takes that suite red cannot be the rule the design
+intends.
+
+**What was built instead**: the record decides when there is one; the word decides when there is
+not. With a record, admission is D9 exactly — ≥1 `redrivable()` channel admits, none refuses 400,
+and a named channel pending retraction refuses 409 first. With no record, the rule `/start` has
+always applied still applies: publish-now admits `DRAFT` only. The fallback is strictly NARROWER
+than D9's text (it refuses a subset D9 would admit), it converges to D9 the moment every post
+carries a record, and it is inert after PR 1e's reconstruction. `integration:saga-recovery` holds at
+33/33 because of it.
+
+**The ordering audit's row 5 is wrong in the same place and should be amended.** It reads "ADMITS a
+post with NO record … fail-OPEN by absence, deliberately" and marks the unit sound. The audit's
+criterion only examined readers that REFUSE on an absent record; a reader that ADMITS on absence is
+the opposite defect and creates a duplicate-send window at every tip until the writer lands. The
+audit asks the right question of the wrong direction.
+
+### What a customer sees differently after this unit
+
+| Request                                                              | Before                                                 | After                                                                  |
+| -------------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `schedule` on a post already `SCHEDULED`                             | 400 "only DRAFT posts can be scheduled or published"   | **200** — rescheduling is admitted (D9 lifecycle family)               |
+| `schedule` on a `FAILED` / `PARTIALLY_PUBLISHED` post                | 400                                                    | 400, unchanged — a delayed re-drive stays refused (Q14)                |
+| `publish-now` on a post whose record still owes a channel an attempt | 400 (any non-`DRAFT` word)                             | **200** — the re-drive REC-12 requires                                 |
+| `publish-now` on a post whose record has nothing re-drivable         | 400                                                    | 400, and the message now names the record as well as the word          |
+| `publish-now` naming a channel with live fragments                   | 400, or admitted and refused later by the saga         | **409 `{ code: "CHANNEL_HAS_LIVE_FRAGMENTS" }`**, refused by name      |
+| a second start while a saga still holds the post                     | 200, then a saga that fails on the lock a minute later | **409 `{ code: "PUBLICATION_IN_FLIGHT" }`** naming the running saga    |
+| `publish-now` on a post with no record and a terminal word           | 400                                                    | 400, unchanged — the correction above is what keeps this row unchanged |
+| a channel outside the caller's project                               | 404                                                    | 404, unchanged, and still decided BEFORE any record read               |
+
+Rows 1, 3, 5 and 6 are the behaviour changes. Rows 2, 4, 7 and 8 are stated because a reader should
+not have to infer which ones did not move.
+
+### The recorded reds
+
+**1. The port has no holder read.** The suite was written against a member that did not exist:
+
+```text
+ FAIL  tests/unit/semanticLockHolder.test.ts > RedisSemanticLockStore.holder >
+   answers the saga id the lock key holds
+TypeError: store.holder is not a function
+      Tests  3 failed | 6 passed (9)
+```
+
+(The first run before that was `Cannot find module './doubles/InMemorySemanticLockStore.js'` — the
+double did not exist either.)
+
+**2. The admission seam does not exist.**
+
+```text
+ FAIL  tests/unit/publishAdmission.test.ts [ tests/unit/publishAdmission.test.ts ]
+Error: Cannot find module '../../src/saga/publishAdmission.js'
+```
+
+**3. The refusal carries no discriminator.** Recorded with its own gotcha, because the obvious
+assertion was VACUOUS:
+
+```text
+ FAIL  tests/unit/openPublicationEpisode.test.ts > … >
+   carries the refusal as a DISCRIMINATOR a route can switch on, not as a message prefix
+AssertionError: and the fragments travel with it, so the answer needs no second read
++ undefined
+- [ { index: 1, externalId: 'frag-1' }, … ]
+```
+
+`assert.strictEqual(refusalOf(error), RETRACTION_REFUSALS.CHANNEL_HAS_LIVE_FRAGMENTS)` PASSED in that
+red run — both sides were `undefined`, because the member did not exist yet. Only the `fragments`
+assertion went red. The case now pins the member against its literal FIRST, so it cannot pass
+vacuously again. **This is a general trap for every discriminator this change adds**: a test written
+against a not-yet-declared const member is green before and after.
+
+**4. The route decides on the word, not the record.** Four branches at once:
+
+```text
+ FAIL  tests/unit/sagaStartAdmission.test.ts > … > admits a publish-now while the record still owes
+   a channel an attempt
+Error: Post is in PUBLISHING status; only DRAFT posts can be scheduled or published via this saga
+ FAIL  … > refuses 409 CHANNEL_HAS_LIVE_FRAGMENTS naming the channel and the fragments
+AssertionError: expected 400 to be 409
+ FAIL  … > refuses 409 PUBLICATION_IN_FLIGHT naming the saga that holds the post
+Error: the start was admitted, but this case expects a refusal
+ FAIL  … > admits a schedule for a post already SCHEDULED
+Error: Post is in SCHEDULED status; only DRAFT posts can be scheduled or published via this saga
+      Tests  4 failed | 6 passed (10)
+```
+
+### The split seam, measured — and why the forecast's arithmetic could not hold
+
+§9.8 forecast `SagaIntegration.ts` at **895 → ~840 + a new ~150**, i.e. the split REMOVES ~55 lines.
+Measured: the admission logic that existed to move was **five lines** (`if (post.status.value !==
+"DRAFT") throw …`). Everything else in `publishAdmission.ts` is NEW decision logic — the record
+read, the per-mode branching, the two typed refusals — that had no previous home.
+
+First pass put the lock read and the HTTP translation on the route and landed the file at **955**,
+above where it started. Corrected before the gates by moving both into the seam: the route now holds
+one call and one throw. **Final: 895 → 904 (+9)**, `publishAdmission.ts` **260**. The file is still
+over its band, pre-existing, exactly as §9.8 says.
+
+### Doubles updated — the mandatory `rg` over `**/tests/**`
+
+The unit deletes and renames nothing, but it WIDENS a port, which is the other way a double goes
+stale. `rg -n "SemanticLockPort" apps packages infra --glob '**/tests/**'` finds four implementors:
+
+| Site                                                         | Change                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/infrastructure/saga/RedisSemanticLockStore.ts` | the real one — compile-forced, implemented                                                                                                                                                                                                                                                |
+| `apps/api/tests/integration/sagaTenantIsolation.test.ts:126` | `RecordingLockStore implements SemanticLockPort` — compile-forced, gained `holder()` answering `null` (that suite never contends)                                                                                                                                                         |
+| `apps/api/tests/unit/doubles/InMemorySemanticLockStore.ts`   | NEW, the S-new-2 double                                                                                                                                                                                                                                                                   |
+| `apps/api/tests/unit/saga/sagaTenant.test.ts:144`            | an object literal behind `as unknown as SagaSystemTerminationConfig` — **cast-erased, so NOT compile-forced**. Left unchanged deliberately: it carries `releaseAllForSaga` only and the terminal path it drives never asks for a holder. Named here so it is a decision, not an oversight |
+
+Also widened, and caught the same way: `buildIntegration`'s post repository returned a DUCK TYPE
+(`{ projectId, status }`) that would have answered `undefined` for `post.publications` — a crash, not
+"no record". It now returns a REAL `PostAggregate`, with three fixtures (`makeExistingPost`,
+`makeFullyPublishedPost`, `makeStrandedPost`) built through the aggregate's own methods.
+
+### The scratchpad tsc probe — run, and it caught three pre-existing defects
+
+No tsconfig opens a `.test.ts` in this repo, so the habit from the last three units was repeated. It
+found **12 errors, none of them in the new files**:
+
+- `sagaTenantIsolation.test.ts` ×3 — two `SagaExecutionEnginePort` stubs missing `isAdvancerInFlight`.
+  A port member added at some point that the doubles never got; both fixed by delegating to the real
+  engine.
+- `sagaExistingPost.test.ts` ×5 — `handler` possibly `undefined` at every call site, because
+  `expect(handler).toBeTruthy()` asserts at runtime and narrows nothing. Replaced with one narrowing
+  helper.
+- `sagaIntegration.helpers.ts` ×1 — `createMockQueue` was missing `enqueueBulk` AND **`getJobStates`**,
+  which the saga's own fallback poll calls. A test that reached the poll would have failed on a
+  missing method rather than on the state it was asserting. Both implemented.
+
+Second run: `PROBE_TSC_OWN_EXIT=0`. **Fourth distinct defect class the probe has caught in four
+units.** The permanent-config decision is still nobody's and is now four for four.
+
+### Design-silent decisions, taken here and named
+
+1. **The discriminator rides in `ErrorCode`, not in `details`.** `errorHandler.ts:93-99` puts
+   `details` on the wire **only when `NODE_ENV === "development"`**, while `error.code` ships always.
+   A discriminator the customer never receives is not one they can switch on, so the two refusals
+   became `ErrorCode` members — the repo's own precedent (`AUTH_MFA_REQUIRED`). Rejected: widening
+   the handler to ship `details` for every operational error, which changes EVERY error response in
+   the product and is not this unit's subject. **Consequence, stated: `sagaId` and `fragments` do
+   NOT reach a production client today.** See the note for Edward below.
+2. **`CHANNEL_HAS_LIVE_FRAGMENTS` is declared twice and pinned by a test.** `RETRACTION_REFUSALS`
+   owns the application vocabulary, `ErrorCode` owns the wire vocabulary, and `@shared/types` must
+   not import `@core/posts` (wrong direction), so a single declaration is not available. `ErrorCode`
+   is a TypeScript string enum, which is NOMINAL — no `satisfies`, type annotation or template
+   assertion can bind a const-object literal to an enum member. The binding is therefore a CASE in
+   `publishAdmission.test.ts` that compares the two strings and goes red the moment either is
+   renamed.
+3. **The lock is read before the status.** A running publish is the more actionable fact: the saga
+   holding the post is still changing the record the other branches would read, so telling the
+   customer to wait beats telling them what the record said a moment ago.
+4. **An UNREADABLE lock ADMITS.** The port keeps the failure a failure; this caller then chooses
+   availability, with a logged warning. Refusing every publish while Redis is unreachable trades a
+   rare duplicate for a total outage, and the guarantee does not rest here — the saga's own step
+   acquires the lock and fails closed on contention, the episode opening is idempotent, and the job
+   ids dedupe. It is the same reasoning design.md uses for a deployment with no lock store at all
+   (`saga.ts:750`). Pinned by a case.
+5. **`/start` applies no set-equality rule.** D9's equality rule lives in
+   `OpenPublicationEpisodeUseCase` and §9.9 item 8 is an OPEN question about it. The admission was
+   not bent toward either candidate answer: it refuses a named stranded channel and otherwise says
+   nothing about whether the request must equal the recorded set.
+6. **The stranded-channel refusal is decided in the use case, not read off the aggregate's error.**
+   The aggregate answers an `InvariantViolationError` whose only discriminator is a message prefix,
+   and `publicationRefusal` flattens it to `CONFLICT`. Detecting it after the fact would BE the
+   string match the note exists to remove, so the use case decides it from the record it has already
+   loaded. The aggregate's refusal stays: it is the invariant, and every other caller is owed it.
+7. **`existingPost` replaced `providedPostId`.** The admission needs the mode and the channel set
+   alongside the id, and TypeScript does not narrow `body.mode` from a ternary that produced only
+   the id. Deriving all three in one const is the narrowing carrier; the alternative was a
+   `&& body.mode !== "draft"` that is a tautology at runtime.
+
+### Gates
+
+| Gate                                                                    | Result                                                                                        |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `@core/posts` vitest                                                    | **6 files, 98 passed**, 0 failed                                                              |
+| touched `apps/api` suites (4 files)                                     | **49 passed**                                                                                 |
+| `apps/api` unit tier (`vitest run --maxWorkers=2`)                      | **591 files, 9206 passed**, 0 failed (was 591 / 9200 mid-unit, 588 / 9157 at `1c-1e`)         |
+| `integration:saga-recovery` (3 suites, concurrency 1, timeout 120000)   | **33 tests / 33 pass / 0 fail / 0 cancelled / 0 skipped**, runner exit 0 — level with `1c-1e` |
+| `integration:tenant-isolation` (23 suites, concurrency 1)               | **247 tests / 247 pass / 0 fail / 0 cancelled / 0 skipped**, runner exit 0                    |
+| `tsc --noEmit` `packages/ports` · `packages/shared` · `@core/posts`     | **0** · **0** · **0**                                                                         |
+| `tsc --noEmit` `apps/api` (6144)                                        | **0**                                                                                         |
+| scratchpad tsc probes over the touched test files (api + `@core/posts`) | **0** (after the three fixes above)                                                           |
+| `pnpm check:circular`                                                   | **0** — 1609 files, no circular dependency                                                    |
+| `eslint --max-warnings 0`, 15 changed files, ONE pass at 6144           | **0**                                                                                         |
+| `prettier -c` on all 15 changed files · `pnpm format:check`             | clean (4 needed `--write`, re-checked) · clean                                                |
+| fitness #3 #4 #5 #6 #8 #9 #10 #21 #23 #32                               | 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0                                                         |
+| fitness #40 Part A (seam floor 3) · Part B (site floor 10)              | 3 seams / **0** violations · 14 sites / **0** violations — `sagaTenant.ts` untouched          |
+
+**Services**: Postgres and Redis reachable on `omnipost-infra` (5432 / 6379), verified before the
+integration runs. One false alarm worth recording: the tenant batch first read 174 pass / 2 fail /
+54 cancelled because the invocation lacked the `DATABASE_URL` that `run-tests.sh` exports by
+sourcing the root `.env` — every failure was `seed channel is not configured`. With the batch's own
+env it is 247/247. The suite this unit touches (`Saga engine — two-tenant isolation`) passed in BOTH
+runs.
+
+### Budget — measured from `git diff --numstat HEAD` at write time
+
+| Stream       | Forecast (§9.4.1 row 5) | Measured | Delta |
+| ------------ | ----------------------: | -------: | ----- |
+| **CODE**     |                 **210** |  **396** | +89%  |
+| **EVIDENCE** |                 **110** | **1152** | 10.5× |
+| DOC          |                       — |  **330** | —     |
+
+DOC is **330**, not the 326 this section first carried: `tasks.md` is +27/−4 = 31 changed lines and
+the first figure counted only its additions. CODE and EVIDENCE reconcile exactly against the
+orchestrator's numstat.
+
+CODE is **under the 400 hard budget by four lines**, so no CODE `size:exception` is owed. The
+breakdown: `publishAdmission.ts` 260 · `SagaIntegration.ts` 21/-12 · `OpenPublicationEpisodeUseCase.ts`
+41 · `retractionRefusals.ts` 22/-1 · `SemanticLockPort.ts` 17 · `RedisSemanticLockStore.ts` 13 ·
+`errors.ts` 9.
+
+**Was the 210 forecast possible? No — and the reason is structural, not estimation slack.** The
+forecast counted a MOVE (the admission block leaving the route) plus a port member. There was no
+block to move: five lines. The 260 in `publishAdmission.ts` are the decision the design asks for and
+that did not exist anywhere — a record read, three mode branches, two typed refusals with their
+payloads, a lock gatherer and an HTTP translation, each carrying the mandatory JSDoc. A 210-line
+version of this exists only without the documentation the canon requires.
+
+**EVIDENCE at 10.5× is the larger miss, and it is the same shape as `1c-1e`'s.** The forecast of 110
+counted the two lock doubles alone. It did not count: the seam's own suite (384), which is the
+entire purpose of splitting the decision out; the route-wiring suite (227), which the split makes
+NECESSARY because a pure-function suite cannot prove the route reads the real record; or the helper
+rebuild (189), forced because a duck-typed post repo crashes the moment the route reads
+`post.publications`. Under the two-tier budget this is pre-approved evidence, but the estimator is
+now three-for-three at under-counting the evidence a strict-TDD unit needs, and always for the same
+reason: it counts the doubles a task NAMES and not the suites the behaviour requires.
+
+### For Edward — two findings, one of them a live gap
+
+1. **The typed 409s reach a production client as a CODE but not as a PAYLOAD.**
+   `apps/api/src/lib/errors/errorHandler.ts:93-99` attaches `AppError.details` to the response only
+   when `NODE_ENV === "development"`. So `{ code: "PUBLICATION_IN_FLIGHT" }` and
+   `{ code: "CHANNEL_HAS_LIVE_FRAGMENTS" }` ship everywhere, but the `sagaId` and the `fragments`
+   that D9 names in the same breath do not. Three ways out, none of them this unit's to pick:
+   (a) widen the handler to ship `details` for operational errors — one small change with a blast
+   radius across every error response in the product, and a privacy question on what existing
+   `details` payloads hold; (b) let these two routes answer outside the global handler, which
+   breaks the canon's single-handler rule and drops `correlationId`/`timestamp` from the body;
+   (c) leave it, and have the 2b panel read the fragments from the read model (D13 already gives it
+   `channelPublications`), treating the error body as a code-only signal. **(c) is the cheapest and
+   is probably right for the fragments; the `sagaId` has no read-model home.** Decision due before
+   Slice 2's retry route, which answers the same 409.
+2. **The ordering audit's row 5 asks the right question in the wrong direction** (detailed above).
+   Every row in that audit tests whether a reader REFUSES on an absent record; none tests whether one
+   ADMITS on absence. `1c-2b` is the row where that mattered. Worth a sweep of the remaining rows
+   before order 10 — row 6's confirm route and row 7's sweep are both "no-op on absence", which is
+   the benign half of the same question, but row 9's recorder and row 10's worker are writes.
+
+**The D9-vs-channel-scoped-retry question (§9.9 item 8) is NOT answered here and was not bent
+toward.** `/start` applies no set-equality rule; it refuses a named stranded channel and is silent
+on the rest. The question is still due before Slice 2's retry ROUTE.
+
+### Gate corrections applied by the executor — `1c-2b`
+
+> One row per gate finding the executor fixed, appended here so the orchestrator's own
+> gate-corrections table for `1c-2b` can absorb it. W1 is the only code item this round.
+
+**The other four, closed by the orchestrator, for the record.** **W5 (the one that mattered)** —
+`design.md` now carries the as-built **rev 3.7** paragraph BESIDE D9's admission sentence, leaving
+the original standing and correcting it in place: the two halves contradict each other for "no
+record + terminal word", the design's own REC-12 verification row is the tiebreaker, the built rule
+is strictly narrower and converges, and §9.4.1's ordering-audit row 5 is corrected with the
+generalisation it owes — the audit's criterion only ever asked whether a reader REFUSES on an absent
+record, never whether one ADMITS or WRITES on absence, so rows 9 and 10 owe that question before
+order 10. **W4** — DOC re-measured to **330** (the first figure counted only `tasks.md`'s additions
+and not its four deletions); the correction and its reason sit in the budget table above. **W3** —
+**the gate's own count was wrong and is corrected here rather than repeated**: it reported four new
+`as any` in `sagaIntegration.helpers.ts` at lines 826, 1008, 1017 and 1047, and that file is 608
+lines long — those lines do not exist. Measured from the staged diff there are **two** new casts
+(the `findById` double's `ok(post)` and the `postRepository` coercion in the config builder); both
+now carry `// canon-exception: test-fixture` with the reason. **W2** — the `sagaTenant.test.ts`
+double behind `as unknown as` is left unchanged, as the unit argued and the gate accepted: nothing
+on the terminal path reads a holder, and a no-op `holder()` would assert nothing. The gate's
+sharper point stands and is recorded rather than actioned — the omission compiles because of the
+double assertion, not because it is sound, so a typed partial naming the members the double must
+cover would let the compiler state the invariant the comment currently holds alone.
+
+| Finding                                                                                                                                                                                                                             | Verdict                                                                                            | What changed                                                                                                                                                                                                                                                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **W1** — the unreadable-lock fail-open had a WARN log and no counter, so a degraded safety check was undiscoverable after the fact; and `publicationLockHolder` collapsed TWO states (read FAILED, no store configured) into `null` | **FIXED, single-state counter — the second state is measured UNREACHABLE in a serving deployment** | new `omnipost_publish_admission_lock_unreadable_total` through the existing `businessMetrics.ts` surface (`getOrCreateCounter` + exported typed `incrementPublishAdmissionLockUnreadable()`), incremented beside the WARN; the no-store branch carries the measurement instead of a dead label |
+
+**Why no `reason` label**, measured rather than assumed. The coordinator's instruction allowed
+either a two-state label or a single-state counter "if the no-store case never reaches this
+function". The precise finding is a third thing and is stated as such: **the no-store branch IS the
+first line of `publicationLockHolder`, so it is reached — but only in tests.**
+`apps/api/src/index.ts:686,730-733` constructs `RedisSemanticLockStore` **unconditionally** whenever
+`!env.SCHEMA_ONLY`, and `SCHEMA_ONLY` registers routes for an OpenAPI dump and serves no request.
+`SagaIntegration`'s own config documents `lockStore?` as "omit in tests that do not exercise the
+concurrency check" (`:90-93`), which is where every `undefined` in this repo comes from. A
+`reason: "not-configured"` arm would therefore have exactly one producer — the unit suite — and a
+label whose only producer is a test reads as coverage of a condition that cannot occur (the
+"TRAMPA / SOLO GORDO" classes). The decision is pinned by a case that asserts the no-store path
+increments **nothing**, and both the counter's JSDoc and the branch comment say what has to change
+if the backend ever becomes conditional.
+
+**Why the log stays.** They answer different questions and only one of them can be alerted on: the
+WARN names WHICH request lost the check and dies with the retention window; the counter is the only
+thing that can answer "how long did this deployment run without the in-flight check". Keeping only
+the log is the state the finding objected to; replacing the log with the counter would lose the
+post id.
+
+**The red, recorded**:
+
+```text
+ FAIL  tests/unit/publishAdmission.test.ts > admitExistingPostStart — gathering what the decision
+   reads > counts the degradation when it admits on an UNREADABLE lock
+Error: omnipost_publish_admission_lock_unreadable_total is not registered: the admission
+       degradation is counted nowhere
+ ❯ readLockUnreadableCounter tests/unit/publishAdmission.test.ts:281:11
+      Tests  3 failed | 23 passed (26)
+```
+
+Three cases, all red first: the failing `holder()` admits AND increments; a readable holder
+increments nothing; an absent backend increments nothing. The scrape goes through
+`client.register.getMetricsAsJSON()` — the `deletionRecordDegradation.test.ts:77-87` precedent — so
+a case reads what the endpoint publishes rather than a reference someone held.
+
+#### Gates after W1
+
+| Gate                                                                            | Result                                                                                                                                            |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| touched `apps/api` suites (4 files)                                             | **52 passed** (was 49; +3 counter cases)                                                                                                          |
+| registry-reading suites (`metricsMiddleware`, `sagaBootResume`, `architecture`) | **81 passed** — a new registered metric breaks no snapshot                                                                                        |
+| `tsc --noEmit` `apps/api` (6144)                                                | **0**                                                                                                                                             |
+| scratchpad tsc probe over the touched test files                                | **0**                                                                                                                                             |
+| `eslint --max-warnings 0` (3 changed files, one 6144 pass)                      | **0**                                                                                                                                             |
+| `prettier -c` (3 changed files)                                                 | clean                                                                                                                                             |
+| fitness #3 · #4 · #5 · #13                                                      | 0 · 0 · 0 · 0                                                                                                                                     |
+| `pnpm check:circular`                                                           | **0** — run because W1 adds a new import edge (`publishAdmission.ts` → `businessMetrics.ts`), and `businessMetrics.ts` imports only `prom-client` |
+
+Not re-run, and stated so the absence is a decision: the `apps/api` unit tier and both integration
+batches. Nothing W1 touches reaches them — `businessMetrics.ts` gains one counter and one export,
+and `publishAdmission.ts` gains one call on a branch no integration suite drives (it needs a lock
+store whose `holder` fails, which only the unit doubles produce).
+
+#### Budget after W1 — re-measured from `git diff --numstat HEAD` at write time
+
+W1 itself: **CODE +45** (`businessMetrics.ts` +35, `publishAdmission.ts` 260 → 270) and
+**EVIDENCE +71** (`publishAdmission.test.ts` 384 → 455).
+
+**The unit's CODE total is now 441, which is OVER the hard 400 budget by 41.** It was 396 before W1
+— four lines under — so the counter is what crossed it. Stated plainly rather than absorbed: this
+is a `size:exception` decision, and it is Edward's, not the executor's. The three shapes, for
+whoever takes it: accept the 41-line overrun on a unit whose CODE is 61% one new file; split
+`publishAdmission.ts`'s gatherer (`admitExistingPostStart` + `publicationLockHolder` +
+`refusalToAppError`, ~90 lines) into its own module, which lowers no total and only moves lines;
+or drop the counter and re-open W1. **The first is the honest one** — the overrun is documentation
+and a counter the gate itself asked for, not undisciplined growth.
+
+Line range of this correction in the canonical ledger: from `### Gate corrections applied by the
+executor — 1c-2b` to EOF.

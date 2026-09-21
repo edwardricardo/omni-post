@@ -138,6 +138,13 @@ class RecordingLockStore implements SemanticLockPort {
     this.releasedSagaIds.push(sagaId);
     return ok(undefined);
   }
+
+  // This suite never contends, so the honest answer is "nothing holds it". It is
+  // present because the port declares it, and a double that quietly lacked a port
+  // member would go on compiling here while claiming to stand in for the real one.
+  async holder(): Promise<Result<string | null, SemanticLockError>> {
+    return ok(null);
+  }
 }
 
 const probeStep: PivotStep = {
@@ -1119,6 +1126,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
         resumeCompensationWalkAsync: (id) => realEngine.resumeCompensationWalkAsync(id),
         resumeCompensationWalk: (id) => realEngine.resumeCompensationWalk(id),
         isCompensationWalkInFlight: (id) => realEngine.isCompensationWalkInFlight(id),
+        isAdvancerInFlight: (id) => realEngine.isAdvancerInFlight(id),
         beginCompensation: (instance, error) => realEngine.beginCompensation(instance, error),
         persistSagaInstance: (instance, events) => realEngine.persistSagaInstance(instance, events),
         loadSagaInstance: (id) => realEngine.loadSagaInstance(id),
@@ -1307,6 +1315,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
         resumeCompensationWalkAsync: (id) => engine.resumeCompensationWalkAsync(id),
         resumeCompensationWalk: (id) => engine.resumeCompensationWalk(id),
         isCompensationWalkInFlight: (id) => engine.isCompensationWalkInFlight(id),
+        isAdvancerInFlight: (id) => engine.isAdvancerInFlight(id),
         beginCompensation: (instance, error) => engine.beginCompensation(instance, error),
         persistSagaInstance: async () => {
           throw new Error("durable store unreachable during shutdown");

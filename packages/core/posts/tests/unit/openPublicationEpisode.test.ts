@@ -33,6 +33,7 @@ import {
 } from "@core/domain/index.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { RETRACTION_REFUSALS, refusalOf } from "../../src/retractionRefusals.js";
 import { OpenPublicationEpisodeUseCase } from "../../src/OpenPublicationEpisodeUseCase.js";
 
 // ---------------------------------------------------------------------------
@@ -485,6 +486,41 @@ describe("OpenPublicationEpisodeUseCase", () => {
       assert.match(result.error.message, /frag-1/, "the refusal names what is live");
       assert.strictEqual(repo.savePublication.mock.calls.length, 0);
       assert.strictEqual(uow.resultErrors.length, 1, "the refusal aborts the transaction");
+    });
+
+    it("carries the refusal as a DISCRIMINATOR a route can switch on, not as a message prefix", async () => {
+      const post = makeOpenedPost([CHANNEL_A, CHANNEL_B]);
+      recordOn(post, CHANNEL_A, failedResult([makeFragment(1), makeFragment(2)]));
+      const repo = makePostRepo({ post });
+      const useCase = new OpenPublicationEpisodeUseCase(repo.port, makeRecordingUow());
+
+      const result = await useCase.execute({
+        postId: POST_UUID,
+        channelIds: [CHANNEL_A, CHANNEL_B],
+        enterPublishing: true,
+      });
+
+      assert.ok(!result.ok, "the stranded channel is refused");
+      // The coarse code stays CONFLICT — every route already maps it to 409. WHICH
+      // conflict travels beside it, because one string holding two vocabularies is how a
+      // caller ends up matching on a message to tell them apart.
+      assert.strictEqual(result.error.code, USE_CASE_ERRORS.CONFLICT);
+      // Pinned against the literal FIRST: comparing `refusalOf(...)` to a member that does
+      // not exist is `undefined === undefined`, which passes while proving nothing — the
+      // vacuous green this case's own red run produced before the member was declared.
+      assert.strictEqual(
+        RETRACTION_REFUSALS.CHANNEL_HAS_LIVE_FRAGMENTS,
+        "CHANNEL_HAS_LIVE_FRAGMENTS"
+      );
+      assert.strictEqual(refusalOf(result.error), RETRACTION_REFUSALS.CHANNEL_HAS_LIVE_FRAGMENTS);
+      assert.deepStrictEqual(
+        (result.error as { fragments?: unknown }).fragments,
+        [
+          { index: 1, externalId: "frag-1" },
+          { index: 2, externalId: "frag-2" },
+        ],
+        "and the fragments travel with it, so the answer needs no second read"
+      );
     });
   });
 

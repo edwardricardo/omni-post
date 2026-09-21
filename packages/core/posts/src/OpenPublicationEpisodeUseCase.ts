@@ -26,6 +26,7 @@ import {
 } from "@core/domain/index.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { publicationRefusal, publicationSaveFailure } from "./publicationWriteOutcome.js";
+import { RETRACTION_REFUSALS, RetractionRefusalError } from "./retractionRefusals.js";
 
 /** Input DTO for opening an episode. `channelIds` absent means "every recorded channel". */
 export interface OpenPublicationEpisodeInput {
@@ -316,6 +317,10 @@ export class OpenPublicationEpisodeUseCase implements UseCase<
           )
         );
       }
+      const stranded = this.strandedChannel(post, requested);
+      if (stranded !== undefined) {
+        return err(stranded);
+      }
       // The live-content branch never declares: the request had to equal the record to
       // reach here, so nothing was replaced.
       return ok({ channelIds: requested, replacedTargets: false });
@@ -347,5 +352,41 @@ export class OpenPublicationEpisodeUseCase implements UseCase<
       return err(publicationRefusal(declared.error));
     }
     return ok({ channelIds: requested, replacedTargets });
+  }
+
+  /**
+   * @method strandedChannel
+   * @description The first named channel whose fragments are still on its provider, as a
+   *              refusal carrying a DISCRIMINATOR rather than a message prefix.
+   *
+   *              The aggregate refuses this too, and keeps refusing it — it is the
+   *              invariant, and every caller of `openPublicationEpisode` is owed it. What
+   *              the aggregate cannot do is say WHICH conflict in a form a route can
+   *              switch on: its answer is an `InvariantViolationError` that the shared
+   *              translation maps to a flat `CONFLICT`, leaving a caller to match the
+   *              message text. Deciding it here, from the record this use case has already
+   *              loaded, is what lets the refusal travel typed.
+   * @param post - The loaded aggregate.
+   * @param requested - The channel ids the caller named; each one is recorded by now.
+   * @returns The refusal, or undefined when nothing the request names is holding content.
+   */
+  private strandedChannel(
+    post: PostAggregate,
+    requested: readonly ChannelId[]
+  ): RetractionRefusalError | undefined {
+    for (const channelId of requested) {
+      const record = post.publications.find(channelId);
+      if (record === undefined || !record.pendingRetraction) {
+        continue;
+      }
+      const fragments = record.liveFragments.map((fragment) => fragment.toJSON());
+      const named = fragments.map((fragment) => fragment.externalId).join(", ");
+      return new RetractionRefusalError(
+        `${RETRACTION_REFUSALS.CHANNEL_HAS_LIVE_FRAGMENTS}: channel ${channelId.value} still has live fragments (${named}) and must be cleared before it is attempted again`,
+        RETRACTION_REFUSALS.CHANNEL_HAS_LIVE_FRAGMENTS,
+        fragments
+      );
+    }
+    return undefined;
   }
 }

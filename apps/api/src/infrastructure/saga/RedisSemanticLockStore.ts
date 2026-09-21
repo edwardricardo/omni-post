@@ -90,6 +90,19 @@ export class RedisSemanticLockStore implements SemanticLockPort {
     }
   }
 
+  async holder(key: string): Promise<Result<string | null, SemanticLockError>> {
+    try {
+      // GET, not EXISTS: the caller needs the holding saga's id, which is the
+      // value `acquire` wrote, and a second round trip to fetch it after an
+      // existence probe could straddle a release.
+      const held = await this.redis.get(this.lockKey(key));
+      return ok(held);
+    } catch (error) {
+      logger.warn({ err: error, key }, "Semantic lock holder read failed");
+      return err("CONNECTION_ERROR");
+    }
+  }
+
   private lockKey(key: string): string {
     return `${KEY_PREFIX}:${key}`;
   }

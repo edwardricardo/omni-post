@@ -11,11 +11,19 @@
  */
 
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import type { FragmentReferenceJson } from "@core/domain/index.js";
 
 /** Every refusal a retraction act can answer with a discriminator. */
 export const RETRACTION_REFUSALS = {
   /** Nothing is live on that channel, so there is no removal to confirm. */
   NOTHING_PENDING: "NOTHING_PENDING",
+  /**
+   * The channel still holds fragments of this post on its provider, so it cannot be
+   * attempted again: a re-send would duplicate what is already out there, and past the
+   * pivot there is no undo. The refusal names the fragments, because the customer's only
+   * way forward is to remove them.
+   */
+  CHANNEL_HAS_LIVE_FRAGMENTS: "CHANNEL_HAS_LIVE_FRAGMENTS",
 } as const;
 
 export type RetractionRefusal = (typeof RETRACTION_REFUSALS)[keyof typeof RETRACTION_REFUSALS];
@@ -69,8 +77,21 @@ export function refusalOf(error: Error): RetractionRefusal | undefined {
 export class RetractionRefusalError extends UseCaseError {
   public readonly refusal: RetractionRefusal;
 
-  constructor(message: string, refusal: RetractionRefusal) {
+  /**
+   * What is live on the provider, when the refusal is about live content. Carried on the
+   * error rather than left to the caller to fetch: the refusal already had the record
+   * open, and a second read to answer "which fragments" can disagree with the one that
+   * decided the refusal.
+   */
+  public readonly fragments: readonly FragmentReferenceJson[];
+
+  constructor(
+    message: string,
+    refusal: RetractionRefusal,
+    fragments: readonly FragmentReferenceJson[] = []
+  ) {
     super(message, USE_CASE_ERRORS.CONFLICT);
     this.refusal = refusal;
+    this.fragments = fragments;
   }
 }
