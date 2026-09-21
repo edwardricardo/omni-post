@@ -54,20 +54,37 @@ function liveChannelsOf(rows: readonly PublicationLivenessRow[]): string[] {
 }
 
 /**
- * @function isLostStatusSwap
- * @description Whether a write failed because its compare-and-swap matched no row.
- *              Prisma answers a non-matching `update` with `P2025`, which is the only
- *              way the swap reports that another writer moved the word first.
- * @param error - What the transaction threw.
- * @returns true when the swap lost its race.
+ * @function isRecordNotFound
+ * @description Whether a rejection is Prisma's "no row matched" for a single-row write.
+ * @param error - What a statement threw.
+ * @returns true for `P2025`.
  */
-function isLostStatusSwap(error: unknown): boolean {
+function isRecordNotFound(error: unknown): boolean {
   return (
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
     (error as { code?: unknown }).code === "P2025"
   );
+}
+
+/**
+ * Raised at the compare-and-swap, and nowhere else, when THAT statement matched no row.
+ *
+ * Prisma reports a lost swap as `P2025` — but so does every other single-row write in the
+ * same transaction, and a catch around the whole transaction cannot tell which one raised
+ * it. Reading the code out there made the answer right only because of a fact about the
+ * NEIGHBOURING statement: the log write is an `updateMany`, which reports a miss as a
+ * count instead of throwing. The day it becomes an `update`, a genuinely different fault
+ * would reach the operator as "the post moved on" and disappear. Converting at the swap
+ * makes the property local to the swap; raising rather than returning keeps the rollback
+ * the abort already had, so a write added BEFORE the swap cannot commit on this path.
+ */
+class LostStatusSwapError extends Error {
+  constructor(cause: unknown) {
+    super("The post status compare-and-swap matched no row", { cause });
+    this.name = "LostStatusSwapError";
+  }
 }
 
 /**
@@ -108,6 +125,36 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
       return null;
     }
     return liveChannelsOf(current.channelPublications);
+  }
+
+  /**
+   * @method swapStatus
+   * @description The compare-and-swap both writers perform on the post's word: the
+   *              publishing path may have promoted the post since the read outside this
+   *              transaction, and {@link DIRECT_WRITABLE_STATUSES} is the only family a
+   *              direct writer owns. Its OWN lost race — and only its own — leaves as
+   *              {@link LostStatusSwapError}; every other rejection travels on untouched.
+   * @param tx - The transaction client the write runs on.
+   * @param id - The post being written.
+   * @param data - The word to write and the schedule that goes with it.
+   * @returns The updated row.
+   */
+  private async swapStatus(
+    tx: Prisma.TransactionClient,
+    id: string,
+    data: { status: "DRAFT" | "SCHEDULED"; scheduledAt: Date | null }
+  ) {
+    try {
+      return await tx.post.update({
+        where: { id, status: { in: [...DIRECT_WRITABLE_STATUSES] } },
+        data,
+      });
+    } catch (error: unknown) {
+      if (isRecordNotFound(error)) {
+        throw new LostStatusSwapError(error);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -366,17 +413,7 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
             return { kind: "live" as const, channelIds: live };
           }
 
-          // Compare-and-swap on the word: the publishing path may have promoted this
-          // post since the read above, and the family below is the only one a direct
-          // writer owns. No matching row means another writer got there first, which
-          // Prisma reports as P2025.
-          const updated = await tx.post.update({
-            where: { id, status: { in: [...DIRECT_WRITABLE_STATUSES] } },
-            data: {
-              status: "DRAFT",
-              scheduledAt: null,
-            },
-          });
+          const updated = await this.swapStatus(tx, id, { status: "DRAFT", scheduledAt: null });
 
           // Cancel any queued publish logs
           if (post.publishLogs.length > 0) {
@@ -398,7 +435,7 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
           return { kind: "updated" as const, post: updated };
         }
       ).catch((error: unknown) => {
-        if (isLostStatusSwap(error)) {
+        if (error instanceof LostStatusSwapError) {
           return { kind: "raced" as const };
         }
         throw error;
@@ -500,15 +537,9 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
             return { kind: "live" as const, channelIds: live };
           }
 
-          // Compare-and-swap on the word, for the same reason as the cancellation: the
-          // read above happened outside this transaction and the publishing path may
-          // have promoted the post since.
-          const updated = await tx.post.update({
-            where: { id, status: { in: [...DIRECT_WRITABLE_STATUSES] } },
-            data: {
-              status: "SCHEDULED",
-              scheduledAt: newScheduledDate,
-            },
+          const updated = await this.swapStatus(tx, id, {
+            status: "SCHEDULED",
+            scheduledAt: newScheduledDate,
           });
 
           // Update publish logs if requested
@@ -531,7 +562,7 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
           return { kind: "updated" as const, post: updated };
         }
       ).catch((error: unknown) => {
-        if (isLostStatusSwap(error)) {
+        if (error instanceof LostStatusSwapError) {
           return { kind: "raced" as const };
         }
         throw error;

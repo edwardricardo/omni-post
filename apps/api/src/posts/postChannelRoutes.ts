@@ -19,7 +19,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { IdSchema } from "@packages/api-common";
 import { AppError, ErrorCode } from "@shared/types";
-import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { USE_CASE_ERRORS, type UseCaseError } from "@core/application/UseCase.js";
 import type { ConfirmManualRetractionUseCase } from "@core/posts/ConfirmManualRetractionUseCase.js";
 import {
   RETRACTION_REFUSALS,
@@ -62,12 +62,22 @@ const REFUSAL_WIRE_CODES: Record<RetractionRefusal, ErrorCode> = {
  *              can act on it. The mapping is EXHAUSTIVE over the declared refusals rather
  *              than a test for the one this route's use case emits today: an unmapped
  *              member would fall through to the flat conflict with nothing to notice it.
+ *
+ *              The parameter says `UseCaseError` because that is what the use case's
+ *              `err` arm returns on EVERY path, and the discriminator is then read
+ *              unconditionally. The two used to disagree: the parameter declared a plain
+ *              `{ code, message }` while the body gated `refusalOf` behind `instanceof
+ *              Error`, so a refusal matching the DECLARED shape skipped the read and left
+ *              through the coarse conflict — a 409 either way, with only the field a
+ *              caller branches on missing. Reading by value is also what `refusalOf`
+ *              promises: it compares a string precisely so a refusal that crossed a realm
+ *              or came from a duplicate module instance is still recognised.
  * @param error - What the use case refused with.
  * @param params - The post and channel the request named, carried into the payload.
  * @returns The error to throw.
  */
-function toAppError(error: { code: string; message: string }, params: PostChannelParams): AppError {
-  const refusal = error instanceof Error ? refusalOf(error) : undefined;
+function toAppError(error: UseCaseError, params: PostChannelParams): AppError {
+  const refusal = refusalOf(error);
   if (refusal !== undefined) {
     return new AppError(REFUSAL_WIRE_CODES[refusal], 409, error.message, true, { ...params });
   }

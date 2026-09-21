@@ -5207,3 +5207,262 @@ describes the tree rather than the document.
 Budget impact of this pass: **CODE 0**, EVIDENCE ~0 net — item 1 is a move (net 0), item 2 edits one
 comment (+2), items 3 and 4 are ledger prose. The unit's shipped totals (CODE 348, EVIDENCE 888) are
 unchanged on the CODE side and stay under the 400 hard budget.
+
+---
+
+### RDD receipt — the committed unit `1c-3a` (`e1766780` → `181ce363`)
+
+Lineage `review-6816e57e734ea5ec`, ONE lens (`review-reliability`), risk **medium**, scope **12
+files / 2109 lines**. **Approved with ZERO blockers**, `authority: burned`. Consent `granted` under
+Edward's standing rule for review envelopes (RDD consent/v3 on `review start` only; every other
+consent stays manual). Four advisory findings: two WARNING, two SUGGESTION, all `inferential` /
+`introduced`.
+
+**The narratives below are quoted VERBATIM, and that is not decoration.** The capture envelope
+retains only id, lens, location, severity and disposition; the claim itself lives in the review
+transaction, and that transaction's authority is burned. A previous unit in this change lost four
+narratives exactly that way. A later reader must be able to judge the claim, not take this
+document's word for it.
+
+Citations below are **quoted text anchors**, not `file:NNN` — this change already measured that line
+citations rot across a correction pass.
+
+|   # | Finding                              | Lens               | Severity   | Class                    | Disposition                                                                                                                        |
+| --: | ------------------------------------ | ------------------ | ---------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+|   1 | `R3-toAppError-instanceof-narrowing` | review-reliability | WARNING    | inferential / introduced | **FIXED** — the declared type was the wrong side; it now says `UseCaseError` and the read is unconditional                         |
+|   2 | `R3-cas-lost-swap-outer-catch`       | review-reliability | WARNING    | inferential / introduced | **FIXED** — the lost swap is converted AT the swap, so the discriminator no longer depends on a neighbouring statement             |
+|   3 | `R3-refusal-mapping-total-record`    | review-reliability | SUGGESTION | inferential / introduced | **FIXED** — the binding now asserts the code that travelled is a member of the wire vocabulary, and is driven from the refusal set |
+|   4 | `R3-c3-test-file-oversized`          | review-reliability | SUGGESTION | inferential / introduced | **REJECTED**, with reasoning — one coherent subject; the split it proposes is the sibling pattern this unit just removed           |
+
+#### 1 — `R3-toAppError-instanceof-narrowing` (WARNING, reliability)
+
+**Location**: `apps/api/src/posts/postChannelRoutes.ts`, the `toAppError` translation — anchored on
+`"function toAppError("` and its first statement.
+
+> "toAppError declares its `error` parameter as `{ code: string; message: string }` (a non-Error
+> shape) but then tests `error instanceof Error` to decide whether to call `refusalOf`. If the use
+> case returns a plain object (matching the declared type) rather than an Error instance,
+> `instanceof Error` is false, `refusalOf` is skipped, and a RetractionRefusalError-shaped failure
+> would fall through to the `switch` on `error.code` and land in the `default` branch producing a
+> generic 500 instead of a mapped 409 with the discriminator. The tests always feed real Error
+> subclasses so this branch is never exercised at odds with the declared parameter type; the type
+> declaration and the runtime narrowing disagree about what `error` can be."
+
+**Which side is true was decided by reading the producer, not by preference.** Every `err` arm of
+`ConfirmManualRetractionUseCase` returns a `UseCaseError`: the three `new UseCaseError(...)` in
+`execute`/`confirm`, the `new RetractionRefusalError(...)` (which `extends UseCaseError`), and both
+`publicationRefusal` / `publicationSaveFailure`, whose signatures are `(error: Error): UseCaseError`.
+The outer `catch` returns one too. So **the DECLARED TYPE was the wrong side**, and it is the side
+that changed: the parameter now reads `UseCaseError`, the call site's `result.error` already carries
+that type, and the compiler now holds the guarantee the `instanceof` was re-checking by hand.
+
+**The narrative's stated consequence is one notch off, and the real one is worse.** A refusal
+arriving as the declared plain shape would NOT have produced a 500: `RetractionRefusalError` carries
+`code: USE_CASE_ERRORS.CONFLICT`, so it lands on the `switch`'s `CONFLICT` arm and answers
+`AppError.conflict` — a **409 with `RESOURCE_CONFLICT`**. The status code is identical and only the
+field a caller branches on silently disappears. A 500 would have been loud; this is the quiet
+version, which is exactly the defect the discriminator exists to remove.
+
+**The red, taken first, at the route.** A new permanent case feeds the double a refusal in the shape
+the OLD signature declared and asserts the discriminator survives:
+
+```text
+ FAIL  tests/unit/postChannelRoutes.test.ts > … > keeps the discriminator on a refusal that is not
+   this realm's Error, because the read is by VALUE
+AssertionError: expected 'RESOURCE_CONFLICT' to be 'NOTHING_PENDING' // Object.is equality
+      Tests  1 failed | 9 passed (10)
+```
+
+That is the measurement behind the correction above, and it is why the case stayed rather than being
+deleted once the type was narrowed. **`refusalOf` reads a STRING on purpose** — its own doc says so:
+"a caller in another package compares a string rather than a constructor, so a duplicate module
+instance … cannot silently turn a known refusal into an unknown one." The `instanceof Error` gate
+was quietly cancelling that guarantee one level up. The case pins the property for a refusal that
+crossed a realm or came from a duplicated module, which is precisely what a constructor check cannot
+survive.
+
+**Not done, and named**: the parameter was NOT widened to `unknown` with the same branch kept. That
+would have preserved the disagreement under a type that admits everything, which is the shape the
+brief refused and the right refusal.
+
+#### 2 — `R3-cas-lost-swap-outer-catch` (WARNING, reliability)
+
+**Location**: `apps/api/src/admin/SchedulingPostHandlers.ts`, BOTH writers — anchored on the two
+occurrences of `".catch((error: unknown) => {"` that follow `"withGucBoundTransaction("`, in
+`cancelScheduledPost` and `reschedulePost`, plus the former `isLostStatusSwap` helper.
+
+> "The `withGucBoundTransaction(...).catch(...)` chain catches P2025 only. If Prisma raises a P2025
+> for a DIFFERENT operation than the compare-and-swap update inside the same transaction (for
+> example, if the `publishLog.updateMany` were later changed to a `publishLog.update` on an id that
+> could vanish), the catch would misinterpret it as a lost status swap and answer 409, masking a
+> distinct fault as a race. The current code only issues `updateMany` for logs (which does not throw
+> P2025), so no such collision exists today, but the discriminator relies solely on the error code,
+> not on which statement raised it. Consider narrowing (for example, by rethrowing unless the swap
+> itself failed, e.g., using a sentinel around the CAS update)."
+
+**The claim is correct, and the trap was live — measured, not reasoned about.** The double gained a
+`logUpdateRejectsWith` option so `publishLog.updateMany` can raise `P2025`, and two cases (one per
+writer) assert that fault stays a 500. On the pre-fix code, both answered 409:
+
+```text
+ FAIL  … C3 guard on cancelScheduledPost > keeps a P2025 raised by a statement OTHER than the swap
+   a 500, not a lost race
+AssertionError: expected 409 to be 500 // Object.is equality
+ FAIL  … C3 guard on reschedulePost > keeps a P2025 raised by a statement OTHER than the swap a
+   500, not a lost race
+AssertionError: expected 409 to be 500 // Object.is equality
+      Tests  2 failed | 15 passed (17)
+```
+
+So this was **not** a probe of already-correct behaviour. The inertness the finding describes is the
+inertness of a trap: the answer was right only because the neighbouring statement happens to be an
+`updateMany`, which reports a miss as a count. Make the log write single-row and a genuinely
+different fault reaches the operator as "the post moved on" — the worst kind of wrong answer,
+because it is plausible.
+
+**FIXED by converting at the statement that lost, which is the narrowest shape that makes the
+property local.** `isLostStatusSwap` is gone; in its place a `swapStatus` method on the handler
+issues the compare-and-swap, catches ONLY its own rejection, and rethrows it as a module-private
+`LostStatusSwapError`. Both `.catch` arms now test `error instanceof LostStatusSwapError`. Three
+choices inside that, each deliberate:
+
+- **Raising rather than returning `{ kind: "raced" }` from inside the transaction.** An early return
+  COMMITS. Today nothing is written before the swap, so the two are indistinguishable — and that is
+  the same "true because of a neighbouring fact" the finding is about, one axis over. Raising keeps
+  the rollback the abort already had, so a write added BEFORE the swap cannot commit on this path
+  either.
+- **`instanceof` on a module-private class, not a value read.** The canon's value-read rule
+  (`domainCode`, `refusalOf`) exists for types that cross a DUAL CONDITIONAL EXPORT, where two copies
+  of one class can coexist. `LostStatusSwapError` is declared and constructed in this one
+  non-exported file in `apps/api`, so there is exactly one constructor and no duplicate to survive.
+- **Extracting the swap rather than wrapping it twice.** The two writers issued the identical
+  `where` and the identical allowlist spread; one helper is what keeps the conversion from drifting
+  between them, which is the same reason `DIRECT_WRITABLE_STATUSES` is named once.
+
+The original Prisma rejection is carried as `cause`, so nothing about the underlying failure is
+thrown away.
+
+#### 3 — `R3-refusal-mapping-total-record` (SUGGESTION, reliability)
+
+**Location**: `apps/api/src/posts/postChannelRoutes.ts`, the `REFUSAL_WIRE_CODES` mapping, and its
+driving case in `apps/api/tests/unit/postChannelRoutes.test.ts` — anchored on
+`"const REFUSAL_WIRE_CODES: Record<RetractionRefusal, ErrorCode>"` and on the case
+`"publishes EVERY declared retraction refusal as its own wire code, not a flat conflict"`.
+
+> "The Record<RetractionRefusal, ErrorCode> is intentionally total, and the test suite drives
+> Object.values(RETRACTION_REFUSALS) to prove exhaustiveness. However, adding a new refusal value
+> that has no corresponding ErrorCode enum member would fail to compile, but the test that iterates
+> refusals would then fail at runtime with a mapping to a code that has no ErrorCode member; the
+> case would still assert `res.error.code === refusal` (a string), which is a soft binding rather
+> than a compile binding. Consider augmenting the binding case to also assert `refusal in ErrorCode`
+> so a missing wire code is caught at test time, not only at compile time."
+
+**The hole is precise, and naming it precisely is what made the probe possible.** A new refusal
+mapped to some EXISTING `ErrorCode` already fails today — the response code would not equal the
+refusal. What slips through is the mapping written as a CAST: `"FOO" as ErrorCode` type-checks,
+satisfies `toBe(refusal)` because two identical strings compare equal, and publishes a code no
+client can find in the enum.
+
+**FIXED on both halves.** The exhaustiveness loop keeps `toBe(refusal)` and adds
+`expect(WIRE_CODES, refusal).toContain(...)` over the code that actually travelled, where
+`WIRE_CODES` is `Object.values(ErrorCode)` read once. And the "spelled the same" case — which named
+`NOTHING_PENDING` by hand and therefore never covered `CHANNEL_HAS_LIVE_FRAGMENTS` at all — is now
+driven from `Object.values(RETRACTION_REFUSALS)`.
+
+**The red, taken by probe, because the behaviour is already correct.** Two production files were
+mutated to reconstruct the pre-fix hole: `RETRACTION_REFUSALS.CHANNEL_HAS_LIVE_FRAGMENTS`'s VALUE
+became `"CHANNEL_FRAGMENTS_LIVE"` and the mapping became
+`"CHANNEL_FRAGMENTS_LIVE" as unknown as ErrorCode`.
+
+```text
+ FAIL  … > publishes EVERY declared retraction refusal as its own wire code, not a flat conflict
+AssertionError: CHANNEL_FRAGMENTS_LIVE: expected [ 'AUTH_INVALID_CREDENTIALS', …(25) ] to include
+  'CHANNEL_FRAGMENTS_LIVE'
+ ❯ tests/unit/postChannelRoutes.test.ts:230
+ FAIL  … > keeps the wire code and the application discriminator spelled the same
+AssertionError: CHANNEL_FRAGMENTS_LIVE: expected [ 'AUTH_INVALID_CREDENTIALS', …(25) ] to include
+  'CHANNEL_FRAGMENTS_LIVE'
+      Tests  2 failed | 8 passed (10)
+```
+
+**That the failure is on the SECOND assertion is the whole proof.** Vitest stops a case at its first
+failing expectation, so reaching the `toContain` line means the pre-existing `toBe(refusal)` line
+PASSED for a wire code `ErrorCode` never declared — which is the soft binding the finding named,
+demonstrated rather than asserted.
+
+Restored byte-exact and proved: `sha256sum -c` → `packages/core/posts/src/retractionRefusals.ts:
+OK`, `packages/shared/src/errors.ts: OK`; `rg CHANNEL_FRAGMENTS_LIVE packages/core apps/api` → no
+matches; `@core/posts` back at **6 files / 99 passed**, its untouched baseline.
+
+#### 4 — `R3-c3-test-file-oversized` (SUGGESTION, reliability) — **REJECTED**
+
+**Location**: `apps/api/tests/unit/SchedulingPostHandlers.c3.test.ts`, whole file.
+
+> "The new C3 test file is 638 lines, which is a large single suite. While the two describe blocks
+> share one prisma double (the stated rationale), the file contains near-duplicate case bodies
+> between the two `describe` blocks (identical setups for cancel vs reschedule). A helper that
+> parameterizes the operation would reduce drift risk between the two handler suites without adding
+> a third file. Not a correctness defect; noted for maintainability of the reliability harness."
+
+**Rejected, and the reasoning is the record.** The file covers ONE coherent subject — the C3 guards
+on the two admin status writers — and its own header says why the two suites share a file: "the
+guards are the same mechanism twice, and a single double is what keeps them from drifting apart."
+Splitting it would reintroduce the aspect-suffix sibling pattern that this unit's correction pass
+spent item 7 REMOVING (see §"Item 7 — the confirm suite drops its aspect suffix and STAYS FLAT").
+**Size alone is not a defect when the subject is single.**
+
+**Read before rejecting, and the finding's own alternative was weighed on its merits rather than
+dismissed with the split.** The finding offers two remedies and they are not equivalent: a third
+file (refused above) and a parameterizing helper. The helper is refused for a different reason. The
+near-duplicate setups are not duplication to be factored — they are what makes each case READABLE at
+the point of failure: a parameterized harness answers "which operation" with a loop variable, and
+the two handlers genuinely differ (the cancellation takes no body and has a status pre-check;
+the reschedule takes `scheduledAt`/`updateChannels` and has none). A helper would have to carry both
+shapes, and the reader would then be reconstructing the case from the helper rather than reading it.
+The drift risk the finding names is already closed by the SHARED DOUBLE, which is the thing both
+suites actually depend on.
+
+**The file grew to 694 lines in this pass** (the two new `P2025`-not-a-swap cases and the
+`recordNotFound` helper, which removes an inline duplicate of the same construction). The rejection
+is re-affirmed at the larger size, for the same reason: the subject did not change.
+
+#### Gates after this review recording — every one re-measured on this tree, one process at a time
+
+| Gate                                                 | Result                                                                                        |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `tsc --noEmit -p packages/shared`                    | exit **0**                                                                                    |
+| `tsc -b apps/api`                                    | exit **0**                                                                                    |
+| `tsc --noEmit` over the two touched suites           | exit **0** — `apps/api/tsconfig.json` does NOT include `tests/`, so the suites need this pass |
+| `eslint --max-warnings 0` (4 touched files)          | exit **0**, ONE pass                                                                          |
+| `prettier -c` (4 touched files + this ledger)        | **all matched files use Prettier code style**                                                 |
+| `apps/api` unit tier                                 | **593 files / 9238 passed / 0 failed / 0 skipped** (baseline 9235 → **+3**)                   |
+| `@core/posts`                                        | **6 files / 99 passed** — unchanged, which is also the probe-restore proof                    |
+| fitness **#1 #3 #4 #5 #6 #8 #9 #10 #21 #23 #32 #41** | every one exit **0**, run from the blocks extracted textually from `fitness.yml`              |
+| fitness **#38**                                      | swept tree **0**; db-prisma ratchet **11** at baseline 11 — run because a scoped file changed |
+| fitness **#40**                                      | part A **0**, part B **0** — run because a file inside the seam scope changed                 |
+| `pnpm check:circular`                                | **No circular dependency found**                                                              |
+| `pnpm check:dead-code`                               | **0 regressions** (321 tracked baseline findings)                                             |
+
+The three added tests, attributed: **+1** `postChannelRoutes.test.ts` ("keeps the discriminator on a
+refusal that is not this realm's Error…", finding 1); **+2**
+`SchedulingPostHandlers.c3.test.ts` (the "keeps a P2025 raised by a statement OTHER than the swap a
+500" pair, finding 2, one per writer). Finding 3 strengthened EXISTING cases in place, so it adds a
+case count of zero — which is why the file count is unchanged at 593.
+
+#### Budget after this review recording — measured from `git diff --numstat 181ce363~1`
+
+| Tier         | Unit as shipped | After this pass | Delta |
+| ------------ | --------------- | --------------- | ----- |
+| **CODE**     | 348             | **400**         | +52   |
+| **EVIDENCE** | 888             | **997**         | +109  |
+
+CODE: `SchedulingPostHandlers.ts` 224/−23 · `postChannelRoutes.ts` 158 · `postRoutes.ts` 10 ·
+`errors.ts` 8. EVIDENCE: `SchedulingPostHandlers.c3.test.ts` 694 · `postChannelRoutes.test.ts` 290 ·
+`mockPrisma.ts` 8/−3 · `schedulingRoutes.test.ts` 5.
+
+**CODE lands at EXACTLY 400 against the hard 400 — at the budget, not over it, and with ZERO
+headroom left.** No `size:exception` is owed, and none was avoided by shrinking a fix: the two
+production diffs are +60/−29 and +13/−3 against `181ce363`, and every added line is either the
+sentinel and its helper (finding 2, which also DELETES two six-line inline compare-and-swaps) or the
+JSDoc stating why each side is the true one. Saying it loudly because the next person to touch this
+unit's production files has no room: the next CODE line owes an exception, or a split.

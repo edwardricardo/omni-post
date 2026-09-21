@@ -99,8 +99,27 @@ interface DoubleOptions {
    * load-bearing: any other rejection must keep reaching the 500 it always did.
    */
   updateRejectsWith?: unknown;
+  /**
+   * What `publishLog.updateMany` rejects with. The log write shares the swap's
+   * transaction, so a `P2025` raised HERE is the case that tells a discriminator keyed on
+   * the error code apart from one keyed on the statement that raised it.
+   */
+  logUpdateRejectsWith?: unknown;
   /** When true, the post is gone by the time the transaction re-reads it. */
   vanishesInTransaction?: boolean;
+}
+
+/** A row that makes each handler reach its log write; only the count is read. */
+const QUEUED_LOG = { id: "99999999-9999-4999-8999-999999999999" };
+
+/**
+ * @function recordNotFound
+ * @description Prisma's rejection for a single-row write whose `where` matched nothing.
+ * @param message - What the statement was doing, for the failure text.
+ * @returns The error object, carrying `P2025` exactly as the client does.
+ */
+function recordNotFound(message: string): Error {
+  return Object.assign(new Error(message), { code: "P2025" });
 }
 
 /**
@@ -150,11 +169,7 @@ function prismaDouble(options: DoubleOptions): { prisma: PrismaClient; recorded:
           throw options.updateRejectsWith;
         }
         if (options.casLost === true) {
-          const notFound = Object.assign(
-            new Error("An operation failed because it depends on one or more records"),
-            { code: "P2025" }
-          );
-          throw notFound;
+          throw recordNotFound("An operation failed because it depends on one or more records");
         }
         return {
           id: POST_ID,
@@ -166,6 +181,9 @@ function prismaDouble(options: DoubleOptions): { prisma: PrismaClient; recorded:
     publishLog: {
       updateMany: async (args: UpdateManyArgs) => {
         recorded.logUpdates.push(args);
+        if (options.logUpdateRejectsWith !== undefined) {
+          throw options.logUpdateRejectsWith;
+        }
         return { count: 0 };
       },
     },
@@ -463,6 +481,26 @@ describe("SchedulingPostRouteHandler — C3 guard on cancelScheduledPost", () =>
     }
   });
 
+  it("keeps a P2025 raised by a statement OTHER than the swap a 500, not a lost race", async () => {
+    // The swap and the log write share one transaction, so a discriminator that asks only
+    // "was the code P2025" answers 409 for whichever of them raised it. That is right
+    // today only because the log write is an `updateMany`, which reports a miss as a count
+    // instead of throwing — a fact about the NEIGHBOURING statement, not about the swap.
+    // Pinned so the day that statement becomes a single-row `update`, a genuinely
+    // different fault cannot reach the operator as "the post moved on".
+    const { prisma, recorded } = prismaDouble({
+      post: { status: "SCHEDULED", publishLogs: [QUEUED_LOG] },
+      publications: [NOT_LIVE],
+      logUpdateRejectsWith: recordNotFound("the publish log row was gone"),
+    });
+    const { reply, sent } = replyDouble();
+
+    await new SchedulingPostRouteHandler(prisma).cancelScheduledPost(requestDouble(), reply);
+
+    expect(recorded.logUpdates).toHaveLength(1);
+    expect(sent.statusCode).toBe(500);
+  });
+
   it("answers 404 when the post is gone by the time the transaction re-reads it", async () => {
     const { prisma, recorded } = prismaDouble({
       post: { status: "SCHEDULED" },
@@ -619,6 +657,24 @@ describe("SchedulingPostRouteHandler — C3 guard on reschedulePost", () => {
       expect(sent.statusCode, label).toBe(500);
       expect(recorded.updates, label).toHaveLength(1);
     }
+  });
+
+  it("keeps a P2025 raised by a statement OTHER than the swap a 500, not a lost race", async () => {
+    // The cancellation's twin: the same transaction, the same trap, the other writer.
+    const { prisma, recorded } = prismaDouble({
+      post: { status: "SCHEDULED", publishLogs: [QUEUED_LOG] },
+      publications: [NOT_LIVE],
+      logUpdateRejectsWith: recordNotFound("the publish log row was gone"),
+    });
+    const { reply, sent } = replyDouble();
+
+    await new SchedulingPostRouteHandler(prisma).reschedulePost(
+      requestDouble({ scheduledAt: FUTURE, updateChannels: true }),
+      reply
+    );
+
+    expect(recorded.logUpdates).toHaveLength(1);
+    expect(sent.statusCode).toBe(500);
   });
 
   it("answers 404 when the post is gone by the time the transaction re-reads it", async () => {

@@ -47,13 +47,31 @@ vi.mock("../../src/lib/logger.js", () => {
   return { logger: noopLogger, authLogger: noopLogger, createLogger: () => noopLogger };
 });
 
+/**
+ * Every code the WIRE vocabulary declares. Read once, as strings, so a case can ask
+ * whether a value that travelled is a member of it — which `toBe(refusal)` alone cannot,
+ * because comparing two strings is satisfied by a mapping cast to a code `ErrorCode`
+ * never declared.
+ */
+const WIRE_CODES: readonly string[] = Object.values(ErrorCode);
+
 const POST_ID = "33333333-3333-4333-8333-333333333333";
 const PROJECT_ID = "44444444-4444-4444-8444-444444444444";
 const CHANNEL_ID = "55555555-5555-4555-8555-555555555555";
 const CONFIRM_URL = `/posts/${POST_ID}/channels/${CHANNEL_ID}/retraction/confirm-removed`;
 
+/**
+ * The failure arm admits a REALM-FOREIGN shape beside the real error class: a refusal
+ * that reached this process as data — deserialized across a worker boundary, or built by
+ * a duplicate instance of `@core/application` — is structurally the refusal and is not
+ * this realm's `Error`. The route must answer it identically, which is the whole reason
+ * `refusalOf` reads a string instead of comparing constructors.
+ */
+type RealmForeignRefusal = { code: string; message: string; refusal: string };
+
 type ConfirmAnswer =
-  { kind: "ok"; applied: boolean; hasLiveContent: boolean } | { kind: "err"; error: UseCaseError };
+  | { kind: "ok"; applied: boolean; hasLiveContent: boolean }
+  | { kind: "err"; error: UseCaseError | RealmForeignRefusal };
 
 /** Every input the route handed the use case, so a case can prove it stopped earlier. */
 const calls: ConfirmManualRetractionInput[] = [];
@@ -163,6 +181,29 @@ describe("POST /posts/:postId/channels/:channelId/retraction/confirm-removed", (
     await app.close();
   });
 
+  it("keeps the discriminator on a refusal that is not this realm's Error, because the read is by VALUE", async () => {
+    // `refusalOf` compares a string rather than a constructor, so a refusal that arrives
+    // as data still carries its discriminator. A route that gated that read behind
+    // `instanceof` would cancel the guarantee and answer the coarse conflict — which is
+    // exactly what makes the difference invisible: the status code stays 409 and only
+    // the field a caller branches on changes.
+    answer = {
+      kind: "err",
+      error: {
+        code: USE_CASE_ERRORS.CONFLICT,
+        message: "channel holds no live content pending retraction",
+        refusal: RETRACTION_REFUSALS.NOTHING_PENDING,
+      },
+    };
+    const app = await buildApp();
+
+    const res = await app.inject({ method: "POST", url: CONFIRM_URL });
+
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body).error.code).toBe(ErrorCode.NOTHING_PENDING);
+    await app.close();
+  });
+
   it("publishes EVERY declared retraction refusal as its own wire code, not a flat conflict", async () => {
     // Exhaustiveness at the translation, driven from the declared set rather than from
     // a list written here: a refusal added to `RETRACTION_REFUSALS` that the route does
@@ -181,7 +222,12 @@ describe("POST /posts/:postId/channels/:channelId/retraction/confirm-removed", (
       const res = await app.inject({ method: "POST", url: CONFIRM_URL });
 
       expect(res.statusCode).toBe(409);
-      expect(JSON.parse(res.body).error.code).toBe(refusal);
+      expect(JSON.parse(res.body).error.code, refusal).toBe(refusal);
+      // …and that the code which travelled is one the wire vocabulary OWNS. The line
+      // above compares two strings, which a mapping written as `"FOO" as ErrorCode`
+      // satisfies while publishing a code no client can find in the enum. This is the
+      // half that refuses the cast.
+      expect(WIRE_CODES, refusal).toContain(JSON.parse(res.body).error.code);
       await app.close();
     }
   });
@@ -190,8 +236,13 @@ describe("POST /posts/:postId/channels/:channelId/retraction/confirm-removed", (
     // Two declarations are unavoidable: `RETRACTION_REFUSALS` owns the application
     // vocabulary, `ErrorCode` owns the wire one, and `@shared/types` must not import
     // `@core/posts`. A TypeScript string enum is nominal, so no annotation can bind
-    // them — this case is the binding.
-    expect(String(ErrorCode.NOTHING_PENDING)).toBe(RETRACTION_REFUSALS.NOTHING_PENDING);
+    // them — this case is the binding. Driven from the refusal SET rather than naming
+    // one member: a refusal whose wire code was never declared is the miss that the
+    // mapping's `Record` cannot catch, because the compiler will accept any existing
+    // `ErrorCode` — or a cast — in its place.
+    for (const refusal of Object.values(RETRACTION_REFUSALS)) {
+      expect(WIRE_CODES, refusal).toContain(String(refusal));
+    }
   });
 
   it("answers a conflict that is NOT a retraction refusal with a flat 409", async () => {
