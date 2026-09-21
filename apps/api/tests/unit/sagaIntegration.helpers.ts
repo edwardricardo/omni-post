@@ -14,8 +14,29 @@ import { vi } from "vitest";
 import { EventStoreEvent } from "@shared/types/events.js";
 import { Command } from "@shared/types/cqrs.js";
 import { ok } from "@shared/types";
-import type { QueuePort, QueueJob, QueueHealth } from "@ports/core";
+import type {
+  QueuePort,
+  QueueJob,
+  QueueHealth,
+  JobStatesAggregate,
+  SemanticLockPort,
+} from "@ports/core";
 import type { Result } from "@shared/types";
+import {
+  ATTEMPT_CLASSIFICATIONS,
+  CHANNEL_FAILURE_CODES,
+  ChannelId,
+  Content,
+  ContentFingerprint,
+  FragmentReference,
+  PostAggregate,
+  PostId,
+  ProjectId,
+  PublishStatus,
+  providedReference,
+  PUBLICATION_OUTCOME_KINDS,
+  type AttemptResult,
+} from "@core/domain/index.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
 
@@ -243,6 +264,24 @@ export function createMockQueue(): MockQueue {
       enqueuedJobs.push({ ...job, id: jobId });
       return ok(jobId);
     },
+    async enqueueBulk(
+      jobs: QueueJob[]
+    ): Promise<Result<string[], "CONNECTION_ERROR" | "VALIDATION_ERROR">> {
+      const ids: string[] = [];
+      for (const job of jobs) {
+        jobCounter++;
+        const jobId = job.id ?? `mock-job-${jobCounter}`;
+        enqueuedJobs.push({ ...job, id: jobId });
+        ids.push(jobId);
+      }
+      return ok(ids);
+    },
+    // The saga's fallback poll calls this. The double did not HAVE it, so any test that
+    // reached the poll would have failed on a missing method rather than on the state it
+    // was asserting — invisible to `tsc`, because no tsconfig opens this file.
+    async getJobStates(jobIds: string[]): Promise<Result<JobStatesAggregate, "CONNECTION_ERROR">> {
+      return ok({ completed: 0, failed: 0, pending: jobIds.length });
+    },
     async health(): Promise<Result<QueueHealth, "CONNECTION_ERROR">> {
       return ok({
         connected: true,
@@ -291,17 +330,141 @@ function createMockProjectRepo() {
   };
 }
 
-function createMockPostRepo() {
+const FIXTURE_ACCOUNT_UUID = "a0000000-0000-4000-8000-000000000001";
+const FIXTURE_MOMENT = new Date("2026-03-01T09:00:00.000Z");
+
+/**
+ * Build the existing post `TEST_EXISTING_DRAFT_POST_ID` resolves to.
+ *
+ * A REAL aggregate, not a duck type. The route reads the post's publication record now,
+ * and a stand-in carrying only the two fields the route used to read would have answered
+ * `undefined` for the record on every call — which is not "no record", it is a crash, and
+ * `tsc` never opens this file to say so.
+ *
+ * @param status - The post's word; DRAFT unless a case is about another one.
+ * @returns The aggregate.
+ */
+export function makeExistingPost(status: PublishStatus = PublishStatus.draft()): PostAggregate {
+  return PostAggregate.reconstitute({
+    id: PostId.fromStringUnsafe(TEST_EXISTING_DRAFT_POST_ID),
+    projectId: ProjectId.fromStringUnsafe(TEST_PROJECT_ID),
+    accountId: FIXTURE_ACCOUNT_UUID,
+    content: Content.reconstitute({ body: "Test post content", tags: [], locale: "en" }),
+    status,
+    media: [],
+    contentVersions: [],
+    createdAt: new Date("2026-02-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+    version: 3,
+  });
+}
+
+/**
+ * Declare one channel's targets and open the first episode, so an attempt can be recorded
+ * against it.
+ *
+ * @param post - The aggregate to prepare.
+ * @param channels - The channels to declare.
+ */
+function openTargets(post: PostAggregate, channels: readonly string[]): void {
+  const declared = post.declarePublicationTargets(
+    channels.map((id) => ChannelId.fromStringUnsafe(id))
+  );
+  if (!declared.ok) {
+    throw new Error(`fixture could not declare targets: ${declared.error.message}`);
+  }
+  const opened = post.openPublicationEpisode({ enterPublishing: false });
+  if (!opened.ok) {
+    throw new Error(`fixture could not open an episode: ${opened.error.message}`);
+  }
+  post.clearDomainEvents();
+}
+
+/**
+ * @function recordAttempt
+ * @description Records one attempt's result against a prepared post.
+ * @param post - The prepared aggregate.
+ * @param channel - The channel the attempt was for.
+ * @param result - What the attempt produced.
+ */
+function recordAttempt(post: PostAggregate, channel: string, result: AttemptResult): void {
+  const recorded = post.recordChannelAttempt({
+    channelId: ChannelId.fromStringUnsafe(channel),
+    episode: 1,
+    attemptNo: 1,
+    planSize: 1,
+    result,
+    now: FIXTURE_MOMENT,
+  });
+  if (!recorded.ok) {
+    throw new Error(`fixture could not record an attempt: ${recorded.error.message}`);
+  }
+  post.clearDomainEvents();
+}
+
+/**
+ * A post whose only channel published: its record holds nothing re-drivable, which is the
+ * shape the duplicate-send guard has to keep refusing once the record is the truth.
+ *
+ * @returns The aggregate.
+ */
+export function makeFullyPublishedPost(): PostAggregate {
+  const post = makeExistingPost(PublishStatus.scheduled());
+  openTargets(post, [TEST_CHANNEL_IDS[0]!]);
+  const head = providedReference("frag-1");
+  if (!head.ok) {
+    throw new Error("fixture head reference must build");
+  }
+  recordAttempt(post, TEST_CHANNEL_IDS[0]!, {
+    kind: PUBLICATION_OUTCOME_KINDS.PUBLISHED,
+    head: head.value,
+    fragments: [buildFragment(1)],
+    publishedAt: FIXTURE_MOMENT,
+    contentHash: ContentFingerprint.ofContent({ body: "Test post content", mediaIds: [] }),
+  });
+  return post;
+}
+
+/**
+ * A post whose first channel failed with fragments still live on the provider, and whose
+ * second channel is still owed an attempt.
+ *
+ * @returns The aggregate.
+ */
+export function makeStrandedPost(): PostAggregate {
+  const post = makeExistingPost(PublishStatus.scheduled());
+  openTargets(post, [TEST_CHANNEL_IDS[0]!, TEST_CHANNEL_IDS[1]!]);
+  recordAttempt(post, TEST_CHANNEL_IDS[0]!, {
+    kind: "failed",
+    classification: ATTEMPT_CLASSIFICATIONS.NONTRANSIENT,
+    code: CHANNEL_FAILURE_CODES.CHANNEL_AUTH_REQUIRED,
+    publishedFragments: [buildFragment(1)],
+  });
+  return post;
+}
+
+/**
+ * @function buildFragment
+ * @description One fragment reference for the fixtures.
+ * @param index - Its one-based position in the thread.
+ * @returns The reference.
+ */
+function buildFragment(index: number): FragmentReference {
+  const fragment = FragmentReference.create({ index, externalId: `frag-${index}` });
+  if (!fragment.ok) {
+    throw new Error("fixture fragment must build");
+  }
+  return fragment.value;
+}
+
+function createMockPostRepo(post: PostAggregate) {
   return {
     findById: async (id: any) => {
       const idStr = id?.toString?.() ?? String(id);
       if (idStr === TEST_EXISTING_DRAFT_POST_ID) {
-        // Duck-typed PostAggregate: SagaIntegration only reads
-        // `post.projectId.toString()` and `post.status.value`.
-        return ok({
-          projectId: { toString: () => TEST_PROJECT_ID },
-          status: { value: "DRAFT" },
-        }) as any;
+        // canon-exception: test-fixture — the double answers the port's Result shape
+        // without implementing the port's full error union, which a negative case needs.
+        return ok(post) as any;
       }
       return { ok: false, error: { kind: "NotFound" } } as any;
     },
@@ -338,7 +501,14 @@ function createMockChannelRepo() {
  * Returns the integration instance AND the registered-routes map so callers
  * can invoke handlers directly without going through a real HTTP layer.
  */
-export async function buildIntegration(): Promise<{
+export async function buildIntegration(
+  overrides: {
+    /** The aggregate `TEST_EXISTING_DRAFT_POST_ID` resolves to; a record-less DRAFT by default. */
+    post?: PostAggregate;
+    /** The semantic-lock backend; omitted, as in a deployment that runs without one. */
+    lockStore?: SemanticLockPort;
+  } = {}
+): Promise<{
   integration: SagaIntegration;
   routes: Map<string, (req: any, reply: any) => any>;
   mockEventService: MockEventService;
@@ -365,7 +535,10 @@ export async function buildIntegration(): Promise<{
     scheduler: new NoopBackgroundTaskScheduler(),
     projectRepository: createMockProjectRepo() as any,
     channelRepository: createMockChannelRepo() as any,
-    postRepository: createMockPostRepo() as any,
+    // canon-exception: test-fixture — the double implements the members the admission
+    // reads, not the whole PostRepository port.
+    postRepository: createMockPostRepo(overrides.post ?? makeExistingPost()) as any,
+    ...(overrides.lockStore && { lockStore: overrides.lockStore }),
   });
 
   await integration.initialize();

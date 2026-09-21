@@ -24,6 +24,15 @@ export enum ErrorCode {
   RESOURCE_ALREADY_EXISTS = "RESOURCE_ALREADY_EXISTS",
   RESOURCE_CONFLICT = "RESOURCE_CONFLICT",
 
+  // Publication conflicts a caller must be able to TELL APART from a flat
+  // conflict, because each has a different next move: wait for the running
+  // publish, or remove what is still live. They live in this enum rather than
+  // in `details` because `code` is the field the error handler puts on the
+  // wire in every environment, and a discriminator the customer never receives
+  // is a discriminator nobody can switch on.
+  PUBLICATION_IN_FLIGHT = "PUBLICATION_IN_FLIGHT",
+  CHANNEL_HAS_LIVE_FRAGMENTS = "CHANNEL_HAS_LIVE_FRAGMENTS",
+
   // Rate Limiting
   RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED",
 

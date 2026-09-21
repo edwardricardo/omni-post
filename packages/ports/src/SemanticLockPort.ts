@@ -35,4 +35,21 @@ export interface SemanticLockPort {
    * holder set never leaks.
    */
   releaseAllForSaga(sagaId: string): Promise<Result<void, SemanticLockError>>;
+
+  /**
+   * Read WHO holds `key` without taking it: the saga id when the lock is
+   * held, `null` when it is free or its hold has lapsed.
+   *
+   * A caller that only needs to know whether work is already in flight has
+   * no other way to ask. Probing with `acquire` would either take the lock
+   * — leaving a key nobody releases, because the prober never becomes a
+   * saga — or report `false` without saying who is holding it, and the
+   * answer that matters to a customer is the running saga's id.
+   *
+   * The failure stays a failure rather than collapsing into `null`: a read
+   * that could not reach the store has not observed an empty key, and
+   * reporting it as one is what would let a second publish through while
+   * the first is still running.
+   */
+  holder(key: string): Promise<Result<string | null, SemanticLockError>>;
 }

@@ -34,9 +34,23 @@ describe("Saga — existing-post path (postId provided)", () => {
     await integration.shutdown();
   });
 
-  it("publish-now with postId starts the saga without creating a new post", async () => {
+  /**
+   * The start handler, narrowed. `expect(handler).toBeTruthy()` asserts at runtime but
+   * narrows nothing, so every call site below was an "object is possibly undefined" the
+   * repo's own gates never saw — no tsconfig opens a `.test.ts` here.
+   *
+   * @returns The registered handler.
+   */
+  function startHandler(): (req: any, reply: any) => any {
     const handler = routes.get("POST:/sagas/post-publishing/start");
-    expect(handler).toBeTruthy();
+    if (handler === undefined) {
+      throw new Error("the start route is not registered");
+    }
+    return handler;
+  }
+
+  it("publish-now with postId starts the saga without creating a new post", async () => {
+    const handler = startHandler();
 
     const request = makeStartRequest({
       mode: "publish-now",
@@ -70,7 +84,7 @@ describe("Saga — existing-post path (postId provided)", () => {
   });
 
   it("schedule with postId requires scheduledAt", async () => {
-    const handler = routes.get("POST:/sagas/post-publishing/start");
+    const handler = startHandler();
     const futureIso = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
     const request = makeStartRequest({ mode: "schedule" });
@@ -88,7 +102,7 @@ describe("Saga — existing-post path (postId provided)", () => {
   });
 
   it("rejects ambiguous body (postId AND content provided)", async () => {
-    const handler = routes.get("POST:/sagas/post-publishing/start");
+    const handler = startHandler();
 
     const request = makeStartRequest({ mode: "publish-now" });
     request.body = {
@@ -106,7 +120,7 @@ describe("Saga — existing-post path (postId provided)", () => {
   });
 
   it("rejects body with neither postId nor content", async () => {
-    const handler = routes.get("POST:/sagas/post-publishing/start");
+    const handler = startHandler();
 
     const request = makeStartRequest({ mode: "publish-now" });
     request.body = {
@@ -121,7 +135,7 @@ describe("Saga — existing-post path (postId provided)", () => {
   });
 
   it("rejects postId belonging to a different project (404 anti-IDOR)", async () => {
-    const handler = routes.get("POST:/sagas/post-publishing/start");
+    const handler = startHandler();
 
     const request = makeStartRequest({ mode: "publish-now" });
     request.body = {
