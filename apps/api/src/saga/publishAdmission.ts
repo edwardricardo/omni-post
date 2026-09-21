@@ -28,7 +28,7 @@ import { logger } from "../lib/logger.js";
 import { incrementPublishAdmissionLockUnreadable } from "../metrics/businessMetrics.js";
 
 /** The two modes that can operate on an existing post. `draft` creates one and never gets here. */
-export type PublishStartMode = "schedule" | "publish-now";
+type PublishStartMode = "schedule" | "publish-now";
 
 /**
  * One channel's publication record, reduced to the three facts the admission asks about.
@@ -83,9 +83,7 @@ const SCHEDULE_ADMITS: ReadonlySet<PublishStatusValue> = new Set([
  * @param publications - The post's per-channel records.
  * @returns One view per recorded channel; empty when the post has no record.
  */
-export function admissionRecordsOf(
-  publications: ChannelPublications
-): readonly AdmissionChannelRecord[] {
+function admissionRecordsOf(publications: ChannelPublications): readonly AdmissionChannelRecord[] {
   return publications.all.map((record) => ({
     channelId: record.channelId.value,
     redrivable: record.redrivable(),
