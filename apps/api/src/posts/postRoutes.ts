@@ -21,6 +21,7 @@ import type { DuplicatePostsBatchUseCase } from "@core/posts/DuplicatePostsBatch
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { PublishStatusValue } from "@core/domain/value-objects/PublishStatus.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
+import { postChannelRoutes } from "./postChannelRoutes.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";
@@ -619,6 +620,10 @@ class PostRouteHandler extends BaseRouteHandler {
  *                                  (HardDeletePostsBatchUseCase)
  * - POST   /posts/batch/duplicate — Bulk duplicate (DuplicatePostsBatchUseCase)
  *
+ * The per-channel acts on a post are registered from here but live in
+ * `postChannelRoutes.ts`, because they are addressed by `postId` AND `channelId` and
+ * answer refusals this file's routes cannot produce.
+ *
  * Post creation, scheduling, and publish-now: see `POST /sagas/post-publishing/start`.
  */
 export const postRoutes: FastifyPluginAsync = async (fastify) => {
@@ -699,4 +704,9 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => handler.duplicatePostsBatch(request, reply)
   );
+
+  // Per-channel acts on one post. Registered here rather than in the bootstrap so the
+  // whole `/posts` surface is reachable from one place, and separated into its own file
+  // so a channel-scoped act does not have to be read past to find a post-scoped one.
+  await fastify.register(postChannelRoutes);
 };

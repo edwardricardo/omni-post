@@ -194,13 +194,16 @@ function buildModelMock<T extends Record<string, unknown>>(
         select?: Record<string, boolean | Record<string, unknown>>;
       }) => {
         const now = new Date();
+        // canon-exception: test-fixture — a double builds a row from defaults plus a
+        // partial, which is not provably a `T`; the double assertion says so instead of
+        // claiming an overlap the compiler has already refused.
         const record = {
           [idField]: randomUUID(),
           createdAt: now,
           updatedAt: now,
           ...defaults,
           ...data,
-        } as T;
+        } as unknown as T;
         const saved = store.add(record);
         return resolveIncludes(saved as Record<string, unknown>, include, select);
       }
@@ -209,13 +212,14 @@ function buildModelMock<T extends Record<string, unknown>>(
     createMany: vi.fn(async ({ data }: { data: Partial<T>[] }) => {
       const now = new Date();
       for (const item of data) {
+        // canon-exception: test-fixture — same partial-row construction as `create`.
         store.add({
           [idField]: randomUUID(),
           createdAt: now,
           updatedAt: now,
           ...defaults,
           ...item,
-        } as T);
+        } as unknown as T);
       }
       return { count: data.length };
     }),
@@ -355,13 +359,14 @@ function buildModelMock<T extends Record<string, unknown>>(
           return store.update(id, { ...updateData, updatedAt: new Date() } as Partial<T>);
         }
         const now = new Date();
+        // canon-exception: test-fixture — same partial-row construction as `create`.
         return store.add({
           [idField]: randomUUID(),
           createdAt: now,
           updatedAt: now,
           ...defaults,
           ...createData,
-        } as T);
+        } as unknown as T);
       }
     ),
 

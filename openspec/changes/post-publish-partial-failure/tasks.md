@@ -744,14 +744,31 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       **File-size watch**: `publishHandler.ts` 935 → ~905 thanks to the two extractions; still over
       the band pre-existing — backlog row (§7.3). **Rule, tested**: after a successful provider call
       the worker NEVER re-runs the provider call because the RECORD write failed. — sha: pending
-- [ ] **T1c.15 RED→GREEN** — the confirm act (Q15, D15.5): NEW
+- [x] **T1c.15 RED→GREEN** — the confirm act (Q15, D15.5): NEW
       `apps/api/src/posts/postChannelRoutes.ts` with
       `POST /posts/:postId/channels/:channelId/retraction/confirm-removed` (no body) →
       `ConfirmManualRetractionUseCase`; 404 for a channel outside the recorded set, 409
       `NOTHING_PENDING`, idempotent on a duplicate submit. Registered from `postRoutes.ts` (702
       today, +6). **The new file is the seam 2a's retry route lands in** — both routes stay under the
-      band. Unit suite `apps/api/tests/unit/postChannelRoutes.confirm.test.ts` (404/409/200).
-      — sha: pending
+      band. Unit suite `apps/api/tests/unit/postChannelRoutes.test.ts` (404/409/200) — this
+      line first named it `tests/unit/postChannelRoutes.confirm.test.ts`; the `1c-3a` correction
+      pass dropped the `.confirm.` aspect suffix, whose repo use is to SPLIT one surface across
+      siblings (measured: 136 of 164 aspect-suffixed suites share a stem) and which here
+      advertised a split that does not exist. The suite is FLAT, beside `postRoutes.test.ts`: an
+      intermediate pass moved it to a mirrored `tests/unit/posts/` and that move was REVERTED,
+      because flat is the repo's MAJORITY convention (measured: 29 of `apps/api/src`'s directories
+      have a mirrored `tests/unit/` subdirectory, 35 do not) and because three of the four
+      `src/posts` modules are already tested flat — mirroring this one alone was the only thing
+      splitting one source folder across two conventions.
+      **BUILT (`1c-3a`)**: the file is 128 lines and the registration cost 10, not 6. The refusal
+      reaches the customer as `ErrorCode.NOTHING_PENDING` — a new member of the wire vocabulary,
+      the `1c-2b` precedent — because `errorHandler.ts:93-99` ships `details` only in development;
+      the route therefore answers through the GLOBAL handler rather than `BaseRouteHandler.sendError`
+      like its `/posts` neighbours, which is `/start`'s envelope and the one that carries a `code`.
+      **9 cases** (8 at first landing, incl. the plugin-registration wiring case and its probe;
+      the correction pass added the exhaustiveness case that drives EVERY declared refusal, after
+      finding `toAppError` mapped only one of the two and the other fell through to a flat 409).
+      — sha: pending (orchestrator commits)
 - [ ] **T1c.16 RED→GREEN** — D18: `RETRACTION_ACTION_WINDOW_HOURS` in the `server` block of
       `apps/api/src/config/env.ts` (the `SAGA_WAIT_POLL_MS` shape, `:309`; `int().min(1).max(720)
 .default(72)`) — read ONLY through `env`, ONLY in `apps/api` (#16); `.env.example`,
@@ -766,12 +783,42 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       `retraction_action_window_sweep_failures_total`. Unit suite
       `apps/api/tests/unit/RetractionActionWindowSweep.test.ts` incl. **S-a-4** (a failing row is
       counted and does not stop the tick). — sha: pending
-- [ ] **T1c.17 RED→GREEN** — **C3 guards (W-new-2)**, in the PR where the materialized word goes live:
+- [x] **T1c.17 RED→GREEN** — **C3 guards (W-new-2)**, in the PR where the materialized word goes live:
       `apps/api/src/admin/SchedulingPostHandlers.ts` — `reschedulePost` (`:327-360`) re-reads INSIDE
       its `withGucBoundTransaction` with `channelPublications`, refuses 409 when `hasLiveContent()`,
-      and its `update` takes `where: { id, status: { in: ["SCHEDULED","DRAFT","FAILED"] } }` (the
-      fitness **#41** compare-and-swap shape); `cancelScheduledPost` (`:241-260`) the same. Unit
-      suites `apps/api/tests/unit/SchedulingPostHandlers.*.test.ts`. — sha: pending
+      and its `update` takes `where: { id, status: { in: ["SCHEDULED","DRAFT","FAILED"] } }` — a
+      compare-and-swap on the STATUS WORD, which this line originally called "the fitness **#41**
+      shape" and which **#41 neither defines, requires nor validates**: its `MARKERS` are five
+      single-use CREDENTIAL columns and `status` is not one of them, so the check never inspects a
+      `post.update` (measured before and after: the same 8 sites / floor 8 / 1 exception / 0
+      violations). The correct name is a compare-and-swap on the status word, whose class gate does
+      not exist yet — see (1) below; `cancelScheduledPost` (`:241-260`) the same. Unit
+      suites `apps/api/tests/unit/SchedulingPostHandlers.*.test.ts`.
+      **BUILT (`1c-3a`)**, with three corrections to this line. (1) **The class gate that WOULD see
+      this guard does not exist, and its baseline was mis-stated here before the `1c-3a` correction
+      pass.** #41's blindness is corrected in the task text above; what this note owes is the gate
+      that would cover it. Re-measured with the #41 slicer scoped to the `post` accessor: **7**
+      strict violations, not 5 — the five `PUBLISHED` webhook writes PLUS
+      `tiktokWebhookProcessor.ts:428` (`status: "FAILED"` keyed on `{ id: postId }`) and
+      `PostPublicationWrites.ts:212` (OCC on `version`); an 8th,
+      `PrismaPostRepository.ts:346` (bulk by id-set), appears only if the marker is shorthand-aware.
+      **N-COR-9 does NOT take that to zero**: `proposal.md:59` scopes it to exactly the five
+      `PUBLISHED` writes, so tiktok `:428` survives it. The gate therefore needs its OWN allowlist
+      design (OCC-by-version and bulk-by-id-set are legitimate) independent of N-COR-9 ordering —
+      backlog SMELL-153. Widening #41's own `MARKERS` with `status` is not the alternative: its call
+      regex is model-agnostic, so measured that would fire **37** times across all models.
+      (2) A lost swap is Prisma `P2025`, which the outer catch
+      would have turned into a **500**; it is caught and answered **409**. (3) The two admin
+      refusals carry their discriminator in `details` — the OPPOSITE of T1c.15 — because
+      `BaseRouteHandler.sendError` ships `details` in every environment while the global handler
+      does not, and the operator needs the channel list. Two suites in one file
+      (`SchedulingPostHandlers.c3.test.ts`), **15 cases**, all 10 original ones red first; the
+      correction pass added one per handler pinning that a write failure which is NOT `P2025`
+      (a `P2002`, and a fault with no code at all) still answers 500 and attempts the write once.
+      **Live gap found, not fixed (decision owed)**: these three admin routes return 500 in
+      production today — `Post` is tenant-guard enrolled, `TOKENS.PrismaClient` is the guarded
+      client, and nothing on the admin path binds a tenant or system context (all three measured in
+      the `1c-3a` ledger). The guards are correct and go live with the route. — sha: pending (orchestrator commits)
 - [ ] **T1c.18 GREEN + RED PATH ×3 (D14 rev 3.3 — THREE rules over two scrape targets)** —
       `prometheus/alerts/publish-record.yml` holds TWO groups, because both `/metrics` endpoints are
       already scraped (`prometheus/prometheus.yml:37-41` api on 3000, `:53-57` workers on 3300;
@@ -1248,7 +1295,7 @@ under 600 total.
 | sweep reader/port suite                                                                                                                               | 95 × 0.4                                                                                                                                      | 40       | 0       |
 | worker suites (classifier, recorder, skip, W4, mirror)                                                                                                | 595 × 0.9                                                                                                                                     | 535      | 0       |
 | `SchedulingPostHandlers.*.test.ts` C3                                                                                                                 | 70 × 2                                                                                                                                        | 140      | 0       |
-| `postChannelRoutes.confirm.test.ts`                                                                                                                   | 110 × 1.1                                                                                                                                     | 120      | 0       |
+| `postChannelRoutes.test.ts`                                                                                                                           | 110 × 1.1                                                                                                                                     | 120      | 0       |
 | `alert-publish-outcome-unrecorded.md`                                                                                                                 | `alert-saga-timeout.md` **122**, `alert-outbox-lag.md` **62**                                                                                 | 100      | 0       |
 | `promtool` rule fixture                                                                                                                               |                                                                                                                                               | 40       | 0       |
 | `.env.example`, `.env.test.example`, `ENVIRONMENT_VARIABLES.md` (**409**)                                                                             |                                                                                                                                               | 30       | 0       |
@@ -1601,16 +1648,16 @@ an end-to-end batch nobody was required to run on a non-saga unit. Every batch t
 publish-now end to end runs at each tip; a tip that cannot reach the previous tip's pass count does
 not open its PR. Seeding records into the harness to make a tip pass is REFUSED (§9.9 item 5).
 
-| PR  | Fitness checks that must be exercised (beyond the always-on set)                                                                                                                                                                                                                                                                                                                                                |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1b  | **#39 at 0 with its RED PATH proven**; #38 (floor 6 unchanged, no `deletedAt` added); #2/#3/#4 (core purity); #40 Part A+B; #9/#10/#8                                                                                                                                                                                                                                                                           |
-| 1b2 | #39 stays 0 **without** enrolling the ledger (no `accountId` ⇒ not a bearing model — state it in the PR body); #13/#14/#16; #9/#10                                                                                                                                                                                                                                                                              |
-| 1b3 | #32; #9/#10 on seven provider files                                                                                                                                                                                                                                                                                                                                                                             |
-| 1c  | #1/#6/#21/#22 (no Prisma outside composition roots; handlers delegate); #7 (deterministic ids); #11 (the sweep is scheduler-registered — no raw `setInterval`); #16 (the window read only through `env`, only in `apps/api`); #23; #40 Part A+B (the worker opens no `$transaction` of its own; `apps/workers/src` is outside both parts — residual (5), restated); **#41** (the C3 compare-and-swap shape); #4 |
-| 1d  | **#30** (each new suite named by exactly one `run_batch`; ratchet baseline 21 must not rise); #38's `db-prisma` ratchet not risen; #12/#26; the `pg_catalog` RLS coverage gate green for the new table                                                                                                                                                                                                          |
-| 1e  | #8 (the `// canon-exception: migration:<ts>` marker is the sanctioned scenario); #30                                                                                                                                                                                                                                                                                                                            |
-| 2a  | **#7 at 0**; #30                                                                                                                                                                                                                                                                                                                                                                                                |
-| 2b  | #12 (`@component`); #26; #9/#10                                                                                                                                                                                                                                                                                                                                                                                 |
+| PR  | Fitness checks that must be exercised (beyond the always-on set)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1b  | **#39 at 0 with its RED PATH proven**; #38 (floor 6 unchanged, no `deletedAt` added); #2/#3/#4 (core purity); #40 Part A+B; #9/#10/#8                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 1b2 | #39 stays 0 **without** enrolling the ledger (no `accountId` ⇒ not a bearing model — state it in the PR body); #13/#14/#16; #9/#10                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 1b3 | #32; #9/#10 on seven provider files                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 1c  | #1/#6/#21/#22 (no Prisma outside composition roots; handlers delegate); #7 (deterministic ids); #11 (the sweep is scheduler-registered — no raw `setInterval`); #16 (the window read only through `env`, only in `apps/api`); #23; #40 Part A+B (the worker opens no `$transaction` of its own; `apps/workers/src` is outside both parts — residual (5), restated); **#41** at 0 as a NO-REGRESSION reading only — it does NOT cover the C3 compare-and-swap: its markers are five single-use credential columns and `status` is not one, so it never inspects a `post.update` (measured at `1c-3a`: 8 sites / floor 8 / 1 exception / 0 violations, identical before and after); the class gate that would cover it is backlog SMELL-153; #4 |
+| 1d  | **#30** (each new suite named by exactly one `run_batch`; ratchet baseline 21 must not rise); #38's `db-prisma` ratchet not risen; #12/#26; the `pg_catalog` RLS coverage gate green for the new table                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 1e  | #8 (the `// canon-exception: migration:<ts>` marker is the sanctioned scenario); #30                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 2a  | **#7 at 0**; #30                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 2b  | #12 (`@component`); #26; #9/#10                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 Integration tiers need `pnpm db:up` first (Postgres + Redis) — never skip a suite because a service
 is down, and never skip the migration because the DB is not running.

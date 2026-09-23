@@ -4462,3 +4462,1007 @@ naming `exports::apps/api/src/saga/publishAdmission.ts::admissionRecordsOf` and
 dependency) were both green — the job failed on knip alone. Both symbols lost the `export` keyword
 and nothing else moved. After: knip `0 regressions` against its 321-finding baseline, `tsc` 0,
 eslint and prettier 0, `publishAdmission.test.ts` + `sagaStartAdmission.test.ts` **37/37**.
+
+## PR 1c — grandchild `1c-3a` (T1c.15 + T1c.17) — COMPLETE
+
+Branch `workstream/ncor8-1c-3a`, child of `workstream/ncor8-1c-2b` @ `e1766780` — **order 6 of
+§9.4.1**, and the unit D15.5 exists for: the two EXITS from a stranded channel land before anything
+can strand one. Subject: the customer's confirm-removed route (T1c.15) and the C3 guards on the two
+admin direct writers of the status word (T1c.17).
+
+**Finish state**: a customer who has removed live fragments by hand has a route to say so, and its
+refusals are values a client branches on rather than sentences it parses; and the two admin writers
+that move a post's word can no longer move it over a post whose content a provider already holds, or
+over a word the publishing path changed while they were deciding. **Rollback**: delete
+`apps/api/src/posts/postChannelRoutes.ts` and its registration line, revert the `ErrorCode` member,
+and revert `SchedulingPostHandlers.ts`. The three are independent of each other; nothing outside this
+unit references any of them.
+
+### What each mechanism is, as built
+
+| Mechanism                               | As built                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postChannelRoutes.ts` (new, 148 lines) | Its own plugin, registered from `postRoutes.ts`. It holds no repository and no Prisma client: one `container.resolve`, one `execute`, one translation. Addressed by `postId` AND `channelId`, which is why it is a file and not four more lines in a 702-line one                                                                                                                                                                                                                  |
+| the route's tenant scope                | `requireClientAuth` alone, exactly as `1c-1d` designed the use case. `PrismaPostRepository.findById` REFUSES an unscoped load before issuing a statement (`:72-74`) and the guard injects `where.accountId`, so a post of another account is a 404 and never a leak. No `callerAccountId` parameter exists to pass                                                                                                                                                                 |
+| `toAppError`                            | reads the refusal by VALUE through `refusalOf(error)`, never by message, and maps everything else off `error.code`. One function, so the route body holds no branching at all. The refusal half is a TOTAL `Record<RetractionRefusal, ErrorCode>` after the correction pass: it first mapped only `NOTHING_PENDING` and the other declared refusal fell through to a flat 409, with nothing — compiler or case — to notice                                                         |
+| `ErrorCode.NOTHING_PENDING`             | the wire half of `RETRACTION_REFUSALS.NOTHING_PENDING`, added for the reason `1c-2b` added its two: `errorHandler.ts:93-99` ships `details` only in development, so a discriminator in `details` is one the customer never receives                                                                                                                                                                                                                                                |
+| the route's error ENVELOPE              | `AppError` thrown into the global handler (`{ ok:false, error: { code, message, requestId, timestamp } }`), which is `/start`'s envelope and NOT `postRoutes.ts`'s `sendError` one. Deliberate — see decision 1                                                                                                                                                                                                                                                                    |
+| `DIRECT_WRITABLE_STATUSES`              | `["SCHEDULED","DRAFT","FAILED"]` as an ALLOWLIST, the #28/#40 form. A denylist admits by default and the set that must never be clobbered is open-ended: every word the publishing path owns, plus whatever a later revision of the enum adds                                                                                                                                                                                                                                      |
+| `liveChannelsOf`                        | the row-level mirror of `ChannelPublication.hasLiveContent()` — `outcome === "PUBLISHED" \|\| pendingRetraction`. A SECOND declaration, named as one, BOUND by a case that walks all six `(outcome, pendingRetraction)` combinations and, for each, hydrates a real `ChannelPublication` and asks IT — the correction pass replaced a hand-written table of expectations, which was a THIRD declaration and would have stayed green while the other two diverged (proven: probe E) |
+| `readLiveChannels`                      | the deciding read, issued on `tx` INSIDE the caller's `withGucBoundTransaction`, so it rolls back with the write it guards. `null` (the post vanished between the two reads) is a 404, not an `undefined` deref                                                                                                                                                                                                                                                                    |
+| the compare-and-swap                    | `where: { id, status: { in: [...DIRECT_WRITABLE_STATUSES] } }` — the extended-unique form `PrismaPostRepository.applyOccUpdate` (`:626`) already proves compiles. A lost swap is Prisma `P2025`, caught by `isLostStatusSwap` and answered **409**, not the 500 the outer catch would have produced                                                                                                                                                                                |
+| the guards' refusal payload             | `sendError(ctx, 409, msg, { code: CHANNEL_HAS_LIVE_FRAGMENTS, channelIds })`. `BaseRouteHandler.sendError` ships `details` in EVERY environment (`:281-285`), unlike the global handler — so on this surface the discriminator can travel there, and the operator gets the channels to have cleared                                                                                                                                                                                |
+
+### The recorded reds
+
+**1. T1c.15 — the route module does not exist.** Written against a file that had no declaration:
+
+```text
+ FAIL  tests/unit/postChannelRoutes.confirm.test.ts [ … ]
+Error: Cannot find module '/src/posts/postChannelRoutes.js' imported from
+       /root/omni-post/apps/api/tests/unit/postChannelRoutes.confirm.test.ts
+ Test Files  1 failed (1)
+      Tests  no tests
+```
+
+**2. T1c.17 — all ten cases red, and the first two are the MEASUREMENT of today's behaviour.**
+"expected 200 to be 409" is not a missing feature report: it is the statement that an admin can,
+right now, cancel or reschedule a post whose content is live on a provider.
+
+```text
+ × refuses 409 and writes nothing when a channel of the post has published content
+   AssertionError: expected 200 to be 409
+ × refuses 409 for a channel that is EXCLUDED but still holds fragments pending retraction
+   AssertionError: expected 200 to be 409
+ × takes its deciding read INSIDE the transaction, with the publication record
+   AssertionError: expected [] to have a length of 1 but got +0
+ × hands the update a compare-and-swap where, so a word that moved loses the write
+   AssertionError: expected undefined to deeply equal { in: [ 'SCHEDULED', 'DRAFT', …(1) ] }
+ × answers 409 rather than 500 when the compare-and-swap finds no row
+   AssertionError: expected 500 to be 409
+   (and the same five on reschedulePost)
+      Tests  10 failed (10)
+```
+
+**3. A pre-existing crash the guard's read UNCOVERED, red before it was fixed.** Adding
+`channelPublications` to the in-transaction read took `schedulingRoutes.test.ts` from 29/29 to
+**2 failed | 27 passed**: its post double answered `undefined` for the new relation. The fix is the
+DOUBLE, not the guard — a guard that read `undefined` as "nothing is live" would be fail-open by
+absence, the exact converse defect `1c-2b` corrected at the admission. Diagnosis confirmed by the
+repair: with `channelPublications: []` in `postDefaults` the suite is 29/29 again.
+
+**Three cases passed on their first run, so each was probed rather than trusted.**
+
+**Probe A — the registration line.** `await fastify.register(postChannelRoutes)` replaced by
+`void postChannelRoutes;` (the route file still imported, so a green `tsc` would not have noticed):
+
+```text
+ × is reachable through the post routes plugin, which is what registers it
+   AssertionError: expected 200 to be 404   ← the ROUTER's 404, not the route's
+      Tests  1 failed | 7 passed (8)
+```
+
+Restored and verified: `apps/api/src/posts/postRoutes.ts`
+`ff5cee8c4622d1362734c448f706efea7ddfd13a54384225e5a09ea67e97a57a`, `sha256sum -c` → `OK`.
+
+**Probe B — the refusal discriminator.** `RETRACTION_REFUSALS.NOTHING_PENDING` swapped for
+`CHANNEL_HAS_LIVE_FRAGMENTS` in `toAppError`, i.e. the route stops recognising the refusal it is
+about and falls through to the flat conflict:
+
+```text
+ × answers NOTHING_PENDING as a 409 the customer branches on by CODE, not by message
+   AssertionError: expected 'RESOURCE_CONFLICT' to be 'NOTHING_PENDING'
+      Tests  1 failed | 7 passed (8)
+```
+
+The case asserts the LITERAL `"NOTHING_PENDING"` before it asserts `ErrorCode.NOTHING_PENDING`,
+because `1c-2b` recorded that a comparison between two not-yet-declared members passes vacuously.
+Restored and verified: `apps/api/src/posts/postChannelRoutes.ts`
+`350a25971d1528b66bd210d6658147b4e3aa822525b1ece0ad89dca76a8472f5`, `sha256sum -c` → `OK`.
+
+> **RECEIPT SUPERSEDED — corrected in the bounded correction pass, not deleted.** The hash above
+> describes the file as it stood at the moment of the restore, and the file was legitimately
+> EDITED AFTER that probe, so the line was left standing as if it described the shipped tree when
+> it no longer did. The fresh-context gate re-took the probe's RED against the shipped bytes and
+> reproduced it, so the PROBE stands; only the receipt was stale. Re-taken against the shipped
+> bytes: **`ee9872fe00e61753cc24dc6aa15400e052aeb3fc4fef133506c6c16af7293626`** at the moment the
+> gate measured it, and
+> **`7e12513980cfc91ce91d7916ae1704e0a9013f8b00134235e0ffeed8f1f34f44`** as finally shipped — the
+> correction pass's NOTE A edited the file again (the exhaustive refusal mapping), which is why
+> there are two and why a restore receipt must name the tree it describes.
+
+**Probe C — the liveness predicate's second term.** `|| row.pendingRetraction` deleted from
+`liveChannelsOf`, which is the mistake a reader who thinks "live means published" would make:
+
+```text
+ × cancelScheduledPost > refuses 409 for a channel that is EXCLUDED but still holds fragments
+   AssertionError: expected 200 to be 409
+ × cancelScheduledPost > mirrors the domain's live-content rule over every outcome the record
+   can carry
+   -     "refused": true,      (UNRESOLVED/true)
+   +     "refused": false,
+   -     "refused": true,      (EXCLUDED/true)
+   +     "refused": false,
+ × reschedulePost > refuses 409 for a channel that is EXCLUDED but still holds fragments
+      Tests  3 failed | 10 passed (13)
+```
+
+Restored and verified: `apps/api/src/admin/SchedulingPostHandlers.ts`
+`51bbf9af610823d57937ad26703340414bdfb29cc65ce5efa466913bd96a6cd4`, `sha256sum -c` → `OK`, suite
+back to 13/13. (**RECEIPT SUPERSEDED — corrected, not deleted.** That hash describes the file at
+the moment of THIS restore; the file was legitimately edited afterwards for W1's JSDoc, so the
+SHIPPED hash is `c1f33b82ab36799b4f2f93e1259c2c39d93af5c359c071f484f6158cdf9ffb36` — verified
+against the tree. The PROBE stands; only the receipt was stale. The same treatment was applied to
+probe B and probe F one pass earlier and this receipt was missed, which is why it is stated here
+in the same words: a restore receipt must name the tree it describes.)
+
+### What a caller sees differently after this unit
+
+Both tasks are REACHABLE from production the day they land — unlike orders 2 to 4 — so the table is
+the whole behaviour delta, including the rows that did NOT move.
+
+| Request                                                             | Before                                     | After                                                                      |
+| ------------------------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
+| `POST …/retraction/confirm-removed` on a channel pending retraction | 404 — no such route                        | **200** `{ applied: true, hasLiveContent }`                                |
+| the same submit a second time                                       | 404                                        | **200** `{ applied: false }` — idempotent against the customer's own act   |
+| the same route naming a channel the post never declared             | 404                                        | 404, now for the right reason                                              |
+| the same route on a channel holding nothing                         | 404                                        | **409 `{ code: "NOTHING_PENDING" }`**                                      |
+| the same route with a malformed id                                  | 404                                        | **400**, and the use case is never reached                                 |
+| `POST /admin/posts/:id/cancel` on a post with a PUBLISHED channel   | **200, word clobbered to DRAFT**           | **409 `{ details.code: "CHANNEL_HAS_LIVE_FRAGMENTS", channelIds }`**       |
+| `POST /admin/posts/:id/cancel` on a channel pending retraction      | **200, word clobbered**                    | **409**, same shape                                                        |
+| `POST /admin/posts/:id/reschedule` on a PUBLISHED post              | **200 — the word is dragged to SCHEDULED** | **409**. Reschedule has no status pre-check at all; the guard is its first |
+| either admin route while the publishing path moves the word         | **200, last writer wins, promotion lost**  | **409** — the swap matched no row (`P2025`), answered as a conflict        |
+| either admin route on a post soft-deleted between the two reads     | 200 over a deleted row, or a `P2025` 500   | **404**                                                                    |
+| either admin route on a post with no live channel                   | 200                                        | 200, unchanged — one extra read inside the transaction                     |
+
+Rows 1-5, 6-10 are the changes. Row 11 is stated because a reader should not have to infer that the
+ordinary path is untouched.
+
+### Design-silent decisions, taken here and named
+
+1. **The confirm route answers through the GLOBAL error handler, not through `sendError`.** Its
+   `/posts` neighbours all use `BaseRouteHandler.sendError`, whose body is
+   `{ ok:false, error: "<sentence>" }` with NO `code` field — so a customer could only tell
+   `NOTHING_PENDING` from any other 409 by parsing the sentence, which is the defect the whole
+   discriminator chain exists to remove. Throwing `AppError` gives this route the SAME envelope
+   `/start` already answers for the sibling conflict (`CHANNEL_HAS_LIVE_FRAGMENTS`), so a client
+   branches on `error.code` identically on both. **Rejected**: widening `sendError` to carry a code,
+   which changes every error response in the product and is not this unit's subject.
+2. **The admin guards do the OPPOSITE, and for a reason that is measured, not stylistic.**
+   `sendError` attaches `details` in every environment (`BaseRouteHandler.ts:281-285`) while the
+   global handler attaches them only under `NODE_ENV === "development"` (`errorHandler.ts:93-99`).
+   On the admin surface the operator needs the CHANNEL LIST, not just a code, and `sendError` is the
+   only one of the two serializers that delivers it — so the discriminator rides in `details`
+   alongside the channels. Converting this file to `AppError` would also reshape every other error
+   it emits. **Rejected**: two different discriminator homes with no stated reason, which is how a
+   client ends up with two parsers.
+3. **The liveness predicate is duplicated, deliberately, and the duplicate is pinned.** One
+   declaration is not available: the domain's `hasLiveContent()` reads HYDRATED facts
+   (`_published !== undefined`) and these handlers hold a raw client and read COLUMNS
+   (`outcome === "PUBLISHED"`). The binding is a case over all six `(outcome, pendingRetraction)`
+   combinations, and probe C proves it bites. **Rejected**: resolving `PostRepository` in the handler
+   to get `post.publications.hasLiveContent()` free — it reads on the OUTER client, so the deciding
+   read would leave the transaction it guards, which is the one property D15.5's guard is about.
+   The single-declaration home (a row-level predicate in `packages/adapters/db-prisma`, beside the
+   `OUTCOME_KIND` mapping that already exists there) is named for the backlog rather than built
+   here.
+4. **The allowlist is the same three words for BOTH handlers, although cancel's pre-check is
+   narrower.** `cancelScheduledPost` already refuses anything but `SCHEDULED` before the
+   transaction, so its swap is wider than its own pre-check. That is intentional: the swap's job is
+   to refuse the word FAMILY a direct writer must not clobber, not to re-run the pre-check, and two
+   different sets would be two things to keep in step. **Rejected**: `status: "SCHEDULED"` on cancel
+   — strictly stronger, and strictly more drift.
+5. **A lost swap is caught OUTSIDE the transaction, not inside it.** Catching `P2025` inside the
+   callback would leave Prisma to COMMIT a transaction whose statement had already aborted at the
+   PostgreSQL level; letting the promise reject makes the rollback the database's own. **Rejected**:
+   the inner catch, which is shorter and depends on abort semantics a reader has to know.
+6. **Two suites in one file (`SchedulingPostHandlers.c3.test.ts`).** The task names
+   `SchedulingPostHandlers.*.test.ts`; two `describe` blocks in one file satisfy that glob and share
+   ONE prisma double, which is what keeps the two guards from being proved against two subtly
+   different contracts. **Rejected**: a file each plus a shared helper — a third file, same drift
+   surface, more imports.
+7. **`postChannelRoutes` is registered from `postRoutes.ts`, not from `index.ts`.** Every `/posts`
+   route then has one registration site. The cost is that a `postRoutes` consumer silently gains the
+   child plugin, which is why the wiring has its own case and probe A exists.
+
+### Doubles updated — the mandatory `rg` over `**/tests/**`
+
+This unit deletes and renames nothing. It WIDENS a read, which is the other way a double goes stale
+(`1c-2b`'s port-widening precedent).
+
+| Search                                                                                      | Result                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rg -n "SchedulingPostRouteHandler\|schedulingRoutes" apps packages infra -g '**/tests/**'` | TWO consumers: the NEW `SchedulingPostHandlers.c3.test.ts` (constructs it directly) and `schedulingRoutes.test.ts` (through the plugin). The second's post double gained `channelPublications: []` — the red above is what found it |
+| `rg -ln "channelPublications" apps/api/tests`                                               | FIVE files. `schedulingRoutes.test.ts` + the new suite are this unit's; the other three (`PrismaPostRepository.test.ts` ×2, `approvals/approvalRoutes.test.ts`) model it for the repository path, which this unit does not touch    |
+| `rg -n "NOTHING_PENDING" apps packages infra -g '**/tests/**'`                              | `@core/posts`' own `confirmManualRetraction.test.ts` (8 hits, all through `refusalOf` by VALUE) and the new route suite. No double holds the literal in a way that could drift                                                      |
+| `rg -n "ConfirmManualRetraction" apps packages infra -g '**/tests/**'`                      | `@core/posts` only. The route's double is local to the new suite                                                                                                                                                                    |
+| `rg -ln "Object.values(ErrorCode)\|Object.keys(ErrorCode)" apps packages`                   | **EMPTY, and an empty result is a result**: nothing enumerates the enum, so the new member breaks no snapshot and no exhaustive switch                                                                                              |
+
+### The scratchpad tsc probe — run, and it caught a fourth defect class
+
+No tsconfig opens a `.test.ts`, so the habit from the last four units was repeated over the touched
+test files plus `helpers/mockPrisma.ts`. It found **4 errors, none of them in the two new files**:
+
+- `helpers/mockPrisma.ts` ×3 — `TS2352` on three `as T` casts that build a row from defaults plus a
+  partial. **FIXED**: `as unknown as T` with a `// canon-exception: test-fixture` marker on each,
+  which is what the compiler had already refused to accept as an overlap.
+- `schedulingRoutes.test.ts:108` — `TS2345`: `setupContainer({ prisma })` is missing the REQUIRED
+  `apiMetrics`. **NOT fixed here, because it is a CLASS and fixing one member would hide it**:
+  measured, **23 of 23** `setupContainer({…})` call sites in `apps/api/tests` omit it and **zero**
+  supply it. Repairing one of twenty-three turns a systemic gap into a "1 error" report. Backlog row
+  below.
+
+Second run after the three fixes: one remaining error, the measured class. **Fifth distinct defect
+class the probe has caught in five units**, and the permanent-config decision is now five for five.
+
+### Gates
+
+> This table is the reading at the tip the fresh-context gate reviewed. It is kept unchanged as a
+> record; the post-correction readings are in §"Bounded correction pass" below, and the two differ
+> only where a correction moved a number (the unit tier by +3 cases).
+
+| Gate                                                                  | Result                                                                                                            |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `@core/posts` vitest (untouched; run because `@shared/types` moved)   | **6 files, 99 passed**, 0 failed                                                                                  |
+| touched `apps/api` suites (4 files)                                   | **55 passed**, 0 failed                                                                                           |
+| `apps/api` unit tier (`vitest run --maxWorkers=2`)                    | **593 files, 9232 passed**, 0 failed, 0 skipped                                                                   |
+| `integration:saga-recovery` (3 suites, concurrency 1, timeout 120000) | **33 tests / 33 pass / 0 fail / 0 cancelled / 0 skipped**, runner exit 0 — level with `1c-2b`                     |
+| admin-scheduling integration batch                                    | **none exists** — measured: `rg "admin/posts" apps/api/tests` finds only the unit suite. See below                |
+| `tsc --noEmit` `packages/shared` · `apps/api` (6144)                  | **0** · **0**                                                                                                     |
+| scratchpad tsc probe over the touched test files                      | **1** — the measured 23/23 `apiMetrics` class, above; **0** in the two new files                                  |
+| `pnpm check:circular`                                                 | **0** — 1610 files, no circular dependency                                                                        |
+| `pnpm check:dead-code` (knip ratchet)                                 | **0 regressions** against the 321-finding baseline                                                                |
+| `eslint --max-warnings 0`, 8 changed files, ONE pass at 6144          | **0**                                                                                                             |
+| `prettier -c` on all 8 changed files · `pnpm format:check`            | clean (3 needed `--write`, re-checked) · clean                                                                    |
+| fitness #1 #3 #4 #5 #6 #8 #9 #10 #21 #23 #32                          | 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0                                                                         |
+| fitness #40 Part A (seam floor 3) · Part B (site floor 10)            | 3 seams / **0** violations · 14 sites / **0** violations — unchanged; the guard's read is INSIDE an existing seam |
+| fitness **#41**                                                       | **8 marker sites (floor 8), 1 exception hit, 0 violations — UNCHANGED by this unit.** See below                   |
+
+**Normalization ordering, honoured rather than assumed.** `prettier --write` rewrote three files
+AFTER the first pass of `tsc`, the unit tier, `integration:saga-recovery`, `check:circular` and
+`eslint`. Whitespace cannot change a type or a test, but a gate reported over bytes that were then
+edited is a receipt for a tree nobody delivered — so all five were RE-RUN on the final bytes and the
+table above is the second reading. Both readings agree.
+
+**Services**: Postgres and Redis reachable on `omnipost-infra` (5432 / 6379), verified before the
+integration run; the batch was invoked with `run-tests.sh`'s own env (`set -a; source .env`) so the
+`DATABASE_URL` false alarm `1c-2b` recorded could not recur.
+
+**Unit-tier arithmetic — re-derived in the bounded correction pass; the delta is exactly 21 and
+the "residual 2" this paragraph first flagged is ZERO.** 9232 is an absolute reading on this tree.
+Every test-bearing file this unit adds or changes is accounted for: the two new suites contribute
+exactly **21** (8 + 13, measured in isolation — `vitest run` on the two files alone);
+`schedulingRoutes.test.ts` holds **29 cases in BOTH states** (measured at `HEAD` via `git show` and
+in the working tree — its diff is four comment lines plus `channelPublications: []`, zero cases);
+and `mockPrisma.ts` is a helper with **0** cases. So the tier on this tree without this unit is
+**9232 − 21 = 9211**, and 9211 + 21 = 9232. Independently corroborated by the FILE count:
+**593 − 2 = 591**, exactly the two new suites and nothing else.
+
+The "residual 2" was a SLIP: it compared 9211 — a figure derived for THIS tree — against `1c-2b`'s
+recorded 9206, which was measured on a DIFFERENT tree state and is not a comparable baseline.
+Measured: that reading was taken BEFORE `a9b33bbb` (the `1c-2b` W1 correction), whose own gate
+table records that **the unit tier was deliberately NOT re-run** — so the cases W1 added were never
+counted on that tip. Counted directly, `a9b33bbb` added **+2** `apps/api` unit cases
+(`sagaStartAdmission.test.ts` +1, `semanticLockHolder.test.ts` +1; `publishAdmission.test.ts` +0 —
+its +42/−14 strengthens assertions inside existing cases) and **+1** `@core/posts` case
+(`openPublicationEpisode.test.ts`), which closes the `@core/posts` figure EXACTLY: 98 + 1 = 99.
+Whatever remains between 9206 and 9211 is a property of the `1c-2b` reading, not of this tree, and
+the derivation above does not depend on it. Nothing here is left for the next reader to hunt.
+
+### Fitness #41 does NOT see this guard, and saying so is the point
+
+T1c.17 asks for "the fitness **#41** compare-and-swap shape", and the gate list for PR 1c names #41.
+Measured: #41's `MARKERS` are five SINGLE-USE CREDENTIAL consumption columns —
+`passwordResetToken`, `resetToken`, `mfaBackupUsedAt`, `mfaLastUsedTotpStep`, `refreshTokenHash`.
+A post's `status` is not one of them, so the check never inspects a `post.update`. Run before and
+after this unit it reads the same three numbers: **8 marker sites against a floor of 8, one
+exception hit, zero violations.**
+
+So the guard **adopts #41's shape and cannot satisfy #41**, because #41's subject is a credential
+that may be spent once and a status word is not that. The task's instruction to "satisfy it rather
+than merely resemble it" has no available reading in which it is true, and bending the guard toward
+one — adding a fake marker, or widening `MARKERS` with `status` — would be worse than the gap:
+`status` appears in `data` at every legitimate status write in the repo, so the marker list is the
+wrong home for this class.
+
+**The right home, costed rather than asserted — and RE-MEASURED in the bounded correction pass,
+because the first costing was wrong twice.** A separate class gate — "every `post.update` whose
+`data` moves the status word names the prior word in the same call's `where`" — is a real and
+useful check. This paragraph first put its baseline at **5** (the webhook `PUBLISHED` writes) and
+said N-COR-9 would take it to **zero**. Both are false, and the measurement is the #41 slicer
+itself, re-pointed at the `post` accessor:
+
+| Site                                      | `where`                                    | Verdict                                          |
+| ----------------------------------------- | ------------------------------------------ | ------------------------------------------------ |
+| `facebookWebhookProcessor.ts:421`         | `{ id: postId }`                           | violation — N-COR-9's scope                      |
+| `instagramWebhookProcessor.ts:341`        | `{ id: postId }`                           | violation — N-COR-9's scope                      |
+| `tiktokWebhookProcessor.ts:361`           | `{ id: postId }`                           | violation — N-COR-9's scope                      |
+| `xWebhookProcessor.ts:442`                | `{ id: postId }`                           | violation — N-COR-9's scope                      |
+| `youtubeWebhookProcessor.ts:398`          | `{ id: postId }`                           | violation — N-COR-9's scope                      |
+| **`tiktokWebhookProcessor.ts:428`**       | `{ id: postId }`                           | **violation — `status: "FAILED"`, NOT in scope** |
+| **`PostPublicationWrites.ts:212`**        | `{ id: postId, version: expectedVersion }` | **violation — legitimate OCC, needs allowlist**  |
+| `PrismaPostRepository.ts:346` (shorthand) | `{ id: { in: … }, deletedAt: null }`       | 8th, only if the marker is shorthand-aware       |
+| `SchedulingPostHandlers.ts:370` / `:503`  | `{ id, status: { in: […] } }`              | the two this unit added — already compliant      |
+
+So the baseline is **7** (8 shorthand-aware), not 5. And **N-COR-9 does NOT take it to zero**:
+`proposal.md:59` scopes N-COR-9 to exactly the five `PUBLISHED` writes it names, so
+`tiktokWebhookProcessor.ts:428` survives it untouched. The gate therefore needs its OWN allowlist
+design — OCC-by-version and bulk-by-id-set are legitimate shapes — INDEPENDENT of N-COR-9 ordering.
+Also measured, for whoever designs it: widening #41's own `MARKERS` with `status` is not the
+alternative, because #41's call regex is model-agnostic and that would fire **37** times across all
+models. Backlog row **SMELL-153**, written with those numbers rather than the first guess.
+
+### Budget — measured from `git diff --numstat HEAD` plus `wc -l` on the three untracked files
+
+| Stream       | Forecast (§9.4.1 row 6) | Measured | Delta |
+| ------------ | ----------------------: | -------: | ----- |
+| **CODE**     |                 **200** |  **337** | +69%  |
+| **EVIDENCE** |                 **260** |  **644** | 2.5×  |
+| DOC          |                       — |  **379** | —     |
+
+CODE breakdown: `SchedulingPostHandlers.ts` 179/−12 · `postChannelRoutes.ts` 128 ·
+`postRoutes.ts` 10 · `errors.ts` 8. EVIDENCE: `SchedulingPostHandlers.c3.test.ts` 412 ·
+`postChannelRoutes.confirm.test.ts` 216 · `mockPrisma.ts` 8/−3 · `schedulingRoutes.test.ts` 5.
+DOC: this section 351 · `tasks.md` 24/−4. **CODE is under the 400 hard budget by 63 lines, so no
+CODE `size:exception` is owed** — the third unit in a row to land under it without shrinking
+anything.
+
+> Superseded by §"Budget after the correction pass" below (CODE 348, EVIDENCE 888, still under the
+> 400 CODE budget). The filename above is the one the suite carried when this was measured; the
+> suite ships as `tests/unit/postChannelRoutes.test.ts`.
+
+**Was the 200 forecast possible? For T1c.15 nearly; for T1c.17 no, and the reason is a branch the
+forecast did not contain.** The route is 128 against an implied ~90, which is ordinary estimation
+slack. The handlers are 191 against an implied ~110, and the gap is not padding: the forecast
+described "a re-read and a `where` clause", which is four lines twice. What the guard actually needs
+is a re-read that can answer THREE outcomes (live / vanished / clear), a swap that can LOSE — and a
+lost swap raises `P2025` into an outer catch that answers 500, so the refusal path had to be built
+or the guard would have converted a race into a server error. That branch, its helper, the allowlist
+and the JSDoc the canon requires are the difference. A 110-line version exists only without the
+`P2025` answer, and that version is worse than no guard on the reschedule path.
+
+**EVIDENCE at 2.5× is the same shape the last three units recorded, for the same reason.** The
+forecast counted 70 lines per handler suite. It did not count the prisma double the two guards
+SHARE (136 lines: an interactive `$transaction` that can tell an in-transaction read from a client
+one, a `P2025`-raising update, and a post that can vanish mid-transaction), which is what makes
+"the read is inside the transaction" a provable claim rather than a comment. The estimator is now
+four-for-four at under-counting the machinery a behavioural claim needs, and always by counting the
+cases and not the fixture.
+
+### For Edward — one live gap, one class, one proposal
+
+1. **THE THREE ADMIN SCHEDULING ROUTES RETURN 500 IN PRODUCTION TODAY, and the C3 guards this unit
+   adds are therefore unreachable until that is decided.** This is pre-existing and independent of
+   this change, and it is measured, not inferred:
+   - `Post` is tenant-guard enrolled (`infra/prisma/src/extensions/tenantGuard.ts:129-130` —
+     `post` and `postChannelPublication`).
+   - `TOKENS.PrismaClient` resolves to the GUARDED client
+     (`infrastructure/container/setup.ts:75-77`), which is what `schedulingRoutes.ts:20` injects.
+   - The guard's own decision function, run directly:
+     `Post.findFirst with NO context -> TenantContextMissingError: No TenantContext or
+SystemContext bound for Post.findFirst`, and the identical answer for `update`.
+   - Nothing on the admin path binds a context: `rg "enterTenantContext|withTenantContext|
+enterSystemContext|withSystemContext"` over `adminAuthMiddleware.ts`, `rbacMiddleware.ts`,
+     `schedulingRoutes.ts` and `SchedulingPostHandlers.ts` returns **no hits**, and the three
+     global `onRequest`/`preHandler` hooks in `index.ts` bind none either.
+   - `postRoutes.ts:493-500` documents the SAME discovery for `DELETE /posts/batch` and calls it
+     "measured on this route as a 500 raised by the ownership filter's own `Post.findMany`".
+   - Nothing caught it because the only suite that drives these routes mocks Prisma wholesale, and
+     **no integration batch names them** (`rg "admin/posts" apps/api/tests` → the unit suite only).
+
+   The fix is a decision, not a line: either these routes run under `withSystemContext` like their
+   three `ACCOUNT_MANAGE` siblings do, or they stop being admin-authenticated. Both are cross-tenant
+   authorization choices, which SECURITY_CANON does not let an executor invent. **The guards are
+   still correct and still worth landing now** — they are what D15.5 requires at this tip, and they
+   go live the moment the route does — but this unit's behaviour table is about what the code says,
+   not about traffic that currently reaches it.
+
+2. **`setupContainer({ prisma })` is missing its REQUIRED `apiMetrics` at 23 of 23 test call
+   sites** (zero supply it). Invisible to every wired gate, because no tsconfig opens a `.test.ts`.
+   It is the permanent-config question again — five units, five finds — and it now has a number.
+
+3. **The `details`-vs-`code` split is now two-sided, which is a decision Edward may want to
+   collapse.** `1c-2b`'s finding 1 said the typed 409s reach a client as a CODE but not as a
+   PAYLOAD, and listed (a) widen the handler, (b) leave the global handler, (c) read the payload
+   from the read model. This unit adds the observation that the repo ALREADY has a second
+   serializer — `BaseRouteHandler.sendError` — which ships `details` unconditionally, so the
+   product currently answers the same class of conflict two different ways depending on which
+   route answered. Option (a) would make them one. Still not this unit's to pick, and now the
+   choice has a second consumer.
+
+### Bounded correction pass — the fresh-context gate's PASA CON CORRECCIONES, worked
+
+Seven items, no more: two of the gate's three Criticals were FALSE CLAIMS in the artefacts rather
+than defects in the code, and they are corrected IN PLACE (a sentence deleted teaches nobody why it
+was wrong). Nothing outside the list was refactored, and the design was not re-litigated.
+
+| #   | Item                                                                         | Kind            | Outcome                                                                                              |
+| --- | ---------------------------------------------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------- |
+| C1  | a restore receipt in this ledger names a hash the shipped file does not have | doc             | corrected in place, BOTH superseding hashes recorded                                                 |
+| C2  | "the fitness #41 compare-and-swap shape" is false, in four places            | doc             | corrected in place in `tasks.md` ×2, `design.md` ×2; the two TRUE "#41 at 0" lines verified and LEFT |
+| C3  | the ledger declares a test-count "residual 2" that is arithmetically zero    | doc             | re-derived; delta is exactly 21, residual 0                                                          |
+| W1  | production JSDoc calls a test "the binding" and that test binds nothing      | code + evidence | the case now hydrates a real `ChannelPublication` and asks IT; proven by probe                       |
+| W2  | nothing pins that a non-`P2025` write failure still returns 500              | evidence        | one case per handler, two failure shapes each; proven by probe                                       |
+| C6  | the backlog row for the status class gate states a baseline that is wrong    | doc             | re-measured 7 (8 shorthand-aware), N-COR-9 does NOT close it — SMELL-153                             |
+| NA  | `toAppError` handles 1 of the 2 declared refusals                            | code + evidence | mapping made TOTAL; a new member now fails to compile AND fails a case                               |
+| NB  | 10 bare `any` in one file, 3 `canon-exception` markers in another, same diff | evidence        | one rule: type the shape, mark only the cast that defeats the compiler                               |
+| +7  | the confirm suite sits at a flat aspect-suffixed path                        | evidence        | suffix dropped → `tests/unit/postChannelRoutes.test.ts`; the mirroring half was REVERTED (see below) |
+
+#### C2 — the two lines I was told to verify rather than change, verified
+
+`tasks.md`, `"#40 Part A+B/#41 at 0; #30 and #38's db-prisma ratchet not risen"` (line 866 at the
+time of writing) and `design.md`, `"#32/#41 at 0, #30 and #38 ratchets not risen"` (line 519). Both
+assert the gate's COUNT, which is a true no-regression check and is exactly what this unit measured
+(0, unchanged). Neither claims #41 as COVERAGE of this slice. **Left untouched**, as instructed.
+`tasks.md`, the row anchored on `"#41"` in the 1c gate column (line 1652), DID claim coverage
+(`**#41** (the C3 compare-and-swap shape)`) and was corrected.
+
+> **Citation form, corrected in the final pass.** These four references were first written as bare
+> `file:NNN` coordinates, and three of the four had already ROTTED inside the same pass that wrote
+> them (`tasks.md:843` → 866, `tasks.md:1629` → 1652, and in the table below `tasks.md:753` → 754
+> and `tasks.md:1284` → 1294) because the pass kept editing the files it was citing. A line number
+> is not an identifier; the QUOTED TEXT is. Every citation in these `1c-3a` sections now leads with
+> a short quoted anchor and carries the number only beside it, as navigation that may age rather
+> than as the claim itself.
+
+#### The recorded reds of the correction pass
+
+**RED 1 (NOTE A) — the second declared refusal reaches the wire as a flat conflict.** A case driven
+from `Object.values(RETRACTION_REFUSALS)` rather than from a list written in the test, so a refusal
+added tomorrow is covered without anyone remembering to add a case:
+
+```text
+ FAIL  tests/unit/postChannelRoutes.confirm.test.ts > … > publishes EVERY declared retraction
+       refusal as its own wire code, not a flat conflict
+AssertionError: expected 'RESOURCE_CONFLICT' to be 'CHANNEL_HAS_LIVE_FRAGMENTS'
+      Tests  1 failed | 8 passed (9)
+```
+
+GREEN by replacing the single `if (refusal === NOTHING_PENDING)` with a TOTAL
+`Record<RetractionRefusal, ErrorCode>`. `CHANNEL_HAS_LIVE_FRAGMENTS` is unreachable from
+`ConfirmManualRetractionUseCase` today (`:191-193` emits only `NOTHING_PENDING`) — stated, not
+hidden: the subject is the ROUTE's translation, which must not depend on which use case calls it.
+It stays a `Result`-shaped refusal; nothing new throws across a layer boundary.
+
+**PROBE D — the compiler half of the same claim.** A `Record` is only a binding if a new member
+breaks the build, so a third member was planted in `RETRACTION_REFUSALS`:
+
+```text
+apps/api/src/posts/postChannelRoutes.ts(49,7): error TS2741: Property 'PROBE_ONLY_THIRD_REFUSAL'
+  is missing in type '{ NOTHING_PENDING: …; CHANNEL_HAS_LIVE_FRAGMENTS: …; }'
+  but required in type 'Record<RetractionRefusal, ErrorCode>'.
+```
+
+Restored and verified: `packages/core/posts/src/retractionRefusals.ts`
+`2d36c278bc18972922fe539df125c73ca06601db5b476d5f0bcb0757d8287512`, `sha256sum -c` → `OK`.
+
+**PROBE E (W1) — the defect and the fix, both measured, in that order.** The claim under test is
+not "the predicates agree" (they do, and the gate showed why: the domain is
+`_published !== undefined || _pendingRetraction` at `ChannelPublication.ts:491`, `outcomeKind` is
+derived and never stored `:351-358`, and there is exactly ONE writer of the column,
+`PostPublicationWrites.ts:137`, with a total mapping). The claim is that the test NOTICES when they
+stop agreeing. So `hasLiveContent()` had its `|| this._pendingRetraction` term deleted — the exact
+divergence a reader who thinks "live means published" would introduce — and the suite was run
+TWICE over that broken domain:
+
+```text
+step 1 — the ORIGINAL hand-written table, against the flipped domain
+      Tests  13 passed (13)        ← GREEN. The "binding" did not bind. This is the defect.
+
+step 2 — the CORRECTED case, against the same flipped domain
+ × mirrors the domain's live-content rule over every outcome the record can carry
+   -     "refused": true,      (UNRESOLVED/true)
+   +     "refused": false,
+   -     "refused": true,      (EXCLUDED/true)
+   +     "refused": false,
+      Tests  1 failed | 12 passed (13)   ← RED. The binding bites.
+```
+
+Restored and verified: `packages/core/domain/src/entities/ChannelPublication.ts`
+`7edbff7a525ec20c9eeb5c4e8109e915e0ca73c908c125066e72764b6dcca7ab`, `sha256sum -c` → `OK`; suite
+back to green and `@core/domain` 10 files / 191 passed.
+
+The corrected case hydrates a real `ChannelPublication` per combination through the entity's own
+`reconstitute` — the path the repository uses — derives BOTH columns from that record the way
+`publicationRowData` derives them, and takes the expected boolean from `record.hasLiveContent()`.
+Two totality guards ride with it: the kind→column map is a `Record<PublicationOutcomeKind, …>`, so
+a new outcome kind stops the file compiling, and the case pins 4-of-6 refusals so a rule that
+answered the same for every row could not satisfy it vacuously. The production JSDoc at
+`SchedulingPostHandlers.ts` now says WHY it is a binding instead of asserting that it is — the word
+"binding" was NOT deleted, which was the cheap exit on offer.
+
+**PROBE F (W2) — the exactness of `code === "P2025"` is load-bearing.** The two new cases (one per
+handler, each driving a `P2002` Prisma error AND a bare `Error` with no code) passed on their first
+run, because the behaviour already worked. So the red was taken by reconstructing the pre-fix
+shape: `isLostStatusSwap` loosened to `"code" in error` — the mistake a reader would make.
+
+```text
+ FAIL  … C3 guard on cancelScheduledPost > keeps a write failure that is NOT a lost swap a 500 …
+AssertionError: a Prisma error with a DIFFERENT code: expected 409 to be 500
+ FAIL  … C3 guard on reschedulePost > keeps a write failure that is NOT a lost swap a 500 …
+AssertionError: a Prisma error with a DIFFERENT code: expected 409 to be 500
+      Tests  2 failed | 13 passed (15)
+```
+
+Restored and verified: `apps/api/src/admin/SchedulingPostHandlers.ts`
+`51bbf9af610823d57937ad26703340414bdfb29cc65ce5efa466913bd96a6cd4`, `sha256sum -c` → `OK`. (That
+file was edited again afterwards for W1's JSDoc, so the SHIPPED hash is
+`c1f33b82ab36799b4f2f93e1259c2c39d93af5c359c071f484f6158cdf9ffb36` — the C1 lesson, applied to this
+pass's own receipts.) Each case also asserts the write was attempted EXACTLY once, so a retry
+smuggled into the refusal path is caught too.
+
+#### NOTE B — the rule the diff now follows, stated instead of implied
+
+The diff disagreed with itself: `SchedulingPostHandlers.c3.test.ts` held 10 bare `any` with no
+marker while `mockPrisma.ts` gained 3 `// canon-exception: test-fixture` markers for a weaker
+coercion. Measured across `apps/api/tests`: **864 `any` occurrences in 108 files against 10
+`canon-exception` markers in 5 files**, only 2 of which overlap — so "mark every `any`" is not the
+repo convention and never was. The rule taken, and the reason:
+
+- **A double's SHAPE is knowable — give it a type.** The c3 doubles now carry named interfaces
+  (`FindFirstArgs`, `UpdateArgs`, `UpdateManyArgs`, `SentBody`) and the file holds **zero** bare
+  `any`.
+- **A cast that DEFEATS the compiler gets a marker.** The only such casts are the three handoffs to
+  production signatures (`as unknown as PrismaClient`, `… as FastifyReply`, `… as FastifyRequest`)
+  plus the serializer body — 4 markers, the identical construct `mockPrisma.ts` marks. So both
+  files now follow ONE rule and the markers in `mockPrisma.ts` are warranted rather than
+  inconsistent.
+
+Fitness #3 excludes `/tests/`, so no gate would have caught either state. The scratchpad `tsc`
+probe caught the stricter typing's one real consequence (`exactOptionalPropertyTypes` refuses
+`head: … ? … : undefined`), which is why the settled facts are ADDED per branch in
+`settledStateOf` rather than set to `undefined` on a shared object — the canon's own
+conditional-construction pattern.
+
+#### Item 7 — the confirm suite drops its aspect suffix and STAYS FLAT
+
+`apps/api/tests/unit/postChannelRoutes.confirm.test.ts` →
+**`apps/api/tests/unit/postChannelRoutes.test.ts`** (5 relative `../../src/` specifiers, unchanged
+in the end; the `@file` header is basename-only, so it carries the new name without an edit).
+
+**This landed in two steps, and the second REVERSED the first.** An intermediate pass moved the
+suite to a mirrored `tests/unit/posts/postChannelRoutes.test.ts`; the final pass moved it back to
+flat and deleted the now-empty `tests/unit/posts/`. Both halves are recorded because the reason the
+move was undone is the same reason it should not be re-attempted:
+
+- **Flat is the MAJORITY convention, not the exception.** Measured on the shipped tree: **29** of
+  `apps/api/src`'s directories have a mirrored `tests/unit/` subdirectory and **35** do not. The
+  intermediate pass had already corrected the premise it was handed ("`posts/` is one of the few
+  without one" — false), but it still moved the file; the arithmetic says the move was toward the
+  minority.
+- **It split one source folder across two conventions.** `src/posts/` holds four modules, and
+  `postRoutes.test.ts`, `postsService.test.ts` and `optimizedPostsRoutes.test.ts` are all FLAT.
+  Mirroring the fourth alone was the ONLY thing making `src/posts` disagree with itself; before the
+  move it agreed, and after the revert it agrees again.
+- **The revert costs nothing.** `git log --all` on BOTH paths is empty — the suite was never
+  committed under either name, so no history is rewritten and no reference outside this change set
+  existed to update.
+- **The suffix drop is the real gain, and it is KEPT.** Of 164 aspect-suffixed suites, **136**
+  share a stem with a sibling, so the suffix means "this surface is split" — and this suite has no
+  sibling, so `.confirm.` advertised a split that does not exist. **28 stand alone** anyway,
+  including this unit's OWN `SchedulingPostHandlers.c3.test.ts`, deliberately NOT renamed: T1c.17
+  pins the glob `SchedulingPostHandlers.*.test.ts`, so there the split is designed and named.
+
+Verified after the revert, each as a measurement and not an assumption:
+
+| Claim                             | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the suite runs from the flat path | `vitest run tests/unit/postChannelRoutes.test.ts` → **1 file, 9 passed**                                                                                                                                                                                                                                                                                                                                                                                             |
+| the move is FILE-count neutral    | tier **593 files**, the same count the mirrored path produced — 592 would have meant the flat path is not collected, which is the silent-green shape this check exists to catch                                                                                                                                                                                                                                                                                      |
+| the move is TEST-count neutral    | tier **9235**, unchanged. The unit's own +3 over the 9232 baseline stays fully attributed to NOTE A's 1 case + W2's 2 cases; neither the move nor its revert contributes any                                                                                                                                                                                                                                                                                         |
+| **fitness #30 is unaffected**     | not assumed: its own loop excludes `-not -path "*/tests/unit/*"`, and `apps/api/vitest.config.ts`, `include: ["tests/unit/**/*.test.ts", …]`, collects flat and nested alike BY CONSTRUCTION. Measured after the revert: **20 unreached, baseline 21**                                                                                                                                                                                                               |
+| nothing references either old     | `rg "postChannelRoutes.confirm"` and `rg "tests/unit/posts/postChannelRoutes"` over the repo → **zero code hits each**. **Seven** artefact hits remain for the suffixed name (the earlier "six" undercounted, missing the claim row that is itself a hit) — every one HISTORICAL: red captures, one budget line, this section's own "from" side, and one `tasks.md` clause that says what the line first named. No FORWARD reference to either old spelling survives |
+
+The repo stop-hook that flags a missing test at the MIRRORED path now fires on this route file
+again, and that is accepted rather than accommodated. It is a false positive by construction —
+measured: it derives one mirrored path and tests only that exact path with `exists()`, so it fires
+on `postRoutes.ts` and `SchedulingPostHandlers.ts` too, both of which have had tests for a long
+time. Its rule needs a glob. The hook was NOT edited (`.claude/` is off limits to this pass) and no
+stub was planted at the mirrored path to quiet it: moving correct code to satisfy a mis-specified
+checker is the vice this repo forbids, and the intermediate move's quieting of the hook was a side
+effect that must not be mistaken for a reason.
+
+#### Gates after the correction pass
+
+Normalization ordering is not a problem this time and the reason is measured, not asserted:
+`prettier --write` over all 8 code files reported **8× "(unchanged)"**, so every gate below ran on
+bytes prettier had already normalized. Only the `.md` artefacts were written afterwards, and no
+`.md` can move a type, a test or a fitness count.
+
+| Gate                                                                  | Result                                                                                                                                                |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tsc --noEmit packages/shared` (6144)                                 | **0**                                                                                                                                                 |
+| `tsc -b apps/api` (6144)                                              | **0**                                                                                                                                                 |
+| `eslint --max-warnings 0`, all 8 touched files, ONE pass at 6144      | **0**, exit 0 (the `[boundaries][warning]` line is the plugin's own config notice — it prints identically for an untouched file, verified)            |
+| `prettier -c` on the 8 code files                                     | clean — all 8 already normalized                                                                                                                      |
+| scratchpad `tsc` probe over the touched test files                    | **1** — the pre-existing, measured 23/23 `apiMetrics` class; **0** in the three files this pass touched                                               |
+| `apps/api` unit tier (`vitest run --maxWorkers=2`)                    | **593 files, 9235 passed**, 0 failed, 0 skipped                                                                                                       |
+| `integration:saga-recovery` (3 suites, concurrency 1, timeout 120000) | **33 tests / 33 pass / 0 fail / 0 cancelled / 0 skipped**, runner exit 0                                                                              |
+| `@core/posts` vitest · `@core/domain` vitest                          | **6 files / 99 passed** · **10 files / 191 passed** (the latter run because PROBE E touched it)                                                       |
+| `pnpm check:circular`                                                 | **0** — 1610 files                                                                                                                                    |
+| `pnpm check:dead-code` (knip ratchet)                                 | **0 regressions** against the 321-finding baseline                                                                                                    |
+| fitness #1 · #3 · #4 · #5 · #6 · #8 · #9 · #10 · #21 · #23 · #32      | 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0 · 0                                                                                                             |
+| fitness #30 (ratchet)                                                 | **20** against baseline 21 — below, unaffected by the move                                                                                            |
+| fitness #38                                                           | swept tree **0**; `db-prisma` ratchet **11** at baseline 11                                                                                           |
+| fitness #40 Part A · Part B                                           | 3 seams (floor 3) / **0** · 14 sites (floor 10) / **0**                                                                                               |
+| fitness **#41**                                                       | **8 marker sites (floor 8), 1 exception hit, 0 violations — IDENTICAL before and after, which is the measurement that refutes the "#41 shape" claim** |
+
+**Services**: Postgres and Redis reachable on `omnipost-infra` (5432 / 6379), verified by socket
+before the integration run; the batch was invoked with `run-tests.sh`'s own env
+(`NODE_ENV=test`, `set -a; source .env`) and its own runner flags
+(`--conditions development --import tsx --test --test-force-exit --test-concurrency=1
+--test-timeout=120000`).
+
+Every fitness block was extracted TEXTUALLY from `.github/workflows/fitness.yml` and executed
+verbatim — not paraphrased from `CLAUDE.md` — and the workflow was never edited.
+
+#### Budget after the correction pass
+
+| Stream       | Forecast (§9.4.1 row 6) | Before the pass |   After | Delta |
+| ------------ | ----------------------: | --------------: | ------: | ----- |
+| **CODE**     |                 **200** |             337 | **348** | +11   |
+| **EVIDENCE** |                 **260** |             644 | **888** | +244  |
+
+CODE: `SchedulingPostHandlers.ts` 182/−12 · `postChannelRoutes.ts` 148 · `postRoutes.ts` 10 ·
+`errors.ts` 8. **CODE remains under the 400 hard budget, by 52 lines** — the correction pass added
+11 CODE lines (the total refusal map and two JSDoc paragraphs) and owes no `size:exception`.
+EVIDENCE: `SchedulingPostHandlers.c3.test.ts` 636 · `postChannelRoutes.test.ts` 239 ·
+`mockPrisma.ts` 8/−3 · `schedulingRoutes.test.ts` 5. The EVIDENCE jump is where the corrections
+live: hydrating a real record per combination, the typed doubles NOTE B asked for, and the two
+`NOT_A_LOST_SWAP` fixtures. That is the two-tier budget working as designed — the CODE side did not
+move to buy it.
+
+#### Out of scope — recorded, deliberately NOT fixed
+
+1. **The admin scheduling routes return 500 in production today, and the 500 fires at the
+   PRE-EXISTING read, not at the new guard.** Both handlers take their first look with
+   `this.prisma.post.findFirst` OUTSIDE the transaction (`cancelScheduledPost` `:326-336`,
+   `reschedulePost` `:455-465`), inside the outer `try`. `Post` is tenant-guard enrolled and the
+   guard throws `TenantContextMissingError` on the FIRST guarded operation
+   (`tenantGuard.ts:209-211`), so the request dies there and the outer `catch` answers 500 — the
+   C3 guard's in-transaction read is never reached. **The fix is a cross-tenant authorization
+   decision and belongs to Edward**: `withSystemContext` was NOT applied and no tenant scope was
+   derived, per SECURITY_CANON.
+2. **The envelope asymmetry** — the client route publishes the discriminator in `error.code`, the
+   two admin ones in `details.code` — is the decision already pending with Edward (finding 3
+   above). Untouched.
+3. **`cancelledPublishLogs` reports the count from the read BEFORE the transaction** while
+   `updateMany`'s real `count` is discarded, in BOTH handlers (`reschedulePost` answers
+   `updatedPublishLogs` the same way). Pre-existing, and ironic given this unit's subject. Not
+   fixed — it changes an operator-visible number on a route that currently cannot be reached.
+   **Backlog row SMELL-154**, written with the precise mechanism.
+
+New backlog rows from this pass: **SMELL-153** (the status-word class gate, with the re-measured
+baseline of 7 and the N-COR-9 correction) and **SMELL-154** (the discarded `updateMany` count).
+
+#### The FINAL bounded correction — four items, one of which reverses an earlier one
+
+A second re-gate returned four items. All four are recorded here, including the one whose premise I
+had to contradict.
+
+| #   | Item                                                        | Class    | Resolution                                                                             |
+| --- | ----------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------- |
+| 1   | the confirm suite sits under a mirrored `tests/unit/posts/` | evidence | REVERTED to flat `tests/unit/postChannelRoutes.test.ts`; suffix drop kept — see Item 7 |
+| 2   | a probe comment asserts a measurement that is wrong         | evidence | re-taken by me: **two** rows, not three; comment now names both rows                   |
+| 3   | probe C's restore receipt still names a superseded hash     | doc      | marked superseded, shipped hash named and verified; all 9 receipts swept               |
+| 4   | bare `file:NNN` citations rotted twice inside one pass      | doc      | replaced with quoted text anchors, line numbers demoted to navigation                  |
+
+**Item 1 — the revert, and why the earlier move was wrong.** Measured independently before acting,
+because the item reversed a prior instruction: **29** `apps/api/src` directories have a mirrored
+`tests/unit/` subdirectory and **35** do not, so flat is the MAJORITY; `src/posts` holds four
+modules and three of them (`postRoutes`, `postsService`, `optimizedPostsRoutes`) were already tested
+flat, so mirroring the fourth was the only thing splitting that folder across two conventions; and
+`git log --all` is empty on BOTH paths, so the revert rewrites no history. The `.confirm.` suffix
+stays dropped — that was the move's real gain and it survives the revert. The `@file` header needed
+no edit either way: it is basename-only, and the basename did not change.
+
+**Item 2 — the probe, re-taken rather than trusted.** `hasLiveContent()`'s `|| this._pendingRetraction`
+term deleted from `ChannelPublication.ts`, c3 suite run, flipped rows counted from the assertion
+diff: `UNRESOLVED/true` and `EXCLUDED/true` — **two**, and `PUBLISHED/true` does not flip because
+`_published` alone already makes it live. Restored byte-exact to
+`7edbff7a525ec20c9eeb5c4e8109e915e0ca73c908c125066e72764b6dcca7ab`, `sha256sum -c` → `OK`. The
+comment claimed three. An asserted measurement that does not match reality, written inside the
+comment documenting a probe, by the pass whose purpose was removing exactly that.
+
+**Item 3 — the receipt sweep, widened.** All **9** sha256 occurrences in the `1c-3a` sections were
+checked against the shipped tree, not just the one named: `postRoutes.ts ff5cee8c`,
+`retractionRefusals.ts 2d36c278`, `ChannelPublication.ts 7edbff7a`, `postChannelRoutes.ts 7e125139`
+and `SchedulingPostHandlers.ts c1f33b82` all MATCH; two are already-marked historical captures
+(`350a2597`, `ee9872fe`); probe F's `51bbf9af` already carried its superseded note. Exactly ONE was
+bare — probe C's `51bbf9af` — confirming the re-gate's finding and extending its sweep rather than
+merely reproducing it.
+
+**Item 4 — and the one premise that did not survive measurement.** Three of the four cited
+divergences reproduce: `tasks.md:843` → 866, `tasks.md:1629` → 1652, `tasks.md:753` → 754,
+`tasks.md:1284` → 1294, and "six artefact hits" → **seven**. Two cited coordinates were already
+CORRECT and were left alone (`design.md:519`, `design.md:533`). **The fourth, `tasks.md:778`, is not
+in THIS file** — `rg ':778'` over `tasks.md`, `design.md` and this ledger returns nothing but the
+string `1,778 lines` — **it is in the ENGRAM half of the ledger**, the
+`sdd/post-publish-partial-failure/apply-progress` observation, whose learning 1 cites
+`tasks.md:778`/`:1629`/`design.md:214`/`:528` for the four `#41` corrections. Two of those four are
+right (`design.md:214`, `:528`); the two `tasks.md` ones had rotted, and are anchored on quoted text
+in the merged observation. Recorded here because the two halves of this ledger rot together and a
+reader who greps only the file would conclude the citation was invented. **And the "29 mirrored dirs →
+30" correction was NOT applied, deliberately:** 30 was the count only while the mirrored directory
+existed, and item 1 deletes it. Post-revert the measured count is 29 again, so writing 30 would have
+introduced the very error the item set out to remove — the two items interact, and the number
+describes the tree rather than the document.
+
+**Gates after the final pass** — every one re-measured on this tree, one process at a time:
+
+| Gate                                | Result                                                                                                                                      |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tsc --noEmit -p packages/shared`   | exit **0**                                                                                                                                  |
+| `tsc -b apps/api`                   | exit **0**                                                                                                                                  |
+| `eslint --max-warnings 0` (2 files) | exit **0**, one pass                                                                                                                        |
+| `prettier -c` (5 touched files)     | **all matched files use Prettier code style**                                                                                               |
+| `apps/api` unit tier                | **593 files / 9235 passed / 0 failed / 0 skipped** — the move is file- AND test-count neutral, so the flat path IS collected                |
+| `@core/domain`                      | **10 files / 191 passed** — the item-2 probe's home package, after restore                                                                  |
+| fitness **#9** / **#10**            | **0** / **0**                                                                                                                               |
+| fitness **#30**                     | **20**, ratchet baseline 21                                                                                                                 |
+| fitness **#32**                     | **0**                                                                                                                                       |
+| fitness **#36**                     | exit **0** — run although not requested, because item 1 moves a file inside the tree whose collection globs this gate asserts are non-empty |
+| `pnpm check:circular`               | **No circular dependency found**                                                                                                            |
+
+Budget impact of this pass: **CODE 0**, EVIDENCE ~0 net — item 1 is a move (net 0), item 2 edits one
+comment (+2), items 3 and 4 are ledger prose. The unit's shipped totals (CODE 348, EVIDENCE 888) are
+unchanged on the CODE side and stay under the 400 hard budget.
+
+---
+
+### RDD receipt — the committed unit `1c-3a` (`e1766780` → `181ce363`)
+
+Lineage `review-6816e57e734ea5ec`, ONE lens (`review-reliability`), risk **medium**, scope **12
+files / 2109 lines**. **Approved with ZERO blockers**, `authority: burned`. Consent `granted` under
+Edward's standing rule for review envelopes (RDD consent/v3 on `review start` only; every other
+consent stays manual). Four advisory findings: two WARNING, two SUGGESTION, all `inferential` /
+`introduced`.
+
+**The narratives below are quoted VERBATIM, and that is not decoration.** The capture envelope
+retains only id, lens, location, severity and disposition; the claim itself lives in the review
+transaction, and that transaction's authority is burned. A previous unit in this change lost four
+narratives exactly that way. A later reader must be able to judge the claim, not take this
+document's word for it.
+
+Citations below are **quoted text anchors**, not `file:NNN` — this change already measured that line
+citations rot across a correction pass.
+
+|   # | Finding                              | Lens               | Severity   | Class                    | Disposition                                                                                                                        |
+| --: | ------------------------------------ | ------------------ | ---------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+|   1 | `R3-toAppError-instanceof-narrowing` | review-reliability | WARNING    | inferential / introduced | **FIXED** — the declared type was the wrong side; it now says `UseCaseError` and the read is unconditional                         |
+|   2 | `R3-cas-lost-swap-outer-catch`       | review-reliability | WARNING    | inferential / introduced | **FIXED** — the lost swap is converted AT the swap, so the discriminator no longer depends on a neighbouring statement             |
+|   3 | `R3-refusal-mapping-total-record`    | review-reliability | SUGGESTION | inferential / introduced | **FIXED** — the binding now asserts the code that travelled is a member of the wire vocabulary, and is driven from the refusal set |
+|   4 | `R3-c3-test-file-oversized`          | review-reliability | SUGGESTION | inferential / introduced | **REJECTED**, with reasoning — one coherent subject; the split it proposes is the sibling pattern this unit just removed           |
+
+#### 1 — `R3-toAppError-instanceof-narrowing` (WARNING, reliability)
+
+**Location**: `apps/api/src/posts/postChannelRoutes.ts`, the `toAppError` translation — anchored on
+`"function toAppError("` and its first statement.
+
+> "toAppError declares its `error` parameter as `{ code: string; message: string }` (a non-Error
+> shape) but then tests `error instanceof Error` to decide whether to call `refusalOf`. If the use
+> case returns a plain object (matching the declared type) rather than an Error instance,
+> `instanceof Error` is false, `refusalOf` is skipped, and a RetractionRefusalError-shaped failure
+> would fall through to the `switch` on `error.code` and land in the `default` branch producing a
+> generic 500 instead of a mapped 409 with the discriminator. The tests always feed real Error
+> subclasses so this branch is never exercised at odds with the declared parameter type; the type
+> declaration and the runtime narrowing disagree about what `error` can be."
+
+**Which side is true was decided by reading the producer, not by preference.** Every `err` arm of
+`ConfirmManualRetractionUseCase` returns a `UseCaseError`: the three `new UseCaseError(...)` in
+`execute`/`confirm`, the `new RetractionRefusalError(...)` (which `extends UseCaseError`), and both
+`publicationRefusal` / `publicationSaveFailure`, whose signatures are `(error: Error): UseCaseError`.
+The outer `catch` returns one too. So **the DECLARED TYPE was the wrong side**, and it is the side
+that changed: the parameter now reads `UseCaseError`, the call site's `result.error` already carries
+that type, and the compiler now holds the guarantee the `instanceof` was re-checking by hand.
+
+**The narrative's stated consequence is one notch off, and the real one is worse.** A refusal
+arriving as the declared plain shape would NOT have produced a 500: `RetractionRefusalError` carries
+`code: USE_CASE_ERRORS.CONFLICT`, so it lands on the `switch`'s `CONFLICT` arm and answers
+`AppError.conflict` — a **409 with `RESOURCE_CONFLICT`**. The status code is identical and only the
+field a caller branches on silently disappears. A 500 would have been loud; this is the quiet
+version, which is exactly the defect the discriminator exists to remove.
+
+**The red, taken first, at the route.** A new permanent case feeds the double a refusal in the shape
+the OLD signature declared and asserts the discriminator survives:
+
+```text
+ FAIL  tests/unit/postChannelRoutes.test.ts > … > keeps the discriminator on a refusal that is not
+   this realm's Error, because the read is by VALUE
+AssertionError: expected 'RESOURCE_CONFLICT' to be 'NOTHING_PENDING' // Object.is equality
+      Tests  1 failed | 9 passed (10)
+```
+
+That is the measurement behind the correction above, and it is why the case stayed rather than being
+deleted once the type was narrowed. **`refusalOf` reads a STRING on purpose** — its own doc says so:
+"a caller in another package compares a string rather than a constructor, so a duplicate module
+instance … cannot silently turn a known refusal into an unknown one." The `instanceof Error` gate
+was quietly cancelling that guarantee one level up. The case pins the property for a refusal that
+crossed a realm or came from a duplicated module, which is precisely what a constructor check cannot
+survive.
+
+**Not done, and named**: the parameter was NOT widened to `unknown` with the same branch kept. That
+would have preserved the disagreement under a type that admits everything, which is the shape the
+brief refused and the right refusal.
+
+#### 2 — `R3-cas-lost-swap-outer-catch` (WARNING, reliability)
+
+**Location**: `apps/api/src/admin/SchedulingPostHandlers.ts`, BOTH writers — anchored on the two
+occurrences of `".catch((error: unknown) => {"` that follow `"withGucBoundTransaction("`, in
+`cancelScheduledPost` and `reschedulePost`, plus the former `isLostStatusSwap` helper.
+
+> "The `withGucBoundTransaction(...).catch(...)` chain catches P2025 only. If Prisma raises a P2025
+> for a DIFFERENT operation than the compare-and-swap update inside the same transaction (for
+> example, if the `publishLog.updateMany` were later changed to a `publishLog.update` on an id that
+> could vanish), the catch would misinterpret it as a lost status swap and answer 409, masking a
+> distinct fault as a race. The current code only issues `updateMany` for logs (which does not throw
+> P2025), so no such collision exists today, but the discriminator relies solely on the error code,
+> not on which statement raised it. Consider narrowing (for example, by rethrowing unless the swap
+> itself failed, e.g., using a sentinel around the CAS update)."
+
+**The claim is correct, and the trap was live — measured, not reasoned about.** The double gained a
+`logUpdateRejectsWith` option so `publishLog.updateMany` can raise `P2025`, and two cases (one per
+writer) assert that fault stays a 500. On the pre-fix code, both answered 409:
+
+```text
+ FAIL  … C3 guard on cancelScheduledPost > keeps a P2025 raised by a statement OTHER than the swap
+   a 500, not a lost race
+AssertionError: expected 409 to be 500 // Object.is equality
+ FAIL  … C3 guard on reschedulePost > keeps a P2025 raised by a statement OTHER than the swap a
+   500, not a lost race
+AssertionError: expected 409 to be 500 // Object.is equality
+      Tests  2 failed | 15 passed (17)
+```
+
+So this was **not** a probe of already-correct behaviour. The inertness the finding describes is the
+inertness of a trap: the answer was right only because the neighbouring statement happens to be an
+`updateMany`, which reports a miss as a count. Make the log write single-row and a genuinely
+different fault reaches the operator as "the post moved on" — the worst kind of wrong answer,
+because it is plausible.
+
+**FIXED by converting at the statement that lost, which is the narrowest shape that makes the
+property local.** `isLostStatusSwap` is gone; in its place a `swapStatus` method on the handler
+issues the compare-and-swap, catches ONLY its own rejection, and rethrows it as a module-private
+`LostStatusSwapError`. Both `.catch` arms now test `error instanceof LostStatusSwapError`. Three
+choices inside that, each deliberate:
+
+- **Raising rather than returning `{ kind: "raced" }` from inside the transaction.** An early return
+  COMMITS. Today nothing is written before the swap, so the two are indistinguishable — and that is
+  the same "true because of a neighbouring fact" the finding is about, one axis over. Raising keeps
+  the rollback the abort already had, so a write added BEFORE the swap cannot commit on this path
+  either.
+- **`instanceof` on a module-private class, not a value read.** The canon's value-read rule
+  (`domainCode`, `refusalOf`) exists for types that cross a DUAL CONDITIONAL EXPORT, where two copies
+  of one class can coexist. `LostStatusSwapError` is declared and constructed in this one
+  non-exported file in `apps/api`, so there is exactly one constructor and no duplicate to survive.
+- **Extracting the swap rather than wrapping it twice.** The two writers issued the identical
+  `where` and the identical allowlist spread; one helper is what keeps the conversion from drifting
+  between them, which is the same reason `DIRECT_WRITABLE_STATUSES` is named once.
+
+The original Prisma rejection is carried as `cause`, so nothing about the underlying failure is
+thrown away.
+
+#### 3 — `R3-refusal-mapping-total-record` (SUGGESTION, reliability)
+
+**Location**: `apps/api/src/posts/postChannelRoutes.ts`, the `REFUSAL_WIRE_CODES` mapping, and its
+driving case in `apps/api/tests/unit/postChannelRoutes.test.ts` — anchored on
+`"const REFUSAL_WIRE_CODES: Record<RetractionRefusal, ErrorCode>"` and on the case
+`"publishes EVERY declared retraction refusal as its own wire code, not a flat conflict"`.
+
+> "The Record<RetractionRefusal, ErrorCode> is intentionally total, and the test suite drives
+> Object.values(RETRACTION_REFUSALS) to prove exhaustiveness. However, adding a new refusal value
+> that has no corresponding ErrorCode enum member would fail to compile, but the test that iterates
+> refusals would then fail at runtime with a mapping to a code that has no ErrorCode member; the
+> case would still assert `res.error.code === refusal` (a string), which is a soft binding rather
+> than a compile binding. Consider augmenting the binding case to also assert `refusal in ErrorCode`
+> so a missing wire code is caught at test time, not only at compile time."
+
+**The hole is precise, and naming it precisely is what made the probe possible.** A new refusal
+mapped to some EXISTING `ErrorCode` already fails today — the response code would not equal the
+refusal. What slips through is the mapping written as a CAST: `"FOO" as ErrorCode` type-checks,
+satisfies `toBe(refusal)` because two identical strings compare equal, and publishes a code no
+client can find in the enum.
+
+**FIXED on both halves.** The exhaustiveness loop keeps `toBe(refusal)` and adds
+`expect(WIRE_CODES, refusal).toContain(...)` over the code that actually travelled, where
+`WIRE_CODES` is `Object.values(ErrorCode)` read once. And the "spelled the same" case — which named
+`NOTHING_PENDING` by hand and therefore never covered `CHANNEL_HAS_LIVE_FRAGMENTS` at all — is now
+driven from `Object.values(RETRACTION_REFUSALS)`.
+
+**The red, taken by probe, because the behaviour is already correct.** Two production files were
+mutated to reconstruct the pre-fix hole: `RETRACTION_REFUSALS.CHANNEL_HAS_LIVE_FRAGMENTS`'s VALUE
+became `"CHANNEL_FRAGMENTS_LIVE"` and the mapping became
+`"CHANNEL_FRAGMENTS_LIVE" as unknown as ErrorCode`.
+
+```text
+ FAIL  … > publishes EVERY declared retraction refusal as its own wire code, not a flat conflict
+AssertionError: CHANNEL_FRAGMENTS_LIVE: expected [ 'AUTH_INVALID_CREDENTIALS', …(25) ] to include
+  'CHANNEL_FRAGMENTS_LIVE'
+ ❯ tests/unit/postChannelRoutes.test.ts:230
+ FAIL  … > keeps the wire code and the application discriminator spelled the same
+AssertionError: CHANNEL_FRAGMENTS_LIVE: expected [ 'AUTH_INVALID_CREDENTIALS', …(25) ] to include
+  'CHANNEL_FRAGMENTS_LIVE'
+      Tests  2 failed | 8 passed (10)
+```
+
+**That the failure is on the SECOND assertion is the whole proof.** Vitest stops a case at its first
+failing expectation, so reaching the `toContain` line means the pre-existing `toBe(refusal)` line
+PASSED for a wire code `ErrorCode` never declared — which is the soft binding the finding named,
+demonstrated rather than asserted.
+
+Restored byte-exact and proved: `sha256sum -c` → `packages/core/posts/src/retractionRefusals.ts:
+OK`, `packages/shared/src/errors.ts: OK`; `rg CHANNEL_FRAGMENTS_LIVE packages/core apps/api` → no
+matches; `@core/posts` back at **6 files / 99 passed**, its untouched baseline.
+
+#### 4 — `R3-c3-test-file-oversized` (SUGGESTION, reliability) — **REJECTED**
+
+**Location**: `apps/api/tests/unit/SchedulingPostHandlers.c3.test.ts`, whole file.
+
+> "The new C3 test file is 638 lines, which is a large single suite. While the two describe blocks
+> share one prisma double (the stated rationale), the file contains near-duplicate case bodies
+> between the two `describe` blocks (identical setups for cancel vs reschedule). A helper that
+> parameterizes the operation would reduce drift risk between the two handler suites without adding
+> a third file. Not a correctness defect; noted for maintainability of the reliability harness."
+
+**Rejected, and the reasoning is the record.** The file covers ONE coherent subject — the C3 guards
+on the two admin status writers — and its own header says why the two suites share a file: "the
+guards are the same mechanism twice, and a single double is what keeps them from drifting apart."
+Splitting it would reintroduce the aspect-suffix sibling pattern that this unit's correction pass
+spent item 7 REMOVING (see §"Item 7 — the confirm suite drops its aspect suffix and STAYS FLAT").
+**Size alone is not a defect when the subject is single.**
+
+**Read before rejecting, and the finding's own alternative was weighed on its merits rather than
+dismissed with the split.** The finding offers two remedies and they are not equivalent: a third
+file (refused above) and a parameterizing helper. The helper is refused for a different reason. The
+near-duplicate setups are not duplication to be factored — they are what makes each case READABLE at
+the point of failure: a parameterized harness answers "which operation" with a loop variable, and
+the two handlers genuinely differ (the cancellation takes no body and has a status pre-check;
+the reschedule takes `scheduledAt`/`updateChannels` and has none). A helper would have to carry both
+shapes, and the reader would then be reconstructing the case from the helper rather than reading it.
+The drift risk the finding names is already closed by the SHARED DOUBLE, which is the thing both
+suites actually depend on.
+
+**The file grew to 694 lines in this pass** (the two new `P2025`-not-a-swap cases and the
+`recordNotFound` helper, which removes an inline duplicate of the same construction). The rejection
+is re-affirmed at the larger size, for the same reason: the subject did not change.
+
+#### Gates after this review recording — every one re-measured on this tree, one process at a time
+
+| Gate                                                 | Result                                                                                        |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `tsc --noEmit -p packages/shared`                    | exit **0**                                                                                    |
+| `tsc -b apps/api`                                    | exit **0**                                                                                    |
+| `tsc --noEmit` over the two touched suites           | exit **0** — `apps/api/tsconfig.json` does NOT include `tests/`, so the suites need this pass |
+| `eslint --max-warnings 0` (4 touched files)          | exit **0**, ONE pass                                                                          |
+| `prettier -c` (4 touched files + this ledger)        | **all matched files use Prettier code style**                                                 |
+| `apps/api` unit tier                                 | **593 files / 9238 passed / 0 failed / 0 skipped** (baseline 9235 → **+3**)                   |
+| `@core/posts`                                        | **6 files / 99 passed** — unchanged, which is also the probe-restore proof                    |
+| fitness **#1 #3 #4 #5 #6 #8 #9 #10 #21 #23 #32 #41** | every one exit **0**, run from the blocks extracted textually from `fitness.yml`              |
+| fitness **#38**                                      | swept tree **0**; db-prisma ratchet **11** at baseline 11 — run because a scoped file changed |
+| fitness **#40**                                      | part A **0**, part B **0** — run because a file inside the seam scope changed                 |
+| `pnpm check:circular`                                | **No circular dependency found**                                                              |
+| `pnpm check:dead-code`                               | **0 regressions** (321 tracked baseline findings)                                             |
+
+The three added tests, attributed: **+1** `postChannelRoutes.test.ts` ("keeps the discriminator on a
+refusal that is not this realm's Error…", finding 1); **+2**
+`SchedulingPostHandlers.c3.test.ts` (the "keeps a P2025 raised by a statement OTHER than the swap a
+500" pair, finding 2, one per writer). Finding 3 strengthened EXISTING cases in place, so it adds a
+case count of zero — which is why the file count is unchanged at 593.
+
+#### Budget after this review recording — measured from `git diff --numstat 181ce363~1`
+
+| Tier         | Unit as shipped | After this pass | Delta |
+| ------------ | --------------- | --------------- | ----- |
+| **CODE**     | 348             | **400**         | +52   |
+| **EVIDENCE** | 888             | **997**         | +109  |
+
+CODE: `SchedulingPostHandlers.ts` 224/−23 · `postChannelRoutes.ts` 158 · `postRoutes.ts` 10 ·
+`errors.ts` 8. EVIDENCE: `SchedulingPostHandlers.c3.test.ts` 694 · `postChannelRoutes.test.ts` 290 ·
+`mockPrisma.ts` 8/−3 · `schedulingRoutes.test.ts` 5.
+
+**CODE lands at EXACTLY 400 against the hard 400 — at the budget, not over it, and with ZERO
+headroom left.** No `size:exception` is owed, and none was avoided by shrinking a fix: the two
+production diffs are +60/−29 and +13/−3 against `181ce363`, and every added line is either the
+sentinel and its helper (finding 2, which also DELETES two six-line inline compare-and-swaps) or the
+JSDoc stating why each side is the true one. Saying it loudly because the next person to touch this
+unit's production files has no room: the next CODE line owes an exception, or a split.
