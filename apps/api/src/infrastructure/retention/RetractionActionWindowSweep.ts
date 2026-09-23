@@ -36,6 +36,19 @@
  *              younger row on that page waiting for a tick that never gets past the
  *              same poison. A refused row is counted, named at ERROR, and left in
  *              the predicate, so the next tick selects it again.
+ *
+ *              A row can refuse in TWO ways and this holds for both. The dependency
+ *              is named by its CONTRACT, which promises a `Result` and says nothing
+ *              about not rejecting, so "it does not throw" would be a property of
+ *              whichever class the composition root passes — not of this sweep. An
+ *              unguarded rejection would abandon the rest of the page, skip the
+ *              summary log and leave the failure counter unmoved, which is the exact
+ *              outcome the paragraph above exists to prevent. Both refusals land in
+ *              the same `failed` arm with the same counter and the same message,
+ *              and they are told apart by the reported `code`: an `err` carries the
+ *              use case's own, a rejection carries
+ *              `RETRACTION_ACTION_WINDOW_SWEEP_REJECTED_CODE`, because a rejection
+ *              breaks the contract while an `err` is the contract working.
  * @layer infrastructure
  */
 
@@ -44,6 +57,7 @@ import type {
   ExpireRetractionActionWindowOutput,
 } from "@core/posts/index.js";
 import type { UseCase, UseCaseError } from "@core/application/UseCase.js";
+import type { Result } from "@shared/types";
 import type {
   PendingRetractionSweepReader,
   PendingRetractionSweepRow,
@@ -63,6 +77,15 @@ export const RETRACTION_ACTION_WINDOW_SWEEP_INTERVAL_MS = 15 * 60 * 1000;
 
 /** Rows read per tick. Matches the partial index that serves the predicate. */
 export const RETRACTION_ACTION_WINDOW_SWEEP_PAGE_SIZE = 100;
+
+/**
+ * The `code` reported for a row whose use case REJECTED instead of answering with a
+ * `Result`. Deliberately not one of `USE_CASE_ERRORS`: those are refusals the
+ * contract provides for, and an operator reading `INTERNAL_ERROR` here would be
+ * reading a refusal that never happened. This value says the dependency broke its
+ * own signature, which is a different thing to go and fix.
+ */
+export const RETRACTION_ACTION_WINDOW_SWEEP_REJECTED_CODE = "USE_CASE_REJECTED";
 
 /** Milliseconds in an hour, named so the conversion below reads as one. */
 const MS_PER_HOUR = 60 * 60 * 1000;
@@ -147,22 +170,38 @@ export class RetractionActionWindowSweep {
     let failed = 0;
 
     for (const row of rows) {
-      // Bound OUTSIDE the discovery scope above — see the file header. Both
-      // isolation layers hold on the write only because this is the only scope
-      // active when the use case runs.
-      const settled = await withTenantContext({ accountId: row.accountId }, () =>
-        this.expireWindow.execute({
-          postId: row.postId,
-          channelId: row.channelId,
-          now,
-          window,
-        })
-      );
+      let settled: Result<ExpireRetractionActionWindowOutput, UseCaseError>;
+      try {
+        // Bound OUTSIDE the discovery scope above — see the file header. Both
+        // isolation layers hold on the write only because this is the only scope
+        // active when the use case runs.
+        settled = await withTenantContext({ accountId: row.accountId }, () =>
+          this.expireWindow.execute({
+            postId: row.postId,
+            channelId: row.channelId,
+            now,
+            window,
+          })
+        );
+      } catch (error: unknown) {
+        // Only the call that can reject is guarded, so a counter or a log that
+        // threw could never be read as this row refusing.
+        failed += 1;
+        recordActionWindowSweepFailure();
+        this.reportFailure(row, {
+          code: RETRACTION_ACTION_WINDOW_SWEEP_REJECTED_CODE,
+          // A rejection is not required to be an Error, or to be one of THIS
+          // realm's: a driver or a boundary can hand back anything at all, and
+          // reading `.name` off it would be reading a field that may not exist.
+          errorType: error instanceof Error ? error.name : "unknown",
+        });
+        continue;
+      }
 
       if (!settled.ok) {
         failed += 1;
         recordActionWindowSweepFailure();
-        this.reportFailure(row, settled.error);
+        this.reportFailure(row, { code: settled.error.code, errorType: settled.error.name });
         continue;
       }
 
@@ -191,21 +230,29 @@ export class RetractionActionWindowSweep {
 
   /**
    * @method reportFailure
-   * @description Names the row that could not be settled, at ERROR, with the error's
+   * @description Names the row that could not be settled, at ERROR, with the refusal's
    *   code and type rather than its message. The remedy for a repeating failure is
    *   that row's own cause, so the identifiers have to be in the entry; the message
    *   is not, because a persistence error can quote the failing statement.
+   *
+   *   ONE entry shape for both refusal kinds. The caller derives the two strings
+   *   because only the caller knows which kind it caught, and an operator alerting on
+   *   this message must not have to match two payload shapes to see the same event.
    * @param row - The row discovery selected
-   * @param error - The refusal the use case returned
+   * @param refusal - The refusal's code and error type, derived by the caller
+   * @returns Nothing; the entry is the whole effect
    */
-  private reportFailure(row: PendingRetractionSweepRow, error: UseCaseError): void {
+  private reportFailure(
+    row: PendingRetractionSweepRow,
+    refusal: { readonly code: string; readonly errorType: string }
+  ): void {
     this.logger.error(
       {
         postId: row.postId,
         channelId: row.channelId,
         accountId: row.accountId,
-        code: error.code,
-        errorType: error.name,
+        code: refusal.code,
+        errorType: refusal.errorType,
       },
       "Retraction action window not closed; the row stays pending and the next tick retries it"
     );

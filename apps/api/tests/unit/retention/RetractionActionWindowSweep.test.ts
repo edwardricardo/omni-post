@@ -20,6 +20,16 @@
  *              that stops at the first refusal would leave every younger row of
  *              the same page waiting for a tick that never gets past the same
  *              poison (S-a-4).
+ *
+ *              S-a-4 has TWO shapes, and only one of them was exercised here. A
+ *              use case can refuse by returning `err`, and it can refuse by
+ *              REJECTING — the sweep names its dependency by the CONTRACT
+ *              `UseCase<In, Out, Err>`, which says nothing about not throwing, so
+ *              the property was held by the class the composition root happens to
+ *              pass rather than by the sweep. The two are counted the same and
+ *              reported apart: same `failed` arm, same counter, same message, and
+ *              a `code` that says which one happened, because a rejection is a
+ *              violation of the contract while an `err` is the contract working.
  * @layer infrastructure
  */
 
@@ -27,6 +37,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import client from "prom-client";
 import {
   RETRACTION_ACTION_WINDOW_SWEEP_PAGE_SIZE,
+  RETRACTION_ACTION_WINDOW_SWEEP_REJECTED_CODE,
   RetractionActionWindowSweep,
   type RetractionActionWindowSweepLogger,
 } from "../../../src/infrastructure/retention/RetractionActionWindowSweep.js";
@@ -101,9 +112,10 @@ interface ExpireCall {
 
 /**
  * The use-case double. `outcomes` is keyed by postId: `true` applied, `false`
- * raced (already settled), `"fail"` refused.
+ * raced (already settled), `"fail"` refused with an `err`, `"reject"` rejected
+ * with an `Error`, `"reject-alien"` rejected with something that is not one.
  */
-function makeExpireUseCase(outcomes: Record<string, boolean | "fail">) {
+function makeExpireUseCase(outcomes: Record<string, boolean | "fail" | "reject" | "reject-alien">) {
   const calls: ExpireCall[] = [];
   const useCase = {
     execute: async (input: { postId: string; channelId: string; now: Date; window: number }) => {
@@ -111,6 +123,14 @@ function makeExpireUseCase(outcomes: Record<string, boolean | "fail">) {
       const outcome = outcomes[input.postId] ?? true;
       if (outcome === "fail") {
         return err(new UseCaseError("boom", USE_CASE_ERRORS.INTERNAL_ERROR));
+      }
+      if (outcome === "reject") {
+        throw new TypeError("the use case rejected instead of returning a Result");
+      }
+      if (outcome === "reject-alien") {
+        // Not an Error, and not even of this realm's Error: a driver, a worker
+        // boundary or a serialized rejection can hand back anything at all.
+        throw { code: "P2028" };
       }
       return ok({
         postId: input.postId,
@@ -234,6 +254,60 @@ describe("RetractionActionWindowSweep", () => {
       JSON.stringify(payload).includes("post-poison")
     );
     expect(failureLog, "the failed row is not named in any log entry").toBeDefined();
+  });
+
+  it("S-a-4: counts a REJECTING row the same as a refusing one, and keeps sweeping", async () => {
+    const { reader } = makeReader([makeRow("a"), makeRow("thrower"), makeRow("c")]);
+    const { calls, useCase } = makeExpireUseCase({ "post-thrower": "reject" });
+    const logger = makeLogger();
+
+    const summary = await new RetractionActionWindowSweep(
+      reader,
+      useCase,
+      WINDOW_HOURS,
+      logger
+    ).sweep(inSystemScope);
+
+    // The rejecting row sits between two healthy ones for the same reason the
+    // refusing one does: an unguarded rejection loses `post-c` and not `post-a`,
+    // and takes the summary log and the counter with it.
+    expect(calls.map((c) => c.postId)).toEqual(["post-a", "post-thrower", "post-c"]);
+    expect(summary).toEqual({ scanned: 3, expired: 2, skipped: 0, failed: 1 });
+    expect(await counterValue("retraction_action_window_sweep_failures_total")).toBe(1);
+
+    const failureLog = logger.entries.find(([payload]) =>
+      JSON.stringify(payload).includes("post-thrower")
+    );
+    expect(failureLog, "the rejecting row is not named in any log entry").toBeDefined();
+    // Reported APART from an `err`: the contract this sweep depends on returns a
+    // Result, so a rejection is a violation of it and an operator who read
+    // INTERNAL_ERROR here would be reading a refusal that never happened.
+    expect(failureLog![0]).toMatchObject({
+      code: RETRACTION_ACTION_WINDOW_SWEEP_REJECTED_CODE,
+      errorType: "TypeError",
+    });
+  });
+
+  it("names a rejection that is not an Error at all rather than reading a field off it", async () => {
+    const { reader } = makeReader([makeRow("alien")]);
+    const { useCase } = makeExpireUseCase({ "post-alien": "reject-alien" });
+    const logger = makeLogger();
+
+    const summary = await new RetractionActionWindowSweep(
+      reader,
+      useCase,
+      WINDOW_HOURS,
+      logger
+    ).sweep(inSystemScope);
+
+    expect(summary).toEqual({ scanned: 1, expired: 0, skipped: 0, failed: 1 });
+    const failureLog = logger.entries.find(([payload]) =>
+      JSON.stringify(payload).includes("post-alien")
+    );
+    expect(failureLog![0]).toMatchObject({
+      code: RETRACTION_ACTION_WINDOW_SWEEP_REJECTED_CODE,
+      errorType: "unknown",
+    });
   });
 
   it("logs the tick summary itself, so an all-failing tick is not read as an idle one", async () => {

@@ -798,16 +798,31 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       `tests/unit/retention/DeletionRecordDegrader.test.ts`, so flat here would be the thing that
       splits one source folder across two conventions — the `1c-3a` reasoning, applied where it
       points the other way. (3) The sweep depends on the use case's CONTRACT
-      (`UseCase<Input, Output, UseCaseError>`), not the concrete class: measured, **109** sites in
-      `apps/api/src` name a concrete `*UseCase` class and **0** name the contract, and the cost of
-      that convention is visible in `RecurrenceScheduler.test.ts`, whose every double is `as never`
-      and therefore unchecked. A scratchpad `tsc` caught this; vitest could not.
+      (`UseCase<Input, Output, UseCaseError>`), not the concrete class: measured, **136** constructor
+      parameters in `apps/api/src` name a concrete `*UseCase` class and **0** name the contract
+      inline (the 109 first recorded here reproduces under no definition; re-measured by parsing
+      every `constructor(` parameter list in the 562 non-test files, the count is 136 and the "0 by
+      contract" half is exact). The cost of that convention is visible in
+      `RecurrenceScheduler.test.ts`, whose every double is `as never` and therefore unchecked. A
+      scratchpad `tsc` caught this; vitest could not.
       (4) The discovery read is NOT container-registered: both it and the sweep are constructed at
       the bootstrap, so no new token exists to resolve to `undefined` in silence.
       **Metrics**: both counters are incremented by the sweep on its own production paths, and
       `..._sweep_failures_total` is deliberately unlabelled — every arm would carry the same remedy,
       which is the row's cause in the ERROR log beside it. **CODE 455 over the 400 budget**; see
-      the `1c-3b` apply-progress entry. — sha: pending (orchestrator commits)
+      the `1c-3b` apply-progress entry.
+      **(5) DONE EXCEPT FOR TWO ENTRIES AN EXECUTOR MAY NOT WRITE.** This line names three
+      documentation targets; `docs/deployment/ENVIRONMENT_VARIABLES.md` landed with the commit, and
+      the `.env.example` / `.env.test.example` entries did NOT — those files are off limits to an
+      executor, and a task ticked over two absent deliverables is a tick that says something untrue.
+      The two blocks are derived from the Zod schema and sit paste-ready in the `1c-3b`
+      apply-progress ledger for the orchestrator to place; `design.md` rev 3.9 carries the same
+      note beside the sentence that asserted both were documented.
+      **(6) THE BOUNDED CORRECTION (follow-up commit).** The bootstrap scan this line's registration
+      is read by could be satisfied by a COMMENT, and a rejecting `execute` would have abandoned the
+      rest of the page — both fixed with their reds demonstrated; the tier, EVIDENCE and DOC figures
+      recorded for this task were measured before a third suite existed and are corrected. See the
+      correction section at the end of the `1c-3b` apply-progress entry. — sha: pending (orchestrator commits)
 - [x] **T1c.17 RED→GREEN** — **C3 guards (W-new-2)**, in the PR where the materialized word goes live:
       `apps/api/src/admin/SchedulingPostHandlers.ts` — `reschedulePost` (`:327-360`) re-reads INSIDE
       its `withGucBoundTransaction` with `channelPublications`, refuses 409 when `hasLiveContent()`,

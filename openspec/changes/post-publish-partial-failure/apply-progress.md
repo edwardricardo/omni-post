@@ -5632,12 +5632,18 @@ fields into the contract, so no double can satisfy it and no second implementati
 sweep now names `UseCase<ExpireRetractionActionWindowInput, ExpireRetractionActionWindowOutput,
 UseCaseError>`.
 
-**This is a CLASS, and it was probed rather than asserted.** Measured in `apps/api/src`:
-**109** constructor parameters typed as a concrete `*UseCase` class, **0** typed as the `UseCase<>`
-contract. The cost of that convention is visible one file away — `RecurrenceScheduler.test.ts`
+**This is a CLASS, and it was probed rather than asserted.** Measured in `apps/api/src` — and the
+number below is CORRECTED from the 109 first recorded here, which no definition reproduces.
+Re-measured by parsing every `constructor(` parameter list in the 562 non-test `.ts` files under
+`apps/api/src` (balanced paren spans, string- and comment-aware, split on top-level commas) and
+classifying each parameter's type annotation: **136** are a bare concrete `*UseCase` class name,
+**0** spell the `UseCase<>` contract inline, and **0** use an `InstanceType<typeof *UseCase>` form.
+Exactly ONE site in the tree names the contract at all, through an exported alias, and it is the one
+this unit added (`ExpireRetractionActionWindow` in the sweep) — so the ratio is 136 to 1, and the
+"0 by contract" half of the original claim is the half that reproduces exactly. The cost of that convention is visible one file away — `RecurrenceScheduler.test.ts`
 constructs every one of its doubles as `as never` (`:66-69`, `:82-83`), which means none of them is
 type-checked and a double returning the wrong shape would compile. This unit is the first site to
-diverge; it is 1 of 110 and is named here rather than spread. Backlog candidate below.
+diverge; it is 1 of 137 and is named here rather than spread. Backlog candidate below.
 
 ### Design-silent decisions, taken here and named
 
@@ -5683,7 +5689,7 @@ across `apps/**/tests` and `packages/**/tests`, which returns only the two suite
 
 ### The scratchpad tsc probe — run, and it caught the unit's one real defect
 
-No tsconfig opens a `.test.ts`, so the habit from the last five units was repeated over the four
+No tsconfig opens a `.test.ts`, so the habit from the last five units was repeated over the five
 touched test files. It found **6 errors, all one defect**: the concrete-class dependency of
 correction 3. Second run after the fix: **exit 0, zero errors** — in the touched tests and in
 `apps/api/src` + every `packages/*/src` the config pulls in. **Sixth distinct defect class the probe
@@ -5691,25 +5697,29 @@ has caught in six units**, and the permanent-config decision is now six for six.
 
 ### Gates
 
-| Gate                                                         | Result                                                                                                                              |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `tsc --noEmit -p packages/shared`                            | exit **0**                                                                                                                          |
-| `tsc -b apps/api`                                            | exit **0**                                                                                                                          |
-| scratchpad `tsc` over the 4 touched test files               | **6 errors → fixed → exit 0** (see above)                                                                                           |
-| `eslint --max-warnings 0`, 11 files, ONE pass                | exit **0** (the `[boundaries]` plugin advisories are pre-existing — reproduced on an untouched file)                                |
-| `prettier -c`, 12 files                                      | 2 reflows applied, then **All matched files use Prettier code style**                                                               |
-| the new suites                                               | `RetractionActionWindowSweep.test.ts` **6/6**, `PendingRetractionSweepReads.test.ts` **4/4**                                        |
-| `apps/api` unit tier (`vitest run --maxWorkers=2`)           | **595 files / 9256 passed / 0 failed / 0 skipped**, exit 0 (baseline 593 / 9238)                                                    |
-| `integration:saga-recovery` (3 suites, conc. 1)              | **33 tests, 33 pass, 0 fail, 0 cancelled, 0 skipped**, runner exit **0** — Postgres and Redis on `omnipost-infra` verified UP first |
-| fitness **#1 #3 #4 #5 #6 #8 #9 #10 #11 #16 #21 #23 #32 #40** | every one exit **0**, run from the blocks extracted textually from `fitness.yml`                                                    |
-| fitness **#11** and **#16** red path                         | PROVEN — see below                                                                                                                  |
-| `pnpm check:circular`                                        | **No circular dependency found** (1614 files)                                                                                       |
-| `pnpm check:dead-code`                                       | **0 regressions** (321 tracked baseline findings)                                                                                   |
+| Gate                                                         | Result                                                                                                                                  |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `tsc --noEmit -p packages/shared`                            | exit **0**                                                                                                                              |
+| `tsc -b apps/api`                                            | exit **0**                                                                                                                              |
+| scratchpad `tsc` over the 4 touched test files               | **6 errors → fixed → exit 0** (see above)                                                                                               |
+| `eslint --max-warnings 0`, 11 files, ONE pass                | exit **0** (the `[boundaries]` plugin advisories are pre-existing — reproduced on an untouched file)                                    |
+| `prettier -c`, 12 files                                      | 2 reflows applied, then **All matched files use Prettier code style**                                                                   |
+| the new suites (THREE, not two)                              | `RetractionActionWindowSweep.test.ts` **6/6**, `PendingRetractionSweepReads.test.ts` **4/4**, `retractionWindowMetrics.test.ts` **5/5** |
+| `apps/api` unit tier (`vitest run --maxWorkers=2`)           | **596 files / 9261 passed / 0 failed / 0 skipped**, exit 0 (baseline 593 / 9238) — CORRECTED from 595 / 9256                            |
+| `integration:saga-recovery` (3 suites, conc. 1)              | **33 tests, 33 pass, 0 fail, 0 cancelled, 0 skipped**, runner exit **0** — Postgres and Redis on `omnipost-infra` verified UP first     |
+| fitness **#1 #3 #4 #5 #6 #8 #9 #10 #11 #16 #21 #23 #32 #40** | every one exit **0**, run from the blocks extracted textually from `fitness.yml`                                                        |
+| fitness **#11** and **#16** red path                         | PROVEN — see below                                                                                                                      |
+| `pnpm check:circular`                                        | **No circular dependency found** (1614 files)                                                                                           |
+| `pnpm check:dead-code`                                       | **0 regressions** (321 tracked baseline findings)                                                                                       |
 
-**The unit tier delta, fully attributed. 593 → 595 files, 9238 → 9256 tests: +2 and +18.**
-`RetractionActionWindowSweep.test.ts` +1 file / +6 · `PendingRetractionSweepReads.test.ts` +1 / +4 ·
-`schedulerTickTenantScope.test.ts` +3 (same file) · `env.test.ts` +5 (same file). 6+4+3+5 = 18,
-exactly, with nothing unexplained.
+**The unit tier delta, fully attributed — CORRECTED. 593 → 596 files, 9238 → 9261 tests: +3 and
++23.** The figures first recorded here (+2 / +18, "nothing unexplained") were measured before the
+third suite existed and then never re-measured, so the completeness claim was carried over a file
+the table did not know about. `RetractionActionWindowSweep.test.ts` +1 file / +6 ·
+`PendingRetractionSweepReads.test.ts` +1 / +4 · `retractionWindowMetrics.test.ts` +1 / +5 ·
+`schedulerTickTenantScope.test.ts` +3 (same file) · `env.test.ts` +5 (same file). 6+4+5+3+5 = 23,
+exactly. The missing suite was present in the commit and passing; only the accounting was wrong,
+which is the kind of error a completeness claim makes worse rather than better.
 
 **#11 and #16 red path, demonstrated rather than assumed.** Both are the gates this task names, and
 a gate that has never gone red over THIS file proves nothing about it. A `setInterval(` call and a
@@ -5726,20 +5736,27 @@ Restored from a byte copy and verified:
 `sha256sum -c` → `apps/api/src/infrastructure/retention/RetractionActionWindowSweep.ts: OK`
 (`adf77560f830e22f292bb0dd95442cd6d5a22261f84f151fe5b970873d785271`), then all 14 checks pass again.
 
-### Budget — measured from `git diff --numstat HEAD` plus `wc -l` on the six untracked files
+### Budget — measured from `git diff --numstat` over the commit (SEVEN new files, not six)
 
-| Stream       | Forecast (order table row 7) | Measured | Delta |
-| ------------ | ---------------------------: | -------: | ----- |
-| **CODE**     |                      **301** |  **455** | +51%  |
-| **EVIDENCE** |                      **305** |  **516** | +69%  |
-| DOC          |                            — |  **394** | —     |
+| Stream       | Forecast (order table row 7) | Measured (commit) | Delta | First recorded |
+| ------------ | ---------------------------: | ----------------: | ----- | -------------- |
+| **CODE**     |                      **301** |           **455** | +51%  | 455 — correct  |
+| **EVIDENCE** |                      **305** |           **621** | +104% | 516 — WRONG    |
+| DOC          |                            — |           **399** | —     | 394 — WRONG    |
 
-CODE: `RetractionActionWindowSweep.ts` 213 · `retractionWindowMetrics.ts` 64 ·
+Additions plus deletions, from `git diff --numstat HEAD~1 HEAD`. CODE:
+`RetractionActionWindowSweep.ts` 213 · `retractionWindowMetrics.ts` 64 ·
 `PendingRetractionSweepReader.ts` 61 · `PendingRetractionSweepReads.ts` 58 · `index.ts` 39/−1 ·
-`config/env.ts` 15 · `db-prisma/src/index.ts` 4. EVIDENCE:
+`config/env.ts` 15 · `db-prisma/src/index.ts` 4 = **455**. EVIDENCE:
 `RetractionActionWindowSweep.test.ts` 255 · `PendingRetractionSweepReads.test.ts` 190 ·
-`env.test.ts` 38 · `schedulerTickTenantScope.test.ts` 33. DOC: this section 340 ·
-`ENVIRONMENT_VARIABLES.md` 25 · `tasks.md` 27/−2.
+**`retractionWindowMetrics.test.ts` 105** · `env.test.ts` 38 ·
+`schedulerTickTenantScope.test.ts` 33 = **621**. DOC: this section 341 ·
+`ENVIRONMENT_VARIABLES.md` 25 · `tasks.md` 27/−2 · `design.md` 3/−1 = **399**.
+
+**The EVIDENCE figure omitted an entire file** — the same omission as the attribution table above,
+from the same cause: both were written before `retractionWindowMetrics.test.ts` existed and neither
+was re-derived from `numstat` afterwards. 516 + 105 = 621. DOC missed `design.md` and was one line
+short on this section.
 
 **CODE lands at 455 against the hard 400: a `size:exception` of 55 lines is OWED, and nothing was
 shrunk to try to avoid it.** The claim is measured, not asserted. Executable lines (comments and
@@ -5761,25 +5778,41 @@ two paragraphs that carry it are the two-scope sequencing and the contract-type 
 the SMELL-149 trap and the defect the `tsc` probe caught. Deleting either is deleting the reason the
 next editor would not re-introduce them.
 
-**And there is no honest SPLIT either.** T1c.16 is one cohesive unit: the parameter without the
-sweep configures nothing, the sweep without the port cannot discover, the port without the
-registration never runs, and the registration without the metrics produces a tick nobody can watch.
-Any two-way cut ships a half that is measurably dead. The exception is therefore for the CODE
-stream of this task as written, not for a scope that could have been trimmed.
+**A SPLIT does exist, and the reason to decline it is a cost, not an impossibility — CORRECTED.**
+The sentence first written here said there was "no honest split", on the argument that "the
+registration without the metrics produces a tick nobody can watch". That argument does not hold:
+the tick logs its `{ scanned, expired, skipped, failed }` summary at INFO on every pass, and the
+registration carries an `onError`, so a metrics-less tick is watchable by log. And the cut is
+arithmetic, not hypothetical — lifting `retractionWindowMetrics.ts` (64) plus the sweep's import
+block (4) and its two call sites (2) leaves CODE at **385**, under the hard 400, with the metrics
+module and its own suite as the next unit.
+
+The exception is still the right call, and here is the true reason for it. That split ships a first
+PR whose only observability is a log line, so an operator has nothing to alert on until the second
+lands; it reopens `RetractionActionWindowSweep.ts` in the very next PR to add three lines back,
+which puts the file through two reviews for one intent; and it pays a whole PR boundary — branch,
+diff, review, merge — for 70 lines. That is a real judgement, and it belongs to whoever signs the
+exception. **What was owed here was the true reason, not an impossibility claim**: an exception
+signed on "there is no alternative" is not the same decision as one signed on "the alternative costs
+more than the overage", and only the second is what was actually being asked.
+
+The other cuts genuinely are dead halves — the parameter without the sweep configures nothing, the
+sweep without the port cannot discover, the port without the registration never runs — so the
+metrics cut is the ONLY split on offer, which is why it is named specifically rather than denied
+generally.
 
 ### For Edward — two findings and one paste-ready block
 
-1. **The bootstrap tick scan can be satisfied by a COMMENT.**
-   `schedulerTickTenantScope.test.ts` sanitizes the source (blanking comments and string interiors)
-   to BALANCE the `scheduler.register(...)` span, and then slices the body out of the ORIGINAL. Its
-   scope assertions run `tick.body.includes("withSystemContext(")` over those original bytes, so a
-   registration whose only `withSystemContext(` is inside a `//` comment passes both scope cases.
-   The sanitized copy is already computed and already index-aligned, so the fix is to slice the body
-   from it as well (keeping the original only if a future case needs to read a reason's text). NOT
-   done here: it is a change to a gate, and this unit's own registration passes on real executed
-   code either way. **Backlog candidate.**
-2. **109 of 110 use-case dependencies in `apps/api/src` are typed as the concrete class.** Measured
-   above. The consequence is not theoretical: `RecurrenceScheduler.test.ts` casts all four of its
+1. **The bootstrap tick scan could be satisfied by a COMMENT — FIXED in the bounded correction
+   below, not deferred.** It was recorded here as a backlog candidate on the reasoning that "it is a
+   change to a gate, and this unit's own registration passes on real executed code either way". That
+   reasoning is wrong twice over. The file was MODIFIED by this unit (it gained the three sweep
+   cases), so a demonstrated red path is owed for it by the four-step rule for extending the suite,
+   and it was never taken for these assertions. And the gate certified green over exactly the defect
+   it exists to catch, which is a worse state than not having it. Measured, fixed, and proven in
+   both directions in the correction section at the end of this entry.
+2. **136 of 137 use-case dependencies in `apps/api/src` are typed as the concrete class.** Measured
+   above, by parsing the constructor parameter lists rather than by grep. The consequence is not theoretical: `RecurrenceScheduler.test.ts` casts all four of its
    doubles `as never`, so the suite that guards the ONLY other two-scope tick in the tree has no
    type checking on any of them. Converting the 109 is a mechanical but wide change with its own
    regressions; this unit diverged on one site because the alternative was to write the same
@@ -5807,3 +5840,160 @@ stream of this task as written, not for a scope that could have been trimmed.
    # unit suites inject the window directly rather than reading env.
    RETRACTION_ACTION_WINDOW_HOURS=72
    ```
+
+---
+
+## PR 1c — grandchild `1c-3b` BOUNDED CORRECTION (2026-09-23) — follow-up commit
+
+A fresh-context gate over the committed unit returned **PASA CON CORRECCIONES**: two CRITICAL and
+four WARNING. Everything below is in ONE follow-up commit on `workstream/ncor8-1c-3b`, on top of
+`417bdc35`. Nothing in it changes what the sweep DOES on a healthy row; it changes what the gate
+around it can see, what the tick does when its dependency breaks its contract, and six numbers that
+were recorded wrong.
+
+### CRITICAL 1 — the bootstrap scan certified green over exactly the defect it exists to catch
+
+`schedulerTickTenantScope.test.ts` balanced the `scheduler.register(...)` span over its SANITIZED
+copy (comments and string interiors blanked) and then sliced the body out of the ORIGINAL bytes.
+Every scope verdict — the wrap case, the reason case, and the sweep's own DISCOVERY case — then ran
+`tick.body.includes(...)` over those original bytes. A MENTION was therefore enough and an executed
+call was never required.
+
+**Measured, in both directions, before and after the fix.** Two shapes were planted in
+`src/index.ts`, one per assertion the file owns:
+
+| planted shape                                                                                                           | what it really does                          | BEFORE the fix   | AFTER the fix                                         |
+| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ---------------- | ----------------------------------------------------- |
+| `async () => { // …withSystemContext("system:retraction-action-window-sweep", run).\n await sweep((run) => run()); }`   | cross-account discovery with NO scope at all | **7 passed (7)** | **2 failed** — the wrap case and the DISCOVERY case   |
+| `// The reason is "system:retraction-action-window-sweep".\n withSystemContext("system:deletion-record-degrader", run)` | the sweep runs under the DEGRADER's reason   | **7 passed (7)** | **2 failed** — the reason case and the DISCOVERY case |
+
+The second shape is the sharper of the two: the case it defeats is literally named "names each tick
+in its own scope reason instead of inheriting a neighbour's", and it passed while the tick inherited
+a neighbour's reason verbatim. On real code the fixed file is **7 passed (7)**, unchanged.
+
+**The fix is the discipline the file's own header already declared, applied where the verdict is
+decided.** `collectTicks` now returns `sanitizedBody` alongside `body` — the same span of the
+sanitized copy, index-for-index — and every "is this call here" verdict reads it. The reason cannot
+be read there (sanitizing blanks the literal it lives in), so `declaredScopeReasons(tick)` locates
+each `withSystemContext(` in the SANITIZED span and reads its first argument out of the ORIGINAL at
+that same offset. A call whose first argument is not a string literal yields nothing and is reported,
+which is the fail-closed answer. The failure message now prints what the tick REALLY declares.
+
+**This was already known and had been filed as a backlog candidate in the entry above, which was the
+wrong call and is corrected there too.** The file was MODIFIED by this unit (it gained the three
+sweep cases), so a demonstrated red path was owed for it by the four-step rule for extending the
+suite, and it was never taken for these assertions. "This unit's own registration passes either way"
+is not an argument for leaving a gate that certifies its own subject.
+
+### WARNING 1 — S-a-4 was guaranteed by the collaborator, not by the sweep
+
+The per-row body had no `try`/`catch`, and the sweep names its dependency by the CONTRACT
+`UseCase<In, Out, Err>`, which promises a `Result` and says nothing about not rejecting. "It does not
+throw" was therefore a property of `ExpireRetractionActionWindowUseCase` — the class the composition
+root happens to pass — and not of the sweep. Not live today; live the moment a second implementation,
+a decorator or a driver-level rejection appears.
+
+**RED first**, with a rejecting double between two healthy rows:
+
+```text
+ FAIL  tests/unit/retention/RetractionActionWindowSweep.test.ts > … > S-a-4: counts a REJECTING row the same as a refusing one, and keeps sweeping
+TypeError: the use case rejected instead of returning a Result
+ ❯ src/infrastructure/retention/RetractionActionWindowSweep.ts:154:27
+ FAIL  … > names a rejection that is not an Error at all rather than reading a field off it
+{ code: 'P2028', stacks: [] }
+ Test Files  1 failed (1)
+      Tests  2 failed | 6 passed (8)
+```
+
+The rejection took the whole tick with it: `post-c` never attempted, no summary log, the failures
+counter unmoved — the exact outcome the file header's poison-row paragraph exists to prevent, while
+the header claimed the opposite. GREEN after the guard: **8 passed (8)**.
+
+**As built.** Only the call that can reject is inside the `try` — a counter or a log that threw could
+never be counted as this row refusing. The catch lands in the SAME `failed` arm, moves the SAME
+counter and writes the SAME message, so an operator alerting on it matches one payload shape. The two
+refusals are told apart by `code`: an `err` carries the use case's own, a rejection carries the new
+`RETRACTION_ACTION_WINDOW_SWEEP_REJECTED_CODE` (`"USE_CASE_REJECTED"`) — deliberately NOT a
+`USE_CASE_ERRORS` member, because `INTERNAL_ERROR` in that field would read as a refusal that never
+happened. `reportFailure` now takes the two derived strings rather than a `UseCaseError`, so there is
+one entry shape and no `instanceof` across a realm boundary. **Two** cases were added, not one: the
+non-`Error` rejection is its own branch (`errorType: "unknown"`, the `DeletionRecordDegrader`
+convention), and an untested branch is what this whole correction is about.
+
+### The five recorded corrections, and where each landed
+
+| Gate finding                                                              | Correction                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CRITICAL 2** — the tier and budget omitted an entire file               | Re-measured here: **596 files / 9261** at the commit (not 595 / 9256), **+3 / +23** (not +2 / +18), attribution 6+4+5+3+5 = 23, EVIDENCE **621** (not 516), DOC **399** (not 394), **seven** new files and **three** new suites. The attribution table, the gate table and the budget table above are all corrected, and the "nothing unexplained" claim is retracted where it was false                                                                   |
+| **WARNING 2** — the design snippet described a shape that was never built | `design.md` rev 3.9: the parameter is a runner function, not an options object, and the reason is `system:retraction-action-window-sweep`. The second was mechanical harm — the scan requires `system:<taskId>`, so an editor copying the document's literal puts that case red                                                                                                                                                                            |
+| **WARNING 3** — a ticked task with two absent deliverables                | Recorded in `tasks.md` T1c.16 item (5) and in `design.md` rev 3.9: done except for two dotfile entries an executor may not write, blocks paste-ready in this ledger, orchestrator places them                                                                                                                                                                                                                                                              |
+| **WARNING 4** — "no honest split exists" is false as an absolute          | Corrected above to the true reason. The split DOES exist and lands CODE at **385**; declining it is a cost (a first PR observable only by log, a second review of the same file, a PR boundary for 70 lines), not an impossibility. An exception signed on "there is no alternative" is a different decision from one signed on "the alternative costs more"                                                                                               |
+| **NOTA** — a number that does not reproduce                               | **136**, not 109. Re-measured by parsing every `constructor(` parameter list in the 562 non-test `.ts` files under `apps/api/src` — balanced paren spans, string- and comment-aware, split on top-level commas — and classifying each type annotation: 136 bare concrete `*UseCase` class names, 0 inline `UseCase<>`, 0 `InstanceType<typeof …>`. Exactly one site names the contract at all, through the alias this unit added, so the ratio is 136 to 1 |
+
+### Out of scope — recorded as backlog rows, not fixed
+
+**SMELL-155, SMELL-156, SMELL-157** in `docs/reports/roadmap-detected-smells-backlog.md`.
+
+**SMELL-155 is recorded with a CORRECTED finding, because the gate's stated evidence did not
+reproduce.** The gate reported that `tsc -b apps/api` reports exit 0 on a planted `TS2322` under
+`packages/adapters/*/src` while `tsc -p apps/api/tsconfig.json --noEmit --incremental false` catches
+it. Measured as a 2x2 here:
+
+| plant                                                             | `tsc -b apps/api`       | `tsc -p … --noEmit --incremental false` |
+| ----------------------------------------------------------------- | ----------------------- | --------------------------------------- |
+| in `PendingRetractionSweepReads.ts`, which `src/index.ts` IMPORTS | **exit 1**, error named | **exit 2**, error named                 |
+| in a new file in the same directory that nothing imports          | **exit 0**, silent      | **exit 0**, silent                      |
+
+The two forms behave identically; there is no `-b`-versus-`-p` divergence. The CAUSE the gate named is
+right and the CONSEQUENCE is real — `apps/api/tsconfig.json` includes `packages/*/src/**/*` and
+`packages/core/*/src/**/*`, and `packages/adapters/<pkg>/src` is two levels down, so those files are
+typechecked only when something in the program imports them — but the variable is reachability, not
+the invocation form. The backlog row states the 2x2 rather than the divergence.
+
+**SMELL-156** was measured rather than restated: **24 `scheduler.register(` calls in 21 files** live
+outside `src/index.ts` and are invisible to the scan; of those 21 files exactly **one**
+(`RecurrenceScheduler.ts`) names a system scope at all and **20** name none; and the one that does
+would FAIL both of the scan's assertions — its task id is `recurring-posts-tick` while its reason is
+`"recurrence-sweep"`, with no `system:` prefix. It is the precedent this scan's own header cites.
+
+**SMELL-157** — no integration test drives the sweep against a real database, so the two-scope
+argument is proven by code reading and doubles. The doubles prove what the sweep BINDS; they cannot
+prove what `pg_policy` and the GUC then do with it, which is the half SMELL-149 is about.
+
+### Gates — the whole list, re-run on the corrected tree
+
+| Gate                                                                                            | Result                                                                                                                                                        |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tsc -p apps/api/tsconfig.json --noEmit --incremental false` (the authoritative form, not `-b`) | exit **0**                                                                                                                                                    |
+| `tsc --noEmit -p packages/shared`                                                               | exit **0**                                                                                                                                                    |
+| `eslint --max-warnings 0`, 3 touched files, ONE pass                                            | exit **0** (one unused `eslint-disable` directive found and removed — the rule it named is not active on that file)                                           |
+| `prettier -c`, 7 touched files                                                                  | **All matched files use Prettier code style** (3 reflowed with `--write` first; the pristine tree was verified clean under the repo config before blaming it) |
+| the five touched suites                                                                         | **5 files / 61 passed** (scan 7, sweep 8, metrics 5, adapter 4, env 37)                                                                                       |
+| `apps/api` unit tier (`vitest run --maxWorkers=2`)                                              | **596 files / 9263 passed / 0 failed / 0 skipped**, exit 0                                                                                                    |
+| `integration:saga-recovery`                                                                     | **33 tests, 33 pass, 0 fail, 0 cancel, 0 skip**, exit 0 — Postgres and Redis on `omnipost-infra` verified UP first                                            |
+| the whole DB integration tier (`TIER=pr-integration`, 13 batches)                               | **534 tests, 534 pass, 0 fail, 0 cancel, 0 skip**, runner exit **0**                                                                                          |
+| fitness **#1 #3 #4 #5 #6 #8 #9 #10 #11 #16 #21 #23 #32 #40**                                    | every one exit **0**, each `run:` block extracted textually from `fitness.yml` and executed as written                                                        |
+| the modified gate's red path                                                                    | PROVEN in both directions, twice (before and after the prettier reflow), with `sha256sum -c` on the restore                                                   |
+| `pnpm check:circular`                                                                           | **No circular dependency found** (1614 files)                                                                                                                 |
+| `pnpm check:dead-code`                                                                          | **0 regressions** (321 tracked baseline findings)                                                                                                             |
+
+**The unit tier delta of THIS commit: 9261 → 9263, +2, both attributed** — the two rejection cases in
+`RetractionActionWindowSweep.test.ts` (6 → 8). File count unchanged at 596: no suite was added.
+
+**Every plant was restored byte-exact and verified.** `sha256sum -c` OK on `src/index.ts`
+(`f5598480189ae3a5f3740da23a22e74c6bc251aaa7a365f1cd87026a306e151a`) after each of the four scan
+plants, and on `packages/adapters/db-prisma/src/PendingRetractionSweepReads.ts` after the two
+`TS2322` plants; the unimported probe file was deleted before `check:dead-code` ran.
+
+### Budget — this follow-up commit only, additions PLUS deletions
+
+| Stream       | Measured | What                                                                                                                                                      |
+| ------------ | -------: | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CODE**     |   **81** | `RetractionActionWindowSweep.ts` 64/−17 — the rejection guard, the new code constant, `reportFailure`'s signature, and the header paragraph that says why |
+| **EVIDENCE** |  **159** | `schedulerTickTenantScope.test.ts` 70/−11 · `RetractionActionWindowSweep.test.ts` 76/−2                                                                   |
+| DOC          |  **324** | this section, the corrections to the entry above, `tasks.md` 20/−5, `design.md` 5/−1, backlog 3/−0                                                        |
+
+CODE for the unit is therefore **455 + 81 = 536**, and the `size:exception` it owes grows from 55 to
+**136 lines** — stated plainly rather than folded into the original figure. None of the 81 lines is
+optional under the finding that produced them: an unguarded rejection is the poison-row failure the
+task's own acceptance criterion (S-a-4) names.
