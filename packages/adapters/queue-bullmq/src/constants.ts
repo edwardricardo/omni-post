@@ -22,6 +22,13 @@ export const QUEUE_NAMES = {
   INTEGRATION_EVENTS: "integration-events",
 
   /**
+   * A channel's publication outcome that the publish worker could not write inline.
+   * Enqueued and consumed inside the workers process, so it is not a stage of the
+   * API's publish pipeline and is deliberately absent from the list below.
+   */
+  RECORD_PUBLICATION_OUTCOME: "record-publication-outcome",
+
+  /**
    * Circuit-breaker dead-letter queue for failed external API calls.
    *
    * No producer since the circuit breaker stopped creating its own queue; kept until its

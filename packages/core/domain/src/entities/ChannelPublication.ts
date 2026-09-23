@@ -657,10 +657,24 @@ export class ChannelPublication {
       return ok({ applied: true });
     }
 
+    // A nontransient failure excludes on the spot, so its cause is resolved BEFORE
+    // anything is spent: an exclusion with no reason is the defect this record exists
+    // to delete, and a refusal that had already counted the attempt would charge the
+    // channel for a report it rejected.
+    const excludesNow = input.result.classification === ATTEMPT_CLASSIFICATIONS.NONTRANSIENT;
+    const cause = excludesNow ? input.result.code : undefined;
+    if (excludesNow && cause === undefined) {
+      return err(
+        new InvariantViolationError(
+          `channel ${this._channelId.value} cannot be excluded by a nontransient failure that names no cause`
+        )
+      );
+    }
+
     this._attempts += 1;
     this._episodeAttempts = input.attemptNo;
     this._lastFailure = {
-      code: input.result.code,
+      ...(input.result.code !== undefined && { code: input.result.code }),
       ...(input.result.detail !== undefined && { detail: input.result.detail }),
       at: now,
     };
@@ -669,8 +683,8 @@ export class ChannelPublication {
       return this.strand(input.result.publishedFragments, input.result.detail, now);
     }
 
-    if (input.result.classification === ATTEMPT_CLASSIFICATIONS.NONTRANSIENT) {
-      return this.exclude(input.result.code, input.result.detail, now);
+    if (cause !== undefined) {
+      return this.exclude(cause, input.result.detail, now);
     }
 
     if (this._episodeAttempts >= CHANNEL_ATTEMPT_BUDGET) {

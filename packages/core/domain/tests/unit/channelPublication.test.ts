@@ -330,6 +330,50 @@ describe("ChannelPublication", () => {
       );
     });
 
+    it("returns an unresolved record carrying the attempt but no cause when the failure names none", () => {
+      const record = makeOpenRecord();
+
+      const result = record.recordAttempt({
+        episode: 1,
+        attemptNo: 1,
+        planSize: 1,
+        result: {
+          kind: "failed",
+          classification: ATTEMPT_CLASSIFICATIONS.TRANSIENT,
+          publishedFragments: [],
+        },
+        now: NOW,
+      });
+
+      assert.ok(result.ok);
+      assert.strictEqual(record.outcome.kind, PUBLICATION_OUTCOME_KINDS.UNRESOLVED);
+      assert.strictEqual(record.attempts, 1);
+      // The KEY is absent, not present holding undefined: the record either names a
+      // cause or says nothing, and a key carrying undefined is the third reading.
+      assert.strictEqual(Object.hasOwn(record.lastFailure ?? {}, "code"), false);
+      assert.deepStrictEqual(record.lastFailure?.at, NOW, "the attempt is still stamped");
+    });
+
+    it("returns an error when a nontransient failure names no cause", () => {
+      const record = makeOpenRecord();
+
+      const result = record.recordAttempt({
+        episode: 1,
+        attemptNo: 1,
+        planSize: 1,
+        result: {
+          kind: "failed",
+          classification: ATTEMPT_CLASSIFICATIONS.NONTRANSIENT,
+          publishedFragments: [],
+        },
+        now: NOW,
+      });
+
+      assert.ok(!result.ok);
+      assert.match(result.error.message, /cause/i);
+      assert.strictEqual(record.attempts, 0, "a refused attempt spends nothing");
+    });
+
     it("returns applied false when an attempt ordinal is replayed", () => {
       const record = makeOpenRecord();
       spendTransientAttempts(record, 2);

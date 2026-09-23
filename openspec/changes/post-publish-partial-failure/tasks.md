@@ -752,6 +752,28 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       reads the RECORD and notifies, W4 deletions, D10 (`RUNNING`/`ERR` writes removed; ONE `OK`
       receipt after the record commits); `apps/workers/src/publishHandlerTypes.ts` loses the `?` on
       `accountId`.
+      **BUILT (`1c-3d`, order 9)**: `publishOutcomeRecorder.ts` — the bounded compare-and-swap, the
+      durable `record-publication-outcome` job, and the dead letter that increments
+      `worker_publish_outcome_unrecorded_total`. `publishHandler.ts` is UNTOUCHED and nothing
+      enqueues, asserted by a source-scan case. **The ratification order 8 owed**: a non-excluding
+      attempt records NO cause — `FailedAttemptResult.code` and `ChannelFailureRecord.code` became
+      OPTIONAL and the aggregate REFUSES a nontransient failure that names none, because
+      `exclude()` overwrites `_lastFailure` on every excluding path, so the caller's code is durable
+      only on the one path the closed set cannot name. **The retry**: 8 waits / 9 attempts, full
+      jitter, worst case 1975 ms — D14's "retries 8 times" reproduces its 1.975 s figure; the "8
+      tries" paraphrase above would be 1575 ms and does not. **`publishHandlerTypes.ts` keeps its
+      `?`**: requiring `accountId` needs the deploy-compat fallback deleted (W4, `1c-3e`), or a cast
+      at the queue boundary plus an uncompilable fallback suite
+      (`publishHandlerTenantScope.test.ts:163`). It drops with `resolveJobAccountId`, which is where
+      D2 already puts it. **CORRECTED** after the adversarial gate on this unit: `describeError` is
+      total (a `String()` that raises used to make `record()` REJECT, which re-runs the provider over
+      live content), the dead letter gates on TERMINALITY rather than on `attemptsMade` (an
+      `UnrecoverableError` ends a job on its first failure and reached neither the dead letter nor
+      the alert), every `durable: false` exit moves `worker_publish_outcome_unrecorded_total`, both
+      Queues drain in `ShutdownTarget.queues` instead of after their socket is quit, and
+      `PostAggregateMapper` stops discarding a code-less failure on reload — which is what made the
+      new `ExclusionReason` comment true. **Budget**: CODE 576 against 206 — see
+      `apply-progress.md`.
       **Carried from the `1c-1c` range review (`R3-tripwireContractIsLocalMock`, SUGGESTION)**: the
       `@core/posts` suite re-implements the narrow-save tripwire in its own repository double
       (`recordChannelPublicationAttempt.test.ts:135-153`) because the package cannot import the

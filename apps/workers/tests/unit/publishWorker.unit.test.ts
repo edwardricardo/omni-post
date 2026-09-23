@@ -65,6 +65,9 @@ const fakeWorker = {
  */
 const consumerAdapterOptions: Array<{ connection?: unknown }> = [];
 
+/** The queues the worker produces to, so the durable outcome path is asserted, not assumed. */
+const queueAdapterNames: string[] = [];
+
 vi.mock("@adapters/queue-bullmq", () => ({
   createBullMQConsumerAdapter: (options: { connection?: unknown }) => {
     consumerAdapterOptions.push(options);
@@ -73,7 +76,20 @@ vi.mock("@adapters/queue-bullmq", () => ({
       close: vi.fn().mockResolvedValue(undefined),
     };
   },
-  QUEUE_NAMES: { PUBLISH: "publish" },
+  createBullMQQueueAdapter: (options: { queueName: string }) => {
+    queueAdapterNames.push(options.queueName);
+    return {
+      enqueue: vi.fn(),
+      close: vi.fn().mockImplementation(async () => {
+        callLog.push(`queue.close:${options.queueName}`);
+      }),
+    };
+  },
+  QUEUE_NAMES: {
+    PUBLISH: "publish",
+    RECORD_PUBLICATION_OUTCOME: "record-publication-outcome",
+    DEAD_LETTER_QUEUE: "dead-letter-queue",
+  },
 }));
 
 vi.mock("@adapters/db-prisma", () => ({
@@ -94,6 +110,8 @@ vi.mock("../../src/container/workerContainer.js", () => ({
     }),
   },
   verifyDatabaseAuth: vi.fn().mockResolvedValue(undefined),
+  // The real factory builds a guarded client, which would open a connection here.
+  workerPostWiring: () => ({ recordChannelPublicationAttempt: { execute: vi.fn() } }),
 }));
 
 vi.mock("@infra/prisma", () => ({
@@ -174,10 +192,11 @@ vi.mock("prom-client", () => {
 
 vi.mock("../../src/metrics/workerMetrics.js", () => {
   // The worker constructs this and hands it to the job handler, which this suite
-  // mocks, so nothing on it is invoked here. Keeping names the real class no
-  // longer declares would let the mock vouch for a contract that is gone.
+  // mocks, so nothing on it is invoked here — except the one counter the outcome
+  // recorder is wired with. Keeping names the real class no longer declares would
+  // let the mock vouch for a contract that is gone.
   function WorkerMetrics() {
-    return {};
+    return { metrics: { publishOutcomeUnrecorded: { inc: vi.fn() } } };
   }
   return { WorkerMetrics };
 });
@@ -236,6 +255,7 @@ describe("startPublishWorker", () => {
     callLog.length = 0;
     redisInstances.length = 0;
     consumerAdapterOptions.length = 0;
+    queueAdapterNames.length = 0;
     // Restore callLog-pushing implementations that vi.clearAllMocks() wipes.
     fakeWorker.close.mockImplementation(async () => {
       callLog.push("worker.close");
@@ -256,7 +276,40 @@ describe("startPublishWorker", () => {
     assert.ok(handle.metricsRegistry, "handle.metricsRegistry must be defined");
   });
 
-  it("handle.target.workers has exactly one BullMQ Worker", async () => {
+  it("produces to the durable outcome queue and its dead letter", async () => {
+    const { startPublishWorker } = await import("../../src/publishWorker.js");
+    const { workerPrisma } = await import("../../src/container/workerContainer.js");
+
+    await startPublishWorker({ prisma: workerPrisma, registerShutdown: false });
+
+    assert.deepStrictEqual(queueAdapterNames, ["record-publication-outcome", "dead-letter-queue"]);
+  });
+
+  it("closes both outcome queues BEFORE the socket they speak on is quit", async () => {
+    const { startPublishWorker } = await import("../../src/publishWorker.js");
+    const { workerPrisma } = await import("../../src/container/workerContainer.js");
+
+    const handle = await startPublishWorker({ prisma: workerPrisma, registerShutdown: false });
+    await drainTarget(handle.target, noopLogger);
+
+    // Presence alone proves nothing here: the queue adapter wraps `close()` in try/catch
+    // and downgrades a failure to a warning, so a close over a quit socket still logs
+    // and still passes. Only the ORDER distinguishes a drain from a quiet leak.
+    const quitAt = callLog.indexOf("workerConnection.quit");
+    assert.ok(quitAt >= 0, `workerConnection.quit never ran. Order: [${callLog.join(", ")}]`);
+    for (const queueName of ["record-publication-outcome", "dead-letter-queue"]) {
+      const closedAt = callLog.indexOf(`queue.close:${queueName}`);
+      assert.ok(closedAt >= 0, `${queueName} was never closed. Order: [${callLog.join(", ")}]`);
+      assert.ok(
+        closedAt < quitAt,
+        `queue.close:${queueName} (pos ${closedAt}) must precede workerConnection.quit ` +
+          `(pos ${quitAt}) — it belongs in target.queues, not afterTeardown. ` +
+          `Order: [${callLog.join(", ")}]`
+      );
+    }
+  });
+
+  it("handle.target.workers has the publish worker and the outcome worker", async () => {
     const { startPublishWorker } = await import("../../src/publishWorker.js");
     const { workerPrisma } = await import("../../src/container/workerContainer.js");
 
@@ -267,7 +320,11 @@ describe("startPublishWorker", () => {
 
     const target: ShutdownTarget = handle.target;
     assert.ok(Array.isArray(target.workers), "target.workers must be an array");
-    assert.strictEqual(target.workers!.length, 1, "target.workers must contain exactly one worker");
+    assert.strictEqual(
+      target.workers!.length,
+      2,
+      "an outcome job still running while the sockets close is the write that gets lost"
+    );
   });
 
   it("handle.target.prisma is the injected PrismaClient", async () => {
@@ -428,15 +485,17 @@ describe("startPublishWorker", () => {
         "workerConnection must be built with maxRetriesPerRequest: null (BullMQ Worker requirement)"
       );
 
-      // The workerConnection is the socket threaded into the consumer adapter.
+      // The workerConnection is the socket threaded into EVERY consumer adapter: the
+      // publish consumer and the durable outcome consumer are both BullMQ Workers and
+      // both block on BRPOPLPUSH, so both need the null-retry transport.
       assert.strictEqual(
         consumerAdapterOptions.length,
-        1,
-        "exactly one BullMQ consumer adapter must be constructed"
+        2,
+        "the publish consumer and the outcome consumer must both be constructed"
       );
-      assert.strictEqual(
-        consumerAdapterOptions[0]?.connection,
-        workerConnection,
+      assert.deepStrictEqual(
+        consumerAdapterOptions.map((options) => options.connection),
+        [workerConnection, workerConnection],
         "createBullMQConsumerAdapter must receive the dedicated workerConnection, not notifyRedis"
       );
 

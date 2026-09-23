@@ -11,7 +11,7 @@
  * @layer infrastructure
  */
 
-import type { Worker, Queue } from "bullmq";
+import type { Worker } from "bullmq";
 
 export interface ShutdownLogger {
   info(obj: Record<string, unknown>, msg?: string): void;
@@ -22,8 +22,13 @@ export interface ShutdownLogger {
 export interface ShutdownTarget {
   /** BullMQ Worker(s) to drain. */
   workers?: ReadonlyArray<Worker>;
-  /** BullMQ Queue(s) to close (producers, repeatable cron sources). */
-  queues?: ReadonlyArray<Queue>;
+  /**
+   * Producers to close (BullMQ Queues, repeatable cron sources, queue-port adapters).
+   * Structural like `connections` below, because a producer reached through its port
+   * adapter closes the same Queue and must drain in the same slot — before the socket
+   * it speaks on is quit.
+   */
+  queues?: ReadonlyArray<{ close(): Promise<unknown> }>;
   /** Auxiliary connections (ioredis, custom pub/sub). */
   connections?: ReadonlyArray<{ quit(): Promise<unknown> }>;
   /** Prisma client to disconnect last. */
