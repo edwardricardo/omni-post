@@ -121,7 +121,11 @@ export type AttemptClassification =
 export interface FailedAttemptResult {
   readonly kind: "failed";
   readonly classification: AttemptClassification;
-  readonly code: ChannelFailureRecord["code"];
+  /**
+   * Required in effect on the nontransient arm — an exclusion with no reason is
+   * refused — and absent on the others, which the closed set cannot name.
+   */
+  readonly code?: ChannelFailureRecord["code"];
   readonly detail?: string;
   readonly publishedFragments: readonly FragmentReference[];
 }

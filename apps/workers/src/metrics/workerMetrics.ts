@@ -24,6 +24,9 @@ export interface WorkerMetricsCollector {
   // Tenant-scope provenance for publish jobs
   publishJobAccountIdSource: client.Counter<string>;
 
+  // Publication outcomes that reached no record
+  publishOutcomeUnrecorded: client.Counter<string>;
+
   // Job processing metrics
   jobsActive: client.Gauge<string>;
   jobsCompleted: client.Counter<string>;
@@ -137,6 +140,15 @@ export class WorkerMetrics {
         name: "worker_publish_job_account_id_source_total",
         help: "Publish jobs by the origin of their tenant scope (payload vs deploy-compat owner fallback)",
         labelNames: ["source"],
+        registers: [registry],
+      }),
+
+      // A provider accepted content and no record says so — the state this worker
+      // exists to make impossible, so any increment at all is an alertable event.
+      publishOutcomeUnrecorded: new client.Counter({
+        name: "worker_publish_outcome_unrecorded_total",
+        help: "Channel publication outcomes that exhausted every durable path without being recorded",
+        labelNames: ["reason"],
         registers: [registry],
       }),
 

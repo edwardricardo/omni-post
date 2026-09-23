@@ -6184,3 +6184,221 @@ TenantContext or SystemContext bound for Project.findFirst`, `tenantGuard.ts:210
    19-file tier stayed green AND a deliberately unmocked import of each resolved — so the `exports`
    map already lands on its src arm and no alias or condition is missing. No fix; a three-line note
    in `vitest.config.ts` records the measurement so the same finding is not made twice.
+
+## PR 1c — grandchild `1c-3d` (`publishOutcomeRecorder.ts`) — COMPLETE, OVER BUDGET
+
+Branch `workstream/ncor8-1c-3d`, child of `workstream/ncor8-1c-3c` @ `f5b8279c` — **order 9 of 13**.
+Subject: the module that makes a channel's publication outcome durable — the bounded
+compare-and-swap, the promise that it never throws, the durable `record-publication-outcome` job and
+the dead letter its exhaustion reaches. **No behaviour changes at this tip**: `publishHandler.ts` is
+untouched and nothing enqueues to the new queue, which a source-scan case asserts rather than claims.
+
+**Finish state**: an outcome written after a successful provider call has three bounded places to
+survive — the retry, the durable job, the dead letter — and the worker never re-runs a provider
+because a record write failed. **Rollback**: delete `apps/workers/src/publishOutcomeRecorder.ts` and
+its suite, revert the outcome wiring in `apps/workers/src/publishWorker.ts`, the counter in
+`apps/workers/src/metrics/workerMetrics.ts`, the queue name in
+`packages/adapters/queue-bullmq/src/constants.ts`, and the three `@core/domain` edits below.
+
+### The ratification order 8 left open: what code a NON-EXCLUDING attempt records
+
+**Decision: none. `FailedAttemptResult.code` and `ChannelFailureRecord.code` became OPTIONAL, and a
+nontransient failure that names no cause is REFUSED by the aggregate.** The recorder then passes the
+classifier's answer through verbatim — `{ classification, code? }` is already exactly the shape the
+domain now accepts.
+
+**The domain lines that decided it.** `ChannelPublication.recordAttempt` writes the caller's code
+into `_lastFailure` (`:670-674` as built), and `exclude()` OVERWRITES `_lastFailure` with the
+exclusion's own cause (`:893-897`). So the code the recorder supplies is durable on exactly ONE path:
+the transient or unclassifiable failure that stays unresolved — the one case the closed set cannot
+name. `recordAttempt` already derives `BUDGET_EXHAUSTED` / `UNCLASSIFIED_BUDGET_EXHAUSTED` from the
+classification at exhaustion (`:684-689`), so those two are never needed as input either.
+
+**Rejected, with reasons.** (a) Writing either exhaustion code on attempt 1 of 3 — false, and
+customer-visible through `lastFailureCode`; it is the class of defect this whole change exists to
+delete. (b) Any other member — `CONTENT_REJECTED`, `CHANNEL_AUTH_REQUIRED` — names a specific wrong
+cause the customer would act on. (c) Not recording transient attempts at all — the budget lives in
+the aggregate and is spent by attempt records, so the channel would never exhaust and the spec's
+"budget exhaustion excludes with a reason naming it" would be unreachable. (d) Dropping
+`_lastFailure` entirely when no cause is named — `lastAttemptAt` is mapped from `lastFailure.at`
+(`PostPublicationWrites.ts:154`), so "attempted, cause unnamed" would become indistinguishable from
+"never attempted": a second falsehood in place of the first.
+
+**Why the widening is safe at this tip.** It is a SUPERTYPE widening: every existing caller and every
+test fixture still compiles and passes (domain 193, posts 99, db-prisma 78, api 9263). The one new
+refusal — a nontransient failure with no cause — has NO producer in the tree. The column is nullable
+already. The refusal now runs BEFORE the attempt counter is spent, so a refused report no longer
+charges the channel for it.
+
+**CORRECTED (bounded correction, finding M1).** The sentence above originally read "both readers of
+`lastFailure.code` already treat it as optional (`PostAggregateMapper.ts:249-253`,
+`PostPublicationWrites.ts:152`)". That was FALSE for the mapper, and the mapper is the READ half.
+`PostPublicationWrites.ts:152-154` persists all three columns — `lastFailureCode ?? null`,
+`lastFailureDetail ?? null`, `lastAttemptAt: lastFailure?.at ?? null` — but the mapper gated the
+WHOLE `lastFailure` on `row.lastFailureCode !== null`, so a code-less failure came back with no
+moment and no detail: "attempted, cause unnamed" became "never attempted" on the first reload, which
+is the exact distinction `ExclusionReason.ts` now claims to keep. The mapper gate is now
+`row.lastAttemptAt !== null || row.lastFailureCode !== null` with the code spread conditionally — the
+disjunction rather than the moment alone, so a row that stores a code with no moment (nothing in this
+codebase writes one, but the mapper is a read of stored state) keeps the behaviour it had. The
+round-trip is pinned by `PrismaPostRepository.test.ts` "round-trips a failure the closed set cannot
+name", which drives the aggregate, feeds the row the WRITE produced back through the READ, and holds
+the two halves to each other instead of to two fixtures that can drift.
+
+**Scope note, stated rather than buried**: the order table gave this unit `publishOutcomeRecorder.ts`
+plus `publishHandlerTypes` / `publishWorker` / `package.json`. The three `@core/domain` files are an
+addition. They are here because the alternative was writing a false cause, and because the unit that
+first PRODUCES a `FailedAttemptResult` is the one that discovers the field cannot be required.
+
+### The retry schedule: the published bound reproduces, the prose does not
+
+`PUBLISH_OUTCOME_CAS = { retries: 8, baseMs: 25, capMs: 400 }`, full jitter, delays drawn uniformly
+over the capped exponential. Worst case = sum of the caps = `25+50+100+200+400+400+400+400` =
+**1975 ms**, measured in the suite under fake timers with the draw pinned at 1.
+
+That is **8 waits, hence 9 total attempts** — which is D14's own wording ("retries CONFLICT 8 times")
+and reproduces its 1.975 s figure exactly. The task line's paraphrase "8 tries" would be 8 attempts
+and 7 waits = 1575 ms, and does NOT reproduce 1.975 s. The implementation follows D14. Either reading
+sits far inside the consumer's 60 s `lockDuration` (`consumer-adapter.ts:88`), which is the property
+the bound exists to protect.
+
+### `publishHandlerTypes.ts` — the `?` on `accountId` did NOT drop, and why
+
+Making `payload.accountId` required at this tip states something the wire does not guarantee, and
+forces one of two things the unit forbids: a cast at the queue boundary asserting a field BullMQ may
+not carry, or the deletion of the deploy-compat fallback — which is W4, order 10's work, inside
+`publishHandler.ts`. Measured blocker: `apps/workers/tests/publishHandlerTenantScope.test.ts:163`
+calls `handleJob({ payload: { postId, channelId } })` with no `accountId` to prove the LIVE fallback
+at `publishHandler.ts:124-147`; with the field required that suite cannot compile without a cast, and
+the fallback would be shipped untested. `publishWorker.ts:199-205` re-declares the same payload shape
+inline as a cast and would have to assert the field too. The `?` drops in `1c-3e`, in the same change
+that deletes `resolveJobAccountId` — which is where D2 already puts both.
+
+### The durable path, as built
+
+- `record(receipt)` — never throws, and `describeError` is TOTAL so the promise holds for a value
+  `String()` refuses to convert. It parses the receipt FIRST: a receipt the consumer's own parse
+  would reject can never be made durable, so it is refused here rather than discovered on a job that
+  is already terminal. Then it retries only `CONFLICT` (narrowed on `UseCaseError.code`); anything
+  else is a durable condition another immediate attempt would meet unchanged. On any unwritten
+  outcome it enqueues `outcome-{postId}-{channelId}-e{episode}-a{attempt}` carrying the same receipt,
+  and answers `err({ reason, durable })` so the caller knows which happened.
+- `applyDurableJob(payload)` — parses the receipt with zod and MAY throw, because throwing is how
+  BullMQ is asked to retry. A payload that is not a receipt raises `UnrecoverableError`: a retry
+  cannot change it.
+- `reportFailedJob(job, error)` — no-op while BullMQ will still run the job; on any TERMINAL failure
+  it archives to `DEAD_LETTER_QUEUE`, increments `worker_publish_outcome_unrecorded_total` with the
+  reason that ended it (`exhausted` / `unrecoverable` / `terminal`) and logs at ERROR. It never
+  rejects: a `failed` listener that does takes the worker's error handling with it, and this one runs
+  only when an outcome is already lost.
+- Every `durable: false` exit of `record()` moves the same counter with `reason="undeliverable"`. An
+  outcome that could not even be QUEUED has exhausted more paths than one that reached the dead
+  letter, and it was the single case that moved nothing while D14's alert watches only that series.
+- The receipt is PRIMITIVE by contract (ARCHITECTURE_CANON: no domain objects in queue payloads), so
+  one `toAttemptResult` rebuilds the value objects for both entry points and every one validates
+  itself. A receipt the domain refuses still reaches the dead letter with its payload rather than
+  being dropped where it failed.
+
+### The recorded reds
+
+Every claim below was planted, run, observed failing, then restored byte-exact (`cksum` 3434870401).
+
+| Planted defect                                    | What went red                                                               |
+| ------------------------------------------------- | --------------------------------------------------------------------------- |
+| the test's module import, before the file existed | the whole suite — 16 cases could not load                                   |
+| `note()` reports without its guard                | "answers err rather than throwing when the logger throws"                   |
+| `record()` drops its outer catch                  | "answers err rather than throwing when the durable queue rejects"           |
+| `write()` drops its inner catch                   | "asks for a retry naming the outcome when the write itself rejects"         |
+| `reportFailedJob` drops its guard                 | "does not reject when the counter itself throws"                            |
+| the worker never wires the recorder               | "registers the durable consumer in the worker"                              |
+| domain: the attempt result still requires a code  | "returns an unresolved record carrying the attempt but no cause…" (2 cases) |
+
+`write()`'s inner catch was measured REDUNDANT for `record()` first — the outer catch already
+answered it — so rather than keep an untested defence it was given the case that makes it
+load-bearing on the durable path.
+
+### Budget — OVER, measured
+
+**CODE 576 against 206** (2.80x, re-measured after the bounded correction below; it was 464 before
+it): the recorder 428, `publishWorker.ts` 75, the `@core/domain` ratification 35, `workerMetrics.ts`
+12, `gracefulShutdown.ts` 11, `PostAggregateMapper.ts` 8, the queue name 7. **EVIDENCE 711 against
+235**: the recorder suite 535, `publishWorker.unit.test.ts` 83, `PrismaPostRepository.test.ts` 49,
+the domain cases 44.
+
+The estimate did not carry the receipt contract and its validation (about 36 lines), the value-object
+rebuild both entry points share (about 64), the dead-letter path (about 30), or the second consumer's
+registration and drain (about 54). It cannot be split into two sound tips either: a producer without
+its consumer is a queue that swallows outcomes, which is the state this module exists to delete. The
+decision this owes is `size:exception` or a re-slice, and it belongs to the orchestrator.
+
+### Bounded correction of `1c-3d` — five findings, all confirmed by independent reproduction
+
+The adversarial gate on this unit named three CRITICAL and two MAJOR defects. Every one reproduced
+before the fix and is pinned by a case that goes red without it. The reds below were planted, run,
+observed, then restored byte-exact (`cksum` on all four touched sources compared identical).
+
+| #   | Defect                                         | The red that was observed                                                                                                                                                 |
+| --- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1  | `describeError` was not total                  | `record()` REJECTED with `TypeError: Cannot convert object to primitive value`, and `reportFailedJob` rejected on the same shape                                          |
+| C2a | the dead letter gated on `attemptsMade` alone  | an `UnrecoverableError` job and a `finishedOn` job each reached 0 dead letters and 0 counter increments                                                                   |
+| C2b | `record()` trusted the TS type                 | a receipt with `postId: ""` returned `ok` — it was WRITTEN, not merely enqueued                                                                                           |
+| C3  | the `durable: false` exit counted nothing      | `[]` where `[{ reason: "undeliverable" }]` was expected, on two paths                                                                                                     |
+| M1  | the mapper discarded a code-less failure       | `expected undefined to strictly equal 2026-03-01T10:15:00.000Z` — the moment did not survive one reload                                                                   |
+| M2  | both Queues closed after their socket was quit | `Order: [worker.close, worker.close, notifyRedis.quit, workerConnection.quit, prisma.$disconnect, queue.close:record-publication-outcome, queue.close:dead-letter-queue]` |
+
+**C1 — the never-throws property was breakable.** `String(value)` raises `TypeError` for a
+null-prototype object and for anything whose own coercion throws, so the two terminal call sites had
+no second layer: `record()`'s outer catch would REJECT — and the publish handler rethrows to BullMQ,
+which re-runs the provider over content that is already live — while `reportFailedJob`'s catch would
+reject into a listener the worker fired and forgot, with no `unhandledRejection` handler installed
+anywhere in `apps/workers` and Node's default being to end the process. `describeError` is now total
+(the same try shape `note()` already used), which closes all three call sites at once, and
+`publishWorker.ts` attaches a real `.catch` instead of `void`: `void` on a function documented as
+never rejecting borrows a guarantee only the callee can keep. NOT REACHABLE through today's
+composition — `createBullMQQueueAdapter.enqueue` has a total try/catch — but `OutcomeQueuePort` is
+this module's stated contract, and four cases certified the property unconditionally.
+
+**C2 — `UnrecoverableError` bypassed both the dead letter and the alert.** Verified against the
+installed bullmq 5.58.9: `Job.shouldRetryJob` returns `[false, 0]` for an `UnrecoverableError`
+(`dist/cjs/classes/job.js:484-495`) and `moveToFailed` still runs `this.attemptsMade += 1` on the
+terminal branch (`:546`), so the `failed` listener saw `attemptsMade = 1` against `attempts = 5` and
+returned. The exhaustion gate itself was correct; the hole was every NON-exhaustion terminal failure
+— a class `applyDurableJob` manufactures itself. `terminalFailureReason()` now asks whether BullMQ
+will run the job again, leading with `job.finishedOn`, which is set on exactly the branch that moved
+the job to the failed set. The second half runs `receiptSchema` inside `record()` BEFORE the write
+and the enqueue, so a malformed receipt is answered while the caller still holds the outcome.
+
+**Two BullMQ-native cases this fix does NOT cover, stated rather than buried.** `Worker.handleFailed`
+is wrapped in `if (!this.connection.closing)` (`dist/cjs/classes/worker.js:558`), so a job failing
+during connection drain emits NO `failed` event at all; and a lock lost before completion makes
+`moveToFailed` throw, which the same method catches and re-emits as `error`, never `failed`
+(`:583-590`). Neither reaches `reportFailedJob`, so neither reaches the dead letter or the counter.
+They are not fixable inside this module — they need an `error`-listener path and a stalled-job sweep,
+which belong to the worker's own wiring. Named here because a residual a reader cannot see is not a
+stated residual.
+
+**C3 — the worst loss incremented nothing.** When the inline write failed AND the enqueue also
+failed, the recorder logged ERROR and returned, moving no series — while D14's alert is
+`increase(worker_publish_outcome_unrecorded_total[10m]) > 0`. Redis down, provider published, write
+failed, enqueue failed: one ERROR line in a worker nobody is tailing and a critical alert that stays
+quiet. Every `durable: false` exit of `record()` now goes through one `undeliverable()` seam that
+moves the counter, including the outer catch and the malformed-receipt refusal — an outcome that
+could not even be queued has exhausted more paths than one that reached the dead letter.
+
+**M2 — the ordering, not the presence, is the property.** `ShutdownTarget.queues` existed and
+`bootstrap.ts:263` already composed it; it was simply never populated, and both Queues closed from
+`afterTeardown`, which runs AFTER `workerConnection.quit()`. The adapter wraps `close()` in try/catch
+and downgrades a failure to `logger.warn`, so the leak degraded quietly and the original
+presence-only assertion passed either way — the defect was in the test as much as in the wiring. The
+Queues moved into the `queues` slot and the case now asserts each close against the index of
+`workerConnection.quit`. `ShutdownTarget.queues` widened from `ReadonlyArray<Queue>` to the
+structural `ReadonlyArray<{ close(): Promise<unknown> }>`, mirroring how `connections` is already
+typed in the same file: a producer reached through its port adapter closes the same Queue and must
+drain in the same slot.
+
+**Verification after the correction.** `tsc -b apps/workers --force`, `tsc -b
+apps/workers/tsconfig.build.json --force` and `tsc -b apps/api --force` all exit 0. Tiers: workers
+20 files / 189 tests (was 182), api 596 / 9264 (was 9263), `@core/domain` 193, `@core/posts` 99,
+`db-prisma` 78 — all unchanged and green. `eslint --max-warnings 0` and `prettier --check` clean on
+every changed file. Fitness #3 #5 #8 #9 #10 #11 #21 #32 all 0; #40 part A 0 violations at seam floor
+3, part B 0 violations at 14 sites against a floor of 10.

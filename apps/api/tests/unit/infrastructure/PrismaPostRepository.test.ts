@@ -514,6 +514,55 @@ describe("PrismaPostRepository", () => {
       expect(records[0]?.liveFragments.length).toBe(2);
     });
 
+    it("round-trips a failure the closed set cannot name: the moment and the detail survive", async () => {
+      // The write persists all three columns; the read used to gate the WHOLE failure on
+      // the code, so a transient failure — which names no cause, because the closed set
+      // has no member for a dropped connection — came back as if the channel had never
+      // been attempted. One reload turned "attempted, cause unnamed" into "never
+      // attempted", which is the one distinction this record exists to keep.
+      const domain = await import("@core/domain/index.js");
+      const failedAt = new Date("2026-03-01T10:15:00.000Z");
+      const post = await makeDeclaredAggregate();
+      expect(post.openPublicationEpisode({ enterPublishing: true }).ok).toBe(true);
+      const recorded = post.recordChannelAttempt({
+        channelId: domain.ChannelId.fromStringUnsafe(CHANNEL_ID),
+        episode: 1,
+        attemptNo: 1,
+        planSize: 1,
+        result: {
+          kind: "failed",
+          classification: "transient",
+          detail: "the provider closed the connection",
+          publishedFragments: [],
+        },
+        now: failedAt,
+      });
+      expect(recorded.ok).toBeTruthy();
+
+      const saved = await asTenant(() => repo.savePublication(post));
+      expect(saved.ok).toBeTruthy();
+      const written = prisma._txClient.postChannelPublication.upsert.mock.calls[0]?.[0] as {
+        update: Record<string, unknown>;
+      };
+      expect(written.update.lastFailureCode).toBe(null);
+      expect(written.update.lastAttemptAt).toStrictEqual(failedAt);
+
+      // The stored row IS what the write just produced, so the two halves are held to
+      // each other rather than to two hand-written fixtures that can drift apart.
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...basePostRow(),
+        channelPublications: [publicationRow(written.update)],
+      }));
+
+      const reloaded = await asTenant(() => repo.findById(PostId.fromStringUnsafe(POST_ID)));
+
+      expect(reloaded.ok).toBeTruthy();
+      const lastFailure = reloaded.value.publications.all[0]?.lastFailure;
+      expect(lastFailure?.at).toStrictEqual(failedAt);
+      expect(lastFailure?.detail).toBe("the provider closed the connection");
+      expect(lastFailure?.code).toBeUndefined();
+    });
+
     it("refuses with the typed error, reachable by name from the package barrel", async () => {
       prisma.post.findFirst.mockImplementation(async () => ({
         ...basePostRow(),

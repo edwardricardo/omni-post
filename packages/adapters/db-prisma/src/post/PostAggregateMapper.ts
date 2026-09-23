@@ -246,9 +246,13 @@ function toChannelPublication(
     ...(contentHash !== undefined && { contentHash }),
     ...(row.publishedAt !== null && { publishedAt: row.publishedAt }),
     ...(reason !== undefined && { reason }),
-    ...(row.lastFailureCode !== null && {
+    // The moment is what says an attempt happened; the CODE is optional, because the
+    // closed set names no cause for a rate limit or a dropped connection. Gating the
+    // whole failure on the code discarded the moment and the detail of every such
+    // attempt on reload, which is the one distinction the write persists.
+    ...((row.lastAttemptAt !== null || row.lastFailureCode !== null) && {
       lastFailure: {
-        code: row.lastFailureCode as ChannelFailureCode,
+        ...(row.lastFailureCode !== null && { code: row.lastFailureCode as ChannelFailureCode }),
         ...(row.lastFailureDetail !== null && { detail: row.lastFailureDetail }),
         at: row.lastAttemptAt ?? row.updatedAt,
       },

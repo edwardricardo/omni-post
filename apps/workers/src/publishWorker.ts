@@ -26,10 +26,18 @@ import { createPinterestAdapter } from "@providers/pinterest";
 import { createLinkedInAdapter } from "@providers/linkedin";
 import { createBlueskyAdapter } from "@providers/bluesky";
 import { createThreadsAdapter } from "@providers/threads";
-import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
+import {
+  createBullMQConsumerAdapter,
+  createBullMQQueueAdapter,
+  QUEUE_NAMES,
+} from "@adapters/queue-bullmq";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
-import { verifyDatabaseAuth } from "./container/workerContainer.js";
+import { verifyDatabaseAuth, workerPostWiring } from "./container/workerContainer.js";
+import {
+  createPublishOutcomeRecorder,
+  PUBLISH_OUTCOME_JOB_ATTEMPTS,
+} from "./publishOutcomeRecorder.js";
 import { decryptChannelCredentials } from "@shared/types";
 import { CredentialResolver } from "./services/CredentialResolver.js";
 import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
@@ -206,6 +214,50 @@ export async function startPublishWorker(
     await handler.handleJob({ payload, dedupeKey: job.dedupeKey });
   });
 
+  // The durable half of the outcome write. It is reachable as infrastructure and
+  // unreached as behaviour: nothing enqueues to it until the publish handler records
+  // through the recorder, so registering it here only means an outcome can never be
+  // lost once it does.
+  const outcomeQueue = createBullMQQueueAdapter({
+    queueName: QUEUE_NAMES.RECORD_PUBLICATION_OUTCOME,
+    connection: workerConnection,
+    defaultJobOptions: {
+      attempts: PUBLISH_OUTCOME_JOB_ATTEMPTS,
+      backoff: { type: "exponential", delay: 2_000, jitter: 0.5 },
+    },
+  });
+  const deadLetterQueue = createBullMQQueueAdapter({
+    queueName: QUEUE_NAMES.DEAD_LETTER_QUEUE,
+    connection: workerConnection,
+  });
+  const outcomeRecorder = createPublishOutcomeRecorder({
+    recordAttempt: workerPostWiring().recordChannelPublicationAttempt,
+    outcomeQueue,
+    deadLetterQueue,
+    unrecorded: workerMetrics.metrics.publishOutcomeUnrecorded,
+    logger,
+  });
+  const outcomeConsumer = createBullMQConsumerAdapter({
+    queueName: QUEUE_NAMES.RECORD_PUBLICATION_OUTCOME,
+    connection: workerConnection,
+  });
+  const outcomeWorker = await outcomeConsumer.subscribe((job) =>
+    outcomeRecorder.applyDurableJob(job.payload)
+  );
+  outcomeWorker.on("failed", (job, error) => {
+    if (job === undefined) {
+      logger.error({ error: error.message }, "Outcome job failure carried no job to dead-letter");
+      return;
+    }
+    // `reportFailedJob` answers rather than rejecting, and this is the last net under
+    // that promise: apps/workers installs no `unhandledRejection` handler, so a rejection
+    // escaping here would end the process at the moment an outcome is already lost.
+    // `void` would borrow a guarantee only the callee can keep.
+    outcomeRecorder.reportFailedJob(job, error).catch(() => {
+      // The recorder's own reporting is what failed; there is nowhere left to say so.
+    });
+  });
+
   worker.on("completed", (job) => {
     logger.debug({ jobId: job.id }, "Publish job completed");
   });
@@ -225,21 +277,30 @@ export async function startPublishWorker(
   //
   // 1. worker.close()         — stops fetching, AWAITS active jobs (saga-notify
   //                             Redis commands run here, while notifyRedis OPEN).
-  // 2. connections.quit()     — only NOW; no job in flight → no command hits a
+  // 2. queues.close()         — the outcome producer and its dead letter, while
+  //                             their transport is still open (step 3 quits it).
+  // 3. connections.quit()     — only NOW; no job in flight → no command hits a
   //                             dead socket. Both the saga-notify connection and
   //                             the BullMQ Worker transport connection are quit
   //                             here, after the Worker has fully drained.
-  // 3. options.prisma.$disconnect() — DB pool released.
-  // 4. afterTeardown:
+  // 4. options.prisma.$disconnect() — DB pool released.
+  // 5. afterTeardown:
   //    a. consumer.close()    — Worker already closed (idempotent); the adapter
   //                             never quits the injected workerConnection (the
-  //                             composition root owns it — quit in step 2).
+  //                             composition root owns it — quit in step 3).
   //    b. scheduler.shutdownAll() — cancels recurring tasks.
   const target: ShutdownTarget = {
-    workers: [worker],
+    // The outcome worker drains with the publish worker: an outcome job left running
+    // while the sockets close is the write this module exists to keep.
+    workers: [worker, outcomeWorker],
+    // Both producers close in the queues slot, which runs BEFORE `workerConnection` is
+    // quit. From `afterTeardown` they would close over a socket that is already gone —
+    // and the adapter downgrades a failed close to a warning, so the leak would be quiet.
+    queues: [outcomeQueue, deadLetterQueue],
     connections: [notifyRedis, workerConnection],
     prisma: options.prisma,
     afterTeardown: async (): Promise<void> => {
+      await outcomeConsumer.close();
       await consumer.close();
       const shutdownResult = await scheduler.shutdownAll();
       if (shutdownResult.timedOut) {

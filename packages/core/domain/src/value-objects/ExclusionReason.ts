@@ -24,7 +24,14 @@ export type ChannelFailureCode = (typeof CHANNEL_FAILURE_CODES)[keyof typeof CHA
 
 /** A failure seen while the channel is still unresolved, kept as history. */
 export interface ChannelFailureRecord {
-  readonly code: ChannelFailureCode;
+  /**
+   * Absent when the closed set above names no cause for what happened. A rate limit
+   * and a dropped connection are real failures with no member here, and the two that
+   * would fit — the exhaustion pair — are false while the channel still has budget.
+   * The moment and the detail are recorded either way, so "attempted, cause unnamed"
+   * stays distinct from "never attempted".
+   */
+  readonly code?: ChannelFailureCode;
   readonly detail?: string;
   readonly at: Date;
 }
