@@ -699,15 +699,52 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       (`apps/workers/src/publishHandler.ts:458-467`) REPORTS a repository `!ok` result instead of
       skipping it silently with `rows = []` — the swallowed-failure class, fixed inside T1c.14's D16
       rework of exactly that region, not as a separate follow-up. — sha: pending
-- [ ] **T1c.13 GREEN** — `apps/workers/src/security/workerTenantContext.ts` (new: `withWorkerTenant`,
+- [x] **T1c.13 GREEN** — `apps/workers/src/security/workerTenantContext.ts` (new: `withWorkerTenant`,
       `getWorkerTenantContext`, no system context); `apps/workers/src/container/workerContainer.ts`
       (18 lines today) builds `workerGuardedPrisma` via
       `tenantGuardWithGucBindingExtension` (the `apps/api/src/infrastructure/container/setup.ts:74-77`
       shape), `PrismaOutboxWriter`, the relocated `PrismaPostRepository` / `PrismaUnitOfWork` with the
       worker provider, and the two `@core/posts` use cases; `apps/workers/package.json` gains
       `@core/posts`. **Composition root per executable** — the shared core is not duplicated
-      (ARCHITECTURE_CANON §Dependency Injection). — sha: pending
-- [ ] **T1c.14 GREEN** — NEW `apps/workers/src/lib/classifyPublishFailure.ts`; NEW
+      (ARCHITECTURE_CANON §Dependency Injection).
+      **BUILT (`1c-3c`)**: the two use cases are `OpenPublicationEpisodeUseCase` and
+      `RecordChannelPublicationAttemptUseCase`, both `(postRepository, unitOfWork?)` — named by
+      design.md:124 and re-confirmed against the constructors. `workerTenantProvider` lives in
+      `workerTenantContext.ts` beside the AsyncLocalStorage that backs it, not as a literal in the
+      root: that is where `apps/api/src/security/tenantContext.ts` keeps
+      `ambientTenantContextProvider`, and exporting ONE object is what makes "both isolation layers
+      read the same context" a property of the wiring rather than of two literals agreeing. The root
+      imports it and hands the same object to the extension, the repository and the unit of work.
+      The worker suite is **vitest** (`apps/workers/package.json` `test: vitest run`), so fitness #30
+      does not apply; `apps/workers/vitest.config.ts` gains the
+      `@infra/prisma/extensions/tenantGucBinding.js` subpath alias its two siblings already have —
+      the bare `@infra/prisma` alias targets a FILE, so without it the subpath prefix-matches into
+      ENOTDIR.
+      **CORRECTED after review**: the guarded client and everything built on it are reached through
+      ONE memoised `workerPostWiring()`, not through module-level constants. The constants made the
+      root throw at IMPORT — the singleton is a lazy Proxy and `$extends` is a property access, so
+      evaluating them constructed a real client for every importer, and `bootstrap.ts:52` reaches the
+      root before `config/env.ts` loads `.env`. `withWorkerTenant` also AWAITS its callback inside
+      the store, closing the type-legal `() => prismaOp()` shape that TypeScript cannot reject
+      (`PrismaPromise<T> extends Promise<T>`) and that left the statement unscoped. — sha: pending
+      (orchestrator commits)
+- [ ] **T1c.14 GREEN** — NEW `apps/workers/src/lib/classifyPublishFailure.ts` — **LANDED EARLY in
+      `1c-3c`** with its own suite, per the §9.4.1 order table's row 8, which carries the classifier
+      beside T1c.13; the rest of this line is orders 9 and 10. As built it answers
+      `{ classification, code? }`: the `code` is present ONLY on the nontransient arm, because the
+      two closed-set members that would fit a transient or unclassifiable failure are
+      `BUDGET_EXHAUSTED` / `UNCLASSIFIED_BUDGET_EXHAUSTED`, which are FALSE while the channel still
+      has budget — and which `ChannelPublication.recordAttempt` derives from the classification
+      itself at exhaustion. Naming a cause the failure does not have would have put a lie in
+      `lastFailureCode` from attempt 1. The recorder (order 9) therefore owns what `code` a
+      non-excluding attempt records. It also accepts the closed `RenderError` union as a
+      first-class nontransient arm (`RENDER_FAILED`); at this tip `publishHandler.ts:843`
+      STRINGIFIES `rendered.error` into a thrown `Error`, so that arm becomes reachable only when
+      this task passes the `RenderError` value itself. **CORRECTED after review**: both table
+      lookups ask `Object.hasOwn`. Written with `in` and a bare index they walked
+      `Object.prototype`, so the twelve names every object inherits — `toString`, `constructor`,
+      `__proto__` and the rest — were excluded permanently as render failures under a cause they
+      never named. NEW
       `apps/workers/src/publishOutcomeRecorder.ts` (the record write + the CAS retry — 8 tries, full
       jitter, 25 ms base doubling to a 400 ms cap, **1.975 s worst case** inside the consumer's 60 s
       `lockDuration` — + the durable `record-publication-outcome` job + the DLQ path with
