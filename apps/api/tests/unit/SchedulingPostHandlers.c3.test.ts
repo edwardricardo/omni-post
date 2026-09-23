@@ -50,6 +50,12 @@ vi.mock("../../src/lib/logger.js", () => {
 
 const POST_ID = "66666666-6666-4666-8666-666666666666";
 const LIVE_CHANNEL_ID = "77777777-7777-4777-8777-777777777777";
+/**
+ * The owner every row here carries. `accountId` is non-nullable on `Post`, and both
+ * writers resolve it before they touch anything else, so a row without one is a row the
+ * database cannot hold — and a double that omitted it would answer 404 to every case.
+ */
+const OWNER_ACCOUNT_ID = "55555555-5555-4555-8555-555555555555";
 
 /** One publication row as the guard reads it: the two columns that decide liveness. */
 interface PublicationRow {
@@ -151,6 +157,7 @@ function prismaDouble(options: DoubleOptions): { prisma: PrismaClient; recorded:
     }
     return {
       id: POST_ID,
+      accountId: OWNER_ACCOUNT_ID,
       deletedAt: null,
       scheduledAt: null,
       publishLogs: [],
