@@ -55,7 +55,7 @@ const { setRedisInstance } = await import("../../src/auth/authService.js");
 // AuditService is resolved from the container by the routes; this direct instance
 // (same mock prisma store) is used by the test to seed audit rows.
 const auditService = new AuditService(mockPrisma.prisma as never);
-const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { createRouteTestContainer } = await import("./helpers/testContainer.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 
 type AuthServiceType = Awaited<
@@ -77,7 +77,7 @@ async function createTestApp() {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-  const container = setupContainer({ prisma: mockPrisma.prisma as never });
+  const container = createRouteTestContainer({ prisma: mockPrisma.prisma as never });
   containerAuthService = container.resolve(TOKENS.AuthService) as InstanceType<AuthServiceType>;
 
   app.decorate("container", container);

@@ -201,7 +201,7 @@ vi.mock("@infra/prisma", async (importOriginal) => {
 
 const Fastify = (await import("fastify")).default;
 const { analyticsRoutes } = await import("../../../src/analytics/analyticsRoutes.js");
-const { setupContainer } = await import("../../../src/infrastructure/container/setup.js");
+const { createRouteTestContainer } = await import("../helpers/testContainer.js");
 const { TOKENS } = await import("../../../src/infrastructure/container/types.js");
 const { prisma } = await import("@infra/prisma");
 const { NoopBackgroundTaskScheduler } = await import("@observability/background-scheduler");
@@ -435,7 +435,7 @@ function seedProject(slot: number): ProjectFixture {
 
 async function createTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
-  const container = setupContainer({ prisma: prisma as never });
+  const container = createRouteTestContainer({ prisma: prisma as never });
 
   // Registering the plugin resolves RealtimeAnalyticsService, and constructing it
   // registers a 30-second metrics poll that would stay live for the whole run; the

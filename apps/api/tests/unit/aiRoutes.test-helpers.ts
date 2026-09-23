@@ -6,7 +6,7 @@
 import Fastify, { FastifyInstance } from "fastify";
 import { vi } from "vitest";
 import aiRoutes from "../../src/ai/routes.js";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
+import { createRouteTestContainer } from "./helpers/testContainer.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { prisma } from "@infra/prisma";
 
@@ -28,7 +28,7 @@ const aiService = {
 export async function createTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
 
-  const container = setupContainer({ prisma });
+  const container = createRouteTestContainer({ prisma });
   container.registerInstance(TOKENS.AIService, aiService);
   app.decorate("container", container);
 

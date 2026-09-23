@@ -86,7 +86,7 @@ vi.mock("../../src/lib/logger.js", () => {
 const Fastify = (await import("fastify")).default;
 const { accountRoutes } = await import("../../src/accounts/accountRoutes.js");
 const { projectRoutes } = await import("../../src/projects/projectRoutes.js");
-const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { createRouteTestContainer } = await import("./helpers/testContainer.js");
 const { signCustomerAccessToken } = await import("../../src/auth/customerJwt.js");
 
 import type { FastifyInstance } from "fastify";
@@ -100,7 +100,7 @@ const unique = (label: string): string => `${label}-${Date.now()}-${(seq += 1)}`
 
 async function createTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
-  app.decorate("container", setupContainer({ prisma: mockPrisma.prisma as never }));
+  app.decorate("container", createRouteTestContainer({ prisma: mockPrisma.prisma as never }));
   await app.register(accountRoutes);
   await app.register(projectRoutes);
   return app;

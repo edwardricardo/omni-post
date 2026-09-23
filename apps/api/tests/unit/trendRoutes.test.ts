@@ -40,7 +40,7 @@ import fastifyCookie from "@fastify/cookie";
 import { trendRoutes } from "../../src/trends/trendRoutes.js";
 import { authRoutes } from "../../src/auth/authRoutes.js";
 import { prisma } from "@infra/prisma";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
+import { createRouteTestContainer } from "./helpers/testContainer.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { AuthService } from "../../src/auth/authService.js";
 import { MfaService } from "../../src/admin/auth/MfaService.js";
@@ -50,18 +50,22 @@ import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories
 import { PrismaRoleRepository } from "../../src/infrastructure/repositories/PrismaRoleRepository.js";
 import { PrismaAdminSessionRepository } from "../../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
 import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
+import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 
 async function createTestApp(): Promise<{ app: FastifyInstance; authService: AuthService }> {
   const app = Fastify({ logger: false });
-  const container = setupContainer({ prisma });
+  const container = createRouteTestContainer({ prisma });
   // Override AuthService with a locally-constructed instance (no global singleton)
   const adminUserRepo = new PrismaAdminUserRepository(prisma);
   const roleRepo = new PrismaRoleRepository(prisma);
   const sessionRepo = new PrismaAdminSessionRepository(prisma);
+  const metrics = container.resolve<ApiMetrics>(TOKENS.ApiMetrics);
   const mfaSvc = new MfaService(
     new PrismaAdminMfaUserRepository(prisma),
     new PrismaCustomerMfaUserRepository(prisma),
-    new InMemoryAuditLogRepository()
+    new InMemoryAuditLogRepository(),
+    undefined,
+    metrics
   );
   const authService = new AuthService(
     prisma,
@@ -69,7 +73,8 @@ async function createTestApp(): Promise<{ app: FastifyInstance; authService: Aut
     mfaSvc,
     roleRepo,
     sessionRepo,
-    new InMemoryAuditLogRepository()
+    new InMemoryAuditLogRepository(),
+    metrics
   );
   container.registerInstance(TOKENS.AuthService, authService);
   app.decorate("container", container);
