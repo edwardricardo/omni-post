@@ -32,6 +32,7 @@ import {
   DeletePostUseCase,
   CompletePostPublishingUseCase,
   OpenPublicationEpisodeUseCase,
+  RecordChannelPublicationAttemptUseCase,
 } from "@core/posts/index.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
 import {
@@ -52,10 +53,12 @@ import { EncryptionService } from "../../../src/security/EncryptionService.js";
 import { signCustomerAccessToken } from "../../../src/auth/customerJwt.js";
 import { createSeedPrismaClient } from "./seedPrismaClient.js";
 import { RecordingQueue, ThrowingOutboxWriter } from "./publishNowPromotionDoubles.js";
+import { recordPublishedAttempt } from "./publishWorkerRecord.js";
 import {
   CreatePostCommandHandler,
   UpdatePostCommandHandler,
   CompletePostPublishingCommandHandler,
+  OpenPublicationEpisodeCommandHandler,
   type PostCommandHandlersConfig,
 } from "../../../src/cqrs/handlers/PostCommandHandlers.js";
 
@@ -240,6 +243,22 @@ export class PublishNowPromotionHarness {
       channelRepository: this.channelRepository,
       redis: this.redis,
     };
+
+    // The second half of what a publish job does. The queue double stands in for
+    // BullMQ and for the provider call; this is the production write the worker
+    // performs with what that call returned, and the wait step settles on it.
+    const recordAttempt = new RecordChannelPublicationAttemptUseCase(
+      this.postRepository,
+      unitOfWork
+    );
+    this.queue.runWorker = async (job) => {
+      await recordPublishedAttempt(recordAttempt, {
+        accountId: this.accountId,
+        postId: job.postId,
+        channelId: job.channelId,
+        episode: job.episode,
+      });
+    };
   }
 
   /**
@@ -345,6 +364,10 @@ export class PublishNowPromotionHarness {
     cqrsBus.registerCommandHandler(new CreatePostCommandHandler(this.handlerConfig));
     cqrsBus.registerCommandHandler(new UpdatePostCommandHandler(this.handlerConfig));
     cqrsBus.registerCommandHandler(new CompletePostPublishingCommandHandler(this.handlerConfig));
+    // The episode the PIVOT opens before it enqueues. The use case was already
+    // built into `handlerConfig`; without the handler on the bus the pivot's
+    // command has no receiver and the composition is not the production one.
+    cqrsBus.registerCommandHandler(new OpenPublicationEpisodeCommandHandler(this.handlerConfig));
 
     const integration = new SagaIntegration({
       fastify,

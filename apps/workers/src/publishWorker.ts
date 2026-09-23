@@ -46,7 +46,8 @@ import { createLogger } from "@observability/logger";
 import { Redis } from "ioredis";
 import { WorkerMetrics } from "./metrics/workerMetrics.js";
 import { PublishHandler } from "./publishHandler.js";
-import type { PublishProvider } from "./publishHandler.js";
+import type { PublishJobInput, PublishProvider } from "./publishHandler.js";
+import { createPublicationRecordProbe } from "./publicationRecordProbe.js";
 import type { PrismaClient } from "@infra/prisma";
 import { env } from "./config/env.js";
 
@@ -172,18 +173,6 @@ export async function startPublishWorker(
 
   const credentialResolver = new CredentialResolver(repo);
 
-  const handler = new PublishHandler({
-    repo,
-    providerRegistry,
-    credentialResolver,
-    workerMetrics,
-    logger,
-    instrumentation: publishingInstrumentation,
-    databaseInstrumentation,
-    businessKPITracker,
-    notifyRedis,
-  });
-
   // Dedicated Redis connection for the BullMQ Worker. BullMQ requires
   // `maxRetriesPerRequest: null` because the Worker blocks on `BRPOPLPUSH`
   // indefinitely — the saga-notify `notifyRedis` above uses finite retries
@@ -198,26 +187,9 @@ export async function startPublishWorker(
     logger.error({ err: error }, "Publish worker Redis connection error");
   });
 
-  const consumer = createBullMQConsumerAdapter({
-    queueName: QUEUE_NAMES.PUBLISH,
-    connection: workerConnection,
-  });
-
-  const worker = await consumer.subscribe(async (job) => {
-    const payload = job.payload as {
-      postId: string;
-      channelId: string;
-      accountId?: string;
-      provider?: string;
-      sagaId?: string;
-    };
-    await handler.handleJob({ payload, dedupeKey: job.dedupeKey });
-  });
-
-  // The durable half of the outcome write. It is reachable as infrastructure and
-  // unreached as behaviour: nothing enqueues to it until the publish handler records
-  // through the recorder, so registering it here only means an outcome can never be
-  // lost once it does.
+  // The durable half of the outcome write, built BEFORE the handler because the
+  // handler is what hands it every outcome: an inline write that loses its
+  // compare-and-swap lands here instead of re-running the provider.
   const outcomeQueue = createBullMQQueueAdapter({
     queueName: QUEUE_NAMES.RECORD_PUBLICATION_OUTCOME,
     connection: workerConnection,
@@ -237,6 +209,37 @@ export async function startPublishWorker(
     unrecorded: workerMetrics.metrics.publishOutcomeUnrecorded,
     logger,
   });
+
+  const handler = new PublishHandler({
+    repo,
+    providerRegistry,
+    credentialResolver,
+    workerMetrics,
+    logger,
+    instrumentation: publishingInstrumentation,
+    databaseInstrumentation,
+    businessKPITracker,
+    outcomeRecorder,
+    publicationRecord: createPublicationRecordProbe(workerPostWiring().postRepository),
+    notifyRedis,
+  });
+
+  const consumer = createBullMQConsumerAdapter({
+    queueName: QUEUE_NAMES.PUBLISH,
+    connection: workerConnection,
+  });
+
+  const worker = await consumer.subscribe(async (job) => {
+    // The cast states what a well-formed job carries; `handleJob` re-checks the
+    // two fields a pre-change job cannot have and refuses the job outright.
+    const payload = job.payload as PublishJobInput["payload"];
+    await handler.handleJob({
+      payload,
+      dedupeKey: job.dedupeKey,
+      attemptsMade: job.attemptsMade,
+    });
+  });
+
   const outcomeConsumer = createBullMQConsumerAdapter({
     queueName: QUEUE_NAMES.RECORD_PUBLICATION_OUTCOME,
     connection: workerConnection,

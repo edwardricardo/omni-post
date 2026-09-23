@@ -97,6 +97,37 @@ describe("CompletePostPublishingCommandHandler", () => {
       expect(result.success).toBeFalsy();
       expect(ctx.completePostPublishingUseCase.executeCalls.length).toBe(0);
     });
+
+    // The two levels below `data` used to be open while `data` itself was strict,
+    // so a key added to a CHANNEL — the level the emitter actually writes — was
+    // stripped without a word. That is exactly how a `reasonCode` sent before the
+    // contract declared it would have vanished: the emitter sees a parsed command
+    // and the reader sees a field that never arrived. The promotion has ONE
+    // production emitter, the saga's post-pivot step, so closing this rejects no
+    // payload anything in the tree sends today.
+    it("rejects an unknown key on a channel rather than silently dropping it", async () => {
+      const command = buildCompletePostPublishingCommand();
+      const channels = (command.data as { outcome: { channels: Record<string, unknown>[] } })
+        .outcome.channels;
+      channels[0]!.publishedAt = "2026-01-01T00:00:00.000Z";
+
+      const result = await handler.handle(command);
+
+      expect(result.success).toBeFalsy();
+      expect(result.validationErrors?.some((e) => e.code === "unrecognized_keys")).toBeTruthy();
+      expect(ctx.completePostPublishingUseCase.executeCalls.length).toBe(0);
+    });
+
+    it("rejects an unknown key beside the channel set rather than silently dropping it", async () => {
+      const command = buildCompletePostPublishingCommand();
+      (command.data as { outcome: Record<string, unknown> }).outcome.providerResults = {};
+
+      const result = await handler.handle(command);
+
+      expect(result.success).toBeFalsy();
+      expect(result.validationErrors?.some((e) => e.code === "unrecognized_keys")).toBeTruthy();
+      expect(ctx.completePostPublishingUseCase.executeCalls.length).toBe(0);
+    });
   });
 
   // The exclusion reason the record keeps per channel. It is DECLARED here before

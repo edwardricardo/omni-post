@@ -81,15 +81,22 @@ export interface PublishOutcomeUnrecorded {
   readonly durable: boolean;
 }
 
-/** The write this module retries. `RecordChannelPublicationAttemptUseCase` satisfies it. */
-export interface RecordChannelAttemptPort {
+/**
+ * The write this module retries. `RecordChannelPublicationAttemptUseCase` satisfies it.
+ *
+ * Not exported, and the three ports below say so once for all of them: every caller
+ * hands these in structurally through `PublishOutcomeRecorderDeps`, so nothing outside
+ * this module needs the NAME. Exporting them anyway put three names on the module's
+ * surface that no file imported, which `check:dead-code` reads as dead — correctly.
+ */
+interface RecordChannelAttemptPort {
   execute(
     input: RecordChannelPublicationAttemptInput
   ): PromiseLike<Result<RecordChannelPublicationAttemptOutput, UseCaseError>>;
 }
 
 /** The narrow producer surface used here; a `QueuePort` satisfies it. */
-export interface OutcomeQueuePort {
+interface OutcomeQueuePort {
   enqueue(job: {
     dedupeKey: string;
     payload: Record<string, unknown>;
@@ -97,7 +104,7 @@ export interface OutcomeQueuePort {
 }
 
 /** The failed BullMQ job as this module reads it; a bullmq `Job` satisfies it. */
-export interface FailedOutcomeJob {
+interface FailedOutcomeJob {
   readonly id?: string | undefined;
   readonly data: unknown;
   readonly attemptsMade: number;

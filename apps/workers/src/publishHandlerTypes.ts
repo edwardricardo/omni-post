@@ -22,6 +22,8 @@ import type {
 } from "@shared/types";
 import type { PublishReceipt } from "@ports/core";
 import type { WorkerMetrics } from "./metrics/workerMetrics.js";
+import type { PublicationRecordProbe } from "./publicationRecordProbe.js";
+import type { PublishOutcomeRecorder } from "./publishOutcomeRecorder.js";
 import type {
   PublishInstrumentation,
   DatabaseInstrumentation,
@@ -42,15 +44,7 @@ export interface PublishRepo {
     dedupeKey: string;
   }): Promise<Result<unknown, string>>;
 
-  getLogByDedupeKey(dedupeKey: string): Promise<Result<{ status: string } | null, string>>;
-
   getPostById(id: string): Promise<Result<CanonicalPost, string>>;
-
-  /**
-   * Owner lookup for the deploy-compat payload fallback: returns the channel's
-   * `accountId` (never decrypts). `ok(null)` when the channel is unknown.
-   */
-  getChannelOwnerAccountId(channelId: string): Promise<Result<string | null, string>>;
 
   createThread(input: { postId: string; strategy: string }): Promise<Result<Thread, string>>;
 
@@ -136,7 +130,27 @@ export interface PublishHandlerDeps {
   instrumentation: PublishInstrumentation;
   databaseInstrumentation: DatabaseInstrumentation;
   businessKPITracker: BusinessKPITracker;
+  /** Makes what the provider did durable. It answers a Result and never throws. */
+  outcomeRecorder: PublishOutcomeRecorder;
+  /** Read before any provider call, to decide whether this channel is still open. */
+  publicationRecord: PublicationRecordProbe;
   notifyRedis?: SagaNotifier;
+}
+
+/**
+ * What the record write needs about the job that produced an outcome, carried as one
+ * value so the two publish paths take the same argument and neither can be given a
+ * tenant without the episode it belongs to.
+ */
+export interface PublicationAttemptContext {
+  /** Tenant the record write binds to. */
+  readonly accountId: string;
+  /** The attempt episode the job was minted for, parsed from the job id. */
+  readonly episode: number;
+  /** Ordinal within the episode — stable across a redelivery of the same attempt. */
+  readonly attemptNo: number;
+  /** Fingerprint of the content sent, so a later read can tell what was published. */
+  readonly contentHash: string;
 }
 
 /**
@@ -144,20 +158,29 @@ export interface PublishHandlerDeps {
  *
  * - `provider` identifies which adapter to route to (defaults to "x")
  * - `sagaId` is set when the job is part of a saga batch
- * - `accountId` scopes every credential/channel lookup to the owning tenant.
- *   Optional only for in-flight compat: jobs enqueued before the payload carried
- *   it fall back to the channel's owner in `publishHandler`. Make it required and
- *   drop the fallback once no pre-deploy jobs remain in the PUBLISH queue
- *   (including the BullMQ delayed set — scheduled posts can sit for days);
- *   `worker_publish_job_account_id_source_total{source="fallback"}` is the signal.
+ * - `accountId` scopes every credential/channel lookup and every record write to
+ *   the owning tenant. Required: a job that carries none was enqueued before the
+ *   publication record existed, and the handler refuses it rather than guessing a
+ *   tenant from the channel.
+ *
+ * This shape describes a WELL-FORMED job. The payload reaches the worker as queue
+ * data, so the handler still validates it at runtime — the cast at the queue seam
+ * is a claim about the producer, not a fact about the bytes.
  */
 export interface PublishJobInput {
   payload: {
     postId: string;
     channelId: string;
-    accountId?: string;
+    accountId: string;
     provider?: string;
     sagaId?: string;
   };
+  /** The BullMQ job id: `publish-{postId}-{channelId}-e{episode}`. */
   dedupeKey?: string;
+  /**
+   * How many attempts BullMQ has already spent; the attempt ordinal is this plus
+   * one. Required, and never defaulted: a silent zero would make every redelivery
+   * look like the first attempt, and the record's replay guard is keyed on it.
+   */
+  attemptsMade: number;
 }

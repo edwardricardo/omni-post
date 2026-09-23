@@ -600,12 +600,12 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
 
 ### WU 1c.B — the saga (child 1c-2)
 
-- [ ] **T1c.8 RED** — rewrite `apps/api/tests/unit/sagaDeterministicIds.test.ts` (323 today) and add
+- [x] **T1c.8 RED** — rewrite `apps/api/tests/unit/sagaDeterministicIds.test.ts` (323 today) and add
       the wait-step table: `err` → `failed`; `undefined` or a set missing a scheduled channel →
       `failed` NAMING the missing record; any unresolved → `waiting`; else `succeeded` with
       `stepData.channels`. Plus: the forwarder forwards failures; the pivot rereads PER CHANNEL and
       refuses a pending-retraction channel; the dedupe key carries `-e{episode}`. — sha: pending
-- [ ] **T1c.9 GREEN** — `packages/shared/src/saga.ts`: `readPublicationRecord` replaces
+- [x] **T1c.9 GREEN** — `packages/shared/src/saga.ts`: `readPublicationRecord` replaces
       `checkJobsStatus` in `createPostPublishingSagaDefinition` (`:1079-1091`);
       `WaitForPublishingCompletionStep` (`:850-951`) rewritten and the `failed > 0` branch (`:929-934`)
       and `getJobStates` DELETED; `UpdatePostStatusStep` (`:980-1062`) forwards the FULL outcome
@@ -622,7 +622,53 @@ publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`)
       the NEW command strict and left the completion command as it was (tightening rejects payloads
       accepted today — a contract change). `UpdatePostStatusStep` here is the producer of
       `reasonCode`: tighten the per-channel object to `.strict()` in this task, with its red, or
-      write down why the asymmetry stays. — sha: pending
+      write down why the asymmetry stays.
+      **`.strict()` — TIGHTENED, and one level wider than the row asked.** Every producer of that
+      payload was enumerated first: `packages/shared/src/saga.ts:1202` (`UpdatePostStatusStep`) is
+      the ONLY production emitter of `POST_COMMANDS.COMPLETE_PUBLISHING` in the tree, and the keys
+      it now emits — `channelId`, `success`, `externalId?`, `error?`, `reasonCode?` — are all
+      declared. The two test builders send nothing undeclared either. So the objection that closed
+      this at `1c-1e` ("tightening rejects payloads accepted today") has no payload to name, and
+      the hole it leaves is the one the `reasonCode` story is about. `outcome` was tightened TOO:
+      it is the same silent strip one level up, in the same object literal, with the same single
+      emitter, and leaving it open would state the rule where the emitter does not write. Red
+      observed first on both, as an ACCEPTED command whose key vanished: the assertion read
+      `expected true to be falsy`, because `result.success` was `true`.
+      **The order-10 cycle, as MEASURED rather than argued — this tip's `integration:saga-recovery`
+      is NOT green and that is the ratified consequence, not a defect to fix here.** Baseline at
+      `workstream/ncor8-1c-3d`, run in the same environment: 33 tests, 33 pass. At this tip: 33
+      tests, 11 pass, 4 fail, 18 cancelled. EVERY failure is one shape: a poll that timed out
+      waiting for a publish-now saga to leave the wait step, over a row reading
+      `RUNNING at step 3, retryCount=0, error=null`. Step 3 IS the wait step, and a row with no
+      retry spent and no error IS the `waiting` outcome:
+      the pivot opens the episode, every channel is `unresolved`, and nothing writes an attempt
+      until `1c-3e`, so the saga parks until the 30-minute horizon and ends `FAILED`. The window
+      exists by construction between this tip and `1c-3e`.
+      Seeding the harness was REFUSED, per the per-tip guard: neither the crash-recovery worker nor
+      `RecordingQueue` was made to write a record. What WAS fixed is a different thing and is
+      production parity — two harnesses had a real command with no receiver on their bus, so the
+      pivot's `post.open-publication-episode` answered "No handler registered": the REAL
+      `OpenPublicationEpisodeCommandHandler` over the REAL use case is now registered in
+      `sagaCrashRecovery.test.ts` and `publishNowPromotionHarness.ts`. `sagaCrashRecovery.test.ts`
+      was additionally missing `openPublicationEpisodeUseCase` from its `handlerConfig`, which is a
+      REQUIRED field of `PostCommandHandlersConfig` — invisible because `apps/api/tsconfig.json`
+      includes `src` only, so no `tsc` pass ever opened that file.
+      **Budget: CODE 669 against a §9.4.1 forecast of 410 (+259, +63%); EVIDENCE 1001 against 410
+      (+591, +144%).** The breakdown, because the number alone teaches nothing. `saga.ts` is
+      382+/175−: the DELETIONS were forecast almost exactly (175 vs 180), the additions were not
+      (382 vs 230). The extra is four things the line item costed as one word each — the three
+      exported view/reader types the wait step reads (this package is below the domain in the graph
+      and cannot import `ChannelPublication`, so the shape is DECLARED here), `reportOf`, the whole
+      `openEpisode` + `readOpenedChannels` half of D9 with the two refusals that stop a bad episode
+      from minting a job id, and a `RereadCheck` that went from 20 lines to 55. The other 112 CODE
+      lines had NO row under this unit at all: `SagaIntegration.ts` 47+/23− (the dedupe key and the
+      reader wiring are T1c.9 items, but §9.4's `SagaIntegration.ts` row was spent at `1c-2b`) and
+      `cqrs.ts` 27+/15− (its row was spent at `1c-1e`). EVIDENCE overran for one reason: changing a
+      constructor and a factory signature is COMPILE- and RUN-forced across six test files the
+      forecast never listed — `sagaCompensation`, `sagaStepOutcome`, `sagaContextInvariants.static`,
+      the chaos amplification suite, and the two integration harnesses. This is the systematic
+      under-count §9.4.1 warns about, in exactly the shape it predicted. `size:exception` required.
+      — sha: pending (orchestrator commits)
 - [x] **T1c.10 RED→GREEN** — `packages/ports/src/SemanticLockPort.ts` gains `holder(key)`;
       `RedisSemanticLockStore` answers it with `GET` (`:43`); NEW
       `apps/api/tests/unit/doubles/InMemorySemanticLockStore.ts` (Map-backed, four methods,
@@ -678,7 +724,7 @@ publish-${postId}-${channelId}-e${episode}` (replacing `SagaIntegration.ts:294`)
 
 ### WU 1c.C — the worker, the confirm act, the sweep (child 1c-3 — D15.5)
 
-- [ ] **T1c.12 RED** — `apps/workers/tests/*`: the classifier table (`RATE_LIMIT`/`NETWORK` transient;
+- [x] **T1c.12 RED** — `apps/workers/tests/*`: the classifier table (`RATE_LIMIT`/`NETWORK` transient;
       `AUTH`/`VALIDATION`/render nontransient; `THREAD_INTERRUPTED` nontransient;
       `PARENT_TWEET_FAILED` and unknown shapes unclassifiable); the thread failure path (tweet rows
       updated for the live fragments, the use case called with `publishedFragments` BEFORE
@@ -698,7 +744,22 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       `review-7c43029e81e41c35`): a RED case proving `markFragmentsPublished`
       (`apps/workers/src/publishHandler.ts:458-467`) REPORTS a repository `!ok` result instead of
       skipping it silently with `rows = []` — the swallowed-failure class, fixed inside T1c.14's D16
-      rework of exactly that region, not as a separate follow-up. — sha: pending
+      rework of exactly that region, not as a separate follow-up.
+      **BUILT (`1c-3e`, order 10, fused with `1c-2a`)**. The three D16 cases landed in the `:413`
+      block, the `:571` ERR-log case is DELETED with the log, and the R3 red
+      ("reports a repository that refuses the fragment rows instead of skipping it") drives the
+      `getTweetsByThread` `!ok` arm onto the ERROR log plus
+      `recordError("publisher", "thread_live_fragments_unrecorded", true)` — the same counter the
+      row-write `catch` already feeds, so `ThreadLiveFragmentsUnrecorded` sees both arms.
+      **RED measured before the implementation**: 7 failed / 14 passed in
+      `publishThreadPost.test.ts`, every D16 and R3 case among the seven.
+      **The W4 cases moved**: `publishHandlerTenantScope.test.ts`'s three fallback cases are DELETED
+      with the fallback, and the refusals they were replaced by live in `jobHandler.test.ts`
+      ("refuses a job whose id names no episode, and one that names no tenant", "refuses a job whose
+      channel the record does not hold", "returns without publishing when the record has moved to
+      another episode"). That file keeps ONE case, which is now the only tenant property left to
+      state: the record read and the credential lookup bind to the SAME payload tenant.
+      — sha: pending
 - [x] **T1c.13 GREEN** — `apps/workers/src/security/workerTenantContext.ts` (new: `withWorkerTenant`,
       `getWorkerTenantContext`, no system context); `apps/workers/src/container/workerContainer.ts`
       (18 lines today) builds `workerGuardedPrisma` via
@@ -728,7 +789,7 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       the store, closing the type-legal `() => prismaOp()` shape that TypeScript cannot reject
       (`PrismaPromise<T> extends Promise<T>`) and that left the statement unscoped. — sha: pending
       (orchestrator commits)
-- [ ] **T1c.14 GREEN** — NEW `apps/workers/src/lib/classifyPublishFailure.ts` — **LANDED EARLY in
+- [x] **T1c.14 GREEN** — NEW `apps/workers/src/lib/classifyPublishFailure.ts` — **LANDED EARLY in
       `1c-3c`** with its own suite, per the §9.4.1 order table's row 8, which carries the classifier
       beside T1c.13; the rest of this line is orders 9 and 10. As built it answers
       `{ classification, code? }`: the `code` is present ONLY on the nontransient arm, because the
@@ -802,7 +863,34 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       arms. Its RED is in T1c.12.
       **File-size watch**: `publishHandler.ts` 935 → ~905 thanks to the two extractions; still over
       the band pre-existing — backlog row (§7.3). **Rule, tested**: after a successful provider call
-      the worker NEVER re-runs the provider call because the RECORD write failed. — sha: pending
+      the worker NEVER re-runs the provider call because the RECORD write failed.
+      **BUILT (`1c-3e`, order 10, FUSED with `1c-2a` per §9.9 item 6 option (a))**. `publishHandler.ts`
+      935 → **1108**: the two extractions did not shrink it because the record write, the two receipt
+      builders and the W4 refusal are all new. NEW `apps/workers/src/publicationRecordProbe.ts` (86)
+      is the skip-path reader — `PostRepository.findById` under `withWorkerTenant`, answering
+      `ok(undefined)` for a channel the record does not hold and `err` for a repository that could
+      not answer, never conflating the two.
+      **`accountId` lost its `?` and the fallback went with it**: `resolveJobAccountId` and
+      `recordTenantScopeFailure` are DELETED, `getChannelOwnerAccountId` and `getLogByDedupeKey`
+      leave the narrow `PublishRepo`, and `worker_publish_job_account_id_source_total` is deleted —
+      a counter whose ONLY purpose was to make the fallback's removal observable outlives nothing.
+      `worker_publish_job_unrecoverable_total{reason}` replaces it.
+      **The episode is parsed from the JOB ID, not the payload** (D7 literal), by ONE function that
+      also yields W9's episode-stripped mirror key — so the value the record is written against and
+      the value the mirror is keyed by cannot drift, and a job id BullMQ minted itself (no `-e{n}`)
+      is a pre-change job by construction. The payload's `episode` is therefore unread by the worker;
+      it is read by `SagaIntegration` to BUILD the id, and that is stated rather than left as fat.
+      **`attemptNo` is `job.attemptsMade + 1`**, which needed `attemptsMade` on the consumer adapter's
+      handler job (additive, source-compatible with every other subscriber) and REQUIRED on
+      `PublishJobInput`. Deriving it from the record instead was rejected and the rejection is the
+      point: any ordinal computed from a read is fresh on every redelivery, which defeats the
+      aggregate's `attemptNo <= episodeAttempts` replay guard.
+      **The rethrow is conditional on the RECORD**: `ok` + `unresolved` rethrows, `ok` + settled
+      completes, and `err` — durable or not — completes, because the provider call stands either way
+      and another one would publish the same content twice.
+      **Budget**: CODE 954 for this half, **1623 for the fused unit** (`1c-2a` 669, carried from its
+      own measurement rather than re-derived) — measured +1089/−534 over the working tree, src only,
+      by two independent counts. `size:exception` required. — sha: pending
 - [x] **T1c.15 RED→GREEN** — the confirm act (Q15, D15.5): NEW
       `apps/api/src/posts/postChannelRoutes.ts` with
       `POST /posts/:postId/channels/:channelId/retraction/confirm-removed` (no body) →

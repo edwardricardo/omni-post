@@ -7,13 +7,32 @@
  */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { createTestDeps, createTestPublishReceipt, createMockProvider } from "./setup.js";
+import { ok } from "@shared/types";
+import {
+  createTestDeps,
+  createTestPublishReceipt,
+  createMockProvider,
+  StubPublicationRecordProbe,
+  TEST_ATTEMPT,
+} from "./setup.js";
 import { PublishHandler } from "../src/publishHandler.js";
 import type { PublishHandlerDeps, PublishJobInput } from "../src/publishHandler.js";
 
 describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
   let deps: PublishHandlerDeps;
   let handler: PublishHandler;
+
+  /** A well-formed job for one target, so a scenario states only what it is about. */
+  const jobFor = (postId: string, channelId: string, provider?: string): PublishJobInput => ({
+    payload: {
+      postId,
+      channelId,
+      accountId: TEST_ATTEMPT.accountId,
+      ...(provider !== undefined && { provider }),
+    },
+    dedupeKey: `publish-${postId}-${channelId}-e1`,
+    attemptsMade: 0,
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -25,13 +44,7 @@ describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
 
   describe("unknown provider", () => {
     it("resolves without throwing but increments jobsFailed metric", async () => {
-      const job: PublishJobInput = {
-        payload: {
-          postId: "post-001",
-          channelId: "ch-001",
-          provider: "nonexistent",
-        },
-      };
+      const job = jobFor("post-001", "ch-001", "nonexistent");
 
       // handleJob re-throws so BullMQ retries; metrics still incremented.
       await assert.rejects(handler.handleJob(job));
@@ -43,13 +56,7 @@ describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
     });
 
     it("records worker error via recordError", async () => {
-      const job: PublishJobInput = {
-        payload: {
-          postId: "post-001",
-          channelId: "ch-001",
-          provider: "nonexistent",
-        },
-      };
+      const job = jobFor("post-001", "ch-001", "nonexistent");
 
       await assert.rejects(handler.handleJob(job));
 
@@ -71,13 +78,10 @@ describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
       };
       handler = new PublishHandler(deps);
 
+      const base = jobFor("post-001", "ch-001", "nonexistent");
       const job: PublishJobInput = {
-        payload: {
-          postId: "post-001",
-          channelId: "ch-001",
-          provider: "nonexistent",
-          sagaId: "saga-001",
-        },
+        ...base,
+        payload: { ...base.payload, sagaId: "saga-001" },
       };
 
       await assert.rejects(handler.handleJob(job));
@@ -104,13 +108,7 @@ describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
         error: "RATE_LIMIT" as const,
       });
 
-      const job: PublishJobInput = {
-        payload: {
-          postId: "post-001",
-          channelId: "ch-001",
-          provider: "x",
-        },
-      };
+      const job = jobFor("post-001", "ch-001", "x");
 
       // handleJob re-throws so BullMQ retries; metrics still recorded.
       await assert.rejects(handler.handleJob(job));
@@ -132,7 +130,7 @@ describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
       assert.strictEqual(failMatch.value, 1);
     });
 
-    it("logs ERR status to publish log before handleJob catches", async () => {
+    it("writes no publish log row for a failure — the record is what says so", async () => {
       const xProvider = deps.providerRegistry["x"]!;
       xProvider.publish = async () => ({
         ok: false as const,
@@ -146,19 +144,11 @@ describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
       };
       handler = new PublishHandler(deps);
 
-      const job: PublishJobInput = {
-        payload: {
-          postId: "post-001",
-          channelId: "ch-001",
-          provider: "x",
-        },
-      };
+      await assert.rejects(handler.handleJob(jobFor("post-001", "ch-001", "x")));
 
-      await assert.rejects(handler.handleJob(job));
-
-      // Should have logged RUNNING first, then ERR
-      assert.ok(logStatuses.includes("RUNNING"), "Should log RUNNING status");
-      assert.ok(logStatuses.includes("ERR"), "Should log ERR status");
+      // The log is a receipt mirror: it carries what DID publish. A failure row
+      // there was the only durable trace of an outcome nothing else accounted for.
+      assert.deepStrictEqual(logStatuses, []);
     });
 
     it("tracks failed post KPI via businessKPITracker", async () => {
@@ -174,15 +164,9 @@ describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
       };
       handler = new PublishHandler(deps);
 
-      const job: PublishJobInput = {
-        payload: {
-          postId: "post-001",
-          channelId: "ch-001",
-          provider: "x",
-        },
-      };
-
-      await assert.rejects(handler.handleJob(job));
+      // AUTH excludes the channel, so the job COMPLETES: another attempt would
+      // meet the same credential and the record already names the cause.
+      await handler.handleJob(jobFor("post-001", "ch-001", "x"));
 
       assert.strictEqual(trackedSuccess, false);
     });
@@ -209,21 +193,9 @@ describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
       deps.providerRegistry = { instagram: igProvider, x: xProvider };
       handler = new PublishHandler(deps);
 
-      const igJob: PublishJobInput = {
-        payload: {
-          postId: "post-ig",
-          channelId: "ch-ig",
-          provider: "instagram",
-        },
-      };
+      const igJob = jobFor("post-ig", "ch-ig", "instagram");
 
-      const xJob: PublishJobInput = {
-        payload: {
-          postId: "post-x",
-          channelId: "ch-x",
-          provider: "x",
-        },
-      };
+      const xJob = jobFor("post-x", "ch-x", "x");
 
       // Run instagram job (fails — re-throws) then x job (succeeds).
       await assert.rejects(handler.handleJob(igJob));
@@ -262,12 +234,8 @@ describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
       deps.providerRegistry = { instagram: igProvider, x: xProvider };
       handler = new PublishHandler(deps);
 
-      await handler.handleJob({
-        payload: { postId: "p1", channelId: "c1", provider: "instagram" },
-      });
-      await handler.handleJob({
-        payload: { postId: "p2", channelId: "c2", provider: "x" },
-      });
+      await handler.handleJob(jobFor("p1", "c1", "instagram"));
+      await handler.handleJob(jobFor("p2", "c2", "x"));
 
       const publishOk = await deps.workerMetrics.metrics.publishOk.get();
 
@@ -284,11 +252,9 @@ describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
   // ── 4. Idempotency: already-published job is skipped ─────────────────
 
   describe("idempotency", () => {
-    it("skips job when dedupeKey already has OK status", async () => {
-      deps.repo.getLogByDedupeKey = async () => ({
-        ok: true,
-        value: { status: "OK" },
-      });
+    it("skips a job whose channel the record already published", async () => {
+      (deps.publicationRecord as StubPublicationRecordProbe).answer = () =>
+        ok({ episode: 1, outcome: "published" });
       handler = new PublishHandler(deps);
 
       let publishCalled = false;
@@ -298,9 +264,7 @@ describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
         return { ok: true, value: createTestPublishReceipt() };
       };
 
-      await handler.handleJob({
-        payload: { postId: "p1", channelId: "c1", provider: "x" },
-      });
+      await handler.handleJob(jobFor("p1", "c1", "x"));
 
       assert.strictEqual(publishCalled, false, "provider.publish should not be called");
 

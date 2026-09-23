@@ -73,6 +73,8 @@ import {
   UpdatePostUseCase,
   DeletePostUseCase,
   CompletePostPublishingUseCase,
+  OpenPublicationEpisodeUseCase,
+  RecordChannelPublicationAttemptUseCase,
 } from "@core/posts/index.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
 import {
@@ -93,10 +95,12 @@ import { PrismaProjectRepository } from "../../src/infrastructure/repositories/P
 import { ChannelCredentialsCrypto } from "../../src/security/ChannelCredentialsCrypto.js";
 import { EncryptionService } from "../../src/security/EncryptionService.js";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
+import { recordPublishedAttempt } from "./helpers/publishWorkerRecord.js";
 import {
   CreatePostCommandHandler,
   UpdatePostCommandHandler,
   CompletePostPublishingCommandHandler,
+  OpenPublicationEpisodeCommandHandler,
 } from "../../src/cqrs/handlers/PostCommandHandlers.js";
 
 const TAG = `saga-crash-${Date.now()}`;
@@ -115,8 +119,7 @@ const TIMEOUT_CHECKER_TASK_ID = "saga-timeout-checker";
 const REFERENCE_DEFINITION = createPostPublishingSagaDefinition(
   async () => ({ success: true }),
   async () => "the reference definition is consulted, never executed",
-  async () => ok({ completed: 0, failed: 0, pending: 0 }),
-  async () => null
+  async () => ok(undefined)
 );
 const PUBLISHING_SAGA_ID = REFERENCE_DEFINITION.id;
 const PIVOT_STEP_INDEX = REFERENCE_DEFINITION.pivotStepIndex;
@@ -151,9 +154,13 @@ function postStreamId(postId: string): string {
  * BullMQ job id. The saga this suite drives is the PRODUCTION definition, so
  * this expression is the expectation the assertions check production against —
  * it is never the value production used.
+ *
+ * It carries the EPISODE, because that is what makes a re-drive reach the queue
+ * at all: BullMQ ignores an add whose id sits in the retained completed set, so
+ * an id without the episode would silently drop every later attempt.
  */
-function publishDedupeKey(postId: string, channelId: string): string {
-  return `publish-${postId}-${channelId}`;
+function publishDedupeKey(postId: string, channelId: string, episode = 1): string {
+  return `publish-${postId}-${channelId}-e${episode}`;
 }
 
 /** Parses one pino line, returning null when the chunk is not JSON. */
@@ -273,12 +280,24 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   /** Channel whose publish job the worker completes. */
   let deliveringChannelId: string;
   /**
-   * Channel whose publish job the worker rejects, so the wait step exhausts.
-   * Seeded with an id no job can carry because the worker closure compares
-   * against it from the moment the queue is live, which is before the channel
-   * fixtures exist.
+   * Channel whose PROMOTION the bus refuses, so the post-pivot step keeps failing
+   * until its budget is spent.
+   *
+   * It used to be the channel whose publish job the worker rejected, and that no
+   * longer produces a failing step: a rejected channel now settles as EXCLUDED in
+   * the publication record, the wait step SUCCEEDS on a record where nothing is
+   * unresolved, and the outcome travels to the promotion as a reported failure
+   * rather than as a saga failure. The engine property these scenarios measure —
+   * nothing at or past the pivot is compensated — needs a post-pivot step that
+   * fails, so the failure is injected where one can still be injected.
+   *
+   * Seeded with an id no command can carry because the refusal closure compares
+   * against it from the moment the bus is live, which is before the fixtures exist.
    */
   let rejectingChannelId = "";
+
+  /** The worker's publication write, over the same repository the handlers use. */
+  let recordAttempt: RecordChannelPublicationAttemptUseCase;
 
   let handlerConfig: ConstructorParameters<typeof CreatePostCommandHandler>[0];
   let projectRepository: PrismaProjectRepository;
@@ -326,6 +345,34 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   }
 
   /**
+   * Refuses the promotion of a post whose outcome names `rejectingChannelId`, so a
+   * post-pivot step keeps failing until the saga's retry budget is spent.
+   *
+   * It is the ONE injected fault in this composition, and it is here because a
+   * post-pivot failure cannot otherwise be produced: every publish outcome, success
+   * or failure, is now a fact the record holds and the promotion reports. The
+   * property under test is what the ENGINE does with a failing post-pivot step, so
+   * the step has to be made to fail by something.
+   */
+  function refusingPromotion(inner: RecordableCommandHandler): RecordableCommandHandler {
+    return {
+      commandType: inner.commandType,
+      handle: async (command: Command): Promise<CommandResult<unknown>> => {
+        const data = command.data as {
+          outcome?: { channels?: ReadonlyArray<{ channelId?: unknown }> };
+        };
+        const named = (data.outcome?.channels ?? []).some(
+          (channel) => channel.channelId === rejectingChannelId
+        );
+        if (named && rejectingChannelId !== "") {
+          return { success: false, error: "the promotion was refused for this channel" };
+        }
+        return await inner.handle(command);
+      },
+    };
+  }
+
+  /**
    * The lifecycle behind the facade. Reached through a documented cast because
    * the in-memory recovery state the operator contract rests on — which rows the
    * process tracks, and WHEN each parked row's operator window opened — is
@@ -366,7 +413,14 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     // re-applying the post-pivot transition produces no second outcome — is
     // measured against the code that actually decides it.
     cqrsBus.registerCommandHandler(
-      recordingHandler(new CompletePostPublishingCommandHandler(handlerConfig))
+      recordingHandler(refusingPromotion(new CompletePostPublishingCommandHandler(handlerConfig)))
+    );
+    // The episode the PIVOT opens before it enqueues. Registered as the REAL
+    // handler over the REAL use case for the same reason as the promotion: the
+    // replay property under test is that a re-entered pivot opens no second
+    // episode, and only the code that decides it can show that.
+    cqrsBus.registerCommandHandler(
+      recordingHandler(new OpenPublicationEpisodeCommandHandler(handlerConfig))
     );
 
     const integration = new SagaIntegration({
@@ -730,15 +784,22 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     worker = new Worker(
       QUEUE_NAME,
       async (job: Job) => {
-        const data = job.data as { postId?: unknown; channelId?: unknown };
+        const data = job.data as { postId?: unknown; channelId?: unknown; episode?: unknown };
         processedJobs.push({
           jobId: String(job.id),
           postId: String(data.postId),
           channelId: String(data.channelId),
         });
-        if (data.channelId === rejectingChannelId) {
-          throw new Error("provider rejected the publish");
-        }
+        // The provider call is the only thing this worker stands in for. The
+        // publication write that follows it is the production one, because the
+        // wait step settles on that record and nothing else can produce it.
+        await recordPublishedAttempt(recordAttempt, {
+          accountId,
+          postId: String(data.postId),
+          channelId: String(data.channelId),
+          episode: Number(data.episode),
+          attemptNo: job.attemptsMade + 1,
+        });
         return { delivered: true };
       },
       { connection: workerConnection, concurrency: 1 }
@@ -821,10 +882,18 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         channelRepository,
         new PrismaUnitOfWork(guarded, ambientTenantContextProvider)
       ),
+      openPublicationEpisodeUseCase: new OpenPublicationEpisodeUseCase(
+        postRepository,
+        new PrismaUnitOfWork(guarded, ambientTenantContextProvider)
+      ),
       postRepository,
       channelRepository,
       redis,
     };
+    recordAttempt = new RecordChannelPublicationAttemptUseCase(
+      postRepository,
+      new PrismaUnitOfWork(guarded, ambientTenantContextProvider)
+    );
   });
 
   after(async () => {
@@ -951,9 +1020,10 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       const issued = commandsForSaga(inheritedSagaId, commandsBeforeBoot);
       assert.deepStrictEqual(
         issued.map((command) => command.type),
-        ["post.create", "post.complete-publishing"],
-        "exactly one command per remaining command-issuing step: a second create or a second " +
-          "promotion would mean the resume replayed a step the row had already passed"
+        ["post.create", "post.open-publication-episode", "post.complete-publishing"],
+        "exactly one command per remaining command-issuing step — the pivot's episode among " +
+          "them: a second create, episode or promotion would mean the resume replayed a step " +
+          "the row had already passed"
       );
     });
 
@@ -1122,11 +1192,11 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       // The verdict is unchanged and the MECHANISM moved, which is worth
       // reading carefully. A deliberate replay of a saga that already succeeded
       // is now refused at the PIVOT, by its own reread countermeasure, because
-      // the first run left the post truthfully PUBLISHED and the pivot's plan
-      // requires DRAFT. It used to be refused one step later, by the post-pivot
+      // the first run left a publication record naming this channel as already
+      // published. It used to be refused one step later, by the post-pivot
       // command carrying a create-time version the first run had already
       // advanced. So the replay still cannot be made automatic — it just fails
-      // earlier, on a fact about the aggregate rather than on a stale token.
+      // earlier, on a per-channel fact rather than on a stale token.
 
       // The absorber half of the verdict: the pivot really is replay-safe.
       const byId = await jobsWithId(dedupeKey);
@@ -1178,9 +1248,9 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       );
       assert.match(
         String(terminal.error),
-        /PUBLISHED/,
-        "naming the persisted status the first run left behind — the countermeasure can only " +
-          "refuse a replay because that status is now truthful"
+        new RegExp(deliveringChannelId),
+        "naming the CHANNEL the first run published — the countermeasure can only refuse a " +
+          "replay because that channel's record is now truthful"
       );
     });
   });
@@ -1355,8 +1425,9 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       );
       assert.match(
         String(terminal.error),
-        /expected DRAFT/i,
-        "naming the aggregate state that no longer matches the plan"
+        /can no longer be published again/i,
+        "naming the CHANNEL whose record already holds a publication, which is the fact the " +
+          "plan no longer matches — the post's own word is not what decides it"
       );
     });
 
@@ -1383,7 +1454,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     });
   });
 
-  describe("an inherited pivot-step retry whose post is still DRAFT", () => {
+  describe("an inherited pivot-step retry whose post was put back to DRAFT", () => {
     let sagaId: string;
     let postId: string;
     let dedupeKey: string;
@@ -1392,17 +1463,21 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     let terminal: SagaSnapshot;
 
     before(async () => {
-      // The other half of the pivot re-entry story, and the honest one: the
-      // RereadCheck can only refuse once the post has left DRAFT, so the window
-      // it protects nothing in is the one BEFORE the promotion commits — a
-      // crash between the pivot's enqueue and the post-pivot promotion. That
-      // window is real and is reconstructed here rather than assumed: the post
-      // is put back to DRAFT while the durable row is rewound to the pivot,
-      // which is exactly the pair of facts such a crash leaves behind. In it
-      // the countermeasure PASSES, the pivot really is re-entered, and the only
-      // thing standing between a restart and a second publish is the
-      // retention-bounded job-id dedupe. This pins WHICH absorber is
-      // load-bearing here, rather than letting the stronger claim cover both.
+      // The other half of the pivot re-entry story, and the one that MOVED. It
+      // used to reconstruct the window the countermeasure protected nothing in:
+      // the post put back to DRAFT while the durable row is rewound to the
+      // pivot, which is the pair of facts a crash between the enqueue and the
+      // promotion leaves behind. Back then the countermeasure read the post's
+      // WORD, so DRAFT let the pivot re-enter and only the retention-bounded
+      // job-id dedupe stood between a restart and a second publish.
+      //
+      // The countermeasure reads the per-channel publication RECORD now, and
+      // that record is not rewound by putting the post back to DRAFT. So the
+      // same pair of facts is still constructed here — and the refusal still
+      // comes, from the channel rather than from the word. That closes the
+      // window this scenario existed to expose, and the scenario stays to say
+      // so: a post whose word disagrees with its record does not get to publish
+      // twice on the strength of the word.
       const { harness: crashed } = await bootHarness("draft-retry-crashed");
       const interrupted = await seedPivotInterruptedSaga(crashed, "draftretry");
       sagaId = interrupted.sagaId;
@@ -1444,39 +1519,40 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       );
     });
 
-    it("really re-enters the pivot: the reread countermeasure does NOT refuse a DRAFT post", async () => {
-      // Without this the scenario would be indistinguishable from the promoted
-      // one — a refused replay also leaves the queue untouched. The saga walking
-      // PAST the pivot and reaching a terminal state of its own is the proof
-      // that the pivot itself ran. COMPLETED carries the reread check on its
-      // own: a refusal terminates the saga FAILED with that error, so a
-      // separate `doesNotMatch(/Reread check failed/)` would assert nothing the
-      // next assertion does not already decide.
+    it("refuses the re-entry on the CHANNEL's record, not on the post's word", async () => {
       assert.strictEqual(
         terminal.status,
-        "COMPLETED",
-        "and the saga settles by PROMOTING the post rather than dying on a stale token: the " +
-          "post-pivot step re-reads the aggregate on every attempt, so a re-entry that finds " +
-          "the post unpublished finishes the publication instead of failing a saga that " +
-          "genuinely succeeded"
+        "FAILED",
+        "a word rewound to DRAFT does not re-open a channel the record says published"
       );
+      assert.match(
+        String(terminal.error),
+        /Reread check failed/i,
+        "and it is the pivot's own countermeasure that refuses, before any enqueue"
+      );
+      assert.match(
+        String(terminal.error),
+        new RegExp(deliveringChannelId),
+        "naming the channel whose record decided it"
+      );
+
       const postAfter = await postSnapshot(postId);
       assert.strictEqual(
         postAfter.status,
-        "PUBLISHED",
-        "measured on the row, not inferred from the saga status"
+        "DRAFT",
+        "and the post is left exactly as this scenario put it: a refused pivot writes nothing"
       );
     });
 
-    it("re-enters the pivot, and the retained job id is what absorbs it", async () => {
+    it("leaves the queue untouched, so the job-id absorber is never reached", async () => {
       const byId = await jobsWithId(dedupeKey);
       assert.strictEqual(byId.length, 1, "still exactly one job holds the deterministic id");
       assert.strictEqual(
         String(byId[0]?.id),
         jobIdBefore,
-        "and it is the SAME job: an add on an existing custom id is a no-op, which is the " +
-          "absorber — and it is bounded by the consumer's retention window, so this is the " +
-          "residual the RereadCheck does NOT cover"
+        "and it is the SAME job. The retention-bounded job-id dedupe used to be the only " +
+          "absorber in this scenario; the record now refuses before the enqueue, so the id " +
+          "is a second line rather than the load-bearing one"
       );
 
       assert.strictEqual(

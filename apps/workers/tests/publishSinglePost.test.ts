@@ -5,7 +5,13 @@
  */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { createTestDeps, createTestRenderedPost, createTestPublishReceipt } from "./setup.js";
+import {
+  createTestDeps,
+  createTestRenderedPost,
+  createTestPublishReceipt,
+  RecordingOutcomeRecorder,
+  TEST_ATTEMPT,
+} from "./setup.js";
 import { PublishHandler } from "../src/publishHandler.js";
 import type { PublishHandlerDeps, PublishProvider } from "../src/publishHandler.js";
 
@@ -19,7 +25,6 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
   const CHANNEL_ID = "channel-x-001";
   const DEDUPE_KEY = `${POST_ID}:${CHANNEL_ID}`;
   const PROVIDER_NAME = "x";
-  const ACCOUNT_ID = "account-test";
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -51,7 +56,7 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
       rendered,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
 
     assert.deepStrictEqual(result, receipt);
@@ -74,7 +79,7 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
       rendered,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
 
     const value = await deps.workerMetrics.metrics.publishOk.get();
@@ -107,7 +112,7 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
       rendered,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
 
     assert.ok(trackedMetrics);
@@ -117,18 +122,19 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
     assert.strictEqual(trackedMetrics.contentType, "single");
   });
 
-  it("should throw and log ERR when provider returns error", async () => {
+  it("records a transient failure and hands the job back, writing no log row", async () => {
     const rendered = createTestRenderedPost();
     xProvider.publish = async () => ({
       ok: false,
       error: "RATE_LIMIT" as const,
     });
 
-    let loggedStatus: string | undefined;
+    const statuses: string[] = [];
     deps.repo.logPublish = async (input) => {
-      loggedStatus = input.status;
+      statuses.push(input.status);
       return { ok: true, value: {} };
     };
+    const recorder = deps.outcomeRecorder as RecordingOutcomeRecorder;
 
     await assert.rejects(
       () =>
@@ -139,7 +145,7 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
           rendered,
           PROVIDER_NAME,
           xProvider,
-          ACCOUNT_ID
+          TEST_ATTEMPT
         ),
       (err: Error) => {
         assert.ok(err.message.includes("RATE_LIMIT"));
@@ -147,7 +153,47 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
       }
     );
 
-    assert.strictEqual(loggedStatus, "ERR");
+    // The rate limit leaves the channel unresolved, so the queue still owns the
+    // retry — and the log keeps no ERR row, because the record is what says so.
+    assert.deepStrictEqual(statuses, []);
+    assert.strictEqual(recorder.receipts.length, 1);
+    const receipt = recorder.receipts[0];
+    assert.ok(receipt);
+    assert.strictEqual(
+      receipt.result.kind === "failed" ? receipt.result.classification : undefined,
+      "transient"
+    );
+    assert.strictEqual(
+      receipt.result.kind === "failed" ? receipt.result.code : "unset",
+      undefined,
+      "a channel that still has budget is not excluded under a cause it does not have"
+    );
+  });
+
+  it("completes without rethrow when the failure excludes the channel", async () => {
+    const rendered = createTestRenderedPost();
+    let providerCalls = 0;
+    xProvider.publish = async () => {
+      providerCalls += 1;
+      return { ok: false, error: "VALIDATION" as const };
+    };
+
+    await handler.publishSinglePost(
+      POST_ID,
+      CHANNEL_ID,
+      DEDUPE_KEY,
+      rendered,
+      PROVIDER_NAME,
+      xProvider,
+      TEST_ATTEMPT
+    );
+
+    assert.strictEqual(providerCalls, 1, "an excluded channel is never handed back to the queue");
+    const recorder = deps.outcomeRecorder as RecordingOutcomeRecorder;
+    assert.strictEqual(
+      recorder.receipts[0]?.result.kind === "failed" ? recorder.receipts[0].result.code : undefined,
+      "CONTENT_REJECTED"
+    );
   });
 
   it("should increment publishErr metric on provider error", async () => {
@@ -165,7 +211,7 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
         rendered,
         PROVIDER_NAME,
         xProvider,
-        ACCOUNT_ID
+        TEST_ATTEMPT
       );
     } catch {
       // expected
@@ -197,7 +243,7 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
         rendered,
         PROVIDER_NAME,
         xProvider,
-        ACCOUNT_ID
+        TEST_ATTEMPT
       );
     } catch {
       // expected
@@ -231,7 +277,7 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
         rendered,
         PROVIDER_NAME,
         xProvider,
-        ACCOUNT_ID
+        TEST_ATTEMPT
       );
     } catch {
       // expected
@@ -266,7 +312,7 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
       rendered,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
 
     assert.ok(capturedCorrelationId);
@@ -290,7 +336,7 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
       rendered,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
 
     // After completion, the correlation should be cleaned up
@@ -313,7 +359,7 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
         rendered,
         PROVIDER_NAME,
         xProvider,
-        ACCOUNT_ID
+        TEST_ATTEMPT
       );
     } catch {
       // expected
@@ -339,7 +385,7 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
       rendered,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
 
     assert.ok(publishInput);

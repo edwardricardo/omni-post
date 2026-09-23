@@ -12,6 +12,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import { SchedulePublishingJobsStep, createSagaContext } from "@shared/types/saga.js";
+import type { Command } from "@shared/types/cqrs.js";
 
 interface ScheduleStepData {
   jobIds: string[];
@@ -20,6 +21,27 @@ interface ScheduleStepData {
 }
 
 const TEST_ACCOUNT_ID = "acct-saga-1";
+
+/**
+ * An episode opener that admits every channel the pivot names, at episode 1.
+ *
+ * The pivot opens an attempt episode before it enqueues anything, so every case
+ * below needs one; admitting the whole request is what keeps these cases about
+ * the ENQUEUE — the tenant stamp, the draft short-circuit, the queue failure —
+ * rather than about which channels the record allows. Which channels an episode
+ * refuses is `sagaDeterministicIds.test.ts`'s subject.
+ */
+function admitsEveryChannel(): (command: Command) => Promise<unknown> {
+  return async (command: Command) => {
+    const data = command.data as { channelIds?: string[] };
+    return {
+      success: true,
+      data: {
+        opened: (data.channelIds ?? []).map((channelId) => ({ channelId, episode: 1 })),
+      },
+    };
+  };
+}
 
 /**
  * Build a saga context. `accountId` mirrors production: `SagaIntegration` puts
@@ -53,7 +75,7 @@ function makeContext(
 
 describe("SchedulePublishingJobsStep — Pivot contract", () => {
   it("is classified as pivot (no compensate, point of no return per Azure §15-20)", () => {
-    const step = new SchedulePublishingJobsStep(vi.fn());
+    const step = new SchedulePublishingJobsStep(vi.fn(), vi.fn());
     expect(step.class).toBe("pivot");
     expect((step as unknown as { compensate?: unknown }).compensate).toBeUndefined();
   });
@@ -65,7 +87,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
       return `job-${enqueued.length}`;
     });
 
-    const step = new SchedulePublishingJobsStep(queueJob);
+    const step = new SchedulePublishingJobsStep(admitsEveryChannel(), queueJob);
     const ctx = makeContext({
       mode: "publish-now",
       stepData: {
@@ -93,7 +115,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
     });
 
     const futureDate = new Date(Date.now() + 3600_000);
-    const step = new SchedulePublishingJobsStep(queueJob);
+    const step = new SchedulePublishingJobsStep(admitsEveryChannel(), queueJob);
     const ctx = makeContext({
       mode: "schedule",
       stepData: {
@@ -117,7 +139,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
 
   it("execute in draft mode short-circuits with no enqueued jobs", async () => {
     const queueJob = vi.fn();
-    const step = new SchedulePublishingJobsStep(queueJob);
+    const step = new SchedulePublishingJobsStep(admitsEveryChannel(), queueJob);
     const ctx = makeContext({
       mode: "draft",
       stepData: { "create-post": { postId: "post-abc" } },
@@ -136,7 +158,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
 
   it("execute fails when postId is missing from upstream step data and command data", async () => {
     const queueJob = vi.fn();
-    const step = new SchedulePublishingJobsStep(queueJob);
+    const step = new SchedulePublishingJobsStep(admitsEveryChannel(), queueJob);
     const ctx = makeContext({
       mode: "publish-now",
       // No "create-post" stepData and no data argument with postId.
@@ -153,7 +175,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
     const queueJob = vi.fn(async () => {
       throw new Error("Queue unreachable");
     });
-    const step = new SchedulePublishingJobsStep(queueJob);
+    const step = new SchedulePublishingJobsStep(admitsEveryChannel(), queueJob);
     const ctx = makeContext({
       mode: "publish-now",
       stepData: {
@@ -178,7 +200,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
       return `job-${enqueued.length}`;
     });
 
-    const step = new SchedulePublishingJobsStep(queueJob);
+    const step = new SchedulePublishingJobsStep(admitsEveryChannel(), queueJob);
     const ctx = makeContext({
       mode: "publish-now",
       stepData: {
@@ -198,7 +220,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
 
   it("execute FAILS CLOSED (enqueues nothing) when the saga metadata carries no tenant", async () => {
     const queueJob = vi.fn(async () => "job-1");
-    const step = new SchedulePublishingJobsStep(queueJob);
+    const step = new SchedulePublishingJobsStep(admitsEveryChannel(), queueJob);
     const ctx = makeContext({
       mode: "publish-now",
       accountId: null,
@@ -220,7 +242,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
 
   it("execute FAILS CLOSED when the saga metadata carries a blank tenant", async () => {
     const queueJob = vi.fn(async () => "job-1");
-    const step = new SchedulePublishingJobsStep(queueJob);
+    const step = new SchedulePublishingJobsStep(admitsEveryChannel(), queueJob);
     const ctx = makeContext({
       mode: "publish-now",
       accountId: "",
@@ -238,7 +260,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
   });
 
   it("execute persists scheduling stepData on success for downstream consumption", async () => {
-    const step = new SchedulePublishingJobsStep(async () => "job-1");
+    const step = new SchedulePublishingJobsStep(admitsEveryChannel(), async () => "job-1");
     const ctx = makeContext({
       mode: "publish-now",
       stepData: {

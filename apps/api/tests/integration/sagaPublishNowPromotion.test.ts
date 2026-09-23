@@ -41,8 +41,7 @@ import {
 const REFERENCE_DEFINITION = createPostPublishingSagaDefinition(
   async () => ({ success: true }),
   async () => "the reference definition is consulted, never executed",
-  async () => ok({ completed: 0, failed: 0, pending: 0 }),
-  async () => null
+  async () => ok(undefined)
 );
 const PROMOTION_STEP_INDEX = REFERENCE_DEFINITION.steps.findIndex(
   (step) => step.id === "update-post-status"
@@ -89,18 +88,23 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       assert.strictEqual(sagaStatus, "COMPLETED");
       assert.strictEqual(snapshot.status, "PUBLISHED");
       assert.notStrictEqual(snapshot.publishedAt, null);
+      // Three saves, each one a step of the flow: the episode opened over the
+      // declared targets, then one recorded attempt per channel. The promotion
+      // adds NONE — it reconciles, and the record already agrees with the word,
+      // so `applied: false` and nothing is written.
       assert.strictEqual(
         snapshot.version,
-        1,
-        "the seeded version advanced exactly once: one aggregate save, not two"
+        3,
+        "the episode and the two attempts each saved once, and the promotion saved nothing"
       );
     });
 
     it("commits both transition events to the outbox, keyed by the channels that published", () => {
       assert.deepStrictEqual(
         rows.map((row) => row.eventType),
-        ["PostPublishingStarted", "PostPublished"],
-        "both hops are recorded, in the order the state machine requires"
+        ["PostPublishingStarted", "PostChannelPublished", "PostChannelPublished", "PostPublished"],
+        "both hops are recorded, in the order the state machine requires, with the " +
+          "per-channel event each attempt emits between them"
       );
       const published = rows.find((row) => row.eventType === "PostPublished");
       const payload = published?.payload as { providerResults?: Record<string, unknown> };

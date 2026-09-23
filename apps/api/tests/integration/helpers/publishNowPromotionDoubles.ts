@@ -6,10 +6,12 @@
  *   and this file reads as the exhaustive list of what is NOT production.
  *
  *   `RecordingQueue` exists because the total-success path has to be reached
- *   without a BullMQ worker: reporting every job completed is what lets the
- *   wait step settle, and recording each enqueue is what makes "the rejected
- *   second start enqueued nothing" a direct observation instead of a poll over
- *   queue retention.
+ *   without a BullMQ worker: it records each enqueue — which is what makes "the
+ *   rejected second start enqueued nothing" a direct observation instead of a
+ *   poll over queue retention — and then runs what that job's worker would.
+ *   What it stands in for is the PROVIDER CALL alone; the publication write the
+ *   worker performs afterwards is the real one, installed by the harness, because
+ *   the wait step settles on that record.
  *
  *   `ThrowingOutboxWriter` exists because the all-or-nothing case needs a
  *   failure the database cannot raise for it: a database-level error aborts the
@@ -31,25 +33,42 @@ interface RecordedJob {
   dedupeKey: string;
   postId: string;
   channelId: string;
+  episode: number;
 }
 
+/** What a job's worker does once the provider has answered. */
+export type PublishJobWorker = (job: RecordedJob) => Promise<void>;
+
 /**
- * A queue that records what was enqueued and reports every job as completed.
+ * A queue that records what was enqueued and then runs that job's worker.
  *
- * Reporting completion is what puts the saga on the total-success path without
- * a worker; recording is what makes "the rejected second start enqueued
- * nothing" a direct observation instead of a poll over BullMQ retention.
+ * Recording is what makes "the rejected second start enqueued nothing" a direct
+ * observation instead of a poll over BullMQ retention. Running the worker inline
+ * is what puts the saga on the total-success path without a BullMQ process — and
+ * the worker installed here performs the REAL publication write, so the wait step
+ * settles on a record a writer actually produced.
  */
 export class RecordingQueue implements QueuePort {
   readonly jobs: RecordedJob[] = [];
 
+  /** Installed by the harness once the real attempt writer exists. */
+  runWorker: PublishJobWorker = async () => {};
+
   async enqueue(job: QueueJob) {
-    const payload = job.payload as { postId?: unknown; channelId?: unknown };
-    this.jobs.push({
+    const payload = job.payload as { postId?: unknown; channelId?: unknown; episode?: unknown };
+    const recorded: RecordedJob = {
       dedupeKey: job.dedupeKey,
       postId: String(payload.postId),
       channelId: String(payload.channelId),
-    });
+      episode: Number(payload.episode),
+    };
+    this.jobs.push(recorded);
+    // A delayed job is HELD by BullMQ until its moment. Running it here anyway
+    // would publish a scheduled post the instant it was scheduled, which is the
+    // one thing the schedule mode exists to avoid.
+    if (job.runAt === undefined || job.runAt.getTime() <= Date.now()) {
+      await this.runWorker(recorded);
+    }
     return ok(job.dedupeKey);
   }
 

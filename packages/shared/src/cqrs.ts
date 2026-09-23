@@ -277,6 +277,14 @@ export type PublishPostCommand = z.infer<typeof PublishPostCommandSchema>;
  * that accepts a field nobody honours is how a status transition was routed
  * into a content-only command and reported as success.
  *
+ * `outcome` and each CHANNEL are `.strict()` for the same reason, and closing
+ * them is what makes the sentence above true where the emitter actually writes.
+ * With only `data` strict, a key added to a channel crossed the parser and
+ * vanished: the emitter saw an accepted command, the reader saw a field that
+ * never arrived, and nothing named the gap. There is ONE production emitter —
+ * the publishing saga's post-pivot step — so the contract is stated over what
+ * that step sends rather than widened for a producer that does not exist.
+ *
  * `channels` is `.min(1)`: an empty set would satisfy `every(success)` and read
  * as a vacuous total success.
  *
@@ -305,21 +313,25 @@ export const CompletePostPublishingCommandSchema = z.object({
   aggregateType: z.literal("Post"),
   data: z
     .object({
-      outcome: z.object({
-        channels: z
-          .array(
-            z.object({
-              channelId: z.string().min(1),
-              success: z.boolean(),
-              // Provider receipts travel with the outcome once the publish
-              // workers report them; nothing decides totality from them.
-              externalId: z.string().optional(),
-              error: z.string().optional(),
-              reasonCode: z.string().optional(),
-            })
-          )
-          .min(1),
-      }),
+      outcome: z
+        .object({
+          channels: z
+            .array(
+              z
+                .object({
+                  channelId: z.string().min(1),
+                  success: z.boolean(),
+                  // Provider receipts travel with the outcome once the publish
+                  // workers report them; nothing decides totality from them.
+                  externalId: z.string().optional(),
+                  error: z.string().optional(),
+                  reasonCode: z.string().optional(),
+                })
+                .strict()
+            )
+            .min(1),
+        })
+        .strict(),
       expectedVersion: z.number().int().nonnegative().optional(),
     })
     .strict(),

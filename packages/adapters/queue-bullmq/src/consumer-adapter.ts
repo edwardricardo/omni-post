@@ -38,7 +38,12 @@ export interface BullMQConsumerAdapterOptions {
 
 export interface BullMQConsumerAdapter {
   subscribe(
-    handler: (job: { payload: Record<string, unknown>; dedupeKey: string }) => Promise<void>
+    handler: (job: {
+      payload: Record<string, unknown>;
+      dedupeKey: string;
+      /** Attempts BullMQ has already spent — stable across a redelivery of one attempt. */
+      attemptsMade: number;
+    }) => Promise<void>
   ): Promise<Worker>;
   close(): Promise<void>;
 }
@@ -70,6 +75,7 @@ export function createBullMQConsumerAdapter(
           await handler({
             payload: job.data,
             dedupeKey: job.id as string,
+            attemptsMade: job.attemptsMade,
           });
         },
         {

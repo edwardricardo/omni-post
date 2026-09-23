@@ -6,9 +6,9 @@
  */
 import client from "prom-client";
 import pino from "pino";
+import { ok, type Result } from "@shared/types";
 import type {
   CanonicalPost,
-  Result,
   Thread,
   Tweet,
   ThreadPlan,
@@ -21,13 +21,32 @@ import type {
   TweetStatus,
 } from "@shared/types";
 import type { PublishReceipt } from "@ports/core";
+import {
+  ATTEMPT_CLASSIFICATIONS,
+  CHANNEL_ATTEMPT_BUDGET,
+  ContentFingerprint,
+  ExclusionReason,
+  FragmentReference,
+  PUBLICATION_OUTCOME_KINDS,
+  providedReference,
+  type PublicationOutcome,
+  type PublicationOutcomeKind,
+} from "@core/domain/index.js";
+import type { RecordChannelPublicationAttemptOutput } from "@core/posts";
 import { WorkerMetrics } from "../src/metrics/workerMetrics.js";
+import type {
+  PublishOutcomeReceipt,
+  PublishOutcomeRecorder,
+  PublishOutcomeUnrecorded,
+} from "../src/publishOutcomeRecorder.js";
+import type { ChannelRecordState, PublicationRecordProbe } from "../src/publicationRecordProbe.js";
 import type {
   PublishRepo,
   PublishProvider,
   PublishInstrumentation,
   DatabaseInstrumentation,
   BusinessKPITracker,
+  PublicationAttemptContext,
   PublishHandlerDeps,
 } from "../src/publishHandler.js";
 
@@ -127,12 +146,8 @@ export function createTestThreadReceipt(overrides?: Partial<ThreadReceipt>): Thr
 export function createMockRepo(): PublishRepo {
   return {
     logPublish: async () => ({ ok: true, value: {} }) as Result<unknown, string>,
-    getLogByDedupeKey: async () =>
-      ({ ok: true, value: null }) as Result<{ status: string } | null, string>,
     getPostById: async () =>
       ({ ok: true, value: createTestPost() }) as Result<CanonicalPost, string>,
-    getChannelOwnerAccountId: async () =>
-      ({ ok: true, value: "account-test" }) as Result<string | null, string>,
     createThread: async () => ({ ok: true, value: createTestThread() }) as Result<Thread, string>,
     getThreadByPostId: async () =>
       ({ ok: true, value: createTestThread() }) as Result<Thread | null, string>,
@@ -226,6 +241,149 @@ export function createMockProviderRegistry(): Record<string, PublishProvider> {
   };
 }
 
+/** The content of `createTestPost()`, fingerprinted the way the handler fingerprints it. */
+export const TEST_CONTENT_HASH = ContentFingerprint.ofContent({
+  body: createTestPost().body,
+  mediaIds: (createTestPost().media ?? []).map((item) => item.id),
+}).value;
+
+/** The job identity every attempt in these suites is recorded under. */
+export const TEST_ATTEMPT: PublicationAttemptContext = {
+  accountId: "account-test",
+  episode: 1,
+  attemptNo: 1,
+  contentHash: TEST_CONTENT_HASH,
+};
+
+/**
+ * @function outcomeOfKind
+ * @description Builds a real `PublicationOutcome` of the requested kind. The handler
+ *   decides whether to let the queue retry from this value, so a cast would let a
+ *   shape the aggregate can never produce drive that decision.
+ * @param kind - Which settled state the recorder should report.
+ * @returns The outcome value.
+ */
+export function outcomeOfKind(kind: PublicationOutcomeKind): PublicationOutcome {
+  if (kind === PUBLICATION_OUTCOME_KINDS.PUBLISHED) {
+    const head = providedReference("x-post-12345");
+    const fragment = FragmentReference.create({ index: 1, externalId: "x-post-12345" });
+    if (!head.ok || !fragment.ok) {
+      throw new Error("the published outcome fixture is not constructible");
+    }
+    return {
+      kind: PUBLICATION_OUTCOME_KINDS.PUBLISHED,
+      head: head.value,
+      fragments: [fragment.value],
+      publishedAt: NOW,
+      contentHash: ContentFingerprint.ofContent({ body: "Test post body", mediaIds: [] }),
+    };
+  }
+  if (kind === PUBLICATION_OUTCOME_KINDS.EXCLUDED) {
+    const reason = ExclusionReason.create({ code: "THREAD_INTERRUPTED" });
+    if (!reason.ok) {
+      throw new Error("the excluded outcome fixture is not constructible");
+    }
+    return {
+      kind: PUBLICATION_OUTCOME_KINDS.EXCLUDED,
+      reason: reason.value,
+      excludedAt: NOW,
+      retraction: { pending: false },
+    };
+  }
+  return { kind: PUBLICATION_OUTCOME_KINDS.UNRESOLVED };
+}
+
+/**
+ * @function settledKindOf
+ * @description Which state `ChannelPublication.recordAttempt` reaches from one receipt
+ *   on a channel whose episode was just opened. The branches are the aggregate's own,
+ *   in its own order: live fragments strand before a named cause excludes, and BOTH a
+ *   transient and an unclassifiable failure keep the channel unresolved while the
+ *   ordinal is still inside the budget.
+ *
+ *   `outcomeDoubleContract.test.ts` pins every branch of this against the real
+ *   aggregate, because a double that quietly disagrees with the thing it doubles makes
+ *   a suite report green over a handler that behaves differently in production.
+ * @param receipt - The receipt the handler would hand the recorder.
+ * @returns The outcome kind the aggregate settles on.
+ */
+export function settledKindOf(receipt: PublishOutcomeReceipt): PublicationOutcomeKind {
+  if (receipt.result.kind === "published") {
+    return PUBLICATION_OUTCOME_KINDS.PUBLISHED;
+  }
+  if (receipt.result.publishedFragments.length > 0) {
+    return PUBLICATION_OUTCOME_KINDS.EXCLUDED;
+  }
+  if (receipt.result.classification === ATTEMPT_CLASSIFICATIONS.NONTRANSIENT) {
+    return PUBLICATION_OUTCOME_KINDS.EXCLUDED;
+  }
+  return receipt.attemptNo >= CHANNEL_ATTEMPT_BUDGET
+    ? PUBLICATION_OUTCOME_KINDS.EXCLUDED
+    : PUBLICATION_OUTCOME_KINDS.UNRESOLVED;
+}
+
+/** The post word that accompanies a single channel reaching each state. */
+function statusOfKind(
+  kind: PublicationOutcomeKind
+): RecordChannelPublicationAttemptOutput["status"] {
+  if (kind === PUBLICATION_OUTCOME_KINDS.PUBLISHED) return "PUBLISHED";
+  return kind === PUBLICATION_OUTCOME_KINDS.EXCLUDED ? "FAILED" : "PUBLISHING";
+}
+
+/**
+ * A recorder that keeps every receipt and answers whatever the scenario installed.
+ *
+ * It never throws, because the real one never does: a recorder that rejected would
+ * reach the handler's outer catch, and a suite whose double could reject would keep
+ * passing over a handler that re-sends live content.
+ */
+export class RecordingOutcomeRecorder implements PublishOutcomeRecorder {
+  readonly receipts: PublishOutcomeReceipt[] = [];
+  readonly durableJobs: Record<string, unknown>[] = [];
+
+  /**
+   * Replaced per scenario to answer a settled outcome or an unrecorded one. The
+   * default is `settledKindOf`, which is pinned branch by branch against the real
+   * aggregate, because the handler's retry decision reads this value and a double
+   * that always settled would hide a handler that stopped retrying a rate limit.
+   */
+  answer: (
+    receipt: PublishOutcomeReceipt
+  ) => Result<RecordChannelPublicationAttemptOutput, PublishOutcomeUnrecorded> = (receipt) =>
+    ok({
+      postId: receipt.postId,
+      projectId: "project-001",
+      channelId: receipt.channelId,
+      applied: true,
+      outcome: outcomeOfKind(settledKindOf(receipt)),
+      status: statusOfKind(settledKindOf(receipt)),
+    });
+
+  async record(receipt: PublishOutcomeReceipt) {
+    this.receipts.push(receipt);
+    return this.answer(receipt);
+  }
+
+  async applyDurableJob(payload: Record<string, unknown>): Promise<void> {
+    this.durableJobs.push(payload);
+  }
+
+  async reportFailedJob(): Promise<void> {}
+}
+
+/** A probe that answers one state for every channel, or whatever the scenario installs. */
+export class StubPublicationRecordProbe implements PublicationRecordProbe {
+  readonly reads: Array<{ postId: string; channelId: string; accountId: string }> = [];
+
+  answer: () => Result<ChannelRecordState | undefined, string> = () =>
+    ok({ episode: TEST_ATTEMPT.episode, outcome: PUBLICATION_OUTCOME_KINDS.UNRESOLVED });
+
+  async readChannel(input: { postId: string; channelId: string; accountId: string }) {
+    this.reads.push(input);
+    return this.answer();
+  }
+}
+
 /**
  * Creates a complete set of mock dependencies for PublishHandler.
  */
@@ -241,6 +399,8 @@ export function createTestDeps(overrides?: Partial<PublishHandlerDeps>): Publish
     instrumentation: createMockInstrumentation(),
     databaseInstrumentation: createMockDatabaseInstrumentation(),
     businessKPITracker: createMockBusinessKPITracker(),
+    outcomeRecorder: new RecordingOutcomeRecorder(),
+    publicationRecord: new StubPublicationRecordProbe(),
     ...overrides,
   };
 }
