@@ -159,6 +159,44 @@ describe("env schema (apps/api/src/config/env.ts)", () => {
     });
   });
 
+  describe("RETRACTION_ACTION_WINDOW_HOURS (customer action window)", () => {
+    // The window bounds an ALERT CYCLE, never a fragment: a wrong value cannot
+    // lose content, it can only ask the customer for too long or not long enough.
+    // The bounds exist so neither degenerate case is reachable by a typo — `0`
+    // would expire every window at the next tick, before any customer could act.
+    it("applies the 72-hour default when unset", async () => {
+      const env = (await loadEnvWith({ RETRACTION_ACTION_WINDOW_HOURS: undefined })) as {
+        RETRACTION_ACTION_WINDOW_HOURS: number;
+      };
+      expect(env.RETRACTION_ACTION_WINDOW_HOURS).toBe(72);
+    });
+
+    it("accepts a value inside the window", async () => {
+      const env = (await loadEnvWith({ RETRACTION_ACTION_WINDOW_HOURS: "24" })) as {
+        RETRACTION_ACTION_WINDOW_HOURS: number;
+      };
+      expect(env.RETRACTION_ACTION_WINDOW_HOURS).toBe(24);
+    });
+
+    it("rejects boot on a window of zero, which would expire every row at once", async () => {
+      await expect(loadEnvWith({ RETRACTION_ACTION_WINDOW_HOURS: "0" })).rejects.toThrow(
+        /RETRACTION_ACTION_WINDOW_HOURS/
+      );
+    });
+
+    it("rejects boot above the 30-day ceiling", async () => {
+      await expect(loadEnvWith({ RETRACTION_ACTION_WINDOW_HOURS: "721" })).rejects.toThrow(
+        /RETRACTION_ACTION_WINDOW_HOURS/
+      );
+    });
+
+    it("rejects boot on a non-integer window", async () => {
+      await expect(loadEnvWith({ RETRACTION_ACTION_WINDOW_HOURS: "1.5" })).rejects.toThrow(
+        /RETRACTION_ACTION_WINDOW_HOURS/
+      );
+    });
+  });
+
   describe("emptyStringAsUndefined behaviour (t3-env canon)", () => {
     it("treats KEY='' (empty string) as undefined so defaults apply", async () => {
       const env = (await loadEnvWith({ PORT: "" })) as { PORT: number };

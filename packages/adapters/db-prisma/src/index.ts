@@ -45,6 +45,10 @@ export { PrismaMentionRepository } from "./MentionRepository.js";
 // hydration, version CAS, transactional outbox) and the `UnitOfWork` port, and they take
 // the tenant provider by constructor — never from an ambient import.
 export { PrismaPostRepository } from "./post/PrismaPostRepository.js";
+// The action-window sweep's discovery read. A read port of its own rather than a
+// method on the repository above: it runs ACROSS accounts to find which tenants have
+// work, and every write it leads to happens later, bound to one of them.
+export { PendingRetractionSweepReads } from "./PendingRetractionSweepReads.js";
 // `PostRowCorruptedError` is exported because it is the shape `toDomain` RAISES. A
 // consumer that cannot name the class can only match on the message, which turns the
 // wording of an error into an API nobody agreed to.

@@ -29,12 +29,25 @@
  *   Every assertion NAMES the tick it is about — a count of registered ticks would go green on
  *   a scope pasted from the neighbouring one.
  *
+ *   ## Every verdict is decided on the SANITIZED copy, and that is the whole guard
+ *
+ *   The balancing used the sanitized copy while the assertions searched the original bytes, so
+ *   a mention of the wrap was enough and an executed call was not required. Measured, not
+ *   supposed: a registration reading `async () => { // …withSystemContext("system:…", run).
+ *   await sweep((run) => run()); }` — cross-account discovery with NO scope at all, its only
+ *   mention of the wrap inside a line comment — passed all seven cases of this file, including
+ *   the one that names the sweep's scope. A gate that certifies the defect it exists to catch
+ *   is worse than no gate, so the body is now carried in BOTH forms: the sanitized copy decides
+ *   whether a call exists, and the original is read at the sanitized match's own offset when a
+ *   verdict needs the text of a string literal (which sanitizing necessarily blanks).
+ *
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { RETRACTION_ACTION_WINDOW_SWEEP_INTERVAL_MS } from "../../../src/infrastructure/retention/RetractionActionWindowSweep.js";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const bootstrapPath = join(currentDir, "..", "..", "..", "src", "index.ts");
@@ -126,16 +139,27 @@ function findMatching(text: string, openIndex: number, open: string, close: stri
 interface RegisteredTick {
   /** The task id the tick registers under, read from the original source. */
   readonly taskId: string;
-  /** The registration's argument list, from the original source. */
+  /**
+   * The registration's argument list, from the ORIGINAL source. Carries the text of every
+   * string literal, so it is what a verdict reads once the sanitized copy has located the
+   * call — and it is never what decides whether that call exists.
+   */
   readonly body: string;
+  /**
+   * The same span of the SANITIZED copy: index-for-index with `body`, with comment and
+   * string/template interiors blanked. Every "is this call here" verdict is decided on this,
+   * because a mention in a comment is not a call.
+   */
+  readonly sanitizedBody: string;
   /** 1-based line of the registration, for failure messages that can be acted on. */
   readonly line: number;
 }
 
 /**
  * Collects every `scheduler.register(...)` registration in the bootstrap, with its task id and
- * its full argument list. Spans are balanced over the sanitized copy and then sliced out of the
- * ORIGINAL, so the returned body still carries the reason strings the assertions read.
+ * its full argument list. Spans are balanced over the sanitized copy and sliced out of BOTH
+ * copies at the same offsets: the sanitized span is what decides whether a call is present, the
+ * original span is what carries the reason strings a verdict then reads.
  */
 function collectTicks(source: string): RegisteredTick[] {
   const sanitized = sanitize(source);
@@ -162,12 +186,35 @@ function collectTicks(source: string): RegisteredTick[] {
     ticks.push({
       taskId: idMatch?.[1] ?? "",
       body,
+      sanitizedBody: sanitized.slice(open + 1, close),
       line: source.slice(0, start).split("\n").length,
     });
     from = close + 1;
   }
 
   return ticks;
+}
+
+/**
+ * The reasons this tick REALLY declares: every `withSystemContext(` the sanitized copy holds —
+ * so a mention inside a comment or a string is not one — with its first argument read out of the
+ * original at that same offset, because sanitizing blanks the literal the reason lives in.
+ *
+ * A call whose first argument is not a string literal yields nothing and is therefore reported
+ * by the reason case below, which is the fail-closed answer: a reason assembled at runtime is
+ * not one this scan can attribute to a tick.
+ */
+function declaredScopeReasons(tick: RegisteredTick): string[] {
+  const reasons: string[] = [];
+  let from = 0;
+  for (;;) {
+    const at = tick.sanitizedBody.indexOf(SYSTEM_WRAP, from);
+    if (at === -1) return reasons;
+    const argument = tick.body.slice(at + SYSTEM_WRAP.length);
+    const literal = /^\s*"([^"]*)"/.exec(argument);
+    if (literal) reasons.push(literal[1]!);
+    from = at + SYSTEM_WRAP.length;
+  }
 }
 
 describe("bootstrap scheduler ticks declare their tenant scope", () => {
@@ -189,7 +236,7 @@ describe("bootstrap scheduler ticks declare their tenant scope", () => {
 
   it("wraps every tick body in a declared system scope", () => {
     const unscoped = ticks
-      .filter((tick) => !tick.body.includes(SYSTEM_WRAP))
+      .filter((tick) => !tick.sanitizedBody.includes(SYSTEM_WRAP))
       .map((tick) => `${tick.taskId} (src/index.ts:${tick.line})`);
 
     expect(
@@ -204,15 +251,60 @@ describe("bootstrap scheduler ticks declare their tenant scope", () => {
 
   it("names each tick in its own scope reason instead of inheriting a neighbour's", () => {
     const mismatched = ticks
-      .filter((tick) => tick.body.includes(SYSTEM_WRAP))
-      .filter((tick) => !tick.body.includes(`${SYSTEM_REASON_PREFIX}${tick.taskId}`))
-      .map((tick) => `${tick.taskId} (src/index.ts:${tick.line})`);
+      .filter((tick) => tick.sanitizedBody.includes(SYSTEM_WRAP))
+      .filter(
+        (tick) => !declaredScopeReasons(tick).includes(`${SYSTEM_REASON_PREFIX}${tick.taskId}`)
+      )
+      .map(
+        (tick) =>
+          `${tick.taskId} (src/index.ts:${tick.line}) declares [` +
+          `${declaredScopeReasons(tick).join(", ")}]`
+      );
 
     expect(
       mismatched,
       "a scope reason is what an operator reads in the audit trail and in the guard's own " +
         "diagnostics. A reason copied from the neighbouring tick declares the wrong sweep and " +
-        `no count would notice. Use "${SYSTEM_REASON_PREFIX}<task-id>".`
+        "no count would notice; a reason that is only WRITTEN ABOUT in a comment declares " +
+        `nothing at all. Pass "${SYSTEM_REASON_PREFIX}<task-id>" as the first argument.`
     ).toEqual([]);
+  });
+});
+
+describe("the retraction action-window sweep is a registered bootstrap tick", () => {
+  const source = readFileSync(bootstrapPath, "utf8");
+  const tick = collectTicks(source).find(
+    (candidate) => candidate.taskId === "retraction-action-window-sweep"
+  );
+
+  it("registers the sweep under its own task id", () => {
+    expect(
+      tick,
+      "the sweep exists but nothing ticks it, so every expired action window stays open and " +
+        "the alert cycle it bounds never closes. Nothing else in the tree would notice: the " +
+        "class compiles, its own suite passes, and no metric moves because none is produced."
+    ).toBeDefined();
+  });
+
+  it("ticks it on the cadence the module declares, not on a literal pasted here", () => {
+    expect(tick?.sanitizedBody).toContain("RETRACTION_ACTION_WINDOW_SWEEP_INTERVAL_MS");
+    // The cadence itself is the module's claim; this file only pins that the
+    // registration uses it, so the two cannot drift apart.
+    expect(RETRACTION_ACTION_WINDOW_SWEEP_INTERVAL_MS).toBe(15 * 60 * 1000);
+  });
+
+  it("declares the cross-account scope for DISCOVERY and passes it in", () => {
+    // The generic scan above proves the body names a system scope. This names the
+    // shape: the scope is handed to `sweep(...)` rather than wrapped around it,
+    // because the sweep re-binds each row to its own tenant and a tenant context
+    // entered inside a system context binds the system sentinel instead.
+    //
+    // Both halves read the SANITIZED span, so the reason has to be declared by an
+    // executed call and the sweep has to be actually invoked. Read on the original
+    // bytes these two passed over a registration that called neither.
+    expect(declaredScopeReasons(tick!)).toContain(
+      `${SYSTEM_REASON_PREFIX}retraction-action-window-sweep`
+    );
+    expect(tick?.sanitizedBody).toMatch(/\.sweep\(/);
   });
 });
