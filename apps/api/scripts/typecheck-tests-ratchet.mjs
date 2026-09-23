@@ -14,12 +14,14 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { listedFilesUnder } from "./lib/listedTestFiles.mjs";
 
 const PKG_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PROJECT = "tsconfig.tests.json";
 const BASELINE = join(PKG_DIR, "tests-typecheck-baseline.json");
 
-// The scope floor. The program opened 749 files under `tests/` when this landed.
+// The scope floor. The program opened 749 files under `tests/` when this landed,
+// and 750 once the counter below grew its own unit test.
 // A config whose glob stops matching — renamed directory, changed extension,
 // `exclude` widened — produces a SMALLER program and, with it, fewer errors: the
 // ratchet would read that as progress and stay green over code it never opened.
@@ -37,6 +39,17 @@ const CHILD_HEAP_MB = 6144;
 
 const DIAGNOSTIC = /^(.+?):(\d+):(\d+) - error (TS\d+): /;
 const SUMMARY = /^Found (\d+) errors? in (\d+) files?\.$/m;
+// The scope count comes from `listedFilesUnder`, which anchors on the shape of a
+// `--listFiles` entry — a whole line that IS one absolute path. It used to be
+// taken by asking whether a line merely CONTAINED `/apps/api/tests/`, which with
+// `--pretty` on could also match a source excerpt, a related-information header
+// or error prose that happened to embed such a path. That direction of error is
+// the dangerous one: it inflates the count, which makes the floor below EASIER to
+// clear and weakens the very assertion that stops a collapsed include glob from
+// reading as progress. Measured on the real output: substring 749, anchored 749 —
+// latent, not live. The shapes that DO inflate it are pinned in
+// `tests/unit/scripts/listedTestFiles.test.ts`.
+const TESTS_DIR = "/apps/api/tests/";
 // ESC is assembled from its code point rather than written into a regex literal:
 // a literal control byte there trips `no-control-regex`, and silencing a lint
 // rule so a gate can read its own input would be the wrong trade.
@@ -111,15 +124,11 @@ function measure(tsc) {
   }
 
   const diagnostics = [];
-  let testFilesInProgram = 0;
   for (const line of output.split("\n")) {
     const hit = DIAGNOSTIC.exec(line);
-    if (hit) {
-      diagnostics.push({ file: hit[1].replaceAll("\\", "/"), code: hit[4] });
-      continue;
-    }
-    if (line.replaceAll("\\", "/").includes("/apps/api/tests/")) testFilesInProgram += 1;
+    if (hit) diagnostics.push({ file: hit[1].replaceAll("\\", "/"), code: hit[4] });
   }
+  const testFilesInProgram = listedFilesUnder(output, TESTS_DIR).size;
 
   // Scope assertion: the compiler must have PARSED the test tree.
   if (testFilesInProgram < TEST_FILE_FLOOR) {
