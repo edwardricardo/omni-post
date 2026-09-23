@@ -29,6 +29,9 @@
       "path": "../../packages/core/listening/tsconfig.build.json"
     },
     {
+      "path": "../../packages/core/posts/tsconfig.build.json"
+    },
+    {
       "path": "../../infra/prisma/tsconfig.build.json"
     },
     {

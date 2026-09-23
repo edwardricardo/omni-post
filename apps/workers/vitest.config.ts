@@ -48,6 +48,11 @@ export default defineConfig({
         root,
         "infra/prisma/src/extensions/tenantGuard.ts"
       ),
+      // The composition root installs this one; its suite drives the hook it returns.
+      "@infra/prisma/extensions/tenantGucBinding.js": path.join(
+        root,
+        "infra/prisma/src/extensions/tenantGucBinding.ts"
+      ),
       "@infra/prisma": path.join(root, "infra/prisma/src/vitest-entry.ts"),
       "@observability/logger": path.join(root, "packages/observability/logger/src/index.ts"),
       "@monitoring/circuit-breaker": path.join(
@@ -58,6 +63,9 @@ export default defineConfig({
       "@adapters/cache-redis": path.join(root, "packages/adapters/cache-redis/src/index.ts"),
       "@providers/shared": path.join(root, "packages/providers/shared/src/index.ts"),
     },
+    // No `development` needed here, and none needed for the unaliased `@core/posts` /
+    // `@adapters/db-prisma`: measured with BOTH their dists deleted, the tier stayed green and
+    // a real import of each resolved, so an `exports` map already lands on its src arm.
     conditions: ["node"],
   },
   test: {

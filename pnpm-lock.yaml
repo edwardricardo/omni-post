@@ -1231,6 +1231,9 @@ importers:
       '@core/listening':
         specifier: workspace:*
         version: link:../../packages/core/listening
+      '@core/posts':
+        specifier: workspace:*
+        version: link:../../packages/core/posts
       '@infra/prisma':
         specifier: workspace:*
         version: link:../../infra/prisma

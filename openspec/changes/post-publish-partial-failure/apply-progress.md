@@ -5997,3 +5997,190 @@ CODE for the unit is therefore **455 + 81 = 536**, and the `size:exception` it o
 **136 lines** — stated plainly rather than folded into the original figure. None of the 81 lines is
 optional under the finding that produced them: an unguarded rejection is the poison-row failure the
 task's own acceptance criterion (S-a-4) names.
+
+## PR 1c — grandchild `1c-3c` (T1c.13 + `classifyPublishFailure.ts`) — COMPLETE
+
+Branch `workstream/ncor8-1c-3c`, child of `workstream/ncor8-1c-3b` @ `8b52ffce` — **order 8 of 13**.
+Subject: the workers' own tenant scope, the guarded client and shared use cases its composition root
+now builds over it, and the failure classifier. **No behaviour changes at this tip, by construction**
+— nothing calls any of it; the handler rework is order 10.
+
+**Finish state**: `apps/workers` can reach the Post aggregate through the SAME `@core/posts` use
+cases the API resolves, over a client that enforces both isolation layers, under a job-scoped tenant
+context of its own. **Rollback**: delete `apps/workers/src/security/workerTenantContext.ts` and
+`apps/workers/src/lib/classifyPublishFailure.ts`, revert the ADDED exports in
+`apps/workers/src/container/workerContainer.ts` back to `workerPrisma` + `verifyDatabaseAuth`, and
+drop the `@core/posts` entries from `apps/workers/package.json` and `tsconfig.build.json`. The
+boundary is the added exports, NOT the file: the root is LIVE (`bootstrap.ts:52`,
+`publishWorker.ts:32`/`:263`, `mentionIngestWorker.ts:42`/`:496`) and nothing there changed.
+
+### The two `@core/posts` use cases, and the line that named them
+
+`OpenPublicationEpisodeUseCase` and `RecordChannelPublicationAttemptUseCase` — **design.md:124**
+names both by name for this root, and ordering-audit row 9 says why the recorder needs them: it
+"WRITES attempts and reads the episode for its CAS". Both constructors are
+`(postRepository, unitOfWork?)`, re-read rather than assumed.
+
+### Design-silent decisions, taken here and named
+
+1. **`workerTenantProvider` lives in `workerTenantContext.ts`, not as a literal in the root.**
+   design.md:130 has the root build the literal. `apps/api/src/security/tenantContext.ts` — the file
+   the task names as the model — keeps `ambientTenantContextProvider` beside the storage instead, and
+   says why: exporting ONE object makes "both layers read the same context" a fact about the wiring
+   rather than a convention two literals happen to share. Three consumers here (the extension, the
+   repository, the unit of work) make that load-bearing. The root imports it and passes the same
+   object to all three.
+2. **The classifier's `code` is OPTIONAL and present only on the nontransient arm.** design.md:224
+   names codes for that arm only. `FailedAttemptResult.code` is required, so something must fill it
+   for a transient or unclassifiable failure — but the only closed-set members that would fit are
+   `BUDGET_EXHAUSTED` / `UNCLASSIFIED_BUDGET_EXHAUSTED`, and writing either into `lastFailureCode` on
+   attempt 1 of 3 states something false. `ChannelPublication.recordAttempt` already derives exactly
+   those two from the classification when the budget runs out, so the classifier says "I do not know
+   the cause" and the recorder (order 9) owns what a non-excluding attempt records. **Order 9 must
+   ratify this.**
+3. **The classifier accepts the closed `RenderError` union as a first-class nontransient arm.**
+   Design's table names "render failure → `RENDER_FAILED`". At this tip `publishHandler.ts:843`
+   STRINGIFIES `rendered.error` into a thrown `Error`, so the arm is currently unreachable and a
+   render failure would classify UNCLASSIFIABLE. It becomes reachable when T1c.14 passes the
+   `RenderError` value itself. Stated rather than left as a silent gap.
+4. **`PARENT_TWEET_FAILED` has NO producer** — measured repo-wide: the only occurrence is the union
+   declaration at `packages/shared/src/types.ts:178`. It is classified UNCLASSIFIABLE rather than
+   assumed unreachable, on the reasoning that no producer means no evidence either way.
+
+### The recorded reds
+
+Every claim below was planted, run, observed failing, then restored byte-exact (`cmp` + `cksum`).
+
+| Planted defect                                   | What went red                                                                                                      |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `PARENT_TWEET_FAILED: TRANSIENT`                 | 1 failed — `expected 'transient' to be 'unclassifiable'`                                                           |
+| unknown-shape fallback → `TRANSIENT` (both arms) | 5 failed — every unknown-shape case                                                                                |
+| render arm → `CONTENT_REJECTED`                  | 7 failed — every `RenderError` member                                                                              |
+| root stops `$extends`-ing (`guarded = raw`)      | 2 failed — the guarded client has no models to call                                                                |
+| `getSystemContext: () => ({ reason })`           | 3 failed — the refusal RESOLVED, the `where` lost its injected `accountId`, the provider reported a system context |
+| adapters get the RAW client                      | 1 failed — **and the four scope cases stayed GREEN**, which is exactly why the wiring case exists                  |
+| `withWorkerTenant` returns `fn()` unbound        | 1 failed — the statement ran unscoped                                                                              |
+
+**The lazy-double fidelity was itself measured, not asserted.** Rewriting the suite's callback as the
+trap-1 shape — a NON-`async` arrow that merely RETURNS the lazy operation — reproduced the production
+failure exactly: `TenantContextMissingError: No TenantContext or SystemContext bound for
+Project.findFirst`, thrown from `tenantGuard.ts:210` via `tenantGucBinding.ts:148`. An eager `async`
+double would have reported that green.
+
+### SMELL-149 does not apply here, and that is the design
+
+`resolveGucScope` (`tenantGuc.ts:119-124`) consults the SYSTEM store FIRST, so in the API a tenant
+context nested inside a system one binds `__system__`. The worker has no system store to nest inside
+— `getSystemContext` is the constant `() => undefined` — so a job's own scope is the only scope
+either layer can resolve. Asserted directly ("has no system context to bypass the guard with, under
+any scope").
+
+### The one real defect this unit found in itself
+
+`apps/workers/tsconfig.build.json` listed no reference to `packages/core/posts`. The PRODUCTION build
+resolves `@core/posts` through the package `exports` `default` arm to `dist`, and nothing in the
+workers' build graph produced it — the checked-in `dist/index.js` predated `1c-1c`/`1c-1d` and
+exported neither use case. Measured, not inferred: `tsc -b apps/workers/tsconfig.build.json` exited
+**2** with `TS2305: Module '"@core/posts"' has no exported member 'OpenPublicationEpisodeUseCase'`
+(and the same for the recorder's use case). `tsc -b apps/workers` passes regardless, because the
+tsconfig `paths` map points at src — so the dev typecheck could never have seen it. Adding the
+project reference fixes the build; exit **0** after, with both use cases present in the rebuilt dist.
+
+### The test tier, and the one config line it needed
+
+`apps/workers` runs **vitest** (`package.json` `"test": "vitest run"`), so fitness **#30** — whose
+subject is node:test files no `run_batch` names — does not apply; the `include` glob
+`tests/**/*.test.ts` collects both new suites by construction. `vitest.config.ts` gains the
+`@infra/prisma/extensions/tenantGucBinding.js` subpath alias its two siblings already carry: the bare
+`@infra/prisma` alias targets a FILE, so without the subpath entry the prefix match resolves into
+`<file>/extensions/...` and fails ENOTDIR — the hazard that config already documents.
+
+### Unreachability at this tip — measured, not claimed
+
+`rg` over `apps packages infra` excluding node_modules/dist/tests: **zero** production importers of
+`classifyPublishFailure` or of the post wiring the root now exposes. The only non-test reader of
+`workerTenantContext.ts` is the root itself. The three pre-existing importers of `workerPrisma` /
+`verifyDatabaseAuth` are untouched.
+
+**The boot claim this section first made was FALSE, and is corrected rather than deleted.** It read
+"a runtime load of the root under `--conditions development` with the REAL modules returns all seven
+exports with their real constructors — so the live root still boots". That load was run in a shell
+that EXPORTED `DATABASE_URL`, which is the only reason it returned anything: with the variable unset
+the same import threw `DATABASE_URL environment variable is required` before returning an export,
+because the five module-level constants resolved the lazy Proxy at module evaluation. `pnpm
+dev:workers` reads `.env` rather than the ambient shell, and `bootstrap.ts:52` reaches the root
+BEFORE `config/env.ts:14-22` runs `dotenv.config()` — so the original shape broke the dev boot. The
+correction below moves the construction behind `workerPostWiring()`; the import is inert again, and
+that is now asserted by a suite rather than by a shell that happened to carry the variable.
+
+### Gates
+
+| Gate                                                                              | Result                                                                                        |
+| --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `tsc -b apps/workers`                                                             | 0                                                                                             |
+| `tsc -b apps/workers/tsconfig.build.json` (production emit)                       | 0 (**2 before the reference was added**)                                                      |
+| `tsc -b apps/api`                                                                 | 0                                                                                             |
+| `apps/workers` vitest                                                             | 19 files / 162 tests, 0 failed (was 17 / 131)                                                 |
+| `apps/api` vitest                                                                 | 596 files / 9263 tests, 0 failed — unmoved                                                    |
+| eslint `apps/workers` `--max-warnings 0`                                          | 0                                                                                             |
+| prettier `--check` on every changed file                                          | clean                                                                                         |
+| fitness #3 / #5 / #8 / #9 / #10 / #11 / #13 / #21 / #23 / #27A / #32              | 0 each                                                                                        |
+| fitness #21 — the ONE `@infra/prisma` singleton importer under `apps/workers/src` | `container/workerContainer.ts`, which the `/container/` term recognises as a composition root |
+| fitness #40 A / B                                                                 | 0 violations; floors intact at 3 and 14                                                       |
+| fitness #38 / #39                                                                 | no swept-model read and no `#39` input touched by this unit                                   |
+
+**fitness #40 does NOT cover the code this unit adds, and claiming otherwise would be false.** Part
+A's scope is `apps/api/src` + `packages/adapters/db-prisma/src` and Part B's is `apps/api/src` plus
+three relocated subdirectories; `apps/workers/src` is outside both — CLAUDE.md #40 residual (5). The
+2 ungated `$transaction` sites it names are pre-existing; this unit adds none, and `workerUnitOfWork`
+opens its transaction inside `PrismaUnitOfWork`, which IS a named seam in Part A.
+
+### Budget
+
+CODE **230** of 275 (`workerTenantContext.ts` 65 + `classifyPublishFailure.ts` 101 +
+`workerContainer.ts` +64/-0) — 200 at first submission, +30 from the correction below. EVIDENCE
+**325** of 150 — over by 175, and the overrun is one thing: the lazy-thenable Prisma harness in
+`workerTenantScope.test.ts`. An eager double is ~90 lines shorter and certifies the exact defect
+trap 1 describes, so the harness is the evidence rather than packaging around it. Build/package
+config +14; the `tasks.md` artifact +28/-3.
+
+### The bounded correction — what an adversarial gate found after submission
+
+Four findings, three real. Each red below was reproduced before its fix and re-run after.
+
+1. **CRITICAL — the root threw at IMPORT time, breaking `pnpm dev:workers`.** Measured:
+   `env -u DATABASE_URL node --conditions development --import tsx <import the root>` printed
+   `IMPORT THREW: DATABASE_URL environment variable is required`; the same command with the variable
+   set printed `IMPORT OK`. Cause: `prisma` is a lazy Proxy (`infra/prisma/src/client.ts:215`) whose
+   every property access constructs the client, `$extends` IS a property access, and the root
+   performed it at module scope — breaking the invariant that Proxy's own JSDoc states. **Fix**: the
+   five module-level constants became ONE memoised `workerPostWiring()`. Nothing in production
+   consumed them (measured), so the shape was free to change now and never again. Green: `IMPORT OK`
+   / `FACTORY THREW: DATABASE_URL environment variable is required` — the construction moved, it did
+   not disappear. Asserted by a suite that spawns that exact child, because in process vitest aliases
+   `@infra/prisma` to an inert test entry and could not see the real Proxy at all.
+2. **MAJOR — `failure in RENDER_ERRORS` walked `Object.prototype`.** Measured: `"toString"`,
+   `"constructor"`, `"valueOf"`, `"hasOwnProperty"` and `"__proto__"` each returned
+   `{nontransient, RENDER_FAILED}` — twelve unrecognised strings excluded permanently under a
+   fabricated cause, the exact outcome the file's header forbids. The second lookup carried the same
+   hazard latently: `PUBLISH_ERROR_VERDICTS["toString"]` is a FUNCTION, truthy, so `??` would never
+   have fired. **Fix**: both lookups ask `Object.hasOwn`. All five now answer `unclassifiable`, and
+   four inherited names joined the unknown-shape table.
+3. **MAJOR — the escaping `() =>` callback.** `withWorkerTenant(acct, () => prisma.post.findFirst())`
+   type-checks (`PrismaPromise<T> extends Promise<T>`) and handed the inert thenable back, so the
+   store was popped before the work ran. It is **fail-closed** — every model the workers touch is
+   tenant-scoped, so the escape raised `TenantContextMissingError` rather than leaking. **A compile
+   error is not available**: TypeScript does not model async-ness, and any brand that rejects
+   `() => PrismaPromise<T>` rejects a genuine `async () => …` identically. So the runtime closes it:
+   `run` now AWAITS the callback inside the store. Measured first in isolation
+   (`run(store, () => lazy)` → `undefined`; `run(store, async () => await lazy())` → `BOUND`), then
+   as a suite case that went red exactly as production does — `TenantContextMissingError: No
+TenantContext or SystemContext bound for Project.findFirst`, `tenantGuard.ts:210` via
+   `tenantGucBinding.ts:148` — and green after. **Wider than the correction asked for**: the gate
+   asked only for a case asserting the refusal. Rollback is one line plus that case's expectation.
+4. **REFUTED — vitest resolving `@core/posts` / `@adapters/db-prisma` to `dist`.** The premise was
+   that `conditions: ["node"]` omits `development`, so both fall through to `dist` and a clean
+   checkout fails to resolve. Measured against it: with BOTH dists physically removed, the whole
+   19-file tier stayed green AND a deliberately unmocked import of each resolved — so the `exports`
+   map already lands on its src arm and no alias or condition is missing. No fix; a three-line note
+   in `vitest.config.ts` records the measurement so the same finding is not made twice.
