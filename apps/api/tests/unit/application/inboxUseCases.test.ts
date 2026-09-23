@@ -21,7 +21,14 @@ function makeMsgRepo() {
   return {
     findByProviderMessageId: vi.fn(async () => null),
     findById: vi.fn(async () => ({ ok: false as const, error: new Error("Not found") })),
-    save: vi.fn(async () => ({ ok: true as const, value: undefined })),
+    // The aggregate parameter is what the repository port receives. Declared with
+    // no parameters, the double types `save.mock.calls[0][0]` as `never`, so the
+    // conversation-link assertion below reads a field off a type the compiler has
+    // ruled out and cannot check against the aggregate's real surface.
+    save: vi.fn(async (_aggregate: SocialMessageAggregate) => ({
+      ok: true as const,
+      value: undefined,
+    })),
     findMany: vi.fn(async () => ({ items: [], total: 0, hasMore: false })),
     count: vi.fn(async () => 0),
   };

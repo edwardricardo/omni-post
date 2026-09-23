@@ -115,7 +115,22 @@ describe("circuit-breaker write fail-fast — E2E smoke (PR3)", () => {
 
       const result = await adapter.publish(makeTelegramInput(), credentials);
 
-      // PRIMARY assertion: must NOT be a success receipt.
+      // Synthetic-receipt check FIRST, and the order is the whole point: it names
+      // the specific regression (a write-path fallback resolving with
+      // ok({ providerPostId: "queued", ... })), and it is only reachable while
+      // `ok` is still open. Below the primary assertion the branch is closed in
+      // BOTH directions — `assert.strictEqual` throws at runtime and narrows
+      // `result` to the err member for the compiler — so a check placed there
+      // never executes and never reports anything.
+      if (result.ok) {
+        assert.notEqual(
+          result.value.providerPostId,
+          "queued",
+          "providerPostId must not be the synthetic 'queued' value"
+        );
+      }
+
+      // PRIMARY assertion: must NOT be a success receipt at all.
       // If fallbackEnabled were re-enabled for send-message (write path),
       // the adapter would resolve with ok({ providerPostId: "queued", ... })
       // — flipping ok to true and failing this assertion (RED).
@@ -125,16 +140,6 @@ describe("circuit-breaker write fail-fast — E2E smoke (PR3)", () => {
         `TelegramAdapter.publish must return err on 503 provider response, ` +
           `but got ok=${result.ok} — check if fallbackEnabled was re-enabled for 'send-message'`
       );
-
-      // Confirm the resolved value is not a synthetic queued receipt
-      if (result.ok) {
-        const receipt = result.value as { providerPostId?: string };
-        assert.notEqual(
-          receipt.providerPostId,
-          "queued",
-          "providerPostId must not be the synthetic 'queued' value"
-        );
-      }
     });
   });
 
@@ -153,22 +158,26 @@ describe("circuit-breaker write fail-fast — E2E smoke (PR3)", () => {
 
       const result = await adapter.publish(makeLinkedInInput(), credentials);
 
-      // Same RED/GREEN logic as Telegram above.
+      // Same ordering as Telegram above, and worth saying what it does and does
+      // not buy here: the strictEqual below already fails any ok=true regression,
+      // so this guard adds signal ONLY when the receipt is exactly the synthetic
+      // "queued" — it names which regression fired instead of reporting a generic
+      // ok/false mismatch. Any other ok=true value is caught by the strictEqual
+      // alone, with a less specific message.
+      if (result.ok) {
+        assert.notEqual(
+          result.value.providerPostId,
+          "queued",
+          "providerPostId must not be the synthetic 'queued' value"
+        );
+      }
+
       assert.strictEqual(
         result.ok,
         false,
         `LinkedInAdapter.publish must return err on 503 provider response, ` +
           `but got ok=${result.ok} — check if fallbackEnabled was re-enabled for 'create-post'`
       );
-
-      if (result.ok) {
-        const receipt = result.value as { providerPostId?: string };
-        assert.notEqual(
-          receipt.providerPostId,
-          "queued",
-          "providerPostId must not be the synthetic 'queued' value"
-        );
-      }
     });
   });
 });

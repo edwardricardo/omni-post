@@ -191,12 +191,22 @@ describe("Infrastructure Adapters", () => {
 
       const health = await queueAdapter.health();
 
-      // Result should have either ok=true with value or ok=false with error
+      // What these decide, stated exactly: Result is a discriminated union, so the
+      // ok arm's type has no `error` field at all and the err arm's has no `value`.
+      // Reading those fields to compare them against undefined therefore does not
+      // type-check on one arm, and only type-checked on the other because a cast
+      // was spending the compiler's objection — while the runtime question both
+      // forms actually answer is narrower than "the Result is well-formed": it is
+      // whether the adapter handed back an object carrying BOTH payloads, which the
+      // union forbids but a hand-built or cast Result can still produce. `in` asks
+      // that same question in a form the compiler accepts on both arms, so neither
+      // arm needs a cast and neither loses reach.
       if (health.ok) {
-        assert.strictEqual(health.error, undefined, "Success should not have error");
+        assert.ok("value" in health, "Success must carry its value");
+        assert.ok(!("error" in health), "Success must not also carry an error");
       } else {
         assert.ok(health.error, "Failure should have error message");
-        assert.strictEqual((health as any).value, undefined, "Failure should not have value");
+        assert.ok(!("value" in health), "Failure must not also carry a value");
       }
     });
 

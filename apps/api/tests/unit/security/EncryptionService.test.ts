@@ -7,10 +7,25 @@
 import { describe, it, expect, vi } from "vitest";
 import { randomBytes } from "node:crypto";
 import { EncryptionService } from "../../../src/security/EncryptionService.js";
-import type { EncryptedValue, EncryptionContext } from "../../../src/security/EncryptionService.js";
+import type {
+  DecryptAuditPort,
+  EncryptedValue,
+  EncryptionContext,
+} from "../../../src/security/EncryptionService.js";
 
 const VALID_KEY = randomBytes(32).toString("base64");
 const CTX: EncryptionContext = { fieldName: "Channel.credentials", recordId: "ch-1" };
+
+/** The event the service is contracted to emit, so a recorded call can be read. */
+type DecryptAuditEvent = Parameters<DecryptAuditPort["logCredentialDecrypt"]>[0];
+
+// A port double whose implementation declares no parameters types every recorded
+// call as `never`, which leaves `call?.error` below reading a field off a type the
+// compiler has ruled out — it cannot check that field name against the event the
+// service is contracted to emit. Declaring the parameter is what binds the two.
+function makeDecryptAuditPort() {
+  return { logCredentialDecrypt: vi.fn(async (_event: DecryptAuditEvent) => {}) };
+}
 
 function createService(): EncryptionService {
   return new EncryptionService({ activeKeyBase64: VALID_KEY, activeKeyVersion: 1 });
@@ -194,7 +209,7 @@ describe("EncryptionService", () => {
 
   describe("audit emission", () => {
     it("calls auditPort.logCredentialDecrypt with success: true on successful decrypt", async () => {
-      const auditPort = { logCredentialDecrypt: vi.fn(async () => {}) };
+      const auditPort = makeDecryptAuditPort();
       const svc = new EncryptionService({
         activeKeyBase64: VALID_KEY,
         activeKeyVersion: 1,
@@ -213,7 +228,7 @@ describe("EncryptionService", () => {
     });
 
     it("calls auditPort.logCredentialDecrypt with success: false on AAD mismatch", async () => {
-      const auditPort = { logCredentialDecrypt: vi.fn(async () => {}) };
+      const auditPort = makeDecryptAuditPort();
       const svc = new EncryptionService({
         activeKeyBase64: VALID_KEY,
         activeKeyVersion: 1,
@@ -232,7 +247,7 @@ describe("EncryptionService", () => {
     });
 
     it("does NOT include the plaintext anywhere in the audit event (ASVS V16.2.5)", async () => {
-      const auditPort = { logCredentialDecrypt: vi.fn(async () => {}) };
+      const auditPort = makeDecryptAuditPort();
       const svc = new EncryptionService({
         activeKeyBase64: VALID_KEY,
         activeKeyVersion: 1,
