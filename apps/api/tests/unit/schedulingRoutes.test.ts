@@ -93,6 +93,8 @@ const fastifyCookie = (await import("@fastify/cookie")).default;
 const { schedulingRoutes } = await import("../../src/admin/schedulingRoutes.js");
 const { schedulingClientRoutes } = await import("../../src/scheduling/schedulingClientRoutes.js");
 const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { ApiMetrics } = await import("../../src/metrics/apiMetrics.js");
+const promClient = (await import("prom-client")).default;
 const { generateAdminToken } = await import("./admin/adminTestHelper.js");
 
 // ---------------------------------------------------------------------------
@@ -105,7 +107,11 @@ const adminEmail = `scheduling-test-${timestamp}@example.com`;
 
 async function createTestApp() {
   const app = Fastify({ logger: false });
-  const container = setupContainer({ prisma: mockPrisma.prisma as never });
+  // A registry of this suite's own, so the collector never shares state with another file.
+  const container = setupContainer({
+    prisma: mockPrisma.prisma as never,
+    apiMetrics: new ApiMetrics(new promClient.Registry()),
+  });
   app.decorate("container", container);
   await app.register(fastifyCookie);
   await app.register(schedulingRoutes);
@@ -210,7 +216,7 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should return 400 when cancelling a non-scheduled post", async () => {
     // Create a DRAFT post
     const post = await (prisma.post as { create: Function }).create({
-      data: { projectId: testProjectId, status: "DRAFT" },
+      data: { projectId: testProjectId, accountId: testAccountId, status: "DRAFT" },
     });
 
     const res = await app.inject({
@@ -227,7 +233,12 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should successfully cancel a scheduled post", async () => {
     const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const post = await (prisma.post as { create: Function }).create({
-      data: { projectId: testProjectId, status: "SCHEDULED", scheduledAt: futureDate },
+      data: {
+        projectId: testProjectId,
+        accountId: testAccountId,
+        status: "SCHEDULED",
+        scheduledAt: futureDate,
+      },
     });
 
     const res = await app.inject({
@@ -269,7 +280,12 @@ describe("schedulingRoutes Unit Tests", () => {
   it("should successfully reschedule a post to a future time", async () => {
     const initialDate = new Date(Date.now() + 2 * 60 * 60 * 1000);
     const post = await (prisma.post as { create: Function }).create({
-      data: { projectId: testProjectId, status: "SCHEDULED", scheduledAt: initialDate },
+      data: {
+        projectId: testProjectId,
+        accountId: testAccountId,
+        status: "SCHEDULED",
+        scheduledAt: initialDate,
+      },
     });
 
     const newDate = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();

@@ -38,6 +38,9 @@ export const ReschedulePostBodySchema = z.object({
   updateChannels: z.boolean().default(true),
 });
 
+/** A reschedule request once validated, so a handler can pass it on without re-deriving it. */
+export type ReschedulePostBody = z.infer<typeof ReschedulePostBodySchema>;
+
 /**
  * Query schema for available scheduling slots
  */

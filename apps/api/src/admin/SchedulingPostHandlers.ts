@@ -9,11 +9,16 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import type { Prisma, PrismaClient } from "@infra/prisma";
 import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { ErrorCode, type ProviderName } from "@shared/types";
-import { getAmbientGucScope } from "../security/tenantContext.js";
+import {
+  getAmbientGucScope,
+  withSystemContext,
+  withTenantContext,
+} from "../security/tenantContext.js";
 import {
   ScheduledPostsQuerySchema,
   PostIdParamsSchema,
   ReschedulePostBodySchema,
+  type ReschedulePostBody,
 } from "./schedulingSchemas.js";
 
 /**
@@ -23,6 +28,28 @@ import {
  * revision of the enum adds. Named once so the two writers below cannot drift.
  */
 const DIRECT_WRITABLE_STATUSES = ["SCHEDULED", "DRAFT", "FAILED"] as const;
+
+/**
+ * The two shapes of cross-tenant access these three routes need, declared together because
+ * the CONTRAST between them is the rule. A reader who meets only one of them widens the
+ * other back to match it.
+ *
+ * {@link OWNERSHIP_LOOKUP_REASON} covers one column read for one purpose — which account
+ * owns this post — and the account it yields is then bound for every other statement the
+ * request issues. Holding the system scope across the writes instead would be an unscoped
+ * cross-tenant write keyed on a caller-supplied id (CWE-639): the by-id routes carry no
+ * account in their params or body, so there would be nothing to re-filter by. The
+ * narrowness is the justification, as it is for the key lookup in
+ * `integrationAuthMiddleware`.
+ *
+ * {@link PLATFORM_VIEW_REASON} covers the list route, which is a DIFFERENT case rather than
+ * a wider version of the same one: its `projectId` filter is optional, so with no filter it
+ * lists every tenant's scheduled posts by design, gated by `requireAdminAuth` +
+ * `POST_MANAGE`. Nothing the caller supplied names an owner, so there is no owner scope
+ * being ignored.
+ */
+const OWNERSHIP_LOOKUP_REASON = "system:admin-scheduling-post-owner-lookup";
+const PLATFORM_VIEW_REASON = "system:admin-scheduling-platform-view";
 
 /** The two columns that decide whether a channel is holding this post's content. */
 interface PublicationLivenessRow {
@@ -96,6 +123,45 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
 
   constructor(private readonly prisma: PrismaClient) {
     super();
+  }
+
+  /**
+   * @method withPostTenant
+   * @description Resolves who owns the post, then runs the rest of the handler inside THAT
+   *              tenant's context. The two scopes are SEQUENTIAL, never nested:
+   *              `resolveGucScope` consults the system store first, so a tenant context
+   *              opened inside the system one still resolves `__system__` — the reads would
+   *              look right and the write would bind the wrong scope.
+   * @param ctx - The route context, for the 404 and for the lookup's own failure.
+   * @param id - The post whose owner decides the scope.
+   * @param failureMessage - What this route answers when the lookup itself fails.
+   * @param run - The rest of the handler, run tenant-bound.
+   */
+  private async withPostTenant(
+    ctx: RouteContext,
+    id: string,
+    failureMessage: string,
+    run: () => Promise<void>
+  ): Promise<void> {
+    let accountId: string | null;
+    try {
+      accountId = await withSystemContext(OWNERSHIP_LOOKUP_REASON, async () => {
+        const owner = await this.prisma.post.findFirst({
+          where: { id, deletedAt: null },
+          select: { accountId: true },
+        });
+        return owner?.accountId ?? null;
+      });
+    } catch (error: unknown) {
+      this.logError(ctx, failureMessage, { error });
+      return this.sendError(ctx, 500, failureMessage);
+    }
+
+    if (accountId === null) {
+      return this.sendError(ctx, 404, "Post not found");
+    }
+
+    return withTenantContext({ accountId }, run);
   }
 
   /**
@@ -235,45 +301,56 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
         whereClause.scheduledAt = { not: null };
       }
 
-      // Count total matching posts
-      const total = await this.prisma.post.count({ where: whereClause });
-
-      // Calculate pagination
+      // Pagination and ordering are decided BEFORE the scope opens: they are arithmetic
+      // over already-validated query parameters and touch no database at all.
       const offset = (pageNum - 1) * limitNum;
-
-      // Build orderBy dynamically
       const orderByClause: Record<string, "asc" | "desc"> = {};
       orderByClause[sortField] = sortDir;
 
-      // Fetch posts with related data
-      const posts = await this.prisma.post.findMany({
-        where: whereClause,
-        include: {
-          contents: {
-            orderBy: { revision: "desc" },
-            take: 1,
-          },
-          publishLogs: {
-            orderBy: { createdAt: "desc" },
-            take: 5,
-            ...(provider && {
-              where: {
-                provider: provider as ProviderName,
+      // ONE scope for the whole platform-wide read, rather than one per statement. Two
+      // scopes with code between them leaves that code unscoped, and the next statement
+      // added there would answer 500 for a reason its author could not see — the failure
+      // this route is being repaired from.
+      //
+      // The callback is `async` and that is load-bearing, not style. A Prisma model
+      // method returns a LAZY `PrismaPromise`: nothing runs until `then()` is called,
+      // and the guard plus the GUC binding live inside that callback. A plain
+      // `() => this.prisma.post.count(...)` hands the inert object back to
+      // `withSystemContext`, whose `AsyncLocalStorage.run` has already popped the store
+      // by the time `await` triggers it — so the guard would see NO scope at all. An
+      // `async` callback returns a promise that ADOPTS the thenable, and the adoption
+      // calls `then()` from inside `run`.
+      const { total, posts } = await withSystemContext(PLATFORM_VIEW_REASON, async () => ({
+        total: await this.prisma.post.count({ where: whereClause }),
+        posts: await this.prisma.post.findMany({
+          where: whereClause,
+          include: {
+            contents: {
+              orderBy: { revision: "desc" },
+              take: 1,
+            },
+            publishLogs: {
+              orderBy: { createdAt: "desc" },
+              take: 5,
+              ...(provider && {
+                where: {
+                  provider: provider as ProviderName,
+                },
+              }),
+            },
+            project: {
+              select: {
+                id: true,
+                name: true,
+                accountId: true,
               },
-            }),
-          },
-          project: {
-            select: {
-              id: true,
-              name: true,
-              accountId: true,
             },
           },
-        },
-        orderBy: orderByClause,
-        skip: offset,
-        take: limitNum,
-      });
+          orderBy: orderByClause,
+          skip: offset,
+          take: limitNum,
+        }),
+      }));
 
       // Format response data - cast to proper type with includes
       type PostWithRelations = (typeof posts)[0];
@@ -372,6 +449,19 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
 
     const { id } = validation.value;
 
+    return this.withPostTenant(ctx, id, "Failed to cancel scheduled post", () =>
+      this.cancelWithinTenant(ctx, id)
+    );
+  }
+
+  /**
+   * @method cancelWithinTenant
+   * @description The cancellation itself, running with the owning tenant bound so the
+   *              guard scopes every statement below rather than this file doing it by hand.
+   * @param ctx - The route context.
+   * @param id - The post to cancel.
+   */
+  private async cancelWithinTenant(ctx: RouteContext, id: string): Promise<void> {
     try {
       // Check if post exists and is scheduled
       const post = await this.prisma.post.findFirst({
@@ -494,7 +584,26 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
     }
 
     const { id } = paramsValidation.value;
-    const { scheduledAt, timezone, updateChannels } = bodyValidation.value;
+
+    return this.withPostTenant(ctx, id, "Failed to reschedule post", () =>
+      this.rescheduleWithinTenant(ctx, id, bodyValidation.value)
+    );
+  }
+
+  /**
+   * @method rescheduleWithinTenant
+   * @description The reschedule itself, running with the owning tenant bound so the guard
+   *              scopes every statement below rather than this file doing it by hand.
+   * @param ctx - The route context.
+   * @param id - The post to move.
+   * @param body - The validated new schedule.
+   */
+  private async rescheduleWithinTenant(
+    ctx: RouteContext,
+    id: string,
+    body: ReschedulePostBody
+  ): Promise<void> {
+    const { scheduledAt, timezone, updateChannels } = body;
 
     try {
       // Check if post exists
