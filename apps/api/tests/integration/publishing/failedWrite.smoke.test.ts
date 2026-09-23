@@ -158,7 +158,12 @@ describe("circuit-breaker write fail-fast — E2E smoke (PR3)", () => {
 
       const result = await adapter.publish(makeLinkedInInput(), credentials);
 
-      // Same RED/GREEN logic and same ordering as Telegram above.
+      // Same ordering as Telegram above, and worth saying what it does and does
+      // not buy here: the strictEqual below already fails any ok=true regression,
+      // so this guard adds signal ONLY when the receipt is exactly the synthetic
+      // "queued" — it names which regression fired instead of reporting a generic
+      // ok/false mismatch. Any other ok=true value is caught by the strictEqual
+      // alone, with a less specific message.
       if (result.ok) {
         assert.notEqual(
           result.value.providerPostId,

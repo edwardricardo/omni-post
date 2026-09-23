@@ -200,8 +200,7 @@ describe("Infrastructure Adapters", () => {
       // whether the adapter handed back an object carrying BOTH payloads, which the
       // union forbids but a hand-built or cast Result can still produce. `in` asks
       // that same question in a form the compiler accepts on both arms, so neither
-      // arm needs a cast and neither loses reach (measured against a planted
-      // both-payload object: the old and new forms catch and pass identically).
+      // arm needs a cast and neither loses reach.
       if (health.ok) {
         assert.ok("value" in health, "Success must carry its value");
         assert.ok(!("error" in health), "Success must not also carry an error");
