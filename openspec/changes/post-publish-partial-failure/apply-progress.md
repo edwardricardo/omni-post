@@ -5466,3 +5466,344 @@ production diffs are +60/−29 and +13/−3 against `181ce363`, and every added 
 sentinel and its helper (finding 2, which also DELETES two six-line inline compare-and-swaps) or the
 JSDoc stating why each side is the true one. Saying it loudly because the next person to touch this
 unit's production files has no room: the next CODE line owes an exception, or a split.
+
+---
+
+## PR 1c — grandchild `1c-3b` (T1c.16) — COMPLETE
+
+Branch `workstream/ncor8-1c-3b`, child of `workstream/ncor8-1c-3a` @ `7117bcab` — **order 7 of 13**.
+Subject: D18's customer action window — the parameter, the discovery port and its Prisma read, the
+sweep that closes an elapsed window, its two counters, and the bootstrap tick that drives it.
+
+**Finish state**: an alert that asks a customer to remove stranded content by hand now has an END.
+Once `RETRACTION_ACTION_WINDOW_HOURS` (default 72) has elapsed, a 15-minute tick finalizes that
+channel as `ACTION_WINDOW_EXPIRED` and the standing alert resolves — while the live fragment
+references, `hasLiveContent()`, the content lock and the confirm act all survive, because elapsed
+time is not evidence that anything came down. **Rollback**: delete
+`apps/api/src/infrastructure/retention/RetractionActionWindowSweep.ts`,
+`apps/api/src/metrics/retractionWindowMetrics.ts`,
+`packages/adapters/db-prisma/src/PendingRetractionSweepReads.ts` and
+`packages/core/domain/src/repositories/PendingRetractionSweepReader.ts`; revert the four-line export
+in `db-prisma/src/index.ts`, the registration block in `index.ts` and the schema entry in
+`config/env.ts`. Nothing outside this unit references any of them — `ExpireRetractionActionWindowUseCase`
+had ZERO production callers before it and has exactly one after.
+
+### What each mechanism is, as built
+
+| Mechanism                                       | As built                                                                                                                                                                                                                                                                                                                                                       |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RETRACTION_ACTION_WINDOW_HOURS`                | `z.coerce.number().int().min(1).max(720).default(72)` in the `server` block, the `SAGA_WAIT_POLL_MS` shape. Bounds refuse the degenerate ends rather than clamping: `0` would expire every open window at the very next tick                                                                                                                                   |
+| `PendingRetractionSweepReader` (port, 61 lines) | A read port of its own, not a method on `PostRepository`: it reads ACROSS accounts to find which tenants have work, while every other method on that type is tenant-scoped. Returns the three IDENTIFIERS and nothing else, because the sweep re-reads each row under its own tenant before touching it                                                        |
+| `PendingRetractionSweepReads` (adapter, 58)     | ONE `findMany`, no transaction, no write. Four clauses (`pendingRetraction`, `retractionBlockedCause not null`, `actionWindowExpiredAt null`, `actionWindowStartedAt lte`), `orderBy [actionWindowStartedAt asc, id asc]`, `take: limit`, `select` of the three ids. Mirrors the partial index the schema already carries                                      |
+| `RetractionActionWindowSweep` (213, 94 exec.)   | Two phases, SEQUENTIAL. `now` is read ONCE and both `olderThan = now − window` and the use case's `now` come from it, so the cutoff discovery selected by is the cutoff the record re-asserts. A refused row is counted, named at ERROR, and left in the predicate; the loop continues                                                                         |
+| the system scope                                | a PARAMETER, supplied by the registration site. See correction 1 — wrapping the whole tick in it is the SMELL-149 shape                                                                                                                                                                                                                                        |
+| the tenant binding                              | `withTenantContext({ accountId: row.accountId })` per row, OUTSIDE the discovery scope                                                                                                                                                                                                                                                                         |
+| `retractionWindowMetrics.ts` (64)               | A second metrics module rather than two counters in `retractionAlertMetrics.ts`: that file answers "was the customer REACHED", these answer "is the deadline being enforced", and the two fail independently. Both counters are incremented by the sweep on its own production paths                                                                           |
+| the bootstrap tick                              | `scheduler.register("retraction-action-window-sweep", …, RETRACTION_ACTION_WINDOW_SWEEP_INTERVAL_MS, { onError })` beside the deletion-record degrader. The promise is AWAITED; the sweep logs its own four counts                                                                                                                                             |
+| the wiring                                      | both new objects are CONSTRUCTED at the bootstrap (`new PendingRetractionSweepReads(resolve(TOKENS.PrismaClient))`, `new RetractionActionWindowSweep(...)`), so no new container token exists that could resolve to `undefined` in silence. The one token read, `TOKENS.ExpireRetractionActionWindowUseCase`, is already pinned by `setupPostUseCases.test.ts` |
+
+### The recorded reds
+
+**1. T1c.16 — the sweep module does not exist.** The suite was written first, against nothing:
+
+```text
+ FAIL  tests/unit/retention/RetractionActionWindowSweep.test.ts
+Error: Cannot find module '../../../src/infrastructure/retention/RetractionActionWindowSweep.js'
+ Test Files  1 failed (1)
+      Tests  no tests
+```
+
+GREEN after the module + the port + the metrics: **6 passed (6)**.
+
+**2. The discovery adapter does not exist.** Written against an absent export:
+
+```text
+ FAIL  tests/unit/infrastructure/PendingRetractionSweepReads.test.ts > … > carries the three identifiers and nothing else out of the read
+TypeError: PendingRetractionSweepReads is not a constructor
+ Test Files  1 failed (1)
+      Tests  4 failed (4)
+```
+
+GREEN after the adapter and its export: **4 passed (4)**.
+
+**3. The env parameter does not exist.** Five cases over the `DELETION_RECORD_RETENTION_YEARS`
+shape, all red at once — and the two halves fail DIFFERENTLY, which is the point of writing both:
+
+```text
+ FAIL  … > applies the 72-hour default when unset
+AssertionError: expected undefined to be 72 // Object.is equality
+ FAIL  … > rejects boot on a window of zero, which would expire every row at once
+AssertionError: promise resolved "{ NODE_ENV: 'test', PORT: 3001, …(35) }" instead of rejecting
+ FAIL  … > rejects boot above the 30-day ceiling
+AssertionError: promise resolved "{ NODE_ENV: 'test', PORT: 3001, …(35) }" instead of rejecting
+ FAIL  … > rejects boot on a non-integer window
+AssertionError: promise resolved "{ NODE_ENV: 'test', PORT: 3001, …(35) }" instead of rejecting
+ Test Files  1 failed (1)
+      Tests  5 failed | 32 passed (37)
+```
+
+An absent key reads as `undefined` and an out-of-range value is ACCEPTED — the same absence,
+producing a wrong answer and a missing refusal. GREEN after the schema entry: **37 passed (37)**.
+
+**4. The sweep exists but nothing ticks it.** Three cases added to the bootstrap source scan:
+
+```text
+ FAIL  … > registers the sweep under its own task id
+AssertionError: expected undefined to be defined
+ FAIL  … > ticks it on the cadence the module declares, not on a literal pasted here
+AssertionError: the given combination of arguments (undefined and string) is invalid …
+ FAIL  … > declares the cross-account scope for DISCOVERY and passes it in
+AssertionError: the given combination of arguments (undefined and string) is invalid …
+ Test Files  1 failed (1)
+      Tests  3 failed | 4 passed (7)
+```
+
+This is the red that matters most in this unit: without it the class compiles, its own six cases
+pass, and no metric moves — because none is produced.
+
+**4b. A second, unplanned red inside the same file, and it found a real constraint.** The first
+registration passed the task id as an imported CONSTANT. The scan's `collectTicks` reads the id with
+`/^\s*"([^"]+)"/` — a STRING LITERAL — so the tick was attributed to `""`, and the file's own
+pre-existing case went red alongside mine:
+
+```text
+ Test Files  1 failed (1)
+      Tests  4 failed | 3 passed (7)
+```
+
+The registration now passes the literal, like all ten neighbours, and the exported `…_TASK_ID`
+constant was deleted rather than left as an unused export for knip to find.
+
+### The three corrections this task line needed
+
+**1. The registration shape written in `tasks.md` and `design.md` re-creates SMELL-149.** Both say
+`scheduler.register("retraction-action-window-sweep", () => withSystemContext("system:…", …), 15 * 60 * 1000)`,
+which puts the WHOLE tick inside the system scope. The per-row `withTenantContext` would then nest
+inside it, and `resolveGucScope` answers `SYSTEM_TENANT_SCOPE` whenever a system context is present
+(`tenantGuc.ts:119-124`) because the two stores are independent `AsyncLocalStorage` instances: every
+write would bind `__system__`, layer 1's guard would step aside, and the row's account would be read
+by nobody. The nesting compiles, reads correctly, and is silent — which is exactly why SMELL-149 is
+a backlog row and not a bug report.
+
+The shape built instead: the scope is a PARAMETER of `sweep()`, supplied at the registration site as
+`(run) => withSystemContext("system:retraction-action-window-sweep", run)`, and it covers DISCOVERY
+only. The loop runs after it. This is `RecurrenceScheduler`'s sequential shape, which is the one
+precedent in the tree for a tick that discovers cross-account and writes per tenant.
+
+The asymmetry (system scope injected, tenant binding imported) is deliberate and stated in the file:
+the system scope is a property of the TICK — declared and NAMED at the registration site, which is
+where `schedulerTickTenantScope.test.ts` reads it — while the tenant binding has no name to declare
+there, because it is derived per row from the row just read.
+
+**The pin is two-sided.** Every double records BOTH `getTenantContext()?.accountId` and
+`getSystemContext()?.reason` at the moment it is entered, and the case asserts both:
+
+```ts
+expect(calls.map((c) => c.scope.tenantAccountId)).toEqual(["account-a", "account-b"]);
+expect(calls.map((c) => c.scope.systemReason)).toEqual([undefined, undefined]);
+```
+
+Asserting the account alone PASSES on the nested version — the tenant store really is populated
+there, it just is not what the GUC reads. That is the same observation that found SMELL-149.
+
+**2. The suite path.** The task line says `apps/api/tests/unit/RetractionActionWindowSweep.test.ts`
+(flat). It ships at `apps/api/tests/unit/retention/RetractionActionWindowSweep.test.ts`, because the
+ONLY other module in `apps/api/src/infrastructure/retention/` is tested at
+`apps/api/tests/unit/retention/DeletionRecordDegrader.test.ts`. This is the `1c-3a` reasoning
+applied where it points the other way: that unit moved a suite from a mirrored path to a flat one so
+that one source folder would not be split across two conventions, and here the flat path is what
+would do the splitting. The adapter suite is at
+`apps/api/tests/unit/infrastructure/PendingRetractionSweepReads.test.ts`, beside
+`PrismaPostRepository.test.ts` — the same home this change already uses for a db-prisma post
+adapter, and the tier that actually runs in this gate.
+
+**3. The sweep depends on the use case's CONTRACT, not on the concrete class — and a `tsc` probe is
+the only thing that could have said so.** The first version typed the dependency as
+`ExpireRetractionActionWindowUseCase`. Vitest was green. The scratchpad `tsc` was not:
+
+```text
+error TS2345: Argument of type '{ execute: … }' is not assignable to parameter of type
+'ExpireRetractionActionWindowUseCase'. Type '{ execute: … }' is missing the following properties
+… : postRepository, expire, classifyRefusal
+```
+
+Six occurrences, one per construction in the suite. A class-typed dependency drags its PRIVATE
+fields into the contract, so no double can satisfy it and no second implementation could either. The
+sweep now names `UseCase<ExpireRetractionActionWindowInput, ExpireRetractionActionWindowOutput,
+UseCaseError>`.
+
+**This is a CLASS, and it was probed rather than asserted.** Measured in `apps/api/src`:
+**109** constructor parameters typed as a concrete `*UseCase` class, **0** typed as the `UseCase<>`
+contract. The cost of that convention is visible one file away — `RecurrenceScheduler.test.ts`
+constructs every one of its doubles as `as never` (`:66-69`, `:82-83`), which means none of them is
+type-checked and a double returning the wrong shape would compile. This unit is the first site to
+diverge; it is 1 of 110 and is named here rather than spread. Backlog candidate below.
+
+### Design-silent decisions, taken here and named
+
+1. **The failures counter is UNLABELLED.** A `stage: "row" | "discovery"` split was considered and
+   rejected: every arm would carry the same remedy — the row's own cause, named in the ERROR log
+   beside the counter — and D18's poison-row signal is a FLAT non-zero reading across ticks, which a
+   label would only make harder to read. A discovery failure is a different event and takes a
+   different exit: it rejects the tick's promise, the scheduler's `runCallbackSafely` catches it, and
+   the registration's `onError` logs it at ERROR. **Residual, named**: a permanently failing
+   discovery read is therefore visible as an ERROR log and an ABSENT summary log, not as a counter.
+   The alert rule T1c.18 owes is over the failures counter, so it would not fire for that case.
+2. **The sweep takes `windowHours` by constructor; the bootstrap reads `env`.** D18 says "the sweep
+   reads it". It is read at the composition root instead — the exact `DeletionRecordDegrader`
+   precedent, where `setupCrisisUseCases.ts` reads `env.DELETION_NAME_DIGEST_ACTIVE_VERSION` and
+   hands the degrader a number. Fitness #16 is satisfied either way; what constructor injection buys
+   is a sweep whose window can be varied by a test without stubbing a module.
+3. **Neither new object is container-registered.** Both are constructed at the bootstrap, which the
+   canon names as a composition root and which already calls `createPrismaRepoAdapter` directly. The
+   reason is the failure mode: `Container.resolve` on a token that was never registered returns
+   `undefined` without throwing, so a mistyped token would produce a tick that fails on its first
+   call and is swallowed by `onError`. Constructor injection has no such silent arm.
+4. **`orderBy` breaks the tie on `id`.** D18 says "oldest first". The page is bounded at 100, so two
+   rows sharing a window instant could otherwise swap places between ticks and leave one of them
+   permanently on the far side of the page.
+5. **The adapter's test fake INTERPRETS the `where` and THROWS on a clause it does not recognise.**
+   A mock returning a canned array cannot fail "a window that is still open is not selected", which
+   is the only interesting claim about a predicate.
+
+### What a customer sees differently after this unit
+
+| Before                                                                                             | After                                                                                                                   |
+| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| A channel stranded pending retraction stays pending forever; the alert never resolves              | After `RETRACTION_ACTION_WINDOW_HOURS` the channel is `EXCLUDED` / `ACTION_WINDOW_EXPIRED` and the alert resolves, once |
+| `actionWindowStartedAt` was written by the record and read by nothing                              | It is the sweep's predicate, and `actionWindowExpiredAt` is the mark the customer's panel reads                         |
+| `ExpireRetractionActionWindowUseCase` had ZERO production callers (measured in the `1c-2b` ledger) | It has exactly one: this tick                                                                                           |
+| Nothing is live: the fragments, `hasLiveContent()`, the content lock, the confirm act              | Unchanged by expiry — all four survive it, by construction and by the aggregate's own method (`1c-1d`)                  |
+
+### Doubles updated — the mandatory `rg` over `**/tests/**`
+
+Zero. The two new interfaces (`PendingRetractionSweepReader`, `RetractionActionWindowSweepLogger`)
+had no prior implementors, and no existing double changed shape — verified by an `rg` for both names
+across `apps/**/tests` and `packages/**/tests`, which returns only the two suites added here.
+
+### The scratchpad tsc probe — run, and it caught the unit's one real defect
+
+No tsconfig opens a `.test.ts`, so the habit from the last five units was repeated over the four
+touched test files. It found **6 errors, all one defect**: the concrete-class dependency of
+correction 3. Second run after the fix: **exit 0, zero errors** — in the touched tests and in
+`apps/api/src` + every `packages/*/src` the config pulls in. **Sixth distinct defect class the probe
+has caught in six units**, and the permanent-config decision is now six for six.
+
+### Gates
+
+| Gate                                                         | Result                                                                                                                              |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `tsc --noEmit -p packages/shared`                            | exit **0**                                                                                                                          |
+| `tsc -b apps/api`                                            | exit **0**                                                                                                                          |
+| scratchpad `tsc` over the 4 touched test files               | **6 errors → fixed → exit 0** (see above)                                                                                           |
+| `eslint --max-warnings 0`, 11 files, ONE pass                | exit **0** (the `[boundaries]` plugin advisories are pre-existing — reproduced on an untouched file)                                |
+| `prettier -c`, 12 files                                      | 2 reflows applied, then **All matched files use Prettier code style**                                                               |
+| the new suites                                               | `RetractionActionWindowSweep.test.ts` **6/6**, `PendingRetractionSweepReads.test.ts` **4/4**                                        |
+| `apps/api` unit tier (`vitest run --maxWorkers=2`)           | **595 files / 9256 passed / 0 failed / 0 skipped**, exit 0 (baseline 593 / 9238)                                                    |
+| `integration:saga-recovery` (3 suites, conc. 1)              | **33 tests, 33 pass, 0 fail, 0 cancelled, 0 skipped**, runner exit **0** — Postgres and Redis on `omnipost-infra` verified UP first |
+| fitness **#1 #3 #4 #5 #6 #8 #9 #10 #11 #16 #21 #23 #32 #40** | every one exit **0**, run from the blocks extracted textually from `fitness.yml`                                                    |
+| fitness **#11** and **#16** red path                         | PROVEN — see below                                                                                                                  |
+| `pnpm check:circular`                                        | **No circular dependency found** (1614 files)                                                                                       |
+| `pnpm check:dead-code`                                       | **0 regressions** (321 tracked baseline findings)                                                                                   |
+
+**The unit tier delta, fully attributed. 593 → 595 files, 9238 → 9256 tests: +2 and +18.**
+`RetractionActionWindowSweep.test.ts` +1 file / +6 · `PendingRetractionSweepReads.test.ts` +1 / +4 ·
+`schedulerTickTenantScope.test.ts` +3 (same file) · `env.test.ts` +5 (same file). 6+4+3+5 = 18,
+exactly, with nothing unexplained.
+
+**#11 and #16 red path, demonstrated rather than assumed.** Both are the gates this task names, and
+a gate that has never gone red over THIS file proves nothing about it. A `setInterval(` call and a
+`process.env.RETRACTION_ACTION_WINDOW_HOURS` read were planted at the end of the sweep:
+
+```text
+::error title=Fitness #11 violation::1 raw setInterval calls in backend
+fitness #11: FAIL (exit 1)
+::error title=Fitness #16 violation::1 direct process.env.* in apps/api/src
+fitness #16: FAIL (exit 1)
+```
+
+Restored from a byte copy and verified:
+`sha256sum -c` → `apps/api/src/infrastructure/retention/RetractionActionWindowSweep.ts: OK`
+(`adf77560f830e22f292bb0dd95442cd6d5a22261f84f151fe5b970873d785271`), then all 14 checks pass again.
+
+### Budget — measured from `git diff --numstat HEAD` plus `wc -l` on the six untracked files
+
+| Stream       | Forecast (order table row 7) | Measured | Delta |
+| ------------ | ---------------------------: | -------: | ----- |
+| **CODE**     |                      **301** |  **455** | +51%  |
+| **EVIDENCE** |                      **305** |  **516** | +69%  |
+| DOC          |                            — |  **394** | —     |
+
+CODE: `RetractionActionWindowSweep.ts` 213 · `retractionWindowMetrics.ts` 64 ·
+`PendingRetractionSweepReader.ts` 61 · `PendingRetractionSweepReads.ts` 58 · `index.ts` 39/−1 ·
+`config/env.ts` 15 · `db-prisma/src/index.ts` 4. EVIDENCE:
+`RetractionActionWindowSweep.test.ts` 255 · `PendingRetractionSweepReads.test.ts` 190 ·
+`env.test.ts` 38 · `schedulerTickTenantScope.test.ts` 33. DOC: this section 340 ·
+`ENVIRONMENT_VARIABLES.md` 25 · `tasks.md` 27/−2.
+
+**CODE lands at 455 against the hard 400: a `size:exception` of 55 lines is OWED, and nothing was
+shrunk to try to avoid it.** The claim is measured, not asserted. Executable lines (comments and
+blank lines removed) against the two nearest siblings in the tree:
+
+| File                                  |   total | executable |
+| ------------------------------------- | ------: | ---------: |
+| `DeletionRecordDegrader.ts`           |     176 |         98 |
+| `RecurrenceScheduler.ts`              |     148 |         88 |
+| **`RetractionActionWindowSweep.ts`**  | **213** |     **94** |
+| `retractionAlertMetrics.ts`           |     119 |         66 |
+| **`retractionWindowMetrics.ts`**      |  **64** |     **27** |
+| `RetractionAlertDeliveryLedger.ts`    |      96 |         24 |
+| **`PendingRetractionSweepReader.ts`** |  **61** |     **12** |
+
+The sweep has FEWER executable lines than both of its siblings; the metrics module and the port are
+each smaller than their nearest precedent in both dimensions. The overage is documentation, and the
+two paragraphs that carry it are the two-scope sequencing and the contract-type rationale — i.e.
+the SMELL-149 trap and the defect the `tsc` probe caught. Deleting either is deleting the reason the
+next editor would not re-introduce them.
+
+**And there is no honest SPLIT either.** T1c.16 is one cohesive unit: the parameter without the
+sweep configures nothing, the sweep without the port cannot discover, the port without the
+registration never runs, and the registration without the metrics produces a tick nobody can watch.
+Any two-way cut ships a half that is measurably dead. The exception is therefore for the CODE
+stream of this task as written, not for a scope that could have been trimmed.
+
+### For Edward — two findings and one paste-ready block
+
+1. **The bootstrap tick scan can be satisfied by a COMMENT.**
+   `schedulerTickTenantScope.test.ts` sanitizes the source (blanking comments and string interiors)
+   to BALANCE the `scheduler.register(...)` span, and then slices the body out of the ORIGINAL. Its
+   scope assertions run `tick.body.includes("withSystemContext(")` over those original bytes, so a
+   registration whose only `withSystemContext(` is inside a `//` comment passes both scope cases.
+   The sanitized copy is already computed and already index-aligned, so the fix is to slice the body
+   from it as well (keeping the original only if a future case needs to read a reason's text). NOT
+   done here: it is a change to a gate, and this unit's own registration passes on real executed
+   code either way. **Backlog candidate.**
+2. **109 of 110 use-case dependencies in `apps/api/src` are typed as the concrete class.** Measured
+   above. The consequence is not theoretical: `RecurrenceScheduler.test.ts` casts all four of its
+   doubles `as never`, so the suite that guards the ONLY other two-scope tick in the tree has no
+   type checking on any of them. Converting the 109 is a mechanical but wide change with its own
+   regressions; this unit diverged on one site because the alternative was to write the same
+   unchecked cast. **Backlog candidate.**
+3. **The two `.env` files this task names were not touched — they are off limits to the executor.**
+   The entries below are derived from the Zod schema, not from those files. Both belong in the same
+   neighbourhood as the other optional API tuning variables (beside `SAGA_WAIT_POLL_MS` if it is
+   present there; otherwise at the end of the server/API block).
+
+   `.env.example`:
+
+   ```bash
+   # Hours a customer has to manually remove content a failed thread left live on a
+   # provider before the channel's outcome is finalized and its alert resolved.
+   # Optional, 1..720 (30 days), default 72. Bounds an ALERT CYCLE, never a fragment:
+   # expiry removes nothing and never releases the post's content lock.
+   RETRACTION_ACTION_WINDOW_HOURS=72
+   ```
+
+   `.env.test.example`:
+
+   ```bash
+   # Same window as production. Optional with a default, so a test tree without it is
+   # valid; it is listed for parity, and because the value is only read at boot — the
+   # unit suites inject the window directly rather than reading env.
+   RETRACTION_ACTION_WINDOW_HOURS=72
+   ```

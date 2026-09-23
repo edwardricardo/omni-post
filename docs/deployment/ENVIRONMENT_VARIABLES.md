@@ -323,6 +323,31 @@ Ensure ffmpeg is installed on the host or in the Docker image for video features
 
 ---
 
+## Publishing and Retraction
+
+| Variable                         | Required | Default | Description                                                                          |
+| -------------------------------- | -------- | ------- | ------------------------------------------------------------------------------------ |
+| `RETRACTION_ACTION_WINDOW_HOURS` | No       | `72`    | Hours a customer has to remove stranded content by hand before the channel finalizes |
+
+When a thread publishes some fragments and then fails, the published ones stay live on a
+provider this application cannot retract from. The channel is recorded as pending retraction,
+an alert asks the customer to remove them, and this window bounds how long that ask stays
+open. Once it elapses, the `retraction-action-window-sweep` tick (every 15 minutes) finalizes
+the channel's outcome as `ACTION_WINDOW_EXPIRED` and resolves the alert.
+
+It bounds an **alert cycle, never a fragment**. Expiry does not remove anything, does not
+release the post's content lock, and does not withdraw the customer's ability to confirm a
+manual removal later — so a wrong value can only ask for too long or not long enough. The
+accepted range is 1 to 720 hours (30 days) and the app refuses to boot outside it: `0` would
+expire every open window at the next tick.
+
+Watch `retraction_action_window_expired_total` and
+`retraction_action_window_sweep_failures_total`. The second is read as a level, not a total:
+a row that keeps failing is re-selected every tick, so a flat non-zero reading means the same
+rows are failing and the remedy is that row's cause, named in the ERROR log beside the counter.
+
+---
+
 ## Storage Provider by Cloud
 
 Quick reference for which `STORAGE_PROVIDER` and related vars to use per cloud:

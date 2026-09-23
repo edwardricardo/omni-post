@@ -38,7 +38,7 @@ import {
   ZodTypeProvider,
   jsonSchemaTransform,
 } from "fastify-type-provider-zod";
-import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { createPrismaRepoAdapter, PendingRetractionSweepReads } from "@adapters/db-prisma";
 import {
   closeDatabaseConnections,
   prisma,
@@ -975,6 +975,44 @@ async function start() {
           logger.info({ ...summary }, "DeletionRecord degradation tick finished");
         }),
       24 * 60 * 60 * 1000
+    );
+
+    // The customer action window, closed once it has elapsed — every 15 minutes.
+    // A channel that left fragments live on a provider we cannot retract from puts
+    // the removal on the customer and keeps an alert open asking for it; this tick
+    // is what stops that ask from running forever. It finalizes the OUTCOME only:
+    // the live references and the content lock survive, because elapsed time is no
+    // evidence that anything came down.
+    //
+    // The system scope is PASSED IN rather than wrapped around the call, and that
+    // is load-bearing. Discovery is cross-account and belongs in it; the write is
+    // per-tenant and must run outside it, because `resolveGucScope` answers the
+    // system sentinel whenever a system context is present, so a tenant binding
+    // nested inside this scope would bind `__system__` and the row's account would
+    // be read by nobody.
+    const { RetractionActionWindowSweep, RETRACTION_ACTION_WINDOW_SWEEP_INTERVAL_MS } =
+      await import("./infrastructure/retention/RetractionActionWindowSweep.js");
+    const retractionActionWindowSweep = new RetractionActionWindowSweep(
+      new PendingRetractionSweepReads(app.container!.resolve(TOKENS.PrismaClient)),
+      app.container!.resolve(TOKENS.ExpireRetractionActionWindowUseCase),
+      env.RETRACTION_ACTION_WINDOW_HOURS,
+      createLogger("retraction-action-window-sweep")
+    );
+    scheduler.register(
+      "retraction-action-window-sweep",
+      // Awaited, never fired and forgotten: the sweep logs its own four counts, and
+      // discarding the promise would also discard a rejected discovery read.
+      async () => {
+        await retractionActionWindowSweep.sweep((run) =>
+          withSystemContext("system:retraction-action-window-sweep", run)
+        );
+      },
+      RETRACTION_ACTION_WINDOW_SWEEP_INTERVAL_MS,
+      {
+        onError: (error: unknown) => {
+          logger.error({ err: error }, "Retraction action window sweep tick failed");
+        },
+      }
     );
 
     // Auto-renewal of expired trials — daily. Canonical SoT: the api

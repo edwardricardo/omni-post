@@ -35,6 +35,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { RETRACTION_ACTION_WINDOW_SWEEP_INTERVAL_MS } from "../../../src/infrastructure/retention/RetractionActionWindowSweep.js";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const bootstrapPath = join(currentDir, "..", "..", "..", "src", "index.ts");
@@ -214,5 +215,37 @@ describe("bootstrap scheduler ticks declare their tenant scope", () => {
         "diagnostics. A reason copied from the neighbouring tick declares the wrong sweep and " +
         `no count would notice. Use "${SYSTEM_REASON_PREFIX}<task-id>".`
     ).toEqual([]);
+  });
+});
+
+describe("the retraction action-window sweep is a registered bootstrap tick", () => {
+  const source = readFileSync(bootstrapPath, "utf8");
+  const tick = collectTicks(source).find(
+    (candidate) => candidate.taskId === "retraction-action-window-sweep"
+  );
+
+  it("registers the sweep under its own task id", () => {
+    expect(
+      tick,
+      "the sweep exists but nothing ticks it, so every expired action window stays open and " +
+        "the alert cycle it bounds never closes. Nothing else in the tree would notice: the " +
+        "class compiles, its own suite passes, and no metric moves because none is produced."
+    ).toBeDefined();
+  });
+
+  it("ticks it on the cadence the module declares, not on a literal pasted here", () => {
+    expect(tick?.body).toContain("RETRACTION_ACTION_WINDOW_SWEEP_INTERVAL_MS");
+    // The cadence itself is the module's claim; this file only pins that the
+    // registration uses it, so the two cannot drift apart.
+    expect(RETRACTION_ACTION_WINDOW_SWEEP_INTERVAL_MS).toBe(15 * 60 * 1000);
+  });
+
+  it("declares the cross-account scope for DISCOVERY and passes it in", () => {
+    // The generic scan above proves the body names a system scope. This names the
+    // shape: the scope is handed to `sweep(...)` rather than wrapped around it,
+    // because the sweep re-binds each row to its own tenant and a tenant context
+    // entered inside a system context binds the system sentinel instead.
+    expect(tick?.body).toContain(`${SYSTEM_WRAP}"${SYSTEM_REASON_PREFIX}`);
+    expect(tick?.body).toMatch(/\.sweep\(/);
   });
 });

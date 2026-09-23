@@ -308,6 +308,21 @@ const serverSchema = {
   // 60. Lower it where publish jobs are fast and the queue is cheap to read.
   SAGA_WAIT_POLL_MS: z.coerce.number().int().min(1000).max(300_000).default(30_000),
 
+  // ── Customer action window for a manual retraction ────────────────────
+  // How long a customer has to remove, by hand, content a failed thread left
+  // live on a provider before the application finalizes that channel's outcome
+  // and stops asking. The APPLICATION owns this number, not the customer: it
+  // bounds an alert cycle, so a wrong value can never lose a fragment — the
+  // live references, the content lock and the confirm act all outlive it.
+  // Default 72 — the act is a manual removal on someone else's platform by a
+  // customer who may only be reachable by an email they read on working days,
+  // so three days covers a weekend; much longer leaves a post reading
+  // "partially published" with an open alert for most of a week, and much
+  // shorter finalizes before a customer who acts on Monday morning could.
+  // Bounds refuse the degenerate ends rather than clamping them: 0 would expire
+  // every open window at the very next sweep tick.
+  RETRACTION_ACTION_WINDOW_HOURS: z.coerce.number().int().min(1).max(720).default(72),
+
   // ── Trusted proxy model (rate-limit / IP-allowlist keying) ─────────────
   // Which peer this app believes when it claims to forward on someone's behalf.
   // `socket-only` (fail-closed default) ignores every forwarding header and keys

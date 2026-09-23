@@ -769,7 +769,7 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       the correction pass added the exhaustiveness case that drives EVERY declared refusal, after
       finding `toAppError` mapped only one of the two and the other fell through to a flat 409).
       — sha: pending (orchestrator commits)
-- [ ] **T1c.16 RED→GREEN** — D18: `RETRACTION_ACTION_WINDOW_HOURS` in the `server` block of
+- [x] **T1c.16 RED→GREEN** — D18: `RETRACTION_ACTION_WINDOW_HOURS` in the `server` block of
       `apps/api/src/config/env.ts` (the `SAGA_WAIT_POLL_MS` shape, `:309`; `int().min(1).max(720)
 .default(72)`) — read ONLY through `env`, ONLY in `apps/api` (#16); `.env.example`,
       `.env.test.example`, `docs/deployment/ENVIRONMENT_VARIABLES.md`; NEW
@@ -782,7 +782,32 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       tick summary AWAITED and logged; metrics `retraction_action_window_expired_total` and
       `retraction_action_window_sweep_failures_total`. Unit suite
       `apps/api/tests/unit/RetractionActionWindowSweep.test.ts` incl. **S-a-4** (a failing row is
-      counted and does not stop the tick). — sha: pending
+      counted and does not stop the tick).
+      **BUILT (`1c-3b`)**, with four corrections to this line. (1) **The registration shape written
+      here re-creates SMELL-149.** `scheduler.register(id, () => withSystemContext(reason, …))` puts
+      the WHOLE tick inside the system scope, and the per-row `withTenantContext` then nests inside
+      it — `resolveGucScope` answers `__system__` whenever a system context is present, so every
+      write would bind the sentinel and the row's account would be read by nobody. The scope is
+      therefore PASSED IN — the registration hands `sweep()` a runner that wraps `run` in
+      `withSystemContext("system:retraction-action-window-sweep", run)` — and it covers discovery
+      only; the loop runs after it, the `RecurrenceScheduler` shape. Pinned by a case that asserts
+      BOTH `getTenantContext()` and `getSystemContext()` at every call — asserting the account alone
+      passes on the nested version.
+      (2) The suite is `tests/unit/retention/RetractionActionWindowSweep.test.ts`, not the flat path
+      above: the only other module in `src/infrastructure/retention/` is tested at
+      `tests/unit/retention/DeletionRecordDegrader.test.ts`, so flat here would be the thing that
+      splits one source folder across two conventions — the `1c-3a` reasoning, applied where it
+      points the other way. (3) The sweep depends on the use case's CONTRACT
+      (`UseCase<Input, Output, UseCaseError>`), not the concrete class: measured, **109** sites in
+      `apps/api/src` name a concrete `*UseCase` class and **0** name the contract, and the cost of
+      that convention is visible in `RecurrenceScheduler.test.ts`, whose every double is `as never`
+      and therefore unchecked. A scratchpad `tsc` caught this; vitest could not.
+      (4) The discovery read is NOT container-registered: both it and the sweep are constructed at
+      the bootstrap, so no new token exists to resolve to `undefined` in silence.
+      **Metrics**: both counters are incremented by the sweep on its own production paths, and
+      `..._sweep_failures_total` is deliberately unlabelled — every arm would carry the same remedy,
+      which is the row's cause in the ERROR log beside it. **CODE 455 over the 400 budget**; see
+      the `1c-3b` apply-progress entry. — sha: pending (orchestrator commits)
 - [x] **T1c.17 RED→GREEN** — **C3 guards (W-new-2)**, in the PR where the materialized word goes live:
       `apps/api/src/admin/SchedulingPostHandlers.ts` — `reschedulePost` (`:327-360`) re-reads INSIDE
       its `withGucBoundTransaction` with `channelPublications`, refuses 409 when `hasLiveContent()`,
