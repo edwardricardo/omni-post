@@ -339,15 +339,23 @@ describe("CustomerUser Entity", () => {
       assert.ok(result.ok);
       const user = result.value;
 
-      assert.strictEqual(user.lastLoginAt, undefined);
+      // Read the pre-state into its own binding: `assert.strictEqual` carries an
+      // `asserts actual is T` signature, so asserting on `user.lastLoginAt`
+      // directly pins that property to `undefined` for the rest of the flow. The
+      // narrowing survives `recordLogin()` — the compiler does not know the call
+      // writes the field — and every later read of it becomes `never`, which is
+      // what stopped the compiler from checking the two window assertions below.
+      const beforeLogin = user.lastLoginAt;
+      assert.strictEqual(beforeLogin, undefined);
 
       const before = new Date();
       user.recordLogin();
       const after = new Date();
 
-      assert.ok(user.lastLoginAt !== undefined);
-      assert.ok(user.lastLoginAt.getTime() >= before.getTime());
-      assert.ok(user.lastLoginAt.getTime() <= after.getTime());
+      const recorded = user.lastLoginAt;
+      assert.ok(recorded !== undefined);
+      assert.ok(recorded.getTime() >= before.getTime());
+      assert.ok(recorded.getTime() <= after.getTime());
     });
   });
 

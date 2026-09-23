@@ -19,6 +19,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { RedisBruteForceAdapter } from "../../../../src/infrastructure/adapters/RedisBruteForceAdapter.js";
+import type { CreateAuditLogParams } from "../../../../src/audit/auditService.js";
 import type { Redis } from "ioredis";
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -120,8 +121,14 @@ class FakeRedis {
 // Mocks for AuditService + ApiMetrics
 // ────────────────────────────────────────────────────────────────────────────
 
+// The parameter type is the real `AuditService.log` input, and it is what makes a
+// recorded call inspectable. An implementation declared with no parameters types
+// `log.mock.calls[n][0]` as `never`, so every `?.action` / `?.success` / `?.userId`
+// assertion below reads a field off a type the compiler has ruled out: measured, a
+// correct field name and a misspelt one produce the SAME error there, which is the
+// exact sense in which those assertions were unchecked.
 function makeAuditServiceMock() {
-  return { log: vi.fn(async () => undefined) };
+  return { log: vi.fn(async (_params: CreateAuditLogParams) => undefined) };
 }
 
 function makeMetricsMock() {

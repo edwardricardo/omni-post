@@ -10,6 +10,7 @@ import { CreateScheduledReportUseCase } from "@core/reports/CreateScheduledRepor
 import { GenerateReportUseCase } from "@core/reports/GenerateReportUseCase.js";
 import { ProjectId, ScheduledReportId, AccountId } from "@core/domain/value-objects/EntityId.js";
 import { Project } from "@core/domain/entities/Project.js";
+import type { SendEmailOptions } from "@core/domain/repositories/EmailPort.js";
 
 const ACCOUNT_ID = "22222222-2222-4222-8222-222222222222";
 
@@ -127,9 +128,13 @@ describe("GenerateReportUseCase", () => {
     };
   }
 
+  // The parameter type is the port's own input. Declared with no parameters, the
+  // double types `send.mock.calls[0][0]` as `never`, so the attachment and subject
+  // assertions below read fields off a type the compiler has ruled out — it checks
+  // neither the field names nor the attachment element shape.
   function makeEmailPort() {
     return {
-      send: vi.fn(async () => {}),
+      send: vi.fn(async (_options: SendEmailOptions) => {}),
     };
   }
 
