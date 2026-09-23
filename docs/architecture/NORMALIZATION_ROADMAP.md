@@ -541,6 +541,38 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
+## Fase 7 — Deuda diferida de changes cerrados
+
+### 7.1 Backlog heredado de `project-deletion-integrity` — `P2` · `M` · `STATUS: PENDING`
+
+The deletion-integrity change (A + B1 + B2, PRs #209/#210/#214-#218) closed and its spec was
+promoted, but four items were adjudicated out of its scope and had no home in this repo until
+now. They lived only in a session plan file and in a project memory, which is how deferred work
+stops being findable by anyone who did not do it.
+
+1. **22 FK edges without an index.** The change's own R4-4 measured **24** foreign-key edges with
+   no covering index; it added indexes for the **2** it introduced and deferred the rest. A
+   sequential scan per row is the mechanical cause of the B-SIZE finding recorded there. The two
+   numbers are not a contradiction: 24 total, 2 closed, **22 outstanding**.
+2. **The admin retention dropdown offers 1–7 only.** Adjudicated out of the change as a product
+   decision, not a defect.
+3. **Email squatting blocks restore.** A soft-deleted account holds its email, so a re-signup with
+   the same address takes it and the original can no longer be restored. Adjudicated to the
+   product backlog (the change's R1-W).
+4. **`Account_slug_key` is still a total unique constraint**, not partial on `deletedAt IS NULL`,
+   so a soft-deleted account keeps its slug reserved. Latent, same class as (3) (the change's
+   R1-S). Note the equivalent constraints for project name and account email WERE made partial in
+   that change, which is what makes this one an outlier rather than a design choice.
+
+**Why it matters:** (3) and (4) are the same defect wearing two column names, and both make a
+soft delete behave like a hard one from the user's point of view — the row is recoverable but the
+identifier that would let them back in is not.
+
+**Definition of done:** each of the four either lands or is closed with an explicit product
+decision recorded here. (1) is mechanical and can be split per table.
+
+---
+
 ## Tracking + handoff
 
 ### Cómo trackear
