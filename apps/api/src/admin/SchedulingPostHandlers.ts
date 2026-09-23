@@ -301,30 +301,28 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
         whereClause.scheduledAt = { not: null };
       }
 
-      // Count total matching posts.
+      // Pagination and ordering are decided BEFORE the scope opens: they are arithmetic
+      // over already-validated query parameters and touch no database at all.
+      const offset = (pageNum - 1) * limitNum;
+      const orderByClause: Record<string, "asc" | "desc"> = {};
+      orderByClause[sortField] = sortDir;
+
+      // ONE scope for the whole platform-wide read, rather than one per statement. Two
+      // scopes with code between them leaves that code unscoped, and the next statement
+      // added there would answer 500 for a reason its author could not see — the failure
+      // this route is being repaired from.
       //
       // The callback is `async` and that is load-bearing, not style. A Prisma model
       // method returns a LAZY `PrismaPromise`: nothing runs until `then()` is called,
       // and the guard plus the GUC binding live inside that callback. A plain
       // `() => this.prisma.post.count(...)` hands the inert object back to
       // `withSystemContext`, whose `AsyncLocalStorage.run` has already popped the store
-      // by the time `await` triggers it — so the guard would see NO scope at all and
-      // this route would keep answering 500. An `async` callback returns a promise that
-      // ADOPTS the thenable, and the adoption calls `then()` from inside `run`.
-      const total = await withSystemContext(PLATFORM_VIEW_REASON, async () =>
-        this.prisma.post.count({ where: whereClause })
-      );
-
-      // Calculate pagination
-      const offset = (pageNum - 1) * limitNum;
-
-      // Build orderBy dynamically
-      const orderByClause: Record<string, "asc" | "desc"> = {};
-      orderByClause[sortField] = sortDir;
-
-      // Fetch posts with related data. `async` for the reason stated on the count above.
-      const posts = await withSystemContext(PLATFORM_VIEW_REASON, async () =>
-        this.prisma.post.findMany({
+      // by the time `await` triggers it — so the guard would see NO scope at all. An
+      // `async` callback returns a promise that ADOPTS the thenable, and the adoption
+      // calls `then()` from inside `run`.
+      const { total, posts } = await withSystemContext(PLATFORM_VIEW_REASON, async () => ({
+        total: await this.prisma.post.count({ where: whereClause }),
+        posts: await this.prisma.post.findMany({
           where: whereClause,
           include: {
             contents: {
@@ -351,8 +349,8 @@ export class SchedulingPostRouteHandler extends BaseRouteHandler {
           orderBy: orderByClause,
           skip: offset,
           take: limitNum,
-        })
-      );
+        }),
+      }));
 
       // Format response data - cast to proper type with includes
       type PostWithRelations = (typeof posts)[0];

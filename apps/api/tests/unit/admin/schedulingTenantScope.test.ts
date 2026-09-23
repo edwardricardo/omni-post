@@ -77,12 +77,20 @@ interface PostRow {
 interface ObservedScope {
   readonly tenantAccountId: string | undefined;
   readonly systemReason: string | undefined;
+  /**
+   * The context OBJECT, not its reason. `withSystemContext` stores a fresh `{ reason }`
+   * on every call, so identity is what distinguishes ONE scope held across several
+   * statements from a separate scope opened per statement — two shapes the reason string
+   * alone reports identically, while only the first leaves no unscoped gap between them.
+   */
+  readonly systemContext: unknown;
 }
 
 function observeScope(): ObservedScope {
   return {
     tenantAccountId: getTenantContext()?.accountId,
     systemReason: getSystemContext()?.reason,
+    systemContext: getSystemContext(),
   };
 }
 
@@ -540,6 +548,12 @@ describe("admin scheduling list — the platform-wide read, which is a different
       expect.stringMatching(/^system:/),
       expect.stringMatching(/^system:/),
     ]);
+    // ONE scope held across both reads, not one opened per read. Identity decides it,
+    // because the reason string is the same either way. The shapes differ in what sits
+    // BETWEEN the statements: with a scope per read, anything added there runs unscoped
+    // and answers 500 — which is the failure this route was repaired from.
+    expect(store.statements[0]?.scope.systemContext).toBe(store.statements[1]?.scope.systemContext);
+    expect(store.statements[0]?.scope.systemContext).toBeDefined();
     // No account was injected into either read: the view is platform-wide by design, and a
     // filter the guard added would silently narrow it to nothing.
     expect(store.statements.map((statement) => statement.where.accountId)).toEqual([
