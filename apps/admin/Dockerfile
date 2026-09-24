@@ -39,7 +39,12 @@ FROM base AS build
 ARG SERVICE_PATH=apps/admin
 ENV CI=true
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+# `tsconfig.build.base.json` is NOT optional here, and its absence is what made
+# this image fail to build at all: `pnpm --filter @shared/types... build` runs
+# `tsc -b` against `packages/shared/tsconfig.build.json`, which extends it. The
+# `deps` stage above installs and never compiles, so it does not need the file
+# and does not take it — an input it cannot use would only cost cache hits.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json ./
 COPY ${SERVICE_PATH}/package.json ./${SERVICE_PATH}/
 COPY patches/ ./patches/
 COPY packages/ ./packages/
