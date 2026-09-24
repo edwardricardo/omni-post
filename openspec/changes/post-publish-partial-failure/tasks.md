@@ -1222,11 +1222,34 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       reads as a real reference. Left as found in the ledger's prior section, named here.
       `size:exception` owed, and wider than before by owner decision.
       — sha: pending (orchestrator commits)
-- [ ] **T1c.19** — gates per §10.2 (lint `--max-warnings 0`, `pnpm format:check` **plus**
-      `pnpm exec prettier -c` over the touched files, `tsc --noEmit` per touched package under
-      `NODE_OPTIONS=--max-old-space-size=6144`, `pnpm check:circular`);
-      #1/#2/#3/#4/#6/#7/#8/#9/#10/#11/#16/#21/#22/#23/#32/#40 Part A+B/#41 at 0; #30 and #38's
-      db-prisma ratchet not risen; `pnpm db:up` before every integration run. — sha: pending
+- [x] **T1c.19** — gates per §10.2, run over the whole PR 1c range. — sha: `d82e45d8`
+      **Typecheck**: every touched package at exit 0, each with `--force` and
+      `NODE_OPTIONS=--max-old-space-size=6144` — `apps/api`, `apps/workers`,
+      `apps/workers/tsconfig.build.json`, `packages/shared`, `packages/core/domain`,
+      `packages/core/posts`, `packages/adapters/db-prisma`. Both flags are load-bearing:
+      `tsc -b` is incremental and was measured on this chain returning exit 0 over a graph it
+      skipped entirely, and the default heap OOMs on this box while pnpm reports that through
+      the pipe as `EXIT=0` — a typecheck that died reads as a clean build.
+      **Tests**: api 597 files / 9300 tests · workers 21 / 198 · domain 10 / 198 ·
+      `@core/posts` 6 / 103 · db-prisma 5 / 78. Integration, each with `--test-force-exit`
+      (without it these batches hang forever): `integration:saga-recovery` 33/33 with 0 fail
+      and 0 cancelled · `publishWorkerTenantIsolation` 7/7 · `publish.flow` 5/5.
+      **Fitness**, all at 0: #1 #2 #3 #4 #6 #7 #8 #9 #10 #11 #16 #21 #22 #23 #32, #40 Part A
+      (0 violations over a floor of 3 seams) and Part B (0 over a floor of 14 sites), #41
+      (8 marker sites, exactly 1 named exception, 0 violations). Ratchets, neither risen:
+      #30 at 20 against a baseline of 21, #38 db-prisma at 11 against a baseline of 11.
+      `pnpm check:circular` reports no circular dependency; `pnpm format:check` is clean.
+      **TWO RESIDUALS, named rather than rounded to green.** `pnpm lint` exits 1 on this tip,
+      and the five `no-console` errors are all in `.config/opencode/plugins/` — a directory
+      `.gitignore:187` excludes wholesale and that holds no tracked file. ESLint keeps its own
+      ignore list and does not read `.gitignore`, so it walks in; scoped to what the
+      repository owns (`eslint . --ignore-pattern '.config/**'`) the run is 0 errors and 0
+      warnings, which is what this gate is about. That defect is closed separately against
+      `main`, because it belongs to no unit of this chain. Second: the task text asks for
+      `pnpm db:up` before each integration run, which is not applicable here and was not
+      skipped — Docker cannot run in this LXC, so Postgres 15 with pgvector and Redis are
+      installed natively and were confirmed up (`pg_isready`, `redis-cli ping`) before every
+      batch above.
 
 ---
 
@@ -2010,7 +2033,9 @@ suites (2442) and 1c's use-case suites (1320) — sit at or above their measured
    needs none.
 
    **Edward's decision, recorded: the two are SPLIT into A and B.** A carries the exception at
-   **CODE 465**; **B needs none** at 279. An earlier answer in the same exchange said they could
+   **CODE 465**; **B needs none** at 279. **That exception is SIGNED** (Edward, 2026-09-24),
+   which closes the "owed" this paragraph used to carry; it is recorded here, in the body of
+   A's pull request, and in the change's persistent memory. An earlier answer in the same exchange said they could
    stay united, and that answer was recorded here with its real reason. What reversed it was a
    conditional: the re-confirmation came back as "yes, PROVIDED they cannot be divided safely" —
    a condition already measured false in the paragraph above. Honouring it would have been signing
