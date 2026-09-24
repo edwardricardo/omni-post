@@ -203,6 +203,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build container image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -286,10 +287,16 @@ jobs:
       # The SARIF is for the Security tab, NOT for gating, so it keeps the
       # action's default breadth on purpose: every severity, so MEDIUM and LOW
       # stay visible there. `exit-code: 0` because the gate above already
-      # decided; `if: always()` so the report is uploaded even on a red gate,
-      # which is when it is most worth having.
+      # decided.
+      #
+      # Conditioned on the BUILD, not on `always()`: a build failure leaves no
+      # image, so `always()` would run this against a tag that does not exist,
+      # Trivy would error, `continue-on-error` would swallow it, no file would be
+      # written, and the upload below would then look for a SARIF that was never
+      # produced — three silent no-ops in a row. Keyed to the build, it still
+      # runs when the GATE is red, which is the case worth reporting.
       - name: Trivy SARIF for code scanning (never gates)
-        if: always()
+        if: steps.build.outcome == 'success'
         continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
@@ -299,9 +306,11 @@ jobs:
           exit-code: "0"
           trivyignores: .trivyignore
 
+      # Same reasoning as the step above, and the same cascade it closes: with
+      # `always()` a failed build sent this looking for a SARIF nothing wrote.
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: steps.build.outcome == 'success'
         with:
           sarif_file: "trivy-results-${{ matrix.service }}.sarif"
 
