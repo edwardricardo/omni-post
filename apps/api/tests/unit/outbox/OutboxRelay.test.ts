@@ -11,10 +11,16 @@
  *   alongside the correctness invariants of the lease-based claim flow: DLQ
  *   atomicity, release-on-transient-failure, terminal DLQ on exhausted
  *   retries, and tolerance of a concurrent DLQ-race unique violation.
+ *
+ *   The last three cases cover `outbox_dead_lettered_total`, the series the
+ *   `RetractionAlertEventDeadLettered` rule fires on: counted once on the
+ *   archive that won, and never on a row that is still deliverable or on the
+ *   loser of a lease-expiry race.
  * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
+import client from "prom-client";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { OutboxRelay } from "../../../src/infrastructure/outbox/OutboxRelay.js";
 import type { ClaimedOutboxEvent } from "../../../src/infrastructure/outbox/OutboxClaimService.js";
@@ -260,6 +266,63 @@ describe("OutboxRelay", () => {
     expect(mockClaim.releaseForRetry.mock.calls.length).toBe(1);
     expect(mockClaim.archiveToDeadLetter.mock.calls.length).toBe(0);
     expect(mockClaim.markPublished.mock.calls.length).toBe(0);
+  });
+
+  it("counts the dead-lettered event once, labelled by its event type", async () => {
+    // The dead letter is the relay's only terminal exit, and nothing published it as a
+    // series before: `outbox_pending_events` watches the level a dead-lettered row has
+    // just LEFT, so the one outcome where a domain event is permanently undelivered was
+    // the one outcome the outbox telemetry could not see.
+    mockClaim.claim = vi.fn(async () => [
+      makeRow({ eventType: "PostChannelRetractionAlertRaised", retryCount: 4 }),
+    ]);
+    mockDispatcher.dispatch = vi.fn(async () => {
+      throw new Error("Boom");
+    });
+
+    await relay.poll();
+
+    const series = await client.register.getSingleMetric("outbox_dead_lettered_total")?.get();
+    const raised = series?.values.find(
+      (v) => v.labels.event_type === "PostChannelRetractionAlertRaised"
+    );
+    expect(raised?.value).toBe(1);
+  });
+
+  it("does not count the row it lost to a concurrent relay (P2002)", async () => {
+    // Counting the loser of a lease-expiry race would report one permanently undelivered
+    // event as two, and the winner has already counted it. Exactly-once is decided at the
+    // same seam that discriminates the benign P2002 from a real archival failure.
+    mockClaim.claim = vi.fn(async () => [makeRow({ eventType: "OutboxRaceLoser", retryCount: 4 })]);
+    mockDispatcher.dispatch = vi.fn(async () => {
+      throw new Error("Boom");
+    });
+    mockClaim.archiveToDeadLetter = vi.fn(async () => {
+      throw Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+    });
+
+    await relay.poll();
+
+    const series = await client.register.getSingleMetric("outbox_dead_lettered_total")?.get();
+    const loser = series?.values.find((v) => v.labels.event_type === "OutboxRaceLoser");
+    expect(loser).toBeUndefined();
+  });
+
+  it("does not count a row that was released for retry", async () => {
+    // A released row is still deliverable. Counting it here would make the alert fire on
+    // ordinary transient failure, which is exactly the redelivery the outbox exists for.
+    mockClaim.claim = vi.fn(async () => [
+      makeRow({ eventType: "OutboxStillRetrying", retryCount: 0 }),
+    ]);
+    mockDispatcher.dispatch = vi.fn(async () => {
+      throw new Error("Transient");
+    });
+
+    await relay.poll();
+
+    const series = await client.register.getSingleMetric("outbox_dead_lettered_total")?.get();
+    const retrying = series?.values.find((v) => v.labels.event_type === "OutboxStillRetrying");
+    expect(retrying).toBeUndefined();
   });
 
   it("does not re-enter poll while a previous tick is still running", async () => {

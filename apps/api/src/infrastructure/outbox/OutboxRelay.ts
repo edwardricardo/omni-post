@@ -36,6 +36,7 @@ import type { BackgroundTaskScheduler } from "@observability/background-schedule
 import type { EventDispatcher, DomainEvent } from "@core/domain/events/DomainEvent.js";
 import type { OutboxClaimService, ClaimedOutboxEvent } from "./OutboxClaimService.js";
 import type { OutboxBackoff } from "./OutboxBackoff.js";
+import { recordOutboxDeadLettered } from "../../metrics/outboxMetrics.js";
 
 /** Prisma error code for a unique-constraint violation. */
 const PRISMA_UNIQUE_VIOLATION = "P2002";
@@ -139,6 +140,10 @@ export class OutboxRelay {
             error instanceof Error ? error.message : "Max retries exhausted",
             newRetryCount
           );
+          // Counted HERE, not inside the claim service, because this frame is the one
+          // that knows the archive won: the catch below swallows the lease-expiry race,
+          // whose loser must not count a row the winner already counted.
+          recordOutboxDeadLettered(row.eventType);
         } catch (archiveError) {
           // A concurrent relay already dead-lettered this row under lease
           // expiry: the DLQ's `originalEventId @unique` constraint raises

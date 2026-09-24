@@ -1,0 +1,255 @@
+# promtool unit tests for `prometheus/alerts/publish-record.yml`.
+#
+# Run: `promtool test rules prometheus/tests/publish-record.test.yml`
+#
+# WHY THIS DIRECTORY AND NOT `prometheus/alerts/`. `prometheus.yml` loads rules with the
+# glob `rule_files: ["alerts/*.yml"]`, and a promtool unit-test file is NOT a rule file —
+# it has no `groups:` key. Sitting beside the rules it would be swept up by that glob and
+# Prometheus would refuse to load its whole rule set, which is a startup failure over a
+# file that only exists to prove the rules work. Measured: with this file copied into
+# `prometheus/alerts/`, `promtool check config prometheus/prometheus.yml` exits 1 with
+# "field evaluation_interval not found in type rulefmt.RuleGroups" and "field tests not
+# found in type rulefmt.RuleGroups". A sibling directory is close enough for a reader to
+# find and outside the glob.
+#
+# WHY `promql_expr_test` OVER `ALERTS` RATHER THAN `alert_rule_test`. promtool compares an
+# `alert_rule_test` expectation against the alert's FULL annotation map, so the canonical
+# form would require copying each rule's operator description — roughly a thousand
+# characters apiece — into this file verbatim. That buys no proof: none of these five
+# annotations is templated, so there is no evaluation-time behaviour in them to break, and
+# the copy would turn every wording improvement into a test failure that teaches authors to
+# stop improving the wording. The `ALERTS` series carries the alert's own labels and its
+# `alertstate`, so asserting over it proves strictly more than the boolean an
+# `alert_rule_test` returns: it distinguishes PENDING from FIRING, which is what the `for:`
+# hold on each rule actually decides.
+#
+# Each rule gets three proofs: the expression selects and crosses its threshold; the alert
+# reaches `firing` once its hold elapses; and it is silent while the counter is flat. The
+# two label-scoped rules get a fourth — a decoy series that must NOT select.
+# `RetractionAlertEventRefused` gets a different fourth, because its lookback is the part
+# of it that carries the argument: an assertion that it is STILL firing late in the window.
+# See that block for why the obvious three proofs leave the lookback unpinned.
+rule_files:
+  - ../alerts/publish-record.yml
+
+evaluation_interval: 1m
+
+tests:
+  # ---------------------------------------------------------------- PublishOutcomeUnrecorded
+  # The counter is flat at zero for six minutes and then takes one step. `for: 1m` over a
+  # 1m evaluation interval means the alert is PENDING on the first evaluation that sees the
+  # step and FIRING on the next.
+  #
+  # THE `reason` VALUES HERE ARE THE REAL ONES, and that is not cosmetic. The producer emits
+  # exactly four (`apps/workers/src/publishOutcomeRecorder.ts`): `exhausted`,
+  # `unrecoverable` and `terminal` from the failed-job listener `:406-433`, and
+  # `undeliverable` from `:339-346`. They mean DIFFERENT things to an operator — the first
+  # three leave a dead-lettered job carrying the receipt, `undeliverable` leaves nothing
+  # queued at all — and the runbook now splits its remedy on exactly that. A fixture
+  # carrying an invented value teaches a reader a set the code cannot produce, and it is
+  # what hid the split in the first place.
+  #
+  # `undeliverable` is the firing series deliberately: it is the value whose remedy has no
+  # dead letter to read. `exhausted` rides alongside to prove the rule is reason-AGNOSTIC —
+  # it carries no `reason` selector, because every value of it is the same alertable event.
+  - interval: 1m
+    input_series:
+      - series: 'worker_publish_outcome_unrecorded_total{reason="undeliverable"}'
+        values: "0+0x6 1+0x15"
+      - series: 'worker_publish_outcome_unrecorded_total{reason="exhausted"}'
+        values: "0+0x6 1+0x15"
+    promql_expr_test:
+      - expr: "increase(worker_publish_outcome_unrecorded_total[10m])"
+        eval_time: 9m
+        exp_samples:
+          - labels: '{reason="exhausted"}'
+            value: 1
+          - labels: '{reason="undeliverable"}'
+            value: 1
+      - expr: 'ALERTS{alertname="PublishOutcomeUnrecorded"}'
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="PublishOutcomeUnrecorded", alertstate="firing", component="publish", reason="exhausted", severity="critical"}'
+            value: 1
+          - labels: 'ALERTS{alertname="PublishOutcomeUnrecorded", alertstate="firing", component="publish", reason="undeliverable", severity="critical"}'
+            value: 1
+      # Flat at zero: an outcome that was recorded normally must page nobody.
+      - expr: 'ALERTS{alertname="PublishOutcomeUnrecorded"}'
+        eval_time: 5m
+        exp_samples: []
+
+  # ----------------------------------------------------------- ThreadLiveFragmentsUnrecorded
+  # The decoy rides in the same test because the point is discrimination: a publisher error
+  # of a DIFFERENT type is moving at the same time and must not select.
+  - interval: 1m
+    input_series:
+      - series: 'worker_errors_by_type_total{component="publisher", error_type="thread_live_fragments_unrecorded", recoverable="true"}'
+        values: "0+0x6 1+0x15"
+      - series: 'worker_errors_by_type_total{component="publisher", error_type="provider_rate_limited", recoverable="true"}'
+        values: "0+3x21"
+    promql_expr_test:
+      - expr: 'increase(worker_errors_by_type_total{component="publisher",error_type="thread_live_fragments_unrecorded"}[10m])'
+        eval_time: 9m
+        exp_samples:
+          - labels: '{component="publisher", error_type="thread_live_fragments_unrecorded", recoverable="true"}'
+            value: 1
+      - expr: 'ALERTS{alertname="ThreadLiveFragmentsUnrecorded"}'
+        eval_time: 10m
+        exp_samples:
+          - labels: 'ALERTS{alertname="ThreadLiveFragmentsUnrecorded", alertstate="firing", component="publish", error_type="thread_live_fragments_unrecorded", recoverable="true", severity="warning"}'
+            value: 1
+      - expr: 'ALERTS{alertname="ThreadLiveFragmentsUnrecorded"}'
+        eval_time: 5m
+        exp_samples: []
+
+  # A publisher error stream that is NOT the mirror failure, climbing steeply and alone.
+  # Nothing may fire: the rule is scoped by `error_type`, not by "the publisher had errors".
+  - interval: 1m
+    input_series:
+      - series: 'worker_errors_by_type_total{component="publisher", error_type="provider_rate_limited", recoverable="true"}'
+        values: "0+7x21"
+    promql_expr_test:
+      - expr: 'ALERTS{alertname="ThreadLiveFragmentsUnrecorded"}'
+        eval_time: 15m
+        exp_samples: []
+
+  # ---------------------------------------------------------- RetractionAlertContextDegraded
+  # Wider rule: a 30m lookback and a 5m hold, so the alert is not active until the first
+  # evaluation after the step and not firing until five evaluations after that.
+  - interval: 1m
+    input_series:
+      - series: 'retraction_alert_context_degraded_total{field="post"}'
+        values: "0+0x6 1+0x25"
+    promql_expr_test:
+      - expr: "increase(retraction_alert_context_degraded_total[30m])"
+        eval_time: 10m
+        exp_samples:
+          - labels: '{field="post"}'
+            value: 1
+      # Active from 7m, so the 5m hold puts FIRING at 12m; 11m is still PENDING and that
+      # distinction is the whole reason this asserts over ALERTS rather than a boolean.
+      - expr: 'ALERTS{alertname="RetractionAlertContextDegraded"}'
+        eval_time: 11m
+        exp_samples:
+          - labels: 'ALERTS{alertname="RetractionAlertContextDegraded", alertstate="pending", component="notifications", field="post", severity="warning"}'
+            value: 1
+      - expr: 'ALERTS{alertname="RetractionAlertContextDegraded"}'
+        eval_time: 12m
+        exp_samples:
+          - labels: 'ALERTS{alertname="RetractionAlertContextDegraded", alertstate="firing", component="notifications", field="post", severity="warning"}'
+            value: 1
+      - expr: 'ALERTS{alertname="RetractionAlertContextDegraded"}'
+        eval_time: 5m
+        exp_samples: []
+
+  # --------------------------------------------------------- RetractionAlertEventDeadLettered
+  # Two event types dead-letter in the same window. Only the retraction pair is this rule's
+  # subject; an unrelated dead-lettered event has its own consequences and its own owner.
+  - interval: 1m
+    input_series:
+      - series: 'outbox_dead_lettered_total{event_type="PostChannelRetractionAlertRaised"}'
+        values: "0+0x6 1+0x25"
+      - series: 'outbox_dead_lettered_total{event_type="PostScheduled"}'
+        values: "0+2x31"
+    promql_expr_test:
+      - expr: 'increase(outbox_dead_lettered_total{event_type=~"PostChannelRetractionAlert(Raised|Resolved)"}[30m])'
+        eval_time: 10m
+        exp_samples:
+          - labels: '{event_type="PostChannelRetractionAlertRaised"}'
+            value: 1
+      - expr: 'ALERTS{alertname="RetractionAlertEventDeadLettered"}'
+        eval_time: 12m
+        exp_samples:
+          - labels: 'ALERTS{alertname="RetractionAlertEventDeadLettered", alertstate="firing", component="notifications", event_type="PostChannelRetractionAlertRaised", severity="critical"}'
+            value: 1
+      - expr: 'ALERTS{alertname="RetractionAlertEventDeadLettered"}'
+        eval_time: 5m
+        exp_samples: []
+
+  # The Resolved half of the pair, alone — the regex must admit both members, and a rule
+  # that only ever saw Raised in a fixture would hide a typo in the alternation.
+  - interval: 1m
+    input_series:
+      - series: 'outbox_dead_lettered_total{event_type="PostChannelRetractionAlertResolved"}'
+        values: "0+0x6 1+0x25"
+    promql_expr_test:
+      - expr: 'ALERTS{alertname="RetractionAlertEventDeadLettered"}'
+        eval_time: 12m
+        exp_samples:
+          - labels: 'ALERTS{alertname="RetractionAlertEventDeadLettered", alertstate="firing", component="notifications", event_type="PostChannelRetractionAlertResolved", severity="critical"}'
+            value: 1
+
+  # A dead letter that is NOT a retraction alert, climbing alone. Nothing may fire: this
+  # rule's severity is about the retraction cycle, and firing it for every dead-lettered
+  # event would make a critical page mean nothing in particular.
+  - interval: 1m
+    input_series:
+      - series: 'outbox_dead_lettered_total{event_type="PostScheduled"}'
+        values: "0+4x31"
+    promql_expr_test:
+      - expr: 'ALERTS{alertname="RetractionAlertEventDeadLettered"}'
+        eval_time: 20m
+        exp_samples: []
+
+  # ---------------------------------------------------------------- RetractionAlertEventRefused
+  # TWO REAL `reason` VALUES, ONE FROM EACH REFUSAL SITE. The producer emits exactly four
+  # (`apps/api/src/notifications/RetractionAlertEventHandler.ts`): `missing-tenant` and
+  # `missing-alert-key` from `:87`, `missing-channel` and `missing-project` from `:124`.
+  # The rule carries no `reason` selector — every value ends the same way, with nobody told
+  # — so the fixture's job is to show it covers BOTH sites rather than the one an author
+  # happened to think of. `missing-tenant` is the headline because it is the value refused
+  # BEFORE any tenant is bound, which is the one whose investigation has no account to
+  # scope to; `missing-project` rides along from the other site.
+  #
+  # THE FOURTH ASSERTION IS THE LOOKBACK, AND IT IS NOT DECORATION. The first three proofs
+  # here — selects, pending at 11m, firing at 12m — are all satisfied by a `[10m]` window
+  # as well as by the `[30m]` the rule actually carries, because at 12m a 10m lookback
+  # still contains the step. Measured. So a fixture with only those three would call a
+  # 30m -> 10m regression green, and 10m is the precise mistake on offer: it is the window
+  # the two workers rules in the same file use, one copy-paste away. The 30m assertion
+  # pins the duration itself. Under `[10m]` the step has fallen out of the range by then
+  # and the alert is not active at all.
+  - interval: 1m
+    input_series:
+      - series: 'retraction_alert_refused_total{reason="missing-tenant"}'
+        values: "0+0x6 1+0x25"
+      - series: 'retraction_alert_refused_total{reason="missing-project"}'
+        values: "0+0x6 1+0x25"
+    promql_expr_test:
+      - expr: "increase(retraction_alert_refused_total[30m])"
+        eval_time: 10m
+        exp_samples:
+          - labels: '{reason="missing-project"}'
+            value: 1
+          - labels: '{reason="missing-tenant"}'
+            value: 1
+      # Active from 7m, so the 5m hold puts FIRING at 12m and leaves 11m PENDING.
+      - expr: 'ALERTS{alertname="RetractionAlertEventRefused"}'
+        eval_time: 11m
+        exp_samples:
+          - labels: 'ALERTS{alertname="RetractionAlertEventRefused", alertstate="pending", component="notifications", reason="missing-project", severity="critical"}'
+            value: 1
+          - labels: 'ALERTS{alertname="RetractionAlertEventRefused", alertstate="pending", component="notifications", reason="missing-tenant", severity="critical"}'
+            value: 1
+      - expr: 'ALERTS{alertname="RetractionAlertEventRefused"}'
+        eval_time: 12m
+        exp_samples:
+          - labels: 'ALERTS{alertname="RetractionAlertEventRefused", alertstate="firing", component="notifications", reason="missing-project", severity="critical"}'
+            value: 1
+          - labels: 'ALERTS{alertname="RetractionAlertEventRefused", alertstate="firing", component="notifications", reason="missing-tenant", severity="critical"}'
+            value: 1
+      # Still firing 23 minutes after the step, with the counter flat the whole time. This
+      # is what the 30m lookback buys and the only assertion here that measures it: the
+      # remedy is finding the producer, which is a question about a run, so the signal has
+      # to survive long enough for somebody to look.
+      - expr: 'ALERTS{alertname="RetractionAlertEventRefused"}'
+        eval_time: 30m
+        exp_samples:
+          - labels: 'ALERTS{alertname="RetractionAlertEventRefused", alertstate="firing", component="notifications", reason="missing-project", severity="critical"}'
+            value: 1
+          - labels: 'ALERTS{alertname="RetractionAlertEventRefused", alertstate="firing", component="notifications", reason="missing-tenant", severity="critical"}'
+            value: 1
+      # Flat at zero: an alert event that named everything it needed must page nobody.
+      - expr: 'ALERTS{alertname="RetractionAlertEventRefused"}'
+        eval_time: 5m
+        exp_samples: []

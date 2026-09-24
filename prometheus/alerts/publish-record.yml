@@ -1,0 +1,148 @@
+# Publish-record alerts — the channel publication record and the alert cycle that
+# hangs off it.
+#
+# TWO groups because the series come from TWO scrape targets, both already configured:
+# `api-server` on 3000 (prometheus.yml:37-41) and `workers` on 3300 (:53-57). A rule
+# group is evaluated as a unit; splitting by target keeps a workers outage from
+# interleaving with the api rules in the same evaluation.
+#
+# NOBODY IS PAGED BY THESE, FOR TWO INDEPENDENT REASONS, BOTH MEASURED. Neighbouring rule
+# files state only the second, and stating only the second would be the more comfortable
+# half of the truth:
+#   1. NOT LOADED. `docker-compose.yml:70` mounts `./prometheus/prometheus.yml` into the
+#      Prometheus container and mounts NOTHING else from that directory, so at runtime the
+#      `rule_files: ["alerts/*.yml"]` glob resolves inside a container where `alerts/` does
+#      not exist and matches zero files. No rule in this repository is evaluated in the only
+#      deployment definition the repository has. Backlog: SMELL-163's sibling, SMELL-164.
+#   2. NOT ROUTED. Even once mounted, §4.2.b is pending — the `alertmanagers:` block of
+#      prometheus.yml is commented out, so an evaluated alert appears in /api/v1/alerts and
+#      sends no notification.
+# Both are repeated on each rule, because a reader who lands on one rule must not have to
+# find this header to learn that it pages nobody.
+#
+# NAMED BLIND SPOT, stated and NOT closed here. A labelled prom-client counter exposes NO
+# series until its first `inc`, so `increase()` over a counter that has never fired cannot
+# fire either. That is a CORRECT quiet — there is nothing to report — but it is not
+# coverage: these rules cannot distinguish "the bad thing never happened" from "the
+# process that would report it is gone". The api's attendance signal has an observer guard
+# of that kind (`PublishQueueSignalMissing`, saga.yml:170-179); the workers' scrape has
+# none, and building one is a backlog row (SMELL-162), not this change's.
+#
+# TWO COUNTERS IN THIS AREA HAVE NO RULE, AND ONE SIGNAL HAS NO COUNTER — the reason is
+# written rather than assumed, because an unexplained silence reads as coverage:
+#   - `retraction_alert_realtime_push_failed_total`: the notification row IS stored and the
+#     dashboard reads it, so the alert is delivered; what is lost is immediacy. A rule here
+#     would page for a customer seeing the alert one page load later. This is the only one
+#     of the three that is a judgement rather than an unmade decision.
+#   - `omnipost_bulk_schedule_rows_refused_total{reason}`: a refused row is never processed
+#     and, on the terminal-failure arm, never recorded as failed, so its batch stops
+#     settling and nothing else names it. Still an owed decision, not a judgement that it
+#     is harmless.
+#   - the recurrence sweep's account-less SKIP
+#     (`apps/api/src/recurring/RecurrenceScheduler.ts:112-119`) is a warn log and a
+#     `skipped` field in the tick summary, and is not a series at all. It needs a counter
+#     before it can have a rule.
+#
+# `retraction_alert_refused_total{reason}` WAS the fourth entry on that list and the
+# weakest of them, recorded as an owed decision rather than a judgement. The owner took the
+# decision: it is now `RetractionAlertEventRefused` in the api group below. Taking it does
+# not decide the bulk-schedule twin above, which has the same shape and its own owner.
+groups:
+  - name: publish-record-workers
+    interval: 30s
+    rules:
+      # The invariant this rule guards is the reason the recorder exists: a provider
+      # accepted content and nothing durable says so. Every other path — the compare-and-
+      # swap retry, the durable outcome job, the dead letter — exists to keep this series
+      # at zero, so ANY increment at all is the alertable event and the threshold is > 0.
+      - alert: PublishOutcomeUnrecorded
+        expr: increase(worker_publish_outcome_unrecorded_total[10m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: publish
+        annotations:
+          summary: "A channel publication outcome exhausted every durable path without being recorded"
+          description: "The worker called a provider, the provider answered, and the outcome could not be written to the channel publication record — the bounded compare-and-swap retry did not win, and no durable path carried it afterwards. NOTHING will retry it. OPERATOR MEANING: the post may be live on the platform while the record says the channel is unresolved, so every reader built on the record — the customer's status, the admin list, the retraction alert cycle — is wrong about this channel until a human settles it. Do NOT re-drive the publish: the provider call already succeeded and a second one publishes the same content twice. WHERE THE RECEIPT IS depends on the `reason` label, and the four values do NOT agree. `exhausted`, `unrecoverable` and `terminal` each come from a durable record-publication-outcome job that failed, and that job IS in the dead letter queue with the receipt in its payload. `undeliverable` means no job was ever created — the receipt failed its own parse, or the inline write AND the enqueue both failed, or a throw escaped — so the dead letter queue holds NOTHING for it and the receipt survives only in the ERROR log line `Publish outcome reached no durable path` and its context. That makes `undeliverable` the worse of the two cases, not the milder one. DELIVERY: this rule pages nobody today — the rule directory is not mounted into the Prometheus container, and §4.2.b routing is pending on top of that. See this file header."
+          runbook: docs/runbooks/alert-publish-outcome-unrecorded.md
+
+      # Warning, not critical, and the reason is a change in what is durable: after the
+      # record write lands, the RECORD holds the ordered live set, so a Tweet row that
+      # could not be written is a stale SECONDARY. Before that write the rows were the only
+      # durable trace of what went out, which is why this was counted at all.
+      - alert: ThreadLiveFragmentsUnrecorded
+        expr: increase(worker_errors_by_type_total{component="publisher",error_type="thread_live_fragments_unrecorded"}[10m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: publish
+        annotations:
+          summary: "A thread's per-fragment rows could not be updated after the fragments went out"
+          description: "One or more fragments of a thread were published and the Tweet rows that mirror them could not be marked. Both arms of that failure feed this series: the repository answering not-ok, and a raised error inside the row update. The channel publication record is unaffected and still holds the ordered live set, so the retraction cycle knows what to ask the customer to remove — this is a MIRROR that drifted, not a lost outcome, which is why it is a warning. What drifts with it is anything still reading the per-fragment rows, and a sustained run means the drift is systematic rather than one bad write. DELIVERY: this rule pages nobody today — the rule directory is not mounted into the Prometheus container, and §4.2.b routing is pending on top of that. See this file header."
+          runbook: docs/runbooks/alert-publish-outcome-unrecorded.md
+
+  - name: publish-record-api
+    interval: 30s
+    rules:
+      # 30m window and a 5m hold, wider than the workers pair above, because the harm here
+      # is CUMULATIVE rather than per-event: one alert that names an identifier is an
+      # awkward message, and a run of them is a customer who cannot tell which post they
+      # are being asked to act on. A 10m window would page on the awkward message.
+      - alert: RetractionAlertContextDegraded
+        expr: increase(retraction_alert_context_degraded_total[30m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: notifications
+        annotations:
+          summary: "Retraction alerts are going out naming identifiers instead of titles"
+          description: "At least one retraction alert could not resolve its human-readable context and fell back to a raw identifier. The `field` label says which lookup degraded — post, channel or account. The alert IS delivered: the obligation to remove content exists whether or not a title loads, and suppressing the alert would be worse. What degrades is the customer's ability to act on it, because 'Post <uuid>' names nothing they can recognise on their own dashboard. A sustained run points at the lookup, not the alert path: check that the context adapter's reads are resolving and that the rows it reads still exist for the tenant raising the alert. DELIVERY: this rule pages nobody today — the rule directory is not mounted into the Prometheus container, and §4.2.b routing is pending on top of that. See this file header."
+          runbook: docs/runbooks/alert-publish-outcome-unrecorded.md
+
+      # The terminus nothing else watches. `OutboxLagHigh` reads a PENDING level and a
+      # dead-lettered row has just LEFT it — the row stops being pending by being given up
+      # on — so the outbox's existing rule goes quiet at exactly the moment delivery
+      # becomes permanent failure. Scoped by regex to the two alert event types because
+      # THIS rule's severity is about the retraction cycle; other event types dead-letter
+      # with their own consequences and belong to their own rules.
+      - alert: RetractionAlertEventDeadLettered
+        expr: increase(outbox_dead_lettered_total{event_type=~"PostChannelRetractionAlert(Raised|Resolved)"}[30m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: notifications
+        annotations:
+          summary: "A retraction alert event was given up on and will never be delivered"
+          description: "The outbox relay exhausted its retries on a PostChannelRetractionAlertRaised or PostChannelRetractionAlertResolved event and archived it to the dead letter queue. Nothing retries a dead-lettered row on its own. OPERATOR MEANING depends on which type: a dead-lettered Raised means content is live on a platform, the channel is marked pending retraction, and the customer was NEVER asked to remove it — the action window is counting down against somebody who does not know; a dead-lettered Resolved means the customer already acted or the window closed, and a standing alert they can no longer act on was never withdrawn. The remedy is a replay from the dead letter queue, not a new alert: the alert consumer is idempotent by design, and raising a second one would duplicate the obligation. DELIVERY: this rule pages nobody today — the rule directory is not mounted into the Prometheus container, and §4.2.b routing is pending on top of that. See this file header."
+          runbook: docs/runbooks/alert-publish-outcome-unrecorded.md
+
+      # The dead-letter case WITHOUT the dead letter, which is why this carries the same
+      # critical severity as the rule above rather than its context-degraded neighbour's
+      # warning. Both refusal sites count and then RETURN
+      # (`RetractionAlertEventHandler.ts:87` and `:124` — no raise), so the relay's
+      # `dispatch()` resolves and `markPublished` runs on the next line
+      # (`OutboxRelay.ts:132-133`). The row therefore reads PUBLISHED, indistinguishable
+      # from an alert that was delivered, and that is what makes this rule load-bearing
+      # rather than redundant: the two watchers that would otherwise cover it are both
+      # blind here. `RetractionAlertEventDeadLettered` cannot fire because the row never
+      # dead-letters, and `OutboxLagHigh` cannot fire because the row stops being pending
+      # by SUCCEEDING. Reason-agnostic on purpose, like the workers' critical rule: all
+      # four label values end in the same place, with nobody told and nothing retrying.
+      #
+      # 30m and 5m match both neighbours in this group, and the match is argued rather than
+      # inherited. The remedy is upstream — find the producer emitting the field-less event
+      # — which is a question about a RUN, not about one message, so the wider lookback is
+      # the one that still shows the pattern to an operator who looks late. The hold costs
+      # nothing that matters: the clock this races is the retraction action window, which
+      # is `RETRACTION_ACTION_WINDOW_HOURS`, 72h by default and 1h at its configurable
+      # floor, and the sweep that finalizes an expired one only ticks every 15m.
+      - alert: RetractionAlertEventRefused
+        expr: increase(retraction_alert_refused_total[30m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: notifications
+        annotations:
+          summary: "A retraction alert event was refused as unactionable and will never be delivered or retried"
+          description: "A PostChannelRetractionAlertRaised or PostChannelRetractionAlertResolved event named too little to act on, and the consumer refused it before attempting any delivery. OPERATOR MEANING is the same state RetractionAlertEventDeadLettered describes — content live on a platform, the channel marked pending retraction, the customer NEVER asked to remove it, the action window counting down against somebody who does not know — reached by a path that leaves NO dead letter to replay. The consumer counts the refusal and returns rather than raising, so the relay's dispatch resolves and the outbox row is marked PUBLISHED: it is indistinguishable from a delivered alert, which is why neither RetractionAlertEventDeadLettered (the row never dead-letters) nor OutboxLagHigh (the row stops being pending by succeeding) can see this. Apart from this counter the only trace is an ERROR log line. The `reason` label names the FIRST field the payload did not carry, in the order tenant, alert key, channel, project, and `missing-tenant` is the worst of the four to investigate: that refusal happens before any tenant is bound, so the event cannot even say which customer is affected. Do NOT replay it and do NOT raise a new alert: the payload is malformed rather than the delivery, so the same bytes are refused again. The remedy is upstream, at the producer emitting events without that field. DELIVERY: this rule pages nobody today — the rule directory is not mounted into the Prometheus container, and §4.2.b routing is pending on top of that. See this file header."
+          runbook: docs/runbooks/alert-publish-outcome-unrecorded.md
