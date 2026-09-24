@@ -21,13 +21,30 @@
 # asserts every id here maps to a canon row is the durable fix and is not in
 # this change.
 #
-# AND THE EXPIRY ITSELF IS UNPROVEN HERE. `exp:` is parsed by Trivy, and the
-# workflow pins the scanner as `aquasecurity/trivy-action@master` — an unpinned
-# action, so the version that reads this file is whatever master resolves to on
-# the day. If it did not honour `exp:`, these entries would degrade silently
-# from time-limited to permanent, which is the one failure mode the dates exist
-# to prevent. Nothing in this repository asserts otherwise yet; the cheap proof
-# is a past-dated entry that must re-surface its finding.
+# THE EXPIRY IS MEASURED, not assumed — and so is the fact that this file is read
+# at all. Both were open questions when it was written; a review named them, and
+# a scanner was installed to answer them rather than to restate them.
+#
+# Trivy 0.74.0 — the version the CI log shows in use — scanning this
+# repository's own `pnpm-lock.yaml`, which reports exactly these two ids and
+# nothing else, making it an exact fixture:
+#
+#   no ignore file              -> 2 findings
+#   exp: 2027-12-31 (future)    -> 0 findings   suppression active
+#   exp: 2020-01-01 (past)      -> 2 findings   EXPIRY HONOURED, both re-surface
+#   no exp: at all              -> 0 findings   unbounded, which is why they carry dates
+#
+# And the file is resolved from the WORKING DIRECTORY, not from the scan target:
+# with the ignore file in cwd and the target in another directory entirely, the
+# findings were suppressed. That is what makes a repository-root `.trivyignore`
+# apply to an image scan, which the workflow performs with the repository root
+# as its working directory.
+#
+# One residual: `production-ci.yml` pins the scanner as
+# `aquasecurity/trivy-action@master`, so the version reading this file is
+# whatever master resolves to that day. The measurement above is of 0.74.0; an
+# unpinned action is its own supply-chain question and is not this file's to
+# answer.
 #
 # ADDING AN ENTRY. Adjudicate it in the canon FIRST, with its reachability
 # argument and its remove-when. Then project it here. Never the other way round:
