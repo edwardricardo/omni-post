@@ -23,6 +23,9 @@ export * from "./events.js";
 export * from "./saga.js";
 export * from "./cqrs.js";
 
+// Publish job identity — the producer mints it, the worker reads it back
+export * from "./publishJobId.js";
+
 // Provider configuration (centralized)
 export * from "./providers/providerConfig.js";
 

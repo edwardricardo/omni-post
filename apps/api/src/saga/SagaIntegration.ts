@@ -45,7 +45,7 @@ import {
   type PublicationRecordView,
 } from "@shared/types/saga.js";
 import type { Command } from "@shared/types/cqrs.js";
-import { ok, err, type Result } from "@shared/types";
+import { ok, err, mintPublishJobId, type Result } from "@shared/types";
 import type { Redis } from "ioredis";
 import { AppError } from "../lib/errors/index.js";
 import { admitExistingPostStart, refusalToAppError } from "./publishAdmission.js";
@@ -295,16 +295,20 @@ export class SagaIntegration {
       // Job queue function - enqueues real BullMQ jobs
       async (job: Record<string, unknown>) => {
         const sagaId = job.sagaId as string | undefined;
-        const postId = job.postId as string | undefined;
-        const channelId = job.channelId as string | undefined;
+        // The pivot parses all three out of the episode command's answer before it
+        // reaches this seam, refusing a channel with no identity and an ordinal that
+        // is not an attempt, so the narrowing here restates a decision already made
+        // rather than making one the queue would have to live with.
+        const postId = job.postId as string;
+        const channelId = job.channelId as string;
         // Episode-scoped, because this key becomes the BullMQ job id and BullMQ
         // ignores an `add` whose id sits in the retained completed or failed
         // set. Without the episode, a re-drive of a channel that failed an hour
         // ago is silently dropped and the customer waits on a job that will
         // never run. The provider-facing dedupe key is a different value and
         // stays keyed on the target alone.
-        const episode = job.episode as number | undefined;
-        const dedupeKey = `publish-${postId}-${channelId}-e${episode}`;
+        const episode = job.episode as number;
+        const dedupeKey = mintPublishJobId({ postId, channelId, episode });
 
         const result = await queue.enqueue({
           dedupeKey,

@@ -14,6 +14,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
+import { mintPublishJobId, readPublishJobId } from "@shared/types";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1254,10 +1255,16 @@ describe("saga engine context invariants", () => {
     }
 
     const commandIdTemplates = templateLiterals(sharedSagaSource, /\bid:\s*`([^`]*)`/g).sort();
-    const queueDedupeTemplates = templateLiterals(
-      integration.original,
-      /\bconst\s+dedupeKey\s*=\s*`([^`]*)`/g
-    ).sort();
+    /**
+     * The publish job id is no longer a template this file can read out of the
+     * producer: it is minted by `mintPublishJobId`, and the producer, the worker
+     * and this pin all go through that one function. So the format is pinned by
+     * CALLING it, and its determinism is read off the module that owns it.
+     */
+    const jobIdSource = readFileSync(
+      join(apiRoot, "..", "..", "packages", "shared", "src", "publishJobId.ts"),
+      "utf8"
+    );
 
     it("still sees the command ids the saga steps mint", () => {
       // Pinned as an exact set: a pattern that stops matching would turn every
@@ -1305,9 +1312,16 @@ describe("saga engine context invariants", () => {
     });
 
     it("reads no clock and no randomness in any dedupe key", () => {
-      const violations = [...commandIdTemplates, ...queueDedupeTemplates]
+      const violations = commandIdTemplates
         .filter((template) => NONDETERMINISM.test(template))
         .map((template) => `dedupe key reads a non-deterministic source: \`${template}\``);
+
+      // The job id's module is read whole rather than by template, because the
+      // minter is the only thing that builds one: a nonce or a clock read
+      // ANYWHERE in it would reach the id, whether or not it sits in the literal.
+      if (NONDETERMINISM.test(jobIdSource)) {
+        violations.push("the publish job id module reads a non-deterministic source");
+      }
 
       expect(violations).toEqual([]);
     });
@@ -1320,20 +1334,57 @@ describe("saga engine context invariants", () => {
       // what distinguishes a deliberate re-drive from a replay. Without it a
       // re-drive of a channel whose earlier job sits in BullMQ's retained
       // completed or failed set is silently dropped.
-      expect(queueDedupeTemplates).toEqual(["publish-${postId}-${channelId}-e${episode}"]);
+      //
+      // Pinned by CALLING the minter rather than by copying its template: a copy
+      // is what let the format change under a producer and a reader that both
+      // still agreed with their own copy of the old one.
+      expect(mintPublishJobId({ postId: "post-1", channelId: "ch-2", episode: 3 })).toBe(
+        "publish-post-1-ch-2-e3"
+      );
+    });
 
-      const allowed = new Set(["postId", "channelId", "episode"]);
-      const violations = queueDedupeTemplates
-        .flatMap(interpolations)
-        .filter((expression) => !allowed.has(expression));
+    it("reads back exactly what it minted, and refuses an id naming no episode", () => {
+      // The reader is the minter's inverse or the worker cannot match a job to
+      // the record it belongs to, and the mirror key is what a receipt row is
+      // keyed by — one row per (post, channel), across every episode of it.
+      const jobId = mintPublishJobId({ postId: "post-1", channelId: "ch-2", episode: 3 });
+      expect(readPublishJobId(jobId)).toEqual({ episode: 3, mirrorKey: "publish-post-1-ch-2" });
 
-      expect(violations).toEqual([]);
+      // An id BullMQ assigned itself, or one minted before the record existed,
+      // names no episode — and is refused rather than read as episode zero.
+      expect(readPublishJobId("publish-post-1-ch-2")).toBeUndefined();
+      expect(readPublishJobId("publish-post-1-ch-2-e0")).toBeUndefined();
+      expect(readPublishJobId(undefined)).toBeUndefined();
     });
 
     it("hands that key to the queue as the job's dedupe key", () => {
       // A derivation nothing passes through is decoration; the enqueue call is
-      // where the key becomes the job id.
+      // where the key becomes the job id. The producer must reach the format
+      // through the minter — a local template here is how the copies started.
+      //
+      // The ARGUMENTS are pinned, not just the call. A pin that sees only that
+      // the minter is called cannot see it called with the post and the channel
+      // the other way round — `mintPublishJobId({ postId: channelId, channelId:
+      // postId, episode })` type-checks, because both are strings, and left every
+      // static case green when it was planted.
+      //
+      // What this pin is and is NOT, because the distinction is easy to overstate
+      // and was overstated once already. It recognises the SHORTHAND call and so
+      // refuses that explicit swap. It is NOT equivalent to the exact-template pin
+      // it replaced: that one read the producer's own format string, while this
+      // reads the call's shape. And shorthand property ORDER is semantically
+      // irrelevant to a function that reads its argument by name, so a harmless
+      // `{ channelId, postId, episode }` would fail this too. The strength is
+      // narrower than what it replaced, and stated that way rather than claimed
+      // back.
+      expect(integration.sanitized).toMatch(
+        /const dedupeKey = mintPublishJobId\(\{\s*postId,\s*channelId,\s*episode,?\s*\}\)/
+      );
       expect(integration.sanitized).toMatch(/enqueue\(\{\s*\n?\s*dedupeKey,/);
+      // And no SECOND key built any other way. The exact-set equality that used
+      // to read every template here would have refused a sibling; `toMatch` on
+      // its own would not notice one.
+      expect(integration.sanitized).not.toMatch(/const dedupeKey = `/);
     });
   });
 

@@ -6,6 +6,7 @@
  * @layer infrastructure
  */
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
+import { mintPublishJobId } from "@shared/types";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   TEST_ACCOUNT_ID,
@@ -160,43 +161,45 @@ describe("V5: Terminal State Guard", () => {
 });
 
 describe("V4: Deterministic dedupeKey", () => {
-  it("should generate deterministic dedupeKey without randomUUID", async () => {
-    // Read the SagaIntegration source to verify no randomUUID in dedupeKey
+  it("reads no clock and no randomness anywhere in the module that mints the key", async () => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
 
-    const sagaIntegrationPath = path.join(process.cwd(), "src/saga/SagaIntegration.ts");
+    // The producer no longer holds the format: it calls the minter, and the minter's
+    // module is the only place a nondeterministic source could enter the id. Both are
+    // read — the module for what it does, the producer for whether it still goes
+    // through it — because a producer that drifted back to its own template would pass
+    // a scan of the module alone.
+    const jobIdSource = await fs.readFile(
+      path.join(process.cwd(), "..", "..", "packages", "shared", "src", "publishJobId.ts"),
+      "utf-8"
+    );
+    expect(jobIdSource).not.toMatch(/randomUUID|Math\.random|Date\.now|new Date\(/);
 
-    const source = await fs.readFile(sagaIntegrationPath, "utf-8");
-
-    // Find the dedupeKey assignment line
-    const dedupeKeyLines = source
-      .split("\n")
-      .filter((line) => line.includes("dedupeKey") && line.includes("publish-"));
-
-    expect(dedupeKeyLines.length > 0).toBeTruthy();
-
-    for (const line of dedupeKeyLines) {
-      expect(line.includes("randomUUID")).toBeFalsy();
-      expect(line.includes("Math.random")).toBeFalsy();
-    }
+    const producer = await fs.readFile(
+      path.join(process.cwd(), "src", "saga", "SagaIntegration.ts"),
+      "utf-8"
+    );
+    expect(producer).toMatch(/const dedupeKey = mintPublishJobId\(/);
   });
 
-  it("should produce the same dedupeKey for same postId + channelId", () => {
-    const postId = "post-123";
-    const channelId = "ch-456";
-    const key1 = `publish-${postId}-${channelId}`;
-    const key2 = `publish-${postId}-${channelId}`;
+  it("produces the same key for the same post, channel and episode", () => {
+    const target = { postId: "post-123", channelId: "ch-456", episode: 1 };
 
-    expect(key1).toBe(key2);
-    expect(key1).toBe("publish-post-123-ch-456");
+    expect(mintPublishJobId(target)).toBe(mintPublishJobId(target));
+    expect(mintPublishJobId(target)).toBe("publish-post-123-ch-456-e1");
   });
 
-  it("should produce different dedupeKeys for different channelIds", () => {
+  it("produces different keys for different channels, and for different episodes", () => {
     const postId = "post-123";
-    const key1 = `publish-${postId}-ch-1`;
-    const key2 = `publish-${postId}-ch-2`;
 
-    expect(key1).not.toBe(key2);
+    expect(mintPublishJobId({ postId, channelId: "ch-1", episode: 1 })).not.toBe(
+      mintPublishJobId({ postId, channelId: "ch-2", episode: 1 })
+    );
+    // The episode is what lets a deliberate re-drive reach the queue at all: BullMQ
+    // drops an add whose id sits in its retained completed set.
+    expect(mintPublishJobId({ postId, channelId: "ch-1", episode: 1 })).not.toBe(
+      mintPublishJobId({ postId, channelId: "ch-1", episode: 2 })
+    );
   });
 });

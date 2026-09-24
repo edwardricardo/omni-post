@@ -2,10 +2,17 @@
  * Publish Flow Integration Test
  *
  * Tests the critical publish path end-to-end:
- *   create post in DB → create channel → invoke PublishHandler → verify PublishLog
+ *   create post in DB → create channel → open a publication episode →
+ *   invoke PublishHandler → verify what the publication record and its mirror hold
  *
  * Uses real PostgreSQL + Redis (via setupTest) with mock provider adapters
  * from the workers test helpers.
+ *
+ * The episode is part of the flow, not scaffolding around it: the worker reads the
+ * publication record before it calls a provider and writes the outcome back to it, so a
+ * job whose episode nobody opened is refused before anything is sent. The record is also
+ * where idempotency lives now — the `publish_log` row is a best-effort receipt mirror,
+ * written only on success and keyed by the job id with its episode suffix removed.
  *
  * @file publish.flow.test.ts
  * @description Tests for Publish Flow
@@ -29,7 +36,13 @@ import type {
   PublishProvider,
 } from "../../../apps/workers/src/publishHandlerTypes.js";
 import type { CanonicalPost, Result } from "@shared/types";
+import { mintPublishJobId, readPublishJobId } from "@shared/types";
+import { PUBLICATION_OUTCOME_KINDS } from "@core/domain/index.js";
 import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.js";
+import {
+  createPublishWorkerHarness,
+  type PublishWorkerHarness,
+} from "./integration/helpers/publishWorkerHarness.js";
 
 /**
  * Fixture channel. The subject is the publish path end to end; this client plants the post and
@@ -53,16 +66,8 @@ function createPublishRepoFromCtx(ctx: TestContext): PublishRepo {
     logPublish: async (input) => {
       return (await repo.logPublish(input)) as Result<unknown, string>;
     },
-    getLogByDedupeKey: async (dedupeKey: string) => {
-      return (await repo.getLogByDedupeKey(dedupeKey)) as Result<{ status: string } | null, string>;
-    },
     getPostById: async (id: string) => {
       return (await repo.getPostById(id)) as Result<CanonicalPost, string>;
-    },
-    // Tenant owner lookup — the handler calls it whenever a job payload omits
-    // `accountId`, so the flow repo must expose the real one.
-    getChannelOwnerAccountId: async (id: string) => {
-      return (await repo.getChannelOwnerAccountId(id)) as Result<string | null, string>;
     },
     // Thread methods — stubbed for single-post flow
     createThread: async () =>
@@ -84,7 +89,11 @@ function createPublishRepoFromCtx(ctx: TestContext): PublishRepo {
   };
 }
 
-function buildHandler(ctx: TestContext, provider: PublishProvider): PublishHandler {
+function buildHandler(
+  ctx: TestContext,
+  provider: PublishProvider,
+  harness: PublishWorkerHarness
+): PublishHandler {
   return new PublishHandler({
     repo: createPublishRepoFromCtx(ctx),
     providerRegistry: { x: provider },
@@ -98,6 +107,10 @@ function buildHandler(ctx: TestContext, provider: PublishProvider): PublishHandl
     instrumentation: createMockInstrumentation(),
     databaseInstrumentation: createMockDatabaseInstrumentation(),
     businessKPITracker: createMockBusinessKPITracker(),
+    // The record path is REAL: a double here would report a green publish over a
+    // record nothing wrote, which is the state the record exists to make impossible.
+    outcomeRecorder: harness.outcomeRecorder,
+    publicationRecord: harness.publicationRecord,
   });
 }
 
@@ -109,16 +122,45 @@ let accountId: string;
 let projectId: string;
 let channelId: string;
 const postIds: string[] = [];
-const dedupeKeys: string[] = [];
+const jobIds: string[] = [];
 
 describe("Publish Flow", { concurrency: 1 }, () => {
   let ctx: TestContext;
+  const harness: PublishWorkerHarness = createPublishWorkerHarness(prisma);
+
+  /**
+   * Plants a post, opens a publication episode over the fixture channel and mints the
+   * job id that episode is addressed by — the three things a publish job needs before
+   * the worker will look at it.
+   */
+  async function seedJob(body: string): Promise<{ postId: string; jobId: string }> {
+    const post = await ctx.repo.createPost({ projectId, locale: "es" as const, body });
+    assert.ok(post.ok, `Create post: ${post.ok ? "" : post.error}`);
+    postIds.push(post.value.id);
+
+    const episode = await harness.openEpisode({
+      accountId,
+      postId: post.value.id,
+      channelIds: [channelId],
+    });
+    const jobId = mintPublishJobId({ postId: post.value.id, channelId, episode });
+    jobIds.push(jobId);
+    return { postId: post.value.id, jobId };
+  }
+
+  /** The mirror row key for a job id, read back through the worker's own reader. */
+  function mirrorKeyOf(jobId: string): string {
+    const identity = readPublishJobId(jobId);
+    assert.ok(identity, "a minted job id must name an episode");
+    return identity.mirrorKey;
+  }
 
   after(async () => {
-    // Cleanup in FK-safe order: logs → posts → channels → projects → accounts
-    for (const dk of dedupeKeys) {
+    // Cleanup in FK-safe order: logs → publication records → posts → channels →
+    // projects → accounts
+    for (const jobId of jobIds) {
       try {
-        await prisma.publishLog.deleteMany({ where: { dedupeKey: dk } });
+        await prisma.publishLog.deleteMany({ where: { dedupeKey: mirrorKeyOf(jobId) } });
       } catch {
         /* ignore */
       }
@@ -126,6 +168,11 @@ describe("Publish Flow", { concurrency: 1 }, () => {
     for (const pid of postIds) {
       try {
         await prisma.publishLog.deleteMany({ where: { postId: pid } });
+      } catch {
+        /* ignore */
+      }
+      try {
+        await prisma.postChannelPublication.deleteMany({ where: { postId: pid } });
       } catch {
         /* ignore */
       }
@@ -196,27 +243,20 @@ describe("Publish Flow", { concurrency: 1 }, () => {
   it("happy path: publish single post and verify PublishLog OK", async () => {
     ctx = await setupTest();
 
-    const post = await ctx.repo.createPost({
-      projectId,
-      locale: "es" as const,
-      body: "Hello from publish flow test!",
-    });
-    assert.ok(post.ok, `Create post: ${post.ok ? "" : post.error}`);
-    postIds.push(post.value.id);
-
-    const dedupeKey = `happy-${post.value.id}-${ts}`;
-    dedupeKeys.push(dedupeKey);
-
-    const handler = buildHandler(ctx, createMockProvider());
+    const { postId, jobId } = await seedJob("Hello from publish flow test!");
+    const handler = buildHandler(ctx, createMockProvider(), harness);
 
     await handler.handleJob({
-      payload: { postId: post.value.id, channelId, accountId, provider: "x" },
-      dedupeKey,
+      payload: { postId, channelId, accountId, provider: "x" },
+      dedupeKey: jobId,
+      attemptsMade: 0,
     });
 
-    // Verify PublishLog
+    // Verify PublishLog. The mirror is keyed by the job id with its episode
+    // suffix removed — one receipt row per (post, channel), whatever episode
+    // wrote it.
     const logs = await prisma.publishLog.findMany({
-      where: { dedupeKey },
+      where: { dedupeKey: mirrorKeyOf(jobId) },
       orderBy: { createdAt: "desc" },
     });
 
@@ -224,21 +264,18 @@ describe("Publish Flow", { concurrency: 1 }, () => {
     assert.ok(okLog, "Should have an OK PublishLog entry");
     assert.strictEqual(okLog.provider, "X");
     assert.strictEqual(okLog.channelId, channelId);
+
+    // And the record the mirror mirrors: the publication itself is what the saga
+    // settles on, so a green mirror over an unwritten record would be a lie.
+    const record = await harness.readChannelRecord({ accountId, postId, channelId });
+    assert.ok(record, "the publication record must hold this channel");
+    assert.strictEqual(record.outcomeKind, PUBLICATION_OUTCOME_KINDS.PUBLISHED);
   });
 
-  it("provider failure: verify PublishLog has ERR status", async () => {
+  it("provider failure: the attempt is recorded and nothing is mirrored", async () => {
     ctx = await setupTest();
 
-    const post = await ctx.repo.createPost({
-      projectId,
-      locale: "es" as const,
-      body: "This post will fail to publish",
-    });
-    assert.ok(post.ok);
-    postIds.push(post.value.id);
-
-    const dedupeKey = `fail-${post.value.id}-${ts}`;
-    dedupeKeys.push(dedupeKey);
+    const { postId, jobId } = await seedJob("This post will fail to publish");
 
     // Mock provider that fails on publish
     const failingProvider: PublishProvider = {
@@ -249,52 +286,37 @@ describe("Publish Flow", { concurrency: 1 }, () => {
       }),
     };
 
-    const handler = buildHandler(ctx, failingProvider);
+    const handler = buildHandler(ctx, failingProvider, harness);
 
-    // handleJob writes the ERR PublishLog and then re-throws so BullMQ's retry
-    // policy can take effect (see publishHandler.handleJob catch block).
+    // handleJob records the failed attempt and then re-throws while the channel is
+    // still unresolved, so BullMQ's retry policy can take effect.
     await assert.rejects(
       handler.handleJob({
-        payload: { postId: post.value.id, channelId, accountId, provider: "x" },
-        dedupeKey,
+        payload: { postId, channelId, accountId, provider: "x" },
+        dedupeKey: jobId,
+        attemptsMade: 0,
       })
     );
 
-    const logs = await prisma.publishLog.findMany({
-      where: { dedupeKey },
-      orderBy: { createdAt: "desc" },
-    });
+    // A failure leaves NO publish_log row: the mirror is written only after a
+    // provider has accepted content, so the record is the only place a failure is
+    // legible, and it is where this asserts.
+    const record = await harness.readChannelRecord({ accountId, postId, channelId });
+    assert.ok(record, "the publication record must hold this channel");
+    assert.strictEqual(record.outcomeKind, PUBLICATION_OUTCOME_KINDS.UNRESOLVED);
+    assert.strictEqual(record.attempts, 1, "the failed attempt must be counted");
+    assert.ok(record.lastFailure, "the failure cause must be kept on the record");
 
-    const errLog = logs.find((l) => l.status === "ERR");
-    assert.ok(errLog, "Should have an ERR PublishLog entry");
-    assert.strictEqual(errLog.provider, "X");
+    const logs = await prisma.publishLog.findMany({
+      where: { dedupeKey: mirrorKeyOf(jobId) },
+    });
+    assert.strictEqual(logs.length, 0, "a failed attempt mirrors no receipt");
   });
 
-  it("idempotency: skip publish when PublishLog already has OK", async () => {
+  it("idempotency: a replayed job publishes nothing a second time", async () => {
     ctx = await setupTest();
 
-    const post = await ctx.repo.createPost({
-      projectId,
-      locale: "es" as const,
-      body: "Already published post",
-    });
-    assert.ok(post.ok);
-    postIds.push(post.value.id);
-
-    const dedupeKey = `idem-${post.value.id}-${ts}`;
-    dedupeKeys.push(dedupeKey);
-
-    // Pre-insert PublishLog with OK status
-    await prisma.publishLog.create({
-      data: {
-        postId: post.value.id,
-        provider: "X",
-        channelId,
-        status: "OK",
-        payload: { providerPostId: "already-published" },
-        dedupeKey,
-      },
-    });
+    const { postId, jobId } = await seedJob("Already published post");
 
     // Track provider.publish calls
     let publishCalled = false;
@@ -306,16 +328,25 @@ describe("Publish Flow", { concurrency: 1 }, () => {
       },
     };
 
-    const handler = buildHandler(ctx, trackingProvider);
+    // Publish once for real, so what the replay meets is the record the first run
+    // wrote — not a row planted to look like one.
+    await buildHandler(ctx, createMockProvider(), harness).handleJob({
+      payload: { postId, channelId, accountId, provider: "x" },
+      dedupeKey: jobId,
+      attemptsMade: 0,
+    });
 
-    await handler.handleJob({
-      payload: { postId: post.value.id, channelId, accountId, provider: "x" },
-      dedupeKey,
+    // The same job id again, as a BullMQ redelivery hands it over. The record now
+    // says this channel already published, so the provider must never be reached.
+    await buildHandler(ctx, trackingProvider, harness).handleJob({
+      payload: { postId, channelId, accountId, provider: "x" },
+      dedupeKey: jobId,
+      attemptsMade: 1,
     });
 
     assert.strictEqual(publishCalled, false, "Provider should be skipped for idempotent job");
 
-    const logs = await prisma.publishLog.findMany({ where: { dedupeKey } });
+    const logs = await prisma.publishLog.findMany({ where: { dedupeKey: mirrorKeyOf(jobId) } });
     assert.strictEqual(logs.length, 1, "Should still have exactly 1 log entry");
   });
 
