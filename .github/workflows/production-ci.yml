@@ -262,21 +262,6 @@ jobs:
             echo "  ${{ matrix.service }}: no native module of its own; liveness only"
           fi
 
-      # The gate below writes SARIF to a FILE, so a failing scan prints nothing
-      # between its last warning and `exit code 1` — three rounds were spent
-      # reading around a red that never said what it found. This runs the same
-      # scan, same severity, same ignore file, in table form, and never gates:
-      # its only job is to put the finding in the log. It runs BEFORE the gate so
-      # a failure cannot skip it.
-      - name: Trivy report (never gates — this is the one that TELLS you)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: local/${{ matrix.service }}:scan
-          format: "table"
-          severity: "CRITICAL,HIGH"
-          exit-code: "0"
-          trivyignores: .trivyignore
-
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -288,6 +273,29 @@ jobs:
           # Explicit path required: the action runs Trivy in its own container,
           # so the repo-root .trivyignore is not auto-discovered. Measured — the
           # first run without this exited 1 on findings the file suppresses.
+          trivyignores: .trivyignore
+
+      # The gate above writes SARIF to a FILE, so a failing scan prints its last
+      # warning and then `exit code 1` with nothing in between — and GitHub's
+      # code-scanning API is no substitute, because it reports a severity derived
+      # from a CVSS score rather than the one Trivy filtered on, so the two
+      # disagree. This re-runs the same scan in table form to put the finding in
+      # the log.
+      #
+      # `if: failure()` so it costs nothing on a green run and only the second DB
+      # pull when there is something to explain. `continue-on-error` because
+      # `exit-code: 0` only stops Trivy failing on FINDINGS — an image pull or a
+      # DB download failure would still fail the step, and a step whose whole
+      # purpose is to explain another failure must not be able to add one.
+      - name: Trivy findings in the log
+        if: failure()
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: local/${{ matrix.service }}:scan
+          format: "table"
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"
           trivyignores: .trivyignore
 
       - name: Upload Trivy scan results
