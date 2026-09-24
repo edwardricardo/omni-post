@@ -262,39 +262,40 @@ jobs:
             echo "  ${{ matrix.service }}: no native module of its own; liveness only"
           fi
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: local/${{ matrix.service }}:scan
-          format: "sarif"
-          output: "trivy-results-${{ matrix.service }}.sarif"
-          severity: "CRITICAL,HIGH"
-          exit-code: "1"
-          # Explicit path required: the action runs Trivy in its own container,
-          # so the repo-root .trivyignore is not auto-discovered. Measured — the
-          # first run without this exited 1 on findings the file suppresses.
-          trivyignores: .trivyignore
-
-      # The gate above writes SARIF to a FILE, so a failing scan prints its last
-      # warning and then `exit code 1` with nothing in between — and GitHub's
-      # code-scanning API is no substitute, because it reports a severity derived
-      # from a CVSS score rather than the one Trivy filtered on, so the two
-      # disagree. This re-runs the same scan in table form to put the finding in
-      # the log.
+      # THE GATE, and it is `table` on purpose. With `format: sarif` the action
+      # documents that it "enforces output of all vulnerabilities regardless of
+      # configured severities" unless `limit-severities-for-sarif` is set — so
+      # `severity: CRITICAL,HIGH` was silently not applied and `exit-code: 1`
+      # fired on MEDIUM and LOW findings. That is why these four jobs were red
+      # even when no CRITICAL or HIGH existed. Measured in one run: this same
+      # scan in table form reported 0 while the sarif one exited 1.
       #
-      # `if: failure()` so it costs nothing on a green run and only the second DB
-      # pull when there is something to explain. `continue-on-error` because
-      # `exit-code: 0` only stops Trivy failing on FINDINGS — an image pull or a
-      # DB download failure would still fail the step, and a step whose whole
-      # purpose is to explain another failure must not be able to add one.
-      - name: Trivy findings in the log
-        if: failure()
-        continue-on-error: true
+      # `table` respects `severity`, and it prints what it caught — so the gate
+      # explains itself instead of failing silently into a file.
+      - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: local/${{ matrix.service }}:scan
           format: "table"
           severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          # Explicit path required: the action runs Trivy in its own container,
+          # so the repo-root .trivyignore is not auto-discovered.
+          trivyignores: .trivyignore
+
+      # The SARIF is for the Security tab, NOT for gating, so it keeps the
+      # action's default breadth on purpose: every severity, so MEDIUM and LOW
+      # stay visible there. `exit-code: 0` because the gate above already
+      # decided; `if: always()` so the report is uploaded even on a red gate,
+      # which is when it is most worth having.
+      - name: Trivy SARIF for code scanning (never gates)
+        if: always()
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: local/${{ matrix.service }}:scan
+          format: "sarif"
+          output: "trivy-results-${{ matrix.service }}.sarif"
           exit-code: "0"
           trivyignores: .trivyignore
 
