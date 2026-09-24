@@ -80,7 +80,22 @@ RUN pnpm --filter @apps/admin exec next build ${NEXT_BUILD_FLAGS}
 # ==============================================================================
 # Production Runtime
 # ==============================================================================
-FROM gcr.io/distroless/nodejs24-debian12 AS production
+# Pinned by digest, and the pin is half of one practice: a tag can be
+# republished, a digest cannot, so pinning without automation freezes whatever
+# was current the day it was written. `.github/dependabot.yml` already declares
+# the `docker` ecosystem for all four apps, and Dependabot updates a digest that
+# is ALREADY pinned without further config — it does not add one to a bare tag.
+# This FROM previously carried no tag and no digest at all, so nothing tracked
+# it: every build silently took whatever `latest` pointed at that day.
+#
+# debian13 (trixie), not debian12 (bookworm), and the reason is measured rather
+# than preferred. The bookworm image ships `libssl3 3.0.18-1~deb12u2`, which
+# carries one CRITICAL and five HIGH advisories; Debian published the fix
+# (openssl 3.0.20-1~deb12u2) but Google had not rebuilt the bookworm distroless
+# with it. Trixie's image ships `libssl3t64 3.5.7-1~deb13u2` and `libc6
+# 2.41-12+deb13u4` — past every one of them. Read out of each image's own
+# `var/lib/dpkg/status.d`, not inferred from its tag.
+FROM gcr.io/distroless/nodejs24-debian13@sha256:b1fc33242cc74151f50c62b4a03d48afd759dccf81279b5f8e401db4546479c1 AS production
 
 WORKDIR /app
 

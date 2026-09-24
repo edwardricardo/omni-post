@@ -1,0 +1,44 @@
+# Trivy suppressions — every entry MUST already be adjudicated in
+# docs/security/SECURITY_CANON.md §"Audited audit-ignores". This file is a
+# PROJECTION of that table into a second scanner's vocabulary, never a second
+# place to decide things.
+#
+# WHY IT EXISTS. The repository already adjudicates accepted dependency risk, in
+# one place, with evidence and a remove-when: the canon table, enforced through
+# `auditConfig.ignoreGhsas` in pnpm-workspace.yaml. That allowlist is pnpm's.
+# Trivy never reads it, so the same accepted risk was being re-reported as a red
+# gate by a second scanner — one decision, two tools, one allowlist. A gate that
+# goes red on something already decided teaches people to stop reading it, which
+# is how four Container Security jobs stayed red for two months while the reason
+# recorded for them was wrong.
+#
+# THE DRIFT THIS FILE INTRODUCES, stated because it is real. These are now THREE
+# lists that must agree: the canon table, `ignoreGhsas`, and this file. Nothing
+# mechanically checks that they do. Each entry below therefore cites its canon
+# row by GHSA so a reader can verify the pairing by hand, and each carries an
+# `exp:` date so a suppression cannot outlive attention by default — an expiry
+# is the canon's prose "remove-when" made self-revoking. A fitness check that
+# asserts every id here maps to a canon row is the durable fix and is not in
+# this change.
+#
+# ADDING AN ENTRY. Adjudicate it in the canon FIRST, with its reachability
+# argument and its remove-when. Then project it here. Never the other way round:
+# the canon is explicit that a reachable, un-mitigated advisory is not something
+# this kind of list may close.
+
+# image-size 2.0.2 — infinite-loop DoS in two parsers.
+#   Canon rows: GHSA-w3rx-r6r6-pgpr (ICNS) and GHSA-5p2g-fcmc-qvqq (JXL/HEIF),
+#   both already in §"Audited audit-ignores" and both already in ignoreGhsas.
+#   Verified as the same defects, not assumed: Trivy's own description for
+#   CVE-2025-71330 reads "image-size through 2.0.2 ... by supplying a specially
+#   crafted ICNS image buffer", which is GHSA-w3rx-r6r6-pgpr word for word.
+#   Not pinnable: the advisories name >=2.0.3 as patched and npm has published
+#   no release above 2.0.2, so there is nothing to raise a floor to.
+#   Mitigation (the canon's, restated so this file reads alone): the one
+#   production caller, packages/providers/bluesky's BlueskyClient, gates buffers
+#   by magic bytes and admits only jpeg/png/gif/webp, so the vulnerable parsers
+#   are unreachable by construction — unit-pinned. The remaining chain is
+#   @storybook/nextjs, which is dev-only and reaches no shipped image.
+#   Remove when image-size publishes >=2.0.3 and the tree resolves it.
+CVE-2025-71330 exp:2026-12-23
+CVE-2025-71329 exp:2026-12-23
