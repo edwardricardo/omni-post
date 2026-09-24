@@ -879,7 +879,6 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       deletePostUseCase: new DeletePostUseCase(postRepository, businessMetrics),
       completePostPublishingUseCase: new CompletePostPublishingUseCase(
         postRepository,
-        channelRepository,
         new PrismaUnitOfWork(guarded, ambientTenantContextProvider)
       ),
       openPublicationEpisodeUseCase: new OpenPublicationEpisodeUseCase(

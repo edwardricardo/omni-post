@@ -21,7 +21,11 @@ import type { CompletePostPublishingOutput } from "@core/posts/CompletePostPubli
 import type { OpenPublicationEpisodeOutput } from "@core/posts/OpenPublicationEpisodeUseCase.js";
 import type { PostDTO } from "@core/posts/GetPostUseCase.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import { EntityNotFoundError } from "@core/domain/index.js";
+import {
+  EntityNotFoundError,
+  PUBLISH_STATUS,
+  type PublishStatusValue,
+} from "@core/domain/index.js";
 import type { PostCommandHandlersConfig } from "../../src/cqrs/handlers/PostCommandHandlers.js";
 import type { UpdatePostCommand } from "@shared/types/cqrs.js";
 
@@ -125,46 +129,48 @@ export class MockDeletePostUseCase {
 }
 
 /**
- * Double for the promotion writer. `applied` and `version` are settable per
- * test because the handler's whole job is to report what the use case decided —
- * a double that always answers the same thing could not tell a real version
- * from a constant.
+ * Double for the publication reconciliation. `applied`, `version` and `status`
+ * are settable per test because the handler's whole job is to report what the
+ * use case decided — a double that always answers the same thing could not tell
+ * a real version from a constant, and the word is no longer always `PUBLISHED`.
+ * `publishedAt` is OMITTED when it is undefined, exactly as the use case omits
+ * it for a post that did not publish everywhere.
  */
 export class MockCompletePostPublishingUseCase {
   public executeCalls: unknown[] = [];
   public shouldFail = false;
-  public failMessage = "Promotion refused";
-  public failCode = USE_CASE_ERRORS.NOT_IMPLEMENTED;
+  public failMessage = "Reconciliation refused";
+  public failCode = USE_CASE_ERRORS.VALIDATION_FAILED;
   public applied = true;
   public version = 1;
-  public publishedAt = new Date("2024-01-01T00:00:00.000Z");
-  public unresolvedChannelIds: string[] = [];
+  public status: PublishStatusValue = PUBLISH_STATUS.PUBLISHED;
+  public publishedAt: Date | undefined = new Date("2024-01-01T00:00:00.000Z");
 
   async execute(input: unknown): Promise<Result<CompletePostPublishingOutput, UseCaseError>> {
     this.executeCalls.push(input);
     if (this.shouldFail) {
       return err(new UseCaseError(this.failMessage, this.failCode));
     }
+    const publishedAt = this.publishedAt;
     return ok({
       postId: (input as Record<string, string>).postId ?? TEST_POST_ID,
       projectId: TEST_PROJECT_ID,
-      status: "PUBLISHED",
-      publishedAt: this.publishedAt,
+      status: this.status,
+      ...(publishedAt !== undefined && { publishedAt }),
       version: this.version,
       applied: this.applied,
-      unresolvedChannelIds: this.unresolvedChannelIds,
     });
   }
 
   reset(): void {
     this.executeCalls = [];
     this.shouldFail = false;
-    this.failMessage = "Promotion refused";
-    this.failCode = USE_CASE_ERRORS.NOT_IMPLEMENTED;
+    this.failMessage = "Reconciliation refused";
+    this.failCode = USE_CASE_ERRORS.VALIDATION_FAILED;
     this.applied = true;
     this.version = 1;
+    this.status = PUBLISH_STATUS.PUBLISHED;
     this.publishedAt = new Date("2024-01-01T00:00:00.000Z");
-    this.unresolvedChannelIds = [];
   }
 }
 

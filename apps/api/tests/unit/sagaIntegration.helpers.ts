@@ -353,6 +353,10 @@ export function makeExistingPost(status: PublishStatus = PublishStatus.draft()):
     status,
     media: [],
     contentVersions: [],
+    // Stated, never defaulted: `PersistedPostState` requires the set, so a fixture
+    // that declares no target says so rather than leaning on a default the aggregate
+    // no longer carries. Callers that need records call `openTargets` below.
+    publications: [],
     createdAt: new Date("2026-02-01T00:00:00.000Z"),
     updatedAt: new Date("2026-02-01T00:00:00.000Z"),
     version: 3,

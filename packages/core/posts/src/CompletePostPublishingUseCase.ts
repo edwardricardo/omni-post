@@ -1,12 +1,14 @@
 /**
  * @file CompletePostPublishingUseCase.ts
- * @description The single writer of the publish-now promotion: given the outcome of a publish
- *              that already happened at the providers, it advances the Post aggregate through
- *              `DRAFT -> PUBLISHING -> PUBLISHED` in ONE transaction, persisting the status, the
- *              publication timestamp and both transition events together. Anything short of a
- *              total success is refused before any I/O, and an already-published post is
- *              answered rather than rejected so a retryable saga step never fails a publication
- *              that in fact completed.
+ * @description The publish-now RECONCILIATION: given the per-channel outcome the saga
+ *              observed, it re-derives the post's publication word FROM the record and
+ *              repairs the row when the two have drifted. It chooses no status of its
+ *              own, writes no channel result, and fabricates no publication moment —
+ *              the record is the sole source of publication truth and this use case is
+ *              one of its readers. Everything it cannot ESTABLISH from the record is
+ *              refused before anything is written: a post that carries no record at
+ *              all, a channel nobody recorded, and an outcome that contradicts what the
+ *              record settled.
  * @layer application
  */
 
@@ -20,24 +22,25 @@ import {
 import {
   PostId,
   ChannelId,
-  VERSION_CONFLICT_CODE,
+  type ChannelPublications,
   type PostAggregate,
   type PostRepository,
-  type ChannelRepository,
-  type ProviderType,
+  type PublishStatusValue,
 } from "@core/domain/index.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import { publicationSaveFailure } from "./publicationWriteOutcome.js";
 
 /**
- * One channel's share of the publish outcome, as the saga observed it.
- * `externalId` and `error` are carried for the provider-receipt work that is
- * not wired yet; nothing in this use case reads them to decide totality.
+ * One channel's share of the publish outcome, as the saga observed it: which
+ * channel, and whether it published. Nothing else, because nothing else is
+ * read. The provider's identifier and the failure message describe the very
+ * rows this use case then loads, so declaring them here would put a second
+ * copy of the record on the input — free to disagree with the record the
+ * reconciliation derives the word from, and answering to no reader.
  */
 export interface PublishChannelOutcome {
   readonly channelId: string;
   readonly success: boolean;
-  readonly externalId?: string;
-  readonly error?: string;
 }
 
 /** Input DTO for completing a publish. */
@@ -48,7 +51,7 @@ export interface CompletePostPublishingInput {
   expectedVersion?: number;
 }
 
-/** Output DTO. `applied` is false when the post was already published. */
+/** Output DTO. `applied` is false when the word already matched the record. */
 export interface CompletePostPublishingOutput {
   postId: string;
   /**
@@ -58,45 +61,25 @@ export interface CompletePostPublishingOutput {
    * another query that can fail.
    */
   projectId: string;
-  status: "PUBLISHED";
-  publishedAt: Date;
+  /** The word the RECORD derives — `PUBLISHED`, `PARTIALLY_PUBLISHED` or `FAILED`. */
+  status: PublishStatusValue;
+  /**
+   * Present only when every channel published. A partially published post did
+   * not publish, so it carries no publication moment and this key is absent
+   * rather than holding a value nothing earned.
+   */
+  publishedAt?: Date;
   version: number;
   applied: boolean;
-  /**
-   * Channels whose provider could not be named in the publishing-started event
-   * (D7). Empty when nothing failed to resolve AND when no started event was
-   * emitted at all — an already-PUBLISHING post does not re-announce the start,
-   * so there is no provider list for a channel to be missing from.
-   */
-  unresolvedChannelIds: string[];
 }
 
-type PromotionResult = Result<CompletePostPublishingOutput, UseCaseError>;
-
-/**
- * @function isVersionConflict
- * @description Recognises an optimistic-concurrency failure by the STABLE `code`
- *              the domain error carries, never by class identity. `instanceof`
- *              compares constructors, and `@core/domain` ships a dual
- *              conditional export (`development` -> src, `default` -> dist), so
- *              the adapter's copy of the class and this module's copy can be two
- *              distinct objects in one process. Under that resolution an
- *              `instanceof` narrowing turns every CAS conflict into
- *              `INTERNAL_ERROR` — a lost update reported as an infrastructure
- *              blip, with every test still green. A string compares by value and
- *              survives the duplicate.
- * @param error - The error a repository handed back inside its `Result`.
- * @returns True when the error identifies itself as a version conflict.
- */
-function isVersionConflict(error: Error): boolean {
-  return "code" in error && error.code === VERSION_CONFLICT_CODE;
-}
+type ReconciliationResult = Result<CompletePostPublishingOutput, UseCaseError>;
 
 /**
  * Complete Post Publishing Use Case
  *
  * @example
- * const useCase = new CompletePostPublishingUseCase(postRepo, channelRepo, unitOfWork);
+ * const useCase = new CompletePostPublishingUseCase(postRepo, unitOfWork);
  * const result = await useCase.execute({
  *   postId: "…",
  *   outcome: { channels: [{ channelId: "…", success: true }] },
@@ -109,19 +92,18 @@ export class CompletePostPublishingUseCase implements UseCase<
 > {
   constructor(
     private readonly postRepository: PostRepository,
-    private readonly channelRepository: ChannelRepository,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
   /**
    * @method execute
-   * @description Promotes a post whose every scheduled channel published. Refusals that need no
-   *              state are decided first, so a rejected promotion costs no query and can write
-   *              nothing.
+   * @description Reconciles a post's word with its publication record. Refusals that
+   *              need no state are decided first, so a rejected reconciliation costs
+   *              no query and can write nothing.
    * @param input - The post id, the per-channel outcome, and an optional OCC token.
-   * @returns The promoted post's terminal state, or a `UseCaseError` naming why it was refused.
+   * @returns The post's reconciled state, or a `UseCaseError` naming why it was refused.
    */
-  async execute(input: CompletePostPublishingInput): Promise<PromotionResult> {
+  async execute(input: CompletePostPublishingInput): Promise<ReconciliationResult> {
     const postIdResult = PostId.fromString(input.postId);
     if (!postIdResult.ok) {
       return err(
@@ -131,35 +113,26 @@ export class CompletePostPublishingUseCase implements UseCase<
 
     const channels = input.outcome.channels;
 
-    // Emptiness precedes totality deliberately: `[].every(...)` is true, so a
-    // vacuous outcome would otherwise read as a total success and promote a
-    // post nobody published.
+    // An outcome that names nobody establishes nothing. It is refused here, with
+    // no query, because the answer does not depend on any state.
     if (channels.length === 0) {
       return err(
         new UseCaseError(
-          "Publish outcome names zero channels: a vacuous total is not a publish",
+          "Publish outcome names zero channels: an outcome that names nobody is not an outcome",
           USE_CASE_ERRORS.VALIDATION_FAILED
         )
       );
     }
 
-    if (!channels.every((channel) => channel.success)) {
-      return err(
-        new UseCaseError(
-          "Partial publish outcomes are not promoted by this capability; choosing a status for a partially published post is N-COR-2",
-          USE_CASE_ERRORS.NOT_IMPLEMENTED
-        )
-      );
-    }
-
     const postId = postIdResult.value;
-    const doWork = async (): Promise<PromotionResult> => this.promote(postId, input, channels);
+    const doWork = async (): Promise<ReconciliationResult> =>
+      this.reconcile(postId, input, channels);
 
     try {
       if (this.unitOfWork) {
-        // The Result-aware seam: an `err` returned from `promote` ROLLS BACK and
-        // comes back unchanged. With the throw-based form a partially completed
-        // multi-statement save would commit (ADR-0023).
+        // The Result-aware seam: an `err` returned from `reconcile` ROLLS BACK
+        // and comes back unchanged. With the throw-based form a partially
+        // completed multi-statement save would commit (ADR-0023).
         return await this.unitOfWork.executeResultInTransaction(doWork);
       }
       return await doWork();
@@ -175,19 +148,19 @@ export class CompletePostPublishingUseCase implements UseCase<
   }
 
   /**
-   * @method promote
-   * @description The transactional body: load, answer a terminal state, honour the OCC token,
-   *              then run both aggregate hops and save once.
+   * @method reconcile
+   * @description The transactional body: load, refuse everything the record cannot
+   *              substantiate, then project the derived word and save only if it moved.
    * @param postId - Validated aggregate identifier.
    * @param input - The original input, for the optional OCC token.
-   * @param channels - The already-validated total-success outcome.
-   * @returns The promotion outcome as a `Result`; every `err` aborts the transaction.
+   * @param channels - The reported per-channel outcome.
+   * @returns The reconciliation outcome as a `Result`; every `err` aborts the transaction.
    */
-  private async promote(
+  private async reconcile(
     postId: PostId,
     input: CompletePostPublishingInput,
     channels: readonly PublishChannelOutcome[]
-  ): Promise<PromotionResult> {
+  ): Promise<ReconciliationResult> {
     const postResult = await this.postRepository.findById(postId);
     if (!postResult.ok) {
       return err(
@@ -200,14 +173,32 @@ export class CompletePostPublishingUseCase implements UseCase<
     }
 
     const post = postResult.value;
-
-    // The already-published answer resolves BEFORE the version comparison: the
-    // promotion advances the version itself, so a retry necessarily presents a
-    // token this promotion already outdated (R5).
-    if (post.isPublished) {
-      return this.idempotentAnswer(post);
+    const agreement = agreeWithRecord(post.publications, input.postId, channels);
+    if (!agreement.ok) {
+      return err(agreement.error);
     }
 
+    const reconciled = post.reconcilePublicationProjection();
+    if (!reconciled.ok) {
+      return err(
+        new UseCaseError(reconciled.error.message, USE_CASE_ERRORS.INTERNAL_ERROR, reconciled.error)
+      );
+    }
+
+    // The idempotent answer resolves BEFORE the version comparison, and it is
+    // now the same branch as "nothing to do": the reconciliation advances the
+    // version itself, so a retry of one that already committed necessarily
+    // presents a token it already outdated (R4). Comparing first would fail a
+    // saga whose post is already settled.
+    if (!reconciled.value.changed) {
+      return this.answer(post, false);
+    }
+
+    // `post.version` is still the version the load returned. The projection
+    // above moves the word, the publication moment and `_updatedAt`; the
+    // version moves only in `AggregateRoot.incrementVersion`, which the
+    // repository calls after the save. The token describes the state the
+    // caller read, so that is the value it must be compared against.
     if (input.expectedVersion !== undefined && input.expectedVersion !== post.version) {
       return err(
         new UseCaseError(
@@ -217,152 +208,116 @@ export class CompletePostPublishingUseCase implements UseCase<
       );
     }
 
-    // Resolution lives INSIDE the branch because the started event is its only
-    // consumer (D7). On the already-PUBLISHING path no such event is emitted,
-    // so resolving would spend one sequential channel read per channel inside
-    // the interactive transaction on a value nothing reads.
-    let unresolvedChannelIds: string[] = [];
-
-    if (!post.isPublishing) {
-      const resolution = await this.resolveProviders(channels);
-      unresolvedChannelIds = resolution.unresolvedChannelIds;
-
-      const startResult = post.startPublishing(resolution.providers);
-      if (!startResult.ok) {
-        return err(
-          new UseCaseError(startResult.error.message, USE_CASE_ERRORS.FORBIDDEN, startResult.error)
-        );
-      }
-    }
-
-    const publishResult = post.markAsPublished(toProviderResults(channels));
-    if (!publishResult.ok) {
-      return err(
-        new UseCaseError(
-          publishResult.error.message,
-          USE_CASE_ERRORS.FORBIDDEN,
-          publishResult.error
-        )
-      );
-    }
-
-    const saveResult = await this.postRepository.save(post);
+    // The NARROW save: the word, the publication moment, the version and the
+    // outbox rows. No content statement and no media statement — a
+    // reconciliation that also rewrote content would be indistinguishable from
+    // one that did not.
+    const saveResult = await this.postRepository.savePublication(post);
     if (!saveResult.ok) {
       // Narrowed on the Result rather than caught: both branches roll back
-      // because both are returned as values through the seam.
-      return err(
-        isVersionConflict(saveResult.error)
-          ? new UseCaseError(saveResult.error.message, USE_CASE_ERRORS.CONFLICT, saveResult.error)
-          : new UseCaseError(
-              "Failed to save the promoted post",
-              USE_CASE_ERRORS.INTERNAL_ERROR,
-              saveResult.error
-            )
-      );
-    }
-
-    const publishedAt = post.publishedAt;
-    if (publishedAt === undefined) {
-      return err(
-        new UseCaseError(
-          `Post ${input.postId} reached PUBLISHED without a publishedAt`,
-          USE_CASE_ERRORS.INTERNAL_ERROR
-        )
-      );
+      // because both are returned as values through the seam. The translation is
+      // the SHARED one every publication writer performs, so a lost
+      // compare-and-swap cannot read as a conflict on one route and an
+      // infrastructure failure on another for the very same event.
+      return err(publicationSaveFailure(saveResult.error));
     }
 
     // Events reach consumers from the outbox after commit; dispatching here
     // would deliver before the transaction committed and deliver twice.
     post.clearDomainEvents();
 
-    return ok({
-      postId: post.id.value,
-      projectId: post.projectId.value,
-      status: "PUBLISHED",
-      publishedAt,
-      version: post.version,
-      applied: true,
-      unresolvedChannelIds,
-    });
+    return this.answer(post, true);
   }
 
   /**
-   * @method idempotentAnswer
-   * @description Answers a post already in the terminal state without writing anything.
-   * @param post - The loaded, already-published aggregate.
-   * @returns Success carrying the ORIGINAL publication timestamp, or `INTERNAL_ERROR` when the
-   *          persisted row has none — a fabricated timestamp would mint a publication record
-   *          that never happened, which is worse than refusing.
+   * @method answer
+   * @description Reports the post's reconciled state. `publishedAt` is OMITTED rather
+   *              than defaulted when the post did not publish everywhere: a key holding
+   *              a moment nothing earned is a publication record that never happened.
+   * @param post - The loaded aggregate, after reconciliation.
+   * @param applied - Whether the word had to move.
+   * @returns The success payload.
    */
-  private idempotentAnswer(post: PostAggregate): PromotionResult {
+  private answer(post: PostAggregate, applied: boolean): ReconciliationResult {
     const publishedAt = post.publishedAt;
-    if (publishedAt === undefined) {
-      return err(
-        new UseCaseError(
-          `Post ${post.id.value} is PUBLISHED but carries no publishedAt; refusing to fabricate one`,
-          USE_CASE_ERRORS.INTERNAL_ERROR
-        )
-      );
-    }
     return ok({
       postId: post.id.value,
       projectId: post.projectId.value,
-      status: "PUBLISHED",
-      publishedAt,
+      status: post.status.value,
+      ...(publishedAt !== undefined && { publishedAt }),
       version: post.version,
-      applied: false,
-      unresolvedChannelIds: [],
+      applied,
     });
-  }
-
-  /**
-   * @method resolveProviders
-   * @description Resolves each channel to its provider for the publishing-started event.
-   * @param channels - The outcome's channels.
-   * @returns The deduplicated provider set and the ids that could not be resolved. Resolution
-   *          NEVER blocks the promotion: totality was decided from the outcome, and the provider
-   *          already holds the post.
-   */
-  private async resolveProviders(
-    channels: readonly PublishChannelOutcome[]
-  ): Promise<{ providers: ProviderType[]; unresolvedChannelIds: string[] }> {
-    const providers = new Set<ProviderType>();
-    const unresolvedChannelIds: string[] = [];
-
-    for (const channel of channels) {
-      const channelIdResult = ChannelId.fromString(channel.channelId);
-      if (!channelIdResult.ok) {
-        unresolvedChannelIds.push(channel.channelId);
-        continue;
-      }
-      const found = await this.channelRepository.findById(channelIdResult.value);
-      if (!found.ok) {
-        unresolvedChannelIds.push(channel.channelId);
-        continue;
-      }
-      providers.add(found.value.provider.type);
-    }
-
-    return { providers: [...providers], unresolvedChannelIds };
   }
 }
 
 /**
- * @function toProviderResults
- * @description Reshapes the outcome into the channel-keyed record `markAsPublished` takes.
- * @param channels - The outcome's channels.
- * @returns A record keyed by channel id.
+ * @function agreeWithRecord
+ * @description Refuses every outcome the record cannot substantiate, in the order a
+ *              reader needs them: the record must EXIST, every reported channel must be
+ *              IN it, and each reported result must match what its record settled. The
+ *              last one is a CONFLICT rather than a validation failure because both
+ *              sides are well-formed and they disagree — the caller is describing a
+ *              state the record does not hold.
+ *
+ *              It does NOT require the reported set to be the WHOLE recorded set, and
+ *              that omission is the load-bearing one. An attempt episode is opened only
+ *              over the channels that are still re-drivable, so a re-drive of a post
+ *              whose first run left one channel published and one failed schedules —
+ *              and therefore reports — exactly one of the two. Demanding a census would
+ *              refuse the partial-failure recovery this capability exists to perform.
+ *              The set the outcome MUST account for is the SCHEDULED one, which this
+ *              use case never sees; the saga's wait step holds that set and already
+ *              refuses an outcome missing any of it. Re-stating it here over a
+ *              different set would not be the same rule, only a second one free to
+ *              contradict the first.
+ * @param records - The post's loaded record set.
+ * @param postId - The post id, for the refusal messages.
+ * @param channels - The reported per-channel outcome.
+ * @returns Result.ok, or the `UseCaseError` that refuses the outcome.
  */
-function toProviderResults(
+function agreeWithRecord(
+  records: ChannelPublications,
+  postId: string,
   channels: readonly PublishChannelOutcome[]
-): Record<string, { success: boolean; externalId?: string; error?: string }> {
-  const results: Record<string, { success: boolean; externalId?: string; error?: string }> = {};
-  for (const channel of channels) {
-    results[channel.channelId] = {
-      success: channel.success,
-      ...(channel.externalId !== undefined && { externalId: channel.externalId }),
-      ...(channel.error !== undefined && { error: channel.error }),
-    };
+): Result<void, UseCaseError> {
+  if (records.isEmpty()) {
+    return err(
+      new UseCaseError(
+        `Post ${postId} carries no publication record: its publication outcome cannot be established`,
+        USE_CASE_ERRORS.VALIDATION_FAILED
+      )
+    );
   }
-  return results;
+
+  for (const channel of channels) {
+    const channelIdResult = ChannelId.fromString(channel.channelId);
+    if (!channelIdResult.ok) {
+      return err(
+        new UseCaseError(
+          `Publish outcome names an invalid channel id: ${channel.channelId}`,
+          USE_CASE_ERRORS.VALIDATION_FAILED
+        )
+      );
+    }
+    const record = records.find(channelIdResult.value);
+    if (record === undefined) {
+      return err(
+        new UseCaseError(
+          `Channel ${channel.channelId} is outside the recorded target set of post ${postId}`,
+          USE_CASE_ERRORS.VALIDATION_FAILED
+        )
+      );
+    }
+    if (record.isPublished() !== channel.success) {
+      return err(
+        new UseCaseError(
+          `Publish outcome reports channel ${record.channelId.value} as ${channel.success ? "published" : "not published"}, and its record settled the opposite`,
+          USE_CASE_ERRORS.CONFLICT
+        )
+      );
+    }
+  }
+
+  return ok(undefined);
 }

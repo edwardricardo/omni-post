@@ -128,9 +128,20 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   describe("a promotion whose transaction fails after the row was already updated", () => {
     let postId: string;
     let failed = false;
+    let refusal = "";
+    let before_: PostSnapshot;
+    let eventsBefore: string[] = [];
 
     before(async () => {
-      postId = await harness.seedDraftPost("all-or-nothing");
+      // The record must be SETTLED and the word must LAG it, or this scenario proves
+      // nothing: with no record the reconciliation refuses before it opens a
+      // transaction, and with a word that already agrees it returns without writing.
+      // Either way the injected outbox failure is never reached and the case passes
+      // over a transaction that never ran.
+      postId = await harness.seedRecordedPost("all-or-nothing");
+      await harness.clobberPublicationWord(postId);
+      before_ = await harness.postSnapshot(postId);
+      eventsBefore = (await harness.outboxFor(postId)).map((row) => row.eventType);
       const useCase = harness.buildFailingPromotion();
       const result = await harness.runScoped(() =>
         useCase.execute({
@@ -139,21 +150,32 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         })
       );
       failed = !result.ok;
+      refusal = result.ok ? "" : result.error.code;
     });
 
     it("returns an error Result rather than reporting a publication it did not commit", () => {
       assert.strictEqual(failed, true);
+      // Pinned because the two failures are indistinguishable from `!result.ok`: an
+      // INTERNAL_ERROR is the injected outbox write blowing up inside the
+      // transaction, which is this scenario; a VALIDATION_FAILED would be the
+      // reconciliation refusing the fixture before opening one, which would make
+      // every assertion below vacuously true.
+      assert.strictEqual(refusal, "INTERNAL_ERROR");
     });
 
     it("leaves the row exactly as it was, with no outbox row of either kind", async () => {
       const snapshot = await harness.postSnapshot(postId);
-      assert.strictEqual(snapshot.status, "DRAFT");
-      assert.strictEqual(snapshot.publishedAt, null);
-      assert.strictEqual(snapshot.version, 0, "the version never advanced, so no update committed");
       assert.deepStrictEqual(
-        await harness.outboxFor(postId),
-        [],
-        "and neither transition event survived: the whole transaction rolled back"
+        snapshot,
+        before_,
+        "status, publishedAt and version are the pre-promotion row: no update committed"
+      );
+      assert.strictEqual(snapshot.publishedAt, null, "and no publication moment was minted");
+      assert.deepStrictEqual(
+        (await harness.outboxFor(postId)).map((row) => row.eventType),
+        eventsBefore,
+        "and neither transition event survived: the whole transaction rolled back, leaving " +
+          "exactly the rows the record's own writers had already committed"
       );
     });
   });
@@ -163,15 +185,25 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     let firstPublishedAt: Date | null;
     let secondAttemptStartedAt: Date;
     let secondApplied = true;
+    let snapshotAfterFirst: PostSnapshot;
+    let eventsAfterFirst: string[] = [];
 
     before(async () => {
-      postId = await harness.seedDraftPost("idempotent");
+      // A post whose record is SETTLED, which is the only state a completed publish
+      // reaches: the worker's write derives the word in the same transaction that
+      // records the attempt, so by the time the promotion runs the two already agree
+      // and the FIRST application legitimately applies nothing either. That is the
+      // requirement rather than a weakening of it — re-application must write nothing,
+      // and "nothing" is measured against the row the record's own writers left.
+      postId = await harness.seedRecordedPost("idempotent");
       const outcome = { channels: [{ channelId: harness.channelId, success: true }] };
       const first = await harness.runScoped(() =>
         harness.promotionUseCase.execute({ postId, outcome })
       );
       assert.ok(first.ok, "the first promotion must succeed or the retry proves nothing");
-      firstPublishedAt = (await harness.postSnapshot(postId)).publishedAt;
+      snapshotAfterFirst = await harness.postSnapshot(postId);
+      eventsAfterFirst = (await harness.outboxFor(postId)).map((row) => row.eventType);
+      firstPublishedAt = snapshotAfterFirst.publishedAt;
 
       // The second attempt starts strictly AFTER the first timestamp, so an
       // overwrite would write a LATER value and be observable. Two identical
@@ -179,10 +211,10 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       await new Promise((resolve) => setTimeout(resolve, 25));
       secondAttemptStartedAt = new Date();
       const second = await harness.runScoped(() =>
-        // The stale token is deliberate: the promotion advances the version
-        // itself, so every retry presents one the first promotion outdated.
-        // Ordering the version comparison first would fail a saga that in fact
-        // completed, so the already-published answer resolves first.
+        // The stale token is deliberate: a completed publish has advanced the
+        // version past whatever the saga was holding. Ordering the version
+        // comparison first would fail a saga that in fact completed, so the
+        // nothing-to-do answer resolves first.
         harness.promotionUseCase.execute({ postId, outcome, expectedVersion: 0 })
       );
       assert.ok(
@@ -204,15 +236,24 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         firstPublishedAt.getTime() < secondAttemptStartedAt.getTime(),
         "the second attempt began after the recorded timestamp, so an overwrite would show"
       );
-      assert.strictEqual(snapshot.version, 1, "and no second save advanced the version");
+      assert.strictEqual(
+        snapshot.version,
+        snapshotAfterFirst.version,
+        "and no second save advanced the version"
+      );
     });
 
     it("writes no second event for the second application", async () => {
       const rows = await harness.outboxFor(postId);
       assert.deepStrictEqual(
         rows.map((row) => row.eventType),
-        ["PostPublishingStarted", "PostPublished"],
-        "exactly the first promotion's two rows: the retry emitted nothing"
+        eventsAfterFirst,
+        "exactly the rows that existed before the retry: the retry emitted nothing"
+      );
+      assert.strictEqual(
+        rows.filter((row) => row.eventType === "PostPublished").length,
+        1,
+        "and the publication is announced once, not once per application"
       );
     });
   });
@@ -364,7 +405,8 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         "the premise: the foreign post starts with no events of its own"
       );
 
-      const postId = await harness.seedDraftPost("cross-tenant");
+      const postId = await harness.seedRecordedPost("cross-tenant");
+      await harness.clobberPublicationWord(postId);
       const promoted = await harness.runScoped(() =>
         harness.promotionUseCase.execute({
           postId,
@@ -372,6 +414,12 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         })
       );
       assert.ok(promoted.ok, "the in-tenant promotion must succeed or the negative proves nothing");
+      assert.strictEqual(
+        promoted.value.applied,
+        true,
+        "and it must have WRITTEN, or 'the foreign row is untouched' is true of a transaction " +
+          "that never opened"
+      );
 
       assert.deepStrictEqual(
         await harness.postSnapshot(foreignPostId),

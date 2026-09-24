@@ -6906,3 +6906,305 @@ intended files — no probe artefact survived.
 --maxWorkers=2`; the stray `--` broke one worker with `EPIPE` and the run reported 596/597 files and
 9293/9295 tests at exit 1. The repo's own documented command, `pnpm --filter @apps/api test`, is
 green at exact baseline. The defect was in the invocation, not in the tree.
+
+---
+
+## PR 1c — grandchild `1c-1b-a` (T1c.5), order 12a — COMPLETE, OVER BUDGET
+
+**SPLIT.** This unit was built and gated as `1c-1b` carrying T1c.5 **and** T1c.5a at CODE 744, and
+the owner then chose to ship it as two: **A = T1c.5** here, **B = T1c.5a** in `1c-1b-b`. The
+sections below were written against the united tree and are left as written where they describe
+work that is on this tip; §Budget records the split and the numbers that actually ship.
+
+The last of the thirteen. The work existed as `08391306`, applied and parked at order 1's base, and
+this unit brings it forward onto the order-11 tip. **It is not a replay**: the parked commit does
+not apply as written, three of its decisions were overtaken by the eleven orders that landed under
+it, and one carry it was asked to make it never made.
+
+### What the merge actually was
+
+`08391306` hangs off `f3caa204`. Of its 23 files, 7 had ZERO drift and were taken verbatim, 1
+(`mockAuthMiddleware.tenantScope.test.ts`) had already landed byte-identical under a later order,
+and 13 needed a three-way merge. Four raised conflicts and **every one was resolved by keeping BOTH
+sides**:
+
+| File                            | Conflict                                                                                              | Resolution                                                          |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `PostAggregate.ts`              | the `_publicationsDirty` field sits immediately above the constructor the parked commit re-types      | keep the marker and its JSDoc; take `PostConstructorState`          |
+| `PostAggregate.ts`              | `markRecordsChanged` was inserted beside the `startPublishing` delegate                               | keep the delegate; take the argument-free call                      |
+| `PostPublicationTypes.ts`       | the same pair, one level up in the context interface                                                  | keep `markRecordsChanged(): void`; take the argument-free signature |
+| `publishNowPromotionHarness.ts` | the tip hoisted `unitOfWork` into a local; the parked commit deleted the `channelRepository` argument | keep the local and its comment; drop the argument                   |
+
+`CompletePostPublishingUseCase.ts` and its suite had zero drift across eleven orders.
+
+**Three of those four rows are NOT on this tip.** The merge was performed once, on the united tree,
+and the table records it as it happened. Under the split only the `publishNowPromotionHarness.ts`
+resolution ships here; the two `PostAggregate.ts` rows and the `PostPublicationTypes.ts` row are
+B's files and travel to `1c-1b-b`. The same applies to every paragraph below that describes the
+domain side — most visibly T1c.5a item (iv), the epoch sentinel. They are kept here because the
+merge is one event and splitting its narrative would make neither half readable, but a reader
+should not infer from this section that those files changed on the A tip. They did not.
+
+### The three parts of the parked commit that did NOT survive
+
+**1 — SUPERSEDED: the census refusal.** `agreeWithRecord` demanded the reported set and the RECORDED
+set be the same set. The attempt-episode model landed under it, and an episode opens only over
+`redrivable()` channels: a re-drive of a post with one published and one failed channel schedules,
+and therefore reports, ONE of the two recorded channels. The parked refusal rejects the
+partial-failure recovery this capability exists to perform. RED recorded first — a new case,
+`reconciles a re-drive whose outcome names only the channel the episode re-opened`, failed on the
+parked code with `a re-drive reports its episode, not a census of the record`. The set an outcome
+must account for is the SCHEDULED one, which this use case never sees; the wait step holds it and
+already refuses an outcome missing any of it, so the requirement is enforced where the set lives
+rather than restated here over a different one. Checks 1-3 are unchanged and still right.
+
+**2 — CONFLICTED: the `reasonCode` announcement.** `1c-1e` added a WARN whose stated reason is that
+"the reconciliation reader that consumes it is not wired yet". T1c.5 IS that reader, and it
+deliberately does not consume the field: it reads the RECORD the emitter projected the code from.
+Left alone the line fires on every partial publish and tells the operator a defect is happening
+while the design works. The WARN, its two cases and the `cqrs.ts` paragraph promising a future
+reader are replaced by a statement of the design.
+
+**3 — UNDONE: the W5 carry.** T1c.5's own text asks for the private `isVersionConflict` to be
+consolidated onto `publicationWriteOutcome.publicationSaveFailure`; the parked commit kept the
+private copy. Done here. The dual-export case stays pinned by the existing
+`ForeignVersionConflictError` test, which passes unchanged.
+
+T1c.5a item **(iv)** — the epoch sentinel — was ALREADY DONE by a later order and is not
+resurrected.
+
+### The deleted `?? []` default had five consumers the task list never named
+
+All written after the park, and all RUNTIME reds rather than compile reds, because
+`packages/core/posts/tsconfig.json` includes `src/**/*` only: the four use-case suites
+(`openPublicationEpisode`, `recordChannelPublicationAttempt`, `confirmManualRetraction`,
+`expireRetractionActionWindow`) and `apps/api/tests/unit/sagaIntegration.helpers.ts`. Each states
+`publications: []` now instead of spreading it conditionally. That a deleted default was caught by
+`vitest` and not by `tsc` is the tests-typecheck gap — named, not fixed here.
+
+### The headline: `integration:saga-recovery` at 33/33
+
+**33 tests, 33 pass, 0 fail, 0 cancelled, exit 0** — the count the chain has held since order 10,
+with the reconciliation live. Option B is vindicated by measurement: the three writers the
+fail-closed reader needs all exist, and **no record was seeded to reach it**.
+
+What DID have to change is three cases that call the promotion use case DIRECTLY, bypassing the
+saga, over a record-less DRAFT post the reconciliation now refuses before any I/O. They are brought
+to the precondition the saga reaches by driving `OpenPublicationEpisodeUseCase` and
+`RecordChannelPublicationAttemptUseCase` — the REAL production writers — through a new
+`seedRecordedPost`. That is the opposite of the rejected option C: C substituted for a writer that
+did not exist; this exercises the writers that do.
+
+**One of the three was about to become a false green.** `a promotion whose transaction fails after
+the row was already updated` injects an outbox failure and asserted only `!result.ok`. Over a
+record-less post the reconciliation refuses BEFORE opening a transaction, so the case passed while
+the injected failure was never reached, and its sibling `leaves the row exactly as it was` passed
+vacuously. Both are pinned now: the refusal code must be `INTERNAL_ERROR`, and the fixture uses a
+settled record under a word that LAGS it (`clobberPublicationWord`), because that is the only state
+in which the reconciliation writes at all. RED demonstrated by planting the record-less fixture
+back — `VALIDATION_FAILED` where `INTERNAL_ERROR` was expected, with the sibling still green —
+then restoring the file sha256-exact.
+
+The idempotency group got the opposite treatment and it is worth stating why. It was first given the
+same lagging word, which made its first application write and emit a SECOND `PostPublished` — an
+artefact of the injected drift, not of production, where the attempt write derives the word in the
+same transaction. It uses a plainly settled record now: BOTH applications answer `applied: false`,
+which is what R4 actually requires, and the assertions compare against the row the record's own
+writers left rather than against literals.
+
+### Verification, measured
+
+| Gate                                                               | Result                                                                                                          |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `integration:saga-recovery`                                        | **33 tests / 33 pass / 0 fail / 0 cancelled**, exit 0                                                           |
+| chaos batch (`saga-step-retry-recovery` + `sagaWaitAmplification`) | 4 / 4, exit 0                                                                                                   |
+| api tier                                                           | **597 files / 9297 tests** passed, exit 0 (baseline 597 / 9295; +2 net)                                         |
+| workers tier                                                       | **21 / 198**, exit 0 — exact baseline                                                                           |
+| `@core/domain`                                                     | **198**, exit 0 (baseline 193)                                                                                  |
+| `@core/posts`                                                      | **103**, exit 0 (baseline 99)                                                                                   |
+| `@adapters/db-prisma`                                              | **78**, exit 0 — exact baseline                                                                                 |
+| `tsc -b` `--force`                                                 | apps/api 0, apps/workers 0, apps/workers/tsconfig.build.json 0, packages/shared 0, the three touched packages 0 |
+| `tsc --noEmit`                                                     | apps/api 0, apps/api `tsconfig.type-tests.json` 0, `@core/posts` 0                                              |
+| `eslint apps packages infra --max-warnings 0`                      | exit 0                                                                                                          |
+| `pnpm format:check`                                                | clean                                                                                                           |
+| `check:circular`                                                   | no cycles                                                                                                       |
+| `check:dead-code`                                                  | 0 regressions                                                                                                   |
+| `check:duplicates`                                                 | exit 0                                                                                                          |
+
+Fitness, all measured on the finished tree: **#1 #2 #3 #4 #5 #6 #7 #8 #9 #10 #11 #16 #21 #22 #23
+#32 at 0**; **#40 Part A** 3 seams / 0 violations, **Part B** 14 sites / 0 violations; **#41** 8
+sites / 1 exception / 0 violations; **#30 at 20** against its ratchet of 21 (not risen); **#38** 0
+over the swept tree and **11** on the `db-prisma` ratchet (not risen).
+
+### Budget
+
+**THIS TIP: CODE 465** (4 src files, +214 / −251), **EVIDENCE 1230** (7 files, +783 / −447). An
+eighth `size:exception` is owed **at 465**, not at 744, and is recorded in the ledger.
+
+The united unit measured **CODE 744** (8 src files, +328 / −416) against the §9.4.1 forecast of
+**614**, with **EVIDENCE 1738** (19 files, +1037 / −562, plus the new 139-line
+`publicationFixtures.ts`). Splitting it moves 279 CODE and the fixture module to `1c-1b-b`, which
+needs no exception.
+
+**The unit shipped at CODE 699 / EVIDENCE 1675 and the adversarial correction below moved it to
+744 / 1738 — +45 CODE and +63 EVIDENCE, named rather than absorbed.** Every line of the +45 is a
+correction, not a feature: the handler's `reasonCode` comment rewritten to stop asserting an audit
+trail that does not carry it (+18), the schema JSDoc rewritten for the same reason plus the
+`.strict()` correction (+15), the `versionAtLoad` alias deleted and replaced by three lines stating
+why `post.version` IS the load-time value (+7), and `PostAggregateState` losing its `export` with
+the two-line reason (+5). The +63 EVIDENCE is the two audit-payload cases, the receipts assertion
+and three stale test comments.
+
+**Under the split, +40 of that +45 is on this tip and +5 is not.** The first three items live in
+`PostCommandHandlers.ts`, `cqrs.ts` and `CompletePostPublishingUseCase.ts` — all A. The
+`PostAggregateState` export lives in `PostAggregate.ts`, which is B's file, so it travels with B.
+The figure is split here rather than left whole under a heading that now leads with 465, because a
+correction attributed to the wrong half is exactly the kind of number a reader would take on
+trust.
+
+**The reason first written beside that number was false, and it is corrected here rather than
+quietly dropped.** It read "the unit cannot be split, because T1c.5 and T1c.5a are mutually
+non-compiling". Only one direction of that holds. T1c.5a BEFORE T1c.5 does not compile — dropping
+`startPublishing`'s provider parameter breaks the use case as it stands at the order-11 tip. T1c.5
+BEFORE T1c.5a DOES compile, measured rather than asserted. `git show HEAD:` confirms
+`reconcilePublicationProjection`, `savePublication` and `publicationSaveFailure` all exist at that
+tip, so the rewritten use case has everything it calls. And `git grep` over the order-11 tip, tests
+excluded, puts the arg-bearing surface T1c.5a removes at exactly TWO production call sites outside
+`packages/core/domain`: `CompletePostPublishingUseCase.ts:230` (`post.startPublishing(providers)` —
+this is the direction that does NOT compile if T1c.5a lands first) and `:238`
+(`post.markAsPublished(providerResults)`). Both are in the very use case T1c.5 rewrites out of
+existence. `markAsFailed(...)` and the two `*WithoutRecord` arms behind them have ZERO production
+callers anywhere. The viable split, measured on the same numstat that produces the total — at the
+gate's 699, and again on the corrected tree:
+
+| Half           | Files                                                                         | at 699 | at 744 |
+| -------------- | ----------------------------------------------------------------------------- | -----: | -----: |
+| **A = T1c.5**  | use case + handler + `cqrs.ts` + DI                                           |    425 |    465 |
+| **B = T1c.5a** | `PostAggregate` + `PostPublicationMethods` + `…Types` + `PostAggregateMapper` |    274 |    279 |
+
+It does not remove the exception — A is over the hard budget either way — but it roughly halves it,
+and B needs none. **Edward decided to SPLIT, and this tip is A.**
+
+The decision took two passes and the second one matters. The first answer was that the two could
+stay united, taken with the falsity above already on the table. The re-confirmation after the
+bounded correction came back conditional — "yes, provided they cannot be divided safely" — over a
+condition this very section had measured false. That is not an approval, it is an approval of
+something else, so it was returned rather than honoured, and the owner then chose A + B.
+
+**And the ordering claim is no longer only a symbol argument.** Everything above rests on `git show`
+and `git grep`; the gate could not run the split build, because reverting B's four files was refused
+by the destructive-write classifier. On the A tip alone: `tsc -b apps/api --force`,
+`tsc -b apps/workers --force` and `tsc -b apps/workers/tsconfig.build.json --force` all exit 0, and
+`@core/posts` is 6 files / 103 tests green. `--force` is doing real work in that sentence —
+`tsc -b` is incremental and was measured on this chain returning exit 0 over a graph it skipped
+entirely.
+
+`knip-baseline.json` loses one entry (321 → 320). It is NOT this unit's: order 10's
+`publishOutcomeRecorder.ts` imports `@core/application`, which resolved
+`dependencies::apps/workers/package.json::@core/application` without the ledger being shrunk. The
+ratchet printed it as owed on every run since; closed here rather than left nagging.
+
+`git status --porcelain` shows only the intended files — no probe artefact survived.
+
+### `1c-1b` — bounded correction of the adversarial gate (2026-09-24)
+
+Three findings and three named takes. The ledger correction above closes the first; the rest are
+recorded here because two of them are behaviour or contract, not prose.
+
+**F1 — the exception's justification was false.** Corrected above and in tasks.md §9.9 item 7 and
+the T1c.5a task entry. The `size:exception` is unchanged in kind; the shape (now SPLIT) and the
+number it covers
+moves from 699 to **744** because of this correction, broken down in §Budget above.
+
+**F2 — three comments asserted a visibility that does not exist.** After the `reasonCode` WARN was
+removed, the comments that replaced it said the field "is what the saga's own step data **and the
+audit trail** show" and that it travels "so the operator can see, **in the command and the audit
+trail**, why a channel did not publish". All three halves were re-measured here and each is false:
+the audit event this handler produces carries `{channelCount, status, publishedAt?}` and no channel
+list; `CQRSBus.executeCommand` dispatches and discards, so no command store exists; and the audit
+row is gated on `promotion.applied`, which is `false` on a healthy publish because the worker's
+recorded attempt already brought the word into agreement. **The reversal itself stands** — the
+completion path genuinely does not consume `reasonCode`, because the reconciliation reads the
+record the emitter projected it from. What the comments now say instead is where it DOES land: the
+wait step writes its whole per-channel report into `stepData["wait-publishing-completion"]`, which
+`SagaManagerExecution` serialises into the `SagaInstance.context` column BEFORE this command is
+built. That is the operator-visible copy, and it is the only one. Rewritten in
+`PostCommandHandlers.ts`, `packages/shared/src/cqrs.ts` and the two stale justifications in
+`PostCommandHandlers.complete-publishing.test.ts`.
+
+One adjacent falsehood was corrected in the same pass rather than left standing: the schema JSDoc
+and the test comment both claimed an undeclared key "is stripped by Zod in silence". The channel
+object is `.strict()`, so an undeclared key REJECTS the whole command. The three optional fields
+are declared for that reason, not to survive a silent strip.
+
+**F3 — the audit payload changed behaviour with no test and no ledger entry.** `publishedAt` went
+from unconditional to conditional and `status` was added; the suite pinned only the event count,
+its type and the cache keys, and the new non-total case walked straight past the payload. Two cases
+now pin it: a fully published reconciliation audits `{channelCount, status: PUBLISHED, publishedAt}`
+and a partially published one audits `{channelCount, status: PARTIALLY_PUBLISHED}` with the key
+ABSENT. **RED demonstrated** by restoring the pre-change payload (unconditional `publishedAt`, no
+`status`): both cases failed, and the partial one failed showing `publishedAt: undefined` present
+as a key — the exact artefact the conditional spread exists to prevent. File restored byte-exact
+(sha256 `95be9993…b98c` before and after), suite back to 22/22.
+
+**Dead plumbing, taken.** `PublishChannelOutcome.externalId` and `.error` were declared on the use
+case's input DTO, mapped by the handler with conditional spreading plus a five-line comment, and
+read by nothing — the same situation the unit had just argued for `reasonCode`, left unargued in a
+third copy. Deleted, with their plumbing: the handler now forwards `{channelId, success}`, which is
+exactly what the reconciliation reads, and the `exactOptionalPropertyTypes` comment goes with them
+because no optional key remains to spread. The command schema keeps all three (it is `.strict()`,
+see above). `const versionAtLoad = post.version` was a no-op alias — the projection between the
+read and the use touches `_updatedAt` and the word, and `_version` moves only in
+`AggregateRoot.incrementVersion`, which the repository calls after the save — so it is gone and the
+comparison reads `post.version` under three lines stating that fact. `PostAggregateState` lost its
+`export`: `PersistedPostState extends` it and nothing else in the repo names it, so
+`PersistedPostState` is now the only post shape a caller outside the file can hold.
+
+**Verification after the correction, re-measured end to end.**
+
+| Gate                                                                            | Result                                                                                                          |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `integration:saga-recovery`                                                     | **33 / 33**, 0 fail, 0 cancelled — unchanged by the correction                                                  |
+| chaos batch (`saga-step-retry-recovery` + `sagaWaitAmplification`)              | 4 / 4                                                                                                           |
+| api tier                                                                        | **597 files / 9299 tests**, exit 0 (9297 + the two new audit cases)                                             |
+| workers tier                                                                    | **21 / 198** — exact baseline                                                                                   |
+| `@core/domain` / `@core/posts` / `@adapters/db-prisma`                          | **198 / 103 / 78** — exact baselines                                                                            |
+| `tsc -b --force`                                                                | apps/api 0, apps/workers 0, apps/workers/tsconfig.build.json 0, packages/shared 0, the three touched packages 0 |
+| `tsc --noEmit`                                                                  | apps/api 0, apps/api `tsconfig.type-tests.json` 0, `@core/posts` 0                                              |
+| `eslint apps packages infra --max-warnings 0`                                   | exit 0                                                                                                          |
+| `pnpm format:check` / `check:circular` / `check:dead-code` / `check:duplicates` | clean / no cycles / 0 regressions (320 baseline) / exit 0                                                       |
+
+Fitness on the corrected tree: **#1 #2 #3 #4 #5 #6 #7 #8 #9 #10 #11 #16 #21 #22 #23 #32 at 0**;
+**#40 Part A** 3 seams / 0 violations, **Part B** 14 sites / 0 violations; **#41** 8 sites / floor 8
+/ 1 exception / 0 violations; **#30 at 20** against its ratchet of 21; **#38** scope assertions OK
+(10 `deletedAt`-bearing models, all enrolled), 0 over the swept tree and **11** on the `db-prisma`
+ratchet — neither risen.
+
+**One flake seen and named rather than buried.** The first api-tier run of the correction reported
+`1 failed | 595 passed (597)` with a bare `ChildProcess.emit` / `_handle.onexit` stack and no test
+identity — 595 + 1 = 596, so one FILE produced neither a pass nor a fail. That is the fork-pool
+non-result shape already recorded as SMELL-146, not a failing assertion. Two immediately following
+full runs of the same tree were **597 / 9299, exit 0**, and every file this correction touches
+passes in isolation. Recorded because a run that fails once in three is a fact a reader is owed,
+even when the two clean runs are the ones the gate table reports.
+
+**Found, NAMED, not fixed — five backlog rows** (highest SMELL id at the time of writing: 169):
+
+- **SMELL-170** — `sagaPublishNowPromotion.test.ts` "a promotion applied twice" is fully
+  self-referential: every assertion compares against values captured after a first application that
+  no longer applies anything, so a reconciliation replaced by `return ok({ applied: false })` with
+  no write would pass the whole describe block. Mitigated by the neighbouring redelivery case and
+  two unit cases — a lost level of coverage, not a lost guard.
+- **SMELL-171** — the D7 operator signal was deleted with no replacement and no ledger entry.
+  `providersOf` silently filters out records whose joined channel row carries no provider, so
+  `PostPublishingStarted` can name fewer providers than channels with nothing said, and a new
+  domain test now pins that silence as correct. Unreachable today; still a behaviour change nobody
+  recorded.
+- **SMELL-172** — the `publishedAt` DTO invariant ("present only when every channel published") is
+  asserted in JSDoc and enforced nowhere: `answer()` returns `post.publishedAt` verbatim, and
+  neither `markAsPartiallyPublishedFromRecord` nor `markAsFailedFromRecord` clears it. The
+  guarantee rests on a property in a different file.
+- **SMELL-173** — `aggregates.post.test.ts` `describe("markAsPublished()")` now contains cases that
+  never call it.
+- **SMELL-174** — `aggregates.test.ts` `expect(event?.failedProviders).toEqual([])` pins a fixture
+  artefact rather than content.
