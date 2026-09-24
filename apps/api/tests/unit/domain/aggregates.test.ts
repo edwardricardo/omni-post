@@ -25,6 +25,15 @@ import {
   type DomainEvent,
   type DomainEventHandler,
 } from "@core/domain/index.js";
+import {
+  FIXTURE_CHANNEL_A,
+  FIXTURE_CHANNEL_B,
+  failedAttempt,
+  publishOnOneChannel,
+  publishedAttempt,
+  settleChannel,
+  withPublicationTargets,
+} from "../helpers/publicationFixtures.js";
 
 describe("Domain Aggregates & Events", () => {
   describe("PostAggregate", () => {
@@ -173,8 +182,7 @@ describe("Domain Aggregates & Events", () => {
         if (result.ok) {
           const post = result.value;
           post.schedule(new Date(Date.now() + 60 * 60 * 1000));
-          post.startPublishing(["X"]);
-          post.markAsPublished({ X: { success: true, externalId: "123" } });
+          publishOnOneChannel(post, "123");
 
           const updateResult = post.updateContent({ body: "New" });
           expect(updateResult.ok).toBeFalsy();
@@ -296,25 +304,28 @@ describe("Domain Aggregates & Events", () => {
           expect(post.isScheduled).toBeTruthy();
 
           // Start publishing
-          const startResult = post.startPublishing(["X", "INSTAGRAM"]);
+          withPublicationTargets(post, [FIXTURE_CHANNEL_A, FIXTURE_CHANNEL_B]);
+          const startResult = post.startPublishing();
           expect(startResult.ok).toBeTruthy();
           expect(post.isPublishing).toBeTruthy();
 
-          // Mark published
-          const publishResult = post.markAsPublished({
-            X: { success: true, externalId: "x-123" },
-            INSTAGRAM: { success: true, externalId: "ig-456" },
-          });
-          expect(publishResult.ok).toBeTruthy();
+          // Mark published — the word follows the record, one channel at a time
+          settleChannel(post, FIXTURE_CHANNEL_A, publishedAttempt("x-123"));
+          settleChannel(post, FIXTURE_CHANNEL_B, publishedAttempt("ig-456"));
           expect(post.isPublished).toBeTruthy();
           expect(post.publishedAt).toBeTruthy();
 
-          // Check events
+          // Check events. Each settled channel now announces its OWN outcome
+          // as well, so the post-level pair is bracketed by two channel-keyed
+          // events that did not exist while the word was the only record.
           const events = post.domainEvents;
-          expect(events.length).toBe(3);
-          expect(events[0].eventType).toBe("PostScheduled");
-          expect(events[1].eventType).toBe("PostPublishingStarted");
-          expect(events[2].eventType).toBe("PostPublished");
+          expect(events.map((each) => each.eventType)).toEqual([
+            "PostScheduled",
+            "PostPublishingStarted",
+            "PostChannelPublished",
+            "PostChannelPublished",
+            "PostPublished",
+          ]);
         }
       });
 
@@ -328,22 +339,26 @@ describe("Domain Aggregates & Events", () => {
         if (result.ok) {
           const post = result.value;
           post.schedule(new Date(Date.now() + 60 * 60 * 1000));
-          post.startPublishing(["X"]);
+          withPublicationTargets(post);
+          post.startPublishing();
           post.clearDomainEvents();
 
-          const failResult = post.markAsFailed("API Error", ["X"], true);
-          expect(failResult.ok).toBeTruthy();
+          settleChannel(post, FIXTURE_CHANNEL_A, failedAttempt());
           expect(post.isFailed).toBeTruthy();
           expect(post.isEditable).toBeTruthy();
 
           const events = post.domainEvents;
-          expect(events.length).toBe(1);
-
-          const event = events[0] as PostPublishingFailed;
-          expect(event.eventType).toBe("PostPublishingFailed");
-          expect(event.error).toBe("API Error");
-          expect(event.failedProviders).toEqual(["X"]);
-          expect(event.retryable).toBe(true);
+          const event = events.find(
+            (each): each is PostPublishingFailed => each.eventType === "PostPublishingFailed"
+          );
+          expect(event).toBeDefined();
+          // The v1 payload is now built FROM the record: the reason is the
+          // excluded channel's own failure code, the providers are those of the
+          // channels that did not publish, and `retryable` says whether any of
+          // them may still be attempted.
+          expect(event?.error).toBe("CHANNEL_AUTH_REQUIRED");
+          expect(event?.failedProviders).toEqual([]);
+          expect(event?.retryable).toBe(true);
         }
       });
 
@@ -372,14 +387,13 @@ describe("Domain Aggregates & Events", () => {
         }
       });
 
-      it("should set publishedAt after markAsPublished", () => {
+      it("should set publishedAt once every channel's record published", () => {
         const result = PostAggregate.create({ projectId, body: "Publish me" });
         expect(result.ok).toBeTruthy();
         if (result.ok) {
           const post = result.value;
           post.schedule(new Date(Date.now() + 60 * 60 * 1000));
-          post.startPublishing(["X"]);
-          post.markAsPublished({ X: { success: true, externalId: "x-999" } });
+          publishOnOneChannel(post, "x-999");
 
           expect(post.publishedAt instanceof Date).toBeTruthy();
         }

@@ -11,9 +11,9 @@ import { Content, type ContentProps, type ContentLocale } from "../value-objects
 import { PublishStatus, PUBLISH_STATUS } from "../value-objects/PublishStatus.js";
 import { ScheduledTime } from "../value-objects/ScheduledTime.js";
 import { MediaAttachment, type MediaAttachmentProps } from "../value-objects/MediaAttachment.js";
-import { type ProviderType } from "../value-objects/Provider.js";
 import { type ChannelPublication } from "../entities/ChannelPublication.js";
 import { ChannelPublications } from "./ChannelPublications.js";
+import { providersOf } from "./post/PostPublicationEvents.js";
 import { type PublicationOutcome } from "../value-objects/PublicationOutcome.js";
 import {
   applyDerivedStatus,
@@ -25,8 +25,6 @@ import {
   markAsFailedFromRecord,
   markAsPartiallyPublishedFromRecord,
   markAsPublishedFromRecord,
-  markAsFailedWithoutRecord,
-  markAsPublishedWithoutRecord,
   markRetractionOutcome,
   openPublicationEpisode,
   recordChannelAttempt,
@@ -73,32 +71,53 @@ export interface CreatePostAggregateInput {
 }
 
 /**
- * Post aggregate state for reconstitution
+ * The facts every Post carries, whether it was just built in memory or loaded
+ * from a row. It deliberately holds NEITHER the tenant nor the record set: a
+ * post created in memory has no tenant until the repository derives one from
+ * its project inside the save, and it has declared no targets yet.
+ *
+ * Module-private: {@link PersistedPostState} is the only shape a caller outside
+ * this file can name, so there is no partially-hydrated post to hand around.
  */
-export interface PostAggregateState {
+interface PostAggregateState {
   id: PostId;
   projectId: ProjectId;
-  /**
-   * The owning tenant, read from the post row. A post built in memory does not have
-   * one yet — the repository derives it from the project at creation — so the
-   * channel-keyed events omit the key rather than carrying an empty tenant.
-   */
-  accountId?: string;
   content: Content;
   status: PublishStatus;
   scheduledAt?: ScheduledTime;
   publishedAt?: Date;
   media: MediaAttachment[];
   contentVersions: ContentId[];
-  /**
-   * The per-channel publication records. Absent means the post has declared no
-   * targets; the mapper always supplies the loaded set, empty or not.
-   */
-  publications?: readonly ChannelPublication[];
   createdAt: Date;
   updatedAt: Date;
   version: number;
 }
+
+/**
+ * The state a PERSISTED post is rebuilt from. Both extra fields are REQUIRED,
+ * and that is the whole point: every predicate that decides whether content is
+ * locked, whether a channel may be re-driven, or what word the post derives
+ * reads the record set, so "the relation was not loaded" and "the post has no
+ * targets" must not share a value. The mapper supplies both unconditionally —
+ * its input type is the payload of the one include that hydrates them — so a
+ * query issued without them does not compile.
+ */
+export interface PersistedPostState extends PostAggregateState {
+  /** The owning tenant, read from the post row. */
+  accountId: string;
+  /** The per-channel publication records, empty only when none were declared. */
+  publications: readonly ChannelPublication[];
+}
+
+/**
+ * What the constructor needs: the persisted shape with the tenant relaxed,
+ * because {@link PostAggregate.create} legitimately has none yet. Private to
+ * this module — no caller can reach the relaxed tenant through a public entry
+ * point.
+ */
+type PostConstructorState = Omit<PersistedPostState, "id" | "accountId"> & {
+  accountId: string | undefined;
+};
 
 export type {
   ClearChannelPendingRetractionInput,
@@ -160,7 +179,7 @@ export class PostAggregate extends AggregateRoot<PostId> {
    */
   private _publicationsDirty = false;
 
-  private constructor(id: PostId, state: Omit<PostAggregateState, "id">) {
+  private constructor(id: PostId, state: PostConstructorState) {
     super(id, state.createdAt, state.version);
     this._projectId = state.projectId;
     this._accountId = state.accountId;
@@ -170,7 +189,7 @@ export class PostAggregate extends AggregateRoot<PostId> {
     this._publishedAt = state.publishedAt;
     this._media = [...state.media];
     this._contentVersions = [...state.contentVersions];
-    this._publications = [...(state.publications ?? [])];
+    this._publications = [...state.publications];
 
     if (state.updatedAt) {
       this._updatedAt = state.updatedAt;
@@ -219,11 +238,16 @@ export class PostAggregate extends AggregateRoot<PostId> {
 
     const aggregate = new PostAggregate(postId, {
       projectId: input.projectId,
+      // No tenant yet: the repository derives it from the project inside the
+      // save, so a post that has not been saved honestly has none.
+      accountId: undefined,
       content: contentResult.value,
       status: initialStatus,
       ...(scheduledAt !== undefined && { scheduledAt }),
       media: [],
       contentVersions: [],
+      // No target has been declared yet, stated rather than defaulted.
+      publications: [],
       createdAt: now,
       updatedAt: now,
       version: 0,
@@ -251,9 +275,15 @@ export class PostAggregate extends AggregateRoot<PostId> {
   }
 
   /**
-   * Reconstitute aggregate from persistence
+   * @method reconstitute
+   * @description Rebuilds a post from persistence. It takes the PERSISTED state, so
+   *   the tenant and the record set are required by the compiler rather than defaulted
+   *   here: a default would let a load that never hydrated the records read as a post
+   *   with no targets, which unlocks its content and derives its word from nothing.
+   * @param state - The persisted state, tenant and records included
+   * @returns The rebuilt aggregate
    */
-  static reconstitute(state: PostAggregateState): PostAggregate {
+  static reconstitute(state: PersistedPostState): PostAggregate {
     return new PostAggregate(state.id, state);
   }
 
@@ -502,20 +532,23 @@ export class PostAggregate extends AggregateRoot<PostId> {
 
   /**
    * @method startPublishing
-   * @description Enters the publication family through the lifecycle state machine.
-   *
-   *   The parameter is still provider-keyed, and that is a transitional shape rather
-   *   than the intended one. Inside this aggregate nothing asks a caller for providers
-   *   any more: the publication facet resolves them from the records' joined channel
-   *   rows and hands them here. The parameter survives only for the one remaining
-   *   caller outside the aggregate — the publish-completion use case, which still runs
-   *   over posts that carry no record at all and therefore has no record to resolve
-   *   them from. When that use case is rebuilt on the record, this method loses the
-   *   parameter and reads the providers itself.
-   * @param targetProviders - The providers the internal event will name
-   * @returns Result.ok, or InvalidStateTransitionError when the word cannot enter the family
+   * @description Enters the publication family through the lifecycle state machine,
+   *   naming in the internal event the providers of the post's OWN records, read off
+   *   the joined channel rows. It takes no argument: there is no seam through which a
+   *   caller could name a provider the record does not hold, and a post that declared
+   *   no target has nothing to publish to and is refused.
+   * @returns Result.ok, InvariantViolationError when no target was declared, or
+   *   InvalidStateTransitionError when the word cannot enter the family
    */
-  startPublishing(targetProviders: ProviderType[]): Result<void, InvalidStateTransitionError> {
+  startPublishing(): Result<void, InvalidStateTransitionError | InvariantViolationError> {
+    if (this.publications.isEmpty()) {
+      return err(
+        new InvariantViolationError(
+          `post ${this._id.value} has no publication record to start publishing from`
+        )
+      );
+    }
+
     if (!this._status.canTransitionTo(PUBLISH_STATUS.PUBLISHING)) {
       return err(
         new InvalidStateTransitionError(this._status.value, PUBLISH_STATUS.PUBLISHING, "Post")
@@ -530,39 +563,29 @@ export class PostAggregate extends AggregateRoot<PostId> {
     this._status = transitionResult.value;
     this.markUpdated();
 
-    // Raise event
-    this.addDomainEvent(new PostPublishingStarted(this._id.value, targetProviders));
+    this.addDomainEvent(new PostPublishingStarted(this._id.value, providersOf(this._publications)));
 
     return ok(undefined);
   }
 
   /**
    * @method markAsPublished
-   * @description Resolves the post to `PUBLISHED`.
-   *
-   *   With a record, this is a PROJECTION write gated by the record itself: the
-   *   derivation must already read `PUBLISHED`, and the v1 event payload is built
-   *   FROM the record, so the word can never claim more than the channels did.
-   *   With no record — a post whose targets were never declared — the caller's
-   *   provider results are used and the lifecycle transition decides.
-   * @param providerResults - Only consulted for a post with no record
-   * @returns Result.ok, or the refusal that stopped it
+   * @description Resolves the post to `PUBLISHED`. It is a PROJECTION write gated by
+   *   the record itself: the derivation must already read `PUBLISHED`, and the v1
+   *   event payload is built FROM the record, so the word can never claim more than
+   *   the channels did. A post that declared no target has no derivation and is
+   *   refused — there is no caller's word that can stand in for the record.
+   * @returns Result.ok, or InvariantViolationError naming what stopped it
    */
-  markAsPublished(
-    providerResults?: Record<string, { success: boolean; externalId?: string; error?: string }>
-  ): Result<void, InvalidStateTransitionError | InvariantViolationError> {
-    const context = this.publicationContext();
-    if (!this.publications.isEmpty()) {
-      return markAsPublishedFromRecord(context);
-    }
-    if (providerResults === undefined) {
+  markAsPublished(): Result<void, InvariantViolationError> {
+    if (this.publications.isEmpty()) {
       return err(
         new InvariantViolationError(
           `post ${this._id.value} has no publication record to publish from`
         )
       );
     }
-    return markAsPublishedWithoutRecord(context, providerResults);
+    return markAsPublishedFromRecord(this.publicationContext());
   }
 
   /**
@@ -579,33 +602,20 @@ export class PostAggregate extends AggregateRoot<PostId> {
 
   /**
    * @method markAsFailed
-   * @description Resolves the post to `FAILED`.
-   *
-   *   With a record, the derivation must already read `FAILED` and the v1 payload is
-   *   built FROM the record: the error is the first not-published channel's reason,
-   *   the providers are those of the not-published channels, and `retryable` says
-   *   whether any channel may still be attempted. With no record the caller's
-   *   arguments are used and the lifecycle transition decides.
-   * @param error - Only consulted for a post with no record
-   * @param failedProviders - Only consulted for a post with no record
-   * @param retryable - Only consulted for a post with no record
-   * @returns Result.ok, or the refusal that stopped it
+   * @description Resolves the post to `FAILED`. The derivation must already read
+   *   `FAILED` and the v1 payload is built FROM the record: the error is the first
+   *   not-published channel's reason, the providers are those of the not-published
+   *   channels, and `retryable` says whether any channel may still be attempted. A
+   *   post that declared no target has no derivation and is refused.
+   * @returns Result.ok, or InvariantViolationError naming what stopped it
    */
-  markAsFailed(
-    error?: string,
-    failedProviders?: ProviderType[],
-    retryable: boolean = true
-  ): Result<void, InvalidStateTransitionError | InvariantViolationError> {
-    const context = this.publicationContext();
-    if (!this.publications.isEmpty()) {
-      return markAsFailedFromRecord(context);
-    }
-    if (error === undefined) {
+  markAsFailed(): Result<void, InvariantViolationError> {
+    if (this.publications.isEmpty()) {
       return err(
         new InvariantViolationError(`post ${this._id.value} has no publication record to fail from`)
       );
     }
-    return markAsFailedWithoutRecord(context, error, failedProviders ?? [], retryable);
+    return markAsFailedFromRecord(this.publicationContext());
   }
 
   /**
@@ -814,7 +824,7 @@ export class PostAggregate extends AggregateRoot<PostId> {
       markRecordsChanged: () => {
         this._publicationsDirty = true;
       },
-      startPublishing: (providers) => this.startPublishing(providers),
+      startPublishing: () => this.startPublishing(),
     };
   }
 

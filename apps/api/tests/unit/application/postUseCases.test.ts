@@ -23,6 +23,7 @@ import { DeletePostUseCase, type DeletePostCaller } from "@core/posts/DeletePost
 import { GetPostUseCase } from "@core/posts/GetPostUseCase.js";
 import { ListPostsUseCase } from "@core/posts/ListPostsUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { failOnOneChannel, publishOnOneChannel } from "../helpers/publicationFixtures.js";
 
 // Mock business metrics — they call Prometheus which may not be initialized
 vi.mock("../../../src/metrics/businessMetrics.js", () => ({
@@ -787,8 +788,7 @@ describe("DeletePostUseCase", () => {
     });
 
     it("deletes a failed post", async () => {
-      draftPost.startPublishing(["X"]);
-      draftPost.markAsFailed("error", ["X"]);
+      failOnOneChannel(draftPost);
       const result = await useCase.execute({ postId: draftPost.id.value, caller: SYSTEM_CALLER });
       expect(result.ok).toBe(true);
     });
@@ -810,8 +810,7 @@ describe("DeletePostUseCase", () => {
     });
 
     it("rejects deleting a PUBLISHED post", async () => {
-      draftPost.startPublishing(["X"]);
-      draftPost.markAsPublished({ X: { success: true } });
+      publishOnOneChannel(draftPost);
       const result = await useCase.execute({ postId: draftPost.id.value, caller: SYSTEM_CALLER });
       expect(result.ok).toBe(false);
       if (result.ok) return;

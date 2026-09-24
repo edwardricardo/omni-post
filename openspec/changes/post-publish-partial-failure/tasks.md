@@ -460,11 +460,11 @@ ExpireRetractionActionWindowUseCase}.ts` + barrel. All four: `executeResultInTra
       — sha: 08391306 rebuilt on the order-11 tip (the parked commit does not apply as-is: two
       semantic conflicts in `PostAggregate.ts`, one in `PostPublicationTypes.ts`, one in the
       promotion harness — every one resolved by keeping BOTH sides)
-- [ ] **T1c.5a RED→GREEN (D4 / rev 3.3 A3 — the three 1b compatibility shapes CLOSE)** — the domain
-      side. **NOT on this tip, and NO LONGER the same child as T1c.5** — the A/B split of §9.9
-      item 7 gives the domain closure its own unit, 12b (`1c-1b-b`), still after T1c.4a and now
-      also after T1c.5. Ticking it here would report done on an A tip where `PostAggregate.ts`
-      still carries the arg-bearing surface this task removes.
+- [x] **T1c.5a RED→GREEN (D4 / rev 3.3 A3 — the three 1b compatibility shapes CLOSE)** — the domain
+      side. **THIS IS 12b (`1c-1b-b`), and it is NO LONGER the same child as T1c.5** — the A/B
+      split of §9.9 item 7 gives the domain closure its own unit, after T1c.4a and now also after
+      T1c.5. The A tip carried the reconciliation over the arg-bearing surface still in place;
+      this tip removes that surface, which is why the order runs one way and not the other.
       **(i)** `markAsPublished()` and `markAsFailed()` lose their arguments and the two
       `*WithoutRecord` arms are deleted
       (`packages/core/domain/src/aggregates/post/PostPublicationMethods.ts:477-540`;

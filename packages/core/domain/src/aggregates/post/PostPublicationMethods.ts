@@ -16,7 +16,6 @@ import { PostPublished, PostPublishingFailed } from "../../events/PostEvents.js"
 import { ChannelPublication } from "../../entities/ChannelPublication.js";
 import { ChannelPublications } from "../ChannelPublications.js";
 import { type ChannelId } from "../../value-objects/EntityId.js";
-import { type ProviderType } from "../../value-objects/Provider.js";
 import { PublishStatus, PUBLISH_STATUS } from "../../value-objects/PublishStatus.js";
 import {
   PUBLICATION_OUTCOME_KINDS,
@@ -55,7 +54,6 @@ import {
   emitAlertTransition,
   emitChannelOutcome,
   lastChannelPublishedAt,
-  providersOf,
 } from "./PostPublicationEvents.js";
 
 /**
@@ -197,7 +195,7 @@ export function openPublicationEpisode(
   }));
 
   if (input.enterPublishing) {
-    const entered = enterPublishing(context, redrivable);
+    const entered = enterPublishing(context);
     if (!entered.ok) {
       return err(entered.error);
     }
@@ -255,7 +253,7 @@ export function recordChannelAttempt(
   }
 
   if (context.status.isDraft() || context.status.isScheduled()) {
-    const entered = enterPublishing(context, context.records);
+    const entered = enterPublishing(context);
     if (!entered.ok) {
       return err(entered.error);
     }
@@ -492,71 +490,6 @@ export function markAsPublishedFromRecord(
 }
 
 /**
- * @function markAsPublishedWithoutRecord
- * @description The `PUBLISHED` hop for a post that declared no targets: there is no
- *   record to gate the word, so the lifecycle state machine decides and the caller's
- *   provider results are the payload.
- * @param context - The root's narrow view
- * @param providerResults - The caller's results map
- * @returns Result.ok, or the refusal that stopped it
- */
-export function markAsPublishedWithoutRecord(
-  context: PublicationContext,
-  providerResults: ProviderResultsPayload
-): Result<void, PublicationError> {
-  if (!context.status.canTransitionTo(PUBLISH_STATUS.PUBLISHED)) {
-    return err(
-      new InvalidStateTransitionError(context.status.value, PUBLISH_STATUS.PUBLISHED, "Post")
-    );
-  }
-
-  const transitioned = context.status.transitionTo(PUBLISH_STATUS.PUBLISHED);
-  if (!transitioned.ok) {
-    return err(transitioned.error);
-  }
-
-  const publishedAt = new Date();
-  context.setStatus(transitioned.value);
-  context.setPublishedAt(publishedAt);
-  context.touch();
-  context.emit(new PostPublished(context.postId, publishedAt, providerResults));
-  return ok(undefined);
-}
-
-/**
- * @function markAsFailedWithoutRecord
- * @description The `FAILED` hop for a post that declared no targets, on the caller's
- *   own words.
- * @param context - The root's narrow view
- * @param error - The failure the caller reports
- * @param failedProviders - The providers the caller reports
- * @param retryable - Whether the caller considers it retryable
- * @returns Result.ok, or the refusal that stopped it
- */
-export function markAsFailedWithoutRecord(
-  context: PublicationContext,
-  error: string,
-  failedProviders: ProviderType[],
-  retryable: boolean
-): Result<void, PublicationError> {
-  if (!context.status.canTransitionTo(PUBLISH_STATUS.FAILED)) {
-    return err(
-      new InvalidStateTransitionError(context.status.value, PUBLISH_STATUS.FAILED, "Post")
-    );
-  }
-
-  const transitioned = context.status.transitionTo(PUBLISH_STATUS.FAILED);
-  if (!transitioned.ok) {
-    return err(transitioned.error);
-  }
-
-  context.setStatus(transitioned.value);
-  context.touch();
-  context.emit(new PostPublishingFailed(context.postId, error, failedProviders, retryable));
-  return ok(undefined);
-}
-
-/**
  * @function markAsPartiallyPublishedFromRecord
  * @description The `PARTIALLY_PUBLISHED` hop. No external event — the channel-keyed
  *   events carry the news — and `publishedAt` stays null because the post did not
@@ -651,7 +584,7 @@ export function applyDerivedStatus(context: PublicationContext): Result<boolean,
 
   if (derived === PUBLISH_STATUS.PUBLISHING) {
     if (context.status.canTransitionTo(PUBLISH_STATUS.PUBLISHING)) {
-      const started = context.startPublishing(providersOf(context.records));
+      const started = context.startPublishing();
       return started.ok ? ok(true) : err(started.error);
     }
     context.setStatus(PublishStatus.publishing());
@@ -663,19 +596,20 @@ export function applyDerivedStatus(context: PublicationContext): Result<boolean,
 
 /**
  * @function enterPublishing
- * @description Enters the publication family for the given records, naming their
- *   providers in the internal event. The providers are read from the records' joined
- *   channel rows — no caller is ever asked for them.
+ * @description Enters the publication family. The internal event names the providers
+ *   of the post's WHOLE recorded set, read off the joined channel rows by the root —
+ *   no caller is ever asked for them, and no subset is passed in either: an episode
+ *   that opens only some channels still belongs to one post, and the event says which
+ *   post started publishing, not which channels this episode carried.
  */
 function enterPublishing(
-  context: PublicationContext,
-  records: readonly ChannelPublication[]
-): Result<void, InvalidStateTransitionError> {
+  context: PublicationContext
+): Result<void, InvalidStateTransitionError | InvariantViolationError> {
   if (context.status.isPublishing()) {
     return ok(undefined);
   }
   if (!context.status.canTransitionTo(PUBLISH_STATUS.PUBLISHING)) {
     return ok(undefined);
   }
-  return context.startPublishing(providersOf(records));
+  return context.startPublishing();
 }

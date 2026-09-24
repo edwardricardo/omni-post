@@ -66,7 +66,10 @@ function makePost(options?: {
     createdAt: new Date("2026-02-01T00:00:00.000Z"),
     updatedAt: new Date("2026-02-01T00:00:00.000Z"),
     version: 3,
-    ...(options?.publications !== undefined && { publications: options.publications }),
+    // A loaded post ALWAYS carries its record set, empty or not: the absent
+    // relation and the empty one are different facts and the type no longer
+    // lets a fixture blur them.
+    publications: options?.publications ?? [],
   });
 }
 
@@ -669,6 +672,84 @@ describe("PostAggregate — the content fingerprint", () => {
       post.publications.find(CHANNEL_B)?.contentHash,
       undefined,
       "an unpublished channel carries no fingerprint, and the decision did not need one"
+    );
+  });
+});
+
+describe("PostAggregate — the word has no path that bypasses the record", () => {
+  it("returns an error naming the missing record when a post with no target is published", () => {
+    const post = makePost();
+
+    const published = post.markAsPublished();
+
+    assert.ok(!published.ok, "there is no caller's word that can stand in for the record");
+    assert.match(published.error.message, /no publication record/);
+    assert.strictEqual(post.status.value, PUBLISH_STATUS.DRAFT, "and the word did not move");
+    assert.deepStrictEqual(
+      eventTypes(post),
+      [],
+      "nothing is announced for a publication that was not recorded"
+    );
+  });
+
+  it("returns an error naming the missing record when a post with no target is failed", () => {
+    const post = makePost();
+
+    const failedResult = post.markAsFailed();
+
+    assert.ok(!failedResult.ok);
+    assert.match(failedResult.error.message, /no publication record/);
+    assert.strictEqual(post.status.value, PUBLISH_STATUS.DRAFT);
+    assert.deepStrictEqual(eventTypes(post), []);
+  });
+
+  it("returns an error when a post with no target enters the publication family", () => {
+    const post = makePost({ status: PublishStatus.scheduled() });
+
+    const started = post.startPublishing();
+
+    assert.ok(!started.ok, "entering the family with nothing to publish to is refused");
+    assert.strictEqual(post.status.value, PUBLISH_STATUS.SCHEDULED);
+    assert.deepStrictEqual(eventTypes(post), []);
+  });
+
+  it("returns the providers of its OWN records in the started event, deduplicated", () => {
+    const post = makePost({
+      status: PublishStatus.scheduled(),
+      publications: [
+        ChannelPublication.declare(CHANNEL_A, { provider: "x" }),
+        ChannelPublication.declare(CHANNEL_B, { provider: "instagram" }),
+        ChannelPublication.declare(CHANNEL_C, { provider: "x" }),
+      ],
+    });
+
+    const started = post.startPublishing();
+
+    assert.ok(started.ok);
+    const event = post.domainEvents.find((each) => each.eventType === "PostPublishingStarted");
+    assert.ok(event !== undefined);
+    assert.deepStrictEqual(
+      (event.toPayload() as { targetProviders: string[] }).targetProviders,
+      ["x", "instagram"],
+      "read off the joined channel rows the records carry, never supplied by a caller"
+    );
+  });
+
+  it("returns an empty provider list when the records carry no joined provider", () => {
+    const post = makePost({
+      status: PublishStatus.scheduled(),
+      publications: [ChannelPublication.declare(CHANNEL_A)],
+    });
+
+    const started = post.startPublishing();
+
+    assert.ok(started.ok, "a record with no joined provider still admits the post to the family");
+    const event = post.domainEvents.find((each) => each.eventType === "PostPublishingStarted");
+    assert.ok(event !== undefined);
+    assert.deepStrictEqual(
+      (event.toPayload() as { targetProviders: string[] }).targetProviders,
+      [],
+      "an empty list is what the record proves, not a placeholder"
     );
   });
 });

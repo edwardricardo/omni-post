@@ -7208,3 +7208,63 @@ even when the two clean runs are the ones the gate table reports.
   never call it.
 - **SMELL-174** — `aggregates.test.ts` `expect(event?.failedProviders).toEqual([])` pins a fixture
   artefact rather than content.
+
+## PR 1c — grandchild `1c-1b-b` (T1c.5a), order 12b — COMPLETE, INSIDE BUDGET
+
+The second half of the split recorded in `1c-1b-a` above. `1c-1b` was built and gated as ONE unit
+carrying T1c.5 and T1c.5a at CODE 744; the owner chose to ship it as two, and this is B: the domain
+closure. **It needs no `size:exception`** — 279 CODE against the 400 hard budget, which is the
+whole point of having split it.
+
+### Why B is second and not first
+
+The ordering is not a preference, it is the only direction that compiles, and §9.9 item 7 records
+how that was established. T1c.5a removes the arguments from `markAsPublished()` and `markAsFailed()`
+and deletes the two `*WithoutRecord` arms. At the order-11 tip that surface had exactly TWO
+production call sites outside `packages/core/domain` — `CompletePostPublishingUseCase.ts:230`
+(`startPublishing(providers)`) and `:238` (`markAsPublished(providerResults)`) — both inside the use
+case T1c.5 rewrites out of existence. Landing B first therefore breaks the build; landing A first
+does not, and that was proved on the A tip with three `--force` builds rather than argued from
+symbols.
+
+### What this tip changes
+
+`markAsPublished()` and `markAsFailed()` lose their arguments and the two `*WithoutRecord` arms are
+deleted: after the record writers landed, the aggregate derives its word from the record it already
+holds instead of being told what happened by its caller. `PostPublicationTypes` follows the same
+signature change one level up in the context interface, and `PostAggregateMapper` stops carrying
+the argument through persistence. `PostAggregateState` loses its `export` — the +5 of the bounded
+correction that belongs to this half rather than to A, split there deliberately so a correction is
+not attributed to the wrong unit.
+
+Item **(iv)** of T1c.5a — the epoch sentinel — was already done by a later order and is not
+re-applied here; it is recorded in the A section's merge narrative, which was written against the
+united tree.
+
+### Named, not fixed — three, and all three are this half's
+
+**SMELL-171** — the D7 operator signal was deleted with no replacement and no ledger entry, and a
+new test now pins its silence as correct. `providersOf` filters out records whose joined channel row
+carries no provider, so `PostPublishingStarted` can name FEWER providers than the post has channels,
+with nothing logged or refused. It is unreachable today, because the include that hydrates the
+records hydrates the channel rows with them — so this is a behaviour change nobody recorded, not a
+live defect, and it is doubly load-bearing now that `postAggregate.publications.test.ts` asserts the
+filtered shape as the expected one. The fix is a decision, not a patch.
+
+**SMELL-173** — `aggregates.post.test.ts:290-310` is headed `describe("markAsPublished()")` and its
+cases now drive the record-derived hops instead. Harmless to run, actively misleading to read and to
+grep.
+
+**SMELL-174** — `aggregates.test.ts:359` asserts `expect(event?.failedProviders).toEqual([])`, empty
+because the fixture declares no failing provider rather than because any rule says the list is
+empty. It cannot fail for a reason worth knowing.
+
+### Budget
+
+**CODE 279** (4 src files, +114 / −165), **EVIDENCE 508** (12 files, +393 / −115, including the new
+139-line `publicationFixtures.ts`, which is imported by five of this half's suites and by none of
+A's). No exception owed.
+
+The split is exact against the united measurement: 465 + 279 = 744 CODE, 1230 + 508 = 1738
+EVIDENCE. That arithmetic is stated because a split that quietly loses or duplicates lines is the
+failure mode a reader cannot see from either half alone.
