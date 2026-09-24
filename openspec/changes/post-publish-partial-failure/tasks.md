@@ -1006,7 +1006,7 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       production today — `Post` is tenant-guard enrolled, `TOKENS.PrismaClient` is the guarded
       client, and nothing on the admin path binds a tenant or system context (all three measured in
       the `1c-3a` ledger). The guards are correct and go live with the route. — sha: pending (orchestrator commits)
-- [ ] **T1c.18 GREEN + RED PATH ×3 (D14 rev 3.3 — THREE rules over two scrape targets)** —
+- [x] **T1c.18 GREEN + RED PATH ×3 (D14 rev 3.3 — THREE rules over two scrape targets)** —
       `prometheus/alerts/publish-record.yml` holds TWO groups, because both `/metrics` endpoints are
       already scraped (`prometheus/prometheus.yml:37-41` api on 3000, `:53-57` workers on 3300;
       `rule_files: alerts/*.yml` `:25-26` — read-only, no scrape config changes).
@@ -1050,7 +1050,125 @@ mid-way")` block (`:413`), the THREE cases D16 rev 3.3 names**: "records the cha
       before its first `inc`, so `increase()` over an absent series cannot fire — that is a correct
       quiet, not coverage — and the workers' scrape has no observer guard of the
       `PublishQueueSignalMissing` kind (`saga.yml:170-179`); §7.2 backlog row, not this PR's.
-      — sha: pending
+      **BUILT (`1c-3f`, order 11)**: `prometheus/alerts/publish-record.yml` (114) holds the FOUR
+      rules over the two groups — the line above corrects itself from three to four, and the fourth
+      is the one the 1b2 hardening added. **The dead-letter counter did NOT exist and is this unit's
+      CODE**: measured, no `prom-client` metric of any kind touches the outbox path
+      (`apps/api/src/infrastructure/outbox/` imports `prom-client` nowhere), so
+      `apps/api/src/metrics/outboxMetrics.ts` (52) publishes `outbox_dead_lettered_total{event_type}`
+      and `OutboxRelay.processClaimed` increments it (+5) on the archive that WON — inside the `try`,
+      never in the P2002 catch, so the loser of a lease-expiry race does not double-count a row the
+      winner already counted. Three unit cases in `apps/api/tests/unit/outbox/OutboxRelay.test.ts`
+      (+63): the positive one red-first, and the two guards proven non-vacuous by planting a count in
+      the catch and on the retry-release arm and observing each go red. A FIFTH sibling suite,
+      `apps/api/tests/unit/metrics/outboxMetrics.test.ts` (114), pins the SERIES CONTRACT the rule
+      selects on — exact name, exactly one `event_type` label, the two alert event types on separate
+      series, no series for an event type that never fired, and a genuine second module evaluation —
+      because nothing but that suite stands between the module and the rule file, and a rename makes
+      `increase()` return nothing, which reads as calm. Five red paths, each restored sha256-exact.
+      **FIXTURES live in `prometheus/tests/`, NOT beside the rules** (189): `rule_files: alerts/*.yml`
+      would sweep a promtool unit-test file into the rule set — measured, `promtool check config`
+      exits 1 with "field evaluation_interval not found in type rulefmt.RuleGroups". They assert over
+      the `ALERTS` series rather than through `alert_rule_test`, because promtool compares an
+      `alert_rule_test` expectation against the FULL annotation map and copying four ~1000-character
+      operator descriptions into the fixture would make every wording improvement a test failure;
+      `ALERTS` carries the rule's own labels AND `alertstate`, so it also separates PENDING from
+      FIRING, which `for:` actually decides. **FOUR red paths**, each restored sha256-exact: threshold
+      raised past the step; the `error_type` selector widened to any publisher error; the `for:` hold
+      lengthened past the fixture's firing time; the `(Raised|Resolved)` alternation losing its
+      Resolved arm.
+      **The four counters without a rule get a WRITTEN reason in the rule file header, and two of the
+      four reasons are weak and say so**: `retraction_alert_refused_total{reason}` and
+      `omnipost_bulk_schedule_rows_refused_total{reason}` genuinely want a rule (a refused event means
+      content live with nobody told, and it is never retried) — out of the assigned scope, recorded as
+      owed decisions rather than as judgements that they are harmless. The recurrence sweep's
+      account-less SKIP needs a counter before it can have a rule.
+      **Found, named, NOT fixed** (backlog rows added): SMELL-162 the workers-scrape observer guard
+      the blind spot above names; SMELL-163 — `OutboxLagHigh` fires on `outbox_pending_events`, a
+      series NOTHING in the tree publishes, so outbox lag is unwatched while three documents assert it
+      is watched; SMELL-164 — `docker-compose.yml:70` mounts only `prometheus.yml`, never
+      `prometheus/alerts`, so ALL twenty rules in this repository are unloaded in the only deployment
+      definition that exists. The last one made the neighbours' "EVALUATED, not delivered" note false,
+      so this file's four rules and its runbook state BOTH facts instead of the comfortable half.
+      SMELL-165 — `retractionWindowMetrics.test.ts:100`'s "survives a second evaluation" case is
+      VACUOUS: a plain `await import()` of an already-imported path returns the cached module, and
+      measured, deleting that module's get-or-create leaves all 5 of its cases green. The new suite
+      here uses `?reevaluate=1`, which forces a real second evaluation and goes red without the guard.
+      **CORRECTED after the adversarial gate (EVIDENCE only, CODE unmoved at 57)**: the critical
+      rule's primary remedy was FALSE for one of the counter's four `reason` values. The rule
+      description and the runbook both asserted unconditionally that a dead-lettered job carries the
+      receipt; that holds for `exhausted`, `unrecoverable` and `terminal`, which come from the
+      failed-job listener that archives before it counts, and NOT for `undeliverable`
+      (`publishOutcomeRecorder.ts:339-346`, reached at `:360`, `:376`, `:388`), which queues nothing
+      at all — so an operator paged at 3am would have gone to an empty dead letter queue and found no
+      next step, on the WORSE of the two cases. Both now split on the label and name the ERROR log
+      line as the only surviving carrier for that value. The fixture's `reason="dead-letter"` — a
+      value no producer can emit, and what hid the split — is now `undeliverable` plus an `exhausted`
+      sibling that proves the rule is reason-AGNOSTIC; red re-proven by scoping the rule to one
+      `reason` (exit 1, the `undeliverable` sample vanishes), tree restored `cmp`-identical. Also:
+      `RecurrenceScheduler.ts` given its full path, the no-op `{}` dropped from the degraded-context
+      selector in the rule and its runbook copy, and four more backlog rows.
+      SMELL-166 — the metrics suite's "never dead-lettered" case is vacuous against a module-load
+      pre-declaration, because `beforeEach`'s `.reset()` wipes it. SMELL-167 — `OutboxRelay.ts:146`
+      puts the increment inside the inner `try`, so a throw from it is rethrown and abandons the rest
+      of the batch AFTER the archive committed; the sibling recorder guards exactly this. SMELL-168 —
+      the group `interval:` is structurally invisible to the fixtures: promtool overrides it with the
+      test file's `evaluation_interval`, measured green at `5m` and `7m`. SMELL-169 — the relay suite
+      asserts absolute counter values with no `beforeEach` reset, safe only while its event types stay
+      unique in the file.
+      **FIFTH RULE — THE OWNER DECIDED IT, THIS TASK DID NOT ASK FOR IT (2026-09-24).** Everything
+      above was complete and verified at FOUR rules; the line's own text put
+      `retraction_alert_refused_total{reason}` on the written-reason list as an owed decision, and
+      that was the honest state of it. Edward took the decision and directed a fifth rule, so the
+      count is now FIVE by owner decision rather than by anything this task originally specified.
+      `RetractionAlertEventRefused` — `expr: increase(retraction_alert_refused_total[30m]) > 0`,
+      `for: 5m`, **`severity: critical`**, `component: notifications`, in the **api** group beside
+      the two it argues against (the counter registers on the DEFAULT prom-client registry, which is
+      what `apps/api/src/index.ts:768` serves on 3000 = the `api-server` job, `prometheus.yml:37-41`).
+      **Critical, not warning, and the argument is the operator-visible state**: both refusal sites
+      (`RetractionAlertEventHandler.ts:87` and `:124`) count and then RETURN — measured, neither
+      raises — so `dispatch()` resolves and `markPublished` runs on the very next line
+      (`OutboxRelay.ts:132-133`). The row reads PUBLISHED, indistinguishable from a delivered alert,
+      which makes this the dead-letter case WITHOUT the dead letter: the same harm
+      `RetractionAlertEventDeadLettered` calls critical (content live, channel pending retraction,
+      customer never asked, action window counting down) with strictly LESS recovery affordance, and
+      invisible to both neighbours — `RetractionAlertEventDeadLettered` cannot fire because the row
+      never dead-letters, `OutboxLagHigh` cannot fire because the row stops being pending by
+      SUCCEEDING. It cannot rank below the rule it strictly dominates in harm. Reason-agnostic (no
+      `reason` selector) like the workers' critical rule: all four label values end the same way.
+      **30m/5m matches both api neighbours, argued not inherited**: the remedy is upstream at the
+      producer, a question about a RUN, so the wider lookback is what still shows the pattern to an
+      operator who looks late; and the hold races `RETRACTION_ACTION_WINDOW_HOURS`, 72h by default
+      and 1h at its floor, swept every 15m — 5 minutes costs nothing that matters.
+      **FIFTH RED PATH, and a FIFTH FAILURE AXIS — the `increase()` LOOKBACK**, which none of the
+      four above touch (they move threshold, selector width, `for:` hold, regex arm). `[30m]` cut to
+      `[10m]` — the window the two workers rules in the same file use, one copy-paste away — exits 1
+      with `got: nil` on the 30m assertion. **The measurement that made the fixture honest**: under
+      `[10m]` the other THREE assertions stay GREEN, because at 12m a 10m lookback still contains the
+      step, so the sibling-shaped three-proof fixture would have called this regression green. The
+      fourth assertion (still FIRING at 30m, counter flat since 7m) is the only one that pins the
+      duration, and the fixture says so. Restored `cmp`-identical and sha256-identical
+      (`40cb1201a0490fb5a7fb21d26ba2ebee4bb2c1ea5d12e0b08f160f53cb3c8777`), green re-confirmed.
+      Fixtures use TWO real `reason` values, one from EACH refusal site — `missing-tenant` (`:87`,
+      refused before any tenant is bound, the value whose investigation has no account to scope to)
+      and `missing-project` (`:124`) — so the reason-agnostic rule is shown covering both sites.
+      Runbook gains its fifth section, splitting the remedy on all four `reason` values and stating
+      that the remedy is the PRODUCER, never a replay: the row is already PUBLISHED and the payload
+      is malformed, so the same bytes are refused again. The file header drops
+      `retraction_alert_refused_total` from the no-rule list, which is now TWO counters plus one
+      signal with no counter; the bulk-schedule twin and the recurrence SKIP stay owed and say so.
+      **No backlog row existed for this counter** — the owed decision lived only in the rule-file
+      header and the apply-progress ledger, both corrected — so there was nothing to close or amend.
+      **Budget after the fifth rule**: CODE **still 57** against 14, and the fifth rule moved NO
+      TypeScript — it is EVIDENCE-tier by construction, since the counter it reads already existed
+      (205 if the rule YAML is CODE, which §9.4.1's own `_T1c.18_` cost row says it is by booking it
+      at CODE 85 / EVIDENCE 0: 148 rule lines now, was 114) · EVIDENCE 805 against 225 (was 649: +66
+      fixtures, +90 runbook). **Cited by content, not by line**: the earlier copy of this sentence
+      pointed at `tasks.md:1467`, which no longer resolves to that row — every edit above it shifts
+      the number, and `1467` is separately a CODE subtotal in three other rows, so the stale pointer
+      reads as a real reference. Left as found in the ledger's prior section, named here.
+      `size:exception` owed, and wider than before by owner decision.
+      — sha: pending (orchestrator commits)
 - [ ] **T1c.19** — gates per §10.2 (lint `--max-warnings 0`, `pnpm format:check` **plus**
       `pnpm exec prettier -c` over the touched files, `tsc --noEmit` per touched package under
       `NODE_OPTIONS=--max-old-space-size=6144`, `pnpm check:circular`);
