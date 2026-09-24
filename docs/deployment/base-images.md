@@ -97,17 +97,31 @@ here: nothing in CI runs the built container. See §"What is not verified".
 
 ---
 
-## What is not verified
+## What verifies it
 
-**CI builds four images, scans them, pushes them on main, and never runs them.**
-Not one step executes a container. A base swap that broke the `argon2` prebuilt
-would reach the registry unnoticed.
+**The glibc claim is measured, not argued.** `readelf -V` over
+`argon2/prebuilds/linux-x64/argon2.glibc.node` shows the highest symbol version
+it requires is `GLIBC_2.34`. Bookworm provided 2.36 and trixie provides 2.41, so
+both satisfy it — forward compatibility is the reason it holds, and this reading
+is the evidence that it does.
 
-The Dockerfile header calls the glibc match BLOCKING in its own words, and the
-only thing standing behind it today is the forward-compatibility argument above.
-A smoke step that starts the image and hits its `/health` endpoint — the
-`HEALTHCHECK` is already written — would turn that argument into a measurement.
-It lives in `.github/workflows/production-ci.yml`, a token-gated path.
+**And CI now runs the images it builds.** It did not: until the
+`Smoke — the built image runs` step, four images were built, scanned, and pushed
+on main without one of them ever being executed. The step sits BEFORE the
+scanner on purpose, so a broken image says so even on a run where Trivy is red
+for an unrelated advisory. It does two things:
+
+1. Runs `node` in every image. Catches an architecture or loader break, which is
+   the cheapest way a base swap goes wrong.
+2. For `api`, requires `argon2` and round-trips a hash through `verify`.
+   Requiring the PACKAGE is the honest test: argon2 ships prebuilds for many
+   platforms and `node-gyp-build` picks one at require time, so walking for
+   `*.node` and loading each would try the musl and foreign-architecture
+   prebuilds and fail on files nothing was ever going to open.
+
+`workers`, `admin` and `client` carry no native module of their own, so step 1 is
+the whole of their coverage — the step says so in its own output rather than
+letting a silent pass read as more than it is.
 
 ---
 
