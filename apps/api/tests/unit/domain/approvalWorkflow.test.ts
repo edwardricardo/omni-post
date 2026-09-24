@@ -25,6 +25,7 @@ import {
   PostApproved,
   PostRejected,
 } from "@core/domain/events/PostEvents.js";
+import { publishOnOneChannel } from "../helpers/publicationFixtures.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -589,9 +590,9 @@ describe("PostAggregate approval methods", () => {
 
   it("rejects submitForReview from PUBLISHED status", () => {
     const post = createDraftPost();
-    // Transition through the state machine: DRAFT -> PUBLISHING -> PUBLISHED
-    post.startPublishing(["x" as "x"]);
-    post.markAsPublished({ x: { success: true, externalId: "ext-1" } });
+    // Transition through the record: declare a target, publish it, and the word
+    // follows — DRAFT -> PUBLISHING -> PUBLISHED.
+    publishOnOneChannel(post, "ext-1");
 
     const result = post.submitForReview();
     expect(result.ok).toBeFalsy();
@@ -645,9 +646,7 @@ describe("PostAggregate approval methods", () => {
     // This is expected behavior -- approveForScheduling uses the same
     // transition as schedule. Let's verify from a truly invalid state instead.
     // Use PUBLISHED which cannot go to SCHEDULED.
-    const publishedPost = createDraftPost();
-    publishedPost.startPublishing(["x" as "x"]);
-    publishedPost.markAsPublished({ x: { success: true } });
+    const publishedPost = publishOnOneChannel(createDraftPost());
 
     const failResult = publishedPost.approveForScheduling(futureDate, "UTC");
     expect(failResult.ok).toBeFalsy();

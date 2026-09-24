@@ -9,7 +9,7 @@ import type { MediaKind, PostChannelPublication, Prisma, Provider } from "@infra
 import { type Result, ok, err } from "@shared/types";
 import {
   PostAggregate,
-  type PostAggregateState,
+  type PersistedPostState,
   PostId,
   ProjectId,
   ChannelId,
@@ -415,13 +415,14 @@ export class PostAggregateMapper {
       publications.push(record.value);
     }
 
-    // Create aggregate state
-    const state: PostAggregateState = {
+    // Create aggregate state. The tenant and the record set are supplied
+    // UNCONDITIONALLY: `accountId` is a non-null column and the relation is
+    // present by construction, so a conditional here would only be able to hide
+    // a load that did not carry them — which is the fail-open this change closes.
+    const state: PersistedPostState = {
       id: PostId.fromStringUnsafe(prismaPost.id),
       projectId: ProjectId.fromStringUnsafe(prismaPost.projectId),
-      ...(typeof (prismaPost as { accountId?: string }).accountId === "string" && {
-        accountId: (prismaPost as { accountId?: string }).accountId as string,
-      }),
+      accountId: prismaPost.accountId,
       publications,
       content,
       status: statusResult.value,

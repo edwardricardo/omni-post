@@ -11,7 +11,6 @@ import { type Result } from "@shared/types";
 import { type DomainEvent } from "../../events/DomainEvent.js";
 import { type ChannelPublication, type DurationMs } from "../../entities/ChannelPublication.js";
 import { type ChannelId } from "../../value-objects/EntityId.js";
-import { type ProviderType } from "../../value-objects/Provider.js";
 import { type PublishStatus } from "../../value-objects/PublishStatus.js";
 import { type FragmentReference } from "../../value-objects/FragmentReference.js";
 import { type AttemptResult } from "../../value-objects/PublicationOutcome.js";
@@ -44,8 +43,13 @@ export interface PublicationContext {
    * `markAsPublished` touches the context and changes no record at all.
    */
   markRecordsChanged(): void;
-  /** Enters the publication family through the lifecycle state machine. */
-  startPublishing(providers: ProviderType[]): Result<void, InvalidStateTransitionError>;
+  /**
+   * Enters the publication family through the lifecycle state machine. It takes
+   * no providers: the root reads them off the records' joined channel rows, so
+   * there is no argument through which a caller could name a provider the
+   * record does not hold.
+   */
+  startPublishing(): Result<void, InvalidStateTransitionError | InvariantViolationError>;
 }
 
 /** One channel included in a freshly opened attempt episode. */

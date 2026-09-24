@@ -22,6 +22,7 @@ import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { AccountId, PostAggregate, ProjectId, EntityNotFoundError } from "@core/domain/index.js";
 import type { PostRepository, PostQueryRepository, PostReadModel } from "@core/domain/index.js";
 import type { EventDispatcher } from "@core/domain/events/DomainEvent.js";
+import { publishOnOneChannel } from "../helpers/publicationFixtures.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -302,11 +303,10 @@ describe("Post Use Cases", () => {
       });
       expect(createResult.ok).toBeTruthy();
       const post = createResult.value;
-      // Simulate a non-editable state by publishing through proper domain methods
-      const publishingResult = post.startPublishing(["X"]);
-      expect(publishingResult.ok).toBeTruthy();
-      const publishedResult = post.markAsPublished({ x: { success: true, externalId: "ext-1" } });
-      expect(publishedResult.ok).toBeTruthy();
+      // Simulate a non-editable state by publishing through the record, which
+      // is the only thing that can move the word now.
+      publishOnOneChannel(post, "ext-1");
+      expect(post.isPublished).toBeTruthy();
       post.clearDomainEvents();
 
       (postRepo.findById as any).mockImplementation(async () => ok(post));
@@ -475,10 +475,8 @@ describe("Post Use Cases", () => {
       });
       expect(createResult.ok).toBeTruthy();
       const post = createResult.value;
-      const publishingResult = post.startPublishing(["X"]);
-      expect(publishingResult.ok).toBeTruthy();
-      const publishedResult = post.markAsPublished({ x: { success: true, externalId: "ext-1" } });
-      expect(publishedResult.ok).toBeTruthy();
+      publishOnOneChannel(post, "ext-1");
+      expect(post.isPublished).toBeTruthy();
 
       (postRepo.findById as any).mockImplementation(async () => ok(post));
 

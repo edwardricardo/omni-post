@@ -73,7 +73,10 @@ function makePost(options?: {
     createdAt: new Date("2026-02-01T00:00:00.000Z"),
     updatedAt: new Date("2026-02-01T00:00:00.000Z"),
     version: 3,
-    ...(options?.publications !== undefined && { publications: options.publications }),
+    // Stated, never defaulted: `PersistedPostState` requires the set, so a fixture
+    // that declares no target says so rather than leaning on a default the aggregate
+    // no longer carries.
+    publications: options?.publications ?? [],
   });
 }
 

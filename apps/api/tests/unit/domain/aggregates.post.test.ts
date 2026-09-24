@@ -29,8 +29,19 @@ import {
   PostMediaAdded,
   PostMediaRemoved,
 } from "@core/domain/events/PostEvents.js";
+import {
+  FIXTURE_CHANNEL_A,
+  FIXTURE_CHANNEL_B,
+  failOnOneChannel,
+  failedAttempt,
+  publishOnOneChannel,
+  publishedAttempt,
+  settleChannel,
+  withPublicationTargets,
+} from "../helpers/publicationFixtures.js";
 
 const projectId = ProjectId.generate();
+const accountId = "a0000000-0000-4000-8000-0000000000ac";
 
 function validInput(overrides?: Partial<Parameters<typeof PostAggregate.create>[0]>) {
   return {
@@ -49,6 +60,16 @@ function createDraft(overrides?: Partial<Parameters<typeof PostAggregate.create>
 
 function futureDate(minutes = 60) {
   return new Date(Date.now() + minutes * 60_000);
+}
+
+/** A post whose single channel published, which is what makes the word PUBLISHED. */
+function publishedPost(externalId = "x-1") {
+  return publishOnOneChannel(createDraft(), externalId);
+}
+
+/** A post whose single channel was excluded, which is what makes the word FAILED. */
+function failedPost() {
+  return failOnOneChannel(createDraft());
 }
 
 describe("PostAggregate", () => {
@@ -149,6 +170,10 @@ describe("PostAggregate", () => {
       const reconstituted = PostAggregate.reconstitute({
         id: original.id,
         projectId,
+        // A LOADED post always carries both: the compiler requires them, so a
+        // load that never hydrated the records cannot reach this constructor.
+        accountId,
+        publications: [],
         content: contentResult.value,
         status: PublishStatus.draft(),
         media: [],
@@ -161,6 +186,8 @@ describe("PostAggregate", () => {
       expect(reconstituted.domainEvents).toHaveLength(0);
       expect(reconstituted.version).toBe(5);
       expect(reconstituted.content.body).toBe("Reconstituted body");
+      expect(reconstituted.accountId).toBe(accountId);
+      expect(reconstituted.publications.size).toBe(0);
     });
   });
 
@@ -189,10 +216,7 @@ describe("PostAggregate", () => {
     });
 
     it("rejects scheduling from PUBLISHED status", () => {
-      const post = createDraft();
-      post.schedule(futureDate());
-      post.startPublishing(["X"]);
-      post.markAsPublished({ X: { success: true, externalId: "x-1" } });
+      const post = publishedPost();
 
       const result = post.schedule(futureDate(120));
       expect(result.ok).toBe(false);
@@ -239,8 +263,8 @@ describe("PostAggregate", () => {
 
   describe("startPublishing()", () => {
     it("transitions DRAFT → PUBLISHING", () => {
-      const post = createDraft();
-      const result = post.startPublishing(["X", "INSTAGRAM"]);
+      const post = withPublicationTargets(createDraft(), [FIXTURE_CHANNEL_A, FIXTURE_CHANNEL_B]);
+      const result = post.startPublishing();
       expect(result.ok).toBe(true);
       expect(post.status.value).toBe(PUBLISH_STATUS.PUBLISHING);
       expect(post.isPublishing).toBe(true);
@@ -249,79 +273,99 @@ describe("PostAggregate", () => {
     it("transitions SCHEDULED → PUBLISHING", () => {
       const post = createDraft();
       post.schedule(futureDate());
-      const result = post.startPublishing(["X"]);
+      withPublicationTargets(post);
+      const result = post.startPublishing();
       expect(result.ok).toBe(true);
       expect(post.isPublishing).toBe(true);
     });
 
     it("raises PostPublishingStarted event", () => {
-      const post = createDraft();
+      const post = withPublicationTargets(createDraft());
       post.clearDomainEvents();
-      post.startPublishing(["X"]);
+      post.startPublishing();
       const events = post.domainEvents;
       expect(events.some((e) => e instanceof PostPublishingStarted)).toBe(true);
     });
 
     it("rejects from PUBLISHED status", () => {
-      const post = createDraft();
-      post.startPublishing(["X"]);
-      post.markAsPublished({ X: { success: true } });
-      const result = post.startPublishing(["X"]);
+      const post = publishedPost();
+      const result = post.startPublishing();
       expect(result.ok).toBe(false);
+    });
+
+    it("rejects a post that declared no target", () => {
+      const post = createDraft();
+      const result = post.startPublishing();
+      expect(result.ok).toBe(false);
+      expect(post.status.value).toBe(PUBLISH_STATUS.DRAFT);
     });
   });
 
   describe("markAsPublished()", () => {
-    it("transitions PUBLISHING → PUBLISHED", () => {
-      const post = createDraft();
-      post.startPublishing(["X"]);
-      const result = post.markAsPublished({ X: { success: true, externalId: "tweet-123" } });
-      expect(result.ok).toBe(true);
+    it("transitions PUBLISHING → PUBLISHED once every record published", () => {
+      const post = withPublicationTargets(createDraft());
+      post.startPublishing();
+      settleChannel(post, FIXTURE_CHANNEL_A, publishedAttempt("tweet-123"));
       expect(post.status.value).toBe(PUBLISH_STATUS.PUBLISHED);
       expect(post.isPublished).toBe(true);
       expect(post.publishedAt).toBeInstanceOf(Date);
     });
 
     it("raises PostPublished event", () => {
-      const post = createDraft();
-      post.startPublishing(["X"]);
+      const post = withPublicationTargets(createDraft());
+      post.startPublishing();
       post.clearDomainEvents();
-      post.markAsPublished({ X: { success: true } });
+      settleChannel(post, FIXTURE_CHANNEL_A, publishedAttempt("x-1"));
       const events = post.domainEvents;
       expect(events.some((e) => e instanceof PostPublished)).toBe(true);
     });
 
-    it("rejects from DRAFT status", () => {
-      const post = createDraft();
-      const result = post.markAsPublished({ X: { success: true } });
+    it("rejects a record set that does not derive PUBLISHED", () => {
+      // The channel is recorded but unresolved, so the derivation reads
+      // PUBLISHING. The word can only be what the record proves.
+      const post = withPublicationTargets(createDraft());
+      const result = post.markAsPublished();
       expect(result.ok).toBe(false);
+    });
+
+    it("rejects a post that declared no target", () => {
+      const post = createDraft();
+      const result = post.markAsPublished();
+      expect(result.ok).toBe(false);
+      expect(post.status.value).toBe(PUBLISH_STATUS.DRAFT);
     });
   });
 
   describe("markAsFailed()", () => {
-    it("transitions PUBLISHING → FAILED", () => {
-      const post = createDraft();
-      post.startPublishing(["X"]);
-      const result = post.markAsFailed("Rate limit exceeded", ["X"], true);
-      expect(result.ok).toBe(true);
+    it("transitions PUBLISHING → FAILED once every record settled unpublished", () => {
+      const post = withPublicationTargets(createDraft());
+      post.startPublishing();
+      settleChannel(post, FIXTURE_CHANNEL_A, failedAttempt());
       expect(post.status.value).toBe(PUBLISH_STATUS.FAILED);
       expect(post.isFailed).toBe(true);
     });
 
     it("raises PostPublishingFailed event with retryable flag", () => {
-      const post = createDraft();
-      post.startPublishing(["X"]);
+      const post = withPublicationTargets(createDraft());
+      post.startPublishing();
       post.clearDomainEvents();
-      post.markAsFailed("Auth error", ["X"], false);
+      settleChannel(post, FIXTURE_CHANNEL_A, failedAttempt());
       const events = post.domainEvents;
       const failEvent = events.find((e) => e instanceof PostPublishingFailed);
       expect(failEvent).toBeDefined();
     });
 
-    it("rejects from DRAFT status", () => {
-      const post = createDraft();
-      const result = post.markAsFailed("error", ["X"], true);
+    it("rejects a record set that does not derive FAILED", () => {
+      const post = withPublicationTargets(createDraft());
+      const result = post.markAsFailed();
       expect(result.ok).toBe(false);
+    });
+
+    it("rejects a post that declared no target", () => {
+      const post = createDraft();
+      const result = post.markAsFailed();
+      expect(result.ok).toBe(false);
+      expect(post.status.value).toBe(PUBLISH_STATUS.DRAFT);
     });
   });
 
@@ -350,9 +394,7 @@ describe("PostAggregate", () => {
     });
 
     it("rejects cancelling a PUBLISHED post", () => {
-      const post = createDraft();
-      post.startPublishing(["X"]);
-      post.markAsPublished({ X: { success: true } });
+      const post = publishedPost();
       const result = post.cancel();
       expect(result.ok).toBe(false);
     });
@@ -436,8 +478,8 @@ describe("PostAggregate", () => {
     });
 
     it("rejects approval from PUBLISHING status", () => {
-      const post = createDraft();
-      post.startPublishing(["X"]);
+      const post = withPublicationTargets(createDraft());
+      post.startPublishing();
       const result = post.approveForScheduling(futureDate());
       expect(result.ok).toBe(false);
     });
@@ -486,9 +528,7 @@ describe("PostAggregate", () => {
     });
 
     it("rejects update on PUBLISHED post", () => {
-      const post = createDraft();
-      post.startPublishing(["X"]);
-      post.markAsPublished({ X: { success: true } });
+      const post = publishedPost();
       const result = post.updateContent({ body: "Cannot update" });
       expect(result.ok).toBe(false);
     });
@@ -500,9 +540,9 @@ describe("PostAggregate", () => {
     });
 
     it("allows update on FAILED post (isEditable)", () => {
-      const post = createDraft();
-      post.startPublishing(["X"]);
-      post.markAsFailed("error", ["X"]);
+      // Nothing of this post is live anywhere — the one channel was excluded
+      // with no fragment out — so the content lock does not engage.
+      const post = failedPost();
       const result = post.updateContent({ body: "Retry content" });
       expect(result.ok).toBe(true);
       expect(post.content.body).toBe("Retry content");
@@ -621,10 +661,7 @@ describe("PostAggregate", () => {
     });
 
     it("isEditable is true for FAILED", () => {
-      const post = createDraft();
-      post.startPublishing(["X"]);
-      post.markAsFailed("err", ["X"]);
-      expect(post.isEditable).toBe(true);
+      expect(failedPost().isEditable).toBe(true);
     });
 
     it("isEditable is false for SCHEDULED", () => {
@@ -634,10 +671,7 @@ describe("PostAggregate", () => {
     });
 
     it("isEditable is false for PUBLISHED", () => {
-      const post = createDraft();
-      post.startPublishing(["X"]);
-      post.markAsPublished({ X: { success: true } });
-      expect(post.isEditable).toBe(false);
+      expect(publishedPost().isEditable).toBe(false);
     });
   });
 
@@ -661,10 +695,7 @@ describe("PostAggregate", () => {
     });
 
     it("includes publishedAt when published", () => {
-      const post = createDraft();
-      post.startPublishing(["X"]);
-      post.markAsPublished({ X: { success: true } });
-      const json = post.toJSON();
+      const json = publishedPost().toJSON();
       expect(json.publishedAt).toBeTruthy();
     });
   });
@@ -699,15 +730,18 @@ describe("PostAggregate", () => {
       expect(approveResult.ok).toBe(true);
       expect(post.isScheduled).toBe(true);
 
-      const publishStartResult = post.startPublishing(["X", "INSTAGRAM"]);
+      withPublicationTargets(post, [FIXTURE_CHANNEL_A, FIXTURE_CHANNEL_B]);
+
+      const publishStartResult = post.startPublishing();
       expect(publishStartResult.ok).toBe(true);
       expect(post.isPublishing).toBe(true);
 
-      const publishResult = post.markAsPublished({
-        X: { success: true, externalId: "tweet-1" },
-        INSTAGRAM: { success: true, externalId: "ig-1" },
-      });
-      expect(publishResult.ok).toBe(true);
+      // One channel of two published: the post has not published everywhere, so
+      // the word stays in progress rather than jumping to PUBLISHED.
+      settleChannel(post, FIXTURE_CHANNEL_A, publishedAttempt("tweet-1"));
+      expect(post.status.value).toBe(PUBLISH_STATUS.PUBLISHING);
+
+      settleChannel(post, FIXTURE_CHANNEL_B, publishedAttempt("ig-1"));
       expect(post.isPublished).toBe(true);
       expect(post.publishedAt).toBeInstanceOf(Date);
     });
@@ -715,9 +749,7 @@ describe("PostAggregate", () => {
 
   describe("full lifecycle: DRAFT → PUBLISHING → FAILED → DRAFT (retry)", () => {
     it("allows recovery from failure", () => {
-      const post = createDraft();
-      post.startPublishing(["X"]);
-      post.markAsFailed("Rate limit", ["X"], true);
+      const post = failedPost();
       expect(post.isFailed).toBe(true);
 
       // FAILED posts can return to DRAFT
