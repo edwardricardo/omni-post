@@ -515,7 +515,7 @@ describe("publishOutcomeRecorder", () => {
     });
   });
 
-  describe("reachable as infrastructure, unreached as behaviour", () => {
+  describe("wired into the publish path", () => {
     it("registers the durable consumer in the worker", () => {
       const worker = readFileSync(path.join(workersSrc, "publishWorker.ts"), "utf8");
 
@@ -523,13 +523,14 @@ describe("publishOutcomeRecorder", () => {
       expect(worker).toContain("createPublishOutcomeRecorder");
     });
 
-    it("is not called by the publish handler at this tip", () => {
-      // The recorder writes attempts; the handler calling it is a separate change with
-      // its own tests. Until then nothing here can change what a publish job does.
-      const handler = readFileSync(path.join(workersSrc, "publishHandler.ts"), "utf8");
+    it("is the recorder the publish handler is built with", () => {
+      // The composition root owns this edge: the handler takes the recorder as a
+      // dependency, so a root that built the handler without it would compile and
+      // then lose every outcome the worker produced.
+      const worker = readFileSync(path.join(workersSrc, "publishWorker.ts"), "utf8");
 
-      expect(handler).not.toContain("publishOutcomeRecorder");
-      expect(handler).not.toContain("recordChannelPublicationAttempt");
+      expect(worker).toMatch(/new PublishHandler\(\{[\s\S]*?outcomeRecorder,/);
+      expect(worker).toMatch(/new PublishHandler\(\{[\s\S]*?publicationRecord:/);
     });
   });
 });

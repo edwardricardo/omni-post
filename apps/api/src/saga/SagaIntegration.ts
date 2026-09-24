@@ -39,8 +39,13 @@ import { SagaManagerImpl } from "./SagaManager.js";
 import { countStepOutcomes } from "./sagaInstanceRow.js";
 import type { EventService } from "../events/EventService.js";
 import type { CQRSBusImpl } from "../cqrs/CQRSBus.js";
-import { createPostPublishingSagaDefinition, createSagaContext } from "@shared/types/saga.js";
+import {
+  createPostPublishingSagaDefinition,
+  createSagaContext,
+  type PublicationRecordView,
+} from "@shared/types/saga.js";
 import type { Command } from "@shared/types/cqrs.js";
+import { ok, err, type Result } from "@shared/types";
 import type { Redis } from "ioredis";
 import { AppError } from "../lib/errors/index.js";
 import { admitExistingPostStart, refusalToAppError } from "./publishAdmission.js";
@@ -292,7 +297,14 @@ export class SagaIntegration {
         const sagaId = job.sagaId as string | undefined;
         const postId = job.postId as string | undefined;
         const channelId = job.channelId as string | undefined;
-        const dedupeKey = `publish-${postId}-${channelId}`;
+        // Episode-scoped, because this key becomes the BullMQ job id and BullMQ
+        // ignores an `add` whose id sits in the retained completed or failed
+        // set. Without the episode, a re-drive of a channel that failed an hour
+        // ago is silently dropped and the customer waits on a job that will
+        // never run. The provider-facing dedupe key is a different value and
+        // stays keyed on the target alone.
+        const episode = job.episode as number | undefined;
+        const dedupeKey = `publish-${postId}-${channelId}-e${episode}`;
 
         const result = await queue.enqueue({
           dedupeKey,
@@ -314,30 +326,42 @@ export class SagaIntegration {
 
         return jobId;
       },
-      // Job status checker — reads real BullMQ state via the QueuePort. The
-      // event-driven flow (worker emits publish.job.completed/failed via
-      // Redis pub/sub) is the primary path; this poll is the fallback when
-      // the saga is resumed by the recovery scheduler instead of by an
-      // event. Without it, a worker crash between publish and event emit
-      // would silently mark posts as PUBLISHED that never published.
+      // Publication record reader — the single source the wait step settles on
+      // and the pivot's RereadCheck consults. It replaces BOTH the queue-state
+      // poll and the Post.status reread, because both answered the wrong
+      // question: job state says whether a job ended, and the post's word says
+      // what the aggregate decided, while the promotion needs what each CHANNEL
+      // did with this post. `findById` is tenant-bound by the saga's own scope
+      // (`runAsSagaTenant` establishes it before any step runs).
       //
-      // The port's own Result is forwarded UNCHANGED. Translating a
-      // CONNECTION_ERROR into an all-pending aggregate used to be safe when the
-      // step read every non-success as a failure and the retry policy bounded
-      // it; under the three-state contract that same translation asserts
-      // "observed: nothing has finished", which is the one thing a failed
-      // observation cannot support.
-      async (jobIds: string[]) => await queue.getJobStates(jobIds),
-      // Reread implementation for the pivot step's RereadCheck countermeasure.
-      // Confirms Post.status is still DRAFT immediately before enqueueing
-      // jobs — prevents the dirty-read window where a manual Update or a
-      // concurrent saga changed the status between Create and Schedule.
-      async (postIdRaw: string): Promise<string | null> => {
+      // The three answers stay three. A post with no record answers `undefined`
+      // — never an empty channel set, which the wait step would read as an
+      // outcome over zero channels; an unreadable repository answers `err`,
+      // which the step spends retry budget on instead of mistaking for work
+      // still in flight.
+      async (postIdRaw: string): Promise<Result<PublicationRecordView | undefined, string>> => {
         const idResult = PostId.fromString(postIdRaw);
-        if (!idResult.ok) return null;
+        if (!idResult.ok) {
+          return err(`Invalid post id ${postIdRaw}: ${idResult.error.message}`);
+        }
         const post = await this.config.postRepository.findById(idResult.value);
-        if (!post.ok) return null;
-        return post.value.status.value;
+        if (!post.ok) {
+          return err(`Post ${postIdRaw} could not be loaded: ${post.error.message}`);
+        }
+        const records = post.value.publications.all;
+        if (records.length === 0) {
+          return ok(undefined);
+        }
+        return ok({
+          channels: records.map((record) => ({
+            channelId: record.channelId.value,
+            outcome: record.outcomeKind,
+            ...(record.externalId !== undefined && { externalId: record.externalId }),
+            ...(record.reason !== undefined && { reasonCode: record.reason.code }),
+            ...(record.reason?.detail !== undefined && { reasonDetail: record.reason.detail }),
+            redrivable: record.redrivable(),
+          })),
+        });
       }
       // No cancelJob: SchedulePublishingJobsStep is a PivotStep (point of
       // no return per Azure §5). Once jobs are accepted by BullMQ, workers

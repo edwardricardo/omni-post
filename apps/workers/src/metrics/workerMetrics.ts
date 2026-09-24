@@ -21,8 +21,8 @@ export interface WorkerMetricsCollector {
   threadTweetCount: client.Histogram<string>;
   threadDuration: client.Histogram<string>;
 
-  // Tenant-scope provenance for publish jobs
-  publishJobAccountIdSource: client.Counter<string>;
+  // Publish jobs BullMQ must never run again
+  publishJobUnrecoverable: client.Counter<string>;
 
   // Publication outcomes that reached no record
   publishOutcomeUnrecorded: client.Counter<string>;
@@ -130,16 +130,15 @@ export class WorkerMetrics {
         registers: [registry],
       }),
 
-      // Where each publish job's tenant scope came from. `payload` is the
-      // steady state; `fallback` counts jobs that had to resolve the channel's
-      // owner because they were enqueued before the payload carried the field.
-      // The deploy-compat fallback can only be removed once this counter shows
-      // no `fallback` increments — without it, "remove when no pre-deploy jobs
-      // remain" is unverifiable and the fallback lives forever.
-      publishJobAccountIdSource: new client.Counter({
-        name: "worker_publish_job_account_id_source_total",
-        help: "Publish jobs by the origin of their tenant scope (payload vs deploy-compat owner fallback)",
-        labelNames: ["source"],
+      // Jobs refused before anything was touched. A job that names no tenant or
+      // no episode was enqueued before the publication record existed, and one
+      // whose channel the record does not hold is addressed at nothing — none of
+      // the three becomes runnable by trying again, so each ends the job instead
+      // of spending the queue's retry budget on a verdict that cannot change.
+      publishJobUnrecoverable: new client.Counter({
+        name: "worker_publish_job_unrecoverable_total",
+        help: "Publish jobs ended without a provider call because the job can never succeed",
+        labelNames: ["reason"],
         registers: [registry],
       }),
 

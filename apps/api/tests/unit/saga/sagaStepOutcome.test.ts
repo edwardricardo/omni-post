@@ -26,6 +26,8 @@ import {
   createSagaContext,
   type CompensableStep,
   type PivotStep,
+  type PublicationChannelView,
+  type PublicationRecordView,
   type RetryableStep,
   type SagaContext,
   type SagaDefinition,
@@ -368,71 +370,119 @@ async function durationObservations(status: string): Promise<number> {
 }
 
 /** A context shaped the way the publish saga hands one to its wait step. */
-function publishContext(jobIds: string[]): SagaContext {
+function publishContext(channelIds: string[]): SagaContext {
   const context = createSagaContext({
     sagaId: "saga-wait-probe",
     correlationId: "corr-wait-probe",
     accountId: ACCOUNT_ID,
     metadata: { accountId: ACCOUNT_ID, mode: "publish-now" },
   });
-  context.stepData["schedule-publishing-jobs"] = { jobIds, channelCount: jobIds.length };
+  context.stepData["create-post"] = { postId: "post-wait-probe" };
+  context.stepData["schedule-publishing-jobs"] = {
+    jobIds: channelIds.map((channelId) => `job-${channelId}`),
+    channelIds,
+    channelCount: channelIds.length,
+  };
   return context;
 }
 
+/** One channel's record in the shape the wait step reads it. */
+function channelView(
+  channelId: string,
+  outcome: "unresolved" | "published" | "excluded"
+): PublicationChannelView {
+  return {
+    channelId,
+    outcome,
+    ...(outcome === "published" && { externalId: `ext-${channelId}` }),
+    ...(outcome === "excluded" && { reasonCode: "CONTENT_REJECTED" }),
+    redrivable: outcome !== "published",
+  };
+}
+
 describe("the publish wait step reports which of the three outcomes it has", () => {
-  const jobIds = ["job-1", "job-2", "job-3", "job-4"];
+  const channelIds = ["ch-1", "ch-2", "ch-3", "ch-4"];
 
-  it("returns waiting while any sibling job is still pending", async () => {
-    const step = new WaitForPublishingCompletionStep(async () =>
-      ok({ completed: 3, failed: 0, pending: 1 })
-    );
+  /** A record in which the first `settledCount` channels have settled as given. */
+  function recordWith(
+    settledCount: number,
+    settledAs: "published" | "excluded" = "published"
+  ): PublicationRecordView {
+    return {
+      channels: channelIds.map((channelId, index) =>
+        channelView(channelId, index < settledCount ? settledAs : "unresolved")
+      ),
+    };
+  }
 
-    const result = await step.execute(publishContext(jobIds));
+  it("returns waiting while any sibling channel has not settled", async () => {
+    const step = new WaitForPublishingCompletionStep(async () => ok(recordWith(3)));
+
+    const result = await step.execute(publishContext(channelIds));
 
     expect(result.outcome).toBe("waiting");
     expect(result).not.toHaveProperty("error");
   });
 
-  it("returns failed when a job really ended in error", async () => {
+  it("returns failed when the record holds no entry for a channel the pivot scheduled", async () => {
+    // A scheduled channel the record does not hold cannot become decidable by
+    // asking again: nobody is going to write it. Waiting on it would park the
+    // saga on its horizon over a fact that will never arrive.
     const step = new WaitForPublishingCompletionStep(async () =>
-      ok({ completed: 3, failed: 1, pending: 0 })
+      ok({ channels: [channelView("ch-1", "published")] })
     );
 
-    const result = await step.execute(publishContext(jobIds));
+    const result = await step.execute(publishContext(channelIds));
 
     expect(result.outcome).toBe("failed");
-    expect(result).toMatchObject({ error: expect.stringMatching(/publishing jobs failed/i) });
+    expect(result).toMatchObject({ error: expect.stringMatching(/ch-2/) });
   });
 
-  it("returns succeeded once every job completed", async () => {
-    const step = new WaitForPublishingCompletionStep(async () =>
-      ok({ completed: 4, failed: 0, pending: 0 })
-    );
+  it("returns succeeded once every channel settled", async () => {
+    const step = new WaitForPublishingCompletionStep(async () => ok(recordWith(4)));
 
-    const result = await step.execute(publishContext(jobIds));
+    const result = await step.execute(publishContext(channelIds));
 
     expect(result.outcome).toBe("succeeded");
   });
 
-  it("returns failed — never waiting — when the job status could not be READ at all", async () => {
-    // "I could not observe" is not "nothing has finished". Fabricating an
-    // all-pending answer for a queue outage makes a dead dependency
+  it("returns succeeded — not waiting — for a channel that settled WITHOUT publishing", async () => {
+    // An excluded channel is resolved, and the promotion is what decides what a
+    // partial publish means. Treating a terminal not-published outcome as
+    // unfinished is what parks a publish nobody is still working on.
+    const step = new WaitForPublishingCompletionStep(async () => ok(recordWith(4, "excluded")));
+
+    const result = await step.execute(publishContext(channelIds));
+
+    expect(result.outcome).toBe("succeeded");
+  });
+
+  it("returns failed — never waiting — when the record could not be READ at all", async () => {
+    // "I could not observe" is not "nothing has settled". Fabricating an
+    // all-unresolved answer for a repository outage makes a dead dependency
     // byte-identical to four channels healthily publishing, at the exact seam
     // the three-state contract exists to disambiguate — and `waiting` spends no
     // budget, so the first external signal would be a timeout half an hour
     // later instead of a step failure in ~35 s.
     const step = new WaitForPublishingCompletionStep(async () => err("CONNECTION_ERROR"));
 
-    const result = await step.execute(publishContext(jobIds));
+    const result = await step.execute(publishContext(channelIds));
 
     expect(result.outcome).toBe("failed");
     expect(result).toMatchObject({ error: expect.stringMatching(/could not be read|CONNECTION/i) });
   });
 
+  it("returns failed — never waiting — when the post carries no publication record", async () => {
+    const step = new WaitForPublishingCompletionStep(async () => ok(undefined));
+
+    const result = await step.execute(publishContext(channelIds));
+
+    expect(result.outcome).toBe("failed");
+    expect(result).toMatchObject({ error: expect.stringMatching(/no publication record/i) });
+  });
+
   it("returns failed — never waiting — when its own scheduling data is missing", async () => {
-    const step = new WaitForPublishingCompletionStep(async () =>
-      ok({ completed: 0, failed: 0, pending: 0 })
-    );
+    const step = new WaitForPublishingCompletionStep(async () => ok(undefined));
     const context = publishContext([]);
     delete context.stepData["schedule-publishing-jobs"];
 

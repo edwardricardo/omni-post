@@ -5,12 +5,17 @@
  */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
+import { err as errResult, ok } from "@shared/types";
+import { PUBLICATION_OUTCOME_KINDS } from "@core/domain/index.js";
 import {
   createTestDeps,
   createTestThread,
   createTestTweet,
   createTestThreadPlan,
   createTestThreadReceipt,
+  RecordingOutcomeRecorder,
+  StubPublicationRecordProbe,
+  TEST_ATTEMPT,
 } from "./setup.js";
 import { PublishHandler } from "../src/publishHandler.js";
 import type { PublishHandlerDeps, PublishProvider } from "../src/publishHandler.js";
@@ -25,7 +30,6 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
   const CHANNEL_ID = "channel-x-001";
   const DEDUPE_KEY = `${POST_ID}:${CHANNEL_ID}`;
   const PROVIDER_NAME = "x";
-  const ACCOUNT_ID = "account-test";
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -67,7 +71,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       plan,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
 
     assert.deepStrictEqual(result, receipt);
@@ -114,7 +118,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       plan,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
 
     assert.deepStrictEqual(createdSequences, [1, 2, 3]);
@@ -157,7 +161,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       plan,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
 
     assert.strictEqual(result, undefined);
@@ -181,7 +185,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
           plan,
           PROVIDER_NAME,
           xProvider,
-          ACCOUNT_ID
+          TEST_ATTEMPT
         ),
       (err: Error) => {
         assert.ok(err.message.includes("Failed to create thread"));
@@ -206,7 +210,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
         plan,
         PROVIDER_NAME,
         xProvider,
-        ACCOUNT_ID
+        TEST_ATTEMPT
       );
     } catch {
       // expected
@@ -240,7 +244,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
           plan,
           PROVIDER_NAME,
           xProvider,
-          ACCOUNT_ID
+          TEST_ATTEMPT
         ),
       (err: Error) => {
         assert.ok(err.message.includes("Failed to create tweet"));
@@ -281,7 +285,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       plan,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
     assert.strictEqual(createCount, 2);
   });
@@ -312,7 +316,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
           plan,
           PROVIDER_NAME,
           noThreadProvider,
-          ACCOUNT_ID
+          TEST_ATTEMPT
         ),
       (err: Error) => {
         assert.ok(err.message.includes("does not support thread publishing"));
@@ -321,7 +325,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
     );
   });
 
-  it("should throw and log ERR when publishThread returns error", async () => {
+  it("hands a transient thread failure back to the queue and writes no log row", async () => {
     const plan = createTestThreadPlan();
     deps.repo.createThread = async () => ({
       ok: true,
@@ -336,11 +340,12 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       error: { code: "RATE_LIMIT" as const, publishedFragments: [] },
     });
 
-    let loggedStatus: string | undefined;
+    const statuses: string[] = [];
     deps.repo.logPublish = async (input) => {
-      loggedStatus = input.status;
+      statuses.push(input.status);
       return { ok: true, value: {} };
     };
+    handler = new PublishHandler(deps);
 
     await assert.rejects(
       () =>
@@ -351,15 +356,17 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
           plan,
           PROVIDER_NAME,
           xProvider,
-          ACCOUNT_ID
+          TEST_ATTEMPT
         ),
-      (err: Error) => {
-        assert.ok(err.message.includes("RATE_LIMIT"));
+      (raised: Error) => {
+        assert.ok(raised.message.includes("RATE_LIMIT"));
         return true;
       }
     );
 
-    assert.strictEqual(loggedStatus, "ERR");
+    // Nothing went out, the channel keeps its budget, and the log stays a mirror
+    // of what published rather than a second account of what did not.
+    assert.deepStrictEqual(statuses, []);
   });
 
   it("should increment publishErr and threadErrors on publish failure", async () => {
@@ -385,7 +392,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
         plan,
         PROVIDER_NAME,
         xProvider,
-        ACCOUNT_ID
+        TEST_ATTEMPT
       );
     } catch {
       // expected
@@ -427,15 +434,24 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       },
     ];
 
-    /** Ordered trace of the two observable effects, so the order can be asserted. */
+    /** Ordered trace of the three observable effects, so the order can be asserted. */
     let callLog: string[];
     let updatedTweets: Array<{ id: string; data: Record<string, unknown> }>;
     let sagaMessages: string[];
+    let recorder: RecordingOutcomeRecorder;
 
     beforeEach(() => {
       callLog = [];
       updatedTweets = [];
       sagaMessages = [];
+
+      recorder = new RecordingOutcomeRecorder();
+      const settle = recorder.answer;
+      recorder.answer = (receipt) => {
+        callLog.push("recordOutcome");
+        return settle(receipt);
+      };
+      deps.outcomeRecorder = recorder;
 
       deps.repo.createThread = async () => ({ ok: true, value: createTestThread() });
       deps.repo.createTweet = async () => ({ ok: true, value: createTestTweet() });
@@ -467,17 +483,15 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
     });
 
     const runInterruptedThread = async () => {
-      await assert.rejects(() =>
-        handler.publishThreadPost(
-          POST_ID,
-          CHANNEL_ID,
-          DEDUPE_KEY,
-          createTestThreadPlan(),
-          PROVIDER_NAME,
-          xProvider,
-          ACCOUNT_ID,
-          SAGA_ID
-        )
+      await handler.publishThreadPost(
+        POST_ID,
+        CHANNEL_ID,
+        DEDUPE_KEY,
+        createTestThreadPlan(),
+        PROVIDER_NAME,
+        xProvider,
+        TEST_ATTEMPT,
+        SAGA_ID
       );
     };
 
@@ -495,14 +509,37 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       assert.strictEqual(updatedTweets[1]?.data.status, "PUBLISHED");
     });
 
-    it("should record what went out BEFORE reporting the failure to the saga", async () => {
+    it("records the channel EXCLUDED with the live set after the rows and before the saga", async () => {
       await runInterruptedThread();
 
-      assert.deepStrictEqual(callLog, [
-        "updateTweet:db-tweet-1",
-        "updateTweet:db-tweet-2",
-        "notifySaga",
-      ]);
+      assert.deepStrictEqual(
+        callLog,
+        ["updateTweet:db-tweet-1", "updateTweet:db-tweet-2", "recordOutcome", "notifySaga"],
+        "the rows go first so the record's fragment references have rows behind them, and " +
+          "the record goes before the saga so the channel is named excluded before anyone acts on it"
+      );
+
+      assert.strictEqual(recorder.receipts.length, 1);
+      const receipt = recorder.receipts[0];
+      assert.ok(receipt);
+      assert.strictEqual(receipt.episode, TEST_ATTEMPT.episode);
+      assert.strictEqual(receipt.attemptNo, TEST_ATTEMPT.attemptNo);
+      assert.strictEqual(receipt.planSize, 2);
+      assert.strictEqual(receipt.result.kind, "failed");
+      assert.deepStrictEqual(
+        receipt.result.kind === "failed"
+          ? receipt.result.publishedFragments.map((f) => [f.index, f.externalId])
+          : [],
+        [
+          [1, "x-live-001"],
+          [2, "x-live-002"],
+        ],
+        "the record carries what is live on the provider, in order"
+      );
+      assert.strictEqual(
+        receipt.result.kind === "failed" ? receipt.result.code : undefined,
+        "THREAD_INTERRUPTED"
+      );
     });
 
     it("should carry the live fragments into the publish.job.failed notification", async () => {
@@ -523,36 +560,26 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       );
     });
 
-    it("should still report the publish failure when a tweet row cannot be written", async () => {
-      // A repository blip must not swallow the provider's verdict: the saga is
-      // waiting on this channel, and a DB error in its place tells it nothing
-      // about what is live.
+    it("still records the outcome when a tweet row cannot be written", async () => {
+      // The record write sits OUTSIDE the row-update catch. A repository blip must
+      // not take the channel's exclusion with it: the rows are a secondary trace,
+      // and the record is the only thing that names what is live on the provider.
       deps.repo.updateTweet = async () => {
         callLog.push("updateTweet:rejected");
         throw new Error("DB_UNAVAILABLE");
       };
       handler = new PublishHandler(deps);
 
-      await assert.rejects(
-        () =>
-          handler.publishThreadPost(
-            POST_ID,
-            CHANNEL_ID,
-            DEDUPE_KEY,
-            createTestThreadPlan(),
-            PROVIDER_NAME,
-            xProvider,
-            ACCOUNT_ID,
-            SAGA_ID
-          ),
-        (err: Error) => {
-          assert.strictEqual(
-            err.message,
-            "THREAD_INTERRUPTED",
-            "the publish code survives a failure to write the row"
-          );
-          return true;
-        }
+      await runInterruptedThread();
+
+      assert.deepStrictEqual(callLog, ["updateTweet:rejected", "recordOutcome", "notifySaga"]);
+      const receipt = recorder.receipts[0];
+      assert.ok(receipt, "the outcome is recorded even though its rows could not be written");
+      assert.deepStrictEqual(
+        receipt.result.kind === "failed"
+          ? receipt.result.publishedFragments.map((f) => f.externalId)
+          : [],
+        ["x-live-001", "x-live-002"]
       );
 
       assert.strictEqual(sagaMessages.length, 1, "the saga is still told the job failed");
@@ -568,28 +595,63 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       );
     });
 
-    it("should carry the live fragments into the ERR publish log", async () => {
-      const errorPayloads: Array<Record<string, unknown>> = [];
-      deps.repo.logPublish = async (input) => {
-        if (input.status === "ERR") {
-          errorPayloads.push(input.payload as Record<string, unknown>);
-        }
-        return { ok: true, value: {} };
-      };
+    it("reports a repository that refuses the fragment rows instead of skipping it", async () => {
+      // `rows = []` on a `!ok` read silently drops EVERY fragment update while the
+      // provider's verdict still reaches the saga: the live set would have no rows
+      // and nothing would say so.
+      const errors: object[] = [];
+      deps.repo.getTweetsByThread = async () => ({ ok: false, error: "DATABASE_ERROR" });
+      deps.logger.error = ((obj: object) => {
+        errors.push(obj);
+      }) as typeof deps.logger.error;
       handler = new PublishHandler(deps);
 
       await runInterruptedThread();
 
-      assert.strictEqual(errorPayloads.length, 1);
-      const payload = errorPayloads[0] as {
-        error?: string;
-        publishedFragments?: Array<{ providerTweetId: string }>;
-      };
-      assert.strictEqual(payload.error, "THREAD_INTERRUPTED");
-      assert.deepStrictEqual(
-        payload.publishedFragments?.map((f) => f.providerTweetId),
-        ["x-live-001", "x-live-002"]
+      assert.deepStrictEqual(updatedTweets, [], "no row could be read, so none is claimed written");
+      assert.strictEqual(errors.length, 1, "the dropped updates are reported, not swallowed");
+
+      const counted = await deps.workerMetrics.metrics.errorsByType.get();
+      const match = counted.values.find(
+        (v) =>
+          v.labels.component === "publisher" &&
+          v.labels.error_type === "thread_live_fragments_unrecorded"
       );
+      assert.ok(match, "the same counter the row-write failure feeds sees this arm too");
+      assert.strictEqual(match.value, 1);
+    });
+
+    it("completes without rethrow when the record is EXCLUDED, and when the recorder answers err", async () => {
+      // A rethrow here reaches BullMQ, which re-runs the handler over a plan whose
+      // first fragments are already live — the duplicate send this whole ordering
+      // exists to prevent. Counting the provider call is how "completed" is told
+      // apart from "failed and not yet retried".
+      let providerCalls = 0;
+      xProvider.publishThread = async () => {
+        providerCalls += 1;
+        return {
+          ok: false,
+          error: { code: "THREAD_INTERRUPTED" as const, publishedFragments: LIVE_FRAGMENTS },
+        };
+      };
+      handler = new PublishHandler(deps);
+
+      await runInterruptedThread();
+      assert.strictEqual(providerCalls, 1, "an EXCLUDED channel is never handed back to the queue");
+      assert.strictEqual(recorder.receipts.length, 1);
+
+      // An unwritten record is the same case: the durable job carries the outcome,
+      // and re-running the provider to earn another chance at writing it would
+      // publish the same fragments twice.
+      providerCalls = 0;
+      recorder.answer = () => {
+        callLog.push("recordOutcome");
+        return errResult({ reason: "the record stayed contended", durable: true });
+      };
+      handler = new PublishHandler(deps);
+
+      await runInterruptedThread();
+      assert.strictEqual(providerCalls, 1, "an unwritten record never re-runs the provider");
     });
 
     it("should touch no tweet row when nothing went out", async () => {
@@ -602,7 +664,102 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       await runInterruptedThread();
 
       assert.deepStrictEqual(updatedTweets, []);
-      assert.deepStrictEqual(callLog, ["notifySaga"]);
+      assert.deepStrictEqual(callLog, ["recordOutcome", "notifySaga"]);
+    });
+  });
+
+  describe("when a fully-published thread cannot write its rows", () => {
+    // The twin of the interrupted-thread case above, on the path where every
+    // fragment went out. The record is this channel's only idempotency
+    // authority, so a row failure that escapes takes the record write with it
+    // and the redelivery reads a channel that is still unresolved over a thread
+    // that is already live on the provider.
+    const JOB_ID = `publish-${POST_ID}-${CHANNEL_ID}-e1`;
+
+    let recorder: RecordingOutcomeRecorder;
+    let providerCalls: number;
+    let deliverJob: (attemptsMade: number) => Promise<void>;
+
+    beforeEach(() => {
+      recorder = new RecordingOutcomeRecorder();
+      deps.outcomeRecorder = recorder;
+      providerCalls = 0;
+
+      // The probe answers from what the recorder actually holds, because that is
+      // the coupling under test: the redelivery decides on the record, and only a
+      // record that was written can refuse it.
+      const probe = new StubPublicationRecordProbe();
+      probe.answer = () =>
+        ok({
+          episode: TEST_ATTEMPT.episode,
+          outcome: recorder.receipts.some((entry) => entry.result.kind === "published")
+            ? PUBLICATION_OUTCOME_KINDS.PUBLISHED
+            : PUBLICATION_OUTCOME_KINDS.UNRESOLVED,
+        });
+      deps.publicationRecord = probe;
+
+      let threadCreated = false;
+      deps.repo.createThread = async () => {
+        if (threadCreated) {
+          return { ok: false, error: "THREAD_EXISTS" };
+        }
+        threadCreated = true;
+        return { ok: true, value: createTestThread() };
+      };
+      deps.repo.getThreadByPostId = async () => ({ ok: true, value: createTestThread() });
+      deps.repo.createTweet = async () => ({ ok: true, value: createTestTweet() });
+      // Still PENDING on the redelivery, because writing them is precisely what
+      // failed: the row-based completion check cannot stand in for the record.
+      deps.repo.getTweetsByThread = async () => ({
+        ok: true,
+        value: [
+          createTestTweet({ id: "db-tweet-1", sequenceNumber: 1 }),
+          createTestTweet({ id: "db-tweet-2", sequenceNumber: 2 }),
+        ],
+      });
+      deps.repo.updateTweet = async () => {
+        throw new Error("DB_UNAVAILABLE");
+      };
+
+      xProvider.render = () => ({
+        ok: true,
+        value: { type: "thread" as const, content: createTestThreadPlan() },
+      });
+      xProvider.publishThread = async () => {
+        providerCalls += 1;
+        return { ok: true, value: createTestThreadReceipt() };
+      };
+      handler = new PublishHandler(deps);
+
+      deliverJob = async (attemptsMade: number) => {
+        await handler.handleJob({
+          payload: {
+            postId: POST_ID,
+            channelId: CHANNEL_ID,
+            accountId: TEST_ATTEMPT.accountId,
+            provider: PROVIDER_NAME,
+          },
+          dedupeKey: JOB_ID,
+          attemptsMade,
+        });
+      };
+    });
+
+    it("records the published outcome and never re-sends the thread on redelivery", async () => {
+      await assert.doesNotReject(
+        deliverJob(0),
+        "a row that could not be written must not hand the job back to the queue"
+      );
+
+      const receipt = recorder.receipts[0];
+      assert.ok(receipt, "the outcome is recorded even though its rows could not be written");
+      assert.strictEqual(receipt.result.kind, "published");
+
+      // The redelivery BullMQ would run had the job been handed back. Every row
+      // is still PENDING, so the row-based completion check answers "not
+      // published" and the record is the only thing left that can refuse this.
+      await deliverJob(1);
+      assert.strictEqual(providerCalls, 1, "the whole thread is never published a second time");
     });
   });
 
@@ -661,7 +818,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       plan,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
 
     assert.strictEqual(updatedTweets.length, 2);
@@ -712,7 +869,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       plan,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
 
     assert.ok(logStatuses.includes("OK"));
@@ -754,7 +911,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       plan,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
 
     const created = await deps.workerMetrics.metrics.threadCreated.get();
@@ -801,7 +958,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       plan,
       PROVIDER_NAME,
       xProvider,
-      ACCOUNT_ID
+      TEST_ATTEMPT
     );
 
     const corr = deps.workerMetrics.getCorrelationId(DEDUPE_KEY);

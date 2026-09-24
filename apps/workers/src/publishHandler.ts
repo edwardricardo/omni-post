@@ -4,6 +4,7 @@
  *              and threaded), records receipts, and coordinates with saga notifiers.
  * @layer infrastructure
  */
+import { UnrecoverableError } from "bullmq";
 import type {
   RenderedPost,
   Result,
@@ -14,12 +15,17 @@ import type {
   Tweet,
 } from "@shared/types";
 import type { PublishReceipt } from "@ports/core";
+import { ContentFingerprint, PUBLICATION_OUTCOME_KINDS } from "@core/domain/index.js";
+import type { RecordChannelPublicationAttemptOutput } from "@core/posts";
 import type {
   ContentMetrics,
   PublishInstrumentation,
   DatabaseInstrumentation,
   BusinessKPITracker,
 } from "./telemetry/instrumentationTypes.js";
+import { classifyPublishFailure } from "./lib/classifyPublishFailure.js";
+import type { ChannelRecordState } from "./publicationRecordProbe.js";
+import type { PublishOutcomeReceipt, PublishOutcomeUnrecorded } from "./publishOutcomeRecorder.js";
 
 export type {
   ContentMetrics,
@@ -31,6 +37,7 @@ export type {
   PublishRepo,
   PublishProvider,
   SagaNotifier,
+  PublicationAttemptContext,
   PublishHandlerDeps,
   PublishJobInput,
 } from "./publishHandlerTypes.js";
@@ -39,27 +46,66 @@ import type {
   PublishRepo,
   PublishProvider,
   SagaNotifier,
+  PublicationAttemptContext,
   PublishHandlerDeps,
   PublishJobInput,
 } from "./publishHandlerTypes.js";
 
 /**
- * Outcome of resolving a publish job's tenant scope. The two failure shapes are
- * deliberately distinct: a vanished channel can never succeed on retry, while a
- * failed owner lookup is an infrastructure fault whose retry may well succeed.
- * Collapsing them (both into `"AUTH"`) reported database blips to operators as
- * credential failures.
+ * The episode a publish job was minted for, and the key its receipt mirror is
+ * written under. Both come from the SAME parse of the job id, so the value the
+ * record is written against and the value the mirror is keyed by cannot drift.
  */
-type JobTenantScope =
-  | { outcome: "resolved"; accountId: string }
-  | { outcome: "channel-missing" }
-  | { outcome: "lookup-failed" };
+interface PublishJobIdentity {
+  readonly episode: number;
+  /** The job id with its `-e{n}` suffix removed: one mirror row per (post, channel). */
+  readonly mirrorKey: string;
+}
 
-/** Error identifiers the tenant-scope failures surface to the queue + audit log. */
-const TENANT_SCOPE_ERRORS = {
-  channelMissing: "CHANNEL_NOT_FOUND",
-  lookupFailed: "TENANT_SCOPE_LOOKUP_FAILED",
-} as const;
+/** The job id the pivot mints. The episode is an ordinal, so it is never zero. */
+const JOB_ID_EPISODE = /-e([1-9][0-9]*)$/;
+
+/** What the record says this job may do: attempt, or one of the reasons it may not. */
+type ChannelVerdict = "attempt" | "stale" | "published" | "excluded";
+
+/**
+ * @function readChannelVerdict
+ * @description Decides, from the record alone, whether this job's channel is still
+ *   open at this job's episode.
+ *
+ *   A record on ANY other episode — ahead or behind — is not this job's business,
+ *   and asking again cannot make it so: the pivot opens the episode before it
+ *   enqueues, so a job can only be looking at a record that moved on without it.
+ * @param channel - The channel's recorded state.
+ * @param episode - The episode the job id names.
+ * @returns The verdict.
+ */
+function readChannelVerdict(channel: ChannelRecordState, episode: number): ChannelVerdict {
+  if (channel.episode !== episode) {
+    return "stale";
+  }
+  if (channel.outcome === PUBLICATION_OUTCOME_KINDS.PUBLISHED) {
+    return "published";
+  }
+  return channel.outcome === PUBLICATION_OUTCOME_KINDS.EXCLUDED ? "excluded" : "attempt";
+}
+
+/**
+ * @function readJobIdentity
+ * @description Reads the episode out of a publish job's id.
+ * @param jobId - The BullMQ job id, or undefined when the queue assigned none.
+ * @returns The episode and the mirror key, or undefined when the id names no episode.
+ */
+function readJobIdentity(jobId: string | undefined): PublishJobIdentity | undefined {
+  if (jobId === undefined) {
+    return undefined;
+  }
+  const match = JOB_ID_EPISODE.exec(jobId);
+  if (match?.[1] === undefined) {
+    return undefined;
+  }
+  return { episode: Number(match[1]), mirrorKey: jobId.slice(0, match.index) };
+}
 
 /**
  * Core publishing orchestrator. Resolves the correct provider adapter from
@@ -74,6 +120,8 @@ export class PublishHandler {
   private readonly instrumentation: PublishInstrumentation;
   private readonly databaseInstrumentation: DatabaseInstrumentation;
   private readonly businessKPITracker: BusinessKPITracker;
+  private readonly outcomeRecorder: PublishHandlerDeps["outcomeRecorder"];
+  private readonly publicationRecord: PublishHandlerDeps["publicationRecord"];
   private readonly notifyRedis?: SagaNotifier;
 
   constructor(deps: PublishHandlerDeps) {
@@ -85,6 +133,8 @@ export class PublishHandler {
     this.instrumentation = deps.instrumentation;
     this.databaseInstrumentation = deps.databaseInstrumentation;
     this.businessKPITracker = deps.businessKPITracker;
+    this.outcomeRecorder = deps.outcomeRecorder;
+    this.publicationRecord = deps.publicationRecord;
     if (deps.notifyRedis) {
       this.notifyRedis = deps.notifyRedis;
     }
@@ -101,104 +151,6 @@ export class PublishHandler {
       throw new Error(`Unknown provider: ${providerName}. Available: ${available}`);
     }
     return adapter;
-  }
-
-  /**
-   * @method resolveJobAccountId
-   * @description Determine the tenant scope for a publish job. Prefers the
-   *              `accountId` in the job payload; for jobs enqueued before the
-   *              payload carried it, falls back to the channel's owner
-   *              (accountId column only, never decrypting). Emits the
-   *              `publishJobAccountIdSource` counter on both paths and a WARN on
-   *              the fallback, so the fallback's removal condition — no
-   *              pre-deploy jobs left in the PUBLISH queue, delayed set included
-   *              (scheduled posts can sit for days) — is observable rather than
-   *              a guess.
-   *              TODO(2026-07-28|platform-engineering): drop the fallback and make
-   *              `payload.accountId` required once the counter reports no
-   *              `source="fallback"` increments for a full scheduling horizon.
-   * @param channelId - Channel the job publishes to.
-   * @param payloadAccountId - Tenant carried in the job payload, if present.
-   * @returns The resolved scope, or which of the two failure causes applied.
-   */
-  private async resolveJobAccountId(
-    channelId: string,
-    payloadAccountId: string | undefined
-  ): Promise<JobTenantScope> {
-    if (payloadAccountId !== undefined) {
-      this.workerMetrics.metrics.publishJobAccountIdSource.inc({ source: "payload" });
-      return { outcome: "resolved", accountId: payloadAccountId };
-    }
-
-    const owner = await this.repo.getChannelOwnerAccountId(channelId);
-    if (!owner.ok) {
-      return { outcome: "lookup-failed" };
-    }
-    if (owner.value === null) {
-      return { outcome: "channel-missing" };
-    }
-
-    this.workerMetrics.metrics.publishJobAccountIdSource.inc({ source: "fallback" });
-    this.logger.warn(
-      { channelId },
-      "Publish job carried no accountId; resolved the channel owner (deploy-compat fallback)"
-    );
-    return { outcome: "resolved", accountId: owner.value };
-  }
-
-  /**
-   * @method recordTenantScopeFailure
-   * @description Leave the same audit trail every other publish failure leaves
-   *              when the job's tenant scope cannot be resolved: an ERR
-   *              `publish_log` row plus a publish-error metric. This runs before
-   *              the RUNNING log, so without it the post silently never
-   *              publishes and the publish error-rate SLO never moves.
-   * @param job - Identity of the job that could not be scoped.
-   * @param failure - Which of the two causes applied.
-   * @returns The error to throw so BullMQ applies its retry policy.
-   */
-  private async recordTenantScopeFailure(
-    job: { postId: string; channelId: string; providerName: string; dedupeKey: string },
-    failure: "channel-missing" | "lookup-failed"
-  ): Promise<Error> {
-    const { postId, channelId, providerName, dedupeKey } = job;
-    const isMissingChannel = failure === "channel-missing";
-    const errorCode = isMissingChannel
-      ? TENANT_SCOPE_ERRORS.channelMissing
-      : TENANT_SCOPE_ERRORS.lookupFailed;
-    // A vanished channel is terminal; a failed lookup is an infrastructure
-    // fault, so it is classified as recoverable and NEVER as an auth error.
-    const errorType = isMissingChannel ? "channel_not_found" : "database_error";
-    const correlationId = this.workerMetrics.generateCorrelationId(dedupeKey);
-
-    try {
-      await this.repo.logPublish({
-        postId,
-        provider: providerName,
-        channelId,
-        status: "ERR",
-        payload: { error: errorCode, correlationId },
-        dedupeKey,
-      });
-
-      this.workerMetrics.metrics.publishErr.inc({
-        provider: providerName,
-        content_type: "unknown",
-        error_type: errorType,
-        channel_id: channelId,
-      });
-      this.workerMetrics.recordError(
-        isMissingChannel ? "publisher" : "database",
-        errorType,
-        !isMissingChannel
-      );
-      this.workerMetrics.recordPostPublishFailed();
-      this.workerMetrics.recordProviderPublishFailure(providerName);
-    } finally {
-      this.workerMetrics.removeCorrelationId(dedupeKey);
-    }
-
-    return new Error(errorCode);
   }
 
   /**
@@ -229,19 +181,159 @@ export class PublishHandler {
   }
 
   /**
+   * @method notifyPublishFailed
+   * @description Nudges the saga that this job produced no publication. The saga
+   *              settles on the publication record, so this only wakes the waiting
+   *              step; it is skipped entirely for a job that belongs to no saga.
+   * @param sagaId - The saga waiting on this channel, when there is one.
+   * @param data - What the event carries about the job.
+   * @returns Nothing.
+   */
+  private async notifyPublishFailed(
+    sagaId: string | undefined,
+    data: Record<string, unknown>
+  ): Promise<void> {
+    if (!sagaId) return;
+    await this.notifySaga(sagaId, { type: "publish.job.failed", data });
+  }
+
+  /**
+   * @method recordOutcome
+   * @description Makes one channel's outcome durable and answers whether the queue
+   *              should run this job again. The recorder never throws, and this
+   *              never lets it: a raised error here would reach BullMQ, which
+   *              re-runs the handler over content the provider has already accepted.
+   * @param receipt - What this attempt achieved, as a primitive wire value.
+   * @returns True while the record the write produced is still unresolved.
+   */
+  private async recordOutcome(receipt: PublishOutcomeReceipt): Promise<boolean> {
+    const recorded: Result<RecordChannelPublicationAttemptOutput, PublishOutcomeUnrecorded> =
+      await this.outcomeRecorder.record(receipt);
+    if (!recorded.ok) {
+      // The outcome is either on the durable queue or already counted as lost. Either
+      // way the provider call stands, so re-running it would publish the same content
+      // a second time to win another chance at a write.
+      return false;
+    }
+    return recorded.value.outcome.kind === PUBLICATION_OUTCOME_KINDS.UNRESOLVED;
+  }
+
+  /**
+   * @method failedReceipt
+   * @description Builds the receipt for an attempt that did not publish, classifying
+   *              the failure and carrying whatever the provider left live.
+   * @param job - Post, channel and plan size this attempt belongs to.
+   * @param attempt - Tenant, episode and ordinal the record is written against.
+   * @param failure - The provider's error code, a render error, or a thrown value.
+   * @param liveFragments - What reached the provider before the failure, in order.
+   * @param detail - A short human-readable cause, when the code does not carry one.
+   * @returns The receipt.
+   */
+  private failedReceipt(
+    job: { postId: string; channelId: string; planSize: number },
+    attempt: PublicationAttemptContext,
+    failure: unknown,
+    liveFragments: ThreadReceipt["tweets"],
+    detail?: string
+  ): PublishOutcomeReceipt {
+    const verdict = classifyPublishFailure(failure);
+    return {
+      postId: job.postId,
+      channelId: job.channelId,
+      accountId: attempt.accountId,
+      episode: attempt.episode,
+      attemptNo: attempt.attemptNo,
+      planSize: job.planSize,
+      result: {
+        kind: "failed",
+        classification: verdict.classification,
+        ...(verdict.code !== undefined && { code: verdict.code }),
+        ...(detail !== undefined && { detail }),
+        publishedFragments: liveFragments.map((fragment) => ({
+          index: fragment.sequence,
+          externalId: fragment.providerTweetId,
+          ...(fragment.url !== undefined && { url: fragment.url }),
+        })),
+      },
+    };
+  }
+
+  /**
+   * @method publishedReceipt
+   * @description Builds the receipt for an attempt where every fragment went out.
+   * @param job - Post, channel and plan size this attempt belongs to.
+   * @param attempt - Tenant, episode, ordinal and the fingerprint of what was sent.
+   * @param fragments - Every fragment the provider confirmed, in order.
+   * @param publishedAt - When the provider reported the publication.
+   * @returns The receipt.
+   */
+  private publishedReceipt(
+    job: { postId: string; channelId: string; planSize: number },
+    attempt: PublicationAttemptContext,
+    fragments: ThreadReceipt["tweets"],
+    publishedAt: Date
+  ): PublishOutcomeReceipt {
+    const head = fragments[0]?.providerTweetId;
+    return {
+      postId: job.postId,
+      channelId: job.channelId,
+      accountId: attempt.accountId,
+      episode: attempt.episode,
+      attemptNo: attempt.attemptNo,
+      planSize: job.planSize,
+      result: {
+        kind: "published",
+        fragments: fragments.map((fragment) => ({
+          index: fragment.sequence,
+          externalId: fragment.providerTweetId,
+          ...(fragment.url !== undefined && { url: fragment.url }),
+        })),
+        ...(head !== undefined && { headExternalId: head }),
+        publishedAt: publishedAt.toISOString(),
+        contentHash: attempt.contentHash,
+      },
+    };
+  }
+
+  /**
+   * @method writeReceiptMirror
+   * @description Writes the best-effort `publish_log` mirror row. It is a receipt,
+   *              never a source of truth: the publication record already committed,
+   *              so a mirror that cannot be written costs visibility and nothing else.
+   * @param input - The row to upsert, keyed by the episode-stripped job id.
+   * @returns Nothing.
+   */
+  private async writeReceiptMirror(input: {
+    postId: string;
+    provider: string;
+    channelId: string;
+    payload: Record<string, unknown>;
+    dedupeKey: string;
+  }): Promise<void> {
+    try {
+      await this.repo.logPublish({ ...input, status: "OK" });
+    } catch (error: unknown) {
+      this.logger.warn(
+        { err: error, postId: input.postId, channelId: input.channelId },
+        "Could not mirror the publication receipt"
+      );
+    }
+  }
+
+  /**
    * @method publishSinglePost
-   * @description Publish a single rendered post through a provider adapter,
-   *              logging the outcome, updating metrics, and optionally notifying
-   *              the saga orchestrator.
+   * @description Publish a single rendered post through a provider adapter, record
+   *              what the attempt achieved, mirror the receipt, update metrics, and
+   *              notify the saga.
    * @param postId - Aggregate identifier of the post being published.
    * @param channelId - Destination channel.
    * @param dedupeKey - Stable key used for idempotency and correlation tracking.
    * @param rendered - Provider-rendered post payload.
    * @param providerName - Provider key matching the registry entry.
    * @param provider - Resolved provider adapter implementation.
-   * @param accountId - Tenant scope for the credential lookup.
+   * @param attempt - Tenant, episode and ordinal this attempt is recorded under.
    * @param sagaId - Optional saga identifier for orchestration callbacks.
-   * @returns The provider's publish receipt.
+   * @returns The provider's publish receipt, or void when a settled failure ends the job.
    */
   async publishSinglePost(
     postId: string,
@@ -250,9 +342,9 @@ export class PublishHandler {
     rendered: RenderedPost,
     providerName: string,
     provider: PublishProvider,
-    accountId: string,
+    attempt: PublicationAttemptContext,
     sagaId?: string
-  ): Promise<PublishReceipt> {
+  ): Promise<PublishReceipt | void> {
     return (await this.instrumentation.instrumentPublishing(
       "publish_single_post",
       providerName,
@@ -279,20 +371,16 @@ export class PublishHandler {
           status: "pending",
         });
 
+        // A single item publishes all-or-nothing, so a failure leaves nothing live.
+        const job = { postId, channelId, planSize: 1 };
+
         try {
-          const credentialResult = await this.credentialResolver.resolve(channelId, accountId);
+          const credentialResult = await this.credentialResolver.resolve(
+            channelId,
+            attempt.accountId
+          );
           if (!credentialResult.ok) {
             providerTimer({ status: "error" });
-            await this.databaseInstrumentation.instrumentQuery("insert", "publish_log", async () =>
-              this.repo.logPublish({
-                postId,
-                provider: providerName,
-                channelId,
-                status: "ERR",
-                payload: { error: "AUTH", correlationId },
-                dedupeKey,
-              })
-            );
             this.workerMetrics.metrics.publishErr.inc({
               provider: providerName,
               content_type: "single",
@@ -302,8 +390,16 @@ export class PublishHandler {
             this.workerMetrics.recordError("publisher", "auth_error", true);
             this.workerMetrics.recordPostPublishFailed();
             this.workerMetrics.recordProviderPublishFailure(providerName);
+
+            const retry = await this.recordOutcome(
+              this.failedReceipt(job, attempt, credentialResult.error, [])
+            );
+            await this.notifyPublishFailed(sagaId, { postId, channelId, provider: providerName });
             endTimer();
-            throw new Error("AUTH");
+            if (retry) {
+              throw new Error("AUTH");
+            }
+            return;
           }
 
           const res = (await this.instrumentation.instrumentProviderAPI(
@@ -329,21 +425,6 @@ export class PublishHandler {
           if (!res.ok) {
             providerTimer({ status: "error" });
 
-            await this.databaseInstrumentation.instrumentQuery(
-              "insert",
-              "publish_log",
-              async () => {
-                return await this.repo.logPublish({
-                  postId,
-                  provider: providerName,
-                  channelId,
-                  status: "ERR",
-                  payload: { error: res.error, correlationId },
-                  dedupeKey,
-                });
-              }
-            );
-
             const contentMetrics: ContentMetrics = {
               postId,
               provider: providerName,
@@ -364,29 +445,46 @@ export class PublishHandler {
             this.workerMetrics.recordPostPublishFailed();
             this.workerMetrics.recordProviderPublishFailure(providerName);
 
-            if (sagaId) {
-              await this.notifySaga(sagaId, {
-                type: "publish.job.failed",
-                data: { postId, channelId, provider: providerName },
-              });
-            }
+            const retry = await this.recordOutcome(this.failedReceipt(job, attempt, res.error, []));
+            await this.notifyPublishFailed(sagaId, { postId, channelId, provider: providerName });
 
             endTimer();
-            throw new Error(String(res.error));
+            if (retry) {
+              throw new Error(String(res.error));
+            }
+            return;
           }
 
           providerTimer({ status: "success" });
 
-          await this.databaseInstrumentation.instrumentQuery("insert", "publish_log", async () => {
-            return await this.repo.logPublish({
+          // The record commits FIRST and the mirror follows it. A mirror written
+          // ahead of the record would be the only durable trace of a publication
+          // nothing else accounts for — the state this record exists to delete.
+          await this.recordOutcome(
+            this.publishedReceipt(
+              job,
+              attempt,
+              [
+                {
+                  sequence: 1,
+                  providerTweetId: res.value.providerPostId,
+                  ...(res.value.url !== undefined && { url: res.value.url }),
+                  publishedAt: res.value.publishedAt,
+                },
+              ],
+              res.value.publishedAt
+            )
+          );
+
+          await this.databaseInstrumentation.instrumentQuery("insert", "publish_log", async () =>
+            this.writeReceiptMirror({
               postId,
               provider: providerName,
               channelId,
-              status: "OK",
               payload: { ...res.value, correlationId },
               dedupeKey,
-            });
-          });
+            })
+          );
 
           const contentMetrics: ContentMetrics = {
             postId,
@@ -428,7 +526,7 @@ export class PublishHandler {
         channel_id: channelId,
         dedupe_key: dedupeKey,
       }
-    )) as PublishReceipt;
+    )) as PublishReceipt | void;
   }
 
   /**
@@ -458,9 +556,19 @@ export class PublishHandler {
     let rows: Tweet[] = [];
     try {
       const tweets = await this.repo.getTweetsByThread(threadId);
-      if (tweets.ok) {
-        rows = tweets.value;
+      if (!tweets.ok) {
+        // Every fragment update depends on this read, so a refusal drops ALL of
+        // them. Skipping it silently left the live set with no rows and nothing
+        // saying so; it is reported through the same counter the write failure
+        // feeds, so the alert sees both arms of the one condition.
+        this.logger.error(
+          { threadId, error: tweets.error, liveFragmentCount: fragments.length },
+          "Could not read the thread rows of an interrupted thread; every fragment update is dropped"
+        );
+        this.workerMetrics.recordError("publisher", "thread_live_fragments_unrecorded", true);
+        return;
       }
+      rows = tweets.value;
     } catch (e) {
       this.workerMetrics.recordError("database", "tweet_update_failed", true);
       throw e;
@@ -503,9 +611,10 @@ export class PublishHandler {
    * @param threadPlan - Strategy + ordered tweet fragments to publish.
    * @param providerName - Provider key matching the registry entry.
    * @param provider - Resolved provider adapter (must implement `publishThread`).
-   * @param accountId - Tenant scope for the credential lookup.
+   * @param attempt - Tenant, episode and ordinal this attempt is recorded under.
    * @param sagaId - Optional saga identifier for orchestration callbacks.
-   * @returns The thread receipt, or void if the thread was already complete.
+   * @returns The thread receipt, or void when the thread was already complete or a
+   *          settled failure ended the job.
    */
   async publishThreadPost(
     postId: string,
@@ -514,7 +623,7 @@ export class PublishHandler {
     threadPlan: ThreadPlan,
     providerName: string,
     provider: PublishProvider,
-    accountId: string,
+    attempt: PublicationAttemptContext,
     sagaId?: string
   ): Promise<ThreadReceipt | void> {
     const correlationId = this.workerMetrics.generateCorrelationId(dedupeKey);
@@ -625,10 +734,21 @@ export class PublishHandler {
       throw new Error(`Provider "${providerName}" does not support thread publishing`);
     }
 
-    const credentialResult = await this.credentialResolver.resolve(channelId, accountId);
+    const job = { postId, channelId, planSize: tweetCount };
+
+    const credentialResult = await this.credentialResolver.resolve(channelId, attempt.accountId);
     if (!credentialResult.ok) {
       providerTimer({ status: "error" });
-      throw new Error("AUTH");
+      const retry = await this.recordOutcome(
+        this.failedReceipt(job, attempt, credentialResult.error, [])
+      );
+      await this.notifyPublishFailed(sagaId, { postId, channelId, provider: providerName });
+      threadEndTimer();
+      endTimer();
+      if (retry) {
+        throw new Error("AUTH");
+      }
+      return;
     }
 
     const publishResult = await provider.publishThread(
@@ -644,12 +764,9 @@ export class PublishHandler {
       providerTimer({ status: "error" });
       const { code, publishedFragments } = publishResult.error;
 
-      // The fragments that DID go out are live on the provider. Record them
-      // before anything else reports the failure: whoever acts on this channel
-      // needs their references, and an unreported live fragment is unretractable.
-      // A repository blip here must NOT replace the provider's verdict: the saga
-      // is waiting on this channel, and a DB error in its place says nothing about
-      // what is live. Report the failure to record, then report the publish.
+      // The rows first, so the references the record is about to carry have rows
+      // behind them. A repository blip here is REPORTED and then stepped over: it
+      // says nothing about what is live, and the record below is what does.
       try {
         await this.markFragmentsPublished(thread.id, publishedFragments);
       } catch (rowError: unknown) {
@@ -667,19 +784,14 @@ export class PublishHandler {
         this.workerMetrics.recordError("publisher", "thread_live_fragments_unrecorded", true);
       }
 
-      await this.repo.logPublish({
-        postId,
-        provider: providerName,
-        channelId,
-        status: "ERR",
-        payload: {
-          error: code,
-          publishedFragments,
-          threadId: thread.id,
-          correlationId,
-        },
-        dedupeKey,
-      });
+      // The record write sits OUTSIDE the catch above and BEFORE the saga is told
+      // anything: a row that could not be written must not take the channel's
+      // exclusion with it, and nobody may act on this channel before the record
+      // names what is live on the provider.
+      const retry = await this.recordOutcome(
+        this.failedReceipt(job, attempt, code, publishedFragments)
+      );
+
       this.workerMetrics.metrics.publishErr.inc({
         provider: providerName,
         content_type: "thread",
@@ -695,34 +807,58 @@ export class PublishHandler {
       this.workerMetrics.recordPostPublishFailed();
       this.workerMetrics.recordProviderPublishFailure(providerName);
 
-      if (sagaId) {
-        await this.notifySaga(sagaId, {
-          type: "publish.job.failed",
-          data: {
-            postId,
-            channelId,
-            provider: providerName,
-            threadId: thread.id,
-            publishedFragments,
-          },
-        });
-      }
+      await this.notifyPublishFailed(sagaId, {
+        postId,
+        channelId,
+        provider: providerName,
+        threadId: thread.id,
+        publishedFragments,
+      });
 
       threadEndTimer();
       endTimer();
-      throw new Error(code);
+      // Rethrowing hands the job back to BullMQ, which re-runs the WHOLE plan over
+      // fragments that are already live. Only a channel the record still leaves
+      // unresolved has budget for that.
+      if (retry) {
+        throw new Error(code);
+      }
+      return;
     }
 
     providerTimer({ status: "success" });
 
-    // Update tweet records with provider's tweet IDs and published status
-    await this.markFragmentsPublished(thread.id, publishResult.value.tweets);
+    // The same rule as the failure path above, on the path where every fragment
+    // went out: the rows are a secondary trace and the record below is what this
+    // channel is decided on, so a repository blip is REPORTED and stepped over.
+    // An escaping throw would skip the record write, and the redelivery would
+    // then find a channel still unresolved over a thread that is already live.
+    try {
+      await this.markFragmentsPublished(thread.id, publishResult.value.tweets);
+    } catch (rowError: unknown) {
+      this.logger.error(
+        {
+          postId,
+          channelId,
+          threadId: thread.id,
+          liveFragmentCount: publishResult.value.tweets.length,
+          err: rowError,
+        },
+        "Could not record the rows of a fully published thread"
+      );
+      this.workerMetrics.recordError("publisher", "thread_live_fragments_unrecorded", true);
+    }
 
-    await this.repo.logPublish({
+    const publishedAt =
+      publishResult.value.tweets[publishResult.value.tweets.length - 1]?.publishedAt ?? new Date();
+    await this.recordOutcome(
+      this.publishedReceipt(job, attempt, publishResult.value.tweets, publishedAt)
+    );
+
+    await this.writeReceiptMirror({
       postId,
       provider: providerName,
       channelId,
-      status: "OK",
       payload: { ...publishResult.value, correlationId },
       dedupeKey,
     });
@@ -779,29 +915,89 @@ export class PublishHandler {
   }
 
   /**
+   * @method refuseJob
+   * @description Ends a job the queue must never run again, counting WHY. None of
+   *              the three causes becomes runnable by trying: a job with no tenant
+   *              or no episode predates the publication record, and a channel the
+   *              record does not hold is addressed at nothing.
+   * @param reason - Which cause applied, as the counter's label.
+   * @param context - Job identity for the log.
+   * @returns The error to throw so BullMQ retires the job immediately.
+   */
+  private refuseJob(reason: string, context: object): Error {
+    this.workerMetrics.metrics.publishJobUnrecoverable.inc({ reason });
+    this.logger.error({ ...context, reason }, "Publish job refused: it can never succeed");
+    return new UnrecoverableError(`publish job refused (${reason})`);
+  }
+
+  /**
    * @method handleJob
-   * @description Entry point for a BullMQ publish job. Resolves the provider,
-   *              short-circuits on prior OK logs (idempotency), loads + renders
-   *              the post, and dispatches to single or thread publishing.
-   *              Rethrows on failure so BullMQ applies its retry policy.
+   * @description Entry point for a BullMQ publish job. Refuses a job that names no
+   *              tenant or no episode, reads the publication record to decide
+   *              whether this channel is still open, then loads, renders and
+   *              dispatches to single or thread publishing. Rethrows only while the
+   *              record the attempt produced leaves the channel unresolved.
    * @param job - Job payload from BullMQ with post/channel/provider hints.
+   * @returns Nothing.
    */
   async handleJob(job: PublishJobInput): Promise<void> {
     const finishJob = this.workerMetrics.recordJobStart();
     const { postId, channelId } = job.payload;
     const providerName = job.payload.provider || "x";
     const sagaId = job.payload.sagaId;
-    const dedupeKey = job.dedupeKey ?? `${postId}:${channelId}`;
+
+    // W4, before anything is touched. The payload arrives as queue data, so the
+    // typed shape is a claim about the producer and these two are the check.
+    const accountId = job.payload.accountId;
+    const identity = readJobIdentity(job.dedupeKey);
+    if (typeof accountId !== "string" || accountId.length === 0 || identity === undefined) {
+      finishJob();
+      throw this.refuseJob("pre_change_job", { postId, channelId, jobId: job.dedupeKey });
+    }
+    const dedupeKey = identity.mirrorKey;
 
     try {
       // Resolve the provider adapter from the registry
       const provider = this.resolveProvider(providerName);
 
-      // Idempotency: skip if already OK for this dedupeKey
-      const existing = await this.repo.getLogByDedupeKey(dedupeKey);
-      if (existing.ok && existing.value && existing.value.status === "OK") {
-        this.logger.info({ dedupeKey, provider: providerName }, "Skip publish (already OK)");
+      // Idempotency lives in the RECORD now: it is the one place that says what
+      // each channel did with this post, and it is what the saga settles on.
+      const observed = await this.publicationRecord.readChannel({ postId, channelId, accountId });
+      if (!observed.ok) {
+        // An unreadable record is not "nothing has happened yet". Nothing is live
+        // at this point, so handing the job back is the safe answer.
+        this.workerMetrics.recordError("database", "publication_record_unreadable", true);
+        throw new Error(`Publication record unreadable: ${observed.error}`);
+      }
+      if (observed.value === undefined) {
+        throw this.refuseJob("missing_record", { postId, channelId, jobId: job.dedupeKey });
+      }
+      const verdict = readChannelVerdict(observed.value, identity.episode);
+
+      if (verdict !== "attempt") {
+        this.logger.info(
+          { postId, channelId, provider: providerName, verdict },
+          "Skip publish (this job's channel is not open at this episode)"
+        );
         this.workerMetrics.metrics.jobsSkipped.inc();
+        if (verdict === "stale") {
+          this.workerMetrics.metrics.publishJobUnrecoverable.inc({ reason: "stale_episode" });
+        }
+        if (verdict === "published") {
+          if (sagaId) {
+            await this.notifySaga(sagaId, {
+              type: "publish.job.completed",
+              data: { postId, channelId, provider: providerName },
+            });
+          }
+        } else {
+          await this.notifyPublishFailed(sagaId, {
+            postId,
+            channelId,
+            provider: providerName,
+            verdict,
+          });
+        }
         finishJob();
         return;
       }
@@ -834,6 +1030,18 @@ export class PublishHandler {
       }
       dbTimer({ result: "success" });
 
+      // The fingerprint of what is about to be sent, computed once over the same
+      // canonical form every other reader of this post computes it over.
+      const attempt: PublicationAttemptContext = {
+        accountId,
+        episode: identity.episode,
+        attemptNo: job.attemptsMade + 1,
+        contentHash: ContentFingerprint.ofContent({
+          body: post.value.body,
+          mediaIds: (post.value.media ?? []).map((item) => item.id),
+        }).value,
+      };
+
       // Use provider's render method to get thread-aware content
       const renderTimer = this.workerMetrics.metrics.renderDuration.startTimer({
         provider: providerName,
@@ -843,35 +1051,20 @@ export class PublishHandler {
       if (!rendered.ok) {
         renderTimer();
         this.workerMetrics.recordError("renderer", "render_failed", true);
-        throw new Error(`Render error: ${rendered.error}`);
+        // The render error VALUE reaches the classifier, not a string built from
+        // it: the closed union is what makes this a named channel failure instead
+        // of one more unrecognised shape.
+        const retry = await this.recordOutcome(
+          this.failedReceipt({ postId, channelId, planSize: 1 }, attempt, rendered.error, [])
+        );
+        await this.notifyPublishFailed(sagaId, { postId, channelId, provider: providerName });
+        finishJob();
+        if (retry) {
+          throw new Error(`Render error: ${rendered.error}`);
+        }
+        return;
       }
       renderTimer({ content_type: rendered.value.type });
-
-      // Resolve the tenant scope for this job once. Post-deploy jobs carry it in
-      // the payload; jobs enqueued earlier fall back to the channel's owner.
-      const tenantScope = await this.resolveJobAccountId(channelId, job.payload.accountId);
-      if (tenantScope.outcome !== "resolved") {
-        throw await this.recordTenantScopeFailure(
-          { postId, channelId, providerName, dedupeKey },
-          tenantScope.outcome
-        );
-      }
-      const accountId = tenantScope.accountId;
-
-      // Log RUNNING with correlation tracking
-      const correlationId = this.workerMetrics.generateCorrelationId(dedupeKey);
-      await this.repo.logPublish({
-        postId,
-        provider: providerName,
-        channelId,
-        status: "RUNNING",
-        payload: {
-          contentType: rendered.value.type,
-          needsThreading: rendered.value.type === "thread",
-          correlationId,
-        },
-        dedupeKey,
-      });
 
       // Handle based on content type
       if (rendered.value.type === "thread") {
@@ -883,7 +1076,7 @@ export class PublishHandler {
           threadPlan,
           providerName,
           provider,
-          accountId,
+          attempt,
           sagaId
         );
       } else {
@@ -895,7 +1088,7 @@ export class PublishHandler {
           singleContent,
           providerName,
           provider,
-          accountId,
+          attempt,
           sagaId
         );
       }
@@ -913,17 +1106,12 @@ export class PublishHandler {
       this.logger.error({ err: e, dedupeKey, provider: providerName }, "Worker job error");
 
       // Best-effort saga notification on unhandled errors
-      if (sagaId) {
-        await this.notifySaga(sagaId, {
-          type: "publish.job.failed",
-          data: {
-            postId,
-            channelId,
-            provider: providerName,
-            error: e instanceof Error ? e.message : "Unknown error",
-          },
-        });
-      }
+      await this.notifyPublishFailed(sagaId, {
+        postId,
+        channelId,
+        provider: providerName,
+        error: e instanceof Error ? e.message : "Unknown error",
+      });
 
       finishJob();
       // Re-throw so BullMQ marks the job failed and the queue's retry

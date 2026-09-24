@@ -1263,13 +1263,15 @@ describe("saga engine context invariants", () => {
       // Pinned as an exact set: a pattern that stops matching would turn every
       // assertion below vacuously green, which is how a source scan goes blind.
       //
-      // The forward template appears TWICE and the multiplicity is load-bearing,
-      // not a copy-paste slip: two different steps mint a forward command id
-      // from the same expression (the create step and the post-pivot status
-      // step). Collapsing this to a unique set would let one of them stop
-      // deriving its id deterministically while the pin still passed.
+      // The forward template appears THREE times and the multiplicity is
+      // load-bearing, not a copy-paste slip: three different steps mint a
+      // forward command id from the same expression (the create step, the
+      // pivot's episode opening and the post-pivot status step). Collapsing
+      // this to a unique set would let one of them stop deriving its id
+      // deterministically while the pin still passed.
       expect(commandIdTemplates).toEqual(
         [
+          "cmd-${context.sagaId}-${this.id}",
           "cmd-${context.sagaId}-${this.id}",
           "cmd-${context.sagaId}-${this.id}",
           "cmd-${context.sagaId}-${this.id}-compensate",
@@ -1310,15 +1312,20 @@ describe("saga engine context invariants", () => {
       expect(violations).toEqual([]);
     });
 
-    it("keys the publish job on the post and the channel it targets", () => {
+    it("keys the publish job on the post, the channel it targets and the episode", () => {
       // This key becomes the BullMQ job id, which is what makes a replayed
-      // pivot a no-op instead of a second publish. Its inputs must therefore be
-      // the target itself, not the attempt.
-      expect(queueDedupeTemplates).toEqual(["publish-${postId}-${channelId}"]);
+      // pivot a no-op instead of a second publish. Its inputs are therefore the
+      // target and the EPISODE — never the attempt: an attempt ordinal would
+      // mint a fresh id per retry and undo the dedupe, while the episode is
+      // what distinguishes a deliberate re-drive from a replay. Without it a
+      // re-drive of a channel whose earlier job sits in BullMQ's retained
+      // completed or failed set is silently dropped.
+      expect(queueDedupeTemplates).toEqual(["publish-${postId}-${channelId}-e${episode}"]);
 
+      const allowed = new Set(["postId", "channelId", "episode"]);
       const violations = queueDedupeTemplates
         .flatMap(interpolations)
-        .filter((expression) => expression !== "postId" && expression !== "channelId");
+        .filter((expression) => !allowed.has(expression));
 
       expect(violations).toEqual([]);
     });
@@ -1348,21 +1355,29 @@ describe("saga engine context invariants", () => {
       expect(registerAt).toBeLessThan(initializeAt);
     });
 
-    it("wires the pivot's reread countermeasure, which is what makes a pivot re-entry safe", () => {
+    it("reads the publication RECORD the pivot's reread and the wait step both decide from", () => {
       // The retry checker legitimately claims a row whose last persist scheduled
       // a retry, and such a row can sit ON the pivot. What keeps that re-entry
       // from publishing twice is the pivot's RereadCheck, which aborts before
-      // the enqueue when the aggregate has moved on — measured in
-      // `tests/integration/sagaCrashRecovery.test.ts`, "an inherited pivot-step
-      // retry claimed by the retry checker". The countermeasure only exists when
-      // the composition passes the reread implementation, so a composition that
-      // stopped passing it would silently remove the guarantee.
+      // the enqueue when a named channel can no longer be published again —
+      // measured in `tests/integration/sagaCrashRecovery.test.ts`, "an inherited
+      // pivot-step retry claimed by the retry checker".
+      //
+      // The countermeasure's EXISTENCE is no longer what this pins: the reader
+      // is a required parameter, so a composition that stopped passing it does
+      // not compile. What can still drift is what the reader reads — it used to
+      // answer `Post.status`, which is the aggregate's word rather than the
+      // per-channel record, and a reader that regressed to it would leave the
+      // reread comparing a value that says nothing about which channel is
+      // holding content.
       const factoryCall = integration.sanitized.indexOf("createPostPublishingSagaDefinition(");
       expect(factoryCall).toBeGreaterThanOrEqual(0);
 
       expect(integration.sanitized).toMatch(/PostId\.fromString\(postIdRaw\)/);
       expect(integration.sanitized).toMatch(/postRepository\.findById/);
-      expect(integration.sanitized).toMatch(/post\.value\.status\.value/);
+      expect(integration.sanitized).toMatch(/post\.value\.publications\.all/);
+      expect(integration.sanitized).toMatch(/record\.redrivable\(\)/);
+      expect(integration.sanitized).not.toMatch(/post\.value\.status\.value/);
     });
   });
 

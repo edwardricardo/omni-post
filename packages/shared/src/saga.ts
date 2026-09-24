@@ -402,10 +402,10 @@ interface ScheduleStepData {
    * The channel identities the pivot actually enqueued, index-aligned with
    * `jobIds` and in the same order.
    *
-   * Recorded because the promotion that runs later must decide totality from
-   * the channels that were SCHEDULED, not from a count: a count can only say
-   * how many finished, never which ones, so an outcome naming fewer channels
-   * than were scheduled would be indistinguishable from a complete one.
+   * Recorded because the wait step that runs later decides from the channels
+   * that were SCHEDULED, not from a count: a count can only say how many
+   * finished, never which ones, so an outcome naming fewer channels than were
+   * scheduled would be indistinguishable from a complete one.
    */
   channelIds?: string[];
   channelCount?: number;
@@ -413,97 +413,122 @@ interface ScheduleStepData {
 }
 
 /**
- * The publish jobs' state, as the wait step is allowed to learn it.
+ * One channel's publication record, reduced to the facts the saga reads.
  *
- * A `Result` rather than a bare aggregate because the THIRD answer matters as
- * much as the counts: "I could not read the queue" is not "nothing has finished
- * yet", and a reader that fabricates an all-pending aggregate for an outage
- * hands the step the one shape it cannot tell from healthy in-flight work.
+ * A narrow view rather than the entity, for the reason the admission decision
+ * uses one: a step has no business being able to reach for a field it did not
+ * declare it reads. It is structural — this module is the lowest package in the
+ * graph and the domain entity imports IT — so the composition root is what maps
+ * a record onto this shape.
  */
-export type PublishJobsStatusReader = (
-  jobIds: string[]
-) => Promise<Result<{ completed: number; failed: number; pending: number }, string>>;
-
-/**
- * What the wait step learned about the publish jobs, as it recorded it.
- *
- * Every field is named rather than reached through an index signature: the
- * promotion step reads all four to decide whether the publish was total, and an
- * index signature would let a typo read `undefined` and fall through a
- * comparison that looks like it was made.
- */
-interface CompletionStepData {
-  totalJobs?: number;
-  completed?: number;
-  failed?: number;
-  completedAt?: Date;
-  publishingComplete?: boolean;
+export interface PublicationChannelView {
+  readonly channelId: string;
+  /**
+   * Which settlement the record holds. THREE values, never two booleans: a
+   * channel that has not settled is a different fact from one that settled
+   * without publishing, and the wait step answers them with different outcomes.
+   */
+  readonly outcome: "unresolved" | "published" | "excluded";
+  /** The provider's identifier, when it accepted the content and returned one. */
+  readonly externalId?: string;
+  /** The closed code an exclusion carries — the value a reader branches on. */
+  readonly reasonCode?: string;
+  /** The message beside the code, written for a person. */
+  readonly reasonDetail?: string;
+  /**
+   * Whether the channel may be attempted again. Carried rather than derived
+   * from `outcome`: it is the record's own predicate (a channel still holding
+   * live fragments is not re-drivable even though it settled), and re-deriving
+   * it here would be a second copy of a domain rule that can drift from the first.
+   */
+  readonly redrivable: boolean;
 }
 
-/** One channel's share of the publish outcome, as the saga observed it. */
+/** A post's per-channel publication record, as the saga reads it. */
+export interface PublicationRecordView {
+  readonly channels: readonly PublicationChannelView[];
+}
+
+/**
+ * The post's publication record, as the saga is allowed to learn it.
+ *
+ * THREE answers, and each one is a different fact. `err` is "I could not read
+ * the record" — an outage, which the wait step spends budget on rather than
+ * mistaking for work still in flight. `ok(undefined)` is "this post carries no
+ * record at all", which is never evidence that nothing published. `ok(view)` is
+ * the record itself.
+ */
+export type PublicationRecordReader = (
+  postId: string
+) => Promise<Result<PublicationRecordView | undefined, string>>;
+
+/**
+ * What the wait step recorded once every scheduled channel settled.
+ *
+ * It holds the outcome in the shape the promotion command carries, so the
+ * promotion is a forwarder rather than a second place that decides what a
+ * record means.
+ */
+interface CompletionStepData {
+  channels?: PublishChannelReport[];
+  completedAt?: Date;
+}
+
+/** One channel's share of the publish outcome, as the record settled it. */
 interface PublishChannelReport {
   channelId: string;
   success: boolean;
+  externalId?: string;
+  error?: string;
+  reasonCode?: string;
 }
 
 /**
- * Builds the publish outcome the promotion command carries, or names the fact
- * the step could not establish.
- *
- * FAIL-CLOSED over ignorance, not only over known failure. `getJobStates` puts
- * every scheduled id in exactly one bucket and reads a missing job as failed,
- * so `failed === 0` together with `completed === totalJobs === channelIds.length`
- * is what makes "every channel the pivot enqueued published" decidable — and it
- * is decidable ONLY here, because the promotion sees no scheduled set beyond
- * the command it is handed. An outcome that cannot be shown to be total is not
- * total, so each branch below refuses instead of assuming.
+ * @function reportOf
+ * @description Turns one settled record into the outcome entry the promotion
+ *   forwards. Keys are omitted rather than assigned `undefined`, because under
+ *   `exactOptionalPropertyTypes` those are different values and the command
+ *   contract declares them optional.
+ * @param view - A channel whose record has settled.
+ * @returns The outcome entry for that channel.
  */
-function readTotalPublishOutcome(context: SagaContext): Result<PublishChannelReport[], string> {
-  const scheduling = context.stepData["schedule-publishing-jobs"] as ScheduleStepData | undefined;
-  const channelIds = scheduling?.channelIds;
-  const jobIds = scheduling?.jobIds;
+function reportOf(view: PublicationChannelView): PublishChannelReport {
+  return {
+    channelId: view.channelId,
+    success: view.outcome === "published",
+    ...(view.externalId !== undefined && { externalId: view.externalId }),
+    ...(view.reasonDetail !== undefined && { error: view.reasonDetail }),
+    ...(view.reasonCode !== undefined && { reasonCode: view.reasonCode }),
+  };
+}
 
-  if (!Array.isArray(channelIds) || !Array.isArray(jobIds)) {
-    // A saga persisted before the pivot recorded channel identities lands here
-    // and fails closed rather than promoting an outcome nobody can match to a
-    // scheduled set.
-    return err(
-      "The scheduling step recorded no channel identities: refusing to promote an outcome whose scheduled set is unknown"
-    );
-  }
-
-  if (channelIds.length === 0) {
-    return err("The scheduling step enqueued zero channels: a vacuous total is not a publish");
-  }
-
-  if (channelIds.length !== jobIds.length) {
-    return err(
-      `The scheduling step recorded ${channelIds.length} channels against ${jobIds.length} jobs: refusing an outcome that cannot be matched to the channels scheduled`
-    );
-  }
-
+/**
+ * Reads the outcome the promotion forwards, or names the fact it could not
+ * establish.
+ *
+ * It does NOT re-decide totality. The wait step settles only when every channel
+ * the pivot scheduled carries a settled record, and re-stating that rule here
+ * would be a second copy of it — free to drift from the one that runs. What is
+ * checked is this step's OWN input: that an outcome was recorded at all, and
+ * that it names at least one channel. A saga persisted before the wait step
+ * recorded per-channel outcomes lands in the first branch.
+ */
+function readPublishOutcome(context: SagaContext): Result<PublishChannelReport[], string> {
   const completion = context.stepData["wait-publishing-completion"] as
     CompletionStepData | undefined;
+  const channels = completion?.channels;
 
-  if (completion?.publishingComplete !== true) {
+  if (!Array.isArray(channels)) {
     return err(
-      "The wait step did not report publishing complete: refusing to promote an unfinished publish"
+      "The wait step recorded no per-channel outcome: refusing to promote a publish nobody observed"
     );
   }
 
-  if (completion.failed !== 0) {
-    return err(
-      `The wait step reported ${String(completion.failed)} failed publishing jobs: a partial publish is not promoted by this step`
-    );
+  if (channels.length === 0) {
+    return err("The recorded outcome names zero channels: a vacuous outcome is not a publish");
   }
 
-  if (completion.completed !== channelIds.length || completion.totalJobs !== channelIds.length) {
-    return err(
-      `The wait step reported ${String(completion.completed)} of ${String(completion.totalJobs)} jobs complete for ${channelIds.length} scheduled channels: refusing an outcome that does not account for every channel`
-    );
-  }
-
-  return ok(channelIds.map((channelId) => ({ channelId, success: true })));
+  return ok(channels);
 }
 
 // ============================================================================
@@ -741,7 +766,10 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
   readonly class = "pivot" as const;
   countermeasures?: StepCountermeasures;
 
-  constructor(private queueJob: (job: Record<string, unknown>) => Promise<string>) {}
+  constructor(
+    private executeCommand: (command: Command) => Promise<unknown>,
+    private queueJob: (job: Record<string, unknown>) => Promise<string>
+  ) {}
 
   async execute(context: SagaContext, data?: StepExecuteData): Promise<SagaStepResult> {
     try {
@@ -774,11 +802,11 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
       // start and this step is the ONLY producer of publish jobs, so it is the
       // last place with authoritative tenant knowledge.
       //
-      // Fail CLOSED when it is missing: emitting a job without the field would
-      // route a FRESH job onto the worker's deploy-compat owner fallback, which
-      // exists only to drain jobs enqueued before the field existed. Omitting it
-      // here would make that fallback unbounded and permanent — the opposite of
-      // its stated removal condition — so the saga fails instead.
+      // Fail CLOSED when it is missing. The worker resolves no tenant of its own:
+      // a job carrying no `accountId` is REFUSED outright and retired, so the
+      // channel it names never publishes and never records why. Failing here says
+      // so at the one place that still knows the tenant, instead of enqueuing work
+      // that can only die unexplained.
       const rawAccountId = context.metadata.accountId;
       if (typeof rawAccountId !== "string" || rawAccountId.length === 0) {
         return {
@@ -788,19 +816,34 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
       }
       const accountId = rawAccountId;
 
+      // (a) The episode FIRST, and the order is the guarantee. Opening it is
+      // what decides which of the named channels may be attempted at all — a
+      // published one is never re-sent, one still holding live fragments is
+      // refused by name — and it mints the ordinal every job id carries. An
+      // enqueue that ran before it would be sending content the record had
+      // already ruled out, past the point where anything can be undone.
+      const opened = await this.openEpisode(context, postId, channelIds, mode);
+      if (!opened.ok) {
+        return { outcome: "failed", error: opened.error };
+      }
+
       const jobIds: string[] = [];
       // The channels this step actually enqueued, appended in lockstep with
-      // their job ids so index i of one names index i of the other. The
-      // promotion that runs later decides totality from THIS list rather than
-      // from `channelCount`, because a count cannot say which channels were
-      // scheduled and an outcome naming fewer would read as complete.
+      // their job ids so index i of one names index i of the other. The wait
+      // step reads THIS list rather than `channelCount`, because a count cannot
+      // say which channels were scheduled and an outcome naming fewer would
+      // read as complete.
       const enqueuedChannelIds: string[] = [];
 
-      for (const channelId of channelIds) {
+      // (b) One job per OPENED channel, never per requested channel. Re-running
+      // this loop after a partial enqueue re-runs (a) idempotently and BullMQ
+      // dedupes the ids it already holds.
+      for (const channel of opened.value) {
         const jobId = await this.queueJob({
           type: "publish-post",
           postId,
-          channelId,
+          channelId: channel.channelId,
+          episode: channel.episode,
           scheduledAt,
           priority,
           accountId,
@@ -808,19 +851,19 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
           correlationId: context.correlationId,
         });
         jobIds.push(jobId);
-        enqueuedChannelIds.push(channelId);
+        enqueuedChannelIds.push(channel.channelId);
       }
 
       context.stepData[this.id] = {
         jobIds,
         channelIds: enqueuedChannelIds,
-        channelCount: channelIds.length,
+        channelCount: enqueuedChannelIds.length,
         scheduledAt,
       };
 
       return {
         outcome: "succeeded",
-        data: { jobIds, channelCount: channelIds.length },
+        data: { jobIds, channelCount: enqueuedChannelIds.length },
       };
     } catch (error) {
       return {
@@ -829,122 +872,249 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
       };
     }
   }
+
+  /**
+   * @method openEpisode
+   * @description Issues the command that opens an attempt episode over the
+   *   post's per-channel record and returns the channels it opened.
+   * @param context - The saga context, for the deterministic command id.
+   * @param postId - The post the episode is opened over.
+   * @param channelIds - The channels this run names.
+   * @param mode - Publish-now is the only mode that enters the publication family.
+   * @returns The opened channels with their ordinals, or the refusal to report.
+   */
+  private async openEpisode(
+    context: SagaContext,
+    postId: string,
+    channelIds: string[],
+    mode: SagaPostMode
+  ): Promise<Result<readonly OpenedEpisodeChannel[], string>> {
+    if (channelIds.length === 0) {
+      return err("The publish request names no channel: refusing to open a vacuous episode");
+    }
+
+    const command: Command = {
+      id: `cmd-${context.sagaId}-${this.id}`,
+      type: POST_COMMANDS.OPEN_PUBLICATION_EPISODE,
+      aggregateId: postId,
+      aggregateType: "Post",
+      // `enterPublishing` has no default in the contract on purpose, so it is
+      // stated here from the mode rather than omitted and inferred downstream.
+      data: { channelIds, enterPublishing: mode === "publish-now" },
+      metadata: {
+        ...(context.userId && { userId: context.userId }),
+        correlationId: context.correlationId,
+        source: "PostPublishingSaga",
+      },
+      timestamp: new Date(),
+    };
+
+    const result = (await this.executeCommand(command)) as CommandResult;
+
+    if (!result.success) {
+      return err(result.error ?? "The publication episode was refused");
+    }
+
+    return readOpenedChannels(result.data);
+  }
+}
+
+/** One channel an episode was opened for, and the ordinal it was opened at. */
+interface OpenedEpisodeChannel {
+  readonly channelId: string;
+  readonly episode: number;
+}
+
+/**
+ * @function readOpenedChannels
+ * @description Reads the opened channels out of the command's answer, refusing
+ *   any shape the pivot cannot enqueue from.
+ *
+ *   It parses rather than casts because the answer crosses the bus as
+ *   `unknown`, and the two values it carries are exactly the two that mint the
+ *   job id: a channel nothing opened and an ordinal of zero would each produce
+ *   an id naming an episode that does not exist, which the worker then refuses
+ *   after the pivot has already passed the point of no return.
+ * @param data - The command result's payload.
+ * @returns The opened channels, or the reason the answer is unusable.
+ */
+function readOpenedChannels(
+  data: Record<string, unknown> | undefined
+): Result<readonly OpenedEpisodeChannel[], string> {
+  const raw = data?.opened;
+  if (!Array.isArray(raw)) {
+    return err("The publication episode answered with no opened channels");
+  }
+
+  const opened: OpenedEpisodeChannel[] = [];
+  for (const entry of raw) {
+    const candidate = entry as { channelId?: unknown; episode?: unknown };
+    if (typeof candidate.channelId !== "string" || candidate.channelId.length === 0) {
+      return err("The publication episode named a channel with no identity");
+    }
+    if (
+      typeof candidate.episode !== "number" ||
+      !Number.isInteger(candidate.episode) ||
+      candidate.episode < 1
+    ) {
+      return err(
+        `The publication episode opened channel ${candidate.channelId} at episode ${String(candidate.episode)}, which is not an attempt ordinal`
+      );
+    }
+    opened.push({ channelId: candidate.channelId, episode: candidate.episode });
+  }
+
+  if (opened.length === 0) {
+    return err("The publication episode opened no channel: there is nothing to enqueue");
+  }
+
+  return ok(opened);
 }
 
 /**
  * WaitForPublishingCompletionStep — class: retryable.
  *
- * Polls / waits for worker job completion via Redis pub/sub event resumption.
- * Idempotent by construction (re-checking job status produces the same
- * answer). While any job is OBSERVED still pending it returns the WAITING
- * outcome — "ask me again", which costs the saga no retry budget — and reserves
- * the failed outcome for a job that really ended in error, for scheduling data
- * that was never recorded, and for a queue whose state it could not read at
- * all. The worker's publish.job.completed event short-circuits the wait by
- * triggering SagaIntegration.handleEvent → executeSagaAsync; the engine's own
- * poll cadence is the safety net for an event that never arrives.
+ * Waits on the post's per-channel PUBLICATION RECORD, not on the queue. Job
+ * state answers "did the job end", which is a different question from "what did
+ * this channel do with this post": a worker that published and then died
+ * between the send and its own bookkeeping leaves a failed job over live
+ * content, and a job that ended cleanly after excluding a channel leaves a
+ * completed job over nothing published. The record is the only place the second
+ * question is answered, and it is the question the promotion needs.
  *
- * For mode="draft" / "schedule", short-circuits with success (no jobs to
- * wait on). The canon class remains "retryable" structurally.
+ * Idempotent by construction (re-reading the record produces the same answer).
+ * While any scheduled channel is still UNRESOLVED it returns the waiting
+ * outcome — "ask me again", which costs the saga no retry budget — and reserves
+ * the failed outcome for a record it could not read, a post carrying none, and
+ * a scheduled channel the record does not hold. A channel that settled WITHOUT
+ * publishing is resolved: it is forwarded, not waited on. The worker's
+ * publish.job.completed event short-circuits the wait by triggering
+ * SagaIntegration.handleEvent → executeSagaAsync; the engine's own poll cadence
+ * is the safety net for an event that never arrives.
+ *
+ * For mode="draft" / "schedule", short-circuits with success (nothing to wait
+ * on). The canon class remains "retryable" structurally.
  */
 export class WaitForPublishingCompletionStep implements RetryableStep {
   readonly id = "wait-publishing-completion";
   readonly name = "Wait for Publishing Completion";
   readonly class = "retryable" as const;
 
-  constructor(private checkJobsStatus: PublishJobsStatusReader) {}
+  constructor(private readPublicationRecord: PublicationRecordReader) {}
 
   async execute(context: SagaContext): Promise<SagaStepResult> {
     try {
       const mode = readMode(context);
 
       if (mode === "draft" || mode === "schedule") {
-        context.stepData[this.id] = {
-          totalJobs: 0,
-          completed: 0,
-          failed: 0,
-          completedAt: new Date(),
-          publishingComplete: true,
-        };
+        context.stepData[this.id] = { channels: [], completedAt: new Date() };
         return {
           outcome: "succeeded",
-          data: {
-            skipped: true,
-            reason: `${mode}-mode`,
-            publishingComplete: true,
-            completedJobs: 0,
-            totalJobs: 0,
-          },
+          data: { skipped: true, reason: `${mode}-mode`, channelCount: 0 },
         };
       }
 
-      const schedulingData = context.stepData["schedule-publishing-jobs"] as
+      const createData = context.stepData["create-post"] as CreateStepData | undefined;
+      const postId = createData?.postId;
+      if (!postId) {
+        return { outcome: "failed", error: "Post ID not found from previous step" };
+      }
+
+      const scheduling = context.stepData["schedule-publishing-jobs"] as
         ScheduleStepData | undefined;
-      if (!schedulingData) {
+      const scheduled = scheduling?.channelIds;
+
+      if (!Array.isArray(scheduled)) {
         // A real failure, not an unfinished wait: this step cannot become
         // decidable by asking again, because the data it needs was never
-        // recorded.
-        return { outcome: "failed", error: "No scheduling data found from scheduling step" };
+        // recorded. A saga persisted before the pivot recorded channel
+        // identities lands here.
+        return {
+          outcome: "failed",
+          error: "The scheduling step recorded no channel identities: nothing to wait on",
+        };
       }
-      const { jobIds } = schedulingData;
 
-      if (!jobIds || jobIds.length === 0) {
-        return { outcome: "failed", error: "No jobs found from scheduling step" };
+      if (scheduled.length === 0) {
+        return { outcome: "failed", error: "The scheduling step enqueued zero channels" };
       }
 
-      const observation = await this.checkJobsStatus(jobIds);
+      const observation = await this.readPublicationRecord(postId);
 
       if (!observation.ok) {
         // COULD NOT OBSERVE is not "nothing has finished yet". Reporting an
-        // unreadable queue as waiting would make an outage byte-identical to
+        // unreadable record as waiting would make an outage byte-identical to
         // four channels healthily publishing, and waiting spends no budget — so
         // the first external signal would be a timeout half an hour later
         // instead of a step failure the retry policy already bounds.
         return {
           outcome: "failed",
-          error: `Publishing job status could not be read: ${observation.error}`,
+          error: `The post's publication record could not be read: ${observation.error}`,
         };
       }
-      const status = observation.value;
 
-      if (status.pending > 0) {
-        // Not decided yet. The channels are still publishing, and each sibling
-        // that finishes re-enters this step — which is why this outcome must
-        // never be an attempt against the retry budget.
-        return { outcome: "waiting", reason: "Publishing jobs still in progress" };
-      }
-
-      context.stepData[this.id] = {
-        totalJobs: jobIds.length,
-        completed: status.completed,
-        failed: status.failed,
-        completedAt: new Date(),
-        // Surface for UpdatePostStatusStep, which chooses no status of its own:
-        // this flag and the three counters beside it are the facts it needs to
-        // establish that EVERY scheduled channel published, and it refuses to
-        // emit a promotion when any of them falls short.
-        publishingComplete: status.failed === 0,
-      };
-
-      if (status.failed > 0) {
+      const record = observation.value;
+      if (record === undefined) {
+        // "No record" is not evidence of "never published". The pivot opened an
+        // episode over a record before it enqueued anything, so a post that
+        // carries none by the time the jobs run lost it, and the step refuses
+        // rather than deciding an outcome over a set it cannot see.
         return {
           outcome: "failed",
-          error: `${status.failed} out of ${jobIds.length} publishing jobs failed`,
+          error: `Post ${postId} carries no publication record: refusing to decide an outcome nobody recorded`,
         };
       }
+
+      const byChannel = new Map(record.channels.map((channel) => [channel.channelId, channel]));
+      const missing: string[] = [];
+      const unresolved: string[] = [];
+      const channels: PublishChannelReport[] = [];
+
+      for (const channelId of scheduled) {
+        const view = byChannel.get(channelId);
+        if (view === undefined) {
+          missing.push(channelId);
+          continue;
+        }
+        if (view.outcome === "unresolved") {
+          unresolved.push(channelId);
+          continue;
+        }
+        channels.push(reportOf(view));
+      }
+
+      // The missing record wins over the unfinished one: a channel the record
+      // does not hold cannot become decidable by asking again, so answering
+      // "waiting" for it would park the saga on its horizon over a fact nobody
+      // is ever going to write.
+      if (missing.length > 0) {
+        return {
+          outcome: "failed",
+          error: `The publication record holds no entry for scheduled channel(s) ${missing.join(", ")}: refusing an outcome that does not account for every channel`,
+        };
+      }
+
+      if (unresolved.length > 0) {
+        // Not decided yet. Each sibling that settles re-enters this step —
+        // which is why this outcome must never be an attempt against the retry
+        // budget. Nothing is recorded, so a later failure cannot read a
+        // half-filled outcome as the whole one.
+        return {
+          outcome: "waiting",
+          reason: `Channel(s) ${unresolved.join(", ")} have not settled yet`,
+        };
+      }
+
+      context.stepData[this.id] = { channels, completedAt: new Date() };
 
       return {
         outcome: "succeeded",
-        data: {
-          publishingComplete: true,
-          completedJobs: status.completed,
-          totalJobs: jobIds.length,
-        },
+        data: { channelCount: channels.length },
       };
     } catch (error) {
       return {
         outcome: "failed",
-        error: error instanceof Error ? error.message : "Failed to check publishing status",
+        error: error instanceof Error ? error.message : "Failed to read the publication record",
       };
     }
   }
@@ -959,10 +1129,17 @@ export class WaitForPublishingCompletionStep implements RetryableStep {
  * let a saga report COMPLETED over a row that never left DRAFT — the emitter
  * picked a status and sent it on a command whose handler did not honour it.
  *
- * It FAILS CLOSED. Unless every precondition of a total success holds, no
- * command is emitted at all and the step reports the failed outcome naming the
- * fact it could not establish. A refusal that still emitted would hand the
- * promotion an outcome nobody vouched for.
+ * It FORWARDS FAILURES. A channel that settled without publishing travels in
+ * the same outcome as one that published, carrying the record's own code and
+ * detail; deciding here that a partial publish is not worth reporting is what
+ * left a half-published post parked on the saga's horizon with nobody told
+ * which half went out.
+ *
+ * It still FAILS CLOSED over what it cannot establish: unless an outcome was
+ * recorded and names at least one channel, no command is emitted at all and the
+ * step reports the failed outcome naming the fact it could not establish. A
+ * refusal that still emitted would hand the promotion an outcome nobody
+ * vouched for.
  *
  * Post-pivot: if this step fails after retries, the saga is FAILED but cannot
  * roll back (the provider already received the post). Idempotent by
@@ -1015,7 +1192,7 @@ export class UpdatePostStatusStep implements RetryableStep {
         };
       }
 
-      const outcome = readTotalPublishOutcome(context);
+      const outcome = readPublishOutcome(context);
       if (!outcome.ok) {
         return { outcome: "failed", error: outcome.error };
       }
@@ -1069,7 +1246,7 @@ export class UpdatePostStatusStep implements RetryableStep {
  * Post Publishing Saga — canon-aligned definition.
  *
  *   preCommit (compensable):  Validate → Create
- *   pivot:                    Schedule (jobs enqueued; provider may execute)
+ *   pivot:                    Schedule (episode opened, jobs enqueued)
  *   postCommit (retryable):   Wait → UpdateStatus
  *
  * Pivot at index 2 (Schedule) reflects the "point of no return" canon: once
@@ -1079,41 +1256,71 @@ export class UpdatePostStatusStep implements RetryableStep {
 export function createPostPublishingSagaDefinition(
   executeCommand: (command: Command) => Promise<unknown>,
   queueJob: (job: Record<string, unknown>) => Promise<string>,
-  checkJobsStatus: PublishJobsStatusReader,
   /**
-   * Optional reread implementation for the pivot step. Returns the current
-   * Post.status (or null if missing). When provided, the pivot step gains a
-   * RereadCheck countermeasure that aborts before enqueueing jobs if the
-   * post is no longer DRAFT — closing the dirty-read window between Create
-   * and Schedule (Azure §15-18).
+   * Reads the post's per-channel publication record. REQUIRED, and no longer
+   * optional as the status reread it replaces was: the wait step decides from
+   * it, so a composition that stopped passing it would not silently lose the
+   * pivot's countermeasure — it would not compile.
    */
-  getPostStatus?: (postId: string) => Promise<string | null>
+  readPublicationRecord: PublicationRecordReader
 ): SagaDefinition {
-  const scheduleStep = new SchedulePublishingJobsStep(queueJob);
+  const scheduleStep = new SchedulePublishingJobsStep(executeCommand, queueJob);
 
-  if (getPostStatus) {
-    scheduleStep.countermeasures = {
-      rereadCheck: {
-        async rereadBeforeUpdate(
-          ctx: SagaContext
-        ): Promise<{ stillValid: boolean; reason?: string }> {
-          const createData = ctx.stepData["create-post"] as CreateStepData | undefined;
-          const postId = createData?.postId;
-          if (!postId) {
-            return { stillValid: false, reason: "no postId in stepData" };
-          }
-          const status = await getPostStatus(postId);
-          if (status !== "DRAFT") {
-            return {
-              stillValid: false,
-              reason: `Post.status is ${status ?? "missing"}, expected DRAFT`,
-            };
-          }
+  // Re-specified PER CHANNEL. The status comparison it replaces asked whether
+  // the post was still DRAFT, which is the wrong question for a re-drive: a
+  // FAILED post being published again is exactly the case this saga now serves,
+  // and that check aborted it. What has to still hold before the pivot enqueues
+  // is that every channel this run names can still be attempted — the dirty-read
+  // window is a channel that published, or started holding live fragments,
+  // between Create and Schedule (Azure §15-18).
+  scheduleStep.countermeasures = {
+    rereadCheck: {
+      async rereadBeforeUpdate(
+        ctx: SagaContext
+      ): Promise<{ stillValid: boolean; reason?: string }> {
+        const createData = ctx.stepData["create-post"] as CreateStepData | undefined;
+        const postId = createData?.postId;
+        if (!postId) {
+          return { stillValid: false, reason: "no postId in stepData" };
+        }
+
+        const observation = await readPublicationRecord(postId);
+        if (!observation.ok) {
+          return {
+            stillValid: false,
+            reason: `the publication record could not be read: ${observation.error}`,
+          };
+        }
+
+        const record = observation.value;
+        if (record === undefined) {
+          // Nothing has been attempted on this post, so nothing can have moved
+          // under the plan. The episode the pivot opens next is what declares
+          // the targets.
           return { stillValid: true };
-        },
+        }
+
+        // A named channel the record does not hold is NOT blocked here: with
+        // nothing live the episode replaces the recorded target set, so an
+        // unrecorded channel is a channel the opener is about to declare. Only
+        // a channel the record holds AND refuses to re-drive invalidates the plan.
+        const byChannel = new Map(record.channels.map((channel) => [channel.channelId, channel]));
+        const blocked = (readPostData(ctx)?.channelIds ?? []).filter((channelId) => {
+          const view = byChannel.get(channelId);
+          return view !== undefined && !view.redrivable;
+        });
+
+        if (blocked.length > 0) {
+          return {
+            stillValid: false,
+            reason: `channel(s) ${blocked.join(", ")} can no longer be published again`,
+          };
+        }
+
+        return { stillValid: true };
       },
-    };
-  }
+    },
+  };
 
   return defineSaga({
     id: "post-publishing-saga",
@@ -1128,7 +1335,7 @@ export function createPostPublishingSagaDefinition(
     preCommit: [new ValidatePostDataStep(), new CreatePostStep(executeCommand)],
     pivot: scheduleStep,
     postCommit: [
-      new WaitForPublishingCompletionStep(checkJobsStatus),
+      new WaitForPublishingCompletionStep(readPublicationRecord),
       new UpdatePostStatusStep(executeCommand),
     ],
   });

@@ -6402,3 +6402,198 @@ apps/workers/tsconfig.build.json --force` and `tsc -b apps/api --force` all exit
 `db-prisma` 78 — all unchanged and green. `eslint --max-warnings 0` and `prettier --check` clean on
 every changed file. Fitness #3 #5 #8 #9 #10 #11 #21 #32 all 0; #40 part A 0 violations at seam floor
 3, part B 0 violations at 14 sites against a floor of 10.
+
+---
+
+## `1c-2a ⊗ 1c-3e` — the fused unit (order 10): the wait step and the write it waits on
+
+**Why one unit.** §9.9 item 6 option **(a) FUSE**, ratified. `1c-2a` makes the wait step settle on
+the publication RECORD; `1c-3e` is the only thing that writes one. Neither half has a sound tip
+alone, and option (c) — a knowingly-red tip — is not offered.
+
+**The acceptance criterion, measured on both sides of the change.** `integration:saga-recovery`,
+the batch the per-tip guard (§9.4.1) names:
+
+| Tree                                          | tests |   pass |  fail | cancelled |  exit |
+| --------------------------------------------- | ----: | -----: | ----: | --------: | ----: |
+| previous tip (`1c-3d`)                        |    33 |     33 |     0 |         0 |     0 |
+| `1c-2a` alone (this branch, before this unit) |    33 | **11** | **4** |    **18** |     1 |
+| both halves                                   |    33 | **33** |     0 |         0 | **0** |
+
+Every one of the four failures at the `1c-2a` tip was the same shape — `RUNNING at step 3,
+retryCount=0, error=null` — the wait step parked on channels no writer had settled, taking eighteen
+siblings down with it as `cancelledByParent`.
+
+### What `1c-3e` built
+
+`publishHandler.ts` **935 → 1108**. The two extractions T1c.14 predicted would shrink it did not:
+the record write, the two receipt builders and the W4 refusal are all new. NEW
+`apps/workers/src/publicationRecordProbe.ts` (86) is the skip-path reader.
+
+- **W4, before anything is touched.** A job whose payload names no tenant, or whose id carries no
+  `-e{n}`, is refused with `UnrecoverableError` and counted on
+  `worker_publish_job_unrecoverable_total{reason="pre_change_job"}`. `resolveJobAccountId` and
+  `recordTenantScopeFailure` are DELETED with the fallback they served, `accountId` loses its `?`,
+  and `getChannelOwnerAccountId` / `getLogByDedupeKey` leave the narrow `PublishRepo`.
+  `worker_publish_job_account_id_source_total` is deleted too: a counter whose only purpose was to
+  make the fallback's removal observable has nothing left to observe.
+- **The skip path reads the RECORD** under `withWorkerTenant`, and `readChannelVerdict` names the
+  four answers: `attempt`, `stale` (any other episode — ahead or behind), `published`, `excluded`.
+  A channel the record does not hold is `missing_record` and terminal.
+- **D10.** The `RUNNING` and every `ERR` `logPublish` are gone; ONE `OK` receipt is written AFTER
+  the record commits, best-effort, keyed by **W9**'s episode-stripped id so the upsert keeps one row
+  per `(post, channel)` across episodes.
+- **D16.** The record write sits AFTER `markFragmentsPublished` and BEFORE `notifySaga`, OUTSIDE the
+  row-update catch, so a tweet row that could not be written never takes the channel's exclusion
+  with it. The rethrow is conditional: only while the record the write produced leaves the channel
+  `unresolved`.
+- **The R3 advisory closed inside that region.** `markFragmentsPublished` used to set `rows = []` on
+  a `getTweetsByThread` `!ok` and drop every fragment update in silence. It now REPORTS — the ERROR
+  log plus `recordError("publisher", "thread_live_fragments_unrecorded", true)`, the same counter
+  the row-write catch feeds, so `ThreadLiveFragmentsUnrecorded` sees both arms of one condition.
+
+### Two decisions worth reading
+
+**The episode is parsed from the JOB ID, not from the payload** (D7 literal). One function yields
+both the episode and W9's stripped mirror key, so the value the record is written against and the
+value the mirror is keyed by cannot drift; and an id BullMQ minted itself is a pre-change job by
+construction. The payload's `episode` is therefore unread by the worker — it is read by
+`SagaIntegration` to BUILD the id, and that is stated rather than left as unexplained fat.
+
+**`attemptNo` is `job.attemptsMade + 1`**, which required `attemptsMade` on the consumer adapter's
+handler job (additive; every other subscriber compiles unchanged) and as a required field on
+`PublishJobInput`. Deriving it from the record was rejected, and the rejection is the point: an
+ordinal computed from a read is fresh on every redelivery, which defeats the aggregate's
+`attemptNo <= episodeAttempts` replay guard — the one thing standing between at-least-once delivery
+and a spent attempt budget.
+
+### What the integration harnesses had to become, and why it is not seeding
+
+`apps/api`'s integration tier runs no worker, so the record write had to be driven from the
+harnesses. That is admissible only because the writer now EXISTS — the same reasoning `1c-2a` used
+when it registered the real `OpenPublicationEpisodeCommandHandler`. The doubles stand in for the
+PROVIDER CALL and for BullMQ; the publication write is
+`RecordChannelPublicationAttemptUseCase` over the real aggregate, shared by both suites in NEW
+`apps/api/tests/integration/helpers/publishWorkerRecord.ts`.
+
+Three consequences surfaced there, each a real property of the design rather than a test problem:
+
+1. **`RecordingQueue` must respect `runAt`.** Running a delayed job inline published a scheduled
+   post the instant it was scheduled — the record write itself moves the post's word.
+2. **A rejected publish no longer FAILS the saga.** It settles `EXCLUDED`, the wait step SUCCEEDS on
+   a record where nothing is unresolved, and the outcome travels to the promotion as a reported
+   failure. `sagaCrashRecovery`'s two post-pivot-failure scenarios therefore needed a post-pivot
+   step that can still be made to fail; the failure is injected at the promotion handler, named as
+   the one injected fault in that composition.
+3. **The per-channel `RereadCheck` closed the window the "still DRAFT" scenario existed to expose.**
+   A post rewound to DRAFT whose channel record says PUBLISHED is now refused at the pivot. The
+   scenario was converted to assert exactly that — the record decides, not the word — rather than
+   deleted, because the closed window is the improvement and deleting it would hide it.
+
+### Verification
+
+`integration:saga-recovery` **33/33, exit 0**. `tsc -b apps/api --force`, `tsc -b apps/workers
+--force`, `tsc -b apps/workers/tsconfig.build.json --force`, `tsc -b packages/shared --force` and
+`tsc -b packages/adapters/queue-bullmq/tsconfig.build.json --force` all exit 0. Tiers: api 596 files
+/ 9287 tests, workers 20 / 189, `@core/domain` 193, `@core/posts` 99, `db-prisma` 78, chaos batch
+4/4 — all green. `prettier -c .` clean; `eslint apps packages infra --max-warnings 0` exit 0.
+`check:circular` no cycles, `check:duplicates` exit 0, `check:dead-code` **0 regressions** (see the
+residual below). Fitness #3 #5 #8 #9 #10 #11 #21 #32 all 0; #30 at 20 against its ratchet baseline of
+21; #40 part A 0 at seam floor 3, part B 0 at 14 sites against a floor of 10.
+
+**CODE: 954 for `1c-3e`, 669 for `1c-2a`, 1623 for the fused unit** — measured +1089/−534 over the
+working tree, src only, by two independent counts (EVIDENCE + doc 2501; total 4124).
+`size:exception` required — 4× the hard budget, which is what fusing a cycle costs and what §9.9
+item 6 (a) priced at 690 before the deletions and the compile-forced suite churn were counted. The
+figure first recorded here was 1587, which was wrong: the adversarial gate re-measured 1596, and
+the bounded correction that answered its findings added a further 27 src lines. 1623 is the number
+the exception is argued on, and the `1c-2a` 669 inside it is carried from that half's own
+measurement rather than re-derived.
+
+**`check:dead-code` was RED before this unit, and the first repair was a comment that sold a
+guarantee the code did not have.** `dca92531` (`1c-3d`) does not list `check:dead-code` among its
+measurements and did not touch `knip-baseline.json`; it exported six types from
+`publishOutcomeRecorder.ts` that no production file imported, and `apps/workers` ignores `tests/**`,
+so all six read as dead. Three became used when this unit wired the recorder into the handler. The
+other three — `RecordChannelAttemptPort`, `OutcomeQueuePort`, `FailedOutcomeJob` — were first
+pinned at the composition root with `satisfies` under the claim that a queue renaming `enqueue`
+would fail there instead of at the first lost outcome. That claim was FALSE:
+`createPublishOutcomeRecorder(deps: PublishOutcomeRecorderDeps)` already declares those property
+types, so the arguments are checked against exactly those interfaces with or without the pin, and
+`const failed: FailedOutcomeJob = job` is the same no-op against `reportFailedJob`'s own parameter
+type. The pins bought nothing and existed only to give knip a `src/**` consumer. They are deleted,
+and the three interfaces are no longer exported: every caller supplies them structurally through
+`PublishOutcomeRecorderDeps`, nothing outside the module needs the name, and `declaration` is
+`false` for `apps/workers` so no emit depends on them either. The gate is green at 0 regressions
+with no pin and no baseline entry. It also reports one baseline finding RESOLVED
+(`dependencies::apps/workers/package.json::@core/application`); the ledger is left unshrunk, because
+rewriting the baseline is not this unit's business.
+
+### `1c-2a ⊗ 1c-3e` — bounded correction of the adversarial gate (2026-09-23)
+
+**The duplicate-thread hole, and the asymmetry that hid it.** `publishThreadPost` wrapped
+`markFragmentsPublished` in a try/catch on the FAILURE path and stated the rule in a comment there
+— a row that could not be written must not take the channel's exclusion with it — and then made the
+identical call UNGUARDED on the SUCCESS path 47 lines later. `markFragmentsPublished` rethrows when
+`getTweetsByThread` or `updateTweet` raises, so a thread that published COMPLETELY and then met a
+repository blip threw past its own `recordOutcome`. Traced end to end: the throw reaches
+`handleJob`'s catch, is rethrown to BullMQ, and the redelivery reads a record that is still
+UNRESOLVED (the write never ran), gets verdict `attempt`, meets `THREAD_EXISTS`, finds the
+`allPublished` early-return FALSE because the rows are exactly what failed, and calls
+`provider.publishThread` again — the whole thread posted a second time on a customer's account.
+This unit made the record the sole idempotency authority, which is what turned a cosmetic asymmetry
+into a live duplicate-publication path. Fixed with the same try/catch shape as the failure path, so
+the two read as one rule applied twice.
+
+RED first, at `apps/workers/tests/publishThreadPost.test.ts` — a fully-published thread whose row
+update rejects, driven through `handleJob` TWICE with a record probe that answers from what the
+recorder actually holds: `AssertionError: Got unwanted rejection ... Actual message:
+"DB_UNAVAILABLE"`. GREEN after the fix, with the provider called exactly once across the
+redelivery.
+
+**The test double's arithmetic disagreed with the aggregate it doubles.** `settledKindOf` in
+`tests/setup.ts` gated exclusion on `classification === "transient"`, while
+`ChannelPublication.recordAttempt` gates it on NONTRANSIENT and falls through to UNRESOLVED for an
+unclassifiable failure that is still inside its budget. Two divergences, not one — the second found
+while pinning the first: (1) `unclassifiable` with no live fragments, where the double said EXCLUDED
+and the aggregate says UNRESOLVED; (2) a transient failure on the budget's last attempt, where the
+double said UNRESOLVED and the aggregate says EXCLUDED. Both are latent today because every live
+call site passes a closed-union member and `TEST_ATTEMPT.attemptNo` is 1, but the design's own named
+risk is classifier unevenness across eleven providers, which is exactly the trigger. The double now
+carries the aggregate's branches in the aggregate's order, and
+`apps/workers/tests/unit/outcomeDoubleContract.test.ts` pins every branch against a REAL
+`ChannelPublication` driven through the REAL recorder, so the receipt reaches the entity by
+production's own `toAttemptResult` mapping rather than a second copy of it. Its last case asserts
+the matrix covers every member of `ATTEMPT_CLASSIFICATIONS`, so a new classification cannot be added
+without a case. RED with the original arithmetic restored: 2 of 8 failed, one in each direction.
+
+**The `satisfies` pins bought nothing and the comment said otherwise.** `publishWorker.ts` claimed a
+queue that renamed `enqueue` would fail at the pin instead of at the first lost outcome.
+`createPublishOutcomeRecorder(deps: PublishOutcomeRecorderDeps)` already declares those property
+types, so the arguments were checked against exactly those interfaces either way, and
+`const failed: FailedOutcomeJob = job` was the same no-op against `reportFailedJob`'s own parameter
+type. Deleted, along with the three exports that existed only to be pinned — see the paragraph
+above for the knip mechanism and why un-exporting is sound here.
+
+**`saga.ts` justified a live guard by a mechanism this diff deleted.** The `accountId` fail-closed
+guard was argued from the worker's deploy-compat owner fallback, which W4 removed in this same unit
+(measured: the only remaining mention of it in `src` was that comment). The guard is still right and
+is kept; its reason now names what actually happens — the worker resolves no tenant of its own, so a
+job with no `accountId` is refused and retired, and the channel it names never publishes and never
+records why.
+
+**Named, not fixed** — two backlog rows added to
+`docs/reports/roadmap-detected-smells-backlog.md`: SMELL-160 (`CHANNEL_ATTEMPT_BUDGET = 3` and the
+PUBLISH queue's `attempts: 3` are a silent load-bearing coupling that no comment, test or gate ties
+together) and SMELL-161 (`getChannelOwnerAccountId` and `getLogByDedupeKey` lost their only
+production consumers but remain declared, implemented and cached, invisible to knip because they are
+members of an interface that IS used).
+
+**Re-verified after the correction.** `integration:saga-recovery` **33/33, exit 0**. All five
+`--force` builds exit 0: `apps/api`, `apps/workers`, `apps/workers/tsconfig.build.json`,
+`packages/shared`, `packages/adapters/queue-bullmq/tsconfig.build.json`. Tiers: api 596 files /
+9287 tests, workers **21 / 198** (was 20 / 189 — one new suite, nine new tests), `@core/domain` 193,
+`@core/posts` 99, `db-prisma` 78, chaos 4/4. `prettier -c .` clean; `eslint apps packages infra
+--max-warnings 0` exit 0; `check:dead-code` 0 regressions; `check:circular` no cycles;
+`check:duplicates` exit 0. Fitness #3 #5 #8 #9 #10 #11 #21 #32 all 0; #30 at 20 against its ratchet
+baseline of 21; #40 part A 0 at seam floor 3, part B 0 at 14 sites against a floor of 10.
