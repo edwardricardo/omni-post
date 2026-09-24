@@ -223,7 +223,13 @@ jobs:
       # word for the glibc match, "BLOCKING".
       - name: Smoke — the built image runs, and its native ABI resolves
         run: |
-          set -uo pipefail
+          # -e is not decoration here. Without it the liveness probe could fail
+          # and the `echo` after it would still return 0 — and for the three
+          # services whose branch ENDS in an echo, the step's exit status would
+          # be that echo's. A gate whose last command cannot fail is a gate that
+          # cannot go red, which is the exact defect this step was added to stop
+          # shipping. Caught in review, after being written into the fix for it.
+          set -euo pipefail
           IMAGE="local/${{ matrix.service }}:scan"
 
           # 1. Node executes at all on this base. Catches an architecture or
