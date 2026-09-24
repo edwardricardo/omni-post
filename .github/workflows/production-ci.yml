@@ -270,13 +270,9 @@ jobs:
           output: "trivy-results-${{ matrix.service }}.sarif"
           severity: "CRITICAL,HIGH"
           exit-code: "1"
-          # NAMED, because the default does not find it. Trivy resolves
-          # `.trivyignore` from its working directory, which is true of the
-          # binary and was measured that way — but this action runs the scanner
-          # inside its OWN container, where the repository root is not that
-          # directory. The first run after the file was added proved it: the
-          # action's env dump showed `INPUT_TRIVYIGNORES:` empty and the scan
-          # exited 1 on findings the file exists to suppress.
+          # Explicit path required: the action runs Trivy in its own container,
+          # so the repo-root .trivyignore is not auto-discovered. Measured — the
+          # first run without this exited 1 on findings the file suppresses.
           trivyignores: .trivyignore
 
       - name: Upload Trivy scan results
