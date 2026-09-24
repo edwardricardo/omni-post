@@ -1364,7 +1364,27 @@ export class SagaExecutionEngine {
     this.lifecycle.metrics.sagasFailed++;
     recordSagaFailed(reason);
 
-    logger.error({ sagaId: instance.id, error, reason }, "Saga failed");
+    // The step INDEX and the tenant, not just the message. A saga failure line
+    // that carries neither is undiagnosable from a log alone: `error` is the
+    // step's own words, and two different steps failing for two different causes
+    // can produce the same sentence. `Post not found` is the live example — the
+    // aggregate load refuses identically whether the row is absent or merely
+    // invisible to the scope the read ran under, and without the account there
+    // is no way to tell those apart afterwards. Both fields are already on the
+    // instance; the cost is two keys and the alternative was reading code.
+    logger.error(
+      {
+        sagaId: instance.id,
+        definitionId: instance.definitionId,
+        failedStepIndex: instance.currentStep,
+        // Absent on a row the engine could not scope — which is itself the
+        // answer when a tenant-guarded step reports something missing.
+        ...(instance.accountId !== undefined && { accountId: instance.accountId }),
+        error,
+        reason,
+      },
+      "Saga failed"
+    );
 
     await this.releaseAllLocks(instance.id);
   }

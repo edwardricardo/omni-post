@@ -1342,6 +1342,26 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         "and it carries its own failure class, so the alerting series does not read it as a timeout"
       );
 
+      // The three fields that make a failure line diagnosable on its own. The
+      // message alone is the step's own words, and two different steps failing
+      // for two different causes can write the same sentence — which is exactly
+      // how a "Post not found" in CI cost an afternoon before these existed.
+      assert.strictEqual(
+        failure.definitionId,
+        "post-publishing-saga",
+        "the line names WHICH saga definition ended, not only which instance"
+      );
+      assert.ok(
+        Number.isInteger(failure.failedStepIndex) && Number(failure.failedStepIndex) >= 0,
+        `the line names the step index it ended on, got ${String(failure.failedStepIndex)}`
+      );
+      assert.strictEqual(
+        failure.accountId,
+        accountId,
+        "and the tenant the step ran under — without it, a guarded read that " +
+          "reports something missing cannot be told from one looking in the wrong place"
+      );
+
       assert.strictEqual(await sagaFailedEventCount(sagaId), 1, "exactly one terminal audit event");
 
       // The re-fail loop: a terminal row left in the tracked set is re-failed on
