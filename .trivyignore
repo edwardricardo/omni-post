@@ -21,6 +21,14 @@
 # asserts every id here maps to a canon row is the durable fix and is not in
 # this change.
 #
+# AND THE EXPIRY ITSELF IS UNPROVEN HERE. `exp:` is parsed by Trivy, and the
+# workflow pins the scanner as `aquasecurity/trivy-action@master` — an unpinned
+# action, so the version that reads this file is whatever master resolves to on
+# the day. If it did not honour `exp:`, these entries would degrade silently
+# from time-limited to permanent, which is the one failure mode the dates exist
+# to prevent. Nothing in this repository asserts otherwise yet; the cheap proof
+# is a past-dated entry that must re-surface its finding.
+#
 # ADDING AN ENTRY. Adjudicate it in the canon FIRST, with its reachability
 # argument and its remove-when. Then project it here. Never the other way round:
 # the canon is explicit that a reachable, un-mitigated advisory is not something
@@ -29,9 +37,15 @@
 # image-size 2.0.2 — infinite-loop DoS in two parsers.
 #   Canon rows: GHSA-w3rx-r6r6-pgpr (ICNS) and GHSA-5p2g-fcmc-qvqq (JXL/HEIF),
 #   both already in §"Audited audit-ignores" and both already in ignoreGhsas.
-#   Verified as the same defects, not assumed: Trivy's own description for
-#   CVE-2025-71330 reads "image-size through 2.0.2 ... by supplying a specially
-#   crafted ICNS image buffer", which is GHSA-w3rx-r6r6-pgpr word for word.
+#   BOTH pairings verified against Trivy's own descriptions, not assumed — the
+#   second one too, because a file that tells a reader to check the pairing owes
+#   them the check for every id it lists:
+#     CVE-2025-71330 "image-size through 2.0.2 ... a specially crafted ICNS
+#       image buffer"                  -> GHSA-w3rx-r6r6-pgpr, "ICNS parser
+#                                         infinite-loop DoS"
+#     CVE-2025-71329 "infinite loop in the JXL or HEIF image parsers"
+#                                      -> GHSA-5p2g-fcmc-qvqq, "JXL/HEIF parser
+#                                         infinite-loop DoS"
 #   Not pinnable: the advisories name >=2.0.3 as patched and npm has published
 #   no release above 2.0.2, so there is nothing to raise a floor to.
 #   Mitigation (the canon's, restated so this file reads alone): the one
