@@ -5,14 +5,15 @@
  * @layer infrastructure
  */
 import { UnrecoverableError } from "bullmq";
-import type {
-  RenderedPost,
-  Result,
-  ThreadPlan,
-  ThreadReceipt,
-  PublishError,
-  Thread,
-  Tweet,
+import {
+  readPublishJobId,
+  type RenderedPost,
+  type Result,
+  type ThreadPlan,
+  type ThreadReceipt,
+  type PublishError,
+  type Thread,
+  type Tweet,
 } from "@shared/types";
 import type { PublishReceipt } from "@ports/core";
 import { ContentFingerprint, PUBLICATION_OUTCOME_KINDS } from "@core/domain/index.js";
@@ -51,20 +52,6 @@ import type {
   PublishJobInput,
 } from "./publishHandlerTypes.js";
 
-/**
- * The episode a publish job was minted for, and the key its receipt mirror is
- * written under. Both come from the SAME parse of the job id, so the value the
- * record is written against and the value the mirror is keyed by cannot drift.
- */
-interface PublishJobIdentity {
-  readonly episode: number;
-  /** The job id with its `-e{n}` suffix removed: one mirror row per (post, channel). */
-  readonly mirrorKey: string;
-}
-
-/** The job id the pivot mints. The episode is an ordinal, so it is never zero. */
-const JOB_ID_EPISODE = /-e([1-9][0-9]*)$/;
-
 /** What the record says this job may do: attempt, or one of the reasons it may not. */
 type ChannelVerdict = "attempt" | "stale" | "published" | "excluded";
 
@@ -88,23 +75,6 @@ function readChannelVerdict(channel: ChannelRecordState, episode: number): Chann
     return "published";
   }
   return channel.outcome === PUBLICATION_OUTCOME_KINDS.EXCLUDED ? "excluded" : "attempt";
-}
-
-/**
- * @function readJobIdentity
- * @description Reads the episode out of a publish job's id.
- * @param jobId - The BullMQ job id, or undefined when the queue assigned none.
- * @returns The episode and the mirror key, or undefined when the id names no episode.
- */
-function readJobIdentity(jobId: string | undefined): PublishJobIdentity | undefined {
-  if (jobId === undefined) {
-    return undefined;
-  }
-  const match = JOB_ID_EPISODE.exec(jobId);
-  if (match?.[1] === undefined) {
-    return undefined;
-  }
-  return { episode: Number(match[1]), mirrorKey: jobId.slice(0, match.index) };
 }
 
 /**
@@ -949,7 +919,7 @@ export class PublishHandler {
     // W4, before anything is touched. The payload arrives as queue data, so the
     // typed shape is a claim about the producer and these two are the check.
     const accountId = job.payload.accountId;
-    const identity = readJobIdentity(job.dedupeKey);
+    const identity = readPublishJobId(job.dedupeKey);
     if (typeof accountId !== "string" || accountId.length === 0 || identity === undefined) {
       finishJob();
       throw this.refuseJob("pre_change_job", { postId, channelId, jobId: job.dedupeKey });

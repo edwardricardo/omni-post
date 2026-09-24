@@ -887,6 +887,8 @@ export type {
   PostOnboardingStepByStepKeyCompleteResponses,
   PostPostsBatchDuplicateData,
   PostPostsBatchDuplicateResponses,
+  PostPostsByPostIdChannelsByChannelIdRetractionConfirmRemovedData,
+  PostPostsByPostIdChannelsByChannelIdRetractionConfirmRemovedResponses,
   PostPostsByPostIdCommentsData,
   PostPostsByPostIdCommentsResponses,
   PostPostsByPostIdSubmitForReviewData,

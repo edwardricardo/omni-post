@@ -5,7 +5,7 @@
  */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { ok } from "@shared/types";
+import { mintPublishJobId, ok, readPublishJobId } from "@shared/types";
 import {
   createTestDeps,
   createTestPost,
@@ -32,9 +32,15 @@ describe("PublishHandler.handleJob", { sequential: true }, () => {
   const POST_ID = "post-job-001";
   const CHANNEL_ID = "channel-x-001";
   /** The id the pivot mints: one per channel, per episode. */
-  const JOB_ID = `publish-${POST_ID}-${CHANNEL_ID}-e1`;
-  /** The same id with its episode removed — one receipt mirror row per target (W9). */
-  const MIRROR_KEY = `publish-${POST_ID}-${CHANNEL_ID}`;
+  const JOB_ID = mintPublishJobId({ postId: POST_ID, channelId: CHANNEL_ID, episode: 1 });
+  /**
+   * The same id with its episode removed — one receipt mirror row per target. Read
+   * back through the reader the handler itself uses, so this fixture cannot come to
+   * disagree with the id it is derived from.
+   */
+  const JOB_IDENTITY = readPublishJobId(JOB_ID);
+  assert.ok(JOB_IDENTITY, "a minted job id must name an episode");
+  const MIRROR_KEY = JOB_IDENTITY.mirrorKey;
 
   let probe: StubPublicationRecordProbe;
   let recorder: RecordingOutcomeRecorder;

@@ -5,7 +5,7 @@
  */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { err as errResult, ok } from "@shared/types";
+import { err as errResult, mintPublishJobId, ok } from "@shared/types";
 import { PUBLICATION_OUTCOME_KINDS } from "@core/domain/index.js";
 import {
   createTestDeps,
@@ -674,7 +674,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
     // authority, so a row failure that escapes takes the record write with it
     // and the redelivery reads a channel that is still unresolved over a thread
     // that is already live on the provider.
-    const JOB_ID = `publish-${POST_ID}-${CHANNEL_ID}-e1`;
+    const JOB_ID = mintPublishJobId({ postId: POST_ID, channelId: CHANNEL_ID, episode: 1 });
 
     let recorder: RecordingOutcomeRecorder;
     let providerCalls: number;

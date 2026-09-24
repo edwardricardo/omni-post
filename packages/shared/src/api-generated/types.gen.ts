@@ -3147,6 +3147,23 @@ export type PostPostsBatchDuplicateResponses = {
   200: unknown;
 };
 
+export type PostPostsByPostIdChannelsByChannelIdRetractionConfirmRemovedData = {
+  body?: never;
+  path: {
+    postId: string;
+    channelId: string;
+  };
+  query?: never;
+  url: "/posts/{postId}/channels/{channelId}/retraction/confirm-removed";
+};
+
+export type PostPostsByPostIdChannelsByChannelIdRetractionConfirmRemovedResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
 export type PostChannelsData = {
   body?: never;
   path?: never;

@@ -7,7 +7,7 @@
  */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { ok } from "@shared/types";
+import { mintPublishJobId, ok } from "@shared/types";
 import {
   createTestDeps,
   createTestPublishReceipt,
@@ -30,7 +30,7 @@ describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
       accountId: TEST_ATTEMPT.accountId,
       ...(provider !== undefined && { provider }),
     },
-    dedupeKey: `publish-${postId}-${channelId}-e1`,
+    dedupeKey: mintPublishJobId({ postId, channelId, episode: 1 }),
     attemptsMade: 0,
   });
 

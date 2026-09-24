@@ -65,7 +65,7 @@ import {
   createSagaContext,
   type SagaInstance,
 } from "@shared/types/saga.js";
-import { ok } from "@shared/types";
+import { ok, mintPublishJobId } from "@shared/types";
 import type { Command, CommandResult } from "@shared/types/cqrs.js";
 import { InMemoryEventDispatcher } from "@core/domain/index.js";
 import {
@@ -152,15 +152,20 @@ function postStreamId(postId: string): string {
 /**
  * The publish job's dedupe key, which the queue adapter passes through as the
  * BullMQ job id. The saga this suite drives is the PRODUCTION definition, so
- * this expression is the expectation the assertions check production against —
- * it is never the value production used.
+ * this call reaches the SAME minter production reaches — it re-derives nothing.
+ * A local copy of the format here would agree with itself while production moved
+ * on, which is exactly how the episode suffix landed unnoticed by this suite.
  *
- * It carries the EPISODE, because that is what makes a re-drive reach the queue
- * at all: BullMQ ignores an add whose id sits in the retained completed set, so
- * an id without the episode would silently drop every later attempt.
+ * What that costs, stated rather than presented as a pure gain: the comment this
+ * replaced said the expression was "the expectation the assertions check production
+ * against — never the value production used", and an independent restatement is
+ * genuinely what caught a format change. Sharing the minter makes these assertions
+ * tautological about the FORMAT; they still pin the WIRING, which is the property
+ * this suite is for. The format itself is pinned elsewhere, by the argument-level
+ * producer pin and the round-trip case in `sagaContextInvariants.static.test.ts`.
  */
 function publishDedupeKey(postId: string, channelId: string, episode = 1): string {
-  return `publish-${postId}-${channelId}-e${episode}`;
+  return mintPublishJobId({ postId, channelId, episode });
 }
 
 /** Parses one pino line, returning null when the chunk is not JSON. */

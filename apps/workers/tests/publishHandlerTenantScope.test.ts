@@ -14,6 +14,7 @@
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
+import { mintPublishJobId } from "@shared/types";
 import type pino from "pino";
 import { PublishHandler } from "../src/publishHandler.js";
 import type { PublishRepo } from "../src/publishHandlerTypes.js";
@@ -32,7 +33,7 @@ import {
 const CHANNEL_ID = "ch-1";
 const POST_ID = "post-001";
 const PAYLOAD_ACCOUNT_ID = "acct-payload";
-const JOB_ID = `publish-${POST_ID}-${CHANNEL_ID}-e1`;
+const JOB_ID = mintPublishJobId({ postId: POST_ID, channelId: CHANNEL_ID, episode: 1 });
 
 /** Logger double that records what each level was called with. */
 function createRecordingLogger(): { logger: pino.Logger; warns: object[] } {
