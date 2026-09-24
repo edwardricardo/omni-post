@@ -1364,9 +1364,19 @@ describe("saga engine context invariants", () => {
       //
       // The ARGUMENTS are pinned, not just the call. A pin that sees only that
       // the minter is called cannot see it called with the post and the channel
-      // the other way round, which type-checks (both are strings) and keeps every
-      // static case green; the exact-template pin this replaced would have caught
-      // that, so its strength is restored here rather than quietly given up.
+      // the other way round — `mintPublishJobId({ postId: channelId, channelId:
+      // postId, episode })` type-checks, because both are strings, and left every
+      // static case green when it was planted.
+      //
+      // What this pin is and is NOT, because the distinction is easy to overstate
+      // and was overstated once already. It recognises the SHORTHAND call and so
+      // refuses that explicit swap. It is NOT equivalent to the exact-template pin
+      // it replaced: that one read the producer's own format string, while this
+      // reads the call's shape. And shorthand property ORDER is semantically
+      // irrelevant to a function that reads its argument by name, so a harmless
+      // `{ channelId, postId, episode }` would fail this too. The strength is
+      // narrower than what it replaced, and stated that way rather than claimed
+      // back.
       expect(integration.sanitized).toMatch(
         /const dedupeKey = mintPublishJobId\(\{\s*postId,\s*channelId,\s*episode,?\s*\}\)/
       );
