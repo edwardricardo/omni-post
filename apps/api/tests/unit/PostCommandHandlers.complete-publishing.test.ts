@@ -9,11 +9,11 @@
  */
 import { describe, it, beforeEach, expect, vi } from "vitest";
 
-// The handler's only externally visible act for a dropped `reasonCode` IS the log
-// line, so the log has to be readable from here — a refusal whose whole effect is a
-// log cannot be told from silence by a case that cannot see it. Only `createLogger`
-// is overridden; the rest of the module keeps its real exports, because other
-// importers in this graph read `logger` from it.
+// Dropping the fields the reconciliation does not read is the design, and the
+// handler must stay QUIET about it. Silence is only assertable by a case that can
+// see the log, so the log is made readable from here and the absence of a warning
+// is pinned. Only `createLogger` is overridden; the rest of the module keeps its
+// real exports, because other importers in this graph read `logger` from it.
 const logMocks = vi.hoisted(() => {
   const entries: Array<{ level: string; payload: Record<string, unknown>; message: string }> = [];
   const record =
@@ -56,6 +56,7 @@ import {
 import { CompletePostPublishingCommandHandler } from "../../src/cqrs/handlers/PostCommandHandlers.js";
 import { POST_COMMANDS, CompletePostPublishingCommandSchema } from "@shared/types/cqrs.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { PUBLISH_STATUS } from "@core/domain/index.js";
 
 describe("CompletePostPublishingCommandHandler", () => {
   let handler: CompletePostPublishingCommandHandler;
@@ -130,10 +131,10 @@ describe("CompletePostPublishingCommandHandler", () => {
     });
   });
 
-  // The exclusion reason the record keeps per channel. It is DECLARED here before
-  // anything reads it, so the emitter and the contract move in one step rather than
-  // two: an undeclared key is stripped by Zod without a word, which would let the
-  // emitter believe it had sent a reason that never left the parser.
+  // The exclusion reason the record keeps per channel. It is DECLARED by the
+  // contract even though no reader consumes it, because the channel object is
+  // `.strict()`: an undeclared key does not slip through, it rejects the whole
+  // command — so omitting it would refuse the very outcome the wait step sends.
   describe("the additive reasonCode field", () => {
     it("is declared by the contract and survives parsing instead of being stripped", () => {
       const parsed = CompletePostPublishingCommandSchema.safeParse(
@@ -162,16 +163,14 @@ describe("CompletePostPublishingCommandHandler", () => {
       expect(parsed.data?.data.outcome.channels[0]?.reasonCode).toBeUndefined();
     });
 
-    // The reconciliation that reads the reason is parked (T1c.5), so THIS handler
-    // still routes to the promotion use case, which has no field for it. The case
-    // pins that the addition changed nothing here: it is a regression guard, and it
-    // was green before the field existed as well as after.
-    // The drop is deliberate, but a drop nobody can see is indistinguishable from a
-    // field that was never sent. A producer wired before the reconciliation reader
-    // lands would watch the value cross the parser and vanish at this seam with
-    // nothing to read. The log is the discoverability, and it is asserted rather
-    // than assumed because its entire effect IS the line.
-    it("warns ONCE per command, naming how many codes it dropped and why", async () => {
+    // Not forwarding it is the DESIGN, so the handler must also stay QUIET about it.
+    // While the reconciliation was parked this seam warned once per command carrying
+    // a code, because a producer had no other way to learn the value went nowhere.
+    // The reconciliation now reads the RECORD the emitter projected that code from,
+    // so nothing is lost and there is nothing to announce — and a warning that fired
+    // on every partial publish would be telling the operator a defect was happening
+    // while the design worked exactly as intended.
+    it("stays silent about a reasonCode it does not forward — the record already holds it", async () => {
       await handler.handle(
         buildCompletePostPublishingCommand({
           channels: [
@@ -181,35 +180,10 @@ describe("CompletePostPublishingCommandHandler", () => {
         })
       );
 
-      const warnings = logMocks.entries.filter((entry) => entry.level === "warn");
-      expect(warnings.length).toBe(1);
-      expect(warnings[0]?.payload.droppedReasonCodes).toBe(2);
-      expect(warnings[0]?.payload.postId).toBe(TEST_POST_ID);
-      expect(warnings[0]?.message).toContain("reasonCode");
-    });
-
-    it("counts only the channels that carried one, not every channel in the outcome", async () => {
-      await handler.handle(
-        buildCompletePostPublishingCommand({
-          channels: [
-            { channelId: TEST_CHANNEL_ID_1, success: true },
-            { channelId: TEST_CHANNEL_ID_2, success: false, reasonCode: "CONTENT_REJECTED" },
-          ],
-        })
-      );
-
-      const warnings = logMocks.entries.filter((entry) => entry.level === "warn");
-      expect(warnings.length).toBe(1);
-      expect(warnings[0]?.payload.droppedReasonCodes).toBe(1);
-    });
-
-    it("stays silent when no channel carried a reasonCode — nothing was dropped", async () => {
-      await handler.handle(buildCompletePostPublishingCommand());
-
       expect(logMocks.entries.filter((entry) => entry.level === "warn").length).toBe(0);
     });
 
-    it("is not forwarded by this handler — the promotion use case has no field for it yet", async () => {
+    it("is not forwarded by this handler — the reconciliation reads it off the record", async () => {
       await handler.handle(
         buildCompletePostPublishingCommand({
           channels: [
@@ -229,7 +203,7 @@ describe("CompletePostPublishingCommandHandler", () => {
   });
 
   describe("delegation", () => {
-    it("forwards the outcome verbatim, including per-channel receipts and the OCC token", async () => {
+    it("forwards every channel and its result, the OCC token, and none of the receipts", async () => {
       const command = buildCompletePostPublishingCommand({
         aggregateId: TEST_POST_ID,
         channels: [
@@ -245,10 +219,13 @@ describe("CompletePostPublishingCommandHandler", () => {
       const input = ctx.completePostPublishingUseCase.executeCalls[0] as Record<string, unknown>;
       expect(input.postId).toBe(TEST_POST_ID);
       expect(input.expectedVersion).toBe(4);
+      // `externalId` goes the way `reasonCode` and `error` go, and for the same
+      // reason: the reconciliation loads the record those values were projected
+      // from, so a copy on the input could only ever contradict it.
       expect(input.outcome).toStrictEqual({
         channels: [
-          { channelId: TEST_CHANNEL_ID_1, success: true, externalId: "x-1" },
-          { channelId: TEST_CHANNEL_ID_2, success: true, externalId: "ig-1" },
+          { channelId: TEST_CHANNEL_ID_1, success: true },
+          { channelId: TEST_CHANNEL_ID_2, success: true },
         ],
       });
     });
@@ -262,13 +239,27 @@ describe("CompletePostPublishingCommandHandler", () => {
 
     it("surfaces a refusal from the use case as a failed command result", async () => {
       ctx.completePostPublishingUseCase.shouldFail = true;
-      ctx.completePostPublishingUseCase.failMessage = "Partial publish outcomes are not promoted";
-      ctx.completePostPublishingUseCase.failCode = USE_CASE_ERRORS.NOT_IMPLEMENTED;
+      ctx.completePostPublishingUseCase.failMessage =
+        "Post carries no publication record: its publication outcome cannot be established";
+      ctx.completePostPublishingUseCase.failCode = USE_CASE_ERRORS.VALIDATION_FAILED;
 
       const result = await handler.handle(buildCompletePostPublishingCommand());
 
       expect(result.success).toBeFalsy();
-      expect(result.error).toContain("Partial publish outcomes are not promoted");
+      expect(result.error).toContain("no publication record");
+    });
+
+    it("forwards a NON-TOTAL reconciliation as a success, not as a refusal", async () => {
+      // The seam that used to answer NOT_IMPLEMENTED here is gone: known
+      // partiality is an outcome the record holds, and the handler must carry
+      // it back as one.
+      ctx.completePostPublishingUseCase.status = PUBLISH_STATUS.PARTIALLY_PUBLISHED;
+      ctx.completePostPublishingUseCase.publishedAt = undefined;
+
+      const result = await handler.handle(buildCompletePostPublishingCommand());
+
+      expect(result.success).toBeTruthy();
+      expect(result.data.applied).toBeTruthy();
     });
 
     // The FSM origins (a CANCELLED post refused, a FAILED one promoted) are
@@ -304,6 +295,42 @@ describe("CompletePostPublishingCommandHandler", () => {
 
       expect(result.events?.length).toBe(1);
       expect(result.events?.[0]?.type).toBe("user.action");
+    });
+
+    // The audit payload is the only externally visible trace a reconciliation
+    // leaves, so both halves of its publication moment are pinned. The word is
+    // recorded because it is no longer always PUBLISHED; the moment is recorded
+    // ONLY when one was earned, because a row carrying a publication moment for a
+    // post that did not publish everywhere reads as a publication that never
+    // happened, and nothing downstream can tell it from one that did.
+    it("audits the derived word and the publication moment when every channel published", async () => {
+      ctx.completePostPublishingUseCase.applied = true;
+      ctx.completePostPublishingUseCase.status = PUBLISH_STATUS.PUBLISHED;
+      ctx.completePostPublishingUseCase.publishedAt = new Date("2024-03-04T05:06:07.000Z");
+
+      const result = await handler.handle(buildCompletePostPublishingCommand());
+
+      const details = (result.events?.[0]?.data as { details?: Record<string, unknown> }).details;
+      expect(details).toStrictEqual({
+        channelCount: 1,
+        status: PUBLISH_STATUS.PUBLISHED,
+        publishedAt: new Date("2024-03-04T05:06:07.000Z"),
+      });
+    });
+
+    it("audits the derived word and OMITS the publication moment for a partial publish", async () => {
+      ctx.completePostPublishingUseCase.applied = true;
+      ctx.completePostPublishingUseCase.status = PUBLISH_STATUS.PARTIALLY_PUBLISHED;
+      ctx.completePostPublishingUseCase.publishedAt = undefined;
+
+      const result = await handler.handle(buildCompletePostPublishingCommand());
+
+      const details = (result.events?.[0]?.data as { details?: Record<string, unknown> }).details;
+      expect(details).toStrictEqual({
+        channelCount: 1,
+        status: PUBLISH_STATUS.PARTIALLY_PUBLISHED,
+      });
+      expect(details !== undefined && "publishedAt" in details).toBeFalsy();
     });
 
     it("emits no event for an idempotent re-application — nothing happened to audit", async () => {

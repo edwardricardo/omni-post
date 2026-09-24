@@ -123,16 +123,17 @@ export function setupPostUseCases(container: Container): void {
     true
   );
 
-  // Promotion writer. Takes NO EventDispatcher on purpose: its events must be
-  // delivered once, AFTER the commit, by the outbox relay — dispatching inside
-  // the transaction would tell subscribers a post was published while the
-  // transaction could still roll back.
+  // The publication reconciliation. Takes NO EventDispatcher on purpose: its
+  // events must be delivered once, AFTER the commit, by the outbox relay —
+  // dispatching inside the transaction would tell subscribers a post was
+  // published while the transaction could still roll back. It takes no
+  // ChannelRepository either: the providers it used to resolve per channel now
+  // come off the records' own joined channel rows.
   container.register<CompletePostPublishingUseCase>(
     TOKENS.CompletePostPublishingUseCase,
     () =>
       new CompletePostPublishingUseCase(
         container.resolve<PostRepository>(TOKENS.PostRepository),
-        container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

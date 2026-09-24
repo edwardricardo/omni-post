@@ -497,10 +497,10 @@ export class PublishPostCommandHandler implements CommandHandler<
 // ---------------------------------------------------------------------------
 
 /**
- * Promotes a post whose every scheduled channel published. It chooses no status
- * and writes no field itself: the outcome goes to the use case verbatim and the
- * aggregate decides, which is what keeps the persisted state and the providers'
- * reality in agreement.
+ * Reconciles a post's publication word with its per-channel record. It chooses
+ * no status and writes no field itself: the outcome goes to the use case
+ * verbatim and the aggregate derives the word from the record, which is what
+ * keeps the persisted state and the providers' reality in agreement.
  */
 export class CompletePostPublishingCommandHandler implements CommandHandler<
   Command<unknown>,
@@ -526,35 +526,32 @@ export class CompletePostPublishingCommandHandler implements CommandHandler<
       const validatedCommand = validation.data as CompletePostPublishingCommand;
       const { data, metadata, aggregateId } = validatedCommand;
 
-      // The contract admits a per-channel `reasonCode`; the reconciliation that reads
-      // it is not wired yet, so this handler drops it. Announced ONCE per command
-      // rather than left silent: a producer populating the field would otherwise watch
-      // it cross the parser and vanish here with nothing to read, and a silent drop of
-      // a value the contract advertises is the same defect as a field nobody honours —
-      // which is why the sibling content command declares `.strict()`.
-      const droppedReasonCodes = data.outcome.channels.filter(
-        (channel) => channel.reasonCode !== undefined
-      ).length;
-      if (droppedReasonCodes > 0) {
-        log.warn(
-          { postId: aggregateId, droppedReasonCodes },
-          "Completion outcome carries a per-channel reasonCode that this handler does not forward: the reconciliation reader that consumes it is not wired yet, so the value is parsed and dropped"
-        );
-      }
-
+      // The command carries a per-channel `reasonCode`, `externalId` and `error`;
+      // this handler forwards the channel and its result and drops the other three,
+      // which is the DESIGN rather than a gap. The reconciliation derives the post's
+      // word from the publication RECORD and reads those three off the record's own
+      // rows, which is where the saga projected them from in the first place —
+      // forwarding the copy would hand the reader a value it is about to load from
+      // the source anyway, and a copy that can disagree with its source is worse
+      // than no copy.
+      //
+      // Dropped here does NOT mean lost, and it is worth being exact about where it
+      // survives, because none of the obvious places is one. The saga's wait step
+      // writes the whole per-channel report — reason code included — into
+      // `stepData["wait-publishing-completion"]`, and that lands in the
+      // `SagaInstance.context` column before this command is built, so an operator
+      // reading the saga row sees it. The command itself is dispatched and
+      // discarded: `CQRSBus.executeCommand` keeps no store. The audit event below
+      // carries a channel COUNT, the derived word and the publication moment — no
+      // channel list and no reason — and it is written only when the word actually
+      // moved, which on a healthy publish it does not, because the worker's recorded
+      // attempt already brought the two into agreement.
       const result = await this.config.completePostPublishingUseCase.execute({
         postId: aggregateId,
         outcome: {
-          // Same values, key for key. The spread is not a reshape: Zod types an
-          // absent `.optional()` as `string | undefined`, and under
-          // `exactOptionalPropertyTypes` an absent key and a key holding
-          // `undefined` are different things. Omitting rather than assigning is
-          // what keeps them different.
           channels: data.outcome.channels.map((channel) => ({
             channelId: channel.channelId,
             success: channel.success,
-            ...(channel.externalId !== undefined && { externalId: channel.externalId }),
-            ...(channel.error !== undefined && { error: channel.error }),
           })),
         },
         ...(data.expectedVersion !== undefined && { expectedVersion: data.expectedVersion }),
@@ -565,13 +562,6 @@ export class CompletePostPublishingCommandHandler implements CommandHandler<
       }
 
       const promotion = result.value;
-
-      if (promotion.unresolvedChannelIds.length > 0) {
-        log.warn(
-          { postId: aggregateId, unresolvedChannelIds: promotion.unresolvedChannelIds },
-          "Promotion could not resolve every channel to a provider; the publishing-started event names fewer providers than channels published"
-        );
-      }
 
       // No POST_PUBLISHED integration event here: its payload requires the
       // provider's externalId, which this capability does not yet carry, and a
@@ -593,7 +583,14 @@ export class CompletePostPublishingCommandHandler implements CommandHandler<
             },
             {
               channelCount: data.outcome.channels.length,
-              publishedAt: promotion.publishedAt,
+              // The word the record derived, which is no longer always
+              // PUBLISHED, and the publication moment ONLY when there is one —
+              // a partially published post earned none, and an audit row
+              // carrying an empty key would read as a publication that was not.
+              status: promotion.status,
+              ...(promotion.publishedAt !== undefined && {
+                publishedAt: promotion.publishedAt,
+              }),
             }
           )
         );

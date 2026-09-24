@@ -119,6 +119,15 @@ export class PublishNowPromotionHarness {
   private channelRepository!: PrismaChannelRepository;
   private projectRepository!: PrismaProjectRepository;
   private handlerConfig!: PostCommandHandlersConfig;
+  /**
+   * The two REAL writers that put a publication record on a post, held so a scenario
+   * driving the reconciliation directly can establish the same precondition the saga
+   * establishes for itself. They are the production use cases, not doubles: the
+   * reconciliation reads the record now, and a hand-built row would be a stand-in for
+   * a writer this tree already has.
+   */
+  private episodeUseCase!: OpenPublicationEpisodeUseCase;
+  private recordAttemptUseCase!: RecordChannelPublicationAttemptUseCase;
 
   private readonly createdSagaIds: string[] = [];
   private readonly openFastify: FastifyInstance[] = [];
@@ -215,9 +224,10 @@ export class PublishNowPromotionHarness {
     // wiring that drops it compiles and passes — the divergence from the container's
     // production wiring is invisible until something drives it.
     const unitOfWork = new PrismaUnitOfWork(this.guarded, ambientTenantContextProvider);
-    this.promotionUseCase = new CompletePostPublishingUseCase(
+    this.promotionUseCase = new CompletePostPublishingUseCase(this.postRepository, unitOfWork);
+    this.episodeUseCase = new OpenPublicationEpisodeUseCase(this.postRepository, unitOfWork);
+    this.recordAttemptUseCase = new RecordChannelPublicationAttemptUseCase(
       this.postRepository,
-      this.channelRepository,
       unitOfWork
     );
     this.handlerConfig = {
@@ -229,16 +239,11 @@ export class PublishNowPromotionHarness {
       updatePostUseCase: new UpdatePostUseCase(this.postRepository, new InMemoryEventDispatcher()),
       deletePostUseCase: new DeletePostUseCase(this.postRepository, this.businessMetrics),
       completePostPublishingUseCase: this.promotionUseCase,
-      // Constructed because the config declares it, not because this suite drives
-      // it: no scenario here dispatches `post.open-publication-episode`, and the
-      // saga step that will is not written yet. It gets the same repository AND the
-      // same unit of work the promotion gets, so the day a scenario does reach it,
-      // it runs the wiring the container builds rather than a narrower one that
-      // happens to compile.
-      openPublicationEpisodeUseCase: new OpenPublicationEpisodeUseCase(
-        this.postRepository,
-        unitOfWork
-      ),
+      // The pivot dispatches `post.open-publication-episode`, so this IS driven —
+      // by every publish-now scenario here and by `seedRecordedPost`. It gets the
+      // same repository AND the same unit of work the promotion gets, so it runs
+      // the wiring the container builds rather than a narrower one that compiles.
+      openPublicationEpisodeUseCase: this.episodeUseCase,
       postRepository: this.postRepository,
       channelRepository: this.channelRepository,
       redis: this.redis,
@@ -247,12 +252,8 @@ export class PublishNowPromotionHarness {
     // The second half of what a publish job does. The queue double stands in for
     // BullMQ and for the provider call; this is the production write the worker
     // performs with what that call returned, and the wait step settles on it.
-    const recordAttempt = new RecordChannelPublicationAttemptUseCase(
-      this.postRepository,
-      unitOfWork
-    );
     this.queue.runWorker = async (job) => {
-      await recordPublishedAttempt(recordAttempt, {
+      await recordPublishedAttempt(this.recordAttemptUseCase, {
         accountId: this.accountId,
         postId: job.postId,
         channelId: job.channelId,
@@ -399,7 +400,6 @@ export class PublishNowPromotionHarness {
         new ThrowingOutboxWriter(),
         ambientTenantContextProvider
       ),
-      this.channelRepository,
       new PrismaUnitOfWork(this.guarded, ambientTenantContextProvider)
     );
   }
@@ -446,6 +446,61 @@ export class PublishNowPromotionHarness {
       },
     });
     return postId;
+  }
+
+  /**
+   * @method seedRecordedPost
+   * @description Drives a fresh DRAFT post through the two writers production runs
+   *   BEFORE the reconciliation ever sees it: the episode use case declares the
+   *   targets and opens episode 1, then the worker's own write records a published
+   *   attempt per opened channel. Both are the REAL use cases — a scenario that
+   *   calls the reconciliation directly must arrive at the state the saga arrives
+   *   at, and inserting publication rows by hand would substitute for writers this
+   *   tree has rather than exercise them.
+   * @param label - Distinguishes the fixture in its content and media values.
+   * @param channelIds - The channels to declare; the owner channel alone when omitted.
+   * @returns The new post id, its record settled and its word derived from it.
+   */
+  async seedRecordedPost(label: string, channelIds?: readonly string[]): Promise<string> {
+    const postId = await this.seedDraftPost(label);
+    const targets = channelIds ?? [this.channelId];
+
+    const opened = await this.runScoped(() =>
+      this.episodeUseCase.execute({ postId, channelIds: targets, enterPublishing: true })
+    );
+    assert.ok(
+      opened.ok,
+      `the fixture's episode was refused: ${opened.ok ? "" : opened.error.message}`
+    );
+
+    for (const channel of opened.value.opened) {
+      await recordPublishedAttempt(this.recordAttemptUseCase, {
+        accountId: this.accountId,
+        postId,
+        channelId: channel.channelId,
+        episode: channel.episode,
+      });
+    }
+    return postId;
+  }
+
+  /**
+   * @method clobberPublicationWord
+   * @description Writes the post's WORD back into the family without touching a single
+   *   record, leaving the exact divergence the reconciliation exists to repair. It is
+   *   also the ONLY state in which that reconciliation writes anything: when the word
+   *   already agrees with the record there is nothing to apply, so a scenario about the
+   *   promotion's own transaction has to start from a word that lags.
+   *
+   *   Only the post row is touched, the way `rewindToStep` touches only the saga row.
+   * @param postId - The post whose word to send back.
+   * @returns Nothing.
+   */
+  async clobberPublicationWord(postId: string): Promise<void> {
+    await this.base.post.update({
+      where: { id: postId },
+      data: { status: "PUBLISHING", publishedAt: null },
+    });
   }
 
   /**

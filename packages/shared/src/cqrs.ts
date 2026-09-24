@@ -294,17 +294,27 @@ export type PublishPostCommand = z.infer<typeof PublishPostCommandSchema>;
  * `reasonCode` carries the per-channel exclusion reason the publication record
  * keeps, beside the human-readable `error`. The two are not interchangeable:
  * `error` is a message written for a person, `reasonCode` is the value a reader
- * branches on. Declaring it here is what makes it survive the parser — an
- * undeclared key is stripped by Zod in silence, which would let an emitter
- * believe it had sent a reason that never arrived.
+ * branches on. All three of `externalId`, `error` and `reasonCode` are declared
+ * because the channel object is `.strict()`: an undeclared key does not vanish
+ * quietly here, it REJECTS the whole command — so a contract that omitted them
+ * would refuse the very outcome the wait step sends.
  *
- * **It is PARSED and NOT YET CONSUMED.** The reconciliation that reads it is a
- * separate piece of work; until it lands, `CompletePostPublishingCommandHandler`
- * accepts the field and drops it, and says so at WARN once per command carrying
- * one. So the field is safe to populate now — nothing rejects it and nothing is
- * corrupted by it — but do not build a behaviour on the assumption that the
- * completion path persists it yet. The handler's log is how a producer finds
- * that out without reading this comment.
+ * **All three are PARSED and deliberately NOT CONSUMED by the reconciliation.**
+ * That is the design, not a gap waiting on a reader. The reconciliation derives
+ * the post's word from the publication RECORD, and all three already live on
+ * that record's rows — the wait step projected them off those very rows on its
+ * way out. Nothing writes a reason from a command: only the worker's recorded
+ * attempt does.
+ *
+ * Where they survive is worth stating plainly, because the two places a reader
+ * would guess are not among them. The wait step writes its whole per-channel
+ * report into `stepData`, which is persisted in the saga's own row BEFORE this
+ * command is built — that is the operator-visible copy. The command is not
+ * persisted at all: the bus dispatches it and keeps no store. The completion
+ * path's audit event carries a channel count, the derived word and the
+ * publication moment — no channel list and no reason — and it is written only
+ * when the word had to move. Do not build a behaviour on the completion path
+ * persisting any of the three, because the path that persists them already ran.
  */
 export const CompletePostPublishingCommandSchema = z.object({
   id: z.string(),
