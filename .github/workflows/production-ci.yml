@@ -293,10 +293,17 @@ jobs:
       # image, so `always()` would run this against a tag that does not exist,
       # Trivy would error, `continue-on-error` would swallow it, no file would be
       # written, and the upload below would then look for a SARIF that was never
-      # produced — three silent no-ops in a row. Keyed to the build, it still
-      # runs when the GATE is red, which is the case worth reporting.
+      # produced — three silent no-ops in a row.
+      #
+      # `!cancelled()` is load-bearing, not noise. GitHub Actions wraps any `if:`
+      # that names no status function in an implicit `success()`, so
+      # `steps.build.outcome == 'success'` ALONE would also require every earlier
+      # step to have passed — including the gate — and the report would vanish in
+      # exactly the case it exists for. Naming a status function disables that
+      # implicit wrap; `!cancelled()` is the one that keeps a cancelled run from
+      # still scanning.
       - name: Trivy SARIF for code scanning (never gates)
-        if: steps.build.outcome == 'success'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
@@ -306,11 +313,12 @@ jobs:
           exit-code: "0"
           trivyignores: .trivyignore
 
-      # Same reasoning as the step above, and the same cascade it closes: with
-      # `always()` a failed build sent this looking for a SARIF nothing wrote.
+      # Same reasoning as the step above, `!cancelled()` included: without a
+      # status function the implicit `success()` would skip this whenever the
+      # gate went red, which is when the report is most worth uploading.
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v4
-        if: steps.build.outcome == 'success'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         with:
           sarif_file: "trivy-results-${{ matrix.service }}.sarif"
 
