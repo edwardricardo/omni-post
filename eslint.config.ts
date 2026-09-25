@@ -388,7 +388,6 @@ export default defineConfig([
       "performance/**/*.ts",
       "quality/**/*.ts",
       "security/**/*.ts",
-      ".config/opencode/plugins/**/*.ts",
     ],
     rules: {
       "no-console": "off",
