@@ -11,7 +11,7 @@
 # symlink farm stays internally consistent.
 # ==============================================================================
 
-FROM node:24-bookworm-slim AS base
+FROM node:25-bookworm-slim AS base
 RUN corepack enable
 WORKDIR /app
 
