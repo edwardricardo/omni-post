@@ -330,9 +330,15 @@ jobs:
       # the log as well.
       #
       # It also asserted "Security Scan: ✅ Passed" as a hardcoded string rather
-      # than deriving it. That was true only by accident of step ordering; it now
-      # reads the gate's real outcome.
+      # than deriving it. Reading `steps.gate.outcome` is only an improvement
+      # WITH the guard below: without it this step inherits the implicit
+      # `success()`, so it runs only when the gate passed and the derived value
+      # can never be anything but `success` — the same hardcoded claim wearing an
+      # expression. Guarded on the BUILD instead, the size is measured and
+      # reported whether the scan was clean or not, which is when a size figure
+      # is most worth having.
       - name: Container image analysis
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           set -euo pipefail
           IMAGE_TAG="local/${{ matrix.service }}:scan"
@@ -340,7 +346,13 @@ jobs:
           SIZE_IEC=$(printf '%s' "$SIZE_BYTES" | numfmt --to=iec)
           LIMIT_BYTES=1073741824
           LIMIT_IEC=$(printf '%s' "$LIMIT_BYTES" | numfmt --to=iec)
-          SCAN_OUTCOME="${{ steps.gate.outcome }}"
+          # Rendered, not raw: `success`/`failure` are Actions' tokens, and the
+          # summary is read by people.
+          case "${{ steps.gate.outcome }}" in
+            success) SCAN_OUTCOME="✅ passed" ;;
+            failure) SCAN_OUTCOME="❌ FAILED — see the gate step" ;;
+            *)       SCAN_OUTCOME="${{ steps.gate.outcome }}" ;;
+          esac
 
           echo "image:  ${IMAGE_TAG}"
           echo "size:   ${SIZE_IEC} (${SIZE_BYTES} bytes)"
