@@ -75,24 +75,24 @@ export class YouTubePlaylistManager {
     const apiCall = async (): Promise<Playlist> => {
       await this.refreshTokenIfNeeded();
 
-      const yt = this.youtube as unknown as {
-        playlists: { insert: (...args: unknown[]) => Promise<unknown> };
-      };
-      const response = (await yt.playlists.insert({
+      const response = await this.youtube.playlists.insert({
         part: ["snippet", "status", "localizations"],
         requestBody: {
           snippet: {
             title: request.title,
-            description: request.description,
-            tags: request.tags,
+            // Spread, not assigned: `exactOptionalPropertyTypes` refuses an
+            // `undefined` where googleapis declares `T | null`, which is what
+            // the deleted `as unknown as` was hiding.
+            ...(request.description !== undefined && { description: request.description }),
+            ...(request.tags !== undefined && { tags: request.tags }),
             defaultLanguage: request.defaultLanguage || "en",
           },
           status: {
             privacyStatus: request.privacy,
           },
-          localizations: request.localizations,
+          ...(request.localizations !== undefined && { localizations: request.localizations }),
         },
-      })) as unknown as { data: youtube_v3.Schema$Playlist };
+      });
 
       if (!response.data) {
         throw ProviderError.externalService(
@@ -150,25 +150,25 @@ export class YouTubePlaylistManager {
       }
       const currentSnippet = current.snippet!;
 
-      const ytUpdate = this.youtube as unknown as {
-        playlists: { update: (...args: unknown[]) => Promise<unknown> };
-      };
-      const response = (await ytUpdate.playlists.update({
+      const response = await this.youtube.playlists.update({
         part: ["snippet", "status"],
         requestBody: {
           id: playlistId,
           snippet: {
-            title: request.title || currentSnippet.title,
-            description: request.description || currentSnippet.description,
-            tags: request.tags || currentSnippet.tags,
-            defaultLanguage: currentSnippet.defaultLanguage,
+            // `?? null`, not a spread, and for the same reason as the video
+            // update: an update must resend the current value of a field it is
+            // not changing, so omitting the key would clear it.
+            title: request.title ?? currentSnippet.title ?? null,
+            description: request.description ?? currentSnippet.description ?? null,
+            tags: request.tags ?? currentSnippet.tags ?? null,
+            defaultLanguage: currentSnippet.defaultLanguage ?? null,
             channelId: this.channelId,
           },
           status: {
-            privacyStatus: request.privacy || current.status?.privacyStatus,
+            privacyStatus: request.privacy ?? current.status?.privacyStatus ?? null,
           },
         },
-      })) as unknown as { data: youtube_v3.Schema$Playlist };
+      });
 
       if (!response.data.id) {
         throw ProviderError.externalService("youtube", "Failed to update playlist");

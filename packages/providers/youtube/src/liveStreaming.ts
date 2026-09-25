@@ -437,12 +437,12 @@ export class YouTubeLiveStreamingService {
 
       // Get chat messages
 
-      const response = (await this.youtube.liveChatMessages.list({
+      const response = await this.youtube.liveChatMessages.list({
         liveChatId,
         part: ["id", "snippet", "authorDetails"],
         ...(pageToken ? { pageToken } : {}),
         maxResults: 200,
-      })) as unknown as { data: youtube_v3.Schema$LiveChatMessageListResponse };
+      });
 
       if (!response.data) {
         throw ProviderError.externalService(
