@@ -31,7 +31,7 @@ COPY infra/ ./infra/
 # `prisma: not found`. We generate explicitly below via `pnpm exec` instead,
 # which resolves the prisma binary from node_modules/.bin deterministically.
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm fetch --frozen-lockfile && \
+    pnpm fetch && \
     pnpm install --frozen-lockfile --ignore-scripts
 
 RUN pnpm --filter @infra/prisma exec prisma generate

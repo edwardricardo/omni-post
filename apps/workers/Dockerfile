@@ -21,7 +21,7 @@ COPY packages/ ./packages/
 COPY infra/ ./infra/
 COPY apps/workers ./apps/workers
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm fetch --frozen-lockfile && \
+    pnpm fetch && \
     pnpm install --frozen-lockfile --ignore-scripts
 # `prisma generate` before the app build so @infra/prisma's tsc emit sees the
 # generated client. Then `tsc -b` (driven by the workers package build, which
