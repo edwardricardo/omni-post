@@ -11,28 +11,6 @@ RUN corepack enable
 WORKDIR /app
 
 # ==============================================================================
-# Shared Dependencies Stage
-# ==============================================================================
-FROM base AS deps
-ARG SERVICE_PATH=apps/client
-ENV CI=true
-
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
-COPY ${SERVICE_PATH}/package.json ./${SERVICE_PATH}/
-COPY patches/ ./patches/
-COPY packages/ ./packages/
-COPY infra/ ./infra/
-
-# --ignore-scripts: skip the @infra/prisma `postinstall: prisma generate` hook.
-# In a --prod install the `prisma` CLI (a devDependency) is absent, so the hook
-# would fail with `prisma: not found`. The runtime gets the generated client
-# from the build stage, never from this prod node_modules — so skipping the
-# generate hook here is correct, and the install must fail-fast (no masking).
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm fetch --frozen-lockfile && \
-    pnpm install --frozen-lockfile --prod --ignore-scripts
-
-# ==============================================================================
 # Build Stage
 # ==============================================================================
 FROM base AS build
@@ -41,9 +19,7 @@ ENV CI=true
 
 # `tsconfig.build.base.json` is NOT optional here, and its absence is what made
 # this image fail to build at all: `pnpm --filter @shared/types... build` runs
-# `tsc -b` against `packages/shared/tsconfig.build.json`, which extends it. The
-# `deps` stage above installs and never compiles, so it does not need the file
-# and does not take it — an input it cannot use would only cost cache hits.
+# `tsc -b` against `packages/shared/tsconfig.build.json`, which extends it.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json ./
 COPY ${SERVICE_PATH}/package.json ./${SERVICE_PATH}/
 COPY patches/ ./patches/
@@ -90,15 +66,16 @@ RUN pnpm --filter @apps/client exec next build ${NEXT_BUILD_FLAGS}
 # rebuilt away, and trixie's is past them. The pin only works because
 # `.github/dependabot.yml` already tracks the `docker` ecosystem — Dependabot
 # updates an ALREADY-pinned digest and does not add one to a bare reference.
-# The measurements, the glibc-direction argument and what CI does NOT verify:
+# The measurements, the glibc-direction reading and what the CI smoke proves:
 # docs/deployment/base-images.md
 FROM gcr.io/distroless/nodejs24-debian13@sha256:b1fc33242cc74151f50c62b4a03d48afd759dccf81279b5f8e401db4546479c1 AS production
 
 WORKDIR /app
 
-COPY --from=deps --chown=nonroot:nonroot /app/node_modules ./node_modules
-COPY --from=deps --chown=nonroot:nonroot /app/packages ./packages
-COPY --from=build --chown=nonroot:nonroot /app/infra ./infra
+# These three lines are the WHOLE runtime. The prod node_modules, packages/ and
+# infra/ that used to be copied on top of them were dead weight — measured, by
+# assembling exactly this and booting it. The numbers and the method live in
+# docs/deployment/image-build-model.md §"Why the portals are different".
 COPY --from=build --chown=nonroot:nonroot /app/apps/client/.next/standalone ./
 COPY --from=build --chown=nonroot:nonroot /app/apps/client/.next/static ./apps/client/.next/static
 COPY --from=build --chown=nonroot:nonroot /app/apps/client/public ./apps/client/public
