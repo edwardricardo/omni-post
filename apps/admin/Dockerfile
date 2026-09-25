@@ -47,11 +47,23 @@ ENV NEXT_TURBOPACK_ROOT=/app
 
 COPY apps/admin ./apps/admin
 
-# @shared/types is consumed by the app from its prebuilt NodeNext dist (the app's
-# tsconfig + the package `exports` map both resolve `@shared/types` -> dist), so
-# the dist must exist before `next build` compiles the app. Build it (and its
-# workspace deps via `...`) explicitly here.
-RUN pnpm --filter @shared/types... build
+# Every workspace package this app consumes must have its dist on disk before
+# `next build` runs, because that build TYPECHECKS the graph it imports — not
+# only the code it bundles.
+#
+# It used to build `@shared/types...`, which covers ONE package, and the client
+# image failed in CI for exactly that gap: six of its components import from
+# `@providers/instagram/src/mediaProcessor`, that file imports
+# `@adapters/external-apis` and `@adapters/storage-s3`, and neither dist
+# existed — `Compiled successfully` followed by TS2307 and eight cascade errors.
+# `@apps/admin^...` is the app's whole dependency closure (21 packages for the
+# client, both missing adapters among them), so the selector now matches what
+# the typecheck actually opens.
+#
+# The deeper smell is the import itself: reaching into a package's `src/` walks
+# past its `exports` map, which is why a frontend build ended up typechecking a
+# backend provider's adapters at all. Fixing that is app code, not image code.
+RUN pnpm --filter @apps/admin^... build
 
 # NEXT_BUILD_FLAGS lets CI fall back to the webpack builder (`--webpack`) if the
 # Turbopack standalone build hits the open monorepo root/distDirRoot bug (#86438).
