@@ -39,8 +39,15 @@ test-results
 # Vitest / coverage report trees (23M measured in apps/api alone)
 .vitest-reports
 **/.vitest-reports
-reports
-**/reports
+
+# The mutation/coverage output, named by its EXACT path and not by a `reports`
+# glob. `**/reports` was tried and it excluded four directories of which only
+# this one is output: `apps/api/src/reports` (API source), `packages/core/reports`
+# (a workspace package the api's tsconfig references) and
+# `apps/client/app/[locale]/reports` (portal pages) all match a pattern meant for
+# build artefacts. The api image build failed on the second with TS5083; the
+# portal would have lost routes in silence. A directory name is not a role.
+apps/api/reports
 
 # graphify knowledge graphs — rebuilt by the post-commit hook, never a build input
 graphify-out
