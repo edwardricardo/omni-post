@@ -7,14 +7,11 @@
 import { ok, err, type Result } from "@shared/types";
 import { Queue, Worker, Job, QueueEvents } from "bullmq";
 import { Redis } from "ioredis";
-import pino from "pino";
 import { v4 as uuidv4 } from "uuid";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import { createLogger } from "@observability/logger";
 
-const logger = pino({
-  name: "dead-letter-queue",
-  level: process.env.LOG_LEVEL || "info",
-});
+const logger = createLogger("dead-letter-queue");
 
 export interface FailedOperation {
   id: string;
@@ -133,8 +130,12 @@ export class DeadLetterQueueManager {
       },
     });
 
+    // autorun would start an event-consuming loop from this constructor, before any caller
+    // asked the manager to consume anything. `startProcessing()` starts it instead, so the
+    // loop's lifetime matches the worker's.
     this.queueEvents = new QueueEvents(this.config.queueName, {
       connection: this.redis,
+      autorun: false,
     });
 
     this.setupEventListeners();
@@ -161,6 +162,19 @@ export class DeadLetterQueueManager {
       logger.error(`Dead letter job ${jobId} failed: ${error}`);
     });
 
+    // BullMQ's QueueBase re-emits every connection error on the Queue and the QueueEvents
+    // themselves. With no listener, Node's EventEmitter throws ERR_UNHANDLED_ERROR, BullMQ's
+    // own `emit` override catches it and writes the error straight to `console.error` — an
+    // unstructured write that escapes the logger and, under a test runner, is buffered over
+    // the worker RPC channel. These two listeners keep those errors on the logger.
+    this.queue.on("error", (error) => {
+      logger.error({ err: error, queue: this.config.queueName }, "Dead letter queue error");
+    });
+
+    this.queueEvents.on("error", (error) => {
+      logger.error({ err: error, queue: this.config.queueName }, "Dead letter queue events error");
+    });
+
     this.redis.on("error", (error) => {
       logger.error(`Redis connection error in dead letter queue: ${error}`);
     });
@@ -179,6 +193,12 @@ export class DeadLetterQueueManager {
     const retryQueue = new Queue(queueName, {
       connection: this.redis,
     });
+
+    // Same obligation as the main queue: an unlistened BullMQ error reaches console.error.
+    retryQueue.on("error", (error) => {
+      logger.error({ err: error, queue: queueName }, "Dead letter retry queue error");
+    });
+
     this.retryQueues.set(queueName, retryQueue);
     return retryQueue;
   }
@@ -294,6 +314,12 @@ export class DeadLetterQueueManager {
 
     this.worker.on("failed", (job, error) => {
       logger.error(`Dead letter job ${job?.id} processing failed: ${error}`);
+    });
+
+    // The constructor disabled autorun, so the event stream starts here. `run()` resolves only
+    // when the stream ends, so it is deliberately not awaited; `close()` ends it.
+    void this.queueEvents.run().catch((error: unknown) => {
+      logger.error({ err: error }, "Dead letter queue event stream stopped");
     });
 
     this.isProcessing = true;

@@ -1663,6 +1663,9 @@ importers:
       '@adapters/queue-bullmq':
         specifier: workspace:*
         version: link:../queue-bullmq
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../observability/logger
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports
@@ -1675,9 +1678,6 @@ importers:
       ioredis:
         specifier: 'catalog:'
         version: 5.11.1(supports-color@10.2.2)
-      pino:
-        specifier: 'catalog:'
-        version: 10.3.1
       uuid:
         specifier: 14.0.0
         version: 14.0.0
@@ -1700,9 +1700,6 @@ importers:
       '@adapters/fallback-strategies':
         specifier: workspace:*
         version: link:../fallback-strategies
-      '@adapters/queue-bullmq':
-        specifier: workspace:*
-        version: link:../queue-bullmq
       '@observability/logger':
         specifier: workspace:*
         version: link:../../observability/logger

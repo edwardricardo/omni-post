@@ -22,7 +22,6 @@
   "dependencies": {
     "@adapters/dead-letter-queue": "workspace:*",
     "@adapters/fallback-strategies": "workspace:*",
-    "@adapters/queue-bullmq": "workspace:*",
     "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
     "opossum": "catalog:",
