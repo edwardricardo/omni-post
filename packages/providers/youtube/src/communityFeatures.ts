@@ -4,7 +4,7 @@
  *              and their replies via the YouTube Data API.
  * @layer infrastructure
  */
-import { google, youtube_v3 } from "googleapis";
+import { youtube, youtube_v3 } from "@googleapis/youtube";
 import { OAuth2Client } from "google-auth-library";
 import {
   createExternalApiCircuitBreaker,
@@ -149,9 +149,9 @@ export class YouTubeCommunityService {
       ...(credentials.accessToken && { access_token: credentials.accessToken }),
     });
 
-    this.youtube = google.youtube({
+    this.youtube = youtube({
       version: "v3",
-      auth: this.oauth2Client as unknown as import("googleapis").Auth.OAuth2Client,
+      auth: this.oauth2Client,
     });
   }
 

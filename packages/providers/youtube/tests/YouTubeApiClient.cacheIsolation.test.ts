@@ -77,12 +77,19 @@ const { MockOAuth2Client, makeYoutube, videosListCalls } = vi.hoisted(() => {
 
 vi.mock("google-auth-library", () => ({ OAuth2Client: MockOAuth2Client }));
 
-vi.mock("googleapis", () => ({
-  google: {
-    youtube: ({ auth }: { auth: InstanceType<typeof MockOAuth2Client> }) => makeYoutube(auth),
-    youtubeAnalytics: () => ({ reports: { query: vi.fn() } }),
-  },
+// One mock per API package, because the client imports one per API. This
+// replaced a single `vi.mock("googleapis")` when the monolith was dropped, and
+// the swap is worth stating: a mock that names a module the code no longer
+// imports is INERT, not failing. The real client would have run against the
+// fake OAuth2Client and died inside googleapis-common on `authClient.request`
+// — which is exactly what it did before these two lines were written.
+vi.mock("@googleapis/youtube", () => ({
+  youtube: ({ auth }: { auth: InstanceType<typeof MockOAuth2Client> }) => makeYoutube(auth),
   youtube_v3: {},
+}));
+
+vi.mock("@googleapis/youtubeanalytics", () => ({
+  youtubeAnalytics: () => ({ reports: { query: vi.fn() } }),
   youtubeAnalytics_v2: {},
 }));
 

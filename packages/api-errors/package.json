@@ -2,6 +2,9 @@
   "name": "@packages/api-errors",
   "version": "1.0.0",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {

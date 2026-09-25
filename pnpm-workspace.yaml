@@ -88,9 +88,15 @@ catalog:
   "@langchain/core": 1.2.0 # already latest stable (7d candidate 1.1.49 is older; never pin lower)
   "@langchain/langgraph": 1.4.4 # already latest stable (7d candidate 1.4.2 is older; never pin lower)
 
-  # ── googleapis family (atomic; the @10 scoped override stays in pnpm.overrides) ──
+  # ── Google API clients (the `google-auth-library@10` scoped override stays in pnpm.overrides) ──
   google-auth-library: 10.7.0 # latest stable (taze -l --maturity-period 7); was 9.14.1 (MAJOR 9->10)
-  googleapis: 173.0.0 # latest stable; was 160.0.0
+  # The per-API packages, NOT the `googleapis` monolith this replaced: that one
+  # ships EVERY Google API and weighs 204MB, of which this repository uses two
+  # surfaces. Measured in a `pnpm deploy --prod` of the API: 204MB of 998MB.
+  # These two are NOT an atomic family — they version independently and share no
+  # advisory, so each is pinned on its own evidence.
+  "@googleapis/youtube": 39.0.1 # latest stable
+  "@googleapis/youtubeanalytics": 11.0.1 # latest stable
 
   # ── Build/test toolchain ──
   vitest: 4.1.11 # CVE floor raised 2026-09-09: GHSA-82fw-gwwq-j7x9 (moderate, @vitest/mocker redirect-mock path traversal), vulnerable >=2.1.0 <4.1.11. vitest 4.1.11 pins @vitest/mocker EXACTLY at 4.1.11, so the transitive needs no override of its own. Peer-locked to @vitest/* 4.1.11 (was 4.1.10)
