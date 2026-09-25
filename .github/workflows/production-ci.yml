@@ -274,6 +274,7 @@ jobs:
       # `table` respects `severity`, and it prints what it caught — so the gate
       # explains itself instead of failing silently into a file.
       - name: Run Trivy vulnerability scanner
+        id: gate
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: local/${{ matrix.service }}:scan
@@ -322,19 +323,39 @@ jobs:
         with:
           sarif_file: "trivy-results-${{ matrix.service }}.sarif"
 
+      # This step used to write its numbers ONLY to $GITHUB_STEP_SUMMARY and then
+      # `exit 1`, so a run that failed on size printed neither the size nor the
+      # limit in the log — the same defect the Trivy gate had, and it cost the
+      # same thing: a red nobody could act on. Everything it measures now goes to
+      # the log as well.
+      #
+      # It also asserted "Security Scan: ✅ Passed" as a hardcoded string rather
+      # than deriving it. That was true only by accident of step ordering; it now
+      # reads the gate's real outcome.
       - name: Container image analysis
         run: |
+          set -euo pipefail
           IMAGE_TAG="local/${{ matrix.service }}:scan"
-          IMAGE_SIZE=$(docker image inspect ${IMAGE_TAG} --format='{{.Size}}' | numfmt --to=iec)
+          SIZE_BYTES=$(docker image inspect "${IMAGE_TAG}" --format='{{.Size}}')
+          SIZE_IEC=$(printf '%s' "$SIZE_BYTES" | numfmt --to=iec)
+          LIMIT_BYTES=1073741824
+          LIMIT_IEC=$(printf '%s' "$LIMIT_BYTES" | numfmt --to=iec)
+          SCAN_OUTCOME="${{ steps.gate.outcome }}"
 
-          echo "## Container Analysis: ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Image Size**: $IMAGE_SIZE" >> $GITHUB_STEP_SUMMARY
-          echo "**Security Scan**: ✅ Passed" >> $GITHUB_STEP_SUMMARY
+          echo "image:  ${IMAGE_TAG}"
+          echo "size:   ${SIZE_IEC} (${SIZE_BYTES} bytes)"
+          echo "limit:  ${LIMIT_IEC} (${LIMIT_BYTES} bytes)"
+          echo "scan:   ${SCAN_OUTCOME}"
 
-          # Ensure image size is reasonable
-          SIZE_BYTES=$(docker image inspect ${IMAGE_TAG} --format='{{.Size}}')
-          if [ $SIZE_BYTES -gt 1073741824 ]; then  # 1GB
-            echo "⚠️ Image size exceeds 1GB limit" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Container Analysis: ${{ matrix.service }}"
+            echo "**Image Size**: ${SIZE_IEC} (limit ${LIMIT_IEC})"
+            echo "**Security Scan**: ${SCAN_OUTCOME}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$SIZE_BYTES" -gt "$LIMIT_BYTES" ]; then
+            echo "::error title=Image over size limit::${{ matrix.service }} is ${SIZE_IEC}, over the ${LIMIT_IEC} limit."
+            echo "⚠️ Image size ${SIZE_IEC} exceeds the ${LIMIT_IEC} limit" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 
