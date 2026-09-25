@@ -155,17 +155,21 @@ export class YouTubePlaylistManager {
         requestBody: {
           id: playlistId,
           snippet: {
-            // `?? null`, not a spread, and for the same reason as the video
-            // update: an update must resend the current value of a field it is
-            // not changing, so omitting the key would clear it.
-            title: request.title ?? currentSnippet.title ?? null,
-            description: request.description ?? currentSnippet.description ?? null,
-            tags: request.tags ?? currentSnippet.tags ?? null,
+            // `||`, NOT `??`, and the difference is behaviour, not style. A
+            // caller that sends an empty string or an empty array means "I am
+            // not setting this", and `||` falls through to the current value —
+            // which is what this code did before and what the YouTube API
+            // requires, since it rejects an empty required field with a 400.
+            // `?? null` only tails the chain, because googleapis types these as
+            // `T | null` and `exactOptionalPropertyTypes` refuses `undefined`.
+            title: request.title || currentSnippet.title || null,
+            description: request.description || currentSnippet.description || null,
+            tags: request.tags || currentSnippet.tags || null,
             defaultLanguage: currentSnippet.defaultLanguage ?? null,
             channelId: this.channelId,
           },
           status: {
-            privacyStatus: request.privacy ?? current.status?.privacyStatus ?? null,
+            privacyStatus: request.privacy || current.status?.privacyStatus || null,
           },
         },
       });

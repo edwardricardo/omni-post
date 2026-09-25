@@ -443,21 +443,21 @@ export class YouTubeApiClient {
         requestBody: {
           id: videoId,
           snippet: {
-            // `?? null` rather than leaving these possibly-undefined: googleapis
-            // types every one of them as `T | null`, and under
-            // `exactOptionalPropertyTypes` an `undefined` is not assignable to
-            // that. Coalescing here — instead of spreading, as the optional
-            // request fields elsewhere do — is deliberate: an update MUST send
-            // the current value for a field it is not changing, and omitting
-            // the key would clear it.
-            title: updates.title ?? current.snippet.title ?? null,
-            description: updates.description ?? current.snippet.description ?? null,
-            tags: updates.tags ?? current.snippet.tags ?? null,
-            categoryId: updates.categoryId ?? current.snippet.categoryId ?? null,
+            // `||`, NOT `??`, and the difference is behaviour, not style. A
+            // caller that sends an empty string or an empty array means "I am
+            // not setting this", and `||` falls through to the current value —
+            // which is what this code did before and what the YouTube API
+            // requires, since it rejects an empty required field with a 400.
+            // `?? null` only tails the chain, because googleapis types these as
+            // `T | null` and `exactOptionalPropertyTypes` refuses `undefined`.
+            title: updates.title || current.snippet.title || null,
+            description: updates.description || current.snippet.description || null,
+            tags: updates.tags || current.snippet.tags || null,
+            categoryId: updates.categoryId || current.snippet.categoryId || null,
             channelId: this.credentials.channelId,
           },
           status: {
-            privacyStatus: updates.privacy ?? current.status.privacyStatus ?? null,
+            privacyStatus: updates.privacy || current.status.privacyStatus || null,
             selfDeclaredMadeForKids: current.status.selfDeclaredMadeForKids ?? null,
           },
         },
