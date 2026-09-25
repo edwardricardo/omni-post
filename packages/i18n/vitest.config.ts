@@ -5,7 +5,7 @@
  *              unbuilt tree, matching every other package in the repo.
  * @layer infrastructure
  */
-import { defineWorkspaceVitestConfig } from "../../vitest.shared.js";
+import { defineWorkspaceVitestConfig } from "@packages/vitest-shared";
 
 export default defineWorkspaceVitestConfig(import.meta.dirname, {
   test: {
