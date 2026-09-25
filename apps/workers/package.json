@@ -2,6 +2,9 @@
   "name": "@apps/workers",
   "private": true,
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
     "dev": "tsx --conditions development src/bootstrap.ts",

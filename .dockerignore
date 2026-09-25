@@ -36,12 +36,19 @@ playwright-report
 test-results
 **/test-results
 
+# Vitest / coverage report trees (23M measured in apps/api alone)
+.vitest-reports
+**/.vitest-reports
+reports
+**/reports
+
+# graphify knowledge graphs — rebuilt by the post-commit hook, never a build input
+graphify-out
+**/graphify-out
+
 # Mutation testing (Stryker)
 .stryker-tmp
 **/.stryker-tmp
-reports/mutation
-**/reports/mutation
-**/reports/stryker-incremental.json
 stryker-output-*.json
 **/stryker-output-*.json
 

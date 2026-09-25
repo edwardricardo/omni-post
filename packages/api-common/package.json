@@ -2,6 +2,9 @@
   "name": "@packages/api-common",
   "version": "1.0.0",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {

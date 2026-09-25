@@ -2,6 +2,9 @@
   "name": "@packages/ui",
   "version": "1.0.0",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
