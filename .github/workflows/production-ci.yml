@@ -318,6 +318,16 @@ jobs:
           #    whole life) and a server-rendered page, which is where a missing
           #    trace would actually surface.
           if [ "${{ matrix.service }}" = "admin" ] || [ "${{ matrix.service }}" = "client" ]; then
+            # Count the exposed ports before using one. That range template
+            # CONCATENATES every key, so a second EXPOSE would silently yield a
+            # joined string like "3100/tcp3300/tcp", `docker run -p` would refuse
+            # it, and the smoke would be defeated by a change that has nothing to
+            # do with what it tests. Named by a review before it could happen.
+            PORT_COUNT="$(docker inspect -f '{{len .Config.ExposedPorts}}' "$IMAGE")"
+            if [ "$PORT_COUNT" != "1" ]; then
+              echo "::error::${{ matrix.service }} exposes $PORT_COUNT port(s); this smoke maps exactly one and cannot choose between them. Name the app port explicitly here, in the same change that adds the second EXPOSE."
+              exit 1
+            fi
             PORT="$(docker inspect -f '{{range $p, $_ := .Config.ExposedPorts}}{{$p}}{{end}}' "$IMAGE" | cut -d/ -f1)"
             docker run -d --name "smoke-${{ matrix.service }}" \
               -p "127.0.0.1:$PORT:$PORT" -e "HOSTNAME=0.0.0.0" "$IMAGE" >/dev/null
