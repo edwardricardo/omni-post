@@ -222,7 +222,12 @@ jobs:
       # existed, CI built four images, scanned them, pushed them on main, and
       # never once RAN one — so nothing stood behind the Dockerfile header's own
       # word for the glibc match, "BLOCKING".
-      - name: Smoke — the built image runs, and its native ABI resolves
+      #
+      # It grew twice, each time because a review named what it did NOT cover:
+      # first the native ABI, then the image's own CMD and the portals' ability
+      # to actually serve. Each numbered block below says what it proves and,
+      # where it matters, what it deliberately does not.
+      - name: Smoke — the image runs, its ABI resolves, its CMD resolves, and the portals serve
         run: |
           # -e is not decoration here. Without it the liveness probe could fail
           # and the `echo` after it would still return 0 — and for the three
@@ -259,8 +264,86 @@ jobs:
             '
           else
             # Said out loud rather than left as a silent pass: these three carry no
-            # native module of their own, so step 1 is the whole of their coverage.
-            echo "  ${{ matrix.service }}: no native module of its own; liveness only"
+            # native module of their own. Steps 3 and 4 cover the rest for them.
+            echo "  ${{ matrix.service }}: no native module of its own"
+          fi
+
+          # 3. The image's OWN CMD entry resolves, for the two node runtimes.
+          #
+          #    The path is READ FROM THE IMAGE, never written here: a hardcoded
+          #    copy could agree with this file while disagreeing with the image,
+          #    which is the drift being tested for.
+          #
+          #    IMPORTING it rather than stat-ing it is the point. A stat proves a
+          #    file exists; an import proves the whole module graph that entry
+          #    pulls resolves inside this image — exactly what `pnpm deploy` put
+          #    at risk. These two cannot COMPLETE a boot here (no database, no
+          #    Redis), so a RESOLUTION failure is told apart from a CONNECTION
+          #    failure by its error code: the resolver codes fail the gate, and
+          #    anything else means the graph loaded and only infrastructure was
+          #    missing.
+          if [ "${{ matrix.service }}" = "api" ] || [ "${{ matrix.service }}" = "workers" ]; then
+            CMD_ENTRY="$(docker inspect -f '{{index .Config.Cmd 0}}' "$IMAGE")"
+            echo "  CMD entry declared by the image: $CMD_ENTRY"
+            docker run --rm --entrypoint /nodejs/bin/node \
+              --env "SMOKE_ENTRY=$CMD_ENTRY" "$IMAGE" --input-type=module -e '
+                const entry = process.env.SMOKE_ENTRY;
+                const unresolved = new Set([
+                  "ERR_MODULE_NOT_FOUND",
+                  "MODULE_NOT_FOUND",
+                  "ERR_PACKAGE_PATH_NOT_EXPORTED",
+                  "ERR_UNSUPPORTED_DIR_IMPORT",
+                ]);
+                import("./" + entry).then(
+                  () => console.log("  CMD entry imported cleanly: " + entry),
+                  (e) => {
+                    const code = (e && e.code) || "";
+                    if (unresolved.has(code)) {
+                      console.error("  CMD entry does NOT resolve (" + code + "): " + e.message);
+                      process.exit(1);
+                    }
+                    console.log("  CMD entry resolved; boot stopped at " + (code || "a runtime error") + ", which needs services this step has none of");
+                  }
+                );
+              '
+          fi
+
+          # 4. The portals BOOT by their CMD and SERVE, which a liveness probe
+          #    alone cannot establish. Both images dropped the prod node_modules,
+          #    the packages/ tree and infra/ in favour of Next's own traced
+          #    standalone output, and a missed transitive presents as a container
+          #    that starts and 500s on the one route that touches it. So this
+          #    asks for two things: the liveness route (whose absence is the
+          #    defect that made every portal container report unhealthy for its
+          #    whole life) and a server-rendered page, which is where a missing
+          #    trace would actually surface.
+          if [ "${{ matrix.service }}" = "admin" ] || [ "${{ matrix.service }}" = "client" ]; then
+            PORT="$(docker inspect -f '{{range $p, $_ := .Config.ExposedPorts}}{{$p}}{{end}}' "$IMAGE" | cut -d/ -f1)"
+            docker run -d --name "smoke-${{ matrix.service }}" \
+              -p "127.0.0.1:$PORT:$PORT" -e "HOSTNAME=0.0.0.0" "$IMAGE" >/dev/null
+
+            health=""
+            for _ in $(seq 1 60); do
+              health="$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$PORT/api/health" || true)"
+              [ "$health" = "200" ] && break
+              sleep 1
+            done
+
+            page="$(curl -sL -o /tmp/smoke-page.html -w '%{http_code}' --max-time 20 "http://127.0.0.1:$PORT/" || true)"
+            bytes="$(wc -c < /tmp/smoke-page.html | tr -d ' ')"
+
+            echo "  liveness /api/health -> $health"
+            echo "  server-rendered /    -> $page ($bytes bytes)"
+            docker logs "smoke-${{ matrix.service }}" 2>&1 | tail -40
+            docker rm -f "smoke-${{ matrix.service }}" >/dev/null
+
+            # Each condition names its own failure, because they need opposite
+            # repairs: a missing liveness route is a routing defect, a 500 on the
+            # page is a traced-dependency defect, and a body too small to be a
+            # rendered page is a redirect loop or an error shell.
+            [ "$health" = "200" ] || { echo "::error::${{ matrix.service }} liveness did not reach 200 (got '${health:-no response}') — the HEALTHCHECK this image declares would never pass"; exit 1; }
+            [ "$page" = "200" ] || { echo "::error::${{ matrix.service }} served $page for / — the container is up but not rendering, which is the shape a missed traced dependency takes"; exit 1; }
+            [ "$bytes" -gt 2000 ] || { echo "::error::${{ matrix.service }} rendered only $bytes bytes for / — too small to be a page, so this is an error shell or a redirect loop, not a render"; exit 1; }
           fi
 
       # THE GATE, and it is `table` on purpose. With `format: sarif` the action
