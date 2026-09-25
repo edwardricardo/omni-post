@@ -89,7 +89,14 @@ ENV NODE_OPTIONS="--max-old-space-size=512"
 USER nonroot
 EXPOSE 3000
 
+# EXEC FORM, and the brackets are load-bearing. Written as `CMD node -e "..."`
+# Docker stores this as CMD-SHELL and runs it through `/bin/sh -c` — and this
+# image is distroless, which has no shell at all (`/bin/sh`, `/bin/bash` and
+# `/usr/bin/sh` are all absent, measured). The probe then cannot start: Docker
+# reports the container `unhealthy` with EMPTY probe output, forever, which is
+# what it did. The exec form runs the binary directly, and the path must be
+# absolute for the same reason — without a shell there is no PATH lookup.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "const http=require('http');const req=http.request({host:'localhost',port:3000,path:'/health',timeout:5000},res=>{process.exit(res.statusCode===200?0:1)});req.on('error',()=>process.exit(1));req.end();"
+  CMD ["/nodejs/bin/node", "-e", "const http=require('http');const req=http.request({host:'localhost',port:3000,path:'/health',timeout:5000},res=>{process.exit(res.statusCode===200?0:1)});req.on('error',()=>process.exit(1));req.end();"]
 
 CMD ["dist/index.js"]
