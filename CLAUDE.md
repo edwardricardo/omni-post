@@ -302,7 +302,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **41 checks, numbered #1-#41**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **42 checks, numbered #1-#42**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -1708,6 +1708,70 @@ if (exceptionHits !== 1) {
 console.log(violations.join("\n"));
 EOF
 ) || { echo "fitness #41: the scan crashed or the scope is invalid — failing closed (needs node >= 22 for fs.glob)"; exit 1; }
+COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
+COUNT=${COUNT:-0}
+echo "$COUNT"   # expect 0
+
+# 42. No install-lifecycle script in a workspace package, except the ONE named.
+# The gate the `pnpm deploy` switch owes: both image pipelines now deploy with
+# `--ignore-scripts`, because @infra/prisma's `postinstall: prisma generate` has
+# no CLI to run in a prod tree and its emit is already inside the dist being
+# copied. That flag is correct for THAT package and silent for every other: a
+# package that later declares `postinstall`, `prepare` or `install` has its
+# script SKIPPED in the production tree with nothing anywhere reporting the
+# skip, and the first symptom is a runtime failure in production — the exact
+# shape (a green build over work that never ran) this suite exists to prevent.
+# MEASURED at the time of writing: 104 manifests under apps/ packages/ infra/,
+# of which exactly ONE declares an install-lifecycle script, and it is the named
+# exception. So this lands hard-zero with no ramp-down.
+# SCOPED TO `.scripts`, VIA jq, AND THAT IS NOT STYLE. A regex over the whole
+# manifest matches a DEPENDENCY named `prepare`, `install` or `postinstall` —
+# all real, publishable npm names — and would fail the workflow over something
+# this gate is explicitly not trying to prevent. The mirror is worse: the
+# fail-closed guard below would keep passing on a dependency named `postinstall`
+# after the exception's script was deleted, quietly defeating the very intent it
+# cites. Asking jq for the keys of `.scripts` removes both paths.
+# ONE EXCLUSION VOCABULARY, for the same reason. The floor walk and the
+# violation walk must open the SAME files: if the floor counted a directory the
+# scan skipped, TOTAL could clear 90 over manifests VIOLATIONS never read, which
+# is the failure mode the floor exists to prevent. `manifests()` backs both.
+# FAIL-CLOSED on both sides. If the exception stops declaring ANY lifecycle
+# script, the check exits 1 rather than quietly exempting whatever is re-created
+# at that path — the #36 quarantine rule. And if fewer than 90 manifests are
+# found the workspace layout moved and the gate would report a clean zero over
+# packages it never opened, so that exits 1 too.
+# RESIDUAL LIMIT, stated rather than implied: this proves no manifest DECLARES
+# such a script. It does not prove a dependency's install script is unnecessary —
+# that is `allowBuilds` in pnpm-workspace.yaml, a different list with a different
+# owner. Nor does it prove @infra/prisma's own skip stays safe; that holds only
+# while `prisma generate` runs explicitly in the build stage before the deploy,
+# which both Dockerfiles do and neither may stop doing.
+set -uo pipefail
+EXCEPTION="infra/prisma/package.json"
+LIFECYCLE_KEYS='["preinstall","install","postinstall","prepare","prepublishOnly"]'
+manifests() {
+  find apps packages infra -name package.json \
+    -not -path '*/node_modules/*' -not -path '*/dist/*' \
+    -not -path '*/.next/*' -not -path '*/.stryker-tmp/*' 2>/dev/null
+}
+declares_lifecycle() {
+  jq -e --argjson keys "$LIFECYCLE_KEYS" \
+    '(.scripts // {}) | keys_unsorted | any(. as $k | $keys | index($k) != null)' "$1" >/dev/null 2>&1
+}
+if ! declares_lifecycle "$EXCEPTION"; then
+  echo "fitness #42 scope error: the named exception $EXCEPTION no longer declares any install-lifecycle script — delete the exception with it, or a package re-created under that path inherits it unscanned."
+  exit 1
+fi
+TOTAL=$(manifests | wc -l)
+if [ "$TOTAL" -lt 90 ]; then
+  echo "fitness #42 scope error: only $TOTAL manifests found against a floor of 90 — the workspace layout moved and this gate would report a clean zero over packages it never opened."
+  exit 1
+fi
+VIOLATIONS=$(manifests | while IFS= read -r f; do
+  declares_lifecycle "$f" || continue
+  [ "$f" = "$EXCEPTION" ] && continue
+  echo "$f declares an install-lifecycle script; both image pipelines deploy with --ignore-scripts, so it would be skipped in the production tree with nothing reporting the skip"
+done)
 COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
 COUNT=${COUNT:-0}
 echo "$COUNT"   # expect 0

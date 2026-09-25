@@ -92,8 +92,8 @@ against 2.36 runs on 2.41. The reverse would not hold. OpenSSL keeps the
 `libssl.so.3` soname across the whole 3.x series, so dynamic linking still
 resolves against 3.5.
 
-**This is an argument, not a measurement**, and the distinction is load-bearing
-here: nothing in CI runs the built container. See §"What is not verified".
+That argument is now backed by a reading of the binary and by a CI step that
+actually starts the image. See §"What verifies it".
 
 ---
 

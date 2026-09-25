@@ -6,7 +6,7 @@
  * @layer infrastructure
  */
 
-import { google, youtube_v3 } from "googleapis";
+import { youtube, youtube_v3 } from "@googleapis/youtube";
 import { OAuth2Client } from "google-auth-library";
 import { hashCallScope, METADATA_CB_OPTIONS } from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
@@ -57,11 +57,12 @@ export class YouTubePlaylistManager {
       ...(credentials.accessToken && { access_token: credentials.accessToken }),
     });
 
-    const youtubeFactory = (
-      google as unknown as Record<string, ((...args: unknown[]) => youtube_v3.Youtube) | undefined>
-    ).youtube;
-    if (!youtubeFactory) throw new Error("google.youtube factory not available");
-    this.youtube = youtubeFactory({
+    // The runtime "factory not available" throw that stood here guarded the cast
+    // above it, not a real condition: it could only fire if the monolith's
+    // dynamic namespace failed to carry `youtube`. The per-API import either
+    // resolves at module load or the module does not load at all, so there is
+    // nothing left for it to catch.
+    this.youtube = youtube({
       version: "v3",
       auth: this.oauth2Client,
     });

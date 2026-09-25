@@ -4,7 +4,7 @@
  *              comments, watch time) via the YouTube Analytics API with circuit breaker protection.
  * @layer infrastructure
  */
-import { google, youtubeAnalytics_v2 } from "googleapis";
+import { youtubeAnalytics, youtubeAnalytics_v2 } from "@googleapis/youtubeanalytics";
 import { OAuth2Client } from "google-auth-library";
 import {
   createExternalApiCircuitBreaker,
@@ -130,9 +130,9 @@ export class YouTubeAnalyticsService {
       ...(credentials.accessToken && { access_token: credentials.accessToken }),
     });
 
-    this.youtubeAnalytics = google.youtubeAnalytics({
+    this.youtubeAnalytics = youtubeAnalytics({
       version: "v2",
-      auth: this.oauth2Client as unknown as import("googleapis").Auth.OAuth2Client,
+      auth: this.oauth2Client,
     });
   }
 

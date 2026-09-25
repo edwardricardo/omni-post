@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "main": "src/index.ts",
   "dependencies": {
     "@azure/storage-blob": "12.31.0",

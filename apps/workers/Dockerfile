@@ -3,28 +3,25 @@
 # Workers Service Dockerfile — node:24-bookworm-slim (glibc) -> distroless
 # non-root runtime. glibc base matches the distroless argon2 ABI.
 #
-# Build model: TRANSPILE-ONLY (ADR-0017). Every workspace package compiles to
-# its own `dist/*.js` via `tsc -b` (project references), `exports` -> dist. The
-# runtime resolves a bare `@core/X` import through the pnpm-ISOLATED node_modules
-# symlink farm -> that package's `exports` -> its `dist`. No bundle, no hoisting,
-# no esbuild. The whole built+pruned workspace tree ships from ONE stage so the
-# symlink farm stays internally consistent.
+# Build model: TRANSPILE-ONLY (ADR-0017), shipped via `pnpm deploy`. The
+# reasoning is identical for this image and the api one, so it lives in
+# docs/deployment/image-build-model.md and is not restated in either.
 # ==============================================================================
 
 FROM node:24-bookworm-slim AS base
 RUN corepack enable
 WORKDIR /app
 
-# ---- build: full install -> prisma generate -> tsc -b -> prune to prod -------
+# ---- build: full install -> prisma generate -> tsc -b -> deploy prod tree ----
 FROM base AS build
 ENV CI=true
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json tsconfig.build.json turbo.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json tsconfig.base.json tsconfig.build.base.json tsconfig.build.json turbo.json ./
 COPY patches/ ./patches/
 COPY packages/ ./packages/
 COPY infra/ ./infra/
 COPY apps/workers ./apps/workers
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm fetch --frozen-lockfile && \
+    pnpm fetch && \
     pnpm install --frozen-lockfile --ignore-scripts
 # `prisma generate` before the app build so @infra/prisma's tsc emit sees the
 # generated client. Then `tsc -b` (driven by the workers package build, which
@@ -32,10 +29,37 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 # app's dist/bootstrap.js (+ the standalone worker entries as separate files).
 RUN pnpm --filter @infra/prisma generate && \
     pnpm --filter @apps/workers build
-# Prune dev dependencies IN PLACE so the single tree we copy below carries the
-# prod-only node_modules + symlink farm, consistent with the emitted dist.
+# `deploy` replaces the in-place `--prod` prune: ONE self-contained tree for
+# this app alone, each workspace dependency materialised into the target's own
+# store and packed by that package's `files` field. --ignore-scripts because
+# @infra/prisma's `postinstall: prisma generate` has no CLI to run in a prod
+# tree, and the emit it would produce is already in the dist this copies.
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --prod --ignore-scripts
+    pnpm --filter @apps/workers deploy --prod --ignore-scripts /prod/workers
+# The CMD at the end of this file is a bare path into the deploy tree's root, so
+# it is correct only while `deploy` puts the entry there AND everything that
+# entry imports is inside the tree. Nothing downstream would catch a drift:
+# distroless has no shell, and the first symptom would be a production
+# crash-loop on `Cannot find module`. This asserts it where a shell still
+# exists, in the same file as the CMD.
+#
+# IMPORTING is the point, not stat-ing. A stat proves one file exists; an import
+# proves the whole module graph that entry pulls resolves from THIS tree — which
+# is exactly what shrinking the closure with `pnpm deploy` puts at risk, and a
+# stat would have passed straight through it. The app cannot finish booting here
+# (no database, no Redis), so a RESOLUTION failure is told apart from a
+# CONNECTION failure by its error code: the resolver codes fail the build, and
+# anything else means the graph loaded and only infrastructure was missing.
+WORKDIR /prod/workers
+RUN node --input-type=module -e '\
+  const unresolved = new Set(["ERR_MODULE_NOT_FOUND", "MODULE_NOT_FOUND", "ERR_PACKAGE_PATH_NOT_EXPORTED", "ERR_UNSUPPORTED_DIR_IMPORT"]); \
+  import("./dist/bootstrap.js").then( \
+    () => console.log("dist/bootstrap.js and its whole import graph resolve"), \
+    (e) => { const code = (e && e.code) || ""; \
+      if (unresolved.has(code)) { console.error("deploy tree cannot resolve the CMD graph (" + code + "): " + e.message); process.exit(1); } \
+      console.log("import graph resolved; boot stopped at " + (code || "a runtime error") + ", which needs services this stage has none of"); } \
+  );'
+WORKDIR /app
 
 # ---- production: distroless, non-root ----------------------------------------
 # Pinned by digest, and debian13 rather than debian12: the bookworm image ships
@@ -43,27 +67,28 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 # rebuilt away, and trixie's is past them. The pin only works because
 # `.github/dependabot.yml` already tracks the `docker` ecosystem — Dependabot
 # updates an ALREADY-pinned digest and does not add one to a bare reference.
-# The measurements, the glibc-direction argument and what CI does NOT verify:
+# The measurements, the glibc-direction reading and what the CI smoke proves:
 # docs/deployment/base-images.md
 FROM gcr.io/distroless/nodejs24-debian13@sha256:b1fc33242cc74151f50c62b4a03d48afd759dccf81279b5f8e401db4546479c1 AS production
 WORKDIR /app
 
-# Ship the whole built+pruned workspace tree from the single build stage (see
-# the api Dockerfile for the isolated-layout rationale).
-COPY --from=build --chown=nonroot:nonroot /app/node_modules ./node_modules
-COPY --from=build --chown=nonroot:nonroot /app/packages ./packages
-COPY --from=build --chown=nonroot:nonroot /app/infra ./infra
-COPY --from=build --chown=nonroot:nonroot /app/apps/workers/dist ./apps/workers/dist
-COPY --from=build --chown=nonroot:nonroot /app/apps/workers/node_modules ./apps/workers/node_modules
-COPY --from=build --chown=nonroot:nonroot /app/apps/workers/package.json ./apps/workers/package.json
-COPY --from=build --chown=nonroot:nonroot /app/package.json ./package.json
+# ONE copy. The deploy tree's root IS the app, which is why the CMD below is
+# `dist/bootstrap.js` and not `apps/workers/dist/bootstrap.js`.
+COPY --from=build --chown=nonroot:nonroot /prod/workers ./
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=256"
 
 USER nonroot
 
+# EXEC FORM, and the brackets are load-bearing. Written as `CMD node -e "..."`
+# Docker stores this as CMD-SHELL and runs it through `/bin/sh -c` — and this
+# image is distroless, which has no shell at all (`/bin/sh`, `/bin/bash` and
+# `/usr/bin/sh` are all absent, measured). The probe then cannot start: Docker
+# reports the container `unhealthy` with EMPTY probe output, forever, which is
+# what it did. The exec form runs the binary directly, and the path must be
+# absolute for the same reason — without a shell there is no PATH lookup.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-  CMD node -e "fetch('http://localhost:'+(process.env.METRICS_PORT||3300)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1));"
+  CMD ["/nodejs/bin/node", "-e", "fetch('http://localhost:'+(process.env.METRICS_PORT||3300)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1));"]
 
-CMD ["apps/workers/dist/bootstrap.js"]
+CMD ["dist/bootstrap.js"]

@@ -2,6 +2,9 @@
   "name": "@apps/api",
   "private": true,
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.type-tests.json",

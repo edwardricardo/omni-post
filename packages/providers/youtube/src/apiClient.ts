@@ -17,7 +17,8 @@ import client from "prom-client";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("provider:youtube:api-client");
-import { google, youtube_v3, youtubeAnalytics_v2 } from "googleapis";
+import { youtube, youtube_v3 } from "@googleapis/youtube";
+import { youtubeAnalytics, youtubeAnalytics_v2 } from "@googleapis/youtubeanalytics";
 import { OAuth2Client } from "google-auth-library";
 import { Readable } from "stream";
 import { YouTubeAnalyticsService } from "./analytics.js";
@@ -77,16 +78,23 @@ export class YouTubeApiClient {
       ...(credentials.accessToken && { access_token: credentials.accessToken }),
     });
 
-    const googleApi = google as unknown as {
-      youtube: (opts: { version: string; auth: OAuth2Client }) => youtube_v3.Youtube;
-      youtubeAnalytics: (opts: {
-        version: string;
-        auth: OAuth2Client;
-      }) => youtubeAnalytics_v2.Youtubeanalytics;
-    };
-    this.youtube = googleApi.youtube({ version: "v3", auth: this.oauth2Client });
+    // No cast. The `googleapis` monolith exposed its API surface through a
+    // dynamic namespace whose types did not survive contact, so every
+    // construction site in this package reached for `as unknown as` to describe
+    // what it was calling. The per-API packages export the factory directly and
+    // typed, so those casts are deleted here and in the four sibling services.
+    //
+    // The `as unknown as` casts that REMAIN on individual API CALLS below are a
+    // different defect with a different cause, and the difference is measured,
+    // not assumed: removing one and compiling reports that this repository's
+    // `exactOptionalPropertyTypes: true` rejects `channelId: string | undefined`
+    // against googleapis' `channelId: string`, because those typings declare
+    // optional params without `| undefined`. The canon fix is the conditional
+    // spread in CODING_STANDARDS §exactOptionalPropertyTypes Patterns, applied
+    // per call site — a separate change, not a leftover of this one.
+    this.youtube = youtube({ version: "v3", auth: this.oauth2Client });
 
-    this.youtubeAnalytics = googleApi.youtubeAnalytics({
+    this.youtubeAnalytics = youtubeAnalytics({
       version: "v2",
       auth: this.oauth2Client,
     });

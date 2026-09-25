@@ -6,7 +6,7 @@
  */
 
 import { Readable } from "stream";
-import { youtube_v3 } from "googleapis";
+import { youtube_v3 } from "@googleapis/youtube";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("provider:youtube:shorts");
