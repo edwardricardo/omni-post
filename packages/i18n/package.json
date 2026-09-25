@@ -1,5 +1,5 @@
 {
-  "name": "@shared/types",
+  "name": "@packages/i18n",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -18,22 +18,15 @@
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
     "clean": "tsc --build --clean",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "date-fns": "catalog:",
-    "handlebars": "catalog:"
-  },
-  "peerDependencies": {
-    "zustand": "catalog:"
-  },
-  "peerDependenciesMeta": {
-    "zustand": {
-      "optional": true
-    }
+    "next-intl": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "vitest": "catalog:",
     "typescript": "catalog:"
   }
 }

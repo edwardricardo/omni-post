@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import { google, youtube_v3 } from "googleapis";
+import { youtube, youtube_v3 } from "@googleapis/youtube";
 import { OAuth2Client } from "google-auth-library";
 import { Readable } from "stream";
 import { hashCallScope, ANALYTICS_CB_OPTIONS, METADATA_CB_OPTIONS } from "@adapters/external-apis";
@@ -73,9 +73,9 @@ export class YouTubeShortsService {
       ...(credentials.accessToken && { access_token: credentials.accessToken }),
     });
 
-    this.youtube = google.youtube({
+    this.youtube = youtube({
       version: "v3",
-      auth: this.oauth2Client as unknown as import("googleapis").Auth.OAuth2Client,
+      auth: this.oauth2Client,
     });
   }
 

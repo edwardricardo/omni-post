@@ -27,12 +27,13 @@
   },
   "dependencies": {
     "@adapters/external-apis": "workspace:*",
+    "@googleapis/youtube": "catalog:",
+    "@googleapis/youtubeanalytics": "catalog:",
     "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
     "@providers/shared": "workspace:*",
     "@shared/types": "workspace:*",
     "google-auth-library": "catalog:",
-    "googleapis": "catalog:",
     "pino": "catalog:",
     "prom-client": "catalog:"
   },

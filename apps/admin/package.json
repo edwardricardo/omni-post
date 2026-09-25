@@ -20,6 +20,7 @@
     "@marsidev/react-turnstile": "1.5.0",
     "@observability/browser-logger": "workspace:*",
     "@packages/api-errors": "workspace:*",
+    "@packages/i18n": "workspace:*",
     "@packages/query-client": "workspace:*",
     "@packages/ui": "workspace:*",
     "@sentry/nextjs": "catalog:",
