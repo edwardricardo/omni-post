@@ -220,6 +220,20 @@ export class SecurityManager {
     reply.header("Cross-Origin-Opener-Policy", "same-origin");
     reply.header("Cross-Origin-Resource-Policy", "cross-origin");
 
+    // Default every response to uncacheable, and ONLY when the route has not
+    // already spoken. This API serves authenticated JSON: without a directive a
+    // shared intermediary may store a response keyed by URL and hand one
+    // tenant's body to the next caller, which is why the ZAP baseline reports
+    // "Storable and Cacheable Content" (10049) against it.
+    //
+    // `hasHeader` is the load-bearing half. `reply.header()` overwrites, and
+    // three route families already set their own policy deliberately
+    // (notifications, analytics, the webhook dashboard); silently replacing
+    // theirs would trade one defect for another.
+    if (!reply.hasHeader("Cache-Control")) {
+      reply.header("Cache-Control", "no-store");
+    }
+
     // Remove server information
     reply.removeHeader("X-Powered-By");
     reply.removeHeader("Server");

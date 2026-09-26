@@ -34,6 +34,7 @@
     "build": "tsc -b tsconfig.build.json"
   },
   "devDependencies": {
+    "@packages/vitest-shared": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

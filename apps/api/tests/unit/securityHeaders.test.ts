@@ -36,7 +36,7 @@ function createMockRequest(overrides?: Partial<FastifyRequest>): FastifyRequest 
 // Mock Fastify Reply - Pick<> documents what methods the SUT actually uses
 type MockReply = Pick<
   FastifyReply,
-  "statusCode" | "getHeader" | "header" | "removeHeader" | "code" | "send" | "sent"
+  "statusCode" | "getHeader" | "hasHeader" | "header" | "removeHeader" | "code" | "send" | "sent"
 > & {
   body: any;
   getAllHeaders: () => Record<string, string | number>;
@@ -48,6 +48,7 @@ function createMockReply(): MockReply & FastifyReply {
   const reply: MockReply = {
     statusCode: 200,
     getHeader: (name: string) => headers[name.toLowerCase()],
+    hasHeader: (name: string) => headers[name.toLowerCase()] !== undefined,
     header(name: string, value: string | number) {
       headers[name.toLowerCase()] = value;
       return reply;
@@ -204,6 +205,39 @@ describe("SecurityManager Tests", () => {
 
       const csp = reply.getHeader("content-security-policy") as string;
       expect(csp.includes("upgrade-insecure-requests")).toBeTruthy();
+    });
+
+    it("defaults Cache-Control to no-store, which is what the ZAP baseline asks for", () => {
+      // The baseline scan reports "Storable and Cacheable Content" (10049)
+      // against an API that serves authenticated JSON with no cache directive:
+      // a shared intermediary may store a response keyed by URL and hand one
+      // tenant's body to the next caller.
+      securityManager = new SecurityManager({});
+
+      const request = createMockRequest();
+      const reply = createMockReply();
+
+      const middleware = securityManager.createSecurityMiddleware();
+      middleware(request, reply);
+
+      expect(reply.getHeader("cache-control")).toBe("no-store");
+    });
+
+    it("leaves a Cache-Control the route already chose, instead of overwriting it", () => {
+      // Three route families set their own policy deliberately (notifications,
+      // analytics, the webhook dashboard). `reply.header()` overwrites, so the
+      // default is guarded by `hasHeader` — without that guard this middleware
+      // would trade one defect for another, silently.
+      securityManager = new SecurityManager({});
+
+      const request = createMockRequest();
+      const reply = createMockReply();
+      reply.header("Cache-Control", "public, max-age=60");
+
+      const middleware = securityManager.createSecurityMiddleware();
+      middleware(request, reply);
+
+      expect(reply.getHeader("cache-control")).toBe("public, max-age=60");
     });
 
     it("should disable CSP when configured", () => {

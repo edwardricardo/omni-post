@@ -46,18 +46,32 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 # IMPORTING is the point, not stat-ing. A stat proves one file exists; an import
 # proves the whole module graph that entry pulls resolves from THIS tree — which
 # is exactly what shrinking the closure with `pnpm deploy` puts at risk, and a
-# stat would have passed straight through it. The app cannot finish booting here
-# (no database, no Redis), so a RESOLUTION failure is told apart from a
-# CONNECTION failure by its error code: the resolver codes fail the build, and
-# anything else means the graph loaded and only infrastructure was missing.
+# stat would have passed straight through it.
+#
+# WHAT COUNTS AS A FAILURE, and the list is deliberately two-sided. The app
+# cannot finish booting here (no database, no Redis), so SOME rejection is
+# expected and must not fail the build. Two families do fail:
+#   - the resolver codes, which mean the tree is missing something;
+#   - TypeError / ReferenceError / SyntaxError, which are module-evaluation
+#     DEFECTS and would otherwise have been reported as "boot stopped at a
+#     runtime error" and passed. A review named that hole before this closed it.
+# Anything else — a Zod env rejection, a refused connection — means the graph
+# loaded and only infrastructure was missing, which is this stage's normal.
+#
+# The timeout and the explicit exits are the other half: an entry that opens a
+# socket or registers a timer at import would otherwise leave the RUN hanging
+# with no bound, and a build that hangs is worse than one that fails.
 WORKDIR /prod/workers
-RUN node --input-type=module -e '\
+RUN timeout 120 node --input-type=module -e '\
   const unresolved = new Set(["ERR_MODULE_NOT_FOUND", "MODULE_NOT_FOUND", "ERR_PACKAGE_PATH_NOT_EXPORTED", "ERR_UNSUPPORTED_DIR_IMPORT"]); \
+  const defects = new Set(["TypeError", "ReferenceError", "SyntaxError"]); \
   import("./dist/bootstrap.js").then( \
-    () => console.log("dist/bootstrap.js and its whole import graph resolve"), \
-    (e) => { const code = (e && e.code) || ""; \
+    () => { console.log("dist/bootstrap.js and its whole import graph resolve"); process.exit(0); }, \
+    (e) => { const code = (e && e.code) || ""; const kind = (e && e.constructor && e.constructor.name) || ""; \
       if (unresolved.has(code)) { console.error("deploy tree cannot resolve the CMD graph (" + code + "): " + e.message); process.exit(1); } \
-      console.log("import graph resolved; boot stopped at " + (code || "a runtime error") + ", which needs services this stage has none of"); } \
+      if (defects.has(kind)) { console.error("the CMD graph loaded but evaluating it threw " + kind + ": " + e.message); process.exit(1); } \
+      console.log("import graph resolved; boot stopped at " + (code || kind || "a runtime error") + ", which needs services this stage has none of"); \
+      process.exit(0); } \
   );'
 WORKDIR /app
 
