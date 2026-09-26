@@ -47,10 +47,10 @@ test-results/
 # apps/admin/app/[locale]/(dashboard)/logs/.
 #
 # The anchor is NOT free. It drops the ignore that the unanchored rule gave every
-# nested logs directory - notably apps/api/logs/, created on demand by
-# stayed covered by apps/api/.gitignore (`*.log`, `*.pid`); the third, a generated
-# its own package-anchored `/logs/` rule. Any future nested logs directory needs the
-# same treatment: a local .gitignore, not a rule here.
+# nested logs directory — notably apps/api/logs/, which local scripts write into.
+# That directory is now covered by apps/api/.gitignore's own package-anchored
+# `/logs/` rule. Any future nested logs directory needs the same treatment: a local
+# .gitignore, not a rule here.
 #
 # Every other unanchored artifact rule in this file (dist/, build/, out/,
 # coverage/, .cache/, .temp/, .tmp/) carries the same collision risk against a
