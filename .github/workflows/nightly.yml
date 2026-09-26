@@ -94,32 +94,6 @@ jobs:
       - name: Run full test suite (cache bypassed)
         run: pnpm turbo run test --force
 
-      - name: Run mutation testing (incremental)
-        run: pnpm turbo run mutation --force
-        # Mutation testing is a long, variable-runtime health check that runs
-        # nightly for trend analysis; the SCORE is treated as informational (the
-        # Stryker reports uploaded below are the observable signal). This
-        # tolerance covers the score only — it does not extend to the report,
-        # which the upload step below requires.
-        continue-on-error: true
-
-      - name: Upload mutation reports
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mutation-reports-${{ github.run_id }}
-          path: "**/reports/mutation/index.html"
-          retention-days: 30
-          # The step above is continue-on-error because the mutation SCORE is a
-          # trend signal, not a gate — that rationale holds and is unchanged.
-          # It does not extend to the report itself: with `warn`, a mutation run
-          # that crashed before writing anything produced no report, no artifact
-          # and no red, which leaves the trend the score is meant to feed silently
-          # empty. Absence of the report is the one outcome that means the health
-          # check did not run at all. (Path verified against
-          # apps/api/stryker.config.mjs -> htmlReporter.fileName.)
-          if-no-files-found: error
-
       - name: Notify on failure
         if: failure()
         uses: actions/github-script@v9

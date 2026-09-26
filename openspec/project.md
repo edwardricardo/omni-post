@@ -59,7 +59,6 @@ The known defect this change addresses:
 | Backend all (unit+integration) | both         | `pnpm --filter @apps/api test:all`                                                      |
 | Frontend                       | `vitest`     | `+ @testing-library/react` (admin components, client hooks)                             |
 | E2E                            | `Playwright` | admin auth, client publishing                                                           |
-| Mutation                       | `Stryker`    | `cd apps/api && pnpm exec stryker run` (vitest-runner, `coverageAnalysis: perTest`)     |
 
 - **Test env**: vitest auto-loads `.env.test` via `setupFiles` (`apps/api/tests/setup-env.ts`, `apps/workers/tests/setup-env.ts`). On fresh clone: `cp .env.test.example .env.test`, point `DATABASE_URL` / `REDIS_URL` at local infra (`omnipost-infra`).
 - **Integration tests need real services**: `pnpm db:up` (PostgreSQL + Redis) before running. Never skip because services are down — start them.

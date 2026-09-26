@@ -39,8 +39,9 @@ import { defineConfig, mergeConfig, type ViteUserConfig } from "vitest/config";
 
 /**
  * Walks up from a directory until it finds the monorepo root (the directory containing
- * `pnpm-workspace.yaml`). Handles deep sandboxes (e.g. Stryker's `.stryker-tmp/sandbox-xxx/`)
- * where the usual relative `../../` offset is wrong.
+ * `pnpm-workspace.yaml`). Searching for the marker rather than counting `../..` is what
+ * makes this correct from a copied, nested or relocated working directory — any place
+ * where a fixed relative offset silently resolves somewhere else.
  *
  * @param startDir - Directory to begin the upward search from.
  * @returns Absolute path to the monorepo root.

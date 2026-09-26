@@ -969,75 +969,38 @@ jobs:
             exit 1
           fi
 
-      - name: "#36 Every positive scope glob in a coverage/mutation config matches a file"
+      - name: "#36 Every positive scope glob in a coverage config matches a file"
         if: always()
         run: |
           # Dead scope = infallible gate (the #2/#3/#4 class): a POSITIVE glob
-          # matching zero files makes the gate report green over code it never
-          # touched. Scope: mutate arrays of apps/api/stryker*.config.mjs (minus
-          # the quarantined pre-consolidation configs) + include arrays of
-          # apps/api/vitest.config.ts. Negations (!...) are deliberately out of
-          # scope: an empty negation is inert protection (SMELL-84), and flagging
-          # it pushes authors to delete real exclusions. FAIL-CLOSED PER FILE:
-          # zero globs extracted from a scanned config is a blind scan, not a
-          # clean one (renaming `mutate:` in the config the pipeline runs made an
-          # earlier form print nothing and exit 0 over 26 live globs it never
-          # read). Comments inside the arrays are dropped, line AND block, so a
-          # glob named in a comment is not reported; bracket counting skips
-          # string literals, so a picomatch class neither ends the array early
-          # nor leaks into the next key. Discovery is top-level only. Hard-zero.
+          # matching zero files makes the gate report green over code it never touched.
+          # Scope: the `include` arrays (test.include + coverage.include) of
+          # apps/api/vitest.config.ts. Negations (!...) are deliberately out of scope: an
+          # empty negation is inert protection (SMELL-84), and flagging it pushes authors to
+          # delete real exclusions. FAIL-CLOSED: zero globs extracted is a blind scan, not a
+          # clean one — a renamed key, or an array assembled at runtime or inherited by
+          # spread, would otherwise report green over a scope it never read. Comments inside
+          # the arrays are dropped, line AND block, so a glob named in a comment is not
+          # reported; bracket counting skips string literals, so a picomatch class neither
+          # ends the array early nor leaks into the next key. Needs node >= 22 (fs.glob).
+          # Hard-zero.
+          #
+          # The MUTATION half of this check left with Stryker (ADR-0024). It scanned the
+          # `mutate` arrays of apps/api/stryker*.config.mjs and carried a 14-name quarantine
+          # for slicing configs that predated the packages/core relocation; those files no
+          # longer exist and SMELL-84/85 closed with them. The coverage half stays because a
+          # dead coverage glob is the same defect.
           # Mirrors CLAUDE.md #36.
           set -uo pipefail
           VIOLATIONS=$(node --input-type=module <<'EOF'
-          import { existsSync, readFileSync } from "node:fs";
+          import { readFileSync } from "node:fs";
           import { glob } from "node:fs/promises";
 
-          // Quarantine: 14 ad-hoc slicing configs predating the packages/core relocation,
-          // holding 45 dead positive globs between them (SMELL-85 owns that debt; SMELL-84
-          // is a different one — the 29 empty NEGATIONS inside stryker.config.mjs). They
-          // are one-off local run shells, not the config the mutation pipeline executes
-          // (stryker.config.mjs). The list is a RATCHET, not a permanent carve-out: it may
-          // shrink and never grow, and every name must still name an existing file — a
-          // name that outlives its file would silently exempt a NEW config re-created
-          // under it. Delete each name in the same change that fixes or deletes the file
-          // it names (the Stryker consolidation, SMELL-85).
-          const quarantined = new Set([
-            "stryker-batch-7.config.mjs",
-            "stryker-batch-8.config.mjs",
-            "stryker-domain-targeted.config.mjs",
-            "stryker-inbox.config.mjs",
-            "stryker-micro-A6.config.mjs",
-            "stryker-micro-E1.config.mjs",
-            "stryker-micro-E2.config.mjs",
-            "stryker-micro-E3.config.mjs",
-            "stryker-micro-E4.config.mjs",
-            "stryker-micro-F1.config.mjs",
-            "stryker-micro-F2.config.mjs",
-            "stryker-micro-F3.config.mjs",
-            "stryker-micro-F4.config.mjs",
-            "stryker-session-c.config.mjs",
-          ]);
-          const QUARANTINE_FLOOR = 14;
           const cwd = "apps/api";
-          if (quarantined.size > QUARANTINE_FLOOR) {
-            console.error(`fitness #36 scope error: the quarantine holds ${quarantined.size} names against a floor of ${QUARANTINE_FLOOR} — the exemption list may only shrink. A new config that needs exempting is a config that needs fixing (SMELL-85).`);
-            process.exit(1);
-          }
-          for (const name of [...quarantined].sort()) {
-            if (existsSync(`${cwd}/${name}`)) continue;
-            console.error(`fitness #36 scope error: quarantined config ${cwd}/${name} no longer exists — delete the name from the quarantine, or a config re-created under it inherits the exemption unscanned.`);
-            process.exit(1);
-          }
-          const scanned = [];
-          for await (const f of glob("stryker*.config.mjs", { cwd })) {
-            if (!quarantined.has(f)) scanned.push([f, "mutate"]);
-          }
-          scanned.sort();
-          if (scanned.length === 0) {
-            console.error(`fitness #36 scope error: no non-quarantined stryker*.config.mjs under ${cwd}`);
-            process.exit(1);
-          }
-          scanned.push(["vitest.config.ts", "include"]);
+          // One subject now: the coverage/test include arrays. The mutation half left with
+          // Stryker (ADR-0024) along with the 14-name quarantine it needed for the
+          // pre-relocation slicing configs; SMELL-84 and SMELL-85 closed with those files.
+          const scanned = [["vitest.config.ts", "include"]];
           // Walk to the array's closing bracket while IGNORING brackets that live inside
           // string literals or comments. Picomatch character classes (`src/api[Vv]2/**`)
           // are legitimate glob syntax, and counting them either ends the array early —
@@ -1092,7 +1055,7 @@ jobs:
               process.exit(1);
             }
             if (patterns.length === 0) {
-              console.error(`fitness #36 scope error: zero '${key}' globs extracted from ${cwd}/${file} — the key was renamed, or the array is assembled at runtime or inherited by spread. Either way the gate would report green over a scope it never read, so it fails closed. Give the config a literal '${key}' array, or quarantine it with an owning backlog entry.`);
+              console.error(`fitness #36 scope error: zero '${key}' globs extracted from ${cwd}/${file} — the key was renamed, or the array is assembled at runtime or inherited by spread. Either way the gate would report green over a scope it never read, so it fails closed. Give the config a literal '${key}' array.`);
               process.exit(1);
             }
             for (const pattern of patterns) {
@@ -1108,7 +1071,7 @@ jobs:
           COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
-            echo "::error title=Fitness #36 violation::$COUNT dead positive scope glob(s) in coverage/mutation configs — each names a scope the gate reports on without measuring. Repoint or delete the glob; if the scope moved (e.g. into packages/core), measuring it there is a separate scope, not a repoint."
+            echo "::error title=Fitness #36 violation::$COUNT dead positive scope glob(s) in the coverage config — each names a scope the gate reports on without measuring. Repoint or delete the glob; if the scope moved (e.g. into packages/core), measuring it there is a separate scope, not a repoint."
             printf "%s\n" "$VIOLATIONS" | head -20
             exit 1
           fi

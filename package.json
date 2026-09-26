@@ -63,8 +63,6 @@
     "@hey-api/openapi-ts": "0.97.3",
     "@secretlint/secretlint-rule-preset-recommend": "12.3.1",
     "@size-limit/preset-small-lib": "12.1.0",
-    "@stryker-mutator/core": "catalog:",
-    "@stryker-mutator/vitest-runner": "catalog:",
     "@types/node": "catalog:",
     "@types/opossum": "catalog:",
     "@types/react": "catalog:",

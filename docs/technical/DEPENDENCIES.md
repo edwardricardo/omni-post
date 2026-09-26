@@ -322,13 +322,12 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tailwind
 
 ### Metrics
 
-| Metric              | Value                                     |
-| ------------------- | ----------------------------------------- |
-| Test files          | 351                                       |
-| Total tests         | 7,159                                     |
-| Test failures       | 0                                         |
-| Coverage thresholds | Lines 55%, Functions 55%, Branches 45%    |
-| Mutation testing    | Stryker configured (break threshold: 52%) |
+| Metric              | Value                                  |
+| ------------------- | -------------------------------------- |
+| Test files          | 351                                    |
+| Total tests         | 7,159                                  |
+| Test failures       | 0                                      |
+| Coverage thresholds | Lines 55%, Functions 55%, Branches 45% |
 
 ### Strategy
 

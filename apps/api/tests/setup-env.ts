@@ -28,14 +28,15 @@ import { findMonorepoRoot } from "@packages/vitest-shared";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// The root is FOUND, not counted. "Three levels up" held for a normal run and
-// broke the one that matters: Stryker copies `apps/api` into
-// `apps/api/.stryker-tmp/sandbox-XXXX/` and runs there, so three levels up
-// lands on `apps/api/.stryker-tmp/.env.test` — absent. Every mutation run then
-// died in the dry run with `REDIS_URL: expected string, received undefined`,
-// and the nightly reported it as a failed artifact upload. `findMonorepoRoot`
-// walks up for `pnpm-workspace.yaml`, which resolves to the real repository
-// from inside the sandbox and from outside it alike.
+// The root is FOUND, not counted, and this is not a preference. A relative
+// "three levels up" is only correct while this file sits at exactly that depth
+// from the root: any tool that runs the suite from a copied or nested working
+// directory lands the offset somewhere else, and the failure is a missing
+// `.env.test` surfacing as `REDIS_URL: expected string, received undefined` —
+// an error that names neither the file nor the path that was wrong. A tool that
+// did exactly that has since been removed, which does not make counting safe
+// again: `findMonorepoRoot` walks up for `pnpm-workspace.yaml`, so the answer is
+// correct from wherever the suite is invoked. Do not replace it with an offset.
 const envFilePath = path.join(findMonorepoRoot(__dirname), ".env.test");
 
 if (existsSync(envFilePath)) {

@@ -37,7 +37,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm --filter @apps/api test:unit:coverage` - Run unit tests with coverage report
 - `pnpm --filter @apps/api test:all` - Run all tests (Vitest unit + node:test integration)
 - `pnpm --filter @apps/api test:integration` - Run integration tests only (requires DB + Redis)
-- `cd apps/api && pnpm exec stryker run` - Mutation testing (Stryker + vitest-runner, perTest)
 
 ---
 
@@ -866,94 +865,52 @@ COUNT=$(printf "%b" "$VIOLATIONS" | grep -c . || true)
 COUNT=${COUNT:-0}
 echo "$COUNT"   # expect 0
 
-# 36. Every POSITIVE scope glob in a coverage/mutation config MUST match at least
-# one existing file. Closes the CLASS "dead scope = infallible gate", third
-# occurrence: fitness #2/#3/#4 grepped relocated directories, the per-glob
+# 36. Every POSITIVE scope glob in a coverage config MUST match at least one
+# existing file. Closes the CLASS "dead scope = infallible gate", third
+# occurrence: fitness #2/#3/#4 grepped relocated directories, and the per-glob
 # coverage thresholds kept "gating" `src/domain/**` + `src/application/**` after
-# both layers moved to packages/core, and stryker.config.mjs carried 13 mutate
-# entries for those same absent layers while its report read as covered scope.
-# Scope: the `mutate` arrays of apps/api/stryker*.config.mjs (minus the
-# quarantine below) plus the `include` arrays (test.include + coverage.include)
-# of apps/api/vitest.config.ts — the coverage scope globs live THERE since the
-# threshold-literal rework retired the glob keys vitest.coverage-thresholds.ts
-# used to hold. POSITIVE globs only, deliberately: a negation (`!...`) matching
-# zero files is inert PROTECTION (SMELL-84 measured 29 such lines — harmless
-# fat), and flagging it would push authors to delete real exclusions to get
-# green; a positive glob matching zero files is a gate reporting green over code
-# it never touched.
+# both layers moved to packages/core. Scope: the `include` arrays (test.include +
+# coverage.include) of apps/api/vitest.config.ts — the coverage scope globs live
+# THERE since the threshold-literal rework retired the glob keys
+# vitest.coverage-thresholds.ts used to hold. POSITIVE globs only, deliberately:
+# a negation (`!...`) matching zero files is inert PROTECTION (SMELL-84 measured
+# 29 such lines — harmless fat), and flagging it would push authors to delete
+# real exclusions to get green; a positive glob matching zero files is a gate
+# reporting green over code it never touched.
 #
-# FAIL-CLOSED PER FILE. Extracting zero globs from a scanned config is not a
-# clean scan, it is a blind one: renaming `mutate:` in stryker.config.mjs — the
-# config the mutation pipeline actually executes — made the first form of this
-# check print nothing and exit 0 over 26 live globs it never read, and an array
-# assembled at runtime or inherited by object spread reads identically from the
-# outside. Every scanned config must now yield at least one glob or the check
-# fails; the 14 quarantined configs are skipped entirely, not scanned leniently.
+# THE MUTATION HALF IS GONE, and the history matters because it is the reason the
+# rest of this check exists. It scanned the `mutate` arrays of
+# apps/api/stryker*.config.mjs and carried a 14-name quarantine for slicing
+# configs that predated the packages/core relocation — 45 dead positive globs
+# between them (SMELL-85), plus 29 empty negations in the main config (SMELL-84).
+# Stryker was removed in full (ADR-0024): the 65 configs no longer exist and both
+# SMELLs closed with them. The coverage half stays untouched because a coverage
+# glob matching zero files is the identical defect.
+#
+# FAIL-CLOSED. Extracting zero globs is not a clean scan, it is a blind one: an
+# earlier form of this check printed nothing and exited 0 over 26 live globs it
+# never read, after a key was renamed — and an array assembled at runtime or
+# inherited by object spread reads identically from the outside. The scanned
+# config must yield at least one glob or the check fails.
 #
 # Residual limits, stated honestly. (1) Textual extraction, not a JS parser: a
 # runtime-assembled or spread-inherited array is still unreadable to it — but it
-# now fails closed instead of passing silently. (2) Comments inside the scanned
-# arrays are dropped, line AND block, so a glob named INSIDE a comment is
-# neither extracted nor reported — documenting a scope removal in the array is
-# safe (the first form extracted those strings and red-lined CI for exactly the
-# note this file told authors to write). (3) Discovery is top-level only:
-# `apps/api/stryker*.config.mjs` plus `apps/api/vitest.config.ts`. A config
-# nested deeper (`apps/api/mutation/stryker-slice.config.mjs`) is not scanned at
-# all, so a new mutation config belongs at the top level or this scope grows
-# with it. (4) Bracket counting skips string literals, so a picomatch class
-# (`src/api[Vv]2/**`) neither ends the array early nor runs past it into the
-# next key. Needs node >= 22 (fs.glob); the CI job pins node 24. Hard-zero.
+# fails closed instead of passing silently. (2) Comments inside the scanned arrays
+# are dropped, line AND block, so a glob named INSIDE a comment is neither
+# extracted nor reported — documenting a scope removal in the array is safe. (3)
+# Bracket counting skips string literals, so a picomatch class (`src/api[Vv]2/**`)
+# neither ends the array early nor runs past it into the next key. Needs
+# node >= 22 (fs.glob); the CI job pins node 24. Hard-zero.
 set -uo pipefail
 VIOLATIONS=$(node --input-type=module <<'EOF'
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { glob } from "node:fs/promises";
 
-// Quarantine: 14 ad-hoc slicing configs predating the packages/core relocation,
-// holding 45 dead positive globs between them (SMELL-85 owns that debt; SMELL-84
-// is a different one — the 29 empty NEGATIONS inside stryker.config.mjs). They
-// are one-off local run shells, not the config the mutation pipeline executes
-// (stryker.config.mjs). The list is a RATCHET, not a permanent carve-out: it may
-// shrink and never grow, and every name must still name an existing file — a
-// name that outlives its file would silently exempt a NEW config re-created
-// under it. Delete each name in the same change that fixes or deletes the file
-// it names (the Stryker consolidation, SMELL-85).
-const quarantined = new Set([
-  "stryker-batch-7.config.mjs",
-  "stryker-batch-8.config.mjs",
-  "stryker-domain-targeted.config.mjs",
-  "stryker-inbox.config.mjs",
-  "stryker-micro-A6.config.mjs",
-  "stryker-micro-E1.config.mjs",
-  "stryker-micro-E2.config.mjs",
-  "stryker-micro-E3.config.mjs",
-  "stryker-micro-E4.config.mjs",
-  "stryker-micro-F1.config.mjs",
-  "stryker-micro-F2.config.mjs",
-  "stryker-micro-F3.config.mjs",
-  "stryker-micro-F4.config.mjs",
-  "stryker-session-c.config.mjs",
-]);
-const QUARANTINE_FLOOR = 14;
 const cwd = "apps/api";
-if (quarantined.size > QUARANTINE_FLOOR) {
-  console.error(`fitness #36 scope error: the quarantine holds ${quarantined.size} names against a floor of ${QUARANTINE_FLOOR} — the exemption list may only shrink. A new config that needs exempting is a config that needs fixing (SMELL-85).`);
-  process.exit(1);
-}
-for (const name of [...quarantined].sort()) {
-  if (existsSync(`${cwd}/${name}`)) continue;
-  console.error(`fitness #36 scope error: quarantined config ${cwd}/${name} no longer exists — delete the name from the quarantine, or a config re-created under it inherits the exemption unscanned.`);
-  process.exit(1);
-}
-const scanned = [];
-for await (const f of glob("stryker*.config.mjs", { cwd })) {
-  if (!quarantined.has(f)) scanned.push([f, "mutate"]);
-}
-scanned.sort();
-if (scanned.length === 0) {
-  console.error(`fitness #36 scope error: no non-quarantined stryker*.config.mjs under ${cwd}`);
-  process.exit(1);
-}
-scanned.push(["vitest.config.ts", "include"]);
+// One subject now: the coverage/test include arrays. The mutation half left with
+// Stryker (ADR-0024) along with the 14-name quarantine it needed for the
+// pre-relocation slicing configs; SMELL-84 and SMELL-85 closed with those files.
+const scanned = [["vitest.config.ts", "include"]];
 // Walk to the array's closing bracket while IGNORING brackets that live inside
 // string literals or comments. Picomatch character classes (`src/api[Vv]2/**`)
 // are legitimate glob syntax, and counting them either ends the array early —
@@ -1008,7 +965,7 @@ for (const [file, key] of scanned) {
     process.exit(1);
   }
   if (patterns.length === 0) {
-    console.error(`fitness #36 scope error: zero '${key}' globs extracted from ${cwd}/${file} — the key was renamed, or the array is assembled at runtime or inherited by spread. Either way the gate would report green over a scope it never read, so it fails closed. Give the config a literal '${key}' array, or quarantine it with an owning backlog entry.`);
+    console.error(`fitness #36 scope error: zero '${key}' globs extracted from ${cwd}/${file} — the key was renamed, or the array is assembled at runtime or inherited by spread. Either way the gate would report green over a scope it never read, so it fails closed. Give the config a literal '${key}' array.`);
     process.exit(1);
   }
   for (const pattern of patterns) {

@@ -1,5 +1,14 @@
 # OmniPost Testing Infrastructure — Complete Reference
 
+> **HISTORICAL — do not read as current state (marked 2026-09-26).**
+> This report dates from 2026-03-25 and three of its claims are no longer true:
+> the mutation scores cannot be reproduced (mutation testing was removed, see
+> [ADR-0024](../../technical/ADR-0024-mutation-testing-removal.md)); the config
+> count of 61 was measured at 65; and the sections describing
+> `apps/api/src/domain/` and `apps/api/src/application/` refer to directories that
+> were relocated to `packages/core/`. Kept as a record of what was believed at the
+> time, not as a description of the repository.
+
 Last updated: 2026-03-25
 
 ---
