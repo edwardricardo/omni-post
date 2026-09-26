@@ -49,6 +49,21 @@ export default defineConfig([
       // Prisma generated files
       "infra/prisma/src/**/*.js",
       "infra/prisma/generated/**",
+      // `.gitignore` excludes `.config/` wholesale: it holds per-developer editor
+      // and agent tooling, not repository code. ESLint keeps its own ignore list
+      // and does not read `.gitignore`, so without this entry it lints files the
+      // repository does not own — `pnpm lint` then reports errors nobody can fix
+      // by changing this repository, and CI stays green only because a fresh
+      // checkout happens to have nothing there. A gate that goes red on files
+      // outside its own scope is a gate people learn to ignore.
+      //
+      // Entries here and in `.gitignore` are two lists that can drift. Wiring
+      // `includeIgnoreFile` from `@eslint/compat` would collapse them into one,
+      // and it is deliberately NOT done: that package is not a dependency of this
+      // repository, and adopting `.gitignore` wholesale would also silence
+      // `**/__snapshots__/` and `**/reports/mutation/` — a wider behaviour change
+      // than the problem being solved.
+      ".config/**",
     ],
   },
   js.configs.recommended,
