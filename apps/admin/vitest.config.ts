@@ -14,7 +14,7 @@
 import path from "node:path";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
-import { buildWorkspaceAliases, findMonorepoRoot } from "../../vitest.shared";
+import { buildWorkspaceAliases, findMonorepoRoot } from "@packages/vitest-shared";
 
 const root = findMonorepoRoot(__dirname);
 

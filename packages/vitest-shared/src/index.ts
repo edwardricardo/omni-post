@@ -1,6 +1,18 @@
 /**
- * @file vitest.shared.ts
- * @description Single source of truth for BOTH the shared Vitest config factory and the workspace
+ * @file index.ts
+ * @description The shared vitest config factory. It is a PACKAGE, not a file at
+ *   the repository root, and the reason is measurable: Stryker copies
+ *   `apps/api` into a sandbox and runs there, so a relative `../../vitest.shared`
+ *   points outside the sandbox and rolldown cannot resolve it — which is what
+ *   broke `Nightly Full Test Suite` (every spelling failed: `.js`, `.ts` and
+ *   extensionless). A package specifier resolves through `node_modules`, which
+ *   the sandbox symlinks back to the real tree, so it works from both.
+ *
+ *   Its `exports` names TypeScript SOURCE and it has no build step. This is
+ *   config-time tooling: vitest configs import it before anything is compiled,
+ *   and vite's bundler reads `.ts` directly. A `dist` here could only go stale.
+ *
+ *   Single source of truth for BOTH the shared Vitest config factory and the workspace
  *              `resolve.alias` map. The alias map points every workspace specifier (`@core/*`,
  *              `@adapters/*`, `@ports/*`, `@shared/*`, `@infra/*`, `@providers/*`,
  *              `@observability/*`, `@monitoring/*`, `@api-common/*`) at TypeScript SOURCE rather
@@ -23,7 +35,7 @@
  */
 import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
-import { defineConfig, mergeConfig, type UserConfig } from "vitest/config";
+import { defineConfig, mergeConfig, type ViteUserConfig } from "vitest/config";
 
 /**
  * Walks up from a directory until it finds the monorepo root (the directory containing
@@ -112,9 +124,9 @@ export function buildWorkspaceAliases(root: string): { find: string; replacement
  *
  * @param packageDir - The calling package directory (used to locate the monorepo root).
  * @param overrides - Package-specific config merged on top of the shared defaults.
- * @returns A Vitest `UserConfig` with workspace source aliases applied.
+ * @returns A Vitest `ViteUserConfig` with workspace source aliases applied.
  */
-export function defineWorkspaceVitestConfig(packageDir: string, overrides: UserConfig = {}) {
+export function defineWorkspaceVitestConfig(packageDir: string, overrides: ViteUserConfig = {}) {
   const root = findMonorepoRoot(packageDir);
 
   const base = defineConfig({
@@ -128,14 +140,12 @@ export function defineWorkspaceVitestConfig(packageDir: string, overrides: UserC
       environment: "node",
       globals: true,
       pool: "forks",
-      // A committed `.only` makes the runner execute that test and report every
-      // silenced sibling in the file as green. Fitness #32 catches both `.only`
-      // and `.skip` statically, but only for files matching `*.test.ts(x)`; this
-      // is the runtime half, and until now it was set in the five APP configs and
-      // in NO package that inherits from this factory — so the packages with the
-      // weakest static coverage also had the weakest runtime guard. An override
-      // here is still possible; the default no longer has to be remembered.
-      forbidOnly: true,
+      // `.only` is deliberately NOT configured here. vitest already refuses a
+      // committed `.only` in CI through `allowOnly`, whose default is
+      // `!process.env.CI`, and the static half of the rule is fitness #32.
+      // `forbidOnly` is a PLAYWRIGHT option: it appears nowhere in vitest
+      // 4.1.11 — no config key, no CLI flag — so setting it guarded nothing
+      // while reading like a guard. Do not reintroduce it.
     },
   });
 

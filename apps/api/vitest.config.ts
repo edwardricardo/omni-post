@@ -11,7 +11,7 @@
  */
 import { defineConfig } from "vitest/config";
 import { shardedThresholdOverride } from "./vitest.coverage-thresholds.js";
-import { buildWorkspaceAliases, findMonorepoRoot } from "../../vitest.shared.js";
+import { buildWorkspaceAliases, findMonorepoRoot } from "@packages/vitest-shared";
 
 // When CI shards the suite across jobs, each shard runs only part of the tests,
 // so coverage thresholds are neutralised per shard and enforced once on the merged

@@ -99,15 +99,19 @@ function hasTsxTests(pkgDir) {
 }
 
 /**
- * Builds the relative import path from a package dir to the root `vitest.shared.js`.
+ * The specifier every generated config imports the shared factory by.
  *
- * @param {string} pkgDirRel - Package directory relative to root.
- * @returns {string} POSIX relative import specifier.
+ * It is a PACKAGE name, not a relative path, and computing one from the package
+ * directory is exactly what this used to do. A relative path leaves the Stryker
+ * sandbox — Stryker copies `apps/api` into `.stryker-tmp/sandbox-XXXX/` and runs
+ * there, so `../../vitest.shared` resolves to nothing and every mutation run
+ * died at config load. A package specifier resolves through `node_modules`,
+ * which the sandbox symlinks back to the real tree.
+ *
+ * @returns {string} The workspace specifier.
  */
-function sharedImport(pkgDirRel) {
-  const rel = relative(join(ROOT, pkgDirRel), ROOT) || ".";
-  const posix = rel.split(/[\\/]/).join("/");
-  return `${posix}/vitest.shared.js`;
+function sharedImport() {
+  return "@packages/vitest-shared";
 }
 
 let created = 0;
@@ -135,7 +139,19 @@ for (const glob of WORKSPACE_GLOBS) {
       testBody = `    include: ${include},`;
     }
 
-    const importSpecifier = sharedImport(pkgDirRel);
+    // The generated config imports a WORKSPACE PACKAGE now, so the manifest has
+    // to declare it or the config resolves nothing. Writing the config without
+    // the dependency would hand the next reader a file that cannot load, which
+    // is worse than the relative path this replaced.
+    if (!pj.devDependencies?.["@packages/vitest-shared"]) {
+      pj.devDependencies = {
+        "@packages/vitest-shared": "workspace:*",
+        ...(pj.devDependencies ?? {}),
+      };
+      writeFileSync(join(pkgDir, "package.json"), `${JSON.stringify(pj, null, 2)}\n`);
+    }
+
+    const importSpecifier = sharedImport();
     const content = `/**
  * @file vitest.config.ts
  * @description Vitest config for ${pj.name}. Delegates to the shared workspace factory so

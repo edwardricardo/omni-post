@@ -84,14 +84,13 @@ export class YouTubeApiClient {
     // what it was calling. The per-API packages export the factory directly and
     // typed, so those casts are deleted here and in the four sibling services.
     //
-    // The `as unknown as` casts that REMAIN on individual API CALLS below are a
-    // different defect with a different cause, and the difference is measured,
-    // not assumed: removing one and compiling reports that this repository's
-    // `exactOptionalPropertyTypes: true` rejects `channelId: string | undefined`
-    // against googleapis' `channelId: string`, because those typings declare
-    // optional params without `| undefined`. The canon fix is the conditional
-    // spread in CODING_STANDARDS §exactOptionalPropertyTypes Patterns, applied
-    // per call site — a separate change, not a leftover of this one.
+    // The casts that used to sit on individual API CALLS had a different cause
+    // and are gone too: `exactOptionalPropertyTypes: true` refuses an
+    // `undefined` where googleapis declares `T | null`, and `as unknown as` was
+    // hiding that rather than answering it. Each call site now says which it
+    // means — a conditional spread when the field is genuinely optional, and
+    // `?? null` on the update paths, where omitting a key the caller did not
+    // change would CLEAR it instead of leaving it alone.
     this.youtube = youtube({ version: "v3", auth: this.oauth2Client });
 
     this.youtubeAnalytics = youtubeAnalytics({
@@ -167,22 +166,23 @@ export class YouTubeApiClient {
       const videoBuffer = await videoResponse.arrayBuffer();
       const videoStream = Readable.from(Buffer.from(videoBuffer));
 
-      const response = (await (
-        this.youtube.videos as unknown as { insert: (opts: unknown) => Promise<unknown> }
-      ).insert({
+      const response = await this.youtube.videos.insert({
         part: ["snippet", "status"],
         requestBody: {
           snippet: {
             title: request.title,
             description: request.description,
-            tags: request.tags,
+            // Spread, not assigned: `exactOptionalPropertyTypes` makes
+            // `string[] | undefined` unassignable to googleapis' `string[] | null`,
+            // and the `as unknown as` this replaces existed to hide exactly that.
+            ...(request.tags !== undefined && { tags: request.tags }),
             categoryId: request.categoryId || "22",
             defaultLanguage: "en",
           },
           status: { privacyStatus: request.privacy, selfDeclaredMadeForKids: false },
         },
         media: { body: videoStream },
-      })) as unknown as { data: youtube_v3.Schema$Video };
+      });
 
       if (!response.data)
         throw ProviderError.externalService("youtube", "Video upload failed - no response data");
@@ -366,18 +366,20 @@ export class YouTubeApiClient {
     const apiCall = async () => {
       await this.refreshTokenIfNeeded();
 
-      const response = (await (
-        this.youtube.search as unknown as { list: (opts: unknown) => Promise<unknown> }
-      ).list({
+      const response = await this.youtube.search.list({
         part: ["snippet"],
         q: query,
         type: [options?.type || "video"],
         order: options?.order || "relevance",
         maxResults: options?.maxResults || 25,
-        channelId: options?.channelId,
-        publishedAfter: options?.publishedAfter?.toISOString(),
-        publishedBefore: options?.publishedBefore?.toISOString(),
-      })) as unknown as { data: youtube_v3.Schema$SearchListResponse };
+        ...(options?.channelId !== undefined && { channelId: options.channelId }),
+        ...(options?.publishedAfter !== undefined && {
+          publishedAfter: options.publishedAfter.toISOString(),
+        }),
+        ...(options?.publishedBefore !== undefined && {
+          publishedBefore: options.publishedBefore.toISOString(),
+        }),
+      });
 
       if (!response.data)
         throw ProviderError.externalService("youtube", "Search failed - no response data");
@@ -436,25 +438,30 @@ export class YouTubeApiClient {
       if (!current.snippet || !current.status)
         throw ProviderError.notFound("youtube", "Video snippet or status");
 
-      const response = (await (
-        this.youtube.videos as unknown as { update: (opts: unknown) => Promise<unknown> }
-      ).update({
+      const response = await this.youtube.videos.update({
         part: ["snippet", "status"],
         requestBody: {
           id: videoId,
           snippet: {
-            title: updates.title || current.snippet.title,
-            description: updates.description || current.snippet.description,
-            tags: updates.tags || current.snippet.tags,
-            categoryId: updates.categoryId || current.snippet.categoryId,
+            // `||`, NOT `??`, and the difference is behaviour, not style. A
+            // caller that sends an empty string or an empty array means "I am
+            // not setting this", and `||` falls through to the current value —
+            // which is what this code did before and what the YouTube API
+            // requires, since it rejects an empty required field with a 400.
+            // `?? null` only tails the chain, because googleapis types these as
+            // `T | null` and `exactOptionalPropertyTypes` refuses `undefined`.
+            title: updates.title || current.snippet.title || null,
+            description: updates.description || current.snippet.description || null,
+            tags: updates.tags || current.snippet.tags || null,
+            categoryId: updates.categoryId || current.snippet.categoryId || null,
             channelId: this.credentials.channelId,
           },
           status: {
-            privacyStatus: updates.privacy || current.status.privacyStatus,
-            selfDeclaredMadeForKids: current.status.selfDeclaredMadeForKids,
+            privacyStatus: updates.privacy || current.status.privacyStatus || null,
+            selfDeclaredMadeForKids: current.status.selfDeclaredMadeForKids ?? null,
           },
         },
-      })) as unknown as { data: youtube_v3.Schema$Video };
+      });
 
       if (!response.data)
         throw ProviderError.externalService("youtube", "Video update failed - no response data");

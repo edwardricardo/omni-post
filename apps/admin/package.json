@@ -39,6 +39,7 @@
     "zustand": "catalog:"
   },
   "devDependencies": {
+    "@packages/vitest-shared": "workspace:*",
     "@axe-core/playwright": "catalog:",
     "@formatjs/icu-messageformat-parser": "catalog:",
     "@playwright/test": "catalog:",
