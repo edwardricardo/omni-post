@@ -16,6 +16,7 @@
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";
 import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
+import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 
 // ---------------------------------------------------------------------------
 // Mock setup
@@ -94,7 +95,7 @@ const Fastify = (await import("fastify")).default;
 const fastifyCookie = (await import("@fastify/cookie")).default;
 const { channelRoutes } = await import("../../src/channels/channelRoutes.js");
 const { authRoutes } = await import("../../src/auth/authRoutes.js");
-const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { createRouteTestContainer } = await import("./helpers/testContainer.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
 const { MfaService } = await import("../../src/admin/auth/MfaService.js");
@@ -127,16 +128,19 @@ let createdChannelId: string;
 
 async function createTestApp() {
   const localApp = Fastify({ logger: false });
-  const container = setupContainer({ prisma: mockPrisma.prisma as never });
+  const container = createRouteTestContainer({ prisma: mockPrisma.prisma as never });
 
   // Wire up AuthService so auth routes work for hard-delete SUPER_ADMIN test
   const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
   const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
   const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
+  const metrics = container.resolve<ApiMetrics>(TOKENS.ApiMetrics);
   const mfaSvc = new MfaService(
     new PrismaAdminMfaUserRepository(mockPrisma.prisma as never),
     new PrismaCustomerMfaUserRepository(mockPrisma.prisma as never),
-    new InMemoryAuditLogRepository()
+    new InMemoryAuditLogRepository(),
+    undefined,
+    metrics
   );
   const authSvc = new AuthService(
     mockPrisma.prisma,
@@ -144,7 +148,8 @@ async function createTestApp() {
     mfaSvc,
     roleRepo,
     sessionRepo,
-    new InMemoryAuditLogRepository()
+    new InMemoryAuditLogRepository(),
+    metrics
   );
   container.registerInstance(TOKENS.AuthService, authSvc);
 
