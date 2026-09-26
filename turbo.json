@@ -15,7 +15,15 @@
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "typecheck": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "//#typecheck:configs"],
+      "outputs": []
+    },
+    "//#typecheck:configs": {
+      "inputs": [
+        "**/vitest*.config.ts",
+        "tsconfig.vitest-configs.json",
+        "packages/vitest-shared/src/**"
+      ],
       "outputs": []
     },
     "lint": {
