@@ -13,9 +13,12 @@ export default defineWorkspaceVitestConfig(import.meta.dirname, {
     globals: true,
     include: ["tests/**/*.test.ts"],
     pool: "forks",
-    // Single fork: multi-fork pools on Node 24 intermittently die with
-    // "Worker exited unexpectedly" (exit 1 with zero failed tests).
-    poolOptions: { forks: { singleFork: true } },
+    // One worker. Multi-fork runs on Node 24 intermittently die with "Worker
+    // exited unexpectedly" and exit 1 while zero tests failed, which reads as a
+    // mystery red. apps/api documents the same class: each fork is a full base
+    // process, and their combined RSS trips the OS OOM-killer. (vitest 4 dropped
+    // `poolOptions`; `maxWorkers` is the supported knob.)
+    maxWorkers: 1,
     // The beforeAll dynamic-imports the source module; on a cold CI runner the
     // on-the-fly transform of its dependency graph can exceed the 10s default.
     hookTimeout: 30000,

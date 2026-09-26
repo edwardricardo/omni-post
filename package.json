@@ -52,7 +52,8 @@
     "check:circular": "madge --circular --extensions ts,tsx --exclude 'generated|node_modules|dist' apps/api/src/ packages/",
     "secret:scan": "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore 'apps/**/*' 'packages/**/*' 'infra/**/*' '.env*' '*.{ts,tsx,js,jsx,json,md,yml,yaml,toml,sh}'",
     "env:backup": "bash scripts/env-backup.sh",
-    "env:restore": "bash scripts/env-restore.sh"
+    "env:restore": "bash scripts/env-restore.sh",
+    "typecheck:configs": "tsc -p tsconfig.vitest-configs.json"
   },
   "devDependencies": {
     "@ast-grep/cli": "0.42.0",
@@ -64,6 +65,7 @@
     "@size-limit/preset-small-lib": "12.1.0",
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
+    "@types/node": "catalog:",
     "@types/opossum": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
