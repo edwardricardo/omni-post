@@ -75,10 +75,11 @@ const { MockOAuth2Client, makeYoutube, commentThreadsListCalls } = vi.hoisted(()
 
 vi.mock("google-auth-library", () => ({ OAuth2Client: MockOAuth2Client }));
 
-vi.mock("googleapis", () => ({
-  google: {
-    youtube: ({ auth }: { auth: InstanceType<typeof MockOAuth2Client> }) => makeYoutube(auth),
-  },
+// Per-API mock, replacing a single `vi.mock("googleapis")`. See the same swap
+// in YouTubeApiClient.cacheIsolation.test.ts for why an inert mock here fails
+// loudly rather than silently.
+vi.mock("@googleapis/youtube", () => ({
+  youtube: ({ auth }: { auth: InstanceType<typeof MockOAuth2Client> }) => makeYoutube(auth),
   youtube_v3: {},
 }));
 

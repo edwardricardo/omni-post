@@ -1,0 +1,75 @@
+# Trivy suppressions — every entry MUST already be adjudicated in
+# docs/security/SECURITY_CANON.md §"Audited audit-ignores". This file is a
+# PROJECTION of that table into a second scanner's vocabulary, never a second
+# place to decide things.
+#
+# WHY IT EXISTS. The repository already adjudicates accepted dependency risk, in
+# one place, with evidence and a remove-when: the canon table, enforced through
+# `auditConfig.ignoreGhsas` in pnpm-workspace.yaml. That allowlist is pnpm's.
+# Trivy never reads it, so the same accepted risk was being re-reported as a red
+# gate by a second scanner — one decision, two tools, one allowlist. A gate that
+# goes red on something already decided teaches people to stop reading it, which
+# is how four Container Security jobs stayed red for two months while the reason
+# recorded for them was wrong.
+#
+# THE DRIFT THIS FILE INTRODUCES, stated because it is real. These are now THREE
+# lists that must agree: the canon table, `ignoreGhsas`, and this file. Nothing
+# mechanically checks that they do. Each entry below therefore cites its canon
+# row by GHSA so a reader can verify the pairing by hand, and each carries an
+# `exp:` date so a suppression cannot outlive attention by default — an expiry
+# is the canon's prose "remove-when" made self-revoking. A fitness check that
+# asserts every id here maps to a canon row is the durable fix and is not in
+# this change.
+#
+# THE EXPIRY IS MEASURED, not assumed — and so is the fact that this file is read
+# at all. Both were open questions when it was written; a review named them, and
+# a scanner was installed to answer them rather than to restate them.
+#
+# Trivy 0.74.0 — the version the CI log shows in use — scanning this
+# repository's own `pnpm-lock.yaml`, which reports exactly these two ids and
+# nothing else, making it an exact fixture:
+#
+#   no ignore file              -> 2 findings
+#   exp: 2027-12-31 (future)    -> 0 findings   suppression active
+#   exp: 2020-01-01 (past)      -> 2 findings   EXPIRY HONOURED, both re-surface
+#   no exp: at all              -> 0 findings   unbounded, which is why they carry dates
+#
+# And the file is resolved from the WORKING DIRECTORY, not from the scan target:
+# with the ignore file in cwd and the target in another directory entirely, the
+# findings were suppressed. That is what makes a repository-root `.trivyignore`
+# apply to an image scan, which the workflow performs with the repository root
+# as its working directory.
+#
+# One residual: `production-ci.yml` pins the scanner as
+# `aquasecurity/trivy-action@master`, so the version reading this file is
+# whatever master resolves to that day. The measurement above is of 0.74.0; an
+# unpinned action is its own supply-chain question and is not this file's to
+# answer.
+#
+# ADDING AN ENTRY. Adjudicate it in the canon FIRST, with its reachability
+# argument and its remove-when. Then project it here. Never the other way round:
+# the canon is explicit that a reachable, un-mitigated advisory is not something
+# this kind of list may close.
+
+# image-size 2.0.2 — infinite-loop DoS in two parsers.
+#   Canon rows: GHSA-w3rx-r6r6-pgpr (ICNS) and GHSA-5p2g-fcmc-qvqq (JXL/HEIF),
+#   both already in §"Audited audit-ignores" and both already in ignoreGhsas.
+#   BOTH pairings verified against Trivy's own descriptions, not assumed — the
+#   second one too, because a file that tells a reader to check the pairing owes
+#   them the check for every id it lists:
+#     CVE-2025-71330 "image-size through 2.0.2 ... a specially crafted ICNS
+#       image buffer"                  -> GHSA-w3rx-r6r6-pgpr, "ICNS parser
+#                                         infinite-loop DoS"
+#     CVE-2025-71329 "infinite loop in the JXL or HEIF image parsers"
+#                                      -> GHSA-5p2g-fcmc-qvqq, "JXL/HEIF parser
+#                                         infinite-loop DoS"
+#   Not pinnable: the advisories name >=2.0.3 as patched and npm has published
+#   no release above 2.0.2, so there is nothing to raise a floor to.
+#   Mitigation (the canon's, restated so this file reads alone): the one
+#   production caller, packages/providers/bluesky's BlueskyClient, gates buffers
+#   by magic bytes and admits only jpeg/png/gif/webp, so the vulnerable parsers
+#   are unreachable by construction — unit-pinned. The remaining chain is
+#   @storybook/nextjs, which is dev-only and reaches no shipped image.
+#   Remove when image-size publishes >=2.0.3 and the tree resolves it.
+CVE-2025-71330 exp:2026-12-23
+CVE-2025-71329 exp:2026-12-23

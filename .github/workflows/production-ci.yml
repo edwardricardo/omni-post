@@ -203,6 +203,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build container image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -216,34 +217,240 @@ jobs:
           cache-to: type=gha,mode=max
           load: true
 
+      # Placed BEFORE the scanner on purpose: a broken image should say so even on
+      # a run where Trivy is red for an unrelated advisory. Until this step
+      # existed, CI built four images, scanned them, pushed them on main, and
+      # never once RAN one — so nothing stood behind the Dockerfile header's own
+      # word for the glibc match, "BLOCKING".
+      #
+      # It grew twice, each time because a review named what it did NOT cover:
+      # first the native ABI, then the image's own CMD and the portals' ability
+      # to actually serve. Each numbered block below says what it proves and,
+      # where it matters, what it deliberately does not.
+      - name: Smoke — the image runs, its ABI resolves, its CMD resolves, and the portals serve
+        run: |
+          # -e is not decoration here. Without it the liveness probe could fail
+          # and the `echo` after it would still return 0 — and for the three
+          # services whose branch ENDS in an echo, the step's exit status would
+          # be that echo's. A gate whose last command cannot fail is a gate that
+          # cannot go red, which is the exact defect this step was added to stop
+          # shipping. Caught in review, after being written into the fix for it.
+          set -euo pipefail
+          IMAGE="local/${{ matrix.service }}:scan"
+
+          # 1. Node executes at all on this base. Catches an architecture or
+          #    loader break, which is the cheapest way a base swap goes wrong.
+          docker run --rm --entrypoint /nodejs/bin/node "$IMAGE" -e 'process.exit(0)'
+          echo "  node executes in $IMAGE"
+
+          # 2. The native ABI, exercised where there IS a native module. `argon2`
+          #    ships prebuilds for many platforms and `node-gyp-build` selects one
+          #    at require time, so requiring the PACKAGE is the honest test —
+          #    walking for *.node and loading each would try the musl and
+          #    foreign-arch prebuilds and fail on files nothing was ever going to
+          #    open. A hash plus its verify, because loading the binding proves
+          #    less than using it.
+          if [ "${{ matrix.service }}" = "api" ]; then
+            docker run --rm --entrypoint /nodejs/bin/node --workdir /app/apps/api "$IMAGE" -e '
+              const argon2 = require("argon2");
+              argon2
+                .hash("ci-smoke", { type: argon2.argon2id })
+                .then((h) => argon2.verify(h, "ci-smoke"))
+                .then((ok) => {
+                  if (!ok) { console.error("argon2 verify returned false"); process.exit(1); }
+                  console.log("argon2 loaded and round-tripped");
+                })
+                .catch((e) => { console.error("argon2 FAILED: " + e.message); process.exit(1); });
+            '
+          else
+            # Said out loud rather than left as a silent pass: these three carry no
+            # native module of their own. Steps 3 and 4 cover the rest for them.
+            echo "  ${{ matrix.service }}: no native module of its own"
+          fi
+
+          # 3. The image's OWN CMD entry resolves, for the two node runtimes.
+          #
+          #    The path is READ FROM THE IMAGE, never written here: a hardcoded
+          #    copy could agree with this file while disagreeing with the image,
+          #    which is the drift being tested for.
+          #
+          #    IMPORTING it rather than stat-ing it is the point. A stat proves a
+          #    file exists; an import proves the whole module graph that entry
+          #    pulls resolves inside this image — exactly what `pnpm deploy` put
+          #    at risk. These two cannot COMPLETE a boot here (no database, no
+          #    Redis), so a RESOLUTION failure is told apart from a CONNECTION
+          #    failure by its error code: the resolver codes fail the gate, and
+          #    anything else means the graph loaded and only infrastructure was
+          #    missing.
+          if [ "${{ matrix.service }}" = "api" ] || [ "${{ matrix.service }}" = "workers" ]; then
+            CMD_ENTRY="$(docker inspect -f '{{index .Config.Cmd 0}}' "$IMAGE")"
+            echo "  CMD entry declared by the image: $CMD_ENTRY"
+            docker run --rm --entrypoint /nodejs/bin/node \
+              --env "SMOKE_ENTRY=$CMD_ENTRY" "$IMAGE" --input-type=module -e '
+                const entry = process.env.SMOKE_ENTRY;
+                const unresolved = new Set([
+                  "ERR_MODULE_NOT_FOUND",
+                  "MODULE_NOT_FOUND",
+                  "ERR_PACKAGE_PATH_NOT_EXPORTED",
+                  "ERR_UNSUPPORTED_DIR_IMPORT",
+                ]);
+                import("./" + entry).then(
+                  () => console.log("  CMD entry imported cleanly: " + entry),
+                  (e) => {
+                    const code = (e && e.code) || "";
+                    if (unresolved.has(code)) {
+                      console.error("  CMD entry does NOT resolve (" + code + "): " + e.message);
+                      process.exit(1);
+                    }
+                    console.log("  CMD entry resolved; boot stopped at " + (code || "a runtime error") + ", which needs services this step has none of");
+                  }
+                );
+              '
+          fi
+
+          # 4. The portals BOOT by their CMD and SERVE, which a liveness probe
+          #    alone cannot establish. Both images dropped the prod node_modules,
+          #    the packages/ tree and infra/ in favour of Next's own traced
+          #    standalone output, and a missed transitive presents as a container
+          #    that starts and 500s on the one route that touches it. So this
+          #    asks for two things: the liveness route (whose absence is the
+          #    defect that made every portal container report unhealthy for its
+          #    whole life) and a server-rendered page, which is where a missing
+          #    trace would actually surface.
+          if [ "${{ matrix.service }}" = "admin" ] || [ "${{ matrix.service }}" = "client" ]; then
+            PORT="$(docker inspect -f '{{range $p, $_ := .Config.ExposedPorts}}{{$p}}{{end}}' "$IMAGE" | cut -d/ -f1)"
+            docker run -d --name "smoke-${{ matrix.service }}" \
+              -p "127.0.0.1:$PORT:$PORT" -e "HOSTNAME=0.0.0.0" "$IMAGE" >/dev/null
+
+            health=""
+            for _ in $(seq 1 60); do
+              health="$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$PORT/api/health" || true)"
+              [ "$health" = "200" ] && break
+              sleep 1
+            done
+
+            page="$(curl -sL -o /tmp/smoke-page.html -w '%{http_code}' --max-time 20 "http://127.0.0.1:$PORT/" || true)"
+            bytes="$(wc -c < /tmp/smoke-page.html | tr -d ' ')"
+
+            echo "  liveness /api/health -> $health"
+            echo "  server-rendered /    -> $page ($bytes bytes)"
+            docker logs "smoke-${{ matrix.service }}" 2>&1 | tail -40
+            docker rm -f "smoke-${{ matrix.service }}" >/dev/null
+
+            # Each condition names its own failure, because they need opposite
+            # repairs: a missing liveness route is a routing defect, a 500 on the
+            # page is a traced-dependency defect, and a body too small to be a
+            # rendered page is a redirect loop or an error shell.
+            [ "$health" = "200" ] || { echo "::error::${{ matrix.service }} liveness did not reach 200 (got '${health:-no response}') — the HEALTHCHECK this image declares would never pass"; exit 1; }
+            [ "$page" = "200" ] || { echo "::error::${{ matrix.service }} served $page for / — the container is up but not rendering, which is the shape a missed traced dependency takes"; exit 1; }
+            [ "$bytes" -gt 2000 ] || { echo "::error::${{ matrix.service }} rendered only $bytes bytes for / — too small to be a page, so this is an error shell or a redirect loop, not a render"; exit 1; }
+          fi
+
+      # THE GATE, and it is `table` on purpose. With `format: sarif` the action
+      # documents that it "enforces output of all vulnerabilities regardless of
+      # configured severities" unless `limit-severities-for-sarif` is set — so
+      # `severity: CRITICAL,HIGH` was silently not applied and `exit-code: 1`
+      # fired on MEDIUM and LOW findings. That is why these four jobs were red
+      # even when no CRITICAL or HIGH existed. Measured in one run: this same
+      # scan in table form reported 0 while the sarif one exited 1.
+      #
+      # `table` respects `severity`, and it prints what it caught — so the gate
+      # explains itself instead of failing silently into a file.
       - name: Run Trivy vulnerability scanner
+        id: gate
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: local/${{ matrix.service }}:scan
+          format: "table"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          # Explicit path required: the action runs Trivy in its own container,
+          # so the repo-root .trivyignore is not auto-discovered.
+          trivyignores: .trivyignore
+
+      # The SARIF is for the Security tab, NOT for gating, so it keeps the
+      # action's default breadth on purpose: every severity, so MEDIUM and LOW
+      # stay visible there. `exit-code: 0` because the gate above already
+      # decided.
+      #
+      # Conditioned on the BUILD, not on `always()`: a build failure leaves no
+      # image, so `always()` would run this against a tag that does not exist,
+      # Trivy would error, `continue-on-error` would swallow it, no file would be
+      # written, and the upload below would then look for a SARIF that was never
+      # produced — three silent no-ops in a row.
+      #
+      # `!cancelled()` is load-bearing, not noise. GitHub Actions wraps any `if:`
+      # that names no status function in an implicit `success()`, so
+      # `steps.build.outcome == 'success'` ALONE would also require every earlier
+      # step to have passed — including the gate — and the report would vanish in
+      # exactly the case it exists for. Naming a status function disables that
+      # implicit wrap; `!cancelled()` is the one that keeps a cancelled run from
+      # still scanning.
+      - name: Trivy SARIF for code scanning (never gates)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: local/${{ matrix.service }}:scan
           format: "sarif"
           output: "trivy-results-${{ matrix.service }}.sarif"
-          severity: "CRITICAL,HIGH"
-          exit-code: "1"
+          exit-code: "0"
+          trivyignores: .trivyignore
 
+      # Same reasoning as the step above, `!cancelled()` included: without a
+      # status function the implicit `success()` would skip this whenever the
+      # gate went red, which is when the report is most worth uploading.
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         with:
           sarif_file: "trivy-results-${{ matrix.service }}.sarif"
 
+      # This step used to write its numbers ONLY to $GITHUB_STEP_SUMMARY and then
+      # `exit 1`, so a run that failed on size printed neither the size nor the
+      # limit in the log — the same defect the Trivy gate had, and it cost the
+      # same thing: a red nobody could act on. Everything it measures now goes to
+      # the log as well.
+      #
+      # It also asserted "Security Scan: ✅ Passed" as a hardcoded string rather
+      # than deriving it. Reading `steps.gate.outcome` is only an improvement
+      # WITH the guard below: without it this step inherits the implicit
+      # `success()`, so it runs only when the gate passed and the derived value
+      # can never be anything but `success` — the same hardcoded claim wearing an
+      # expression. Guarded on the BUILD instead, the size is measured and
+      # reported whether the scan was clean or not, which is when a size figure
+      # is most worth having.
       - name: Container image analysis
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
+          set -euo pipefail
           IMAGE_TAG="local/${{ matrix.service }}:scan"
-          IMAGE_SIZE=$(docker image inspect ${IMAGE_TAG} --format='{{.Size}}' | numfmt --to=iec)
+          SIZE_BYTES=$(docker image inspect "${IMAGE_TAG}" --format='{{.Size}}')
+          SIZE_IEC=$(printf '%s' "$SIZE_BYTES" | numfmt --to=iec)
+          LIMIT_BYTES=1073741824
+          LIMIT_IEC=$(printf '%s' "$LIMIT_BYTES" | numfmt --to=iec)
+          # Rendered, not raw: `success`/`failure` are Actions' tokens, and the
+          # summary is read by people.
+          case "${{ steps.gate.outcome }}" in
+            success) SCAN_OUTCOME="✅ passed" ;;
+            failure) SCAN_OUTCOME="❌ FAILED — see the gate step" ;;
+            *)       SCAN_OUTCOME="${{ steps.gate.outcome }}" ;;
+          esac
 
-          echo "## Container Analysis: ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Image Size**: $IMAGE_SIZE" >> $GITHUB_STEP_SUMMARY
-          echo "**Security Scan**: ✅ Passed" >> $GITHUB_STEP_SUMMARY
+          echo "image:  ${IMAGE_TAG}"
+          echo "size:   ${SIZE_IEC} (${SIZE_BYTES} bytes)"
+          echo "limit:  ${LIMIT_IEC} (${LIMIT_BYTES} bytes)"
+          echo "scan:   ${SCAN_OUTCOME}"
 
-          # Ensure image size is reasonable
-          SIZE_BYTES=$(docker image inspect ${IMAGE_TAG} --format='{{.Size}}')
-          if [ $SIZE_BYTES -gt 1073741824 ]; then  # 1GB
-            echo "⚠️ Image size exceeds 1GB limit" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Container Analysis: ${{ matrix.service }}"
+            echo "**Image Size**: ${SIZE_IEC} (limit ${LIMIT_IEC})"
+            echo "**Security Scan**: ${SCAN_OUTCOME}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$SIZE_BYTES" -gt "$LIMIT_BYTES" ]; then
+            echo "::error title=Image over size limit::${{ matrix.service }} is ${SIZE_IEC}, over the ${LIMIT_IEC} limit."
+            echo "⚠️ Image size ${SIZE_IEC} exceeds the ${LIMIT_IEC} limit" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 

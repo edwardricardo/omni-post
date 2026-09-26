@@ -14,6 +14,15 @@ import {
   AccountId,
   PUBLISH_STATUS,
 } from "@core/domain/index.js";
+import type {
+  PaginationParams,
+  PostFilterCriteria,
+  PostQueryRepository,
+  PostReadModel,
+  PostSortField,
+  SortParams,
+  TenantScope,
+} from "@core/domain/index.js";
 import { EntityNotFoundError } from "@core/domain/errors/index.js";
 import { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
 import { UpdatePostUseCase } from "@core/posts/UpdatePostUseCase.js";
@@ -100,22 +109,43 @@ function createMockChannelRepository() {
   };
 }
 
+/**
+ * Read-side double for `PostQueryRepository`.
+ *
+ * The `satisfies` clause is the load-bearing part, not decoration. Without a
+ * declared port position this double was checked by NOTHING: both runners are
+ * transpile-only, so its signatures could drift away from the port — and did,
+ * keeping a caller account in second position after the port moved the tenant
+ * scope to first — while every suite stayed green. `satisfies` is chosen over an
+ * annotated return type or a class `implements` because it checks assignability
+ * WITHOUT collapsing the `Mock<...>` types the assertions below read; `store`
+ * stays outside the satisfied literal and is re-attached by spread, since a
+ * fresh literal under `satisfies` gets excess-property checking.
+ *
+ * What it does NOT buy: TypeScript lets an implementation drop TRAILING
+ * parameters, so a declared double that stops at `pagination` still compiles
+ * while advertising the full contract. `satisfies` closes the argument-ORDER
+ * class; only writing the parameters out closes the argument-DROP class. Same
+ * limit applies to the bare `vi.fn()` idiom, which types as
+ * `(...args: any[]) => any` and satisfies literally any method — so the methods
+ * this file never exercises are given their port type explicitly rather than
+ * left bare, or their "declared" position would prove nothing.
+ */
 function createMockQueryRepository() {
-  const store = new Map<string, any>();
-  return {
-    store,
-    getById: vi.fn(async (id: PostId) => {
+  const store = new Map<string, PostReadModel>();
+  const repo = {
+    getById: vi.fn(async (id: PostId, _accountId: AccountId) => {
       const post = store.get(id.value);
       if (!post) return err(new EntityNotFoundError("Post", id.value));
       return ok(post);
     }),
     listByProject: vi.fn(
       async (
-        _projId: ProjectId,
-        _accountId?: any,
-        pagination?: any,
-        _sort?: any,
-        _filter?: any
+        _scope: TenantScope,
+        _projectId: ProjectId,
+        pagination?: PaginationParams,
+        _sort?: SortParams<PostSortField>,
+        _filter?: PostFilterCriteria
       ) => {
         const items = Array.from(store.values());
         const page = pagination?.page ?? 1;
@@ -134,12 +164,13 @@ function createMockQueryRepository() {
         };
       }
     ),
-    search: vi.fn(),
-    getUpcoming: vi.fn(),
-    getRecentlyPublished: vi.fn(),
-    getByIdWithThread: vi.fn(),
-    listGlobal: vi.fn(),
-  };
+    search: vi.fn<PostQueryRepository["search"]>(),
+    getUpcoming: vi.fn<PostQueryRepository["getUpcoming"]>(),
+    getRecentlyPublished: vi.fn<PostQueryRepository["getRecentlyPublished"]>(),
+    getByIdWithThread: vi.fn<PostQueryRepository["getByIdWithThread"]>(),
+    listGlobal: vi.fn<PostQueryRepository["listGlobal"]>(),
+  } satisfies PostQueryRepository;
+  return { store, ...repo };
 }
 
 const TEST_PROJECT_ID = ProjectId.generate().value;
@@ -620,7 +651,7 @@ describe("GetPostUseCase", () => {
 
   beforeEach(() => {
     queryRepo = createMockQueryRepository();
-    useCase = new GetPostUseCase(queryRepo as any);
+    useCase = new GetPostUseCase(queryRepo);
   });
 
   describe("success", () => {
@@ -674,7 +705,7 @@ describe("ListPostsUseCase", () => {
 
   beforeEach(() => {
     queryRepo = createMockQueryRepository();
-    useCase = new ListPostsUseCase(queryRepo as any);
+    useCase = new ListPostsUseCase(queryRepo);
   });
 
   describe("success", () => {
@@ -741,12 +772,19 @@ describe("ListPostsUseCase", () => {
         limit: 500,
       });
       expect(result.ok).toBe(true);
-      // The use case caps at 100, mock respects it. The caller account is the
-      // second argument (CWE-639 scope), so pagination is the third.
+      // Argument one is the tenant scope and argument two is the project id, and
+      // both are asserted BY VALUE rather than with `expect.anything()`. An
+      // `anything()` in those two positions passes under either order, so it
+      // cannot tell this contract apart from the one where the two are swapped —
+      // and a swapped scope is a project id used as an account id, which is the
+      // cross-tenant read (CWE-639) the scope parameter exists to prevent. The
+      // scope must carry the CALLER ACCOUNT, so asserting the literal value also
+      // rejects a scope built from the project id.
       expect(queryRepo.listByProject).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.anything(),
-        expect.objectContaining({ limit: 100 }),
+        { accountId: TEST_ACCOUNT_ID },
+        ProjectId.fromStringUnsafe(TEST_PROJECT_ID),
+        // The use case caps the requested 500 at 100; the double honours it.
+        { page: 1, limit: 100 },
         undefined,
         undefined
       );
@@ -755,9 +793,9 @@ describe("ListPostsUseCase", () => {
     it("defaults page to 1 and limit to 20", async () => {
       await useCase.execute({ projectId: TEST_PROJECT_ID, callerAccountId: TEST_ACCOUNT_ID });
       expect(queryRepo.listByProject).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.anything(),
-        expect.objectContaining({ page: 1, limit: 20 }),
+        { accountId: TEST_ACCOUNT_ID },
+        ProjectId.fromStringUnsafe(TEST_PROJECT_ID),
+        { page: 1, limit: 20 },
         undefined,
         undefined
       );

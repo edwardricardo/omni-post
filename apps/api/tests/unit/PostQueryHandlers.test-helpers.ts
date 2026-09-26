@@ -13,7 +13,9 @@ import type {
   PaginationParams,
   SortParams,
   PostSortField,
+  PostFilterCriteria,
   GlobalPostFilter,
+  TenantScope,
 } from "@core/domain/index.js";
 import {
   type PostId,
@@ -78,6 +80,15 @@ function makeDomainPostList(): PostReadModel[] {
 /**
  * Mock PostQueryRepository implementing the domain interface.
  * Methods can be overridden per-test for error scenarios.
+ *
+ * Every signature mirrors the port position for position, INCLUDING optional
+ * trailing parameters this double never reads, and the reason is worth stating
+ * because `implements` does not enforce it. TypeScript lets an implementation
+ * drop trailing parameters, so a declared double that omits `filter` compiles
+ * clean while silently narrowing the contract it advertises. Declaring the port
+ * closes the argument-ORDER class of drift — which is what put a `TenantScope`
+ * into a parameter named `projectId` here — and it does NOT close the
+ * argument-DROP class. Writing the parameters out is the only thing that does.
  */
 export class MockPostQueryRepository implements PostQueryRepository {
   async getById(
@@ -92,10 +103,11 @@ export class MockPostQueryRepository implements PostQueryRepository {
   }
 
   async listByProject(
+    _scope: TenantScope,
     _projectId: ProjectId,
-    _accountId: AccountId,
     _pagination?: PaginationParams,
-    _sort?: SortParams<PostSortField>
+    _sort?: SortParams<PostSortField>,
+    _filter?: PostFilterCriteria
   ): Promise<PaginatedResult<PostReadModel>> {
     const items = makeDomainPostList();
     return {
@@ -110,6 +122,7 @@ export class MockPostQueryRepository implements PostQueryRepository {
   }
 
   async search(
+    _scope: TenantScope,
     _projectId: ProjectId,
     _searchText: string,
     _pagination?: PaginationParams
@@ -126,11 +139,19 @@ export class MockPostQueryRepository implements PostQueryRepository {
     };
   }
 
-  async getUpcoming(_projectId: ProjectId, _limit?: number): Promise<PostReadModel[]> {
+  async getUpcoming(
+    _scope: TenantScope,
+    _projectId: ProjectId,
+    _limit?: number
+  ): Promise<PostReadModel[]> {
     return [];
   }
 
-  async getRecentlyPublished(_projectId: ProjectId, _limit?: number): Promise<PostReadModel[]> {
+  async getRecentlyPublished(
+    _scope: TenantScope,
+    _projectId: ProjectId,
+    _limit?: number
+  ): Promise<PostReadModel[]> {
     return [];
   }
 

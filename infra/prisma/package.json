@@ -3,6 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "files": [
+    "dist",
+    "migrations",
+    "schema.prisma",
+    "prisma.config.ts"
+  ],
   "scripts": {
     "postinstall": "prisma generate",
     "prisma": "prisma",

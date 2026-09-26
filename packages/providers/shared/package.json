@@ -2,6 +2,9 @@
   "name": "@providers/shared",
   "version": "1.0.0",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "main": "./dist/index.js",
   "exports": {
     ".": {
