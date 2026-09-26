@@ -1698,11 +1698,11 @@ jobs:
             exit 1
           fi
 
-      - name: "#42 One route-test composition root: every harness composes through the seam"
+      - name: "#43 One route-test composition root: every harness composes through the seam"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #42.
-          # 42. One route-test composition root. An ALLOWLIST (the #28/#40 form), two arms.
+          # Mirrors CLAUDE.md #43.
+          # 43. One route-test composition root. An ALLOWLIST (the #28/#40 form), two arms.
           # Threat: `setupContainer` requires `apiMetrics`, and `apps/api/tests` is opened by NO
           # compiler — `tsconfig.json` includes `src` only, `tsconfig.type-tests.json` includes only
           # `*.type-test.ts` — so that requirement had an enforcement surface of ONE call site while
@@ -1722,7 +1722,7 @@ jobs:
           PIN=apps/api/tests/unit/infrastructure/container/containerSetupOptionsContract.type-test.ts
           for f in "$SEAM" "$SEAMTEST" "$PIN"; do
             if [ ! -f "$f" ]; then
-              echo "::error title=Fitness #42 scope error::$f does not exist — the allowlist names a file that is gone, so the scan would print a clean zero over a seam nobody owns."
+              echo "::error title=Fitness #43 scope error::$f does not exist — the allowlist names a file that is gone, so the scan would print a clean zero over a seam nobody owns."
               exit 1
             fi
           done
@@ -1735,21 +1735,21 @@ jobs:
           FLOOR=$(invocations | grep -c . || true)
           FLOOR=${FLOOR:-0}
           if [ "$FLOOR" -lt 6 ]; then
-            echo "::error title=Fitness #42 scope error::$FLOOR invocations found against a floor of 6 — setupContainer was renamed, the seam moved, or the scan stopped matching. Failing closed rather than reporting a clean zero over code it never read."
+            echo "::error title=Fitness #43 scope error::$FLOOR invocations found against a floor of 6 — setupContainer was renamed, the seam moved, or the scan stopped matching. Failing closed rather than reporting a clean zero over code it never read."
             exit 1
           fi
           SRC_BAD=$(invocations | grep "^apps/api/src/" | grep -v "apiMetrics" | grep -c . || true)
           SRC_BAD=${SRC_BAD:-0}
           TST_BAD=$(invocations | grep "^apps/api/tests/" | grep -vE "^($SEAM|$SEAMTEST|$PIN):" | grep -c . || true)
           TST_BAD=${TST_BAD:-0}
-          echo "Fitness #42: $FLOOR invocations, SRC_BAD=$SRC_BAD, TST_BAD=$TST_BAD (expect 0 and 0)"
+          echo "Fitness #43: $FLOOR invocations, SRC_BAD=$SRC_BAD, TST_BAD=$TST_BAD (expect 0 and 0)"
           if [ "$SRC_BAD" -gt 0 ]; then
-            echo "::error title=Fitness #42 violation (production)::$SRC_BAD production setupContainer call(s) do not name apiMetrics on the invocation line. The composition root must pass the collector the bootstrap built; a container without it registers TOKENS.ApiMetrics as undefined and resolution hands that undefined back without throwing."
+            echo "::error title=Fitness #43 violation (production)::$SRC_BAD production setupContainer call(s) do not name apiMetrics on the invocation line. The composition root must pass the collector the bootstrap built; a container without it registers TOKENS.ApiMetrics as undefined and resolution hands that undefined back without throwing."
             invocations | grep "^apps/api/src/" | grep -v "apiMetrics"
             exit 1
           fi
           if [ "$TST_BAD" -gt 0 ]; then
-            echo "::error title=Fitness #42 violation (harness)::$TST_BAD harness call(s) bypass createRouteTestContainer. A route unit suite has no bootstrap to build an ApiMetrics from, so it composes through apps/api/tests/unit/helpers/testContainer.ts, whose options type makes the omission inexpressible. Nothing under apps/api/tests is typechecked, so this gate is the only thing that sees the bypass."
+            echo "::error title=Fitness #43 violation (harness)::$TST_BAD harness call(s) bypass createRouteTestContainer. A route unit suite has no bootstrap to build an ApiMetrics from, so it composes through apps/api/tests/unit/helpers/testContainer.ts, whose options type makes the omission inexpressible. Nothing under apps/api/tests is typechecked, so this gate is the only thing that sees the bypass."
             invocations | grep "^apps/api/tests/" | grep -vE "^($SEAM|$SEAMTEST|$PIN):"
             exit 1
           fi
@@ -1759,7 +1759,7 @@ jobs:
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "42 architectural invariants (#1-#42) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "43 architectural invariants (#1-#43) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold for every check but #30 (a ratchet at a measured baseline of 21) and #38's db-prisma sub-count (ratcheted, SMELL-87); both baselines may fall and must never rise." >> $GITHUB_STEP_SUMMARY
           echo "#37 compares against the PR base, so it runs on pull_request events only and skips cleanly on push." >> $GITHUB_STEP_SUMMARY
           echo "Any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY

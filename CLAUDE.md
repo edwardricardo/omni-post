@@ -302,7 +302,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **42 checks, numbered #1-#42**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **43 checks, numbered #1-#43**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -1712,7 +1712,7 @@ COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
 COUNT=${COUNT:-0}
 echo "$COUNT"   # expect 0
 
-# 42. One route-test composition root. An ALLOWLIST (the #28/#40 form), two arms.
+# 43. One route-test composition root. An ALLOWLIST (the #28/#40 form), two arms.
 # Threat: `setupContainer` requires `apiMetrics`, and `apps/api/tests` is opened by NO
 # compiler — `tsconfig.json` includes `src` only, `tsconfig.type-tests.json` includes only
 # `*.type-test.ts` — so that requirement had an enforcement surface of ONE call site while
@@ -1738,7 +1738,7 @@ SEAM=apps/api/tests/unit/helpers/testContainer.ts
 SEAMTEST=apps/api/tests/unit/helpers/testContainer.test.ts
 PIN=apps/api/tests/unit/infrastructure/container/containerSetupOptionsContract.type-test.ts
 for f in "$SEAM" "$SEAMTEST" "$PIN"; do
-  [ -f "$f" ] || { echo "fitness #42 scope error: $f does not exist — the allowlist names a file that is gone, so the scan would print a clean zero over a seam nobody owns."; exit 1; }
+  [ -f "$f" ] || { echo "fitness #43 scope error: $f does not exist — the allowlist names a file that is gone, so the scan would print a clean zero over a seam nobody owns."; exit 1; }
 done
 invocations() {
   grep -rn "setupContainer({" apps/api/src apps/api/tests --include="*.ts" | \
@@ -1749,7 +1749,7 @@ invocations() {
 FLOOR=$(invocations | grep -c . || true)
 FLOOR=${FLOOR:-0}
 if [ "${FLOOR}" -lt 6 ]; then
-  echo "fitness #42 scope error: ${FLOOR} invocations found against a floor of 6 — setupContainer was renamed, the seam moved, or the scan stopped matching. Failing closed rather than reporting a clean zero over code it never read."
+  echo "fitness #43 scope error: ${FLOOR} invocations found against a floor of 6 — setupContainer was renamed, the seam moved, or the scan stopped matching. Failing closed rather than reporting a clean zero over code it never read."
   exit 1
 fi
 SRC_BAD=$(invocations | grep "^apps/api/src/" | grep -v "apiMetrics" | grep -c . || true)
