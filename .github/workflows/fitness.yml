@@ -241,7 +241,7 @@ jobs:
           # PR descriptions, not in source comments where they rot.
           MATCHES=$(grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A|\(P[0-9]\)|\(P[0-9]+-[A-Za-z0-9]" \
             apps/ packages/ infra/ --include="*.ts" --include="*.tsx" --include="*.prisma" 2>/dev/null | \
-            grep -vE "node_modules|dist|\.next|reports/mutation|infra/prisma/generated/" || true)
+            grep -vE "node_modules|dist|\.next|infra/prisma/generated/" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
@@ -255,7 +255,7 @@ jobs:
         run: |
           set -uo pipefail
           MATCHES=$(grep -rL "@file" apps/ packages/ --include="*.ts" --include="*.tsx" 2>/dev/null | \
-            grep -v "node_modules\|dist\|\.next\|reports/mutation\|next-env\.d\.ts" || true)
+            grep -v "node_modules\|dist\|\.next\|next-env\.d\.ts" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
@@ -269,7 +269,7 @@ jobs:
         run: |
           set -uo pipefail
           MATCHES=$(grep -rn "@layer" apps/ packages/ --include="*.ts" --include="*.tsx" 2>/dev/null | \
-            grep -v "node_modules\|dist\|\.next\|reports/mutation" | \
+            grep -v "node_modules\|dist\|\.next" | \
             grep -v "@layer application\|@layer domain\|@layer infrastructure" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
@@ -976,7 +976,7 @@ jobs:
           # matching zero files makes the gate report green over code it never touched.
           # Scope: the `include` arrays (test.include + coverage.include) of
           # apps/api/vitest.config.ts. Negations (!...) are deliberately out of scope: an
-          # empty negation is inert protection (SMELL-84), and flagging it pushes authors to
+          # empty negation is inert protection, and flagging it pushes authors to
           # delete real exclusions. FAIL-CLOSED: zero globs extracted is a blind scan, not a
           # clean one — a renamed key, or an array assembled at runtime or inherited by
           # spread, would otherwise report green over a scope it never read. Comments inside
@@ -984,12 +984,6 @@ jobs:
           # reported; bracket counting skips string literals, so a picomatch class neither
           # ends the array early nor leaks into the next key. Needs node >= 22 (fs.glob).
           # Hard-zero.
-          #
-          # The MUTATION half of this check was removed with the mutation tooling (ADR-0024).
-          # It scanned per-config `mutate` arrays and carried a 14-name quarantine
-          # for slicing configs that predated the packages/core relocation; those files no
-          # longer exist and SMELL-84/85 closed with them. The coverage half stays because a
-          # dead coverage glob is the same defect.
           # Mirrors CLAUDE.md #36.
           set -uo pipefail
           VIOLATIONS=$(node --input-type=module <<'EOF'
@@ -997,9 +991,7 @@ jobs:
           import { glob } from "node:fs/promises";
 
           const cwd = "apps/api";
-          // One subject now: the coverage/test include arrays. The mutation half was removed
-          // with the mutation tooling (ADR-0024), along with the quarantine it needed for
-          // the pre-relocation slicing configs; SMELL-84 and SMELL-85 closed with them.
+          // Subject: the test.include + coverage.include arrays of apps/api/vitest.config.ts.
           const scanned = [["vitest.config.ts", "include"]];
           // Walk to the array's closing bracket while IGNORING brackets that live inside
           // string literals or comments. Picomatch character classes (`src/api[Vv]2/**`)

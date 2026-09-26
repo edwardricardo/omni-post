@@ -400,17 +400,17 @@ grep -rn "dedupeKey.*randomUUID\|dedupeKey.*Math.random" \
 # comments where they rot.
 grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A|\(P[0-9]\)|\(P[0-9]+-[A-Za-z0-9]" \
   apps/ packages/ infra/ --include="*.ts" --include="*.tsx" --include="*.prisma" | \
-  grep -vE "node_modules|dist|\.next|reports/mutation|infra/prisma/generated/" | wc -l
+  grep -vE "node_modules|dist|\.next|infra/prisma/generated/" | wc -l
 
 # 9. No files missing @file header (all repo, target: 0).
 # Excludes Next.js auto-generated `next-env.d.ts` (regenerated on every build,
 # see https://nextjs.org/docs/app/api-reference/config/typescript — "should not be edited").
 grep -rL "@file" apps/ packages/ --include="*.ts" --include="*.tsx" | \
-  grep -v "node_modules\|dist\|\.next\|reports/mutation\|next-env\.d\.ts" | wc -l
+  grep -v "node_modules\|dist\|\.next\|next-env\.d\.ts" | wc -l
 
 # 10. No invalid @layer values (all repo, only domain/application/infrastructure)
 grep -rn "@layer" apps/ packages/ --include="*.ts" --include="*.tsx" | \
-  grep -v "node_modules\|dist\|\.next\|reports/mutation" | \
+  grep -v "node_modules\|dist\|\.next" | \
   grep -v "@layer application\|@layer domain\|@layer infrastructure" | wc -l
 
 # 11. No raw setInterval in backend (scheduler-adapter excepted).
@@ -873,19 +873,9 @@ echo "$COUNT"   # expect 0
 # coverage.include) of apps/api/vitest.config.ts — the coverage scope globs live
 # THERE since the threshold-literal rework retired the glob keys
 # vitest.coverage-thresholds.ts used to hold. POSITIVE globs only, deliberately:
-# a negation (`!...`) matching zero files is inert PROTECTION (SMELL-84 measured
-# 29 such lines — harmless fat), and flagging it would push authors to delete
-# real exclusions to get green; a positive glob matching zero files is a gate
-# reporting green over code it never touched.
-#
-# THE MUTATION HALF IS GONE, and the history matters because it is the reason the
-# rest of this check exists. It scanned the `mutate` arrays of
-# per-config `mutate` arrays and carried a 14-name quarantine for slicing
-# configs that predated the packages/core relocation — 45 dead positive globs
-# between them (SMELL-85), plus 29 empty negations in the main config (SMELL-84).
-# The tooling was removed in full (ADR-0024): the 65 configs no longer exist and both
-# SMELLs closed with them. The coverage half stays untouched because a coverage
-# glob matching zero files is the identical defect.
+# a negation (`!...`) matching zero files is inert PROTECTION — harmless fat — and
+# flagging it would push authors to delete real exclusions to get green; a positive
+# glob matching zero files is a gate reporting green over code it never touched.
 #
 # FAIL-CLOSED. Extracting zero globs is not a clean scan, it is a blind one: an
 # earlier form of this check printed nothing and exited 0 over 26 live globs it
@@ -907,9 +897,7 @@ import { readFileSync } from "node:fs";
 import { glob } from "node:fs/promises";
 
 const cwd = "apps/api";
-// One subject now: the coverage/test include arrays. The mutation half was removed
-// with the mutation tooling (ADR-0024), along with the quarantine it needed for
-// the pre-relocation slicing configs; SMELL-84 and SMELL-85 closed with them.
+// Subject: the test.include + coverage.include arrays of apps/api/vitest.config.ts.
 const scanned = [["vitest.config.ts", "include"]];
 // Walk to the array's closing bracket while IGNORING brackets that live inside
 // string literals or comments. Picomatch character classes (`src/api[Vv]2/**`)

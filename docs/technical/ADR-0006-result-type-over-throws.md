@@ -111,8 +111,8 @@ handleOk))` is harder to read than guard-clauses on `result.ok`.
   access to `result.value` without first checking `result.ok`).
 - Routes have a single canonical error-mapping path
   (`UseCaseError.code` → status code) instead of N-many catch blocks.
-- Mutation testing (Stryker) finds bugs in error paths reliably
-  because errors are first-class values, not control-flow exits.
+- Error paths are directly assertable, because errors are first-class
+  values a test can inspect rather than control-flow exits it must catch.
 
 **Negative / costs**
 
