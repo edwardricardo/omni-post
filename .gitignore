@@ -32,13 +32,7 @@ test-results/
 # Storybook test-runner
 *.storybook-test-results/
 
-# Mutation testing (Stryker)
-.stryker-tmp/
-**/.stryker-tmp/
 **/reports/mutation/
-**/reports/stryker-incremental.json
-stryker-output-*.json
-**/stryker-output-*.json
 
 # Environment variables — local/secret. Only *.example templates are committed.
 # Covers root and per-app (.env, .env.test, .env.<anything>) at any depth.
@@ -54,9 +48,7 @@ stryker-output-*.json
 #
 # The anchor is NOT free. It drops the ignore that the unanchored rule gave every
 # nested logs directory - notably apps/api/logs/, created on demand by
-# apps/api/scripts/stryker-full.sh. Two of the three files that script writes there
 # stayed covered by apps/api/.gitignore (`*.log`, `*.pid`); the third, a generated
-# stryker-full.config.mjs, was left committable, so apps/api/.gitignore now carries
 # its own package-anchored `/logs/` rule. Any future nested logs directory needs the
 # same treatment: a local .gitignore, not a rule here.
 #
@@ -149,8 +141,6 @@ docker-compose.local.yml
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .claude/run-batches.sh
-.claude/run-tiktok-stryker.sh
-.claude/run-tiktok-stryker-final.sh
 
 # Workflow batch ephemeral state (regenerated each batch by Claude Code)
 .claude/current-batch-plan.md
@@ -160,9 +150,6 @@ docker-compose.local.yml
 .claude/current-deletion-justification.approved
 .claude/hooks.log
 .claude/session-b-progress.log
-.claude/stryker-api-run.log
-.claude/stryker-tiktok-final.log
-.claude/stryker-tiktok-run.log
 .claude/agent-memory/
 .claude/worktrees/
 .claude/.allowed/

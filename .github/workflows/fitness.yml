@@ -241,7 +241,7 @@ jobs:
           # PR descriptions, not in source comments where they rot.
           MATCHES=$(grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A|\(P[0-9]\)|\(P[0-9]+-[A-Za-z0-9]" \
             apps/ packages/ infra/ --include="*.ts" --include="*.tsx" --include="*.prisma" 2>/dev/null | \
-            grep -vE "node_modules|dist|\.next|\.stryker-tmp|\.stryker|reports/mutation|infra/prisma/generated/" || true)
+            grep -vE "node_modules|dist|\.next|reports/mutation|infra/prisma/generated/" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
@@ -255,7 +255,7 @@ jobs:
         run: |
           set -uo pipefail
           MATCHES=$(grep -rL "@file" apps/ packages/ --include="*.ts" --include="*.tsx" 2>/dev/null | \
-            grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation\|next-env\.d\.ts" || true)
+            grep -v "node_modules\|dist\|\.next\|reports/mutation\|next-env\.d\.ts" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
@@ -269,7 +269,7 @@ jobs:
         run: |
           set -uo pipefail
           MATCHES=$(grep -rn "@layer" apps/ packages/ --include="*.ts" --include="*.tsx" 2>/dev/null | \
-            grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation" | \
+            grep -v "node_modules\|dist\|\.next\|reports/mutation" | \
             grep -v "@layer application\|@layer domain\|@layer infrastructure" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
@@ -284,7 +284,7 @@ jobs:
         run: |
           set -uo pipefail
           MATCHES=$(grep -rnE "setInterval\(" apps/api/src apps/workers/src packages/ --include="*.ts" 2>/dev/null | \
-            grep -vE "default-scheduler|node_modules|dist|\.test\.|/tests/|/\.stryker-tmp/|eslint\.config|DANGEROUS_STRINGS|enhancedValidator\.ts" || true)
+            grep -vE "default-scheduler|node_modules|dist|\.test\.|/tests/|eslint\.config|DANGEROUS_STRINGS|enhancedValidator\.ts" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
@@ -320,7 +320,7 @@ jobs:
         run: |
           set -uo pipefail
           MATCHES=$(grep -rnE "^import pino\b|^const \w+ = pino\(" apps/api/src --include="*.ts" 2>/dev/null | \
-            grep -v "lib/logger\.ts\|\.test\.\|/tests/\|/\.stryker-tmp/" || true)
+            grep -v "lib/logger\.ts\|\.test\.\|/tests/" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
@@ -359,7 +359,7 @@ jobs:
           # (excluding _template scaffolding).
           MATCHES=$(grep -rnE 'process\.env\.[A-Z_]*(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL)[A-Z_]*\s*(\|\||\?\?)' \
             apps/api/src apps/workers/src packages/providers --include="*.ts" 2>/dev/null | \
-            grep -v "node_modules\|\.test\.\|/tests/\|\.stryker\|/dist/\|config/env\.ts\|providers/_template/" || true)
+            grep -v "node_modules\|\.test\.\|/tests/\|/dist/\|config/env\.ts\|providers/_template/" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
@@ -379,7 +379,7 @@ jobs:
           # Operational config that legitimately lives in apiClient.ts is
           # allowed there but NOT in the adapter itself. Excludes _template.
           MATCHES=$(grep -rnE 'process\.env\.' packages/providers/*/src/*Adapter.ts 2>/dev/null | \
-            grep -v "providers/_template/\|\.stryker\|/dist/" || true)
+            grep -v "providers/_template/\|/dist/" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
@@ -466,7 +466,7 @@ jobs:
           # positives (unlike a bare `repeat:` which collides with domain
           # fields and provider API params). Excludes tests + sandboxes.
           MATCHES=$(grep -rnE "\.(addRepeatable|getRepeatableJobs|removeRepeatableByKey|removeRepeatable)\(" apps/*/src packages/*/src --include="*.ts" 2>/dev/null | \
-            grep -vE "node_modules|/dist/|\.test\.|/tests/|\.stryker" || true)
+            grep -vE "node_modules|/dist/|\.test\.|/tests/" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
@@ -828,7 +828,7 @@ jobs:
           # Mirrors CLAUDE.md #32.
           MATCHES=$(grep -rnE "\b(it|test|describe|suite)\.(skip|only)\(" \
             apps/ packages/ --include="*.test.ts" --include="*.test.tsx" | \
-            grep -vE "node_modules|/dist/|\.stryker" || true)
+            grep -vE "node_modules|/dist/" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
@@ -878,7 +878,7 @@ jobs:
           REACHED=""
           for cfg in $(find apps packages infra -name 'tsconfig*.json' \
               -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/.next/*' \
-              -not -path '*/.turbo/*' -not -path '*/.stryker-tmp/*' 2>/dev/null); do
+              -not -path '*/.turbo/*' 2>/dev/null); do
             for target in $(grep -oE '"extends"[[:space:]]*:[[:space:]]*(\[[^]]*\]|"[^"]*")' "$cfg" 2>/dev/null | \
                 grep -oE '"[^"]*"' | tr -d '"' | grep -v '^extends$' || true); do
               case "$target" in ./*|../*) ;; *) continue;; esac
@@ -985,8 +985,8 @@ jobs:
           # ends the array early nor leaks into the next key. Needs node >= 22 (fs.glob).
           # Hard-zero.
           #
-          # The MUTATION half of this check left with Stryker (ADR-0024). It scanned the
-          # `mutate` arrays of apps/api/stryker*.config.mjs and carried a 14-name quarantine
+          # The MUTATION half of this check was removed with the mutation tooling (ADR-0024).
+          # It scanned per-config `mutate` arrays and carried a 14-name quarantine
           # for slicing configs that predated the packages/core relocation; those files no
           # longer exist and SMELL-84/85 closed with them. The coverage half stays because a
           # dead coverage glob is the same defect.
@@ -997,9 +997,9 @@ jobs:
           import { glob } from "node:fs/promises";
 
           const cwd = "apps/api";
-          // One subject now: the coverage/test include arrays. The mutation half left with
-          // Stryker (ADR-0024) along with the 14-name quarantine it needed for the
-          // pre-relocation slicing configs; SMELL-84 and SMELL-85 closed with those files.
+          // One subject now: the coverage/test include arrays. The mutation half was removed
+          // with the mutation tooling (ADR-0024), along with the quarantine it needed for
+          // the pre-relocation slicing configs; SMELL-84 and SMELL-85 closed with them.
           const scanned = [["vitest.config.ts", "include"]];
           // Walk to the array's closing bracket while IGNORING brackets that live inside
           // string literals or comments. Picomatch character classes (`src/api[Vv]2/**`)
@@ -1381,7 +1381,7 @@ jobs:
           TX_SEAMS='/db-prisma/src/unitofwork/PrismaUnitOfWork\.ts:|/saga/sagaTenant\.ts:|/db-prisma/src/ChannelRepository\.ts:'
           tx_calls() {
             grep -rnE "\.\\\$transaction\(" apps/api/src packages/adapters/db-prisma/src --include="*.ts" | \
-              grep -vE "/node_modules/|/dist/|\.stryker|/tests/|\.test\.ts:" | \
+              grep -vE "/node_modules/|/dist/|/tests/|\.test\.ts:" | \
               grep -vE "^[^:]+:[0-9]+:[[:space:]]*(\*|//)"
           }
           SEAM_HITS=$(tx_calls | grep -cE "$TX_SEAMS" || true)
@@ -1423,7 +1423,7 @@ jobs:
           SCOPE_EXEMPT='/saga/sagaTenant\.ts:'
           seam_call_sites() {
             grep -rnE "withGucBoundTransaction\(" $PART_B_SCOPE --include="*.ts" | \
-              grep -vE "/node_modules/|/dist/|\.stryker|/tests/|\.test\.ts:" | \
+              grep -vE "/node_modules/|/dist/|/tests/|\.test\.ts:" | \
               grep -vE "^[^:]+:[0-9]+:[[:space:]]*(import|\*|//)" | \
               grep -vE "$SCOPE_EXEMPT"
           }
@@ -1523,7 +1523,7 @@ jobs:
           # reset ISSUANCE that writes the "CHANGE_REQUIRED" sentinel (an issuance, not a consumption — SMELL-110).
           # FAIL-CLOSED: a missing scope directory, fewer than SITE_FLOOR marker sites, or an exception count other
           # than 1 is a blind scan, not a clean one — exit 1. SCOPE: apps/api/src apps/workers/src packages
-          # infra/prisma/src, *.ts, minus node_modules/dist/tests/generated/ .stryker. infra/prisma/scripts is OUT
+          # infra/prisma/src, *.ts, minus node_modules/dist/tests/generated. infra/prisma/scripts is OUT
           # by path: the backfill's `data: { passwordResetToken: null }` keyed on id is the `migration`
           # canon-exception scenario (a one-off over rows it selected itself), and so is every future script there
           # — stated, not hidden.
@@ -1553,7 +1553,7 @@ jobs:
           import { glob } from "node:fs/promises";
 
           const SCOPE = ["apps/api/src", "apps/workers/src", "packages", "infra/prisma/src"];
-          const SKIP = /(^|\/)(node_modules|dist|tests|generated|\.stryker[^/]*)\//;
+          const SKIP = /(^|\/)(node_modules|dist|tests|generated)\//;
           const MARKERS = [
             { column: "passwordResetToken", re: /\bpasswordResetToken\s*:\s*null\b/ },
             { column: "resetToken", re: /\bresetToken\s*:\s*null\b/ },
@@ -1705,7 +1705,7 @@ jobs:
           manifests() {
             find apps packages infra -name package.json \
               -not -path '*/node_modules/*' -not -path '*/dist/*' \
-              -not -path '*/.next/*' -not -path '*/.stryker-tmp/*' 2>/dev/null
+              -not -path '*/.next/*' 2>/dev/null
           }
           declares_lifecycle() {
             jq -e --argjson keys "$LIFECYCLE_KEYS" \

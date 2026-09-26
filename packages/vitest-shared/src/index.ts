@@ -1,12 +1,14 @@
 /**
  * @file index.ts
  * @description The shared vitest config factory. It is a PACKAGE, not a file at
- *   the repository root, and the reason is measurable: Stryker copies
- *   `apps/api` into a sandbox and runs there, so a relative `../../vitest.shared`
- *   points outside the sandbox and rolldown cannot resolve it — which is what
- *   broke `Nightly Full Test Suite` (every spelling failed: `.js`, `.ts` and
- *   extensionless). A package specifier resolves through `node_modules`, which
- *   the sandbox symlinks back to the real tree, so it works from both.
+ *   the repository root, and that is load-bearing rather than tidy. A relative
+ *   `../../vitest.shared` resolves against the importing file's location, so any
+ *   run whose working directory is a copy of the tree — a sandbox, a nested
+ *   checkout, a tool that relocates the package before invoking vitest — points
+ *   the specifier outside the copy and the bundler cannot resolve it, in every
+ *   spelling (`.js`, `.ts`, extensionless). A PACKAGE specifier resolves through
+ *   `node_modules`, which such a copy symlinks back to the real tree, so it works
+ *   from inside and outside alike. Do not collapse this back into a root file.
  *
  *   Its `exports` names TypeScript SOURCE and it has no build step. This is
  *   config-time tooling: vitest configs import it before anything is compiled,

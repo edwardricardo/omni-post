@@ -400,24 +400,24 @@ grep -rn "dedupeKey.*randomUUID\|dedupeKey.*Math.random" \
 # comments where they rot.
 grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A|\(P[0-9]\)|\(P[0-9]+-[A-Za-z0-9]" \
   apps/ packages/ infra/ --include="*.ts" --include="*.tsx" --include="*.prisma" | \
-  grep -vE "node_modules|dist|\.next|\.stryker-tmp|\.stryker|reports/mutation|infra/prisma/generated/" | wc -l
+  grep -vE "node_modules|dist|\.next|reports/mutation|infra/prisma/generated/" | wc -l
 
 # 9. No files missing @file header (all repo, target: 0).
 # Excludes Next.js auto-generated `next-env.d.ts` (regenerated on every build,
 # see https://nextjs.org/docs/app/api-reference/config/typescript — "should not be edited").
 grep -rL "@file" apps/ packages/ --include="*.ts" --include="*.tsx" | \
-  grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation\|next-env\.d\.ts" | wc -l
+  grep -v "node_modules\|dist\|\.next\|reports/mutation\|next-env\.d\.ts" | wc -l
 
 # 10. No invalid @layer values (all repo, only domain/application/infrastructure)
 grep -rn "@layer" apps/ packages/ --include="*.ts" --include="*.tsx" | \
-  grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation" | \
+  grep -v "node_modules\|dist\|\.next\|reports/mutation" | \
   grep -v "@layer application\|@layer domain\|@layer infrastructure" | wc -l
 
 # 11. No raw setInterval in backend (scheduler-adapter excepted).
 # Excludes `enhancedValidator.ts` which holds `"setInterval("` as a literal
 # string in a security denylist of dangerous patterns — not a real call.
 grep -rnE "setInterval\(" apps/api/src apps/workers/src packages/ --include="*.ts" | \
-  grep -vE "default-scheduler|node_modules|dist|\.test\.|/tests/|/\.stryker-tmp/|eslint\.config|DANGEROUS_STRINGS|enhancedValidator\.ts" | wc -l
+  grep -vE "default-scheduler|node_modules|dist|\.test\.|/tests/|eslint\.config|DANGEROUS_STRINGS|enhancedValidator\.ts" | wc -l
 
 # 12. Every React component file carries an @component tag.
 # Scan component directories and fail if any canonical component .tsx lacks @component.
@@ -435,9 +435,9 @@ done | wc -l
 # 13. No direct `pino` instantiation in apps/api production code — every
 # logger MUST come from the `createLogger` factory in `apps/api/src/lib/logger.ts`
 # so redaction paths and service bindings are uniform. Excludes the factory
-# file itself, tests, and stryker sandboxes.
+# file itself and tests.
 grep -rnE "^import pino\b|^const \w+ = pino\(" apps/api/src --include="*.ts" | \
-  grep -v "lib/logger\.ts\|\.test\.\|/tests/\|/\.stryker-tmp/" | wc -l
+  grep -v "lib/logger\.ts\|\.test\.\|/tests/" | wc -l
 
 # 14. No `private *Cache = new Map()` per-class caches in apps/api/src/.
 # Reason: cross-pod cache coherence (OWASP A07:2021) — per-instance Maps
@@ -458,7 +458,7 @@ grep -rnE "^\s+private \w*[Cc]ache.*= new Map" apps/api/src --include="*.ts" | \
 # Excludes `_template` (scaffolding example).
 grep -rnE "process\.env\.[A-Z_]*(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL)[A-Z_]*\s*(\|\||\?\?)" \
   apps/api/src apps/workers/src packages/providers --include="*.ts" | \
-  grep -v "node_modules\|\.test\.\|/tests/\|\.stryker\|/dist/\|config/env\.ts\|providers/_template/" | wc -l
+  grep -v "node_modules\|\.test\.\|/tests/\|/dist/\|config/env\.ts\|providers/_template/" | wc -l
 
 # 16. No direct `process.env.*` in apps/api/src outside config/env.ts.
 # Reason: forces every consumer to go through the Zod-validated `env` constant
@@ -492,7 +492,7 @@ grep -rnE "process\.env\." \
 # legitimately lives in the apiClient layer is allowed there but NOT in the
 # adapter file. Excludes `_template`.
 grep -rnE "process\.env\." packages/providers/*/src/*Adapter.ts 2>/dev/null | \
-  grep -v "providers/_template/\|\.stryker\|/dist/" | wc -l
+  grep -v "providers/_template/\|/dist/" | wc -l
 
 # 18. No direct `argon2.hash` / `argon2.verify` outside the canonical helper
 # (`apps/api/src/auth/passwordHashing.ts`). Reason: every password / API-key /
@@ -515,7 +515,7 @@ grep -rnE "argon2\.(hash|verify)\(" apps/api/src --include="*.ts" | \
 # such as Facebook insights `repeat: number`). Excludes tests + sandboxes.
 grep -rnE "\.(addRepeatable|getRepeatableJobs|removeRepeatableByKey|removeRepeatable)\(" \
   apps/*/src packages/*/src --include="*.ts" | \
-  grep -vE "node_modules|/dist/|\.test\.|/tests/|\.stryker" | wc -l
+  grep -vE "node_modules|/dist/|\.test\.|/tests/" | wc -l
 
 # 21. No Prisma singleton imports outside composition roots. THE DI guard:
 # only a composition root may import the `prisma` singleton; every other unit
@@ -755,7 +755,7 @@ grep -c '\[ "\$TOTAL_TESTS" -eq 0 \]' apps/api/scripts/run-tests.sh    # expect 
 #     distinction (was the service supposed to be there?) is actually knowable.
 grep -rnE "\b(it|test|describe|suite)\.(skip|only)\(" \
   apps/ packages/ --include="*.test.ts" --include="*.test.tsx" | \
-  grep -vE "node_modules|/dist/|\.stryker" | wc -l   # expect 0
+  grep -vE "node_modules|/dist/" | wc -l   # expect 0
 
 # 33. Every ROOT-level tsconfig reached by an `extends` from a workspace tsconfig
 # MUST be listed in turbo.json `globalDependencies`. Threat: turbo hashes
@@ -793,7 +793,7 @@ MISSING=""
 REACHED=""
 for cfg in $(find apps packages infra -name 'tsconfig*.json' \
     -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/.next/*' \
-    -not -path '*/.turbo/*' -not -path '*/.stryker-tmp/*' 2>/dev/null); do
+    -not -path '*/.turbo/*' 2>/dev/null); do
   for target in $(grep -oE '"extends"[[:space:]]*:[[:space:]]*(\[[^]]*\]|"[^"]*")' "$cfg" 2>/dev/null | \
       grep -oE '"[^"]*"' | tr -d '"' | grep -v '^extends$' || true); do
     case "$target" in ./*|../*) ;; *) continue;; esac
@@ -880,10 +880,10 @@ echo "$COUNT"   # expect 0
 #
 # THE MUTATION HALF IS GONE, and the history matters because it is the reason the
 # rest of this check exists. It scanned the `mutate` arrays of
-# apps/api/stryker*.config.mjs and carried a 14-name quarantine for slicing
+# per-config `mutate` arrays and carried a 14-name quarantine for slicing
 # configs that predated the packages/core relocation — 45 dead positive globs
 # between them (SMELL-85), plus 29 empty negations in the main config (SMELL-84).
-# Stryker was removed in full (ADR-0024): the 65 configs no longer exist and both
+# The tooling was removed in full (ADR-0024): the 65 configs no longer exist and both
 # SMELLs closed with them. The coverage half stays untouched because a coverage
 # glob matching zero files is the identical defect.
 #
@@ -907,9 +907,9 @@ import { readFileSync } from "node:fs";
 import { glob } from "node:fs/promises";
 
 const cwd = "apps/api";
-// One subject now: the coverage/test include arrays. The mutation half left with
-// Stryker (ADR-0024) along with the 14-name quarantine it needed for the
-// pre-relocation slicing configs; SMELL-84 and SMELL-85 closed with those files.
+// One subject now: the coverage/test include arrays. The mutation half was removed
+// with the mutation tooling (ADR-0024), along with the quarantine it needed for
+// the pre-relocation slicing configs; SMELL-84 and SMELL-85 closed with them.
 const scanned = [["vitest.config.ts", "include"]];
 // Walk to the array's closing bracket while IGNORING brackets that live inside
 // string literals or comments. Picomatch character classes (`src/api[Vv]2/**`)
@@ -1404,7 +1404,7 @@ done
 TX_SEAMS='/db-prisma/src/unitofwork/PrismaUnitOfWork\.ts:|/saga/sagaTenant\.ts:|/db-prisma/src/ChannelRepository\.ts:'
 tx_calls() {
   grep -rnE "\.\\\$transaction\(" apps/api/src packages/adapters/db-prisma/src --include="*.ts" | \
-    grep -vE "/node_modules/|/dist/|\.stryker|/tests/|\.test\.ts:" | \
+    grep -vE "/node_modules/|/dist/|/tests/|\.test\.ts:" | \
     grep -vE "^[^:]+:[0-9]+:[[:space:]]*(\*|//)"
 }
 SEAM_HITS=$(tx_calls | grep -cE "$TX_SEAMS" || true)
@@ -1448,7 +1448,7 @@ done
 SCOPE_EXEMPT='/saga/sagaTenant\.ts:'
 seam_call_sites() {
   grep -rnE "withGucBoundTransaction\(" $PART_B_SCOPE --include="*.ts" | \
-    grep -vE "/node_modules/|/dist/|\.stryker|/tests/|\.test\.ts:" | \
+    grep -vE "/node_modules/|/dist/|/tests/|\.test\.ts:" | \
     grep -vE "^[^:]+:[0-9]+:[[:space:]]*(import|\*|//)" | \
     grep -vE "$SCOPE_EXEMPT"
 }
@@ -1536,7 +1536,7 @@ echo "$BCOUNT"   # expect 0
 # reset ISSUANCE that writes the "CHANGE_REQUIRED" sentinel (an issuance, not a consumption — SMELL-110).
 # FAIL-CLOSED: a missing scope directory, fewer than SITE_FLOOR marker sites, or an exception count other
 # than 1 is a blind scan, not a clean one — exit 1. SCOPE: apps/api/src apps/workers/src packages
-# infra/prisma/src, *.ts, minus node_modules/dist/tests/generated/ .stryker. infra/prisma/scripts is OUT
+# infra/prisma/src, *.ts, minus node_modules/dist/tests/generated. infra/prisma/scripts is OUT
 # by path: the backfill's `data: { passwordResetToken: null }` keyed on id is the `migration`
 # canon-exception scenario (a one-off over rows it selected itself), and so is every future script there
 # — stated, not hidden.
@@ -1566,7 +1566,7 @@ import { readFileSync } from "node:fs";
 import { glob } from "node:fs/promises";
 
 const SCOPE = ["apps/api/src", "apps/workers/src", "packages", "infra/prisma/src"];
-const SKIP = /(^|\/)(node_modules|dist|tests|generated|\.stryker[^/]*)\//;
+const SKIP = /(^|\/)(node_modules|dist|tests|generated)\//;
 const MARKERS = [
   { column: "passwordResetToken", re: /\bpasswordResetToken\s*:\s*null\b/ },
   { column: "resetToken", re: /\bresetToken\s*:\s*null\b/ },
@@ -1709,7 +1709,7 @@ LIFECYCLE_KEYS='["preinstall","install","postinstall","prepare","prepublishOnly"
 manifests() {
   find apps packages infra -name package.json \
     -not -path '*/node_modules/*' -not -path '*/dist/*' \
-    -not -path '*/.next/*' -not -path '*/.stryker-tmp/*' 2>/dev/null
+    -not -path '*/.next/*' 2>/dev/null
 }
 declares_lifecycle() {
   jq -e --argjson keys "$LIFECYCLE_KEYS" \

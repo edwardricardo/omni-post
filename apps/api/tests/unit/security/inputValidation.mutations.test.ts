@@ -1,7 +1,7 @@
 /**
  * @file inputValidation.mutations.test.ts
  * @description Mutation-killing tests for SecurityValidator, createSecureSchema, and SecureSchemas.
- *              Each test targets a specific mutant survivor from Stryker analysis.
+ *              Each test targets one specific boundary an off-by-one would slip past.
  * @layer infrastructure
  */
 

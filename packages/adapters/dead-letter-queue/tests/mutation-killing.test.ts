@@ -1,7 +1,7 @@
 /**
  * @file Dead Letter Queue — mutation-killing tests (Part 1)
  *
- * Targets surviving Stryker mutants:
+ * Targets the exact boundaries a weaker assertion would let through:
  * ArithmeticOperator, ConditionalExpression
  *
  * Framework: vitest

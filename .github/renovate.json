@@ -39,10 +39,6 @@
       "matchPackagePrefixes": ["@testing-library/"]
     },
     {
-      "groupName": "stryker",
-      "matchPackagePrefixes": ["@stryker-mutator/"]
-    },
-    {
       "matchPackageNames": ["@prisma/client", "prisma", "opossum", "prom-client"],
       "labels": ["runtime-critical"],
       "minimumReleaseAge": "14 days"

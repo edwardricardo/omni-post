@@ -53,16 +53,7 @@ const roots = process.argv.length > 2 ? process.argv.slice(2) : ["packages", "in
  */
 const SKIP_BY_NAME = new Set(["@shared/types"]);
 
-const IGNORE_DIRS = new Set([
-  "node_modules",
-  "dist",
-  ".next",
-  ".turbo",
-  ".stryker-tmp",
-  ".stryker",
-  "coverage",
-  ".git",
-]);
+const IGNORE_DIRS = new Set(["node_modules", "dist", ".next", ".turbo", "coverage", ".git"]);
 
 /**
  * Derive the `development`->`src` target from a dist-pointing target string.

@@ -28,7 +28,6 @@ Use `pnpm` for ALL package management and script execution, never `npm` or `npx`
 **How to apply:**
 
 - `pnpm exec vitest run` not `npx vitest run`.
-- `pnpm exec stryker run` not `npx stryker run`.
 - `pnpm --filter @apps/api test` not `npm test`.
 - `pnpm add` not `npm install`.
 

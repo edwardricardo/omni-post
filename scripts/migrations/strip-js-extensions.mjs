@@ -51,7 +51,6 @@ function collect(target, acc) {
       entry.name === "dist" ||
       entry.name === ".next" ||
       entry.name === ".turbo" ||
-      entry.name === ".stryker-tmp" ||
       entry.name === "coverage"
     )
       continue;

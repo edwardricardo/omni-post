@@ -25,8 +25,7 @@ Thumbs.db
 *.pid
 *.log
 
-# scripts/stryker-full.sh writes its runtime output here: stryker-full.log,
-# stryker-full.pid, and a generated stryker-full.config.mjs. The root .gitignore
+# Runtime output from local scripts lands here. The root .gitignore
 # used to cover this directory with an unanchored `logs/`, but that rule also
 # swallowed an App Router segment and is now anchored to the repo root (/logs/),
 # so this package has to declare its own. `*.log` / `*.pid` above happen to catch

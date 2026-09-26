@@ -45,7 +45,6 @@ export default defineConfig([
       "designDocs/**/*",
       "**/*.{png,jpg,jpeg,gif,svg}",
       "**/storybook-static/**",
-      "**/.stryker-tmp/**",
       // Prisma generated files
       "infra/prisma/src/**/*.js",
       "infra/prisma/generated/**",

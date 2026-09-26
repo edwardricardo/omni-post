@@ -212,16 +212,14 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 2.2 Coverage + mutation gates en CI — `P1` · `M` · `STATUS: DONE-Phase-A1 (5934b37) + DONE-Phase-A2 (7adb7518)` · follow-up §2.2.b
+### 2.2 Coverage gates en CI — `P1` · `M` · `STATUS: DONE-Phase-A1 (5934b37) + DONE-Phase-A2 (7adb7518)` · follow-up §2.2.b
 
-**Qué:** CLAUDE.md declara coverage targets (90% domain, 85% app, 70% infra/routes/providers) y Stryker está configurado, pero no son gates de CI hoy.
+**Qué:** CLAUDE.md declara coverage targets (90% domain, 85% app, 70% infra/routes/providers) pero no son gates de CI hoy.
 
 **Implementación:**
 
 - `vitest.config.ts` con `coverage.thresholds.global.{lines,branches,functions,statements}` por scope
 - CI step que falla si coverage baja del threshold
-- Stryker schedule nightly con mutation score threshold (>60% para domain)
-- Sentry o GitHub Actions notify si nightly mutation cae <threshold
 
 **Por qué importa:** **Documented-but-not-enforced** es el peor estado — todos asumen que pasa. Hoy coverage targets existen como aspiración, no como gate.
 
@@ -233,11 +231,13 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ✅ **Phase A2 closure (§2.2.a-CI, 2026-05-28):** `.github/workflows/ci.yml` test step migrado de `pnpm --filter @apps/api test` a `pnpm --filter @apps/api test:unit:coverage` + nuevo step "Upload coverage report" con `actions/upload-artifact@v4` (retention 14 days). CI ahora falla si coverage baja del floor configurado en `vitest.config.ts` (55/55/45 hoy). Cierre del DoD original "PR a main falla si coverage < threshold". Identificado como TIME-BOMB HIGH durante audit retroactivo §2 (hook tripwire active session 2026-05-28); el "follow-up de 10 LOC" de la closure original no era patch deferible — era el fix mismo del item.
 
-⏭ **Phase B (§2.2.b, PENDING):** medir per-scope coverage actual (con la nueva CI run reportando per-scope vía `vitest --coverage`) + ratchet thresholds a aspiracional (domain 90, application 85, infra 70) en passes incrementales. Bloqueante: requiere data de al menos 1 CI run post-Phase A2 con `--coverage` (próximo push a main). Sentry/Slack alert para mutation drift también queda en este alcance.
+⏭ **Phase B (§2.2.b, PENDING):** medir per-scope coverage actual (con la nueva CI run reportando per-scope vía `vitest --coverage`) + ratchet thresholds a aspiracional (domain 90, application 85, infra 70) en passes incrementales. Bloqueante: requiere data de al menos 1 CI run post-Phase A2 con `--coverage` (próximo push a main).
 
 > **Nota (2026-07-19, PR #128):** al purgar el dead-code `CQRSIntegration` (−2358 LOC) el floor global de cobertura `statements` se re-baseló **55→54** (autorizado) para no romper CI con la caída mecánica del denominador. Es un ajuste de floor, NO el ratchet UP de Phase B (que sigue pendiente).
 
-🚨 **Stryker realignment (2026-05-28 audit)**: el DoD original decía "mutation score threshold (>60% para domain)" pero la implementación en `nightly.yml:67-72` es `continue-on-error: true` con comentario "treated as informational". La decisión técnica de Edward es correcta (mutation testing es noisy y long-running); el time-bomb era el roadmap aspirando a un gate que el workflow ya había descartado. Realignment: Stryker es informational signal (artifact upload + GitHub failure notification issue creation) — NO gate hard. La aspiración "Sentry/Slack alert si baja" queda en Phase B donde tiene sentido (data-driven trigger).
+🚨 **Stryker realignment (2026-05-28 audit)**: el DoD original decía "mutation score threshold (>60% para domain)" pero la implementación en `nightly.yml:67-72` es `continue-on-error: true` con comentario "treated as informational". La decisión técnica de Edward es correcta (mutation testing es noisy y long-running); el time-bomb era el roadmap aspirando a un gate que el workflow ya había descartado. Realignment: Stryker es informational signal (artifact upload + GitHub failure notification issue creation) — NO gate hard. La aspiración "Sentry/Slack alert si baja" quedaba en Phase B.
+
+> **Desenlace (2026-09-26, ADR-0024):** la herramienta se removió por completo. Medido: el gate cubría 14% del código, el step era `continue-on-error: true` así que nunca pudo fallar, y la capa que respondía "qué test es vacuo" tenía 4 bugs abiertos que producían falsos positivos. El realignment de 2026-05-28 tenía razón en que no era un gate; lo que faltaba medir era que tampoco era señal.
 
 ---
 
