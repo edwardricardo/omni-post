@@ -152,6 +152,10 @@ Source IDs are publisher-scoped corpora; every claim names the specific page/end
 - The dangerous upgrade is the one that gets faster: stryker-js#6210's tell is a 7-minute run finishing in 37 seconds; a large unexplained speed-up in a mutation or test lane is a red condition, not a win.
 - "Latest stable" and "mature" are two different gates that disagree today: vitest 5.0.2 passes stable-only and fails the 7-day buffer by five days; every pin needs a measured date next to it, not a tag name.
 - `--conditions` does not reach vitest: fitness #27 enforces the `development` condition for Node source-mode runs, but vitest honours only `import`/`default` unless `ssr.resolve.conditions` says otherwise — a dead scope of the class this repo has hit four times (#2, #3, #4, #36).
-- Node refuses the contract `run-tests.sh` depends on ("should not be relied on programmatically"); the zero-collection guards must not be deleted, and the durable form is `--test-reporter=json` or the programmatic `run()` event stream.
+- Node refuses the contract `run-tests.sh` depends on ("should not be relied on programmatically"); the zero-collection guards must not be deleted, and the durable form is a custom reporter over the `TestsStream` events (Node 24.15.0 ships no json reporter — see Errata) or the programmatic `run()` event stream.
 - The `"error"`-only constraint on ESLint suppressions is a feature: a rule cannot be suppressed as a warning, which removes "enable as `warn` and never come back".
 - Empirically probing a public API beat reading its docs: one unauthenticated request to the branch-rules endpoint returned 200 and four rule objects, collapsing three questions about tokens and scopes into one measurement.
+
+## Errata
+
+- **C38 is wrong on the reporter list** (found by the design gate, 2026-09-27): Node 24.15.0's built-in test reporters are exactly `dot`, `junit`, `spec`, `tap`, `lcov` — `require("node:test/reporters")` exports no `json`. The remedy WU-1.16 names is therefore a custom reporter over the `TestsStream` events (counts from the `test:summary` event's `counts`, cross-checked against per-event tallies; `cancelledByParent` is available) or the programmatic `run()` API — never `--test-reporter=json`. The rest of C38 (`timeout` on `describe`, `--test-force-exit`, `--test-name-pattern`) stands.
