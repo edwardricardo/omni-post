@@ -6,7 +6,8 @@
     "tsconfig.build.base.json",
     "tsconfig.build.json",
     "tsconfig.json",
-    ".env.example"
+    ".env.example",
+    "vitest.shared.ts"
   ],
   "tasks": {
     "build": {
