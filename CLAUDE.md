@@ -37,7 +37,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm --filter @apps/api test:unit:coverage` - Run unit tests with coverage report
 - `pnpm --filter @apps/api test:all` - Run all tests (Vitest unit + node:test integration)
 - `pnpm --filter @apps/api test:integration` - Run integration tests only (requires DB + Redis)
-- `cd apps/api && pnpm exec stryker run` - Mutation testing (Stryker + vitest-runner, perTest)
 
 ---
 
@@ -302,7 +301,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **43 checks, numbered #1-#43**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 20, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **43 checks, numbered #1-#43**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -401,24 +400,24 @@ grep -rn "dedupeKey.*randomUUID\|dedupeKey.*Math.random" \
 # comments where they rot.
 grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A|\(P[0-9]\)|\(P[0-9]+-[A-Za-z0-9]" \
   apps/ packages/ infra/ --include="*.ts" --include="*.tsx" --include="*.prisma" | \
-  grep -vE "node_modules|dist|\.next|\.stryker-tmp|\.stryker|reports/mutation|infra/prisma/generated/" | wc -l
+  grep -vE "node_modules|dist|\.next|infra/prisma/generated/" | wc -l
 
 # 9. No files missing @file header (all repo, target: 0).
 # Excludes Next.js auto-generated `next-env.d.ts` (regenerated on every build,
 # see https://nextjs.org/docs/app/api-reference/config/typescript — "should not be edited").
 grep -rL "@file" apps/ packages/ --include="*.ts" --include="*.tsx" | \
-  grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation\|next-env\.d\.ts" | wc -l
+  grep -v "node_modules\|dist\|\.next\|next-env\.d\.ts" | wc -l
 
 # 10. No invalid @layer values (all repo, only domain/application/infrastructure)
 grep -rn "@layer" apps/ packages/ --include="*.ts" --include="*.tsx" | \
-  grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation" | \
+  grep -v "node_modules\|dist\|\.next" | \
   grep -v "@layer application\|@layer domain\|@layer infrastructure" | wc -l
 
 # 11. No raw setInterval in backend (scheduler-adapter excepted).
 # Excludes `enhancedValidator.ts` which holds `"setInterval("` as a literal
 # string in a security denylist of dangerous patterns — not a real call.
 grep -rnE "setInterval\(" apps/api/src apps/workers/src packages/ --include="*.ts" | \
-  grep -vE "default-scheduler|node_modules|dist|\.test\.|/tests/|/\.stryker-tmp/|eslint\.config|DANGEROUS_STRINGS|enhancedValidator\.ts" | wc -l
+  grep -vE "default-scheduler|node_modules|dist|\.test\.|/tests/|eslint\.config|DANGEROUS_STRINGS|enhancedValidator\.ts" | wc -l
 
 # 12. Every React component file carries an @component tag.
 # Scan component directories and fail if any canonical component .tsx lacks @component.
@@ -436,9 +435,9 @@ done | wc -l
 # 13. No direct `pino` instantiation in apps/api production code — every
 # logger MUST come from the `createLogger` factory in `apps/api/src/lib/logger.ts`
 # so redaction paths and service bindings are uniform. Excludes the factory
-# file itself, tests, and stryker sandboxes.
+# file itself and tests.
 grep -rnE "^import pino\b|^const \w+ = pino\(" apps/api/src --include="*.ts" | \
-  grep -v "lib/logger\.ts\|\.test\.\|/tests/\|/\.stryker-tmp/" | wc -l
+  grep -v "lib/logger\.ts\|\.test\.\|/tests/" | wc -l
 
 # 14. No `private *Cache = new Map()` per-class caches in apps/api/src/.
 # Reason: cross-pod cache coherence (OWASP A07:2021) — per-instance Maps
@@ -459,7 +458,7 @@ grep -rnE "^\s+private \w*[Cc]ache.*= new Map" apps/api/src --include="*.ts" | \
 # Excludes `_template` (scaffolding example).
 grep -rnE "process\.env\.[A-Z_]*(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL)[A-Z_]*\s*(\|\||\?\?)" \
   apps/api/src apps/workers/src packages/providers --include="*.ts" | \
-  grep -v "node_modules\|\.test\.\|/tests/\|\.stryker\|/dist/\|config/env\.ts\|providers/_template/" | wc -l
+  grep -v "node_modules\|\.test\.\|/tests/\|/dist/\|config/env\.ts\|providers/_template/" | wc -l
 
 # 16. No direct `process.env.*` in apps/api/src outside config/env.ts.
 # Reason: forces every consumer to go through the Zod-validated `env` constant
@@ -493,7 +492,7 @@ grep -rnE "process\.env\." \
 # legitimately lives in the apiClient layer is allowed there but NOT in the
 # adapter file. Excludes `_template`.
 grep -rnE "process\.env\." packages/providers/*/src/*Adapter.ts 2>/dev/null | \
-  grep -v "providers/_template/\|\.stryker\|/dist/" | wc -l
+  grep -v "providers/_template/\|/dist/" | wc -l
 
 # 18. No direct `argon2.hash` / `argon2.verify` outside the canonical helper
 # (`apps/api/src/auth/passwordHashing.ts`). Reason: every password / API-key /
@@ -516,7 +515,7 @@ grep -rnE "argon2\.(hash|verify)\(" apps/api/src --include="*.ts" | \
 # such as Facebook insights `repeat: number`). Excludes tests + sandboxes.
 grep -rnE "\.(addRepeatable|getRepeatableJobs|removeRepeatableByKey|removeRepeatable)\(" \
   apps/*/src packages/*/src --include="*.ts" | \
-  grep -vE "node_modules|/dist/|\.test\.|/tests/|\.stryker" | wc -l
+  grep -vE "node_modules|/dist/|\.test\.|/tests/" | wc -l
 
 # 21. No Prisma singleton imports outside composition roots. THE DI guard:
 # only a composition root may import the `prisma` singleton; every other unit
@@ -705,7 +704,7 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 # file list in apps/api/scripts/run-tests.sh, and a suite that no `run_batch`
 # names never executes anywhere — while still reading as coverage in the tree,
 # in review, and in a coverage report that only counts what ran.
-# Baseline: 21 unreached suites, measured, listed in
+# Baseline: 20 unreached suites, measured, listed in
 # docs/reports/roadmap-detected-smells-backlog.md as SMELL-75. Wiring them is
 # its own body of work (each needs a tier, services, and a runtime budget), so
 # the gate gives that work a floor instead of blocking on it: the count may fall
@@ -714,7 +713,7 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 for f in $(find apps/api/tests -name "*.test.ts" \
     -not -path "*/tests/unit/*" -not -path "*/tests/eval/*"); do
   grep -qF "${f#apps/api/}" apps/api/scripts/run-tests.sh || echo "UNREACHED: $f"
-done | wc -l   # ratchet baseline: 21
+done | wc -l   # ratchet baseline: 20
 
 # 31. No vacuous-pass escape hatch in a test entry point. Two parts, hard-zero.
 # Threat: a suite that collects ZERO tests and still exits 0. The nightly chaos
@@ -756,7 +755,7 @@ grep -c '\[ "\$TOTAL_TESTS" -eq 0 \]' apps/api/scripts/run-tests.sh    # expect 
 #     distinction (was the service supposed to be there?) is actually knowable.
 grep -rnE "\b(it|test|describe|suite)\.(skip|only)\(" \
   apps/ packages/ --include="*.test.ts" --include="*.test.tsx" | \
-  grep -vE "node_modules|/dist/|\.stryker" | wc -l   # expect 0
+  grep -vE "node_modules|/dist/" | wc -l   # expect 0
 
 # 33. Every ROOT-level tsconfig reached by an `extends` from a workspace tsconfig
 # MUST be listed in turbo.json `globalDependencies`. Threat: turbo hashes
@@ -794,7 +793,7 @@ MISSING=""
 REACHED=""
 for cfg in $(find apps packages infra -name 'tsconfig*.json' \
     -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/.next/*' \
-    -not -path '*/.turbo/*' -not -path '*/.stryker-tmp/*' 2>/dev/null); do
+    -not -path '*/.turbo/*' 2>/dev/null); do
   for target in $(grep -oE '"extends"[[:space:]]*:[[:space:]]*(\[[^]]*\]|"[^"]*")' "$cfg" 2>/dev/null | \
       grep -oE '"[^"]*"' | tr -d '"' | grep -v '^extends$' || true); do
     case "$target" in ./*|../*) ;; *) continue;; esac
@@ -866,94 +865,40 @@ COUNT=$(printf "%b" "$VIOLATIONS" | grep -c . || true)
 COUNT=${COUNT:-0}
 echo "$COUNT"   # expect 0
 
-# 36. Every POSITIVE scope glob in a coverage/mutation config MUST match at least
-# one existing file. Closes the CLASS "dead scope = infallible gate", third
-# occurrence: fitness #2/#3/#4 grepped relocated directories, the per-glob
+# 36. Every POSITIVE scope glob in a coverage config MUST match at least one
+# existing file. Closes the CLASS "dead scope = infallible gate", third
+# occurrence: fitness #2/#3/#4 grepped relocated directories, and the per-glob
 # coverage thresholds kept "gating" `src/domain/**` + `src/application/**` after
-# both layers moved to packages/core, and stryker.config.mjs carried 13 mutate
-# entries for those same absent layers while its report read as covered scope.
-# Scope: the `mutate` arrays of apps/api/stryker*.config.mjs (minus the
-# quarantine below) plus the `include` arrays (test.include + coverage.include)
-# of apps/api/vitest.config.ts — the coverage scope globs live THERE since the
-# threshold-literal rework retired the glob keys vitest.coverage-thresholds.ts
-# used to hold. POSITIVE globs only, deliberately: a negation (`!...`) matching
-# zero files is inert PROTECTION (SMELL-84 measured 29 such lines — harmless
-# fat), and flagging it would push authors to delete real exclusions to get
-# green; a positive glob matching zero files is a gate reporting green over code
-# it never touched.
+# both layers moved to packages/core. Scope: the `include` arrays (test.include +
+# coverage.include) of apps/api/vitest.config.ts — the coverage scope globs live
+# THERE since the threshold-literal rework retired the glob keys
+# vitest.coverage-thresholds.ts used to hold. POSITIVE globs only, deliberately:
+# a negation (`!...`) matching zero files is inert PROTECTION — harmless fat — and
+# flagging it would push authors to delete real exclusions to get green; a positive
+# glob matching zero files is a gate reporting green over code it never touched.
 #
-# FAIL-CLOSED PER FILE. Extracting zero globs from a scanned config is not a
-# clean scan, it is a blind one: renaming `mutate:` in stryker.config.mjs — the
-# config the mutation pipeline actually executes — made the first form of this
-# check print nothing and exit 0 over 26 live globs it never read, and an array
-# assembled at runtime or inherited by object spread reads identically from the
-# outside. Every scanned config must now yield at least one glob or the check
-# fails; the 14 quarantined configs are skipped entirely, not scanned leniently.
+# FAIL-CLOSED. Extracting zero globs is not a clean scan, it is a blind one: an
+# earlier form of this check printed nothing and exited 0 over 26 live globs it
+# never read, after a key was renamed — and an array assembled at runtime or
+# inherited by object spread reads identically from the outside. The scanned
+# config must yield at least one glob or the check fails.
 #
 # Residual limits, stated honestly. (1) Textual extraction, not a JS parser: a
 # runtime-assembled or spread-inherited array is still unreadable to it — but it
-# now fails closed instead of passing silently. (2) Comments inside the scanned
-# arrays are dropped, line AND block, so a glob named INSIDE a comment is
-# neither extracted nor reported — documenting a scope removal in the array is
-# safe (the first form extracted those strings and red-lined CI for exactly the
-# note this file told authors to write). (3) Discovery is top-level only:
-# `apps/api/stryker*.config.mjs` plus `apps/api/vitest.config.ts`. A config
-# nested deeper (`apps/api/mutation/stryker-slice.config.mjs`) is not scanned at
-# all, so a new mutation config belongs at the top level or this scope grows
-# with it. (4) Bracket counting skips string literals, so a picomatch class
-# (`src/api[Vv]2/**`) neither ends the array early nor runs past it into the
-# next key. Needs node >= 22 (fs.glob); the CI job pins node 24. Hard-zero.
+# fails closed instead of passing silently. (2) Comments inside the scanned arrays
+# are dropped, line AND block, so a glob named INSIDE a comment is neither
+# extracted nor reported — documenting a scope removal in the array is safe. (3)
+# Bracket counting skips string literals, so a picomatch class (`src/api[Vv]2/**`)
+# neither ends the array early nor runs past it into the next key. Needs
+# node >= 22 (fs.glob); the CI job pins node 24. Hard-zero.
 set -uo pipefail
 VIOLATIONS=$(node --input-type=module <<'EOF'
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { glob } from "node:fs/promises";
 
-// Quarantine: 14 ad-hoc slicing configs predating the packages/core relocation,
-// holding 45 dead positive globs between them (SMELL-85 owns that debt; SMELL-84
-// is a different one — the 29 empty NEGATIONS inside stryker.config.mjs). They
-// are one-off local run shells, not the config the mutation pipeline executes
-// (stryker.config.mjs). The list is a RATCHET, not a permanent carve-out: it may
-// shrink and never grow, and every name must still name an existing file — a
-// name that outlives its file would silently exempt a NEW config re-created
-// under it. Delete each name in the same change that fixes or deletes the file
-// it names (the Stryker consolidation, SMELL-85).
-const quarantined = new Set([
-  "stryker-batch-7.config.mjs",
-  "stryker-batch-8.config.mjs",
-  "stryker-domain-targeted.config.mjs",
-  "stryker-inbox.config.mjs",
-  "stryker-micro-A6.config.mjs",
-  "stryker-micro-E1.config.mjs",
-  "stryker-micro-E2.config.mjs",
-  "stryker-micro-E3.config.mjs",
-  "stryker-micro-E4.config.mjs",
-  "stryker-micro-F1.config.mjs",
-  "stryker-micro-F2.config.mjs",
-  "stryker-micro-F3.config.mjs",
-  "stryker-micro-F4.config.mjs",
-  "stryker-session-c.config.mjs",
-]);
-const QUARANTINE_FLOOR = 14;
 const cwd = "apps/api";
-if (quarantined.size > QUARANTINE_FLOOR) {
-  console.error(`fitness #36 scope error: the quarantine holds ${quarantined.size} names against a floor of ${QUARANTINE_FLOOR} — the exemption list may only shrink. A new config that needs exempting is a config that needs fixing (SMELL-85).`);
-  process.exit(1);
-}
-for (const name of [...quarantined].sort()) {
-  if (existsSync(`${cwd}/${name}`)) continue;
-  console.error(`fitness #36 scope error: quarantined config ${cwd}/${name} no longer exists — delete the name from the quarantine, or a config re-created under it inherits the exemption unscanned.`);
-  process.exit(1);
-}
-const scanned = [];
-for await (const f of glob("stryker*.config.mjs", { cwd })) {
-  if (!quarantined.has(f)) scanned.push([f, "mutate"]);
-}
-scanned.sort();
-if (scanned.length === 0) {
-  console.error(`fitness #36 scope error: no non-quarantined stryker*.config.mjs under ${cwd}`);
-  process.exit(1);
-}
-scanned.push(["vitest.config.ts", "include"]);
+// Subject: the test.include + coverage.include arrays of apps/api/vitest.config.ts.
+const scanned = [["vitest.config.ts", "include"]];
 // Walk to the array's closing bracket while IGNORING brackets that live inside
 // string literals or comments. Picomatch character classes (`src/api[Vv]2/**`)
 // are legitimate glob syntax, and counting them either ends the array early —
@@ -1008,7 +953,7 @@ for (const [file, key] of scanned) {
     process.exit(1);
   }
   if (patterns.length === 0) {
-    console.error(`fitness #36 scope error: zero '${key}' globs extracted from ${cwd}/${file} — the key was renamed, or the array is assembled at runtime or inherited by spread. Either way the gate would report green over a scope it never read, so it fails closed. Give the config a literal '${key}' array, or quarantine it with an owning backlog entry.`);
+    console.error(`fitness #36 scope error: zero '${key}' globs extracted from ${cwd}/${file} — the key was renamed, or the array is assembled at runtime or inherited by spread. Either way the gate would report green over a scope it never read, so it fails closed. Give the config a literal '${key}' array.`);
     process.exit(1);
   }
   for (const pattern of patterns) {
@@ -1447,7 +1392,7 @@ done
 TX_SEAMS='/db-prisma/src/unitofwork/PrismaUnitOfWork\.ts:|/saga/sagaTenant\.ts:|/db-prisma/src/ChannelRepository\.ts:'
 tx_calls() {
   grep -rnE "\.\\\$transaction\(" apps/api/src packages/adapters/db-prisma/src --include="*.ts" | \
-    grep -vE "/node_modules/|/dist/|\.stryker|/tests/|\.test\.ts:" | \
+    grep -vE "/node_modules/|/dist/|/tests/|\.test\.ts:" | \
     grep -vE "^[^:]+:[0-9]+:[[:space:]]*(\*|//)"
 }
 SEAM_HITS=$(tx_calls | grep -cE "$TX_SEAMS" || true)
@@ -1491,7 +1436,7 @@ done
 SCOPE_EXEMPT='/saga/sagaTenant\.ts:'
 seam_call_sites() {
   grep -rnE "withGucBoundTransaction\(" $PART_B_SCOPE --include="*.ts" | \
-    grep -vE "/node_modules/|/dist/|\.stryker|/tests/|\.test\.ts:" | \
+    grep -vE "/node_modules/|/dist/|/tests/|\.test\.ts:" | \
     grep -vE "^[^:]+:[0-9]+:[[:space:]]*(import|\*|//)" | \
     grep -vE "$SCOPE_EXEMPT"
 }
@@ -1579,7 +1524,7 @@ echo "$BCOUNT"   # expect 0
 # reset ISSUANCE that writes the "CHANGE_REQUIRED" sentinel (an issuance, not a consumption — SMELL-110).
 # FAIL-CLOSED: a missing scope directory, fewer than SITE_FLOOR marker sites, or an exception count other
 # than 1 is a blind scan, not a clean one — exit 1. SCOPE: apps/api/src apps/workers/src packages
-# infra/prisma/src, *.ts, minus node_modules/dist/tests/generated/ .stryker. infra/prisma/scripts is OUT
+# infra/prisma/src, *.ts, minus node_modules/dist/tests/generated. infra/prisma/scripts is OUT
 # by path: the backfill's `data: { passwordResetToken: null }` keyed on id is the `migration`
 # canon-exception scenario (a one-off over rows it selected itself), and so is every future script there
 # — stated, not hidden.
@@ -1609,7 +1554,7 @@ import { readFileSync } from "node:fs";
 import { glob } from "node:fs/promises";
 
 const SCOPE = ["apps/api/src", "apps/workers/src", "packages", "infra/prisma/src"];
-const SKIP = /(^|\/)(node_modules|dist|tests|generated|\.stryker[^/]*)\//;
+const SKIP = /(^|\/)(node_modules|dist|tests|generated)\//;
 const MARKERS = [
   { column: "passwordResetToken", re: /\bpasswordResetToken\s*:\s*null\b/ },
   { column: "resetToken", re: /\bresetToken\s*:\s*null\b/ },
@@ -1752,7 +1697,7 @@ LIFECYCLE_KEYS='["preinstall","install","postinstall","prepare","prepublishOnly"
 manifests() {
   find apps packages infra -name package.json \
     -not -path '*/node_modules/*' -not -path '*/dist/*' \
-    -not -path '*/.next/*' -not -path '*/.stryker-tmp/*' 2>/dev/null
+    -not -path '*/.next/*' 2>/dev/null
 }
 declares_lifecycle() {
   jq -e --argjson keys "$LIFECYCLE_KEYS" \

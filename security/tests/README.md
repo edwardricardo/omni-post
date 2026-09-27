@@ -6,7 +6,7 @@
 
 Tracked as **SMELL-83** in
 [`docs/reports/roadmap-detected-smells-backlog.md`](../../docs/reports/roadmap-detected-smells-backlog.md).
-Evidence: [`docs/reports/CI_TEST_REACH_AUDIT.md`](../../docs/reports/CI_TEST_REACH_AUDIT.md) §G3.
+Evidence: [`docs/archive/CI_TEST_REACH_AUDIT.md`](../../docs/archive/CI_TEST_REACH_AUDIT.md) §G3.
 
 ---
 

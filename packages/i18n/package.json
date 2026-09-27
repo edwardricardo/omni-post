@@ -25,6 +25,7 @@
     "next-intl": "catalog:"
   },
   "devDependencies": {
+    "@packages/vitest-shared": "workspace:*",
     "@types/node": "catalog:",
     "vitest": "catalog:",
     "typescript": "catalog:"

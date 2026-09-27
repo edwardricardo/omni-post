@@ -3,8 +3,8 @@
  * @description Integration tests for PinterestApiClient.
  * Requires: real Pinterest OAuth credentials
  *
- * Excluded from Stryker unit mutation scope because all methods wrap
- * fetch() + circuit breaker plumbing. These tests verify real API behavior.
+ * Kept out of the unit scope because all methods wrap fetch() + circuit breaker
+ * plumbing: these tests verify real API behaviour and need live credentials.
  *
  * Run: PINTEREST_ACCESS_TOKEN=... pnpm exec vitest run tests/integration/
  * @layer infrastructure

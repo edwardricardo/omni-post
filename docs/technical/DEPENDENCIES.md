@@ -307,28 +307,25 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tailwind
 
 ### Stack
 
-| Package                        | Version | Purpose                              |
-| ------------------------------ | ------- | ------------------------------------ |
-| vitest                         | 4.0.18  | Test runner (Vite-based, native ESM) |
-| @vitest/coverage-v8            | 4.0.18  | Coverage provider                    |
-| @testing-library/react         | 16.1.0  | Component testing                    |
-| @testing-library/dom           | 10.4.0  | DOM utilities                        |
-| @testing-library/jest-dom      | 6.6.3   | Custom matchers                      |
-| jsdom                          | 25.0.1  | Browser environment simulation       |
-| @playwright/test               | 1.55.1  | E2E testing                          |
-| @stryker-mutator/core          | 9.6.0   | Mutation testing                     |
-| @stryker-mutator/vitest-runner | 9.6.0   | Vitest integration for Stryker       |
-| @faker-js/faker                | 10.0.0  | Test data generation                 |
+| Package                   | Version | Purpose                              |
+| ------------------------- | ------- | ------------------------------------ |
+| vitest                    | 4.0.18  | Test runner (Vite-based, native ESM) |
+| @vitest/coverage-v8       | 4.0.18  | Coverage provider                    |
+| @testing-library/react    | 16.1.0  | Component testing                    |
+| @testing-library/dom      | 10.4.0  | DOM utilities                        |
+| @testing-library/jest-dom | 6.6.3   | Custom matchers                      |
+| jsdom                     | 25.0.1  | Browser environment simulation       |
+| @playwright/test          | 1.55.1  | E2E testing                          |
+| @faker-js/faker           | 10.0.0  | Test data generation                 |
 
 ### Metrics
 
-| Metric              | Value                                     |
-| ------------------- | ----------------------------------------- |
-| Test files          | 351                                       |
-| Total tests         | 7,159                                     |
-| Test failures       | 0                                         |
-| Coverage thresholds | Lines 55%, Functions 55%, Branches 45%    |
-| Mutation testing    | Stryker configured (break threshold: 52%) |
+| Metric              | Value                                  |
+| ------------------- | -------------------------------------- |
+| Test files          | 351                                    |
+| Total tests         | 7,159                                  |
+| Test failures       | 0                                      |
+| Coverage thresholds | Lines 55%, Functions 55%, Branches 45% |
 
 ### Strategy
 

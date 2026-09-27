@@ -307,28 +307,25 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tail
 
 ### Stack
 
-| Paquete                        | Version | Proposito                                |
-| ------------------------------ | ------- | ---------------------------------------- |
-| vitest                         | 4.0.18  | Test runner (basado en Vite, ESM nativo) |
-| @vitest/coverage-v8            | 4.0.18  | Proveedor de cobertura                   |
-| @testing-library/react         | 16.1.0  | Testing de componentes                   |
-| @testing-library/dom           | 10.4.0  | Utilidades DOM                           |
-| @testing-library/jest-dom      | 6.6.3   | Matchers personalizados                  |
-| jsdom                          | 25.0.1  | Simulacion de entorno de navegador       |
-| @playwright/test               | 1.55.1  | Testing E2E                              |
-| @stryker-mutator/core          | 9.6.0   | Mutation testing                         |
-| @stryker-mutator/vitest-runner | 9.6.0   | Integracion de Vitest para Stryker       |
-| @faker-js/faker                | 10.0.0  | Generacion de datos de prueba            |
+| Paquete                   | Version | Proposito                                |
+| ------------------------- | ------- | ---------------------------------------- |
+| vitest                    | 4.0.18  | Test runner (basado en Vite, ESM nativo) |
+| @vitest/coverage-v8       | 4.0.18  | Proveedor de cobertura                   |
+| @testing-library/react    | 16.1.0  | Testing de componentes                   |
+| @testing-library/dom      | 10.4.0  | Utilidades DOM                           |
+| @testing-library/jest-dom | 6.6.3   | Matchers personalizados                  |
+| jsdom                     | 25.0.1  | Simulacion de entorno de navegador       |
+| @playwright/test          | 1.55.1  | Testing E2E                              |
+| @faker-js/faker           | 10.0.0  | Generacion de datos de prueba            |
 
 ### Metricas
 
-| Metrica               | Valor                                    |
-| --------------------- | ---------------------------------------- |
-| Archivos de test      | 351                                      |
-| Total de tests        | 7,159                                    |
-| Fallos en tests       | 0                                        |
-| Umbrales de cobertura | Lineas 55%, Funciones 55%, Branches 45%  |
-| Mutation testing      | Stryker configurado (umbral minimo: 52%) |
+| Metrica               | Valor                                   |
+| --------------------- | --------------------------------------- |
+| Archivos de test      | 351                                     |
+| Total de tests        | 7,159                                   |
+| Fallos en tests       | 0                                       |
+| Umbrales de cobertura | Lineas 55%, Funciones 55%, Branches 45% |
 
 ### Estrategia
 

@@ -16,12 +16,14 @@ context: |
     Result<T,E> — never throw across layers. JSDoc @file + @layer (domain/application/infrastructure only).
   Testing: backend unit = vitest (apps/api/tests/unit/); backend integration = node:test
     (apps/api/tests/integration/, node --import tsx --test); frontend = vitest + @testing-library;
-    E2E = Playwright; mutation = Stryker. Test env auto-loads .env.test. Strict TDD ENABLED.
+    E2E = Playwright. Test env auto-loads .env.test. Strict TDD ENABLED.
   Style: conventional commits (NO AI attribution); deps exact-pinned; canon-exception markers required;
-    pre-edit tripwire hooks active. Docs only under /docs/. 41 CI fitness functions (hard-zero
+    pre-edit tripwire hooks active. Docs only under /docs/. 42 CI fitness functions (hard-zero
     except the documented ratchets: #30 baseline 21, #38 db-prisma sub-count baseline 11).
-  Env: LXC dev box ~9GB RAM cap. NO docker build locally. NO full test suite at once — run single
-    files with --max-old-space-size + timeout. pnpm db:up before migrations/integration tests.
+  Env: LXC dev box ~9GB RAM cap, V8 default heap 2240 MB (raise with
+    --max-old-space-size for tsc and large runs). Docker and Podman DO work here — the four
+    images were built and Trivy-scanned locally. The full suite DOES run: 8988 tests in apps/api
+    (417s) and 169/169 packages via turbo. pnpm db:up before migrations/integration tests.
 
 # Strict TDD is active: project has extensive coverage + a 0-defect obligation.
 strict_tdd: true
@@ -33,7 +35,6 @@ testing:
     backend_integration: node:test
     frontend: vitest + @testing-library/react
     e2e: playwright
-    mutation: stryker
   commands:
     backend_unit: "pnpm --filter @apps/api test" # vitest run
     backend_unit_coverage: "pnpm --filter @apps/api test:unit:coverage"
@@ -41,7 +42,6 @@ testing:
     backend_all: "pnpm --filter @apps/api test:all"
     frontend: "pnpm --filter @apps/admin test" # vitest
     e2e: "pnpm exec playwright test"
-    mutation: "cd apps/api && pnpm exec stryker run"
     lint: "pnpm lint" # eslint --max-warnings 0
     typecheck: "pnpm typecheck" # turbo run typecheck
     build: "pnpm build" # turbo run build

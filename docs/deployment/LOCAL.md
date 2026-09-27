@@ -305,9 +305,6 @@ pnpm --filter @apps/api test:all
 # Integration tests only
 pnpm --filter @apps/api test:integration
 
-# Mutation testing
-cd apps/api && pnpm exec stryker run
-
 # Lint and format
 pnpm lint
 pnpm format:check

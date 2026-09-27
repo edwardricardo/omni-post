@@ -1,7 +1,7 @@
 /**
  * @file fileUploadValidator.mutations.test.ts
  * @description Mutation-killing tests for FileUploadValidator.
- *              Targets survived mutants from Stryker: boundary conditions, each
+ *              Targets boundary conditions that a weaker assertion would miss: each
  *              code branch, risk escalation, entropy, magic bytes, content patterns.
  * @layer infrastructure
  */

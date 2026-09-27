@@ -23,12 +23,21 @@ import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
+import { findMonorepoRoot } from "@packages/vitest-shared";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// apps/api/tests/setup-env.ts → repo root is three levels up.
-const envFilePath = path.resolve(__dirname, "../../../.env.test");
+// The root is FOUND, not counted, and this is not a preference. A relative
+// "three levels up" is only correct while this file sits at exactly that depth
+// from the root: any tool that runs the suite from a copied or nested working
+// directory lands the offset somewhere else, and the failure is a missing
+// `.env.test` surfacing as `REDIS_URL: expected string, received undefined` —
+// an error that names neither the file nor the path that was wrong. A tool that
+// did exactly that has since been removed, which does not make counting safe
+// again: `findMonorepoRoot` walks up for `pnpm-workspace.yaml`, so the answer is
+// correct from wherever the suite is invoked. Do not replace it with an offset.
+const envFilePath = path.join(findMonorepoRoot(__dirname), ".env.test");
 
 if (existsSync(envFilePath)) {
   dotenv.config({ path: envFilePath });

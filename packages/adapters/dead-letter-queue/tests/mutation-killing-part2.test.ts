@@ -1,7 +1,7 @@
 /**
  * @file Dead Letter Queue — mutation-killing tests (Part 2)
  *
- * Targets surviving Stryker mutants:
+ * Targets the exact boundaries a weaker assertion would let through:
  * ObjectLiteral, BlockStatement, StringLiteral, BooleanLiteral
  *
  * Framework: vitest

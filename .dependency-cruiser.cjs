@@ -191,7 +191,6 @@ module.exports = {
       path: [
         "(^|/)dist/",
         "(^|/)\\.next/",
-        "(^|/)\\.stryker-tmp/",
         "(^|/)reports/",
         "(^|/)coverage/",
         // Generated code (e.g. the Prisma client) is not subject to our

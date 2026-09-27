@@ -5,7 +5,7 @@
  *              production `dist/` `exports` target) when tests run against an unbuilt tree.
  * @layer infrastructure
  */
-import { defineWorkspaceVitestConfig } from "../../../vitest.shared.js";
+import { defineWorkspaceVitestConfig } from "@packages/vitest-shared";
 
 export default defineWorkspaceVitestConfig(import.meta.dirname, {
   test: {

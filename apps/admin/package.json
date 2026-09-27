@@ -39,6 +39,7 @@
     "zustand": "catalog:"
   },
   "devDependencies": {
+    "@packages/vitest-shared": "workspace:*",
     "@axe-core/playwright": "catalog:",
     "@formatjs/icu-messageformat-parser": "catalog:",
     "@playwright/test": "catalog:",
@@ -46,8 +47,6 @@
     "@storybook/addon-docs": "catalog:",
     "@storybook/nextjs": "catalog:",
     "@storybook/test-runner": "0.24.4",
-    "@stryker-mutator/core": "catalog:",
-    "@stryker-mutator/vitest-runner": "catalog:",
     "@tailwindcss/postcss": "catalog:",
     "@testing-library/dom": "catalog:",
     "@testing-library/jest-dom": "catalog:",

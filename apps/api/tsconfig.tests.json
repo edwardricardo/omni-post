@@ -1,0 +1,63 @@
+{
+  // The third typecheck scope: `apps/api/tests`, which NO tsconfig opened.
+  //
+  // `tsconfig.json` includes `src` only and `tsconfig.type-tests.json` includes
+  // `tests/**/*.type-test.ts` only (2 files of 749), so 747 test files were
+  // compiled by nothing. Both test runners are transpile-only — vitest strips
+  // types through esbuild, node:test through tsx — so no type in a test file was
+  // ever checked by anything. A test double could declare `implements SomePort`,
+  // drift away from that port, and keep reporting green: the compiler was always
+  // able to catch it, nobody ever ran the compiler over it.
+  //
+  // This config is that scope. It is a SEPARATE config rather than a widening of
+  // `tsconfig.type-tests.json` because the two carry OPPOSITE verdicts: the
+  // type-test pins are hard-zero and fail the `typecheck` task outright, while
+  // this scope opens with a large measured debt and is therefore a RATCHET
+  // (scripts/typecheck-tests-ratchet.mjs). Merging them would convert an
+  // existing hard-zero gate into a ratcheted one — a strictly weaker gate
+  // wearing the old gate's name.
+  //
+  // It inherits `tsconfig.json`, so `strict`, `exactOptionalPropertyTypes`,
+  // `noUncheckedIndexedAccess` and every other flag are exactly the ones `src`
+  // is held to. A test scope compiled under looser flags would produce a number
+  // that means nothing.
+  //
+  // The `tests/**/*.ts` glob is a SUPERSET of the type-test glob on purpose: the
+  // 2 pin files are clean, so they contribute 0 to the ratchet, and a superset
+  // cannot leave a hole if the sibling config is ever narrowed.
+  //
+  // The include is `tsconfig.json`'s OWN list plus the tests glob, and `src` is
+  // in it for a reason that is not redundancy. A child `include` REPLACES the
+  // parent's, and dropping `src` does not merely skip files the tests already
+  // import — it drops `src/types/fastify.d.ts` as a ROOT file, and with it the
+  // `declare module "fastify"` augmentation that gives `FastifyInstance` its
+  // `container` and `FastifyRequest` its principal. Measured: without `src`,
+  // this program manufactured 326 TS2339 errors across ~85 route files that the
+  // hard-zero pass reports as clean — a phantom population, produced by the
+  // scope rather than found by it. Listing `src` makes the ambient environment
+  // identical to the pass those files are actually held to, which is the only
+  // way the number below means the same thing the other number means.
+  //
+  // COUPLED EXPRESSION: one test imports `vitest.config.ts`, which imports the
+  // ROOT `vitest.shared.ts`, so this program is the first compiler to open that
+  // root file. Turbo hashes a package task from that package's inputs plus
+  // `globalDependencies` and nothing else, so an edit to `vitest.shared.ts`
+  // would have invalidated NO cache entry and a cached green `typecheck` would
+  // have replayed over it. `vitest.shared.ts` is therefore listed in
+  // `turbo.json` `globalDependencies`; if this scope ever stops reaching it,
+  // that entry stops being load-bearing and should go with it.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "types": ["node"]
+  },
+  "include": [
+    "tests/**/*.ts",
+    "src",
+    "../../packages/*/src/**/*",
+    "../../packages/core/*/src/**/*",
+    "../../infra/*/src/**/*"
+  ],
+  "exclude": ["node_modules", "dist", "build", ".turbo", ".next", "coverage"]
+}

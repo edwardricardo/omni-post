@@ -6,7 +6,8 @@
     "tsconfig.build.base.json",
     "tsconfig.build.json",
     "tsconfig.json",
-    ".env.example"
+    ".env.example",
+    "vitest.shared.ts"
   ],
   "tasks": {
     "build": {
@@ -15,7 +16,15 @@
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "typecheck": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "//#typecheck:configs"],
+      "outputs": []
+    },
+    "//#typecheck:configs": {
+      "inputs": [
+        "**/vitest*.config.ts",
+        "tsconfig.vitest-configs.json",
+        "packages/vitest-shared/src/**"
+      ],
       "outputs": []
     },
     "lint": {
@@ -42,12 +51,6 @@
       "dependsOn": ["@shared/types#build"],
       "cache": false,
       "persistent": true
-    },
-    "mutation": {
-      "dependsOn": ["^build", "test"],
-      "env": ["DATABASE_URL", "REDIS_URL"],
-      "outputs": ["reports/mutation/**", "reports/stryker-incremental.json"],
-      "cache": true
     }
   }
 }

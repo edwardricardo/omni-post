@@ -156,7 +156,7 @@ similar. Not immediate.
 
 | Risk                                                        | Mitigation                                                                                                                                     |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Direct `pino` import slips into apps/api                    | Fitness `#13 No direct pino imports in apps/api` hard-zero CI gate, excluding the factory file itself + tests + stryker sandboxes.             |
+| Direct `pino` import slips into apps/api                    | Fitness `#13 No direct pino imports in apps/api` hard-zero CI gate, excluding the factory file itself + tests.                                 |
 | New sensitive field not added to `REDACT_PATHS`             | Code review heuristic + `docs/architecture/logging.md` threat-model doc explicitly enumerates the kinds of fields that need redaction.         |
 | Case-sensitivity bypasses redaction (e.g., `AUTHORIZATION`) | `REDACT_PATHS` lists case variations explicitly for critical headers; documented in CLAUDE.md.                                                 |
 | Domain code accidentally logs                               | Fitness `#2 Domain layer is framework-free` + code review: any `logger.*` call in `packages/core/domain/` is a red flag.                       |

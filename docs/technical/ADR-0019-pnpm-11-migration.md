@@ -67,9 +67,8 @@ its stricter dedupe surfaced. Concretely:
      `unrs-resolver`. Denying them = the same install artifact pnpm 10 produced.
 
 4. **`.npmrc` non-auth settings moved to `pnpm-workspace.yaml`** — pnpm 11 reads
-   **only auth/registry keys** from `.npmrc`. The two non-auth keys were moved
-   and renamed to their YAML settings form:
-   - `public-hoist-pattern[]=@stryker-mutator/*` → `publicHoistPattern`;
+   **only auth/registry keys** from `.npmrc`. Each non-auth key was moved and
+   renamed to its YAML settings form:
    - `save-prefix=""` → `savePrefix`.
 
 5. **`minimumReleaseAge: 0` set explicitly** — pnpm 11 introduces a new default
@@ -136,8 +135,9 @@ its stricter dedupe surfaced. Concretely:
 - **Config relocation is mandatory, not stylistic.** pnpm 11 does not read the
   `pnpm` field in `package.json` nor non-auth keys in `.npmrc`. Leaving them
   there is not "harmless duplication" — it is **silently dead config**: the
-  overrides, GHSA ignores, hoist pattern, and save-prefix would simply stop
-  applying. Relocation preserves every existing invariant.
+  overrides, GHSA ignores, hoist pattern (present at migration time; the repo's
+  only hoist entry was removed later, on 2026-09-26), and save-prefix would
+  simply stop applying. Relocation preserves every existing invariant.
 - **`allowBuilds` exhaustiveness demands the extra 15 denials.** Under pnpm 11,
   an unlisted build-script package is a prompt/ambiguity, not a silent skip. To
   reproduce pnpm 10's exact install artifact (where only the 4 allowlisted
@@ -195,9 +195,9 @@ ledger is untouched; only its **file location** moved from
   exits **0**, with the 2 accepted advisories still ignored via the migrated
   allowlist.
 - One source of truth for pnpm config: `pnpm-workspace.yaml` now holds
-  overrides, GHSA ignores, patches, allowlist, hoist pattern, save-prefix, and
-  freshness — the `package.json` `pnpm` field and the `.npmrc` non-auth keys no
-  longer diverge from what pnpm actually reads.
+  overrides, GHSA ignores, patches, allowlist, save-prefix, and freshness — the
+  `package.json` `pnpm` field and the `.npmrc` non-auth keys no longer diverge
+  from what pnpm actually reads.
 - The vite catalog is a single `8.0.16`; `apps/client` gains the same
   `@vitejs/plugin-react` test substrate `apps/admin` already had. No dedupe gate
   weakening.
@@ -224,7 +224,7 @@ ledger is untouched; only its **file location** moved from
 - The **6 CVE-floor overrides** still resolve to their pins: `tough-cookie
 4.1.3`, `@hono/node-server 1.19.13`, `axios 1.17.0`, `form-data`, `ws`,
   `validator`.
-- The `@secretlint/node` patch applies; `@stryker-mutator/*` is hoisted.
+- The `@secretlint/node` patch applies.
 - Test suites: backend security **658/658**; frontend client **510/510** +
   admin **106/106**.
 - **No dependency version drift** beyond the intended vite 7→8 collapse and the

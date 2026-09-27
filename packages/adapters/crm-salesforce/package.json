@@ -21,6 +21,7 @@
     "test:unit": "vitest run"
   },
   "devDependencies": {
+    "@packages/vitest-shared": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

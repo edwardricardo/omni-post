@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.type-tests.json",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.type-tests.json && node scripts/typecheck-tests-ratchet.mjs",
     "dev": "node --conditions development --env-file=../../.env --import tsx src/index.ts",
     "dev:test": "cross-env NODE_ENV=test node --conditions development --import tsx src/index.ts",
     "dump:openapi": "SCHEMA_ONLY=true node --conditions development --env-file=../../.env --import tsx scripts/dump-openapi-spec.ts",
@@ -50,9 +50,7 @@
     "perf:postgres": "cross-env NODE_ENV=test tsx ../../performance/database/postgres-stress.test.ts",
     "perf:memory": "cross-env NODE_ENV=test tsx ../../performance/monitoring/memory-leak-detector.ts",
     "perf:baseline": "cross-env NODE_ENV=test tsx ../../performance/scripts/baseline-capture.ts",
-    "perf:regression": "cross-env NODE_ENV=test tsx ../../performance/monitoring/regression-detector.ts",
-    "mutation": "stryker run",
-    "mutation:open": "stryker run && open reports/mutation/index.html"
+    "perf:regression": "cross-env NODE_ENV=test tsx ../../performance/monitoring/regression-detector.ts"
   },
   "dependencies": {
     "@adapters/cache-redis": "workspace:*",
@@ -176,6 +174,7 @@
     "zod-to-json-schema": "3.25.2"
   },
   "devDependencies": {
+    "@packages/vitest-shared": "workspace:*",
     "@faker-js/faker": "10.5.0",
     "@fastify/rate-limit": "10.3.0",
     "@types/jsonwebtoken": "9.0.10",

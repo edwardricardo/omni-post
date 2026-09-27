@@ -36,6 +36,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@packages/vitest-shared": "workspace:*",
     "@types/node": "catalog:",
     "aws-sdk-client-mock": "4.1.0",
     "typescript": "catalog:",

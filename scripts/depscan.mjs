@@ -15,7 +15,7 @@ const PKG_ROOTS = ["packages", "apps", "infra"];
 /** Recursively collect package.json files (skip node_modules / dist / .next). */
 function findPackageJsons(dir, out = []) {
   for (const entry of readdirSync(dir)) {
-    if (["node_modules", "dist", ".next", ".stryker-tmp", "graphify-out"].includes(entry)) continue;
+    if (["node_modules", "dist", ".next", "graphify-out"].includes(entry)) continue;
     const full = join(dir, entry);
     const s = statSync(full);
     if (s.isDirectory()) findPackageJsons(full, out);
@@ -28,7 +28,7 @@ function findPackageJsons(dir, out = []) {
 function findSources(dir, out = []) {
   if (!safeStat(dir)) return out;
   for (const entry of readdirSync(dir)) {
-    if (["node_modules", "dist", ".next", ".stryker-tmp", "graphify-out"].includes(entry)) continue;
+    if (["node_modules", "dist", ".next", "graphify-out"].includes(entry)) continue;
     const full = join(dir, entry);
     const s = statSync(full);
     if (s.isDirectory()) findSources(full, out);

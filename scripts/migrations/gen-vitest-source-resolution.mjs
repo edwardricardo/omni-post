@@ -99,15 +99,20 @@ function hasTsxTests(pkgDir) {
 }
 
 /**
- * Builds the relative import path from a package dir to the root `vitest.shared.js`.
+ * The specifier every generated config imports the shared factory by.
  *
- * @param {string} pkgDirRel - Package directory relative to root.
- * @returns {string} POSIX relative import specifier.
+ * It is a PACKAGE name, not a relative path, and computing one from the package
+ * directory is exactly what this used to do. A relative path is only correct while
+ * the config sits at the depth it was generated for: any runner that executes the
+ * suite from a COPY of the tree resolves `../../vitest.shared` to nothing, and the
+ * whole config dies at load. A package specifier resolves through `node_modules`,
+ * which such a copy symlinks back to the real tree, so it holds either way. Do not
+ * "simplify" this back into a computed relative path.
+ *
+ * @returns {string} The workspace specifier.
  */
-function sharedImport(pkgDirRel) {
-  const rel = relative(join(ROOT, pkgDirRel), ROOT) || ".";
-  const posix = rel.split(/[\\/]/).join("/");
-  return `${posix}/vitest.shared.js`;
+function sharedImport() {
+  return "@packages/vitest-shared";
 }
 
 let created = 0;
@@ -135,7 +140,19 @@ for (const glob of WORKSPACE_GLOBS) {
       testBody = `    include: ${include},`;
     }
 
-    const importSpecifier = sharedImport(pkgDirRel);
+    // The generated config imports a WORKSPACE PACKAGE now, so the manifest has
+    // to declare it or the config resolves nothing. Writing the config without
+    // the dependency would hand the next reader a file that cannot load, which
+    // is worse than the relative path this replaced.
+    if (!pj.devDependencies?.["@packages/vitest-shared"]) {
+      pj.devDependencies = {
+        "@packages/vitest-shared": "workspace:*",
+        ...(pj.devDependencies ?? {}),
+      };
+      writeFileSync(join(pkgDir, "package.json"), `${JSON.stringify(pj, null, 2)}\n`);
+    }
+
+    const importSpecifier = sharedImport();
     const content = `/**
  * @file vitest.config.ts
  * @description Vitest config for ${pj.name}. Delegates to the shared workspace factory so

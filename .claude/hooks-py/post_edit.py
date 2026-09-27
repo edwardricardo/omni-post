@@ -34,7 +34,6 @@ SKIP_SUBSTRINGS = (
     "node_modules/",
     "/dist/",
     "/.next/",
-    "/.stryker-tmp/",
     "/coverage/",
     "/reports/",
     "/.test.",

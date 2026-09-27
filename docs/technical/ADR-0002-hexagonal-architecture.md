@@ -67,8 +67,8 @@ themselves are **shared, never duplicated** across deployables.
    consumer **and** (future) from an MCP tool — without duplication. The
    modular Fastify model forces re-implementation per executable.
 2. **Testability.** Use cases test against in-memory port fakes — no
-   Prisma, no BullMQ, no provider SDKs in unit tests. Mutation testing
-   (Stryker, see ADR-0012) is feasible because the domain is pure.
+   Prisma, no BullMQ, no provider SDKs in unit tests. The domain is pure,
+   so its behaviour is verifiable without any infrastructure at all.
 3. **Swap-ability.** Replacing Fastify with Hono, or Prisma with Drizzle,
    touches infrastructure adapters only. The 56+ mutating use cases stay
    the same.

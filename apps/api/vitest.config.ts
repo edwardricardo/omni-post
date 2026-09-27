@@ -11,7 +11,7 @@
  */
 import { defineConfig } from "vitest/config";
 import { shardedThresholdOverride } from "./vitest.coverage-thresholds.js";
-import { buildWorkspaceAliases, findMonorepoRoot } from "../../vitest.shared.js";
+import { buildWorkspaceAliases, findMonorepoRoot } from "@packages/vitest-shared";
 
 // When CI shards the suite across jobs, each shard runs only part of the tests,
 // so coverage thresholds are neutralised per shard and enforced once on the merged
@@ -35,9 +35,6 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    // A committed `.only()` silently skips the rest of the suite. Fail the run
-    // instead of shipping a partial suite (canon: "Zero .only() committed").
-    forbidOnly: true,
     // Load `.env.test` BEFORE any test file's transitive import reaches
     // `apps/api/src/config/env.ts` and triggers Zod validation. Replaces the
     // prior `test.env = { DATABASE_URL: dummy }` workaround, which fired too

@@ -37,6 +37,7 @@ function createMockReply(): FastifyReply & { body: any; getAllHeaders: () => Rec
     sent: false,
     body: null,
     getHeader: (name: string) => headers[name.toLowerCase()],
+    hasHeader: (name: string) => headers[name.toLowerCase()] !== undefined,
     header(name: string, value: any) {
       headers[name.toLowerCase()] = value;
       return reply;

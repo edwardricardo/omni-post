@@ -1,0 +1,26 @@
+{
+  // Every vitest config in the repo, in ONE tsc program.
+  //
+  // They were in NO program before: each config sits at its package root while
+  // each package tsconfig includes `src`, so a key vitest does not know passed
+  // in silence. `forbidOnly` -- a PLAYWRIGHT option absent from every file of
+  // vitest 4.1.11 -- lived in six of them without gating anything.
+  //
+  // Why one central program and not each package's own tsconfig: ten packages
+  // declare `rootDir: "src"`, and a config at the package root is then TS6059
+  // "not under rootDir". Dropping rootDir would change those packages' build
+  // output, which is far more than this needs.
+  //
+  // The include is a GLOB on purpose. An explicit list goes stale the day
+  // someone adds a package, and would then need its own gate to watch the list.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "skipLibCheck": true
+  },
+  "include": ["**/vitest*.config.ts"],
+  "exclude": ["**/node_modules/**", "**/dist/**", "**/.next/**", "**/.turbo/**"]
+}

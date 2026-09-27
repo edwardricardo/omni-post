@@ -14,7 +14,7 @@
 import path from "node:path";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
-import { buildWorkspaceAliases, findMonorepoRoot } from "../../vitest.shared";
+import { buildWorkspaceAliases, findMonorepoRoot } from "@packages/vitest-shared";
 
 const root = findMonorepoRoot(__dirname);
 
@@ -48,10 +48,6 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/unit/setup.ts"],
     globals: true,
-    // A committed `.only()` silently reduces the suite to one test and still
-    // exits 0, so CI reports green on a run that proved almost nothing. Fail the
-    // run instead (canon: "Zero .only() committed"); apps/api sets the same flag.
-    forbidOnly: true,
     exclude: [
       "**/node_modules/**",
       "**/e2e/**",
