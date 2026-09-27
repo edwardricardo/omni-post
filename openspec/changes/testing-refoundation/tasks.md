@@ -84,9 +84,9 @@ Chain strategy: stacked-to-main
 
 ### 0.2 · `refound/0-toolchain-measure` — the lag table, measured · **BATCH 2**
 
-- [ ] 0.2.1 **Measured** WU-T.4(a) · testing-toolchain-alignment › The freshness comparator is "latest mature", never "latest" · plan T.4(a) · CODE ~30 · slice `refound/0-toolchain-measure` — run `pnpm outdated -r --format json` + `pnpm view <pkg> time --json`; write the tracker table dep · installed · **latest mature** (≥ 7 days, ADR-0018) · documented hold (yes/no, where) · CVE floor. EVIDENCE ~120.
-- [ ] 0.2.2 WU-T.4(a) · testing-toolchain-alignment › A bump that crosses into production or raises the runtime floor is its own decision · CODE ~10 · slice `refound/0-toolchain-measure` — mark in the same table which rows cross into production or raise `engines.node` (jsdom 30, TypeScript 6→7, `@vitejs/plugin-react` 5→6, `@eslint/js` 9→10) and route each to its own slice or hold.
-- [ ] 0.2.3 Tracker: the T.4 lag table lands as a tracker section; no metric moves yet · CODE ~4 · slice `refound/0-toolchain-measure`.
+- [x] 0.2.1 **Measured** WU-T.4(a) · testing-toolchain-alignment › The freshness comparator is "latest mature", never "latest" · plan T.4(a) · CODE ~30 · slice `refound/0-toolchain-measure` — run `pnpm outdated -r --format json` + `pnpm view <pkg> time --json`; write the tracker table dep · installed · **latest mature** (≥ 7 days, ADR-0018) · documented hold (yes/no, where) · CVE floor. EVIDENCE ~120.
+- [x] 0.2.2 WU-T.4(a) · testing-toolchain-alignment › A bump that crosses into production or raises the runtime floor is its own decision · CODE ~10 · slice `refound/0-toolchain-measure` — mark in the same table which rows cross into production or raise `engines.node` (jsdom 30, TypeScript 6→7, `@vitejs/plugin-react` 5→6, `@eslint/js` 9→10) and route each to its own slice or hold.
+- [x] 0.2.3 Tracker: the T.4 lag table lands as a tracker section; no metric moves yet · CODE ~4 · slice `refound/0-toolchain-measure`.
 
 ### 0.3 · `refound/0-toolchain-holds` — the holds gate and the corrected holds table · **BATCH 3**
 
