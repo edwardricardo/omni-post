@@ -385,7 +385,7 @@ America Latina representa una oportunidad particular para OmniPost por varias ra
 
 OmniPost no es un pitch deck ni un mockup. Es un producto funcional construido con estandares de ingenieria de nivel enterprise:
 
-- **7,159 tests automatizados** con 0 failures -- incluyendo unit, integration y mutation testing
+- **7,159 tests automatizados** con 0 failures -- unit, integration y E2E
 - **Arquitectura hexagonal** con Domain-Driven Design -- la misma que usan Spotify, Netflix y Mercado Libre para sistemas que escalan
 - **Zero `any` types** en codigo de produccion -- TypeScript strict mode con enforcement total
 - **14 colas de procesamiento** para operaciones asincronas -- publicacion, analytics, inbox sync, AI, repurposing, triage, trends

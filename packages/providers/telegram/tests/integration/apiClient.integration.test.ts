@@ -3,8 +3,8 @@
  * @description Integration tests for TelegramApiClient.
  * Requires: real Telegram Bot Token + test channel
  *
- * Excluded from Stryker unit mutation scope because all methods wrap
- * fetch() + circuit breaker plumbing. These tests verify real API behavior.
+ * Kept out of the unit scope because all methods wrap fetch() + circuit breaker
+ * plumbing: these tests verify real API behaviour and need live credentials.
  *
  * Run: TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... pnpm exec vitest run tests/integration/
  * @layer infrastructure

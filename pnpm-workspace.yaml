@@ -40,15 +40,10 @@ allowBuilds:
   unrs-resolver: false
   utf-8-validate: false
 
-# Moved out of .npmrc: pnpm 11 reads ONLY auth/registry keys from .npmrc, so the
-# non-auth settings live here now (ADR-0019). Hoist stryker packages to the
-# workspace root so all packages can run mutation tests without per-package
-# devDependency declarations.
-publicHoistPattern:
-  - "@stryker-mutator/*"
-
 # `pnpm add` writes an exact spec (no caret range), backing the ADR-0018
-# "no ^ ~ * >=" rule at the tooling level before syncpack lints it.
+# "no ^ ~ * >=" rule at the tooling level before syncpack lints it. Moved out of
+# .npmrc: pnpm 11 reads ONLY auth/registry keys from there, so the non-auth
+# settings live here now (ADR-0019).
 savePrefix: ""
 
 # Install-time freshness gate (minutes). Held at 0 to preserve pnpm-10 behavior;
@@ -175,9 +170,6 @@ catalog:
   # @vitest/* family (peer = vitest 4.1.11)
   "@vitest/coverage-v8": 4.1.11
   "@vitest/ui": 4.1.11
-  # @stryker-mutator/* family (atomic; core is exact peer of vitest-runner)
-  "@stryker-mutator/core": 9.6.1
-  "@stryker-mutator/vitest-runner": 9.6.1
   # Storybook family (atomic; 10.4.6 = vite 8 peer)
   storybook: 10.4.6
   "@storybook/addon-a11y": 10.4.6

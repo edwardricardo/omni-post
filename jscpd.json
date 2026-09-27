@@ -8,7 +8,6 @@
     "**/node_modules/**",
     "**/dist/**",
     "**/.next/**",
-    "**/.stryker-tmp/**",
     "**/coverage/**",
     "**/build/**",
     "**/*.test.ts",

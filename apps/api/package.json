@@ -50,9 +50,7 @@
     "perf:postgres": "cross-env NODE_ENV=test tsx ../../performance/database/postgres-stress.test.ts",
     "perf:memory": "cross-env NODE_ENV=test tsx ../../performance/monitoring/memory-leak-detector.ts",
     "perf:baseline": "cross-env NODE_ENV=test tsx ../../performance/scripts/baseline-capture.ts",
-    "perf:regression": "cross-env NODE_ENV=test tsx ../../performance/monitoring/regression-detector.ts",
-    "mutation": "stryker run",
-    "mutation:open": "stryker run && open reports/mutation/index.html"
+    "perf:regression": "cross-env NODE_ENV=test tsx ../../performance/monitoring/regression-detector.ts"
   },
   "dependencies": {
     "@adapters/cache-redis": "workspace:*",

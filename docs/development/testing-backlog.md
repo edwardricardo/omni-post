@@ -57,7 +57,7 @@ Single source of truth for testing debt.
 | TypeScript type definitions                      | ~40      | Compile-time only        |
 | index.ts barrel re-exports                       | ~45      | No logic                 |
 | DI container setup (apps/api)                    | 20       | Composition root         |
-| Config files (vitest, stryker, playwright)       | ~12      | Configuration            |
+| Config files (vitest, playwright)                | 88       | Configuration            |
 | Storybook stories                                | ~15      | Documentation            |
 | Radix UI primitive wrappers (packages/ui)        | 25       | Thin forwardRef wrappers |
 | Next.js layout/error/loading pages               | ~12      | Framework pages          |
@@ -88,20 +88,6 @@ Single source of truth for testing debt.
 | apps/workers/tests/integration/reportGenerationWorker.integration.test.ts     | 10      | PostgreSQL + Redis         |
 | apps/client/tests/integration/ConcurrentRenderer.integration.test.ts          | 7       | jsdom/happy-dom            |
 | **Total**                                                                     | **103** |                            |
-
----
-
-## Mutation Score Improvement Opportunities
-
-| Target               | Current    | Potential      | What's Needed                                   |
-| -------------------- | ---------- | -------------- | ----------------------------------------------- |
-| apps/api NoCoverage  | 48% no-cov | Reduce to ~20% | Write tests for 85 Class A use cases            |
-| storage-s3           | 43.61%     | 65%+           | ICircuitBreaker injection + aws-sdk-client-mock |
-| cache-redis          | 58.37%     | 70%+           | More middleware integration tests               |
-| api-common           | 51.48%     | 55% ceiling    | Zod schema literals (equivalent mutants)        |
-| adapters (all)       | 35-60%     | 65-80%         | ICircuitBreaker interface extraction            |
-| domain value objects | partial    | 80%+           | 27 VOs need dedicated test files                |
-| IngestSocialMessage  | 47.73%     | 75%+           | More threading/idempotency edge cases           |
 
 ---
 

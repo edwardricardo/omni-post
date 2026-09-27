@@ -22,11 +22,5 @@
     "skipLibCheck": true
   },
   "include": ["**/vitest*.config.ts"],
-  "exclude": [
-    "**/node_modules/**",
-    "**/dist/**",
-    "**/.next/**",
-    "**/.turbo/**",
-    "**/.stryker-tmp/**"
-  ]
+  "exclude": ["**/node_modules/**", "**/dist/**", "**/.next/**", "**/.turbo/**"]
 }

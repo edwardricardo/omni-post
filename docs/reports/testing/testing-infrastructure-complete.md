@@ -1,26 +1,32 @@
 # OmniPost Testing Infrastructure — Complete Reference
 
+> **HISTORICAL — do not read as current state (marked 2026-09-26).**
+> This report dates from 2026-03-25. One of its claims is no longer true: the sections
+> describing `apps/api/src/domain/` and `apps/api/src/application/` refer to directories
+> that were relocated to `packages/core/`. Separately, every test and file count below is
+> a 2026-03-25 measurement that was never re-taken — a provenance limit, not a falsehood.
+> Read it as a record of what was believed at the time, not as a description of the
+> repository.
+
 Last updated: 2026-03-25
 
 ---
 
 ## Overview
 
-OmniPost uses a layered testing strategy covering unit tests, mutation testing, UI integration tests, and a nightly CI pipeline. This document describes what is tested, how, and what remains as planned future work.
+OmniPost uses a layered testing strategy covering unit tests, integration tests, UI integration tests, and a nightly CI pipeline. This document describes what is tested, how, and what remains as planned future work.
 
 ---
 
 ## Testing Stack
 
-| Layer             | Tool                           | Version  | Purpose                                  |
-| ----------------- | ------------------------------ | -------- | ---------------------------------------- |
-| Unit tests        | Vitest                         | 4.0.18   | Domain logic, use cases, adapters, hooks |
-| Integration tests | node:test                      | Built-in | DB + Redis integration                   |
-| Mutation testing  | Stryker Mutator                | 9.6.0    | Verify test quality                      |
-| Mutation runner   | @stryker-mutator/vitest-runner | 9.6.0    | Connects Stryker to Vitest               |
-| UI integration    | @testing-library/react         | 16.x     | React hooks and context                  |
-| CI — PR pipeline  | GitHub Actions (ci.yml)        | —        | Unit tests on push/PR                    |
-| CI — Nightly      | GitHub Actions (nightly.yml)   | —        | Full suite + mutation                    |
+| Layer             | Tool                         | Version  | Purpose                                  |
+| ----------------- | ---------------------------- | -------- | ---------------------------------------- |
+| Unit tests        | Vitest                       | 4.0.18   | Domain logic, use cases, adapters, hooks |
+| Integration tests | node:test                    | Built-in | DB + Redis integration                   |
+| UI integration    | @testing-library/react       | 16.x     | React hooks and context                  |
+| CI — PR pipeline  | GitHub Actions (ci.yml)      | —        | Unit tests on push/PR                    |
+| CI — Nightly      | GitHub Actions (nightly.yml) | —        | Full suite, uncached                     |
 
 ---
 
@@ -36,67 +42,6 @@ OmniPost uses a layered testing strategy covering unit tests, mutation testing, 
 | packages/adapters (8 adapters)          | 43         | ~400        | All pass     |
 | packages/core + api-common + monitoring | 4          | ~50         | All pass     |
 | **Total**                               | **~511**   | **~7,742+** | **All pass** |
-
----
-
-## Mutation Testing Coverage
-
-### Overall
-
-| Metric                             | Value                          |
-| ---------------------------------- | ------------------------------ |
-| Stryker configurations             | 61 total (26 micro + 35 other) |
-| Total mutants monitored (apps/api) | 24,611                         |
-| Covered mutation score (apps/api)  | 63.8%                          |
-| NoCoverage mutants (apps/api)      | 48%                            |
-
-### By Target (covered score)
-
-| Target                     | Score  | Notes                     |
-| -------------------------- | ------ | ------------------------- |
-| packages/core              | 94.12% | Excellent                 |
-| providers/telegram         | 83.54% |                           |
-| providers/linkedin         | 77.45% |                           |
-| apps/admin                 | 76.60% |                           |
-| providers/tiktok           | 73.88% |                           |
-| providers/pinterest        | 73.68% |                           |
-| providers/instagram        | 71.29% |                           |
-| providers/bluesky          | 70.09% |                           |
-| providers/x                | 67.39% |                           |
-| adapters/dead-letter-queue | 68.45% |                           |
-| apps/workers               | 66.80% |                           |
-| providers/snapchat         | 62.85% |                           |
-| providers/facebook         | 60.61% |                           |
-| adapters/db-prisma         | 58.54% |                           |
-| adapters/cache-redis       | 58.37% |                           |
-| apps/client                | 55.89% | hooks excluded from scope |
-| packages/api-common        | 51.48% |                           |
-| adapters/storage-s3        | 43.61% |                           |
-
-### Targeted File Scores (Sessions B-F3)
-
-| File                          | Score  | Session |
-| ----------------------------- | ------ | ------- |
-| ConfigureExternalNotification | 100%   | C       |
-| subscriptionSchemas           | 93.88% | B       |
-| SetFirstComment               | 92.86% | C       |
-| GetUsage                      | 91.30% | C       |
-| ApprovalStatus                | 90.57% | B       |
-| RevenueCalculator             | 88.24% | B       |
-| MarkMessageRead               | 84.62% | D       |
-| DiffCalculator                | 80.92% | B       |
-| UpsertBrandVoice              | 80.39% | C       |
-| CostCalculator                | 71.93% | B       |
-
-### Known Score Ceilings
-
-| Target              | Ceiling | Root cause                                        |
-| ------------------- | ------- | ------------------------------------------------- |
-| storage-s3          | ~45%    | CircuitBreaker absorbs S3Client calls             |
-| cache-redis         | ~60%    | CircuitBreaker + Fastify plugin scope             |
-| api-common          | ~55%    | Zod schema string literals (type-safe at compile) |
-| Provider apiClients | ~35%    | CircuitBreaker + real HTTP                        |
-| apps/api NoCoverage | 48%     | 11,827 mutants with zero test coverage            |
 
 ---
 
@@ -120,13 +65,13 @@ OmniPost uses a layered testing strategy covering unit tests, mutation testing, 
 
 ### Provider Adapters (packages/providers/)
 
-All 10 providers tested: X, Instagram, Facebook, YouTube, TikTok, LinkedIn, Pinterest, Snapchat, Telegram, Bluesky. Tests cover publish, analytics, error handling, media. apiClient files excluded from Stryker (integration scope).
+All 10 providers tested: X, Instagram, Facebook, YouTube, TikTok, LinkedIn, Pinterest, Snapchat, Telegram, Bluesky. Tests cover publish, analytics, error handling, media.
 
 ### apps/client
 
 - **Hook tests** (renderHook): useAutoSave (12), useProviders (10), authContext (8)
-- **Stryker scope**: lib/providers/registry.ts, lib/utils/, lib/templates/
-- **registry.ts optimalTimesCache**: Static config — ~200 survivors are equivalent mutants
+- **Unit-test focus**: lib/providers/registry.ts, lib/utils/, lib/templates/
+- **registry.ts optimalTimesCache**: static configuration data, not behaviour
 
 ---
 
@@ -148,37 +93,19 @@ React components (admin 166, client 79, packages/ui 19). Needs Playwright.
 
 7 admin services + 3 packages with hardcoded Prisma/CircuitBreaker. Fix: inject via constructor (~2 days).
 
----
+### Score ceilings recorded 2026-03-25 — the metric is gone, the leads are not
 
-## Stryker Configuration Map
+This report recorded per-target ceilings for a quality score the repo no longer produces. Those percentages cannot be reproduced and are deliberately NOT restated in other units. The root causes recorded against three of the targets survive as leads, unverified at this date:
 
-| Config Type                      | Count  | When to run         |
-| -------------------------------- | ------ | ------------------- |
-| Per-package (providers/adapters) | 16     | PR verification     |
-| Per-app (admin/client/workers)   | 3      | PR verification     |
-| Micro-batch (A1-H1)              | 26     | Targeted directory  |
-| Batch (1-8)                      | 8      | Full baseline       |
-| Targeted (feature-only)          | 5      | After writing tests |
-| Root config                      | 1      | Base only           |
-| Micro-batch runner script        | 1      | Orchestration       |
-| Batch runner script              | 1      | Orchestration       |
-| **Total**                        | **61** |                     |
+| Target      | Root cause recorded 2026-03-25                    |
+| ----------- | ------------------------------------------------- |
+| storage-s3  | CircuitBreaker absorbs S3Client calls             |
+| cache-redis | CircuitBreaker + Fastify plugin scope             |
+| api-common  | Zod schema string literals (type-safe at compile) |
 
-**Running mutation tests:**
+The fourth target it recorded — **provider apiClients, root cause "CircuitBreaker + real HTTP"** — is contradicted by the tree and must NOT be read as a reason to skip unit tests. Re-measured 2026-09-26: **14 committed vitest unit suites construct provider apiClients directly**, all outside `tests/integration/`. Two families are regression anchors for closed defects: the **seven** `*ApiClient.writeFailFast.test.ts` (all added by commit `6d92e8bf`), which pin behaviourally the same invariant fitness #25 enforces statically — no write-path fallback, no synthetic receipt — and the **four** `*ApiClient.cacheIsolation.test.ts` (three added by `d183cdae`, the facebook one by `3fb15c76`), which hold the N-SEC-1 circuit-breaker cross-tenant disclosure fix. The "New provider" checklist below asks for an integration stub; that is a floor, not a ceiling, and the CircuitBreaker does not stand between a unit test and an apiClient.
 
-```bash
-# Single package (fast — for PRs)
-cd packages/providers/x && pnpm exec stryker run
-
-# Specific files (fastest — after writing tests)
-cd apps/api && pnpm exec stryker run --mutate "src/domain/aggregates/PostAggregate.ts"
-
-# Full apps/api via Turborepo (slow — nightly)
-pnpm turbo run mutation
-
-# Individual micro-batch
-cd apps/api && node stryker-micro-batches.mjs A2
-```
+The apps/api figure this section used to carry — a share of uncovered mutants — is left OUT rather than converted, because a mutant-coverage share and a line-coverage share are not the same measurement and swapping one for the other is the substitution this correction exists to remove. The live, reproducible substrate is the four ratcheted floors in `apps/api/vitest.config.ts`, gated by fitness #37 (measured 2026-09-26: lines 56.8, functions 57.3, branches 47.8, statements 56.2).
 
 ---
 
@@ -189,14 +116,11 @@ cd apps/api && node stryker-micro-batches.mjs A2
 - Runs on push/PR
 - `pnpm turbo run test` (cached)
 - Gate: all tests must pass
-- No mutation testing (too slow for PR)
 
 ### Nightly Pipeline (nightly.yml — 3 AM UTC)
 
 - Node.js 24, PostgreSQL 15, Redis 7
 - `pnpm turbo run test --force` (no cache)
-- `pnpm turbo run mutation --force` (incremental Stryker)
-- Uploads mutation HTML reports as artifacts (30-day retention)
 - Creates GitHub issue on failure
 
 ---
@@ -208,8 +132,8 @@ cd apps/api && node stryker-micro-batches.mjs A2
 1. Test in `apps/api/tests/unit/domain/` or `tests/unit/application/`
 2. Use vi.fn() mock repos
 3. Cover: success, validation, business rules, errors
-4. Verify: `pnpm exec stryker run --mutate "src/path/to/file.ts"`
-5. Target: ≥75% domain, ≥65% application
+4. Verify: `pnpm --filter @apps/api test:unit:coverage`
+5. Target: the per-layer coverage floors in `docs/development/CODING_STANDARDS.md` §Coverage Targets (Domain 90%, Application 85%)
 
 ### New provider
 
@@ -222,7 +146,6 @@ cd apps/api && node stryker-micro-batches.mjs A2
 
 1. Use `renderHook` from `@testing-library/react`
 2. Test: initial, loading, success, error, empty states
-3. Exclude from Stryker scope in `apps/client/stryker.config.mjs`
 
 ---
 

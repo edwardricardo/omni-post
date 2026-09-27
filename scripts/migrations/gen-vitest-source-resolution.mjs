@@ -102,11 +102,12 @@ function hasTsxTests(pkgDir) {
  * The specifier every generated config imports the shared factory by.
  *
  * It is a PACKAGE name, not a relative path, and computing one from the package
- * directory is exactly what this used to do. A relative path leaves the Stryker
- * sandbox — Stryker copies `apps/api` into `.stryker-tmp/sandbox-XXXX/` and runs
- * there, so `../../vitest.shared` resolves to nothing and every mutation run
- * died at config load. A package specifier resolves through `node_modules`,
- * which the sandbox symlinks back to the real tree.
+ * directory is exactly what this used to do. A relative path is only correct while
+ * the config sits at the depth it was generated for: any runner that executes the
+ * suite from a COPY of the tree resolves `../../vitest.shared` to nothing, and the
+ * whole config dies at load. A package specifier resolves through `node_modules`,
+ * which such a copy symlinks back to the real tree, so it holds either way. Do not
+ * "simplify" this back into a computed relative path.
  *
  * @returns {string} The workspace specifier.
  */

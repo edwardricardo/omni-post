@@ -34,7 +34,7 @@ const BESPOKE = new Set(["@infra/prisma"]);
 
 function findPackageJsons(dir, out = []) {
   for (const entry of readdirSync(dir)) {
-    if (["node_modules", "dist", ".next", ".stryker-tmp", "graphify-out"].includes(entry)) continue;
+    if (["node_modules", "dist", ".next", "graphify-out"].includes(entry)) continue;
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) findPackageJsons(full, out);
     else if (entry === "package.json") out.push(full);

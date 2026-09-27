@@ -23,12 +23,11 @@ metadata:
 
 Use `pnpm` for ALL package management and script execution, never `npm` or `npx`.
 
-**Why:** Running `npx` produces `npm warn Unknown project config "public-hoist-pattern"` warnings because the project uses pnpm workspaces with pnpm-specific config that npm doesn't understand.
+**Why:** every version constraint this repo enforces lives in `pnpm-workspace.yaml` — the `catalog`/`catalogs` exact pins, the `overrides` CVE floors, the `auditConfig` GHSA allowlist and `patchedDependencies` — and `.npmrc` is deliberately empty of non-auth config (ADR-0019). `pnpm-workspace.yaml` is a pnpm-only file that npm and npx never read, so anything `npx` resolves is resolved outside every pin, CVE floor and patch this repo depends on. (The older evidence for this rule — an `npm warn Unknown project config "public-hoist-pattern"` warning — can no longer occur: the repo's only hoist entry was removed on 2026-09-26. The rule is unchanged; only its evidence was.)
 
 **How to apply:**
 
 - `pnpm exec vitest run` not `npx vitest run`.
-- `pnpm exec stryker run` not `npx stryker run`.
 - `pnpm --filter @apps/api test` not `npm test`.
 - `pnpm add` not `npm install`.
 
