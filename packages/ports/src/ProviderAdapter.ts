@@ -10,6 +10,7 @@ import type {
   Result,
   ThreadPlan,
   ThreadPublishInput,
+  ThreadPublishFailure,
   ThreadReceipt,
   RenderedContent,
   RenderedPost,
@@ -148,11 +149,16 @@ export interface ProviderAdapter {
    * Publish a multi-post thread atomically (best effort). Caller passes
    * resolved credentials; adapter does NOT fetch credentials internally.
    * Optional — only providers with `capabilities.threading === true`.
+   *
+   * On failure the adapter SHALL report which fragments already reached the
+   * provider (`ThreadPublishFailure.publishedFragments`, in order, empty when
+   * nothing went out). An implementation that cannot publish partially still
+   * states the empty array; silence is not an available answer.
    */
   publishThread?(
     input: ThreadPublishInput,
     credentials: unknown
-  ): Promise<Result<ThreadReceipt, PublishError>>;
+  ): Promise<Result<ThreadReceipt, ThreadPublishFailure>>;
 
   /**
    * Fetch raw provider analytics for a channel within an optional time window.

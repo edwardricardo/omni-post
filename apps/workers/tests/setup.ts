@@ -13,6 +13,7 @@ import type {
   Tweet,
   ThreadPlan,
   ThreadReceipt,
+  ThreadPublishFailure,
   RenderedContent,
   RenderedPost,
   RenderError,
@@ -152,7 +153,7 @@ export function createMockProvider(): PublishProvider {
       ({
         ok: true,
         value: createTestThreadReceipt(),
-      }) as Result<ThreadReceipt, PublishError>,
+      }) as Result<ThreadReceipt, ThreadPublishFailure>,
     render: () =>
       ({
         ok: true,
