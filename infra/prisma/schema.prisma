@@ -98,6 +98,7 @@ model Account {
   samlSessions                SamlSession[]
   referralsReceived           Referral[]                   @relation("ReferredAccount")
   conversions                 Conversion[]
+  postChannelPublications     PostChannelPublication[]
 
   /// Partial on purpose: a soft-deleted account keeps its row, and a TOTAL unique
   /// would let that invisible row confiscate the address forever — every read filters
@@ -706,6 +707,7 @@ model Post {
   project                   Project                   @relation(fields: [projectId, accountId], references: [id, accountId], onDelete: Cascade, onUpdate: NoAction)
   contents                  PostContent[]
   media                     PostMedia[]
+  channelPublications       PostChannelPublication[]
   thread                    Thread?
   contentVersions           ContentVersion[]
   webhookEvents             WebhookEvent[]
@@ -819,6 +821,105 @@ model PostMedia {
   @@index([createdAt])
 }
 
+/// The per-channel publication record: one row per (post, channel), and the only
+/// source of publication truth for a post.
+///
+/// WRITTEN EXCLUSIVELY THROUGH THE `Post` AGGREGATE ROOT. The set-level
+/// invariants — the content lock and the derived post-level status — are
+/// predicates over the WHOLE row set of a post, so a direct child write is not a
+/// shortcut, it is a write that cannot enforce them.
+///
+/// `provider` is deliberately not a column. The channel is the canonical
+/// targeting unit and the provider is derived from it (ADR-0016); storing it
+/// beside `channelId` would reintroduce the duplication that change removed.
+///
+/// No `deletedAt`, and not by omission: the record carries no soft-delete
+/// semantics, so it stays outside the soft-delete read sweep instead of joining
+/// it with nothing to sweep.
+model PostChannelPublication {
+  id        String @id @default(uuid())
+  postId    String
+  accountId String
+  channelId String
+
+  outcome ChannelPublicationOutcome @default(UNRESOLVED)
+
+  /// The head reference — the item for a single-fragment post, fragment 1 for a
+  /// thread. `externalIdMissing` records a provider that accepted the content
+  /// without returning an id, so "published, no id" is a stated fact rather than
+  /// an absent one that reads like a bug.
+  externalId        String?
+  externalIdMissing Boolean @default(false)
+
+  /// Ordered `{ index, externalId, url? }` entries for every fragment currently
+  /// LIVE on the provider for this channel: the whole post when PUBLISHED, the
+  /// interrupted prefix when EXCLUDED pending retraction, empty otherwise.
+  /// Channel-scoped and reference-only — it carries no targeting semantics, since
+  /// which channels a post goes to is the row SET and never this array.
+  liveFragments Json @default("[]")
+
+  /// The explicit named state for "content of this post is still on the platform
+  /// although the channel did not publish". Never inferred from anything else.
+  pendingRetraction      Boolean                 @default(false)
+  retractionBlockedCause ChannelRetractionBlock?
+
+  /// The customer's action window: it opens when the obligation becomes theirs
+  /// (pending retraction with a known cause) and is closed by the sweep. Both
+  /// timestamps survive a later clearance, as history.
+  actionWindowStartedAt DateTime? @db.Timestamptz(6)
+  actionWindowExpiredAt DateTime? @db.Timestamptz(6)
+
+  /// Hash of the live-fragment set the customer was LAST alerted about, so an
+  /// unchanged set is never re-alerted and a changed one always is.
+  retractionAlertHash String?
+
+  retractionClearedCause ChannelRetractionClearance?
+  retractionClearedAt    DateTime?                   @db.Timestamptz(6)
+
+  /// Fingerprint of the canonical content as handed to the provider. Audit only.
+  contentHash String?
+
+  /// The moment the provider accepted the LAST fragment.
+  publishedAt DateTime? @db.Timestamptz(6)
+
+  reasonCode   ChannelExclusionReason?
+  reasonDetail String?
+
+  /// The last failure cause seen while the channel is unresolved, kept as history
+  /// after an exclusion rewrites `reasonCode`.
+  lastFailureCode   ChannelExclusionReason?
+  lastFailureDetail String?
+  lastAttemptAt     DateTime?               @db.Timestamptz(6)
+
+  /// Monotonic over the record's whole life; never reset.
+  attempts Int @default(0)
+
+  /// `episode = 0` means declared but never assigned. Opening an episode takes
+  /// `max(episode) + 1`, and `episodeAttempts` resets on every (re-)inclusion —
+  /// which is what makes the per-episode budget a budget rather than a lifetime
+  /// cap on a channel that is legitimately re-driven.
+  episode         Int @default(0)
+  episodeAttempts Int @default(0)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  post    Post    @relation(fields: [postId, accountId], references: [id, accountId], onDelete: Cascade, onUpdate: NoAction)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// NO ACTION where every other Channel child cascades, and the difference is the
+  /// point: removing a channel must not silently shrink a post's intended target
+  /// set. NO ACTION is checked at end of statement, so an account-wide cascade
+  /// that removes the posts as well still succeeds.
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([postId, channelId])
+  @@index([channelId])
+  @@index([accountId, postId])
+  /// Partial, for the action-window sweep, which reads only rows that are pending
+  /// retraction and not yet expired, oldest first.
+  @@index([actionWindowStartedAt], where: { pendingRetraction: true, actionWindowExpiredAt: null })
+}
+
 model Channel {
   id                        String                    @id @default(uuid())
   accountId                 String
@@ -861,6 +962,7 @@ model Channel {
   account                   Account                   @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   project                   Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   publishLogs               PublishLog[]
+  channelPublications       PostChannelPublication[]
   analytics                 Analytics[]
   socialMessages            SocialMessage[]
   socialConversations       SocialConversation[]
@@ -1209,6 +1311,44 @@ enum TweetStatus {
   PUBLISHING
   PUBLISHED
   FAILED
+}
+
+/// The closed set of per-channel publication outcomes. A database enum makes the
+/// closure a constraint rather than a convention, and there is deliberately no
+/// fourth value: a channel is never "partially published" — a thread that stops
+/// mid-way is EXCLUDED with the fragments it did put live recorded beside it.
+enum ChannelPublicationOutcome {
+  UNRESOLVED
+  PUBLISHED
+  EXCLUDED
+}
+
+/// Why a channel was excluded. UNCLASSIFIED_BUDGET_EXHAUSTED is separate from
+/// BUDGET_EXHAUSTED on purpose: it names the uncertainty instead of asserting a
+/// cause the provider never gave.
+enum ChannelExclusionReason {
+  CHANNEL_AUTH_REQUIRED
+  CONTENT_REJECTED
+  RENDER_FAILED
+  THREAD_INTERRUPTED
+  BUDGET_EXHAUSTED
+  UNCLASSIFIED_BUDGET_EXHAUSTED
+  ACTION_WINDOW_EXPIRED
+}
+
+/// Why live fragments were not retracted from the provider. NULL while a
+/// retraction is still being attempted, so "not tried yet" and "cannot be done"
+/// are different readings rather than one absent value.
+enum ChannelRetractionBlock {
+  NO_CAPABILITY
+  EXHAUSTED
+}
+
+/// How a pending retraction ended, recorded so a cleared record never reads like
+/// one that was never pending.
+enum ChannelRetractionClearance {
+  RETRACTED
+  MANUALLY_REMOVED
 }
 
 enum VersionChangeType {

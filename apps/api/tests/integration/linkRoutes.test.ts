@@ -389,16 +389,22 @@ describe("Link Tracking Routes Integration", () => {
       await fetch(`${API_URL}/r/${shortCode}`, { redirect: "manual" });
       await fetch(`${API_URL}/r/${shortCode}`, { redirect: "manual" });
 
-      // Wait a bit for async click recording
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // recordClick is fire-and-forget: each 302 is sent before its click transaction
+      // commits, and the three UPDATEs serialise on the same row. A fixed sleep is a
+      // guess about that latency, and it lost once in CI (two of three had landed at
+      // 100 ms). Poll the stats read until the count is there or the bound runs out;
+      // the assertion stays strict and the passing case pays nothing extra.
+      let totalClicks = 0;
+      for (let attempt = 0; attempt < 20 && totalClicks < 3; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        const statsResponse = await fetch(`${API_URL}/links/${linkId}/stats`, {
+          headers: { Authorization: authHeader },
+        });
+        const statsBody = await statsResponse.json();
+        totalClicks = statsBody.data.totalClicks;
+      }
 
-      // Check click count
-      const statsResponse = await fetch(`${API_URL}/links/${linkId}/stats`, {
-        headers: { Authorization: authHeader },
-      });
-      const statsBody = await statsResponse.json();
-
-      assert.equal(statsBody.data.totalClicks, 3);
+      assert.equal(totalClicks, 3);
     });
   });
 });

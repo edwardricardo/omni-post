@@ -7,6 +7,12 @@
 import { BaseDomainEvent } from "./DomainEvent.js";
 import { type PublishStatusValue } from "../value-objects/PublishStatus.js";
 import { type ProviderType } from "../value-objects/Provider.js";
+import { type FragmentReferenceJson } from "../value-objects/FragmentReference.js";
+import { type ChannelFailureCode } from "../value-objects/ExclusionReason.js";
+import {
+  type ChannelRetractionBlock,
+  type RetractionAlertCause,
+} from "../value-objects/PublicationOutcome.js";
 
 /**
  * Event raised when a new post is created
@@ -335,6 +341,190 @@ export class PostRejected extends BaseDomainEvent {
 }
 
 /**
+ * Input of {@link PostChannelPublished}. Flat by intent: the payload is the contract
+ * an in-process consumer reads off the outbox, so every field is named here.
+ */
+export interface PostChannelPublishedProps {
+  postId: string;
+  projectId: string;
+  accountId?: string;
+  channelId: string;
+  externalId?: string;
+  fragmentCount: number;
+  publishedAt: Date;
+  contentHash?: string;
+}
+
+/**
+ * Event raised when ONE channel published every fragment of the post.
+ *
+ * Internal: it is absent from the outbound integration catalog exactly as
+ * {@link PostPublishingStarted} is, and is consumed in-process only.
+ */
+export class PostChannelPublished extends BaseDomainEvent {
+  readonly eventType = "PostChannelPublished";
+  readonly aggregateType = "Post";
+  readonly aggregateId: string;
+
+  constructor(
+    private readonly props: PostChannelPublishedProps,
+    version: number = 1
+  ) {
+    super(version);
+    this.aggregateId = props.postId;
+  }
+
+  toPayload(): Record<string, unknown> {
+    return {
+      postId: this.props.postId,
+      projectId: this.props.projectId,
+      ...(this.props.accountId !== undefined && { accountId: this.props.accountId }),
+      channelId: this.props.channelId,
+      ...(this.props.externalId !== undefined && { externalId: this.props.externalId }),
+      fragmentCount: this.props.fragmentCount,
+      publishedAt: this.props.publishedAt.toISOString(),
+      ...(this.props.contentHash !== undefined && { contentHash: this.props.contentHash }),
+    };
+  }
+}
+
+/** Input of {@link PostChannelExcluded}. */
+export interface PostChannelExcludedProps {
+  postId: string;
+  projectId: string;
+  accountId?: string;
+  channelId: string;
+  reasonCode: ChannelFailureCode;
+  attempts: number;
+  pendingRetraction: boolean;
+  liveFragmentCount: number;
+}
+
+/**
+ * Event raised when ONE channel resolved to the terminal not-published outcome.
+ * `pendingRetraction` and `liveFragmentCount` travel with it because "failed with
+ * nothing live" and "failed with content still on the platform" are different facts
+ * and only the second one obliges anyone.
+ *
+ * Internal: consumed in-process only.
+ */
+export class PostChannelExcluded extends BaseDomainEvent {
+  readonly eventType = "PostChannelExcluded";
+  readonly aggregateType = "Post";
+  readonly aggregateId: string;
+
+  constructor(
+    private readonly props: PostChannelExcludedProps,
+    version: number = 1
+  ) {
+    super(version);
+    this.aggregateId = props.postId;
+  }
+
+  toPayload(): Record<string, unknown> {
+    return {
+      postId: this.props.postId,
+      projectId: this.props.projectId,
+      ...(this.props.accountId !== undefined && { accountId: this.props.accountId }),
+      channelId: this.props.channelId,
+      reasonCode: this.props.reasonCode,
+      attempts: this.props.attempts,
+      pendingRetraction: this.props.pendingRetraction,
+      liveFragmentCount: this.props.liveFragmentCount,
+    };
+  }
+}
+
+/** Input of {@link PostChannelRetractionAlertRaised}. */
+export interface PostChannelRetractionAlertRaisedProps {
+  postId: string;
+  projectId: string;
+  accountId?: string;
+  channelId: string;
+  liveFragments: readonly FragmentReferenceJson[];
+  cause: ChannelRetractionBlock;
+  alertKey: string;
+  supersededAlertKey?: string;
+}
+
+/**
+ * Event raised when content of this post is live on a provider that did not publish
+ * it and this application cannot take it down. The fragments are NAMED rather than
+ * counted: the customer is being asked to remove exactly these.
+ *
+ * Internal: consumed in-process only.
+ */
+export class PostChannelRetractionAlertRaised extends BaseDomainEvent {
+  readonly eventType = "PostChannelRetractionAlertRaised";
+  readonly aggregateType = "Post";
+  readonly aggregateId: string;
+
+  constructor(
+    private readonly props: PostChannelRetractionAlertRaisedProps,
+    version: number = 1
+  ) {
+    super(version);
+    this.aggregateId = props.postId;
+  }
+
+  toPayload(): Record<string, unknown> {
+    return {
+      postId: this.props.postId,
+      projectId: this.props.projectId,
+      ...(this.props.accountId !== undefined && { accountId: this.props.accountId }),
+      channelId: this.props.channelId,
+      liveFragments: this.props.liveFragments.map((fragment) => ({ ...fragment })),
+      cause: this.props.cause,
+      alertKey: this.props.alertKey,
+      ...(this.props.supersededAlertKey !== undefined && {
+        supersededAlertKey: this.props.supersededAlertKey,
+      }),
+    };
+  }
+}
+
+/** Input of {@link PostChannelRetractionAlertResolved}. */
+export interface PostChannelRetractionAlertResolvedProps {
+  postId: string;
+  projectId: string;
+  accountId?: string;
+  channelId: string;
+  alertKey: string;
+  cause: RetractionAlertCause;
+}
+
+/**
+ * Event raised when an alert about live content no longer stands — the content came
+ * down, or the customer's window to act closed.
+ *
+ * Internal: consumed in-process only.
+ */
+export class PostChannelRetractionAlertResolved extends BaseDomainEvent {
+  readonly eventType = "PostChannelRetractionAlertResolved";
+  readonly aggregateType = "Post";
+  readonly aggregateId: string;
+
+  constructor(
+    private readonly props: PostChannelRetractionAlertResolvedProps,
+    version: number = 1
+  ) {
+    super(version);
+    this.aggregateId = props.postId;
+  }
+
+  toPayload(): Record<string, unknown> {
+    return {
+      postId: this.props.postId,
+      projectId: this.props.projectId,
+      ...(this.props.accountId !== undefined && { accountId: this.props.accountId }),
+      channelId: this.props.channelId,
+      alertKey: this.props.alertKey,
+      cause: this.props.cause,
+    };
+  }
+}
+
+/**
  * Union type of all post events
  */
 export type PostEvent =
@@ -350,4 +540,8 @@ export type PostEvent =
   | PostMediaRemoved
   | PostSubmittedForReview
   | PostApproved
-  | PostRejected;
+  | PostRejected
+  | PostChannelPublished
+  | PostChannelExcluded
+  | PostChannelRetractionAlertRaised
+  | PostChannelRetractionAlertResolved;

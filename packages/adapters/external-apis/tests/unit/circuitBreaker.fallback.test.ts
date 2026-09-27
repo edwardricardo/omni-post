@@ -77,10 +77,6 @@ vi.mock("@adapters/dead-letter-queue", () => ({
   getDeadLetterQueue: vi.fn(() => mockDlqInstance),
 }));
 
-vi.mock("@adapters/queue-bullmq", () => ({
-  QUEUE_NAMES: { FAILED_OPERATIONS_DLQ: "failed-operations-dlq" },
-}));
-
 vi.mock("@observability/logger", () => ({
   createLogger: () => ({
     info: vi.fn(),

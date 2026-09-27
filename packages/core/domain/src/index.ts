@@ -172,6 +172,14 @@ export * from "./repositories/AIServicePort.js";
 // Posts: events, aggregate, repository
 export * from "./events/PostEvents.js";
 export * from "./aggregates/PostAggregate.js";
+// The per-channel publication record and its vocabulary
+export * from "./value-objects/FragmentReference.js";
+export * from "./value-objects/ProviderReference.js";
+export * from "./value-objects/ExclusionReason.js";
+export * from "./value-objects/ContentFingerprint.js";
+export * from "./value-objects/PublicationOutcome.js";
+export * from "./entities/ChannelPublication.js";
+export * from "./aggregates/ChannelPublications.js";
 export * from "./repositories/PostRepository.js";
 export * from "./repositories/TenantScope.js";
 

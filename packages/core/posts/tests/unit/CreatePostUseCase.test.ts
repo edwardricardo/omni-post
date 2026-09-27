@@ -25,6 +25,7 @@ const passthroughUow: UnitOfWork = {
 function makeMockRepo(): PostRepository {
   return {
     save: vi.fn(async () => ok(undefined)),
+    savePublication: vi.fn(async () => ok(undefined)),
     findById: vi.fn(),
     findByProjectId: vi.fn(),
     findByStatus: vi.fn(),

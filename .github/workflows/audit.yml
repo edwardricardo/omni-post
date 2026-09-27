@@ -517,6 +517,73 @@ jobs:
           IX1_DOWN="infra/prisma/migrations/20260910000100_post_feed_index_winner/down.sql"
           IX1_DOWN_DIGEST="59d787d3aca0a21cbc5531f130749a48ff79085a75b21db3dee058f42921d2c9"
 
+          # ADJUDICATION 6 — prefer-bigint-over-int x3 on the per-channel
+          # publication record.
+          # The three findings are "attempts", "episode" and "episodeAttempts",
+          # all INTEGER NOT NULL DEFAULT 0. The rule's stated concern is hitting
+          # the int32 ceiling, and it is aimed at columns that COUNT ROWS — an
+          # identity or a sequence, where the ceiling is a function of table
+          # growth. These three count events on ONE row: the attempt budget is 3
+          # per episode and an episode is opened by an explicit re-drive, so
+          # reaching 2,147,483,647 would take that many publishes of a single
+          # post to a single channel. This is not the shape the rule protects.
+          # WHY THE PROPOSED FIX IS WORSE, which is the part worth stating rather
+          # than asserting unfixability: Prisma maps `bigint` to a JavaScript
+          # BigInt, so taking the suggestion pushes BigInt through the domain
+          # entity, the aggregate mapper and every JSON payload that carries an
+          # attempt count — arithmetic and serialization friction on three values
+          # that never leave single digits — to buy headroom no caller can reach.
+          # The design fixes these as 32-bit counters for exactly that reason.
+          # The same rule is adjudicated on RETENTION_MIGRATION above, for the
+          # same class of column; this entry is its sibling, not a new leniency.
+          # SCOPE: this rule only. Everything else squawk enforces on a NEW
+          # migration — the timeout preamble in particular — is present and NOT
+          # waived; the file lints clean under this config once the three counter
+          # columns are excluded.
+          # TRIGGER: squawk reports prefer-bigint-over-int for this exact file
+          # content.
+          # REMOVE-WHEN: a baseline squash folds this migration away — delete the
+          # entry in that same change. (The columns themselves cannot outgrow
+          # int32 without the publication model changing shape, and that change
+          # would be a new migration with its own adjudication.)
+          PCP_MIGRATION="infra/prisma/migrations/20260917093257_add_post_channel_publication/migration.sql"
+          PCP_DIGEST="e0de4a0fb9296baf5c976c5b1edfd555b746f3359eb778415e7990126227d005"
+
+          # ADJUDICATION 7 — ban-drop-table x1 on that migration's OPERATOR-RUN
+          # down.sql.
+          # UNSATISFIABLE BY CONSTRUCTION, and the clearest case in this list: the
+          # forward migration CREATES the table, so its rollback is the statement
+          # that drops it. There is no formulation of "undo a CREATE TABLE" that
+          # does not drop the table. The rule's concern — breaking existing
+          # clients — is the intended effect of a rollback, exercised only by an
+          # operator who has decided to revert the change, never by Prisma (which
+          # does not apply down.sql at all).
+          # Linted to the same standard as the forward file deliberately, for
+          # ADJUDICATION 5's reason: a rollback linted more leniently than the
+          # change it reverses is a second, unreviewed migration. Nothing else in
+          # the file is waived — the timeout preamble is present, and the DROP
+          # TYPE statements are deliberately not IF EXISTS.
+          # transaction-nesting x2, ALSO on this file, since the rollback became
+          # atomic: the file now opens with BEGIN and ends with COMMIT so an
+          # operator running it with `psql -f` gets all-or-nothing (a DROP that
+          # fails half-way no longer leaves the enum types without their table).
+          # .squawk.toml pins assume_in_transaction = true because Prisma wraps
+          # every FORWARD migration in a transaction of its own, and under that
+          # assumption an explicit BEGIN/COMMIT reads as a nested transaction.
+          # This file is never applied by Prisma — it is operator-run, outside
+          # any migration tool's wrapper — so the assumption the rule models does
+          # not hold for it and the BEGIN/COMMIT are the ONLY transaction it has.
+          # Waiving the rule here is honest; rewriting the file to satisfy it
+          # would make the rollback non-atomic again, which is the defect the
+          # BEGIN/COMMIT closed (ADJUDICATION 6 keeps its own reasons; nothing
+          # about the forward file changes).
+          # TRIGGER: squawk reports ban-drop-table and transaction-nesting for
+          # this exact file content.
+          # REMOVE-WHEN: together with ADJUDICATION 6 — the pair retires when a
+          # baseline squash deletes the migration folder, in that same change.
+          PCP_DOWN="infra/prisma/migrations/20260917093257_add_post_channel_publication/down.sql"
+          PCP_DOWN_DIGEST="2cd301369f255b81ba59b6b95eaef96a3bb17f24e662723ce5b46af69c9ada9e"
+
           exception_rules_for() {
             case "$1" in
               "$ALIGNMENT_MIGRATION") echo "ban-drop-not-null" ;;
@@ -524,6 +591,8 @@ jobs:
               "$POST_TRIO_MIGRATION") echo "adding-not-nullable-field,require-concurrent-index-creation" ;;
               "$IX1_MIGRATION") echo "require-concurrent-index-creation,require-concurrent-index-deletion" ;;
               "$IX1_DOWN") echo "require-concurrent-index-creation,require-concurrent-index-deletion" ;;
+              "$PCP_MIGRATION") echo "prefer-bigint-over-int" ;;
+              "$PCP_DOWN") echo "ban-drop-table,transaction-nesting" ;;
               *) echo "" ;;
             esac
           }
@@ -534,6 +603,8 @@ jobs:
               "$POST_TRIO_MIGRATION") echo "$POST_TRIO_DIGEST" ;;
               "$IX1_MIGRATION") echo "$IX1_DIGEST" ;;
               "$IX1_DOWN") echo "$IX1_DOWN_DIGEST" ;;
+              "$PCP_MIGRATION") echo "$PCP_DIGEST" ;;
+              "$PCP_DOWN") echo "$PCP_DOWN_DIGEST" ;;
               *) echo "" ;;
             esac
           }
@@ -546,7 +617,7 @@ jobs:
           # statements above are the list this loop must mirror, and it silently
           # stopped mirroring them when POST_TRIO landed. Adding a name here is
           # part of adding an adjudication, not a follow-up to it.
-          for p in "$ALIGNMENT_MIGRATION" "$RETENTION_MIGRATION" "$POST_TRIO_MIGRATION" "$IX1_MIGRATION" "$IX1_DOWN"; do
+          for p in "$ALIGNMENT_MIGRATION" "$RETENTION_MIGRATION" "$POST_TRIO_MIGRATION" "$IX1_MIGRATION" "$IX1_DOWN" "$PCP_MIGRATION" "$PCP_DOWN"; do
             if [ ! -f "$p" ]; then
               echo "::error title=Squawk exception names a file that no longer exists::$p is adjudicated in this step but is not in the tree. Delete the entry, or a migration recreated under that path inherits the waiver without ever being adjudicated."
               exit 1

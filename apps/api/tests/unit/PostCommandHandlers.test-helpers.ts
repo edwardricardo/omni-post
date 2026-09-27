@@ -224,6 +224,10 @@ export class MockPostRepository {
     return ok(undefined);
   }
 
+  async savePublication(): Promise<Result<void, Error>> {
+    return ok(undefined);
+  }
+
   async delete(): Promise<Result<void, EntityNotFoundError>> {
     return ok(undefined);
   }

@@ -45,6 +45,10 @@ function createMockPostRepository() {
       store.set(post.id.value, post);
       return ok(undefined);
     }),
+    savePublication: vi.fn(async (post: PostAggregate) => {
+      store.set(post.id.value, post);
+      return ok(undefined);
+    }),
     delete: vi.fn(async (id: PostId) => {
       if (!store.has(id.value)) return err(new EntityNotFoundError("Post", id.value));
       store.delete(id.value);

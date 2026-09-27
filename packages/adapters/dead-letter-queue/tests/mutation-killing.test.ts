@@ -39,6 +39,9 @@ vi.mock("bullmq", () => ({
     constructor(name: string) {
       this.name = name;
     }
+    on() {
+      return this;
+    }
     async add(_jobName: string, data: unknown, opts?: { jobId?: string; priority?: number }) {
       queueAddCalls.push({ jobName: _jobName, data, opts });
       return { id: opts?.jobId ?? "mock-job-id", data };
@@ -86,6 +89,9 @@ vi.mock("bullmq", () => ({
     on() {
       return this;
     }
+    async run() {
+      return undefined;
+    }
     async close() {
       return undefined;
     }
@@ -103,18 +109,15 @@ vi.mock("uuid", () => ({
   v4: () => `mock-uuid-${++uuidCounter}`,
 }));
 
-vi.mock("pino", () => ({
-  default: () => ({
+// The unit logs through `createLogger` from @observability/logger. Mocking `pino` instead
+// would only intercept that package's transitive dependency, which is a coincidence rather
+// than a contract.
+vi.mock("@observability/logger", () => ({
+  createLogger: () => ({
     info: () => undefined,
     warn: () => undefined,
     error: () => undefined,
     debug: () => undefined,
-    child: () => ({
-      info: () => undefined,
-      warn: () => undefined,
-      error: () => undefined,
-      debug: () => undefined,
-    }),
   }),
 }));
 

@@ -29,6 +29,7 @@ import { resolveGucScope, withGucBoundTransaction } from "@infra/prisma/extensio
 import type { TenantContextProvider } from "@infra/prisma/extensions/tenantGuard.js";
 import type { OutboxWriter } from "@core/domain/repositories/OutboxWriter.js";
 import { PostAggregateMapper, type PrismaPostWithRelations } from "./PostAggregateMapper.js";
+import { savePublicationRecord } from "./PostPublicationWrites.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 
 /** Local type alias for Prisma transaction client */
@@ -66,6 +67,13 @@ export class PrismaPostRepository implements PostRepository {
         contentVersions: {
           orderBy: { version: "desc" },
         },
+        // The record travels with the aggregate: the word, the content lock and
+        // re-drivability are all read from it, so a post loaded without its records
+        // is a post that looks unpublished to every caller.
+        channelPublications: {
+          include: { channel: { select: { provider: true } } },
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
 
@@ -93,6 +101,27 @@ export class PrismaPostRepository implements PostRepository {
     } catch (error) {
       return err(error instanceof Error ? error : new Error(String(error)));
     }
+  }
+
+  /**
+   * @method savePublication
+   * @description The narrow publication save — the ONLY production writer of the
+   *   per-channel record. Its refusals, its statements and the reason it writes no
+   *   content live in {@link savePublicationRecord}.
+   * @param aggregate - The post to persist
+   * @returns Result.ok, or the error that refused the write
+   */
+  async savePublication(aggregate: PostAggregate): Promise<Result<void, Error>> {
+    return savePublicationRecord(
+      {
+        outboxWriter: this.outboxWriter,
+        // The binding stays HERE, with the provider both isolation layers read, so a
+        // request can never inject one tenant through the guard and bind another.
+        runInTenantBoundTransaction: (statements) =>
+          withGucBoundTransaction(this.prisma, resolveGucScope(this.tenantProvider), statements),
+      },
+      aggregate
+    );
   }
 
   /**

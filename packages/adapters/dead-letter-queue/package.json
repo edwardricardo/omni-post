@@ -18,11 +18,11 @@
   },
   "dependencies": {
     "@adapters/queue-bullmq": "workspace:*",
+    "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
     "bullmq": "catalog:",
     "ioredis": "catalog:",
-    "pino": "catalog:",
     "uuid": "catalog:"
   },
   "scripts": {

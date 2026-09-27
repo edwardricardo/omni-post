@@ -21,7 +21,12 @@ export const QUEUE_NAMES = {
   /** Domain integration events (CQRS / event-driven) */
   INTEGRATION_EVENTS: "integration-events",
 
-  /** Circuit-breaker dead-letter queue for failed external API calls */
+  /**
+   * Circuit-breaker dead-letter queue for failed external API calls.
+   *
+   * No producer since the circuit breaker stopped creating its own queue; kept until its
+   * deletion is authorised.
+   */
   FAILED_OPERATIONS_DLQ: "failed-operations-dlq",
 
   /** Analytics aggregation queue (daily/monthly rollup + raw data purge) */

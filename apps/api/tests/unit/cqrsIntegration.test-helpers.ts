@@ -88,6 +88,10 @@ export class MockPostRepository {
     return { ok: true as const, value: undefined };
   }
 
+  async savePublication() {
+    return { ok: true as const, value: undefined };
+  }
+
   async delete() {
     return { ok: true as const, value: undefined };
   }
