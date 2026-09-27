@@ -77,9 +77,9 @@ One row per work unit of [§Plan (fixed)](#plan-fixed). Status: ⬜ not started 
 
 | Phase | WU     | Title                                                                       | Status | PR                            | Evidence                                | Date       |
 | ----- | ------ | --------------------------------------------------------------------------- | ------ | ----------------------------- | --------------------------------------- | ---------- |
-| 0     | T.1    | The tracker exists, with the baseline measured                              | ⬜     | —                             | —                                       | —          |
-| 0     | T.2    | `scripts/testing/metrics.mjs` reproduces the baseline column                | ⬜     | —                             | —                                       | —          |
-| 0     | T.3    | Ficha `N-TEST-1`, subsumed follow-ups point at it                           | ⬜     | —                             | —                                       | —          |
+| 0     | T.1    | The tracker exists, with the baseline measured                              | ✅     | `#316`                        | main `29cd6682` (PR #316)               | 2026-09-27 |
+| 0     | T.2    | `scripts/testing/metrics.mjs` reproduces the baseline column                | ✅     | `#317`                        | main `9d579214` (PR #317)               | 2026-09-27 |
+| 0     | T.3    | Ficha `N-TEST-1`, subsumed follow-ups point at it                           | ✅     | `#316`                        | main `29cd6682` (PR #316)               | 2026-09-27 |
 | 0     | T.4(a) | The lag table, measured (`pnpm outdated` + registry dates)                  | ✅     | `refound/0-toolchain-measure` | [§Toolchain lag](#toolchain-lag-wu-t4a) | 2026-09-27 |
 | 0     | T.4(f) | The holds gate, and the corrected holds table                               | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(b) | eslint 9.36.0 → 9.39.5                                                      | ⬜     | —                             | —                                       | —          |
