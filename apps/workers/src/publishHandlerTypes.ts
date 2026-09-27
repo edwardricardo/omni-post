@@ -13,6 +13,7 @@ import type {
   RenderError,
   ThreadPlan,
   ThreadReceipt,
+  ThreadPublishFailure,
   PublishError,
   Thread,
   Tweet,
@@ -89,6 +90,11 @@ export interface PublishProvider {
     credentials: unknown
   ): Promise<Result<PublishReceipt, PublishError>>;
 
+  /**
+   * A thread failure names which fragments already reached the provider
+   * (`publishedFragments`, in order, empty when nothing went out) — the handler
+   * needs that set to reconcile the tweet rows and report the failure truthfully.
+   */
   publishThread?(
     input: {
       threadPlan: ThreadPlan;
@@ -96,7 +102,7 @@ export interface PublishProvider {
       dedupeKey: string;
     },
     credentials: unknown
-  ): Promise<Result<ThreadReceipt, PublishError>>;
+  ): Promise<Result<ThreadReceipt, ThreadPublishFailure>>;
 
   render(canonical: CanonicalPost): Result<RenderedContent, RenderError>;
 }

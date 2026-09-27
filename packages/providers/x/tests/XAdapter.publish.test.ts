@@ -8,6 +8,7 @@
 
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
+import type { ThreadReceipt } from "@shared/types";
 import {
   createMockApiClient,
   createFailingApiClient,
@@ -125,6 +126,40 @@ describe("XAdapter - publish()", { concurrent: false }, () => {
 // 2. PublishThread Tests
 // ============================================================================
 
+/**
+ * Build a mock client whose `postTweet` succeeds until `failingCall`, where it
+ * throws an error carrying `status`. Every earlier call returns a deterministic
+ * `tweet-N` id so the live-fragment assertions can pin both value and order.
+ */
+function failingAtCall(failingCall: number, status: number, message: string) {
+  let callCount = 0;
+  const client = createMockApiClient();
+  client.postTweet = vi.fn(async (text: string) => {
+    callCount++;
+    if (callCount === failingCall) {
+      const error = new Error(message) as Error & { status: number };
+      error.status = status;
+      throw error;
+    }
+    return {
+      data: {
+        id: `tweet-${callCount}`,
+        text,
+        created_at: new Date().toISOString(),
+      },
+    };
+  });
+  return client;
+}
+
+/** Project the fragment references down to what the assertions pin: id and order. */
+function fragmentRefs(fragments: ThreadReceipt["tweets"]) {
+  return fragments.map((fragment) => ({
+    sequence: fragment.sequence,
+    providerTweetId: fragment.providerTweetId,
+  }));
+}
+
 describe("XAdapter - publishThread()", { concurrent: false }, () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -171,40 +206,53 @@ describe("XAdapter - publishThread()", { concurrent: false }, () => {
     assert.notStrictEqual(thirdCall[2], secondCall[2]);
   });
 
-  it("should return AUTH error when credentials are missing for thread", async () => {
+  it("should return AUTH with no published fragments when credentials are missing", async () => {
     const { adapter } = makeAdapter();
     const input = createTestThreadPublishInput(2);
     const result = await adapter.publishThread(input, { apiKey: "" });
 
-    assert.strictEqual(result.ok, false);
-    assert.strictEqual((result as { error: string }).error, "AUTH");
+    assert.ok(!result.ok, "PublishThread should fail");
+    assert.strictEqual(result.error.code, "AUTH");
+    assert.deepStrictEqual(result.error.publishedFragments, []);
   });
 
-  it("should return THREAD_INTERRUPTED on mid-thread 4xx failure", async () => {
-    let callCount = 0;
-    const client = createMockApiClient();
-    client.postTweet = vi.fn(async (text: string) => {
-      callCount++;
-      if (callCount === 2) {
-        const error = new Error("Bad Request") as Error & { status: number };
-        error.status = 400;
-        throw error;
-      }
-      return {
-        data: {
-          id: `tweet-${callCount}`,
-          text,
-          created_at: new Date().toISOString(),
-        },
-      };
-    });
-    const { adapter } = makeAdapter(client);
+  it("should return THREAD_INTERRUPTED carrying both live fragments on mid-thread 4xx", async () => {
+    const { adapter } = makeAdapter(failingAtCall(3, 400, "Bad Request"));
 
-    const input = createTestThreadPublishInput(3);
+    const input = createTestThreadPublishInput(4);
     const result = await adapter.publishThread(input, MOCK_CREDENTIALS);
 
-    assert.strictEqual(result.ok, false);
-    assert.strictEqual((result as { error: string }).error, "THREAD_INTERRUPTED");
+    assert.ok(!result.ok, "PublishThread should fail");
+    assert.strictEqual(result.error.code, "THREAD_INTERRUPTED");
+    assert.deepStrictEqual(fragmentRefs(result.error.publishedFragments), [
+      { sequence: 1, providerTweetId: "tweet-1" },
+      { sequence: 2, providerTweetId: "tweet-2" },
+    ]);
+  });
+
+  it("should carry the live fragments on a mid-thread non-4xx failure too", async () => {
+    const { adapter } = makeAdapter(failingAtCall(3, 503, "Service Unavailable"));
+
+    const input = createTestThreadPublishInput(4);
+    const result = await adapter.publishThread(input, MOCK_CREDENTIALS);
+
+    assert.ok(!result.ok, "PublishThread should fail");
+    assert.strictEqual(result.error.code, "NETWORK");
+    assert.deepStrictEqual(fragmentRefs(result.error.publishedFragments), [
+      { sequence: 1, providerTweetId: "tweet-1" },
+      { sequence: 2, providerTweetId: "tweet-2" },
+    ]);
+  });
+
+  it("should report no published fragments when the first fragment fails", async () => {
+    const { adapter } = makeAdapter(failingAtCall(1, 400, "Bad Request"));
+
+    const input = createTestThreadPublishInput(4);
+    const result = await adapter.publishThread(input, MOCK_CREDENTIALS);
+
+    assert.ok(!result.ok, "PublishThread should fail");
+    assert.strictEqual(result.error.code, "VALIDATION");
+    assert.deepStrictEqual(result.error.publishedFragments, []);
   });
 
   it("should return NETWORK when circuit breaker is open during thread", async () => {
@@ -218,8 +266,9 @@ describe("XAdapter - publishThread()", { concurrent: false }, () => {
     const input = createTestThreadPublishInput(2);
     const result = await adapter.publishThread(input, MOCK_CREDENTIALS);
 
-    assert.strictEqual(result.ok, false);
-    assert.strictEqual((result as { error: string }).error, "NETWORK");
+    assert.ok(!result.ok, "PublishThread should fail");
+    assert.strictEqual(result.error.code, "NETWORK");
+    assert.deepStrictEqual(result.error.publishedFragments, []);
   });
 
   it("should upload media for each tweet in the thread", async () => {
