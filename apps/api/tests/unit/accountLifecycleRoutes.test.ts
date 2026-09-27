@@ -50,7 +50,7 @@ const Fastify = (await import("fastify")).default;
 const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
 const fastifyCookie = (await import("@fastify/cookie")).default;
 const { accountLifecycleRoutes } = await import("../../src/admin/accountLifecycleRoutes.js");
-const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { createRouteTestContainer } = await import("./helpers/testContainer.js");
 const { createTestAdminUser, cleanupTestAdminUsersByEmail } =
   await import("./admin/adminTestHelper.js");
 
@@ -68,7 +68,7 @@ async function createTestApp(): Promise<FastifyInstance> {
   typedApp.setValidatorCompiler(validatorCompiler);
   typedApp.setSerializerCompiler(serializerCompiler);
 
-  const container = setupContainer({ prisma: mockPrisma.prisma as never });
+  const container = createRouteTestContainer({ prisma: mockPrisma.prisma as never });
   typedApp.decorate("container", container);
 
   await typedApp.register(fastifyCookie);

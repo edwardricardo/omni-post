@@ -181,7 +181,7 @@ vi.mock("../../src/lib/logger.js", () => {
 
 const Fastify = (await import("fastify")).default;
 const { projectRoutes } = await import("../../src/projects/projectRoutes.js");
-const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { createRouteTestContainer } = await import("./helpers/testContainer.js");
 const { prisma } = await import("@infra/prisma");
 const { TokenService } = await import("../../src/admin/auth/TokenService.js");
 const { signCustomerAccessToken } = await import("../../src/auth/customerJwt.js");
@@ -241,7 +241,7 @@ function customerHeaders(
 async function createTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
 
-  const container = setupContainer({ prisma: prisma as never });
+  const container = createRouteTestContainer({ prisma: prisma as never });
   app.decorate("container", container);
 
   await app.register(projectRoutes);

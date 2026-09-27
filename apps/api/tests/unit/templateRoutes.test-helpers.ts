@@ -8,7 +8,7 @@ import Fastify, { FastifyInstance } from "fastify";
 import { templateRoutes } from "../../src/templates/templateRoutes.js";
 import type { TemplateService } from "../../src/templates/templateService.js";
 import { templateAnalytics } from "../../src/templates/templateAnalytics.js";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
+import { createRouteTestContainer } from "./helpers/testContainer.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 
 // Mock PrismaClient for unit tests (no real DB connection needed).
@@ -191,7 +191,7 @@ export const mockTemplateService = {
 export async function createTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
 
-  const container = setupContainer({ prisma: mockPrisma });
+  const container = createRouteTestContainer({ prisma: mockPrisma });
   container.registerInstance(
     TOKENS.TemplateService,
     mockTemplateService as unknown as TemplateService

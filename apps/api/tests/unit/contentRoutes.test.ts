@@ -48,7 +48,7 @@ vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
 import Fastify, { FastifyInstance } from "fastify";
 import fastifyCookie from "@fastify/cookie";
 import { contentRoutes } from "../../src/content/contentRoutes.js";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
+import { createRouteTestContainer } from "./helpers/testContainer.js";
 import { createRedisConnection } from "../../src/lib/redis.js";
 import { prisma } from "@infra/prisma";
 import type { Redis } from "ioredis";
@@ -57,7 +57,7 @@ let redis: Redis;
 
 async function createTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
-  const container = setupContainer({ prisma });
+  const container = createRouteTestContainer({ prisma });
   app.decorate("container", container);
   app.decorate("redis", redis);
   await app.register(fastifyCookie);

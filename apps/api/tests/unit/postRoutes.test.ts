@@ -149,7 +149,7 @@ vi.mock("../../src/lib/logger.js", () => {
 const Fastify = (await import("fastify")).default;
 const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
 const { postRoutes } = await import("../../src/posts/postRoutes.js");
-const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { createRouteTestContainer } = await import("./helpers/testContainer.js");
 const { TokenService } = await import("../../src/admin/auth/TokenService.js");
 
 import type { FastifyInstance } from "fastify";
@@ -171,7 +171,7 @@ async function createTestApp(): Promise<FastifyInstance> {
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
   typedApp.setValidatorCompiler(validatorCompiler);
   typedApp.setSerializerCompiler(serializerCompiler);
-  const container = setupContainer({ prisma: mockPrisma.prisma as never });
+  const container = createRouteTestContainer({ prisma: mockPrisma.prisma as never });
   typedApp.decorate("container", container);
   await typedApp.register(postRoutes);
   return typedApp;

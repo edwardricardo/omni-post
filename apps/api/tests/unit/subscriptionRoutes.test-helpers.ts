@@ -8,7 +8,7 @@ import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-
 import { subscriptionRoutes } from "../../src/billing/subscriptionRoutes.js";
 import type { AuthService } from "../../src/auth/authService.js";
 import { prisma } from "@infra/prisma";
-import { setupContainer } from "../../src/infrastructure/container/setup.js";
+import { createRouteTestContainer } from "./helpers/testContainer.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 
 // Module-level reference to the container's AuthService instance.
@@ -23,7 +23,7 @@ export async function createTestApp(): Promise<FastifyInstance> {
   typedApp.setValidatorCompiler(validatorCompiler);
   typedApp.setSerializerCompiler(serializerCompiler);
 
-  const container = setupContainer({ prisma });
+  const container = createRouteTestContainer({ prisma });
   // Resolve the AuthService BEFORE registering routes so createTestUsers()
   // can call it with the same JWT secret that the middleware will use.
   containerAuthService = container.resolve<AuthService>(TOKENS.AuthService);

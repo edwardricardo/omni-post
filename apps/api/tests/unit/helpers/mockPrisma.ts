@@ -697,7 +697,7 @@ export function createMockPrismaModule() {
     // returns a wrapped client; our tests don't exercise the tenant guard
     // semantics (those are covered by tests/unit/security/tenantGuard.test.ts
     // and the RLS integration test), so returning the same mock is sufficient
-    // for composition root code paths that call setupContainer({ prisma }).
+    // for composition root code paths reached through `createRouteTestContainer`.
     $extends: vi.fn(function (this: unknown) {
       return prisma;
     }),
