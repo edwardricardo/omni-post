@@ -12,7 +12,7 @@
 > the non-zero exit on the COMPLETE step (never on a step's script body alone), the byte-exact
 > restore verified by checksum, and the re-green.
 >
-> Composition rules are labelled **V1–V7** throughout; they are the rules of the new verdict
+> Composition rules are labelled **V1–V8** throughout; they are the rules of the new verdict
 > fitness check (**#44**) and are unrelated to any PR numbering.
 
 ---
@@ -145,11 +145,44 @@ changed paths.
 - **WHEN** the complete step runs for each
 - **THEN** each exits 1 naming the rule and the location, and the tree restores byte-exact
 
-#### Scenario: A clean composition reports zero for all seven rules [static]
+#### Scenario: A clean composition reports zero for all eight rules [static]
 
 - **GIVEN** the workflows and the committed ruleset at head
 - **WHEN** the verdict check runs
-- **THEN** V1–V7 each report zero violations
+- **THEN** V1–V8 each report zero violations
+
+---
+
+### Requirement: Only allowlisted jobs may write to the repository from CI (V8)
+
+**V8**: every job whose `permissions` grant `issues: write`, `pull-requests: write` or
+`contents: write` MUST appear in an EXPLICIT allowlist in the committed registry — CI automation
+that can open an issue, comment on a pull request or push a commit is authority, and authority that
+nobody enumerated is authority nobody reviewed. The initial allowlist is the nightly alarm job, plus
+the weekly mutation tracking-issue job when it lands. Two scopes are **explicitly OUT of scope** and
+MUST be named as such rather than silently tolerated: `security-events: write` (the code-scanning
+upload, which writes findings and not repository content) and `actions: write` (cache and artifact
+cleanup). The rule MUST fail closed.
+
+#### Scenario: An allowlisted automation job passes [static]
+
+- **GIVEN** the nightly alarm job holding `issues: write` and listed in the committed registry
+- **WHEN** the complete V8 step runs
+- **THEN** it reports zero violations
+- **AND** a job holding only `security-events: write` or `actions: write` is not reported
+
+#### Scenario: Red — `issues: write` planted on an unlisted job exits 1 [static]
+
+- **GIVEN** `issues: write` added to a job absent from the allowlist
+- **WHEN** the complete V8 step runs
+- **THEN** it exits 1 naming the workflow, the job and the granted scope
+- **AND** the tree restores byte-exact and the step re-greens
+
+#### Scenario: Red — zero workflows parsed exits 1 [static]
+
+- **GIVEN** a scope from which no workflow parses, or an unreadable allowlist
+- **WHEN** the step runs
+- **THEN** it exits 1 rather than reporting zero write-scoped jobs
 
 ---
 

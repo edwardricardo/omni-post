@@ -1,9 +1,9 @@
 # Test Reach Contract — Specification
 
 > New capability introduced by change `testing-refoundation` (WU-1.1–1.16). It fixes the
-> **reach** contract: which runner collects which file, that every collected file is actually
-> executed by a required check, and that a file no runner reaches is a red build rather than
-> invisible.
+> **reach** contract: which runner collects which file, that a file counts as reached only when its
+> collector is actually executed by a required check, and that an unreached file is a red build
+> rather than invisible.
 >
 > RFC 2119 keywords (MUST / SHALL / SHOULD / MAY) are normative. Every requirement carries
 > Given/When/Then scenarios. Tags: **[static]** decidable by inspecting tracked files or a
@@ -57,22 +57,36 @@ survives a runner change (WU-4.X2).
 
 ---
 
-### Requirement: Every test-shaped file has exactly one collector, run by a required check
+### Requirement: Every test-shaped file has exactly one collector, and every executing job of that collector is required
 
-The gate MUST assert `disk − ⋃ collected-by-a-required-job = ∅` **and** that no file is
-collected twice. For every collector the registry MUST name the workflow, the job and the
-entrypoint that executes it, that job MUST invoke that entrypoint in a `run:` step, and its
-rendered name MUST be a required context in the committed ruleset (`merge-verdict-composition`
-owns the ruleset itself). Membership MUST come from asking each runner (vitest specifications,
-the tier collector's `--list`, `playwright test --list`, the k6 glob) — never from a path
-appearing anywhere in a script, and never from a hand-written manifest.
+**"Reached" means BOTH**: the file is collected by exactly ONE collector, **AND** that collector has
+at least one EXECUTING JOB. The gate MUST assert `disk − ⋃ collected-by-an-executed-collector = ∅`
+and that no file is collected twice.
+
+For every collector the registry MUST name EITHER an **empty executing-job list** — `executedBy: []`
+is LEGAL and means the collector exists but no job runs it yet (the browser and load collectors
+until their jobs land) — OR one or more executing jobs, and each named job MUST exist in a workflow,
+MUST invoke the entrypoint in a `run:` step, and its rendered name MUST be a required context in the
+committed ruleset (`merge-verdict-composition` owns the ruleset itself). A file collected ONLY by a
+collector with an empty executing-job list is therefore **NOT reached** and MUST be quarantined until
+that job exists. Membership MUST come from asking each runner (vitest specifications, the tier
+collector's `--list`, the browser runner's list, the load glob) — never from a path appearing
+anywhere in a script, and never from a hand-written manifest.
 
 #### Scenario: A clean tree reports zero unreached and zero doubly-collected files [ci]
 
-- **GIVEN** the "Test Contracts" job on a tree whose quarantine is empty
+- **GIVEN** the "Test Contracts" job on a tree whose quarantine is empty and whose every collector
+  has at least one executing job
 - **WHEN** the reach gate runs
 - **THEN** unreached test-shaped files = 0 and files with two collectors = 0
 - **AND** the job finishes inside its 6-minute budget
+
+#### Scenario: A collector with no executing job yet is legal, and its files are unreached [static]
+
+- **GIVEN** a registry entry whose executing-job list is empty
+- **WHEN** the gate runs
+- **THEN** the entry itself is accepted (an empty list is not a violation)
+- **AND** every file that collector collects is reported unreached unless it is quarantined
 
 #### Scenario: Red — an orphan file exits 1 naming it [static]
 
@@ -86,12 +100,14 @@ appearing anywhere in a script, and never from a hand-written manifest.
 - **WHEN** the gate runs
 - **THEN** it exits 1 naming the file and both collectors
 
-#### Scenario: Red — a collector whose job is missing or not required exits 1 [static]
+#### Scenario: Red — a NAMED job that is missing or not required exits 1 [static]
 
-- **GIVEN** a registry entry pointing at a job id no workflow defines, or at a job whose
-  rendered name is absent from the committed ruleset's required contexts
-- **WHEN** the gate runs
-- **THEN** it exits 1 naming the collector and the missing job or context
+- **GIVEN** a registry entry whose executing-job list NAMES a job id no workflow defines, or names a
+  job whose rendered name is absent from the committed ruleset's required contexts, or names a job
+  that does not invoke the entrypoint in a `run:` step
+- **WHEN** the complete gate step runs
+- **THEN** it exits 1 naming the collector and the missing job, context or entrypoint
+- **AND** the tree restores byte-exact (an empty list is legal; a WRONG name never is)
 
 ---
 
@@ -100,7 +116,8 @@ appearing anywhere in a script, and never from a hand-written manifest.
 A zero is only trustworthy when the scope was read. The gate MUST exit 1 — never print a clean
 zero — when the disk set falls below its measured floor, when fewer configs than the measured
 count resolve, when a resolved config collects zero files, when a config fails to parse, or when
-any collector returns an empty set.
+any collector returns an empty FILE set (an empty EXECUTING-JOB list is a different thing and is
+legal).
 
 #### Scenario: Red — an empty or truncated scope exits 1 [static]
 
@@ -118,20 +135,26 @@ Until it is retired (WU-1.15), a quarantine file MAY exempt a named test-shaped 
 reach rule, and every entry MUST carry a path, a reason, an owner and a since-date. The head
 entry set MUST be a subset of the base entry set: an entry may only be removed. Each entry MUST
 be printed as `QUARANTINED (not run): <path> — <reason>` on every run, so the exemption is never
-silent. After retirement the gate MUST be hard-zero with no exemption path at all.
+silent. An entry is CONTRADICTORY — and MUST fail — only when its file is collected by a collector
+that HAS an executing job; a file collected by a collector whose executing-job list is empty is
+exactly what the quarantine is for, and MUST be exemptible. After retirement the gate MUST be
+hard-zero with no exemption path at all.
 
 #### Scenario: A quarantined file is announced on every run [static]
 
-- **GIVEN** a quarantine entry for a file no collector reaches
+- **GIVEN** a quarantine entry for a file that no collector reaches, and one for a file collected
+  only by a collector with an empty executing-job list
 - **WHEN** the tier collector and the reach gate run
-- **THEN** both print the entry with its reason, and the gate stays green
+- **THEN** both print each entry with its reason, and the gate stays green
 
 #### Scenario: Red — growing, stale or contradictory quarantine exits 1 [static]
 
 - **GIVEN** in turn: an entry added relative to base; an entry whose file no longer exists; an
-  entry for a file that IS collected
+  entry for a file collected by a collector that HAS an executing job
 - **WHEN** the gate runs for each
 - **THEN** each exits 1 naming the entry and which rule it broke
+- **AND** an entry for a file collected only by a collector with an empty executing-job list does
+  NOT fail
 
 #### Scenario: Red — after retirement there is no exemption path [static]
 
