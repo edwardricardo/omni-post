@@ -1,7 +1,8 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-09-27 (creation; this line moves with the last pull request that moved a row)
+**As of:** 2026-09-27, `refound/0-toolchain-measure` (the toolchain lag table, measured 17:55 Z;
+this line moves with the last pull request that moved a row)
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
 The measured state of the testing re-foundation, and the fixed plan it executes. Rules live in
@@ -74,167 +75,167 @@ Appendix C and the measuring report.
 One row per work unit of [§Plan (fixed)](#plan-fixed). Status: ⬜ not started · 🔄 in progress ·
 ✅ done · ⛔ blocked. `Evidence` is a run id, a checksum, or the pull request's own evidence block.
 
-| Phase | WU     | Title                                                                       | Status | PR  | Evidence | Date |
-| ----- | ------ | --------------------------------------------------------------------------- | ------ | --- | -------- | ---- |
-| 0     | T.1    | The tracker exists, with the baseline measured                              | ⬜     | —   | —        | —    |
-| 0     | T.2    | `scripts/testing/metrics.mjs` reproduces the baseline column                | ⬜     | —   | —        | —    |
-| 0     | T.3    | Ficha `N-TEST-1`, subsumed follow-ups point at it                           | ⬜     | —   | —        | —    |
-| 0     | T.4(a) | The lag table, measured (`pnpm outdated` + registry dates)                  | ⬜     | —   | —        | —    |
-| 0     | T.4(f) | The holds gate, and the corrected holds table                               | ⬜     | —   | —        | —    |
-| 0     | T.4(b) | eslint 9.36.0 → 9.39.5                                                      | ⬜     | —   | —        | —    |
-| 0     | T.4(c) | `@types/node` 24.13.6 and `engines.node`                                    | ⬜     | —   | —        | —    |
-| 0     | T.4(b) | tsx 4.23.13                                                                 | ⬜     | —   | —        | —    |
-| 0     | T.4(b) | Playwright 1.63.0 + `@axe-core/playwright` 4.13.0                           | ⬜     | —   | —        | —    |
-| 0     | T.4(b) | msw 2.15.0                                                                  | ⬜     | —   | —        | —    |
-| 0     | T.4(b) | `@testing-library/react` family                                             | ⬜     | —   | —        | —    |
-| 0     | T.4(b) | `@vitest/eslint-plugin` 1.6.27                                              | ⬜     | —   | —        | —    |
-| 0     | T.4(d) | Storybook family; Jest leaves with `@storybook/test-runner`                 | ⬜     | —   | —        | —    |
-| 0     | T.4(b) | jsdom 30 — **[H1]** crosses into production, raises the node floor          | ⬜     | —   | —        | —    |
-| 0     | T.4(e) | The 86 dead `vite` shims                                                    | ⬜     | —   | —        | —    |
-| 1     | 1.1    | Free the `.integration` suffix; name the k6 scenarios                       | ⬜     | —   | —        | —    |
-| 1     | 1.2    | Reserve the tier suffixes inside every collector                            | ⬜     | —   | —        | —    |
-| 1     | 1.2b   | vitest resolves every workspace import to `src/`                            | ⬜     | —   | —        | —    |
-| 1     | 1.3    | Remove double collection and the subset entrypoints                         | ⬜     | —   | —        | —    |
-| 1     | 1.4    | Move the timing needs into the tests                                        | ⬜     | —   | —        | —    |
-| 1     | 1.5    | Rename the node:test population by MEASURED tier                            | ⬜     | —   | —        | —    |
-| 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ⬜     | —   | —        | —    |
-| 1     | 1.7    | Collect the services tier by convention                                     | ⬜     | —   | —        | —    |
-| 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —   | —        | —    |
-| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | ⬜     | —   | —        | —    |
-| 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —   | —        | —    |
-| 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —   | —        | —    |
-| 1     | 1.12   | #36 over resolved configs, in all 86                                        | ⬜     | —   | —        | —    |
-| 1     | 1.13   | #32 over the syntax tree, in every test-shaped file                         | ⬜     | —   | —        | —    |
-| 1     | 1.14   | Workflows only call registered entrypoints (reach part B)                   | ⬜     | —   | —        | —    |
-| 1     | 1.15   | Retire the quarantine                                                       | ⬜     | —   | —        | —    |
-| 1     | 1.16   | The node collector reads a JSON reporter, not TAP                           | ⬜     | —   | —        | —    |
-| 2     | 2.0    | Canon scenario `decorative-demolition` + ADR                                | ⬜     | —   | —        | —    |
-| 2     | 2.1    | The assertion classifier as a workspace package with tests                  | ⬜     | —   | —        | —    |
-| 2     | 2.2a   | Ledger: scan, reach, JSON                                                   | ⬜     | —   | —        | —    |
-| 2     | 2.2b   | Ledger: duplicates, dead helpers, human overlay, `--area`                   | ⬜     | —   | —        | —    |
-| 2     | 2.3    | The hard probe                                                              | ⬜     | —   | —        | —    |
-| 2     | 2.4    | Durable form: ESLint rules + bulk suppressions                              | ⬜     | —   | —        | —    |
-| 2     | 2.5    | List before deleting; Edward approves the DELETE set                        | ⬜     | —   | —        | —    |
-| 2     | 2.6a   | Whole files (a)(b)(d)                                                       | ⬜     | —   | —        | —    |
-| 2     | 2.6b   | The four `describe.todo` stubs                                              | ⬜     | —   | —        | —    |
-| 2     | 2.7    | Dead helpers, runners and files                                             | ⬜     | —   | —        | —    |
-| 2     | 2.8.1a | Block deletion — `rateLimitingDashboard`, `logger`                          | ⬜     | —   | —        | —    |
-| 2     | 2.8.1b | Block deletion — `auditMiddleware`, `webhookHandler.stats`, `healthMetrics` | ⬜     | —   | —        | —    |
-| 2     | 2.8.2a | Block deletion — flat root of `apps/api/tests/unit`, first chunk            | ⬜     | —   | —        | —    |
-| 2     | 2.8.2b | Block deletion — flat root of `apps/api/tests/unit`, second chunk           | ⬜     | —   | —        | —    |
-| 2     | 2.8.3  | Block deletion — `{application,infrastructure,domain}`                      | ⬜     | —   | —        | —    |
-| 2     | 2.8.4  | Block deletion — `{security,ai,webhooks,saga,auth,admin,…}`                 | ⬜     | —   | —        | —    |
-| 2     | 2.8.5  | Block deletion — node:test                                                  | ⬜     | —   | —        | —    |
-| 2     | 2.8.6  | Block deletion — packages                                                   | ⬜     | —   | —        | —    |
-| 2     | 2.8.7  | Block deletion — client, admin, workers                                     | ⬜     | —   | —        | —    |
-| 2     | 2.9    | `settingsRoutes.test.ts` → `settingsSchemas.test.ts`                        | ⬜     | —   | —        | —    |
-| 2     | 2.10   | Weak but not decorative: REWRITE                                            | ⬜     | —   | —        | —    |
-| S     | S.1    | Three `@test-utils/*` packages with their boundary gates                    | ⬜     | —   | —        | —    |
-| S     | S.2    | Canonical builders                                                          | ⬜     | —   | —        | —    |
-| S     | S.3a   | The one Prisma double                                                       | ⬜     | —   | —        | —    |
-| S     | S.3b   | The 31 importers migrated by codemod                                        | ⬜     | —   | —        | —    |
-| S     | S.4    | The one Redis double                                                        | ⬜     | —   | —        | —    |
-| S     | S.5    | The one Fastify route-test app builder                                      | ⬜     | —   | —        | —    |
-| S     | S.6    | Seeds move to `@test-utils/persistence`                                     | ⬜     | —   | —        | —    |
-| S     | S.7    | Builder-name gate                                                           | ⬜     | —   | —        | —    |
-| S     | S.8    | `PrismaClient` cast gate                                                    | ⬜     | —   | —        | —    |
-| 3     | 3.1    | Contiguous fitness inventory (#47) and derived count                        | ⬜     | —   | —        | —    |
-| 3     | 3.2    | Reporters in the config; the shard stops being blind                        | ⬜     | —   | —        | —    |
-| 3     | 3.3    | OpenAPI drift gets its own job                                              | ⬜     | —   | —        | —    |
-| 3     | 3.4    | Coverage Merge renders failures and refuses to certify a red suite          | ⬜     | —   | —        | —    |
-| 3     | 3.5    | Remove "Test and Build" and the second "Security Audit"                     | ⬜     | —   | —        | —    |
-| 3     | 3.6    | gitleaks scans the pull request's commits                                   | ⬜     | —   | —        | —    |
-| 3     | 3.7(a) | OSV-Scanner: measure the finding classes                                    | ⬜     | —   | —        | —    |
-| 3     | 3.7(b) | OSV-Scanner: real gate, or removed                                          | ⬜     | —   | —        | —    |
-| 3     | 3.8    | A skipped vitest test fails CI                                              | ⬜     | —   | —        | —    |
-| 3     | 3.9    | #44 verdict composition, static rules                                       | ⬜     | —   | —        | —    |
-| 3     | 3.10   | #44 operational rules and drift read from GitHub                            | ⬜     | —   | —        | —    |
-| 3     | 3.11   | The merge-gate composition, versioned                                       | ⬜     | —   | —        | —    |
-| 3     | 3.12   | Nightly rebuilt; one alarm per workflow; chaos folded in                    | ⬜     | —   | —        | —    |
-| 3     | 3.13   | Script entrypoints cannot swallow errors (#45)                              | ⬜     | —   | —        | —    |
-| 4b    | 4b.1   | `test-env.sh env <hermetic\|services>`                                      | ⬜     | —   | —        | —    |
-| 4b    | 4b.2   | `test-env.sh db [--reset]`                                                  | ⬜     | —   | —        | —    |
-| 4b    | 4b.3   | `up \| serve \| down \| liveness \| logs \| run`                            | ⬜     | —   | —        | —    |
-| 4b    | 4b.4   | Adoption in performance, ZAP and nightly                                    | ⬜     | —   | —        | —    |
-| 4b    | 4b.5   | A test-env loader that fails closed                                         | ⬜     | —   | —        | —    |
-| 4b    | 4b.6   | Playwright `webServer` from the script, both apps                           | ⬜     | —   | —        | —    |
-| 4b    | 4b.7   | One environment identity (#46)                                              | ⬜     | —   | —        | —    |
-| 4b    | 4b.8   | The api shards run hermetic                                                 | ⬜     | —   | —        | —    |
-| 4     | 4.1a   | Availability is a precondition, never a skip — live suites                  | ⬜     | —   | —        | —    |
-| 4     | 4.1b   | Availability is a precondition, never a skip — the rest                     | ⬜     | —   | —        | —    |
-| 4     | 4.2    | `trendRadarRoutes.test.ts` — the missing `dayKey`                           | ⬜     | —   | —        | —    |
-| 4     | 4.3    | Rewrite `production.integration.test.ts`                                    | ⬜     | —   | —        | —    |
-| 4     | 4.4    | F-6 as a class: topology plus precondition                                  | ⬜     | —   | —        | —    |
-| 4     | 4.5    | The 10 dark DB-only suites enter by convention                              | ⬜     | —   | —        | —    |
-| 4     | 4.6    | The 9 live suites enter the same way                                        | ⬜     | —   | —        | —    |
-| 4     | 4.7    | `tests/chaos` stays, `chaos.yml` goes                                       | ⬜     | —   | —        | —    |
-| 4     | 4.9    | Tier acceptance: two consecutive clean CI runs                              | ⬜     | —   | —        | —    |
-| X     | 4.X1   | The runner experiment, measured                                             | ⬜     | —   | —        | —    |
-| X     | 4.X2   | The decision rule applied to X1's table — **[H7]**                          | ⬜     | —   | —        | —    |
-| 5     | 5.1    | Coverage defaults in the factory                                            | ⬜     | —   | —        | —    |
-| 5     | 5.2    | Measure before fixing floors                                                | ⬜     | —   | —        | —    |
-| 5     | 5.3    | Fix floors — `packages/core/*`, first 26 configs                            | ⬜     | —   | —        | —    |
-| 5     | 5.4    | Fix floors — the other 26 core packages and the engine                      | ⬜     | —   | —        | —    |
-| 5     | 5.5    | Fix floors — adapters, providers, observability, monitoring, api-\*         | ⬜     | —   | —        | —    |
-| 5     | 5.6    | Fix floors — `apps/{admin,client,workers}`                                  | ⬜     | —   | —        | —    |
-| 5     | 5.7    | #37 over every config                                                       | ⬜     | —   | —        | —    |
-| 5     | 5.8    | CI enforces floors; risen floors surface for every package                  | ⬜     | —   | —        | —    |
-| 5     | 5.9    | Every package is measured or listed with a reason                           | ⬜     | —   | —        | —    |
-| 5     | 5.10   | The canon moves to measured floors plus ratchet                             | ⬜     | —   | —        | —    |
-| 6.E   | 6.E1   | Demolish the E2E fiction                                                    | ⬜     | —   | —        | —    |
-| 6.E   | 6.E2   | `infra/prisma/seed-e2e.ts`                                                  | ⬜     | —   | —        | —    |
-| 6.E   | 6.E3a  | Provider base-URL seam (production)                                         | ⬜     | —   | —        | —    |
-| 6.E   | 6.E3b  | Fake-provider sidecar                                                       | ⬜     | —   | —        | —    |
-| 6.E   | 6.E4   | Client Playwright config                                                    | ⬜     | —   | —        | —    |
-| 6.E   | 6.E5a  | First green specs: `auth`, `posts`                                          | ⬜     | —   | —        | —    |
-| 6.E   | 6.E5b  | `publish-now.spec.ts` and the dashboard a11y pass                           | ⬜     | —   | —        | —    |
-| 6.E   | 6.E6   | Admin E2E                                                                   | ⬜     | —   | —        | —    |
-| 6.E   | 6.E7   | WCAG contrast fix on the admin accent                                       | ⬜     | —   | —        | —    |
-| 6.E   | 6.E8   | CI job "E2E (chromium)"                                                     | ⬜     | —   | —        | —    |
-| 6.E   | 6.E9   | Turbo and script cleanup                                                    | ⬜     | —   | —        | —    |
-| 6.E   | 6.E10  | Declared gap: schedule → worker publishes                                   | ⬜     | —   | —        | —    |
-| 6.M   | 6.M1   | `@test-utils/wire` core                                                     | ⬜     | —   | —        | —    |
-| 6.M   | 6.M2   | `setupFiles` per app and network isolation by default                       | ⬜     | —   | —        | —    |
-| 6.M   | 6.M3   | Shared API handlers typed by OpenAPI                                        | ⬜     | —   | —        | —    |
-| 6.M   | 6.M4   | The fetch-stub gate                                                         | ⬜     | —   | —        | —    |
-| 6.M   | 6.M5   | Migration — client                                                          | ⬜     | —   | —        | —    |
-| 6.M   | 6.M6   | Migration — admin                                                           | ⬜     | —   | —        | —    |
-| 6.M   | 6.M7   | Migration — api                                                             | ⬜     | —   | —        | —    |
-| 6.M   | 6.M8   | Migration — providers                                                       | ⬜     | —   | —        | —    |
-| 6.M   | 6.M9   | Close: suppressions empty, rule hard-zero                                   | ⬜     | —   | —        | —    |
-| 6.K   | 6.K1   | One real scenario; the rest deleted                                         | ⬜     | —   | —        | —    |
-| 6.K   | 6.K2   | Variable and image                                                          | ⬜     | —   | —        | —    |
-| 6.K   | 6.K3   | Calibration — 10 runs on main                                               | ⬜     | —   | —        | —    |
-| 6.K   | 6.K4   | The job, as a merge gate — **[H6]**                                         | ⬜     | —   | —        | —    |
-| 6.P   | 6.P1   | Retire `perf:memory`                                                        | ⬜     | —   | —        | —    |
-| 6.P   | 6.P2   | Retire `perf:db` and its siblings                                           | ⬜     | —   | —        | —    |
-| 6.S   | 6.S1   | Fold the twelve cases that matter into the live tier                        | ⬜     | —   | —        | —    |
-| 6.S   | 6.S2   | Delete `security/tests`                                                     | ⬜     | —   | —        | —    |
-| 6.N   | 6.N0   | Measured prioritisation                                                     | ⬜     | —   | —        | —    |
-| 6.N   | 6.N1   | Security first                                                              | ⬜     | —   | —        | —    |
-| 6.N   | 6.N2   | The publishing core                                                         | ⬜     | —   | —        | —    |
-| 6.N   | 6.N3   | `core/billing` and the 39 single-test contexts                              | ⬜     | —   | —        | —    |
-| 6.N   | 6.N4   | The 36 untested api routes                                                  | ⬜     | —   | —        | —    |
-| 6.N   | 6.N5   | Packages with no config                                                     | ⬜     | —   | —        | —    |
-| 6.N   | 6.N6   | Portals and workers                                                         | ⬜     | —   | —        | —    |
-| 7     | 7.1    | Tool choice against criteria                                                | ⬜     | —   | —        | —    |
-| 7     | 7.2    | One root config plus `mutation.mjs`                                         | ⬜     | —   | —        | —    |
-| 7     | 7.3    | Confirm every survivor                                                      | ⬜     | —   | —        | —    |
-| 7     | 7.4    | `mutation-floors.json` per package                                          | ⬜     | —   | —        | —    |
-| 7     | 7.5    | Incremental in pull requests                                                | ⬜     | —   | —        | —    |
-| 7     | 7.6    | Feed the ledger; verify the both-directions rule                            | ⬜     | —   | —        | —    |
-| 7     | 7.7    | `apps/api`: declared gap until fork-pool support                            | ⬜     | —   | —        | —    |
-| 8     | 8.1a   | `CODING_STANDARDS.md` §Testing, part 1                                      | ⬜     | —   | —        | —    |
-| 8     | 8.1b   | `CODING_STANDARDS.md` §Testing, part 2 (coverage)                           | ⬜     | —   | —        | —    |
-| 8     | 8.2    | `docs/architecture/TESTING.md` → archived frozen                            | ⬜     | —   | —        | —    |
-| 8     | 8.3    | `chaos-testing.md` → folded and archived                                    | ⬜     | —   | —        | —    |
-| 8     | 8.4    | `provider-testing.md` → folded and archived                                 | ⬜     | —   | —        | —    |
-| 8     | 8.5    | `saga-test-suites.md` → corrected                                           | ⬜     | —   | —        | —    |
-| 8     | 8.6    | `SECURITY_TESTING_FRAMEWORK.md` → corrected                                 | ⬜     | —   | —        | —    |
-| 8     | 8.7    | The four E2E READMEs → archived frozen                                      | ⬜     | —   | —        | —    |
-| 8     | 8.8    | `TESTING_INFRASTRUCTURE.md` re-measured and protected                       | ⬜     | —   | —        | —    |
-| 8     | 8.9    | Correct the false #32 comment                                               | ⬜     | —   | —        | —    |
-| 9     | 9      | The queue, measured under the new battery                                   | ⬜     | —   | —        | —    |
+| Phase | WU     | Title                                                                       | Status | PR                            | Evidence                                | Date       |
+| ----- | ------ | --------------------------------------------------------------------------- | ------ | ----------------------------- | --------------------------------------- | ---------- |
+| 0     | T.1    | The tracker exists, with the baseline measured                              | ✅     | `#316`                        | main `29cd6682` (PR #316)               | 2026-09-27 |
+| 0     | T.2    | `scripts/testing/metrics.mjs` reproduces the baseline column                | ✅     | `#317`                        | main `9d579214` (PR #317)               | 2026-09-27 |
+| 0     | T.3    | Ficha `N-TEST-1`, subsumed follow-ups point at it                           | ✅     | `#316`                        | main `29cd6682` (PR #316)               | 2026-09-27 |
+| 0     | T.4(a) | The lag table, measured (`pnpm outdated` + registry dates)                  | ✅     | `refound/0-toolchain-measure` | [§Toolchain lag](#toolchain-lag-wu-t4a) | 2026-09-27 |
+| 0     | T.4(f) | The holds gate, and the corrected holds table                               | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(b) | eslint 9.36.0 → 9.39.5                                                      | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(c) | `@types/node` 24.13.6 and `engines.node`                                    | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(b) | tsx 4.23.13                                                                 | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(b) | Playwright 1.63.0 + `@axe-core/playwright` 4.13.0                           | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(b) | msw 2.15.0                                                                  | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(b) | `@testing-library/react` family                                             | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(b) | `@vitest/eslint-plugin` 1.6.27                                              | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(d) | Storybook family; Jest leaves with `@storybook/test-runner`                 | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(b) | jsdom 30 — **[H1]** crosses into production, raises the node floor          | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(e) | The 86 dead `vite` shims                                                    | ⬜     | —                             | —                                       | —          |
+| 1     | 1.1    | Free the `.integration` suffix; name the k6 scenarios                       | ⬜     | —                             | —                                       | —          |
+| 1     | 1.2    | Reserve the tier suffixes inside every collector                            | ⬜     | —                             | —                                       | —          |
+| 1     | 1.2b   | vitest resolves every workspace import to `src/`                            | ⬜     | —                             | —                                       | —          |
+| 1     | 1.3    | Remove double collection and the subset entrypoints                         | ⬜     | —                             | —                                       | —          |
+| 1     | 1.4    | Move the timing needs into the tests                                        | ⬜     | —                             | —                                       | —          |
+| 1     | 1.5    | Rename the node:test population by MEASURED tier                            | ⬜     | —                             | —                                       | —          |
+| 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ⬜     | —                             | —                                       | —          |
+| 1     | 1.7    | Collect the services tier by convention                                     | ⬜     | —                             | —                                       | —          |
+| 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
+| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | ⬜     | —                             | —                                       | —          |
+| 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
+| 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —                             | —                                       | —          |
+| 1     | 1.12   | #36 over resolved configs, in all 86                                        | ⬜     | —                             | —                                       | —          |
+| 1     | 1.13   | #32 over the syntax tree, in every test-shaped file                         | ⬜     | —                             | —                                       | —          |
+| 1     | 1.14   | Workflows only call registered entrypoints (reach part B)                   | ⬜     | —                             | —                                       | —          |
+| 1     | 1.15   | Retire the quarantine                                                       | ⬜     | —                             | —                                       | —          |
+| 1     | 1.16   | The node collector reads a JSON reporter, not TAP                           | ⬜     | —                             | —                                       | —          |
+| 2     | 2.0    | Canon scenario `decorative-demolition` + ADR                                | ⬜     | —                             | —                                       | —          |
+| 2     | 2.1    | The assertion classifier as a workspace package with tests                  | ⬜     | —                             | —                                       | —          |
+| 2     | 2.2a   | Ledger: scan, reach, JSON                                                   | ⬜     | —                             | —                                       | —          |
+| 2     | 2.2b   | Ledger: duplicates, dead helpers, human overlay, `--area`                   | ⬜     | —                             | —                                       | —          |
+| 2     | 2.3    | The hard probe                                                              | ⬜     | —                             | —                                       | —          |
+| 2     | 2.4    | Durable form: ESLint rules + bulk suppressions                              | ⬜     | —                             | —                                       | —          |
+| 2     | 2.5    | List before deleting; Edward approves the DELETE set                        | ⬜     | —                             | —                                       | —          |
+| 2     | 2.6a   | Whole files (a)(b)(d)                                                       | ⬜     | —                             | —                                       | —          |
+| 2     | 2.6b   | The four `describe.todo` stubs                                              | ⬜     | —                             | —                                       | —          |
+| 2     | 2.7    | Dead helpers, runners and files                                             | ⬜     | —                             | —                                       | —          |
+| 2     | 2.8.1a | Block deletion — `rateLimitingDashboard`, `logger`                          | ⬜     | —                             | —                                       | —          |
+| 2     | 2.8.1b | Block deletion — `auditMiddleware`, `webhookHandler.stats`, `healthMetrics` | ⬜     | —                             | —                                       | —          |
+| 2     | 2.8.2a | Block deletion — flat root of `apps/api/tests/unit`, first chunk            | ⬜     | —                             | —                                       | —          |
+| 2     | 2.8.2b | Block deletion — flat root of `apps/api/tests/unit`, second chunk           | ⬜     | —                             | —                                       | —          |
+| 2     | 2.8.3  | Block deletion — `{application,infrastructure,domain}`                      | ⬜     | —                             | —                                       | —          |
+| 2     | 2.8.4  | Block deletion — `{security,ai,webhooks,saga,auth,admin,…}`                 | ⬜     | —                             | —                                       | —          |
+| 2     | 2.8.5  | Block deletion — node:test                                                  | ⬜     | —                             | —                                       | —          |
+| 2     | 2.8.6  | Block deletion — packages                                                   | ⬜     | —                             | —                                       | —          |
+| 2     | 2.8.7  | Block deletion — client, admin, workers                                     | ⬜     | —                             | —                                       | —          |
+| 2     | 2.9    | `settingsRoutes.test.ts` → `settingsSchemas.test.ts`                        | ⬜     | —                             | —                                       | —          |
+| 2     | 2.10   | Weak but not decorative: REWRITE                                            | ⬜     | —                             | —                                       | —          |
+| S     | S.1    | Three `@test-utils/*` packages with their boundary gates                    | ⬜     | —                             | —                                       | —          |
+| S     | S.2    | Canonical builders                                                          | ⬜     | —                             | —                                       | —          |
+| S     | S.3a   | The one Prisma double                                                       | ⬜     | —                             | —                                       | —          |
+| S     | S.3b   | The 31 importers migrated by codemod                                        | ⬜     | —                             | —                                       | —          |
+| S     | S.4    | The one Redis double                                                        | ⬜     | —                             | —                                       | —          |
+| S     | S.5    | The one Fastify route-test app builder                                      | ⬜     | —                             | —                                       | —          |
+| S     | S.6    | Seeds move to `@test-utils/persistence`                                     | ⬜     | —                             | —                                       | —          |
+| S     | S.7    | Builder-name gate                                                           | ⬜     | —                             | —                                       | —          |
+| S     | S.8    | `PrismaClient` cast gate                                                    | ⬜     | —                             | —                                       | —          |
+| 3     | 3.1    | Contiguous fitness inventory (#47) and derived count                        | ⬜     | —                             | —                                       | —          |
+| 3     | 3.2    | Reporters in the config; the shard stops being blind                        | ⬜     | —                             | —                                       | —          |
+| 3     | 3.3    | OpenAPI drift gets its own job                                              | ⬜     | —                             | —                                       | —          |
+| 3     | 3.4    | Coverage Merge renders failures and refuses to certify a red suite          | ⬜     | —                             | —                                       | —          |
+| 3     | 3.5    | Remove "Test and Build" and the second "Security Audit"                     | ⬜     | —                             | —                                       | —          |
+| 3     | 3.6    | gitleaks scans the pull request's commits                                   | ⬜     | —                             | —                                       | —          |
+| 3     | 3.7(a) | OSV-Scanner: measure the finding classes                                    | ⬜     | —                             | —                                       | —          |
+| 3     | 3.7(b) | OSV-Scanner: real gate, or removed                                          | ⬜     | —                             | —                                       | —          |
+| 3     | 3.8    | A skipped vitest test fails CI                                              | ⬜     | —                             | —                                       | —          |
+| 3     | 3.9    | #44 verdict composition, static rules                                       | ⬜     | —                             | —                                       | —          |
+| 3     | 3.10   | #44 operational rules and drift read from GitHub                            | ⬜     | —                             | —                                       | —          |
+| 3     | 3.11   | The merge-gate composition, versioned                                       | ⬜     | —                             | —                                       | —          |
+| 3     | 3.12   | Nightly rebuilt; one alarm per workflow; chaos folded in                    | ⬜     | —                             | —                                       | —          |
+| 3     | 3.13   | Script entrypoints cannot swallow errors (#45)                              | ⬜     | —                             | —                                       | —          |
+| 4b    | 4b.1   | `test-env.sh env <hermetic\|services>`                                      | ⬜     | —                             | —                                       | —          |
+| 4b    | 4b.2   | `test-env.sh db [--reset]`                                                  | ⬜     | —                             | —                                       | —          |
+| 4b    | 4b.3   | `up \| serve \| down \| liveness \| logs \| run`                            | ⬜     | —                             | —                                       | —          |
+| 4b    | 4b.4   | Adoption in performance, ZAP and nightly                                    | ⬜     | —                             | —                                       | —          |
+| 4b    | 4b.5   | A test-env loader that fails closed                                         | ⬜     | —                             | —                                       | —          |
+| 4b    | 4b.6   | Playwright `webServer` from the script, both apps                           | ⬜     | —                             | —                                       | —          |
+| 4b    | 4b.7   | One environment identity (#46)                                              | ⬜     | —                             | —                                       | —          |
+| 4b    | 4b.8   | The api shards run hermetic                                                 | ⬜     | —                             | —                                       | —          |
+| 4     | 4.1a   | Availability is a precondition, never a skip — live suites                  | ⬜     | —                             | —                                       | —          |
+| 4     | 4.1b   | Availability is a precondition, never a skip — the rest                     | ⬜     | —                             | —                                       | —          |
+| 4     | 4.2    | `trendRadarRoutes.test.ts` — the missing `dayKey`                           | ⬜     | —                             | —                                       | —          |
+| 4     | 4.3    | Rewrite `production.integration.test.ts`                                    | ⬜     | —                             | —                                       | —          |
+| 4     | 4.4    | F-6 as a class: topology plus precondition                                  | ⬜     | —                             | —                                       | —          |
+| 4     | 4.5    | The 10 dark DB-only suites enter by convention                              | ⬜     | —                             | —                                       | —          |
+| 4     | 4.6    | The 9 live suites enter the same way                                        | ⬜     | —                             | —                                       | —          |
+| 4     | 4.7    | `tests/chaos` stays, `chaos.yml` goes                                       | ⬜     | —                             | —                                       | —          |
+| 4     | 4.9    | Tier acceptance: two consecutive clean CI runs                              | ⬜     | —                             | —                                       | —          |
+| X     | 4.X1   | The runner experiment, measured                                             | ⬜     | —                             | —                                       | —          |
+| X     | 4.X2   | The decision rule applied to X1's table — **[H7]**                          | ⬜     | —                             | —                                       | —          |
+| 5     | 5.1    | Coverage defaults in the factory                                            | ⬜     | —                             | —                                       | —          |
+| 5     | 5.2    | Measure before fixing floors                                                | ⬜     | —                             | —                                       | —          |
+| 5     | 5.3    | Fix floors — `packages/core/*`, first 26 configs                            | ⬜     | —                             | —                                       | —          |
+| 5     | 5.4    | Fix floors — the other 26 core packages and the engine                      | ⬜     | —                             | —                                       | —          |
+| 5     | 5.5    | Fix floors — adapters, providers, observability, monitoring, api-\*         | ⬜     | —                             | —                                       | —          |
+| 5     | 5.6    | Fix floors — `apps/{admin,client,workers}`                                  | ⬜     | —                             | —                                       | —          |
+| 5     | 5.7    | #37 over every config                                                       | ⬜     | —                             | —                                       | —          |
+| 5     | 5.8    | CI enforces floors; risen floors surface for every package                  | ⬜     | —                             | —                                       | —          |
+| 5     | 5.9    | Every package is measured or listed with a reason                           | ⬜     | —                             | —                                       | —          |
+| 5     | 5.10   | The canon moves to measured floors plus ratchet                             | ⬜     | —                             | —                                       | —          |
+| 6.E   | 6.E1   | Demolish the E2E fiction                                                    | ⬜     | —                             | —                                       | —          |
+| 6.E   | 6.E2   | `infra/prisma/seed-e2e.ts`                                                  | ⬜     | —                             | —                                       | —          |
+| 6.E   | 6.E3a  | Provider base-URL seam (production)                                         | ⬜     | —                             | —                                       | —          |
+| 6.E   | 6.E3b  | Fake-provider sidecar                                                       | ⬜     | —                             | —                                       | —          |
+| 6.E   | 6.E4   | Client Playwright config                                                    | ⬜     | —                             | —                                       | —          |
+| 6.E   | 6.E5a  | First green specs: `auth`, `posts`                                          | ⬜     | —                             | —                                       | —          |
+| 6.E   | 6.E5b  | `publish-now.spec.ts` and the dashboard a11y pass                           | ⬜     | —                             | —                                       | —          |
+| 6.E   | 6.E6   | Admin E2E                                                                   | ⬜     | —                             | —                                       | —          |
+| 6.E   | 6.E7   | WCAG contrast fix on the admin accent                                       | ⬜     | —                             | —                                       | —          |
+| 6.E   | 6.E8   | CI job "E2E (chromium)"                                                     | ⬜     | —                             | —                                       | —          |
+| 6.E   | 6.E9   | Turbo and script cleanup                                                    | ⬜     | —                             | —                                       | —          |
+| 6.E   | 6.E10  | Declared gap: schedule → worker publishes                                   | ⬜     | —                             | —                                       | —          |
+| 6.M   | 6.M1   | `@test-utils/wire` core                                                     | ⬜     | —                             | —                                       | —          |
+| 6.M   | 6.M2   | `setupFiles` per app and network isolation by default                       | ⬜     | —                             | —                                       | —          |
+| 6.M   | 6.M3   | Shared API handlers typed by OpenAPI                                        | ⬜     | —                             | —                                       | —          |
+| 6.M   | 6.M4   | The fetch-stub gate                                                         | ⬜     | —                             | —                                       | —          |
+| 6.M   | 6.M5   | Migration — client                                                          | ⬜     | —                             | —                                       | —          |
+| 6.M   | 6.M6   | Migration — admin                                                           | ⬜     | —                             | —                                       | —          |
+| 6.M   | 6.M7   | Migration — api                                                             | ⬜     | —                             | —                                       | —          |
+| 6.M   | 6.M8   | Migration — providers                                                       | ⬜     | —                             | —                                       | —          |
+| 6.M   | 6.M9   | Close: suppressions empty, rule hard-zero                                   | ⬜     | —                             | —                                       | —          |
+| 6.K   | 6.K1   | One real scenario; the rest deleted                                         | ⬜     | —                             | —                                       | —          |
+| 6.K   | 6.K2   | Variable and image                                                          | ⬜     | —                             | —                                       | —          |
+| 6.K   | 6.K3   | Calibration — 10 runs on main                                               | ⬜     | —                             | —                                       | —          |
+| 6.K   | 6.K4   | The job, as a merge gate — **[H6]**                                         | ⬜     | —                             | —                                       | —          |
+| 6.P   | 6.P1   | Retire `perf:memory`                                                        | ⬜     | —                             | —                                       | —          |
+| 6.P   | 6.P2   | Retire `perf:db` and its siblings                                           | ⬜     | —                             | —                                       | —          |
+| 6.S   | 6.S1   | Fold the twelve cases that matter into the live tier                        | ⬜     | —                             | —                                       | —          |
+| 6.S   | 6.S2   | Delete `security/tests`                                                     | ⬜     | —                             | —                                       | —          |
+| 6.N   | 6.N0   | Measured prioritisation                                                     | ⬜     | —                             | —                                       | —          |
+| 6.N   | 6.N1   | Security first                                                              | ⬜     | —                             | —                                       | —          |
+| 6.N   | 6.N2   | The publishing core                                                         | ⬜     | —                             | —                                       | —          |
+| 6.N   | 6.N3   | `core/billing` and the 39 single-test contexts                              | ⬜     | —                             | —                                       | —          |
+| 6.N   | 6.N4   | The 36 untested api routes                                                  | ⬜     | —                             | —                                       | —          |
+| 6.N   | 6.N5   | Packages with no config                                                     | ⬜     | —                             | —                                       | —          |
+| 6.N   | 6.N6   | Portals and workers                                                         | ⬜     | —                             | —                                       | —          |
+| 7     | 7.1    | Tool choice against criteria                                                | ⬜     | —                             | —                                       | —          |
+| 7     | 7.2    | One root config plus `mutation.mjs`                                         | ⬜     | —                             | —                                       | —          |
+| 7     | 7.3    | Confirm every survivor                                                      | ⬜     | —                             | —                                       | —          |
+| 7     | 7.4    | `mutation-floors.json` per package                                          | ⬜     | —                             | —                                       | —          |
+| 7     | 7.5    | Incremental in pull requests                                                | ⬜     | —                             | —                                       | —          |
+| 7     | 7.6    | Feed the ledger; verify the both-directions rule                            | ⬜     | —                             | —                                       | —          |
+| 7     | 7.7    | `apps/api`: declared gap until fork-pool support                            | ⬜     | —                             | —                                       | —          |
+| 8     | 8.1a   | `CODING_STANDARDS.md` §Testing, part 1                                      | ⬜     | —                             | —                                       | —          |
+| 8     | 8.1b   | `CODING_STANDARDS.md` §Testing, part 2 (coverage)                           | ⬜     | —                             | —                                       | —          |
+| 8     | 8.2    | `docs/architecture/TESTING.md` → archived frozen                            | ⬜     | —                             | —                                       | —          |
+| 8     | 8.3    | `chaos-testing.md` → folded and archived                                    | ⬜     | —                             | —                                       | —          |
+| 8     | 8.4    | `provider-testing.md` → folded and archived                                 | ⬜     | —                             | —                                       | —          |
+| 8     | 8.5    | `saga-test-suites.md` → corrected                                           | ⬜     | —                             | —                                       | —          |
+| 8     | 8.6    | `SECURITY_TESTING_FRAMEWORK.md` → corrected                                 | ⬜     | —                             | —                                       | —          |
+| 8     | 8.7    | The four E2E READMEs → archived frozen                                      | ⬜     | —                             | —                                       | —          |
+| 8     | 8.8    | `TESTING_INFRASTRUCTURE.md` re-measured and protected                       | ⬜     | —                             | —                                       | —          |
+| 8     | 8.9    | Correct the false #32 comment                                               | ⬜     | —                             | —                                       | —          |
+| 9     | 9      | The queue, measured under the new battery                                   | ⬜     | —                             | —                                       | —          |
 
 ### Gates
 
@@ -295,6 +296,225 @@ test, or a test that cannot fail — it lives here, with the reason and the owne
 | Packages with no coverage target yet                                        | the target per package is set by the measured prioritisation, not guessed                                                     | 6.N0 (metric M16)    |
 | Two near-identical `a11y.ts` helpers (client and admin)                     | consolidating them is a refactor with no defect behind it                                                                     | 9 (queue)            |
 | `no-floating-promises: off` in test globs contradicts "always await"        | turning it on needs type-aware linting whose cost on this tree is unmeasured                                                  | 9 (queue)            |
+
+---
+
+## Toolchain lag (WU-T.4a)
+
+**Fifty-one npm packages measured, plus one containerised tool with no version to measure.
+Forty-five packages sit below their latest-mature target; five of those lags carry a documented hold
+row, one is ambiguously covered, and THIRTY-NINE carry NO HOLD — that last set is exactly what the
+holds gate of WU-T.4(f) goes red on until each one gets a row or a bump. Five crossings may not ride
+inside a family pull request, and one of them is larger than the plan recorded: the DOM
+implementation's major is blocked by a _blanket_ `tough-cookie` override that nobody had connected to
+it.**
+
+The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambiguous), 5 packages
+already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
+container tag makes the maturity rule inapplicable rather than satisfied.
+
+No metric moves in this slice. The lag table is measured state, not a metric: it is re-derived by
+re-running the commands below, never by editing a number in place.
+
+### How this was measured
+
+**Measurement instant: `2026-09-27T17:55:14Z`.** Re-derive from the repository root with:
+
+```bash
+pnpm outdated -r --format json      # installed vs the registry's `latest` dist-tag, all 98 manifests
+pnpm ls -r --depth 0 --json         # the installed version of every DIRECT dependency
+pnpm view <pkg> time --json         # every published version of <pkg> with its publish instant
+pnpm view <pkg>@<v> engines dependencies peerDependencies --json   # the crossing checks below
+```
+
+`Installed` comes from `pnpm ls -r --depth 0` — every direct dependency in this population resolves
+to exactly one version, so no manifest disagrees with the catalog. Two rows are transitive and say
+so; their installed version is read from the store layout under `node_modules/.pnpm/`.
+
+**The comparator is "latest mature", never `latest`** (`testing-toolchain-alignment` › _The freshness
+comparator is "latest mature", never "latest"_; ADR-0018's 7-day buffer). A version is MATURE when
+both hold:
+
+1. it is **stable** — no `-alpha`, `-beta`, `-rc`, `-next`, `-canary` or `-dev` identifier; and
+2. it was published **at least 7 × 24 h** before the measurement instant, i.e. on or before
+   `2026-09-20T17:55:14Z`.
+
+`Latest mature` is the highest version satisfying both. Where a cell also names a **ceiling of a
+constrained line** (the runtime major for `@types/node`, the v9 line for `eslint` and `@eslint/js`,
+the v4 line for the runner, the v5 line for the React plugin), that is the highest mature version
+inside the line the plan actually targets — and it is frequently not the same number. No committed
+script owns this selection yet; WU-T.4(f) is what turns the rule into a gate.
+
+**Why the instant is written to the second.** Maturity is a moving boundary, and it moved inside this
+one day: `tsx@4.23.15` was published `2026-09-20T07:22:17Z`, so at 04:49 Z this morning it was 6.9 d
+old and the target was 4.23.13; it matured at 07:22 Z, and by 17:55 Z it is 7.4 d old, so **the target
+is 4.23.15**. The design's rollout order names tsx 4.23.13 for that reason and is superseded by this
+row, not contradicted by it. `dependency-cruiser@18.4.0` (`2026-09-20T09:42:11Z`) crossed the same
+boundary the same morning. Others moved the other way: `size-limit@14.1.0` was published today at
+13:10 Z and is 0.2 d old, so the target there is 14.0.0.
+
+### The test battery — runner, browser driver, doubles, DOM
+
+| dep                                           | installed               | latest mature (published)                                                                                | documented hold (yes/no — where)                                                                                | CVE floor                                                        |
+| --------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `vitest`                                      | 4.1.11                  | 5.0.1 (2026-09-15) — `latest` 5.0.2 (2026-09-25) is 2.4 d, immature. **v4 ceiling = 4.1.11 = installed** | **NO HOLD** — none. Staying on 4 is signed (D20) and reasoned in research, but no row exists for a gate to read | 4.1.11 (`SECURITY_CANON.md:289`) — met; a floor, not a ceiling   |
+| `@vitest/coverage-v8`                         | 4.1.11                  | 5.0.1 (2026-09-15) — exact peer of the runner, moves in lockstep                                         | **NO HOLD** — none                                                                                              | 4.1.11 (`:289`) — met                                            |
+| `@vitest/ui`                                  | 4.1.11                  | 5.0.1 (2026-09-15) — same family lock                                                                    | **NO HOLD** — none                                                                                              | 4.1.11 (`:289`) — met                                            |
+| `@vitest/eslint-plugin`                       | — (declared in 0 of 98) | 1.6.27 (2026-08-10, 48.6 d)                                                                              | n/a — an addition, not a lag                                                                                    | —                                                                |
+| `@playwright/test`                            | 1.61.1                  | 1.63.0 (2026-09-04, 22.8 d)                                                                              | **NO HOLD** — none                                                                                              | —                                                                |
+| `playwright` / `playwright-core` (transitive) | 1.61.1                  | 1.63.0 (2026-09-04)                                                                                      | **NO HOLD** — none                                                                                              | —                                                                |
+| `@axe-core/playwright`                        | 4.10.2                  | 4.13.0 (2026-08-11, 47.0 d)                                                                              | **NO HOLD** — none                                                                                              | —                                                                |
+| `msw`                                         | 2.14.6                  | 2.15.0 (2026-07-08, 81.7 d)                                                                              | **NO HOLD** — none                                                                                              | —                                                                |
+| `jsdom`                                       | 29.1.1                  | 30.1.0 (2026-09-17) — `latest` 30.1.1 (2026-09-22) is 5.7 d, immature                                    | **NO HOLD** — none                                                                                              | three override bands sit in its chain — see crossing 1 below     |
+| `isomorphic-dompurify` (PRODUCTION)           | 3.19.0                  | 4.3.0 (2026-09-19) — `latest` 4.4.0 (2026-09-25) is 2.0 d. **v3 ceiling 3.23.0 (2026-08-25)**            | **NO HOLD** — none                                                                                              | `dompurify` 3.4.13 (`:281`) — met by 4.3.0's `dompurify ^3.4.12` |
+| `@testing-library/react`                      | 16.3.2                  | 16.3.3 (2026-08-27, 31.0 d)                                                                              | **NO HOLD** — none                                                                                              | —                                                                |
+| `@testing-library/dom`                        | 10.4.1                  | 10.4.2 (2026-09-13, 14.0 d)                                                                              | **NO HOLD** — none                                                                                              | —                                                                |
+| `@testing-library/jest-dom`                   | 7.0.0                   | 7.0.1 (2026-08-09, 48.8 d)                                                                               | **NO HOLD** — none                                                                                              | —                                                                |
+| `@testing-library/user-event`                 | 14.6.1                  | 14.6.7 (2026-09-02, 25.7 d)                                                                              | **NO HOLD** — none                                                                                              | —                                                                |
+| `@faker-js/faker`                             | 10.5.0                  | 10.6.0 (2026-08-14, 44.0 d)                                                                              | **NO HOLD** — none. `:276`'s "not raised to the latest 10.6.0" is a minimal-patch floor rule, not a hold        | 10.5.0 (`:276`) — met                                            |
+
+### Types, runtime and transpiler
+
+| dep           | installed | latest mature (published)                                                                                              | documented hold (yes/no — where)                                                             | CVE floor |
+| ------------- | --------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------- |
+| `typescript`  | 6.0.3     | 7.0.2 (2026-07-08, 81.1 d). **v6 ceiling = 6.0.3 = installed**                                                         | **NO HOLD** — none, and `pnpm-workspace.yaml:98` calls 6.0.3 "latest stable", which is false | —         |
+| `@types/node` | 25.9.3    | 26.6.2 (2026-09-19) against the generic comparator; **runtime-major (24.x) ceiling 24.13.6 (2026-09-19)** — the target | **NO HOLD** — none; `pnpm-workspace.yaml:100` also says "latest stable"                      | —         |
+| `tsx`         | 4.22.4    | **4.23.15 (2026-09-20, 7.4 d — matured at 07:22 Z today)**                                                             | **NO HOLD** — none                                                                           | —         |
+
+### Lint and formatting
+
+| dep                                | installed | latest mature (published)                                                                                      | documented hold (yes/no — where)                                                                                                                                     | CVE floor |
+| ---------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `eslint`                           | 9.36.0    | 10.11.0 (2026-09-18, 8.9 d — mature as of today). **v9 ceiling 9.39.5 (2026-07-10)**, the line's final release | **yes — `SECURITY_CANON.md:316`**, and its reason still holds (the two plugins below). But the row forbids only eslint 10; it does not cover the 9.36.0 → 9.39.5 gap | —         |
+| `@eslint/js`                       | 9.36.0    | 10.0.1 (2026-02-06, 232.8 d). v9 ceiling 9.39.5 (2026-07-10)                                                   | **NO HOLD** — named in no row. It follows eslint's hold in practice only, and practice is not something a gate can read                                              | —         |
+| `@typescript-eslint/parser`        | 8.65.0    | 8.70.0 (2026-09-07) — `latest` 8.70.1 (2026-09-21) is 6.0 d, immature                                          | **NO HOLD** — none                                                                                                                                                   | —         |
+| `@typescript-eslint/eslint-plugin` | 8.65.0    | 8.70.0 (2026-09-07) — same band                                                                                | **NO HOLD** — none                                                                                                                                                   | —         |
+| `eslint-plugin-react`              | 7.37.5    | 7.37.5 (2025-04-03) — no lag, and no newer release exists                                                      | n/a. Its peer `eslint: … \|\| ^9.7` is half the reason eslint stays on 9                                                                                             | —         |
+| `eslint-plugin-jsx-a11y`           | 6.10.2    | 6.10.2 (2024-10-26) — no lag, and no newer release exists                                                      | n/a. Its peer `eslint: … \|\| ^9` is the other half                                                                                                                  | —         |
+| `eslint-plugin-boundaries`         | 7.1.0     | 7.2.0 (2026-08-09, 49.0 d)                                                                                     | **NO HOLD** — none. `:316`'s remove-when still describes the v6 → v7 migration (SMELL-66) as pending while the tree is already on 7.1.0                              | —         |
+| `prettier`                         | 3.9.5     | 3.9.8 (2026-09-17) — `latest` 3.9.9 (2026-09-23) is 4.5 d, immature                                            | **NO HOLD** — none                                                                                                                                                   | —         |
+
+### Build and orchestration
+
+| dep                    | installed | latest mature (published)                                                                    | documented hold (yes/no — where)                                                                                                                      | CVE floor                                                             |
+| ---------------------- | --------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `vite`                 | 8.0.16    | 8.3.0 (2026-09-10) — `latest` 8.3.1 (2026-09-24) is 3.2 d, immature                          | **NO HOLD** — its own vite-7 hold is recorded RESOLVED at `:311`. The `esbuild` 0.28.1 override (`:315`) sits in its chain but pins esbuild, not vite | —                                                                     |
+| `@vitejs/plugin-react` | 5.1.4     | 6.1.1 (2026-08-28, 30.6 d). **v5 ceiling 5.2.0 (2026-03-12)**, published 11 min before 6.0.0 | **NO HOLD** — none; `:169`'s comment only explains why the package exists                                                                             | —                                                                     |
+| `turbo`                | 2.9.16    | 2.11.2 (2026-09-18) — `latest` 2.11.4 (2026-09-24) is 2.8 d, immature                        | **NO HOLD** — none                                                                                                                                    | —                                                                     |
+| `webpack`              | 5.106.2   | 5.111.1 (2026-09-18, 9.3 d)                                                                  | **NO HOLD** — none                                                                                                                                    | `browserslist` 4.28.7 (`:290`) — range-scoped, in webpack's own chain |
+| `cross-env`            | 10.0.0    | 10.1.0 (2025-09-29, 363.0 d)                                                                 | **NO HOLD** — none                                                                                                                                    | —                                                                     |
+| `jiti`                 | 2.6.1     | 2.7.0 (2026-05-05, 144.9 d)                                                                  | **NO HOLD** — none                                                                                                                                    | —                                                                     |
+
+### Storybook, and the Jest chain it carries
+
+| dep                      | installed | latest mature (published)   | documented hold (yes/no — where)                                                                                                                                           | CVE floor |
+| ------------------------ | --------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `storybook`              | 10.4.6    | 10.6.0 (2026-09-02, 25.2 d) | **yes — `:317`** (atomic family-lock). Its remove-when appears MET: the family publishes an atomic 10.6.0 set                                                              | —         |
+| `@storybook/addon-a11y`  | 10.4.6    | 10.6.0 (2026-09-02)         | **yes — `:317`**                                                                                                                                                           | —         |
+| `@storybook/addon-docs`  | 10.4.6    | 10.6.0 (2026-09-02)         | **yes — `:317`**                                                                                                                                                           | —         |
+| `@storybook/nextjs`      | 10.4.6    | 10.6.0 (2026-09-02)         | **yes — `:317`**                                                                                                                                                           | —         |
+| `@storybook/test-runner` | 0.24.4    | 0.24.5 (2026-09-02)         | **AMBIGUOUS** — `:317` says "`@storybook/*` family", but this package is an `apps/admin` literal on its own 0.24.x line and is not a catalog member. WU-T.4(f) must decide | —         |
+| `jest` (transitive)      | 30.4.2    | 30.5.2 (2026-09-18, 9.2 d)  | **NO HOLD** — none. Sole parent is `@storybook/test-runner`, and 0.24.5 still declares `jest ^30.0.4` plus `nyc ^15.1.0`, so the patch bump does not shorten the chain     | —         |
+
+### Repository-quality gates that run in the same workflows
+
+| dep                                            | installed | latest mature (published)                                             | documented hold (yes/no — where) | CVE floor                                                      |
+| ---------------------------------------------- | --------- | --------------------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------- |
+| `knip`                                         | 6.12.2    | 6.37.0 (2026-09-18) — `latest` 6.38.0 (2026-09-23) is 4.3 d, immature | **NO HOLD** — none               | `smol-toml` 1.7.1 (`:287`) — knip's own chain                  |
+| `jscpd`                                        | 4.0.8     | 5.3.0 (2026-09-18) — `latest` 5.3.2 (2026-09-23) is 4.3 d, immature   | **NO HOLD** — none               | —                                                              |
+| `dependency-cruiser`                           | 17.4.0    | 18.4.0 (2026-09-20, 7.3 d — matured today)                            | **NO HOLD** — none               | —                                                              |
+| `secretlint`                                   | 12.3.1    | 13.0.5 (2026-08-27) — `latest` 13.0.6 (2026-09-25) is 2.2 d, immature | **NO HOLD** — none               | —                                                              |
+| `@secretlint/secretlint-rule-preset-recommend` | 12.3.1    | 13.0.5 (2026-08-27) — same band                                       | **NO HOLD** — none               | —                                                              |
+| `size-limit`                                   | 12.1.0    | 14.0.0 (2026-09-15) — `latest` 14.1.0 was published **today**, 0.2 d  | **NO HOLD** — none               | —                                                              |
+| `@size-limit/preset-small-lib`                 | 12.1.0    | 14.0.0 (2026-09-15) — same band                                       | **NO HOLD** — none               | —                                                              |
+| `@ast-grep/cli`                                | 0.42.0    | 0.45.3 (2026-08-31, 27.6 d)                                           | **NO HOLD** — none               | —                                                              |
+| `lint-staged`                                  | 16.4.0    | 17.5.1 (2026-09-10) — `latest` 17.6.0 (2026-09-26) is 1.5 d, immature | **NO HOLD** — none               | —                                                              |
+| `@hey-api/openapi-ts`                          | 0.97.3    | 0.99.0 (2026-06-22, 97.5 d)                                           | **NO HOLD** — none               | `js-yaml` 4.3.2 (`:270`) — that row names this package's chain |
+| `@hey-api/client-fetch`                        | 0.13.1    | 0.13.1 (2025-06-12) — no lag; `pnpm outdated` marks it **deprecated** | n/a                              | —                                                              |
+
+### Load generators, and the one tool with no version to measure
+
+| dep                     | installed                                                                                         | latest mature (published)                                                                              | documented hold (yes/no — where) | CVE floor |
+| ----------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------- | --------- |
+| `autocannon`            | 8.0.0                                                                                             | 8.0.0 (2024-10-14) — no lag                                                                            | n/a                              | —         |
+| `loadtest`              | 8.2.1                                                                                             | 8.2.1 (2026-01-13) — no lag                                                                            | n/a                              | —         |
+| k6 (container, not npm) | `grafana/k6:latest` — floating, never pinned (`.github/workflows/performance.yml:208` and `:222`) | **unmeasurable**: a floating tag has no version to compare, so the 7-day rule cannot be applied at all | n/a                              | —         |
+
+### The five crossings — each its own decision, never inside a family pull request
+
+`testing-toolchain-alignment` › _A bump that crosses into production or raises the runtime floor is
+its own decision_ forbids these from riding along with a test-tool family. Every claim below is read
+from a published manifest or from this tree, not inferred.
+
+1. **`jsdom` 29.1.1 → 30.1.0 — [H1], slice `refound/0-toolchain-jsdom`, and LARGER than recorded.**
+   Three crossings, not the two the plan names:
+   - **Runtime floor.** `jsdom@30.1.0` declares `engines.node: ^22.22.2 || ^24.15.0 || >=26.0.0`;
+     `jsdom@29.1.1` declares `^20.19.0 || ^22.13.0 || >=24.0.0`. Local Node is exactly `v24.15.0` and
+     every workflow uses a floating `"24"`, so the `engines.node` declaration added by slice
+     `refound/0-toolchain-types-node` must be at least `^24.15.0` to be a real gate — `">=24"` would
+     pass while the floor is violated.
+   - **Production transitive.** `isomorphic-dompurify@3.19.0`, an `apps/api` PRODUCTION dependency,
+     declares `jsdom ^29.1.1`. Moving the catalog alone leaves two jsdom copies. The production
+     package that admits jsdom 30 is `isomorphic-dompurify@4.x` — latest mature 4.3.0, declaring
+     `jsdom ^30.0.0` **and the same `^22.22.2 || ^24.15.0 || >=26.0.0` Node floor** — so the runtime
+     floor crosses into production whichever order the two move in.
+   - **Two CVE-override bands, and one is a hard blocker.** `jsdom@30.1.0` depends on
+     `undici ^8.10.2`, outside the range-scoped `"undici@>=7.0.0 <7.29.0": 7.29.0` override
+     (`pnpm-workspace.yaml:240`, floor row `:285`): that band stops applying to this chain, and the
+     advisory needs re-auditing against undici 8. It also depends on `tough-cookie ^6.0.2` — and
+     `tough-cookie: 4.1.3` (`pnpm-workspace.yaml:300`, floor row `:278`) is a **BLANKET** override.
+     The store holds exactly one copy, `tough-cookie@4.1.3`, so as written the override would force
+     jsdom 30 onto a version its own manifest forbids. The canon's own gotcha applies — a blanket
+     override silently wins over a later range-scoped one (floor row `:270`) — so the pin must be
+     re-scoped, with the advisory re-audited against the published 6.x line (6.0.2 exists), inside
+     that slice. **Nothing in the plan, the design or the earlier measurement recorded this.**
+2. **`typescript` 6.0.3 → 7.0.2 — HOLD; there is no Phase 0 slice for it, and that is correct.**
+   `@typescript-eslint/parser@8.70.0` and `@typescript-eslint/eslint-plugin@8.70.0` — the newest
+   mature versions — still peer `typescript: ">=4.8.4 <6.1.0"`. TypeScript 7 is therefore not takeable
+   today at any `@typescript-eslint` version, so the hold row is the deliverable, not a bump. Its
+   remove-when is observable: `@typescript-eslint` publishes a peer range admitting 7.
+3. **`@vitejs/plugin-react` 5.1.4 → 6.1.1 — its own decision, and NOT slice
+   `refound/0-toolchain-vite-shims`.** That slice is WU-T.4(e), the 86 dead `vite` shims; it is not a
+   plugin bump. The plugin compiles the JSX of both Next portals under vitest (ADR-0019), so a major
+   crosses into the frontend build and not only into the test run. Either its own slice with both
+   portals' suites green, or a hold. Note the in-major move nobody has taken either: the v5 ceiling
+   is 5.2.0 and the tree is on 5.1.4.
+4. **`@eslint/js` 9.36.0 → 10.0.1 — needs its OWN hold row.** It is a root literal that no hold row
+   names. It tracks `eslint` in practice, and practice is not readable by a gate: as written, the
+   holds gate of WU-T.4(f) flags it while `eslint` beside it passes. The in-major mature move to
+   9.39.5 belongs in the same pull request as the `eslint` bump, or the two versions diverge.
+5. **`@types/node` 25.9.3 → 24.13.6 — a deliberate DOWNWARD move, slice
+   `refound/0-toolchain-types-node`.** Against the generic comparator the latest mature is 26.6.2; the
+   target is the runtime major, which is the named exception in `testing-toolchain-alignment` ›
+   _`@types/node` tracks the runtime major, downward if necessary, and `engines.node` is declared_.
+   The catalog change alone does not make "types major = runtime major" true in the store: a second
+   copy, `@types/node@26.0.0`, arrives through the Jest tree and leaves only when
+   `@storybook/test-runner` does (slice `refound/0-toolchain-storybook`) or an override is added.
+
+### Where each measured lag goes
+
+| Destination                                                                            | Packages                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | What that slice must prove                                                                                         |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `refound/0-toolchain-holds` (WU-T.4(f))                                                | the vitest trio's hold; the corrected `eslint` and `@storybook/test-runner` rows; one row per no-slice lag below                                                                                                                                                                                                                                                                                                                                                                     | the gate reads the holds table, fails closed on zero parsed rows, and every surviving remove-when is observable    |
+| `refound/0-toolchain-eslint` (WU-T.4(b))                                               | `eslint` 9.36.0 → 9.39.5 **and `@eslint/js` 9.36.0 → 9.39.5 in the same pull request**                                                                                                                                                                                                                                                                                                                                                                                               | `pnpm lint --max-warnings 0` exit 0; both React plugins' peers still resolve; the hold rewritten with today's date |
+| `refound/0-toolchain-types-node` (WU-T.4(c))                                           | `@types/node` 25.9.3 → 24.13.6; `engines.node` in all 98 manifests at **at least `^24.15.0`**, not `">=24"`                                                                                                                                                                                                                                                                                                                                                                          | `pnpm exec tsc -b --force` exit 0; the engines gate red-proven                                                     |
+| `refound/0-toolchain-tsx` (WU-T.4(b))                                                  | `tsx` 4.22.4 → **4.23.15** (not 4.23.13 — it matured today)                                                                                                                                                                                                                                                                                                                                                                                                                          | every `--import tsx` entrypoint still runs; re-measure maturity before pinning                                     |
+| `refound/0-toolchain-browser` (WU-T.4(b))                                              | `@playwright/test` 1.61.1 → 1.63.0 (with `playwright` / `playwright-core`), `@axe-core/playwright` 4.10.2 → 4.13.0                                                                                                                                                                                                                                                                                                                                                                   | `playwright install` succeeds on the runner image; 1.63 dropped Ubuntu 20.04                                       |
+| `refound/0-toolchain-msw` (WU-T.4(b))                                                  | `msw` 2.14.6 → 2.15.0                                                                                                                                                                                                                                                                                                                                                                                                                                                                | the suites that already use MSW stay green                                                                         |
+| `refound/0-toolchain-rtl` (WU-T.4(b))                                                  | `@testing-library/{dom,jest-dom,react,user-event}` — the family moves atomically                                                                                                                                                                                                                                                                                                                                                                                                     | both portals' component suites green; the family gate sees no split                                                |
+| `refound/0-toolchain-vitest-plugin` (WU-T.4(b))                                        | add `@vitest/eslint-plugin` 1.6.27 (declared in 0 of 98 today)                                                                                                                                                                                                                                                                                                                                                                                                                       | `assertFunctionNames` covers the `node:assert` files; `eslint` exit 0                                              |
+| `refound/0-toolchain-storybook` (WU-T.4(d))                                            | `@storybook/test-runner` removed unless a consumer is proven — taking `jest`, `nyc`, `jest-process-manager`, `wait-on` and the stray `@types/node@26.0.0` with it; the `storybook` family 10.4.6 → 10.6.0 only if the lock survives its own remove-when review                                                                                                                                                                                                                       | no workflow or script invokes it; Jest absent from the lockfile afterwards                                         |
+| `refound/0-toolchain-jsdom` (WU-T.4(b), **[H1]**)                                      | `jsdom` 29.1.1 → 30.1.0, `isomorphic-dompurify` 3.19.0 → 4.3.0, the `undici` re-audit and the `tough-cookie` re-scope                                                                                                                                                                                                                                                                                                                                                                | all THREE crossings resolved in one pull request, or a hold naming all three                                       |
+| **No enumerated slice — a hold row in `refound/0-toolchain-holds` is the deliverable** | `typescript` (peer-blocked), `@vitejs/plugin-react` (crossing), `vite`, `turbo`, `webpack`, `prettier`, `cross-env`, `jiti`, `@typescript-eslint/parser`, `@typescript-eslint/eslint-plugin`, `eslint-plugin-boundaries`, `@faker-js/faker`, `jest`, `knip`, `jscpd`, `dependency-cruiser`, `secretlint`, `@secretlint/secretlint-rule-preset-recommend`, `size-limit`, `@size-limit/preset-small-lib`, `@ast-grep/cli`, `lint-staged`, `@hey-api/openapi-ts`, and k6's floating tag | each row carries a measured reason, today's date, and a remove-when that can actually fire                         |
+
+**Two limits of this table, stated rather than discovered later.** (1) It measures DIRECT dependencies
+plus two transitives the plan owns by name (`playwright`, `jest`); a lag reachable only through some
+other parent is invisible to it, which is why WU-T.4(f)'s gate reads the same `pnpm outdated -r`
+output rather than this prose. (2) "Latest mature" is computed at one instant, and the boundary moves
+daily in both directions — `tsx` and `dependency-cruiser` crossed into maturity during the day this
+was written, and `size-limit@14.1.0` was published while it was being written. Every slice
+re-measures before it pins, per `testing-toolchain-alignment` › _The freshness comparator is "latest
+mature", never "latest"_.
 
 ---
 
