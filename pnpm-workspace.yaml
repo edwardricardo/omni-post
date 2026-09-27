@@ -95,11 +95,11 @@ catalog:
 
   # ── Build/test toolchain ──
   vitest: 4.1.11 # CVE floor raised 2026-09-09: GHSA-82fw-gwwq-j7x9 (moderate, @vitest/mocker redirect-mock path traversal), vulnerable >=2.1.0 <4.1.11. vitest 4.1.11 pins @vitest/mocker EXACTLY at 4.1.11, so the transitive needs no override of its own. Peer-locked to @vitest/* 4.1.11 (was 4.1.10)
-  typescript: 6.0.3 # latest stable (taze -l --maturity-period 7); was 5.9.3
-  tsx: 4.22.4 # MAX of declared 4.21.0 / 4.22.4 (root)
-  "@types/node": 25.9.3 # latest stable (taze -l --maturity-period 7); was 24.5.2 (MAJOR 24->25)
-  jsdom: 29.1.1 # latest stable; was 26.0.0 (MAJOR 26->29)
-  msw: 2.14.6 # latest stable (taze -l --maturity-period 7); was 2.14.3
+  typescript: 6.0.3 # NOT latest stable (the previous comment said so and was false, corrected 2026-09-27): latest mature is 7.0.2. 6.0.3 is the v6 ceiling, HELD — @typescript-eslint 8.70.0 peers typescript ">=4.8.4 <6.1.0". See SECURITY_CANON §"Build-tool version holds"
+  tsx: 4.22.4 # MAX of declared 4.21.0 / 4.22.4 (root). Lags: latest mature is 4.23.15 (matured 2026-09-20T07:22Z); scheduled bump, holds row in SECURITY_CANON
+  "@types/node": 25.9.3 # NOT latest stable (corrected 2026-09-27): latest mature is 26.6.2, and the TARGET is 24.13.6 — deliberately DOWNWARD to the Node 24 runtime major, because types ahead of the runtime describe APIs it does not have. Holds row in SECURITY_CANON
+  jsdom: 29.1.1 # NOT latest stable (corrected 2026-09-27): latest mature is 30.1.0, HELD by three crossings — engines.node ^24.15.0, undici ^8 leaving its CVE band, and the BLANKET tough-cookie 4.1.3 override. See SECURITY_CANON §"Build-tool version holds"
+  msw: 2.14.6 # NOT latest stable (corrected 2026-09-27): latest mature is 2.15.0 (81.7 d), no blocker measured — scheduled bump, holds row in SECURITY_CANON
   next: 16.3.3 # CVE floor raised 2026-09-09: 2 CRITICAL — GHSA-p293-qw3h-jr36 (unauth RCE on Windows-hosted servers) + GHSA-2xp9-vwfh-vxw4 (unauth RCE in the Image Optimization API on AVIF), both >=16.0.0 <16.3.3; was 16.2.11 (GHSA-6gpp-xcg3-4w24 middleware bypass + App Router DoS + Server Actions SSRF)
   next-intl: 4.13.0 # latest stable; was 4.9.2
   postcss: 8.5.24 # latest stable within the 7-day maturity buffer (2026-08-05; 8.5.25 is younger), >= the 8.5.23 CVE floor (GHSA-fxqj-rqcc-2cmp); was 8.5.21
