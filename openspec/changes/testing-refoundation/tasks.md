@@ -11,10 +11,10 @@
 
 | Field                   | Value                                                                                                                                                                                         |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Estimated changed lines | **CODE ~25,900 (155 enumerated slices, phases 0–9) + ~14,000–24,500 (the 6.N families, slice count fixed by the 6.N0 measurement) = ~39,900–50,400**. **EVIDENCE ~33,000** (pre-approved, D1) |
+| Estimated changed lines | **CODE ~26,040 (157 enumerated slices, phases 0–9) + ~14,000–24,500 (the 6.N families, slice count fixed by the 6.N0 measurement) = ~39,900–50,400**. **EVIDENCE ~33,000** (pre-approved, D1) |
 | 400-line budget risk    | **High** — no single slice exceeds 400 CODE; the change as a whole is ~100× the budget, so slicing is structural, not optional                                                                |
-| Chained PRs recommended | **Yes** — 155 enumerated slices + the 6.N families (40–70 slices, count fixed by 6.N0) = **195–225 PRs**                                                                                      |
-| Suggested split         | 155 stacked PRs to `main` in design §7 order, grouped in 14 phase families; 6.N adds 40–70 more after its measurement                                                                         |
+| Chained PRs recommended | **Yes** — 157 enumerated slices + the 6.N families (40–70 slices, count fixed by 6.N0) = **197–227 PRs**                                                                                      |
+| Suggested split         | 157 stacked PRs to `main` in design §7 order, grouped in 14 phase families; 6.N adds 40–70 more after its measurement                                                                         |
 | Delivery strategy       | `auto-chain` (cached this session)                                                                                                                                                            |
 | Chain strategy          | `stacked-to-main` (cached this session) — every slice targets `main`, merged in index order                                                                                                   |
 | Max slice               | 400 CODE (D1 hard). Largest enumerated: batch 1 (`refound/0-tracker`, 400) and the nine `refound/2-blocks-*` slices (300–380 each)                                                            |
@@ -97,10 +97,11 @@ Chain strategy: stacked-to-main
 - [x] 0.3.5 WU-T.4 · dependency-version-management › Every audited ignore and floor names the chain that actually delivers the package · CODE ~20 · slice `refound/0-toolchain-holds` — correct `docs/security/SECURITY_CANON.md`: GHSA-q7cg-457f-vx79 arrives through `jq → jsdom@0.2.19`, not `wait-on` — today's remove-when can never fire; rewrite the eslint hold (it explains "<10", not staying at 9.36 while 9.39.5 is mature); refresh the stale "latest stable (taze)" catalog comments.
 - [x] 0.3.6 Tracker: Gates table gains the holds gate with its red proof; M7 moves · CODE ~4 · slice `refound/0-toolchain-holds`.
 
-### 0.4 · `refound/0-toolchain-eslint` — eslint 9.36.0 → 9.39.5 · **BATCH 4**
+### 0.4 · `refound/0-toolchain-eslint` — the eslint family: eslint 9.36.0 → 9.39.5, `@eslint/js` → 9.39.5, `@typescript-eslint/{parser,eslint-plugin}` → latest mature · **BATCH 4**
 
-- [ ] 0.4.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~60 · slice `refound/0-toolchain-eslint` — bump the catalog entry, verify `pnpm lint --max-warnings 0` exit 0 and `eslint-plugin-react` / `jsx-a11y` peers still resolve, rewrite the hold with today's date and a new remove-when.
-- [ ] 0.4.2 Tracker: hold row + date in the T.4 table · CODE ~4 · slice `refound/0-toolchain-eslint`.
+- [ ] 0.4.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~60 · slice `refound/0-toolchain-eslint` — re-measure latest mature for eslint, `@eslint/js` and the `@typescript-eslint` pair on the day; bump their catalog entries together (the pair's peer range is what keeps TypeScript 7 out — record the post-bump peer range in the TypeScript hold row); verify `pnpm lint --max-warnings 0` exit 0 and `eslint-plugin-react` / `jsx-a11y` peers still resolve; `pnpm exec tsc -b --force` and `pnpm format:check` green.
+- [ ] 0.4.3 WU-T.4(f) · testing-toolchain-alignment › Every lag below latest mature carries a documented hold, and a gate proves it · CODE ~10 · slice `refound/0-toolchain-eslint` — delete the SCHEDULED hold rows of eslint, `@eslint/js` and the `@typescript-eslint` pair from `docs/security/SECURITY_CANON.md` (a bumped package needs no row); rewrite the remaining eslint-10 hold with today's date and its remove-when; `node scripts/testing/holds-gate.mjs` exit 0 with the rows gone.
+- [ ] 0.4.2 Tracker: T.4 table rows for the three packages move to their new installed versions; Decisions log records the 2026-09-27 re-plan (0.4 absorbs `@typescript-eslint`; slices 0.14 build and 0.15 quality-gates added at the tail of Phase 0) · CODE ~8 · slice `refound/0-toolchain-eslint`.
 
 ### 0.5 · `refound/0-toolchain-types-node` — `@types/node` 24.13.6 and `engines.node` · **BATCH 5**
 
@@ -152,6 +153,18 @@ Chain strategy: stacked-to-main
 
 - [ ] 0.13.1 WU-T.4(e) · dependency-version-management › Pinned DIRECT versions are the latest stable release, with no pre-releases · CODE ~15 · slice `refound/0-toolchain-vite-shims` — clean reinstall; verify `node_modules/.bin/vite` resolves to the single vite 8 and the 86 dead shims are gone.
 - [ ] 0.13.2 Tracker: T.4 table closes at 0 lags without a reason · CODE ~4 · slice `refound/0-toolchain-vite-shims`.
+
+### 0.14 · `refound/0-toolchain-build` — the build and format six · **BATCH 14** (re-plan 2026-09-27: can wait; tail of Phase 0)
+
+- [ ] 0.14.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~40 · slice `refound/0-toolchain-build` — re-measure latest mature on the day for `vite`, `turbo`, `webpack`, `cross-env`, `jiti`, `prettier`; bump each catalog entry; validate empirically: `pnpm exec tsc -b --force`, `pnpm -r build` for the packages that emit, `pnpm lint --max-warnings 0`, the api unit suite; if the prettier bump reformats files, run `pnpm format` and commit the reformat as its own EVIDENCE commit with `pnpm format:check` green after it.
+- [ ] 0.14.2 WU-T.4(f) · testing-toolchain-alignment › Every lag below latest mature carries a documented hold, and a gate proves it · CODE ~6 · slice `refound/0-toolchain-build` — delete the grouped build-tooling hold row from `docs/security/SECURITY_CANON.md`; `node scripts/testing/holds-gate.mjs` exit 0.
+- [ ] 0.14.3 Tracker: T.4 table rows move; WU row ✅ · CODE ~4 · slice `refound/0-toolchain-build`.
+
+### 0.15 · `refound/0-toolchain-quality-gates` — the quality-gate eleven · **BATCH 15** (re-plan 2026-09-27: can wait; tail of Phase 0)
+
+- [ ] 0.15.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~60 · slice `refound/0-toolchain-quality-gates` — re-measure latest mature on the day for `knip`, `jscpd`, `dependency-cruiser`, `secretlint` + its preset, `size-limit` + its preset, `@ast-grep/cli`, `lint-staged`, `@hey-api/openapi-ts`, `@faker-js/faker`; bump each; re-run every gate they back (`node scripts/knip-ratchet.mjs` — shrink the ledger ONLY for findings the bump resolves, never regenerate it to absorb new ones; jscpd, madge and dependency-cruiser from the Code Quality job; secretlint; size-limit; the api-types generation); a gate that changes its verdict after a bump is a finding to fix, not to baseline.
+- [ ] 0.15.2 WU-T.4(f) · testing-toolchain-alignment › Every lag below latest mature carries a documented hold, and a gate proves it · CODE ~6 · slice `refound/0-toolchain-quality-gates` — delete the grouped quality-gate hold row from `docs/security/SECURITY_CANON.md`; `node scripts/testing/holds-gate.mjs` exit 0.
+- [ ] 0.15.3 Tracker: T.4 table rows move; WU row ✅; Phase 0 closes · CODE ~4 · slice `refound/0-toolchain-quality-gates`.
 
 ---
 
@@ -1015,7 +1028,7 @@ Every slice targets `main` (`stacked-to-main`) and is merged in the order below.
 | 0.1    | `refound/0-tracker`                  | **1** | base merges (Edward)   | 0.1.1–0.1.6  | ~400       | — (fitness #24 row)                          | M7 + seed all       |
 | 0.2    | `refound/0-toolchain-measure`        | 2     | 0.1                    | 0.2.1–0.2.3  | ~40        | —                                            | T.4 table           |
 | 0.3    | `refound/0-toolchain-holds`          | 3     | 0.2                    | 0.3.1–0.3.6  | ~150       | holds-vs-`outdated` gate ✅                  | M7                  |
-| 0.4    | `refound/0-toolchain-eslint`         | 4     | 0.3                    | 0.4.1–0.4.2  | ~64        | —                                            | T.4 table           |
+| 0.4    | `refound/0-toolchain-eslint`         | 4     | 0.3                    | 0.4.1–0.4.3  | ~78        | —                                            | T.4 table           |
 | 0.5    | `refound/0-toolchain-types-node`     | 5     | 0.3                    | 0.5.1–0.5.4  | ~334       | `engines.node` gate ✅                       | M7                  |
 | 0.6    | `refound/0-toolchain-tsx`            | 6     | 0.3                    | 0.6.1–0.6.2  | ~29        | —                                            | T.4 table           |
 | 0.7    | `refound/0-toolchain-browser`        | 7     | 0.3                    | 0.7.1–0.7.2  | ~54        | —                                            | T.4 table           |
@@ -1025,6 +1038,8 @@ Every slice targets `main` (`stacked-to-main`) and is merged in the order below.
 | 0.11   | `refound/0-toolchain-storybook`      | 11    | 0.3                    | 0.11.1–5     | ~74        | —                                            | T.4, M13            |
 | 0.12   | `refound/0-toolchain-jsdom`          | 12    | 0.3 + **H1**           | 0.12.1–3     | ~64        | —                                            | Decisions           |
 | 0.13   | `refound/0-toolchain-vite-shims`     | 13    | 0.3                    | 0.13.1–2     | ~19        | —                                            | T.4 table           |
+| 0.14   | `refound/0-toolchain-build`          | 14    | 0.13                   | 0.14.1–3     | ~50        | —                                            | T.4 table           |
+| 0.15   | `refound/0-toolchain-quality-gates`  | 15    | 0.14                   | 0.15.1–3     | ~70        | —                                            | T.4 table, Phase 0  |
 | P.1    | `refound/3-fitness-inventory`        | —     | 0.1                    | P.1.1–P.1.4  | ~64        | #47 ✅                                       | M7                  |
 | P.2    | `refound/3-reporters`                | —     | 0.1                    | P.2.1–P.2.4  | ~44        | shard reporters ✅                           | M2, M7              |
 | P.3    | `refound/3-openapi-drift`            | —     | 0.1                    | P.3.1–P.3.3  | ~64        | OpenAPI Drift job ✅                         | M7                  |
