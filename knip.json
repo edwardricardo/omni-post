@@ -2,7 +2,11 @@
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["scripts/rls-ab-measurement.ts", "scripts/testing/metrics.mjs"],
+      "entry": [
+        "scripts/rls-ab-measurement.ts",
+        "scripts/testing/metrics.mjs",
+        "scripts/testing/holds-gate.mjs"
+      ],
       "project": ["*.{ts,js,cjs,mjs}", "scripts/**/*.{ts,js,mjs}"],
       "ignore": ["performance/**", "security/**", "scripts/migrations/**", "scripts/depscan.mjs"],
       "ignoreDependencies": [

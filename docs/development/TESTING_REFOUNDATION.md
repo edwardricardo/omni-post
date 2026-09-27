@@ -1,9 +1,10 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-09-27, `refound/0-toolchain-holds` (the corrected holds table: every measured lag
-now carries a row in `SECURITY_CANON.md` §"Build-tool version holds & dated-debt overrides"; the
-gate that PROVES it is still pending, so M7 has not moved — see [§Gates](#gates));
+**As of:** 2026-09-27, `refound/0-toolchain-holds-gate` (the holds gate's script and its hermetic
+suite, which is what moves M1 by one file. The gate's CI step is NOT in a workflow yet — the edit to
+`.github/workflows/fitness.yml` was refused by an expired sensitive-path authorisation — so nothing
+runs the script on a pull request, [§Gates](#gates) stays empty and M7 has not moved;
 this line moves with the last pull request that moved a row)
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
@@ -39,11 +40,13 @@ its work unit's job, not a note left here.
 ### Metrics
 
 Sixteen metrics. `Baseline` is the measured value at `main` @ `6701be00`; `Now` starts equal to it
-and moves only with a pull request that moved it; `Moved by` names that pull request.
+and moves only with a pull request that moved it; `Moved by` names that pull request by the short
+alias its slice used for review — `PR B` is the `metrics.mjs` half of `refound/0-tracker`, and
+`PR gate` is `refound/0-toolchain-holds-gate`, the holds-gate half of `refound/0-toolchain-holds`.
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 945 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR B     |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 946 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR gate  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -251,6 +254,14 @@ exact command, the observed non-zero exit, and the byte-exact restore evidence.
 
 No gate has been added or modified yet, so M7 reads `0/0`. `metrics.mjs --m7` counts the data rows
 of this table: total rows, and rows whose `Red proof` cell is filled.
+
+**A script in the tree is not a gate, and this table says so.** `scripts/testing/holds-gate.mjs` and
+its suite `apps/api/tests/unit/scripts/holdsGate.test.ts` are in the tree, and the script exits 0
+against it today — but no workflow invokes it, so nothing measures the invariant on a pull request
+and there is no row here. That is the same rule fitness #30 holds over test files: a check no
+collector names never executes, however complete it looks in the tree. The row is added, with its red
+demonstrated on the COMPLETE step, by the pull request that lands the step in the
+`Dependency Consistency` job — and M7 moves with it, not before.
 
 ### Decisions log
 

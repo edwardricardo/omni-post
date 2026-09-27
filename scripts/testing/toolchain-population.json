@@ -1,0 +1,164 @@
+{
+  "packages": [
+    {
+      "name": "@ast-grep/cli"
+    },
+    {
+      "name": "@axe-core/playwright"
+    },
+    {
+      "name": "@eslint/js"
+    },
+    {
+      "name": "@faker-js/faker"
+    },
+    {
+      "name": "@hey-api/client-fetch"
+    },
+    {
+      "name": "@hey-api/openapi-ts"
+    },
+    {
+      "name": "@playwright/test"
+    },
+    {
+      "name": "@secretlint/secretlint-rule-preset-recommend"
+    },
+    {
+      "name": "@size-limit/preset-small-lib"
+    },
+    {
+      "name": "@storybook/addon-a11y"
+    },
+    {
+      "name": "@storybook/addon-docs"
+    },
+    {
+      "name": "@storybook/nextjs"
+    },
+    {
+      "name": "@storybook/test-runner"
+    },
+    {
+      "name": "@testing-library/dom"
+    },
+    {
+      "name": "@testing-library/jest-dom"
+    },
+    {
+      "name": "@testing-library/react"
+    },
+    {
+      "name": "@testing-library/user-event"
+    },
+    {
+      "name": "@types/node"
+    },
+    {
+      "name": "@typescript-eslint/eslint-plugin"
+    },
+    {
+      "name": "@typescript-eslint/parser"
+    },
+    {
+      "name": "@vitejs/plugin-react"
+    },
+    {
+      "name": "@vitest/coverage-v8"
+    },
+    {
+      "name": "@vitest/eslint-plugin",
+      "absence": "candidate"
+    },
+    {
+      "name": "@vitest/ui"
+    },
+    {
+      "name": "autocannon"
+    },
+    {
+      "name": "cross-env"
+    },
+    {
+      "name": "dependency-cruiser"
+    },
+    {
+      "name": "eslint"
+    },
+    {
+      "name": "eslint-plugin-boundaries"
+    },
+    {
+      "name": "eslint-plugin-jsx-a11y"
+    },
+    {
+      "name": "eslint-plugin-react"
+    },
+    {
+      "name": "isomorphic-dompurify"
+    },
+    {
+      "name": "jest",
+      "absence": "transitive"
+    },
+    {
+      "name": "jiti"
+    },
+    {
+      "name": "jscpd"
+    },
+    {
+      "name": "jsdom"
+    },
+    {
+      "name": "knip"
+    },
+    {
+      "name": "lint-staged"
+    },
+    {
+      "name": "loadtest"
+    },
+    {
+      "name": "msw"
+    },
+    {
+      "name": "playwright",
+      "absence": "transitive"
+    },
+    {
+      "name": "playwright-core",
+      "absence": "transitive"
+    },
+    {
+      "name": "prettier"
+    },
+    {
+      "name": "secretlint"
+    },
+    {
+      "name": "size-limit"
+    },
+    {
+      "name": "storybook"
+    },
+    {
+      "name": "tsx"
+    },
+    {
+      "name": "turbo"
+    },
+    {
+      "name": "typescript"
+    },
+    {
+      "name": "vite"
+    },
+    {
+      "name": "vitest"
+    },
+    {
+      "name": "webpack"
+    }
+  ]
+}
