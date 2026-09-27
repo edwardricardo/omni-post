@@ -301,7 +301,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 21, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **42 checks, numbered #1-#42**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 20, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **42 checks, numbered #1-#42**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -704,7 +704,7 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 # file list in apps/api/scripts/run-tests.sh, and a suite that no `run_batch`
 # names never executes anywhere — while still reading as coverage in the tree,
 # in review, and in a coverage report that only counts what ran.
-# Baseline: 21 unreached suites, measured, listed in
+# Baseline: 20 unreached suites, measured, listed in
 # docs/reports/roadmap-detected-smells-backlog.md as SMELL-75. Wiring them is
 # its own body of work (each needs a tier, services, and a runtime budget), so
 # the gate gives that work a floor instead of blocking on it: the count may fall
@@ -713,7 +713,7 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 for f in $(find apps/api/tests -name "*.test.ts" \
     -not -path "*/tests/unit/*" -not -path "*/tests/eval/*"); do
   grep -qF "${f#apps/api/}" apps/api/scripts/run-tests.sh || echo "UNREACHED: $f"
-done | wc -l   # ratchet baseline: 21
+done | wc -l   # ratchet baseline: 20
 
 # 31. No vacuous-pass escape hatch in a test entry point. Two parts, hard-zero.
 # Threat: a suite that collects ZERO tests and still exits 0. The nightly chaos

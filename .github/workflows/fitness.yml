@@ -7,7 +7,7 @@ name: Architectural Fitness Functions
 # Strategy: hard-zero for every check but one (each returns count = 0). #1 and
 # #21 ran as ratchets during the prisma->DI remediation; that workstream is
 # complete, so both are now hard-zero like the rest. #30 is the single live
-# ratchet, at a measured baseline of 21, because its violations are unrun test
+# ratchet, at a measured baseline of 20, because its violations are unrun test
 # suites whose wiring is a separate body of work.
 #
 # A check whose scope path does not exist is WORSE than no check: `grep -r` on
@@ -742,12 +742,12 @@ jobs:
           # apps/api/scripts/run-tests.sh, and a suite that no `run_batch` names
           # never executes anywhere — while still reading as coverage in the
           # tree, in review, and in a coverage report that only counts what ran.
-          # Baseline 21, measured, tracked as SMELL-75 in
+          # Baseline 20, measured, tracked as SMELL-75 in
           # docs/reports/roadmap-detected-smells-backlog.md. Wiring them is its
           # own body of work (each needs a tier, services, and a runtime budget),
           # so the gate gives that work a floor instead of blocking on it: the
           # count may fall and must never rise. Mirrors CLAUDE.md #30.
-          BASELINE=21
+          BASELINE=20
           for p in apps/api/tests apps/api/scripts/run-tests.sh; do
             [ -e "$p" ] || { echo "::error title=Fitness #30 scope missing::'$p' does not exist, so this check would scan nothing and pass."; exit 1; }
           done
@@ -1733,7 +1733,7 @@ jobs:
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "41 architectural invariants (#1-#41) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
-          echo "Hard-zero threshold for every check but #30 (a ratchet at a measured baseline of 21) and #38's db-prisma sub-count (ratcheted, SMELL-87); both baselines may fall and must never rise." >> $GITHUB_STEP_SUMMARY
+          echo "Hard-zero threshold for every check but #30 (a ratchet at a measured baseline of 20) and #38's db-prisma sub-count (ratcheted, SMELL-87); both baselines may fall and must never rise." >> $GITHUB_STEP_SUMMARY
           echo "#37 compares against the PR base, so it runs on pull_request events only and skips cleanly on push." >> $GITHUB_STEP_SUMMARY
           echo "Any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
