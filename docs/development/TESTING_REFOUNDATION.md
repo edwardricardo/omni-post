@@ -1,7 +1,9 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-09-27, `refound/0-toolchain-measure` (the toolchain lag table, measured 17:55 Z;
+**As of:** 2026-09-27, `refound/0-toolchain-holds` (the corrected holds table: every measured lag
+now carries a row in `SECURITY_CANON.md` §"Build-tool version holds & dated-debt overrides"; the
+gate that PROVES it is still pending, so M7 has not moved — see [§Gates](#gates));
 this line moves with the last pull request that moved a row)
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
@@ -407,14 +409,14 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 
 ### Storybook, and the Jest chain it carries
 
-| dep                      | installed | latest mature (published)   | documented hold (yes/no — where)                                                                                                                                           | CVE floor |
-| ------------------------ | --------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| `storybook`              | 10.4.6    | 10.6.0 (2026-09-02, 25.2 d) | **yes — `:317`** (atomic family-lock). Its remove-when appears MET: the family publishes an atomic 10.6.0 set                                                              | —         |
-| `@storybook/addon-a11y`  | 10.4.6    | 10.6.0 (2026-09-02)         | **yes — `:317`**                                                                                                                                                           | —         |
-| `@storybook/addon-docs`  | 10.4.6    | 10.6.0 (2026-09-02)         | **yes — `:317`**                                                                                                                                                           | —         |
-| `@storybook/nextjs`      | 10.4.6    | 10.6.0 (2026-09-02)         | **yes — `:317`**                                                                                                                                                           | —         |
-| `@storybook/test-runner` | 0.24.4    | 0.24.5 (2026-09-02)         | **AMBIGUOUS** — `:317` says "`@storybook/*` family", but this package is an `apps/admin` literal on its own 0.24.x line and is not a catalog member. WU-T.4(f) must decide | —         |
-| `jest` (transitive)      | 30.4.2    | 30.5.2 (2026-09-18, 9.2 d)  | **NO HOLD** — none. Sole parent is `@storybook/test-runner`, and 0.24.5 still declares `jest ^30.0.4` plus `nyc ^15.1.0`, so the patch bump does not shorten the chain     | —         |
+| dep                      | installed | latest mature (published)   | documented hold (yes/no — where)                                                                                                                                                                                                                                                                      | CVE floor |
+| ------------------------ | --------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `storybook`              | 10.4.6    | 10.6.0 (2026-09-02, 25.2 d) | **yes — `:317`** (atomic family-lock). Its remove-when appears MET: the family publishes an atomic 10.6.0 set                                                                                                                                                                                         | —         |
+| `@storybook/addon-a11y`  | 10.4.6    | 10.6.0 (2026-09-02)         | **yes — `:317`**                                                                                                                                                                                                                                                                                      | —         |
+| `@storybook/addon-docs`  | 10.4.6    | 10.6.0 (2026-09-02)         | **yes — `:317`**                                                                                                                                                                                                                                                                                      | —         |
+| `@storybook/nextjs`      | 10.4.6    | 10.6.0 (2026-09-02)         | **yes — `:317`**                                                                                                                                                                                                                                                                                      | —         |
+| `@storybook/test-runner` | 0.24.4    | 0.24.5 (2026-09-02)         | **RESOLVED 2026-09-27 — its OWN row now**, not the family glob: `refound/0-toolchain-holds` gave it a hold of its own recording that it is slated for REMOVAL rather than a bump. The family row's glob did match it, which is precisely why the decision had to be written down instead of inherited | —         |
+| `jest` (transitive)      | 30.4.2    | 30.5.2 (2026-09-18, 9.2 d)  | **NO HOLD** — none. Sole parent is `@storybook/test-runner`, and 0.24.5 still declares `jest ^30.0.4` plus `nyc ^15.1.0`, so the patch bump does not shorten the chain                                                                                                                                | —         |
 
 ### Repository-quality gates that run in the same workflows
 
