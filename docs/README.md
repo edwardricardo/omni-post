@@ -24,11 +24,12 @@
 
 ### Getting Started
 
-| Document                                          | Description                           |
-| ------------------------------------------------- | ------------------------------------- |
-| [Getting Started](development/getting-started.md) | Setup, Docker, environment, first run |
-| [Contributing](development/contributing.md)       | Code standards, git workflow, testing |
-| [Turborepo](development/turborepo.md)             | Build cache, CI integration           |
+| Document                                                        | Description                                             |
+| --------------------------------------------------------------- | ------------------------------------------------------- |
+| [Getting Started](development/getting-started.md)               | Setup, Docker, environment, first run                   |
+| [Contributing](development/contributing.md)                     | Code standards, git workflow, testing                   |
+| [Turborepo](development/turborepo.md)                           | Build cache, CI integration                             |
+| [Testing Infrastructure](development/TESTING_INFRASTRUCTURE.md) | Frameworks, reach, CI execution, gates that cannot fail |
 
 ### Architecture
 
@@ -84,7 +85,7 @@
 
 | Directory / file                                               | Content                                    |
 | -------------------------------------------------------------- | ------------------------------------------ |
-| [Testing](reports/testing/)                                    | Testing audit and infrastructure reports   |
+| [Testing (archived)](archive/)                                 | Frozen testing audits, see development/    |
 | [Smells backlog](reports/roadmap-detected-smells-backlog.md)   | Live backlog of detected smells (SMELL-NN) |
 | [Merge campaign 2026-07](reports/merge-campaign-2026-07-21.md) | Single-main merge-campaign report          |
 | [Code duplications](reports/code-duplications.md)              | Duplication registry                       |

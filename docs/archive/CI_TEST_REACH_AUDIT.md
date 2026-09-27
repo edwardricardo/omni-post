@@ -1,5 +1,9 @@
 # Auditoría de alcance real de CI — "¿CI prueba toda la aplicación?"
 
+> **⚠️ STATUS: FROZEN 2026-09-27 — HISTORICAL RECORD, DO NOT UPDATE.**
+> **Replaced by:** [docs/development/TESTING_INFRASTRUCTURE.md](../development/TESTING_INFRASTRUCTURE.md) — the one living description of the testing infrastructure; every number below that is still true was re-measured there, and every number that is not is superseded there.
+> Archived verbatim under `docs/archive/` (this header is the only addition), kept for its adversarially verified mutation probes, risk inventory and refuted list, which the replacement did not re-measure and which three live documents cite as evidence.
+
 **Fecha:** 2026-08-26
 **Árbol verificado:** `main` @ `ec2f447a`
 
