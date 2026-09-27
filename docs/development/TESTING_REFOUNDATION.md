@@ -1,11 +1,9 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-09-27, `refound/0-toolchain-holds-gate` (the holds gate's script and its hermetic
-suite, which is what moves M1 by one file. The gate's CI step is NOT in a workflow yet — the edit to
-`.github/workflows/fitness.yml` was refused by an expired sensitive-path authorisation — so nothing
-runs the script on a pull request, [§Gates](#gates) stays empty and M7 has not moved;
-this line moves with the last pull request that moved a row)
+**As of:** 2026-09-27, `refound/0-toolchain-holds-gate` (the holds gate: its script, its hermetic
+suite and its CI step in the `Dependency Consistency` job, red proven on the complete step — M1 moves
+by one test file and M7 by one gate; this line moves with the last pull request that moved a row)
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
 The measured state of the testing re-foundation, and the fixed plan it executes. Rules live in
@@ -52,7 +50,7 @@ alias its slice used for review — `PR B` is the `metrics.mjs` half of `refound
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
 | M5  | Orphan test files · files with 2 collectors                       | 23 · ≥10              | 23 · ≥10              | 0 · 0         | `metrics.mjs --m5` (`test-contracts reach --json`, WU-1.9; absent at baseline)          | —        |
 | M6  | Ledger rows: machine / confirmed / total                          | —                     | —                     | 0 / N / N     | `metrics.mjs --m6` (`ledger.json`; absent at baseline)                                  | —        |
-| M7  | Gates new/modified, red proven                                    | 0/0                   | 0/0                   | n/n           | `metrics.mjs --m7` (derived: this document's [§Gates](#gates) table)                    | —        |
+| M7  | Gates new/modified, red proven                                    | 0/0                   | 1/1                   | n/n           | `metrics.mjs --m7` (derived: this document's [§Gates](#gates) table)                    | PR gate  |
 | M8  | Packages with coverage measured · floors min/median/api           | 1/86 · —/—/56.8       | 1/86 · —/—/56.8       | 86/86         | `metrics.mjs --m8` (derived: tracked `vitest.config.*` thresholds)                      | —        |
 | M9  | TIER runs: skipped / cancelled · runtime `t.skip` sites           | 0/0 · 114             | 0/0 · 114             | 0/0 · 0       | `metrics.mjs --m9` (pasted: TIER run summary; sites by WU-1.13 AST scan)                | —        |
 | M10 | E2E specs in CI, required? · last verdict                         | 0 · no                | 0 · no                | ≥6 · yes      | `metrics.mjs --m10` (run id, once WU-6.E8 lands the job)                                | —        |
@@ -86,7 +84,7 @@ One row per work unit of [§Plan (fixed)](#plan-fixed). Status: ⬜ not started 
 | 0     | T.2    | `scripts/testing/metrics.mjs` reproduces the baseline column                | ✅     | `#317`                        | main `9d579214` (PR #317)               | 2026-09-27 |
 | 0     | T.3    | Ficha `N-TEST-1`, subsumed follow-ups point at it                           | ✅     | `#316`                        | main `29cd6682` (PR #316)               | 2026-09-27 |
 | 0     | T.4(a) | The lag table, measured (`pnpm outdated` + registry dates)                  | ✅     | `refound/0-toolchain-measure` | [§Toolchain lag](#toolchain-lag-wu-t4a) | 2026-09-27 |
-| 0     | T.4(f) | The holds gate, and the corrected holds table                               | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(f) | The holds gate, and the corrected holds table                               | ✅     | `refound/0-toolchain-holds`   | [§Gates](#gates) · red proven           | 2026-09-27 |
 | 0     | T.4(b) | eslint 9.36.0 → 9.39.5                                                      | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(c) | `@types/node` 24.13.6 and `engines.node`                                    | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(b) | tsx 4.23.13                                                                 | ⬜     | —                             | —                                       | —          |
@@ -249,19 +247,15 @@ of a heredoc, where the `exit 1` lives in the step's shell and a node or python 
 own. A row is added by the pull request that adds or modifies the gate, and `Red proof` carries the
 exact command, the observed non-zero exit, and the byte-exact restore evidence.
 
-| Gate | Kind (ESLint / fitness / job) | Red proof (command, exit, restore) | PR  |
-| ---- | ----------------------------- | ---------------------------------- | --- |
+| Gate                                                                                   | Kind (ESLint / fitness / job)                                                                                                                                 | Red proof (command, exit, restore)                                                                                                                                                                                                                                                      | PR                               |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Testing toolchain holds (WU-T.4f): every lag below latest mature has a documented hold | CI step in the `Dependency Consistency` job of `fitness.yml`, running `scripts/testing/holds-gate.mjs` with `::error` paired to `exit 1` (fitness #34 PAIRED) | run block extracted from the workflow; with the vitest hold row removed from `SECURITY_CANON.md` → exit 1 naming `vitest`, `@vitest/coverage-v8`, `@vitest/ui` (installed 4.1.11, target 5.0.1); file restored, `sha256sum -c` OK; re-run → exit 0 (52 measured, 43 lags, 0 violations) | `refound/0-toolchain-holds-gate` |
 
-No gate has been added or modified yet, so M7 reads `0/0`. `metrics.mjs --m7` counts the data rows
-of this table: total rows, and rows whose `Red proof` cell is filled.
-
-**A script in the tree is not a gate, and this table says so.** `scripts/testing/holds-gate.mjs` and
-its suite `apps/api/tests/unit/scripts/holdsGate.test.ts` are in the tree, and the script exits 0
-against it today — but no workflow invokes it, so nothing measures the invariant on a pull request
-and there is no row here. That is the same rule fitness #30 holds over test files: a check no
-collector names never executes, however complete it looks in the tree. The row is added, with its red
-demonstrated on the COMPLETE step, by the pull request that lands the step in the
-`Dependency Consistency` job — and M7 moves with it, not before.
+`metrics.mjs --m7` counts the data rows of this table: total rows, and rows whose `Red proof` cell is
+filled. **A script in the tree is not a gate until a workflow runs it** — the same rule fitness #30
+holds over test files: a check no collector names never executes, however complete it looks in the
+tree. The holds gate earned its row only with the pull request that landed its step in the
+`Dependency Consistency` job, red demonstrated on the COMPLETE step, and M7 moved with it, not before.
 
 ### Decisions log
 
