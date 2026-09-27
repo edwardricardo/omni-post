@@ -1827,3 +1827,26 @@ jobs:
         # would otherwise surface here was resolved at the root (apps/client gained
         # @vitejs/plugin-react, collapsing to a single vite 8). See ADR-0019.
         run: pnpm dedupe --check
+
+      - name: "Testing toolchain holds: every lag below latest mature has a documented hold"
+        # A direct testing dependency sitting below its latest MATURE version (stable and at least
+        # 7 days published) is legal only while a row in docs/security/SECURITY_CANON.md names it
+        # with a measured reason, a date and a remove-when that can actually fire. The comparator is
+        # "latest mature", never `latest`: the newest release is frequently younger than the buffer,
+        # and targeting it would convert the buffer into decoration.
+        #
+        # It lives in THIS job because the job already installs the workspace and already talks to
+        # the registry (syncpack), which is what the maturity measurement needs.
+        #
+        # FAIL-CLOSED by construction: zero parsed hold rows, an unreadable table, a population
+        # package that is neither installed nor declared absent, a stale declared absence, an
+        # unreadable registry document, or two installed versions of one direct dependency each
+        # exit 1 rather than reporting a clean zero over inputs the gate never read. Pinned by
+        # apps/api/tests/unit/scripts/holdsGate.test.ts, whose fixtures drive every one of those
+        # refusals without touching the registry.
+        run: |
+          set -uo pipefail
+          if ! node scripts/testing/holds-gate.mjs; then
+            echo "::error title=Toolchain holds violation::A testing dependency sits below its latest-mature version with no hold row naming it in docs/security/SECURITY_CANON.md (Build-tool version holds & dated-debt overrides), or the gate could not read one of its inputs. The holds-gate lines above name each package with its installed version and its target: either bump it, or add a row carrying a measured reason, today's date and an observable remove-when."
+            exit 1
+          fi
