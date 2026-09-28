@@ -38,6 +38,7 @@
 import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { defineConfig, mergeConfig, type ViteUserConfig } from "vitest/config";
+import type { BuiltinReporters } from "vitest/reporters";
 
 /**
  * Walks up from a directory until it finds the monorepo root (the directory containing
@@ -123,6 +124,62 @@ export function buildWorkspaceAliases(root: string): { find: string; replacement
 }
 
 /**
+ * The reporters this workspace installs, by name: the one typed source for them. vitest's own
+ * `reporters` option accepts any string, so a misspelled name there type-checks and then loads
+ * nothing. Every value here must instead be one of the names vitest exports as `BuiltinReporters`,
+ * which turns a misspelling into a `tsc` error at this line. The suites under `tests/` pin the
+ * exact strings at run time.
+ */
+const REPORTER = {
+  /** Prints the file, the test name and the diff of every failure. Never conditional. */
+  READABLE: "default",
+  /** Turns each failure into a `::error` annotation on the GitHub Actions run. */
+  ANNOTATIONS: "github-actions",
+  /** Writes the machine-readable shard report the coverage-merge job reads back. */
+  BLOB: "blob",
+} as const satisfies Record<string, BuiltinReporters>;
+
+/** A reporter name {@link workspaceReporters} can return, derived from the names above. */
+export type WorkspaceReporterName = (typeof REPORTER)[keyof typeof REPORTER];
+
+/**
+ * The only two variables that decide a reporter. Naming them in the signature keeps a caller
+ * from believing that anything else in the environment is read.
+ */
+export interface ReporterSignals {
+  /** `"true"` on a GitHub Actions runner. */
+  readonly GITHUB_ACTIONS?: string | undefined;
+  /** `"true"` in a run whose blob a later merge step reads back. */
+  readonly VITEST_SHARDED?: string | undefined;
+}
+
+/**
+ * Decides which reporters a run installs, from the environment alone.
+ *
+ * This lives in configuration rather than in a command-line flag at one call site, and the
+ * difference is not tidiness. A `--reporter=blob` flag REPLACES the default reporter instead of
+ * adding to it, so the sharded CI job that carried that flag wrote a machine-readable blob and
+ * printed nothing a human could read: a failing shard named no file, no test and no diff, and
+ * the only way to see what broke was to download an artifact and merge it. Selecting here means
+ * every invocation of a config that uses it — shard, merge, laptop — reports the same way.
+ *
+ * The comparison is against the exact string `"true"` on purpose. `"1"` and `"false"` are the
+ * two spellings a hand-written workflow reaches for first, and neither is what the runner sets;
+ * treating either as truthy would install a blob reporter in a run whose blob nobody collects.
+ * The same exact-string test governs `VITEST_SHARDED` in `apps/api/vitest.config.ts`.
+ *
+ * @param env - Environment to read; injected so callers and tests stay hermetic. Defaults to
+ *   `process.env`, which is the only place this module touches the ambient process.
+ * @returns A fresh array, ordered `default` first, so one caller cannot mutate another's list.
+ */
+export function workspaceReporters(env: ReporterSignals = process.env): WorkspaceReporterName[] {
+  const reporters: WorkspaceReporterName[] = [REPORTER.READABLE];
+  if (env.GITHUB_ACTIONS === "true") reporters.push(REPORTER.ANNOTATIONS);
+  if (env.VITEST_SHARDED === "true") reporters.push(REPORTER.BLOB);
+  return reporters;
+}
+
+/**
  * Builds a Vitest config that resolves workspace specifiers to source.
  *
  * @param packageDir - The calling package directory (used to locate the monorepo root).
@@ -131,6 +188,11 @@ export function buildWorkspaceAliases(root: string): { find: string; replacement
  */
 export function defineWorkspaceVitestConfig(packageDir: string, overrides: ViteUserConfig = {}) {
   const root = findMonorepoRoot(packageDir);
+
+  // Read the caller's reporters BEFORE the base is built, because `mergeConfig` CONCATENATES
+  // arrays. Deciding here rather than post-processing the merged result keeps `mergeConfig` the
+  // single merge step, with nothing downstream to undo.
+  const callerReporters = overrides.test?.reporters;
 
   const base = defineConfig({
     resolve: {
@@ -143,6 +205,11 @@ export function defineWorkspaceVitestConfig(packageDir: string, overrides: ViteU
       environment: "node",
       globals: true,
       pool: "forks",
+      // Named reporters for every package, derived from the environment rather than from a flag
+      // at one call site — but written ONLY when the caller named none, so a package that asks
+      // for `["junit"]` gets exactly that instead of `["default", "junit"]`. Replacement, not
+      // concatenation, is the whole semantics of this key.
+      ...(callerReporters === undefined ? { reporters: workspaceReporters() } : {}),
       // `.only` is deliberately NOT configured here. vitest already refuses a
       // committed `.only` in CI through `allowOnly`, whose default is
       // `!process.env.CI`, and the static half of the rule is fitness #32.

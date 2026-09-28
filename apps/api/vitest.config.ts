@@ -11,7 +11,11 @@
  */
 import { defineConfig } from "vitest/config";
 import { shardedThresholdOverride } from "./vitest.coverage-thresholds.js";
-import { buildWorkspaceAliases, findMonorepoRoot } from "@packages/vitest-shared";
+import {
+  buildWorkspaceAliases,
+  findMonorepoRoot,
+  workspaceReporters,
+} from "@packages/vitest-shared";
 
 // When CI shards the suite across jobs, each shard runs only part of the tests,
 // so coverage thresholds are neutralised per shard and enforced once on the merged
@@ -35,6 +39,12 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    // This config does NOT go through defineWorkspaceVitestConfig (it composes the alias map
+    // itself), so it names the shared reporter selection explicitly. The shard job used to pass
+    // `--reporter=blob`, and that flag REPLACES the default reporter rather than adding to it:
+    // a failing shard wrote its blob and printed no file, no test and no diff. Selecting from
+    // the environment here keeps the blob AND the readable output, in CI and on a laptop alike.
+    reporters: workspaceReporters(),
     // Load `.env.test` BEFORE any test file's transitive import reaches
     // `apps/api/src/config/env.ts` and triggers Zod validation. Replaces the
     // prior `test.env = { DATABASE_URL: dummy }` workaround, which fired too
