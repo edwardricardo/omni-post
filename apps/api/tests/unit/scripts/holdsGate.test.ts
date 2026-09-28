@@ -17,6 +17,14 @@
  *   gate: it asserts an invariant nobody measured. Each of those refusals is therefore driven here,
  *   including the one where the table cannot be read at all, and the summary line the gate prints on
  *   a clean run is asserted ABSENT on that path.
+ *
+ *   The TABLE'S OWN SHAPE is driven separately, through `Fixture.table`, because reading the
+ *   remove-when from a fixed column INDEX fails SILENTLY rather than loudly: a table that grows a
+ *   column keeps parsing, and the gate then tests whichever cell moved into that position — which in
+ *   the real canon was the reason, so a row with an empty remove-when passed. Those cases render the
+ *   header and the rows verbatim, so a header with no `Remove-when` column, a row whose cell count
+ *   disagrees with the header, and an escaped pipe inside a cell can each be presented to the gate
+ *   exactly as markdown would present them.
  * @layer infrastructure
  */
 import { execFileSync, spawnSync } from "node:child_process";
@@ -48,6 +56,14 @@ interface HoldRow {
   readonly removeWhen: string;
 }
 
+/** A holds table rendered cell-for-cell, for the cases whose subject IS the table's shape. */
+interface RawTable {
+  readonly header: readonly string[];
+  readonly rows: readonly (readonly string[])[];
+  /** Overrides the rendered separator, for the case whose subject IS the separator. */
+  readonly separator?: readonly string[];
+}
+
 interface Fixture {
   /** Package name → installed semver, as `pnpm ls -r --depth 0 --json` reports it. */
   readonly installed: Record<string, string>;
@@ -57,6 +73,8 @@ interface Fixture {
   readonly published: Record<string, Record<string, string>>;
   readonly population: readonly PopulationEntry[];
   readonly holds: readonly HoldRow[];
+  /** Replaces the rendered table, header included, for the cases about its shape. */
+  readonly table?: RawTable;
   /** Replaces the whole canon fixture, for the unreadable-table cases. */
   readonly canonOverride?: string;
   /** Runs against the fixture directory after it is written, to remove an input. */
@@ -82,7 +100,7 @@ afterEach(() => {
 const registryFileName = (name: string): string =>
   `${name.replaceAll("@", "_").replaceAll("/", "_")}.json`;
 
-const renderCanon = (holds: readonly HoldRow[]): string =>
+const renderCanonTable = (table: RawTable): string =>
   [
     "# Security Canon — fixture",
     "",
@@ -92,13 +110,19 @@ const renderCanon = (holds: readonly HoldRow[]): string =>
     "",
     "> Fixture prose, so the parser must skip it rather than read it as a row.",
     "",
-    "| Package | Hold / floor | Where | Remove-when |",
-    "| ------- | ------------ | ----- | ----------- |",
-    ...holds.map((row) => `| ${row.packages} | ${row.hold} | ${row.where} | ${row.removeWhen} |`),
+    `| ${table.header.join(" | ")} |`,
+    `| ${(table.separator ?? table.header.map(() => "---")).join(" | ")} |`,
+    ...table.rows.map((cells) => `| ${cells.join(" | ")} |`),
     "",
     "## How to extend",
     "",
   ].join("\n");
+
+const renderCanon = (holds: readonly HoldRow[]): string =>
+  renderCanonTable({
+    header: ["Package", "Hold / floor", "Where", "Remove-when"],
+    rows: holds.map((row) => [row.packages, row.hold, row.where, row.removeWhen]),
+  });
 
 /** Writes one fixture tree and runs the complete gate against it. */
 const runGate = (fixture: Fixture): GateResult => {
@@ -149,7 +173,9 @@ const runGate = (fixture: Fixture): GateResult => {
   writeFileSync(inFixture("installed.json"), JSON.stringify(installedDocument));
   writeFileSync(inFixture("outdated.json"), JSON.stringify(outdatedDocument));
   writeFileSync(inFixture("population.json"), JSON.stringify({ packages: fixture.population }));
-  writeFileSync(inFixture("canon.md"), fixture.canonOverride ?? renderCanon(fixture.holds));
+  const canon =
+    fixture.table === undefined ? renderCanon(fixture.holds) : renderCanonTable(fixture.table);
+  writeFileSync(inFixture("canon.md"), fixture.canonOverride ?? canon);
   fixture.mutate?.(dir);
 
   const result = spawnSync(
@@ -447,6 +473,125 @@ describe("testing toolchain holds gate", () => {
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("someday");
+    });
+  });
+
+  describe("the table's own shape", () => {
+    const FIVE_COLUMNS = ["Package", "Hold / floor", "Where", "Reason", "Remove-when"] as const;
+    const WHERE = "catalog (`pnpm-workspace.yaml`)";
+    const REASON = "measured 2026-09-27: the 2.x line drops the callable default export";
+
+    it("exits 1 when a five-column row's remove-when cell is empty", () => {
+      // The defect this case exists for: the gate used to read column INDEX 3, which in a
+      // five-column table is the REASON. A row whose remove-when was blank therefore passed while
+      // the reason answered for it — the invariant read as enforced and was not.
+      const result = runGate({
+        installed: { widget: "1.0.0" },
+        published: WIDGET_MATURE_LAG,
+        population: [{ name: "widget" }],
+        holds: [],
+        table: {
+          header: FIVE_COLUMNS,
+          rows: [["`widget`", "`1.0.0` held below 2.x", WHERE, REASON, ""]],
+        },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("`widget`");
+      expect(result.stderr).toContain("remove-when");
+    });
+
+    it("exits 1 naming the header when the table declares no remove-when column", () => {
+      // A table whose remove-when column was renamed or dropped cannot be checked for one. Reading
+      // whatever sits in its place is how the previous defect happened, so the gate must refuse the
+      // TABLE and say which column it wanted.
+      const result = runGate({
+        installed: { widget: "1.0.0" },
+        published: WIDGET_MATURE_LAG,
+        population: [{ name: "widget" }],
+        holds: [],
+        table: {
+          header: ["Package", "Hold / floor", "Where", "Notes"],
+          rows: [["`widget`", "`1.0.0` held below 2.x", WHERE, REASON]],
+        },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Remove-when");
+      expect(result.stderr).toContain("Notes");
+    });
+
+    it("exits 1 naming a row whose cell count disagrees with the header", () => {
+      // GFM DROPS a cell a row has beyond the header's count and pads a missing one, so a ragged row
+      // renders as if it were whole. The reader sees a complete row; the parser sees a different
+      // one. Refusing the row is the only reading that cannot be silently wrong.
+      const result = runGate({
+        installed: { widget: "1.0.0" },
+        published: WIDGET_MATURE_LAG,
+        population: [{ name: "widget" }],
+        holds: [],
+        table: {
+          header: FIVE_COLUMNS,
+          rows: [["`widget`", "`1.0.0` held below 2.x", WHERE, "upstream keeps the export"]],
+        },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("`widget`");
+      expect(result.stderr).toContain("4");
+      expect(result.stderr).toContain("5");
+    });
+
+    it("exits 1 naming the separator when its cell count disagrees with the header", () => {
+      // The separator is the row that MAKES the block a table: when its count disagrees with the
+      // header, GFM renders no table at all and every row below it is prose that merely looks
+      // tabular. Skipping it by content before counting let that pass, which is the one shape where
+      // a reader and the parser disagree about whether a table exists.
+      const result = runGate({
+        installed: { widget: "1.0.0" },
+        published: WIDGET_MATURE_LAG,
+        population: [{ name: "widget" }],
+        holds: [],
+        table: {
+          header: FIVE_COLUMNS,
+          separator: ["---", "---", "---", "---"],
+          rows: [
+            ["`widget`", "`1.0.0` held below 2.x", WHERE, REASON, "upstream keeps the export"],
+          ],
+        },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("SEPARATOR");
+      expect(result.stderr).toContain("4");
+      expect(result.stderr).toContain("5");
+    });
+
+    it("exits 0 when a cell carries an escaped pipe", () => {
+      // `engines.node: ^22 \|\| ^24` is a real cell in the canon. An escaped pipe is cell CONTENT,
+      // not a delimiter, so a splitter that cannot tell them apart turns one whole row into a ragged
+      // one and fails the tree over markdown that is correct.
+      const result = runGate({
+        installed: { widget: "1.0.0" },
+        published: WIDGET_MATURE_LAG,
+        population: [{ name: "widget" }],
+        holds: [],
+        table: {
+          header: FIVE_COLUMNS,
+          rows: [
+            [
+              "`widget`",
+              "`1.0.0` held below 2.x",
+              WHERE,
+              String.raw`2.x declares \`engines.node: ^22 \|\| ^24\``,
+              "upstream publishes a 2.x that keeps the callable default export",
+            ],
+          ],
+        },
+      });
+
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
     });
   });
 });
