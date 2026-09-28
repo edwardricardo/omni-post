@@ -1850,3 +1850,35 @@ jobs:
             echo "::error title=Toolchain holds violation::A testing dependency sits below its latest-mature version with no hold row naming it in docs/security/SECURITY_CANON.md (Build-tool version holds & dated-debt overrides), or the gate could not read one of its inputs. The holds-gate lines above name each package with its installed version and its target: either bump it, or add a row carrying a measured reason, today's date and an observable remove-when."
             exit 1
           fi
+
+      - name: "Node engines: every workspace manifest declares engines.node at the runtime major"
+        # A manifest that declares no engines.node, or declares a major different from the runtime,
+        # is refused. The root package.json's value is the ONE source of truth and must match the
+        # shape >=<M>.<minor>.<patch> <<M+1> with <M> the .nvmrc major — an ALLOWLIST by shape, in the
+        # form fitness #28 and #40 use, because ^24 / >=24 / 24.x each name no floor, no ceiling, or
+        # neither, and would admit the next major silently.
+        #
+        # WHY IT EXISTS, measured: @types/node was pinned at 25.9.3 while every declared runtime here
+        # is the Node 24 LTS line, and nothing noticed, because no manifest declared a runtime for the
+        # pin to disagree with. Types ahead of the runtime describe APIs the runtime does not have. The
+        # gate therefore also compares the @types/node catalog pin's major against that same runtime,
+        # and refuses a manifest whose major is AHEAD exactly as loudly as one behind: moving the Node
+        # line is a deliberate change that raises .nvmrc, engines.node and the types pin together.
+        #
+        # It lives in THIS job because the job already owns the manifest/catalog invariants (syncpack,
+        # dedupe, the toolchain holds), and this gate reads only tracked files plus .nvmrc — no install
+        # and no registry.
+        #
+        # FAIL-CLOSED by construction: an unreadable or non-integer .nvmrc, a process whose own major
+        # differs from it, a population below the 90-manifest floor (fitness #42's rule — a moved
+        # layout must not read as a clean zero), an unreadable manifest, a root with no value to be
+        # canonical, and a catalog with no @types/node pin each exit 1 rather than reporting a clean
+        # zero over inputs the gate never read. Pinned by
+        # apps/api/tests/unit/scripts/enginesNodeGate.test.ts, whose fixtures drive every one of those
+        # refusals without reading the repository's own manifests.
+        run: |
+          set -uo pipefail
+          if ! node scripts/testing/engines-node-gate.mjs; then
+            echo "::error title=engines.node declaration violation::A workspace manifest declares no engines.node, or declares a major different from the runtime in .nvmrc, or the @types/node catalog pin sits on a different major, or the gate could not read one of its inputs. The engines-node-gate lines above name each manifest with the value read and the runtime major. Fill a missing declaration with 'node scripts/testing/engines-node-gate.mjs --write'; a value that DISAGREES is never overwritten, because the disagreement is the finding — moving the Node line raises .nvmrc, the root engines.node and the @types/node pin in one deliberate change."
+            exit 1
+          fi

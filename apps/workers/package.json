@@ -1,6 +1,9 @@
 {
   "name": "@apps/workers",
   "private": true,
+  "engines": {
+    "node": ">=24.15.0 <25"
+  },
   "type": "module",
   "files": [
     "dist"
