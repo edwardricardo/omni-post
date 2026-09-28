@@ -140,8 +140,8 @@ Chain strategy: stacked-to-main
 
 ### 0.10 · `refound/0-toolchain-vitest-plugin` · **BATCH 10**
 
-- [ ] 0.10.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~25 · slice `refound/0-toolchain-vitest-plugin` — `@vitest/eslint-plugin` → 1.6.27, compatible with the vitest 4.1.11 hold; no rule enabled yet (that is WU-2.4).
-- [ ] 0.10.2 Tracker: T.4 table row · CODE ~4 · slice `refound/0-toolchain-vitest-plugin`.
+- [x] 0.10.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~25 · slice `refound/0-toolchain-vitest-plugin` — `@vitest/eslint-plugin` → 1.6.27, compatible with the vitest 4.1.11 hold; no rule enabled yet (that is WU-2.4).
+- [x] 0.10.2 Tracker: T.4 table row · CODE ~4 · slice `refound/0-toolchain-vitest-plugin`.
 
 ### 0.11 · `refound/0-toolchain-storybook` — the tool no workflow runs leaves, and Jest with it · **BATCH 11**
 
