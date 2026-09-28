@@ -7,6 +7,7 @@ import reactPlugin from "eslint-plugin-react";
 import reactHooksPlugin from "eslint-plugin-react-hooks";
 import jsxA11yPlugin from "eslint-plugin-jsx-a11y";
 import boundariesPlugin from "eslint-plugin-boundaries";
+import vitestPlugin from "@vitest/eslint-plugin";
 import prettierConfig from "eslint-config-prettier";
 
 // Paths that benefit from type-aware linting (no-floating-promises).
@@ -490,6 +491,12 @@ export default defineConfig([
       "**/tests/**/*.ts",
       "**/tests/**/*.tsx",
     ],
+    // The vitest plugin is registered so its rules are RESOLVABLE on these globs,
+    // and deliberately enables none of them: this glob set also covers the node:test
+    // suites, where a rule such as `vitest/no-import-node-test` would be wrong. Both
+    // the rule selection and the narrower glob that scopes it to the files vitest
+    // actually collects are a separate change.
+    plugins: { vitest: vitestPlugin },
     rules: {
       "no-console": "off",
       "@typescript-eslint/no-explicit-any": "off",
