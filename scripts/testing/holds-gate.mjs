@@ -80,6 +80,14 @@ function repoRoot() {
  */
 
 /**
+ * @typedef {object} HoldsTable
+ * @property {HoldRow[]} rows Rows whose shape agreed with the header; a ragged row is refused, not
+ *   guessed, so it can never cover a lag through a cell the parser mis-read.
+ * @property {string[]} refusals Structural complaints about the table itself, each already a
+ *   complete sentence naming what was read and why it cannot be trusted.
+ */
+
+/**
  * Parses a three-number version with an optional prerelease or build suffix. Registry keys are
  * well-formed semver, so a key that does not parse is reported rather than ranked.
  *
@@ -121,46 +129,97 @@ function tokenToPattern(token) {
 }
 
 /**
+ * Splits one markdown table row into trimmed cells. An ESCAPED pipe (`\|`) is cell CONTENT — the
+ * canon's jsdom row carries `engines.node: ^22 \|\| ^24` — so only an unescaped pipe delimits, and a
+ * splitter that cannot tell them apart reports a whole row as ragged.
+ *
+ * @param {string} line
+ * @returns {string[]}
+ */
+function splitCells(line) {
+  return line
+    .split(/(?<!\\)\|/)
+    .slice(1, -1)
+    .map((cell) => cell.trim());
+}
+
+/**
  * Reads the hold rows of the canon's build-tool section. Only the FIRST markdown table after the
  * heading counts, so prose between the two is skipped rather than parsed.
  *
+ * Both columns it needs are located BY HEADER NAME, never by index, and the table is refused when
+ * either is missing or when a row's cell count disagrees with the header's. Index reading failed
+ * SILENTLY: the table grew a `Reason` column, index 3 stopped being the remove-when, and every row
+ * with an empty remove-when passed because the reason answered in its place. A name that is absent is
+ * loud; a position that moved is not.
+ *
  * @param {string} markdown
- * @returns {HoldRow[]}
+ * @returns {HoldsTable}
  */
 function parseHolds(markdown) {
   const lines = markdown.split("\n");
   const start = lines.indexOf(HOLDS_HEADING);
-  if (start === -1) return [];
+  if (start === -1) return { rows: [], refusals: [] };
   /** @type {HoldRow[]} */
   const rows = [];
-  let seenHeader = false;
-  let inTable = false;
+  /** @type {string[]} */
+  const refusals = [];
+  /** @type {string[] | null} */
+  let header = null;
+  let packageAt = -1;
+  let removeWhenAt = -1;
   for (let i = start + 1; i < lines.length; i += 1) {
     const line = lines[i] ?? "";
     if (line.startsWith("#")) break;
     if (!line.startsWith("|")) {
-      if (inTable) break;
+      if (header !== null) break;
       continue;
     }
-    inTable = true;
-    const cells = line
-      .split("|")
-      .slice(1, -1)
-      .map((cell) => cell.trim());
-    if (!seenHeader) {
-      seenHeader = true;
+    const cells = splitCells(line);
+    if (header === null) {
+      header = cells;
+      const named = cells.map((cell) => cell.toLowerCase());
+      packageAt = named.indexOf("package");
+      removeWhenAt = named.indexOf("remove-when");
+      if (packageAt === -1 || removeWhenAt === -1) {
+        refusals.push(
+          `the holds table header declares [${cells.join(", ")}] — it must declare both a ` +
+            `"Package" and a "Remove-when" column, because the gate locates them by NAME. A ` +
+            `renamed or dropped column would otherwise be read from whatever cell sits in its ` +
+            `place, which is how an empty remove-when passed.`
+        );
+        return { rows: [], refusals };
+      }
       continue;
     }
-    if (cells.every((cell) => /^-{2,}$/.test(cell))) continue;
-    const packages = cells[0] ?? "";
+    // The count is checked BEFORE the separator is skipped by content, because the separator is the
+    // row that makes the block a table at all: when ITS count disagrees with the header, GFM renders
+    // no table, and skipping it first would let the one shape through in which the reader and the
+    // parser disagree about whether a table exists.
+    const isSeparator = cells.every((cell) => /^:?-{2,}:?$/.test(cell));
+    if (cells.length !== header.length) {
+      refusals.push(
+        isSeparator
+          ? `the holds table's SEPARATOR row carries ${cells.length} cells against a header of ` +
+              `${header.length} — GFM renders the block as prose rather than a table when the two ` +
+              `disagree, so every row below it only LOOKS tabular. Refused rather than parsed.`
+          : `the holds row starting ${cells[0] ?? "(empty)"} carries ${cells.length} cells against ` +
+              `a header of ${header.length} — markdown drops the excess and pads the missing, so ` +
+              `the row RENDERS whole while every cell after the discrepancy is read from the wrong ` +
+              `column. Refused rather than guessed.`
+      );
+      continue;
+    }
+    if (isSeparator) continue;
+    const packages = cells[packageAt] ?? "";
     const tokens = [...packages.matchAll(/`([^`]+)`/g)].map((hit) => hit[1] ?? "");
     rows.push({
       packages,
       patterns: tokens,
-      removeWhen: cells[3] ?? "",
+      removeWhen: cells[removeWhenAt] ?? "",
     });
   }
-  return rows;
+  return { rows, refusals };
 }
 
 /**
@@ -298,7 +357,8 @@ function evaluate(options) {
   const populationPath =
     options.population ?? path.join(repoRoot(), "scripts", "testing", "toolchain-population.json");
 
-  const holds = parseHolds(readFileSync(canonPath, "utf8"));
+  const { rows: holds, refusals } = parseHolds(readFileSync(canonPath, "utf8"));
+  violations.push(...refusals);
   if (holds.length === 0) {
     violations.push(
       `zero hold rows parsed from ${canonPath} §"${HOLDS_HEADING.replace(/^#+\s*/, "")}" — the ` +

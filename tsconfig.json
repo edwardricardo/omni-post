@@ -8,6 +8,13 @@
     { "path": "packages/ports" },
     { "path": "packages/core" },
     { "path": "packages/api-common" },
+    // The EMITTING config, never the package directory: the directory resolves to that package's
+    // `tsconfig.json`, which is `noEmit`, so `tsc -b` writes `.js` beside the sources and the bare
+    // specifier `@observability/background-scheduler` still resolves to a `dist` nobody built.
+    // This entry LISTS the project for the root build; it does not order it. The edge that orders it
+    // is declared by its consumer (`packages/observability/opentelemetry/tsconfig.json`), so the
+    // order of this array is irrelevant — measured, by building with the two entries reversed.
+    { "path": "packages/observability/background-scheduler/tsconfig.build.json" },
     { "path": "packages/observability/opentelemetry" }
   ]
 }

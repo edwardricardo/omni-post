@@ -6,5 +6,9 @@
     "rootDir": "./src"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist"],
+  // `src/correlationTracking.ts` imports `@observability/background-scheduler`, which resolves to
+  // that package's `dist`. Declaring the edge here is what ORDERS the build, so no consumer of this
+  // project has to list the two in a working order of its own.
+  "references": [{ "path": "../background-scheduler/tsconfig.build.json" }]
 }
