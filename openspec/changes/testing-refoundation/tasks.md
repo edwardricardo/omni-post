@@ -194,10 +194,10 @@ Chain strategy: stacked-to-main
 
 ### P.2 · `refound/3-reporters` (PR V2)
 
-- [ ] P.2.1 RED WU-3.2 · merge-verdict-composition › Every layer emits a named, readable report — a shard is never blind · design §2e · CODE ~10 · slice `refound/3-reporters` — failing test for `workspaceReporters(env)`: `["default"]`, `+github-actions` when `GITHUB_ACTIONS==="true"`, `+blob` when `VITEST_SHARDED==="true"`.
-- [ ] P.2.2 GREEN WU-3.2 · merge-verdict-composition › Every layer emits a named, readable report — a shard is never blind · CODE ~30 · slice `refound/3-reporters` — export `workspaceReporters()` from `packages/vitest-shared/src/index.ts`; the factory sets `test.reporters`; drop `--reporter=blob` from the shard command; `turbo.json` gains `passThroughEnv: ["GITHUB_ACTIONS","VITEST_SHARDED","CI"]` (Turbo strict env).
-- [ ] P.2.3 **Red proof** WU-3.2 · merge-verdict-composition › Every layer emits a named, readable report — a shard is never blind · CODE ~0 · slice `refound/3-reporters` — plant `expect(1).toBe(2)`, run the exact shard command with `VITEST_SHARDED=true` → exit 1, the log names file+test+diff, the blob still exists where the upload reads it → restore.
-- [ ] P.2.4 Tracker: M2 note (shard is no longer blind); Gates row · CODE ~4 · slice `refound/3-reporters`.
+- [x] P.2.1 RED WU-3.2 · merge-verdict-composition › Every layer emits a named, readable report — a shard is never blind · design §2e · CODE ~10 · slice `refound/3-reporters` — failing test for `workspaceReporters(env)`: `["default"]`, `+github-actions` when `GITHUB_ACTIONS==="true"`, `+blob` when `VITEST_SHARDED==="true"`.
+- [x] P.2.2 GREEN WU-3.2 · merge-verdict-composition › Every layer emits a named, readable report — a shard is never blind · CODE ~30 · slice `refound/3-reporters` — export `workspaceReporters()` from `packages/vitest-shared/src/index.ts`; the factory sets `test.reporters`; drop `--reporter=blob` from the shard command; `turbo.json` gains `passThroughEnv: ["GITHUB_ACTIONS","VITEST_SHARDED","CI"]` (Turbo strict env).
+- [x] P.2.3 **Red proof** WU-3.2 · merge-verdict-composition › Every layer emits a named, readable report — a shard is never blind · CODE ~0 · slice `refound/3-reporters` — plant `expect(1).toBe(2)`, run the exact shard command with `VITEST_SHARDED=true` → exit 1, the log names file+test+diff, the blob still exists where the upload reads it → restore.
+- [x] P.2.4 Tracker: M2 note (shard is no longer blind); Gates row · CODE ~4 · slice `refound/3-reporters`.
 
 ### P.3 · `refound/3-openapi-drift` (PR V3)
 
