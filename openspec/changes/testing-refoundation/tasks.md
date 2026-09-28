@@ -11,9 +11,9 @@
 
 | Field                   | Value                                                                                                                                                                                         |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Estimated changed lines | **CODE ~26,150 (158 enumerated slices, phases 0–9) + ~14,000–24,500 (the 6.N families, slice count fixed by the 6.N0 measurement) = ~39,900–50,400**. **EVIDENCE ~33,000** (pre-approved, D1) |
+| Estimated changed lines | **CODE ~26,150 (159 enumerated slices, phases 0–9) + ~14,000–24,500 (the 6.N families, slice count fixed by the 6.N0 measurement) = ~39,900–50,400**. **EVIDENCE ~33,000** (pre-approved, D1) |
 | 400-line budget risk    | **High** — no single slice exceeds 400 CODE; the change as a whole is ~100× the budget, so slicing is structural, not optional                                                                |
-| Chained PRs recommended | **Yes** — 158 enumerated slices + the 6.N families (40–70 slices, count fixed by 6.N0) = **198–228 PRs**                                                                                      |
+| Chained PRs recommended | **Yes** — 159 enumerated slices + the 6.N families (40–70 slices, count fixed by 6.N0) = **198–228 PRs**                                                                                      |
 | Suggested split         | 158 stacked PRs to `main` in design §7 order, grouped in 14 phase families; 6.N adds 40–70 more after its measurement                                                                         |
 | Delivery strategy       | `auto-chain` (cached this session)                                                                                                                                                            |
 | Chain strategy          | `stacked-to-main` (cached this session) — every slice targets `main`, merged in index order                                                                                                   |
@@ -114,7 +114,7 @@ Chain strategy: stacked-to-main
 ### 0.5 · `refound/0-toolchain-types-node` — `@types/node` 24.13.6 and `engines.node` · **BATCH 5**
 
 - [ ] 0.5.1 RED WU-T.4(c) · dependency-version-management › Every workspace manifest declares `engines.node` at the runtime major · CODE ~30 · slice `refound/0-toolchain-types-node` — failing check: a manifest without `engines.node`, or with a major different from the runtime, → exit 1 (0 of 98 declare it today).
-- [ ] 0.5.2 GREEN WU-T.4(c) · testing-toolchain-alignment › `@types/node` tracks the runtime major, downward if necessary, and `engines.node` is declared · CODE ~300 · slice `refound/0-toolchain-types-node` — `@types/node` → 24.13.6 (catalog) and `engines.node` in all 98 workspace manifests; `pnpm exec tsc -b --force` exit 0.
+- [ ] 0.5.2 GREEN WU-T.4(c) · testing-toolchain-alignment › `@types/node` tracks the runtime major, downward if necessary, and `engines.node` is declared · CODE ~300 · slice `refound/0-toolchain-types-node` — `@types/node` → the latest MATURE 24.x re-measured on the day (24.13.6 as of 2026-09-27; 24.19.0 matures 2026-10-02) in the catalog, DOWN from 25.9.3 (a major above the runtime and an odd, non-LTS line); `engines.node` `>=24.15.0 <25` (the lowest runtime actually run, the homelab; also the floor jsdom 30 will require) in all 98 workspace manifests; `pnpm exec tsc -b --force` exit 0. The runtime itself stays on the 24 LTS line here; the move to 26 is slice 0.16.
 - [ ] 0.5.3 **Red proof** · dependency-version-management › Every workspace manifest declares `engines.node` at the runtime major · CODE ~0 · slice `refound/0-toolchain-types-node` — delete one manifest's `engines.node` → complete step exit 1 → restore → re-green.
 - [ ] 0.5.4 Tracker: Gates row for the engines gate; M7 moves · CODE ~4 · slice `refound/0-toolchain-types-node`.
 
@@ -173,6 +173,13 @@ Chain strategy: stacked-to-main
 - [ ] 0.15.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~60 · slice `refound/0-toolchain-quality-gates` — re-measure latest mature on the day for `knip`, `jscpd`, `dependency-cruiser`, `secretlint` + its preset, `size-limit` + its preset, `@ast-grep/cli`, `lint-staged`, `@hey-api/openapi-ts`, `@faker-js/faker`; bump each; re-run every gate they back (`node scripts/knip-ratchet.mjs` — shrink the ledger ONLY for findings the bump resolves, never regenerate it to absorb new ones; jscpd, madge and dependency-cruiser from the Code Quality job; secretlint; size-limit; the api-types generation); a gate that changes its verdict after a bump is a finding to fix, not to baseline.
 - [ ] 0.15.2 WU-T.4(f) · testing-toolchain-alignment › Every lag below latest mature carries a documented hold, and a gate proves it · CODE ~6 · slice `refound/0-toolchain-quality-gates` — delete the grouped quality-gate hold row from `docs/security/SECURITY_CANON.md`; `node scripts/testing/holds-gate.mjs` exit 0.
 - [ ] 0.15.3 Tracker: T.4 table rows move; WU row ✅; Phase 0 closes · CODE ~4 · slice `refound/0-toolchain-quality-gates`.
+
+### 0.16 · `refound/0-runtime-node-26` — runtime major → Node 26 LTS · **BATCH 16** (re-plan 2026-09-28, Edward: can wait; tail of Phase 0; not before 2026-10-28, the day Node 26 enters Active LTS per the Node.js release schedule — Node 24 enters Maintenance on 2026-10-20; the runtime follows LTS, never Current)
+
+- [ ] 0.16.1 **Measured** · dependency-version-management › Every workspace manifest declares `engines.node` at the runtime major · CODE ~10 · slice `refound/0-runtime-node-26` — on the day: Node 26 is Active LTS (release schedule); the latest 26.x is mature (7 days); prebuilt binaries for the Node 26 ABI exist for `argon2` and `sharp` at their pinned versions, or the image build compiles them and proves it; `@prisma/client`, `fastify`, `next`, `bullmq` and `ioredis` engines admit 26 (today every one declares only a lower bound that covers 26 by range, not by proof); `@types/node` 26.x latest mature. Every finding to the tracker.
+- [ ] 0.16.2 RED · dependency-version-management › Every workspace manifest declares `engines.node` at the runtime major · CODE ~0 · slice `refound/0-runtime-node-26` — with the runtime still on 24, plant `engines.node` at the 26 range in one manifest → the engines gate from 0.5 exits 1 naming it (the gate must refuse a manifest ahead of the runtime as loudly as one behind it).
+- [ ] 0.16.3 GREEN · testing-toolchain-alignment › `@types/node` tracks the runtime major, downward if necessary, and `engines.node` is declared · CODE ~40 · slice `refound/0-runtime-node-26` — `.nvmrc` → 26; the three Dockerfiles move base and distroless images to the Node 26 line, the distroless one by digest; `engines.node` at the 26 range in every manifest; `@types/node` → latest mature 26.x in the catalog; homelab bumped; full quality gate 0/0, the integration tier green on 26, and the image builds green — the image half waits for the containerization pause to lift, so this slice depends on it.
+- [ ] 0.16.4 Tracker: T.4 table row; Gates row; D23 records the runtime decision (LTS only, never Current; 24 → 26 on the LTS date) · CODE ~4 · slice `refound/0-runtime-node-26`.
 
 ---
 
@@ -1031,171 +1038,172 @@ Chain strategy: stacked-to-main
 
 Every slice targets `main` (`stacked-to-main`) and is merged in the order below. "Depends on" names the slice that must be **merged** first; slices with the same dependency are parallel-safe. "Gates (red proof)" lists the gates the slice creates or modifies — each has its own red-proof checkbox in the phase above. "Tracker" names the metric rows the slice moves in its own PR.
 
-| Slice  | Branch                               | Batch | Depends on             | Tasks        | CODE       | Gates (red proof)                            | Tracker             |
-| ------ | ------------------------------------ | ----- | ---------------------- | ------------ | ---------- | -------------------------------------------- | ------------------- |
-| 0.1    | `refound/0-tracker`                  | **1** | base merges (Edward)   | 0.1.1–0.1.6  | ~400       | — (fitness #24 row)                          | M7 + seed all       |
-| 0.2    | `refound/0-toolchain-measure`        | 2     | 0.1                    | 0.2.1–0.2.3  | ~40        | —                                            | T.4 table           |
-| 0.3    | `refound/0-toolchain-holds`          | 3     | 0.2                    | 0.3.1–0.3.6  | ~150       | holds-vs-`outdated` gate ✅                  | M7                  |
-| 0.4    | `refound/0-toolchain-eslint`         | 4     | 0.3                    | 0.4.1–0.4.3  | ~78        | —                                            | T.4 table           |
-| 0.4b   | `refound/0-holds-table-fix`          | 4b    | 0.4                    | 0.4b.1–5     | ~111       | holds gate: remove-when red re-proven ✅     | M7, Gates, T.4      |
-| 0.5    | `refound/0-toolchain-types-node`     | 5     | 0.3                    | 0.5.1–0.5.4  | ~334       | `engines.node` gate ✅                       | M7                  |
-| 0.6    | `refound/0-toolchain-tsx`            | 6     | 0.3                    | 0.6.1–0.6.2  | ~29        | —                                            | T.4 table           |
-| 0.7    | `refound/0-toolchain-browser`        | 7     | 0.3                    | 0.7.1–0.7.2  | ~54        | —                                            | T.4 table           |
-| 0.8    | `refound/0-toolchain-msw`            | 8     | 0.3                    | 0.8.1–0.8.2  | ~29        | —                                            | T.4 table           |
-| 0.9    | `refound/0-toolchain-rtl`            | 9     | 0.3                    | 0.9.1–0.9.2  | ~54        | —                                            | T.4 table           |
-| 0.10   | `refound/0-toolchain-vitest-plugin`  | 10    | 0.3                    | 0.10.1–2     | ~29        | —                                            | T.4 table           |
-| 0.11   | `refound/0-toolchain-storybook`      | 11    | 0.3                    | 0.11.1–5     | ~74        | —                                            | T.4, M13            |
-| 0.12   | `refound/0-toolchain-jsdom`          | 12    | 0.3 + **H1**           | 0.12.1–3     | ~64        | —                                            | Decisions           |
-| 0.13   | `refound/0-toolchain-vite-shims`     | 13    | 0.3                    | 0.13.1–2     | ~19        | —                                            | T.4 table           |
-| 0.14   | `refound/0-toolchain-build`          | 14    | 0.13                   | 0.14.1–3     | ~50        | —                                            | T.4 table           |
-| 0.15   | `refound/0-toolchain-quality-gates`  | 15    | 0.14                   | 0.15.1–3     | ~70        | —                                            | T.4 table, Phase 0  |
-| P.1    | `refound/3-fitness-inventory`        | —     | 0.1                    | P.1.1–P.1.4  | ~64        | #47 ✅                                       | M7                  |
-| P.2    | `refound/3-reporters`                | —     | 0.1                    | P.2.1–P.2.4  | ~44        | shard reporters ✅                           | M2, M7              |
-| P.3    | `refound/3-openapi-drift`            | —     | 0.1                    | P.3.1–P.3.3  | ~64        | OpenAPI Drift job ✅                         | M7                  |
-| P.4    | `refound/3-gitleaks`                 | —     | 0.1                    | P.4.1–P.4.3  | ~24        | gitleaks fail-closed ✅                      | M7                  |
-| P.5    | `refound/3-osv-measure`              | —     | 0.1                    | P.5.1–P.5.2  | ~34        | — (measurement)                              | OSV table           |
-| P.6    | `refound/4b-env-write`               | —     | 0.1                    | P.6.1–P.6.5  | ~300       | env refusals ✅, hermetic ✅                 | M15, M7             |
-| P.7    | `refound/2-classifier`               | —     | 0.1                    | P.7.1–P.7.3  | ~334       | — (rules land in 2.1)                        | M3 denominator      |
-| P.8    | `refound/2-ledger-a`                 | —     | P.7, 1.14              | P.8.1–P.8.3  | ~264       | `ledger --check` ✅                          | M4, M6              |
-| P.9    | `refound/2-ledger-b`                 | —     | P.8                    | P.9.1–P.9.4  | ~234       | `--area` prediction ✅                       | M4, M6              |
-| P.10   | `refound/2-probe`                    | —     | P.8                    | P.10.1–7     | ~374       | probe root ✅, worktree lifecycle ✅×4       | M7                  |
-| 1.1    | `refound/1-suffix`                   | —     | 0.13                   | 1.1.1–1.1.3  | ~14        | —                                            | M1, M5              |
-| 1.2    | `refound/1-factory-converge`         | —     | 1.1                    | 1.2.1–1.2.6  | ~254       | factory refusals ✅                          | M5, M7              |
-| 1.3    | `refound/1-resolution`               | —     | 1.2                    | 1.3.1–1.3.4  | ~144       | source-resolution assertion ✅               | M7, Decisions       |
-| 1.4    | `refound/1-double-collection`        | —     | 1.3                    | 1.4.1–1.4.3  | ~254       | —                                            | M5                  |
-| 1.5    | `refound/1-timing-in-tests`          | —     | 1.4                    | 1.5.1–1.5.4  | ~39        | contamination restore ✅×2                   | M9                  |
-| 1.6    | `refound/1-tier-measure`             | —     | 1.5                    | 1.6.1–1.6.2  | ~4         | — (measurement)                              | M9 Baseline         |
-| 1.7    | `refound/1-tier-rename`              | —     | 1.6                    | 1.7.1–1.7.3  | ~114       | —                                            | M1, M9              |
-| 1.8    | `refound/1-runner-envfix`            | —     | 1.1 (or before)        | 1.8.1–1.8.4  | ~134       | A1 data-loss refusal ✅                      | M7                  |
-| 1.9    | `refound/1-services-collector`       | —     | 1.7, 1.8               | 1.9.1–1.9.7  | ~264       | 4 runner guards ✅, interim #30 ✅           | M5, M9, M7          |
-| 1.10   | `refound/4b-db` (PR E2)              | —     | P.6, 1.9               | 1.10.1–5     | ~274       | 4 identity/contamination refusals ✅         | M15, M7             |
-| 1.11   | `refound/4b-processes` (PR E3a)      | —     | 1.10                   | 1.11.1–5     | ~294       | 7 subprocess-lifecycle REDs ✅               | M7                  |
-| 1.12   | `refound/4b-integration-recipe`      | —     | 1.11                   | 1.12.1–5     | ~204       | recipe phase order ✅, `full-integration` ✅ | M9, M7              |
-| 1.13   | `refound/1-live-collector` (PR R8)   | —     | 1.12                   | 1.13.1–5     | ~244       | `probe_live` ✅×2                            | M5, M9, M7          |
-| 1.14   | `refound/1-reach-engine` (PR R9a)    | —     | 1.13                   | 1.14.1–4     | ~254       | fail-closed conditions                       | Decisions           |
-| 1.15   | `refound/1-reach-selftests` (R9b)    | —     | 1.14                   | 1.15.1–5     | ~184       | one RED per reach rule ✅                    | M5, M7              |
-| 1.16   | `refound/1-test-contracts-job` (R10) | —     | 1.15, P.1              | 1.16.1–7     | ~124       | #30 new form ✅×6, mirror ruleset            | M5, M7              |
-| 1.17   | `refound/1-script-contract` (R11)    | —     | 1.16                   | 1.17.1–4     | ~59        | part C ✅, #31 A widened ✅                  | M7                  |
-| 1.18   | `refound/1-scopes` (PR R12)          | —     | 1.16                   | 1.18.1–4     | ~154       | #36 new home ✅×2                            | M7                  |
-| 1.19   | `refound/1-node-reporter` (R16)      | —     | 1.9, 1.13              | 1.19.1–4     | ~174       | 4 guards re-proven ✅                        | M2, M9, M7          |
-| 2.1    | `refound/2-lint-rules`               | —     | P.7, P.10              | 2.1.1–2.1.8  | ~314       | 3 `testing/*` rules ✅, #48 ✅               | M3, M13, M7         |
-| 2.2    | `refound/2-ledger-listing`           | —     | 2.1, P.9 · **H3**      | 2.2.1–2.2.3  | ~4         | —                                            | M6                  |
-| 2.3    | `refound/2-coverage-exception`       | —     | 2.2 · **H8**           | 2.3.1–2.3.4  | ~44        | #37 scenario ✅                              | M14, Decisions      |
-| 2.4    | `refound/2-whole-files`              | —     | 2.3                    | 2.4.1–2.4.3  | ~10        | —                                            | M1, M2, M4, M5      |
-| 2.5    | `refound/2-todo-stubs`               | —     | 2.2                    | 2.5.1–2.5.3  | ~6         | —                                            | M2, M9, gaps        |
-| 2.6    | `refound/2-dead-helpers`             | —     | 2.2 · **H2**           | 2.6.1–2.6.4  | ~9         | —                                            | M1, M4, M5          |
-| 2.7    | `refound/2-blocks-1a`                | —     | 2.3                    | 2.7.1–2.7.2  | ~324       | —                                            | M2, M3, M14         |
-| 2.8    | `refound/2-blocks-1b`                | —     | 2.7                    | 2.8.1–2.8.2  | ~354       | —                                            | M2, M3, M14         |
-| 2.9    | `refound/2-blocks-2a`                | —     | 2.8                    | 2.9.1–2.9.2  | ~354       | —                                            | M2, M3, M14         |
-| 2.10   | `refound/2-blocks-2b`                | —     | 2.9                    | 2.10.1–2     | ~354       | —                                            | M2, M3, M14         |
-| 2.11   | `refound/2-blocks-3`                 | —     | 2.10                   | 2.11.1–2     | ~354       | —                                            | M2, M3, M14         |
-| 2.12   | `refound/2-blocks-4`                 | —     | 2.11                   | 2.12.1–2     | ~354       | —                                            | M2, M3, M14, gaps   |
-| 2.13   | `refound/2-blocks-5`                 | —     | 2.12, 1.19             | 2.13.1–2     | ~304       | —                                            | M2, M3              |
-| 2.14   | `refound/2-blocks-6`                 | —     | 2.3 (parallel)         | 2.14.1–2     | ~304       | —                                            | M2, M3              |
-| 2.15   | `refound/2-blocks-7`                 | —     | 2.3 (parallel)         | 2.15.1–2     | ~304       | —                                            | M2, M3              |
-| 2.16   | `refound/2-rewrites`                 | —     | 2.13, P.10             | 2.16.1–3     | ~64        | probe RED per rewrite ✅                     | M6                  |
-| 3.1    | `refound/3-coverage-certifies` (V4)  | —     | P.2                    | 3.1.1–3.1.4  | ~44        | certify-refusal ✅                           | M7                  |
-| 3.2    | `refound/3-remove-duplicate-gates`   | —     | 3.1 · **H4**           | 3.2.1–3.2.5  | ~149       | (verdict rule V1 covers it)                  | M7, Decisions       |
-| 3.3    | `refound/3-skip-gate` (PR V8)        | —     | 2.5, P.2               | 3.3.1–3.3.4  | ~84        | skip gate ✅                                 | M2, M9, M7          |
-| 3.4    | `refound/1-skips-ast` (PR R13)       | —     | 1.16, 2.13, 4.2        | 3.4.1–3.4.5  | ~214       | #32 new form ✅×4                            | M9, M7              |
-| 3.5    | `refound/3-verdict-static` (PR V9)   | —     | 1.16, 3.1, 3.2         | 3.5.1–3.5.5  | ~444       | #44 V1/V2/V3/V7/V8 ✅×7                      | M7                  |
-| 3.6    | `refound/3-ruleset` (PR V11)         | —     | 3.5 · **H5**           | 3.6.1–3.6.5  | ~94        | required-context composition ✅              | M15, Decisions      |
-| 3.7    | `refound/3-verdict-drift` (PR V10)   | —     | 3.6                    | 3.7.1–3.7.4  | ~194       | #44 V4/V5/V6 ✅×5                            | M7                  |
-| 3.8    | `refound/3-osv-decide` (PR V7b)      | —     | P.5, 3.6               | 3.8.1–3.8.3  | ~44        | OSV ignores ✅ or removal                    | Decisions           |
-| 4b.1   | `refound/4b-adopt-workflows` (E4)    | —     | 1.12                   | 4b.1.1–3     | ~154       | (#46 covers it) ✅                           | M15                 |
-| 4b.2   | `refound/4b-loader` (PR E5)          | —     | P.6                    | 4b.2.1–4     | ~69        | loader refusal ✅                            | M7                  |
-| 4b.3   | `refound/4b-playwright-servers`      | —     | 1.11                   | 4b.3.1–4     | ~74        | `webServer` from the script ✅               | M7, Decisions       |
-| 4b.4   | `refound/4b-identity` (PR E7)        | —     | 4b.1, 1.16             | 4b.4.1–4     | ~184       | #46 ✅×3                                     | M15, M7             |
-| 4b.5   | `refound/4b-hermetic-shards` (E8)    | —     | P.6, P.3               | 4b.5.1–4     | ~74        | hermetic shards ✅                           | M8, Decisions       |
-| S.1    | `refound/s-skeleton`                 | —     | 2.2                    | S.1.1–S.1.4  | ~184       | depcruise `src ↛ test-utils` ✅×2            | M13, M7             |
-| S.2    | `refound/s-builders`                 | —     | S.1                    | S.2.1–S.2.3  | ~244       | —                                            | M13                 |
-| S.3    | `refound/s-raw-reach`                | —     | S.2                    | S.3.1–S.3.4  | ~154       | recorder classifier ✅                       | raw-reach table     |
-| S.4    | `refound/s-uow-canon`                | —     | S.3                    | S.4.1–S.4.4  | ~124       | transient UoW ✅                             | Decisions           |
-| S.5    | `refound/s-prisma-double`            | —     | S.4                    | S.5.1–S.5.5  | ~314       | raw-SQL throw ✅                             | M13, M6             |
-| S.6    | `refound/s-redis-double`             | —     | S.5                    | S.6.1–S.6.4  | ~324       | unsupported command ✅                       | M13                 |
-| S.7    | `refound/s-route-app`                | —     | S.5                    | S.7.1–S.7.2  | ~144       | production `errorPlugin` ✅                  | M13                 |
-| S.8    | `refound/s-route-app-1`              | —     | S.7                    | S.8.1        | ~300       | —                                            | M13                 |
-| S.9    | `refound/s-route-app-2`              | —     | S.8                    | S.9.1        | ~300       | —                                            | M13                 |
-| S.10   | `refound/s-route-app-3`              | —     | S.9                    | S.10.1–2     | ~304       | —                                            | M13                 |
-| S.11   | `refound/s-seed`                     | —     | S.5                    | S.11.1–2     | ~164       | tenant-scoped cleanup ✅                     | M13                 |
-| S.12   | `refound/s-seed-migrate-1`           | —     | S.11                   | S.12.1       | ~300       | —                                            | M13                 |
-| S.13   | `refound/s-seed-migrate-2`           | —     | S.12                   | S.13.1–2     | ~304       | —                                            | M13                 |
-| S.14   | `refound/s-builder-gate`             | —     | S.2, S.5               | S.14.1–4     | ~74        | builder-name ✅, cast ✅                     | M13, M7             |
-| S.15   | `refound/s-migrate-core`             | —     | S.14, 2.14             | S.15.1       | ~300       | —                                            | M13                 |
-| S.16   | `refound/s-migrate-adapters`         | —     | S.14, 2.14             | S.16.1       | ~300       | —                                            | M13                 |
-| S.17   | `refound/s-migrate-providers`        | —     | S.14, 2.14             | S.17.1       | ~300       | —                                            | M13                 |
-| S.18   | `refound/s-migrate-workers`          | —     | S.14, 2.15             | S.18.1       | ~250       | —                                            | M13                 |
-| S.19   | `refound/s-migrate-api`              | —     | S.14, 2.13             | S.19.1       | ~350       | —                                            | M13                 |
-| S.20   | `refound/s-migrate-client`           | —     | S.14, 2.15             | S.20.1–2     | ~304       | both gates hard-zero ✅                      | M13                 |
-| 4.1    | `refound/4-preconditions-a`          | —     | 1.13                   | 4.1.1–4.1.3  | ~244       | throwing precondition ✅                     | M9                  |
-| 4.2    | `refound/4-preconditions-b`          | —     | 4.1                    | 4.2.1–4.2.3  | ~204       | —                                            | M9                  |
-| 4.3    | `refound/4-production-rewrite`       | —     | 4.2                    | 4.3.1–4.3.4  | ~174       | probe RED ✅                                 | M2, M6              |
-| 4.4    | `refound/4-outbox-topology`          | —     | 1.12, 4.3              | 4.4.1–4.4.4  | ~84        | `assertNoForeignRelay` ✅                    | M7                  |
-| 4.5    | `refound/4-unquarantine-db`          | —     | 4.4                    | 4.5.1–4.5.2  | ~14        | —                                            | M5, M9              |
-| 4.6    | `refound/4-unquarantine-live`        | —     | 4.5                    | 4.6.1–4.6.3  | ~20        | —                                            | M5, M9              |
-| 4.7    | `refound/4-chaos`                    | —     | 4.6                    | 4.7.1–4.7.2  | ~14        | —                                            | M5, M15             |
-| 4.8    | `refound/3-nightly` (PR V12)         | —     | 1.12, 1.13             | 4.8.1–4.8.4  | ~124       | one-alarm ✅ (3 GitHub-write REDs)           | M15, M7             |
-| 4.9    | `refound/1-registered-entrypoints`   | —     | 4.8, 3.2               | 4.9.1–4.9.4  | ~134       | reach part B ✅                              | M7                  |
-| 4.10   | `refound/4-tier-acceptance`          | —     | 4.7, 4.9               | 4.10.1–2     | ~24        | —                                            | M5, M9              |
-| X.1    | `refound/x-runner-experiment`        | —     | 1.13, 1.12, 3.3        | X.1.1        | 0 merged   | — (unmerged branch)                          | —                   |
-| X.2    | `refound/x-runner-evidence`          | —     | X.1 · **H7**           | X.1.2–X.2.2  | ~70        | —                                            | X1 table, Decisions |
-| 5.1    | `refound/5-coverage-defaults` (C1)   | —     | 1.18                   | 5.1.1–5.1.4  | ~104       | #36 coverage globs ✅, turbo `inputs` ✅     | M8, M7              |
-| 5.2    | `refound/5-coverage-measure` (C2)    | —     | 5.1                    | 5.2.1–5.2.4  | ~59        | summary-count ✅                             | M8, Decisions       |
-| 5.3    | `refound/5-floors-core-a` (C3)       | —     | 5.2                    | 5.3.1–5.3.2  | ~334       | thresholds ✅                                | M8                  |
-| 5.4    | `refound/5-floors-core-b` (C4)       | —     | 5.3                    | 5.4.1–5.4.2  | ~334       | thresholds ✅                                | M8                  |
-| 5.5    | `refound/5-floors-packages` (C5)     | —     | 5.4                    | 5.5.1–5.5.2  | ~334       | thresholds ✅                                | M8                  |
-| 5.6    | `refound/5-floors-apps` (C6)         | —     | 5.5                    | 5.6.1–5.6.2  | ~334       | thresholds ✅                                | M8                  |
-| 5.7    | `refound/5-floor-ratchet` (C7)       | —     | 5.6, 2.3               | 5.7.1–5.7.5  | ~244       | #37 new form ✅×6                            | M7, M14             |
-| 5.8    | `refound/5-floors-enforced` (C8)     | —     | 5.7                    | 5.8.1–5.8.3  | ~54        | risen-floor ✅×2                             | M8, M7              |
-| 5.9    | `refound/5-denominator` (C9)         | —     | 5.7                    | 5.9.1–5.9.4  | ~174       | denominator ✅×3                             | M8, gaps            |
-| 5.10   | `refound/5-canon-floors` (C10)       | —     | 5.8                    | 5.10.1–2     | ~154       | —                                            | M8, M16, Decisions  |
-| 6M.1   | `refound/6-msw-core`                 | —     | S.1, 1.2               | 6M.1.1–6     | ~244       | network isolation ✅                         | M13, M7             |
-| 6M.2   | `refound/6-msw-gate`                 | —     | 6M.1                   | 6M.2.1–5     | ~209       | fetch-stub gate ✅                           | M13, M7             |
-| 6M.3   | `refound/6-msw-client-1`             | —     | 6M.2, 2.15             | 6M.3.1       | ~300       | —                                            | M13                 |
-| 6M.4   | `refound/6-msw-client-2`             | —     | 6M.3                   | 6M.4.1       | ~300       | —                                            | M13                 |
-| 6M.5   | `refound/6-msw-admin`                | —     | 6M.2, 2.15             | 6M.5.1       | ~300       | —                                            | M13                 |
-| 6M.6   | `refound/6-msw-api`                  | —     | 6M.2, 2.13             | 6M.6.1       | ~350       | —                                            | M13                 |
-| 6M.7a  | `refound/6-msw-providers-1`          | —     | 6M.2, S.17             | 6M.7.1       | ~350       | —                                            | M13                 |
-| 6M.7b  | `refound/6-msw-providers-2`          | —     | 6M.7a                  | 6M.7.2       | ~350       | —                                            | M13                 |
-| 6M.7c  | `refound/6-msw-providers-3`          | —     | 6M.7b                  | 6M.7.3       | ~350       | —                                            | M13                 |
-| 6M.7d  | `refound/6-msw-providers-4`          | —     | 6M.7c                  | 6M.7.4       | ~350       | —                                            | M13                 |
-| 6M.8   | `refound/6-msw-close`                | —     | 6M.7d, 6M.6, 6M.4      | 6M.8.1–2     | ~24        | fetch-stub hard-zero ✅                      | M13 → 0             |
-| 6E.1   | `refound/6-e2e-demolish`             | —     | 2.2                    | 6E.1.1–3     | ~64        | —                                            | M1, M4, M10         |
-| 6E.2   | `refound/6-seed-e2e`                 | —     | 1.10, 6E.1             | 6E.2.1–3     | ~194       | owner-connection refusal ✅                  | M10, M7             |
-| 6E.3   | `refound/6-provider-seam`            | —     | 6M.1, 6M.7d            | 6E.3.1–5     | ~244       | production refusal ✅, sidecar contract ✅   | M7, Decisions       |
-| 6E.4   | `refound/6-e2e-config`               | —     | 4b.3, 6E.2, 6E.3       | 6E.4.1–3     | ~124       | `failOnFlakyTests` ✅                        | M10, M7             |
-| 6E.5   | `refound/6-e2e-specs-a`              | —     | 6E.4                   | 6E.5.1–2     | ~154       | —                                            | M10                 |
-| 6E.6   | `refound/6-e2e-specs-b`              | —     | 6E.5                   | 6E.6.1–3     | ~114       | sidecar 500 → red ✅                         | M10                 |
-| 6E.7   | `refound/6-admin-e2e`                | —     | 6E.4                   | 6E.7.1–4     | ~159       | a11y contrast ✅                             | M10, gaps           |
-| 6E.8   | `refound/6-e2e-ci`                   | —     | 6E.6, 6E.7, 3.6        | 6E.8.1–7     | ~164       | E2E job ✅×2, reach row + ruleset            | M10, M5, M7         |
-| 6E.9   | `refound/6-e2e-gap`                  | —     | 6E.8                   | 6E.9.1–2     | ~14        | —                                            | gaps                |
-| 6K.1   | `refound/6-k6-a`                     | —     | 6E.2, 1.12             | 6K.1.1–4     | ~184       | `API_BASE_URL` throw ✅, threshold ✅        | M11, M7             |
-| 6K.2   | `refound/6-k6-calibrate`             | —     | 6K.1 · **H6**          | 6K.2.1–3     | ~9         | —                                            | M11, Decisions      |
-| 6K.3   | `refound/6-k6-b`                     | —     | 6K.2, 3.6              | 6K.3.1–4     | ~79        | k6 job ✅, reach row + ruleset               | M11, M5, M7         |
-| 6P.1   | `refound/6-perf-retire`              | —     | 2.2, 6K.2              | 6P.1.1–3     | ~24        | —                                            | M1, M4, M5          |
-| 6S.1   | `refound/6-security-fold`            | —     | 4.1, 1.13              | 6S.1.1–4     | ~314       | —                                            | M2, gaps            |
-| 6S.2   | `refound/6-security-delete`          | —     | 6S.1                   | 6S.2.1–2     | ~9         | —                                            | M1, M4, M5          |
-| 6V.1   | `refound/3-script-exits` (PR V13)    | —     | 6K.3, 6P.1             | 6V.1.1–4     | ~79        | #45 ✅                                       | M7                  |
-| 6N.0   | `refound/6n-order`                   | —     | 5.2                    | 6N.0.1–4     | ~14        | —                                            | M16 Baseline        |
-| 6N.1.* | `refound/6n-security-<n>`            | —     | 6N.0, S.19, 2.13       | 6N.1.1–5     | ≤400/slice | probe RED per test ✅                        | M8, M16             |
-| 6N.2.* | `refound/6n-publishing-<n>`          | —     | 6N.1, S.15             | 6N.2.1–3     | ≤400/slice | probe RED per test ✅                        | M8, M16             |
-| 6N.3.* | `refound/6n-core-<pkg>`              | —     | 6N.2, S.15             | 6N.3.1       | ≤400/slice | probe RED per test ✅                        | M8, M16             |
-| 6N.4.* | `refound/6n-routes-<area>`           | —     | 6N.1, S.10             | 6N.4.1       | ≤400/slice | probe RED per test ✅                        | M8, M16             |
-| 6N.5.* | `refound/6n-<pkg>`                   | —     | 6N.0, 5.9              | 6N.5.1       | ≤400/slice | probe RED per test ✅                        | M8, M16             |
-| 6N.6.* | `refound/6n-<app>-<n>`               | —     | 6N.0, S.18, S.20       | 6N.6.1–3     | ≤400/slice | probe RED per test ✅                        | M8, M16             |
-| 7.1    | `refound/7-entry-check`              | —     | 5.10, 6N.2             | 7.1.1–7.1.2  | ~4         | —                                            | M12                 |
-| 7.2    | `refound/7-tool-choice`              | —     | 7.1                    | 7.2.1–7.2.2  | ~44        | —                                            | M12, Decisions      |
-| 7.3    | `refound/7-mutation-runner`          | —     | 7.2                    | 7.3.1–7.3.3  | ~254       | survivor confirmation ✅                     | M12                 |
-| 7.4    | `refound/7-mutation-floors`          | —     | 7.3                    | 7.4.1–7.4.4  | ~104       | #49 ✅                                       | M12, M7             |
-| 7.5    | `refound/7-mutation-pr-lane`         | —     | 7.4, 3.5               | 7.5.1–7.5.5  | ~124       | incremental `break` ✅, V8 allowlist ✅      | M12, M7             |
-| 7.6    | `refound/7-mutation-ledger`          | —     | 7.5                    | 7.6.1–7.6.3  | ~104       | —                                            | M12, M6, gaps       |
-| 8.1    | `refound/8-docs-testing`             | —     | 2.1, 5.10              | 8.1.1–8.1.2  | ~84        | —                                            | docs row            |
-| 8.2    | `refound/8-docs-chaos`               | —     | 4.7                    | 8.2.1        | ~70        | —                                            | docs row            |
-| 8.3    | `refound/8-docs-providers`           | —     | 6M.7d                  | 8.3.1        | ~70        | —                                            | docs row            |
-| 8.4    | `refound/8-docs-saga`                | —     | 1.13                   | 8.4.1        | ~40        | —                                            | docs row            |
-| 8.5    | `refound/8-docs-security`            | —     | 6S.2                   | 8.5.1        | ~50        | —                                            | docs row            |
-| 8.6    | `refound/8-docs-e2e`                 | —     | 6E.8                   | 8.6.1        | ~90        | —                                            | docs row            |
-| 8.7    | `refound/8-living-doc`               | —     | 8.1–8.6                | 8.7.1–3, 9.1 | ~134       | #24 extended ✅                              | M7, gaps            |
-| 8.8    | `refound/1-quarantine-retired`       | —     | 4.10, 6E.8, 6K.3, 6N.6 | 8.8.1–4      | ~74        | #30 hard-zero ✅                             | M5 → 0, M7          |
+| Slice  | Branch                               | Batch | Depends on                                | Tasks        | CODE       | Gates (red proof)                                   | Tracker             |
+| ------ | ------------------------------------ | ----- | ----------------------------------------- | ------------ | ---------- | --------------------------------------------------- | ------------------- |
+| 0.1    | `refound/0-tracker`                  | **1** | base merges (Edward)                      | 0.1.1–0.1.6  | ~400       | — (fitness #24 row)                                 | M7 + seed all       |
+| 0.2    | `refound/0-toolchain-measure`        | 2     | 0.1                                       | 0.2.1–0.2.3  | ~40        | —                                                   | T.4 table           |
+| 0.3    | `refound/0-toolchain-holds`          | 3     | 0.2                                       | 0.3.1–0.3.6  | ~150       | holds-vs-`outdated` gate ✅                         | M7                  |
+| 0.4    | `refound/0-toolchain-eslint`         | 4     | 0.3                                       | 0.4.1–0.4.3  | ~78        | —                                                   | T.4 table           |
+| 0.4b   | `refound/0-holds-table-fix`          | 4b    | 0.4                                       | 0.4b.1–5     | ~111       | holds gate: remove-when red re-proven ✅            | M7, Gates, T.4      |
+| 0.5    | `refound/0-toolchain-types-node`     | 5     | 0.3                                       | 0.5.1–0.5.4  | ~334       | `engines.node` gate ✅                              | M7                  |
+| 0.6    | `refound/0-toolchain-tsx`            | 6     | 0.3                                       | 0.6.1–0.6.2  | ~29        | —                                                   | T.4 table           |
+| 0.7    | `refound/0-toolchain-browser`        | 7     | 0.3                                       | 0.7.1–0.7.2  | ~54        | —                                                   | T.4 table           |
+| 0.8    | `refound/0-toolchain-msw`            | 8     | 0.3                                       | 0.8.1–0.8.2  | ~29        | —                                                   | T.4 table           |
+| 0.9    | `refound/0-toolchain-rtl`            | 9     | 0.3                                       | 0.9.1–0.9.2  | ~54        | —                                                   | T.4 table           |
+| 0.10   | `refound/0-toolchain-vitest-plugin`  | 10    | 0.3                                       | 0.10.1–2     | ~29        | —                                                   | T.4 table           |
+| 0.11   | `refound/0-toolchain-storybook`      | 11    | 0.3                                       | 0.11.1–5     | ~74        | —                                                   | T.4, M13            |
+| 0.12   | `refound/0-toolchain-jsdom`          | 12    | 0.3 + **H1**                              | 0.12.1–3     | ~64        | —                                                   | Decisions           |
+| 0.13   | `refound/0-toolchain-vite-shims`     | 13    | 0.3                                       | 0.13.1–2     | ~19        | —                                                   | T.4 table           |
+| 0.14   | `refound/0-toolchain-build`          | 14    | 0.13                                      | 0.14.1–3     | ~50        | —                                                   | T.4 table           |
+| 0.15   | `refound/0-toolchain-quality-gates`  | 15    | 0.14                                      | 0.15.1–3     | ~70        | —                                                   | T.4 table, Phase 0  |
+| 0.16   | `refound/0-runtime-node-26`          | 16    | 0.15, containerization resume, 2026-10-28 | 0.16.1–4     | ~54        | engines gate red on a manifest ahead of the runtime | T.4 table, D23      |
+| P.1    | `refound/3-fitness-inventory`        | —     | 0.1                                       | P.1.1–P.1.4  | ~64        | #47 ✅                                              | M7                  |
+| P.2    | `refound/3-reporters`                | —     | 0.1                                       | P.2.1–P.2.4  | ~44        | shard reporters ✅                                  | M2, M7              |
+| P.3    | `refound/3-openapi-drift`            | —     | 0.1                                       | P.3.1–P.3.3  | ~64        | OpenAPI Drift job ✅                                | M7                  |
+| P.4    | `refound/3-gitleaks`                 | —     | 0.1                                       | P.4.1–P.4.3  | ~24        | gitleaks fail-closed ✅                             | M7                  |
+| P.5    | `refound/3-osv-measure`              | —     | 0.1                                       | P.5.1–P.5.2  | ~34        | — (measurement)                                     | OSV table           |
+| P.6    | `refound/4b-env-write`               | —     | 0.1                                       | P.6.1–P.6.5  | ~300       | env refusals ✅, hermetic ✅                        | M15, M7             |
+| P.7    | `refound/2-classifier`               | —     | 0.1                                       | P.7.1–P.7.3  | ~334       | — (rules land in 2.1)                               | M3 denominator      |
+| P.8    | `refound/2-ledger-a`                 | —     | P.7, 1.14                                 | P.8.1–P.8.3  | ~264       | `ledger --check` ✅                                 | M4, M6              |
+| P.9    | `refound/2-ledger-b`                 | —     | P.8                                       | P.9.1–P.9.4  | ~234       | `--area` prediction ✅                              | M4, M6              |
+| P.10   | `refound/2-probe`                    | —     | P.8                                       | P.10.1–7     | ~374       | probe root ✅, worktree lifecycle ✅×4              | M7                  |
+| 1.1    | `refound/1-suffix`                   | —     | 0.13                                      | 1.1.1–1.1.3  | ~14        | —                                                   | M1, M5              |
+| 1.2    | `refound/1-factory-converge`         | —     | 1.1                                       | 1.2.1–1.2.6  | ~254       | factory refusals ✅                                 | M5, M7              |
+| 1.3    | `refound/1-resolution`               | —     | 1.2                                       | 1.3.1–1.3.4  | ~144       | source-resolution assertion ✅                      | M7, Decisions       |
+| 1.4    | `refound/1-double-collection`        | —     | 1.3                                       | 1.4.1–1.4.3  | ~254       | —                                                   | M5                  |
+| 1.5    | `refound/1-timing-in-tests`          | —     | 1.4                                       | 1.5.1–1.5.4  | ~39        | contamination restore ✅×2                          | M9                  |
+| 1.6    | `refound/1-tier-measure`             | —     | 1.5                                       | 1.6.1–1.6.2  | ~4         | — (measurement)                                     | M9 Baseline         |
+| 1.7    | `refound/1-tier-rename`              | —     | 1.6                                       | 1.7.1–1.7.3  | ~114       | —                                                   | M1, M9              |
+| 1.8    | `refound/1-runner-envfix`            | —     | 1.1 (or before)                           | 1.8.1–1.8.4  | ~134       | A1 data-loss refusal ✅                             | M7                  |
+| 1.9    | `refound/1-services-collector`       | —     | 1.7, 1.8                                  | 1.9.1–1.9.7  | ~264       | 4 runner guards ✅, interim #30 ✅                  | M5, M9, M7          |
+| 1.10   | `refound/4b-db` (PR E2)              | —     | P.6, 1.9                                  | 1.10.1–5     | ~274       | 4 identity/contamination refusals ✅                | M15, M7             |
+| 1.11   | `refound/4b-processes` (PR E3a)      | —     | 1.10                                      | 1.11.1–5     | ~294       | 7 subprocess-lifecycle REDs ✅                      | M7                  |
+| 1.12   | `refound/4b-integration-recipe`      | —     | 1.11                                      | 1.12.1–5     | ~204       | recipe phase order ✅, `full-integration` ✅        | M9, M7              |
+| 1.13   | `refound/1-live-collector` (PR R8)   | —     | 1.12                                      | 1.13.1–5     | ~244       | `probe_live` ✅×2                                   | M5, M9, M7          |
+| 1.14   | `refound/1-reach-engine` (PR R9a)    | —     | 1.13                                      | 1.14.1–4     | ~254       | fail-closed conditions                              | Decisions           |
+| 1.15   | `refound/1-reach-selftests` (R9b)    | —     | 1.14                                      | 1.15.1–5     | ~184       | one RED per reach rule ✅                           | M5, M7              |
+| 1.16   | `refound/1-test-contracts-job` (R10) | —     | 1.15, P.1                                 | 1.16.1–7     | ~124       | #30 new form ✅×6, mirror ruleset                   | M5, M7              |
+| 1.17   | `refound/1-script-contract` (R11)    | —     | 1.16                                      | 1.17.1–4     | ~59        | part C ✅, #31 A widened ✅                         | M7                  |
+| 1.18   | `refound/1-scopes` (PR R12)          | —     | 1.16                                      | 1.18.1–4     | ~154       | #36 new home ✅×2                                   | M7                  |
+| 1.19   | `refound/1-node-reporter` (R16)      | —     | 1.9, 1.13                                 | 1.19.1–4     | ~174       | 4 guards re-proven ✅                               | M2, M9, M7          |
+| 2.1    | `refound/2-lint-rules`               | —     | P.7, P.10                                 | 2.1.1–2.1.8  | ~314       | 3 `testing/*` rules ✅, #48 ✅                      | M3, M13, M7         |
+| 2.2    | `refound/2-ledger-listing`           | —     | 2.1, P.9 · **H3**                         | 2.2.1–2.2.3  | ~4         | —                                                   | M6                  |
+| 2.3    | `refound/2-coverage-exception`       | —     | 2.2 · **H8**                              | 2.3.1–2.3.4  | ~44        | #37 scenario ✅                                     | M14, Decisions      |
+| 2.4    | `refound/2-whole-files`              | —     | 2.3                                       | 2.4.1–2.4.3  | ~10        | —                                                   | M1, M2, M4, M5      |
+| 2.5    | `refound/2-todo-stubs`               | —     | 2.2                                       | 2.5.1–2.5.3  | ~6         | —                                                   | M2, M9, gaps        |
+| 2.6    | `refound/2-dead-helpers`             | —     | 2.2 · **H2**                              | 2.6.1–2.6.4  | ~9         | —                                                   | M1, M4, M5          |
+| 2.7    | `refound/2-blocks-1a`                | —     | 2.3                                       | 2.7.1–2.7.2  | ~324       | —                                                   | M2, M3, M14         |
+| 2.8    | `refound/2-blocks-1b`                | —     | 2.7                                       | 2.8.1–2.8.2  | ~354       | —                                                   | M2, M3, M14         |
+| 2.9    | `refound/2-blocks-2a`                | —     | 2.8                                       | 2.9.1–2.9.2  | ~354       | —                                                   | M2, M3, M14         |
+| 2.10   | `refound/2-blocks-2b`                | —     | 2.9                                       | 2.10.1–2     | ~354       | —                                                   | M2, M3, M14         |
+| 2.11   | `refound/2-blocks-3`                 | —     | 2.10                                      | 2.11.1–2     | ~354       | —                                                   | M2, M3, M14         |
+| 2.12   | `refound/2-blocks-4`                 | —     | 2.11                                      | 2.12.1–2     | ~354       | —                                                   | M2, M3, M14, gaps   |
+| 2.13   | `refound/2-blocks-5`                 | —     | 2.12, 1.19                                | 2.13.1–2     | ~304       | —                                                   | M2, M3              |
+| 2.14   | `refound/2-blocks-6`                 | —     | 2.3 (parallel)                            | 2.14.1–2     | ~304       | —                                                   | M2, M3              |
+| 2.15   | `refound/2-blocks-7`                 | —     | 2.3 (parallel)                            | 2.15.1–2     | ~304       | —                                                   | M2, M3              |
+| 2.16   | `refound/2-rewrites`                 | —     | 2.13, P.10                                | 2.16.1–3     | ~64        | probe RED per rewrite ✅                            | M6                  |
+| 3.1    | `refound/3-coverage-certifies` (V4)  | —     | P.2                                       | 3.1.1–3.1.4  | ~44        | certify-refusal ✅                                  | M7                  |
+| 3.2    | `refound/3-remove-duplicate-gates`   | —     | 3.1 · **H4**                              | 3.2.1–3.2.5  | ~149       | (verdict rule V1 covers it)                         | M7, Decisions       |
+| 3.3    | `refound/3-skip-gate` (PR V8)        | —     | 2.5, P.2                                  | 3.3.1–3.3.4  | ~84        | skip gate ✅                                        | M2, M9, M7          |
+| 3.4    | `refound/1-skips-ast` (PR R13)       | —     | 1.16, 2.13, 4.2                           | 3.4.1–3.4.5  | ~214       | #32 new form ✅×4                                   | M9, M7              |
+| 3.5    | `refound/3-verdict-static` (PR V9)   | —     | 1.16, 3.1, 3.2                            | 3.5.1–3.5.5  | ~444       | #44 V1/V2/V3/V7/V8 ✅×7                             | M7                  |
+| 3.6    | `refound/3-ruleset` (PR V11)         | —     | 3.5 · **H5**                              | 3.6.1–3.6.5  | ~94        | required-context composition ✅                     | M15, Decisions      |
+| 3.7    | `refound/3-verdict-drift` (PR V10)   | —     | 3.6                                       | 3.7.1–3.7.4  | ~194       | #44 V4/V5/V6 ✅×5                                   | M7                  |
+| 3.8    | `refound/3-osv-decide` (PR V7b)      | —     | P.5, 3.6                                  | 3.8.1–3.8.3  | ~44        | OSV ignores ✅ or removal                           | Decisions           |
+| 4b.1   | `refound/4b-adopt-workflows` (E4)    | —     | 1.12                                      | 4b.1.1–3     | ~154       | (#46 covers it) ✅                                  | M15                 |
+| 4b.2   | `refound/4b-loader` (PR E5)          | —     | P.6                                       | 4b.2.1–4     | ~69        | loader refusal ✅                                   | M7                  |
+| 4b.3   | `refound/4b-playwright-servers`      | —     | 1.11                                      | 4b.3.1–4     | ~74        | `webServer` from the script ✅                      | M7, Decisions       |
+| 4b.4   | `refound/4b-identity` (PR E7)        | —     | 4b.1, 1.16                                | 4b.4.1–4     | ~184       | #46 ✅×3                                            | M15, M7             |
+| 4b.5   | `refound/4b-hermetic-shards` (E8)    | —     | P.6, P.3                                  | 4b.5.1–4     | ~74        | hermetic shards ✅                                  | M8, Decisions       |
+| S.1    | `refound/s-skeleton`                 | —     | 2.2                                       | S.1.1–S.1.4  | ~184       | depcruise `src ↛ test-utils` ✅×2                   | M13, M7             |
+| S.2    | `refound/s-builders`                 | —     | S.1                                       | S.2.1–S.2.3  | ~244       | —                                                   | M13                 |
+| S.3    | `refound/s-raw-reach`                | —     | S.2                                       | S.3.1–S.3.4  | ~154       | recorder classifier ✅                              | raw-reach table     |
+| S.4    | `refound/s-uow-canon`                | —     | S.3                                       | S.4.1–S.4.4  | ~124       | transient UoW ✅                                    | Decisions           |
+| S.5    | `refound/s-prisma-double`            | —     | S.4                                       | S.5.1–S.5.5  | ~314       | raw-SQL throw ✅                                    | M13, M6             |
+| S.6    | `refound/s-redis-double`             | —     | S.5                                       | S.6.1–S.6.4  | ~324       | unsupported command ✅                              | M13                 |
+| S.7    | `refound/s-route-app`                | —     | S.5                                       | S.7.1–S.7.2  | ~144       | production `errorPlugin` ✅                         | M13                 |
+| S.8    | `refound/s-route-app-1`              | —     | S.7                                       | S.8.1        | ~300       | —                                                   | M13                 |
+| S.9    | `refound/s-route-app-2`              | —     | S.8                                       | S.9.1        | ~300       | —                                                   | M13                 |
+| S.10   | `refound/s-route-app-3`              | —     | S.9                                       | S.10.1–2     | ~304       | —                                                   | M13                 |
+| S.11   | `refound/s-seed`                     | —     | S.5                                       | S.11.1–2     | ~164       | tenant-scoped cleanup ✅                            | M13                 |
+| S.12   | `refound/s-seed-migrate-1`           | —     | S.11                                      | S.12.1       | ~300       | —                                                   | M13                 |
+| S.13   | `refound/s-seed-migrate-2`           | —     | S.12                                      | S.13.1–2     | ~304       | —                                                   | M13                 |
+| S.14   | `refound/s-builder-gate`             | —     | S.2, S.5                                  | S.14.1–4     | ~74        | builder-name ✅, cast ✅                            | M13, M7             |
+| S.15   | `refound/s-migrate-core`             | —     | S.14, 2.14                                | S.15.1       | ~300       | —                                                   | M13                 |
+| S.16   | `refound/s-migrate-adapters`         | —     | S.14, 2.14                                | S.16.1       | ~300       | —                                                   | M13                 |
+| S.17   | `refound/s-migrate-providers`        | —     | S.14, 2.14                                | S.17.1       | ~300       | —                                                   | M13                 |
+| S.18   | `refound/s-migrate-workers`          | —     | S.14, 2.15                                | S.18.1       | ~250       | —                                                   | M13                 |
+| S.19   | `refound/s-migrate-api`              | —     | S.14, 2.13                                | S.19.1       | ~350       | —                                                   | M13                 |
+| S.20   | `refound/s-migrate-client`           | —     | S.14, 2.15                                | S.20.1–2     | ~304       | both gates hard-zero ✅                             | M13                 |
+| 4.1    | `refound/4-preconditions-a`          | —     | 1.13                                      | 4.1.1–4.1.3  | ~244       | throwing precondition ✅                            | M9                  |
+| 4.2    | `refound/4-preconditions-b`          | —     | 4.1                                       | 4.2.1–4.2.3  | ~204       | —                                                   | M9                  |
+| 4.3    | `refound/4-production-rewrite`       | —     | 4.2                                       | 4.3.1–4.3.4  | ~174       | probe RED ✅                                        | M2, M6              |
+| 4.4    | `refound/4-outbox-topology`          | —     | 1.12, 4.3                                 | 4.4.1–4.4.4  | ~84        | `assertNoForeignRelay` ✅                           | M7                  |
+| 4.5    | `refound/4-unquarantine-db`          | —     | 4.4                                       | 4.5.1–4.5.2  | ~14        | —                                                   | M5, M9              |
+| 4.6    | `refound/4-unquarantine-live`        | —     | 4.5                                       | 4.6.1–4.6.3  | ~20        | —                                                   | M5, M9              |
+| 4.7    | `refound/4-chaos`                    | —     | 4.6                                       | 4.7.1–4.7.2  | ~14        | —                                                   | M5, M15             |
+| 4.8    | `refound/3-nightly` (PR V12)         | —     | 1.12, 1.13                                | 4.8.1–4.8.4  | ~124       | one-alarm ✅ (3 GitHub-write REDs)                  | M15, M7             |
+| 4.9    | `refound/1-registered-entrypoints`   | —     | 4.8, 3.2                                  | 4.9.1–4.9.4  | ~134       | reach part B ✅                                     | M7                  |
+| 4.10   | `refound/4-tier-acceptance`          | —     | 4.7, 4.9                                  | 4.10.1–2     | ~24        | —                                                   | M5, M9              |
+| X.1    | `refound/x-runner-experiment`        | —     | 1.13, 1.12, 3.3                           | X.1.1        | 0 merged   | — (unmerged branch)                                 | —                   |
+| X.2    | `refound/x-runner-evidence`          | —     | X.1 · **H7**                              | X.1.2–X.2.2  | ~70        | —                                                   | X1 table, Decisions |
+| 5.1    | `refound/5-coverage-defaults` (C1)   | —     | 1.18                                      | 5.1.1–5.1.4  | ~104       | #36 coverage globs ✅, turbo `inputs` ✅            | M8, M7              |
+| 5.2    | `refound/5-coverage-measure` (C2)    | —     | 5.1                                       | 5.2.1–5.2.4  | ~59        | summary-count ✅                                    | M8, Decisions       |
+| 5.3    | `refound/5-floors-core-a` (C3)       | —     | 5.2                                       | 5.3.1–5.3.2  | ~334       | thresholds ✅                                       | M8                  |
+| 5.4    | `refound/5-floors-core-b` (C4)       | —     | 5.3                                       | 5.4.1–5.4.2  | ~334       | thresholds ✅                                       | M8                  |
+| 5.5    | `refound/5-floors-packages` (C5)     | —     | 5.4                                       | 5.5.1–5.5.2  | ~334       | thresholds ✅                                       | M8                  |
+| 5.6    | `refound/5-floors-apps` (C6)         | —     | 5.5                                       | 5.6.1–5.6.2  | ~334       | thresholds ✅                                       | M8                  |
+| 5.7    | `refound/5-floor-ratchet` (C7)       | —     | 5.6, 2.3                                  | 5.7.1–5.7.5  | ~244       | #37 new form ✅×6                                   | M7, M14             |
+| 5.8    | `refound/5-floors-enforced` (C8)     | —     | 5.7                                       | 5.8.1–5.8.3  | ~54        | risen-floor ✅×2                                    | M8, M7              |
+| 5.9    | `refound/5-denominator` (C9)         | —     | 5.7                                       | 5.9.1–5.9.4  | ~174       | denominator ✅×3                                    | M8, gaps            |
+| 5.10   | `refound/5-canon-floors` (C10)       | —     | 5.8                                       | 5.10.1–2     | ~154       | —                                                   | M8, M16, Decisions  |
+| 6M.1   | `refound/6-msw-core`                 | —     | S.1, 1.2                                  | 6M.1.1–6     | ~244       | network isolation ✅                                | M13, M7             |
+| 6M.2   | `refound/6-msw-gate`                 | —     | 6M.1                                      | 6M.2.1–5     | ~209       | fetch-stub gate ✅                                  | M13, M7             |
+| 6M.3   | `refound/6-msw-client-1`             | —     | 6M.2, 2.15                                | 6M.3.1       | ~300       | —                                                   | M13                 |
+| 6M.4   | `refound/6-msw-client-2`             | —     | 6M.3                                      | 6M.4.1       | ~300       | —                                                   | M13                 |
+| 6M.5   | `refound/6-msw-admin`                | —     | 6M.2, 2.15                                | 6M.5.1       | ~300       | —                                                   | M13                 |
+| 6M.6   | `refound/6-msw-api`                  | —     | 6M.2, 2.13                                | 6M.6.1       | ~350       | —                                                   | M13                 |
+| 6M.7a  | `refound/6-msw-providers-1`          | —     | 6M.2, S.17                                | 6M.7.1       | ~350       | —                                                   | M13                 |
+| 6M.7b  | `refound/6-msw-providers-2`          | —     | 6M.7a                                     | 6M.7.2       | ~350       | —                                                   | M13                 |
+| 6M.7c  | `refound/6-msw-providers-3`          | —     | 6M.7b                                     | 6M.7.3       | ~350       | —                                                   | M13                 |
+| 6M.7d  | `refound/6-msw-providers-4`          | —     | 6M.7c                                     | 6M.7.4       | ~350       | —                                                   | M13                 |
+| 6M.8   | `refound/6-msw-close`                | —     | 6M.7d, 6M.6, 6M.4                         | 6M.8.1–2     | ~24        | fetch-stub hard-zero ✅                             | M13 → 0             |
+| 6E.1   | `refound/6-e2e-demolish`             | —     | 2.2                                       | 6E.1.1–3     | ~64        | —                                                   | M1, M4, M10         |
+| 6E.2   | `refound/6-seed-e2e`                 | —     | 1.10, 6E.1                                | 6E.2.1–3     | ~194       | owner-connection refusal ✅                         | M10, M7             |
+| 6E.3   | `refound/6-provider-seam`            | —     | 6M.1, 6M.7d                               | 6E.3.1–5     | ~244       | production refusal ✅, sidecar contract ✅          | M7, Decisions       |
+| 6E.4   | `refound/6-e2e-config`               | —     | 4b.3, 6E.2, 6E.3                          | 6E.4.1–3     | ~124       | `failOnFlakyTests` ✅                               | M10, M7             |
+| 6E.5   | `refound/6-e2e-specs-a`              | —     | 6E.4                                      | 6E.5.1–2     | ~154       | —                                                   | M10                 |
+| 6E.6   | `refound/6-e2e-specs-b`              | —     | 6E.5                                      | 6E.6.1–3     | ~114       | sidecar 500 → red ✅                                | M10                 |
+| 6E.7   | `refound/6-admin-e2e`                | —     | 6E.4                                      | 6E.7.1–4     | ~159       | a11y contrast ✅                                    | M10, gaps           |
+| 6E.8   | `refound/6-e2e-ci`                   | —     | 6E.6, 6E.7, 3.6                           | 6E.8.1–7     | ~164       | E2E job ✅×2, reach row + ruleset                   | M10, M5, M7         |
+| 6E.9   | `refound/6-e2e-gap`                  | —     | 6E.8                                      | 6E.9.1–2     | ~14        | —                                                   | gaps                |
+| 6K.1   | `refound/6-k6-a`                     | —     | 6E.2, 1.12                                | 6K.1.1–4     | ~184       | `API_BASE_URL` throw ✅, threshold ✅               | M11, M7             |
+| 6K.2   | `refound/6-k6-calibrate`             | —     | 6K.1 · **H6**                             | 6K.2.1–3     | ~9         | —                                                   | M11, Decisions      |
+| 6K.3   | `refound/6-k6-b`                     | —     | 6K.2, 3.6                                 | 6K.3.1–4     | ~79        | k6 job ✅, reach row + ruleset                      | M11, M5, M7         |
+| 6P.1   | `refound/6-perf-retire`              | —     | 2.2, 6K.2                                 | 6P.1.1–3     | ~24        | —                                                   | M1, M4, M5          |
+| 6S.1   | `refound/6-security-fold`            | —     | 4.1, 1.13                                 | 6S.1.1–4     | ~314       | —                                                   | M2, gaps            |
+| 6S.2   | `refound/6-security-delete`          | —     | 6S.1                                      | 6S.2.1–2     | ~9         | —                                                   | M1, M4, M5          |
+| 6V.1   | `refound/3-script-exits` (PR V13)    | —     | 6K.3, 6P.1                                | 6V.1.1–4     | ~79        | #45 ✅                                              | M7                  |
+| 6N.0   | `refound/6n-order`                   | —     | 5.2                                       | 6N.0.1–4     | ~14        | —                                                   | M16 Baseline        |
+| 6N.1.* | `refound/6n-security-<n>`            | —     | 6N.0, S.19, 2.13                          | 6N.1.1–5     | ≤400/slice | probe RED per test ✅                               | M8, M16             |
+| 6N.2.* | `refound/6n-publishing-<n>`          | —     | 6N.1, S.15                                | 6N.2.1–3     | ≤400/slice | probe RED per test ✅                               | M8, M16             |
+| 6N.3.* | `refound/6n-core-<pkg>`              | —     | 6N.2, S.15                                | 6N.3.1       | ≤400/slice | probe RED per test ✅                               | M8, M16             |
+| 6N.4.* | `refound/6n-routes-<area>`           | —     | 6N.1, S.10                                | 6N.4.1       | ≤400/slice | probe RED per test ✅                               | M8, M16             |
+| 6N.5.* | `refound/6n-<pkg>`                   | —     | 6N.0, 5.9                                 | 6N.5.1       | ≤400/slice | probe RED per test ✅                               | M8, M16             |
+| 6N.6.* | `refound/6n-<app>-<n>`               | —     | 6N.0, S.18, S.20                          | 6N.6.1–3     | ≤400/slice | probe RED per test ✅                               | M8, M16             |
+| 7.1    | `refound/7-entry-check`              | —     | 5.10, 6N.2                                | 7.1.1–7.1.2  | ~4         | —                                                   | M12                 |
+| 7.2    | `refound/7-tool-choice`              | —     | 7.1                                       | 7.2.1–7.2.2  | ~44        | —                                                   | M12, Decisions      |
+| 7.3    | `refound/7-mutation-runner`          | —     | 7.2                                       | 7.3.1–7.3.3  | ~254       | survivor confirmation ✅                            | M12                 |
+| 7.4    | `refound/7-mutation-floors`          | —     | 7.3                                       | 7.4.1–7.4.4  | ~104       | #49 ✅                                              | M12, M7             |
+| 7.5    | `refound/7-mutation-pr-lane`         | —     | 7.4, 3.5                                  | 7.5.1–7.5.5  | ~124       | incremental `break` ✅, V8 allowlist ✅             | M12, M7             |
+| 7.6    | `refound/7-mutation-ledger`          | —     | 7.5                                       | 7.6.1–7.6.3  | ~104       | —                                                   | M12, M6, gaps       |
+| 8.1    | `refound/8-docs-testing`             | —     | 2.1, 5.10                                 | 8.1.1–8.1.2  | ~84        | —                                                   | docs row            |
+| 8.2    | `refound/8-docs-chaos`               | —     | 4.7                                       | 8.2.1        | ~70        | —                                                   | docs row            |
+| 8.3    | `refound/8-docs-providers`           | —     | 6M.7d                                     | 8.3.1        | ~70        | —                                                   | docs row            |
+| 8.4    | `refound/8-docs-saga`                | —     | 1.13                                      | 8.4.1        | ~40        | —                                                   | docs row            |
+| 8.5    | `refound/8-docs-security`            | —     | 6S.2                                      | 8.5.1        | ~50        | —                                                   | docs row            |
+| 8.6    | `refound/8-docs-e2e`                 | —     | 6E.8                                      | 8.6.1        | ~90        | —                                                   | docs row            |
+| 8.7    | `refound/8-living-doc`               | —     | 8.1–8.6                                   | 8.7.1–3, 9.1 | ~134       | #24 extended ✅                                     | M7, gaps            |
+| 8.8    | `refound/1-quarantine-retired`       | —     | 4.10, 6E.8, 6K.3, 6N.6                    | 8.8.1–4      | ~74        | #30 hard-zero ✅                                    | M5 → 0, M7          |
 
 **Dependency bottlenecks worth naming.** 1.16 (`Test Contracts`) is the highest-fan-out slice: 15 later slices read its engine or its ruleset, and a defect in it blocks every PR (design §9 risk 9 — rollback is reverting that one PR, which brings the old grep steps back). 2.2 (**H3**) gates all 13 demolition slices and Track S's start. 3.6 (**H5**, admin) gates every later required context, so 6E.8 and 6K.3 cannot make E2E or k6 required before it. S.4's canon fix gates S.5, and S.5 gates the whole route-app and seed chain. 6N is the long tail: its 40–70 slices are parallel **per package**, but each waits on that package's demolition slice and its `@test-utils/*` migration, so S.15–S.20 are its real critical path.
