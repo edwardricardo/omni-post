@@ -207,9 +207,9 @@ Chain strategy: stacked-to-main
 
 ### P.4 · `refound/3-gitleaks` (PR V6)
 
-- [ ] P.4.1 WU-3.6 · merge-verdict-composition › The secret scan reads the pull request's commits, and fails closed on an empty scan · CODE ~20 · slice `refound/3-gitleaks` — `gitleaks git --config .gitleaks.toml --log-opts="${BASE}..${HEAD}" --no-banner --redact --verbose | tee log` with `set -o pipefail`; fail closed when "N commits scanned" < 1; verify every flag against the pinned v8.30.0.
-- [ ] P.4.2 **Red proof** WU-3.6 · CODE ~0 · slice `refound/3-gitleaks` — in a throwaway clone under the scratchpad, commit a planted token with `--no-verify` and run the exact step with those SHAs → exit 1; run the OLD `protect --staged` form over the same clone → exit 0 (evidence the old gate was blind).
-- [ ] P.4.3 Tracker: Gates row · CODE ~4 · slice `refound/3-gitleaks`.
+- [x] P.4.1 WU-3.6 · merge-verdict-composition › The secret scan reads the pull request's commits, and fails closed on an empty scan · CODE ~20 · slice `refound/3-gitleaks` — `gitleaks git --config .gitleaks.toml --log-opts="${BASE}..${HEAD}" --no-banner --redact --verbose | tee log` with `set -o pipefail`; fail closed when "N commits scanned" < 1; verify every flag against the pinned v8.30.0.
+- [x] P.4.2 **Red proof** WU-3.6 · CODE ~0 · slice `refound/3-gitleaks` — in a throwaway clone under the scratchpad, commit a planted token with `--no-verify` and run the exact step with those SHAs → exit 1; run the OLD `protect --staged` form over the same clone → exit 0 (evidence the old gate was blind).
+- [x] P.4.3 Tracker: Gates row · CODE ~4 · slice `refound/3-gitleaks`.
 
 ### P.5 · `refound/3-osv-measure` (PR V7a) — measurement only
 
