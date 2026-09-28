@@ -1,19 +1,17 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-02, slice `0.18` `refound/0-override-bands-gate` (pull request #326), rebased onto slice
-`0.21` — `scripts/testing/override-bands-gate.mjs` refuses a range-scoped override whose band can no longer
-move with its target: a raised target whose band was left behind resolves to the PREVIOUS target, a version
-the old band no longer selects, so the floor applies to nothing while the manifest and the canon still read
-as holding it. The band's exclusive upper bound must BE the target, an inclusive `<=W` bound is refused, and
-the measured exceptions (`find-my-way@<9.6.1`, whose named patched version npm never published; `gaxios@7`
-and `google-auth-library@10`, de-dup pins scoped to one major line) carry their reasons inside the gate,
-where an entry matching no override key is itself a violation. Its first run found a live red,
-`"valibot@<=1.4.1": 1.4.2`, normalized to `"valibot@<1.4.2": 1.4.2` with every resolution unchanged at 1.4.2.
-M7 `3/3` → `4/4`, M1 `950 + 8` → `951 + 8`.
-Previous: slice `0.21` on `workstream/eslint-boundaries-policies` — the layer policies of
-`boundaries/dependencies` pinned by `apps/api/tests/unit/lint/boundariesPolicies.test.ts` (M1 `949 + 8` →
-`950 + 8`), after the same slice's `eslint-plugin-boundaries` 7.1.0 → **7.2.0** bump (M7 `2/2` → `3/3`).
+**As of:** 2026-10-02, slice `0.6` `refound/0-toolchain-tsx` (pull request #327), rebased onto slice `0.18`
+— `tsx` 4.22.4 → **4.23.15**, the latest mature release and also the latest stable, re-measured
+`2026-10-02T07:22Z` against the registry (published `2026-09-20T07:22:17Z`, no later release). Its
+`SECURITY_CANON` hold row is DELETED — a hold retired by taking the bump rather than by rewriting its
+reason, as slice `0.21` had just done for `eslint-plugin-boundaries` — and the holds gate falls from 40 lags
+to 39. No metric moves: no test file is added or removed and no gate changes, so M1 `951 + 8` and M7 `4/4`
+stand where slice `0.18` left them.
+Previous: slice `0.18` `refound/0-override-bands-gate` (pull request #326) —
+`scripts/testing/override-bands-gate.mjs` refuses a range-scoped override whose band can no longer move with
+its target; its first run found `"valibot@<=1.4.1": 1.4.2`, normalized to `"valibot@<1.4.2": 1.4.2` (M7
+`3/3` → `4/4`, M1 `950 + 8` → `951 + 8`).
 This line moves with the last pull request that moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
@@ -109,7 +107,7 @@ One row per work unit of [§Plan (fixed)](#plan-fixed). Status: ⬜ not started 
 | 0     | T.4(f) | The holds table's shape, and the gate reading it by column name             | ✅     | `refound/0-holds-table-fix`   | [§Gates](#gates) · remove-when + tsc    | 2026-09-28 |
 | 0     | T.4(c) | `@types/node` 24.13.6 and `engines.node`                                    | ✅     | `0.5` — branch in §Gates      | tsc 0 · gate 0 · 3 reds · 98/98         | 2026-09-28 |
 | 0     | T.4(b) | `eslint-plugin-boundaries` 7.2.0 and its v7 config (SMELL-66)               | ✅     | `0.21` — branch in §Gates     | lint 0 · 0 `[boundaries]` · 35 reds     | 2026-10-02 |
-| 0     | T.4(b) | tsx 4.23.13                                                                 | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(b) | tsx 4.23.15                                                                 | ✅     | `0.6`                         | `refound/0-toolchain-tsx` · 10/10       | 2026-09-28 |
 | 0     | T.4(b) | Playwright 1.63.0 + `@axe-core/playwright` 4.13.0                           | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(b) | msw 2.15.0                                                                  | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(b) | `@testing-library/react` family                                             | ⬜     | —                             | —                                       | —          |
@@ -354,16 +352,22 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-09-28T02:42:36Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY stderr:
-of the 52 packages in `scripts/testing/toolchain-population.json` (48 direct, 3 named transitives, 1
-declared-absent candidate), 41 sit below latest mature and NOT ONE of them is unheld.** That is the same 41 the
-23:57:09Z and 23:10:56Z runs reported, and slice `0.5` did NOT change it: `@types/node` was already a HELD lag
-at 25.9.3 (below the generic comparator 26.6.2) and is still one at 24.13.6, so the set's membership is
-unchanged and only its row's reason moved — from a target not yet taken to a runtime major now gated. A slice
-that moves a package to its own line's ceiling shrinks the lag set only when that ceiling IS the generic
-comparator, which for a downward pin it never is. The counts here read as one history: the 17:55:14Z paragraph
-above is the baseline, the 23:10:56Z and 23:57:09Z runs are the holds gate landing and the table correction,
-and this instant is the tree as it stands.
+**CURRENT, re-measured 2026-10-02T07:24:51Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
+stderr: of the 52 packages in `scripts/testing/toolchain-population.json` (48 direct, 3 named transitives,
+1 declared-absent candidate), 39 sit below latest mature and NOT ONE of them is unheld.** It was 40 on the
+tip below — slice `0.18`, which changed no version, on top of slice `0.21`, which took
+`eslint-plugin-boundaries` to its latest mature 7.2.0 — and slice `0.6` is what moved it: `tsx` went
+4.22.4 → 4.23.15, which IS the generic comparator, so that package leaves the lag set outright and its
+canon row is deleted with it, a hold retired by taking the bump. Slice `0.5`
+did NOT move the count, and the contrast is the rule: `@types/node` was already a HELD lag at 25.9.3 (below
+the generic comparator 26.6.2) and is still one at 24.13.6, because a slice that moves a package to its own
+line's ceiling shrinks the lag set only when that ceiling IS the generic comparator, which for a downward
+pin it never is. The counts here read as one history: the 17:55:14Z paragraph above is the baseline, the
+23:10:56Z and 23:57:09Z runs are the holds gate landing and the table correction, the 02:42:36Z run is the
+types pin, the repair slice `0.17` found the set back at **43** two days later — the
+`@typescript-eslint` pair matured at `2026-09-28T17:09Z` and RE-ENTERED it, which is the clock class this
+workstream keeps meeting — and took it to 41 by bumping the pair, slice `0.21` took it to 40, and this
+instant is the tree as it stands.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
@@ -442,7 +446,7 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 | ------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
 | `typescript`  | 6.0.3     | 7.0.2 (2026-07-08, 81.1 d). **v6 ceiling = 6.0.3 = installed**                                                                                                                                                                       | **held** — canon row `typescript`; the catalog comment that called 6.0.3 "latest stable" was corrected 2026-09-27 and now points at that row                                                                                                                                                                               | —         |
 | `@types/node` | 24.13.6   | 26.6.2 (2026-09-19) against the generic comparator; **runtime-major (24.x) ceiling 24.13.6 (2026-09-19) — installed = ceiling** since slice `0.5`, re-measured `2026-09-28T02:42:36Z` (`24.19.0`, 2026-09-25, is 2.2 d and immature) | **held** — canon row `@types/node`, REWRITTEN 2026-09-28 to state the runtime major instead of a target. The remaining lag is against the GENERIC comparator only, and it is now a GATED decision rather than a drift: `scripts/testing/engines-node-gate.mjs` refuses a pin whose major differs from the declared runtime | —         |
-| `tsx`         | 4.22.4    | **4.23.15 (2026-09-20, 7.4 d — matured at 07:22 Z today)**                                                                                                                                                                           | **held** — canon row `tsx`                                                                                                                                                                                                                                                                                                 | —         |
+| `tsx`         | 4.23.15   | **4.23.15 (2026-09-20, 12.0 d at `2026-10-02T07:22Z`) — installed = latest mature since slice `0.6`**                                                                                                                                | **no** — no lag; the canon row `tsx` was DELETED by that slice, its own remove-when met                                                                                                                                                                                                                                    | —         |
 
 ### Lint and formatting
 
