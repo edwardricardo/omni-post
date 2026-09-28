@@ -1,17 +1,15 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-02, slice `0.6` `refound/0-toolchain-tsx` (pull request #327), rebased onto slice `0.18`
-— `tsx` 4.22.4 → **4.23.15**, the latest mature release and also the latest stable, re-measured
-`2026-10-02T07:22Z` against the registry (published `2026-09-20T07:22:17Z`, no later release). Its
-`SECURITY_CANON` hold row is DELETED — a hold retired by taking the bump rather than by rewriting its
-reason, as slice `0.21` had just done for `eslint-plugin-boundaries` — and the holds gate falls from 40 lags
-to 39. No metric moves: no test file is added or removed and no gate changes, so M1 `951 + 8` and M7 `4/4`
-stand where slice `0.18` left them.
-Previous: slice `0.18` `refound/0-override-bands-gate` (pull request #326) —
-`scripts/testing/override-bands-gate.mjs` refuses a range-scoped override whose band can no longer move with
-its target; its first run found `"valibot@<=1.4.1": 1.4.2`, normalized to `"valibot@<1.4.2": 1.4.2` (M7
-`3/3` → `4/4`, M1 `950 + 8` → `951 + 8`).
+**As of:** 2026-10-02, slice `0.8` `refound/0-toolchain-msw` (pull request #328), rebased onto slice `0.6`
+— `msw` 2.14.6 → **2.15.0**, the latest MATURE release, re-measured `2026-10-02T07:36Z` against the
+registry (published `2026-07-08T01:43:07Z`). It is no longer the latest stable: 3.0.0 and 3.0.1 appeared on
+2026-09-28 and 2026-09-30 and are still inside the 7-day buffer; the 2 → 3 major is a crossing, recorded on
+the catalog line. 2.15.0's dependency ranges equal 2.14.6's key for key, so no override moves. Its
+`SECURITY_CANON` hold row is DELETED and the holds gate falls from 39 lags to 38. No metric moves: M1
+`951 + 8` and M7 `4/4` stand where slice `0.18` left them.
+Previous: slice `0.6` `refound/0-toolchain-tsx` (pull request #327) — `tsx` 4.22.4 → **4.23.15**, its hold
+row retired with it, 40 lags → 39, no metric moved.
 This line moves with the last pull request that moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
@@ -109,7 +107,7 @@ One row per work unit of [§Plan (fixed)](#plan-fixed). Status: ⬜ not started 
 | 0     | T.4(b) | `eslint-plugin-boundaries` 7.2.0 and its v7 config (SMELL-66)               | ✅     | `0.21` — branch in §Gates     | lint 0 · 0 `[boundaries]` · 35 reds     | 2026-10-02 |
 | 0     | T.4(b) | tsx 4.23.15 — first done 2026-09-28, rebased 2026-10-02                     | ✅     | `0.6`                         | `refound/0-toolchain-tsx` · 10/10       | 2026-10-02 |
 | 0     | T.4(b) | Playwright 1.63.0 + `@axe-core/playwright` 4.13.0                           | ⬜     | —                             | —                                       | —          |
-| 0     | T.4(b) | msw 2.15.0                                                                  | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(b) | msw 2.15.0 — first done 2026-09-28, rebased 2026-10-02                      | ✅     | `refound/0-toolchain-msw`     | getResponse public · 674 green          | 2026-10-02 |
 | 0     | T.4(b) | `@testing-library/react` family                                             | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(b) | `@vitest/eslint-plugin` 1.6.27                                              | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(d) | Storybook family; Jest leaves with `@storybook/test-runner`                 | ⬜     | —                             | —                                       | —          |
@@ -352,9 +350,9 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-02T07:24:51Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
+**CURRENT, re-measured 2026-10-02T07:39:28Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
 stderr: of the 52 packages in `scripts/testing/toolchain-population.json` (48 direct, 3 named transitives,
-1 declared-absent candidate), 39 sit below latest mature and NOT ONE of them is unheld.**
+1 declared-absent candidate), 38 sit below latest mature and NOT ONE of them is unheld.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
 and what moved it. A slice that moves the count appends its own line.
@@ -377,6 +375,8 @@ and what moved it. A slice that moves the count appends its own line.
    mature 7.2.0; slice `0.18`, rebased on top of it, moved no version.
 7. `2026-10-02T07:24:51Z` — **39**: slice `0.6` took `tsx` 4.22.4 → 4.23.15, which IS the generic
    comparator, so the package leaves the set outright and its canon row is deleted with it.
+8. `2026-10-02T07:39:28Z` — **38**: slice `0.8` took `msw` 2.14.6 → 2.15.0, the latest mature release, so
+   the package leaves the set and its canon row is deleted with it.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
@@ -440,7 +440,7 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 | `@playwright/test`                            | 1.61.1                  | 1.63.0 (2026-09-04, 22.8 d)                                                                              | **held** — canon row `@playwright/test`                                                                                                                              | —                                                                                   |
 | `playwright` / `playwright-core` (transitive) | 1.61.1                  | 1.63.0 (2026-09-04)                                                                                      | **held** — canon row `@playwright/test`; a transitive with no version of its own to declare, so it moves with the runner                                             | —                                                                                   |
 | `@axe-core/playwright`                        | 4.10.2                  | 4.13.0 (2026-08-11, 47.0 d)                                                                              | **held** — canon row `@playwright/test`, which names it                                                                                                              | —                                                                                   |
-| `msw`                                         | 2.14.6                  | 2.15.0 (2026-07-08, 81.7 d)                                                                              | **held** — canon row `msw`                                                                                                                                           | —                                                                                   |
+| `msw`                                         | 2.15.0                  | **2.15.0 (2026-07-08, 86.2 d) — latest mature; `latest` 3.0.1 is 1.8 d** (at `2026-10-02T07:36Z`)        | **no** — no lag; the canon row `msw` was DELETED by slice `0.8`, its own remove-when met                                                                             | —                                                                                   |
 | `jsdom`                                       | 29.1.1                  | 30.1.0 (2026-09-17) — `latest` 30.1.1 (2026-09-22) is 5.7 d, immature                                    | **held** — canon row `jsdom`, which carries all three crossings                                                                                                      | three override bands sit in its chain — see crossing 1 below                        |
 | `isomorphic-dompurify` (PRODUCTION)           | 3.19.0                  | 4.3.0 (2026-09-19) — `latest` 4.4.0 (2026-09-25) is 2.0 d. **v3 ceiling 3.23.0 (2026-08-25)**            | **held** — canon row `jsdom`, which names it                                                                                                                         | `dompurify` 3.4.13 (CVE-floor row `dompurify`) — met by 4.3.0's `dompurify ^3.4.12` |
 | `@testing-library/react`                      | 16.3.2                  | 16.3.3 (2026-08-27, 31.0 d)                                                                              | **held** — canon row `@testing-library/dom`, which names all four                                                                                                    | —                                                                                   |
