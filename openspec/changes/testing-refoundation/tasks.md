@@ -135,8 +135,8 @@ Chain strategy: stacked-to-main
 
 ### 0.9 · `refound/0-toolchain-rtl` · **BATCH 9**
 
-- [ ] 0.9.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~50 · slice `refound/0-toolchain-rtl` — `@testing-library/react` + `jest-dom` + `user-event` to latest mature; `pnpm --filter @apps/client test` and `--filter @apps/admin test` green.
-- [ ] 0.9.2 Tracker: T.4 table row · CODE ~4 · slice `refound/0-toolchain-rtl`.
+- [x] 0.9.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~50 · slice `refound/0-toolchain-rtl` — `@testing-library/react` + `jest-dom` + `user-event` to latest mature; `pnpm --filter @apps/client test` and `--filter @apps/admin test` green.
+- [x] 0.9.2 Tracker: T.4 table row · CODE ~4 · slice `refound/0-toolchain-rtl`.
 
 ### 0.10 · `refound/0-toolchain-vitest-plugin` · **BATCH 10**
 
