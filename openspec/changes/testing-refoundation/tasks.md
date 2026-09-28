@@ -120,8 +120,8 @@ Chain strategy: stacked-to-main
 
 ### 0.6 · `refound/0-toolchain-tsx` · **BATCH 6**
 
-- [ ] 0.6.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~25 · slice `refound/0-toolchain-tsx` — tsx → 4.23.13; verify Node 24 type stripping on one `--import tsx` entrypoint and `--conditions development` still resolves workspace sources (module-resolution › Source-mode invocations opt in via `--conditions development` on the command).
-- [ ] 0.6.2 Tracker: T.4 table row · CODE ~4 · slice `refound/0-toolchain-tsx`.
+- [x] 0.6.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~25 · slice `refound/0-toolchain-tsx` — tsx → 4.23.13; verify Node 24 type stripping on one `--import tsx` entrypoint and `--conditions development` still resolves workspace sources (module-resolution › Source-mode invocations opt in via `--conditions development` on the command).
+- [x] 0.6.2 Tracker: T.4 table row · CODE ~4 · slice `refound/0-toolchain-tsx`.
 
 ### 0.7 · `refound/0-toolchain-browser` — Playwright 1.63.0 + axe 4.13.0 · **BATCH 7**
 
@@ -130,8 +130,8 @@ Chain strategy: stacked-to-main
 
 ### 0.8 · `refound/0-toolchain-msw` · **BATCH 8**
 
-- [ ] 0.8.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~25 · slice `refound/0-toolchain-msw` — msw → 2.15.0; confirm `getResponse` is still the documented public export the sidecar (design §2g) depends on.
-- [ ] 0.8.2 Tracker: T.4 table row · CODE ~4 · slice `refound/0-toolchain-msw`.
+- [x] 0.8.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~25 · slice `refound/0-toolchain-msw` — msw → 2.15.0; confirm `getResponse` is still the documented public export the sidecar (design §2g) depends on.
+- [x] 0.8.2 Tracker: T.4 table row · CODE ~4 · slice `refound/0-toolchain-msw`.
 
 ### 0.9 · `refound/0-toolchain-rtl` · **BATCH 9**
 
@@ -187,10 +187,10 @@ Chain strategy: stacked-to-main
 
 ### P.1 · `refound/3-fitness-inventory` (PR V1)
 
-- [ ] P.1.1 RED WU-3.1 · merge-verdict-composition › The fitness inventory is contiguous, and its count is derived (#47) · design §2h · CODE ~15 · slice `refound/3-fitness-inventory` — failing check: the ordered list of `^      - name: "#([0-9]+) ` across all jobs must equal `seq 1 N`, the `# N.` headings of `CLAUDE.md` §Automated Compliance Checks must be the same set, and `CLAUDE.md`'s "There are **N checks**" sentence must state the derived N.
-- [ ] P.1.2 GREEN WU-3.1 · merge-verdict-composition › The fitness inventory is contiguous, and its count is derived (#47) · CODE ~45 · slice `refound/3-fitness-inventory` — turn the "Fitness summary" step into gate #47; print the derived N; every `::error` paired with `exit 1` (#34's own rule).
-- [ ] P.1.3 **Red proof** ×3 · testing-canon-and-tracker › Every new or modified gate is recorded with its demonstrated red · CODE ~0 · slice `refound/3-fitness-inventory` — (a) rename #42 → #41 → exit 1; (b) delete the `# 5.` heading → exit 1; (c) change the count sentence → exit 1; each byte-exact restored.
-- [ ] P.1.4 Tracker: Gates row #47; M7 moves · CODE ~4 · slice `refound/3-fitness-inventory`.
+- [x] P.1.1 RED WU-3.1 · merge-verdict-composition › The fitness inventory is contiguous, and its count is derived (#44) · design §2h · CODE ~15 · slice `refound/3-fitness-inventory` — failing check: the ordered list of `^      - name: "#([0-9]+) ` across all jobs must equal `seq 1 N`, the `# N.` headings of `CLAUDE.md` §Automated Compliance Checks must be the same set, and `CLAUDE.md`'s "There are **N checks**" sentence must state the derived N.
+- [x] P.1.2 GREEN WU-3.1 · merge-verdict-composition › The fitness inventory is contiguous, and its count is derived (#44) · CODE ~45 · slice `refound/3-fitness-inventory` — turn the "Fitness summary" step into gate #44; print the derived N; every `::error` paired with `exit 1` (#34's own rule).
+- [x] P.1.3 **Red proof** ×3 · testing-canon-and-tracker › Every new or modified gate is recorded with its demonstrated red · CODE ~0 · slice `refound/3-fitness-inventory` — (a) rename #42 → #41 → exit 1; (b) delete the `# 5.` heading → exit 1; (c) change the count sentence → exit 1; each byte-exact restored.
+- [x] P.1.4 Tracker: Gates row #44; M7 moves · CODE ~4 · slice `refound/3-fitness-inventory`.
 
 ### P.2 · `refound/3-reporters` (PR V2)
 
@@ -408,7 +408,7 @@ Chain strategy: stacked-to-main
 - [ ] 2.1.2 **Measured** WU-2.4 · decorative-test-demolition › The classifier is a tested workspace package, calibrated on both frameworks · design §2b · CODE ~10 · slice `refound/2-lint-rules` — only classes calibrated ≥ 90 % GREEN by the probe become rules; TITLE-CONTRADICTION stays ledger-only. Record the per-class calibration rate.
 - [ ] 2.1.3 **Measured** WU-2.4 · msw-single-http-double › A hand-written HTTP stub is a lint error, and the baseline reaches zero · design §9 risk 5 · CODE ~5 · slice `refound/2-lint-rules` — verify the `assertFunctionNames` member wildcard (`assert.*`) matches on ONE file before enabling it repo-wide; fall back to explicit `assert.<name>` forms if it does not.
 - [ ] 2.1.4 GREEN WU-2.4 · decorative-test-demolition › The durable form is a lint rule pinned at `error`, with suppressions as a shrinking baseline · CODE ~120 · slice `refound/2-lint-rules` — the new blocks in `eslint.config.ts`: the three `testing/*` rules on both frameworks; the `vitest/*` set (`expect-expect` with `assertFunctionNames: ["expect","expect*","assert","assert.*","expectTypeOf"]`, `no-conditional-expect`, `valid-expect`, `no-standalone-expect`, `no-identical-title`, `no-commented-out-tests`, `no-disabled-tests`, `no-focused-tests`) applied **only** to files `collectorOf` routes to `vitest:*`, never to node:test files; `no-console: error` on every test glob; generate `eslint-suppressions.json` with `eslint --suppress-rule`.
-- [ ] 2.1.5 GREEN WU-2.4 · merge-verdict-composition › A script entrypoint cannot swallow its own failure (#45) · design §2b · CODE ~20 · slice `refound/2-lint-rules` — the fitness pin (#48, in #31 B's form) that a `testing/*` or `vitest/*` rule sitting at `warn` instead of `error` exits 1.
+- [ ] 2.1.5 GREEN WU-2.4 · merge-verdict-composition › A script entrypoint cannot swallow its own failure (#46) · design §2b · CODE ~20 · slice `refound/2-lint-rules` — the fitness pin (#48, in #31 B's form) that a `testing/*` or `vitest/*` rule sitting at `warn` instead of `error` exits 1.
 - [ ] 2.1.6 WU-8.1a · testing-canon-and-tracker › The coding standard states the framework per BOUNDARY, the both-directions rule, and the criterion · design §7.4 · CODE ~120 · slice `refound/2-lint-rules` — `docs/development/CODING_STANDARDS.md` §Testing part 1: replace "Three frameworks" and its 4-row table with the **framework-per-boundary** table (pure logic → vitest unit · in-process HTTP route → vitest + `inject` · persistence/SQL/RLS/transactions → the services tier · process topology → the live tier · component/hook → vitest + RTL + MSW · outbound HTTP → vitest + MSW handlers · cross-process journey → Playwright · latency under load → k6 · test quality → mutation); add the both-directions rule and criteria (a)–(d) with the hard probe; state Jest is not a framework of this repo; replace the literal `makePost` example with `aPost()` from `@test-utils/domain`. **The runner column for the services tier stays "node:test (or vitest per X2)" until gate H7 resolves.**
 - [ ] 2.1.7 **Red proof** ×3 WU-2.4 · CODE ~0 · slice `refound/2-lint-rules` — plant an existence-only block in a vitest file and in a node:test file → lint exit 1; delete a suppressed block without pruning → a plain run exits 2; set one rule to `warn` → #48 exit 1; `cmp`-restore each.
 - [ ] 2.1.8 Tracker: M3 Baseline (suppressions per rule), M13; Gates rows · CODE ~4 · slice `refound/2-lint-rules`.
@@ -511,13 +511,13 @@ Chain strategy: stacked-to-main
 - [ ] 3.4.4 **Red proof** ×4 WU-1.13 · CODE ~0 · slice `refound/1-skips-ast` — 3.4.1's four cases through the complete step; restore.
 - [ ] 3.4.5 Tracker: Gates row (#32 new form); M9 · CODE ~4 · slice `refound/1-skips-ast`.
 
-### 3.5 · `refound/3-verdict-static` (PR V9) — #44 verdict rules V1, V2, V3, V7 and V8
+### 3.5 · `refound/3-verdict-static` (PR V9) — #45 verdict rules V1, V2, V3, V7 and V8
 
 - [ ] 3.5.1 RED WU-3.9 · merge-verdict-composition › No required job can report a skip, swallow an exit, or be filtered away (V2–V5, V7) · design §2h · CODE ~90 · slice `refound/3-verdict-static` — self-tests planting: a second workflow with `name: Security Audit` → verdict rule V1; deleting the Integration Tests job → V1 (0 producers); `if: github.event_name == 'push'` on a required job → V2; removing `!cancelled()` from Coverage Merge → V3; `paths:` on `ci.yml`'s `pull_request` → V7; `include/exclude` in a matrix → fail closed "unsupported matrix".
 - [ ] 3.5.2 RED **threat matrix — CI automation that writes to GitHub** WU-3.9 · merge-verdict-composition › Only allowlisted jobs may write to the repository from CI (V8) · design §5 · CODE ~20 · slice `refound/3-verdict-static` — plant `issues: write` on an unlisted job → verdict rule V8 exits 1 naming the job; an allowlisted job triggered on `pull_request` → exit 1.
-- [ ] 3.5.3 GREEN WU-3.9 · merge-verdict-composition › Exactly one job emits each required context, and duplicated or piggy-backed gates are separated · CODE ~330 · slice `refound/3-verdict-static` — `packages/test-contracts/src/verdict.ts` parsing every workflow with `yaml` and the committed ruleset: **verdict rule V1** (exactly one producer per required context, matrix expanded), **V2** (no job-level `if:` outside the always-true-on-PR allowlist), **V3** (`needs:` ⇒ `!cancelled()` / `always()` **and** a step referencing `needs.<id>.result` per needed id), **V7** (no `paths` / `paths-ignore` on a workflow producing a required context), **V8** (`writers` allowlist in `collectors.json` — initially `nightly.yml:alarm`; `security-events: write` and `actions: write` are out of scope by name); the #44 block in `CLAUDE.md`.
+- [ ] 3.5.3 GREEN WU-3.9 · merge-verdict-composition › Exactly one job emits each required context, and duplicated or piggy-backed gates are separated · CODE ~330 · slice `refound/3-verdict-static` — `packages/test-contracts/src/verdict.ts` parsing every workflow with `yaml` and the committed ruleset: **verdict rule V1** (exactly one producer per required context, matrix expanded), **V2** (no job-level `if:` outside the always-true-on-PR allowlist), **V3** (`needs:` ⇒ `!cancelled()` / `always()` **and** a step referencing `needs.<id>.result` per needed id), **V7** (no `paths` / `paths-ignore` on a workflow producing a required context), **V8** (`writers` allowlist in `collectors.json` — initially `nightly.yml:alarm`; `security-events: write` and `actions: write` are out of scope by name); the #45 block in `CLAUDE.md`.
 - [ ] 3.5.4 **Red proof** ×7 WU-3.9 · CODE ~0 · slice `refound/3-verdict-static` — 3.5.1's five plus 3.5.2's two through the complete step; restore each.
-- [ ] 3.5.5 Tracker: Gates rows (#44 static, V1/V2/V3/V7/V8); M7 · CODE ~4 · slice `refound/3-verdict-static`.
+- [ ] 3.5.5 Tracker: Gates rows (#45 static, V1/V2/V3/V7/V8); M7 · CODE ~4 · slice `refound/3-verdict-static`.
 
 ### 3.6 · `refound/3-ruleset` (PR V11) — the merge gate, versioned · **[HUMAN GATE H5]**
 
@@ -527,7 +527,7 @@ Chain strategy: stacked-to-main
 - [ ] 3.6.4 **[HUMAN GATE H5]** WU-3.11 · CODE ~0 · slice `refound/3-ruleset` — Edward runs `gh api -X POST repos/<owner>/<repo>/rulesets --input .github/rulesets/main.json`, clears the classic required-checks list and enables `allow_update_branch`. Rollback: `gh api -X DELETE …/rulesets/{id}` plus the mirror. The commands go in the PR body. STOP and wait.
 - [ ] 3.6.5 Tracker: Gates row; Decisions log (D5, D6, D7); M15 · CODE ~4 · slice `refound/3-ruleset`.
 
-### 3.7 · `refound/3-verdict-drift` (PR V10) — #44 operational rules V4, V5 and drift V6
+### 3.7 · `refound/3-verdict-drift` (PR V10) — #45 operational rules V4, V5 and drift V6
 
 - [ ] 3.7.1 RED WU-3.10 · merge-verdict-composition › Drift between the committed ruleset and the live gate is detected, and fails closed (V6) · design §2h · CODE ~40 · slice `refound/3-verdict-drift` — REDs: `continue-on-error: true` on a required job's step whose name does not end in "(never gates)" → verdict rule V4 exit 1; a `|| true` on a line invoking a gate tool → V5 exit 1; a fake context in the ruleset → V6 exit 1; an empty rules array → exit 1 ("no active rules — an evaluate-mode ruleset is invisible"); a network failure → 3 retries then "could not measure" exit 1, never a silent green.
 - [ ] 3.7.2 GREEN WU-3.10 · merge-verdict-composition › Drift between the committed ruleset and the live gate is detected, and fails closed (V6) · CODE ~150 · slice `refound/3-verdict-drift` — verdict rules V4 and V5, and V6 reading `GET /repos/{o}/{r}/rules/branches/main` (paginated, `GITHUB_TOKEN`) and comparing contexts, `integration_id`, strict, `deletion` and `non_fast_forward` against the committed ruleset; V6 runs on push to main, nightly and dispatch — **never on `pull_request`** (a PR editing the ruleset would be red until an admin applies it).
@@ -547,7 +547,7 @@ Chain strategy: stacked-to-main
 ### 4b.1 · `refound/4b-adopt-workflows` (PR E4)
 
 - [ ] 4b.1.1 WU-4b.4 · test-environment-contract › One script owns the environment, and it starts no datastore · design §6 · CODE ~150 (net deletions) · slice `refound/4b-adopt-workflows` — repoint `performance.yml`, `security-testing.yml` (ZAP) and `nightly.yml` onto `scripts/test-env.sh`; no workflow boots an application process any other way.
-- [ ] 4b.1.2 Acceptance + **Red proof** WU-4b.4 · test-environment-contract › Environment identity is gated, not conventional (#46) · CODE ~0 · slice `refound/4b-adopt-workflows` — `rg "dev:test" .github` = 0; plant an inline `pnpm --filter @apps/api dev:test &` → #46 exit 1 (enforced in 4b.4) → restore.
+- [ ] 4b.1.2 Acceptance + **Red proof** WU-4b.4 · test-environment-contract › Environment identity is gated, not conventional (#47) · CODE ~0 · slice `refound/4b-adopt-workflows` — `rg "dev:test" .github` = 0; plant an inline `pnpm --filter @apps/api dev:test &` → #47 exit 1 (enforced in 4b.4) → restore.
 - [ ] 4b.1.3 Tracker: M15 · CODE ~4 · slice `refound/4b-adopt-workflows`.
 
 ### 4b.2 · `refound/4b-loader` (PR E5)
@@ -564,12 +564,12 @@ Chain strategy: stacked-to-main
 - [ ] 4b.3.3 **Red proof** WU-4b.6 · CODE ~0 · slice `refound/4b-playwright-servers` — `playwright test --list` unchanged; with the API env broken, `playwright test` fails inside `webServer` (`serve api` exits 6 in its readiness window) before any test runs → restore.
 - [ ] 4b.3.4 Tracker: Decisions log (webServer semantics); Gates row · CODE ~4 · slice `refound/4b-playwright-servers`.
 
-### 4b.4 · `refound/4b-identity` (PR E7) — #46, one environment identity
+### 4b.4 · `refound/4b-identity` (PR E7) — #47, one environment identity
 
-- [ ] 4b.4.1 RED **threat matrix — destructive database target** WU-4b.7 · test-environment-contract › Environment identity is gated, not conventional (#46) · design §5 · CODE ~40 · slice `refound/4b-identity` — the three plants, each exit 1: `postgres:16-alpine` in a `services.postgres`; a retyped `postgresql://test_user@…` literal in a workflow; a key deleted from `.env.test.example`.
-- [ ] 4b.4.2 GREEN WU-4b.7 · test-environment-contract › Environment identity is gated, not conventional (#46) · CODE ~140 · slice `refound/4b-identity` — `packages/test-contracts/src/identity.ts`: every `services.postgres` uses `pgvector/pgvector:pg16` + `POSTGRES_DB=omnipost_test` + `POSTGRES_USER=postgres`; every `services.redis` is `redis:7-alpine`; every `postgresql://` literal in `.github/workflows` is the canonical hermetic URL read from `scripts/test-env.sh`, never retyped; no inline `dev:test`; `.env.test.example`'s key set equals the script's required inputs.
+- [ ] 4b.4.1 RED **threat matrix — destructive database target** WU-4b.7 · test-environment-contract › Environment identity is gated, not conventional (#47) · design §5 · CODE ~40 · slice `refound/4b-identity` — the three plants, each exit 1: `postgres:16-alpine` in a `services.postgres`; a retyped `postgresql://test_user@…` literal in a workflow; a key deleted from `.env.test.example`.
+- [ ] 4b.4.2 GREEN WU-4b.7 · test-environment-contract › Environment identity is gated, not conventional (#47) · CODE ~140 · slice `refound/4b-identity` — `packages/test-contracts/src/identity.ts`: every `services.postgres` uses `pgvector/pgvector:pg16` + `POSTGRES_DB=omnipost_test` + `POSTGRES_USER=postgres`; every `services.redis` is `redis:7-alpine`; every `postgresql://` literal in `.github/workflows` is the canonical hermetic URL read from `scripts/test-env.sh`, never retyped; no inline `dev:test`; `.env.test.example`'s key set equals the script's required inputs.
 - [ ] 4b.4.3 **Red proof** ×3 WU-4b.7 · CODE ~0 · slice `refound/4b-identity` — 4b.4.1 through the complete step; restore.
-- [ ] 4b.4.4 Tracker: M15 reaches 1; Gates row (#46) · CODE ~4 · slice `refound/4b-identity`.
+- [ ] 4b.4.4 Tracker: M15 reaches 1; Gates row (#47) · CODE ~4 · slice `refound/4b-identity`.
 
 ### 4b.5 · `refound/4b-hermetic-shards` (PR E8) — measured first
 
@@ -904,7 +904,7 @@ Chain strategy: stacked-to-main
 
 - [ ] 6P.1.1 WU-6.P1 · k6-load-gate › The retired performance scripts leave with their files · design §3 D10 · CODE ~10 · slice `refound/6-perf-retire` — delete `performance/monitoring/memory-leak-detector.ts` (a synthetic function that leaks memory, never the application) and the duplicated root + api scripts.
 - [ ] 6P.1.2 WU-6.P2 · k6-load-gate › The retired performance scripts leave with their files · CODE ~10 · slice `refound/6-perf-retire` — delete `performance/database/postgres-stress.test.ts` (624 lines, 0 assertions, always exit 0 — its class is now covered by k6 through the API) and `perf:baseline`, `perf:regression`, `perf:test` with their files, each backed by its ledger row. EVIDENCE ~2,100.
-- [ ] 6P.1.3 Acceptance + Tracker (M1, M4, M5) · CODE ~4 · slice `refound/6-perf-retire` — the quarantine loses `postgres-stress.test.ts`; the #45 grep population drops by four of its five current hits.
+- [ ] 6P.1.3 Acceptance + Tracker (M1, M4, M5) · CODE ~4 · slice `refound/6-perf-retire` — the quarantine loses `postgres-stress.test.ts`; the #46 grep population drops by four of its five current hits.
 
 ### 6S.1 · `refound/6-security-fold` (WU-6.S1)
 
@@ -918,12 +918,12 @@ Chain strategy: stacked-to-main
 - [ ] 6S.2.1 WU-6.S2 · http-security-posture-tier › The old suite is deleted, and each case's destination is named · CODE ~5 · slice `refound/6-security-delete` — delete `security/tests/*` (7 suites, helpers, and the README that lives outside `docs/`) and any root script; SMELL-83 closes naming where each case went (folded, or discarded for having no surface or being already covered). EVIDENCE ~2,800.
 - [ ] 6S.2.2 Acceptance + Tracker (M1, M4, M5) · CODE ~4 · slice `refound/6-security-delete` — the quarantine loses its 7 `security/tests` entries.
 
-### 6V.1 · `refound/3-script-exits` (PR V13) — #45, after the k6/perf decision
+### 6V.1 · `refound/3-script-exits` (PR V13) — #46, after the k6/perf decision
 
-- [ ] 6V.1.1 RED WU-3.13 · merge-verdict-composition › A script entrypoint cannot swallow its own failure (#45) · CODE ~15 · slice `refound/3-script-exits` — plant `.catch(console.error)` on a script entrypoint → exit 1.
-- [ ] 6V.1.2 GREEN WU-3.13 · merge-verdict-composition › A script entrypoint cannot swallow its own failure (#45) · CODE ~60 · slice `refound/3-script-exits` — #45 as a hard-zero grep in a dependency-free job over `git ls-files '*.ts' '*.mts' '*.js'` for `\.catch\(\s*console\.(error|log|warn)\s*\)`; the current five hits are gone (four left with 6P.1, the fifth is fixed here); on the k6-keep branch also assert the report generator exits 1 on an empty results directory.
+- [ ] 6V.1.1 RED WU-3.13 · merge-verdict-composition › A script entrypoint cannot swallow its own failure (#46) · CODE ~15 · slice `refound/3-script-exits` — plant `.catch(console.error)` on a script entrypoint → exit 1.
+- [ ] 6V.1.2 GREEN WU-3.13 · merge-verdict-composition › A script entrypoint cannot swallow its own failure (#46) · CODE ~60 · slice `refound/3-script-exits` — #46 as a hard-zero grep in a dependency-free job over `git ls-files '*.ts' '*.mts' '*.js'` for `\.catch\(\s*console\.(error|log|warn)\s*\)`; the current five hits are gone (four left with 6P.1, the fifth is fixed here); on the k6-keep branch also assert the report generator exits 1 on an empty results directory.
 - [ ] 6V.1.3 **Red proof** WU-3.13 · CODE ~0 · slice `refound/3-script-exits` — 6V.1.1 through the complete step; restore.
-- [ ] 6V.1.4 Tracker: Gates row (#45); M7 · CODE ~4 · slice `refound/3-script-exits`.
+- [ ] 6V.1.4 Tracker: Gates row (#46); M7 · CODE ~4 · slice `refound/3-script-exits`.
 
 ---
 
@@ -1057,7 +1057,7 @@ Every slice targets `main` (`stacked-to-main`) and is merged in the order below.
 | 0.14   | `refound/0-toolchain-build`          | 14    | 0.13                                      | 0.14.1–3     | ~50        | —                                                   | T.4 table           |
 | 0.15   | `refound/0-toolchain-quality-gates`  | 15    | 0.14                                      | 0.15.1–3     | ~70        | —                                                   | T.4 table, Phase 0  |
 | 0.16   | `refound/0-runtime-node-26`          | 16    | 0.15, containerization resume, 2026-10-28 | 0.16.1–4     | ~54        | engines gate red on a manifest ahead of the runtime | T.4 table, D23      |
-| P.1    | `refound/3-fitness-inventory`        | —     | 0.1                                       | P.1.1–P.1.4  | ~64        | #47 ✅                                              | M7                  |
+| P.1    | `refound/3-fitness-inventory`        | —     | 0.1                                       | P.1.1–P.1.4  | ~64        | #44 ✅                                              | M7                  |
 | P.2    | `refound/3-reporters`                | —     | 0.1                                       | P.2.1–P.2.4  | ~44        | shard reporters ✅                                  | M2, M7              |
 | P.3    | `refound/3-openapi-drift`            | —     | 0.1                                       | P.3.1–P.3.3  | ~64        | OpenAPI Drift job ✅                                | M7                  |
 | P.4    | `refound/3-gitleaks`                 | —     | 0.1                                       | P.4.1–P.4.3  | ~24        | gitleaks fail-closed ✅                             | M7                  |
@@ -1106,14 +1106,14 @@ Every slice targets `main` (`stacked-to-main`) and is merged in the order below.
 | 3.2    | `refound/3-remove-duplicate-gates`   | —     | 3.1 · **H4**                              | 3.2.1–3.2.5  | ~149       | (verdict rule V1 covers it)                         | M7, Decisions       |
 | 3.3    | `refound/3-skip-gate` (PR V8)        | —     | 2.5, P.2                                  | 3.3.1–3.3.4  | ~84        | skip gate ✅                                        | M2, M9, M7          |
 | 3.4    | `refound/1-skips-ast` (PR R13)       | —     | 1.16, 2.13, 4.2                           | 3.4.1–3.4.5  | ~214       | #32 new form ✅×4                                   | M9, M7              |
-| 3.5    | `refound/3-verdict-static` (PR V9)   | —     | 1.16, 3.1, 3.2                            | 3.5.1–3.5.5  | ~444       | #44 V1/V2/V3/V7/V8 ✅×7                             | M7                  |
+| 3.5    | `refound/3-verdict-static` (PR V9)   | —     | 1.16, 3.1, 3.2                            | 3.5.1–3.5.5  | ~444       | #45 V1/V2/V3/V7/V8 ✅×7                             | M7                  |
 | 3.6    | `refound/3-ruleset` (PR V11)         | —     | 3.5 · **H5**                              | 3.6.1–3.6.5  | ~94        | required-context composition ✅                     | M15, Decisions      |
-| 3.7    | `refound/3-verdict-drift` (PR V10)   | —     | 3.6                                       | 3.7.1–3.7.4  | ~194       | #44 V4/V5/V6 ✅×5                                   | M7                  |
+| 3.7    | `refound/3-verdict-drift` (PR V10)   | —     | 3.6                                       | 3.7.1–3.7.4  | ~194       | #45 V4/V5/V6 ✅×5                                   | M7                  |
 | 3.8    | `refound/3-osv-decide` (PR V7b)      | —     | P.5, 3.6                                  | 3.8.1–3.8.3  | ~44        | OSV ignores ✅ or removal                           | Decisions           |
-| 4b.1   | `refound/4b-adopt-workflows` (E4)    | —     | 1.12                                      | 4b.1.1–3     | ~154       | (#46 covers it) ✅                                  | M15                 |
+| 4b.1   | `refound/4b-adopt-workflows` (E4)    | —     | 1.12                                      | 4b.1.1–3     | ~154       | (#47 covers it) ✅                                  | M15                 |
 | 4b.2   | `refound/4b-loader` (PR E5)          | —     | P.6                                       | 4b.2.1–4     | ~69        | loader refusal ✅                                   | M7                  |
 | 4b.3   | `refound/4b-playwright-servers`      | —     | 1.11                                      | 4b.3.1–4     | ~74        | `webServer` from the script ✅                      | M7, Decisions       |
-| 4b.4   | `refound/4b-identity` (PR E7)        | —     | 4b.1, 1.16                                | 4b.4.1–4     | ~184       | #46 ✅×3                                            | M15, M7             |
+| 4b.4   | `refound/4b-identity` (PR E7)        | —     | 4b.1, 1.16                                | 4b.4.1–4     | ~184       | #47 ✅×3                                            | M15, M7             |
 | 4b.5   | `refound/4b-hermetic-shards` (E8)    | —     | P.6, P.3                                  | 4b.5.1–4     | ~74        | hermetic shards ✅                                  | M8, Decisions       |
 | S.1    | `refound/s-skeleton`                 | —     | 2.2                                       | S.1.1–S.1.4  | ~184       | depcruise `src ↛ test-utils` ✅×2                   | M13, M7             |
 | S.2    | `refound/s-builders`                 | —     | S.1                                       | S.2.1–S.2.3  | ~244       | —                                                   | M13                 |
@@ -1183,7 +1183,7 @@ Every slice targets `main` (`stacked-to-main`) and is merged in the order below.
 | 6P.1   | `refound/6-perf-retire`              | —     | 2.2, 6K.2                                 | 6P.1.1–3     | ~24        | —                                                   | M1, M4, M5          |
 | 6S.1   | `refound/6-security-fold`            | —     | 4.1, 1.13                                 | 6S.1.1–4     | ~314       | —                                                   | M2, gaps            |
 | 6S.2   | `refound/6-security-delete`          | —     | 6S.1                                      | 6S.2.1–2     | ~9         | —                                                   | M1, M4, M5          |
-| 6V.1   | `refound/3-script-exits` (PR V13)    | —     | 6K.3, 6P.1                                | 6V.1.1–4     | ~79        | #45 ✅                                              | M7                  |
+| 6V.1   | `refound/3-script-exits` (PR V13)    | —     | 6K.3, 6P.1                                | 6V.1.1–4     | ~79        | #46 ✅                                              | M7                  |
 | 6N.0   | `refound/6n-order`                   | —     | 5.2                                       | 6N.0.1–4     | ~14        | —                                                   | M16 Baseline        |
 | 6N.1.* | `refound/6n-security-<n>`            | —     | 6N.0, S.19, 2.13                          | 6N.1.1–5     | ≤400/slice | probe RED per test ✅                               | M8, M16             |
 | 6N.2.* | `refound/6n-publishing-<n>`          | —     | 6N.1, S.15                                | 6N.2.1–3     | ≤400/slice | probe RED per test ✅                               | M8, M16             |

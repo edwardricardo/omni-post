@@ -13,7 +13,7 @@
 > restore verified by checksum, and the re-green.
 >
 > Composition rules are labelled **V1–V8** throughout; they are the rules of the new verdict
-> fitness check (**#44**) and are unrelated to any PR numbering.
+> fitness check (**#45**) and are unrelated to any PR numbering.
 
 ---
 
@@ -27,7 +27,7 @@ The unit of protection is the COMPOSITION, not any single runner.
 
 ## Requirements
 
-### Requirement: The fitness inventory is contiguous, and its count is derived (#47)
+### Requirement: The fitness inventory is contiguous, and its count is derived (#44)
 
 The workflow summary MUST become a gate. The ordered set of check numbers declared across all jobs
 MUST equal `1..N` with no duplicate and no hole; the canon document's check headings MUST be the
@@ -292,7 +292,7 @@ request MUST be deleted.
 
 ---
 
-### Requirement: A script entrypoint cannot swallow its own failure (#45)
+### Requirement: A script entrypoint cannot swallow its own failure (#46)
 
 No tracked script entrypoint MAY terminate a promise chain by logging the error to the console: a
 failing entrypoint that logs and exits zero is a gate that cannot fail. The check MUST be hard-zero

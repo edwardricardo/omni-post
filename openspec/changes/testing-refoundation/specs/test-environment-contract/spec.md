@@ -171,7 +171,7 @@ definition, read by the workflows rather than retyped.
 
 ---
 
-### Requirement: Environment identity is gated, not conventional (#46)
+### Requirement: Environment identity is gated, not conventional (#47)
 
 A fitness check MUST assert the identity: every Postgres service block uses the canonical image,
 database and owner; every Redis service block uses the canonical image; every datastore URL literal
