@@ -1,24 +1,22 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-02, slice `0.7` `refound/0-toolchain-browser` (pull request #332), rebased onto slice
-`P.4` — the browser testing family moves as one: `@playwright/test` 1.61.1 → **1.63.0** and
-`@axe-core/playwright` 4.10.2 → **4.13.0**, each the latest stable and the latest mature release, re-measured
-`2026-10-02T09:27Z` against the registry (published `2026-09-04T22:44Z` and `2026-08-11T17:07Z`; the only
-newer versions are 1.64.0 alphas and 4.13.1 builds, none stable). `@playwright/test` 1.63.0 pins its own
-`playwright` at exactly 1.63.0, so driver and runner cannot split. Its browser build, `chromium-1243`
-(Chrome for Testing 153.0.8010.12), was first installed on 2026-09-28 and is in the local Playwright
-cache today, and `playwright test --list` still lists 37 tests in 4 files (admin) and 834 in 5 (client).
-`pnpm dedupe` is still needed for one `axe-core` in the tree: a plain `pnpm install` leaves
-`eslint-plugin-jsx-a11y` 6.10.2 and `@storybook/addon-a11y` 10.4.6 on 4.12.1, and the dedupe moves both to
-4.13.0 with `pnpm lint --max-warnings 0` exiting 0. The canon hold row for both packages is DELETED and the
-holds gate falls from 38 lags to 36. No workflow runs Playwright, so the validation is local. No metric
-moves: M7 `7/7` was last moved by slice `P.4`, M1 `955 + 8` and M8 `1/87` by slice `P.2`; slice `0.7`
-moved none.
-Previous: slice `P.4` `refound/3-gitleaks` (pull request #331) — the secret scan reads the pull request's
-own commits and fails closed on an empty or failed scan; M7 `6/6` → `7/7`. Slice `P.3`
-(`refound/3-openapi-drift`, the OpenAPI drift check) is a separate slice of the contract that has not
-started; it was not skipped.
+**As of:** 2026-10-02, slice `0.9` `refound/0-toolchain-rtl` (pull request #333), rebased onto slice `0.7`
+— the testing-library family moves as one: `@testing-library/dom` 10.4.1 → **10.4.2**, `jest-dom` 7.0.0 →
+**7.0.1**, `react` 16.3.2 → **16.3.3** and `user-event` 14.6.1 → **14.6.7**, each the latest stable and the
+latest mature release, re-measured `2026-10-02T09:39Z` against the registry. The set is version-locked by
+its own peers — `react` peers `@testing-library/dom ^10.0.0`, `user-event` peers it `>=7.21.4` and
+`jest-dom` peers it `>=10 <11` — so the four cannot split; `jest-dom` 7.0.1 adds an optional peer
+`vitest >= 0.32`, met by the held 4.1.11. Against slice `0.7`'s lockfile, the bare `name@version` keys of
+both lockfile documents number 2683 before and after and move by exactly these four; the full key set,
+with the peer-suffixed snapshot ids, numbers 3289 before and after and changes in 18 places — 7 of the
+family's own ids and 11 re-spellings of the storybook chain, which peers `@testing-library/dom`.
+`pnpm dedupe --check` exits 0. The suites of the four declarers are green: `apps/client` 541 tests,
+`apps/admin` 114, `@packages/query-client` 6, `@observability/browser-logger` 34. The canon hold row for
+all four is DELETED and the holds gate falls from 36 lags to 32. No metric moves: M7 `7/7` was last moved
+by slice `P.4`, M1 `955 + 8` and M8 `1/87` by slice `P.2`; slices `0.7` and `0.9` moved none.
+Previous: slice `0.7` `refound/0-toolchain-browser` (pull request #332) — `@playwright/test` 1.61.1 →
+1.63.0 and `@axe-core/playwright` 4.10.2 → 4.13.0, their shared hold row retired, 38 lags → 36.
 This line moves with the last pull request that moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
@@ -141,7 +139,7 @@ One row per work unit of [§Plan (fixed)](#plan-fixed). Status: ⬜ not started 
 | 0     | T.4(b) | tsx 4.23.15 — first done 2026-09-28, rebased 2026-10-02                     | ✅     | `0.6`                         | `refound/0-toolchain-tsx` · 10/10       | 2026-10-02 |
 | 0     | T.4(b) | Playwright 1.63.0 + axe 4.13.0 — first done 2026-09-28, rebased 2026-10-02  | ✅     | `0.7`                         | `refound/0-toolchain-browser` · 37+834  | 2026-10-02 |
 | 0     | T.4(b) | msw 2.15.0 · getResponse public — first done 2026-09-28, rebased 2026-10-02 | ✅     | `0.8`                         | `refound/0-toolchain-msw` · 674 green   | 2026-10-02 |
-| 0     | T.4(b) | `@testing-library/react` family                                             | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(b) | `@testing-library/react` family — first done 2026-09-28, rebased 2026-10-02 | ✅     | `0.9`                         | `refound/0-toolchain-rtl` · 541+114     | 2026-10-02 |
 | 0     | T.4(b) | `@vitest/eslint-plugin` 1.6.27                                              | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(d) | Storybook family; Jest leaves with `@storybook/test-runner`                 | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(b) | jsdom 30 — **[H1]** crosses into production, raises the node floor          | ⬜     | —                             | —                                       | —          |
@@ -388,9 +386,9 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-02T09:30:50Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
+**CURRENT, re-measured 2026-10-02T09:40:50Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
 stderr: of the 52 packages in `scripts/testing/toolchain-population.json` (48 direct, 3 named transitives,
-1 declared-absent candidate), 36 sit below latest mature and NOT ONE of them is unheld.**
+1 declared-absent candidate), 32 sit below latest mature and NOT ONE of them is unheld.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
 and what moved it. A slice that moves the count appends its own line.
@@ -418,6 +416,9 @@ and what moved it. A slice that moves the count appends its own line.
 9. `2026-10-02T09:30:50Z` — **36**: slice `0.7` took `@playwright/test` 1.61.1 → 1.63.0 and
    `@axe-core/playwright` 4.10.2 → 4.13.0, both the latest mature release. One canon row covered both, but
    the set counts packages, so retiring that row removed two lags.
+10. `2026-10-02T09:40:50Z` — **32**: slice `0.9` took the testing-library family to its latest mature
+    releases — `dom` 10.4.2, `jest-dom` 7.0.1, `react` 16.3.3, `user-event` 14.6.7 — and retired the one
+    canon row that covered all four, so four lags left together.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
@@ -484,10 +485,10 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 | `msw`                                         | 2.15.0                  | **2.15.0 (2026-07-08, 86.2 d) — latest mature; `latest` 3.0.1 is 1.8 d** (at `2026-10-02T07:36Z`)        | **no** lag today; **held** from `2026-10-05T15:45Z`, when 3.0.0 matures — canon row `msw`, the 2 → 3 crossing behind the vitest 4 peer                               | —                                                                                   |
 | `jsdom`                                       | 29.1.1                  | 30.1.0 (2026-09-17) — `latest` 30.1.1 (2026-09-22) is 5.7 d, immature                                    | **held** — canon row `jsdom`, which carries all three crossings                                                                                                      | three override bands sit in its chain — see crossing 1 below                        |
 | `isomorphic-dompurify` (PRODUCTION)           | 3.19.0                  | 4.3.0 (2026-09-19) — `latest` 4.4.0 (2026-09-25) is 2.0 d. **v3 ceiling 3.23.0 (2026-08-25)**            | **held** — canon row `jsdom`, which names it                                                                                                                         | `dompurify` 3.4.13 (CVE-floor row `dompurify`) — met by 4.3.0's `dompurify ^3.4.12` |
-| `@testing-library/react`                      | 16.3.2                  | 16.3.3 (2026-08-27, 31.0 d)                                                                              | **held** — canon row `@testing-library/dom`, which names all four                                                                                                    | —                                                                                   |
-| `@testing-library/dom`                        | 10.4.1                  | 10.4.2 (2026-09-13, 14.0 d)                                                                              | **held** — canon row `@testing-library/dom`                                                                                                                          | —                                                                                   |
-| `@testing-library/jest-dom`                   | 7.0.0                   | 7.0.1 (2026-08-09, 48.8 d)                                                                               | **held** — canon row `@testing-library/dom`, which names all four                                                                                                    | —                                                                                   |
-| `@testing-library/user-event`                 | 14.6.1                  | 14.6.7 (2026-09-02, 25.7 d)                                                                              | **held** — canon row `@testing-library/dom`, which names all four                                                                                                    | —                                                                                   |
+| `@testing-library/react`                      | 16.3.3                  | **16.3.3 (2026-08-27, 35.7 d) — latest mature** since 2026-10-02 (slice `0.9`), at `2026-10-02T09:39Z`   | **no** — no lag; the canon row `@testing-library/dom`, which named all four, was DELETED by slice `0.9`                                                              | —                                                                                   |
+| `@testing-library/dom`                        | 10.4.2                  | **10.4.2 (2026-09-13, 18.6 d) — latest mature** since 2026-10-02 (slice `0.9`), at `2026-10-02T09:39Z`   | **no** — no lag; deleted with that same canon row, the one it was named first in                                                                                     | —                                                                                   |
+| `@testing-library/jest-dom`                   | 7.0.1                   | **7.0.1 (2026-08-09, 53.4 d) — latest mature** since 2026-10-02 (slice `0.9`), at `2026-10-02T09:39Z`    | **no** — no lag; deleted with that same canon row; 7.0.1 adds an OPTIONAL `vitest` peer, met by 4.1.11                                                               | —                                                                                   |
+| `@testing-library/user-event`                 | 14.6.7                  | **14.6.7 (2026-09-02, 30.3 d) — latest mature** since 2026-10-02 (slice `0.9`), at `2026-10-02T09:39Z`   | **no** — no lag; deleted with that same canon row, which named it too                                                                                                | —                                                                                   |
 | `@faker-js/faker`                             | 10.5.0                  | 10.6.0 (2026-08-14, 44.0 d)                                                                              | **held** — canon row `knip` (the eleven quality gates, one shared reason). Its CVE-floor row's "not raised to the latest 10.6.0" is a minimal-patch rule, not a hold | 10.5.0 (CVE-floor row `@faker-js/faker`) — met                                      |
 
 ### Types, runtime and transpiler
@@ -621,7 +622,7 @@ from a published manifest or from this tree, not inferred.
 | `refound/0-toolchain-tsx` (WU-T.4(b))                                    | `tsx` 4.22.4 → **4.23.15** (not 4.23.13 — it matured today)                                                                                                                                                                                                                                                        | every `--import tsx` entrypoint still runs; re-measure maturity before pinning                                           |
 | `refound/0-toolchain-browser` (WU-T.4(b))                                | `@playwright/test` 1.61.1 → 1.63.0 (with `playwright` / `playwright-core`), `@axe-core/playwright` 4.10.2 → 4.13.0                                                                                                                                                                                                 | LANDED: 1.63 drops Ubuntu 20.04; no CI job runs it (M2 `0`), runners `ubuntu-latest`; Debian 12 proven; image → WU-6.E8  |
 | `refound/0-toolchain-msw` (WU-T.4(b))                                    | `msw` 2.14.6 → 2.15.0. msw 3 is a crossing held by the canon row `msw` from `2026-10-05T15:45Z`: ESM-only, and outside the `msw ^2.4.9` peer of `@vitest/mocker` 4.1.11                                                                                                                                            | the suites that already use MSW stay green                                                                               |
-| `refound/0-toolchain-rtl` (WU-T.4(b))                                    | `@testing-library/{dom,jest-dom,react,user-event}` — the family moves atomically                                                                                                                                                                                                                                   | both portals' component suites green; the family gate sees no split                                                      |
+| `refound/0-toolchain-rtl` (WU-T.4(b))                                    | `@testing-library/{dom,jest-dom,react,user-event}` — the family moves atomically                                                                                                                                                                                                                                   | LANDED: client 541 + admin 114 green; syncpack 0 over 614, so no split; bare lock keys moved by exactly 4                |
 | `refound/0-toolchain-vitest-plugin` (WU-T.4(b))                          | add `@vitest/eslint-plugin` 1.6.27 (declared in 0 of 98 today)                                                                                                                                                                                                                                                     | `assertFunctionNames` covers the `node:assert` files; `eslint` exit 0                                                    |
 | `refound/0-toolchain-storybook` (WU-T.4(d))                              | `@storybook/test-runner` removed unless a consumer is proven — taking `jest`, `nyc`, `jest-process-manager`, `wait-on` and the stray `@types/node@26.0.0` with it; the `storybook` family 10.4.6 → 10.6.0 only if the lock survives its own remove-when review                                                     | no workflow or script invokes it; Jest absent from the lockfile afterwards                                               |
 | `refound/0-toolchain-jsdom` (WU-T.4(b), **[H1]**)                        | `jsdom` 29.1.1 → 30.1.0, `isomorphic-dompurify` 3.19.0 → 4.3.0, the `undici` re-audit and the `tough-cookie` re-scope                                                                                                                                                                                              | all THREE crossings resolved in one pull request, or a hold naming all three                                             |
