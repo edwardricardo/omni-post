@@ -1783,17 +1783,18 @@ jobs:
             exit 1
           fi
 
-      - name: Fitness summary
+      - name: "#44 Fitness inventory is contiguous and its count is derived"
         if: always()
         run: |
-          echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "43 architectural invariants (#1-#43) defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
-          echo "Hard-zero threshold for every check but #30 (a ratchet at a measured baseline of 20) and #38's db-prisma sub-count (ratcheted, SMELL-87); both baselines may fall and must never rise." >> $GITHUB_STEP_SUMMARY
-          echo "#37 compares against the PR base, so it runs on pull_request events only and skips cleanly on push." >> $GITHUB_STEP_SUMMARY
-          echo "Any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY
+          # Mirrors CLAUDE.md #44. The rule, its fail-closed paths and its residual limits live in
+          # scripts/testing/fitness-inventory-gate.mjs, pinned by
+          # apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts. This step only runs it; the
+          # script derives N from the step names above and writes the job summary from it.
+          set -euo pipefail
+          if ! node scripts/testing/fitness-inventory-gate.mjs --summary "${GITHUB_STEP_SUMMARY:-/dev/null}"; then
+            echo "::error title=Fitness #44 violation::The fitness inventory has a hole or a duplicate, fitness.yml and CLAUDE.md §Automated Compliance Checks disagree on its set, the stated count is not the derived N, or the gate could not read one of its inputs. The fitness-inventory-gate lines above name each violation with its file and line."
+            exit 1
+          fi
 
   dependency-consistency:
     name: Dependency Consistency (catalog single-version + lockfile)

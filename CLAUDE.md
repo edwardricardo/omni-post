@@ -301,7 +301,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 20, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **43 checks, numbered #1-#43**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 20, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **44 checks, numbered #1-#44**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -1782,6 +1782,45 @@ echo "${TST_BAD:-0}"   # expect 0 — every harness goes through the seam
 # that can drift, so add one only with a stated reason. (4) This gate does not close the
 # `Container.ts:86` fail-open itself for any OTHER token (SMELL-158); it closes the one
 # caller that was tripping it.
+
+# 44. The fitness inventory is contiguous, and its count is derived.
+# Threat: the one invariant in this suite that nothing measured was the suite ITSELF. A step
+# wired without its canon block, a canon block whose step was deleted, a number two steps both
+# claim, or a count sentence left at the previous value all read as a complete inventory while
+# a check silently stops being enforced — and the summary printed a TYPED count that agreed
+# with the document no matter what actually ran.
+# THE RULE IS A SCRIPT WITH A SUITE, not inline shell: scripts/testing/fitness-inventory-gate.mjs,
+# pinned by apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts. The code below is its
+# invocation and is the workflow step's body line for line; the script derives N and writes the
+# job summary from it, so no count is typed anywhere outside the sentence it checks.
+# WHAT IT READS. Workflow side: every step whose `name:` value starts with `#<number>`, double-
+# or single-quoted, in any job of fitness.yml; `run: |` bodies are skipped, and an UNQUOTED
+# `name: #N` is refused because YAML reads it as a comment. Canon side: every `# N.` line at
+# column 0 inside a fenced block of this section, which ends at the next level-1 or level-2
+# heading OUTSIDE a fence, so a column-0 `## ` comment inside this block does not truncate it.
+# THE HEADING CONVENTION IS LOAD-BEARING, and the gate says so out loud: a check heading follows
+# the fence or a blank line, and a `# N.` line anywhere else is reported by its line number as a
+# comment shaped like a heading. A look-alike that does follow a blank line is counted, and then
+# surfaces as a duplicate heading or a documented-but-unwired number — red either way.
+# SETS, not sequences, and that distinction is MEASURED rather than stylistic: the steps are
+# declared 1-15, 19, 16, 17, 18, 20-N and the canon headings 1-17, 19, 18, 20-N, so comparing
+# declaration ORDER would go red today over placement that changes nothing. Do not "fix" either
+# file into numeric order to satisfy this gate; it asserts the workflow SET is 1..N with no hole
+# and no duplicate, the canon carries the same set with no duplicate, and exactly one count
+# sentence states the derived N.
+# FAIL-CLOSED: an unreadable file, zero numbered steps, a missing section, zero headings, a fence
+# that never closes, and no count sentence each exit 1 naming the cause — a scan that read
+# nothing must never render as a clean inventory.
+# RESIDUAL LIMITS, stated rather than implied: (1) textual over both files, so a step whose name
+# is assembled by a matrix, a composite action or a flow-style mapping is invisible to it; (2) a
+# look-alike comment that follows a blank line can stand in for a deleted heading with the same
+# number; (3) it proves the inventory is COMPLETE, never that a listed check still measures what
+# its prose claims.
+set -euo pipefail
+if ! node scripts/testing/fitness-inventory-gate.mjs --summary "${GITHUB_STEP_SUMMARY:-/dev/null}"; then
+  echo "::error title=Fitness #44 violation::The fitness inventory has a hole or a duplicate, fitness.yml and CLAUDE.md §Automated Compliance Checks disagree on its set, the stated count is not the derived N, or the gate could not read one of its inputs. The fitness-inventory-gate lines above name each violation with its file and line."
+  exit 1
+fi
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One
