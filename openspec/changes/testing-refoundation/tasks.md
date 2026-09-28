@@ -125,8 +125,8 @@ Chain strategy: stacked-to-main
 
 ### 0.7 · `refound/0-toolchain-browser` — Playwright 1.63.0 + axe 4.13.0 · **BATCH 7**
 
-- [ ] 0.7.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~50 · slice `refound/0-toolchain-browser` — bump `@playwright/test` and `@axe-core/playwright`; run `playwright install --with-deps chromium` for the new version and `playwright test --list` on both configs unchanged.
-- [ ] 0.7.2 Tracker: T.4 table row · CODE ~4 · slice `refound/0-toolchain-browser`.
+- [x] 0.7.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~50 · slice `refound/0-toolchain-browser` — bump `@playwright/test` and `@axe-core/playwright`; run `playwright install --with-deps chromium` for the new version and `playwright test --list` on both configs unchanged.
+- [x] 0.7.2 Tracker: T.4 table row · CODE ~4 · slice `refound/0-toolchain-browser`.
 
 ### 0.8 · `refound/0-toolchain-msw` · **BATCH 8**
 
