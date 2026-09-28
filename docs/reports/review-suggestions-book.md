@@ -56,6 +56,7 @@
 | SB-035 | `testing-refoundation` 0.18 (`workstream/refound-0-18`, f99f2fc3)                     | R2-override-bands-gate-comment-density                           | `scripts/testing/override-bands-gate.mjs` (the file header)                                                                                 | prose structure              | deferred: keep the gate's rationale in one place — the header or the workflow step's comment — and have the other point at it                                   |
 | SB-036 | same                                                                                  | R2-security-canon-brace-expansion-row                            | `docs/security/SECURITY_CANON.md` (the `brace-expansion` CVE-floor row)                                                                     | prose structure              | deferred: move the dated advisory history out of the table cell, leaving floor, bands, chain and remove-when in the row                                         |
 | SB-037 | same                                                                                  | R2-fasturi-row-scannability                                      | `docs/security/SECURITY_CANON.md` (the `fast-uri` CVE-floor row)                                                                            | prose structure              | deferred: the same split as SB-036, done for both rows together                                                                                                 |
+| SB-038 | `testing-refoundation` P.4 (`workstream/refound-p-4`, 3ade5c22)                       | R2-audit-comment-stream-coloring                                 | `.github/workflows/audit.yml` (the comment above the scan step on why gitleaks' log prose is not read)                                      | comment                      | deferred: drop or tighten the colour remark so the paragraph only says why the log is not parsed                                                                |
 
 ## Entries — code and prose
 
@@ -314,6 +315,14 @@
 - **Suggestion:** as SB-036.
 - **Why deferred:** as SB-036; the row's bands, consumers with their declared ranges, publish dates and `latest` were re-measured on 2026-10-02 and all hold.
 - **To implement:** the same split as SB-036, done for both rows together.
+
+### SB-038 — the scan step's comment says the commit count is coloured on any stream
+
+- **Source:** the review of slice P.4 (`workstream/refound-p-4`, 3ade5c22; lineage `review-81888e0e0c6ba77f`), readability lens, finding `R2-audit-comment-stream-coloring`.
+- **Location:** `.github/workflows/audit.yml`, the comment above the secret-scan step, the sentence on gitleaks' `N commits scanned.` line: it counts only commits that add lines, so a deletion-only or merge-only pull request reports 0, "and is coloured on any stream".
+- **Suggestion:** the colour remark is a second reason beside the one that matters; drop it or tighten it so the paragraph only says why the log is not parsed.
+- **Why deferred:** prose in a comment; the step's verdict comes from git, the JSON report, the exit status and the error stream, none of which the remark touches.
+- **To implement:** cut "— and is coloured on any stream" from that sentence, or replace it with the reason it was written, measured.
 
 ## Entries — tests
 

@@ -1,20 +1,24 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-02, slice `P.4` `refound/3-gitleaks` (pull request #331), rebased onto slice `P.2`
-— the secret scan reads the pull request's own commits, and no verdict reads gitleaks' log prose. The
-form it replaces, `gitleaks protect --staged`, read the git index, which a fresh checkout leaves empty,
-so it passed whatever the branch carried. git now decides the range: `git merge-base` must resolve
-both commit ids, and `git rev-list --count` (the commits the head has that the fork point lacks) must
-not be zero. gitleaks' JSON report and exit status decide the findings, and its error stream must stay
-empty: `--log-level error`, the lowest level gitleaks then prints, leaves only errors there, and the
-pinned 8.30.0 logs a failed `git log` and still exits 0 with an empty report. The count gitleaks prints
-is not read: it counts only commits that add lines, so a deletion-only pull request reports 0. The
-install step now checks the release's sha256 digest. This slice moves M7 `6/6` → `7/7` (its Gates
-row); M1 (`955 + 8`) and M8 (`1/87`) were last moved by slice `P.2`.
-Previous: slice `P.2` `refound/3-reporters` (pull request #330) — reporter selection leaves the
-command line and becomes configuration, so a sharded run names its failures; M1 `952 + 8` → `955 + 8`,
-M7 `5/5` → `6/6` and M8 `1/86` → `1/87`.
+**As of:** 2026-10-02, slice `0.7` `refound/0-toolchain-browser` (pull request #332), rebased onto slice
+`P.4` — the browser testing family moves as one: `@playwright/test` 1.61.1 → **1.63.0** and
+`@axe-core/playwright` 4.10.2 → **4.13.0**, each the latest stable and the latest mature release, re-measured
+`2026-10-02T09:27Z` against the registry (published `2026-09-04T22:44Z` and `2026-08-11T17:07Z`; the only
+newer versions are 1.64.0 alphas and 4.13.1 builds, none stable). `@playwright/test` 1.63.0 pins its own
+`playwright` at exactly 1.63.0, so driver and runner cannot split. Its browser build, `chromium-1243`
+(Chrome for Testing 153.0.8010.12), was first installed on 2026-09-28 and is in the local Playwright
+cache today, and `playwright test --list` still lists 37 tests in 4 files (admin) and 834 in 5 (client).
+`pnpm dedupe` is still needed for one `axe-core` in the tree: a plain `pnpm install` leaves
+`eslint-plugin-jsx-a11y` 6.10.2 and `@storybook/addon-a11y` 10.4.6 on 4.12.1, and the dedupe moves both to
+4.13.0 with `pnpm lint --max-warnings 0` exiting 0. The canon hold row for both packages is DELETED and the
+holds gate falls from 38 lags to 36. No workflow runs Playwright, so the validation is local. No metric
+moves: M7 `7/7` was last moved by slice `P.4`, M1 `955 + 8` and M8 `1/87` by slice `P.2`; slice `0.7`
+moved none.
+Previous: slice `P.4` `refound/3-gitleaks` (pull request #331) — the secret scan reads the pull request's
+own commits and fails closed on an empty or failed scan; M7 `6/6` → `7/7`. Slice `P.3`
+(`refound/3-openapi-drift`, the OpenAPI drift check) is a separate slice of the contract that has not
+started; it was not skipped.
 This line moves with the last pull request that moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
@@ -135,7 +139,7 @@ One row per work unit of [§Plan (fixed)](#plan-fixed). Status: ⬜ not started 
 | 0     | T.4(c) | `@types/node` 24.13.6 and `engines.node`                                    | ✅     | `0.5` — branch in §Gates      | tsc 0 · gate 0 · 3 reds · 98/98         | 2026-09-28 |
 | 0     | T.4(b) | `eslint-plugin-boundaries` 7.2.0 and its v7 config (SMELL-66)               | ✅     | `0.21` — branch in §Gates     | lint 0 · 0 `[boundaries]` · 35 reds     | 2026-10-02 |
 | 0     | T.4(b) | tsx 4.23.15 — first done 2026-09-28, rebased 2026-10-02                     | ✅     | `0.6`                         | `refound/0-toolchain-tsx` · 10/10       | 2026-10-02 |
-| 0     | T.4(b) | Playwright 1.63.0 + `@axe-core/playwright` 4.13.0                           | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(b) | Playwright 1.63.0 + axe 4.13.0 — first done 2026-09-28, rebased 2026-10-02  | ✅     | `0.7`                         | `refound/0-toolchain-browser` · 37+834  | 2026-10-02 |
 | 0     | T.4(b) | msw 2.15.0 · getResponse public — first done 2026-09-28, rebased 2026-10-02 | ✅     | `0.8`                         | `refound/0-toolchain-msw` · 674 green   | 2026-10-02 |
 | 0     | T.4(b) | `@testing-library/react` family                                             | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(b) | `@vitest/eslint-plugin` 1.6.27                                              | ⬜     | —                             | —                                       | —          |
@@ -366,6 +370,7 @@ test, or a test that cannot fail — it lives here, with the reason and the owne
 | Packages with no coverage target yet                                                                                                                                                                                                       | the target per package is set by the measured prioritisation, not guessed                                                                                                                                                                                                                                             | 6.N0 (metric M16)                  |
 | Two near-identical `a11y.ts` helpers (client and admin)                                                                                                                                                                                    | consolidating them is a refactor with no defect behind it                                                                                                                                                                                                                                                             | 9 (queue)                          |
 | `no-floating-promises: off` in test globs contradicts "always await"                                                                                                                                                                       | turning it on needs type-aware linting whose cost on this tree is unmeasured                                                                                                                                                                                                                                          | 9 (queue)                          |
+| Nothing typechecks the portals' E2E tree: both `tsconfig.json` exclude the Playwright config and specs (admin `:30`, client `:41`); a probe over the client E2E tree reports 644 pre-existing errors, 0 from 1.63.0 (1.61.1 control: 647)  | outside a version-bump slice, which validates the API it moves and not a tree nothing has ever typechecked; what covers the E2E tree is a config decision                                                                                                                                                             | 6.E (config slice 6.E4)            |
 
 ---
 
@@ -383,9 +388,9 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-02T07:39:28Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
+**CURRENT, re-measured 2026-10-02T09:30:50Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
 stderr: of the 52 packages in `scripts/testing/toolchain-population.json` (48 direct, 3 named transitives,
-1 declared-absent candidate), 38 sit below latest mature and NOT ONE of them is unheld.**
+1 declared-absent candidate), 36 sit below latest mature and NOT ONE of them is unheld.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
 and what moved it. A slice that moves the count appends its own line.
@@ -410,6 +415,9 @@ and what moved it. A slice that moves the count appends its own line.
    comparator, so the package leaves the set outright and its canon row is deleted with it.
 8. `2026-10-02T07:39:28Z` — **38**: slice `0.8` took `msw` 2.14.6 → 2.15.0, the latest mature release, so
    the package leaves the set and its canon row is deleted with it.
+9. `2026-10-02T09:30:50Z` — **36**: slice `0.7` took `@playwright/test` 1.61.1 → 1.63.0 and
+   `@axe-core/playwright` 4.10.2 → 4.13.0, both the latest mature release. One canon row covered both, but
+   the set counts packages, so retiring that row removed two lags.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
@@ -470,9 +478,9 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 | `@vitest/coverage-v8`                         | 4.1.11                  | 5.0.1 (2026-09-15) — exact peer of the runner, moves in lockstep                                         | **held** — canon row `vitest`, which names it                                                                                                                        | 4.1.11 (CVE-floor row `vitest` + `@vitest/*`) — met                                 |
 | `@vitest/ui`                                  | 4.1.11                  | 5.0.1 (2026-09-15) — same family lock                                                                    | **held** — canon row `vitest`, which names it                                                                                                                        | 4.1.11 (CVE-floor row `vitest` + `@vitest/*`) — met                                 |
 | `@vitest/eslint-plugin`                       | — (declared in 0 of 98) | 1.6.27 (2026-08-10, 48.6 d)                                                                              | n/a — an addition, not a lag                                                                                                                                         | —                                                                                   |
-| `@playwright/test`                            | 1.61.1                  | 1.63.0 (2026-09-04, 22.8 d)                                                                              | **held** — canon row `@playwright/test`                                                                                                                              | —                                                                                   |
-| `playwright` / `playwright-core` (transitive) | 1.61.1                  | 1.63.0 (2026-09-04)                                                                                      | **held** — canon row `@playwright/test`; a transitive with no version of its own to declare, so it moves with the runner                                             | —                                                                                   |
-| `@axe-core/playwright`                        | 4.10.2                  | 4.13.0 (2026-08-11, 47.0 d)                                                                              | **held** — canon row `@playwright/test`, which names it                                                                                                              | —                                                                                   |
+| `@playwright/test`                            | 1.63.0                  | **1.63.0 (2026-09-04, 27.4 d) — latest mature** since 2026-10-02 (slice `0.7`), at `2026-10-02T09:27Z`   | **no** — no lag; the canon row `@playwright/test` was DELETED by slice `0.7`, its own remove-when met                                                                | —                                                                                   |
+| `playwright` / `playwright-core` (transitive) | 1.63.0                  | **1.63.0 (2026-09-04)**                                                                                  | **no** — no lag; `@playwright/test` 1.63.0 pins `playwright` at its own exact version, so both moved with the runner                                                 | —                                                                                   |
+| `@axe-core/playwright`                        | 4.13.0                  | **4.13.0 (2026-08-11, 51.7 d) — latest mature** since 2026-10-02 (slice `0.7`), at `2026-10-02T09:27Z`   | **no** — no lag; deleted with the canon row `@playwright/test`, which named it too                                                                                   | —                                                                                   |
 | `msw`                                         | 2.15.0                  | **2.15.0 (2026-07-08, 86.2 d) — latest mature; `latest` 3.0.1 is 1.8 d** (at `2026-10-02T07:36Z`)        | **no** lag today; **held** from `2026-10-05T15:45Z`, when 3.0.0 matures — canon row `msw`, the 2 → 3 crossing behind the vitest 4 peer                               | —                                                                                   |
 | `jsdom`                                       | 29.1.1                  | 30.1.0 (2026-09-17) — `latest` 30.1.1 (2026-09-22) is 5.7 d, immature                                    | **held** — canon row `jsdom`, which carries all three crossings                                                                                                      | three override bands sit in its chain — see crossing 1 below                        |
 | `isomorphic-dompurify` (PRODUCTION)           | 3.19.0                  | 4.3.0 (2026-09-19) — `latest` 4.4.0 (2026-09-25) is 2.0 d. **v3 ceiling 3.23.0 (2026-08-25)**            | **held** — canon row `jsdom`, which names it                                                                                                                         | `dompurify` 3.4.13 (CVE-floor row `dompurify`) — met by 4.3.0's `dompurify ^3.4.12` |
@@ -611,7 +619,7 @@ from a published manifest or from this tree, not inferred.
 | `refound/0-toolchain-eslint` (WU-T.4(b))                                 | `eslint` **and** `@eslint/js` 9.36.0 → 9.39.5, **and the `@typescript-eslint` pair 8.65.0 → 8.70.0** (re-plan 2026-09-27: the pair had no slice, and bumping it is the only path to the `typescript` row), all in one pull request                                                                                 | `pnpm lint --max-warnings 0` exit 0; both React plugins' peers still resolve; the holds rows rewritten with today's date |
 | `refound/0-toolchain-types-node` (WU-T.4(c))                             | **LANDED 2026-09-28.** `@types/node` 25.9.3 → 24.13.6; `engines.node` `>=24.15.0 <25` in all 98 manifests — the floor the plan asked for, with the explicit single-major CEILING the plan's `^24.15.0` left implicit, because the gate compares an exact string and a caret range names no ceiling it could refuse | `pnpm exec tsc -b --force` exit 0; the engines gate red-proven                                                           |
 | `refound/0-toolchain-tsx` (WU-T.4(b))                                    | `tsx` 4.22.4 → **4.23.15** (not 4.23.13 — it matured today)                                                                                                                                                                                                                                                        | every `--import tsx` entrypoint still runs; re-measure maturity before pinning                                           |
-| `refound/0-toolchain-browser` (WU-T.4(b))                                | `@playwright/test` 1.61.1 → 1.63.0 (with `playwright` / `playwright-core`), `@axe-core/playwright` 4.10.2 → 4.13.0                                                                                                                                                                                                 | `playwright install` succeeds on the runner image; 1.63 dropped Ubuntu 20.04                                             |
+| `refound/0-toolchain-browser` (WU-T.4(b))                                | `@playwright/test` 1.61.1 → 1.63.0 (with `playwright` / `playwright-core`), `@axe-core/playwright` 4.10.2 → 4.13.0                                                                                                                                                                                                 | LANDED: 1.63 drops Ubuntu 20.04; no CI job runs it (M2 `0`), runners `ubuntu-latest`; Debian 12 proven; image → WU-6.E8  |
 | `refound/0-toolchain-msw` (WU-T.4(b))                                    | `msw` 2.14.6 → 2.15.0. msw 3 is a crossing held by the canon row `msw` from `2026-10-05T15:45Z`: ESM-only, and outside the `msw ^2.4.9` peer of `@vitest/mocker` 4.1.11                                                                                                                                            | the suites that already use MSW stay green                                                                               |
 | `refound/0-toolchain-rtl` (WU-T.4(b))                                    | `@testing-library/{dom,jest-dom,react,user-event}` — the family moves atomically                                                                                                                                                                                                                                   | both portals' component suites green; the family gate sees no split                                                      |
 | `refound/0-toolchain-vitest-plugin` (WU-T.4(b))                          | add `@vitest/eslint-plugin` 1.6.27 (declared in 0 of 98 today)                                                                                                                                                                                                                                                     | `assertFunctionNames` covers the `node:assert` files; `eslint` exit 0                                                    |
