@@ -213,8 +213,8 @@ Chain strategy: stacked-to-main
 
 ### P.5 · `refound/3-osv-measure` (PR V7a) — measurement only
 
-- [ ] P.5.1 **Measured** WU-3.7(a) · merge-verdict-composition › A required gate either can fail or is removed — measured, then decided · CODE ~30 · slice `refound/3-osv-measure` — run `osv-scanner` JSON and `pnpm audit --json` over one commit; classify the ~90 findings (severity, GHSA alias, present in the audited ignores, dev-only) into the tracker table. EVIDENCE ~200.
-- [ ] P.5.2 Tracker: the OSV classification table; the keep-or-delete branch for 3.7 is now decidable · CODE ~4 · slice `refound/3-osv-measure`.
+- [x] P.5.1 **Measured** WU-3.7(a) · merge-verdict-composition › A required gate either can fail or is removed — measured, then decided · CODE ~30 · slice `refound/3-osv-measure` — run `osv-scanner` JSON and `pnpm audit --json` over one commit; classify the ~90 findings (severity, GHSA alias, present in the audited ignores, dev-only) into the tracker table. EVIDENCE ~200.
+- [x] P.5.2 Tracker: the OSV classification table; the keep-or-delete branch for 3.7 is now decidable · CODE ~4 · slice `refound/3-osv-measure`.
 
 ### P.6 · `refound/4b-env-write` (PR E1)
 
