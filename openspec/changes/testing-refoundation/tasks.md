@@ -145,11 +145,11 @@ Chain strategy: stacked-to-main
 
 ### 0.11 · `refound/0-toolchain-storybook` — the tool no workflow runs leaves, and Jest with it · **BATCH 11**
 
-- [ ] 0.11.1 **Measured** WU-T.4(d) · testing-toolchain-alignment › A test tool no workflow runs is removed, and Jest leaves the tree with it · plan T.4(d) · CODE ~10 · slice `refound/0-toolchain-storybook` — prove no workflow and no script runs `@storybook/test-runner` (admin declares it; `apps/client/package.json` has a `storybook:test` script without the package).
-- [ ] 0.11.2 GREEN WU-T.4(d) · testing-toolchain-alignment › A test tool no workflow runs is removed, and Jest leaves the tree with it · CODE ~40 · slice `refound/0-toolchain-storybook` — remove it; confirm jest 30.4.2, nyc 15.1.0, `@types/node@26.0.0`, jest-process-manager and wait-on leave the lockfile with it; remove the orphan `storybook:test` script.
-- [ ] 0.11.3 WU-T.4(d) · testing-toolchain-alignment › Every lag below latest mature carries a documented hold, and a gate proves it · CODE ~20 · slice `refound/0-toolchain-storybook` — the Storybook family hold looks expired (10.6.0, 25 days, peers accept next ^16): either bump the family validated empirically or rewrite the hold with a measured reason.
-- [ ] 0.11.4 WU-T.4(e) · dependency-version-management › Pinned DIRECT versions are the latest stable release, with no pre-releases · CODE ~10 · slice `refound/0-toolchain-storybook` — after the removal, check the `GHSA-q7cg` ignore is now dead and delete it if `pnpm audit` is clean without it.
-- [ ] 0.11.5 Tracker: T.4 table rows; M13-adjacent tooling counts · CODE ~4 · slice `refound/0-toolchain-storybook`.
+- [x] 0.11.1 **Measured** WU-T.4(d) · testing-toolchain-alignment › A test tool no workflow runs is removed, and Jest leaves the tree with it · plan T.4(d) · CODE ~10 · slice `refound/0-toolchain-storybook` — prove no workflow and no script runs `@storybook/test-runner` (admin declares it; `apps/client/package.json` has a `storybook:test` script without the package).
+- [x] 0.11.2 GREEN WU-T.4(d) · testing-toolchain-alignment › A test tool no workflow runs is removed, and Jest leaves the tree with it · CODE ~40 · slice `refound/0-toolchain-storybook` — remove it; confirm jest 30.4.2, nyc 15.1.0, `@types/node@26.0.0`, jest-process-manager and wait-on leave the lockfile with it; remove the orphan `storybook:test` script.
+- [x] 0.11.3 WU-T.4(d) · testing-toolchain-alignment › Every lag below latest mature carries a documented hold, and a gate proves it · CODE ~20 · slice `refound/0-toolchain-storybook` — the Storybook family hold looks expired (10.6.0, 25 days, peers accept next ^16): either bump the family validated empirically or rewrite the hold with a measured reason.
+- [x] 0.11.4 WU-T.4(e) · dependency-version-management › Pinned DIRECT versions are the latest stable release, with no pre-releases · CODE ~10 · slice `refound/0-toolchain-storybook` — after the removal, check the `GHSA-q7cg` ignore is now dead and delete it if `pnpm audit` is clean without it.
+- [x] 0.11.5 Tracker: T.4 table rows; M13-adjacent tooling counts · CODE ~4 · slice `refound/0-toolchain-storybook`.
 
 ### 0.12 · `refound/0-toolchain-jsdom` — **[HUMAN GATE H1]** · **BATCH 12**
 

@@ -162,9 +162,12 @@ real consumer IS proven, the tool MUST be documented as the only carrier of Jest
 
 - **GIVEN** no workflow and no script invoke the Storybook test runner
 - **WHEN** it is removed
-- **THEN** Jest, its coverage tool, its process manager, its wait helper and the stray types major
-  are all absent from the lockfile
+- **THEN** Jest, its coverage tool, its process manager and its wait helper are all absent from
+  the lockfile
 - **AND** no file imports Jest
+- **AND** the second `@types/node` major is re-measured rather than assumed gone: removing the
+  runner takes only its own chain's declarers (measured in slice 0.11: 37 → 19 declarers remain,
+  outside the Jest chain), so its remaining declarer count is recorded as a declared gap
 
 #### Scenario: A proven consumer keeps the tool and names it in canon [static]
 
