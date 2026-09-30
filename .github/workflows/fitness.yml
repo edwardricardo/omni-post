@@ -1882,3 +1882,39 @@ jobs:
             echo "::error title=engines.node declaration violation::A workspace manifest declares no engines.node, or declares a major different from the runtime in .nvmrc, or the @types/node catalog pin sits on a different major, or the gate could not read one of its inputs. The engines-node-gate lines above name each manifest with the value read and the runtime major. Fill a missing declaration with 'node scripts/testing/engines-node-gate.mjs --write'; a value that DISAGREES is never overwritten, because the disagreement is the finding — moving the Node line raises .nvmrc, the root engines.node and the @types/node pin in one deliberate change."
             exit 1
           fi
+
+      - name: "Override bands: every range-scoped override band moves with its own target"
+        # A range-scoped override is written so the band's EXCLUSIVE UPPER BOUND and the target are the
+        # same number ('pkg@<X' pinned to X), because that is what makes it lift exactly the versions
+        # below X onto X. Raise the target and leave the band behind and the tree is already resolved
+        # to the PREVIOUS target — a version the old band no longer selects — so the override applies
+        # to nothing while the manifest and the canon still read as a held floor. An inert floor is
+        # worse than no floor: the audit goes green because the advisory's range stopped matching.
+        #
+        # WHY IT EXISTS, measured: eight instances in this repository before anything detected the
+        # shape — fast-uri twice inside one change, brace-expansion on all three of its lines, undici,
+        # sharp, and one variant where the advisory's vulnerable set WAS the target.
+        #
+        # An ALLOWLIST by shape, the form fitness #28 and #40 use: the admissible shape is one
+        # sentence while the inadmissible set is open-ended (a band its target overtook, a bound that
+        # was never the target, a major-line scope, an inclusive bound, a shape nobody predicted). The
+        # deliberate exceptions — an advisory whose named patched version was never published, and two
+        # major-scoped de-dup pins — are named inside the gate with their measured reasons, and an
+        # allowlist entry matching no override key is itself a violation, so the list can only shrink.
+        #
+        # It lives in THIS job because the job already owns the manifest and lockfile invariants
+        # (syncpack, dedupe, the toolchain holds, the engines declaration), and this gate reads one
+        # tracked file — no install and no registry.
+        #
+        # FAIL-CLOSED by construction: an unreadable manifest, a manifest with no top-level overrides
+        # block, a line inside the block the parser cannot read, zero range-scoped entries parsed, a
+        # target that is not a three-number version, a band declaring two exclusive upper bounds, and
+        # an orphan allowlist entry each exit 1 rather than reporting a clean zero over inputs the gate
+        # never read. Pinned by apps/api/tests/unit/scripts/overrideBandsGate.test.ts, whose fixtures
+        # drive every one of those refusals without reading the repository's own manifest.
+        run: |
+          set -uo pipefail
+          if ! node scripts/testing/override-bands-gate.mjs; then
+            echo "::error title=Override band violation::A range-scoped override in pnpm-workspace.yaml declares a band that no longer matches its own target, or the gate could not read one of its inputs. The override-bands-gate lines above name every key with its target and its verdict. A CVE floor is written so the band's exclusive upper bound IS the target ('pkg@<X' pinned to X), because that is what forces the two to move together: raise the band and the target in the same edit, never only the value. A band that genuinely cannot take that shape is recorded in the gate's allowlist with its measured reason, never left to drift — and an allowlist entry that matches no key is a violation too, so the list can only shrink."
+            exit 1
+          fi
