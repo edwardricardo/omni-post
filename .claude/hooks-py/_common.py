@@ -90,27 +90,27 @@ def _append_log(line: str) -> None:
         pass
 
 
-# Auto memory del proyecto: ~/.claude/projects/<raíz con "/" -> "-">/memory
-# (`/root/omni-post` -> `-root-omni-post`). Ahí viven canon-index.json y
-# canon_research_index.md; la ruta antes estaba fija a /home/edward/..., que
-# en esta máquina no existe. Dos funciones: `_resolve_memory_dir` calcula
-# (un `git rev-parse`, medido 0,8 ms) y `memory_dir` memoriza SOLO la
-# resolución exitosa, así un fallo transitorio de git no fija la ruta de
-# respaldo. Cada hook es un proceso nuevo y de un solo hilo: la memoria vale
+# `memory_dir` memoriza SOLO una resolución exitosa, así un fallo transitorio
+# de git no fija la ruta de respaldo; el aviso del respaldo sale una vez por
+# proceso. Cada hook es un proceso nuevo y de un solo hilo: la memoria vale
 # dentro de ese proceso y no necesita bloqueo. Los hooks que leen el índice la
-# resuelven al USARLA
-# (`canon_index_path()`), no al importar: un fallo transitorio en el import
-# no deja al proceso mirando el respaldo, y un hook que termina sin leer el
-# índice no paga el subproceso.
+# resuelven al USARLA (`canon_index_path()`), no al importar: un fallo
+# transitorio en el import no deja al proceso mirando el respaldo, y un hook
+# que termina sin leer el índice no paga el subproceso.
 _MEMORY_DIR_CACHE: Path | None = None
 _MEMORY_DIR_WARNED = False
+MEMORY_DIR_FALLBACK_NOTE = "memory_dir: git no resolvió la raíz principal; ruta derivada de PROJECT_ROOT sin caché"
 
 
 def _resolve_memory_dir() -> tuple[Path, bool]:
-    """Ruta de la memoria y si git resolvió la raíz principal.
+    """Auto memory del proyecto y si git resolvió la raíz principal.
 
-    Las dos ramas parten de una ruta RESUELTA (sin symlinks): la de git lo está
-    por `_main_repository_root`; la de respaldo se resuelve acá, así un
+    Es el contrato de nombres de Claude Code: `~/.claude/projects/<raíz con "/"
+    -> "-">/memory` (`/root/omni-post` -> `-root-omni-post`), un directorio por
+    repositorio compartido por sus worktrees; ahí viven canon-index.json y
+    canon_research_index.md. Cuesta un `git rev-parse` (medido 0,8 ms). Las dos
+    ramas parten de una ruta RESUELTA (sin symlinks): la de git lo está por
+    `_main_repository_root`; la de respaldo se resuelve acá, así un
     PROJECT_ROOT alcanzado por symlink no inventa un segundo nombre.
     """
     root, resolved = _main_repository_root(PROJECT_ROOT)
@@ -130,7 +130,7 @@ def memory_dir() -> Path:
     elif not _MEMORY_DIR_WARNED:
         # El respaldo no se cachea, pero el aviso sí: una vez por proceso.
         _MEMORY_DIR_WARNED = True
-        _append_log(f"memory_dir: git no resolvió la raíz principal; derivada de {PROJECT_ROOT} sin caché")
+        _append_log(f"{MEMORY_DIR_FALLBACK_NOTE} ({PROJECT_ROOT})")
     return path
 
 
@@ -335,6 +335,39 @@ def commit_repos(command: str, fallback: Path) -> list[Path]:
 NOTICES_LOG = PROJECT_ROOT / ".claude" / "context-notices.log"
 
 
+def _notice_field(value: str) -> str:
+    """Un campo del registro de avisos: la tabulación separa campos y el salto de
+    línea separa registros, así que un tab, un salto de línea o una barra dentro
+    del valor se escapan y no pueden partir el marcador ni el registro."""
+    return value.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
+
+
+def _notice_key(tag: str, name: str, state: str) -> str:
+    """La clave de un aviso sobre un archivo: la escribe emit_missing_file_context
+    y la lee recovered_file_notice; una sola forma, un solo lugar."""
+    return f"{tag}:{name}:{state}"
+
+
+def emit_additional_context(hook_event: str, body: str = "", prefix: tuple[str, ...] = ()) -> NoReturn:
+    """Imprime UN `additionalContext` — las líneas de `prefix` primero (p. ej. el
+    aviso RECOVERED), después `body` — y exit 0. Sin texto, exit 0 en silencio."""
+    text = "\n\n".join([*prefix, body]).strip()
+    if text:
+        print(json.dumps({"hookSpecificOutput": {"hookEventName": hook_event, "additionalContext": text}}))
+    sys.exit(0)
+
+
+def notice_seen(session_id: str, key: str) -> bool:
+    """True si `key` ya se registró en `session_id` (solo lectura, sin registrar)."""
+    if not session_id:
+        return False
+    marker = f"{_notice_field(session_id)}\t{_notice_field(key)}\t"
+    try:
+        return any(line.startswith(marker) for line in NOTICES_LOG.read_text(encoding="utf-8").splitlines())
+    except OSError:
+        return False
+
+
 def notice_already_sent(session_id: str, key: str) -> bool:
     """True si `key` ya se avisó en `session_id`; si no, lo registra y devuelve False.
 
@@ -351,7 +384,8 @@ def notice_already_sent(session_id: str, key: str) -> bool:
     """
     if not session_id:
         return False
-    marker = f"{session_id}\t{key}"
+    session_field = _notice_field(session_id)
+    marker = f"{session_field}\t{_notice_field(key)}"
     try:
         NOTICES_LOG.parent.mkdir(parents=True, exist_ok=True)
         with NOTICES_LOG.open("a+", encoding="utf-8") as handle:
@@ -360,7 +394,7 @@ def notice_already_sent(session_id: str, key: str) -> bool:
             lines = handle.read().splitlines()
             if any(line.startswith(marker + "\t") for line in lines):
                 return True
-            kept = [line for line in lines if line.startswith(session_id + "\t")]
+            kept = [line for line in lines if line.startswith(session_field + "\t")]
             handle.seek(0)
             handle.truncate()
             handle.write("".join(f"{line}\n" for line in kept) + f"{marker}\t{datetime.now().isoformat()}\n")
@@ -375,8 +409,9 @@ def emit_missing_file_context(
     name: str,
     path: Path,
     consequence: str,
+    *,
+    hook_event: str,
     state: str = "MISSING",
-    hook_event: str = "PreToolUse",
     session_id: str = "",
 ) -> NoReturn:
     """Emite UNA línea de `additionalContext` sobre un archivo ausente y exit 0.
@@ -386,16 +421,23 @@ def emit_missing_file_context(
     ceguera llega al contexto del modelo, que es quien puede reportarla. Con
     `session_id`, la segunda vez en la misma sesión sale en silencio.
     """
-    if notice_already_sent(session_id, f"{tag}:{name}:{state}"):
+    if notice_already_sent(session_id, _notice_key(tag, name, state)):
         sys.exit(0)
-    output = {
-        "hookSpecificOutput": {
-            "hookEventName": hook_event,
-            "additionalContext": f"[{tag}] {name} {state} at {path} — {consequence}",
-        }
-    }
-    print(json.dumps(output))
-    sys.exit(0)
+    emit_additional_context(hook_event, f"[{tag}] {name} {state} at {path} — {consequence}")
+
+
+def recovered_file_notice(tag: str, name: str, path: Path, session_id: str = "") -> str | None:
+    """`[tag] name RECOVERED at path` si ESTA sesión ya avisó MISSING o UNREADABLE
+    de ese archivo y aún no avisó la recuperación; si no, None.
+
+    El hook la antepone a lo que emita: el modelo que leyó "blind until …"
+    se entera de que ya no lo está, en vez de cargar una ceguera vencida el
+    resto de la sesión. Se registra como cualquier aviso: una vez por sesión.
+    """
+    failed = any(notice_seen(session_id, _notice_key(tag, name, state)) for state in ("MISSING", "UNREADABLE"))
+    if not failed or notice_already_sent(session_id, _notice_key(tag, name, "RECOVERED")):
+        return None
+    return f"[{tag}] {name} RECOVERED at {path}"
 
 
 def check_grant_token(operation: str, log_fn: Callable[[str], None]) -> str | None:
