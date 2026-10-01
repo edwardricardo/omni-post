@@ -81,13 +81,13 @@ must be unable to reach the development database.
 Redis MUST use a fixed logical database reserved for tests, so a local test run cannot consume a
 development worker's queues. Test ports MUST be the development ports plus ten, and the script MUST
 REFUSE to start a process whose port is already bound, so a test can never talk to a development
-server that happens to be up.
+server that happens to be up. The test port set is fixed on purpose: an override would reopen the very collision this requirement closes, so the recovery path is stopping the foreign listener the refusal names.
 
 #### Scenario: Red — an already-bound port is refused [runtime]
 
 - **GIVEN** a process already listening on the test API port
 - **WHEN** the script is asked to start the API
-- **THEN** it exits non-zero naming the port, and starts nothing
+- **THEN** it exits non-zero naming the port and, where the platform exposes it, the listening process, and starts nothing
 
 #### Scenario: The reserved logical database is fixed, not derived [static]
 

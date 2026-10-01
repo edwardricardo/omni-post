@@ -5,7 +5,8 @@
 > first.
 >
 > RFC 2119 keywords (MUST / SHALL / SHOULD / MAY) are normative. Tags: **[static]** decidable by
-> inspecting tracked files or a deterministic CLI gate; **[runtime]** needs a test run.
+> inspecting tracked files or a deterministic CLI gate; **[runtime]** needs a test run;
+> **[ci]** observable only on a CI run.
 > A scenario named **Red — …** is the demonstrated failure path (P4).
 >
 > Neighbouring capabilities: the invariants being covered here are OWNED by their own specs
@@ -174,7 +175,7 @@ test MAY be written before the infrastructure that measures it exists.
 
 - **GIVEN** several writers working concurrently
 - **WHEN** their pull requests are inspected
-- **THEN** each is scoped to one package, is at most 400 CODE lines, raises its own floor, updates the
+- **THEN** each is scoped to one package, is at most 400 CODE lines (CODE as the budget convention D1 in `tasks.md` defines it), raises its own floor, updates the
   tracker, and was authored in its own worktree
 
 #### Scenario: No backfill precedes the measuring infrastructure [static]

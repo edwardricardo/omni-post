@@ -110,7 +110,7 @@ database-only subject into a tier where workers also consume.
 
 Every suite no runner reaches MUST be run ALONE to measure its tier — with datastores up and the
 application down — and MUST be named by the measured result: passing with zero skips means the
-services tier, otherwise the live tier. Suites that also pass with the datastores down MUST be
+services tier, otherwise the live tier. A suite that passes with zero skips but asserts nothing is admitted to no tier: it is decorative and goes to the ledger under the demolition criteria. Suites that also pass with the datastores down MUST be
 recorded as hermetic, feeding the ledger and the runner experiment. A grep heuristic MUST NOT decide
 the tier. Renaming MUST be a pure rename: the typecheck baseline diff MUST show the same multiset of
 findings re-keyed to the new paths, and every documentation and constant reference MUST move with it.
