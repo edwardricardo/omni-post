@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import GIT_PUSH_RE, make_logger, read_hook_input  # noqa: E402
+from _common import ALLOWED_TOKENS_DIR, GIT_PUSH_RE, make_logger, read_hook_input  # noqa: E402
 
 HOOK_NAME = "post-bash"
 log, _block, _allow = make_logger(HOOK_NAME)
@@ -31,7 +31,7 @@ def main() -> None:
     if not GIT_PUSH_RE.search(command):
         sys.exit(0)
 
-    token_path = Path(".claude/.allowed/push")
+    token_path = ALLOWED_TOKENS_DIR / "push"
     if token_path.exists():
         try:
             with token_path.open("r") as f:

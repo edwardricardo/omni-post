@@ -154,6 +154,7 @@ docker-compose.local.yml
 .claude/worktrees/
 .claude/.allowed/
 .claude/hooks-py/__pycache__/
+.claude/hooks-py/tests/__pycache__/
 **/__pycache__/
 
 # Claude Code skill bundles + lockfile (installed locally, not project code)

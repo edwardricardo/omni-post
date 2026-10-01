@@ -34,13 +34,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import check_grant_token, make_logger, read_hook_input  # noqa: E402
+from _common import PROJECT_ROOT, check_grant_token, make_logger, read_hook_input  # noqa: E402
 
 HOOK_NAME = "pre-edit-tripwire-blocker"
 log, block, _allow = make_logger(HOOK_NAME)
 
-TRIPWIRE_BLOCKS_LOG = Path(".claude/tripwire-blocks.log")
-HEURISTIC_OVERRIDES_LOG = Path(".claude/heuristic-overrides.log")
+TRIPWIRE_BLOCKS_LOG = PROJECT_ROOT / ".claude" / "tripwire-blocks.log"
+HEURISTIC_OVERRIDES_LOG = PROJECT_ROOT / ".claude" / "heuristic-overrides.log"
 
 # Canon-check signature line that bypasses tripwires.
 # Format: canon-check: <canon-file>.md §<rule-id> — <decision> autorizada porque <reason>

@@ -18,15 +18,13 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _common import LOG_PATH, PROJECT_ROOT, current_branch  # noqa: E402
 
-LOG_PATH = Path(".claude/hooks.log")
 HOOK_NAME = "user-prompt-submit"
 CANON_INDEX_PATH = Path(
     "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon_research_index.md"
 )
-ACTIVE_PLAN_CANDIDATES = [
-    Path(".claude/current-batch-plan.md"),
-]
 GIT_TIMEOUT_SEC = 2
 MAX_FILES_FROM_PROMPT = 5
 
@@ -47,6 +45,7 @@ def run(args: list[str], default: str = "") -> str:
     try:
         result = subprocess.run(
             args,
+            cwd=PROJECT_ROOT,
             capture_output=True,
             text=True,
             timeout=GIT_TIMEOUT_SEC,
@@ -55,10 +54,6 @@ def run(args: list[str], default: str = "") -> str:
         return result.stdout.strip()
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
         return default
-
-
-def current_branch() -> str:
-    return run(["git", "rev-parse", "--abbrev-ref", "HEAD"], default="(unknown)")
 
 
 def status_counts() -> dict[str, int]:
@@ -101,13 +96,6 @@ def file_age_min(path: Path) -> int | None:
     return int(age_sec / 60)
 
 
-def find_active_plan() -> Path | None:
-    for c in ACTIVE_PLAN_CANDIDATES:
-        if c.exists():
-            return c
-    return None
-
-
 def extract_layer(path: Path) -> str | None:
     try:
         with path.open("r") as f:
@@ -130,7 +118,8 @@ def find_files_in_prompt(prompt: str) -> list[str]:
         if p in seen:
             continue
         seen.add(p)
-        path = Path(p)
+        # Rutas del prompt relativas a la raíz del repo, no al cwd del proceso.
+        path = Path(p) if Path(p).is_absolute() else PROJECT_ROOT / p
         if not path.exists() or path.is_dir():
             continue
         layer = extract_layer(path)
@@ -142,16 +131,14 @@ def find_files_in_prompt(prompt: str) -> list[str]:
 
 
 def build_context(prompt: str) -> str:
-    branch = current_branch()
+    branch = current_branch(PROJECT_ROOT)
     counts = status_counts()
     ab = ahead_behind(branch)
     canon_age = file_age_min(CANON_INDEX_PATH)
-    active_plan = find_active_plan()
-    plan_age = file_age_min(active_plan) if active_plan else None
     files = find_files_in_prompt(prompt)
 
     lines = [
-        f"branch: {branch}",
+        f"branch: {branch or '(no branch)'}",
         f"uncommitted: {counts['staged']} staged, {counts['unstaged']} unstaged, {counts['untracked']} untracked",
         f"ahead/behind: {ab}",
     ]
@@ -159,10 +146,6 @@ def build_context(prompt: str) -> str:
         lines.append(f"canon_index_age: {canon_age} min")
     else:
         lines.append("canon_index: not found")
-    if active_plan and plan_age is not None:
-        lines.append(f"active_plan: {active_plan.name} ({plan_age} min old)")
-    else:
-        lines.append("active_plan: none")
     if files:
         lines.append("")
         lines.append("Files mentioned in prompt:")
