@@ -83,7 +83,7 @@ class CanonIndexAgeLineTests(unittest.TestCase):
             self.assertIn("canon_index_age: 0 min", self._context(index))
 
     def test_not_found_when_the_memory_dir_has_no_index(self):
-        self.assertIn("canon_index: not found", self._context(Path("/nonexistent/canon_research_index.md")))
+        self.assertIn("canon_index: MISSING /nonexistent/canon_research_index.md", self._context(Path("/nonexistent/canon_research_index.md")))
 
 
 if __name__ == "__main__":

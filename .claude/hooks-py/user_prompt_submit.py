@@ -128,10 +128,11 @@ def find_files_in_prompt(prompt: str) -> list[str]:
 
 
 def build_context(prompt: str) -> str:
+    research_index = canon_research_index_path()
     branch = current_branch(PROJECT_ROOT)
     counts = status_counts()
     ab = ahead_behind(branch)
-    canon_age = file_age_min(canon_research_index_path())
+    canon_age = file_age_min(research_index)
     files = find_files_in_prompt(prompt)
 
     lines = [
@@ -142,7 +143,7 @@ def build_context(prompt: str) -> str:
     if canon_age is not None:
         lines.append(f"canon_index_age: {canon_age} min")
     else:
-        lines.append("canon_index: not found")
+        lines.append(f"canon_index: MISSING {research_index}")
     if files:
         lines.append("")
         lines.append("Files mentioned in prompt:")

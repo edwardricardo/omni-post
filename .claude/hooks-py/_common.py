@@ -17,13 +17,14 @@ Uso típico desde un hook:
         ...
 """
 
+import fcntl
 import json
 import re
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
+from typing import Callable, NoReturn
 
 
 # Raíz del repo, resuelta desde la ubicación de ESTE archivo
@@ -210,6 +211,72 @@ def current_branch(repo: Path | None = None) -> str:
         return result.stdout.strip()
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
         return ""
+
+
+NOTICES_LOG = PROJECT_ROOT / ".claude" / "context-notices.log"
+
+
+def notice_already_sent(session_id: str, key: str) -> bool:
+    """True si `key` ya se avisó en `session_id`; si no, lo registra y devuelve False.
+
+    Un aviso de archivo ausente llega al contexto UNA vez por sesión: el modelo
+    lo conserva, y repetirlo en cada Edit (la guardia de decisiones corre en
+    todas) sería ruido sin información nueva. Sin session_id no se deduplica.
+
+    Lectura y registro bajo `flock`: los hooks PreToolUse de un mismo Edit
+    corren en paralelo, y sin el lock los dos podían leer "no avisado" y avisar
+    los dos. El archivo guarda solo la sesión actual — al registrar se
+    descartan las líneas de otras sesiones — así nunca pasa de un puñado de
+    líneas. Si no se puede leer o escribir (OSError) se avisa igual: mejor un
+    aviso repetido que una ceguera callada; el fallo queda en hooks.log.
+    """
+    if not session_id:
+        return False
+    marker = f"{session_id}\t{key}"
+    try:
+        NOTICES_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with NOTICES_LOG.open("a+", encoding="utf-8") as handle:
+            fcntl.flock(handle, fcntl.LOCK_EX)
+            handle.seek(0)
+            lines = handle.read().splitlines()
+            if any(line.startswith(marker + "\t") for line in lines):
+                return True
+            kept = [line for line in lines if line.startswith(session_id + "\t")]
+            handle.seek(0)
+            handle.truncate()
+            handle.write("".join(f"{line}\n" for line in kept) + f"{marker}\t{datetime.now().isoformat()}\n")
+    except OSError as e:
+        _append_log(f"notice_already_sent: {NOTICES_LOG} no disponible ({e}); aviso emitido sin deduplicar")
+        return False
+    return False
+
+
+def emit_missing_file_context(
+    tag: str,
+    name: str,
+    path: Path,
+    consequence: str,
+    state: str = "MISSING",
+    hook_event: str = "PreToolUse",
+    session_id: str = "",
+) -> NoReturn:
+    """Emite UNA línea de `additionalContext` sobre un archivo ausente y exit 0.
+
+    Existe porque un archivo de entrada faltante se registraba solo en
+    hooks.log: el hook seguía "funcionando" sin datos y nadie lo veía. Así la
+    ceguera llega al contexto del modelo, que es quien puede reportarla. Con
+    `session_id`, la segunda vez en la misma sesión sale en silencio.
+    """
+    if notice_already_sent(session_id, f"{tag}:{name}:{state}"):
+        sys.exit(0)
+    output = {
+        "hookSpecificOutput": {
+            "hookEventName": hook_event,
+            "additionalContext": f"[{tag}] {name} {state} at {path} — {consequence}",
+        }
+    }
+    print(json.dumps(output))
+    sys.exit(0)
 
 
 def check_grant_token(operation: str, log_fn: Callable[[str], None]) -> str | None:
