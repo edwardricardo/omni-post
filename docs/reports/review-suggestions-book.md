@@ -13,18 +13,21 @@
 
 ## Index
 
-| Id     | Candidate                                                          | Finding                                               | Location                                                   | Kind                     | Status   |
-| ------ | ------------------------------------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------- | ------------------------ | -------- |
-| SB-001 | `mental-map-hooks` 1a-ii (`workstream/hooks-memory-dir`, 817c93bf) | R2-001                                                | `.claude/hooks-py/_common.py:85-96`                        | comment placement        | deferred |
-| SB-002 | same                                                               | R2-002                                                | `.claude/hooks-py/_common.py:118` + `tests/test_common.py` | test sentinel            | deferred |
-| SB-003 | same                                                               | R2-003                                                | `.claude/hooks-py/tests/test_common.py:5-6`                | docstring wording        | deferred |
-| SB-004 | same                                                               | R2-004                                                | `.claude/hooks-py/tests/test_common.py:62`                 | fixture comment          | deferred |
-| SB-T01 | same                                                               | R3-worktree-detection-depends-on-common-dir-basename  | `.claude/hooks-py/_common.py:67-68`                        | test coverage            | deferred |
-| SB-T02 | same                                                               | R3-fallback-branches-of-main-repository-root-untested | `.claude/hooks-py/_common.py:57-62`                        | test coverage            | deferred |
-| SB-005 | `mental-map-hooks` 1d (`workstream/hooks-visibility`)              | R4-notices-log-dedup-race                             | `.claude/hooks-py/_common.py` `notice_already_sent`        | concurrency design       | deferred |
-| SB-006 | same                                                               | R4-notices-log-unbounded, R3-notices-log-unbounded    | `.claude/hooks-py/_common.py` `notice_already_sent`        | growth bound             | deferred |
-| SB-007 | same                                                               | R3-cross-hook-dedup-shares-consequence                | `.claude/hooks-py/_common.py` `emit_missing_file_context`  | dedup key design         | deferred |
-| SB-T03 | same                                                               | R3-session-id-tab-collision                           | `.claude/hooks-py/_common.py` `notice_already_sent`        | test coverage / escaping | deferred |
+| Id     | Candidate                                                          | Finding                                                    | Location                                                   | Kind                     | Status                                               |
+| ------ | ------------------------------------------------------------------ | ---------------------------------------------------------- | ---------------------------------------------------------- | ------------------------ | ---------------------------------------------------- |
+| SB-001 | `mental-map-hooks` 1a-ii (`workstream/hooks-memory-dir`, 817c93bf) | R2-001                                                     | `.claude/hooks-py/_common.py:85-96`                        | comment placement        | deferred                                             |
+| SB-002 | same                                                               | R2-002                                                     | `.claude/hooks-py/_common.py:118` + `tests/test_common.py` | test sentinel            | deferred                                             |
+| SB-003 | same                                                               | R2-003                                                     | `.claude/hooks-py/tests/test_common.py:5-6`                | docstring wording        | deferred                                             |
+| SB-004 | same                                                               | R2-004                                                     | `.claude/hooks-py/tests/test_common.py:62`                 | fixture comment          | deferred                                             |
+| SB-T01 | same                                                               | R3-worktree-detection-depends-on-common-dir-basename       | `.claude/hooks-py/_common.py:67-68`                        | test coverage            | deferred                                             |
+| SB-T02 | same                                                               | R3-fallback-branches-of-main-repository-root-untested      | `.claude/hooks-py/_common.py:57-62`                        | test coverage            | deferred                                             |
+| SB-005 | `mental-map-hooks` 1d (`workstream/hooks-visibility`)              | R4-notices-log-dedup-race                                  | `.claude/hooks-py/_common.py` `notice_already_sent`        | concurrency design       | implemented (1d, second review raised it to WARNING) |
+| SB-006 | same                                                               | R4-notices-log-unbounded, R3-notices-log-unbounded         | `.claude/hooks-py/_common.py` `notice_already_sent`        | growth bound             | implemented (1d, second review raised it to WARNING) |
+| SB-007 | same                                                               | R3-cross-hook-dedup-shares-consequence                     | `.claude/hooks-py/_common.py` `emit_missing_file_context`  | dedup key design         | deferred                                             |
+| SB-T03 | same                                                               | R3-session-id-tab-collision                                | `.claude/hooks-py/_common.py` `notice_already_sent`        | test coverage / escaping | deferred                                             |
+| SB-008 | `mental-map-hooks` 1d                                              | R4-003                                                     | `.claude/hooks-py/_common.py` `emit_missing_file_context`  | recovery notice design   | deferred                                             |
+| SB-009 | same                                                               | R2-emit-missing-file-context-hard-coded-hook-event-default | `.claude/hooks-py/_common.py` `emit_missing_file_context`  | parameter default        | deferred                                             |
+| SB-010 | same                                                               | R2-load-index-signature-divergence                         | `.claude/hooks-py/pre_edit_decision_guard.py` `load_index` | signature symmetry       | deferred                                             |
 
 ## Entries — code and prose
 
@@ -110,6 +113,33 @@
 - **Why deferred:** session ids are opaque UUIDs from Claude Code and keys are built from constants; a tab cannot reach the marker today.
 - **To implement:** reject or escape `\t` in both fields and add the negative test.
 
+### SB-008 — no RECOVERED notice after a transient UNREADABLE
+
+- **Source:** review `hooks-1d2`, resilience lens, 2026-10-01.
+- **Location:** `.claude/hooks-py/_common.py`, `emit_missing_file_context` (dedup key `tag:name:state`).
+- **Suggestion:** once UNREADABLE was notified in a session, a later successful load is silent, so the model keeps a stale "blind" line; emit a RECOVERED notice on the first successful load after a failure marker, or key the dedup on the exact error.
+- **Why deferred:** design choice; the stale line is conservative (the model treats the index as unreliable) and the next session starts clean.
+- **To implement:** on a successful `load_index`, if the session has a MISSING/UNREADABLE marker, emit one `RECOVERED` line and record it.
+
+### SB-009 — `hook_event` defaults to PreToolUse
+
+- **Source:** review `hooks-1d2`, readability lens.
+- **Location:** `.claude/hooks-py/_common.py`, `emit_missing_file_context(hook_event="PreToolUse")`.
+- **Suggestion:** a future UserPromptSubmit caller that forgets the argument emits the wrong `hookEventName`; make it required or name the default.
+- **Why deferred:** both real callers are PreToolUse hooks; the prompt hook prints its own line.
+- **To implement:** make `hook_event` keyword-only and required; update the two callers and the tests.
+
+### SB-010 — the two `load_index` helpers have different signatures
+
+- **Source:** review `hooks-1d2`, readability lens.
+- **Location:** `.claude/hooks-py/pre_edit_decision_guard.py`, `load_index(pattern_ids_text, session_id="")` vs the canon hook's `load_index(session_id="")`.
+- **Suggestion:** the guard's loader takes a label only to interpolate it into the blindness message; pass the matched patterns (or a formatter) and keep the pair symmetric.
+- **Why deferred:** naming/shape; the label is what the consequence line needs and the tests name it.
+- **To implement:** `load_index(session_id="", *, consequence_for=...)` or a small formatter passed in.
+
 ## Implemented
 
-_None yet._
+| Id     | Implemented in                     | How                                                                                                            |
+| ------ | ---------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| SB-005 | 1d (`workstream/hooks-visibility`) | `notice_already_sent` reads and records under `fcntl.flock(LOCK_EX)`; test asserts the lock                    |
+| SB-006 | 1d                                 | the notices log keeps only the current session's lines when it records; test asserts other sessions are pruned |
