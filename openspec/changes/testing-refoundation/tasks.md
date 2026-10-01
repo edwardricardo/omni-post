@@ -226,6 +226,13 @@ Chain strategy: stacked-to-main
 - [ ] 0.21.3 **Red proof** · testing-canon-and-tracker › Every new or modified gate is recorded with its demonstrated red · CODE ~0 · slice `refound/0-toolchain-boundaries` — re-plant every per-layer violation of 0.21.1 on the migrated config → each still exits 1 → byte-exact restore. A layer whose violation stops erroring blocks the slice.
 - [ ] 0.21.4 Tracker: T.4 table row; SMELL-66 closed in `docs/reports/roadmap-detected-smells-backlog.md` · CODE ~6 · slice `refound/0-toolchain-boundaries`.
 
+### 0.22 · `refound/0-admin-storybook-demolish` — the admin Storybook that never built leaves · **BATCH 23** (re-plan 2026-10-01, Edward: "para N3 apruebo tumbarlo"; stacked ABOVE 0.21 because it rewrites `apps/admin/package.json`, which 0.11 also rewrites)
+
+- [ ] 0.22.1 **Measured** · testing-toolchain-alignment › A test tool no workflow runs is removed, and Jest leaves the tree with it · CODE ~0 · slice `refound/0-admin-storybook-demolish` — re-prove on the day: `apps/admin` has zero `*.stories.*` files, `.storybook/main.ts` globs a `../stories` directory that does not exist, `storybook build` fails with `SB_BUILDER-WEBPACK5_0002 … Can't resolve './stories'` (identical at 10.4.6 and 10.6.0, tracker D25), and no workflow or script runs it.
+- [ ] 0.22.2 GREEN · same · CODE ~20, EVIDENCE ~250 · slice `refound/0-admin-storybook-demolish` — delete `apps/admin/.storybook/{main.ts,manager.ts,preview.tsx,theme.ts}`, the `storybook` and `build-storybook` scripts, and admin's `@storybook/addon-a11y`, `@storybook/addon-docs`, `@storybook/nextjs` and `storybook` devDependencies (the catalog entries stay: `apps/client` consumes them); `pnpm install` and confirm the lockfile changes only in admin's importer block; `docs/development/CODING_STANDARDS.md` §Storybook port convention loses the `apps/admin: 6007` line and states that only the client runs Storybook; the `webpack-dev-middleware` canon row's chain names `apps/client` only.
+- [ ] 0.22.3 **Red proof** · testing-canon-and-tracker › Every new or modified gate is recorded with its demonstrated red · CODE ~0 · slice `refound/0-admin-storybook-demolish` — none: no gate changes. Acceptance is the measurement: `rg -n storybook apps/admin` = 0, client Storybook build still green, `pnpm lint --max-warnings 0`, `tsc -b --force`, admin suite 114/114.
+- [ ] 0.22.4 Tracker: Decisions log row (N3: the admin Storybook had zero stories and never built; demolished rather than carried; admin stories, if ever wanted, are born with a config that builds — Phase 6.N); T.4 table rows · CODE ~6 · slice `refound/0-admin-storybook-demolish`.
+
 ---
 
 ## Phase P — Parallel-ready slices (design §7.2 — no dependency on Phase 1)
