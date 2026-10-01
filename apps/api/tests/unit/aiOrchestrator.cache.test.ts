@@ -18,7 +18,6 @@ import {
   createOrchestrator,
   captureAndClearAIEnv,
   restoreAIEnv,
-  unrefActiveHandles,
   MockAIProvider,
 } from "./aiOrchestrator.helpers.js";
 
@@ -40,7 +39,6 @@ describe("AIOrchestrator — Cache & Metrics", () => {
   afterAll(() => {
     console.log = _originalConsoleLog;
     restoreAIEnv(envSnapshot);
-    unrefActiveHandles();
   });
 
   // Rebuild fixture for every test

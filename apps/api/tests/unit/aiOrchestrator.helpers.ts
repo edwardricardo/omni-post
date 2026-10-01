@@ -281,15 +281,3 @@ export function restoreAIEnv(snapshot: Record<string, string | undefined>): void
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Handle unref helper (prevents blocking process exit)
-// ---------------------------------------------------------------------------
-
-/** Unref all active handles so the process can exit cleanly. */
-export function unrefActiveHandles(): void {
-  const handles = (process as any)._getActiveHandles?.() ?? [];
-  for (const h of handles) {
-    if (typeof h.unref === "function") h.unref();
-  }
-}

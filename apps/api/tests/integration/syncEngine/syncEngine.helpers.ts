@@ -186,16 +186,10 @@ export async function teardownSyncEngineInfra(currentSyncEngine?: any): Promise<
     }
   }
 
+  // Each owner closes its own handle and nothing else is touched: a blanket unref
+  // reaches handles this file does not own — in a vitest fork, the IPC channel.
   await mockPrisma.$disconnect();
   mockRedis.disconnect();
-
-  // Prisma's $disconnect() is async but its internal pool sockets may need
-  // an extra event-loop tick to fully close. Force-unref remaining handles
-  // so the process can exit cleanly without --test-force-exit.
-  const handles = (process as any)._getActiveHandles?.() ?? [];
-  for (const h of handles) {
-    if (typeof h.unref === "function") h.unref();
-  }
 }
 
 /**
