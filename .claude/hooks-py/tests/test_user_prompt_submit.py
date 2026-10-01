@@ -1,4 +1,4 @@
-"""Tests del hook de prompt: la forma del contexto que inyecta."""
+"""Tests del hook de prompt: plan activo desde el transcript y conteo de `git status`."""
 
 import os
 import shutil
@@ -22,24 +22,54 @@ class BuildContextShapeTests(unittest.TestCase):
     """`build_context` corre sobre git patcheado: lo que se afirma es qué campo
     lleva cada línea, no el estado del repo donde corre el test."""
 
-    def test_context_carries_branch_status_canon_index_and_no_plan_line(self):
+    def test_context_carries_branch_status_canon_index_and_the_plan_line(self):
         with mock.patch.object(ups, "current_branch", return_value="workstream/x"), \
                 mock.patch.object(ups, "run", side_effect=_fake_git):
-            lines = ups.build_context("hola").split("\n")
+            lines = ups.build_context("hola", "").split("\n")
         self.assertIn("branch: workstream/x", lines)
         self.assertIn("uncommitted: 0 staged, 1 unstaged, 1 untracked", lines)
         self.assertIn("ahead/behind: 1/2", lines)
         self.assertTrue(any(line.startswith("canon_index") for line in lines), lines)
-        # El candidato muerto `.claude/current-batch-plan.md` se fue; el plan
-        # activo real (desde el transcript) llega en su propio cambio.
-        self.assertFalse(any(line.startswith("active_plan") for line in lines), lines)
+        self.assertIn("active_plan: none", lines)
 
     def test_detached_head_or_no_repository_is_named_not_blank(self):
         with mock.patch.object(ups, "current_branch", return_value=""), \
                 mock.patch.object(ups, "run", return_value=""):
-            lines = ups.build_context("hola").split("\n")
+            lines = ups.build_context("hola", "").split("\n")
         self.assertIn("branch: (no branch)", lines)
         self.assertIn("ahead/behind: n/a", lines)
+
+
+class FindActivePlanTests(unittest.TestCase):
+    def _transcript(self, tmp: Path, *paths: str) -> Path:
+        t = tmp / "t.jsonl"
+        t.write_text("".join('{"tool_input": {"file_path": "%s"}}\n' % p for p in paths))
+        return t
+
+    def test_last_plan_referenced_in_the_transcript_wins(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            (tmp / ".claude" / "plans").mkdir(parents=True)
+            a, b = tmp / ".claude" / "plans" / "a.md", tmp / ".claude" / "plans" / "b.md"
+            a.write_text("a")
+            b.write_text("b")
+            self.assertEqual(ups.find_active_plan(str(self._transcript(tmp, str(a), str(b)))), b)
+
+    def test_plan_deleted_after_being_referenced_is_not_active(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            gone = tmp / ".claude" / "plans" / "gone.md"
+            self.assertIsNone(ups.find_active_plan(str(self._transcript(tmp, str(gone)))))
+
+    def test_no_transcript_means_no_plan(self):
+        self.assertIsNone(ups.find_active_plan(""))
+        self.assertIsNone(ups.find_active_plan("/nonexistent/transcript.jsonl"))
+
+
+class RunKeepsPorcelainColumnsTests(unittest.TestCase):
+    def test_leading_space_of_the_first_line_survives(self):
+        # ` M file` = sin stagear; strip() se comía esa columna y contaba 1 staged.
+        self.assertEqual(ups.run(["printf", " M x\n"]), " M x")
 
 
 class FindFilesInPromptTests(unittest.TestCase):
@@ -74,7 +104,7 @@ class CanonIndexAgeLineTests(unittest.TestCase):
         with mock.patch.object(ups, "canon_research_index_path", return_value=index), \
                 mock.patch.object(ups, "current_branch", return_value="workstream/x"), \
                 mock.patch.object(ups, "run", return_value=""):
-            return ups.build_context("hola").split("\n")
+            return ups.build_context("hola", "").split("\n")
 
     def test_age_in_minutes_when_the_index_exists(self):
         with tempfile.TemporaryDirectory() as tmp:
