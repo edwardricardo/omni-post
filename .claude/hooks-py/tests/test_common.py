@@ -2,8 +2,7 @@
 
 stdlib solamente (`python3 -m unittest discover -s .claude/hooks-py/tests
 -t .claude/hooks-py`): los hooks no tienen runner propio y este contrato —
-qué branch lee un gate, qué ve stop.py desde un subdirectorio, qué hook
-es ejecutable — decidía sin ninguna
+dónde vive la memoria y desde qué raíz se deriva, qué branch lee un gate — decidía sin ninguna
 aserción que lo sostuviera.
 """
 
@@ -11,6 +10,7 @@ import contextlib
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -23,7 +23,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import _common  # noqa: E402
 from _common import (  # noqa: E402
     PROJECT_ROOT,
+    canon_index_path,
+    canon_research_index_path,
     current_branch,
+    memory_dir,
 )
 
 
@@ -36,6 +39,82 @@ def _init(repo: Path, branch: str) -> None:
     # deja la misma rama en cualquier git.
     _git(repo, "init", "-q")
     _git(repo, "symbolic-ref", "HEAD", f"refs/heads/{branch}")
+
+
+class MemoryDirTests(unittest.TestCase):
+    def setUp(self):
+        _common._MEMORY_DIR_CACHE = None
+        _common._MEMORY_DIR_WARNED = False
+
+    def tearDown(self):
+        _common._MEMORY_DIR_CACHE = None
+        _common._MEMORY_DIR_WARNED = False
+
+    def test_linked_worktree_derives_from_the_main_repository(self):
+        # Lo que Claude Code hace: un solo directorio de memoria por repositorio,
+        # compartido por sus worktrees; el nombre sale del principal, no del enlazado.
+        # Limpieza en orden inverso de registro: primero el worktree enlazado,
+        # después el directorio temporal; así corre aunque la aserción falle.
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        main_root = tmp / "main"
+        main_root.mkdir()
+        _init(main_root, "workstream/x")
+        _git(main_root, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "x")
+        linked = tmp / "linked"
+        _git(main_root, "worktree", "add", "-q", str(linked))
+        self.addCleanup(_git, main_root, "worktree", "remove", "--force", str(linked))
+        with mock.patch.object(_common, "PROJECT_ROOT", linked.resolve()):
+            expected = Path.home() / ".claude" / "projects" / str(main_root.resolve()).replace("/", "-") / "memory"
+            self.assertEqual(memory_dir(), expected)
+            # La resolución exitosa queda memorizada: la segunda llamada no vuelve a git.
+            self.assertEqual(_common._MEMORY_DIR_CACHE, expected)
+            with mock.patch.object(_common.subprocess, "run", side_effect=AssertionError("git must not run again")):
+                self.assertEqual(memory_dir(), expected)
+
+    def test_falls_back_to_project_root_without_git_and_does_not_cache_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fake_root = Path(tmp) / "repo"
+            fake_root.mkdir()
+            with mock.patch.object(_common, "PROJECT_ROOT", fake_root), mock.patch.object(
+                _common, "LOG_PATH", Path(tmp) / "hooks.log"
+            ), mock.patch.object(_common.subprocess, "run", side_effect=OSError("no git")):
+                fallback = Path.home() / ".claude" / "projects" / str(fake_root.resolve()).replace("/", "-") / "memory"
+                self.assertEqual(memory_dir(), fallback)
+                self.assertEqual(memory_dir(), fallback)
+                self.assertIsNone(_common._MEMORY_DIR_CACHE)
+                self.assertEqual((Path(tmp) / "hooks.log").read_text().count("sin caché"), 1)
+
+    def test_fallback_resolves_a_symlinked_project_root(self):
+        # Sin git, el nombre sale de la ruta REAL: un PROJECT_ROOT alcanzado por
+        # symlink no inventa un segundo directorio de memoria.
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        real = tmp / "real"
+        real.mkdir()
+        link = tmp / "link"
+        link.symlink_to(real, target_is_directory=True)
+        with mock.patch.object(_common, "PROJECT_ROOT", link), mock.patch.object(
+            _common, "LOG_PATH", tmp / "hooks.log"
+        ), mock.patch.object(_common.subprocess, "run", side_effect=OSError("no git")):
+            expected = Path.home() / ".claude" / "projects" / str(real.resolve()).replace("/", "-") / "memory"
+            self.assertEqual(memory_dir(), expected)
+
+    def test_index_paths_derive_from_the_memory_dir(self):
+        with mock.patch.object(_common, "memory_dir", return_value=Path("/m")):
+            self.assertEqual(canon_index_path(), Path("/m") / "canon-index.json")
+            self.assertEqual(canon_research_index_path(), Path("/m") / "canon_research_index.md")
+
+
+class HooksLogTests(unittest.TestCase):
+    def test_common_and_hook_lines_share_one_format(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(_common, "LOG_PATH", Path(tmp) / "hooks.log"):
+            log, _block, _allow = _common.make_logger("some-hook")
+            log("a")
+            _common._append_log("b")
+            lines = (Path(tmp) / "hooks.log").read_text().splitlines()
+        self.assertRegex(lines[0], r"^\[\d{4}-\d{2}-\d{2}T[0-9:.]+\] \[some-hook\] a$")
+        self.assertRegex(lines[1], r"^\[\d{4}-\d{2}-\d{2}T[0-9:.]+\] \[_common\] b$")
 
 
 class CurrentBranchTests(unittest.TestCase):

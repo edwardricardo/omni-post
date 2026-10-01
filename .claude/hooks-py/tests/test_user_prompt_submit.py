@@ -66,5 +66,25 @@ class FindFilesInPromptTests(unittest.TestCase):
         self.assertEqual(out, ["- apps/x.ts (existing, @layer infrastructure)", f"- {absolute} (existing)"])
 
 
+class CanonIndexAgeLineTests(unittest.TestCase):
+    """La línea `canon_index…` sale de la ruta que `canon_research_index_path()`
+    devuelve al correr (el directorio de memoria), exista el índice o no."""
+
+    def _context(self, index: Path) -> list[str]:
+        with mock.patch.object(ups, "canon_research_index_path", return_value=index), \
+                mock.patch.object(ups, "current_branch", return_value="workstream/x"), \
+                mock.patch.object(ups, "run", return_value=""):
+            return ups.build_context("hola").split("\n")
+
+    def test_age_in_minutes_when_the_index_exists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            index = Path(tmp) / "canon_research_index.md"
+            index.write_text("# canon\n")
+            self.assertIn("canon_index_age: 0 min", self._context(index))
+
+    def test_not_found_when_the_memory_dir_has_no_index(self):
+        self.assertIn("canon_index: not found", self._context(Path("/nonexistent/canon_research_index.md")))
+
+
 if __name__ == "__main__":
     unittest.main()

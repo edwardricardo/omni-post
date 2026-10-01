@@ -19,12 +19,9 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import LOG_PATH, PROJECT_ROOT, current_branch  # noqa: E402
+from _common import LOG_PATH, PROJECT_ROOT, canon_research_index_path, current_branch  # noqa: E402
 
 HOOK_NAME = "user-prompt-submit"
-CANON_INDEX_PATH = Path(
-    "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon_research_index.md"
-)
 GIT_TIMEOUT_SEC = 2
 MAX_FILES_FROM_PROMPT = 5
 
@@ -134,7 +131,7 @@ def build_context(prompt: str) -> str:
     branch = current_branch(PROJECT_ROOT)
     counts = status_counts()
     ab = ahead_behind(branch)
-    canon_age = file_age_min(CANON_INDEX_PATH)
+    canon_age = file_age_min(canon_research_index_path())
     files = find_files_in_prompt(prompt)
 
     lines = [
