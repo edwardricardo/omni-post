@@ -38,9 +38,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
     PROJECT_ROOT,
     canon_index_path,
+    emit_additional_context,
     emit_missing_file_context,
     make_logger,
     read_hook_input,
+    recovered_file_notice,
 )
 
 HOOK_NAME = "pre-edit-decision-guard"
@@ -97,22 +99,17 @@ DECISION_PATTERNS: list[dict] = [
 ]
 
 
-def emit_no_warning() -> None:
-    sys.exit(0)
+def emit_no_warning(prefix: tuple[str, ...] = ()) -> None:
+    """Exit 0 sin inyectar nada, salvo `prefix` (p. ej. el aviso RECOVERED)."""
+    emit_additional_context("PreToolUse", "", prefix)
 
 
-def emit_warning(content: str) -> None:
-    output = {
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "additionalContext": content,
-        }
-    }
-    print(json.dumps(output))
-    sys.exit(0)
+def emit_warning(content: str, prefix: tuple[str, ...] = ()) -> None:
+    """Exit 0 con additionalContext en stdout (`prefix` primero)."""
+    emit_additional_context("PreToolUse", content, prefix)
 
 
-def load_index(pattern_ids_text: str, session_id: str = "") -> dict:
+def load_index(*, decision_ids: str, session_id: str = "") -> dict:
     """Carga canon-index.json o avisa EN EL CONTEXTO y sale (exit 0).
 
     Sin índice no hay forma de saber si una decisión está cubierta, así que
@@ -122,10 +119,10 @@ def load_index(pattern_ids_text: str, session_id: str = "") -> dict:
     vez por sesión; lo que seguía (gaps y overrides) comparaba contra nada.
     """
     path = canon_index_path()
-    consequence = f"decision-gap check for {pattern_ids_text} is blind until it exists"
+    consequence = f"decision-gap check for {decision_ids} is blind until it exists"
     if not path.exists():
         log(f"canon-index.json no existe en {path} — sin DECISION GAP, avisado en el contexto")
-        emit_missing_file_context("canon", "canon-index.json", path, consequence, session_id=session_id)
+        emit_missing_file_context("canon", "canon-index.json", path, consequence, hook_event="PreToolUse", session_id=session_id)
     try:
         with path.open("r", encoding="utf-8") as f:
             index = json.load(f)
@@ -135,7 +132,8 @@ def load_index(pattern_ids_text: str, session_id: str = "") -> dict:
             "canon",
             "canon-index.json",
             path,
-            f"decision-gap check for {pattern_ids_text} is blind until it is readable ({type(e).__name__})",
+            f"decision-gap check for {decision_ids} is blind until it is readable ({type(e).__name__})",
+            hook_event="PreToolUse",
             state="UNREADABLE",
             session_id=session_id,
         )
@@ -148,7 +146,8 @@ def load_index(pattern_ids_text: str, session_id: str = "") -> dict:
             "canon",
             "canon-index.json",
             path,
-            f"decision-gap check for {pattern_ids_text} is blind until it is a JSON object with entries ({found} found)",
+            f"decision-gap check for {decision_ids} is blind until it is a JSON object with entries ({found} found)",
+            hook_event="PreToolUse",
             state="UNREADABLE",
             session_id=session_id,
         )
@@ -229,7 +228,10 @@ def main() -> None:
 
     log(f"detected {len(matched)} decision patterns in {file_path}")
 
-    index = load_index(", ".join(p["id"] for p in matched), data.get("session_id", ""))
+    session_id = data.get("session_id", "")
+    index = load_index(decision_ids=", ".join(p["id"] for p in matched), session_id=session_id)
+    recovered = recovered_file_notice("canon", "canon-index.json", canon_index_path(), session_id)
+    prefix = (recovered,) if recovered else ()
     gaps: list[dict] = []
     for pattern in matched:
         if canon_covers_pattern(index, pattern):
@@ -239,7 +241,7 @@ def main() -> None:
 
     if not gaps:
         log("all decision patterns covered by canon — silent")
-        emit_no_warning()
+        emit_no_warning(prefix)
 
     if os.environ.get("EDWARD_AUTHORIZED_HEURISTIC") == "yes":
         for p in gaps:
@@ -247,7 +249,7 @@ def main() -> None:
         log(
             f"{len(gaps)} gaps overridden by EDWARD_AUTHORIZED_HEURISTIC for {file_path}"
         )
-        emit_no_warning()
+        emit_no_warning(prefix)
 
     lines = [f"[DECISION GAP — {file_path}]", ""]
     lines.append(
@@ -269,7 +271,7 @@ def main() -> None:
         "Logged a `.claude/canon-decision-gaps.log` para calibrar antes de subir a hard-gate."
     )
 
-    emit_warning("\n".join(lines))
+    emit_warning("\n".join(lines), prefix)
 
 
 if __name__ == "__main__":
