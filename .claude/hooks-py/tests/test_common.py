@@ -26,7 +26,9 @@ from _common import (  # noqa: E402
     canon_index_path,
     canon_research_index_path,
     current_branch,
+    emit_missing_file_context,
     memory_dir,
+    notice_already_sent,
 )
 
 
@@ -238,6 +240,63 @@ class DetachedHeadDownstreamTests(unittest.TestCase):
         self.assertIsNone(guard.WORKSTREAM_BRANCH_RE.match(""))
         self.assertIsNone(guard.WORKSTREAM_BRANCH_RE.match("HEAD"))
         self.assertIsNotNone(guard.WORKSTREAM_BRANCH_RE.match("workstream/x"))
+
+
+class MissingFileContextTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self._patch = mock.patch.object(_common, "NOTICES_LOG", Path(self._tmp.name) / "notices.log")
+        self._patch.start()
+
+    def tearDown(self):
+        self._patch.stop()
+        self._tmp.cleanup()
+
+    def _emit(self, session_id: str) -> str:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as raised:
+            emit_missing_file_context("canon", "canon-index.json", Path("/x/canon-index.json"), "blind", session_id=session_id)
+        self.assertEqual(raised.exception.code, 0)
+        return out.getvalue()
+
+    def test_emits_one_additional_context_line_and_exits_zero(self):
+        payload = json.loads(self._emit(""))
+        self.assertEqual(payload["hookSpecificOutput"]["hookEventName"], "PreToolUse")
+        self.assertEqual(
+            payload["hookSpecificOutput"]["additionalContext"],
+            "[canon] canon-index.json MISSING at /x/canon-index.json — blind",
+        )
+
+    def test_second_notice_in_the_same_session_is_silent(self):
+        self.assertTrue(self._emit("s1"))
+        self.assertEqual(self._emit("s1"), "")
+        self.assertTrue(self._emit("s2"))
+
+    def test_without_session_id_every_notice_is_sent(self):
+        self.assertFalse(notice_already_sent("", "k"))
+        self.assertFalse(notice_already_sent("", "k"))
+
+    def test_other_sessions_are_pruned_when_a_new_session_records(self):
+        self.assertTrue(self._emit("s1"))
+        self.assertTrue(self._emit("s2"))
+        lines = _common.NOTICES_LOG.read_text(encoding="utf-8").splitlines()
+        self.assertEqual([line.split("\t")[0] for line in lines], ["s2"])
+
+    def test_lookup_and_record_happen_under_an_exclusive_lock(self):
+        with mock.patch.object(_common.fcntl, "flock") as flock:
+            self.assertFalse(notice_already_sent("s1", "k"))
+        flock.assert_called_once()
+        self.assertEqual(flock.call_args.args[1], _common.fcntl.LOCK_EX)
+
+    def test_unwritable_log_still_sends_every_notice_and_leaves_a_trace(self):
+        # El padre del log es un ARCHIVO: mkdir y open fallan con OSError.
+        blocker = Path(self._tmp.name) / "blocker"
+        blocker.write_text("")
+        with mock.patch.object(_common, "NOTICES_LOG", blocker / "notices.log"), \
+                mock.patch.object(_common, "LOG_PATH", Path(self._tmp.name) / "hooks.log"):
+            self.assertTrue(self._emit("s1"))
+            self.assertTrue(self._emit("s1"))
+            self.assertIn("sin deduplicar", (Path(self._tmp.name) / "hooks.log").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
