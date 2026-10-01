@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Pre-bash hook — bloquea comandos prohibidos antes de ejecutarse."""
 
-import json
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -18,13 +16,14 @@ from _common import (  # noqa: E402
     git_subcommands,
     make_logger,
     read_hook_input,
+    shell_segments,
 )
 
 # THE SAME list pre-edit gates on, imported rather than copied. A second copy of
 # these patterns would drift the moment one file gained a path the other did not
 # — and a sensitive-path list that disagrees with itself protects whichever half
 # the writer did not go through.
-from pre_edit import SENSITIVE_PATTERNS, is_sensitive  # noqa: E402
+from pre_edit import SENSITIVE_PATTERNS  # noqa: E402
 
 HOOK_NAME = "pre-bash"
 ALLOWED_BRANCH_PREFIX = "workstream/"
@@ -40,21 +39,90 @@ PROD_PATH_RE = re.compile(r"(apps/api/src/|packages/[^/]+/src/)")
 # Comandos de migración Prisma que requieren DB corriendo.
 PNPM_MIGRATE_RE = re.compile(r"pnpm\s+(?:db:migrate|db:push|prisma\s+migrate)")
 
-# Construcciones de Bash que ESCRIBEN un archivo. Existen porque el gate de
-# rutas sensibles vivía solo en pre-edit, que inspecciona `tool_input.file_path`
-# — un campo que Bash no tiene. Un agente al que se le negó el `Edit` sobre
-# `.github/workflows/fitness.yml` ya había escrito el archivo con `python3` por
-# Bash: la compuerta no falló, es que ese camino nunca pasaba por ella.
-WRITE_CONSTRUCT_RES = [
-    re.compile(r">>?\s*[^|&;<>\s]"),                       # redirección: > y >>
-    re.compile(r"\btee\b"),                                # tee / tee -a
-    re.compile(r"\b(?:sd|sed|perl|ruby)\b[^|;]*\s-i\b"),   # edición in-place
+# Qué cuenta como ESCRIBIR una ruta por Bash. Existe porque el gate de rutas
+# sensibles vivía solo en pre-edit, que inspecciona `tool_input.file_path` — un
+# campo que Bash no tiene. Un agente al que se le negó el `Edit` sobre
+# `.github/workflows/fitness.yml` ya había escrito el archivo con `python3`
+# por Bash: la compuerta no falló, es que ese camino nunca pasaba por ella.
+#
+# Dos clases. Las construcciones cuyo DESTINO se lee del comando (redirección,
+# tee, cp/mv/rm/…, dd of=) bloquean solo si ese destino es la ruta sensible:
+# `cat > /tmp/x <<EOF` con la ruta dentro del heredoc, `2>/dev/null` o
+# `2>&1` NO son escrituras a esa ruta — medido: tres bloqueos falsos en un día
+# enseñan a esquivar el gate, que es como los gates mueren. Las construcciones
+# cuyo destino va en código o en argumentos que el texto no ordena (`sed -i`,
+# `open('w')`, `git checkout`) bloquean por mención, como antes.
+_WRITE_VERBS = frozenset({"tee", "cp", "mv", "install", "rsync", "ln", "rm", "rmdir", "unlink", "shred", "truncate", "dd"})
+# De estos, el origen solo se lee: el destino es el ÚLTIMO operando.
+_DESTINATION_LAST_VERBS = frozenset({"cp", "mv", "install", "rsync", "ln"})
+_REDIRECTS = frozenset({">", ">>", "&>", "&>>"})
+_NOT_A_FILE = frozenset({"/dev/null", "/dev/stdout", "/dev/stderr"})
+_ENV_ASSIGNMENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+COARSE_WRITE_RES = [
+    re.compile(r"\b(?:sd|sed|perl|ruby)\b[^|;]*\s-i\b"),            # edición in-place
     re.compile(r"\bpython3?\b[^|;]*\bopen\s*\([^)]*['\"][wax]"),   # open(...,'w')
-    re.compile(r"\bnode\b[^|;]*\bwrite(?:File|FileSync)\b"),       # fs.writeFile
-    re.compile(r"\b(?:cp|mv|install|rsync|truncate|ln)\b"),        # mueven/crean
-    re.compile(r"\bdd\b[^|;]*\bof="),                      # dd of=
-    re.compile(r"\bgit\s+(?:checkout|restore|apply|revert)\b"),    # restauran contenido
+    re.compile(r"\bnode\b[^|;]*\bwrite(?:File|FileSync)\b"),        # fs.writeFile
+    re.compile(r"\bgit\s+(?:checkout|restore|apply|revert|rm|clean)\b"),  # restauran o borran contenido
 ]
+# Respaldo cuando el comando no se puede tokenizar (comilla sin cerrar): toda
+# redirección o verbo de escritura cuenta, por mención.
+_UNTOKENIZABLE_WRITE_RE = re.compile(r">>?|\b(?:" + "|".join(sorted(_WRITE_VERBS)) + r")\b")
+
+
+def _mentions(pattern: str, text: str) -> bool:
+    """`pattern` (con "/" inicial, como en pre-edit) nombrado en `text`.
+
+    Se compara también sin esa barra, porque un comando suele citar rutas
+    relativas — pero con FRONTERA: el `in` pelado hacía que `.env` matcheara
+    DENTRO de `process.env`, que aparece en cantidades industriales de comandos
+    legítimos de solo lectura. `process.env` no matchea (la `s` lo precede);
+    `.env`, `cp .env`, `../.env` y `--env-file=.env` sí.
+    """
+    stripped = pattern.lstrip("/")
+    return pattern in text or re.search(r"(?<![A-Za-z0-9_])" + re.escape(stripped), text) is not None
+
+
+def write_targets(command: str) -> list[str] | None:
+    """Rutas que las construcciones de escritura de `command` nombran como destino:
+    redirecciones (salvo /dev/null y los `>&N`), el último operando de
+    cp/mv/install/rsync/ln (el origen solo se lee), todos los operandos de
+    tee/rm/rmdir/unlink/shred/truncate, y `dd of=`; None si no se puede
+    tokenizar."""
+    segments = shell_segments(command)
+    if segments is None:
+        return None
+    targets: list[str] = []
+    for segment in segments:
+        words: list[str] = []
+        i = 0
+        while i < len(segment):
+            tok = segment[i]
+            if tok in _REDIRECTS and i + 1 < len(segment):
+                target = segment[i + 1]
+                if target not in _NOT_A_FILE and not target.startswith("&"):
+                    targets.append(target)
+                i += 2
+            elif tok.startswith(("<", ">")):
+                # entrada, heredoc o duplicado de descriptor: operador y operando no son argumentos
+                i += 2
+            else:
+                words.append(tok)
+                i += 1
+        while words and (_ENV_ASSIGNMENT_RE.match(words[0]) or words[0] in ("sudo", "command", "nice")):
+            words.pop(0)
+        if not words or words[0] not in _WRITE_VERBS:
+            continue
+        verb, args = words[0], words[1:]
+        if verb == "dd":
+            targets.extend(arg[3:] for arg in args if arg.startswith("of="))
+            continue
+        if "--" in args:
+            args = args[args.index("--") + 1:]
+        operands = [arg for arg in args if not arg.startswith("-")]
+        if verb in _DESTINATION_LAST_VERBS and len(operands) >= 2:
+            operands = operands[-1:]
+        targets.extend(operands)
+    return targets
 
 
 def gate_sensitive_path_writes_require_token(command: str) -> None:
@@ -65,43 +133,31 @@ def gate_sensitive_path_writes_require_token(command: str) -> None:
 
     LEER SIGUE SIENDO LIBRE, y es deliberado: `bat schema.prisma`,
     `rg x migrations/` o un `prisma migrate diff` se usan constantemente y no
-    mutan nada. El gate exige que coincidan DOS cosas — una ruta sensible Y una
-    construcción de escritura — porque bloquear toda mención volvería inusable
-    la inspección y empujaría a buscarle la vuelta, que es exactamente cómo
-    mueren los gates.
+    mutan nada. Bloquear toda mención volvería inusable la inspección y
+    empujaría a buscarle la vuelta, que es exactamente cómo mueren los gates.
 
     LÍMITE, dicho en voz alta: esto es un tripwire, no una caja de arena. Una
     shell puede ofuscar la ruta con variables, `eval`, base64 o un script en
-    disco, y ninguna inspección textual del comando lo va a ver. Lo que cierra
-    es el bypass ACCIDENTAL y el de conveniencia — sube el costo de evadir de
-    "escribí python3 en vez de Edit" a "acto deliberado de ocultamiento". Ese
-    salto es el punto; afirmar equivalencia total con pre-edit sería la clase
-    de mentira que este repo persigue.
+    disco que arma la ruta por partes, y ninguna inspección del comando lo va a
+    ver. Lo que cierra es el bypass ACCIDENTAL y el de conveniencia — sube el
+    costo de evadir de "escribí python3 en vez de Edit" a "acto deliberado de
+    ocultamiento". Ese salto es el punto; afirmar equivalencia total con
+    pre-edit sería la clase de mentira que este repo persigue.
     """
-    matched_path = None
-    for pattern in SENSITIVE_PATTERNS:
-        # El patrón trae "/" inicial para anclar en pre-edit (que ve rutas
-        # absolutas); un comando suele citarlas relativas, así que se compara
-        # también sin esa barra — pero con FRONTERA: el `in` pelado hacía que
-        # el patrón `.env` matcheara DENTRO de `process.env`, que aparece en
-        # cantidades industriales de comandos legítimos de solo lectura. Tres
-        # bloqueos falsos en un día enseñan a esquivar el gate, que es como
-        # los gates mueren. La frontera exige que la coincidencia no venga
-        # precedida de un carácter de palabra: `process.env` no matchea
-        # (la `s` la precede), `.env`, `cp .env`, `../.env` y `--env-file=.env`
-        # sí. El patrón con "/" inicial ya trae su frontera puesta.
-        stripped = pattern.lstrip("/")
-        if pattern in command or re.search(
-            r"(?<![A-Za-z0-9_])" + re.escape(stripped), command
-        ):
-            matched_path = pattern
-            break
-
-    if matched_path is None:
+    mentioned = [pattern for pattern in SENSITIVE_PATTERNS if _mentions(pattern, command)]
+    if not mentioned:
         return
-
-    if not any(rx.search(command) for rx in WRITE_CONSTRUCT_RES):
-        log(f"sensitive path {matched_path} mentioned, no write construct — read-only, allowed")
+    targets = write_targets(command)
+    coarse = any(rx.search(command) for rx in COARSE_WRITE_RES)
+    if targets is None:
+        coarse = coarse or _UNTOKENIZABLE_WRITE_RE.search(command) is not None
+        targets = []
+    matched_path = next(
+        (pattern for pattern in mentioned if coarse or any(_mentions(pattern, target) for target in targets)),
+        None,
+    )
+    if matched_path is None:
+        log(f"sensitive path {mentioned[0]} mentioned, no write construct targets it — read-only, allowed")
         return
 
     status = check_grant_token("sensitive-edit", log)
@@ -116,7 +172,7 @@ def gate_sensitive_path_writes_require_token(command: str) -> None:
         f"nadie se enterara.\n"
         f"Pedí a Edward que ejecute 'omnipost-allow sensitive-edit' (TTL 15 min), "
         f"igual que para push. Si el comando solo LEE, reescribilo sin "
-        f"construcciones de escritura (bat/rg en vez de redirecciones)."
+        f"construcciones de escritura sobre esa ruta."
     )
 
 log, block, allow = make_logger(HOOK_NAME)

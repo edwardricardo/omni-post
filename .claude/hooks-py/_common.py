@@ -252,6 +252,22 @@ def _shell_tokens(command: str) -> list[str]:
     return list(lexer)
 
 
+def shell_segments(command: str) -> list[list[str]] | None:
+    """Los comandos de `command` como listas de tokens, cortados en `&&`, `||`,
+    `;` y `|` (separadores pegados incluidos); None si no se puede tokenizar."""
+    try:
+        tokens = _shell_tokens(command)
+    except ValueError:
+        return None
+    segments: list[list[str]] = [[]]
+    for tok in tokens:
+        if tok in _SHELL_SEPARATORS:
+            segments.append([])
+        else:
+            segments[-1].append(tok)
+    return [seg for seg in segments if seg]
+
+
 def git_invocations(command: str) -> list[tuple[str, list[str]]]:
     """Cada invocación de git en `command`: (subcomando, árboles que ESA
     invocación recibió por `-C`/`--work-tree`, en orden).
