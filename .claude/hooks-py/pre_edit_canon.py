@@ -45,9 +45,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
     PROJECT_ROOT,
     canon_index_path,
+    emit_additional_context,
     emit_missing_file_context,
     make_logger,
     read_hook_input,
+    recovered_file_notice,
 )
 
 HOOK_NAME = "pre-edit-canon"
@@ -153,21 +155,14 @@ def extract_diff_tokens(data: dict) -> set[str]:
     return tokenize("\n".join(chunks))
 
 
-def emit_no_context() -> None:
-    """Exit 0 sin inyectar nada."""
-    sys.exit(0)
+def emit_no_context(prefix: tuple[str, ...] = ()) -> None:
+    """Exit 0 sin inyectar nada, salvo `prefix` (p. ej. el aviso RECOVERED)."""
+    emit_additional_context("PreToolUse", "", prefix)
 
 
-def emit_context(additional_context: str) -> None:
-    """Exit 0 con additionalContext en stdout."""
-    output = {
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "additionalContext": additional_context,
-        }
-    }
-    print(json.dumps(output))
-    sys.exit(0)
+def emit_context(additional_context: str, prefix: tuple[str, ...] = ()) -> None:
+    """Exit 0 con additionalContext en stdout (`prefix` primero)."""
+    emit_additional_context("PreToolUse", additional_context, prefix)
 
 
 def load_index(session_id: str = "") -> dict:
@@ -180,7 +175,7 @@ def load_index(session_id: str = "") -> dict:
     path = canon_index_path()
     if not path.exists():
         log(f"canon-index.json no existe en {path} — avisado en el contexto")
-        emit_missing_file_context("canon", "canon-index.json", path, BLIND_PREFIX + "it exists", session_id=session_id)
+        emit_missing_file_context("canon", "canon-index.json", path, BLIND_PREFIX + "it exists", hook_event="PreToolUse", session_id=session_id)
     try:
         with path.open("r", encoding="utf-8") as f:
             index = json.load(f)
@@ -191,6 +186,7 @@ def load_index(session_id: str = "") -> dict:
             "canon-index.json",
             path,
             BLIND_PREFIX + f"it is readable ({type(e).__name__})",
+            hook_event="PreToolUse",
             state="UNREADABLE",
             session_id=session_id,
         )
@@ -204,6 +200,7 @@ def load_index(session_id: str = "") -> dict:
             "canon-index.json",
             path,
             BLIND_PREFIX + f"it is a JSON object with entries ({found} found)",
+            hook_event="PreToolUse",
             state="UNREADABLE",
             session_id=session_id,
         )
@@ -419,11 +416,13 @@ def main() -> None:
         emit_no_context()
 
     index = load_index(session_id)
+    recovered = recovered_file_notice("canon", "canon-index.json", canon_index_path(), session_id)
+    prefix = (recovered,) if recovered else ()
 
     diff_tokens = extract_diff_tokens(data)
     if not diff_tokens:
         log(f"diff has no canon-relevant tokens — skip {file_path}")
-        emit_no_context()
+        emit_no_context(prefix)
 
     matches = find_matches(file_path, index, diff_tokens)
     if not matches:
@@ -432,7 +431,7 @@ def main() -> None:
             f"diff_tokens={len(diff_tokens)}): {file_path}"
         )
         log_miss(file_path, tool_name)
-        emit_no_context()
+        emit_no_context(prefix)
 
     # Per-key dedup: filtra entries que ya fueron inyectadas en esta session.
     injected_already = load_injected_keys(session_id)
@@ -442,7 +441,7 @@ def main() -> None:
         log(
             f"canon HIT but all {len(matches)} matches ya inyectadas en session={session_id[:8]} — skip"
         )
-        emit_no_context()
+        emit_no_context(prefix)
 
     stale = staleness_warning(index)
     new_keys = [m["key"] for m in new_matches[:MAX_ENTRIES_INJECTED] if m.get("key")]
@@ -452,7 +451,7 @@ def main() -> None:
     )
     record_injected(session_id, new_keys)
     record_injected_file(session_id, file_path)
-    emit_context(format_context(new_matches, file_path, stale))
+    emit_context(format_context(new_matches, file_path, stale), prefix)
 
 
 if __name__ == "__main__":

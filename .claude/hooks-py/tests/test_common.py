@@ -1,9 +1,13 @@
-"""Tests de `_common`: resolución de rutas y avisos al contexto.
+"""Tests de `_common`: lo que los hooks comparten.
 
 stdlib solamente (`python3 -m unittest discover -s .claude/hooks-py/tests
--t .claude/hooks-py`): los hooks no tienen runner propio y este contrato —
-dónde vive la memoria y desde qué raíz se deriva, qué branch lee un gate — decidía sin ninguna
-aserción que lo sostuviera.
+-t .claude/hooks-py`): los hooks no tienen runner propio. Contratos cubiertos:
+qué branch lee un gate (`current_branch`) y el repo de cada `git commit`
+(`commit_repos`, `git_invocations`); dónde vive la memoria y desde qué raíz
+se deriva (`memory_dir`, las rutas de los índices); la forma única de la línea
+de hooks.log; el aviso de archivo ausente, su deduplicación por sesión y el
+aviso de recuperación; qué hook es ejecutable y está cableado; y qué ve
+stop.py desde un subdirectorio.
 """
 
 import contextlib
@@ -32,6 +36,8 @@ from _common import (  # noqa: E402
     git_subcommands,
     memory_dir,
     notice_already_sent,
+    notice_seen,
+    recovered_file_notice,
 )
 
 
@@ -44,6 +50,12 @@ def _init(repo: Path, branch: str) -> None:
     # deja la misma rama en cualquier git.
     _git(repo, "init", "-q")
     _git(repo, "symbolic-ref", "HEAD", f"refs/heads/{branch}")
+
+
+def _commit(repo: Path) -> None:
+    # Un commit vacío con identidad fija: `git worktree add` y `checkout --detach`
+    # necesitan al menos uno, y la identidad no debe depender del config global.
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "x")
 
 
 FALLBACK = Path("/session/cwd")
@@ -157,7 +169,7 @@ class MemoryDirTests(unittest.TestCase):
         main_root = tmp / "main"
         main_root.mkdir()
         _init(main_root, "workstream/x")
-        _git(main_root, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "x")
+        _commit(main_root)
         linked = tmp / "linked"
         _git(main_root, "worktree", "add", "-q", str(linked))
         self.addCleanup(_git, main_root, "worktree", "remove", "--force", str(linked))
@@ -170,17 +182,28 @@ class MemoryDirTests(unittest.TestCase):
                 self.assertEqual(memory_dir(), expected)
 
     def test_falls_back_to_project_root_without_git_and_does_not_cache_it(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            fake_root = Path(tmp) / "repo"
-            fake_root.mkdir()
-            with mock.patch.object(_common, "PROJECT_ROOT", fake_root), mock.patch.object(
-                _common, "LOG_PATH", Path(tmp) / "hooks.log"
-            ), mock.patch.object(_common.subprocess, "run", side_effect=OSError("no git")):
-                fallback = Path.home() / ".claude" / "projects" / str(fake_root.resolve()).replace("/", "-") / "memory"
-                self.assertEqual(memory_dir(), fallback)
-                self.assertEqual(memory_dir(), fallback)
-                self.assertIsNone(_common._MEMORY_DIR_CACHE)
-                self.assertEqual((Path(tmp) / "hooks.log").read_text().count("sin caché"), 1)
+        # Las tres fallas que el resolvedor atrapa: sin git, git fuera de un
+        # repo (exit 128) y git colgado; cada una cae al respaldo, no lo
+        # memoriza y lo anota UNA vez.
+        failures = [
+            OSError("no git"),
+            subprocess.CalledProcessError(128, ["git", "rev-parse"]),
+            subprocess.TimeoutExpired(["git", "rev-parse"], 2),
+        ]
+        for failure in failures:
+            with self.subTest(failure=type(failure).__name__), tempfile.TemporaryDirectory() as tmp:
+                _common._MEMORY_DIR_CACHE = None
+                _common._MEMORY_DIR_WARNED = False
+                fake_root = Path(tmp) / "repo"
+                fake_root.mkdir()
+                with mock.patch.object(_common, "PROJECT_ROOT", fake_root), mock.patch.object(
+                    _common, "LOG_PATH", Path(tmp) / "hooks.log"
+                ), mock.patch.object(_common.subprocess, "run", side_effect=failure):
+                    fallback = Path.home() / ".claude" / "projects" / str(fake_root.resolve()).replace("/", "-") / "memory"
+                    self.assertEqual(memory_dir(), fallback)
+                    self.assertEqual(memory_dir(), fallback)
+                    self.assertIsNone(_common._MEMORY_DIR_CACHE)
+                    self.assertEqual((Path(tmp) / "hooks.log").read_text().count(_common.MEMORY_DIR_FALLBACK_NOTE), 1)
 
     def test_fallback_resolves_a_symlinked_project_root(self):
         # Sin git, el nombre sale de la ruta REAL: un PROJECT_ROOT alcanzado por
@@ -201,6 +224,23 @@ class MemoryDirTests(unittest.TestCase):
         with mock.patch.object(_common, "memory_dir", return_value=Path("/m")):
             self.assertEqual(canon_index_path(), Path("/m") / "canon-index.json")
             self.assertEqual(canon_research_index_path(), Path("/m") / "canon_research_index.md")
+
+
+class EmitAdditionalContextTests(unittest.TestCase):
+    def _emit(self, body: str, prefix: tuple[str, ...] = ()) -> str:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as raised:
+            _common.emit_additional_context("PreToolUse", body, prefix)
+        self.assertEqual(raised.exception.code, 0)
+        return out.getvalue()
+
+    def test_nothing_to_say_prints_nothing(self):
+        self.assertEqual(self._emit(""), "")
+
+    def test_prefix_lines_come_first_separated_by_a_blank_line(self):
+        payload = json.loads(self._emit("body", ("[canon] x RECOVERED at /p",)))
+        self.assertEqual(payload["hookSpecificOutput"]["additionalContext"], "[canon] x RECOVERED at /p\n\nbody")
+        self.assertEqual(json.loads(self._emit("", ("only prefix",)))["hookSpecificOutput"]["additionalContext"], "only prefix")
 
 
 class HooksLogTests(unittest.TestCase):
@@ -232,7 +272,7 @@ class CurrentBranchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             _init(repo, "workstream/x")
-            _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "x")
+            _commit(repo)
             _git(repo, "checkout", "-q", "--detach")
             self.assertEqual(current_branch(repo), "")
 
@@ -362,7 +402,7 @@ class MissingFileContextTests(unittest.TestCase):
     def _emit(self, session_id: str) -> str:
         out = io.StringIO()
         with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as raised:
-            emit_missing_file_context("canon", "canon-index.json", Path("/x/canon-index.json"), "blind", session_id=session_id)
+            emit_missing_file_context("canon", "canon-index.json", Path("/x/canon-index.json"), "blind", hook_event="PreToolUse", session_id=session_id)
         self.assertEqual(raised.exception.code, 0)
         return out.getvalue()
 
@@ -382,6 +422,27 @@ class MissingFileContextTests(unittest.TestCase):
     def test_without_session_id_every_notice_is_sent(self):
         self.assertFalse(notice_already_sent("", "k"))
         self.assertFalse(notice_already_sent("", "k"))
+
+    def test_a_tab_inside_an_identifier_cannot_split_the_marker(self):
+        # Sin escape, ("s\t1", "k") y ("s", "1\tk") escribirían el MISMO marcador.
+        self.assertFalse(notice_already_sent("s\t1", "k"))
+        self.assertTrue(notice_already_sent("s\t1", "k"))
+        self.assertTrue(notice_seen("s\t1", "k"))
+        self.assertFalse(notice_seen("s", "1\tk"))
+        self.assertFalse(notice_already_sent("s", "1\tk"))
+        self.assertTrue(notice_already_sent("s", "1\tk"))
+        # Un salto de línea partiría el REGISTRO: también se escapa.
+        self.assertFalse(notice_already_sent("s\n1", "k"))
+        self.assertTrue(notice_already_sent("s\n1", "k"))
+        self.assertEqual(len(_common.NOTICES_LOG.read_text(encoding="utf-8").splitlines()), 1)
+
+    def test_recovery_is_announced_once_after_a_failure_notice_in_the_session(self):
+        path = Path("/x/canon-index.json")
+        self.assertIsNone(recovered_file_notice("canon", "canon-index.json", path, "s1"))
+        self.assertTrue(self._emit("s1"))
+        self.assertEqual(recovered_file_notice("canon", "canon-index.json", path, "s1"), "[canon] canon-index.json RECOVERED at /x/canon-index.json")
+        self.assertIsNone(recovered_file_notice("canon", "canon-index.json", path, "s1"))
+        self.assertIsNone(recovered_file_notice("canon", "canon-index.json", path, "s2"))
 
     def test_other_sessions_are_pruned_when_a_new_session_records(self):
         self.assertTrue(self._emit("s1"))
