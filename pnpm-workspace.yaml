@@ -100,7 +100,7 @@ catalog:
   "@types/node": 24.13.6 # DELIBERATELY NOT latest stable, and not latest mature either: the runtime major is 24 (the Krypton LTS line — .nvmrc, setup-node and both Dockerfiles), and types ahead of the runtime describe APIs it does not have. 24.13.6 is the latest MATURE 24.x measured 2026-09-28T02:42:36Z (published 2026-09-19, 9.1 d; 24.19.0 is 2.2 d and immature). Was 25.9.3 — a major ABOVE the runtime on an odd, non-LTS line. The major is now gated by scripts/testing/engines-node-gate.mjs against engines.node; holds row in SECURITY_CANON
   jsdom: 29.1.1 # NOT latest stable (corrected 2026-09-27): latest mature is 30.1.0, HELD by three crossings — engines.node ^24.15.0, undici ^8 leaving its CVE band, and the BLANKET tough-cookie 4.1.3 override. See SECURITY_CANON §"Build-tool version holds"
   msw: 2.14.6 # NOT latest stable (corrected 2026-09-27): latest mature is 2.15.0 (81.7 d), no blocker measured — scheduled bump, holds row in SECURITY_CANON
-  next: 16.3.3 # CVE floor raised 2026-09-09: 2 CRITICAL — GHSA-p293-qw3h-jr36 (unauth RCE on Windows-hosted servers) + GHSA-2xp9-vwfh-vxw4 (unauth RCE in the Image Optimization API on AVIF), both >=16.0.0 <16.3.3; was 16.2.11 (GHSA-6gpp-xcg3-4w24 middleware bypass + App Router DoS + Server Actions SSRF)
+  next: 16.3.8 # CVE floor raised 2026-09-30 to the MINIMAL version that patches the WHOLE advisory set, which is NOT the one `pnpm audit` can see: the DB knows only GHSA-vcvr-r3jv-pc5j (CRITICAL, RCE in next/og ImageResponse, >=16.2.0 <16.3.6, first_patched 16.3.6), but the 16.3.8 release notes name SEVEN more — GHSA-cjq9-62q9-8jv4 (HIGH, SSRF in Image Optimization, REACHABLE: optimization is on by default) + 5 medium + 1 low, all published 2026-09-30T16:14Z as vercel/next.js repository advisories and not yet globalized to OSV. Pinning 16.3.6 would make the audit go GREEN over a version with a reachable HIGH still open — the exact webpack-dev-middleware defect of 2026-09-30, and what the canon's cross-derive-from-the-changelog rule exists to stop. Deviates from the 7-day maturity buffer (16.3.8 is 9.6 h old when committed — published 2026-09-30T16:07Z) DELIBERATELY and measured: both portal production builds and both portal suites are green on it. Was 16.3.3 (GHSA-p293-qw3h-jr36 + GHSA-2xp9-vwfh-vxw4, 2026-09-09); before that 16.2.11
   next-intl: 4.13.0 # latest stable; was 4.9.2
   postcss: 8.5.24 # latest stable within the 7-day maturity buffer (2026-08-05; 8.5.25 is younger), >= the 8.5.23 CVE floor (GHSA-fxqj-rqcc-2cmp); was 8.5.21
   zustand: 5.0.14 # latest stable (taze -l --maturity-period 7); was 5.0.12
@@ -124,13 +124,13 @@ catalog:
   # Re-implementing `(addr, hop) => hop < N` as a TrustProxyFunction was rejected outright:
   # it would type-check, keep tests green, and restore the exact vulnerability the advisory
   # patched (Security canon: NO exception). See SECURITY_CANON.md §"Rate Limiting".
-  fastify: 5.12.1 # paired with the find-my-way override — fastify declares find-my-way ^9.0.0, so bumping fastify alone leaves the vulnerable router
+  fastify: 5.12.5 # CVE floor raised 2026-10-01: five advisories published 2026-09-30T23:44-23:53Z — GHSA-667r-xxjv-c9mm, GHSA-p68q-wchp-6fh7 (auth bypass via malformed URLs), GHSA-hwr6-493r-vm6h, GHSA-9q9j-q6p8-xq58 (all high, fixed 5.12.2) and GHSA-4mh8-r7rc-xpvc (moderate, fixed 5.12.5); OSV and the 5.12.2/5.12.5 release notes agree, so 5.12.5 is the minimal version closing the set and also the latest (14.8 d mature). Still paired with the find-my-way override: 5.12.5 declares find-my-way ^9.6.0, which still admits the vulnerable 9.6.0, so the override stays
   pino: 10.3.1
   zod: 4.4.3 # reconcile UP to apps' 4.4.3 (override 4.3.6 is stale)
   "@anthropic-ai/sdk": 0.104.1 # latest stable (taze -l --maturity-period 7); was 0.91.1
   cloudinary: 2.10.0 # latest stable; was 2.7.0
   handlebars: 4.7.9 # override forces newer than manifest 4.7.8
-  axios: 1.18.0 # CVE floor (MAX over tiktok 1.7.7; 1.18.0 closes GHSA-42h9-826w-cgv3 + GHSA-xj6q-8x83-jv6g + GHSA-pmv8-rq9r-6j72)
+  axios: 1.20.0 # CVE floor raised 2026-09-30: TWELVE advisories landed in 34 minutes (GHSA-542g-h47m-68v8, -3pq3-5fj3-cg6v, -x97p-jq2g-jp4f, -mghh-pgcx-3jjj, -c29m-xwm3-cm6r, -9fr6-4gfg-395g, -vh66-26gq-q6x8, -r4gj-5m52-g5wh, -44g4-m2mj-wpvx, -m8m8-qj5v-23w3, -4hqw-qxg8-jxx2, -j8rh-479h-cp32 — 7 high / 5 moderate), every one first_patched at 1.20.0, so 1.20.0 is the minimal patched version for the whole set even though it is also the latest. Was 1.18.0 (GHSA-42h9-826w-cgv3 + GHSA-xj6q-8x83-jv6g + GHSA-pmv8-rq9r-6j72; MAX over tiktok 1.7.7)
   form-data: 4.0.6 # CVE floor (MAX over tiktok 4.0.0)
   validator: 13.15.35 # latest stable (taze -l --maturity-period 7), >= CVE floor; was 13.15.22
   uuid: 14.0.0 # latest stable; was 13.0.1 (MAJOR 13->14)
@@ -320,7 +320,7 @@ overrides:
   "@tootallnate/once": 3.0.1
   bn.js: 5.2.3
   defu: 6.1.7
-  dompurify: 3.4.13
+  dompurify: 3.4.16 # raised 2026-10-01 for GHSA-p98j-92pf-mc4p (low, OSV introduced 3.4.13 fixed 3.4.16); monaco-editor pins 3.2.7 exactly, so the floor stays an override
   fast-xml-builder: 1.2.0
   fast-xml-parser: 5.8.0
   flatted: 3.4.2
