@@ -37,6 +37,7 @@ from _common import (  # noqa: E402
     current_branch,
     make_logger,
     read_hook_input,
+    repository_of,
 )
 
 HOOK_NAME = "pre-edit-planmode-guard"
@@ -110,6 +111,12 @@ def has_recent_plan_activity(transcript_path: str | None) -> bool:
     return False
 
 
+def edited_repository(file_path: str) -> Path:
+    """El repositorio del ARCHIVO editado, no el del proceso: un Edit sobre un
+    worktree enlazado se juzga por la branch de ese worktree."""
+    return repository_of(Path(file_path).resolve()) or PROJECT_ROOT
+
+
 def log_block(file_path: str, branch: str, suffix: str = "") -> None:
     try:
         PLAN_BLOCKS_LOG.parent.mkdir(parents=True, exist_ok=True)
@@ -135,7 +142,7 @@ def main() -> None:
         log(f"SKIP: documentation file ({file_path})")
         sys.exit(0)
 
-    branch = current_branch()
+    branch = current_branch(edited_repository(file_path))
     if not WORKSTREAM_BRANCH_RE.match(branch):
         log(f"SKIP: branch '{branch}' is not workstream/*")
         sys.exit(0)

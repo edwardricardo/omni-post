@@ -268,6 +268,15 @@ def shell_segments(command: str) -> list[list[str]] | None:
     return [seg for seg in segments if seg]
 
 
+def repository_of(path: Path) -> Path | None:
+    """La raíz del repositorio que contiene `path` (el primer padre con `.git`),
+    o None fuera de todo repositorio."""
+    for candidate in (path, *path.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return None
+
+
 def git_invocations(command: str) -> list[tuple[str, list[str]]]:
     """Cada invocación de git en `command`: (subcomando, árboles que ESA
     invocación recibió por `-C`/`--work-tree`, en orden).

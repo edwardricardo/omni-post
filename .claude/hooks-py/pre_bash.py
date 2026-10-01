@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Pre-bash hook — bloquea comandos prohibidos antes de ejecutarse."""
 
+import os
 import re
-import subprocess
+import socket
 import sys
 from pathlib import Path
 
@@ -220,10 +221,12 @@ def gate_git_push_requires_token(command: str) -> None:
     block(messages[status])
 
 
-def gate_no_npm_or_yarn(command: str) -> None:
+def gate_no_npm_yarn_or_npx(command: str) -> None:
     pattern = r"(^|\s)(npm|yarn)\s+(install|i|add|ci|run|exec|update|upgrade)"
     if re.search(pattern, command):
         block("Convención OmniPost: usar pnpm, nunca npm/yarn. Reescribí el comando con 'pnpm'.")
+    if re.search(r"(^|\s)npx\s+\S", command):
+        block("Convención OmniPost: usar `pnpm dlx` / `pnpm exec`, nunca npx. Reescribí el comando.")
 
 
 def gate_no_co_authored_in_commit(command: str) -> None:
@@ -256,26 +259,50 @@ def gate_commit_only_in_allowed_branch(command: str, session_cwd: Path) -> None:
             )
 
 
+_DATABASE_URL_RE = re.compile(r"^\s*(?:export\s+)?DATABASE_URL=['\"]?postgres(?:ql)?://[^@\s]+@([^:/?\s'\"]+)(?::(\d+))?")
+
+
+def database_target() -> tuple[str, int] | None:
+    """(host, puerto) de DATABASE_URL — del entorno o del `.env` de la raíz — o
+    None si no hay ninguna que leer."""
+    lines = []
+    if os.environ.get("DATABASE_URL"):
+        lines.append(f"DATABASE_URL={os.environ['DATABASE_URL']}")
+    try:
+        lines.extend((PROJECT_ROOT / ".env").read_text(encoding="utf-8").splitlines())
+    except OSError:
+        pass
+    for line in lines:
+        match = _DATABASE_URL_RE.match(line)
+        if match:
+            return match.group(1), int(match.group(2) or 5432)
+    return None
+
+
+def postgres_reachable(host: str, port: int, timeout: float = 2.0) -> bool:
+    """True si algo acepta TCP en host:puerto (la DB vive en otro LXC: `docker ps`
+    acá nunca la vio y el gate anterior no medía nada)."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
 def gate_db_migrations_require_running_db(command: str) -> None:
-    """Bloquea pnpm db:migrate / prisma migrate si Postgres no está arriba."""
+    """Bloquea las migraciones de Prisma si Postgres no responde donde
+    DATABASE_URL dice que está."""
     if not PNPM_MIGRATE_RE.search(command):
         return
-    try:
-        result = subprocess.run(
-            ["docker", "ps", "--filter", "name=postgres", "--filter", "status=running", "--quiet"],
-            capture_output=True,
-            text=True,
-            timeout=2,
-            check=False,
-        )
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        # Docker no disponible o lento — no bloqueamos preventivamente.
-        log("docker check skipped (timeout or not found)")
+    target = database_target()
+    if target is None:
+        log("migrate gate: no DATABASE_URL to probe — not blocking")
         return
-    if not result.stdout.strip():
+    host, port = target
+    if not postgres_reachable(host, port):
         block(
-            "Postgres no está corriendo. Levantá DB con `pnpm db:up` antes de migrar. "
-            "(Detectado vía `docker ps --filter name=postgres --filter status=running`)"
+            f"Postgres no responde en {host}:{port} (DATABASE_URL). Levantá la DB "
+            f"(`pnpm db:up`) antes de migrar."
         )
 
 
@@ -319,7 +346,7 @@ def main() -> None:
 
     gate_git_push_requires_token(command)
     gate_sensitive_path_writes_require_token(command)
-    gate_no_npm_or_yarn(command)
+    gate_no_npm_yarn_or_npx(command)
     gate_no_co_authored_in_commit(command)
     gate_commit_only_in_allowed_branch(command, Path(data.get("cwd") or PROJECT_ROOT))
     gate_db_migrations_require_running_db(command)
