@@ -25,8 +25,11 @@ from _common import (  # noqa: E402
     PROJECT_ROOT,
     canon_index_path,
     canon_research_index_path,
+    commit_repos,
     current_branch,
     emit_missing_file_context,
+    git_invocations,
+    git_subcommands,
     memory_dir,
     notice_already_sent,
 )
@@ -41,6 +44,98 @@ def _init(repo: Path, branch: str) -> None:
     # deja la misma rama en cualquier git.
     _git(repo, "init", "-q")
     _git(repo, "symbolic-ref", "HEAD", f"refs/heads/{branch}")
+
+
+FALLBACK = Path("/session/cwd")
+
+
+class CommitReposTests(unittest.TestCase):
+    def test_leading_cd_with_and(self):
+        self.assertEqual(commit_repos("cd /wt && git commit -m x", FALLBACK), [Path("/wt")])
+
+    def test_leading_cd_with_newline(self):
+        self.assertEqual(commit_repos("cd /wt\ngit commit -m x", FALLBACK), [Path("/wt")])
+
+    def test_leading_cd_with_semicolon(self):
+        self.assertEqual(commit_repos("cd /wt; git commit -m x", FALLBACK), [Path("/wt")])
+
+    def test_quoted_path_with_spaces(self):
+        self.assertEqual(commit_repos('cd "/w t" && git commit', FALLBACK), [Path("/w t")])
+
+    def test_relative_cd_resolves_against_fallback(self):
+        self.assertEqual(commit_repos("cd apps/api && git commit", FALLBACK), [FALLBACK / "apps/api"])
+
+    def test_git_dash_c_resolves_against_cd_base(self):
+        self.assertEqual(commit_repos("cd /wt && git -C sub commit", FALLBACK), [Path("/wt/sub")])
+
+    def test_git_work_tree_resolves_like_dash_c(self):
+        self.assertEqual(commit_repos("git --work-tree /wt commit", FALLBACK), [Path("/wt")])
+
+    def test_repeated_dash_c_compose_in_order(self):
+        self.assertEqual(commit_repos("git -C /a -C b commit", FALLBACK), [Path("/a/b")])
+
+    def test_no_cd_no_dash_c_returns_fallback(self):
+        self.assertEqual(commit_repos("git commit -m x", FALLBACK), [FALLBACK])
+
+    def test_cd_not_at_start_is_ignored(self):
+        self.assertEqual(commit_repos("echo hi && cd /wt && git commit", FALLBACK), [FALLBACK])
+
+    def test_dash_c_of_another_invocation_does_not_move_the_commit(self):
+        # Un `git -C /otro status` antes de un `git commit` sin -C commitea en el
+        # cwd de la sesión; leer /otro era un fail-open.
+        self.assertEqual(commit_repos("git -C /other status && git commit -m x", FALLBACK), [FALLBACK])
+
+    def test_each_commit_has_its_own_repo(self):
+        self.assertEqual(commit_repos("git -C /x commit -m a && git commit -m b", FALLBACK), [Path("/x"), FALLBACK])
+
+    def test_dash_c_inside_a_quoted_argument_is_text(self):
+        self.assertEqual(commit_repos('git log --grep="git -C /tmp" && git commit', FALLBACK), [FALLBACK])
+
+    def test_no_commit_means_no_repo_to_check(self):
+        self.assertEqual(commit_repos("git -C /x status", FALLBACK), [])
+
+    def test_untokenizable_command_falls_back_to_the_base(self):
+        self.assertEqual(commit_repos("cd /wt && git commit -m 'unclosed", FALLBACK), [Path("/wt")])
+
+
+class GitSubcommandsTests(unittest.TestCase):
+    def test_plain_commit(self):
+        self.assertIn("commit", git_subcommands("git commit -m x"))
+
+    def test_dash_c_path_before_subcommand(self):
+        self.assertIn("commit", git_subcommands("git -C /wt commit -m x"))
+
+    def test_work_tree_value_before_subcommand(self):
+        self.assertIn("commit", git_subcommands("git --work-tree /wt commit -m x"))
+
+    def test_config_with_quoted_value(self):
+        self.assertIn("commit", git_subcommands('git -c "user.name=Foo Bar" commit -m x'))
+
+    def test_log_grep_commit_is_not_a_commit(self):
+        self.assertEqual(git_subcommands("git log --grep commit"), {"log"})
+
+    def test_git_inside_a_string_does_not_count(self):
+        self.assertEqual(git_subcommands('echo "git commit"'), set())
+
+    def test_several_invocations(self):
+        self.assertEqual(git_subcommands("cd /wt && git fetch && git commit -m x"), {"fetch", "commit"})
+
+    def test_glued_separator_does_not_hide_the_subcommand(self):
+        self.assertEqual(git_subcommands("git commit&&git fetch"), {"commit", "fetch"})
+        self.assertEqual(git_subcommands("git commit -m x;git fetch"), {"commit", "fetch"})
+
+    def test_separator_inside_a_quoted_value_is_still_a_value(self):
+        self.assertEqual(git_subcommands('git -c "k=a;b" commit'), {"commit"})
+        self.assertEqual(git_subcommands('git commit -m "a && b"'), {"commit"})
+
+    def test_invocations_carry_their_own_trees(self):
+        self.assertEqual(git_invocations("git -C /a status && git --work-tree /b commit"), [("status", ["/a"]), ("commit", ["/b"])])
+
+    def test_unparseable_falls_back_to_conservative_match_and_leaves_a_trace(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(_common, "LOG_PATH", Path(tmp) / "hooks.log"):
+            self.assertEqual(git_subcommands("git commit -m 'unclosed"), {"commit"})
+            self.assertEqual(git_subcommands("echo 'unclosed"), set())
+            self.assertEqual((Path(tmp) / "hooks.log").read_text(encoding="utf-8").count("respaldo solo-commit"), 2)
 
 
 class MemoryDirTests(unittest.TestCase):
@@ -229,10 +324,22 @@ class DetachedHeadDownstreamTests(unittest.TestCase):
                 mock.patch.object(pre_bash, "current_branch", return_value=""), \
                 contextlib.redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit) as blocked:
-                pre_bash.gate_commit_only_in_allowed_branch("git commit -m x")
+                pre_bash.gate_commit_only_in_allowed_branch("git commit -m x", Path("/session"))
             self.assertEqual(blocked.exception.code, 2)
             with mock.patch.object(pre_bash, "current_branch", return_value="workstream/x"):
-                pre_bash.gate_commit_only_in_allowed_branch("git commit -m x")
+                pre_bash.gate_commit_only_in_allowed_branch("git commit -m x", Path("/session"))
+
+    def test_each_distinct_repo_is_probed_once(self):
+        import pre_bash
+
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(_common, "LOG_PATH", Path(tmp) / "hooks.log"), \
+                mock.patch.object(pre_bash, "current_branch", return_value="workstream/x") as probe:
+            pre_bash.gate_commit_only_in_allowed_branch("git commit -m a && git commit -m b", Path("/session"))
+            self.assertEqual(probe.call_count, 1)
+            pre_bash.gate_commit_only_in_allowed_branch("git -C /x commit -m a && git commit -m b", Path("/session"))
+            self.assertEqual(probe.call_count, 3)
+            self.assertIn("commit gate: /session -> branch 'workstream/x'", (Path(tmp) / "hooks.log").read_text(encoding="utf-8"))
 
     def test_planmode_guard_treats_detached_head_as_not_a_workstream_branch(self):
         import pre_edit_planmode_guard as guard

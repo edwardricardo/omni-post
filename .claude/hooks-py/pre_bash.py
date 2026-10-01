@@ -11,8 +11,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
     GIT_PUSH_RE,
+    PROJECT_ROOT,
     check_grant_token,
+    commit_repos,
     current_branch,
+    git_subcommands,
     make_logger,
     read_hook_input,
 )
@@ -168,21 +171,33 @@ def gate_no_npm_or_yarn(command: str) -> None:
 
 
 def gate_no_co_authored_in_commit(command: str) -> None:
-    if not re.search(r"git\s+commit", command):
+    if "commit" not in git_subcommands(command):
         return
     if re.search(r"co-authored-by:\s*claude", command, re.IGNORECASE):
         block("Trailer 'Co-Authored-By: Claude' prohibido. Removelo y reintentá.")
 
 
-def gate_commit_only_in_allowed_branch(command: str) -> None:
-    if not re.search(r"git\s+commit", command):
-        return
-    branch = current_branch()
-    if not branch.startswith(ALLOWED_BRANCH_PREFIX):
-        block(
-            f"Branch actual '{branch}' no acepta commits. "
-            f"Solo {ALLOWED_BRANCH_PREFIX}*."
-        )
+def gate_commit_only_in_allowed_branch(command: str, session_cwd: Path) -> None:
+    """Bloquea `git commit` fuera de una branch `workstream/*`.
+
+    La branch se lee en el repo AL QUE APUNTA cada commit (`cd <ruta> &&`, o
+    el `-C`/`--work-tree` de ESA invocación; si no, el `cwd` de la sesión) —
+    no en el cwd del proceso del hook, que es lo que leía antes y por eso
+    nunca vio la branch de un `cd <worktree> && git commit`.
+
+    `session_cwd` es el `cwd` del input del hook: el directorio donde la
+    herramienta Bash ejecuta el comando, y contra el que un `cd` relativo se
+    resuelve. Cada repo distinto se sondea UNA vez y la sonda queda en
+    hooks.log, así una divergencia entre ese cwd y el real se ve.
+    """
+    for repo in dict.fromkeys(commit_repos(command, session_cwd)):
+        branch = current_branch(repo)
+        log(f"commit gate: {repo} -> branch '{branch}'")
+        if not branch.startswith(ALLOWED_BRANCH_PREFIX):
+            block(
+                f"Branch '{branch}' en {repo} no acepta commits. "
+                f"Solo {ALLOWED_BRANCH_PREFIX}*."
+            )
 
 
 def gate_db_migrations_require_running_db(command: str) -> None:
@@ -250,7 +265,7 @@ def main() -> None:
     gate_sensitive_path_writes_require_token(command)
     gate_no_npm_or_yarn(command)
     gate_no_co_authored_in_commit(command)
-    gate_commit_only_in_allowed_branch(command)
+    gate_commit_only_in_allowed_branch(command, Path(data.get("cwd") or PROJECT_ROOT))
     gate_db_migrations_require_running_db(command)
     gate_no_patches_in_ts_writes(command)
 

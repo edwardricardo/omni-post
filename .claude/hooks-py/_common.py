@@ -20,6 +20,7 @@ Uso típico desde un hook:
 import fcntl
 import json
 import re
+import shlex
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -211,6 +212,124 @@ def current_branch(repo: Path | None = None) -> str:
         return result.stdout.strip()
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
         return ""
+
+
+# `cd <ruta> &&`, `cd <ruta>;` o `cd <ruta>` + salto de línea al INICIO del
+# comando. La ruta puede venir entre comillas simples o dobles. El salto de
+# línea cuenta: medido, `cd X\ngit commit` sin él resolvía al cwd de la sesión
+# y el gate validaba otro repo. Límites deliberados (solo el PRIMER cd, solo
+# si abre el comando, sin `cd -` ni variables): ver el docstring de commit_repos.
+_CD_PREFIX_RE = re.compile(r"""^\s*cd\s+("[^"]+"|'[^']+'|[^\s;&|]+)[ \t]*(?:&&|;|\n)""")
+# Opciones globales de git cuyo valor viaja en el token SIGUIENTE. Las de la
+# forma `--opcion=valor` y los flags sin valor se saltan solos.
+_GIT_VALUE_OPTIONS = frozenset(
+    {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path",
+     "--super-prefix", "--config-env", "--list-cmds", "--attr-source"}
+)
+# Las que mueven el árbol sobre el que actúa ESA invocación de git
+# (`git -C a -C b commit` es `cd a; cd b; git commit`).
+_GIT_TREE_OPTIONS = frozenset({"-C", "--work-tree"})
+_SHELL_SEPARATORS = frozenset({"&&", "||", ";", "|"})
+# Respaldo cuando shlex no puede tokenizar (comilla sin cerrar): la forma
+# conservadora `git … commit` dentro de un mismo segmento de shell. Solo
+# `commit` es recuperable así; un gate sobre otro subcomando no puede
+# apoyarse en el respaldo.
+_GIT_COMMIT_FALLBACK_RE = re.compile(r"\bgit\b[^|;&\n]*\bcommit\b")
+
+
+def _unquote(token: str) -> str:
+    if len(token) >= 2 and token[0] == token[-1] and token[0] in "\"'":
+        return token[1:-1]
+    return token
+
+
+def _shell_tokens(command: str) -> list[str]:
+    """Tokens de shell con `&&`, `||`, `;` y `|` como tokens PROPIOS aunque vayan
+    pegados (`git commit&&…`); dentro de comillas siguen siendo texto. Lanza
+    ValueError con una comilla sin cerrar, como shlex.split."""
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+    lexer.whitespace_split = True
+    return list(lexer)
+
+
+def git_invocations(command: str) -> list[tuple[str, list[str]]]:
+    """Cada invocación de git en `command`: (subcomando, árboles que ESA
+    invocación recibió por `-C`/`--work-tree`, en orden).
+
+    Tokeniza con shlex en vez de una regex de opciones: `git --work-tree /p
+    commit` y `git -c "user.name=Foo Bar" commit` llevan el subcomando detrás
+    de un valor que ninguna regex absorbía, y ese hueco saltaba el gate de
+    branch y el de Co-Authored-By a la vez. Una cadena entre comillas es UN
+    token: un `git commit` o un `git -C` dentro de ella no cuenta. Un
+    separador pegado (`commit&&`) es un token aparte y no esconde el
+    subcomando. Si shlex no puede tokenizar, cae a la regex conservadora:
+    [("commit", [])] o nada.
+    """
+    try:
+        tokens = _shell_tokens(command)
+    except ValueError as e:
+        _append_log(f"git_invocations: comando no tokenizable ({e}); respaldo solo-commit")
+        return [("commit", [])] if _GIT_COMMIT_FALLBACK_RE.search(command) else []
+    found: list[tuple[str, list[str]]] = []
+    i = 0
+    while i < len(tokens):
+        if tokens[i] != "git" and not tokens[i].endswith("/git"):
+            i += 1
+            continue
+        trees: list[str] = []
+        j = i + 1
+        while j < len(tokens):
+            tok = tokens[j]
+            if tok in _GIT_TREE_OPTIONS and j + 1 < len(tokens):
+                trees.append(tokens[j + 1])
+                j += 2
+                continue
+            if tok in _GIT_VALUE_OPTIONS:
+                j += 2
+                continue
+            if tok.startswith("-"):
+                j += 1
+                continue
+            if tok in _SHELL_SEPARATORS:
+                break
+            found.append((tok, trees))
+            break
+        i = max(j, i + 1)
+    return found
+
+
+def git_subcommands(command: str) -> set[str]:
+    """Subcomandos de git invocados en `command` (`commit`, `fetch`, …); ver git_invocations."""
+    return {subcommand for subcommand, _ in git_invocations(command)}
+
+
+def commit_repos(command: str, fallback: Path) -> list[Path]:
+    """Directorio sobre el que actúa CADA `git commit` de `command`.
+
+    Un `cd <ruta>` inicial — con `&&`, `;` o salto de línea — cambia la base
+    para todo el comando; los `-C`/`--work-tree` de ESA invocación se resuelven
+    contra la base, en orden, como lo haría la shell. Los de OTRA invocación
+    no cuentan: `git -C /otro status && git commit` commitea en `fallback`, el
+    `cwd` que Claude Code pasa en el input del hook.
+
+    Límites, dichos en voz alta: solo el PRIMER `cd`, y solo si abre el
+    comando; `cd -`, variables o subshells no se expanden. Una ruta mal
+    resuelta apunta a un directorio sin repo, y `current_branch` devuelve ''
+    — falla cerrado, no abierto.
+    """
+    base = fallback
+    cd_match = _CD_PREFIX_RE.match(command)
+    if cd_match:
+        base = fallback / Path(_unquote(cd_match.group(1))).expanduser()
+    repos: list[Path] = []
+    for subcommand, trees in git_invocations(command):
+        if subcommand != "commit":
+            continue
+        repo = base
+        for tree in trees:
+            repo = repo / Path(tree).expanduser()
+        repos.append(repo)
+    return repos
 
 
 NOTICES_LOG = PROJECT_ROOT / ".claude" / "context-notices.log"
