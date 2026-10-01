@@ -95,12 +95,12 @@ catalog:
 
   # ── Build/test toolchain ──
   vitest: 4.1.11 # CVE floor raised 2026-09-09: GHSA-82fw-gwwq-j7x9 (moderate, @vitest/mocker redirect-mock path traversal), vulnerable >=2.1.0 <4.1.11. vitest 4.1.11 pins @vitest/mocker EXACTLY at 4.1.11, so the transitive needs no override of its own. Peer-locked to @vitest/* 4.1.11 (was 4.1.10)
-  typescript: 6.0.3 # NOT latest stable (the previous comment said so and was false, corrected 2026-09-27): latest mature is 7.0.2. 6.0.3 is the v6 ceiling, HELD — @typescript-eslint 8.70.0 peers typescript ">=4.8.4 <6.1.0". See SECURITY_CANON §"Build-tool version holds"
+  typescript: 6.0.3 # NOT latest stable (the previous comment said so and was false, corrected 2026-09-27): latest mature is 7.0.2. 6.0.3 is the v6 ceiling, HELD — @typescript-eslint 8.70.1 peers typescript ">=4.8.4 <6.1.0" (the range is unchanged from 8.70.0; only the version naming it moved, 2026-09-30). See SECURITY_CANON §"Build-tool version holds"
   tsx: 4.22.4 # MAX of declared 4.21.0 / 4.22.4 (root). Lags: latest mature is 4.23.15 (matured 2026-09-20T07:22Z); scheduled bump, holds row in SECURITY_CANON
   "@types/node": 24.13.6 # DELIBERATELY NOT latest stable, and not latest mature either: the runtime major is 24 (the Krypton LTS line — .nvmrc, setup-node and both Dockerfiles), and types ahead of the runtime describe APIs it does not have. 24.13.6 is the latest MATURE 24.x measured 2026-09-28T02:42:36Z (published 2026-09-19, 9.1 d; 24.19.0 is 2.2 d and immature). Was 25.9.3 — a major ABOVE the runtime on an odd, non-LTS line. The major is now gated by scripts/testing/engines-node-gate.mjs against engines.node; holds row in SECURITY_CANON
   jsdom: 29.1.1 # NOT latest stable (corrected 2026-09-27): latest mature is 30.1.0, HELD by three crossings — engines.node ^24.15.0, undici ^8 leaving its CVE band, and the BLANKET tough-cookie 4.1.3 override. See SECURITY_CANON §"Build-tool version holds"
   msw: 2.14.6 # NOT latest stable (corrected 2026-09-27): latest mature is 2.15.0 (81.7 d), no blocker measured — scheduled bump, holds row in SECURITY_CANON
-  next: 16.3.3 # CVE floor raised 2026-09-09: 2 CRITICAL — GHSA-p293-qw3h-jr36 (unauth RCE on Windows-hosted servers) + GHSA-2xp9-vwfh-vxw4 (unauth RCE in the Image Optimization API on AVIF), both >=16.0.0 <16.3.3; was 16.2.11 (GHSA-6gpp-xcg3-4w24 middleware bypass + App Router DoS + Server Actions SSRF)
+  next: 16.3.8 # CVE floor raised 2026-09-30 to the MINIMAL version that patches the WHOLE advisory set, which is NOT the one `pnpm audit` can see: the DB knows only GHSA-vcvr-r3jv-pc5j (CRITICAL, RCE in next/og ImageResponse, >=16.2.0 <16.3.6, first_patched 16.3.6), but the 16.3.8 release notes name SEVEN more — GHSA-cjq9-62q9-8jv4 (HIGH, SSRF in Image Optimization, REACHABLE: optimization is on by default) + 5 medium + 1 low, all published 2026-09-30T16:14Z as vercel/next.js repository advisories and not yet globalized to OSV. Pinning 16.3.6 would make the audit go GREEN over a version with a reachable HIGH still open — the exact webpack-dev-middleware defect of 2026-09-30, and what the canon's cross-derive-from-the-changelog rule exists to stop. Deviates from the 7-day maturity buffer (16.3.8 is 9.6 h old when committed — published 2026-09-30T16:07Z) DELIBERATELY and measured: both portal production builds and both portal suites are green on it. Was 16.3.3 (GHSA-p293-qw3h-jr36 + GHSA-2xp9-vwfh-vxw4, 2026-09-09); before that 16.2.11
   next-intl: 4.13.0 # latest stable; was 4.9.2
   postcss: 8.5.24 # latest stable within the 7-day maturity buffer (2026-08-05; 8.5.25 is younger), >= the 8.5.23 CVE floor (GHSA-fxqj-rqcc-2cmp); was 8.5.21
   zustand: 5.0.14 # latest stable (taze -l --maturity-period 7); was 5.0.12
@@ -124,13 +124,13 @@ catalog:
   # Re-implementing `(addr, hop) => hop < N` as a TrustProxyFunction was rejected outright:
   # it would type-check, keep tests green, and restore the exact vulnerability the advisory
   # patched (Security canon: NO exception). See SECURITY_CANON.md §"Rate Limiting".
-  fastify: 5.12.1 # paired with the find-my-way override — fastify declares find-my-way ^9.0.0, so bumping fastify alone leaves the vulnerable router
+  fastify: 5.12.5 # CVE floor raised 2026-10-01: five advisories published 2026-09-30T23:44-23:53Z — GHSA-667r-xxjv-c9mm, GHSA-p68q-wchp-6fh7 (auth bypass via malformed URLs), GHSA-hwr6-493r-vm6h, GHSA-9q9j-q6p8-xq58 (all high, fixed 5.12.2) and GHSA-4mh8-r7rc-xpvc (moderate, fixed 5.12.5); OSV and the 5.12.2/5.12.5 release notes agree, so 5.12.5 is the minimal version closing the set and also the latest (14.8 d mature). Still paired with the find-my-way override: 5.12.5 declares find-my-way ^9.6.0, which still admits the vulnerable 9.6.0, so the override stays
   pino: 10.3.1
   zod: 4.4.3 # reconcile UP to apps' 4.4.3 (override 4.3.6 is stale)
   "@anthropic-ai/sdk": 0.104.1 # latest stable (taze -l --maturity-period 7); was 0.91.1
   cloudinary: 2.10.0 # latest stable; was 2.7.0
   handlebars: 4.7.9 # override forces newer than manifest 4.7.8
-  axios: 1.18.0 # CVE floor (MAX over tiktok 1.7.7; 1.18.0 closes GHSA-42h9-826w-cgv3 + GHSA-xj6q-8x83-jv6g + GHSA-pmv8-rq9r-6j72)
+  axios: 1.20.0 # CVE floor raised 2026-09-30: TWELVE advisories landed in 34 minutes (GHSA-542g-h47m-68v8, -3pq3-5fj3-cg6v, -x97p-jq2g-jp4f, -mghh-pgcx-3jjj, -c29m-xwm3-cm6r, -9fr6-4gfg-395g, -vh66-26gq-q6x8, -r4gj-5m52-g5wh, -44g4-m2mj-wpvx, -m8m8-qj5v-23w3, -4hqw-qxg8-jxx2, -j8rh-479h-cp32 — 7 high / 5 moderate), every one first_patched at 1.20.0, so 1.20.0 is the minimal patched version for the whole set even though it is also the latest. Was 1.18.0 (GHSA-42h9-826w-cgv3 + GHSA-xj6q-8x83-jv6g + GHSA-pmv8-rq9r-6j72; MAX over tiktok 1.7.7)
   form-data: 4.0.6 # CVE floor (MAX over tiktok 4.0.0)
   validator: 13.15.35 # latest stable (taze -l --maturity-period 7), >= CVE floor; was 13.15.22
   uuid: 14.0.0 # latest stable; was 13.0.1 (MAJOR 13->14)
@@ -226,18 +226,74 @@ overrides:
   "@opentelemetry/sdk-node": "catalog:otel"
   "@opentelemetry/propagator-jaeger@<2.9.0": 2.9.0
   "deepmerge-ts@<8.0.0": 8.0.0
-  "brace-expansion@<1.1.18": 1.1.18
-  "brace-expansion@>=2.0.0 <2.1.4": 2.1.4
-  "brace-expansion@>=3.0.0 <5.0.9": 5.0.9
-  # Raised 2026-09-04 for GHSA-5jgf-p345-68v8 / GHSA-f65p-4m7j-42xc /
-  # GHSA-fph4-wmhf-6fwf / GHSA-jqff-g426-hqxp (4 high, host confusion via skipped
-  # IDN et al.). BOTH the band and the target moved: the tree resolved exactly
-  # 3.1.5 and 4.1.2 — the previous targets — which the old bands (<3.1.5 / <4.1.2)
-  # no longer match, so bumping only the value would have left two INERT overrides
-  # pinning nothing while the audit stayed red.
-  "fast-uri@>=3.0.0 <3.1.6": 3.1.6
-  "fast-uri@>=4.0.0 <4.1.3": 4.1.3
-  "undici@>=7.0.0 <7.29.0": 7.29.0
+  # All three bands raised 2026-09-30 for THREE new advisories, each with a fix on
+  # every line (OSV-derived): GHSA-6j4f-fj2g-mc7p (high, DoS via uncontrolled
+  # recursion in parseCommaParts), GHSA-qhr7-859c-m2p7 (high, DoS via uncontrolled
+  # recursion on nested braces) and GHSA-q2hr-2g5m-vwhr (moderate, quadratic-time
+  # expansion of `{a},b}`). Each band takes the HIGHEST of the three fixes for its
+  # own line, which is the minimal version satisfying all three: 1.1.19/1.1.20/1.1.21
+  # -> 1.1.21, 2.1.5/2.1.6/2.1.7 -> 2.1.7, 3.0.7/3.0.8/3.0.9 -> 3.0.9,
+  # 5.0.10/5.0.11/5.0.12 -> 5.0.12; 4.x has no fix of its own (OSV: introduced
+  # 4.0.0, fixed 5.0.x), so 4.x -> 5.0.12 is upstream's own path. The tree
+  # resolved exactly 1.1.18, 2.1.4 and 5.0.9 — all three previous TARGETS — so all
+  # three bands were inert against these advisories: the band-overtaken-by-its-own-
+  # target gotcha, three more times in one raise. Lines 1 and 2 stay within their
+  # major, which keeps the callable default export the eslint toolchain needs
+  # (minimatch 3 -> brace-expansion ^1; see SECURITY_CANON §"Build-tool version
+  # holds", the minimatch/brace-expansion row), and 3.x keeps its own band so no
+  # band forces a 3.x consumer across a major.
+  "brace-expansion@<1.1.21": 1.1.21
+  "brace-expansion@>=2.0.0 <2.1.7": 2.1.7
+  "brace-expansion@>=3.0.0 <3.0.9": 3.0.9
+  "brace-expansion@>=4.0.0 <5.0.12": 5.0.12
+  # Raised 2026-09-30 for GHSA-qw65-cvwx-89v3 (high, authority injection via an
+  # unvalidated port in serialize) and GHSA-58mr-gqgx-xq4g (high, host confusion via
+  # an unclosed bracket) — the second named the then-targets EXACTLY (=3.1.6,
+  # =4.1.3) — and then raised AGAIN the same day, after the first raise had landed
+  # and been verified, for GHSA-hrr3-gc8f-f4qj (moderate, inconsistent host case
+  # normalization; fixed 3.1.8 / 4.1.5) and GHSA-jvvf-x445-j334 (moderate, mailto
+  # header injection via percent-encoding; introduced 4.1.3, fixed 4.1.5). The
+  # second raise found the tree on 3.1.7 / 4.1.4 — the targets set 90 minutes
+  # earlier — so this single package supplied the gotcha TWICE in one batch, which
+  # is why the floors are cross-derived from OSV and re-measured immediately before
+  # the final gate rather than once at the start.
+  # Minimal patched per ADR-0018, NOT the latest 4.2.1, and the 3.x band stays
+  # range-scoped so the 4.x line is not dragged into it.
+  "fast-uri@>=3.0.0 <3.1.8": 3.1.8
+  "fast-uri@>=4.0.0 <4.1.5": 4.1.5
+  # Raised 2026-09-30 for ten advisories (2 high / 5 moderate / 3 low, the split
+  # re-derived per-id from OSV), all patched
+  # >=7.29.1 — the highest being TLS certificate validation bypass
+  # (GHSA-w293-vg96-wgc3) and unrequested-WebSocket DoS (GHSA-rfgv-xxqx-mfg5). Band
+  # AND target moved together: the tree resolved exactly 7.29.0, the previous target,
+  # which the old band (<7.29.0) no longer matched. Minimal patched 7.29.1, not the
+  # 8.x line: jsdom 29.1.1, the only consumer, declares the dependency undici
+  # ^7.25.0 (8.10.2, the 8.x fix, is mature but outside that range).
+  "undici@>=7.0.0 <7.29.1": 7.29.1
+  # Added 2026-09-30 for GHSA-g84c-rxfj-3j2c (high, path traversal via a
+  # non-slash-terminated publicPath; CVE-2024-29180 / CVE-2026-76844).
+  # THE FLOOR IS 7.4.6, NOT 7.4.5, AND `pnpm audit` CANNOT SEE THE DIFFERENCE. The
+  # advisory's own `vulnerable_version_range` string reads "< 7.4.5" while its
+  # `first_patched_version` is 7.4.6, and OSV records `introduced 0, fixed 7.4.6`
+  # (plus `introduced 8.0.0, fixed 8.3.0`). Upstream confirms OSV: v7.4.6
+  # (2026-09-03) is "reject requests that resolve outside the output directory",
+  # while v7.4.5 (2025-09-24) is "unpin memfs", a year earlier and unrelated. So a
+  # 7.4.5 pin makes `pnpm audit` go green by matching a malformed range string over
+  # a still-vulnerable version. EVERY floor here is therefore cross-derived from OSV
+  # + the upstream changelog, never from the audit range alone.
+  # DEV-only chain, measured: @storybook/builder-webpack5 > @storybook/nextjs >
+  # apps/{admin,client} devDependencies. It CANNOT resolve naturally —
+  # builder-webpack5 declares `webpack-dev-middleware: ^6.1.2` at BOTH 10.4.6 and
+  # 10.6.0, and 6.1.3 is the 6.x ceiling, so `pnpm update -r` leaves it on the
+  # vulnerable version (verified). A MAJOR forced over an upstream range, the
+  # @hono/node-server / deepmerge-ts precedent: 7.4.6's peerDependencies and engines
+  # are byte-identical to 7.4.5's; its peer (`webpack ^5.0.0`) is 6.1.3's, and
+  # engines.node rises only from >=14.15.0 to >=18.12.0, below this repo's
+  # >=24.15.0. Honest scope: builder-webpack5 imports the 7.x major statically and
+  # calls it only on the `storybook dev` path; `storybook dev --smoke-test --ci`
+  # (apps/client) and `storybook build` are green on 7.4.6.
+  # Minimal patched 7.4.6, not the latest 8.3.0, per ADR-0018.
+  "webpack-dev-middleware@<7.4.6": 7.4.6
   # Raised 2026-09-09 for GHSA-rgj7-g3m4-5g8c (high) — sharp's bundled libvips ships
   # libheif, wrapping GHSA-g89c-p67h-r497 + GHSA-2jg2-4ch7-h545; vulnerable <0.35.4.
   # BOTH the band and the target moved, the fast-uri gotcha again: the tree already
@@ -270,7 +326,7 @@ overrides:
   "@tootallnate/once": 3.0.1
   bn.js: 5.2.3
   defu: 6.1.7
-  dompurify: 3.4.13
+  dompurify: 3.4.16 # raised 2026-10-01 for GHSA-p98j-92pf-mc4p (low, OSV introduced 3.4.13 fixed 3.4.16); monaco-editor pins 3.2.7 exactly, so the floor stays an override
   fast-xml-builder: 1.2.0
   fast-xml-parser: 5.8.0
   flatted: 3.4.2
