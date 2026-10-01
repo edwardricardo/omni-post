@@ -44,16 +44,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
     PROJECT_ROOT,
+    canon_index_path,
     make_logger,
     read_hook_input,
 )
 
 HOOK_NAME = "pre-edit-canon"
 log, _block, _allow = make_logger(HOOK_NAME)
-
-CANON_INDEX_PATH = Path(
-    "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon-index.json"
-)
 
 MISSES_LOG = PROJECT_ROOT / ".claude" / "canon-misses.log"
 INJECTED_KEYS_LOG = PROJECT_ROOT / ".claude" / "canon-injected-keys.log"
@@ -172,11 +169,12 @@ def emit_context(additional_context: str) -> None:
 
 
 def load_index() -> dict | None:
-    if not CANON_INDEX_PATH.exists():
-        log(f"canon-index.json no existe en {CANON_INDEX_PATH}")
+    path = canon_index_path()
+    if not path.exists():
+        log(f"canon-index.json no existe en {path}")
         return None
     try:
-        with CANON_INDEX_PATH.open("r", encoding="utf-8") as f:
+        with path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         log(f"ERROR leyendo canon-index: {e}")

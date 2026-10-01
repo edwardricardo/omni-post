@@ -42,6 +42,108 @@ LOG_PATH = PROJECT_ROOT / ".claude" / "hooks.log"
 ALLOWED_TOKENS_DIR = PROJECT_ROOT / ".claude" / ".allowed"
 
 
+def _main_repository_root(root: Path) -> tuple[Path, bool]:
+    """Raíz del worktree PRINCIPAL del repositorio que contiene `root`, y si git
+    la resolvió.
+
+    Claude Code nombra el directorio de auto memory a partir del repositorio
+    git, no del worktree: "all worktrees and subdirectories within the same
+    repo share one auto memory directory" (code.claude.com/docs/en/memory,
+    Storage location). Desde un worktree enlazado `PROJECT_ROOT` es el
+    worktree, pero su `--git-common-dir` es el `.git` del principal, y el padre
+    de ese `.git` es la ruta con la que Claude Code arma el nombre. Sin git, o
+    con un repo bare, cae a `root` y lo dice (False).
+    """
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+        return root, False
+    common_dir = Path(result.stdout.strip()).resolve()
+    return (common_dir.parent, True) if common_dir.name == ".git" else (root, False)
+
+
+def _write_log_line(tag: str, message: str) -> None:
+    """La ÚNICA forma de una línea de hooks.log: `[iso-local] [tag] message`.
+
+    make_logger la usa con el nombre del hook; _common, que no tiene nombre de
+    hook, con `_common`. Un solo escritor: el formato no puede divergir.
+    """
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with LOG_PATH.open("a", encoding="utf-8") as handle:
+        handle.write(f"[{datetime.now().isoformat()}] [{tag}] {message}\n")
+
+
+def _append_log(line: str) -> None:
+    """Línea en hooks.log desde _common; un fallo de E/S no frena un hook."""
+    try:
+        _write_log_line("_common", line)
+    except OSError:
+        pass
+
+
+# Auto memory del proyecto: ~/.claude/projects/<raíz con "/" -> "-">/memory
+# (`/root/omni-post` -> `-root-omni-post`). Ahí viven canon-index.json y
+# canon_research_index.md; la ruta antes estaba fija a /home/edward/..., que
+# en esta máquina no existe. Dos funciones: `_resolve_memory_dir` calcula
+# (un `git rev-parse`, medido 0,8 ms) y `memory_dir` memoriza SOLO la
+# resolución exitosa, así un fallo transitorio de git no fija la ruta de
+# respaldo. Cada hook es un proceso nuevo y de un solo hilo: la memoria vale
+# dentro de ese proceso y no necesita bloqueo. Los hooks que leen el índice la
+# resuelven al USARLA
+# (`canon_index_path()`), no al importar: un fallo transitorio en el import
+# no deja al proceso mirando el respaldo, y un hook que termina sin leer el
+# índice no paga el subproceso.
+_MEMORY_DIR_CACHE: Path | None = None
+_MEMORY_DIR_WARNED = False
+
+
+def _resolve_memory_dir() -> tuple[Path, bool]:
+    """Ruta de la memoria y si git resolvió la raíz principal.
+
+    Las dos ramas parten de una ruta RESUELTA (sin symlinks): la de git lo está
+    por `_main_repository_root`; la de respaldo se resuelve acá, así un
+    PROJECT_ROOT alcanzado por symlink no inventa un segundo nombre.
+    """
+    root, resolved = _main_repository_root(PROJECT_ROOT)
+    if not resolved:
+        root = root.resolve()
+    slug = str(root).replace("/", "-")
+    return Path.home() / ".claude" / "projects" / slug / "memory", resolved
+
+
+def memory_dir() -> Path:
+    global _MEMORY_DIR_CACHE, _MEMORY_DIR_WARNED
+    if _MEMORY_DIR_CACHE is not None:
+        return _MEMORY_DIR_CACHE
+    path, resolved = _resolve_memory_dir()
+    if resolved:
+        _MEMORY_DIR_CACHE = path
+    elif not _MEMORY_DIR_WARNED:
+        # El respaldo no se cachea, pero el aviso sí: una vez por proceso.
+        _MEMORY_DIR_WARNED = True
+        _append_log(f"memory_dir: git no resolvió la raíz principal; derivada de {PROJECT_ROOT} sin caché")
+    return path
+
+
+def canon_index_path() -> Path:
+    """Ruta de canon-index.json — el JSON que leen los hooks de edición —
+    resuelta al usarla, no al importar (ver memory_dir)."""
+    return memory_dir() / "canon-index.json"
+
+
+def canon_research_index_path() -> Path:
+    """Ruta de canon_research_index.md — el markdown que lee el hook de prompt,
+    no el JSON de `canon_index_path` — resuelta al usarla, no al importar."""
+    return memory_dir() / "canon_research_index.md"
+
+
 # Regex compartida entre pre-bash y post-bash. Matchea 'git' y 'push' como
 # tokens separados aunque haya flags intermedias (-C /path, --git-dir=...).
 # El negative lookahead excluye `git stash push`/`git stash pop` (operaciones
@@ -60,10 +162,7 @@ def make_logger(hook_name: str) -> tuple[Callable[[str], None], Callable[[str], 
     """
 
     def log(message: str) -> None:
-        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().isoformat()
-        with LOG_PATH.open("a") as f:
-            f.write(f"[{timestamp}] [{hook_name}] {message}\n")
+        _write_log_line(hook_name, message)
 
     def block(reason: str) -> None:
         print(f"BLOCKED [{hook_name}]: {reason}", file=sys.stderr)

@@ -35,14 +35,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import PROJECT_ROOT, make_logger, read_hook_input  # noqa: E402
+from _common import PROJECT_ROOT, canon_index_path, make_logger, read_hook_input  # noqa: E402
 
 HOOK_NAME = "pre-edit-decision-guard"
 log, _block, _allow = make_logger(HOOK_NAME)
-
-CANON_INDEX_PATH = Path(
-    "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon-index.json"
-)
 
 DECISION_GAPS_LOG = PROJECT_ROOT / ".claude" / "canon-decision-gaps.log"
 HEURISTIC_OVERRIDES_LOG = PROJECT_ROOT / ".claude" / "heuristic-overrides.log"
@@ -111,10 +107,11 @@ def emit_warning(content: str) -> None:
 
 
 def load_index() -> dict | None:
-    if not CANON_INDEX_PATH.exists():
+    path = canon_index_path()
+    if not path.exists():
         return None
     try:
-        with CANON_INDEX_PATH.open("r", encoding="utf-8") as f:
+        with path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         log(f"ERROR leyendo canon-index: {e}")
