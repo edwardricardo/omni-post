@@ -42,7 +42,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import make_logger, read_hook_input  # noqa: E402
+from _common import (  # noqa: E402
+    PROJECT_ROOT,
+    make_logger,
+    read_hook_input,
+)
 
 HOOK_NAME = "pre-edit-canon"
 log, _block, _allow = make_logger(HOOK_NAME)
@@ -50,9 +54,10 @@ log, _block, _allow = make_logger(HOOK_NAME)
 CANON_INDEX_PATH = Path(
     "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon-index.json"
 )
-MISSES_LOG = Path(".claude/canon-misses.log")
-INJECTED_KEYS_LOG = Path(".claude/canon-injected-keys.log")
-INJECTED_FILES_LOG = Path(".claude/canon-injected-files.log")
+
+MISSES_LOG = PROJECT_ROOT / ".claude" / "canon-misses.log"
+INJECTED_KEYS_LOG = PROJECT_ROOT / ".claude" / "canon-injected-keys.log"
+INJECTED_FILES_LOG = PROJECT_ROOT / ".claude" / "canon-injected-files.log"
 MAX_ENTRIES_INJECTED = 2
 MAX_INJECTIONS_PER_SESSION = 50
 MIN_RELEVANCE = 0.15

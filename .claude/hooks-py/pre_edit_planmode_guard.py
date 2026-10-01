@@ -33,6 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
+    PROJECT_ROOT,
     current_branch,
     make_logger,
     read_hook_input,
@@ -41,7 +42,7 @@ from _common import (  # noqa: E402
 HOOK_NAME = "pre-edit-planmode-guard"
 log, block, _allow = make_logger(HOOK_NAME)
 
-PLAN_BLOCKS_LOG = Path(".claude/planmode-blocks.log")
+PLAN_BLOCKS_LOG = PROJECT_ROOT / ".claude" / "planmode-blocks.log"
 
 WORKSTREAM_BRANCH_RE = re.compile(r"^workstream/")
 # Plan Mode activity = EITHER an explicit EnterPlanMode tool_use, OR a

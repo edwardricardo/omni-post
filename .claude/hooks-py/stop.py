@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import make_logger, read_hook_input  # noqa: E402
+from _common import PROJECT_ROOT, make_logger, read_hook_input  # noqa: E402
 
 HOOK_NAME = "stop"
 log, _block, _allow = make_logger(HOOK_NAME)
@@ -30,10 +30,16 @@ KILL_SWITCH_ENV = "EDWARD_DISABLE_STOP_HOOK"
 
 
 def get_new_files(extensions: list[str] | None = None) -> list[str]:
-    """Untracked files (git ls-files --others --exclude-standard)."""
+    """Untracked files (git ls-files --others --exclude-standard), relativos a PROJECT_ROOT.
+
+    Corre con cwd=PROJECT_ROOT: desde un subdirectorio, `ls-files` lista solo
+    lo que cuelga de él y con rutas relativas a él, así que ningún archivo
+    empezaba con `apps/` y las dos auditorías pasaban sin mirar nada.
+    """
     try:
         out = subprocess.run(
             ["git", "ls-files", "--others", "--exclude-standard"],
+            cwd=PROJECT_ROOT,
             capture_output=True,
             text=True,
             timeout=3,
@@ -72,7 +78,7 @@ def audit_missing_tests() -> list[str]:
         if base in ("index.ts", "index.tsx", "types.ts"):
             continue
         test_path = guess_test_path(f)
-        if test_path and not Path(test_path).exists():
+        if test_path and not (PROJECT_ROOT / test_path).exists():
             issues.append(
                 f"Falta test para `{f}` — esperado en `{test_path}` "
                 f"(CLAUDE.md: 'Tests are never deferred to a later sprint')"
@@ -87,7 +93,7 @@ def audit_missing_headers() -> list[str]:
         if not (f.startswith("apps/") or f.startswith("packages/")):
             continue
         try:
-            with open(f, encoding="utf-8") as fh:
+            with open(PROJECT_ROOT / f, encoding="utf-8") as fh:
                 # 4096, not 1500: a file with a thorough doc header pushed
                 # @layer past the old window and this hook reported the header
                 # as MISSING while it was there (trustedProxy.ts, 2026-09-05) —

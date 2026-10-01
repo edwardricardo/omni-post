@@ -26,12 +26,21 @@ from pathlib import Path
 from typing import Callable
 
 
-LOG_PATH = Path(".claude/hooks.log")
+# Raíz del repo, resuelta desde la ubicación de ESTE archivo
+# (.claude/hooks-py/_common.py -> .claude/ -> raíz), nunca desde el cwd del
+# proceso. Claude Code dispara los hooks con el cwd de la sesión, que puede ser
+# un subdirectorio: con rutas relativas al cwd, un token creado en la raíz era
+# invisible desde apps/api ("missing") y cada hook sembraba un `.claude/`
+# huérfano en el directorio donde le tocara correr.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+LOG_PATH = PROJECT_ROOT / ".claude" / "hooks.log"
 
 # Time-boxed authorization tokens created by `.claude/bin/omnipost-allow`.
 # One token per operation (`push`, `sensitive-edit`, ...). Validated
 # identically by pre-bash and pre-edit (shared contract, no drift).
-ALLOWED_TOKENS_DIR = Path(".claude/.allowed")
+ALLOWED_TOKENS_DIR = PROJECT_ROOT / ".claude" / ".allowed"
+
 
 # Regex compartida entre pre-bash y post-bash. Matchea 'git' y 'push' como
 # tokens separados aunque haya flags intermedias (-C /path, --git-dir=...).
@@ -78,18 +87,29 @@ def read_hook_input(log_fn: Callable[[str], None]) -> dict:
         sys.exit(1)
 
 
-def current_branch() -> str:
-    """Devuelve el nombre de la branch actual, o '' si falla."""
+def current_branch(repo: Path | None = None) -> str:
+    """Branch checked out en `repo` (default PROJECT_ROOT), o '' si falla.
+
+    `symbolic-ref --short HEAD` (no `rev-parse --abbrev-ref HEAD` ni `branch
+    --show-current`, que exige git >= 2.22): lee también una rama recién creada
+    sin commits, en HEAD suelto falla y devuelve '' (bloquea), y existe en todo
+    git desde 1.7.
+    Sin `cwd` explícito git leía el cwd del proceso del hook, que nunca es el
+    repositorio al que apunta un `cd <worktree> && git commit`: el gate de
+    commits validaba la branch del repo vivo, no la del commit. Un `repo`
+    inexistente devuelve '' — el llamador decide (el gate de commits bloquea).
+    """
     try:
         result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            ["git", "symbolic-ref", "--short", "HEAD"],
+            cwd=repo or PROJECT_ROOT,
             capture_output=True,
             text=True,
             timeout=2,
             check=True,
         )
         return result.stdout.strip()
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
         return ""
 
 
