@@ -13,21 +13,25 @@
 
 ## Index
 
-| Id     | Candidate                                                          | Finding                                                    | Location                                                   | Kind                     | Status                                               |
-| ------ | ------------------------------------------------------------------ | ---------------------------------------------------------- | ---------------------------------------------------------- | ------------------------ | ---------------------------------------------------- |
-| SB-001 | `mental-map-hooks` 1a-ii (`workstream/hooks-memory-dir`, 817c93bf) | R2-001                                                     | `.claude/hooks-py/_common.py:85-96`                        | comment placement        | deferred                                             |
-| SB-002 | same                                                               | R2-002                                                     | `.claude/hooks-py/_common.py:118` + `tests/test_common.py` | test sentinel            | deferred                                             |
-| SB-003 | same                                                               | R2-003                                                     | `.claude/hooks-py/tests/test_common.py:5-6`                | docstring wording        | deferred                                             |
-| SB-004 | same                                                               | R2-004                                                     | `.claude/hooks-py/tests/test_common.py:62`                 | fixture comment          | deferred                                             |
-| SB-T01 | same                                                               | R3-worktree-detection-depends-on-common-dir-basename       | `.claude/hooks-py/_common.py:67-68`                        | test coverage            | deferred                                             |
-| SB-T02 | same                                                               | R3-fallback-branches-of-main-repository-root-untested      | `.claude/hooks-py/_common.py:57-62`                        | test coverage            | deferred                                             |
-| SB-005 | `mental-map-hooks` 1d (`workstream/hooks-visibility`)              | R4-notices-log-dedup-race                                  | `.claude/hooks-py/_common.py` `notice_already_sent`        | concurrency design       | implemented (1d, second review raised it to WARNING) |
-| SB-006 | same                                                               | R4-notices-log-unbounded, R3-notices-log-unbounded         | `.claude/hooks-py/_common.py` `notice_already_sent`        | growth bound             | implemented (1d, second review raised it to WARNING) |
-| SB-007 | same                                                               | R3-cross-hook-dedup-shares-consequence                     | `.claude/hooks-py/_common.py` `emit_missing_file_context`  | dedup key design         | deferred                                             |
-| SB-T03 | same                                                               | R3-session-id-tab-collision                                | `.claude/hooks-py/_common.py` `notice_already_sent`        | test coverage / escaping | deferred                                             |
-| SB-008 | `mental-map-hooks` 1d                                              | R4-003                                                     | `.claude/hooks-py/_common.py` `emit_missing_file_context`  | recovery notice design   | deferred                                             |
-| SB-009 | same                                                               | R2-emit-missing-file-context-hard-coded-hook-event-default | `.claude/hooks-py/_common.py` `emit_missing_file_context`  | parameter default        | deferred                                             |
-| SB-010 | same                                                               | R2-load-index-signature-divergence                         | `.claude/hooks-py/pre_edit_decision_guard.py` `load_index` | signature symmetry       | deferred                                             |
+| Id     | Candidate                                                          | Finding                                                          | Location                                                                                       | Kind                         | Status                                                                                               |
+| ------ | ------------------------------------------------------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------- |
+| SB-001 | `mental-map-hooks` 1a-ii (`workstream/hooks-memory-dir`, 817c93bf) | R2-001                                                           | `.claude/hooks-py/_common.py:85-96`                                                            | comment placement            | implemented (book sweep, 1e6a3c66)                                                                   |
+| SB-002 | same                                                               | R2-002                                                           | `.claude/hooks-py/_common.py:118` + `tests/test_common.py`                                     | test sentinel                | implemented (book sweep, 1e6a3c66)                                                                   |
+| SB-003 | same                                                               | R2-003                                                           | `.claude/hooks-py/tests/test_common.py:5-6`                                                    | docstring wording            | implemented (book sweep, 1e6a3c66)                                                                   |
+| SB-004 | same                                                               | R2-004                                                           | `.claude/hooks-py/tests/test_common.py:62`                                                     | fixture comment              | implemented (book sweep, 1e6a3c66)                                                                   |
+| SB-T01 | same                                                               | R3-worktree-detection-depends-on-common-dir-basename             | `.claude/hooks-py/_common.py:67-68`                                                            | test coverage                | closed: a hook never runs inside a bare repository; the branch reaches the fallback the suite proves |
+| SB-T02 | same                                                               | R3-fallback-branches-of-main-repository-root-untested            | `.claude/hooks-py/_common.py:57-62`                                                            | test coverage                | implemented (book sweep, 1e6a3c66)                                                                   |
+| SB-005 | `mental-map-hooks` 1d (`workstream/hooks-visibility`)              | R4-notices-log-dedup-race                                        | `.claude/hooks-py/_common.py` `notice_already_sent`                                            | concurrency design           | implemented (1d, second review raised it to WARNING)                                                 |
+| SB-006 | same                                                               | R4-notices-log-unbounded, R3-notices-log-unbounded               | `.claude/hooks-py/_common.py` `notice_already_sent`                                            | growth bound                 | implemented (1d, second review raised it to WARNING)                                                 |
+| SB-007 | same                                                               | R3-cross-hook-dedup-shares-consequence                           | `.claude/hooks-py/_common.py` `emit_missing_file_context`                                      | dedup key design             | closed: one notice per session about the file is the contract, whichever hook detects it             |
+| SB-T03 | same                                                               | R3-session-id-tab-collision                                      | `.claude/hooks-py/_common.py` `notice_already_sent`                                            | test coverage / escaping     | implemented (book sweep, 1e6a3c66)                                                                   |
+| SB-008 | `mental-map-hooks` 1d                                              | R4-003                                                           | `.claude/hooks-py/_common.py` `emit_missing_file_context`                                      | recovery notice design       | implemented (book sweep, 1e6a3c66)                                                                   |
+| SB-009 | same                                                               | R2-emit-missing-file-context-hard-coded-hook-event-default       | `.claude/hooks-py/_common.py` `emit_missing_file_context`                                      | parameter default            | implemented (book sweep, 1e6a3c66)                                                                   |
+| SB-010 | same                                                               | R2-load-index-signature-divergence                               | `.claude/hooks-py/pre_edit_decision_guard.py` `load_index`                                     | signature symmetry           | implemented (book sweep, 1e6a3c66)                                                                   |
+| SB-011 | book sweep (`workstream/hooks-book-sweep`, 1e6a3c66)               | R2-duplicated-prefix-lines-pattern, R3-prefix-lines-module-state | `.claude/hooks-py/pre_edit_canon.py`, `pre_edit_decision_guard.py` (`_PREFIX_LINES`, `emit_*`) | shared helper / test hygiene | deferred                                                                                             |
+| SB-012 | same                                                               | R2-load-index-signature-asimetrica                               | `.claude/hooks-py/pre_edit_decision_guard.py` `load_index`                                     | parameter order              | deferred                                                                                             |
+| SB-013 | same                                                               | R2-recovered-notice-key-contract-implicito                       | `.claude/hooks-py/_common.py` `emit_missing_file_context` / `recovered_file_notice`            | shared key helper            | deferred                                                                                             |
+| SB-T04 | same                                                               | R3-notice-newline-unescaped                                      | `.claude/hooks-py/_common.py` `_notice_field`                                                  | escaping / test              | deferred                                                                                             |
 
 ## Entries — code and prose
 
@@ -87,6 +91,30 @@
 - **Why deferred:** intended — one notice per session about the missing file is the contract ("whichever hook detects it"); the fact is the same even if the sentence differs.
 - **To implement:** if both sentences are wanted, include `tag:name:state:hook` in the key and expect up to one notice per hook per session.
 
+### SB-011 — the `_PREFIX_LINES` pattern is duplicated in both canon hooks
+
+- **Source:** review `hooks-sweep`, readability and reliability lenses, 2026-10-01.
+- **Location:** `.claude/hooks-py/pre_edit_canon.py` and `pre_edit_decision_guard.py` (`_PREFIX_LINES`, `emit_context`/`emit_no_context`, `emit_warning`/`emit_no_warning`).
+- **Suggestion:** the module-level list plus the two emitters that read it are the same twenty lines in both hooks; a change to the separator or the early-exit must be made twice, and tests must clear the list by hand (`guard._PREFIX_LINES.clear()`). Extract a helper in `_common` (or pass the prefix as an argument) and clear it in a `setUp`.
+- **Why deferred:** no behavioural effect; each hook is a fresh process.
+- **To implement:** `_common.emit_context(hook_event, body, prefix=())` used by both hooks; tests pass the prefix explicitly.
+
+### SB-012 — `load_index(session_id="", *, decision_ids)` puts the optional argument first
+
+- **Source:** review `hooks-sweep`, readability lens.
+- **Location:** `.claude/hooks-py/pre_edit_decision_guard.py`, `load_index`.
+- **Suggestion:** `load_index(*, decision_ids: str, session_id: str = "")` makes the obligation visible in the signature.
+- **Why deferred:** naming/shape; every call site is already keyword-based.
+- **To implement:** reorder and update the four test call sites and `main()`.
+
+### SB-013 — the notice key format is rebuilt by hand in two places
+
+- **Source:** review `hooks-sweep`, readability lens.
+- **Location:** `.claude/hooks-py/_common.py`, `emit_missing_file_context` (writes `tag:name:state`) and `recovered_file_notice` (reads it).
+- **Suggestion:** a `_notice_key(tag, name, state)` helper so a format change cannot silently break recovery detection.
+- **Why deferred:** both sites are ten lines apart in the same module and covered by the recovery test, which fails if they drift.
+- **To implement:** one helper, two call sites.
+
 ## Entries — tests
 
 ### SB-T01 — a bare repository's `--git-common-dir` is not named `.git`
@@ -137,9 +165,25 @@
 - **Why deferred:** naming/shape; the label is what the consequence line needs and the tests name it.
 - **To implement:** `load_index(session_id="", *, consequence_for=...)` or a small formatter passed in.
 
+### SB-T04 — `_notice_field` escapes tabs and backslashes, not newlines
+
+- **Source:** review `hooks-sweep`, reliability lens (pre-existing exposure, not worsened).
+- **Location:** `.claude/hooks-py/_common.py`, `_notice_field`.
+- **Suggestion:** a newline inside a session id or key would split a record across lines; escape `\n` as well and extend the collision test.
+- **Why deferred:** session ids are opaque UUIDs from Claude Code and keys are built from constants.
+- **To implement:** one more `.replace`, one more assertion.
+
 ## Implemented
 
-| Id     | Implemented in                     | How                                                                                                            |
-| ------ | ---------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| SB-005 | 1d (`workstream/hooks-visibility`) | `notice_already_sent` reads and records under `fcntl.flock(LOCK_EX)`; test asserts the lock                    |
-| SB-006 | 1d                                 | the notices log keeps only the current session's lines when it records; test asserts other sessions are pruned |
+| Id                                                                     | Implemented in                                       | How                                                                                                            |
+| ---------------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| SB-005                                                                 | 1d (`workstream/hooks-visibility`)                   | `notice_already_sent` reads and records under `fcntl.flock(LOCK_EX)`; test asserts the lock                    |
+| SB-006                                                                 | 1d                                                   | the notices log keeps only the current session's lines when it records; test asserts other sessions are pruned |
+| SB-001, SB-002, SB-003, SB-004, SB-T02, SB-T03, SB-008, SB-009, SB-010 | book sweep (`workstream/hooks-book-sweep`, 1e6a3c66) | see the PR; red proofs for the four behavioural rows                                                           |
+
+## Closed with a reason
+
+| Id     | Reason                                                                                               |
+| ------ | ---------------------------------------------------------------------------------------------------- |
+| SB-007 | one notice per session about the missing file is the contract, whichever hook detects it             |
+| SB-T01 | a hook never runs inside a bare repository; the branch reaches the fallback the suite already proves |
