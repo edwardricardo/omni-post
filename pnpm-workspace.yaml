@@ -232,16 +232,20 @@ overrides:
   # recursion on nested braces) and GHSA-q2hr-2g5m-vwhr (moderate, quadratic-time
   # expansion of `{a},b}`). Each band takes the HIGHEST of the three fixes for its
   # own line, which is the minimal version satisfying all three: 1.1.19/1.1.20/1.1.21
-  # -> 1.1.21, 2.1.5/2.1.6/2.1.7 -> 2.1.7, 5.0.10/5.0.11/5.0.12 -> 5.0.12. The tree
+  # -> 1.1.21, 2.1.5/2.1.6/2.1.7 -> 2.1.7, 3.0.7/3.0.8/3.0.9 -> 3.0.9,
+  # 5.0.10/5.0.11/5.0.12 -> 5.0.12; 4.x has no fix of its own (OSV: introduced
+  # 4.0.0, fixed 5.0.x), so 4.x -> 5.0.12 is upstream's own path. The tree
   # resolved exactly 1.1.18, 2.1.4 and 5.0.9 — all three previous TARGETS — so all
   # three bands were inert against these advisories: the band-overtaken-by-its-own-
-  # target gotcha, three more times in one raise. Still RAISE-WITHIN-MAJOR on every
-  # line, which is what keeps the callable default export the eslint toolchain needs
-  # (see SECURITY_CANON §"Build-tool version holds", the minimatch/brace-expansion
-  # row) — no line crosses a major.
+  # target gotcha, three more times in one raise. Lines 1 and 2 stay within their
+  # major, which keeps the callable default export the eslint toolchain needs
+  # (minimatch 3 -> brace-expansion ^1; see SECURITY_CANON §"Build-tool version
+  # holds", the minimatch/brace-expansion row), and 3.x keeps its own band so no
+  # band forces a 3.x consumer across a major.
   "brace-expansion@<1.1.21": 1.1.21
   "brace-expansion@>=2.0.0 <2.1.7": 2.1.7
-  "brace-expansion@>=3.0.0 <5.0.12": 5.0.12
+  "brace-expansion@>=3.0.0 <3.0.9": 3.0.9
+  "brace-expansion@>=4.0.0 <5.0.12": 5.0.12
   # Raised 2026-09-30 for GHSA-qw65-cvwx-89v3 (high, authority injection via an
   # unvalidated port in serialize) and GHSA-58mr-gqgx-xq4g (high, host confusion via
   # an unclosed bracket) — the second named the then-targets EXACTLY (=3.1.6,
@@ -263,7 +267,8 @@ overrides:
   # (GHSA-w293-vg96-wgc3) and unrequested-WebSocket DoS (GHSA-rfgv-xxqx-mfg5). Band
   # AND target moved together: the tree resolved exactly 7.29.0, the previous target,
   # which the old band (<7.29.0) no longer matched. Minimal patched 7.29.1, not the
-  # 8.x line (immature, and jsdom 29 peers ^7).
+  # 8.x line: jsdom 29.1.1, the only consumer, declares the dependency undici
+  # ^7.25.0 (8.10.2, the 8.x fix, is mature but outside that range).
   "undici@>=7.0.0 <7.29.1": 7.29.1
   # Added 2026-09-30 for GHSA-g84c-rxfj-3j2c (high, path traversal via a
   # non-slash-terminated publicPath; CVE-2024-29180 / CVE-2026-76844).
@@ -282,10 +287,11 @@ overrides:
   # 10.6.0, and 6.1.3 is the 6.x ceiling, so `pnpm update -r` leaves it on the
   # vulnerable version (verified). A MAJOR forced over an upstream range, the
   # @hono/node-server / deepmerge-ts precedent: 7.4.6's peerDependencies and engines
-  # are byte-identical to both 7.4.5's and 6.1.3's `webpack ^5.0.0`, raising only
-  # engines.node to >=18.12.0, below this repo's >=24.15.0. Honest scope: the 7.x
-  # major IS statically imported by builder-webpack5, but only exercised on the
-  # `storybook dev` path, which no gate runs; `storybook build` stays green.
+  # are byte-identical to 7.4.5's; its peer (`webpack ^5.0.0`) is 6.1.3's, and
+  # engines.node rises only from >=14.15.0 to >=18.12.0, below this repo's
+  # >=24.15.0. Honest scope: builder-webpack5 imports the 7.x major statically and
+  # calls it only on the `storybook dev` path; `storybook dev --smoke-test --ci`
+  # (apps/client) and `storybook build` are green on 7.4.6.
   # Minimal patched 7.4.6, not the latest 8.3.0, per ADR-0018.
   "webpack-dev-middleware@<7.4.6": 7.4.6
   # Raised 2026-09-09 for GHSA-rgj7-g3m4-5g8c (high) — sharp's bundled libvips ships
