@@ -22,7 +22,10 @@ ALLOWED_OPERATIONS = {
     # "deploy": {"description": "deployment a producción", "default_ttl_minutes": 5},
 }
 
-TOKENS_DIR = Path(".claude/.allowed")
+# Resuelto desde la ubicación del script (.claude/bin/ -> .claude/ -> raíz), no
+# desde el cwd: correrlo desde un subdirectorio creaba el token en
+# <subdir>/.claude/.allowed, donde ningún hook lo busca.
+TOKENS_DIR = Path(__file__).resolve().parents[2] / ".claude" / ".allowed"
 
 
 def list_operations() -> str:

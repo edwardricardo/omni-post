@@ -92,7 +92,7 @@ vi.mock("../../src/lib/logger.js", () => {
 
 const Fastify = (await import("fastify")).default;
 const { analyticsRoutes } = await import("../../src/admin/analyticsRoutes.js");
-const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { createRouteTestContainer } = await import("./helpers/testContainer.js");
 const { generateAdminToken } = await import("./admin/adminTestHelper.js");
 
 // ---------------------------------------------------------------------------
@@ -104,7 +104,7 @@ const adminEmail = `analytics-test-${timestamp}@example.com`;
 
 async function createTestApp() {
   const app = Fastify({ logger: false });
-  const container = setupContainer({ prisma: mockPrisma.prisma as never });
+  const container = createRouteTestContainer({ prisma: mockPrisma.prisma as never });
   app.decorate("container", container);
   const fastifyCookie = (await import("@fastify/cookie")).default;
   await app.register(fastifyCookie);

@@ -11,6 +11,7 @@
  */
 
 import { describe, it, beforeEach, beforeAll, afterAll, vi, expect } from "vitest";
+import assert from "node:assert/strict";
 import { PrismaPostRepository } from "@adapters/db-prisma";
 import { PostId, ProjectId, PUBLISH_STATUS } from "@core/domain/index.js";
 import { ambientTenantContextProvider } from "../../../src/security/tenantContext.js";
@@ -379,7 +380,7 @@ describe("PrismaPostRepository", () => {
           body: "New post content",
         })
       );
-      expect(postResult.ok).toBeTruthy();
+      assert.ok(postResult.ok);
 
       const saveResult = await repo.save(postResult.value);
 
@@ -416,7 +417,7 @@ describe("PrismaPostRepository", () => {
           body: "New post content",
         })
       );
-      expect(postResult.ok).toBeTruthy();
+      assert.ok(postResult.ok);
 
       const saveResult = await injectedRepo.save(postResult.value);
 
@@ -439,7 +440,7 @@ describe("PrismaPostRepository", () => {
           body: "Content",
         })
       );
-      expect(postResult.ok).toBeTruthy();
+      assert.ok(postResult.ok);
 
       const saveResult = await repo.save(postResult.value);
 

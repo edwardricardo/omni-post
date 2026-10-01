@@ -35,16 +35,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import make_logger, read_hook_input  # noqa: E402
+from _common import (  # noqa: E402
+    PROJECT_ROOT,
+    canon_index_path,
+    emit_missing_file_context,
+    make_logger,
+    read_hook_input,
+)
 
 HOOK_NAME = "pre-edit-decision-guard"
 log, _block, _allow = make_logger(HOOK_NAME)
 
-CANON_INDEX_PATH = Path(
-    "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon-index.json"
-)
-DECISION_GAPS_LOG = Path(".claude/canon-decision-gaps.log")
-HEURISTIC_OVERRIDES_LOG = Path(".claude/heuristic-overrides.log")
+DECISION_GAPS_LOG = PROJECT_ROOT / ".claude" / "canon-decision-gaps.log"
+HEURISTIC_OVERRIDES_LOG = PROJECT_ROOT / ".claude" / "heuristic-overrides.log"
 
 DECISION_PATTERNS: list[dict] = [
     {
@@ -109,15 +112,47 @@ def emit_warning(content: str) -> None:
     sys.exit(0)
 
 
-def load_index() -> dict | None:
-    if not CANON_INDEX_PATH.exists():
-        return None
+def load_index(pattern_ids_text: str, session_id: str = "") -> dict:
+    """Carga canon-index.json o avisa EN EL CONTEXTO y sale (exit 0).
+
+    Sin índice no hay forma de saber si una decisión está cubierta, así que
+    NO se emite un DECISION GAP: con el índice ausente, cada detección se
+    volvía un gap falso (75 avisos, todos falsos, mientras la ruta apuntaba a
+    /home/edward/...). Se reporta la ceguera, no un hallazgo inventado — una
+    vez por sesión; lo que seguía (gaps y overrides) comparaba contra nada.
+    """
+    path = canon_index_path()
+    consequence = f"decision-gap check for {pattern_ids_text} is blind until it exists"
+    if not path.exists():
+        log(f"canon-index.json no existe en {path} — sin DECISION GAP, avisado en el contexto")
+        emit_missing_file_context("canon", "canon-index.json", path, consequence, session_id=session_id)
     try:
-        with CANON_INDEX_PATH.open("r", encoding="utf-8") as f:
-            return json.load(f)
+        with path.open("r", encoding="utf-8") as f:
+            index = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
-        log(f"ERROR leyendo canon-index: {e}")
-        return None
+        log(f"ERROR leyendo canon-index: {e} — sin DECISION GAP, avisado en el contexto")
+        emit_missing_file_context(
+            "canon",
+            "canon-index.json",
+            path,
+            f"decision-gap check for {pattern_ids_text} is blind until it is readable ({type(e).__name__})",
+            state="UNREADABLE",
+            session_id=session_id,
+        )
+    if not isinstance(index, dict) or not isinstance(index.get("entries"), dict):
+        # JSON válido pero sin la forma que se lee (un objeto con `entries`): un
+        # `{}` o un `[]` compararían contra nada y callarían el gap sin avisar.
+        found = type(index).__name__ if not isinstance(index, dict) else "object without entries"
+        log(f"canon-index.json no tiene la forma esperada ({found}) — sin DECISION GAP, avisado en el contexto")
+        emit_missing_file_context(
+            "canon",
+            "canon-index.json",
+            path,
+            f"decision-gap check for {pattern_ids_text} is blind until it is a JSON object with entries ({found} found)",
+            state="UNREADABLE",
+            session_id=session_id,
+        )
+    return index
 
 
 def extract_diff_text(data: dict) -> str:
@@ -135,10 +170,8 @@ def extract_diff_text(data: dict) -> str:
     return "\n".join(chunks)
 
 
-def canon_covers_pattern(index: dict | None, pattern: dict) -> bool:
+def canon_covers_pattern(index: dict, pattern: dict) -> bool:
     """True si algún canon entry cubre este pattern (strict o keyword fallback)."""
-    if not index:
-        return False
     pattern_id = pattern["id"]
     keywords = [kw.lower() for kw in pattern.get("canon_keywords", [])]
     for entry in index.get("entries", {}).values():
@@ -196,7 +229,7 @@ def main() -> None:
 
     log(f"detected {len(matched)} decision patterns in {file_path}")
 
-    index = load_index()
+    index = load_index(", ".join(p["id"] for p in matched), data.get("session_id", ""))
     gaps: list[dict] = []
     for pattern in matched:
         if canon_covers_pattern(index, pattern):

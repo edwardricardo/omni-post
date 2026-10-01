@@ -87,7 +87,7 @@ const Fastify = (await import("fastify")).default;
 const fastifyCookie = (await import("@fastify/cookie")).default;
 const { schedulingRoutes } = await import("../../src/admin/schedulingRoutes.js");
 const { schedulingClientRoutes } = await import("../../src/scheduling/schedulingClientRoutes.js");
-const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
+const { createRouteTestContainer } = await import("./helpers/testContainer.js");
 const { generateAdminToken } = await import("./admin/adminTestHelper.js");
 
 // ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@ const adminEmail = `scheduling-test-${timestamp}@example.com`;
 
 async function createTestApp() {
   const app = Fastify({ logger: false });
-  const container = setupContainer({ prisma: mockPrisma.prisma as never });
+  const container = createRouteTestContainer({ prisma: mockPrisma.prisma as never });
   app.decorate("container", container);
   await app.register(fastifyCookie);
   await app.register(schedulingRoutes);

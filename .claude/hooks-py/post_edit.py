@@ -16,18 +16,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import make_logger, read_hook_input  # noqa: E402
+from _common import PROJECT_ROOT, make_logger, read_hook_input  # noqa: E402
 
 HOOK_NAME = "post-edit"
 log, block, _allow = make_logger(HOOK_NAME)
-
-# Raíz del repo (.claude/hooks-py/ -> .claude/ -> raíz). secretlint DEBE correr
-# desde aquí: el parche @secretlint/node fija node_moduleDir a "<cwd>/node_modules",
-# y el preset de reglas vive solo en el node_modules de la raíz. Correrlo desde
-# apps/* (sin @secretlint instalado local) hace que el loader no encuentre el
-# preset y aborte con un falso positivo. Es como ya lo invocan lint-staged y
-# el script secret:scan.
-PROJECT_DIR = Path(__file__).resolve().parents[2]
 
 # Mismos exclusions que .secretlintignore para evitar costo redundante.
 SKIP_SUBSTRINGS = (
@@ -99,7 +91,12 @@ def main() -> None:
             capture_output=True,
             text=True,
             timeout=SECRETLINT_TIMEOUT_SEC,
-            cwd=str(PROJECT_DIR),
+            # Desde la raíz del repo, siempre: el parche @secretlint/node fija
+            # node_moduleDir a "<cwd>/node_modules" y el preset de reglas vive
+            # solo en el node_modules de la raíz; desde apps/* (sin @secretlint
+            # local) el loader no encuentra el preset y aborta con un falso
+            # positivo. Es como ya lo invocan lint-staged y el script secret:scan.
+            cwd=str(PROJECT_ROOT),
         )
     except subprocess.TimeoutExpired:
         log(f"secretlint timeout en {file_path} ({SECRETLINT_TIMEOUT_SEC}s) — allow")

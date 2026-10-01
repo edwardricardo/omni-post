@@ -42,17 +42,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import make_logger, read_hook_input  # noqa: E402
+from _common import (  # noqa: E402
+    PROJECT_ROOT,
+    canon_index_path,
+    emit_missing_file_context,
+    make_logger,
+    read_hook_input,
+)
 
 HOOK_NAME = "pre-edit-canon"
 log, _block, _allow = make_logger(HOOK_NAME)
 
-CANON_INDEX_PATH = Path(
-    "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon-index.json"
-)
-MISSES_LOG = Path(".claude/canon-misses.log")
-INJECTED_KEYS_LOG = Path(".claude/canon-injected-keys.log")
-INJECTED_FILES_LOG = Path(".claude/canon-injected-files.log")
+MISSES_LOG = PROJECT_ROOT / ".claude" / "canon-misses.log"
+INJECTED_KEYS_LOG = PROJECT_ROOT / ".claude" / "canon-injected-keys.log"
+INJECTED_FILES_LOG = PROJECT_ROOT / ".claude" / "canon-injected-files.log"
+BLIND_PREFIX = "canon injection is blind until "
 MAX_ENTRIES_INJECTED = 2
 MAX_INJECTIONS_PER_SESSION = 50
 MIN_RELEVANCE = 0.15
@@ -166,16 +170,44 @@ def emit_context(additional_context: str) -> None:
     sys.exit(0)
 
 
-def load_index() -> dict | None:
-    if not CANON_INDEX_PATH.exists():
-        log(f"canon-index.json no existe en {CANON_INDEX_PATH}")
-        return None
+def load_index(session_id: str = "") -> dict:
+    """Carga canon-index.json o avisa EN EL CONTEXTO y sale (exit 0).
+
+    Un índice ausente o ilegible ya no es un `return None` silencioso: durante
+    meses la ruta apuntó a un archivo inexistente, el hook "funcionaba" sin
+    inyectar nada y la única huella era hooks.log, que nadie lee en el turno.
+    """
+    path = canon_index_path()
+    if not path.exists():
+        log(f"canon-index.json no existe en {path} — avisado en el contexto")
+        emit_missing_file_context("canon", "canon-index.json", path, BLIND_PREFIX + "it exists", session_id=session_id)
     try:
-        with CANON_INDEX_PATH.open("r", encoding="utf-8") as f:
-            return json.load(f)
+        with path.open("r", encoding="utf-8") as f:
+            index = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
-        log(f"ERROR leyendo canon-index: {e}")
-        return None
+        log(f"ERROR leyendo canon-index: {e} — avisado en el contexto")
+        emit_missing_file_context(
+            "canon",
+            "canon-index.json",
+            path,
+            BLIND_PREFIX + f"it is readable ({type(e).__name__})",
+            state="UNREADABLE",
+            session_id=session_id,
+        )
+    if not isinstance(index, dict) or not isinstance(index.get("entries"), dict):
+        # JSON válido pero sin la forma que se lee (un objeto con `entries`): un
+        # `{}` o un `[]` serían un índice vacío en silencio, no una ceguera visible.
+        found = type(index).__name__ if not isinstance(index, dict) else "object without entries"
+        log(f"canon-index.json no tiene la forma esperada ({found}) — avisado en el contexto")
+        emit_missing_file_context(
+            "canon",
+            "canon-index.json",
+            path,
+            BLIND_PREFIX + f"it is a JSON object with entries ({found} found)",
+            state="UNREADABLE",
+            session_id=session_id,
+        )
+    return index
 
 
 def staleness_warning(index: dict) -> str | None:
@@ -386,9 +418,7 @@ def main() -> None:
         )
         emit_no_context()
 
-    index = load_index()
-    if not index:
-        emit_no_context()
+    index = load_index(session_id)
 
     diff_tokens = extract_diff_tokens(data)
     if not diff_tokens:

@@ -46,8 +46,13 @@ export interface ContainerSetupOptions {
  * import { prisma } from "@infra/prisma";
  * import { setupContainer } from "./infrastructure/container/setup.js";
  *
- * const container = setupContainer({ prisma });
+ * const container = setupContainer({ prisma, apiMetrics });
  * const postRepo = container.resolve<PostRepository>(TOKENS.PostRepository);
+ *
+ * A route unit suite has no bootstrap to build a collector from, so it does NOT
+ * call this directly: it goes through `createRouteTestContainer`
+ * (`tests/unit/helpers/testContainer.ts`), whose options type makes the omission
+ * inexpressible. Fitness #42 holds that seam as the only tests-side caller.
  */
 export function setupContainer(options: ContainerSetupOptions): Container {
   const container = getContainer();

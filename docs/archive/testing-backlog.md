@@ -1,5 +1,9 @@
 # OmniPost Testing Backlog
 
+> **⚠️ STATUS: FROZEN 2026-09-27 — HISTORICAL RECORD, DO NOT UPDATE.**
+> **Replaced by:** [docs/development/TESTING_INFRASTRUCTURE.md](../development/TESTING_INFRASTRUCTURE.md) — the one living description of the testing infrastructure; every number below that is still true was re-measured there, and every number that is not is superseded there.
+> Archived verbatim under `docs/archive/` (this header is the only addition), kept for its P2.5 product-gap table, which the replacement does not carry and which was only partly re-checked.
+
 Last updated: 2026-03-28 (A5 audit remediation)
 
 This document tracks all testing work that is known, planned, or deferred.

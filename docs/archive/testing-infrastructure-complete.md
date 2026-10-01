@@ -1,5 +1,9 @@
 # OmniPost Testing Infrastructure — Complete Reference
 
+> **⚠️ STATUS: FROZEN 2026-09-27 — HISTORICAL RECORD, DO NOT UPDATE.**
+> **Replaced by:** [docs/development/TESTING_INFRASTRUCTURE.md](../development/TESTING_INFRASTRUCTURE.md) — the one living description of the testing infrastructure; every number below that is still true was re-measured there, and every number that is not is superseded there.
+> Archived verbatim under `docs/archive/` (this header is the only addition), kept for its 2026-09-26 correction block, which records why a mutant-coverage share and a line-coverage share must not be substituted for each other.
+
 > **HISTORICAL — do not read as current state (marked 2026-09-26).**
 > This report dates from 2026-03-25. One of its claims is no longer true: the sections
 > describing `apps/api/src/domain/` and `apps/api/src/application/` refer to directories

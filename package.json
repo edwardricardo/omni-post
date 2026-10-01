@@ -7,6 +7,9 @@
   "author": "",
   "license": "ISC",
   "private": true,
+  "engines": {
+    "node": ">=24.15.0 <25"
+  },
   "packageManager": "pnpm@12.6.0+sha512.3ef68f951cb111ac204b4a5a16f0b2ddf0da56a96e0413e81d855d9f0b55ef926714709028e1cd00c405c2c5fb7b9e8ec4dc46777c805d0373c2f2ff00fd20ec",
   "scripts": {
     "test": "turbo run test --filter='[HEAD^1]' --concurrency=4",
@@ -58,7 +61,7 @@
   "devDependencies": {
     "@ast-grep/cli": "0.42.0",
     "@axe-core/playwright": "catalog:",
-    "@eslint/js": "9.36.0",
+    "@eslint/js": "9.39.5",
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/openapi-ts": "0.97.3",
     "@secretlint/secretlint-rule-preset-recommend": "12.3.1",
@@ -67,8 +70,8 @@
     "@types/opossum": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@typescript-eslint/eslint-plugin": "8.65.0",
-    "@typescript-eslint/parser": "8.65.0",
+    "@typescript-eslint/eslint-plugin": "8.70.1",
+    "@typescript-eslint/parser": "8.70.1",
     "autocannon": "8.0.0",
     "depcheck": "1.4.7",
     "dependency-cruiser": "17.4.0",

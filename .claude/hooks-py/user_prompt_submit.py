@@ -18,15 +18,16 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _common import LOG_PATH, PROJECT_ROOT, canon_research_index_path, current_branch  # noqa: E402
 
-LOG_PATH = Path(".claude/hooks.log")
 HOOK_NAME = "user-prompt-submit"
-CANON_INDEX_PATH = Path(
-    "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon_research_index.md"
-)
-ACTIVE_PLAN_CANDIDATES = [
-    Path(".claude/current-batch-plan.md"),
-]
+# Los planes reales viven en ~/.claude/plans/*.md (los escribe Plan Mode).
+# Un plan es "activo" si esta sesión lo tocó: la referencia aparece en el
+# transcript como el file_path de un Read/Edit/Write (mismo patrón que el
+# guardia de plan mode). Se lee solo la cola del transcript.
+PLAN_FILE_REF_RE = re.compile(r'"file_path"\s*:\s*"([^"]*\.claude/plans/[^"]*\.md)"')
+TRANSCRIPT_TAIL_BYTES = 5 * 1024 * 1024
 GIT_TIMEOUT_SEC = 2
 MAX_FILES_FROM_PROMPT = 5
 
@@ -47,18 +48,18 @@ def run(args: list[str], default: str = "") -> str:
     try:
         result = subprocess.run(
             args,
+            cwd=PROJECT_ROOT,
             capture_output=True,
             text=True,
             timeout=GIT_TIMEOUT_SEC,
             check=True,
         )
-        return result.stdout.strip()
+        # rstrip, no strip: en `git status --porcelain` el espacio inicial de la
+        # PRIMERA línea es la columna X (" M" = sin stagear); strip() lo comía y
+        # ese archivo se contaba como staged.
+        return result.stdout.rstrip()
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
         return default
-
-
-def current_branch() -> str:
-    return run(["git", "rev-parse", "--abbrev-ref", "HEAD"], default="(unknown)")
 
 
 def status_counts() -> dict[str, int]:
@@ -101,11 +102,30 @@ def file_age_min(path: Path) -> int | None:
     return int(age_sec / 60)
 
 
-def find_active_plan() -> Path | None:
-    for c in ACTIVE_PLAN_CANDIDATES:
-        if c.exists():
-            return c
-    return None
+def find_active_plan(transcript_path: str) -> Path | None:
+    """El último plan de ~/.claude/plans que ESTA sesión leyó o editó.
+
+    Se lee del transcript — la misma señal que usa pre_edit_planmode_guard —
+    en vez de un mtime con ventana de 24 h: el mtime lo mueve un `touch` o un
+    editor que lo preserva, y una ventana fija convertía un plan viejo en
+    "activo" o escondía uno recién escrito. Sin transcript, no hay plan.
+    """
+    if not transcript_path:
+        return None
+    try:
+        path = Path(transcript_path)
+        size = path.stat().st_size
+        with path.open("rb") as handle:
+            handle.seek(max(0, size - TRANSCRIPT_TAIL_BYTES))
+            tail = handle.read().decode("utf-8", errors="replace")
+    except OSError:
+        return None
+    refs = PLAN_FILE_REF_RE.findall(tail)
+    if not refs:
+        return None
+    plan = Path(refs[-1])
+    # Referenciado y borrado después: no hay plan activo, no uno fantasma.
+    return plan if plan.exists() else None
 
 
 def extract_layer(path: Path) -> str | None:
@@ -130,7 +150,8 @@ def find_files_in_prompt(prompt: str) -> list[str]:
         if p in seen:
             continue
         seen.add(p)
-        path = Path(p)
+        # Rutas del prompt relativas a la raíz del repo, no al cwd del proceso.
+        path = Path(p) if Path(p).is_absolute() else PROJECT_ROOT / p
         if not path.exists() or path.is_dir():
             continue
         layer = extract_layer(path)
@@ -141,26 +162,26 @@ def find_files_in_prompt(prompt: str) -> list[str]:
     return out
 
 
-def build_context(prompt: str) -> str:
-    branch = current_branch()
+def build_context(prompt: str, transcript_path: str) -> str:
+    research_index = canon_research_index_path()
+    branch = current_branch(PROJECT_ROOT)
     counts = status_counts()
     ab = ahead_behind(branch)
-    canon_age = file_age_min(CANON_INDEX_PATH)
-    active_plan = find_active_plan()
-    plan_age = file_age_min(active_plan) if active_plan else None
+    canon_age = file_age_min(research_index)
+    active_plan = find_active_plan(transcript_path)
     files = find_files_in_prompt(prompt)
 
     lines = [
-        f"branch: {branch}",
+        f"branch: {branch or '(no branch)'}",
         f"uncommitted: {counts['staged']} staged, {counts['unstaged']} unstaged, {counts['untracked']} untracked",
         f"ahead/behind: {ab}",
     ]
     if canon_age is not None:
         lines.append(f"canon_index_age: {canon_age} min")
     else:
-        lines.append("canon_index: not found")
-    if active_plan and plan_age is not None:
-        lines.append(f"active_plan: {active_plan.name} ({plan_age} min old)")
+        lines.append(f"canon_index: MISSING {research_index}")
+    if active_plan:
+        lines.append(f"active_plan: {active_plan.name} (read or edited in this session)")
     else:
         lines.append("active_plan: none")
     if files:
@@ -182,7 +203,7 @@ def main() -> None:
     log(f"invoked: prompt_chars={len(prompt)}, keys={list(data.keys())}")
 
     try:
-        ctx = build_context(prompt)
+        ctx = build_context(prompt, data.get("transcript_path", ""))
     except Exception as e:
         log(f"ERROR building context: {e}")
         sys.exit(0)
