@@ -19,13 +19,13 @@ import user_prompt_submit as ups  # noqa: E402
 
 
 def _fake_git(args: list[str], default: str = "") -> str:
-    # `status --porcelain`: un unstaged y un untracked; `rev-list`: "<behind>\t<ahead>".
+    # `status --porcelain`: one unstaged and one untracked; `rev-list`: "<behind>\t<ahead>".
     return {"status": " M a.ts\n?? b.ts", "rev-list": "2\t1"}.get(args[1], default)
 
 
 class BuildContextShapeTests(unittest.TestCase):
-    """`build_context` corre sobre git patcheado: lo que se afirma es qué campo
-    lleva cada línea, no el estado del repo donde corre el test."""
+    """`build_context` runs over a mocked git: what is asserted is which field
+    each line carries, not the state of the repository the test runs in."""
 
     def test_context_carries_branch_status_canon_index_and_the_plan_line(self):
         with mock.patch.object(ups, "current_branch", return_value="workstream/x"), \
@@ -73,13 +73,13 @@ class FindActivePlanTests(unittest.TestCase):
 
 class RunKeepsPorcelainColumnsTests(unittest.TestCase):
     def test_leading_space_of_the_first_line_survives(self):
-        # ` M file` = sin stagear; strip() se comía esa columna y contaba 1 staged.
+        # ` M file` = unstaged; strip() would eat that column and count 1 staged.
         self.assertEqual(ups.run(["printf", " M x\n"]), " M x")
 
 
 class FindFilesInPromptTests(unittest.TestCase):
-    """Las rutas del prompt se resuelven contra PROJECT_ROOT, no contra el cwd
-    del proceso del hook: la sesión puede arrancar en un subdirectorio."""
+    """Prompt paths resolve against PROJECT_ROOT, not against the cwd of the
+    hook process: the session can start in a subdirectory."""
 
     def test_relative_paths_resolve_against_the_project_root_from_any_cwd(self):
         tmp = Path(tempfile.mkdtemp())
@@ -89,7 +89,7 @@ class FindFilesInPromptTests(unittest.TestCase):
         (root / "apps" / "x.ts").write_text("/**\n * @file x.ts\n * @layer infrastructure\n */\n")
         absolute = tmp / "outside.md"
         absolute.write_text("# doc\n")
-        # Un cwd distinto de la raíz, con un señuelo que SOLO existe relativo a él.
+        # A cwd other than the root, with a decoy that exists ONLY relative to it.
         elsewhere = tmp / "elsewhere" / "apps"
         elsewhere.mkdir(parents=True)
         (elsewhere / "missing.ts").write_text("")

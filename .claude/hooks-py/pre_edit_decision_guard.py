@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Pre-edit decision-guard hook.
 
-Detecta patrones de decisión técnica de alto riesgo en el diff y avisa cuando
-no hay canon que los cubra. Hoy: ADVISORY ONLY — emite warning vía
-additionalContext, nunca bloquea (Phase 1 calibration).
+Detects high-risk technical decision patterns in the diff and warns when no
+canon covers them. ADVISORY ONLY: it emits a warning through additionalContext
+and never blocks, so the patterns can be calibrated before any hard gate.
 
-Patrones cubiertos (starter set):
+Covered patterns (starter set):
   - argon2-params       — Argon2 hash/verify parameter choice (RFC 9106)
   - jwt-algorithm       — JWT signing algorithm
   - oauth-scopes        — OAuth scope declaration
@@ -14,17 +14,18 @@ Patrones cubiertos (starter set):
   - csp-header          — Content Security Policy
   - rate-limit          — Rate limiting config
 
-Para cada match, busca en `canon-index.json`:
-  1. Strict: entries cuyo `decisionGuards: [...]` contiene el pattern_id.
-  2. Fallback: keyword-match contra topic/area/summary/keyTakeaway/key.
+For each match, it looks in `canon-index.json`:
+  1. Strict: entries whose `decisionGuards: [...]` contains the pattern_id.
+  2. Fallback: keyword match against topic/area/summary/keyTakeaway/key.
 
-Si ninguno cubre → emit advisory warning + log a `canon-decision-gaps.log`
-para calibración antes de subir a hard-gate (exit 2) en una iteración futura.
+When none covers it → emits an advisory warning + logs to
+`canon-decision-gaps.log`, the calibration data for any move to a hard gate
+(exit 2).
 
-Bypass case-by-case: env var `EDWARD_AUTHORIZED_HEURISTIC=yes` silencia el
-warning para esta invocación (registrado en log para auditoría).
+Case-by-case bypass: the env var `EDWARD_AUTHORIZED_HEURISTIC=yes` silences
+the warning for this invocation (recorded in the log for auditing).
 
-Este hook NUNCA bloquea: exit 0 siempre.
+This hook NEVER blocks: always exit 0.
 """
 
 import json
@@ -100,12 +101,12 @@ DECISION_PATTERNS: list[dict] = [
 
 
 def emit_no_warning(prefix: tuple[str, ...] = ()) -> None:
-    """Exit 0 sin inyectar nada, salvo `prefix` (p. ej. el aviso RECOVERED)."""
+    """Exit 0 without injecting anything, except `prefix` (e.g. the RECOVERED notice)."""
     emit_additional_context("PreToolUse", "", prefix)
 
 
 def emit_warning(content: str, prefix: tuple[str, ...] = ()) -> None:
-    """Exit 0 con additionalContext en stdout (`prefix` primero)."""
+    """Exit 0 with additionalContext on stdout (`prefix` first)."""
     emit_additional_context("PreToolUse", content, prefix)
 
 
@@ -122,13 +123,13 @@ def load_index(*, decision_ids: str, session_id: str = "") -> dict:
     path = canon_index_path()
     consequence = f"decision-gap check for {decision_ids} is blind until it exists"
     if not path.exists():
-        log(f"canon-index.json no existe en {path} — sin DECISION GAP, avisado en el contexto")
+        log(f"canon-index.json does not exist at {path} — no DECISION GAP, reported in the context")
         emit_missing_file_context("canon", "canon-index.json", path, consequence, hook_event="PreToolUse", session_id=session_id)
     try:
         with path.open("r", encoding="utf-8") as f:
             index = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
-        log(f"ERROR leyendo canon-index: {e} — sin DECISION GAP, avisado en el contexto")
+        log(f"ERROR reading canon-index: {e} — no DECISION GAP, reported in the context")
         emit_missing_file_context(
             "canon",
             "canon-index.json",
@@ -139,10 +140,10 @@ def load_index(*, decision_ids: str, session_id: str = "") -> dict:
             session_id=session_id,
         )
     if not isinstance(index, dict) or not isinstance(index.get("entries"), dict):
-        # JSON válido pero sin la forma que se lee (un objeto con `entries`): un
-        # `{}` o un `[]` compararían contra nada y callarían el gap sin avisar.
+        # Valid JSON without the shape the hook reads (an object with `entries`):
+        # a `{}` or a `[]` would compare against nothing and hide the gap unreported.
         found = type(index).__name__ if not isinstance(index, dict) else "object without entries"
-        log(f"canon-index.json no tiene la forma esperada ({found}) — sin DECISION GAP, avisado en el contexto")
+        log(f"canon-index.json does not have the expected shape ({found}) — no DECISION GAP, reported in the context")
         emit_missing_file_context(
             "canon",
             "canon-index.json",
@@ -156,7 +157,7 @@ def load_index(*, decision_ids: str, session_id: str = "") -> dict:
 
 
 def extract_diff_text(data: dict) -> str:
-    """Extrae texto a verificar de tool_input según tool_name."""
+    """Extracts the text to check from tool_input according to tool_name."""
     tool_name = data.get("tool_name", "")
     tool_input = data.get("tool_input", {})
     chunks: list[str] = []
@@ -171,7 +172,7 @@ def extract_diff_text(data: dict) -> str:
 
 
 def canon_covers_pattern(index: dict, pattern: dict) -> bool:
-    """True si algún canon entry cubre este pattern (strict o keyword fallback)."""
+    """True when some canon entry covers this pattern (strict or keyword fallback)."""
     pattern_id = pattern["id"]
     keywords = [kw.lower() for kw in pattern.get("canon_keywords", [])]
     for entry in index.get("entries", {}).values():
@@ -200,7 +201,7 @@ def log_event(path: Path, file_path: str, pattern_id: str, suffix: str = "") -> 
         with path.open("a", encoding="utf-8") as f:
             f.write(f"{ts}\t{file_path}\t{pattern_id}\t{suffix}\n")
     except OSError as e:
-        log(f"WARN: no se pudo escribir {path}: {e}")
+        log(f"WARN: could not write {path}: {e}")
 
 
 def main() -> None:
@@ -254,22 +255,22 @@ def main() -> None:
 
     lines = [f"[DECISION GAP — {file_path}]", ""]
     lines.append(
-        "Las siguientes decisiones técnicas en el diff NO tienen canon entry que las cubra:"
+        "The following technical decisions in the diff have NO canon entry that covers them:"
     )
     lines.append("")
     for p in gaps:
         lines.append(f"  - **{p['id']}** — {p['description']}")
     lines.append("")
     lines.append(
-        "**Advisory** (no bloqueante). Antes de aplicar el cambio, considerá pedirle a Edward:"
+        "**Advisory** (non-blocking). Before applying the change, consider asking Edward to:"
     )
-    lines.append("  (a) iniciar canon research para esta decisión, o")
+    lines.append("  (a) start canon research for this decision, or")
     lines.append(
-        "  (b) confirmar que ya autorizó la heurística (set `EDWARD_AUTHORIZED_HEURISTIC=yes` en la session)."
+        "  (b) confirm that he already authorized the heuristic (set `EDWARD_AUTHORIZED_HEURISTIC=yes` in the session)."
     )
     lines.append("")
     lines.append(
-        "Logged a `.claude/canon-decision-gaps.log` para calibrar antes de subir a hard-gate."
+        "Logged to `.claude/canon-decision-gaps.log` for calibration before any move to a hard gate."
     )
 
     emit_warning("\n".join(lines), prefix)

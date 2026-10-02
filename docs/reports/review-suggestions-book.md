@@ -47,6 +47,9 @@
 | SB-026 | same                                                                                  | R3-X2-decision-rule-ambiguity                                    | `openspec/changes/testing-refoundation/tasks-part-2.md` task X.2.1                                                                          | prose precision              | deferred: restate the fork rule as "any hard criterion other than H5 failing keeps node:test" so no reader has to infer the two-failures case                   |
 | SB-027 | same                                                                                  | R3-1-11-3-env-coupling                                           | `openspec/changes/testing-refoundation/tasks-part-2.md` task 1.11.3                                                                         | missing red row              | deferred: add a RED row where an unset `TEST_API_URL` fails fast with a named error, so the deleted `localhost:3000` default is proved gone                     |
 | SB-028 | `mental-map-hooks` 3a-i (`workstream/hooks-canon-index`, 4c921dbb)                    | R2-canon-finalize-import-ordering                                | `.claude/scripts/canon-finalize.py:34-41` and the three sibling canon scripts                                                               | duplication                  | deferred: revisit the `_common` bootstrap repeated in four scripts once it is decided which of those scripts survive                                            |
+| SB-029 | `mental-map-hooks` 3a-ii (`workstream/hooks-canon-staleness`, 61cfeccc)               | R2-canon-line-implicit-invariant                                 | `.claude/hooks-py/user_prompt_submit.py` `canon_index_line`                                                                                 | comment                      | implemented (English sweep, `workstream/hooks-english-canon`)                                                                                                   |
+| SB-030 | same                                                                                  | R2-canon-line-broad-except                                       | `.claude/hooks-py/user_prompt_submit.py` `canon_index_line`                                                                                 | comment                      | implemented (English sweep, `workstream/hooks-english-canon`)                                                                                                   |
+| SB-031 | same                                                                                  | R2-dead-patterns-named-naming                                    | `.claude/hooks-py/_common.py` `DEAD_PATTERNS_NAMED`                                                                                         | naming                       | implemented (English sweep, 4eb09fdc)                                                                                                                           |
 
 ## Entries — code and prose
 
@@ -250,6 +253,30 @@
 - **Why deferred:** no behaviour changes. A helper module in the scripts directory would not resolve when the suite loads a script by path, so the pair is the smallest form that works both ways; how many scripts carry it depends on a pending decision about the report scripts that read paths which no longer exist.
 - **To implement:** after that decision, with the scripts that remain: either one bootstrap the tests can also load, or closing this row with the count that is left.
 
+### SB-029 — the `current` branch of the prompt line relies on an unnamed invariant
+
+- **Source:** review `hooks-canon-staleness` (`mental-map-hooks` 3a-ii, lineage `review-b7a56b2c20984aaa`), readability lens, finding `R2-canon-line-implicit-invariant`.
+- **Location:** `.claude/hooks-py/user_prompt_submit.py`, `canon_index_line`.
+- **Suggestion:** say at the return that a `None` staleness result implies a parsed `synthesizedAt`, and that the index read guarantees `entries` is a dict.
+- **Why deferred:** the invariant holds by construction and a violation would land in the catch-all two lines below; the request is one comment.
+- **To implement:** one comment line; no code change.
+
+### SB-030 — the catch-all of the prompt line does not say what it absorbs
+
+- **Source:** same review, finding `R2-canon-line-broad-except`.
+- **Location:** `.claude/hooks-py/user_prompt_submit.py`, `canon_index_line`.
+- **Suggestion:** narrow the `except Exception`, or name in its comment that it also absorbs path-resolution faults.
+- **Why deferred:** catching everything is the contract of the prompt line — it never crashes the hook and never goes silent, the error is logged and shown as STALE with its class, and a test pins that. Only the comment was short of the code.
+- **To implement:** reword the comment; no code change.
+
+### SB-031 — `DEAD_PATTERNS_NAMED` reads as a predicate
+
+- **Source:** same review, finding `R2-dead-patterns-named-naming`.
+- **Location:** `.claude/hooks-py/_common.py`, the module constant used by `canon_index_staleness`.
+- **Suggestion:** a name that reads as a cap, such as `MAX_NAMED_DEAD_PATTERNS`, or a comment on the constant.
+- **Why deferred:** naming only; one call site.
+- **To implement:** rename the constant and its uses.
+
 ## Entries — tests
 
 ### SB-T01 — a bare repository's `--git-common-dir` is not named `.git`
@@ -315,6 +342,8 @@
 | SB-005                                                                 | 1d (`workstream/hooks-visibility`)                   | `notice_already_sent` reads and records under `fcntl.flock(LOCK_EX)`; test asserts the lock                    |
 | SB-006                                                                 | 1d                                                   | the notices log keeps only the current session's lines when it records; test asserts other sessions are pruned |
 | SB-001, SB-002, SB-003, SB-004, SB-T02, SB-T03, SB-008, SB-009, SB-010 | book sweep (`workstream/hooks-book-sweep`, 1e6a3c66) | see the PR; red proofs for the four behavioural rows                                                           |
+| SB-031                                                                 | English sweep (`workstream/hooks-english`, 4eb09fdc) | the constant is `MAX_NAMED_DEAD_PATTERNS`, renamed together with its three uses                                |
+| SB-029, SB-030                                                         | English sweep (`workstream/hooks-english-canon`)     | two comments in `canon_index_line`: the invariant behind `current`, and what the catch-all absorbs and why     |
 
 ## Closed with a reason
 
