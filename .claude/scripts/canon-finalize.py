@@ -32,12 +32,13 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CANON_MD = Path(
-    "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon_research_index.md"
-)
-CANON_JSON = Path(
-    "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon-index.json"
-)
+# Same resolver as the hooks and the generator this script runs: the project's
+# auto-memory directory, never a machine-specific literal path.
+sys.path.insert(0, str(REPO_ROOT / ".claude" / "hooks-py"))
+from _common import canon_index_path, canon_research_index_path  # noqa: E402
+
+CANON_MD = canon_research_index_path()
+CANON_JSON = canon_index_path()
 APPROVED_DIR = REPO_ROOT / ".claude" / "canon-candidates" / "approved"
 MIGRATE_SCRIPT = REPO_ROOT / ".claude" / "scripts" / "migrate-canon-index.py"
 

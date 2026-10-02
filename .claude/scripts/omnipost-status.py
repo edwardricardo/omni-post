@@ -28,14 +28,17 @@ import json
 import re
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
-CANON_INDEX = Path(
-    "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon-index.json"
-)
+# The index path comes from the same resolver the hooks use: the repository's
+# auto-memory directory, never a machine-specific literal path.
+sys.path.insert(0, str(SCRIPTS_DIR.parent / "hooks-py"))
+from _common import canon_index_path  # noqa: E402
+
+CANON_INDEX = canon_index_path()
 DEFAULT_OUT_DIR = Path("docs/reports/audits")
 
 
@@ -205,7 +208,7 @@ def render_executive(snapshot: dict) -> str:
     lines: list[str] = []
     today = datetime.now(timezone.utc)
 
-    lines.append(f"# OmniPost — Dashboard de avance")
+    lines.append("# OmniPost — Progress dashboard")
     lines.append("")
     lines.append(f"_Generado: {today.strftime('%Y-%m-%d %H:%M UTC')}_")
     lines.append("")

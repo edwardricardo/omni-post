@@ -141,9 +141,38 @@ def canon_index_path() -> Path:
 
 
 def canon_research_index_path() -> Path:
-    """Ruta de canon_research_index.md — el markdown que lee el hook de prompt,
-    no el JSON de `canon_index_path` — resuelta al usarla, no al importar."""
+    """Path of canon_research_index.md — the markdown the JSON at
+    `canon_index_path` is generated from — resolved on use, not on import."""
     return memory_dir() / "canon_research_index.md"
+
+
+# Glob characters: `pre_edit_canon` matches `appliesTo` as a SUBSTRING of the
+# edited path, so a pattern containing `*` or `[` never matches anything.
+_GLOB_CHARS = frozenset("*?[]{}")
+
+
+def applies_to_pattern_is_live(pattern: str, root: Path = PROJECT_ROOT) -> bool:
+    """True when `pattern` can fire: root-relative (no leading `/`), free of
+    glob characters, and naming a file or directory that exists under `root`.
+
+    A pattern that fails this never matches a repository path: the entry
+    carrying it goes silent and nothing reports it.
+    """
+    if not isinstance(pattern, str) or not pattern or pattern.startswith("/") or _GLOB_CHARS.intersection(pattern):
+        return False
+    return (root / pattern).exists()
+
+
+def dead_applies_to_patterns(index: dict, root: Path = PROJECT_ROOT) -> dict[str, list[str]]:
+    """Each dead pattern in the index -> the sorted keys of the entries that
+    carry it. Empty when every pattern can fire."""
+    dead: dict[str, set[str]] = {}
+    for key, entry in index.get("entries", {}).items():
+        applies_to = entry.get("appliesTo") if isinstance(entry, dict) else None
+        for pattern in applies_to if isinstance(applies_to, list) else []:
+            if not applies_to_pattern_is_live(pattern, root):
+                dead.setdefault(str(pattern), set()).add(str(entry.get("key", key)))
+    return {pattern: sorted(keys) for pattern, keys in sorted(dead.items())}
 
 
 # Regex compartida entre pre-bash y post-bash. Matchea 'git' y 'push' como

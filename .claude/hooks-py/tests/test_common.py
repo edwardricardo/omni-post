@@ -467,5 +467,34 @@ class MissingFileContextTests(unittest.TestCase):
             self.assertIn("sin deduplicar", (Path(self._tmp.name) / "hooks.log").read_text(encoding="utf-8"))
 
 
+class AppliesToPatternLivenessTests(unittest.TestCase):
+    """An `appliesTo` pattern is live when it is root-relative, free of glob
+    characters, and names something that exists: that is what substring
+    matching can find."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        (self.root / "apps" / "api").mkdir(parents=True)
+        (self.root / "apps" / "api" / "env.ts").write_text("")
+
+    def test_an_existing_relative_directory_or_file_is_live(self):
+        self.assertTrue(_common.applies_to_pattern_is_live("apps/api/", self.root))
+        self.assertTrue(_common.applies_to_pattern_is_live("apps/api/env.ts", self.root))
+
+    def test_absent_absolute_globbed_or_empty_patterns_are_dead(self):
+        for pattern in ("apps/web/", str(self.root / "apps"), "apps/*/", "apps/api/[a]", "", "/apps/api/"):
+            with self.subTest(pattern=pattern):
+                self.assertFalse(_common.applies_to_pattern_is_live(pattern, self.root))
+
+    def test_dead_patterns_map_each_pattern_to_its_entry_keys(self):
+        index = {"entries": {
+            "b": {"key": "b", "appliesTo": ["apps/web/", "apps/api/"]},
+            "a": {"key": "a", "appliesTo": ["apps/web/"]},
+        }}
+        self.assertEqual(_common.dead_applies_to_patterns(index, self.root), {"apps/web/": ["a", "b"]})
+
+
 if __name__ == "__main__":
     unittest.main()

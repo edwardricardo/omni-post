@@ -20,10 +20,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# The index path comes from the same resolver the hooks use: the repository's
+# auto-memory directory, never a machine-specific literal path.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "hooks-py"))
+from _common import canon_index_path  # noqa: E402
 
-CANON_JSON = Path(
-    "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon-index.json"
-)
+CANON_JSON = canon_index_path()
 
 
 def parse_date(date_str: str) -> datetime | None:
