@@ -19,18 +19,25 @@ const typeAwareBackendPaths = [
   "apps/api/src/infrastructure/**/*.ts",
 ];
 
-// Hexagonal element classification for boundaries plugin. Each element type
-// declares which other elements it may import. Files matching no element are
-// caught by `boundaries/no-unknown-files` so the classification stays exhaustive.
+// Hexagonal classification for the boundaries plugin, on two independent axes.
+// Element patterns name folders: a file takes the type of the first element
+// descriptor whose folder contains it. File descriptors match whole file paths
+// and give a file a category: every `*Routes.ts` file under `apps/api/src`
+// carries the `routes` category, and one inside `infrastructure/` is also the
+// `infrastructure` element. A file that matches no element and no file
+// descriptor is not checked by `boundaries/dependencies`, and an import that
+// resolves to such a file is skipped, so this classification decides what the
+// layer policies can see. `boundaries/no-unknown-files` is not configured:
+// nothing reports a file that the classification leaves out.
 const hexagonalElements = [
   { type: "domain", pattern: "apps/api/src/domain/**" },
   { type: "application", pattern: "apps/api/src/application/**" },
-  { type: "routes", pattern: "apps/api/src/**/*Routes.ts" },
   { type: "infrastructure", pattern: "apps/api/src/infrastructure/**" },
   { type: "ports", pattern: "packages/ports/**" },
   { type: "shared", pattern: "packages/shared/**" },
   { type: "adapters", pattern: "packages/adapters/**" },
 ];
+const hexagonalFiles = [{ category: "routes", pattern: "apps/api/src/**/*Routes.ts" }];
 
 export default defineConfig([
   {
@@ -200,16 +207,25 @@ export default defineConfig([
       "@typescript-eslint/no-floating-promises": "error",
     },
   },
-  // Hexagonal layer enforcement via eslint-plugin-boundaries.
-  // Each from-element declares the to-elements it may import; everything else
-  // is denied by `default: "disallow"`.
+  // Hexagonal layer enforcement via eslint-plugin-boundaries. Each policy names
+  // the importing element (or, for routes, the importing file category) and
+  // what it may (`allow`) or may not (`disallow`) import; an import no policy
+  // allows is denied by `default: "disallow"`. When several policies match one
+  // import, the last matching one decides, which is why the framework denials
+  // come after the allowances they narrow.
   //   domain         → domain, shared
   //   application    → domain, ports, shared, application
   //   infrastructure → application, domain, ports, adapters, shared, infrastructure
-  //   routes         → application, ports, shared
+  //   routes (file)  → application, ports, shared
   //   ports          → shared, ports
   //   shared         → shared
   //   adapters       → ports, shared, adapters
+  // No element may import a routes file: a routes file outside every element
+  // is known only by its category, and no policy allows that category as a
+  // target. A routes file inside `infrastructure/` matches both the
+  // infrastructure and the routes policies; every routes allowance is also an
+  // infrastructure allowance and neither has a denial, so it keeps the
+  // infrastructure permissions, and other infrastructure files may import it.
   {
     files: [
       "apps/api/src/**/*.ts",
@@ -219,7 +235,14 @@ export default defineConfig([
     ],
     plugins: { boundaries: boundariesPlugin },
     settings: {
+      // The plugin anchors every element and file pattern at this path, and
+      // without it falls back to `process.cwd()`: a lint started from a
+      // package directory then matches no pattern and allows every import
+      // without a word. Anchored at the config's own directory, the verdict
+      // no longer depends on where the lint was started.
+      "boundaries/root-path": import.meta.dirname,
       "boundaries/elements": hexagonalElements,
+      "boundaries/files": hexagonalFiles,
       "boundaries/include": [
         "apps/api/src/**/*.ts",
         "packages/ports/**/*.ts",
@@ -233,136 +256,186 @@ export default defineConfig([
         {
           default: "disallow",
           checkAllOrigins: true,
-          rules: [
-            // Internal element-to-element rules (cross-package within the monorepo).
+          policies: [
+            // Element-to-element policies (cross-package within the monorepo).
             {
-              from: { type: "domain" },
-              allow: [{ to: { type: "domain" } }, { to: { type: "shared" } }],
-            },
-            {
-              from: { type: "application" },
+              from: { element: { type: "domain" } },
               allow: [
-                { to: { type: "domain" } },
-                { to: { type: "ports" } },
-                { to: { type: "shared" } },
-                { to: { type: "application" } },
+                { to: { element: { type: "domain" } } },
+                { to: { element: { type: "shared" } } },
               ],
             },
             {
-              from: { type: "infrastructure" },
+              from: { element: { type: "application" } },
               allow: [
-                { to: { type: "application" } },
-                { to: { type: "domain" } },
-                { to: { type: "ports" } },
-                { to: { type: "adapters" } },
-                { to: { type: "shared" } },
-                { to: { type: "infrastructure" } },
+                { to: { element: { type: "domain" } } },
+                { to: { element: { type: "ports" } } },
+                { to: { element: { type: "shared" } } },
+                { to: { element: { type: "application" } } },
               ],
             },
             {
-              from: { type: "routes" },
+              from: { element: { type: "infrastructure" } },
               allow: [
-                { to: { type: "application" } },
-                { to: { type: "ports" } },
-                { to: { type: "shared" } },
+                { to: { element: { type: "application" } } },
+                { to: { element: { type: "domain" } } },
+                { to: { element: { type: "ports" } } },
+                { to: { element: { type: "adapters" } } },
+                { to: { element: { type: "shared" } } },
+                { to: { element: { type: "infrastructure" } } },
               ],
             },
             {
-              from: { type: "ports" },
-              allow: [{ to: { type: "shared" } }, { to: { type: "ports" } }],
-            },
-            {
-              from: { type: "shared" },
-              allow: [{ to: { type: "shared" } }],
-            },
-            {
-              from: { type: "adapters" },
+              from: { file: { categories: "routes" } },
               allow: [
-                { to: { type: "ports" } },
-                { to: { type: "shared" } },
-                { to: { type: "adapters" } },
+                { to: { element: { type: "application" } } },
+                { to: { element: { type: "ports" } } },
+                { to: { element: { type: "shared" } } },
               ],
             },
-            // External npm packages and Node.js core builtins — allow by
-            // default for every element; specific framework / infra SDKs are
-            // denied below for domain and ports only.
-            { from: { type: "domain" }, allow: [{ to: { origin: "external" } }] },
-            { from: { type: "domain" }, allow: [{ to: { origin: "core" } }] },
-            { from: { type: "application" }, allow: [{ to: { origin: "external" } }] },
-            { from: { type: "application" }, allow: [{ to: { origin: "core" } }] },
-            { from: { type: "infrastructure" }, allow: [{ to: { origin: "external" } }] },
-            { from: { type: "infrastructure" }, allow: [{ to: { origin: "core" } }] },
-            { from: { type: "routes" }, allow: [{ to: { origin: "external" } }] },
-            { from: { type: "routes" }, allow: [{ to: { origin: "core" } }] },
-            { from: { type: "ports" }, allow: [{ to: { origin: "external" } }] },
-            { from: { type: "ports" }, allow: [{ to: { origin: "core" } }] },
-            { from: { type: "shared" }, allow: [{ to: { origin: "external" } }] },
-            { from: { type: "shared" }, allow: [{ to: { origin: "core" } }] },
-            { from: { type: "adapters" }, allow: [{ to: { origin: "external" } }] },
-            { from: { type: "adapters" }, allow: [{ to: { origin: "core" } }] },
             {
-              from: { type: "domain" },
-              disallow: { to: { origin: "external" }, dependency: { module: "fastify" } },
+              from: { element: { type: "ports" } },
+              allow: [
+                { to: { element: { type: "shared" } } },
+                { to: { element: { type: "ports" } } },
+              ],
             },
             {
-              from: { type: "domain" },
-              disallow: { to: { origin: "external" }, dependency: { module: "@fastify/*" } },
+              from: { element: { type: "shared" } },
+              allow: [{ to: { element: { type: "shared" } } }],
             },
             {
-              from: { type: "domain" },
-              disallow: { to: { origin: "external" }, dependency: { module: "@prisma/client" } },
+              from: { element: { type: "adapters" } },
+              allow: [
+                { to: { element: { type: "ports" } } },
+                { to: { element: { type: "shared" } } },
+                { to: { element: { type: "adapters" } } },
+              ],
+            },
+            // npm packages (origin `external`) and Node.js built-ins (origin
+            // `core`) are allowed for every element; the framework and
+            // infrastructure packages denied below narrow that for domain and
+            // ports only. A module `source` is the package name without its
+            // subpath, so `@prisma/client` also covers `@prisma/client/runtime`.
+            {
+              from: { element: { type: "domain" } },
+              allow: [{ to: { module: { origin: "external" } } }],
             },
             {
-              from: { type: "domain" },
-              disallow: { to: { origin: "external" }, dependency: { module: "@prisma/client/*" } },
+              from: { element: { type: "domain" } },
+              allow: [{ to: { module: { origin: "core" } } }],
             },
             {
-              from: { type: "domain" },
-              disallow: { to: { origin: "external" }, dependency: { module: "prisma" } },
+              from: { element: { type: "application" } },
+              allow: [{ to: { module: { origin: "external" } } }],
             },
             {
-              from: { type: "domain" },
-              disallow: { to: { origin: "external" }, dependency: { module: "redis" } },
+              from: { element: { type: "application" } },
+              allow: [{ to: { module: { origin: "core" } } }],
             },
             {
-              from: { type: "domain" },
-              disallow: { to: { origin: "external" }, dependency: { module: "ioredis" } },
+              from: { element: { type: "infrastructure" } },
+              allow: [{ to: { module: { origin: "external" } } }],
             },
             {
-              from: { type: "domain" },
-              disallow: { to: { origin: "external" }, dependency: { module: "bullmq" } },
+              from: { element: { type: "infrastructure" } },
+              allow: [{ to: { module: { origin: "core" } } }],
             },
             {
-              from: { type: "ports" },
-              disallow: { to: { origin: "external" }, dependency: { module: "fastify" } },
+              from: { file: { categories: "routes" } },
+              allow: [{ to: { module: { origin: "external" } } }],
             },
             {
-              from: { type: "ports" },
-              disallow: { to: { origin: "external" }, dependency: { module: "@fastify/*" } },
+              from: { file: { categories: "routes" } },
+              allow: [{ to: { module: { origin: "core" } } }],
             },
             {
-              from: { type: "ports" },
-              disallow: { to: { origin: "external" }, dependency: { module: "@prisma/client" } },
+              from: { element: { type: "ports" } },
+              allow: [{ to: { module: { origin: "external" } } }],
             },
             {
-              from: { type: "ports" },
-              disallow: { to: { origin: "external" }, dependency: { module: "@prisma/client/*" } },
+              from: { element: { type: "ports" } },
+              allow: [{ to: { module: { origin: "core" } } }],
             },
             {
-              from: { type: "ports" },
-              disallow: { to: { origin: "external" }, dependency: { module: "prisma" } },
+              from: { element: { type: "shared" } },
+              allow: [{ to: { module: { origin: "external" } } }],
             },
             {
-              from: { type: "ports" },
-              disallow: { to: { origin: "external" }, dependency: { module: "redis" } },
+              from: { element: { type: "shared" } },
+              allow: [{ to: { module: { origin: "core" } } }],
             },
             {
-              from: { type: "ports" },
-              disallow: { to: { origin: "external" }, dependency: { module: "ioredis" } },
+              from: { element: { type: "adapters" } },
+              allow: [{ to: { module: { origin: "external" } } }],
             },
             {
-              from: { type: "ports" },
-              disallow: { to: { origin: "external" }, dependency: { module: "bullmq" } },
+              from: { element: { type: "adapters" } },
+              allow: [{ to: { module: { origin: "core" } } }],
+            },
+            {
+              from: { element: { type: "domain" } },
+              disallow: { to: { module: { origin: "external", source: "fastify" } } },
+            },
+            {
+              from: { element: { type: "domain" } },
+              disallow: { to: { module: { origin: "external", source: "@fastify/*" } } },
+            },
+            {
+              from: { element: { type: "domain" } },
+              disallow: { to: { module: { origin: "external", source: "@prisma/client" } } },
+            },
+            {
+              from: { element: { type: "domain" } },
+              disallow: { to: { module: { origin: "external", source: "@prisma/client/*" } } },
+            },
+            {
+              from: { element: { type: "domain" } },
+              disallow: { to: { module: { origin: "external", source: "prisma" } } },
+            },
+            {
+              from: { element: { type: "domain" } },
+              disallow: { to: { module: { origin: "external", source: "redis" } } },
+            },
+            {
+              from: { element: { type: "domain" } },
+              disallow: { to: { module: { origin: "external", source: "ioredis" } } },
+            },
+            {
+              from: { element: { type: "domain" } },
+              disallow: { to: { module: { origin: "external", source: "bullmq" } } },
+            },
+            {
+              from: { element: { type: "ports" } },
+              disallow: { to: { module: { origin: "external", source: "fastify" } } },
+            },
+            {
+              from: { element: { type: "ports" } },
+              disallow: { to: { module: { origin: "external", source: "@fastify/*" } } },
+            },
+            {
+              from: { element: { type: "ports" } },
+              disallow: { to: { module: { origin: "external", source: "@prisma/client" } } },
+            },
+            {
+              from: { element: { type: "ports" } },
+              disallow: { to: { module: { origin: "external", source: "@prisma/client/*" } } },
+            },
+            {
+              from: { element: { type: "ports" } },
+              disallow: { to: { module: { origin: "external", source: "prisma" } } },
+            },
+            {
+              from: { element: { type: "ports" } },
+              disallow: { to: { module: { origin: "external", source: "redis" } } },
+            },
+            {
+              from: { element: { type: "ports" } },
+              disallow: { to: { module: { origin: "external", source: "ioredis" } } },
+            },
+            {
+              from: { element: { type: "ports" } },
+              disallow: { to: { module: { origin: "external", source: "bullmq" } } },
             },
           ],
         },
