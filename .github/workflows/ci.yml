@@ -239,6 +239,12 @@ jobs:
   coverage-merge:
     name: Coverage Merge
     runs-on: ubuntu-latest
+    # Partial coverage is never certified because of two lines, and neither may
+    # change alone. `needs: test` WITHOUT `if: always()` runs this job only when
+    # every shard succeeded; with `if: always()` it would merge whatever blobs
+    # exist, nothing here counts them, and half a suite would be gated against
+    # the full floors. `if-no-files-found: error` on the shard upload turns a
+    # shard that wrote no blob into a failed shard, which this `needs` honours.
     needs: test
     timeout-minutes: 10
 
