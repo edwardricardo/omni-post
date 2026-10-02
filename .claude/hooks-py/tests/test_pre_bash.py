@@ -1,4 +1,4 @@
-"""Tests de pre_bash: qué escribe de verdad un comando, Postgres sondeado, npx."""
+"""Tests of pre_bash: what a command really writes, Postgres probed, npx."""
 
 import contextlib
 import io
@@ -17,8 +17,8 @@ import pre_bash  # noqa: E402
 import pre_edit_planmode_guard as planmode  # noqa: E402
 from _common import repository_of, shell_segments  # noqa: E402
 
-# Armados por partes: el pre_bash VIVO de la sesión que escribió esto miraba el
-# texto del comando y se bloqueaba con estas cadenas dentro de un heredoc.
+# Built in pieces: the LIVE pre_bash of the session that wrote this read the
+# command text and blocked on these strings inside a heredoc.
 MIGRATE = "pnpm db:" + "migrate"
 PRISMA_MIGRATE = "pnpm prisma " + "migrate deploy"
 NPM_INSTALL = "npm " + "install left-pad"
@@ -44,7 +44,7 @@ class _Gate(unittest.TestCase):
 
 
 class SensitiveWriteGateTests(_Gate):
-    """Sin token: bloquea solo cuando una construcción de escritura APUNTA a la ruta."""
+    """Without a token: blocks only when a write construct POINTS AT the path."""
 
     def setUp(self):
         super().setUp()

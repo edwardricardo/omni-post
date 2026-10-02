@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Pre-edit hook — bloquea Edit/Write/MultiEdit sobre archivos sensibles.
+"""Pre-edit hook — blocks Edit/Write/MultiEdit on sensitive files.
 
-Cierra el agujero de privilege escalation: si Claude pudiera editar
-`pre_bash.py` o `settings.json`, podría neutralizar los demás hooks. También
-protege schema/secrets de cambios accidentales.
+Closes the privilege-escalation hole: if Claude could edit `pre_bash.py` or
+`settings.json`, it could neutralize the other hooks. It also protects
+schema/secrets from accidental changes.
 
-Bypass: token time-boxed creado por `omnipost-allow sensitive-edit`
-(TTL 15 min), validado igual que el token de push. Ausente o expirado
-→ bloqueo. Auditable vía .claude/hooks.log.
+Bypass: a time-boxed token created by `omnipost-allow sensitive-edit`
+(TTL 15 min), validated like the push token. Missing or expired
+→ block. Auditable through .claude/hooks.log.
 """
 
 import sys
@@ -26,13 +26,14 @@ SENSITIVE_PATTERNS = [
     "/.claude/bin/",
     "/infra/prisma/schema.prisma",
     "/infra/prisma/migrations/",
-    "/.env",  # incluye .env, .env.test, .env.example, .envrc
+    "/.env",  # includes .env, .env.test, .env.example, .envrc
     "/encryption/",
     "/.github/workflows/",
 ]
 
+
 def is_sensitive(file_path: str) -> str | None:
-    """Devuelve el pattern matched, o None si el path no es sensible."""
+    """Returns the matched pattern, or None when the path is not sensitive."""
     if not file_path:
         return None
     for pattern in SENSITIVE_PATTERNS:
@@ -51,16 +52,16 @@ def main() -> None:
 
     matched = is_sensitive(file_path)
     if not matched:
-        allow(f"path no sensible ({file_path})")
+        allow(f"path not sensitive ({file_path})")
 
     status = check_grant_token("sensitive-edit", log)
     if status is None:
         allow(f"sensitive path {file_path} authorized via valid sensitive-edit token")
 
     block(
-        f"{file_path} matchea pattern sensible '{matched}' (token: {status}). "
-        f"Autorización time-boxed por token: pedíle a Edward que ejecute "
-        f"'omnipost-allow sensitive-edit' (TTL 15 min), igual que para push."
+        f"{file_path} matches sensitive pattern '{matched}' (token: {status}). "
+        f"Time-boxed authorization by token: ask Edward to run "
+        f"'omnipost-allow sensitive-edit' (TTL 15 min), as for push."
     )
 
 

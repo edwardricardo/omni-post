@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """Pre-edit Plan Mode guard hook.
 
-Bloquea Edit/Write/MultiEdit en branches `workstream/*` cuando no hay
-evidencia de Plan Mode activo o de actividad reciente sobre un plan file
-en `/root/.claude/plans/`. Enforces la práctica:
+Blocks Edit/Write/MultiEdit on `workstream/*` branches when there is no
+evidence of an active Plan Mode or of recent activity on a plan file
+under `/root/.claude/plans/`. Enforces the practice:
 "Always Plan Mode before non-trivial implementation in workstream branches"
-(documentada en feedback/workflow.md §planning-before-execution).
+(documented in feedback/workflow.md §planning-before-execution).
 
-DETECCIÓN:
-  1. Branch actual matches `^workstream/.*` (via git rev-parse).
+DETECTION:
+  1. The current branch matches `^workstream/.*` (via git rev-parse).
   2. Recent transcript (last 200KB) lacks BOTH:
      a. Any tool_use of EnterPlanMode/ExitPlanMode within recent turns.
      b. Any Read/Edit/Write on /root/.claude/plans/*.md.
 
-EXCEPCIÓN — trivial edits passes:
-  - Edit con `new_string` < 30 newlines AND `old_string` < 30 newlines.
-  - MultiEdit con total newlines en edits < 30.
+EXCEPTION — trivial edits pass:
+  - Edit with `new_string` < 30 newlines AND `old_string` < 30 newlines.
+  - MultiEdit with total newlines across edits < 30.
   - Write to a file that already exists (read it first to know? complicated;
     we use Write as "create new file" semantic — always non-trivial).
 
@@ -112,8 +112,8 @@ def has_recent_plan_activity(transcript_path: str | None) -> bool:
 
 
 def edited_repository(file_path: str) -> Path:
-    """El repositorio del ARCHIVO editado, no el del proceso: un Edit sobre un
-    worktree enlazado se juzga por la branch de ese worktree."""
+    """The repository of the edited FILE, not the process's: an Edit on a
+    linked worktree is judged by that worktree's branch."""
     return repository_of(Path(file_path).resolve()) or PROJECT_ROOT
 
 

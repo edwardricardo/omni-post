@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Post-edit hook — corre secretlint sobre el archivo recién tocado.
+"""Post-edit hook — runs secretlint on the file just touched.
 
-Defensa en profundidad sobre Ring 2 (lint-staged). Atrapa pegas accidentales
-de credenciales/keys/tokens en cuanto el archivo se guarda en disco, sin
-esperar a `git add`. Single-file scope para mantener latencia <1s.
+Defense in depth on top of Ring 2 (lint-staged). Catches accidental pastes
+of credentials/keys/tokens as soon as the file is saved to disk, without
+waiting for `git add`. Single-file scope to keep latency <1s.
 
-Por contrato CC, PostToolUse solo dispara en éxito de la operación; los
-fallos van a PostToolUseFailure (evento aparte). No chequeamos si el Edit
-funcionó — si este hook corre, el archivo se escribió.
+By the CC contract, PostToolUse fires only when the operation succeeds;
+failures go to PostToolUseFailure (a separate event). It does not check
+whether the Edit worked — if this hook runs, the file was written.
 """
 
 import re
@@ -21,7 +21,7 @@ from _common import PROJECT_ROOT, make_logger, read_hook_input  # noqa: E402
 HOOK_NAME = "post-edit"
 log, block, _allow = make_logger(HOOK_NAME)
 
-# Mismos exclusions que .secretlintignore para evitar costo redundante.
+# Same exclusions as .secretlintignore, to avoid redundant cost.
 SKIP_SUBSTRINGS = (
     "node_modules/",
     "/dist/",
@@ -91,29 +91,29 @@ def main() -> None:
             capture_output=True,
             text=True,
             timeout=SECRETLINT_TIMEOUT_SEC,
-            # Desde la raíz del repo, siempre: el parche @secretlint/node fija
-            # node_moduleDir a "<cwd>/node_modules" y el preset de reglas vive
-            # solo en el node_modules de la raíz; desde apps/* (sin @secretlint
-            # local) el loader no encuentra el preset y aborta con un falso
-            # positivo. Es como ya lo invocan lint-staged y el script secret:scan.
+            # Always from the repository root: the patched @secretlint/node pins
+            # node_moduleDir to "<cwd>/node_modules" and the rule preset lives
+            # only in the root node_modules; from apps/* (no local @secretlint)
+            # the loader does not find the preset and aborts with a false
+            # positive. lint-staged and the secret:scan script invoke it the same way.
             cwd=str(PROJECT_ROOT),
         )
     except subprocess.TimeoutExpired:
-        log(f"secretlint timeout en {file_path} ({SECRETLINT_TIMEOUT_SEC}s) — allow")
+        log(f"secretlint timeout on {file_path} ({SECRETLINT_TIMEOUT_SEC}s) — allow")
         sys.exit(0)
     except FileNotFoundError:
-        log("pnpm/secretlint no encontrado en PATH — allow")
+        log("pnpm/secretlint not found in PATH — allow")
         sys.exit(0)
 
     if result.returncode != 0:
-        report = (result.stdout + result.stderr).strip() or "<sin output>"
+        report = (result.stdout + result.stderr).strip() or "<no output>"
         block(
-            f"secretlint detectó posible leak en {file_path}:\n{report}\n\n"
-            "Revisá el archivo y remové el secret antes de continuar. "
-            "Si es un falso positivo, ajustá .secretlintignore o .secretlintrc.json."
+            f"secretlint detected a possible leak in {file_path}:\n{report}\n\n"
+            "Review the file and remove the secret before continuing. "
+            "If it is a false positive, adjust .secretlintignore or .secretlintrc.json."
         )
 
-    log(f"secretlint OK en {file_path}")
+    log(f"secretlint OK on {file_path}")
     sys.exit(0)
 
 
