@@ -7,13 +7,22 @@
  *   through that agreement, because its command carries no `--reporter` flag. Three ways to break
  *   it are each silent or late without this suite: a `--reporter` flag put back on the command
  *   (the flag REPLACES the configured reporters, so a failing shard prints no file, no test and
- *   no diff), the `VITEST_SHARDED` variable dropped from the step (no blob, discovered only when
- *   the upload runs), and the upload's `if-no-files-found: error` relaxed (the missing blob then
- *   passes in silence).
+ *   no diff), the `VITEST_SHARDED` variable dropped from the step's `env` (no blob, discovered
+ *   only when the upload runs), and the upload's `if-no-files-found: error` relaxed (the missing
+ *   blob then passes in silence).
  *
- *   The workflow is read as text, step by step, from one `- name:` or `- uses:` line to the
- *   next: a YAML parser is not a dependency of this package, and that boundary is the one
- *   fitness #34 already reads the workflows by.
+ *   The workflow is read by a small line-based reader, because a YAML parser is not a declared
+ *   dependency of the root or of this package. What it understands: block mappings and block
+ *   sequences nested by indentation, plain and single-line quoted scalars, plain scalars that
+ *   continue on more-indented lines, and `|` / `>` block scalars, whose lines are returned with
+ *   their line breaks kept (folding is not applied; the checks below only look for text). Comment
+ *   and blank lines are skipped outside block scalars. What it refuses, as a failing assertion
+ *   rather than an empty value: a key declared twice in one mapping, an entry that is neither
+ *   `key: value` nor `- ` where one is expected, a dedent that matches no enclosing level, and —
+ *   for the values this suite reads — flow collections, anchors, aliases, tags and quoted
+ *   scalars that span lines. Values are parsed only when a check asks for them, so a flow
+ *   sequence elsewhere in the workflow (`branches: [main]`) is never read. Escapes inside double
+ *   quotes are not interpreted.
  * @layer infrastructure
  */
 import { readFileSync } from "node:fs";
@@ -27,6 +36,201 @@ const BLOB_DIRECTORY = "apps/api/.vitest-reports/";
 
 interface ReporterConfig {
   test?: { reporters?: unknown };
+}
+
+/** One `key: value` entry of a block mapping, its value left unparsed until a check asks. */
+interface MappingEntry {
+  /** Where the entry sits, for the failure message. */
+  readonly where: string;
+  /** The text after `key:` on the key's own line. */
+  readonly inline: string;
+  /** The lines after the key's line that belong to its value. */
+  readonly body: readonly string[];
+}
+
+type Mapping = ReadonlyMap<string, MappingEntry>;
+
+const KEY_LINE = /^(\s*)("[^"]*"|'[^']*'|[^\s#"'[{&*!?|>%@`-][^:#]*?)\s*:(?:\s+(.*))?$/;
+const BLOCK_SCALAR = /^[|>][1-9+-]{0,2}\s*(?:#.*)?$/;
+
+const indentOf = (line: string): number => line.length - line.trimStart().length;
+const isBlank = (line: string): boolean => line.trim() === "";
+const isStructural = (line: string): boolean => !isBlank(line) && !line.trimStart().startsWith("#");
+
+/**
+ * Reads the block mapping held by `lines`, at the indentation of its first structural line.
+ *
+ * @param lines - The mapping's lines; blank and comment lines may sit anywhere.
+ * @param where - A label for failure messages.
+ * @returns Every key of the mapping, each declared exactly once.
+ */
+function readMapping(lines: readonly string[], where: string): Mapping {
+  const first = lines.find(isStructural);
+  if (first === undefined) throw new Error(`${where}: the mapping is empty`);
+  const level = indentOf(first);
+  const entries = new Map<string, MappingEntry>();
+
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index] ?? "";
+    if (!isStructural(line)) {
+      index += 1;
+      continue;
+    }
+    if (indentOf(line) !== level) {
+      throw new Error(`${where}: "${line.trim()}" matches no enclosing indentation level`);
+    }
+    const match = KEY_LINE.exec(line);
+    if (match === null) throw new Error(`${where}: "${line.trim()}" is not a "key: value" entry`);
+    const key = (match[2] ?? "").replace(/^(["'])(.*)\1$/, "$2");
+    if (entries.has(key)) throw new Error(`${where}: "${key}" is declared twice in one mapping`);
+
+    let end = index + 1;
+    while (end < lines.length) {
+      const next = lines[end] ?? "";
+      if (isStructural(next) && indentOf(next) <= level) break;
+      end += 1;
+    }
+    entries.set(key, {
+      where: `${where} > ${key}`,
+      inline: match[3] ?? "",
+      body: lines.slice(index + 1, end),
+    });
+    index = end;
+  }
+  return entries;
+}
+
+/**
+ * Splits the block sequence held by `lines` into its entries, each rewritten as the block mapping
+ * it holds (the `- ` becomes indentation), so an entry may begin with any key or with none.
+ *
+ * @param lines - The sequence's lines.
+ * @param where - A label for failure messages.
+ * @returns One array of lines per entry, in order.
+ */
+function readSequence(lines: readonly string[], where: string): string[][] {
+  const first = lines.find(isStructural);
+  if (first === undefined) return [];
+  const level = indentOf(first);
+  const entries: string[][] = [];
+
+  for (const line of lines) {
+    if (isStructural(line) && indentOf(line) < level) {
+      throw new Error(`${where}: "${line.trim()}" matches no enclosing indentation level`);
+    }
+    if (isStructural(line) && indentOf(line) === level) {
+      if (!/^-(\s|$)/.test(line.trimStart())) {
+        throw new Error(`${where}: "${line.trim()}" is not a "- " sequence entry`);
+      }
+      entries.push([`${line.slice(0, level)} ${line.slice(level + 1)}`]);
+      continue;
+    }
+    entries.at(-1)?.push(line);
+  }
+  return entries;
+}
+
+/**
+ * The lines nested under a key whose value is a block collection.
+ *
+ * @param mapping - The mapping holding the key.
+ * @param key - The key to read.
+ * @returns The value's lines.
+ */
+function collectionOf(mapping: Mapping, key: string): readonly string[] {
+  const entry = mapping.get(key);
+  if (entry === undefined) throw new Error(`"${key}" is not declared`);
+  if (entry.inline.replace(/\s*#.*$/, "") !== "" || !entry.body.some(isStructural)) {
+    throw new Error(`${entry.where}: the value is not a block collection`);
+  }
+  return entry.body;
+}
+
+/**
+ * The whole scalar value of a key: inline, continued on more-indented lines, or a block scalar.
+ *
+ * @param mapping - The mapping holding the key.
+ * @param key - The key to read.
+ * @returns The value with surrounding quotes removed; `undefined` when the key is not declared.
+ */
+function scalarOf(mapping: Mapping, key: string): string | undefined {
+  const entry = mapping.get(key);
+  if (entry === undefined) return undefined;
+  const { where, inline, body } = entry;
+
+  if (BLOCK_SCALAR.test(inline)) {
+    const level = indentOf(body.find((line) => !isBlank(line)) ?? "");
+    const end = body.findIndex((line) => !isBlank(line) && indentOf(line) < level);
+    const content = (end === -1 ? body : body.slice(0, end)).map((line) => line.slice(level));
+    return content.join("\n").trimEnd();
+  }
+  if (/^[[{&*!?%@`]/.test(inline)) {
+    throw new Error(`${where}: flow collections, anchors, aliases and tags are not read`);
+  }
+
+  const continuation = body.filter(isStructural).map((line) => line.trim());
+  if (/^["']/.test(inline)) {
+    const quoted = /^("((?:[^"\\]|\\.)*)"|'((?:[^']|'')*)')\s*(?:#.*)?$/.exec(inline);
+    if (quoted === null || continuation.length > 0) {
+      throw new Error(`${where}: a quoted scalar that spans lines is not read`);
+    }
+    return quoted[2] ?? (quoted[3] ?? "").replaceAll("''", "'");
+  }
+  if (
+    inline === "" &&
+    continuation.length > 0 &&
+    /^(-(\s|$)|[^\s:]+:(\s|$))/.test(continuation[0] ?? "")
+  ) {
+    throw new Error(`${where}: the value is a collection, not a scalar`);
+  }
+  return [inline.replace(/\s+#.*$/, ""), ...continuation].filter((part) => part !== "").join(" ");
+}
+
+interface ShardPairing {
+  /** Every step, in any job, whose command runs a vitest shard. */
+  readonly shardSteps: readonly Mapping[];
+  /** The upload steps of the blob directory that follow the shard step in its own job. */
+  readonly blobUploads: readonly Mapping[];
+}
+
+/**
+ * Locates the shard step and the uploads of its blob directory that follow it in its job.
+ *
+ * @param workflowText - Raw workflow text.
+ * @returns The steps found, for the checks to count and read.
+ */
+function readShardPairing(workflowText: string): ShardPairing {
+  const workflow = readMapping(workflowText.split("\n"), "ci.yml");
+  const jobs = readMapping(collectionOf(workflow, "jobs"), "ci.yml > jobs");
+  const shardSteps: Mapping[] = [];
+  const blobUploads: Mapping[] = [];
+
+  for (const [name, job] of jobs) {
+    const jobMapping = readMapping(job.body, job.where);
+    if (!jobMapping.has("steps")) continue;
+    const steps = readSequence(
+      collectionOf(jobMapping, "steps"),
+      `ci.yml > jobs > ${name} > steps`
+    );
+
+    let shardSeen = false;
+    steps.forEach((lines, position) => {
+      const where = `ci.yml > jobs > ${name} > steps[${String(position)}]`;
+      const code = lines.filter(isStructural).join("\n");
+      if (/\bvitest run\b[\s\S]*--shard=/.test(code)) {
+        shardSteps.push(readMapping(lines, where));
+        shardSeen = true;
+        return;
+      }
+      if (!shardSeen || !/upload-artifact@/.test(code)) return;
+      const step = readMapping(lines, where);
+      if (!(scalarOf(step, "uses") ?? "").startsWith("actions/upload-artifact@")) return;
+      const inputs = readMapping(collectionOf(step, "with"), `${where} > with`);
+      if (scalarOf(inputs, "path") === BLOB_DIRECTORY) blobUploads.push(step);
+    });
+  }
+  return { shardSteps, blobUploads };
 }
 
 /**
@@ -44,34 +248,6 @@ async function loadApiReporters(signals: ReporterSignals): Promise<unknown> {
 
   const configModule = (await import("../../../vitest.config.js")) as { default: ReporterConfig };
   return configModule.default.test?.reporters;
-}
-
-/**
- * Splits a workflow into its steps, each the run of lines from a `- name:` or `- uses:` line up
- * to the line before the next one.
- *
- * @param workflow - Raw workflow text.
- * @returns The lines of every step, in file order.
- */
-function workflowSteps(workflow: string): string[][] {
-  const lines = workflow.split("\n");
-  const starts = lines.flatMap((line, index) => (/^\s*- (name|uses):/.test(line) ? [index] : []));
-
-  return starts.map((start, position) => lines.slice(start, starts[position + 1] ?? lines.length));
-}
-
-/**
- * Reads the value of the first `key: value` line in a step, with surrounding quotes removed.
- *
- * @param step - The step's lines.
- * @param key - The key, matched at the start of a line so a comment naming it never counts.
- * @returns The value, or `undefined` when the step does not set the key.
- */
-function stepValue(step: string[], key: string): string | undefined {
-  const pattern = new RegExp(`^\\s*${key}:\\s*(.*?)\\s*$`);
-  const value = step.map((line) => pattern.exec(line)?.[1]).find((match) => match !== undefined);
-
-  return value?.replace(/^(["'])(.*)\1$/, "$2");
 }
 
 afterEach(() => {
@@ -97,28 +273,33 @@ describe("apps/api/vitest.config.ts reporters", () => {
 });
 
 describe("the CI shard step", () => {
-  const steps = workflowSteps(readFileSync(WORKFLOW, "utf8"));
-  const shardIndex = steps.findIndex((step) =>
-    step.some((line) => /^\s*run:.*\bvitest run\b.*--shard=/.test(line))
-  );
-  const shardStep = steps[shardIndex] ?? [];
-  const uploadStep = steps[shardIndex + 1] ?? [];
+  const readPairing = (): ShardPairing => readShardPairing(readFileSync(WORKFLOW, "utf8"));
+
+  /**
+   * The one shard step, after asserting there is exactly one.
+   *
+   * @returns The shard step's mapping.
+   */
+  function onlyShardStep(): Mapping {
+    const { shardSteps } = readPairing();
+    expect(shardSteps).toHaveLength(1);
+    return shardSteps[0] ?? new Map<string, MappingEntry>();
+  }
 
   it("is found exactly once in the workflow", () => {
-    const shardSteps = steps.filter((step) =>
-      step.some((line) => /^\s*run:.*\bvitest run\b.*--shard=/.test(line))
-    );
-
-    expect(shardSteps).toHaveLength(1);
+    expect(readPairing().shardSteps).toHaveLength(1);
   });
 
   it("names no reporter on its command, so the configured reporters are the ones installed", () => {
-    expect(stepValue(shardStep, "run")).toBeDefined();
-    expect(stepValue(shardStep, "run")).not.toMatch(/--reporter\b/);
+    const command = scalarOf(onlyShardStep(), "run") ?? "";
+
+    expect(command).toMatch(/\bvitest run\b/);
+    expect(command).not.toMatch(/--reporter\b/);
   });
 
   it("sets the variable that makes the api config write the blob beside the readable output", async () => {
-    const sharded = stepValue(shardStep, "VITEST_SHARDED");
+    const env = readMapping(collectionOf(onlyShardStep(), "env"), "shard step > env");
+    const sharded = scalarOf(env, "VITEST_SHARDED");
 
     expect(sharded).toBe("true");
     await expect(
@@ -126,8 +307,14 @@ describe("the CI shard step", () => {
     ).resolves.toEqual(["default", "github-actions", "blob"]);
   });
 
-  it("is followed by an upload of the blob directory that fails when no blob was written", () => {
-    expect(stepValue(uploadStep, "path")).toBe(BLOB_DIRECTORY);
-    expect(stepValue(uploadStep, "if-no-files-found")).toBe("error");
+  it("is followed in its job by exactly one upload of the blob directory, failing when it is empty", () => {
+    const { blobUploads } = readPairing();
+    expect(blobUploads).toHaveLength(1);
+
+    const inputs = readMapping(
+      collectionOf(blobUploads[0] ?? new Map<string, MappingEntry>(), "with"),
+      "upload > with"
+    );
+    expect(scalarOf(inputs, "if-no-files-found")).toBe("error");
   });
 });
