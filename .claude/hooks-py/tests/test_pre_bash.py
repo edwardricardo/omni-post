@@ -43,6 +43,27 @@ class _Gate(unittest.TestCase):
         return "allowed"
 
 
+class PublicationGateTests(_Gate):
+    """With no publication token, only a real publication is blocked."""
+
+    def setUp(self):
+        super().setUp()
+        self._tokens = mock.patch.object(_common, "ALLOWED_TOKENS_DIR", Path(self._tmp.name) / "allowed")
+        self._tokens.start()
+
+    def tearDown(self):
+        self._tokens.stop()
+        super().tearDown()
+
+    def test_a_line_that_only_names_the_token_path_is_not_blocked(self):
+        line = "git status --porcelain && jq -r .expires_at /root/omni-post/.claude/.allowed/" + "push"
+        self.assertEqual(self._verdict(pre_bash.gate_git_push_requires_token, line), "allowed")
+
+    def test_a_real_publication_without_a_token_is_blocked(self):
+        line = "cd /wt && git " + "push --atomic origin a:refs/heads/a"
+        self.assertEqual(self._verdict(pre_bash.gate_git_push_requires_token, line), "blocked(2)")
+
+
 class SensitiveWriteGateTests(_Gate):
     """Without a token: blocks only when a write construct POINTS AT the path."""
 

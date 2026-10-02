@@ -247,15 +247,6 @@ def canon_index_staleness(
     return "; ".join(reasons) or None
 
 
-# Regex shared by pre-bash and post-bash. Matches 'git' and 'push' as separate
-# tokens even with flags in between (-C /path, --git-dir=...).
-# The negative lookahead excludes `git stash push`/`git stash pop` (LOCAL stash
-# operations, not a remote publication) — without it, "stash push" triggered
-# the authorization gate as if it were a publication to the remote.
-# Limitation: it does not detect composition with && (cd /path && ...).
-GIT_PUSH_RE = re.compile(r"\bgit\b(?!\s+stash\b)\s.*\bpush\b")
-
-
 def make_logger(hook_name: str) -> tuple[Callable[[str], None], Callable[[str], None], Callable[[str], None]]:
     """Creates the 3 functions (log, block, allow) bound to a hook_name.
 
@@ -428,6 +419,61 @@ def git_invocations(command: str) -> list[tuple[str, list[str]]]:
 def git_subcommands(command: str) -> set[str]:
     """Git subcommands invoked in `command` (`commit`, `fetch`, …); see git_invocations."""
     return {subcommand for subcommand, _ in git_invocations(command)}
+
+
+# Shells whose `-c <script>` argument is itself a command line to read.
+_SHELLS = frozenset({"bash", "sh", "zsh", "dash"})
+# What a line that cannot be tokenized counts as for the publication gate: the
+# broad shape `git … push` (local `git stash push` excluded). Deliberately
+# conservative — a line that cannot be read is treated as a publication, so
+# the gate asks for the token and the post hook consumes it.
+_GIT_PUSH_FALLBACK_RE = re.compile(r"\bgit\b(?!\s+stash\b)\s.*\bpush\b")
+
+
+_MAX_SHELL_DEPTH = 8
+
+
+def runs_git_push(command: str, depth: int = 0) -> bool:
+    """Whether `command` publishes: some git invocation in it has `push` as
+    its REAL subcommand, read the way the commit gate reads `commit`.
+
+    The earlier test was a regex for the words `git` and `push` anywhere on the
+    line, so a line that only read the token's own path
+    (`.claude/.allowed/push`), searched for the word, or named a branch after it
+    passed for a publication: the pre hook demanded a token and the post hook
+    CONSUMED it, with nothing published (measured 2026-10-02, hooks.log
+    11:05:19). `git stash push` is a local stash, not a publication.
+
+    A script passed to a shell with `-c` (`bash -c "git push …"`) is read too,
+    since the quoted script would otherwise be one opaque token. As the shell
+    itself does, `c` anywhere in a short-option cluster (`-c`, `-lc`, `-ic`)
+    sets the option, and the script is the first argument after the cluster
+    that is not an option. Nesting deeper than `_MAX_SHELL_DEPTH` scripts, and a
+    line shlex cannot tokenize, fall back to the broad regex, on the
+    conservative side. Not covered, stated: a publication inside a script file
+    or a function is invisible to any reading of the command line.
+    """
+    segments = shell_segments(command)
+    if segments is None or depth > _MAX_SHELL_DEPTH:
+        _append_log(f"runs_git_push: unreadable or nested past {_MAX_SHELL_DEPTH} (depth {depth}); conservative fallback")
+        return bool(_GIT_PUSH_FALLBACK_RE.search(command))
+    if "push" in git_subcommands(command):
+        return True
+    for segment in segments:
+        if Path(segment[0]).name not in _SHELLS:
+            continue
+        flags = [i for i, tok in enumerate(segment) if i and _sets_shell_command_flag(tok)]
+        if not flags:
+            continue
+        script = next((tok for tok in segment[flags[0] + 1:] if not tok.startswith("-")), None)
+        if script is not None and runs_git_push(script, depth + 1):
+            return True
+    return False
+
+
+def _sets_shell_command_flag(token: str) -> bool:
+    """A short-option cluster that sets the shell's `-c` (`-c`, `-lc`, `-ic`)."""
+    return token.startswith("-") and not token.startswith("--") and "c" in token[1:]
 
 
 def commit_repos(command: str, fallback: Path) -> list[Path]:

@@ -14,6 +14,7 @@ import contextlib
 import io
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -38,6 +39,7 @@ from _common import (  # noqa: E402
     notice_already_sent,
     notice_seen,
     recovered_file_notice,
+    runs_git_push,
 )
 
 
@@ -59,6 +61,61 @@ def _commit(repo: Path) -> None:
 
 
 FALLBACK = Path("/session/cwd")
+
+
+class RunsGitPushTests(unittest.TestCase):
+    """What the publication gate and the token consumer count as a publication."""
+
+    def test_the_line_that_consumed_a_token_on_2026_10_02_is_not_a_publication(self) -> None:
+        line = (
+            "cd /root/omni-post-worktrees/hooks-1 && git status --porcelain | wc -l && "
+            "git rev-parse --short=8 HEAD && eza -1 /root/omni-post/.claude/.allowed/ && "
+            "jq -r .expires_at /root/omni-post/.claude/.allowed/push && "
+            "git ls-remote --heads origin 'refound/0-toolchain-tsx'"
+        )
+        self.assertFalse(runs_git_push(line))
+
+    def test_a_search_for_the_word_or_a_branch_named_after_it_is_not_a_publication(self) -> None:
+        self.assertFalse(runs_git_push("rg -n 'push' scripts && git log --oneline -1"))
+        self.assertFalse(runs_git_push("git worktree add -b workstream/hooks-push-detector /tmp/wt origin/main"))
+        self.assertFalse(runs_git_push("git log --grep push"))
+        self.assertFalse(runs_git_push('echo "git push origin main"'))
+
+    def test_a_local_stash_is_not_a_publication(self) -> None:
+        self.assertFalse(runs_git_push("git stash push -m wip"))
+
+    def test_a_real_publication_is_one_however_it_is_spelled(self) -> None:
+        self.assertTrue(runs_git_push("git push origin main"))
+        self.assertTrue(runs_git_push("cd /wt && git push --atomic origin a:refs/heads/a"))
+        self.assertTrue(runs_git_push("git -C /wt push origin a"))
+        self.assertTrue(runs_git_push('git -c "user.name=Foo Bar" push origin a'))
+        self.assertTrue(runs_git_push("git status&&git push origin a"))
+        self.assertTrue(runs_git_push("GIT_TRACE=1 git push origin a > /tmp/out 2>&1"))
+
+    def test_a_publication_inside_a_shell_script_argument_is_one(self) -> None:
+        self.assertTrue(runs_git_push('bash -c "cd /wt && git push origin a"'))
+        self.assertTrue(runs_git_push("bash -lc 'git push origin a'"))
+        self.assertFalse(runs_git_push('bash -c "git status"'))
+
+    def test_the_script_is_the_first_non_option_argument_after_the_cluster(self) -> None:
+        self.assertTrue(runs_git_push("bash -ic -- 'git push origin a'"))
+        self.assertTrue(runs_git_push("bash --login -c 'git push origin a'"))
+        self.assertFalse(runs_git_push("bash -ic deploy.sh"))
+
+    def test_nesting_past_the_bound_is_read_the_conservative_way(self) -> None:
+        def nest(script: str, levels: int) -> str:
+            for _ in range(levels):
+                script = "bash -c " + shlex.quote(script)
+            return script
+
+        harmless = "git status && echo .allowed/" + "push"
+        self.assertFalse(runs_git_push(nest(harmless, 3)))
+        self.assertTrue(runs_git_push(nest(harmless, 10)))
+        self.assertTrue(runs_git_push(nest("git " + "push origin a", 10)))
+
+    def test_a_line_that_cannot_be_tokenized_falls_back_to_the_conservative_reading(self) -> None:
+        self.assertTrue(runs_git_push("git push origin 'unterminated"))
+        self.assertFalse(runs_git_push("git status 'unterminated"))
 
 
 class CommitReposTests(unittest.TestCase):
