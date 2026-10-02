@@ -107,7 +107,7 @@ One row per work unit of [§Plan (fixed)](#plan-fixed). Status: ⬜ not started 
 | 0     | T.4(f) | The holds table's shape, and the gate reading it by column name             | ✅     | `refound/0-holds-table-fix`   | [§Gates](#gates) · remove-when + tsc    | 2026-09-28 |
 | 0     | T.4(c) | `@types/node` 24.13.6 and `engines.node`                                    | ✅     | `0.5` — branch in §Gates      | tsc 0 · gate 0 · 3 reds · 98/98         | 2026-09-28 |
 | 0     | T.4(b) | `eslint-plugin-boundaries` 7.2.0 and its v7 config (SMELL-66)               | ✅     | `0.21` — branch in §Gates     | lint 0 · 0 `[boundaries]` · 35 reds     | 2026-10-02 |
-| 0     | T.4(b) | tsx 4.23.15                                                                 | ✅     | `0.6`                         | `refound/0-toolchain-tsx` · 10/10       | 2026-09-28 |
+| 0     | T.4(b) | tsx 4.23.15 — first done 2026-09-28, rebased 2026-10-02                     | ✅     | `0.6`                         | `refound/0-toolchain-tsx` · 10/10       | 2026-10-02 |
 | 0     | T.4(b) | Playwright 1.63.0 + `@axe-core/playwright` 4.13.0                           | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(b) | msw 2.15.0                                                                  | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(b) | `@testing-library/react` family                                             | ⬜     | —                             | —                                       | —          |
@@ -354,20 +354,29 @@ container tag makes the maturity rule inapplicable rather than satisfied.
 
 **CURRENT, re-measured 2026-10-02T07:24:51Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
 stderr: of the 52 packages in `scripts/testing/toolchain-population.json` (48 direct, 3 named transitives,
-1 declared-absent candidate), 39 sit below latest mature and NOT ONE of them is unheld.** It was 40 on the
-tip below — slice `0.18`, which changed no version, on top of slice `0.21`, which took
-`eslint-plugin-boundaries` to its latest mature 7.2.0 — and slice `0.6` is what moved it: `tsx` went
-4.22.4 → 4.23.15, which IS the generic comparator, so that package leaves the lag set outright and its
-canon row is deleted with it, a hold retired by taking the bump. Slice `0.5`
-did NOT move the count, and the contrast is the rule: `@types/node` was already a HELD lag at 25.9.3 (below
-the generic comparator 26.6.2) and is still one at 24.13.6, because a slice that moves a package to its own
-line's ceiling shrinks the lag set only when that ceiling IS the generic comparator, which for a downward
-pin it never is. The counts here read as one history: the 17:55:14Z paragraph above is the baseline, the
-23:10:56Z and 23:57:09Z runs are the holds gate landing and the table correction, the 02:42:36Z run is the
-types pin, the repair slice `0.17` found the set back at **43** two days later — the
-`@typescript-eslint` pair matured at `2026-09-28T17:09Z` and RE-ENTERED it, which is the clock class this
-workstream keeps meeting — and took it to 41 by bumping the pair, slice `0.21` took it to 40, and this
-instant is the tree as it stands.
+1 declared-absent candidate), 39 sit below latest mature and NOT ONE of them is unheld.**
+
+The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
+and what moved it. A slice that moves the count appends its own line.
+
+1. `2026-09-27T17:55:14Z` — **45** (39 unheld, 5 held, 1 ambiguous): the baseline in the paragraph above,
+   measured before any slice.
+2. `2026-09-27T23:10:56Z` — **41**: after `refound/0-toolchain-holds` wrote the fifteen missing hold rows
+   and `refound/0-toolchain-eslint` took the first bump — `eslint` and `@eslint/js` to 9.39.5, the
+   `@typescript-eslint` pair to 8.70.0, which dropped the pair out of the set. The run recorded the fall as
+   the bump's: a row makes a lag legal, never absent.
+3. `2026-09-27T23:57:09Z` — **41**: re-derived after `refound/0-holds-table-fix` corrected the table the
+   rows live in; no version moved.
+4. `2026-09-28T02:42:36Z` — **41**: slice `0.5` pinned `@types/node` from 25.9.3 to 24.13.6, a HELD lag
+   both before and after. A package moved to its own line's ceiling leaves the lag set only when that
+   ceiling IS the generic comparator (26.6.2 here), which for a downward pin it never is.
+5. 2026-09-30, instant not recorded — **43**, then **41**: the repair slice `0.17` found the
+   `@typescript-eslint` pair back in the set, because it matured at `2026-09-28T17:09Z` (the clock class
+   this workstream keeps meeting), and took it out again by bumping the pair to 8.70.1.
+6. 2026-10-02, instant not recorded — **40**: slice `0.21` took `eslint-plugin-boundaries` to its latest
+   mature 7.2.0; slice `0.18`, rebased on top of it, moved no version.
+7. `2026-10-02T07:24:51Z` — **39**: slice `0.6` took `tsx` 4.22.4 → 4.23.15, which IS the generic
+   comparator, so the package leaves the set outright and its canon row is deleted with it.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
