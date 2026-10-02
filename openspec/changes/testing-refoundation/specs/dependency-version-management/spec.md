@@ -69,7 +69,7 @@ delivered through a JSON-processing tool's DOM dependency).
 ### Requirement: Pinned DIRECT versions are the latest stable release, with no pre-releases
 
 Every catalog-pinned DIRECT registry version MUST correspond to the latest **mature** release: the
-package's npm `latest` dist-tag subject to a 7-day maturity buffer, never `latest` taken literally.
+package's npm `latest` dist-tag subject to a 7-day maturity buffer (ADR-0018's buffer against yanked or broken releases), never `latest` taken literally.
 A candidate younger than the buffer is NOT the target; the target is the newest stable release at
 least 7 days old. No spec MAY pin or resolve to a pre-release identifier — `rc`, `beta`, `alpha`,
 `next`, `canary`, or any version carrying a SemVer pre-release tag. The sanctioned updater is a

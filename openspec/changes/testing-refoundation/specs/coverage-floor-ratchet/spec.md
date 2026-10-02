@@ -76,7 +76,7 @@ Each scope's floors MUST be four LITERAL numbers in its own config, expressed in
 runner's auto-update accepts — a config whose export is a bare factory call cannot be rewritten, and
 a single shared ratchet file would lose auto-update, need a bespoke rewriter and relocate the
 exception marker. Each floor MUST be derived from the measured minimum of the two environments by ONE
-shared function, `floor = (⌊measured × 10⌋ − 1) / 10`, defined in exactly one place. Each package MUST
+shared function, `floor = (⌊measured × 10⌋ − 1) / 10`, defined in exactly one place. Here `measured` is the metric in percentage points as the coverage summary reports it (0–100); the rule reads "rounded down to one decimal, minus 0.1 pp" (56.84 → 56.7), and a measured value below 0.1 yields a floor of 0, never a negative number. Each package MUST
 expose the canonical coverage script, and the superseded per-package coverage script variants MUST be
 removed.
 
