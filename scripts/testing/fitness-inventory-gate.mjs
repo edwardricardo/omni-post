@@ -61,7 +61,11 @@ const CANON = fileURLToPath(new URL("../../CLAUDE.md", import.meta.url));
 const SECTION_HEADING = "## Automated Compliance Checks";
 /** A `name:` key, optionally the first key of a sequence entry, with its raw value captured. */
 const NAME_KEY = /^(\s*)(-\s+)?name:\s*(.*)$/;
-/** A key whose value is a block scalar indicator, so the lines below it are text, not YAML keys. */
+/**
+ * A key whose value is a block scalar indicator, so the lines below it are text, not YAML keys.
+ * Any key qualifies, `name:` included: a step name written as a block scalar is not the quoted
+ * `"#N …"` form a check step uses, so it declares no check and its lines are skipped as text.
+ */
 const BLOCK_SCALAR_KEY = /^(\s*)(-\s+)?[A-Za-z_][\w-]*:\s*[|>][+-]?\d*\s*(?:#.*)?$/;
 const DOUBLE_QUOTED = /^"((?:[^"\\]|\\.)*)"/;
 const SINGLE_QUOTED = /^'((?:[^']|'')*)'/;
@@ -379,29 +383,24 @@ export function evaluateInventory({ workflowText, canonText, workflowLabel, cano
     );
   }
 
-  if (canon.sentences.length === 0) {
+  const [sentence, ...otherSentences] = canon.sentences;
+  if (sentence === undefined) {
     violations.push(
       `${canonLabel} §Automated Compliance Checks states no count in the form ` +
         `\`There are **N checks, numbered #1-#N**\`, so the claim this gate reads was reworded or ` +
         `deleted. Refusing rather than passing over an unstated count.`
     );
-  } else if (canon.sentences.length > 1) {
+  } else if (otherSentences.length > 0) {
     violations.push(
       `${canonLabel} §Automated Compliance Checks states the count ` +
         `${String(canon.sentences.length)} times (${canon.sentences.map((s) => `"${s.text}"`).join(", ")}), ` +
         `so which statement is the canon's is ambiguous. Keep exactly one.`
     );
-  } else {
-    const [sentence] = canon.sentences;
-    if (
-      sentence !== undefined &&
-      (sentence.count !== n || sentence.from !== 1 || sentence.to !== n)
-    ) {
-      violations.push(
-        `${canonLabel} states "${sentence.text}" but the derived inventory is ${String(n)} checks ` +
-          `(#1-#${String(n)}). Update the sentence in the same change that adds or removes a check.`
-      );
-    }
+  } else if (sentence.count !== n || sentence.from !== 1 || sentence.to !== n) {
+    violations.push(
+      `${canonLabel} states "${sentence.text}" but the derived inventory is ${String(n)} checks ` +
+        `(#1-#${String(n)}). Update the sentence in the same change that adds or removes a check.`
+    );
   }
 
   return { inventory: { n, steps: workflow.steps, headings: canon.headings }, violations };

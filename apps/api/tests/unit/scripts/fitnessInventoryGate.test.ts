@@ -261,6 +261,19 @@ describe("fitness inventory gate (#44)", () => {
       expect(verdict.inventory?.n).toBe(2);
     });
 
+    it("does not read a step name written as a block scalar as a check, nor its lines as steps", async () => {
+      const verdict = await evaluate(
+        renderWorkflow([
+          ...numbered(2).map(stepName),
+          '|\n          name: "#7 a line of a block-scalar name, not a step"',
+        ]),
+        renderCanon({ headings: numbered(2) })
+      );
+
+      expect(verdict.violations).toEqual([]);
+      expect(verdict.inventory?.n).toBe(2);
+    });
+
     it("tolerates a count sentence wrapped across lines", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(2).map(stepName)),
