@@ -235,6 +235,12 @@ export default defineConfig([
     ],
     plugins: { boundaries: boundariesPlugin },
     settings: {
+      // The plugin anchors every element and file pattern at this path, and
+      // without it falls back to `process.cwd()`: a lint started from a
+      // package directory then matches no pattern and allows every import
+      // without a word. Anchored at the config's own directory, the verdict
+      // no longer depends on where the lint was started.
+      "boundaries/root-path": import.meta.dirname,
       "boundaries/elements": hexagonalElements,
       "boundaries/files": hexagonalFiles,
       "boundaries/include": [
