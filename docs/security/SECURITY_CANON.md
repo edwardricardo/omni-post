@@ -355,6 +355,19 @@ Adding new security rules:
    (app unreachable except through the trusted edge; edge strips inbound
    forwarding headers). Never `trust proxy: true`, never a numeric `trustProxy`,
    and never a hand-rolled hop-counting `TrustProxyFunction` (ADR-0021).
+8. **Raising a range-scoped CVE floor** → move the BAND and the TARGET in the
+   same edit, so the band's exclusive upper bound stays the target
+   (`"pkg@<X": X`). Raising only the value leaves the tree resolved to the
+   PREVIOUS target — a version the old band no longer selects — so the override
+   applies to nothing while this document still reads as holding the floor, and
+   the audit goes green because the advisory's range stopped matching. Never an
+   inclusive bound (`<=W`): it names a different number from the target and
+   therefore cannot move with it. A band that genuinely cannot take that shape
+   (an advisory whose named patched version was never published; a de-dup pin
+   scoped to one major line) is recorded in the allowlist of
+   `scripts/testing/override-bands-gate.mjs` with its measured reason, and that
+   allowlist may only shrink. Enforced by the `Override bands` step of the
+   `Dependency Consistency` job.
 
 Companion fitness checks live in `CLAUDE.md §Automated Compliance Checks`:
 
