@@ -90,11 +90,10 @@ def has_recent_plan_activity(transcript_path: str | None) -> bool:
             return False
         with path.open("rb") as f:
             try:
-                # 5MB tail — long retro-audit sessions can produce
-                # multi-MB transcripts; 200KB was too tight (false-negative
-                # observed 2026-05-28: 176MB transcript, EnterPlanMode
-                # call at 241KB from end, just past the 200KB window).
-                # 5MB handles ~25× longer sessions before false-negative.
+                # 5MB tail — long sessions produce multi-MB transcripts, and
+                # a 200KB tail misses an EnterPlanMode call that sits just
+                # past it (seen at 241KB from the end of a 176MB transcript).
+                # 5MB covers sessions about 25× longer before a false negative.
                 f.seek(-5_000_000, 2)
             except OSError:
                 f.seek(0)

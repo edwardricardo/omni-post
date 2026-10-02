@@ -1,1 +1,1 @@
-"""Tests de los hooks (stdlib unittest)."""
+"""Tests of the hooks (stdlib unittest)."""
