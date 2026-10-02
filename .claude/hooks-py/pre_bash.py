@@ -9,7 +9,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
-    GIT_PUSH_RE,
     PROJECT_ROOT,
     check_grant_token,
     commit_repos,
@@ -17,6 +16,7 @@ from _common import (  # noqa: E402
     git_subcommands,
     make_logger,
     read_hook_input,
+    runs_git_push,
     shell_segments,
 )
 
@@ -189,12 +189,11 @@ def gate_git_push_requires_token(command: str) -> None:
     """Block the remote-publish command unless a valid token exists.
 
     Validation delegated to the shared `check_grant_token` helper — the
-    same contract pre-edit uses for `sensitive-edit` (no drift).
-
-    LIMITATION: matches variants with intermediate flags (-C /path,
-    --git-dir, ...) but not && composition (cd /path && ...).
+    same contract pre-edit uses for `sensitive-edit` (no drift). What counts
+    as a publication is `runs_git_push`, the reading post-bash uses to consume
+    the token: the two hooks cannot disagree about which line published.
     """
-    if not GIT_PUSH_RE.search(command):
+    if not runs_git_push(command):
         return
 
     status = check_grant_token("push", log)
