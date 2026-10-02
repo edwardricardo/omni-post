@@ -49,7 +49,7 @@
     "@storybook/addon-a11y": "catalog:",
     "@storybook/addon-docs": "catalog:",
     "@storybook/nextjs": "catalog:",
-    "@storybook/test-runner": "0.24.4",
+    "@storybook/test-runner": "0.24.5",
     "@tailwindcss/postcss": "catalog:",
     "@testing-library/dom": "catalog:",
     "@testing-library/jest-dom": "catalog:",
