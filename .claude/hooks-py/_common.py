@@ -149,6 +149,7 @@ def canon_research_index_path() -> Path:
 # Glob characters: `pre_edit_canon` matches `appliesTo` as a SUBSTRING of the
 # edited path, so a pattern containing `*` or `[` never matches anything.
 _GLOB_CHARS = frozenset("*?[]{}")
+DEAD_PATTERNS_NAMED = 3
 
 
 def applies_to_pattern_is_live(pattern: str, root: Path = PROJECT_ROOT) -> bool:
@@ -173,6 +174,75 @@ def dead_applies_to_patterns(index: dict, root: Path = PROJECT_ROOT) -> dict[str
             if not applies_to_pattern_is_live(pattern, root):
                 dead.setdefault(str(pattern), set()).add(str(entry.get("key", key)))
     return {pattern: sorted(keys) for pattern, keys in sorted(dead.items())}
+
+
+def read_canon_index(path: Path) -> tuple[dict | None, str | None]:
+    """(index, None) when `path` holds a JSON object with `entries`; (None,
+    reason) when it cannot be read or has another shape. Reads the file once."""
+    try:
+        index = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        return None, f"{path.name} unreadable ({type(e).__name__})"
+    if not isinstance(index, dict) or not isinstance(index.get("entries"), dict):
+        return None, f"{path.name} is not a JSON object with entries"
+    return index, None
+
+
+def parse_synthesized_at(index: dict) -> datetime | None:
+    """The index's `synthesizedAt` as an aware datetime (UTC when it carries no
+    zone), or None."""
+    raw = index.get("synthesizedAt")
+    if not isinstance(raw, str):
+        return None
+    try:
+        moment = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
+
+
+def canon_index_staleness(
+    index_path: Path,
+    source_path: Path,
+    root: Path = PROJECT_ROOT,
+    index: dict | None = None,
+) -> str | None:
+    """Why the canon index does not reflect its source or the tree, or None.
+
+    Reasons, joined when there are several: unreadable JSON (naming the error
+    class), `synthesizedAt` missing or unparseable, the markdown modified after
+    the synthesis (or absent: without a source there is nothing to check
+    against), and dead `appliesTo` patterns (up to DEAD_PATTERNS_NAMED named,
+    plus the total). Age alone is NOT a reason: an index synthesized months
+    ago from a source that has not changed is current. `index` avoids reading
+    the JSON again when the caller already loaded it.
+    """
+    if index is None:
+        index, error = read_canon_index(index_path)
+        if error:
+            return error
+    reasons: list[str] = []
+    synthesized = parse_synthesized_at(index)
+    if "synthesizedAt" not in index:
+        reasons.append("synthesizedAt missing")
+    elif synthesized is None:
+        reasons.append(f"synthesizedAt unparseable ({index.get('synthesizedAt')!r})")
+    try:
+        source_mtime = datetime.fromtimestamp(source_path.stat().st_mtime, timezone.utc)
+    except OSError as e:
+        reasons.append(f"source {source_path.name} not readable ({type(e).__name__})")
+    else:
+        if synthesized is not None and source_mtime > synthesized:
+            reasons.append(
+                f"source {source_path.name} modified after synthesizedAt "
+                f"({source_mtime.isoformat(timespec='seconds')} > {synthesized.isoformat(timespec='seconds')})"
+            )
+    dead = dead_applies_to_patterns(index, root)
+    if dead:
+        named = ", ".join(list(dead)[:DEAD_PATTERNS_NAMED])
+        more = f" (+{len(dead) - DEAD_PATTERNS_NAMED} more)" if len(dead) > DEAD_PATTERNS_NAMED else ""
+        reasons.append(f"{len(dead)} dead appliesTo pattern(s): {named}{more}")
+    return "; ".join(reasons) or None
 
 
 # Regex compartida entre pre-bash y post-bash. Matchea 'git' y 'push' como
