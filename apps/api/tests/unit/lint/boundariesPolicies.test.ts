@@ -263,9 +263,9 @@ function assertVerdict(importCase: ImportCase, messages: readonly Linter.LintMes
   assert.equal(report.ruleId, RULE_ID);
   assert.equal(report.severity, 2, "a boundary violation must be an error, not a warning");
   if (verdict.kind === "refused") {
-    assert.ok(
-      report.message.includes(`dependencies from ${verdict.from} to ${verdict.to}`),
-      `expected a refusal from ${verdict.from} to ${verdict.to}, got: ${report.message}`
+    assert.equal(
+      report.message,
+      `There is no policy allowing dependencies from ${verdict.from} to ${verdict.to}`
     );
     return;
   }
