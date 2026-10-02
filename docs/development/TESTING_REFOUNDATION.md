@@ -11,8 +11,8 @@ violating). A clean reinstall — every `node_modules` removed, then `pnpm insta
 which installs exactly the lockfile from the local store — leaves 363 bin shims, 0 dead, and two `vite` shims,
 both on the single `vite@8.0.16`: the 86 dead shims are gone. M7 moves `7/7` → `8/8` with the reader's
 [§Gates](#gates) row (slice `0.13`); M1 `955 + 8` and M8 `1/87` were last moved by slice `P.2`. Task 0.18.7
-closes without editing `nightly.yml` ([D30](#decisions-log)); 0.18.8's workflow comment waits for a
-`sensitive-edit` token.
+closes without editing `nightly.yml` ([D30](#decisions-log)); task 0.18.8 records, beside `ci.yml`'s
+`Coverage Merge` job, the two lines that keep it from certifying partial coverage.
 Previous: the post-drain docs branch `workstream/refound-post-drain-docs` (commits `9fd3a1bc` and
 `e701f8f0`) — slice `0.22` re-planned as runnable stories ([D29](#decisions-log)) and the msw hold row's
 reason restated; no metric moved.
