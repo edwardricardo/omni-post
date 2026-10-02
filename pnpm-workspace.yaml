@@ -157,8 +157,8 @@ catalog:
   webpack: 5.106.2
   vite: 8.0.16 # single version — the former vite-7 hold was a workaround for apps/client missing @vitejs/plugin-react (apps/admin had it). Adding the plugin to client (ADR-0019) lets it parse JSX under vite 8's rolldown SSR transform, collapsing the vite 7/8 split. Verified: client 510/510 + admin 106/106 on vite 8.
   eslint: 9.39.5 # the v9 line's FINAL release and its ceiling. Still held below 10: eslint-plugin-react@7.37.5 peers eslint up to ^9.7, eslint-plugin-jsx-a11y@6.10.2 up to ^9, both already at their own latest. Measured 2026-09-27; see SECURITY_CANON §"Build-tool version holds"
-  "@playwright/test": 1.61.1
-  "@axe-core/playwright": 4.10.2
+  "@playwright/test": 1.63.0 # latest stable AND latest mature, re-measured 2026-10-02T09:27Z: published 2026-09-04T22:44Z; only 1.64.0 alphas are newer. Declared by apps/admin + apps/client; pins its own `playwright` at the identical exact version, which carries `playwright-core`. engines.node ">=20" (was ">=18"), below the repo floor ">=24.15.0 <25", so it raises nothing here
+  "@axe-core/playwright": 4.13.0 # latest stable AND latest mature, re-measured 2026-10-02T09:27Z: published 2026-08-11T17:07Z; only 4.13.1 prerelease builds are newer. Declared by the root + apps/admin + apps/client; pins `axe-core ~4.13.0` and peers `playwright-core >= 1.0.0`, satisfied by the driver above. One `axe-core` tree-wide takes `pnpm dedupe`: a plain install leaves eslint-plugin-jsx-a11y and @storybook/addon-a11y on 4.12.1. Moves with it: the browser driver and its axe companion are one family
   "@formatjs/icu-messageformat-parser": 3.5.9
   # @testing-library family (atomic)
   "@testing-library/dom": 10.4.1
