@@ -59,6 +59,8 @@
 | SB-038 | `testing-refoundation` P.4 (`workstream/refound-p-4`, 3ade5c22)                       | R2-audit-comment-stream-coloring                                 | `.github/workflows/audit.yml` (the comment above the scan step on why gitleaks' log prose is not read)                                      | comment                      | deferred: drop or tighten the colour remark so the paragraph only says why the log is not parsed                                                                |
 | SB-039 | `testing-refoundation` P.5 (`workstream/refound-p-5`, 91f26952)                       | R2-testing-refoundation-doc-length                               | `docs/development/TESTING_REFOUNDATION.md` (the whole file, 2111 lines)                                                                     | prose structure              | deferred: keep the tables in the tracker; move the fixed plan and the measurement narratives to their own files                                                 |
 | SB-040 | `testing-refoundation` 0.11 (`workstream/refound-0-11`, e3c26b2e)                     | R2-003                                                           | `docs/security/SECURITY_CANON.md` (the `webpack-dev-middleware` CVE-floor row)                                                              | prose                        | deferred: give the row a per-version structure — added against / installed / latest immature                                                                    |
+| SB-041 | `testing-refoundation` 0.12 (`workstream/refound-0-jsdom`, a618c8bf)                  | R2-001, R3-prisma-shape-fragile                                  | `apps/api/tests/unit/security/sanitizerOutputs.test.ts` (the `unusedPrisma` client)                                                         | test-fixture readability     | deferred: a named stub factory for the client `sanitize` never reaches                                                                                          |
+| SB-042 | same                                                                                  | R2-002                                                           | `apps/api/tests/unit/security/sanitizerOutputs.test.ts` (`SanitizerCase.templateEngine`)                                                    | naming                       | deferred: rename the field to `templateEngineHtml`, symmetric with `validatorHtml`                                                                              |
 
 ## Entries — code and prose
 
@@ -399,6 +401,22 @@
 - **Suggestion:** a comment naming the string the test searches for as the description separator `list_operations()` writes, or one constant shared with the CLI.
 - **Why deferred:** prose and naming; the assertion and its coverage do not change.
 - **To implement:** one comment line, or a module constant in `omnipost-allow` that the test imports.
+
+### SB-041 — the sanitizer test builds its template engine over an anonymous empty client
+
+- **Source:** review `js1` of slice `0.12` (lineage `review-6c25280721a8aebf`), readability lens `R2-001` and reliability lens `R3-prisma-shape-fragile`, the same suggestion from two lenses.
+- **Location:** `apps/api/tests/unit/security/sanitizerOutputs.test.ts`, `const unusedPrisma = {} as unknown as PrismaClient`.
+- **Suggestion:** a named stub factory (or a typed stub holding only the members the constructor touches), so the reason the engine runs without a database is in a name, and a constructor that starts reading a client member fails with a message about the stub, not a bare TypeError.
+- **Why deferred:** readability only. The cast is the convention of 54 files under `apps/api/tests`, the line carries a comment saying `sanitize` never reaches the database, and the constructor only stores the client today (`ServerTemplateEngine.ts:124`). A constructor that read a member would fail every case at construction, loudly, never as a false pass.
+- **To implement:** one factory beside the test (or in a shared test helper used by the other 53 files), and one call site.
+
+### SB-042 — the sanitizer test's `templateEngine` field holds HTML, not an engine
+
+- **Source:** review `js1` of slice `0.12` (lineage `review-6c25280721a8aebf`), readability lens, finding `R2-002`.
+- **Location:** `apps/api/tests/unit/security/sanitizerOutputs.test.ts`, the `SanitizerCase` interface and the 27 rows of `CASES`.
+- **Suggestion:** rename the field `templateEngine` to `templateEngineHtml`, symmetric with `validatorHtml`.
+- **Why deferred:** naming only; the field's JSDoc already reads "Observed output of `ServerTemplateEngine.sanitize(input)`", and no assertion changes.
+- **To implement:** one rename across the interface, the 27 rows and the destructuring in the test body.
 
 ## Implemented
 
