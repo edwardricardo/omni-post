@@ -57,6 +57,7 @@
 | SB-036 | same                                                                                  | R2-security-canon-brace-expansion-row                            | `docs/security/SECURITY_CANON.md` (the `brace-expansion` CVE-floor row)                                                                     | prose structure              | deferred: move the dated advisory history out of the table cell, leaving floor, bands, chain and remove-when in the row                                         |
 | SB-037 | same                                                                                  | R2-fasturi-row-scannability                                      | `docs/security/SECURITY_CANON.md` (the `fast-uri` CVE-floor row)                                                                            | prose structure              | deferred: the same split as SB-036, done for both rows together                                                                                                 |
 | SB-038 | `testing-refoundation` P.4 (`workstream/refound-p-4`, 3ade5c22)                       | R2-audit-comment-stream-coloring                                 | `.github/workflows/audit.yml` (the comment above the scan step on why gitleaks' log prose is not read)                                      | comment                      | deferred: drop or tighten the colour remark so the paragraph only says why the log is not parsed                                                                |
+| SB-039 | `testing-refoundation` P.5 (`workstream/refound-p-5`, 91f26952)                       | R2-testing-refoundation-doc-length                               | `docs/development/TESTING_REFOUNDATION.md` (the whole file, 2111 lines)                                                                     | prose structure              | deferred: keep the tables in the tracker; move the fixed plan and the measurement narratives to their own files                                                 |
 
 ## Entries — code and prose
 
@@ -323,6 +324,14 @@
 - **Suggestion:** the colour remark is a second reason beside the one that matters; drop it or tighten it so the paragraph only says why the log is not parsed.
 - **Why deferred:** prose in a comment; the step's verdict comes from git, the JSON report, the exit status and the error stream, none of which the remark touches.
 - **To implement:** cut "— and is coloured on any stream" from that sentence, or replace it with the reason it was written, measured.
+
+### SB-039 — the testing tracker is too long to read as a tracker
+
+- **Source:** a rebase-round review of the stack at slice P.5 (lineage `review-93c21cabf03f1430`), readability lens, finding `R2-testing-refoundation-doc-length`; text lost with its receipt.
+- **Location:** `docs/development/TESTING_REFOUNDATION.md`, 2111 lines on 2026-10-02: §Estado 325, §Toolchain lag 270, §OSV measurement 103, §Plan (fixed) 1330, §How to extend 40.
+- **Suggestion:** the progress a reader comes for (metrics, work units, gates, decisions) sits inside a document dominated by the fixed plan and by measurement narratives.
+- **Why deferred:** prose structure only. Moving the plan out touches every link into it and every slice of the stack that edits it; the split is its own change, not a line in a rebase.
+- **To implement:** keep §Estado and the tables in the tracker; move §Plan (fixed) to a sibling file under `docs/development/` and the measurement narratives (toolchain lag, OSV) to `docs/reports/`, leaving one link each.
 
 ## Entries — tests
 

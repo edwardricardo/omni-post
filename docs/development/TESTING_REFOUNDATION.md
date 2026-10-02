@@ -1,28 +1,17 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-02, slice `0.10` `refound/0-toolchain-vitest-plugin` (pull request #334), rebased onto
-slice `0.9` — the first toolchain slice that ADDS a package instead of moving one: `@vitest/eslint-plugin`
-**1.6.27**, the latest stable and the latest mature release, re-measured `2026-10-02T09:46Z` (published
-`2026-08-10T02:34Z`, no later release). It is a ROOT devDependency **literal**, not a catalog entry, because
-ADR-0018 gives the catalog to a direct dependency declared in two or more manifests and a literal to one
-declared in exactly one; the plan's WU-2.4 prose says "catalog", the rule wins, and the discrepancy is
-recorded here. Its peers are met: `eslint >=8.57.0` (9.39.5), and the optional `typescript >=5.0.0` (6.0.3),
-`vitest *` (4.1.11) and `@typescript-eslint/eslint-plugin *` (8.70.1). Against slice `0.9`'s lockfile, the
-bare `name@version` keys of both lockfile documents go 2683 → 2684 and the full key set 3289 → 3291 — the
-plugin's own id and its one snapshot id — because its two dependencies, `@typescript-eslint/utils` and
-`@typescript-eslint/scope-manager` (`^8.58.0`), resolve onto the 8.70.1 copies already present, one version
-across all ten `@typescript-eslint` packages. The plugin is registered in `eslint.config.ts` on the test
-globs with ZERO rules enabled; choosing the rules belongs to a separate change. That the registration is
-live is proven: `eslint --print-config` on a test file lists `vitest:vitest@1.6.27` and no `vitest/*` rule,
-and a planted `it.only` passed through `--stdin --stdin-filename` exits 1 naming `vitest/no-focused-tests`
-when that rule is forced on the command line and exits 0 under the repository config. The holds gate now
-measures the package (its population entry is no longer a declared-absent candidate); a planted stale
-absence makes it exit 1. The lag count stays 32, because the package enters at latest. The same slice
-pre-registers the `@typescript-eslint` pair's hold row: 8.71.0 matures on `2026-10-05T17:09Z`. No metric
-moves: M7 `7/7` was last moved by slice `P.4`, M1 `955 + 8` and M8 `1/87` by slice `P.2`.
-Previous: slice `0.9` `refound/0-toolchain-rtl` (pull request #333) — the testing-library family moved as
-one to 10.4.2 / 7.0.1 / 16.3.3 / 14.6.7, its shared hold row retired, 36 lags → 32.
+**As of:** 2026-10-02, slice `P.5` `refound/3-osv-measure` (pull request #335), rebased onto slice `0.10` — a
+measurement, with no configuration change: `osv-scanner` 2.6.0 (fetched by its release tag, sha256 verified)
+against `pnpm audit` over one lockfile. On 2026-09-28 both saw the same 6 advisories; re-measured on the
+rebased tree at `2026-10-02T09:56Z`, both see the same 4. The count work unit WU-3.7(b) turns on — a
+moderate-or-higher advisory the audit does not see and nobody audited — is 0 both times. Both measurements,
+the findings still open and the decision material are in [§OSV measurement](#osv-measurement-wu-37a), under
+[§Decision material for WU-3.7(b)](#decision-material-for-wu-37b--stated-not-decided). No metric moves: M7
+`7/7` was last moved by slice `P.4`, M1 `955 + 8` and M8 `1/87` by slice `P.2`.
+Previous: slice `0.10` `refound/0-toolchain-vitest-plugin` (pull request #334) — `@vitest/eslint-plugin`
+1.6.27 added as a root literal with no rule enabled, and the `@typescript-eslint` pair's hold pre-registered
+for `2026-10-05T17:09Z`; the lag count stayed at 32.
 This line moves with the last pull request that moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
@@ -203,7 +192,7 @@ One row per work unit of [§Plan (fixed)](#plan-fixed). Status: ⬜ not started 
 | 3     | 3.4    | Coverage Merge renders failures and refuses to certify a red suite          | ⬜     | —                             | —                                       | —          |
 | 3     | 3.5    | Remove "Test and Build" and the second "Security Audit"                     | ⬜     | —                             | —                                       | —          |
 | 3     | 3.6    | gitleaks scans the PR's commits — first done 2026-09-28, rebased 2026-10-02 | ✅     | `P.4`                         | `refound/3-gitleaks` · 8 reds           | 2026-10-02 |
-| 3     | 3.7(a) | OSV-Scanner: measure the finding classes                                    | ⬜     | —                             | —                                       | —          |
+| 3     | 3.7(a) | OSV-Scanner finding classes — first done 2026-09-28, rebased 2026-10-02     | ✅     | `P.5`                         | `refound/3-osv-measure` · 6 = 6 · 4 = 4 | 2026-10-02 |
 | 3     | 3.7(b) | OSV-Scanner: real gate, or removed                                          | ⬜     | —                             | —                                       | —          |
 | 3     | 3.8    | A skipped vitest test fails CI                                              | ⬜     | —                             | —                                       | —          |
 | 3     | 3.9    | #45 verdict composition, static rules                                       | ⬜     | —                             | —                                       | —          |
@@ -645,6 +634,109 @@ daily in both directions — `tsx` and `dependency-cruiser` crossed into maturit
 was written, and `size-limit@14.1.0` was published while it was being written. Every slice
 re-measures before it pins, per `testing-toolchain-alignment` › _The freshness comparator is "latest
 mature", never "latest"_.
+
+---
+
+## OSV measurement (WU-3.7a)
+
+Two measurements, taken with the same method and the same pinned binary. Each is kept as taken; the
+decision material rests on the later one. Raw scanner output is not committed.
+
+### The two measurements
+
+| Quantity                                                  | 2026-09-28 (original)                              | 2026-10-02 (rebased)                                         |
+| --------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------ |
+| Tree                                                      | commit `08b49f4e` (branch `refound/3-osv-measure`) | `91f26952` plus this slice, which changes only this document |
+| Instant                                                   | 2026-09-28T11:52Z                                  | 2026-10-02T09:56Z                                            |
+| `pnpm-lock.yaml` sha256                                   | `eba24db6…69e3f`                                   | `8456b570…c5d5bff`                                           |
+| Packages the scanner read from the lockfile               | 2656                                               | 2684                                                         |
+| Scanner                                                   | `osv-scanner` 2.6.0, sha256 `ca69b3d3…85b108`      | the same binary, fetched again by tag, sha256 re-verified    |
+| `osv-scanner` advisories · packages                       | 6 · 4                                              | 4 · 3                                                        |
+| by severity (GitHub rating)                               | 2 high · 1 moderate · 3 low                        | 2 high · 1 moderate · 1 low                                  |
+| `pnpm audit` (`metadata` counts)                          | 6 — 2 listed, 4 ignored                            | 4 — 0 listed, 4 ignored                                      |
+| seen by `osv-scanner`, not by `pnpm audit`                | 0                                                  | 0                                                            |
+| seen by `pnpm audit`, not by `osv-scanner`                | 0                                                  | 0                                                            |
+| covered by `auditConfig.ignoreGhsas` (5 entries)          | 4 of 6                                             | 4 of 4                                                       |
+| not covered by any ignore                                 | 2 — both `joi` 17.13.4, low, dev-only              | 0 — `joi` resolves to 17.13.8 since slice `0.17`             |
+| **moderate+ that `pnpm audit` misses AND nobody audited** | **0**                                              | **0**                                                        |
+| ignore entries that match no finding                      | 1 — `GHSA-q7cg-457f-vx79`                          | 1 — the same                                                 |
+| `--all-vulns` output against the default JSON             | byte-identical                                     | byte-identical                                               |
+| CI gate form, `pnpm audit --audit-level moderate`         | exit 0                                             | exit 0                                                       |
+
+The binary is the `v2.6.0` release asset `osv-scanner_linux_amd64`, downloaded by tag into a scratch
+directory (never installed) and checked against sha256
+`ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108`; the original lockfile digest is
+`eba24db62503a8a8b9d26e31fc5a289c93344f644b7e9eaef7ea307d03d69e3f`, today's is
+`8456b570462e906d6b4a2a8e7fa271030adf6e556ff6fabeebe466676c5d5bff`. `osv-scanner` exits 1 when it has
+findings; that is not a failure.
+
+| Command                                                                              | 2026-09-28                                             | 2026-10-02                                     |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------ | ---------------------------------------------- |
+| `osv-scanner --lockfile=pnpm-lock.yaml --format=sarif --output-file=…` (the CI form) | exit 1 · 6 results / 6 rules                           | exit 1 · 4 results / 4 rules                   |
+| `osv-scanner --lockfile=pnpm-lock.yaml --format=json --output-file=…`                | exit 1 · 6 advisories over 4 packages                  | exit 1 · 4 advisories over 3 packages          |
+| `osv-scanner scan source --lockfile=… --all-vulns --format=json`                     | exit 1 · byte-identical to the default JSON            | exit 1 · byte-identical to the default JSON    |
+| `osv-scanner scan source -r . --format=json`                                         | exit 1 · 1 Extract call (`pnpm-lock.yaml`), same 6 ids | not repeated                                   |
+| `pnpm audit --json`                                                                  | exit 1 · 2 listed; 3 low · 1 moderate · 2 high         | exit 0 · 0 listed; 1 low · 1 moderate · 2 high |
+| `pnpm audit --audit-level moderate` (`production-ci.yml:48`)                         | exit 0 · 2 low listed · 4 ignored                      | exit 0 · 4 ignored                             |
+
+### Every finding, classified
+
+| Package            | Advisory · alias                       | Severity       | Audited ignore | Seen by `pnpm audit`     | Reach              | 2026-09-28 | 2026-10-02 |
+| ------------------ | -------------------------------------- | -------------- | -------------- | ------------------------ | ------------------ | ---------- | ---------- |
+| `image-size@2.0.2` | `GHSA-5p2g-fcmc-qvqq` · CVE-2025-71329 | high (8.7)     | yes            | yes, as an ignored count | **prod-reachable** | yes        | yes        |
+| `image-size@2.0.2` | `GHSA-w3rx-r6r6-pgpr` · CVE-2025-71330 | high (8.7)     | yes            | yes, as an ignored count | **prod-reachable** | yes        | yes        |
+| `request@2.88.2`   | `GHSA-p8p7-x288-28g6` · CVE-2023-28155 | moderate (6.1) | yes            | yes, as an ignored count | dev-only           | yes        | yes        |
+| `elliptic@6.6.1`   | `GHSA-848j-6mx2-7j84` · CVE-2025-14505 | low (5.6)      | yes            | yes, as an ignored count | dev-only           | yes        | yes        |
+| `joi@17.13.4`      | `GHSA-6w3j-5fw6-r9vr` · CVE-2026-84368 | low (3.7)      | **no**         | yes, listed by name      | dev-only           | yes        | no         |
+| `joi@17.13.4`      | `GHSA-gg4h-3hg2-grpc` · CVE-2026-84367 | low (3.7)      | **no**         | yes, listed by name      | dev-only           | yes        | no         |
+
+An advisory on the ignore list never appears in the audit's `advisories` object but is still counted in
+its `metadata`: that is how every finding is provably visible to `pnpm audit` while only the unignored
+ones are printed. Reach comes from the lockfile, parsed with `yaml.safe_load_all` (pnpm 12 writes two
+documents): one breadth-first walk from every importer's `dependencies`, one from its `devDependencies`,
+both through each snapshot's `dependencies` and `optionalDependencies`. Today's closures are 1280 prod and
+2012 dev over 2694 snapshot ids (1280 / 1988 / 2666 on 2026-09-28). `image-size` is prod-reachable through
+`@providers/bluesky`, the one production caller `SECURITY_CANON.md` names; `request` arrives through root
+`jq@1.7.2` › `jsdom@0.2.19`, `elliptic` through `@storybook/nextjs` › `node-polyfill-webpack-plugin`, and on
+2026-09-28 `joi` arrived through `@storybook/test-runner` › `jest-process-manager` › `wait-on@7.2.0`.
+
+### Findings named, not fixed here
+
+Each was re-checked against the files on 2026-10-02; the first three are still true.
+
+1. **The CI job downloads an unpinned binary.** `audit.yml:107` fetches
+   `releases/latest/download/osv-scanner_linux_amd64`, so the version is whatever upstream published
+   last. The 2.x line moved to a subcommand CLI (`osv-scanner scan source …`), and the flat `--lockfile`
+   form the job uses still works at 2.6.0 (measured above) with nothing guaranteeing the next release.
+2. **The job's comment misstates its baseline.** `audit.yml:110` says "baseline has 90 vulns"; the
+   measured counts are 6 (2026-09-28) and 4 (2026-10-02), and `--all-vulns` changes neither.
+3. **`GHSA-q7cg-457f-vx79` is an orphan ignore whose canon row names the wrong package.** It matches no
+   finding on either date. The OSV record names `joi` (CVE-2026-48038, moderate; affected `<17.13.4` and
+   `>=18.0.0 <18.2.1`), and the installed `joi` (17.13.4 then, 17.13.8 now) is outside both ranges;
+   `SECURITY_CANON.md:254` attributes it to `request`. Slice `0.11` settles the attribution by
+   measurement.
+4. **No longer true:** on 2026-09-28 two `low` `joi` advisories sat unignored on that same version; on
+   2026-10-02 `joi` 17.13.8 carries none.
+5. **The scanner has one thing to read here.** The recursive source scan on 2026-09-28 made exactly one
+   Extract call, `pnpm-lock.yaml`: there is no second ecosystem for it to cover.
+6. **Two id spaces.** SARIF rule ids are the CVE aliases (today `CVE-2025-71329`, `CVE-2025-14505`,
+   `CVE-2023-28155`, `CVE-2025-71330`); the JSON report and `auditConfig.ignoreGhsas` use GHSA ids. An
+   ignore file for a gate has to use the id space the scanner matches on.
+7. **No `osv-scanner.toml` exists in the tree** (searched by name on both dates).
+
+### Decision material for WU-3.7(b) — stated, not decided
+
+- **The criterion.** Decision D8 keeps OSV-Scanner only if it sees a class `pnpm audit` does not; as a
+  measurable test: at least one moderate-or-higher advisory that `pnpm audit` does not see AND that
+  nobody has audited.
+- **Today's measurement (2026-10-02T09:56Z).** That count is **0**. The advisory sets are identical in
+  both directions (4 = 4), and every finding is covered by an audited ignore; no finding is unaudited at
+  all. The rebase did not change the conclusion the 2026-09-28 measurement supported (6 = 6, count 0).
+- **What follows from the evidence.** The job reads the same lockfile against the same advisory data as
+  `pnpm audit`. Keeping it as a real gate means a pinned binary, an `osv-scanner.toml` with one reasoned,
+  expiring ignore per audited finding, and removing the `set +e` that swallows its exit code; retiring it
+  removes findings 1 and 2 with it. Finding 3 lives in `SECURITY_CANON.md` and `pnpm-workspace.yaml`
+  whichever branch is taken.
 
 ---
 
