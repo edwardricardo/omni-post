@@ -30,7 +30,6 @@
     "type-check": "tsc --noEmit",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "storybook:test": "test-storybook",
     "chromatic": "npx chromatic --project-token=<project-token>"
   },
   "dependencies": {

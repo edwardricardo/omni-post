@@ -37,9 +37,6 @@
       "name": "@storybook/nextjs"
     },
     {
-      "name": "@storybook/test-runner"
-    },
-    {
       "name": "@testing-library/dom"
     },
     {
@@ -95,10 +92,6 @@
     },
     {
       "name": "isomorphic-dompurify"
-    },
-    {
-      "name": "jest",
-      "absence": "transitive"
     },
     {
       "name": "jiti"

@@ -16,8 +16,7 @@
     "typecheck": "tsc --noEmit",
     "i18n:lint": "node scripts/i18n-validate.mjs",
     "storybook": "storybook dev -p 6007",
-    "build-storybook": "storybook build",
-    "storybook:test": "test-storybook"
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "1.5.0",
@@ -49,7 +48,6 @@
     "@storybook/addon-a11y": "catalog:",
     "@storybook/addon-docs": "catalog:",
     "@storybook/nextjs": "catalog:",
-    "@storybook/test-runner": "0.24.4",
     "@tailwindcss/postcss": "catalog:",
     "@testing-library/dom": "catalog:",
     "@testing-library/jest-dom": "catalog:",

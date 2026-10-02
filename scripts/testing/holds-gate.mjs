@@ -24,7 +24,7 @@
  *   that must not reach it.
  *
  *   TWO RESIDUALS, stated rather than discovered later. (1) The population is DIRECT dependencies:
- *   `pnpm ls --depth 0` cannot see a transitive, so `playwright`, `playwright-core` and `jest` carry
+ *   `pnpm ls --depth 0` cannot see a transitive, so `playwright` and `playwright-core` carry
  *   `absence: "transitive"` and are documented rather than gated. (2) It does NOT check that the
  *   installed version sits at or below a hold's own ceiling, because the `Hold / floor` column
  *   carries BOTH ceilings (holds) and minimums (CVE floors) and several cells are prose; reading one

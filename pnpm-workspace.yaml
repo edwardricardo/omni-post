@@ -170,11 +170,20 @@ catalog:
   # @vitest/* family (peer = vitest 4.1.11)
   "@vitest/coverage-v8": 4.1.11
   "@vitest/ui": 4.1.11
-  # Storybook family (atomic; 10.4.6 = vite 8 peer)
-  storybook: 10.4.6
-  "@storybook/addon-a11y": 10.4.6
-  "@storybook/addon-docs": 10.4.6
-  "@storybook/nextjs": 10.4.6
+  # Storybook family (atomic). 10.6.0 since 2026-10-02 (slice 0.11): the latest MATURE release,
+  # published 2026-09-02, 29.8 days old at 2026-10-02T10:04Z. `latest` is 10.6.1, published
+  # 2026-09-29 and mature only from 2026-10-06T17:14Z-17:20Z, so it is a pre-registered scheduled
+  # hold in SECURITY_CANON.md rather than this pin. @storybook/nextjs@10.6.0 peers next "^14.1.0 ||
+  # ^15.0.0 || ^16.0.0" (repo 16.3.8), react/react-dom up to ^19 (19.2.7) and webpack ^5 (5.106.2);
+  # storybook's own vite-plus and prettier peers are optional. Builds measured 2026-10-02:
+  # @apps/client green at 10.6.0 (build and `storybook dev --smoke-test --ci`); @apps/admin red at
+  # 10.6.0 with SB_BUILDER-WEBPACK5_0002, the signature it also produced at 10.4.6 in the A/B
+  # control of 2026-09-29 (it has no stories and its config globs a missing directory), so that red
+  # is not the version's.
+  storybook: 10.6.0
+  "@storybook/addon-a11y": 10.6.0
+  "@storybook/addon-docs": 10.6.0
+  "@storybook/nextjs": 10.6.0
   "@types/opossum": 8.1.9
   image-size: 2.0.2
 
@@ -283,15 +292,17 @@ overrides:
   # + the upstream changelog, never from the audit range alone.
   # DEV-only chain, measured: @storybook/builder-webpack5 > @storybook/nextjs >
   # apps/{admin,client} devDependencies. It CANNOT resolve naturally —
-  # builder-webpack5 declares `webpack-dev-middleware: ^6.1.2` at BOTH 10.4.6 and
-  # 10.6.0, and 6.1.3 is the 6.x ceiling, so `pnpm update -r` leaves it on the
+  # builder-webpack5 declares `webpack-dev-middleware: ^6.1.2` at 10.4.6, at the
+  # installed 10.6.0 and at 10.6.1 (re-read 2026-10-02), and 6.1.3 is the 6.x
+  # ceiling, so `pnpm update -r` leaves it on the
   # vulnerable version (verified). A MAJOR forced over an upstream range, the
   # @hono/node-server / deepmerge-ts precedent: 7.4.6's peerDependencies and engines
   # are byte-identical to 7.4.5's; its peer (`webpack ^5.0.0`) is 6.1.3's, and
   # engines.node rises only from >=14.15.0 to >=18.12.0, below this repo's
   # >=24.15.0. Honest scope: builder-webpack5 imports the 7.x major statically and
   # calls it only on the `storybook dev` path; `storybook dev --smoke-test --ci`
-  # (apps/client) and `storybook build` are green on 7.4.6.
+  # (apps/client) and `storybook build` are green on 7.4.6, under Storybook 10.4.6
+  # on 2026-10-01 and under 10.6.0 on 2026-10-02.
   # Minimal patched 7.4.6, not the latest 8.3.0, per ADR-0018.
   "webpack-dev-middleware@<7.4.6": 7.4.6
   # Raised 2026-09-09 for GHSA-rgj7-g3m4-5g8c (high) — sharp's bundled libvips ships
@@ -368,16 +379,16 @@ auditConfig:
   ignoreGhsas:
     - GHSA-p8p7-x288-28g6
     - GHSA-848j-6mx2-7j84
-    - GHSA-q7cg-457f-vx79
     # image-size ICNS/JXL/HEIF parser infinite-loop DoS (added 2026-08-11). The
     # advisories name >=2.0.3 as patched but npm has no release above 2.0.2 —
     # there is nothing to pin to. The one production caller
     # (packages/providers/bluesky BlueskyClient.getImageDimensions) now gates
     # buffers by magic bytes and admits only jpeg/png/gif/webp — the vulnerable
     # parsers are unreachable by construction, pinned by unit tests asserting
-    # image-size is never invoked for crafted ICNS/JXL/HEIF signatures. The
-    # remaining path (@storybook/nextjs) is dev-only tooling. Remove when
-    # image-size publishes >=2.0.3 and the tree resolves it.
+    # image-size is never invoked for crafted ICNS/JXL/HEIF signatures. It is
+    # the only consumer since @storybook/nextjs 10.6.0 replaced image-size with
+    # probe-image-size (lockfile parsed 2026-10-02). Remove when image-size
+    # publishes >=2.0.3 and the tree resolves it.
     - GHSA-w3rx-r6r6-pgpr
     - GHSA-5p2g-fcmc-qvqq
 

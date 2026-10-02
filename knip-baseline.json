@@ -1,9 +1,8 @@
 {
   "_README": "Tracked dead-code debt ledger. The CI gate (scripts/knip-ratchet.mjs) FAILS on any knip finding NOT listed here, so new dead code is prevented. These pre-existing entries must be burned down — never grow this list to silence a new finding. Regenerate after genuine removals: node scripts/knip-ratchet.mjs --write. See docs/development/knip-baseline.md.",
-  "count": 319,
+  "count": 318,
   "keys": [
     "binaries::apps/client/package.json::chromatic",
-    "binaries::apps/client/package.json::test-storybook",
     "binaries::package.json::k6",
     "binaries::package.json::open",
     "dependencies::apps/workers/package.json::@adapters/external-apis",
