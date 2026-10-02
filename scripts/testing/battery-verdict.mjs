@@ -97,6 +97,11 @@ function listDirectory(dir) {
  * Reads `steps.tsv`. A row that is not `<name>\t<integer>` is refused by line number rather than
  * guessed at: a guessed exit code is exactly the input a verdict must not trust.
  *
+ * A step recorded more than once keeps its FIRST record and yields one problem, however many times
+ * it repeats. Appending the repeats would count one step as several, so a battery that ran every
+ * planned step would also be reported as having run the wrong number of them, and a repeat with a
+ * different exit code would add a second, contradictory reason for the same step.
+ *
  * @param {string} outDir
  * @returns {{ present: boolean, steps: StepRecord[], problems: string[] }}
  */
@@ -112,6 +117,8 @@ function readSteps(outDir) {
   const steps = [];
   /** @type {string[]} */
   const problems = [];
+  /** @type {Set<string>} */
+  const repeated = new Set();
   content.split("\n").forEach((row, index) => {
     if (row.length === 0) return;
     const hit = STEP_ROW.exec(row);
@@ -122,7 +129,11 @@ function readSteps(outDir) {
       return;
     }
     const name = hit[1] ?? "";
-    if (steps.some((step) => step.name === name)) problems.push(`step ${name} recorded twice`);
+    if (steps.some((step) => step.name === name)) {
+      if (!repeated.has(name)) problems.push(`step ${name} recorded twice`);
+      repeated.add(name);
+      return;
+    }
     steps.push({ name, exit: Number(hit[2]) });
   });
   return { present: true, steps, problems };

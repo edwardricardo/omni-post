@@ -287,6 +287,33 @@ describe("battery verdict", () => {
       expect(verdict.reasons.join("\n")).toContain("steps.tsv line 3");
     });
 
+    it("returns RED with one reason naming a step recorded twice, keeping its first record", async () => {
+      const outDir = makeLogDir();
+      writeFileSync(
+        path.join(outDir, "steps.tsv"),
+        "install\t0\nhooks\t0\nlint\t0\nlint\t1\napi-1\t0\n"
+      );
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.reasons).toEqual(["step lint recorded twice"]);
+      expect(verdict.steps).toEqual(passingSteps());
+    });
+
+    it("returns one reason for a step recorded three times", async () => {
+      const outDir = makeLogDir();
+      writeFileSync(
+        path.join(outDir, "steps.tsv"),
+        "install\t0\nhooks\t0\nlint\t0\nlint\t0\nlint\t0\napi-1\t0\n"
+      );
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.reasons).toEqual(["step lint recorded twice"]);
+      expect(verdict.steps.map((step) => step.name)).toEqual([...STEP_NAMES]);
+    });
+
     it("returns RED when a recorded step left no log", async () => {
       const outDir = makeLogDir();
       rmSync(path.join(outDir, "lint.log"));
