@@ -153,6 +153,8 @@ docker-compose.local.yml
 .claude/agent-memory/
 .claude/worktrees/
 .claude/.allowed/
+# Per-machine verdicts the hooks read (battery results and their step logs).
+.claude/state/
 .claude/hooks-py/__pycache__/
 .claude/hooks-py/tests/__pycache__/
 **/__pycache__/
