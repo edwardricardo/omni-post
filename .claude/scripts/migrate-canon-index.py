@@ -31,57 +31,110 @@ Schema target (ver plan Batch 5pre):
 }
 """
 
+import argparse
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-
-CANON_MD = Path(
-    "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon_research_index.md"
-)
-CANON_JSON = Path(
-    "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon-index.json"
+# The index paths come from the same resolver the hooks use: the repository's
+# auto-memory directory, never a machine-specific literal path.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "hooks-py"))
+from _common import (  # noqa: E402
+    PROJECT_ROOT,
+    canon_index_path,
+    canon_research_index_path,
+    dead_applies_to_patterns,
 )
 
 
 # ── appliesTo heuristics ────────────────────────────────────────────
-# Mapeo de keywords (lowercase) en el área a paths del repo. Edward puede
-# curar manualmente después editando el .json o el .md y re-corriendo.
+# Maps keywords (lowercase) found in the area title to repository paths. Every
+# path must exist in the tree: the generator fails when one does not (see
+# find_offenders), so a moved directory breaks the generation instead of
+# leaving silent entries. The domain and application layers live in
+# packages/core since apps/api/src/{domain,application} were deleted
+# (6ef962c5, fe710c48).
+CORE_LAYERS = ["packages/core/domain/", "packages/core/application/"]
+UNIT_OF_WORK_PATHS = [
+    "apps/api/src/infrastructure/unitofwork/",
+    "packages/adapters/db-prisma/src/unitofwork/",
+    "packages/core/application/",
+]
+SECURITY_CRYPTO_PATHS = ["apps/api/src/security/"]
+CI_PATHS = [".github/workflows/"]
+I18N_PATHS = ["apps/admin/i18n/", "apps/client/i18n/", "packages/i18n/"]
 AREA_TO_PATHS = {
-    "architecture": ["apps/api/src/", "packages/ports/", "packages/adapters/"],
-    "hexagonal": ["apps/api/src/", "packages/ports/", "packages/adapters/"],
+    "architecture": ["apps/api/src/", "packages/ports/", "packages/adapters/", *CORE_LAYERS],
+    "hexagonal": ["apps/api/src/", "packages/ports/", "packages/adapters/", *CORE_LAYERS],
     "ports & adapters": ["packages/ports/", "packages/adapters/"],
-    "caching": ["packages/observability/", "packages/adapters/cache-redis/"],
+    "caching": ["packages/observability/", "packages/adapters/cache-redis/", "packages/ports/src/CachePort.ts"],
     "llm": ["apps/api/src/services/", "packages/providers/"],
     "ai-specific": ["apps/api/src/services/"],
+    "ai": ["apps/api/src/ai/", "packages/core/ai/", "packages/ports/src/AgentOrchestrationPort.ts"],
+    # The realtime metrics delta buffer (keyed state on top of CachePort).
+    "stream processing": ["apps/api/src/analytics/realtimeAnalytics.ts", "packages/ports/src/CachePort.ts"],
+    # The async/promise entries settle CachePort's async-only API.
+    "promise": ["packages/ports/src/CachePort.ts", "packages/adapters/cache-redis/"],
     "testing": ["apps/api/tests/", "apps/admin/tests/", "apps/client/tests/"],
     "mutation": ["apps/api/tests/"],
     "logging": ["apps/api/src/lib/logger.ts", "packages/observability/"],
+    "audit logging": ["apps/api/src/audit/"],
     "observability": ["packages/observability/"],
-    "security": ["apps/api/src/auth/", "apps/api/src/encryption/"],
+    "prometheus": ["packages/observability/", "apps/api/src/metrics/"],
+    "security": ["apps/api/src/auth/", *SECURITY_CRYPTO_PATHS],
+    "cryptography": SECURITY_CRYPTO_PATHS,
+    "encryption": SECURITY_CRYPTO_PATHS,
+    "crypto": SECURITY_CRYPTO_PATHS,
+    "kms": SECURITY_CRYPTO_PATHS,
+    "byok": SECURITY_CRYPTO_PATHS,
     "auth": ["apps/api/src/auth/"],
+    "authentication": ["apps/api/src/auth/"],
     "oauth": ["apps/api/src/auth/"],
-    "fastify": ["apps/api/src/", "apps/api/src/routes/"],
+    "oidc": ["apps/api/src/auth/"],
+    "jwt": ["apps/api/src/auth/"],
+    "password": ["apps/api/src/auth/passwordHashing.ts"],
+    "webhook": ["apps/api/src/webhooks/", "packages/core/webhooks/"],
+    "fastify": ["apps/api/src/"],
     "next": ["apps/admin/", "apps/client/"],
     "next.js": ["apps/admin/", "apps/client/"],
     "react": ["apps/admin/components/", "apps/client/components/", "packages/ui/"],
-    "prisma": ["infra/prisma/", "apps/api/src/infrastructure/repositories/"],
-    "cqrs": ["apps/api/src/cqrs/"],
-    "saga": ["apps/api/src/saga/"],
-    "event": ["apps/api/src/events/"],
-    "outbox": ["apps/api/src/events/outbox/"],
-    "uow": ["apps/api/src/infrastructure/uow/", "apps/api/src/application/"],
-    "unit-of-work": ["apps/api/src/infrastructure/uow/", "apps/api/src/application/"],
+    "prisma": ["infra/prisma/", "apps/api/src/infrastructure/repositories/", "packages/adapters/db-prisma/"],
+    "postgresql": ["infra/prisma/"],
+    "cqrs": ["apps/api/src/cqrs/", "packages/core/application/"],
+    "saga": ["apps/api/src/saga/", "apps/api/src/infrastructure/saga/", "packages/shared/src/saga.ts", "packages/core/application/"],
+    "event": ["apps/api/src/events/", "packages/core/domain/src/events/"],
+    "outbox": ["apps/api/src/outbox/", "apps/api/src/infrastructure/outbox/", "packages/adapters/db-prisma/src/outbox/"],
+    "uow": UNIT_OF_WORK_PATHS,
+    "unit-of-work": UNIT_OF_WORK_PATHS,
+    "unit of work": UNIT_OF_WORK_PATHS,
+    "use case": ["packages/core/application/"],
     "secret": ["apps/api/src/config/env.ts"],
     "env": ["apps/api/src/config/env.ts"],
     "validation": ["apps/api/src/validation/"],
-    "ddd": ["apps/api/src/domain/", "apps/api/src/application/"],
-    "domain": ["apps/api/src/domain/"],
+    "ddd": CORE_LAYERS,
+    "domain": ["packages/core/domain/"],
+    "aggregate": ["packages/core/domain/"],
     "result": ["packages/shared/", "apps/api/src/"],
-    "error": ["apps/api/src/domain/errors/"],
+    "error": ["packages/core/domain/src/errors/", "apps/api/src/lib/errors/"],
     "circuit": ["packages/monitoring/"],
+    "resilience": ["packages/monitoring/"],
+    "fitness": CI_PATHS,
+    "ci": CI_PATHS,
+    "github actions": CI_PATHS,
+    "pre-merge audit": [*CI_PATHS, "scripts/"],
+    "eslint": ["eslint.config.ts"],
+    "linting": ["eslint.config.ts"],
+    "git hygiene": [".gitattributes", ".gitignore"],
+    "tsdoc": ["apps/api/src/", "packages/core/"],
+    "jsdoc": ["apps/api/src/", "packages/core/"],
+    "dead code": ["knip.json", "scripts/knip-ratchet.mjs"],
+    "documentation": ["docs/"],
+    "bundling": ["apps/api/Dockerfile", "apps/workers/Dockerfile"],
+    "container": ["apps/api/Dockerfile", "apps/workers/Dockerfile"],
+    "analytics": ["apps/api/src/analytics/", "packages/core/analytics/"],
     "rate": ["apps/api/src/middleware/"],
     "queue": ["packages/adapters/queue-bullmq/"],
     "bullmq": ["packages/adapters/queue-bullmq/", "apps/workers/"],
@@ -95,14 +148,14 @@ AREA_TO_PATHS = {
     "ui": ["apps/admin/components/", "apps/client/components/", "packages/ui/"],
     "accessibility": ["apps/admin/", "apps/client/", "packages/ui/"],
     "a11y": ["apps/admin/", "apps/client/", "packages/ui/"],
-    "i18n": ["apps/admin/lib/i18n/", "apps/client/lib/i18n/"],
+    "i18n": I18N_PATHS,
+    "internationalization": I18N_PATHS,
     "telemetry": ["packages/observability/"],
     "tracing": ["packages/observability/"],
     "metrics": ["packages/observability/"],
     "redis": ["packages/adapters/cache-redis/"],
-    "encryption": ["apps/api/src/encryption/"],
-    "rbac": ["apps/api/src/auth/rbac/"],
-    "permission": ["apps/api/src/auth/rbac/"],
+    "rbac": ["apps/api/src/auth/"],
+    "permission": ["apps/api/src/auth/"],
     "tanstack": [
         "apps/admin/hooks/api/",
         "apps/admin/lib/api/",
@@ -117,6 +170,13 @@ AREA_TO_PATHS = {
         "apps/client/lib/api/",
     ],
     "frontend": ["apps/admin/", "apps/client/", "packages/ui/"],
+}
+
+# Areas with no code location: their entries may keep an empty `appliesTo`.
+# Any other empty entry fails the generation — an entry that cannot fire has
+# to be a decision written here, not an oversight.
+PATHLESS_AREAS = {
+    "Stamps & Conventions for new entries": "conventions for writing the markdown index itself, which lives outside the repository",
 }
 
 
@@ -148,12 +208,22 @@ def extract_fields(body: str) -> dict:
     return fields
 
 
+def keyword_in_area(keyword: str, area_lower: str) -> bool:
+    """True when `keyword` appears in the area as a whole word (plural included).
+
+    As a substring, `ui` matched "build", `ci` matched "circuit" and `rate`
+    matched any word containing it: an area inherited paths from a word it
+    does not name.
+    """
+    return re.search(rf"(?<![a-z0-9]){re.escape(keyword)}(?:e?s)?(?![a-z0-9])", area_lower) is not None
+
+
 def guess_paths(area: str) -> list[str]:
     """Heuristic mapping from area name to repo paths."""
     area_lower = area.lower()
     paths = set()
     for keyword, candidate_paths in AREA_TO_PATHS.items():
-        if keyword in area_lower:
+        if keyword_in_area(keyword, area_lower):
             paths.update(candidate_paths)
     return sorted(paths)
 
@@ -279,33 +349,73 @@ def parse_canon(md_text: str) -> tuple[dict, list[str]]:
     return entries, warnings
 
 
-def main() -> None:
-    if not CANON_MD.exists():
-        print(f"ERROR: canon .md not found at {CANON_MD}", file=sys.stderr)
-        sys.exit(1)
+def find_offenders(entries: dict, root: Path = PROJECT_ROOT) -> list[str]:
+    """One line per offender: each dead pattern with the entries that carry
+    it, and each entry with an empty `appliesTo` outside PATHLESS_AREAS.
 
-    md_text = CANON_MD.read_text(encoding="utf-8")
-    entries, warnings = parse_canon(md_text)
+    Both shapes produce an entry that never fires in pre_edit_canon, which
+    matches `appliesTo` as a substring of the edited path.
+    """
+    offenders = [
+        f"dead appliesTo pattern {pattern!r} -> entries: {', '.join(keys)}"
+        for pattern, keys in dead_applies_to_patterns({"entries": entries}, root).items()
+    ]
+    offenders.extend(
+        f"empty appliesTo: {key} -> area {entry['area']!r} (not in PATHLESS_AREAS)"
+        for key, entry in sorted(entries.items())
+        if not entry["appliesTo"] and entry["area"] not in PATHLESS_AREAS
+    )
+    return offenders
+
+
+def generate(source: Path, out: Path, root: Path = PROJECT_ROOT) -> int:
+    """Regenerates `out` from `source`; 0 when written, 1 when refused.
+
+    Fails closed: on any offender from `find_offenders` it names them all on
+    stderr and writes NOTHING, so an index that cannot fire never silently
+    replaces the previous one.
+    """
+    if not source.exists():
+        print(f"ERROR: canon .md not found at {source}", file=sys.stderr)
+        return 1
+
+    entries, warnings = parse_canon(source.read_text(encoding="utf-8"))
+    if warnings:
+        print(f"{len(warnings)} warning(s):", file=sys.stderr)
+        for w in warnings:
+            print(f"  - {w}", file=sys.stderr)
+
+    offenders = find_offenders(entries, root)
+    if offenders:
+        print(f"ERROR: {len(offenders)} appliesTo offender(s); {out} not written:", file=sys.stderr)
+        for offender in offenders:
+            print(f"  - {offender}", file=sys.stderr)
+        return 1
 
     output = {
         "version": 1,
         "synthesizedAt": datetime.now(timezone.utc).isoformat(),
-        "source": str(CANON_MD),
+        "source": source.name,
         "entryCount": len(entries),
         "entries": entries,
     }
+    # Atomic write: a concurrent reader (a hook) sees the old index or the new
+    # one, never a half-written file.
+    staging = out.with_name(out.name + ".tmp")
+    staging.write_text(json.dumps(output, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(staging, out)
 
-    CANON_JSON.write_text(
-        json.dumps(output, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    print(f"Wrote {len(entries)} entries to {out}")
+    return 0
 
-    print(f"Wrote {len(entries)} entries to {CANON_JSON}")
-    if warnings:
-        print(f"\n{len(warnings)} warning(s):", file=sys.stderr)
-        for w in warnings:
-            print(f"  - {w}", file=sys.stderr)
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--source", type=Path, help="canon markdown (default: the project's memory dir)")
+    parser.add_argument("--out", type=Path, help="index JSON to write (default: the project's memory dir)")
+    args = parser.parse_args(argv)
+    return generate(args.source or canon_research_index_path(), args.out or canon_index_path())
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

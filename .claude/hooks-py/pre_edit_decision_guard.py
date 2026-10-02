@@ -110,13 +110,14 @@ def emit_warning(content: str, prefix: tuple[str, ...] = ()) -> None:
 
 
 def load_index(*, decision_ids: str, session_id: str = "") -> dict:
-    """Carga canon-index.json o avisa EN EL CONTEXTO y sale (exit 0).
+    """Loads canon-index.json, or reports IN THE CONTEXT and exits (exit 0).
 
-    Sin índice no hay forma de saber si una decisión está cubierta, así que
-    NO se emite un DECISION GAP: con el índice ausente, cada detección se
-    volvía un gap falso (75 avisos, todos falsos, mientras la ruta apuntaba a
-    /home/edward/...). Se reporta la ceguera, no un hallazgo inventado — una
-    vez por sesión; lo que seguía (gaps y overrides) comparaba contra nada.
+    Without an index there is no way to know whether a decision is covered, so
+    NO DECISION GAP is emitted: with the index absent, every detection became
+    a false gap (75 notices, all false, while the path pointed at another
+    machine's home directory). The blindness is reported, not an invented
+    finding — once per session; what followed (gaps and overrides) compared
+    against nothing.
     """
     path = canon_index_path()
     consequence = f"decision-gap check for {decision_ids} is blind until it exists"
