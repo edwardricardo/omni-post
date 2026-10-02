@@ -94,7 +94,7 @@ catalog:
   "@googleapis/youtubeanalytics": 11.0.1 # latest stable
 
   # ── Build/test toolchain ──
-  vitest: 4.1.11 # CVE floor raised 2026-09-09: GHSA-82fw-gwwq-j7x9 (moderate, @vitest/mocker redirect-mock path traversal), vulnerable >=2.1.0 <4.1.11. vitest 4.1.11 pins @vitest/mocker EXACTLY at 4.1.11, so the transitive needs no override of its own. Peer-locked to @vitest/* 4.1.11 (was 4.1.10)
+  vitest: 5.0.2 # CVE floor raised 2026-09-09: GHSA-82fw-gwwq-j7x9 (moderate, @vitest/mocker redirect-mock path traversal), vulnerable >=2.1.0 <4.1.11. vitest 4.1.11 pins @vitest/mocker EXACTLY at 4.1.11, so the transitive needs no override of its own. Peer-locked to @vitest/* 4.1.11 (was 4.1.10)
   typescript: 6.0.3 # NOT latest stable (the previous comment said so and was false, corrected 2026-09-27): latest mature is 7.0.2. 6.0.3 is the v6 ceiling, HELD — @typescript-eslint 8.70.1 peers typescript ">=4.8.4 <6.1.0" (the range is unchanged from 8.70.0; only the version naming it moved, 2026-09-30). See SECURITY_CANON §"Build-tool version holds"
   tsx: 4.23.15 # latest MATURE and latest stable, re-measured 2026-10-02T07:22Z: published 2026-09-20T07:22:17Z, no later release. No hold row, because there is no lag. Declared via `catalog:` by root, apps/api, apps/workers and infra/prisma; also an optional peer (^4.8.1) of vite and postcss-load-config. Depends on esbuild ~0.28.0, which the blanket esbuild 0.28.1 override satisfies
   "@types/node": 24.13.6 # DELIBERATELY NOT latest stable, and not latest mature either: the runtime major is 24 (the Krypton LTS line — .nvmrc, setup-node and both Dockerfiles), and types ahead of the runtime describe APIs it does not have. 24.13.6 is the latest MATURE 24.x measured 2026-09-28T02:42:36Z (published 2026-09-19, 9.1 d; 24.19.0 is 2.2 d and immature). Was 25.9.3 — a major ABOVE the runtime on an odd, non-LTS line. The major is now gated by scripts/testing/engines-node-gate.mjs against engines.node; holds row in SECURITY_CANON
@@ -157,19 +157,19 @@ catalog:
   webpack: 5.106.2
   vite: 8.0.16 # single version — the former vite-7 hold was a workaround for apps/client missing @vitejs/plugin-react (apps/admin had it). Adding the plugin to client (ADR-0019) lets it parse JSX under vite 8's rolldown SSR transform, collapsing the vite 7/8 split. Verified: client 510/510 + admin 106/106 on vite 8.
   eslint: 9.39.5 # the v9 line's FINAL release and its ceiling. Still held below 10: eslint-plugin-react@7.37.5 peers eslint up to ^9.7, eslint-plugin-jsx-a11y@6.10.2 up to ^9, both already at their own latest. Measured 2026-09-27; see SECURITY_CANON §"Build-tool version holds"
-  "@playwright/test": 1.61.1
+  "@playwright/test": 1.63.0
   "@axe-core/playwright": 4.10.2
   "@formatjs/icu-messageformat-parser": 3.5.9
   # @testing-library family (atomic)
-  "@testing-library/dom": 10.4.1
-  "@testing-library/jest-dom": 7.0.0 # MAJOR 6->7: drops Node <22 (repo on Node 24)
-  "@testing-library/react": 16.3.2
-  "@testing-library/user-event": 14.6.1
+  "@testing-library/dom": 10.4.2
+  "@testing-library/jest-dom": 7.0.1 # MAJOR 6->7: drops Node <22 (repo on Node 24)
+  "@testing-library/react": 16.3.3
+  "@testing-library/user-event": 14.6.7
   # Vitest JSX transform (apps/admin + apps/client) — required for vite 8 (ADR-0019).
   "@vitejs/plugin-react": 5.1.4
   # @vitest/* family (peer = vitest 4.1.11)
-  "@vitest/coverage-v8": 4.1.11
-  "@vitest/ui": 4.1.11
+  "@vitest/coverage-v8": 5.0.2
+  "@vitest/ui": 5.0.2
   # Storybook family (atomic; 10.4.6 = vite 8 peer)
   storybook: 10.4.6
   "@storybook/addon-a11y": 10.4.6
