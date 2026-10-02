@@ -31,10 +31,10 @@ from _common import (  # noqa: E402
 )
 
 HOOK_NAME = "user-prompt-submit"
-# Los planes reales viven en ~/.claude/plans/*.md (los escribe Plan Mode).
-# Un plan es "activo" si esta sesión lo tocó: la referencia aparece en el
-# transcript como el file_path de un Read/Edit/Write (mismo patrón que el
-# guardia de plan mode). Se lee solo la cola del transcript.
+# Real plans live in ~/.claude/plans/*.md (Plan Mode writes them).
+# A plan is "active" when this session touched it: the reference appears in
+# the transcript as the file_path of a Read/Edit/Write (same pattern as the
+# plan mode guard). Only the tail of the transcript is read.
 PLAN_FILE_REF_RE = re.compile(r'"file_path"\s*:\s*"([^"]*\.claude/plans/[^"]*\.md)"')
 TRANSCRIPT_TAIL_BYTES = 5 * 1024 * 1024
 GIT_TIMEOUT_SEC = 2
@@ -63,9 +63,9 @@ def run(args: list[str], default: str = "") -> str:
             timeout=GIT_TIMEOUT_SEC,
             check=True,
         )
-        # rstrip, no strip: en `git status --porcelain` el espacio inicial de la
-        # PRIMERA línea es la columna X (" M" = sin stagear); strip() lo comía y
-        # ese archivo se contaba como staged.
+        # rstrip, not strip: in `git status --porcelain` the leading space of
+        # the FIRST line is the X column (" M" = unstaged); strip() would eat it
+        # and that file would be counted as staged.
         return result.stdout.rstrip()
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
         return default
@@ -121,22 +121,24 @@ def canon_index_line() -> str:
         reason = error or canon_index_staleness(index_path, source_path, index=index)
         if reason:
             return f"canon_index: STALE — {reason}"
+        # No reason means `synthesizedAt` parsed, and read_canon_index guarantees `entries` is a dict.
         synthesized = parse_synthesized_at(index)
         return f"canon_index: current ({len(index['entries'])} entries, synthesized {synthesized.date().isoformat()})"
     except Exception as e:
-        # An index with an unexpected shape must not take down the whole context
-        # or leave the line blank: the failure is named and the rest goes on.
+        # Also absorbs path-resolution faults (canon_index_path() resolves the home
+        # directory and runs git): the prompt line must never crash the hook nor go
+        # silent, so the error is logged and the line reads STALE with the error class.
         log(f"ERROR evaluating canon-index: {e!r}")
         return f"canon_index: STALE — status check failed ({type(e).__name__})"
 
 
 def find_active_plan(transcript_path: str) -> Path | None:
-    """El último plan de ~/.claude/plans que ESTA sesión leyó o editó.
+    """The last plan under ~/.claude/plans that THIS session read or edited.
 
-    Se lee del transcript — la misma señal que usa pre_edit_planmode_guard —
-    en vez de un mtime con ventana de 24 h: el mtime lo mueve un `touch` o un
-    editor que lo preserva, y una ventana fija convertía un plan viejo en
-    "activo" o escondía uno recién escrito. Sin transcript, no hay plan.
+    Read from the transcript — the same signal pre_edit_planmode_guard uses —
+    instead of an mtime with a 24 h window: a `touch`, or an editor that
+    preserves it, moves the mtime, and a fixed window turned an old plan into
+    "active" or hid a freshly written one. No transcript, no plan.
     """
     if not transcript_path:
         return None
@@ -152,7 +154,7 @@ def find_active_plan(transcript_path: str) -> Path | None:
     if not refs:
         return None
     plan = Path(refs[-1])
-    # Referenciado y borrado después: no hay plan activo, no uno fantasma.
+    # Referenced and deleted afterwards: no active plan, rather than a phantom one.
     return plan if plan.exists() else None
 
 
@@ -178,7 +180,7 @@ def find_files_in_prompt(prompt: str) -> list[str]:
         if p in seen:
             continue
         seen.add(p)
-        # Rutas del prompt relativas a la raíz del repo, no al cwd del proceso.
+        # Prompt paths are relative to the repository root, not to the process cwd.
         path = Path(p) if Path(p).is_absolute() else PROJECT_ROOT / p
         if not path.exists() or path.is_dir():
             continue
@@ -219,7 +221,7 @@ def main() -> None:
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as e:
-        log(f"ERROR: JSON inválido: {e}")
+        log(f"ERROR: invalid JSON: {e}")
         sys.exit(0)
 
     prompt = data.get("prompt") or data.get("user_prompt") or ""

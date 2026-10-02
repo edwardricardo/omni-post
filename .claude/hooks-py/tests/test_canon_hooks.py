@@ -1,4 +1,4 @@
-"""Tests de los hooks que leen canon-index.json: la ruta se resuelve en cada llamada."""
+"""Tests of the hooks that read canon-index.json: the path is resolved on every call."""
 
 import contextlib
 import io
@@ -19,8 +19,8 @@ import pre_edit_decision_guard as guard  # noqa: E402
 
 
 class LoadIndexResolvesThePathAtEachCallTests(unittest.TestCase):
-    """`load_index` llama a `canon_index_path()` al correr, no al importar: la
-    ruta que valía en el import no queda atada al proceso."""
+    """`load_index` calls `canon_index_path()` when it runs, not on import: the
+    path that held at import time does not stay bound to the process."""
 
     def _index(self, tmp: str, name: str, payload: dict) -> Path:
         path = Path(tmp) / name
@@ -45,8 +45,8 @@ class LoadIndexResolvesThePathAtEachCallTests(unittest.TestCase):
 
 
 class NonObjectIndexIsUnreadableTests(unittest.TestCase):
-    """Un índice que es JSON válido pero no un objeto (`[]`, `null`) se avisa como
-    UNREADABLE y el hook sale 0 — nunca un AttributeError al leerlo."""
+    """An index that is valid JSON but not an object (`[]`, `null`) is reported as
+    UNREADABLE and the hook exits 0 — never an AttributeError while reading it."""
 
     def _run(self, module, call, document: str = "[]"):
         with tempfile.TemporaryDirectory() as tmp:
@@ -118,9 +118,9 @@ class PreEditCanonStalenessTests(unittest.TestCase):
 
 
 class DecisionGuardWithoutIndexTests(unittest.TestCase):
-    """De punta a punta por `main()`: con un patrón de decisión en el diff y sin
-    índice, el guard avisa la ceguera y NO emite un DECISION GAP — el gap falso
-    que se emitía 75 veces mientras la ruta apuntaba a un archivo inexistente."""
+    """End to end through `main()`: with a decision pattern in the diff and no
+    index, the guard reports the blindness and does NOT emit a DECISION GAP — a
+    gap emitted without an index is false, since there is nothing to compare."""
 
     def _run_main(self, tmp: str, index_document: str | None, notices: Path | None = None) -> str:
         index = Path(tmp) / "canon-index.json"
@@ -153,8 +153,8 @@ class DecisionGuardWithoutIndexTests(unittest.TestCase):
         self.assertNotIn("DECISION GAP", context)
 
     def test_the_session_told_blind_is_told_recovered_with_the_gap(self):
-        # Misma sesión: primero sin índice (MISSING), después con uno legible — el
-        # contexto trae RECOVERED antes del gap, y solo esa vez.
+        # Same session: first without an index (MISSING), then with a readable one —
+        # the context carries RECOVERED before the gap, and only that once.
         with tempfile.TemporaryDirectory() as tmp:
             notices = Path(tmp) / "notices.log"
             self.assertIn("canon-index.json MISSING", json.loads(self._run_main(tmp, None, notices))["hookSpecificOutput"]["additionalContext"])
@@ -165,7 +165,7 @@ class DecisionGuardWithoutIndexTests(unittest.TestCase):
             self.assertNotIn("RECOVERED", again)
 
     def test_an_index_that_covers_nothing_still_emits_the_gap(self):
-        # Control positivo: la misma entrada, con un índice legible y vacío, sí es un gap.
+        # Positive control: the same input, with a readable empty index, is a gap.
         with tempfile.TemporaryDirectory() as tmp:
             context = json.loads(self._run_main(tmp, '{"entries": {}}'))["hookSpecificOutput"]["additionalContext"]
         self.assertIn("DECISION GAP", context)

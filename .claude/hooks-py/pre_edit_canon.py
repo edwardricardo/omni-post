@@ -120,9 +120,9 @@ _canon_keyword_cache: dict[str, set[str]] = {}
 
 
 def derive_canon_keywords(entry: dict) -> set[str]:
-    """Deriva keywords desde topic + keyTakeaway + patternAdopted del canon entry.
+    """Derives keywords from the canon entry's topic + keyTakeaway + patternAdopted.
 
-    Cacheado por entry key (proceso-vida) para evitar retokenizar.
+    Cached per entry key (for the life of the process) to avoid re-tokenizing.
     """
     key = entry.get("key", "")
     cached = _canon_keyword_cache.get(key)
@@ -142,7 +142,7 @@ def derive_canon_keywords(entry: dict) -> set[str]:
 
 
 def extract_diff_tokens(data: dict) -> set[str]:
-    """Tokens del diff (new_string / content / MultiEdit edits)."""
+    """Tokens of the diff (new_string / content / MultiEdit edits)."""
     tool_name = data.get("tool_name", "")
     tool_input = data.get("tool_input", {})
     chunks: list[str] = []
@@ -157,31 +157,31 @@ def extract_diff_tokens(data: dict) -> set[str]:
 
 
 def emit_no_context(prefix: tuple[str, ...] = ()) -> None:
-    """Exit 0 sin inyectar nada, salvo `prefix` (p. ej. el aviso RECOVERED)."""
+    """Exit 0 without injecting anything, except `prefix` (e.g. the RECOVERED notice)."""
     emit_additional_context("PreToolUse", "", prefix)
 
 
 def emit_context(additional_context: str, prefix: tuple[str, ...] = ()) -> None:
-    """Exit 0 con additionalContext en stdout (`prefix` primero)."""
+    """Exit 0 with additionalContext on stdout (`prefix` first)."""
     emit_additional_context("PreToolUse", additional_context, prefix)
 
 
 def load_index(session_id: str = "") -> dict:
-    """Carga canon-index.json o avisa EN EL CONTEXTO y sale (exit 0).
+    """Loads canon-index.json, or reports IN THE CONTEXT and exits (exit 0).
 
-    Un índice ausente o ilegible ya no es un `return None` silencioso: durante
-    meses la ruta apuntó a un archivo inexistente, el hook "funcionaba" sin
-    inyectar nada y la única huella era hooks.log, que nadie lee en el turno.
+    A missing or unreadable index is reported, never a silent `return None`:
+    a hook that "works" without injecting anything leaves its only trace in
+    hooks.log, which nobody reads during the turn.
     """
     path = canon_index_path()
     if not path.exists():
-        log(f"canon-index.json no existe en {path} — avisado en el contexto")
+        log(f"canon-index.json does not exist at {path} — reported in the context")
         emit_missing_file_context("canon", "canon-index.json", path, BLIND_PREFIX + "it exists", hook_event="PreToolUse", session_id=session_id)
     try:
         with path.open("r", encoding="utf-8") as f:
             index = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
-        log(f"ERROR leyendo canon-index: {e} — avisado en el contexto")
+        log(f"ERROR reading canon-index: {e} — reported in the context")
         emit_missing_file_context(
             "canon",
             "canon-index.json",
@@ -192,10 +192,10 @@ def load_index(session_id: str = "") -> dict:
             session_id=session_id,
         )
     if not isinstance(index, dict) or not isinstance(index.get("entries"), dict):
-        # JSON válido pero sin la forma que se lee (un objeto con `entries`): un
-        # `{}` o un `[]` serían un índice vacío en silencio, no una ceguera visible.
+        # Valid JSON without the shape the hook reads (an object with `entries`):
+        # a `{}` or a `[]` would be a silently empty index, not a visible blindness.
         found = type(index).__name__ if not isinstance(index, dict) else "object without entries"
-        log(f"canon-index.json no tiene la forma esperada ({found}) — avisado en el contexto")
+        log(f"canon-index.json does not have the expected shape ({found}) — reported in the context")
         emit_missing_file_context(
             "canon",
             "canon-index.json",
@@ -228,18 +228,18 @@ def find_matches(
     diff_tokens: set[str],
     min_relevance: float = MIN_RELEVANCE,
 ) -> list[dict]:
-    """Devuelve canon entries que pasan path filter + content-keyword filter.
+    """Returns the canon entries that pass the path filter + the content-keyword filter.
 
-    Cascada:
-      1. Path: cualquier `appliesTo` substring de file_path con
+    Cascade:
+      1. Path: any `appliesTo` that is a substring of file_path with
          ratio = len(longest match) / len(file_path) ≥ min_relevance.
-      2. Content: ≥1 token derivado de canon (topic + keyTakeaway +
-         patternAdopted, filtrado por STOP_WORDS) en `diff_tokens`.
+      2. Content: ≥1 token derived from the canon (topic + keyTakeaway +
+         patternAdopted, filtered by STOP_WORDS) in `diff_tokens`.
 
-    Canons sin keywords derivables NO disparan (conservador; evita inyectar
-    canons broad sin signal).
+    Canons without derivable keywords do NOT fire (conservative; avoids
+    injecting broad canons without signal).
 
-    Ranking: path-specificity desc, tie-break por recency (date desc).
+    Ranking: path specificity desc, tie-break by recency (date desc).
     """
     file_len = len(file_path)
     matches: list[tuple[int, str, dict]] = []
@@ -265,7 +265,7 @@ def find_matches(
 
 
 def format_entry(entry: dict) -> str:
-    """Renderiza un entry como bloque markdown compacto."""
+    """Renders an entry as a compact markdown block."""
     lines = [f"### {entry['topic']}"]
     confidence = entry.get("confidence", "high")
     area = entry.get("area", "")
@@ -295,14 +295,14 @@ def format_context(matches: list[dict], file_path: str, stale: str | None) -> st
         parts.append("")
     if len(matches) > MAX_ENTRIES_INJECTED:
         parts.append(
-            f"({len(matches) - MAX_ENTRIES_INJECTED} más entries relevantes "
-            f"en canon-index.json — top {MAX_ENTRIES_INJECTED} mostradas)"
+            f"({len(matches) - MAX_ENTRIES_INJECTED} more relevant entries "
+            f"in canon-index.json — top {MAX_ENTRIES_INJECTED} shown)"
         )
     return "\n".join(parts).strip()
 
 
 def log_miss(file_path: str, tool_name: str) -> None:
-    """Append a miss event to canon-misses.log para review humana."""
+    """Append a miss event to canon-misses.log for human review."""
     try:
         MISSES_LOG.parent.mkdir(parents=True, exist_ok=True)
         with MISSES_LOG.open("a", encoding="utf-8") as f:
@@ -310,15 +310,15 @@ def log_miss(file_path: str, tool_name: str) -> None:
                 f"{datetime.now(timezone.utc).isoformat()}\t{tool_name}\t{file_path}\n"
             )
     except OSError as e:
-        log(f"WARN: no se pudo escribir canon-misses.log: {e}")
+        log(f"WARN: could not write canon-misses.log: {e}")
 
 
 def load_injected_keys(session_id: str) -> set[str]:
-    """Set de canon entry keys ya inyectadas en esta session_id.
+    """Set of canon entry keys already injected in this session_id.
 
-    Lee `.claude/canon-injected-keys.log` (formato: session_id\tkey\ttimestamp)
-    y devuelve solo las keys que correspondan a la session_id pasada.
-    Otras sesiones quedan ignoradas.
+    Reads `.claude/canon-injected-keys.log` (format: session_id\tkey\ttimestamp)
+    and returns only the keys that belong to the given session_id.
+    Other sessions are ignored.
     """
     if not session_id or not INJECTED_KEYS_LOG.exists():
         return set()
@@ -335,7 +335,7 @@ def load_injected_keys(session_id: str) -> set[str]:
 
 
 def record_injected(session_id: str, keys: list[str]) -> None:
-    """Append session_id\\tkey\\ttimestamp por cada key inyectada."""
+    """Append session_id\\tkey\\ttimestamp for each injected key."""
     if not session_id or not keys:
         return
     try:
@@ -345,11 +345,11 @@ def record_injected(session_id: str, keys: list[str]) -> None:
             for k in keys:
                 f.write(f"{session_id}\t{k}\t{timestamp}\n")
     except OSError as e:
-        log(f"WARN: no se pudo escribir canon-injected-keys.log: {e}")
+        log(f"WARN: could not write canon-injected-keys.log: {e}")
 
 
 def load_injected_files(session_id: str) -> set[str]:
-    """Set de file_paths ya canonizados en esta session_id."""
+    """Set of the file_paths that already received canon in this session_id."""
     if not session_id or not INJECTED_FILES_LOG.exists():
         return set()
     files: set[str] = set()
@@ -374,7 +374,7 @@ def record_injected_file(session_id: str, file_path: str) -> None:
         with INJECTED_FILES_LOG.open("a", encoding="utf-8") as f:
             f.write(f"{session_id}\t{file_path}\t{timestamp}\n")
     except OSError as e:
-        log(f"WARN: no se pudo escribir canon-injected-files.log: {e}")
+        log(f"WARN: could not write canon-injected-files.log: {e}")
 
 
 def main() -> None:
@@ -397,13 +397,13 @@ def main() -> None:
 
     session_id = data.get("session_id", "")
 
-    # Per-file dedup: file_path ya canonizado en esta session → silent.
+    # Per-file dedup: a file_path that already received canon in this session → silent.
     injected_files = load_injected_files(session_id)
     if file_path in injected_files:
         log(f"file already canonized in session={session_id[:8]} — skip")
         emit_no_context()
 
-    # Hard cap: máximo MAX_INJECTIONS_PER_SESSION inyecciones totales por session.
+    # Hard cap: at most MAX_INJECTIONS_PER_SESSION injections in total per session.
     if len(injected_files) >= MAX_INJECTIONS_PER_SESSION:
         log(
             f"session injection cap reached ({MAX_INJECTIONS_PER_SESSION}) — skip"
@@ -428,13 +428,13 @@ def main() -> None:
         log_miss(file_path, tool_name)
         emit_no_context(prefix)
 
-    # Per-key dedup: filtra entries que ya fueron inyectadas en esta session.
+    # Per-key dedup: drops the entries already injected in this session.
     injected_already = load_injected_keys(session_id)
     new_matches = [m for m in matches if m.get("key") not in injected_already]
 
     if not new_matches:
         log(
-            f"canon HIT but all {len(matches)} matches ya inyectadas en session={session_id[:8]} — skip"
+            f"canon HIT but all {len(matches)} matches already injected in session={session_id[:8]} — skip"
         )
         emit_no_context(prefix)
 
