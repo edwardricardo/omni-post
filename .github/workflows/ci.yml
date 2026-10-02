@@ -185,8 +185,15 @@ jobs:
           # committed floors from whatever the run measured, so a shard left with
           # it on would ratchet the gate down to the coverage of half a suite.
           # Neutralising the floor and disabling the rewrite are one decision.
+          # The same variable also installs the blob reporter beside the readable
+          # one (`workspaceReporters()` in packages/vitest-shared). The command
+          # below carries no --reporter flag on purpose: a flag REPLACES the
+          # configured reporters, which is how a failing shard used to print no
+          # file, no test and no diff. Without this variable the shard writes no
+          # blob and the upload step below fails on `if-no-files-found: error`.
+          # apps/api/tests/unit/scripts/shardReporters.test.ts pins this pairing.
           VITEST_SHARDED: "true"
-        run: pnpm --filter @apps/api exec vitest run --shard=${{ matrix.shard }}/2 --reporter=blob --coverage.enabled
+        run: pnpm --filter @apps/api exec vitest run --shard=${{ matrix.shard }}/2 --coverage.enabled
 
       - name: Upload coverage blob
         if: always()
