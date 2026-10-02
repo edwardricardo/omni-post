@@ -12,7 +12,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -160,6 +162,35 @@ class NoHomeDirectoryLiteralTests(unittest.TestCase):
         sources = [*HOOKS_DIR.glob("*.py"), *(HOOKS_DIR / "tests").glob("*.py"), *SCRIPTS_DIR.glob("*.py")]
         offenders = [f"{p.name}:{n}" for p in sources for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1) if needle.search(line)]
         self.assertEqual(offenders, [])
+
+
+class StalenessReportTests(unittest.TestCase):
+    """The report names each threshold it applied in a section heading, and
+    says so when no entry is past them."""
+
+    def _report(self, entries: dict) -> str:
+        report = _load_script(SCRIPTS_DIR / "canon-staleness-report.py")
+        with tempfile.TemporaryDirectory() as tmp:
+            index = Path(tmp) / "canon-index.json"
+            index.write_text(json.dumps({"entries": entries}), encoding="utf-8")
+            out = io.StringIO()
+            with mock.patch.object(report, "CANON_JSON", index), mock.patch.object(sys, "argv", ["report"]), contextlib.redirect_stdout(out):
+                report.main()
+        return out.getvalue()
+
+    def test_entries_past_each_threshold_are_listed_under_their_heading(self):
+        entry = {"topic": "Old entry", "area": "Fixture area", "date": "2020-01-01", "lastVerified": "2020-01-01"}
+        output = self._report({"old-entry": entry})
+        self.assertIn("**Thresholds**: date > 90d, lastVerified > 180d\n", output)
+        self.assertIn("## Entries stale by `date` (> 90 days)\n", output)
+        self.assertIn("## Entries stale by `lastVerified` (> 180 days)\n", output)
+        self.assertEqual(len(re.findall(r"^\| \d+ \| Old entry \| Fixture area \|  \|$", output, re.MULTILINE)), 2)
+
+    def test_an_index_within_the_thresholds_says_no_action_is_required(self):
+        today = datetime.now(timezone.utc).date().isoformat()
+        output = self._report({"fresh-entry": {"topic": "Fresh", "area": "Fixture area", "date": today, "lastVerified": today}})
+        self.assertIn("Every entry is within the thresholds. No action required.", output)
+        self.assertNotIn("## Entries stale by", output)
 
 
 if __name__ == "__main__":

@@ -31,8 +31,9 @@ TOKENS_DIR = Path(__file__).resolve().parents[2] / ".claude" / ".allowed"
 def list_operations() -> str:
     """Returns a string listing the available operations."""
     lines = []
+    width = max(len(op) for op in ALLOWED_OPERATIONS)
     for op, meta in ALLOWED_OPERATIONS.items():
-        lines.append(f"  {op:<10} — {meta['description']} (TTL default: {meta['default_ttl_minutes']} min)")
+        lines.append(f"  {op:<{width}} — {meta['description']} (TTL default: {meta['default_ttl_minutes']} min)")
     return "\n".join(lines)
 
 

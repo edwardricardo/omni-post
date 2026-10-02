@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Migrate canon_research_index.md → canon-index.json.
 
-One-shot script idempotente. Source of truth queda el .md; .json es vista
-derivada para hooks. Re-correr el script regenera el .json desde cero.
+Idempotent. The .md stays the source of truth; the .json is a derived view for
+the hooks. Running the script again regenerates the .json from scratch.
 
-Schema target (ver plan Batch 5pre):
+Target schema:
 {
   "version": 1,
   "synthesizedAt": "...",
@@ -250,7 +250,7 @@ def parse_entry(title: str, body: str, area: str) -> dict:
     """Extract structured fields from an entry's body."""
     fields = extract_fields(body)
 
-    # Acepta variantes del nombre del campo URL (singular, plural).
+    # Accepts the variants of the URL field name (singular, plural).
     urls_raw = fields.get("URL") or fields.get("URLs") or fields.get("Url") or ""
     urls = []
     if urls_raw:
@@ -286,7 +286,7 @@ def parse_entry(title: str, body: str, area: str) -> dict:
 
     # Authored override of the area-keyword heuristic. When present, the
     # candidate author has declared the exact paths this canon applies to
-    # (e.g. PR-51 entry maps to apps/<app>/hooks/api/, lib/api/queries/, etc.).
+    # (e.g. the TanStack Query entry maps to apps/<app>/hooks/api/ and lib/api/clients/).
     # `pre_edit_canon.py` uses this list for path-substring matching to
     # decide whether to inject the canon for a given file edit, so leaving
     # it to the area-keyword heuristic alone produces silent gaps for any
@@ -333,7 +333,7 @@ def parse_canon(md_text: str) -> tuple[dict, list[str]]:
                 warnings.append(f"empty key for entry '{entry_title}' in area '{area_title}'")
                 continue
             if key in entries:
-                # Collisión de slug: agregar sufijo numérico para no perder.
+                # Slug collision: add a numeric suffix so neither entry is lost.
                 suffix = 2
                 while f"{key}-{suffix}" in entries:
                     suffix += 1
