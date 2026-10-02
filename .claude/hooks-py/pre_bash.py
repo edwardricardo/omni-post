@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pre-bash hook — bloquea comandos prohibidos antes de ejecutarse."""
+"""Pre-bash hook — blocks forbidden commands before they run."""
 
 import os
 import re
@@ -29,66 +29,66 @@ from pre_edit import SENSITIVE_PATTERNS  # noqa: E402
 HOOK_NAME = "pre-bash"
 ALLOWED_BRANCH_PREFIX = "workstream/"
 
-# Detecta comandos que escriben (redirect / tee) a un archivo .ts/.tsx.
-# Cubre: 'cat > foo.ts <<EOF', 'echo ... > bar.tsx', 'tee baz.ts'.
+# Detects commands that write (redirect / tee) to a .ts/.tsx file.
+# Covers: 'cat > foo.ts <<EOF', 'echo ... > bar.tsx', 'tee baz.ts'.
 WRITES_TS_RE = re.compile(r"(>\s*\S*\.tsx?\b|\btee\s+\S*\.tsx?\b)")
-# Patrones de patch sintácticos prohibidos por CLAUDE.md.
+# Syntactic type-check suppressions forbidden by CLAUDE.md.
 TS_IGNORE_RE = re.compile(r"@ts-(ignore|nocheck)")
 CONSOLE_LOG_RE = re.compile(r"\bconsole\.log\s*\(")
-# Paths de producción donde console.log está prohibido.
+# Production paths where console.log is forbidden.
 PROD_PATH_RE = re.compile(r"(apps/api/src/|packages/[^/]+/src/)")
-# Comandos de migración Prisma que requieren DB corriendo.
+# Prisma migration commands that need a running DB.
 PNPM_MIGRATE_RE = re.compile(r"pnpm\s+(?:db:migrate|db:push|prisma\s+migrate)")
 
-# Qué cuenta como ESCRIBIR una ruta por Bash. Existe porque el gate de rutas
-# sensibles vivía solo en pre-edit, que inspecciona `tool_input.file_path` — un
-# campo que Bash no tiene. Un agente al que se le negó el `Edit` sobre
-# `.github/workflows/fitness.yml` ya había escrito el archivo con `python3`
-# por Bash: la compuerta no falló, es que ese camino nunca pasaba por ella.
+# What counts as WRITING a path through Bash. It exists because the sensitive-
+# path gate lived only in pre-edit, which inspects `tool_input.file_path` — a
+# field Bash does not have. An agent denied the `Edit` on
+# `.github/workflows/fitness.yml` had already written the file with `python3`
+# through Bash: the gate did not fail, that path simply never went through it.
 #
-# Dos clases. Las construcciones cuyo DESTINO se lee del comando (redirección,
-# tee, cp/mv/rm/…, dd of=) bloquean solo si ese destino es la ruta sensible:
-# `cat > /tmp/x <<EOF` con la ruta dentro del heredoc, `2>/dev/null` o
-# `2>&1` NO son escrituras a esa ruta — medido: tres bloqueos falsos en un día
-# enseñan a esquivar el gate, que es como los gates mueren. Las construcciones
-# cuyo destino va en código o en argumentos que el texto no ordena (`sed -i`,
-# `open('w')`, `git checkout`) bloquean por mención, como antes.
+# Two classes. The constructs whose DESTINATION is read from the command
+# (redirection, tee, cp/mv/rm/…, dd of=) block only when that destination is the
+# sensitive path: `cat > /tmp/x <<EOF` with the path inside the heredoc,
+# `2>/dev/null` or `2>&1` are NOT writes to that path — measured: three false
+# blocks in one day teach people to dodge the gate, which is how gates die. The
+# constructs whose destination sits in code or in arguments the text does not
+# order (`sed -i`, `open('w')`, `git checkout`) block by mention.
 _WRITE_VERBS = frozenset({"tee", "cp", "mv", "install", "rsync", "ln", "rm", "rmdir", "unlink", "shred", "truncate", "dd"})
-# De estos, el origen solo se lee: el destino es el ÚLTIMO operando.
+# Of these, the source is only read: the destination is the LAST operand.
 _DESTINATION_LAST_VERBS = frozenset({"cp", "mv", "install", "rsync", "ln"})
 _REDIRECTS = frozenset({">", ">>", "&>", "&>>"})
 _NOT_A_FILE = frozenset({"/dev/null", "/dev/stdout", "/dev/stderr"})
 _ENV_ASSIGNMENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 COARSE_WRITE_RES = [
-    re.compile(r"\b(?:sd|sed|perl|ruby)\b[^|;]*\s-i\b"),            # edición in-place
+    re.compile(r"\b(?:sd|sed|perl|ruby)\b[^|;]*\s-i\b"),            # in-place edit
     re.compile(r"\bpython3?\b[^|;]*\bopen\s*\([^)]*['\"][wax]"),   # open(...,'w')
     re.compile(r"\bnode\b[^|;]*\bwrite(?:File|FileSync)\b"),        # fs.writeFile
-    re.compile(r"\bgit\s+(?:checkout|restore|apply|revert|rm|clean)\b"),  # restauran o borran contenido
+    re.compile(r"\bgit\s+(?:checkout|restore|apply|revert|rm|clean)\b"),  # restore or delete content
 ]
-# Respaldo cuando el comando no se puede tokenizar (comilla sin cerrar): toda
-# redirección o verbo de escritura cuenta, por mención.
+# Fallback when the command cannot be tokenized (unclosed quote): every
+# redirection or write verb counts, by mention.
 _UNTOKENIZABLE_WRITE_RE = re.compile(r">>?|\b(?:" + "|".join(sorted(_WRITE_VERBS)) + r")\b")
 
 
 def _mentions(pattern: str, text: str) -> bool:
-    """`pattern` (con "/" inicial, como en pre-edit) nombrado en `text`.
+    """`pattern` (with a leading "/", as in pre-edit) named in `text`.
 
-    Se compara también sin esa barra, porque un comando suele citar rutas
-    relativas — pero con FRONTERA: el `in` pelado hacía que `.env` matcheara
-    DENTRO de `process.env`, que aparece en cantidades industriales de comandos
-    legítimos de solo lectura. `process.env` no matchea (la `s` lo precede);
-    `.env`, `cp .env`, `../.env` y `--env-file=.env` sí.
+    It is also compared without that slash, because a command usually cites
+    relative paths — but with a BOUNDARY: a bare `in` made `.env` match INSIDE
+    `process.env`, which appears in countless legitimate read-only commands.
+    `process.env` does not match (the `s` precedes it); `.env`, `cp .env`,
+    `../.env` and `--env-file=.env` do.
     """
     stripped = pattern.lstrip("/")
     return pattern in text or re.search(r"(?<![A-Za-z0-9_])" + re.escape(stripped), text) is not None
 
 
 def write_targets(command: str) -> list[str] | None:
-    """Rutas que las construcciones de escritura de `command` nombran como destino:
-    redirecciones (salvo /dev/null y los `>&N`), el último operando de
-    cp/mv/install/rsync/ln (el origen solo se lee), todos los operandos de
-    tee/rm/rmdir/unlink/shred/truncate, y `dd of=`; None si no se puede
-    tokenizar."""
+    """Paths that the write constructs of `command` name as a destination:
+    redirections (except /dev/null and the `>&N`), the last operand of
+    cp/mv/install/rsync/ln (the source is only read), every operand of
+    tee/rm/rmdir/unlink/shred/truncate, and `dd of=`; None when it cannot be
+    tokenized."""
     segments = shell_segments(command)
     if segments is None:
         return None
@@ -104,7 +104,7 @@ def write_targets(command: str) -> list[str] | None:
                     targets.append(target)
                 i += 2
             elif tok.startswith(("<", ">")):
-                # entrada, heredoc o duplicado de descriptor: operador y operando no son argumentos
+                # input, heredoc or descriptor duplication: operator and operand are not arguments
                 i += 2
             else:
                 words.append(tok)
@@ -127,23 +127,23 @@ def write_targets(command: str) -> list[str] | None:
 
 
 def gate_sensitive_path_writes_require_token(command: str) -> None:
-    """Exigir el token `sensitive-edit` cuando Bash escribe una ruta sensible.
+    """Require the `sensitive-edit` token when Bash writes a sensitive path.
 
-    Mismo contrato que pre-edit, misma lista de patrones (importada, no
-    copiada): lo que Edit/Write no pueden tocar sin token, Bash tampoco.
+    Same contract as pre-edit, same pattern list (imported, not copied): what
+    Edit/Write cannot touch without a token, Bash cannot either.
 
-    LEER SIGUE SIENDO LIBRE, y es deliberado: `bat schema.prisma`,
-    `rg x migrations/` o un `prisma migrate diff` se usan constantemente y no
-    mutan nada. Bloquear toda mención volvería inusable la inspección y
-    empujaría a buscarle la vuelta, que es exactamente cómo mueren los gates.
+    READING STAYS FREE, deliberately: `bat schema.prisma`, `rg x migrations/`
+    or a `prisma migrate diff` are used all the time and mutate nothing.
+    Blocking every mention would make inspection unusable and push people to
+    find a way around it, which is exactly how gates die.
 
-    LÍMITE, dicho en voz alta: esto es un tripwire, no una caja de arena. Una
-    shell puede ofuscar la ruta con variables, `eval`, base64 o un script en
-    disco que arma la ruta por partes, y ninguna inspección del comando lo va a
-    ver. Lo que cierra es el bypass ACCIDENTAL y el de conveniencia — sube el
-    costo de evadir de "escribí python3 en vez de Edit" a "acto deliberado de
-    ocultamiento". Ese salto es el punto; afirmar equivalencia total con
-    pre-edit sería la clase de mentira que este repo persigue.
+    LIMIT, stated plainly: this is a tripwire, not a sandbox. A shell can
+    obfuscate the path with variables, `eval`, base64 or a script on disk that
+    builds the path in pieces, and no inspection of the command will see it.
+    What it closes is the ACCIDENTAL bypass and the convenience one — it raises
+    the cost of evasion from "wrote python3 instead of Edit" to "a deliberate
+    act of concealment". That jump is the point; claiming full equivalence with
+    pre-edit would be the kind of lie this repo hunts down.
     """
     mentioned = [pattern for pattern in SENSITIVE_PATTERNS if _mentions(pattern, command)]
     if not mentioned:
@@ -167,21 +167,23 @@ def gate_sensitive_path_writes_require_token(command: str) -> None:
         return
 
     block(
-        f"Bash escribe una ruta sensible ({matched_path}) sin token: {status}.\n"
-        f"Es la MISMA compuerta que pre-edit aplica a Edit/Write — tenerla solo en "
-        f"Edit dejaba que un `python3`, un `sd -i` o un `>` la rodearan sin que "
-        f"nadie se enterara.\n"
-        f"Pedí a Edward que ejecute 'omnipost-allow sensitive-edit' (TTL 15 min), "
-        f"igual que para push. Si el comando solo LEE, reescribilo sin "
-        f"construcciones de escritura sobre esa ruta."
+        f"Bash writes a sensitive path ({matched_path}) without a token: {status}.\n"
+        f"It is the SAME gate pre-edit applies to Edit/Write — with the gate only "
+        f"on Edit, a `python3`, an `sd -i` or a `>` went around it without anyone "
+        f"noticing.\n"
+        f"Ask Edward to run 'omnipost-allow sensitive-edit' (TTL 15 min), "
+        f"as for push. If the command only READS, rewrite it without "
+        f"write constructs on that path."
     )
+
 
 log, block, allow = make_logger(HOOK_NAME)
 
 
 # ────────────────────────────────────────────────────────────────────
-# Gates — cada uno chequea una sola cosa.
+# Gates — each one checks a single thing.
 # ────────────────────────────────────────────────────────────────────
+
 
 def gate_git_push_requires_token(command: str) -> None:
     """Block the remote-publish command unless a valid token exists.
@@ -224,38 +226,38 @@ def gate_git_push_requires_token(command: str) -> None:
 def gate_no_npm_yarn_or_npx(command: str) -> None:
     pattern = r"(^|\s)(npm|yarn)\s+(install|i|add|ci|run|exec|update|upgrade)"
     if re.search(pattern, command):
-        block("Convención OmniPost: usar pnpm, nunca npm/yarn. Reescribí el comando con 'pnpm'.")
+        block("OmniPost convention: use pnpm, never npm/yarn. Rewrite the command with 'pnpm'.")
     if re.search(r"(^|\s)npx\s+\S", command):
-        block("Convención OmniPost: usar `pnpm dlx` / `pnpm exec`, nunca npx. Reescribí el comando.")
+        block("OmniPost convention: use `pnpm dlx` / `pnpm exec`, never npx. Rewrite the command.")
 
 
 def gate_no_co_authored_in_commit(command: str) -> None:
     if "commit" not in git_subcommands(command):
         return
     if re.search(r"co-authored-by:\s*claude", command, re.IGNORECASE):
-        block("Trailer 'Co-Authored-By: Claude' prohibido. Removelo y reintentá.")
+        block("Trailer 'Co-Authored-By: Claude' is forbidden. Remove it and retry.")
 
 
 def gate_commit_only_in_allowed_branch(command: str, session_cwd: Path) -> None:
-    """Bloquea `git commit` fuera de una branch `workstream/*`.
+    """Blocks `git commit` outside a `workstream/*` branch.
 
-    La branch se lee en el repo AL QUE APUNTA cada commit (`cd <ruta> &&`, o
-    el `-C`/`--work-tree` de ESA invocación; si no, el `cwd` de la sesión) —
-    no en el cwd del proceso del hook, que es lo que leía antes y por eso
-    nunca vio la branch de un `cd <worktree> && git commit`.
+    The branch is read in the repository EACH commit points at (`cd <path> &&`,
+    or the `-C`/`--work-tree` of THAT invocation; otherwise the session `cwd`)
+    — not in the cwd of the hook process, which never sees the branch of a
+    `cd <worktree> && git commit`.
 
-    `session_cwd` es el `cwd` del input del hook: el directorio donde la
-    herramienta Bash ejecuta el comando, y contra el que un `cd` relativo se
-    resuelve. Cada repo distinto se sondea UNA vez y la sonda queda en
-    hooks.log, así una divergencia entre ese cwd y el real se ve.
+    `session_cwd` is the `cwd` of the hook input: the directory where the Bash
+    tool runs the command, and the one a relative `cd` resolves against. Each
+    distinct repository is probed ONCE and the probe stays in hooks.log, so a
+    divergence between that cwd and the real one is visible.
     """
     for repo in dict.fromkeys(commit_repos(command, session_cwd)):
         branch = current_branch(repo)
         log(f"commit gate: {repo} -> branch '{branch}'")
         if not branch.startswith(ALLOWED_BRANCH_PREFIX):
             block(
-                f"Branch '{branch}' en {repo} no acepta commits. "
-                f"Solo {ALLOWED_BRANCH_PREFIX}*."
+                f"Branch '{branch}' in {repo} does not accept commits. "
+                f"Only {ALLOWED_BRANCH_PREFIX}*."
             )
 
 
@@ -263,8 +265,8 @@ _DATABASE_URL_RE = re.compile(r"^\s*(?:export\s+)?DATABASE_URL=['\"]?postgres(?:
 
 
 def database_target() -> tuple[str, int] | None:
-    """(host, puerto) de DATABASE_URL — del entorno o del `.env` de la raíz — o
-    None si no hay ninguna que leer."""
+    """(host, port) of DATABASE_URL — from the environment or the root `.env` —
+    or None when there is none to read."""
     lines = []
     if os.environ.get("DATABASE_URL"):
         lines.append(f"DATABASE_URL={os.environ['DATABASE_URL']}")
@@ -280,8 +282,8 @@ def database_target() -> tuple[str, int] | None:
 
 
 def postgres_reachable(host: str, port: int, timeout: float = 2.0) -> bool:
-    """True si algo acepta TCP en host:puerto (la DB vive en otro LXC: `docker ps`
-    acá nunca la vio y el gate anterior no medía nada)."""
+    """True when something accepts TCP on host:port (the DB lives in another
+    LXC: `docker ps` here never saw it, so a container check measures nothing)."""
     try:
         with socket.create_connection((host, port), timeout=timeout):
             return True
@@ -290,8 +292,8 @@ def postgres_reachable(host: str, port: int, timeout: float = 2.0) -> bool:
 
 
 def gate_db_migrations_require_running_db(command: str) -> None:
-    """Bloquea las migraciones de Prisma si Postgres no responde donde
-    DATABASE_URL dice que está."""
+    """Blocks the Prisma migrations when Postgres does not answer where
+    DATABASE_URL says it is."""
     if not PNPM_MIGRATE_RE.search(command):
         return
     target = database_target()
@@ -301,37 +303,38 @@ def gate_db_migrations_require_running_db(command: str) -> None:
     host, port = target
     if not postgres_reachable(host, port):
         block(
-            f"Postgres no responde en {host}:{port} (DATABASE_URL). Levantá la DB "
-            f"(`pnpm db:up`) antes de migrar."
+            f"Postgres does not answer at {host}:{port} (DATABASE_URL). Start the DB "
+            f"(`pnpm db:up`) before migrating."
         )
 
 
 def gate_no_patches_in_ts_writes(command: str) -> None:
-    """Bloquea @ts-ignore/@ts-nocheck en cualquier escritura a .ts/.tsx
-    y console.log si la escritura va a apps/api/src/ o packages/*/src/.
+    """Blocks @ts-ignore/@ts-nocheck in any write to .ts/.tsx, and
+    console.log when the write goes to apps/api/src/ or packages/*/src/.
 
-    Aplica solo si el comando es claramente de escritura (redirect, tee).
-    Evita falsos positivos de comandos de lectura como `grep '@ts-ignore'`.
+    Applies only when the command clearly writes (redirect, tee). Avoids
+    false positives from read commands such as `grep '@ts-ignore'`.
     """
     if not WRITES_TS_RE.search(command):
         return
     if TS_IGNORE_RE.search(command):
         block(
-            "@ts-ignore / @ts-nocheck prohibidos en código de producción "
-            "(CLAUDE.md zero-tolerance). Resolvé el tipo correctamente — usá "
-            "interfaces, generics, o `unknown` + type guard."
+            "@ts-ignore / @ts-nocheck are forbidden in production code "
+            "(CLAUDE.md zero-tolerance). Resolve the type properly — use "
+            "interfaces, generics, or `unknown` + type guard."
         )
     if PROD_PATH_RE.search(command) and CONSOLE_LOG_RE.search(command):
         block(
-            "console.log prohibido en producción (CLAUDE.md 'Zero console.* en "
-            "producción'). Usá `createLogger(name)` de `apps/api/src/lib/logger.ts` "
-            "o `@observability/logger` según corresponda."
+            "console.log is forbidden in production (CLAUDE.md 'Zero console.* in "
+            "production code'). Use `createLogger(name)` from `apps/api/src/lib/logger.ts` "
+            "or `@observability/logger`, whichever applies."
         )
 
 
 # ────────────────────────────────────────────────────────────────────
 # Main
 # ────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     data = read_hook_input(log)

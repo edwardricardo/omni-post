@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Post-bash hook — consume el token de autorización después de un push exitoso.
+"""Post-bash hook — consumes the authorization token after a successful push.
 
-Claude Code dispara PostToolUse solo cuando la herramienta tuvo éxito
-(los fallos van a PostToolUseFailure, evento aparte). Por eso este hook
-no necesita chequear el resultado: si corre, el push funcionó.
+Claude Code fires PostToolUse only when the tool succeeded (failures go to
+PostToolUseFailure, a separate event). So this hook does not need to check
+the result: if it runs, the push worked.
 """
 
 import json
@@ -36,12 +36,12 @@ def main() -> None:
         try:
             with token_path.open("r") as f:
                 token_data = json.load(f)
-            log(f"git push exitoso — token consumido (expiraba a las {token_data.get('expires_at')})")
+            log(f"git push succeeded — token consumed (it expired at {token_data.get('expires_at')})")
         except Exception:
-            log("git push exitoso — token consumido (no se pudo leer metadata)")
+            log("git push succeeded — token consumed (metadata unreadable)")
         token_path.unlink()
     else:
-        log("git push exitoso pero token ya no existe (raro, pero OK)")
+        log("git push succeeded but the token no longer exists (odd, but OK)")
 
     sys.exit(0)
 

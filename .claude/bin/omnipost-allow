@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""omnipost-allow — crea tokens de autorización con expiración para operaciones sensibles."""
+"""omnipost-allow — creates expiring authorization tokens for sensitive operations."""
 
 import argparse
 import json
@@ -8,28 +8,28 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 
-# Operaciones permitidas con su TTL default en minutos.
+# Allowed operations with their default TTL in minutes.
 ALLOWED_OPERATIONS = {
     "push": {
-        "description": "git push autorizado",
+        "description": "authorized git push",
         "default_ttl_minutes": 15,
     },
     "sensitive-edit": {
-        "description": "edición de archivo sensible (hooks/CI/env/schema) autorizada",
+        "description": "authorized edit of a sensitive file (hooks/CI/env/schema)",
         "default_ttl_minutes": 15,
     },
-    # Agregás operaciones nuevas acá:
-    # "deploy": {"description": "deployment a producción", "default_ttl_minutes": 5},
+    # New operations are added here:
+    # "deploy": {"description": "production deployment", "default_ttl_minutes": 5},
 }
 
-# Resuelto desde la ubicación del script (.claude/bin/ -> .claude/ -> raíz), no
-# desde el cwd: correrlo desde un subdirectorio creaba el token en
-# <subdir>/.claude/.allowed, donde ningún hook lo busca.
+# Resolved from the script's location (.claude/bin/ -> .claude/ -> root), not
+# from the cwd: run from a subdirectory, the token would land in
+# <subdir>/.claude/.allowed, where no hook looks for it.
 TOKENS_DIR = Path(__file__).resolve().parents[2] / ".claude" / ".allowed"
 
 
 def list_operations() -> str:
-    """Devuelve un string con la lista de operaciones disponibles."""
+    """Returns a string listing the available operations."""
     lines = []
     for op, meta in ALLOWED_OPERATIONS.items():
         lines.append(f"  {op:<10} — {meta['description']} (TTL default: {meta['default_ttl_minutes']} min)")
@@ -38,33 +38,33 @@ def list_operations() -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Crea un token de autorización para una operación sensible.",
-        epilog=f"Operaciones disponibles:\n{list_operations()}",
+        description="Creates an authorization token for a sensitive operation.",
+        epilog=f"Available operations:\n{list_operations()}",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "operation",
-        help="Nombre de la operación a autorizar (ej. 'push').",
+        help="Name of the operation to authorize (e.g. 'push').",
     )
     parser.add_argument(
         "--ttl",
         type=int,
         default=None,
-        help="Tiempo de vida del token en minutos. Si no se especifica, usa el default de la operación.",
+        help="Token lifetime in minutes. When omitted, the operation's default is used.",
     )
 
     args = parser.parse_args()
 
     if args.operation not in ALLOWED_OPERATIONS:
-        print(f"Operación '{args.operation}' no reconocida.", file=sys.stderr)
-        print(f"\nOperaciones disponibles:\n{list_operations()}", file=sys.stderr)
+        print(f"Unknown operation '{args.operation}'.", file=sys.stderr)
+        print(f"\nAvailable operations:\n{list_operations()}", file=sys.stderr)
         sys.exit(1)
 
     operation_meta = ALLOWED_OPERATIONS[args.operation]
     ttl_minutes = args.ttl if args.ttl is not None else operation_meta["default_ttl_minutes"]
 
     if ttl_minutes <= 0:
-        print(f"TTL debe ser positivo. Recibido: {ttl_minutes}", file=sys.stderr)
+        print(f"TTL must be positive. Received: {ttl_minutes}", file=sys.stderr)
         sys.exit(1)
 
     now = datetime.now(timezone.utc)
@@ -82,15 +82,15 @@ def main() -> None:
     token_path = TOKENS_DIR / args.operation
 
     if token_path.exists():
-        print(f"Ya existe un token para '{args.operation}'. Será reemplazado.", file=sys.stderr)
+        print(f"A token for '{args.operation}' already exists. It will be replaced.", file=sys.stderr)
 
     with token_path.open("w") as f:
         json.dump(token_data, f, indent=2)
 
-    expires_local = expires_at.astimezone()  # convertir a timezone local para mostrar
-    print(f"✓ Token '{args.operation}' creado")
+    expires_local = expires_at.astimezone()  # local timezone, for display
+    print(f"✓ Token '{args.operation}' created")
     print(f"  Path:    {token_path}")
-    print(f"  Expira:  {expires_local.strftime('%H:%M:%S')} ({ttl_minutes} minutos)")
+    print(f"  Expires: {expires_local.strftime('%H:%M:%S')} ({ttl_minutes} minutes)")
 
 
 if __name__ == "__main__":

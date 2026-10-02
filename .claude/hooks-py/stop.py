@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Stop hook — auditoría de cierre de turno (Batch 6).
+"""Stop hook — end-of-turn audit.
 
-Antes de que CC cierre el turno, audita invariantes que el modelo olvida:
-  1. Archivos .ts/.tsx nuevos en apps/api/src/ sin test correspondiente.
-  2. Archivos nuevos en apps/ o packages/ sin @file y @layer headers.
+Before CC closes the turn, it audits invariants the model forgets:
+  1. New .ts/.tsx files in apps/api/src/ without a matching test.
+  2. New files in apps/ or packages/ without @file and @layer headers.
 
-Si encuentra issues, bloquea via stdout JSON {"decision":"block","reason":...}
-para que CC inyecte la razón al modelo y le permita corregir antes de cerrar.
+When it finds issues, it blocks through stdout JSON {"decision":"block","reason":...}
+so CC injects the reason into the model and lets it fix them before closing.
 
-Anti-loop crítico: si stop_hook_active=true en el input, salimos limpios sin
-re-bloquear (CC ya está re-stop después de un block previo).
+Critical anti-loop: when stop_hook_active=true in the input, it exits cleanly
+without blocking again (CC is already stopping again after a previous block).
 
-Kill-switch global: EDWARD_DISABLE_STOP_HOOK=yes desactiva el hook por completo.
+Global kill switch: EDWARD_DISABLE_STOP_HOOK=yes disables the hook entirely.
 """
 
 import json
@@ -30,11 +30,11 @@ KILL_SWITCH_ENV = "EDWARD_DISABLE_STOP_HOOK"
 
 
 def get_new_files(extensions: list[str] | None = None) -> list[str]:
-    """Untracked files (git ls-files --others --exclude-standard), relativos a PROJECT_ROOT.
+    """Untracked files (git ls-files --others --exclude-standard), relative to PROJECT_ROOT.
 
-    Corre con cwd=PROJECT_ROOT: desde un subdirectorio, `ls-files` lista solo
-    lo que cuelga de él y con rutas relativas a él, así que ningún archivo
-    empezaba con `apps/` y las dos auditorías pasaban sin mirar nada.
+    Runs with cwd=PROJECT_ROOT: from a subdirectory, `ls-files` lists only
+    what hangs below it, with paths relative to it, so no file would start
+    with `apps/` and both audits would pass without looking at anything.
     """
     try:
         out = subprocess.run(
@@ -66,28 +66,28 @@ def guess_test_path(src_path: str) -> str:
 
 
 def audit_missing_tests() -> list[str]:
-    """Nuevos .ts/.tsx en apps/api/src/ deben tener test correspondiente."""
+    """New .ts/.tsx in apps/api/src/ must have a matching test."""
     issues = []
     for f in get_new_files([".ts", ".tsx"]):
         if not f.startswith("apps/api/src/"):
             continue
         if "/tests/" in f or f.endswith(".test.ts") or f.endswith(".test.tsx"):
             continue
-        # Skip module-level files que típicamente no tienen test propio.
+        # Skip module-level files that typically have no test of their own.
         base = Path(f).name
         if base in ("index.ts", "index.tsx", "types.ts"):
             continue
         test_path = guess_test_path(f)
         if test_path and not (PROJECT_ROOT / test_path).exists():
             issues.append(
-                f"Falta test para `{f}` — esperado en `{test_path}` "
+                f"Missing test for `{f}` — expected at `{test_path}` "
                 f"(CLAUDE.md: 'Tests are never deferred to a later sprint')"
             )
     return issues
 
 
 def audit_missing_headers() -> list[str]:
-    """Nuevos .ts/.tsx en apps/ o packages/ deben tener @file y @layer."""
+    """New .ts/.tsx in apps/ or packages/ must have @file and @layer."""
     issues = []
     for f in get_new_files([".ts", ".tsx"]):
         if not (f.startswith("apps/") or f.startswith("packages/")):
@@ -112,7 +112,7 @@ def audit_missing_headers() -> list[str]:
             missing.append("@layer")
         if missing:
             issues.append(
-                f"`{f}` falta {', '.join(missing)} en JSDoc header "
+                f"`{f}` lacks {', '.join(missing)} in its JSDoc header "
                 f"(CLAUDE.md: 'Every file gets a JSDoc header — no exceptions')"
             )
     return issues
@@ -121,12 +121,12 @@ def audit_missing_headers() -> list[str]:
 def main() -> None:
     data = read_hook_input(log)
 
-    # Anti-loop: si CC ya está en un re-stop tras block previo, no re-bloqueamos.
+    # Anti-loop: when CC is already stopping again after a previous block, do not block again.
     if data.get("stop_hook_active"):
-        log("stop_hook_active=true, allow sin re-check")
+        log("stop_hook_active=true, allow without re-check")
         sys.exit(0)
 
-    # Kill-switch global.
+    # Global kill switch.
     if os.environ.get(KILL_SWITCH_ENV) == "yes":
         log(f"disabled via {KILL_SWITCH_ENV}=yes")
         sys.exit(0)
@@ -142,7 +142,7 @@ def main() -> None:
         sys.exit(0)
 
     reason_lines = [
-        "Cierre bloqueado — pendientes para no diferir trabajo:",
+        "Turn close blocked — open items, so no work is deferred:",
         "",
     ]
     for i in issues:
@@ -150,8 +150,8 @@ def main() -> None:
     reason_lines.extend(
         [
             "",
-            f"Resolvé estos puntos antes de cerrar el turno, o seteá "
-            f"{KILL_SWITCH_ENV}=yes en tu shell para saltear este hook puntualmente.",
+            f"Resolve these items before closing the turn, or set "
+            f"{KILL_SWITCH_ENV}=yes in your shell to skip this hook once.",
         ]
     )
     reason = "\n".join(reason_lines)

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Pre-edit tripwire blocker hook.
 
-Bloquea Edit/Write/MultiEdit cuando el diff contiene un tripwire pattern
-listado en CLAUDE.md §"Mandatory Pre-Action Triggers", a menos que el
-último mensaje del assistant en el transcript contenga una línea
-canon-check válida.
+Blocks Edit/Write/MultiEdit when the diff contains a tripwire pattern
+listed in CLAUDE.md §"Mandatory Pre-Action Triggers", unless the last
+assistant message in the transcript contains a valid canon-check
+line.
 
 PATTERNS BLOCKED:
   1. time-bomb-comment       — // temporary | puente | bridge | phase-bridge | hack
@@ -14,20 +14,19 @@ PATTERNS BLOCKED:
      where a != b and a not in {domain, embeddings, application}
 
 BYPASS PRIORITY (any of these silences a block):
-  1. Línea canon-check válida en el último assistant message del transcript
+  1. A valid canon-check line in the last assistant message of the transcript
      (regex: ^canon-check:\\s*\\S+\\.md\\s+§\\S+\\s+—\\s+.+)
   2. Token .claude/.allowed/sensitive-edit (15 min TTL). Created by
      omnipost-allow sensitive-edit. Same token gates sensitive-path edits;
      reused here to keep the authorization surface unified.
 
-Block via exit 2 + stderr — Claude Code lo interpreta como veto del tool.
+Block via exit 2 + stderr — Claude Code reads it as a veto of the tool.
 
-Loguea bloqueos en .claude/hooks.log y .claude/tripwire-blocks.log
-(audit trail separado).
+Logs blocks to .claude/hooks.log and .claude/tripwire-blocks.log
+(a separate audit trail).
 """
 
 import json
-import os
 import re
 import sys
 from datetime import datetime, timezone
