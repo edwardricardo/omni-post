@@ -85,7 +85,6 @@
     "fastify-type-provider-zod": "catalog:",
     "husky": "9.1.7",
     "jiti": "2.6.1",
-    "jq": "1.7.2",
     "jscpd": "4.0.8",
     "knip": "6.12.2",
     "license-checker": "25.0.1",
