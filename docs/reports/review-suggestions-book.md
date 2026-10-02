@@ -50,6 +50,8 @@
 | SB-029 | `mental-map-hooks` 3a-ii (`workstream/hooks-canon-staleness`, 61cfeccc)               | R2-canon-line-implicit-invariant                                 | `.claude/hooks-py/user_prompt_submit.py` `canon_index_line`                                                                                 | comment                      | implemented (English sweep, `workstream/hooks-english-canon`)                                                                                                   |
 | SB-030 | same                                                                                  | R2-canon-line-broad-except                                       | `.claude/hooks-py/user_prompt_submit.py` `canon_index_line`                                                                                 | comment                      | implemented (English sweep, `workstream/hooks-english-canon`)                                                                                                   |
 | SB-031 | same                                                                                  | R2-dead-patterns-named-naming                                    | `.claude/hooks-py/_common.py` `DEAD_PATTERNS_NAMED`                                                                                         | naming                       | implemented (English sweep, 4eb09fdc)                                                                                                                           |
+| SB-032 | `mental-map-hooks` sweep 5/5 (`workstream/hooks-sweep-leftovers`, 7c82bfb8)           | R2-synth-naming-mismatch                                         | `.claude/scripts/canon-staleness-report.py` `--synth-days`, `synth_age`, `stale_synth`                                                      | naming                       | deferred: finish the rename to `date` in the locals and the comment; decide the flag separately                                                                 |
+| SB-033 | same                                                                                  | R2-list-operations-column-fragility                              | `.claude/hooks-py/tests/test_omnipost_allow.py`                                                                                             | comment                      | deferred: name the separator the alignment test searches for, or share one constant with the CLI                                                                |
 
 ## Entries — code and prose
 
@@ -277,6 +279,14 @@
 - **Why deferred:** naming only; one call site.
 - **To implement:** rename the constant and its uses.
 
+### SB-032 — the staleness report still says `synth` where its output says `date`
+
+- **Source:** review `hooks-sweep-leftovers`, third round (lineage `review-536fb073acb8c708`), readability lens, finding `R2-synth-naming-mismatch`.
+- **Location:** `.claude/scripts/canon-staleness-report.py`: the `--synth-days` flag, the locals `synth_age` and `stale_synth`, one comment.
+- **Suggestion:** one vocabulary in the function: finish the rename to `date`, or go back to `synthesizedAt` everywhere.
+- **Why deferred:** every surface a user reads already names the field the code compares, pinned by a test. Renaming the locals changes nothing observable; renaming the flag changes the command line, which is not a wording matter.
+- **To implement:** rename the two locals and the comment; decide the flag separately, keeping the old spelling accepted if it is renamed.
+
 ## Entries — tests
 
 ### SB-T01 — a bare repository's `--git-common-dir` is not named `.git`
@@ -334,6 +344,14 @@
 - **Suggestion:** a newline inside a session id or key would split a record across lines; escape `\n` as well and extend the collision test.
 - **Why deferred:** session ids are opaque UUIDs from Claude Code and keys are built from constants.
 - **To implement:** one more `.replace`, one more assertion.
+
+### SB-033 — the alignment test does not say what its separator is
+
+- **Source:** review `hooks-sweep-leftovers`, third round (lineage `review-536fb073acb8c708`), readability lens, finding `R2-list-operations-column-fragility`.
+- **Location:** `.claude/hooks-py/tests/test_omnipost_allow.py`, `test_descriptions_start_at_the_same_column`.
+- **Suggestion:** a comment naming the string the test searches for as the description separator `list_operations()` writes, or one constant shared with the CLI.
+- **Why deferred:** prose and naming; the assertion and its coverage do not change.
+- **To implement:** one comment line, or a module constant in `omnipost-allow` that the test imports.
 
 ## Implemented
 
