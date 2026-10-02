@@ -3,12 +3,14 @@
  * @description Pins `scripts/testing/battery-state.mjs`, the CLI that records the local battery's
  *   verdict where a hook can read it: `<state dir>/battery/<sha>.json`, read before a push is
  *   proposed. The rules of the verdict are pinned in `batteryVerdict.test.ts`; this suite drives the
- *   CLI as a child process for what only it decides: the exit code, the usage errors and the state
- *   file, which must exist whatever the status and carry the documented shape.
+ *   CLI as a child process for what only it decides: the exit code, the usage errors, the report it
+ *   prints, and the state file, which must exist whatever the status and carry the documented
+ *   shape. A state file that cannot be written turns the run RED, and the error reported is the
+ *   write's own, not one raised while cleaning up after it.
  *
- *   Its fixture is deliberately smaller than the verdict suite's: one clean log directory and one
- *   with a single toolchain line are all a CLI decision needs, and the rules that tell them apart
- *   are not this suite's subject.
+ *   Its fixtures are deliberately smaller than the verdict suite's: a clean log directory, one with
+ *   a single toolchain line, and one built so that every kind of report line appears once. The
+ *   rules that tell them apart are not this suite's subject.
  * @layer infrastructure
  */
 import { execFileSync, spawnSync } from "node:child_process";
@@ -108,6 +110,27 @@ const runCli = (args: readonly string[]): CliResult => {
   return { status: result.status ?? -1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
 };
 
+/**
+ * Runs the CLI in a Node process that first creates a DIRECTORY at the staging path the CLI will
+ * choose, so the write fails and so does removing what is at that path. The staging name carries
+ * the CLI's pid, which only its own process knows; the prelude therefore imports the module itself
+ * with the module as `argv[1]`, which is exactly how `node <script>` would run it.
+ */
+const runCliWithStagingDirectory = (args: readonly string[]): CliResult => {
+  const prelude = [
+    'import { mkdirSync } from "node:fs";',
+    'const stateDir = process.argv[process.argv.indexOf("--state-dir") + 1];',
+    `mkdirSync(stateDir + "/battery/.${SHA}.json." + process.pid, { recursive: true });`,
+    "await import(process.argv[1]);",
+  ].join("\n");
+  const result = spawnSync(
+    process.execPath,
+    ["--input-type=module", "-e", prelude, "--", STATE_SCRIPT, ...args],
+    { encoding: "utf8" }
+  );
+  return { status: result.status ?? -1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
+};
+
 const stateFile = (): string => path.join(scratchRoot, "state", "battery", `${SHA}.json`);
 
 const readState = (): StateDocument =>
@@ -176,6 +199,73 @@ describe("battery-state CLI", () => {
 
     expect(result.status).toBe(1);
     expect(readState().reasons).toEqual(["tree changed during the battery"]);
+  });
+
+  it("prints the full report: steps, api runs, toolchain lines, application records and reasons", () => {
+    const outDir = writeLogDir({
+      "install.log": "done\n",
+      "lint.log": "> eslint . --max-warnings 0\n(node:7) Warning: a deprecated API\n",
+      "api-1.log": '{"level":"warn","msg":"queue paused"}\n{"level":"warn","msg":"queue paused"}\n',
+      "api-2.log": "Test Files  2 passed (2)\n",
+    });
+    writeFileSync(
+      path.join(outDir, "api-2.json"),
+      JSON.stringify({
+        numTotalTests: 3,
+        numPassedTests: 3,
+        numPendingTests: 0,
+        numFailedTests: 0,
+        testResults: [{ name: "first.test.ts" }, { name: "second.test.ts" }],
+      })
+    );
+
+    const result = runCli(cliArguments(outDir, { "--expected-steps": "4" }));
+
+    expect(result.status).toBe(1);
+    expect(result.stdout.split("\n")).toEqual([
+      "install exit=0",
+      "lint exit=0",
+      "api-1 exit=0",
+      "api-2 exit=0",
+      "api-1 files ? tests ? passed ? pending ? failed ? unhandled 0",
+      "api-2 files 2 tests 3 passed 3 pending 0 failed 0 unhandled 0",
+      "warning lines: 1",
+      "  lint.log:2:(node:7) Warning: a deprecated API",
+      "app-log warn (code under test, not a toolchain warning): 2 record(s), 1 distinct message(s)",
+      "    2 queue paused",
+      "RED because 1 warning line(s)",
+      "RED because api-1.json is missing or unreadable",
+      `state: ${stateFile()}`,
+      "BATTERY RED",
+      "",
+    ]);
+  });
+
+  it("exits 1 with BATTERY RED and the reason when the state directory cannot be created", () => {
+    const outDir = writeLogDir();
+    const blocker = path.join(scratchRoot, "blocker");
+    writeFileSync(blocker, "");
+
+    const result = runCli(cliArguments(outDir, { "--state-dir": path.join(blocker, "state") }));
+
+    expect(result.status).toBe(1);
+    expect(result.stdout.trimEnd().split("\n").at(-1)).toBe("BATTERY RED");
+    expect(result.stdout).not.toContain("BATTERY GREEN");
+    expect(result.stderr).toContain("the state file could not be written");
+    expect(result.stderr).toContain("ENOTDIR");
+    expect(existsSync(stateFile())).toBe(false);
+  });
+
+  it("reports the write's own error when the staging path cannot be cleaned up either", () => {
+    const outDir = writeLogDir();
+
+    const result = runCliWithStagingDirectory(cliArguments(outDir));
+
+    expect(result.status).toBe(1);
+    expect(result.stdout.trimEnd().split("\n").at(-1)).toBe("BATTERY RED");
+    expect(result.stderr).toContain("EISDIR: illegal operation on a directory, open");
+    expect(result.stderr).toContain("could not be removed either");
+    expect(existsSync(stateFile())).toBe(false);
   });
 
   it("exits 2 naming a missing required argument and writes no state", () => {

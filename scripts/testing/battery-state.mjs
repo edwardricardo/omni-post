@@ -16,7 +16,7 @@
  *   Exit codes: 0 GREEN, 1 RED, 2 a usage error naming the argument.
  * @layer infrastructure
  */
-import { existsSync, mkdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { evaluateBattery } from "./battery-verdict.mjs";
@@ -135,8 +135,38 @@ export function parseArguments(argv) {
 }
 
 /**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function errorText(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Removes what a failed write left at the staging path. A failure here must not replace the
+ * write's own error, which is the one that says why no verdict was recorded: it is appended to
+ * that error instead, naming the path left behind, with the write's error kept as the cause.
+ *
+ * @param {string} staging
+ * @param {unknown} primary The error that made the write fail.
+ * @returns {void}
+ */
+function removeStaging(staging, primary) {
+  try {
+    rmSync(staging, { force: true });
+  } catch (cleanup) {
+    throw new Error(
+      `${errorText(primary)}; the staging file ${staging} could not be removed either and is ` +
+        `left behind: ${errorText(cleanup)}`,
+      { cause: primary }
+    );
+  }
+}
+
+/**
  * Writes the state file through a sibling file and a rename, so a reader sees the previous verdict
- * or the new one, never half of one.
+ * or the new one, never half of one. Only a failed write is cleaned up: after a rename succeeds
+ * there is nothing at the staging path to remove.
  *
  * @param {string} stateDir
  * @param {string} sha
@@ -151,8 +181,9 @@ function writeState(stateDir, sha, state) {
   try {
     writeFileSync(staging, `${JSON.stringify(state, null, 2)}\n`);
     renameSync(staging, target);
-  } finally {
-    if (existsSync(staging)) rmSync(staging, { force: true });
+  } catch (error) {
+    removeStaging(staging, error);
+    throw error;
   }
   return target;
 }
@@ -224,7 +255,7 @@ function main(argv) {
   } catch (error) {
     process.stderr.write(
       `battery-state: the state file could not be written, so this run certifies nothing: ` +
-        `${error instanceof Error ? error.message : String(error)}\n`
+        `${errorText(error)}\n`
     );
     process.stdout.write("BATTERY RED\n");
     return 1;
