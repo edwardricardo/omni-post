@@ -14,6 +14,7 @@ import contextlib
 import io
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -95,6 +96,22 @@ class RunsGitPushTests(unittest.TestCase):
         self.assertTrue(runs_git_push('bash -c "cd /wt && git push origin a"'))
         self.assertTrue(runs_git_push("bash -lc 'git push origin a'"))
         self.assertFalse(runs_git_push('bash -c "git status"'))
+
+    def test_the_script_is_the_first_non_option_argument_after_the_cluster(self) -> None:
+        self.assertTrue(runs_git_push("bash -ic -- 'git push origin a'"))
+        self.assertTrue(runs_git_push("bash --login -c 'git push origin a'"))
+        self.assertFalse(runs_git_push("bash -ic deploy.sh"))
+
+    def test_nesting_past_the_bound_is_read_the_conservative_way(self) -> None:
+        def nest(script: str, levels: int) -> str:
+            for _ in range(levels):
+                script = "bash -c " + shlex.quote(script)
+            return script
+
+        harmless = "git status && echo .allowed/" + "push"
+        self.assertFalse(runs_git_push(nest(harmless, 3)))
+        self.assertTrue(runs_git_push(nest(harmless, 10)))
+        self.assertTrue(runs_git_push(nest("git " + "push origin a", 10)))
 
     def test_a_line_that_cannot_be_tokenized_falls_back_to_the_conservative_reading(self) -> None:
         self.assertTrue(runs_git_push("git push origin 'unterminated"))

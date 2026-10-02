@@ -430,7 +430,10 @@ _SHELLS = frozenset({"bash", "sh", "zsh", "dash"})
 _GIT_PUSH_FALLBACK_RE = re.compile(r"\bgit\b(?!\s+stash\b)\s.*\bpush\b")
 
 
-def runs_git_push(command: str) -> bool:
+_MAX_SHELL_DEPTH = 8
+
+
+def runs_git_push(command: str, depth: int = 0) -> bool:
     """Whether `command` publishes: some git invocation in it has `push` as
     its REAL subcommand, read the way the commit gate reads `commit`.
 
@@ -442,27 +445,35 @@ def runs_git_push(command: str) -> bool:
     11:05:19). `git stash push` is a local stash, not a publication.
 
     A script passed to a shell with `-c` (`bash -c "git push …"`) is read too,
-    since the quoted script would otherwise be one opaque token. A line shlex
-    cannot tokenize falls back to the broad regex, on the conservative side.
-    Not covered, stated: a publication inside a script file or a function is
-    invisible to any reading of the command line.
+    since the quoted script would otherwise be one opaque token. As the shell
+    itself does, `c` anywhere in a short-option cluster (`-c`, `-lc`, `-ic`)
+    sets the option, and the script is the first argument after the cluster
+    that is not an option. Nesting deeper than `_MAX_SHELL_DEPTH` scripts, and a
+    line shlex cannot tokenize, fall back to the broad regex, on the
+    conservative side. Not covered, stated: a publication inside a script file
+    or a function is invisible to any reading of the command line.
     """
-    try:
-        _shell_tokens(command)
-    except ValueError as e:
-        _append_log(f"runs_git_push: untokenizable command ({e}); conservative fallback")
+    segments = shell_segments(command)
+    if segments is None or depth > _MAX_SHELL_DEPTH:
+        _append_log(f"runs_git_push: unreadable or nested past {_MAX_SHELL_DEPTH} (depth {depth}); conservative fallback")
         return bool(_GIT_PUSH_FALLBACK_RE.search(command))
     if "push" in git_subcommands(command):
         return True
-    for segment in shell_segments(command) or []:
+    for segment in segments:
         if Path(segment[0]).name not in _SHELLS:
             continue
-        for i, tok in enumerate(segment[1:-1], start=1):
-            if tok.startswith("-") and not tok.startswith("--") and "c" in tok[1:]:
-                if runs_git_push(segment[i + 1]):
-                    return True
-                break
+        flags = [i for i, tok in enumerate(segment) if i and _sets_shell_command_flag(tok)]
+        if not flags:
+            continue
+        script = next((tok for tok in segment[flags[0] + 1:] if not tok.startswith("-")), None)
+        if script is not None and runs_git_push(script, depth + 1):
+            return True
     return False
+
+
+def _sets_shell_command_flag(token: str) -> bool:
+    """A short-option cluster that sets the shell's `-c` (`-c`, `-lc`, `-ic`)."""
+    return token.startswith("-") and not token.startswith("--") and "c" in token[1:]
 
 
 def commit_repos(command: str, fallback: Path) -> list[Path]:
