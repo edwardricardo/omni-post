@@ -1,9 +1,9 @@
-"""Helpers compartidos por todos los hooks Python de OmniPost.
+"""Helpers shared by every OmniPost Python hook.
 
 Reusable building blocks: logger factory, JSON-stdin reader, git helpers,
-y constantes regex compartidas. Cada hook importa lo que necesita.
+and shared regex constants. Each hook imports what it needs.
 
-Uso típico desde un hook:
+Typical use from a hook:
 
     import sys
     from pathlib import Path
@@ -28,12 +28,12 @@ from pathlib import Path
 from typing import Callable, NoReturn
 
 
-# Raíz del repo, resuelta desde la ubicación de ESTE archivo
-# (.claude/hooks-py/_common.py -> .claude/ -> raíz), nunca desde el cwd del
-# proceso. Claude Code dispara los hooks con el cwd de la sesión, que puede ser
-# un subdirectorio: con rutas relativas al cwd, un token creado en la raíz era
-# invisible desde apps/api ("missing") y cada hook sembraba un `.claude/`
-# huérfano en el directorio donde le tocara correr.
+# Repository root, resolved from the location of THIS file
+# (.claude/hooks-py/_common.py -> .claude/ -> root), never from the process
+# cwd. Claude Code runs the hooks with the session's cwd, which can be a
+# subdirectory: with cwd-relative paths, a token created at the root was
+# invisible from apps/api ("missing") and every hook seeded an orphan
+# `.claude/` in whatever directory it happened to run in.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 LOG_PATH = PROJECT_ROOT / ".claude" / "hooks.log"
@@ -45,16 +45,16 @@ ALLOWED_TOKENS_DIR = PROJECT_ROOT / ".claude" / ".allowed"
 
 
 def _main_repository_root(root: Path) -> tuple[Path, bool]:
-    """Raíz del worktree PRINCIPAL del repositorio que contiene `root`, y si git
-    la resolvió.
+    """Root of the MAIN worktree of the repository that contains `root`, and
+    whether git resolved it.
 
-    Claude Code nombra el directorio de auto memory a partir del repositorio
-    git, no del worktree: "all worktrees and subdirectories within the same
-    repo share one auto memory directory" (code.claude.com/docs/en/memory,
-    Storage location). Desde un worktree enlazado `PROJECT_ROOT` es el
-    worktree, pero su `--git-common-dir` es el `.git` del principal, y el padre
-    de ese `.git` es la ruta con la que Claude Code arma el nombre. Sin git, o
-    con un repo bare, cae a `root` y lo dice (False).
+    Claude Code names the auto memory directory after the git repository, not
+    the worktree: "all worktrees and subdirectories within the same repo share
+    one auto memory directory" (code.claude.com/docs/en/memory, Storage
+    location). From a linked worktree `PROJECT_ROOT` is the worktree, but its
+    `--git-common-dir` is the main one's `.git`, and the parent of that `.git`
+    is the path Claude Code builds the name from. Without git, or with a bare
+    repository, it falls back to `root` and says so (False).
     """
     try:
         result = subprocess.run(
@@ -72,10 +72,10 @@ def _main_repository_root(root: Path) -> tuple[Path, bool]:
 
 
 def _write_log_line(tag: str, message: str) -> None:
-    """La ÚNICA forma de una línea de hooks.log: `[iso-local] [tag] message`.
+    """The ONLY shape of a hooks.log line: `[iso-local] [tag] message`.
 
-    make_logger la usa con el nombre del hook; _common, que no tiene nombre de
-    hook, con `_common`. Un solo escritor: el formato no puede divergir.
+    make_logger uses it with the hook's name; _common, which has no hook name,
+    with `_common`. One writer: the format cannot diverge.
     """
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with LOG_PATH.open("a", encoding="utf-8") as handle:
@@ -83,35 +83,37 @@ def _write_log_line(tag: str, message: str) -> None:
 
 
 def _append_log(line: str) -> None:
-    """Línea en hooks.log desde _common; un fallo de E/S no frena un hook."""
+    """A hooks.log line from _common; an I/O failure does not stop a hook."""
     try:
         _write_log_line("_common", line)
     except OSError:
         pass
 
 
-# `memory_dir` memoriza SOLO una resolución exitosa, así un fallo transitorio
-# de git no fija la ruta de respaldo; el aviso del respaldo sale una vez por
-# proceso. Cada hook es un proceso nuevo y de un solo hilo: la memoria vale
-# dentro de ese proceso y no necesita bloqueo. Los hooks que leen el índice la
-# resuelven al USARLA (`canon_index_path()`), no al importar: un fallo
-# transitorio en el import no deja al proceso mirando el respaldo, y un hook
-# que termina sin leer el índice no paga el subproceso.
+# `memory_dir` memoizes ONLY a successful resolution, so a transient git
+# failure does not pin the fallback path; the fallback notice is logged once
+# per process. Each hook is a new, single-threaded process: the memo is valid
+# within that process and needs no lock. The hooks that read the index
+# resolve it on USE (`canon_index_path()`), not on import: a transient
+# failure during the import does not leave the process looking at the
+# fallback, and a hook that exits without reading the index does not pay for
+# the subprocess.
 _MEMORY_DIR_CACHE: Path | None = None
 _MEMORY_DIR_WARNED = False
-MEMORY_DIR_FALLBACK_NOTE = "memory_dir: git no resolvió la raíz principal; ruta derivada de PROJECT_ROOT sin caché"
+MEMORY_DIR_FALLBACK_NOTE = "memory_dir: git did not resolve the main root; path derived from PROJECT_ROOT, not cached"
 
 
 def _resolve_memory_dir() -> tuple[Path, bool]:
-    """Auto memory del proyecto y si git resolvió la raíz principal.
+    """The project's auto memory and whether git resolved the main root.
 
-    Es el contrato de nombres de Claude Code: `~/.claude/projects/<raíz con "/"
-    -> "-">/memory` (`/root/omni-post` -> `-root-omni-post`), un directorio por
-    repositorio compartido por sus worktrees; ahí viven canon-index.json y
-    canon_research_index.md. Cuesta un `git rev-parse` (medido 0,8 ms). Las dos
-    ramas parten de una ruta RESUELTA (sin symlinks): la de git lo está por
-    `_main_repository_root`; la de respaldo se resuelve acá, así un
-    PROJECT_ROOT alcanzado por symlink no inventa un segundo nombre.
+    It is Claude Code's naming contract: `~/.claude/projects/<root with "/"
+    -> "-">/memory` (`/root/omni-post` -> `-root-omni-post`), one directory per
+    repository shared by its worktrees; canon-index.json and
+    canon_research_index.md live there. It costs one `git rev-parse` (measured
+    0.8 ms). Both outcomes start from a RESOLVED path (no symlinks): the git
+    one is resolved by `_main_repository_root`; the fallback one is resolved
+    here, so a PROJECT_ROOT reached through a symlink does not invent a second
+    name.
     """
     root, resolved = _main_repository_root(PROJECT_ROOT)
     if not resolved:
@@ -128,15 +130,15 @@ def memory_dir() -> Path:
     if resolved:
         _MEMORY_DIR_CACHE = path
     elif not _MEMORY_DIR_WARNED:
-        # El respaldo no se cachea, pero el aviso sí: una vez por proceso.
+        # The fallback is not cached, but its notice is: once per process.
         _MEMORY_DIR_WARNED = True
         _append_log(f"{MEMORY_DIR_FALLBACK_NOTE} ({PROJECT_ROOT})")
     return path
 
 
 def canon_index_path() -> Path:
-    """Ruta de canon-index.json — el JSON que leen los hooks de edición —
-    resuelta al usarla, no al importar (ver memory_dir)."""
+    """Path of canon-index.json — the JSON the edit hooks read — resolved on
+    use, not on import (see memory_dir)."""
     return memory_dir() / "canon-index.json"
 
 
@@ -149,7 +151,7 @@ def canon_research_index_path() -> Path:
 # Glob characters: `pre_edit_canon` matches `appliesTo` as a SUBSTRING of the
 # edited path, so a pattern containing `*` or `[` never matches anything.
 _GLOB_CHARS = frozenset("*?[]{}")
-DEAD_PATTERNS_NAMED = 3
+MAX_NAMED_DEAD_PATTERNS = 3
 
 
 def applies_to_pattern_is_live(pattern: str, root: Path = PROJECT_ROOT) -> bool:
@@ -212,10 +214,10 @@ def canon_index_staleness(
     Reasons, joined when there are several: unreadable JSON (naming the error
     class), `synthesizedAt` missing or unparseable, the markdown modified after
     the synthesis (or absent: without a source there is nothing to check
-    against), and dead `appliesTo` patterns (up to DEAD_PATTERNS_NAMED named,
-    plus the total). Age alone is NOT a reason: an index synthesized months
-    ago from a source that has not changed is current. `index` avoids reading
-    the JSON again when the caller already loaded it.
+    against), and dead `appliesTo` patterns (up to MAX_NAMED_DEAD_PATTERNS
+    named, plus the total). Age alone is NOT a reason: an index synthesized
+    months ago from a source that has not changed is current. `index` avoids
+    reading the JSON again when the caller already loaded it.
     """
     if index is None:
         index, error = read_canon_index(index_path)
@@ -239,27 +241,27 @@ def canon_index_staleness(
             )
     dead = dead_applies_to_patterns(index, root)
     if dead:
-        named = ", ".join(list(dead)[:DEAD_PATTERNS_NAMED])
-        more = f" (+{len(dead) - DEAD_PATTERNS_NAMED} more)" if len(dead) > DEAD_PATTERNS_NAMED else ""
+        named = ", ".join(list(dead)[:MAX_NAMED_DEAD_PATTERNS])
+        more = f" (+{len(dead) - MAX_NAMED_DEAD_PATTERNS} more)" if len(dead) > MAX_NAMED_DEAD_PATTERNS else ""
         reasons.append(f"{len(dead)} dead appliesTo pattern(s): {named}{more}")
     return "; ".join(reasons) or None
 
 
-# Regex compartida entre pre-bash y post-bash. Matchea 'git' y 'push' como
-# tokens separados aunque haya flags intermedias (-C /path, --git-dir=...).
-# El negative lookahead excluye `git stash push`/`git stash pop` (operaciones
-# LOCALES del stash, no publicación remota) — sin él, "stash push" disparaba
-# el gate de autorización como si fuera `git push`.
-# Limitación: no detecta composición con && (cd /path && ...).
+# Regex shared by pre-bash and post-bash. Matches 'git' and 'push' as separate
+# tokens even with flags in between (-C /path, --git-dir=...).
+# The negative lookahead excludes `git stash push`/`git stash pop` (LOCAL stash
+# operations, not a remote publication) — without it, "stash push" triggered
+# the authorization gate as if it were a publication to the remote.
+# Limitation: it does not detect composition with && (cd /path && ...).
 GIT_PUSH_RE = re.compile(r"\bgit\b(?!\s+stash\b)\s.*\bpush\b")
 
 
 def make_logger(hook_name: str) -> tuple[Callable[[str], None], Callable[[str], None], Callable[[str], None]]:
-    """Crea las 3 funciones (log, block, allow) atadas a un hook_name.
+    """Creates the 3 functions (log, block, allow) bound to a hook_name.
 
-    log(msg) — append timestamped entry a hooks.log.
-    block(reason) — print a stderr + log + exit 2 (CC interpreta como veto).
-    allow(reason) — log + exit 0.
+    log(msg) — appends a timestamped entry to hooks.log.
+    block(reason) — prints to stderr + logs + exit 2 (CC reads it as a veto).
+    allow(reason) — logs + exit 0.
     """
 
     def log(message: str) -> None:
@@ -278,26 +280,27 @@ def make_logger(hook_name: str) -> tuple[Callable[[str], None], Callable[[str], 
 
 
 def read_hook_input(log_fn: Callable[[str], None]) -> dict:
-    """Parsea el JSON de stdin que CC pasa al hook. Si falla, exit 1."""
+    """Parses the stdin JSON that CC passes to the hook. Exits 1 on failure."""
     raw = sys.stdin.read()
     try:
         return json.loads(raw)
     except json.JSONDecodeError as e:
-        log_fn(f"ERROR: JSON inválido: {e}")
+        log_fn(f"ERROR: invalid JSON: {e}")
         sys.exit(1)
 
 
 def current_branch(repo: Path | None = None) -> str:
-    """Branch checked out en `repo` (default PROJECT_ROOT), o '' si falla.
+    """Branch checked out in `repo` (default PROJECT_ROOT), or '' on failure.
 
-    `symbolic-ref --short HEAD` (no `rev-parse --abbrev-ref HEAD` ni `branch
-    --show-current`, que exige git >= 2.22): lee también una rama recién creada
-    sin commits, en HEAD suelto falla y devuelve '' (bloquea), y existe en todo
-    git desde 1.7.
-    Sin `cwd` explícito git leía el cwd del proceso del hook, que nunca es el
-    repositorio al que apunta un `cd <worktree> && git commit`: el gate de
-    commits validaba la branch del repo vivo, no la del commit. Un `repo`
-    inexistente devuelve '' — el llamador decide (el gate de commits bloquea).
+    `symbolic-ref --short HEAD` (not `rev-parse --abbrev-ref HEAD` nor `branch
+    --show-current`, which requires git >= 2.22): it also reads a freshly
+    created branch with no commits, fails on a detached HEAD and returns ''
+    (which blocks), and exists in every git since 1.7.
+    The `cwd` is explicit because without it git reads the hook process's cwd,
+    which is never the repository a `cd <worktree> && git commit` points at:
+    the commit gate would validate the branch of the live repository, not the
+    commit's. A nonexistent `repo` returns '' — the caller decides (the commit
+    gate blocks).
     """
     try:
         result = subprocess.run(
@@ -313,26 +316,26 @@ def current_branch(repo: Path | None = None) -> str:
         return ""
 
 
-# `cd <ruta> &&`, `cd <ruta>;` o `cd <ruta>` + salto de línea al INICIO del
-# comando. La ruta puede venir entre comillas simples o dobles. El salto de
-# línea cuenta: medido, `cd X\ngit commit` sin él resolvía al cwd de la sesión
-# y el gate validaba otro repo. Límites deliberados (solo el PRIMER cd, solo
-# si abre el comando, sin `cd -` ni variables): ver el docstring de commit_repos.
+# `cd <path> &&`, `cd <path>;` or `cd <path>` + newline at the START of the
+# command. The path may be single- or double-quoted. The newline counts:
+# measured, without it `cd X\ngit commit` resolved to the session cwd and the
+# gate validated another repository. Deliberate limits (only the FIRST cd,
+# only when it opens the command, no `cd -` nor variables): see the
+# commit_repos docstring.
 _CD_PREFIX_RE = re.compile(r"""^\s*cd\s+("[^"]+"|'[^']+'|[^\s;&|]+)[ \t]*(?:&&|;|\n)""")
-# Opciones globales de git cuyo valor viaja en el token SIGUIENTE. Las de la
-# forma `--opcion=valor` y los flags sin valor se saltan solos.
+# Global git options whose value travels in the NEXT token. The ones of the
+# form `--option=value` and the flags without a value skip themselves.
 _GIT_VALUE_OPTIONS = frozenset(
     {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path",
      "--super-prefix", "--config-env", "--list-cmds", "--attr-source"}
 )
-# Las que mueven el árbol sobre el que actúa ESA invocación de git
-# (`git -C a -C b commit` es `cd a; cd b; git commit`).
+# The ones that move the tree THAT git invocation acts on
+# (`git -C a -C b commit` is `cd a; cd b; git commit`).
 _GIT_TREE_OPTIONS = frozenset({"-C", "--work-tree"})
 _SHELL_SEPARATORS = frozenset({"&&", "||", ";", "|"})
-# Respaldo cuando shlex no puede tokenizar (comilla sin cerrar): la forma
-# conservadora `git … commit` dentro de un mismo segmento de shell. Solo
-# `commit` es recuperable así; un gate sobre otro subcomando no puede
-# apoyarse en el respaldo.
+# Fallback when shlex cannot tokenize (unclosed quote): the conservative form
+# `git … commit` within one shell segment. Only `commit` is recoverable this
+# way; a gate on another subcommand cannot rely on the fallback.
 _GIT_COMMIT_FALLBACK_RE = re.compile(r"\bgit\b[^|;&\n]*\bcommit\b")
 
 
@@ -343,17 +346,17 @@ def _unquote(token: str) -> str:
 
 
 def _shell_tokens(command: str) -> list[str]:
-    """Tokens de shell con `&&`, `||`, `;` y `|` como tokens PROPIOS aunque vayan
-    pegados (`git commit&&…`); dentro de comillas siguen siendo texto. Lanza
-    ValueError con una comilla sin cerrar, como shlex.split."""
+    """Shell tokens with `&&`, `||`, `;` and `|` as tokens of their OWN even when
+    glued (`git commit&&…`); inside quotes they remain text. Raises ValueError
+    on an unclosed quote, like shlex.split."""
     lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
     lexer.whitespace_split = True
     return list(lexer)
 
 
 def shell_segments(command: str) -> list[list[str]] | None:
-    """Los comandos de `command` como listas de tokens, cortados en `&&`, `||`,
-    `;` y `|` (separadores pegados incluidos); None si no se puede tokenizar."""
+    """The commands of `command` as token lists, split at `&&`, `||`, `;` and
+    `|` (glued separators included); None when it cannot be tokenized."""
     try:
         tokens = _shell_tokens(command)
     except ValueError:
@@ -368,8 +371,8 @@ def shell_segments(command: str) -> list[list[str]] | None:
 
 
 def repository_of(path: Path) -> Path | None:
-    """La raíz del repositorio que contiene `path` (el primer padre con `.git`),
-    o None fuera de todo repositorio."""
+    """The root of the repository that contains `path` (the first parent with
+    `.git`), or None outside any repository."""
     for candidate in (path, *path.parents):
         if (candidate / ".git").exists():
             return candidate
@@ -377,22 +380,22 @@ def repository_of(path: Path) -> Path | None:
 
 
 def git_invocations(command: str) -> list[tuple[str, list[str]]]:
-    """Cada invocación de git en `command`: (subcomando, árboles que ESA
-    invocación recibió por `-C`/`--work-tree`, en orden).
+    """Each git invocation in `command`: (subcommand, the trees THAT invocation
+    received through `-C`/`--work-tree`, in order).
 
-    Tokeniza con shlex en vez de una regex de opciones: `git --work-tree /p
-    commit` y `git -c "user.name=Foo Bar" commit` llevan el subcomando detrás
-    de un valor que ninguna regex absorbía, y ese hueco saltaba el gate de
-    branch y el de Co-Authored-By a la vez. Una cadena entre comillas es UN
-    token: un `git commit` o un `git -C` dentro de ella no cuenta. Un
-    separador pegado (`commit&&`) es un token aparte y no esconde el
-    subcomando. Si shlex no puede tokenizar, cae a la regex conservadora:
-    [("commit", [])] o nada.
+    Tokenizes with shlex instead of an option regex: `git --work-tree /p
+    commit` and `git -c "user.name=Foo Bar" commit` carry the subcommand after
+    a value no regex absorbed, and that gap skipped the branch gate and the
+    Co-Authored-By gate at once. A quoted string is ONE token: a `git commit`
+    or a `git -C` inside it does not count. A glued separator (`commit&&`) is
+    a separate token and does not hide the subcommand. When shlex cannot
+    tokenize, it falls back to the conservative regex: [("commit", [])] or
+    nothing.
     """
     try:
         tokens = _shell_tokens(command)
     except ValueError as e:
-        _append_log(f"git_invocations: comando no tokenizable ({e}); respaldo solo-commit")
+        _append_log(f"git_invocations: untokenizable command ({e}); commit-only fallback")
         return [("commit", [])] if _GIT_COMMIT_FALLBACK_RE.search(command) else []
     found: list[tuple[str, list[str]]] = []
     i = 0
@@ -423,23 +426,23 @@ def git_invocations(command: str) -> list[tuple[str, list[str]]]:
 
 
 def git_subcommands(command: str) -> set[str]:
-    """Subcomandos de git invocados en `command` (`commit`, `fetch`, …); ver git_invocations."""
+    """Git subcommands invoked in `command` (`commit`, `fetch`, …); see git_invocations."""
     return {subcommand for subcommand, _ in git_invocations(command)}
 
 
 def commit_repos(command: str, fallback: Path) -> list[Path]:
-    """Directorio sobre el que actúa CADA `git commit` de `command`.
+    """The directory EACH `git commit` in `command` acts on.
 
-    Un `cd <ruta>` inicial — con `&&`, `;` o salto de línea — cambia la base
-    para todo el comando; los `-C`/`--work-tree` de ESA invocación se resuelven
-    contra la base, en orden, como lo haría la shell. Los de OTRA invocación
-    no cuentan: `git -C /otro status && git commit` commitea en `fallback`, el
-    `cwd` que Claude Code pasa en el input del hook.
+    A leading `cd <path>` — with `&&`, `;` or a newline — changes the base for
+    the whole command; the `-C`/`--work-tree` of THAT invocation resolve
+    against the base, in order, as the shell would. Those of ANOTHER
+    invocation do not count: `git -C /other status && git commit` commits in
+    `fallback`, the `cwd` Claude Code passes in the hook input.
 
-    Límites, dichos en voz alta: solo el PRIMER `cd`, y solo si abre el
-    comando; `cd -`, variables o subshells no se expanden. Una ruta mal
-    resuelta apunta a un directorio sin repo, y `current_branch` devuelve ''
-    — falla cerrado, no abierto.
+    Limits, stated plainly: only the FIRST `cd`, and only when it opens the
+    command; `cd -`, variables or subshells are not expanded. A wrongly
+    resolved path points at a directory without a repository, and
+    `current_branch` returns '' — it fails closed, not open.
     """
     base = fallback
     cd_match = _CD_PREFIX_RE.match(command)
@@ -460,21 +463,21 @@ NOTICES_LOG = PROJECT_ROOT / ".claude" / "context-notices.log"
 
 
 def _notice_field(value: str) -> str:
-    """Un campo del registro de avisos: la tabulación separa campos y el salto de
-    línea separa registros, así que un tab, un salto de línea o una barra dentro
-    del valor se escapan y no pueden partir el marcador ni el registro."""
+    """One field of the notices log: a tab separates fields and a newline
+    separates records, so a tab, a newline or a backslash inside the value is
+    escaped and cannot split the marker or the record."""
     return value.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
 
 
 def _notice_key(tag: str, name: str, state: str) -> str:
-    """La clave de un aviso sobre un archivo: la escribe emit_missing_file_context
-    y la lee recovered_file_notice; una sola forma, un solo lugar."""
+    """The key of a notice about a file: emit_missing_file_context writes it
+    and recovered_file_notice reads it; one shape, one place."""
     return f"{tag}:{name}:{state}"
 
 
 def emit_additional_context(hook_event: str, body: str = "", prefix: tuple[str, ...] = ()) -> NoReturn:
-    """Imprime UN `additionalContext` — las líneas de `prefix` primero (p. ej. el
-    aviso RECOVERED), después `body` — y exit 0. Sin texto, exit 0 en silencio."""
+    """Prints ONE `additionalContext` — the `prefix` lines first (e.g. the
+    RECOVERED notice), then `body` — and exits 0. With no text, exits 0 silently."""
     text = "\n\n".join([*prefix, body]).strip()
     if text:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": hook_event, "additionalContext": text}}))
@@ -482,7 +485,7 @@ def emit_additional_context(hook_event: str, body: str = "", prefix: tuple[str, 
 
 
 def notice_seen(session_id: str, key: str) -> bool:
-    """True si `key` ya se registró en `session_id` (solo lectura, sin registrar)."""
+    """True when `key` was already recorded in `session_id` (read only, records nothing)."""
     if not session_id:
         return False
     marker = f"{_notice_field(session_id)}\t{_notice_field(key)}\t"
@@ -493,18 +496,19 @@ def notice_seen(session_id: str, key: str) -> bool:
 
 
 def notice_already_sent(session_id: str, key: str) -> bool:
-    """True si `key` ya se avisó en `session_id`; si no, lo registra y devuelve False.
+    """True when `key` was already notified in `session_id`; otherwise records it and returns False.
 
-    Un aviso de archivo ausente llega al contexto UNA vez por sesión: el modelo
-    lo conserva, y repetirlo en cada Edit (la guardia de decisiones corre en
-    todas) sería ruido sin información nueva. Sin session_id no se deduplica.
+    A missing-file notice reaches the context ONCE per session: the model keeps
+    it, and repeating it on every Edit (the decision guard runs on all of them)
+    would be noise with no new information. Without a session_id nothing is
+    deduplicated.
 
-    Lectura y registro bajo `flock`: los hooks PreToolUse de un mismo Edit
-    corren en paralelo, y sin el lock los dos podían leer "no avisado" y avisar
-    los dos. El archivo guarda solo la sesión actual — al registrar se
-    descartan las líneas de otras sesiones — así nunca pasa de un puñado de
-    líneas. Si no se puede leer o escribir (OSError) se avisa igual: mejor un
-    aviso repetido que una ceguera callada; el fallo queda en hooks.log.
+    Lookup and record happen under `flock`: the PreToolUse hooks of one Edit
+    run in parallel, and without the lock both could read "not notified" and
+    both notify. The file keeps only the current session — recording drops the
+    lines of other sessions — so it never grows past a handful of lines. When
+    it cannot be read or written (OSError) the notice is sent anyway: better a
+    repeated notice than a silent blindness; the failure stays in hooks.log.
     """
     if not session_id:
         return False
@@ -523,7 +527,7 @@ def notice_already_sent(session_id: str, key: str) -> bool:
             handle.truncate()
             handle.write("".join(f"{line}\n" for line in kept) + f"{marker}\t{datetime.now().isoformat()}\n")
     except OSError as e:
-        _append_log(f"notice_already_sent: {NOTICES_LOG} no disponible ({e}); aviso emitido sin deduplicar")
+        _append_log(f"notice_already_sent: {NOTICES_LOG} unavailable ({e}); notice sent without deduplication")
         return False
     return False
 
@@ -538,12 +542,12 @@ def emit_missing_file_context(
     state: str = "MISSING",
     session_id: str = "",
 ) -> NoReturn:
-    """Emite UNA línea de `additionalContext` sobre un archivo ausente y exit 0.
+    """Emits ONE `additionalContext` line about a missing file and exits 0.
 
-    Existe porque un archivo de entrada faltante se registraba solo en
-    hooks.log: el hook seguía "funcionando" sin datos y nadie lo veía. Así la
-    ceguera llega al contexto del modelo, que es quien puede reportarla. Con
-    `session_id`, la segunda vez en la misma sesión sale en silencio.
+    A missing input file recorded only in hooks.log leaves the hook "working"
+    without data where nobody sees it; this sends the blindness to the model's
+    context, which is who can report it. With `session_id`, the second time in
+    the same session exits silently.
     """
     if notice_already_sent(session_id, _notice_key(tag, name, state)):
         sys.exit(0)
@@ -551,12 +555,14 @@ def emit_missing_file_context(
 
 
 def recovered_file_notice(tag: str, name: str, path: Path, session_id: str = "") -> str | None:
-    """`[tag] name RECOVERED at path` si ESTA sesión ya avisó MISSING o UNREADABLE
-    de ese archivo y aún no avisó la recuperación; si no, None.
+    """`[tag] name RECOVERED at path` when THIS session already reported that
+    file as MISSING or UNREADABLE and has not reported the recovery yet;
+    otherwise None.
 
-    El hook la antepone a lo que emita: el modelo que leyó "blind until …"
-    se entera de que ya no lo está, en vez de cargar una ceguera vencida el
-    resto de la sesión. Se registra como cualquier aviso: una vez por sesión.
+    The hook puts it before whatever it emits: the model that read "blind
+    until …" learns it no longer is, instead of carrying an expired blindness
+    for the rest of the session. It is recorded like any notice: once per
+    session.
     """
     failed = any(notice_seen(session_id, _notice_key(tag, name, state)) for state in ("MISSING", "UNREADABLE"))
     if not failed or notice_already_sent(session_id, _notice_key(tag, name, "RECOVERED")):

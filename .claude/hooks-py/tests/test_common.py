@@ -1,13 +1,13 @@
-"""Tests de `_common`: lo que los hooks comparten.
+"""Tests of `_common`: what the hooks share.
 
-stdlib solamente (`python3 -m unittest discover -s .claude/hooks-py/tests
--t .claude/hooks-py`): los hooks no tienen runner propio. Contratos cubiertos:
-qué branch lee un gate (`current_branch`) y el repo de cada `git commit`
-(`commit_repos`, `git_invocations`); dónde vive la memoria y desde qué raíz
-se deriva (`memory_dir`, las rutas de los índices); la forma única de la línea
-de hooks.log; el aviso de archivo ausente, su deduplicación por sesión y el
-aviso de recuperación; qué hook es ejecutable y está cableado; y qué ve
-stop.py desde un subdirectorio.
+stdlib only (`python3 -m unittest discover -s .claude/hooks-py/tests
+-t .claude/hooks-py`): the hooks have no runner of their own. Contracts
+covered: which branch a gate reads (`current_branch`) and the repository of
+each `git commit` (`commit_repos`, `git_invocations`); where the memory lives
+and which root it derives from (`memory_dir`, the index paths); the single
+shape of a hooks.log line; the missing-file notice, its per-session
+deduplication and the recovery notice; which hook is executable and wired;
+and what stop.py sees from a subdirectory.
 """
 
 import contextlib
@@ -46,15 +46,15 @@ def _git(cwd: Path, *args: str) -> None:
 
 
 def _init(repo: Path, branch: str) -> None:
-    # `git init -b` pide git 2.28; `symbolic-ref` sobre el HEAD aún sin commits
-    # deja la misma rama en cualquier git.
+    # `git init -b` needs git 2.28; `symbolic-ref` on a HEAD with no commits yet
+    # leaves the same branch with any git.
     _git(repo, "init", "-q")
     _git(repo, "symbolic-ref", "HEAD", f"refs/heads/{branch}")
 
 
 def _commit(repo: Path) -> None:
-    # Un commit vacío con identidad fija: `git worktree add` y `checkout --detach`
-    # necesitan al menos uno, y la identidad no debe depender del config global.
+    # An empty commit with a fixed identity: `git worktree add` and `checkout --detach`
+    # need at least one, and the identity must not depend on the global config.
     _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "x")
 
 
@@ -93,8 +93,8 @@ class CommitReposTests(unittest.TestCase):
         self.assertEqual(commit_repos("echo hi && cd /wt && git commit", FALLBACK), [FALLBACK])
 
     def test_dash_c_of_another_invocation_does_not_move_the_commit(self):
-        # Un `git -C /otro status` antes de un `git commit` sin -C commitea en el
-        # cwd de la sesión; leer /otro era un fail-open.
+        # A `git -C /other status` before a `git commit` without -C commits in the
+        # session cwd; reading /other would fail open.
         self.assertEqual(commit_repos("git -C /other status && git commit -m x", FALLBACK), [FALLBACK])
 
     def test_each_commit_has_its_own_repo(self):
@@ -147,7 +147,7 @@ class GitSubcommandsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(_common, "LOG_PATH", Path(tmp) / "hooks.log"):
             self.assertEqual(git_subcommands("git commit -m 'unclosed"), {"commit"})
             self.assertEqual(git_subcommands("echo 'unclosed"), set())
-            self.assertEqual((Path(tmp) / "hooks.log").read_text(encoding="utf-8").count("respaldo solo-commit"), 2)
+            self.assertEqual((Path(tmp) / "hooks.log").read_text(encoding="utf-8").count("commit-only fallback"), 2)
 
 
 class MemoryDirTests(unittest.TestCase):
@@ -160,10 +160,10 @@ class MemoryDirTests(unittest.TestCase):
         _common._MEMORY_DIR_WARNED = False
 
     def test_linked_worktree_derives_from_the_main_repository(self):
-        # Lo que Claude Code hace: un solo directorio de memoria por repositorio,
-        # compartido por sus worktrees; el nombre sale del principal, no del enlazado.
-        # Limpieza en orden inverso de registro: primero el worktree enlazado,
-        # después el directorio temporal; así corre aunque la aserción falle.
+        # What Claude Code does: one memory directory per repository, shared by
+        # its worktrees; the name comes from the main one, not the linked one.
+        # Cleanup runs in reverse registration order: first the linked worktree,
+        # then the scratch directory; that way it runs even if the assertion fails.
         tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         main_root = tmp / "main"
@@ -176,15 +176,15 @@ class MemoryDirTests(unittest.TestCase):
         with mock.patch.object(_common, "PROJECT_ROOT", linked.resolve()):
             expected = Path.home() / ".claude" / "projects" / str(main_root.resolve()).replace("/", "-") / "memory"
             self.assertEqual(memory_dir(), expected)
-            # La resolución exitosa queda memorizada: la segunda llamada no vuelve a git.
+            # A successful resolution is memoized: the second call does not run git again.
             self.assertEqual(_common._MEMORY_DIR_CACHE, expected)
             with mock.patch.object(_common.subprocess, "run", side_effect=AssertionError("git must not run again")):
                 self.assertEqual(memory_dir(), expected)
 
     def test_falls_back_to_project_root_without_git_and_does_not_cache_it(self):
-        # Las tres fallas que el resolvedor atrapa: sin git, git fuera de un
-        # repo (exit 128) y git colgado; cada una cae al respaldo, no lo
-        # memoriza y lo anota UNA vez.
+        # The three failures the resolver catches: no git, git outside a
+        # repository (exit 128) and a hung git; each one falls back, does not
+        # memoize the fallback and logs it ONCE.
         failures = [
             OSError("no git"),
             subprocess.CalledProcessError(128, ["git", "rev-parse"]),
@@ -206,8 +206,8 @@ class MemoryDirTests(unittest.TestCase):
                     self.assertEqual((Path(tmp) / "hooks.log").read_text().count(_common.MEMORY_DIR_FALLBACK_NOTE), 1)
 
     def test_fallback_resolves_a_symlinked_project_root(self):
-        # Sin git, el nombre sale de la ruta REAL: un PROJECT_ROOT alcanzado por
-        # symlink no inventa un segundo directorio de memoria.
+        # Without git, the name comes from the REAL path: a PROJECT_ROOT reached
+        # through a symlink does not invent a second memory directory.
         tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         real = tmp / "real"
@@ -268,7 +268,7 @@ class CurrentBranchTests(unittest.TestCase):
             self.assertEqual(current_branch(repo), "workstream/fresh")
 
     def test_detached_head_is_no_branch(self):
-        # Un HEAD suelto no es `workstream/*`: el gate de commits debe bloquear.
+        # A detached HEAD is not `workstream/*`: the commit gate must block.
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             _init(repo, "workstream/x")
@@ -285,14 +285,14 @@ HOOKS_DIR = PROJECT_ROOT / ".claude" / "hooks-py"
 
 
 class HookScriptsTests(unittest.TestCase):
-    """settings.json invoca cada hook por su ruta, sin `python3` delante: el
-    shebang y el bit de ejecución SON el contrato. Una copia que pierde el bit
-    deja al hook sin dispararse, con exit EACCES que nadie lee.
+    """settings.json invokes each hook by its path, with no `python3` in front:
+    the shebang and the executable bit ARE the contract. A copy that loses the
+    bit leaves the hook unfired, with an EACCES exit nobody reads.
 
-    Dos contratos, dos tests: el bit y el shebang se afirman sobre el
-    directorio (sobreviven a cualquier reorganización de settings.json); el
-    cableado se afirma aparte, y falla cuando settings.json cambia de forma,
-    que es un hecho que este contrato tiene que ver, no una razón para callar.
+    Two contracts, two tests: the bit and the shebang are asserted on the
+    directory (they survive any reorganization of settings.json); the wiring
+    is asserted separately, and fails when settings.json changes shape, which
+    is a fact this contract has to see, not a reason to stay silent.
     """
 
     def _hook_scripts(self) -> list[Path]:
@@ -309,7 +309,7 @@ class HookScriptsTests(unittest.TestCase):
                 for hook in matcher["hooks"]
             ]
         except (OSError, ValueError, KeyError, TypeError) as exc:
-            self.fail(f"{settings_path} no tiene la forma esperada (hooks -> matchers -> hooks[].command): {exc!r}")
+            self.fail(f"{settings_path} does not have the expected shape (hooks -> matchers -> hooks[].command): {exc!r}")
 
     def test_every_hook_script_is_executable_and_starts_with_a_shebang(self):
         scripts = self._hook_scripts()
@@ -320,16 +320,16 @@ class HookScriptsTests(unittest.TestCase):
                 self.assertTrue(script.read_text().startswith("#!/usr/bin/env python3"))
 
     def test_settings_wires_exactly_the_scripts_in_the_hooks_dir_by_path(self):
-        # Un script sin cablear es código muerto; un comando sin archivo es un
-        # hook que nunca dispara. Las dos listas tienen que ser la misma.
+        # An unwired script is dead code; a command without a file is a hook
+        # that never fires. The two lists have to be the same.
         wired = {PROJECT_ROOT / c.replace("$CLAUDE_PROJECT_DIR/", "") for c in self._wired_commands()}
         self.assertEqual(wired, set(self._hook_scripts()))
 
 
 class StopAuditsTests(unittest.TestCase):
-    """Las auditorías de stop.py listan y abren archivos relativos a PROJECT_ROOT,
-    sea cual sea el cwd del proceso. Antes `ls-files` corría en el cwd: desde un
-    subdirectorio ningún path empezaba con `apps/` y ambas pasaban sin mirar."""
+    """The stop.py audits list and open files relative to PROJECT_ROOT, whatever
+    the process cwd. With `ls-files` run in the cwd, from a subdirectory no path
+    starts with `apps/` and both audits pass without looking."""
 
     def test_untracked_source_without_header_or_test_is_reported_from_a_subdirectory_cwd(self):
         import stop
@@ -352,9 +352,9 @@ class StopAuditsTests(unittest.TestCase):
 
 
 class DetachedHeadDownstreamTests(unittest.TestCase):
-    """`current_branch` devuelve '' en HEAD suelto (antes: 'HEAD'). Para los dos
-    consumidores da lo mismo que cualquier otro nombre que no sea workstream/*:
-    el gate de commits bloquea y el guard de plan-mode no aplica."""
+    """`current_branch` returns '' on a detached HEAD. For both consumers that
+    behaves like any other name that is not workstream/*: the commit gate
+    blocks and the plan-mode guard does not apply."""
 
     def test_commit_gate_blocks_on_detached_head(self):
         import pre_bash
@@ -424,14 +424,14 @@ class MissingFileContextTests(unittest.TestCase):
         self.assertFalse(notice_already_sent("", "k"))
 
     def test_a_tab_inside_an_identifier_cannot_split_the_marker(self):
-        # Sin escape, ("s\t1", "k") y ("s", "1\tk") escribirían el MISMO marcador.
+        # Without escaping, ("s\t1", "k") and ("s", "1\tk") would write the SAME marker.
         self.assertFalse(notice_already_sent("s\t1", "k"))
         self.assertTrue(notice_already_sent("s\t1", "k"))
         self.assertTrue(notice_seen("s\t1", "k"))
         self.assertFalse(notice_seen("s", "1\tk"))
         self.assertFalse(notice_already_sent("s", "1\tk"))
         self.assertTrue(notice_already_sent("s", "1\tk"))
-        # Un salto de línea partiría el REGISTRO: también se escapa.
+        # A newline would split the RECORD: it is escaped too.
         self.assertFalse(notice_already_sent("s\n1", "k"))
         self.assertTrue(notice_already_sent("s\n1", "k"))
         self.assertEqual(len(_common.NOTICES_LOG.read_text(encoding="utf-8").splitlines()), 1)
@@ -457,14 +457,14 @@ class MissingFileContextTests(unittest.TestCase):
         self.assertEqual(flock.call_args.args[1], _common.fcntl.LOCK_EX)
 
     def test_unwritable_log_still_sends_every_notice_and_leaves_a_trace(self):
-        # El padre del log es un ARCHIVO: mkdir y open fallan con OSError.
+        # The log's parent is a FILE: mkdir and open fail with OSError.
         blocker = Path(self._tmp.name) / "blocker"
         blocker.write_text("")
         with mock.patch.object(_common, "NOTICES_LOG", blocker / "notices.log"), \
                 mock.patch.object(_common, "LOG_PATH", Path(self._tmp.name) / "hooks.log"):
             self.assertTrue(self._emit("s1"))
             self.assertTrue(self._emit("s1"))
-            self.assertIn("sin deduplicar", (Path(self._tmp.name) / "hooks.log").read_text(encoding="utf-8"))
+            self.assertIn("without deduplication", (Path(self._tmp.name) / "hooks.log").read_text(encoding="utf-8"))
 
 
 class AppliesToPatternLivenessTests(unittest.TestCase):
