@@ -43,6 +43,8 @@ const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)))
 
 const GATE_SCRIPT = path.join(REPO_ROOT, "scripts", "testing", "override-bands-gate.mjs");
 
+const BLOCK_READER = path.join(REPO_ROOT, "scripts", "testing", "workspace-block-reader.mjs");
+
 /**
  * The keys the gate's own allowlist names, written here exactly as the real manifest writes them.
  * Every fixture renders all three unless it deliberately drops one: an allowlist entry that matches
@@ -62,9 +64,9 @@ interface Fixture {
   readonly omitAllowlisted?: readonly string[];
   /**
    * Renders a COLUMN-0 comment between the allowlisted entries and the fixture's own. YAML allows an
-   * unindented comment inside a mapping, and the real manifest uses exactly that to separate override
-   * groups — so a reader that treats column 0 as the end of the block drops every entry after it,
-   * which is where new overrides are appended.
+   * unindented comment inside a mapping — yaml 2.9.0 and js-yaml 4.3.2 both parse the entries after
+   * it into the same mapping — so a reader that treats column 0 as the end of the block drops every
+   * entry after it, which is where new overrides are appended.
    */
   readonly separatorComment?: boolean;
   /** Replaces the whole file, for the cases whose subject is the file's own structure. */
@@ -94,7 +96,10 @@ afterEach(() => {
  * A fixture manifest whose other blocks each carry a DECOY entry shaped like a range-scoped
  * override. `catalog:` holds a target that satisfies its own band and `patchedDependencies:` holds a
  * value that is not a version at all, so either one being read would turn a clean fixture red. Block
- * scoping is therefore proven by the happy path rather than asserted in prose.
+ * scoping is therefore proven by the happy path rather than asserted in prose. The key below the
+ * block is introduced by a column-0 comment, the way the real manifest introduces most of its
+ * top-level keys, so the happy path also proves that the block ends at that KEY: a reader that
+ * skipped every column-0 line, the key included, would read the decoy.
  */
 const renderWorkspace = (fixture: Fixture): string => {
   const omitted = new Set(fixture.omitAllowlisted ?? []);
@@ -116,6 +121,7 @@ const renderWorkspace = (fixture: Fixture): string => {
       : []),
     ...render(fixture.overrides ?? []),
     "",
+    "# a column-0 comment introducing the next top-level key",
     "patchedDependencies:",
     '  "decoy-patched@<1.0.0": patches/decoy-patched.patch',
     "",
@@ -146,7 +152,8 @@ const runGate = (fixture: Fixture): GateResult => {
  * Runs a COPY of the gate placed at `<scratch>/scripts/testing/`, with no `--workspace` flag and the
  * scratch directory — which is no git repository — as its working directory. The only manifest the
  * copy can measure is then the one written beside its `scripts/` directory, so a lookup that leaned
- * on git or on the working directory fails here instead of quietly reading another tree.
+ * on git or on the working directory fails here instead of quietly reading another tree. The block
+ * reader the gate imports is copied beside it, exactly as it sits in the repository.
  */
 const runCopiedGate = (manifest: string): GateResult => {
   const dir = mkdtempSync(path.join(tmpdir(), "override-bands-gate-copy-"));
@@ -156,6 +163,7 @@ const runCopiedGate = (manifest: string): GateResult => {
   mkdirSync(scriptDir, { recursive: true });
   const script = path.join(scriptDir, "override-bands-gate.mjs");
   copyFileSync(GATE_SCRIPT, script);
+  copyFileSync(BLOCK_READER, path.join(scriptDir, "workspace-block-reader.mjs"));
   writeFileSync(path.join(dir, "pnpm-workspace.yaml"), manifest);
 
   const result = spawnSync(process.execPath, [script], { cwd: dir, encoding: "utf8" });
@@ -218,9 +226,9 @@ describe("override bands gate", () => {
   });
 
   describe("a column-0 comment inside the block", () => {
-    // YAML allows an unindented comment inside a mapping, and the real manifest uses one to separate
-    // override groups. A reader that ends the block at column 0 drops every entry after it — and new
-    // overrides are appended at the END, so the entry most likely to be wrong is the one dropped.
+    // YAML allows an unindented comment inside a mapping. A reader that ends the block at column 0
+    // drops every entry after it — and new overrides are appended at the END, so the entry most
+    // likely to be wrong is the one dropped.
     it("still reads the entries that follow it, so a violation after it is not silently skipped", () => {
       const result = runGate({
         separatorComment: true,

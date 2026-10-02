@@ -37,9 +37,10 @@
  *
  *   NO SEMVER DEPENDENCY, deliberately. Neither `semver` nor `yaml` resolves from this repository's
  *   root, and a gate that runs in the dependency-consistency job must not need the tree it measures.
- *   The manifest is read as TEXT, the way `engines-node-gate.mjs` already reads the catalog pin — the
- *   `overrides:` block is one flat `key: value` line each, the key and the value double-quoted,
- *   single-quoted or plain — and the comparator is an explicit three-number one over the comparators
+ *   The manifest is read as TEXT, through the block reader `engines-node-gate.mjs` uses for the
+ *   catalog pin (`workspace-block-reader.mjs`) — the `overrides:` block is one flat `key: value`
+ *   line each, the key and the value double-quoted, single-quoted or plain — and the comparator is
+ *   an explicit three-number one over the comparators
  *   `<`, `<=`, `>`, `>=` and `=` and a bare major or major.minor X-range. A shape it does not
  *   recognise, a flow-style `{ … }` mapping included, is REFUSED rather than assumed benign, so the
  *   narrow comparator cannot quietly pass something it never understood.
@@ -65,8 +66,9 @@
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { readTopLevelBlock } from "./workspace-block-reader.mjs";
 
-const OVERRIDES_KEY = "overrides:";
+const OVERRIDES_KEY = "overrides";
 /**
  * One flat entry line of the block: a double-quoted, single-quoted or plain key, then a value quoted
  * the same three ways. Single quotes are read because pnpm writes them in its own lockfile mirror of
@@ -147,8 +149,9 @@ function parseOptions(argv) {
  */
 
 /**
- * The entries of the TOP-LEVEL `overrides:` block, read as text. The block ends at the next
- * top-level key; a blank line or a comment inside it is not the end of it.
+ * The entries of the TOP-LEVEL `overrides:` block, read as text through the reader this gate shares
+ * with `engines-node-gate.mjs`. The block ends at the next top-level key; a blank line or a comment
+ * inside it, at any indentation, is not the end of it.
  *
  * @param {string} file
  * @returns {Block | { error: string }}
@@ -166,24 +169,11 @@ function readOverrides(file) {
     };
   }
 
-  /** @type {string[]} */
-  const block = [];
-  let inside = false;
-  let seen = false;
-  for (const line of text.split("\n")) {
-    // The block ends at the next top-level KEY, and a column-0 COMMENT is not one: YAML allows an
-    // unindented comment inside a mapping, and this manifest uses exactly that to separate override
-    // groups. Ending on any column-0 byte would drop every entry after the first such comment — and
-    // new overrides are appended at the END, so the entry most likely to be wrong is the one lost.
-    if (/^[^\s#]/.test(line)) {
-      if (inside) break;
-      inside = line.startsWith(OVERRIDES_KEY);
-      seen = seen || inside;
-      continue;
-    }
-    if (inside) block.push(line);
-  }
-  if (!seen) {
+  // New overrides are appended at the END of the block, so an entry a reader drops is most likely
+  // the newest, the one most likely to be wrong. The shared reader is what keeps a column-0 comment
+  // from ending the block early.
+  const block = readTopLevelBlock(text, OVERRIDES_KEY);
+  if (block === null) {
     return {
       error:
         `${file} declares no top-level \`overrides:\` block, so no band was measured. Refusing ` +
@@ -198,7 +188,6 @@ function readOverrides(file) {
   const unreadable = [];
   for (const line of block) {
     const trimmed = line.trim();
-    if (trimmed.length === 0 || trimmed.startsWith("#")) continue;
     const hit = ENTRY.exec(line);
     const key = hit === null ? undefined : (hit[1] ?? hit[2] ?? hit[3]);
     const value = hit === null ? undefined : (hit[4] ?? hit[5] ?? hit[6]);

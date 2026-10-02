@@ -46,6 +46,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { readTopLevelBlock } from "./workspace-block-reader.mjs";
 
 const MANIFEST_FLOOR = 90;
 const CATALOG_PACKAGE = "@types/node";
@@ -280,18 +281,9 @@ function readCatalogPin(file) {
   // Scoped to the TOP-LEVEL `catalog:` block, never to the whole file. The same package name can
   // appear in `overrides:` (a bound on what someone else's open range resolves to, which may
   // legitimately be another major) and in a named `catalogs:` block; a first-hit-anywhere scan would
-  // compare the runtime against whichever of those happens to be written higher up.
-  /** @type {string[]} */
-  const block = [];
-  let inside = false;
-  for (const line of text.split("\n")) {
-    if (/^\S/.test(line)) {
-      if (inside) break;
-      inside = line.startsWith("catalog:");
-      continue;
-    }
-    if (inside) block.push(line);
-  }
+  // compare the runtime against whichever of those happens to be written higher up. A missing block
+  // reads as an empty one here, because both leave the pin undeclared and the refusal below names it.
+  const block = readTopLevelBlock(text, "catalog") ?? [];
   const hit = new RegExp(`^\\s*"?${CATALOG_PACKAGE}"?:\\s*([^\\s#]+)`, "m").exec(block.join("\n"));
   if (hit === null || hit[1] === undefined) {
     return {

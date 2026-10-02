@@ -62,6 +62,19 @@ interface Fixture {
    * with a different meaning, and it may legitimately name another major.
    */
   readonly overridesTypesNode?: string;
+  /**
+   * Renders a COLUMN-0 comment inside the catalog, between its first entry and the `@types/node`
+   * pin. YAML allows an unindented comment inside a mapping — yaml 2.9.0 and js-yaml 4.3.2 both
+   * parse the entries after it into the same mapping — so a reader that ends the block at the first
+   * column-0 line never reaches the pin.
+   */
+  readonly separatorComment?: boolean;
+  /**
+   * An `@types/node` entry in a named `catalogs:` block rendered AFTER the catalog and introduced by
+   * a column-0 comment, the way the real manifest introduces most of its top-level keys. The pin is
+   * read from `catalog:` alone, so a reader that runs past the next top-level key would bind here.
+   */
+  readonly namedCatalogTypesNode?: string;
   /** Passed as `--floor`; omitted so the DEFAULT floor applies when this is `null`. */
   readonly floor?: number | null;
   /** Adds `--write` to the invocation. */
@@ -137,8 +150,19 @@ const runGate = (fixture: Fixture): GateResult => {
         : ["overrides:", `  "@types/node": ${fixture.overridesTypesNode}`]),
       "catalog:",
       '  "@types/react": 19.2.14',
+      ...(fixture.separatorComment === true
+        ? ["# a column-0 comment, which YAML allows inside a mapping"]
+        : []),
       ...(pin === null ? [] : [`  "@types/node": ${pin ?? "24.13.6"} # runtime major`]),
       '  "vitest": 4.1.11',
+      ...(fixture.namedCatalogTypesNode === undefined
+        ? []
+        : [
+            "# a column-0 comment introducing the next top-level key",
+            "catalogs:",
+            "  otel:",
+            `    "@types/node": ${fixture.namedCatalogTypesNode}`,
+          ]),
       "",
     ].join("\n")
   );
@@ -423,6 +447,57 @@ describe("workspace engines.node gate", () => {
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("@types/node");
       expect(result.stderr).toContain("catalog");
+    });
+  });
+
+  describe("a column-0 comment inside the catalog block", () => {
+    // A column-0 comment does not end a YAML mapping. A reader that treats it as the end of the
+    // block stops short of every entry written after it, so the pin below is never compared.
+    it("still reads the pin that follows it, so the comparison is made rather than refused", () => {
+      const result = runGate({
+        separatorComment: true,
+        manifests: {
+          "package.json": ROOT_COMPLIANT,
+          "apps/api/package.json": compliant("@apps/api"),
+        },
+      });
+
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("@types/node 24.13.6");
+    });
+
+    it("still refuses a pin on the wrong major that follows it, naming the value read", () => {
+      const result = runGate({
+        separatorComment: true,
+        catalogTypesNode: "25.9.3",
+        manifests: {
+          "package.json": ROOT_COMPLIANT,
+          "apps/api/package.json": compliant("@apps/api"),
+        },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("catalog pin is 25.9.3");
+      expect(result.stderr).toContain("runtime major 24");
+    });
+
+    it("ends the block at the next top-level key, never reading a pin from the block below it", () => {
+      const result = runGate({
+        catalogTypesNode: null,
+        namedCatalogTypesNode: "24.13.6",
+        manifests: {
+          "package.json": ROOT_COMPLIANT,
+          "apps/api/package.json": compliant("@apps/api"),
+        },
+      });
+
+      // The decoy below is on the runtime major, so a reader that ran past `catalogs:` would turn
+      // this refusal into a clean pass rather than into a different error.
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "declares no @types/node pin in its top-level `catalog:` block"
+      );
     });
   });
 
