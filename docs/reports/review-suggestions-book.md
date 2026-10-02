@@ -53,6 +53,9 @@
 | SB-032 | `mental-map-hooks` sweep 5/5 (`workstream/hooks-sweep-leftovers`, 7c82bfb8)           | R2-synth-naming-mismatch                                         | `.claude/scripts/canon-staleness-report.py` `--synth-days`, `synth_age`, `stale_synth`                                                      | naming                       | deferred: finish the rename to `date` in the locals and the comment; decide the flag separately                                                                 |
 | SB-033 | same                                                                                  | R2-list-operations-column-fragility                              | `.claude/hooks-py/tests/test_omnipost_allow.py`                                                                                             | comment                      | deferred: name the separator the alignment test searches for, or share one constant with the CLI                                                                |
 | SB-034 | `mental-map-hooks` 3b-2 (`workstream/hooks-battery-state`, 485003da)                  | R3-rmSync-no-recursive                                           | `scripts/testing/battery-state.mjs` (the staging-file cleanup, `rmSync(staging, { force: true })`)                                          | comment                      | deferred: say in a comment that the cleanup is deliberately non-recursive, so a stray directory at the staging path is reported instead of torn down            |
+| SB-035 | `testing-refoundation` 0.18 (`workstream/refound-0-18`, f99f2fc3)                     | R2-override-bands-gate-comment-density                           | `scripts/testing/override-bands-gate.mjs` (the file header)                                                                                 | prose structure              | deferred: keep the gate's rationale in one place — the header or the workflow step's comment — and have the other point at it                                   |
+| SB-036 | same                                                                                  | R2-security-canon-brace-expansion-row                            | `docs/security/SECURITY_CANON.md` (the `brace-expansion` CVE-floor row)                                                                     | prose structure              | deferred: move the dated advisory history out of the table cell, leaving floor, bands, chain and remove-when in the row                                         |
+| SB-037 | same                                                                                  | R2-fasturi-row-scannability                                      | `docs/security/SECURITY_CANON.md` (the `fast-uri` CVE-floor row)                                                                            | prose structure              | deferred: the same split as SB-036, done for both rows together                                                                                                 |
 
 ## Entries — code and prose
 
@@ -287,6 +290,30 @@
 - **Suggestion:** one vocabulary in the function: finish the rename to `date`, or go back to `synthesizedAt` everywhere.
 - **Why deferred:** every surface a user reads already names the field the code compares, pinned by a test. Renaming the locals changes nothing observable; renaming the flag changes the command line, which is not a wording matter.
 - **To implement:** rename the two locals and the comment; decide the flag separately, keeping the old spelling accepted if it is renamed.
+
+### SB-035 — the override-bands gate explains itself twice
+
+- **Source:** a rebase-round review of the stack at slice 0.10 (lineage `review-cd752169e41b423c`), readability lens, finding `R2-override-bands-gate-comment-density`; its text was lost with its receipt, so the entry records what the file shows.
+- **Location:** `scripts/testing/override-bands-gate.mjs`, the header (64 lines), and the comment on the `Override bands` step of `.github/workflows/fitness.yml`.
+- **Suggestion:** the WHY, ALLOWLIST and FAIL-CLOSED paragraphs appear in both places; keep them in one and point the other at it.
+- **Why deferred:** prose only; which copy stays authoritative is an editorial choice, and the workflow side is a sensitive path.
+- **To implement:** shorten the step comment to the reason the step lives in that job plus a pointer to the header, or the reverse.
+
+### SB-036 — the `brace-expansion` floor row carries its whole history
+
+- **Source:** the same review (lineage `review-cd752169e41b423c`), readability lens, finding `R2-security-canon-brace-expansion-row`; text lost with its receipt.
+- **Location:** `docs/security/SECURITY_CANON.md`, the `brace-expansion` row of §"CVE-floor pins".
+- **Suggestion:** a reader looking for the current floor reads five dated raises first.
+- **Why deferred:** every statement in the row was re-checked on 2026-10-02 against `pnpm-workspace.yaml`, the parsed lockfile and the registry, and none is false; what remains is length and order.
+- **To implement:** keep floor, bands, chain and remove-when in the row; move the dated advisory history to a per-floor note under the table.
+
+### SB-037 — the `fast-uri` floor row is hard to scan
+
+- **Source:** a rebase-round review of the stack at slice P.4 (lineage `review-87fb61a48b367a85`), readability lens, finding `R2-fasturi-row-scannability`; text lost with its receipt.
+- **Location:** `docs/security/SECURITY_CANON.md`, the `fast-uri` row of §"CVE-floor pins".
+- **Suggestion:** as SB-036.
+- **Why deferred:** as SB-036; the row's bands, consumers with their declared ranges, publish dates and `latest` were re-measured on 2026-10-02 and all hold.
+- **To implement:** the same split as SB-036, done for both rows together.
 
 ## Entries — tests
 

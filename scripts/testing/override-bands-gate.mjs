@@ -31,15 +31,18 @@
  *   has no band to disagree with its target, and `patchedDependencies:` is a different mechanism with
  *   no version selector at all. The block is located by its top-level `overrides:` key, never by a
  *   first-hit-anywhere scan, because the same package name legitimately appears in `catalog:` and in
- *   a named `catalogs:` block.
+ *   a named `catalogs:` block. The manifest measured is the one beside the `scripts/` directory this
+ *   file lives in, located from the script's own URL: no git, and nothing read from the working
+ *   directory, so a run from inside another checkout cannot measure that checkout's manifest instead.
  *
  *   NO SEMVER DEPENDENCY, deliberately. Neither `semver` nor `yaml` resolves from this repository's
  *   root, and a gate that runs in the dependency-consistency job must not need the tree it measures.
  *   The manifest is read as TEXT, the way `engines-node-gate.mjs` already reads the catalog pin — the
- *   `overrides:` block is one flat `"key": value` line each — and the comparator is an explicit
- *   three-number one over exactly the shapes the file contains (`<X`, `<=X`, `>=A <X`, and a bare
- *   major or minor X-range). A shape it does not recognise is REFUSED rather than assumed benign, so
- *   the narrow comparator cannot quietly pass something it never understood.
+ *   `overrides:` block is one flat `key: value` line each, the key and the value double-quoted,
+ *   single-quoted or plain — and the comparator is an explicit three-number one over the comparators
+ *   `<`, `<=`, `>`, `>=` and `=` and a bare major or major.minor X-range. A shape it does not
+ *   recognise, a flow-style `{ … }` mapping included, is REFUSED rather than assumed benign, so the
+ *   narrow comparator cannot quietly pass something it never understood.
  *
  *   FAIL-CLOSED in every direction a silent pass could hide an inert band: an unreadable manifest, a
  *   manifest with no top-level `overrides:` block, a line inside the block the parser cannot read,
@@ -56,20 +59,27 @@
  *   to be cross-derived from OSV plus the upstream changelog. This gate holds the SHAPE; the number
  *   is still a human measurement.
  *
- *   Usage: `node scripts/testing/override-bands-gate.mjs`
+ *   Usage: `node scripts/testing/override-bands-gate.mjs [--workspace <path>]` — `--workspace`
+ *   replaces the manifest beside the script, which is how the suite drives the rule from fixtures.
  * @layer infrastructure
  */
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const OVERRIDES_KEY = "overrides:";
-/** One flat entry line of the block: an optionally quoted key, then an optionally quoted value. */
-const ENTRY = /^\s+(?:"([^"]+)"|([^"#\s][^:]*?))\s*:\s*(?:"([^"]*)"|([^\s#]+))\s*(?:#.*)?$/;
-/** A comparator token, or a bare major / major.minor X-range. Anything else is refused. */
-const TOKEN = /^(<=|>=|<|>|=)?(\d+(?:\.\d+){0,2})$/;
-/** An override target: an exact three-number version, never a range and never a prerelease. */
-const TARGET = /^\d+\.\d+\.\d+$/;
+/**
+ * One flat entry line of the block: a double-quoted, single-quoted or plain key, then a value quoted
+ * the same three ways. Single quotes are read because pnpm writes them in its own lockfile mirror of
+ * this block, so a key copied from there is judged rather than refused as unreadable.
+ */
+const ENTRY =
+  /^\s+(?:"([^"]+)"|'([^']+)'|([^"'#\s][^:]*?))\s*:\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))\s*(?:#.*)?$/;
+/** A comparator, then a version of one to three numbers, each number captured. Anything else is refused. */
+const TOKEN = /^(<=|>=|<|>|=)?(\d+)(?:\.(\d+))?(?:\.(\d+))?$/;
+/** An override target: an exact three-number version, each number captured; never a range or a prerelease. */
+const TARGET = /^(\d+)\.(\d+)\.(\d+)$/;
+/** The manifest beside the `scripts/` directory this file lives in. */
+const MANIFEST = fileURLToPath(new URL("../../pnpm-workspace.yaml", import.meta.url));
 
 /**
  * The bands whose shape is deliberate, each with the measured reason it cannot take the canonical
@@ -98,24 +108,6 @@ const ALLOWED = new Map([
   ],
 ]);
 
-/** @type {string | null} */
-let repoRootCache = null;
-
-/**
- * The repository root, resolved LAZILY. With `--workspace` injected the gate needs neither git nor a
- * repository at all, which is what lets its own suite drive the rule from fixtures.
- *
- * @returns {string}
- */
-function repoRoot() {
-  if (repoRootCache === null) {
-    repoRootCache = execFileSync("git", ["rev-parse", "--show-toplevel"], {
-      encoding: "utf8",
-    }).trim();
-  }
-  return repoRootCache;
-}
-
 /**
  * @typedef {object} Options
  * @property {string | null} workspace
@@ -141,15 +133,17 @@ function parseOptions(argv) {
 
 /**
  * @typedef {object} Entry
- * @property {string} key The override key verbatim, so a violation can be found by searching for it.
- * @property {string} value The override value verbatim.
+ * @property {string} key The override key without its quotes, so a violation can be found by
+ *   searching for it.
+ * @property {string} value The override value without its quotes.
  */
 
 /**
  * @typedef {object} Block
  * @property {Entry[]} entries
- * @property {string[]} unreadable Lines inside the block the parser could not read, verbatim. A line
- *   it cannot read could be the defect, so each one is reported rather than skipped.
+ * @property {string[]} unreadable Lines inside the block the parser could not read, trimmed of their
+ *   surrounding whitespace. A line it cannot read could be the defect, so each one is reported rather
+ *   than skipped.
  */
 
 /**
@@ -206,8 +200,8 @@ function readOverrides(file) {
     const trimmed = line.trim();
     if (trimmed.length === 0 || trimmed.startsWith("#")) continue;
     const hit = ENTRY.exec(line);
-    const key = hit === null ? undefined : (hit[1] ?? hit[2]);
-    const value = hit === null ? undefined : (hit[3] ?? hit[4]);
+    const key = hit === null ? undefined : (hit[1] ?? hit[2] ?? hit[3]);
+    const value = hit === null ? undefined : (hit[4] ?? hit[5] ?? hit[6]);
     if (key === undefined || value === undefined) {
       unreadable.push(trimmed);
       continue;
@@ -217,65 +211,42 @@ function readOverrides(file) {
   return { entries, unreadable };
 }
 
+/** @typedef {[number, number, number]} Triple */
+
 /**
- * The three numeric parts of a version, padded from a major or major.minor form.
+ * The numbers a `TOKEN` or `TARGET` match captured, an omitted minor or patch read as 0. It takes the
+ * capture groups themselves rather than re-splitting a string, so nothing reaches it that the
+ * pattern did not already admit as a run of digits.
  *
- * PRECONDITION, and the reason there is no guard here: every caller passes a string already matched
- * by `TOKEN` or `TARGET`, both of which admit `\d+(\.\d+){0,2}` and nothing else. A re-validation
- * inside this helper would be a branch no input can reach — untestable by construction, and reading
- * as safety while proving nothing. The two regexes ARE the validation; keep it that way.
- *
- * @param {string} version A version already matched by `TOKEN` or `TARGET`.
- * @returns {number[]} Exactly three numbers.
+ * @param {string | undefined} major Captured by both patterns whenever they match.
+ * @param {string | undefined} minor
+ * @param {string | undefined} patch
+ * @returns {Triple}
  */
-function numericParts(version) {
-  const parts = version.split(".").map((part) => Number(part));
-  while (parts.length < 3) parts.push(0);
-  return parts;
+function triple(major, minor, patch) {
+  return [Number(major ?? "0"), Number(minor ?? "0"), Number(patch ?? "0")];
 }
 
 /**
- * @param {string} left A version already matched by `TOKEN` or `TARGET`.
- * @param {string} right A version already matched by `TOKEN` or `TARGET`.
+ * @param {Triple} left
+ * @param {Triple} right
  * @returns {number} Negative when `left` precedes `right`.
  */
 function compare(left, right) {
-  const a = numericParts(left);
-  const b = numericParts(right);
-  for (let i = 0; i < 3; i += 1) {
-    const diff = (a[i] ?? 0) - (b[i] ?? 0);
-    if (diff !== 0) return diff;
-  }
-  return 0;
-}
-
-/**
- * The version an X-range's own upper bound is: `7` covers up to `8.0.0`, `7.1` up to `7.2.0`. That
- * bound is DERIVED, never written, so it can never satisfy the canonical shape — which is exactly why
- * a major-scoped band needs an allowlist entry rather than a rule of its own.
- *
- * @param {number[]} parts
- * @param {number} written How many parts the author actually wrote.
- * @returns {string}
- */
-function derivedUpper(parts, written) {
-  const bumped = [...parts];
-  const index = written - 1;
-  bumped[index] = (bumped[index] ?? 0) + 1;
-  for (let i = index + 1; i < 3; i += 1) bumped[i] = 0;
-  return bumped.join(".");
+  return left[0] - right[0] || left[1] - right[1] || left[2] - right[2];
 }
 
 /**
  * @typedef {object} Clause
  * @property {"<" | "<=" | ">" | ">=" | "="} op
- * @property {string} version
+ * @property {string} text The version as written, or as derived for a bare X-range.
+ * @property {Triple} parts
  */
 
 /**
  * @typedef {object} Band
  * @property {Clause[]} clauses
- * @property {string | null} writtenUpper The version of the single literal `<` comparator, if any.
+ * @property {Clause | null} writtenUpper The single literal `<` comparator, if any.
  * @property {string | null} inclusiveUpper The version of a `<=` comparator, if any.
  */
 
@@ -292,7 +263,7 @@ function parseBand(range) {
 
   /** @type {Clause[]} */
   const clauses = [];
-  /** @type {string | null} */
+  /** @type {Clause | null} */
   let writtenUpper = null;
   let writtenUpperCount = 0;
   /** @type {string | null} */
@@ -300,8 +271,7 @@ function parseBand(range) {
 
   for (const token of tokens) {
     const hit = TOKEN.exec(token);
-    const raw = hit === null ? undefined : hit[2];
-    if (hit === null || raw === undefined) {
+    if (hit === null) {
       return {
         error:
           `\`${token}\` is not a comparator this gate recognises. It reads \`<\`, \`<=\`, \`>\`, ` +
@@ -309,30 +279,36 @@ function parseBand(range) {
           `every shape the manifest uses; anything else is refused rather than assumed benign.`,
       };
     }
-    const op = hit[1] ?? "";
+    const [, op = "", major, minor, patch] = hit;
+    const parts = triple(major, minor, patch);
+    const text = token.slice(op.length);
     if (op === "<") {
-      writtenUpper = raw;
+      writtenUpper = { op, text, parts };
       writtenUpperCount += 1;
-      clauses.push({ op: "<", version: raw });
+      clauses.push(writtenUpper);
       continue;
     }
     if (op === "<=") {
-      inclusiveUpper = raw;
-      clauses.push({ op: "<=", version: raw });
+      inclusiveUpper = text;
+      clauses.push({ op, text, parts });
       continue;
     }
     if (op === ">" || op === ">=" || op === "=") {
-      clauses.push({ op, version: raw });
+      clauses.push({ op, text, parts });
       continue;
     }
-    const parts = numericParts(raw);
-    const written = raw.split(".").length;
-    if (written === 3) {
-      clauses.push({ op: "=", version: raw });
+    if (patch !== undefined) {
+      clauses.push({ op: "=", text, parts });
       continue;
     }
-    clauses.push({ op: ">=", version: parts.join(".") });
-    clauses.push({ op: "<", version: derivedUpper(parts, written) });
+    // A bare X-range: `8` is the 8.x line, below 9.0.0, and `7.1` the 7.1.x line, below 7.2.0. That
+    // upper bound is DERIVED, never written, so it can never satisfy the canonical shape — which is
+    // exactly why a major-scoped band needs an allowlist entry rather than a rule of its own.
+    const [majorPart, minorPart] = parts;
+    /** @type {Triple} */
+    const upper = minor === undefined ? [majorPart + 1, 0, 0] : [majorPart, minorPart + 1, 0];
+    clauses.push({ op: ">=", text: parts.join("."), parts });
+    clauses.push({ op: "<", text: upper.join("."), parts: upper });
   }
 
   if (writtenUpperCount > 1) {
@@ -346,19 +322,36 @@ function parseBand(range) {
 }
 
 /**
- * @param {string} version
+ * @param {Triple} version
  * @param {Clause[]} clauses
  * @returns {boolean}
  */
 function satisfies(version, clauses) {
   return clauses.every((clause) => {
-    const order = compare(version, clause.version);
+    const order = compare(version, clause.parts);
     if (clause.op === "<") return order < 0;
     if (clause.op === "<=") return order <= 0;
     if (clause.op === ">") return order > 0;
     if (clause.op === ">=") return order >= 0;
     return order === 0;
   });
+}
+
+/**
+ * The key rewritten in the canonical shape: the band's lower bounds kept as written, its upper bound
+ * replaced by the target. Keeping the lower bounds is what stops the remedy from widening a floor
+ * scoped to one line into one that also lifts every older line onto the target.
+ *
+ * @param {string} name
+ * @param {Band} band
+ * @param {string} target
+ * @returns {string}
+ */
+function canonicalKey(name, band, target) {
+  const lowers = band.clauses
+    .filter((clause) => clause.op === ">=" || clause.op === ">")
+    .map((clause) => `${clause.op}${clause.text}`);
+  return `${name}@${[...lowers, `<${target}`].join(" ")}`;
 }
 
 /**
@@ -377,16 +370,18 @@ function judge(entry) {
   const range = entry.key.slice(at + 1);
   const reason = ALLOWED.get(entry.key) ?? null;
 
-  if (!TARGET.test(entry.value)) {
+  const target = TARGET.exec(entry.value);
+  if (target === null) {
     return {
       line: `${entry.key}\t${entry.value}\tREFUSED: the target is not a version`,
       violation:
         `${entry.key} → ${entry.value}: the target is not a three-number version, so the gate ` +
         `cannot compare it with the band \`${range}\`. A range-scoped override names an exact ` +
-        `version; a catalog reference or a range there means nothing is pinned to anything ` +
-        `measurable.`,
+        `release: a prerelease or build suffix, a catalog reference, an alias or a range there pins ` +
+        `nothing this comparator can measure.`,
     };
   }
+  const targetParts = triple(target[1], target[2], target[3]);
 
   const band = parseBand(range);
   if ("error" in band) {
@@ -403,12 +398,12 @@ function judge(entry) {
         `${entry.key} → ${entry.value}: the band's upper bound \`<=${band.inclusiveUpper}\` is ` +
         `INCLUSIVE, so the bound and the target are different numbers and raising one leaves the ` +
         `other behind — the drift this gate exists to refuse. Write the key as ` +
-        `\`${name}@<${entry.value}\`, which lifts the same set of versions with the bound and the ` +
-        `target forced to move together.`,
+        `\`${canonicalKey(name, band, entry.value)}\`, which lifts the same set of versions with ` +
+        `the bound and the target forced to move together.`,
     };
   }
 
-  if (band.writtenUpper !== null && compare(band.writtenUpper, entry.value) === 0) {
+  if (band.writtenUpper !== null && compare(band.writtenUpper.parts, targetParts) === 0) {
     return {
       line: `${entry.key}\t${entry.value}\tcanonical: the band's exclusive upper bound is the target`,
       violation: null,
@@ -419,15 +414,15 @@ function judge(entry) {
     return { line: `${entry.key}\t${entry.value}\tallowlisted: ${reason}`, violation: null };
   }
 
-  if (satisfies(entry.value, band.clauses)) {
+  if (satisfies(targetParts, band.clauses)) {
     return {
       line: `${entry.key}\t${entry.value}\tviolation: the target satisfies its own band`,
       violation:
         `${entry.key} → ${entry.value}: the target SATISFIES its own band \`${range}\`, so the ` +
         `override pins the tree to a version the band still selects and can lift nothing above it — ` +
         `it is inert against the advisory it was written for. Raise the bound to the target ` +
-        `(\`${name}@<${entry.value}\`), or record the key in this gate's allowlist with the measured ` +
-        `reason it is a de-dup scoped to one line rather than a floor.`,
+        `(\`${canonicalKey(name, band, entry.value)}\`), or record the key in this gate's allowlist ` +
+        `with the measured reason it is a de-dup scoped to one line rather than a floor.`,
     };
   }
 
@@ -435,22 +430,30 @@ function judge(entry) {
     line: `${entry.key}\t${entry.value}\tviolation: the band was left behind by its target`,
     violation:
       `${entry.key} → ${entry.value}: the band's exclusive upper bound is ` +
-      `${band.writtenUpper ?? "absent"} while the target is ${entry.value}, so the band no longer ` +
-      `describes the versions this target replaces and the override applies to nothing the tree ` +
-      `resolves — an inert floor that still reads as held. Move the bound and the target together ` +
-      `(\`${name}@<${entry.value}\`), or record the key in this gate's allowlist with the measured ` +
-      `reason the two cannot be the same number.`,
+      `${band.writtenUpper?.text ?? "absent"} while the target is ${entry.value}, so the band no ` +
+      `longer describes the versions this target replaces and the override applies to nothing the ` +
+      `tree resolves — an inert floor that still reads as held. Move the bound and the target ` +
+      `together (\`${canonicalKey(name, band, entry.value)}\`), or record the key in this gate's ` +
+      `allowlist with the measured reason the two cannot be the same number.`,
   };
 }
 
 /**
+ * @typedef {object} Result
+ * @property {string[]} lines One report line per range-scoped override measured.
+ * @property {string[]} violations Every refusal, each one a reason to exit 1.
+ * @property {number} violating How many measured overrides drew a violating verdict, counted from
+ *   the verdicts themselves rather than re-read from the report lines.
+ */
+
+/**
  * @param {Options} options
- * @returns {{ lines: string[], violations: string[] }}
+ * @returns {Result}
  */
 function evaluate(options) {
-  const file = options.workspace ?? path.join(repoRoot(), "pnpm-workspace.yaml");
+  const file = options.workspace ?? MANIFEST;
   const block = readOverrides(file);
-  if ("error" in block) return { lines: [], violations: [block.error] };
+  if ("error" in block) return { lines: [], violations: [block.error], violating: 0 };
 
   /** @type {string[]} */
   const lines = [];
@@ -472,13 +475,17 @@ function evaluate(options) {
         `rather than reporting a clean zero: an entry shape this parser stopped matching would ` +
         `otherwise make the whole gate silently inert.`
     );
-    return { lines, violations };
+    return { lines, violations, violating: 0 };
   }
 
+  let violating = 0;
   for (const entry of scoped) {
     const verdict = judge(entry);
     lines.push(verdict.line);
-    if (verdict.violation !== null) violations.push(verdict.violation);
+    if (verdict.violation !== null) {
+      violations.push(verdict.violation);
+      violating += 1;
+    }
   }
 
   const present = new Set(scoped.map((entry) => entry.key));
@@ -491,7 +498,7 @@ function evaluate(options) {
     );
   }
 
-  return { lines, violations };
+  return { lines, violations, violating };
 }
 
 /**
@@ -507,25 +514,12 @@ function main(argv) {
     return 1;
   }
 
-  /** @type {{ lines: string[], violations: string[] }} */
-  let result;
-  try {
-    result = evaluate(options);
-  } catch (error) {
-    process.stderr.write(
-      `override-bands-gate: an input could not be read, so nothing was measured: ` +
-        `${error instanceof Error ? error.message : String(error)}\n`
-    );
-    return 1;
-  }
-
+  const result = evaluate(options);
   for (const line of result.lines) process.stdout.write(`${line}\n`);
   if (result.lines.length > 0) {
-    const violating = result.lines.filter((line) => line.includes("\tviolation:")).length;
-    const refused = result.lines.filter((line) => line.includes("\tREFUSED:")).length;
     process.stdout.write(
       `\n${String(result.lines.length)} range-scoped overrides measured, ` +
-        `${String(violating + refused)} violating\n`
+        `${String(result.violating)} violating\n`
     );
   }
   for (const violation of result.violations) {

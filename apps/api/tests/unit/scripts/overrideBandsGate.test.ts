@@ -25,17 +25,21 @@
  *   The fail-closed cases carry as much weight as the happy path. A gate that reports a clean zero
  *   over a block it could not parse, a line it could not read, or a file that is not there asserts
  *   an invariant nobody measured, so each of those refusals is driven here by name.
+ *
+ *   Neither the suite nor the gate needs git: the suite finds the repository by its
+ *   `pnpm-workspace.yaml` marker, and one case runs a copy of the gate from a directory that is no
+ *   repository at all, which is how the gate's own manifest lookup is proven.
  * @layer infrastructure
  */
-import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { findMonorepoRoot } from "@packages/vitest-shared";
 import { afterEach, describe, expect, it } from "vitest";
 
-const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
-  encoding: "utf8",
-}).trim();
+const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
 
 const GATE_SCRIPT = path.join(REPO_ROOT, "scripts", "testing", "override-bands-gate.mjs");
 
@@ -138,7 +142,40 @@ const runGate = (fixture: Fixture): GateResult => {
   return { status: result.status ?? -1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
 };
 
+/**
+ * Runs a COPY of the gate placed at `<scratch>/scripts/testing/`, with no `--workspace` flag and the
+ * scratch directory — which is no git repository — as its working directory. The only manifest the
+ * copy can measure is then the one written beside its `scripts/` directory, so a lookup that leaned
+ * on git or on the working directory fails here instead of quietly reading another tree.
+ */
+const runCopiedGate = (manifest: string): GateResult => {
+  const dir = mkdtempSync(path.join(tmpdir(), "override-bands-gate-copy-"));
+  scratchDirs.push(dir);
+
+  const scriptDir = path.join(dir, "scripts", "testing");
+  mkdirSync(scriptDir, { recursive: true });
+  const script = path.join(scriptDir, "override-bands-gate.mjs");
+  copyFileSync(GATE_SCRIPT, script);
+  writeFileSync(path.join(dir, "pnpm-workspace.yaml"), manifest);
+
+  const result = spawnSync(process.execPath, [script], { cwd: dir, encoding: "utf8" });
+  return { status: result.status ?? -1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
+};
+
 describe("override bands gate", () => {
+  describe("where the manifest is found", () => {
+    it("reads the manifest beside its own scripts directory, needing neither git nor the working directory", () => {
+      const result = runCopiedGate(
+        renderWorkspace({ overrides: [['"sentinel@<1.0.0"', "1.0.0"]] })
+      );
+
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("sentinel@<1.0.0\t1.0.0\tcanonical");
+      expect(result.stdout).toContain("4 range-scoped overrides measured, 0 violating");
+    });
+  });
+
   describe("the canonical CVE-floor shape", () => {
     it("accepts a band whose exclusive upper bound is the target, in both written forms", () => {
       const result = runGate({
@@ -215,11 +252,13 @@ describe("override bands gate", () => {
       expect(result.stderr).toContain("3.1.9");
     });
 
-    it("says band and target move together, so the remedy is in the message", () => {
+    // The remedy keeps the band's lower bound. Dropping it would turn a floor scoped to the 3.x line
+    // into one that lifts every older major onto 3.1.9 as well.
+    it("names the remedy with the band's lower bound kept, so applying it cannot widen the floor", () => {
       const result = runGate({ overrides: [['"fast-uri@>=3.0.0 <3.1.8"', "3.1.9"]] });
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain("<3.1.9");
+      expect(result.stderr).toContain("`fast-uri@>=3.0.0 <3.1.9`");
     });
 
     it("exits 1 when the upper bound is below the target and no allowlist reason records why", () => {
@@ -244,25 +283,75 @@ describe("override bands gate", () => {
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("widget@8");
+      expect(result.stderr).toContain("SATISFIES its own band");
+    });
+  });
+
+  describe("a bare major or major.minor band", () => {
+    // Such a band's upper bound is DERIVED, never written: `8` is the 8.x line (below 9.0.0) and
+    // `7.1` the 7.1.x line (below 7.2.0). Each pair below sits on both sides of that derived bound,
+    // so an off-by-one in it flips one verdict of the pair.
+    it("reads the next major as outside a major band, and names the canonical rewrite", () => {
+      const result = runGate({ overrides: [['"widget@8"', "9.0.0"]] });
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain(
+        "widget@8\t9.0.0\tviolation: the band was left behind by its target"
+      );
+      expect(result.stderr).toContain("`widget@>=8.0.0 <9.0.0`");
+    });
+
+    it("reads the last release of the line as inside a major band", () => {
+      const result = runGate({ overrides: [['"widget@8"', "8.99.99"]] });
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain(
+        "widget@8\t8.99.99\tviolation: the target satisfies its own band"
+      );
+    });
+
+    it("reads the next minor as outside a major.minor band", () => {
+      const result = runGate({ overrides: [['"widget@7.1"', "7.2.0"]] });
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain(
+        "widget@7.1\t7.2.0\tviolation: the band was left behind by its target"
+      );
+    });
+
+    it("reads a later patch as inside a major.minor band", () => {
+      const result = runGate({ overrides: [['"widget@7.1"', "7.1.99"]] });
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain(
+        "widget@7.1\t7.1.99\tviolation: the target satisfies its own band"
+      );
     });
   });
 
   describe("the allowlist", () => {
-    it("accepts the unpublished-patch exception, and prints its recorded reason", () => {
+    // Each assertion names the ALLOWLISTED verdict and the recorded reason. The key alone also
+    // appears on a violation line, so asserting only the key would stay green with the allowlist
+    // branch gone or printing nothing of the measurement that earned the exception.
+    it("accepts the unpublished-patch exception through its entry, and prints its recorded reason", () => {
       const result = runGate({});
 
       expect(result.stderr).toBe("");
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("find-my-way@<9.6.1");
-      expect(result.stdout).toContain("9.6.1");
+      expect(result.stdout).toContain("find-my-way@<9.6.1\t9.7.0\tallowlisted: ");
+      expect(result.stdout).toContain("npm never published it");
     });
 
-    it("accepts the two major-scoped de-dup exceptions", () => {
+    it("accepts the two major-scoped de-dup exceptions through their entries", () => {
       const result = runGate({});
 
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("gaxios@7");
-      expect(result.stdout).toContain("google-auth-library@10");
+      expect(result.stdout).toContain(
+        "gaxios@7\t7.1.5\tallowlisted: a de-dup pin scoped to ONE major"
+      );
+      expect(result.stdout).toContain(
+        "google-auth-library@10\t10.7.0\tallowlisted: the same major-scoped de-dup"
+      );
     });
 
     it("exits 1 when an allowlist entry matches no override key, so the list can only shrink", () => {
@@ -286,7 +375,36 @@ describe("override bands gate", () => {
       expect(result.stderr).toContain("valibot@<=1.4.1");
       expect(result.stderr).toContain("upper bound `<=1.4.1` is INCLUSIVE");
       expect(result.stdout).toContain("REFUSED: inclusive upper bound");
-      expect(result.stderr).toContain("<1.4.2");
+      expect(result.stdout).toContain("4 range-scoped overrides measured, 1 violating");
+      expect(result.stderr).toContain("`valibot@<1.4.2`");
+    });
+  });
+
+  describe("quoting and YAML layouts the line reader meets", () => {
+    it("reads a single-quoted key and value, the quoting pnpm writes in its own lockfile", () => {
+      const result = runGate({ overrides: [["'widget@>=1.0.0 <2.0.0'", "'2.0.0'"]] });
+
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("widget@>=1.0.0 <2.0.0\t2.0.0\tcanonical");
+    });
+
+    it("still judges a single-quoted key, so quoting cannot hide a band left behind", () => {
+      const result = runGate({ overrides: [["'widget@<2.0.0'", "2.0.1"]] });
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain(
+        "widget@<2.0.0\t2.0.1\tviolation: the band was left behind by its target"
+      );
+    });
+
+    it("refuses a flow-style overrides mapping rather than reading it as an empty block", () => {
+      const result = runGate({
+        raw: ['overrides: { "widget@<2.0.0": 2.0.1 }', "", "auditConfig: {}", ""].join("\n"),
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("zero range-scoped overrides");
     });
   });
 
@@ -323,6 +441,14 @@ describe("override bands gate", () => {
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("widget@<2.0.0");
       expect(result.stderr).toContain("three-number version");
+    });
+
+    it("exits 1 on a prerelease target, naming the suffix as what disqualifies it", () => {
+      const result = runGate({ overrides: [['"widget@<2.0.0"', "2.0.0-rc.1"]] });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("widget@<2.0.0 → 2.0.0-rc.1");
+      expect(result.stderr).toContain("prerelease");
     });
 
     it("exits 1 on a key whose band is empty, which selects nothing", () => {
