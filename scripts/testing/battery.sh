@@ -37,6 +37,14 @@ if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
   exit 2
 fi
+# Every gate runs under `timeout`. It ships with GNU coreutils and is absent
+# from a stock macOS, where every step would otherwise record exit 127 and the
+# verdict would say nothing about why.
+if ! command -v timeout >/dev/null 2>&1; then
+  echo "battery: 'timeout' is not on PATH; every gate runs under it, so a hung gate is killed and recorded as a failing step instead of leaving the battery without a verdict" >&2
+  echo "battery: it ships with GNU coreutils (on macOS, Homebrew's coreutils provides it in its libexec/gnubin directory)" >&2
+  exit 2
+fi
 if [ $# -eq 1 ]; then
   cd "$1" || { echo "battery: cannot enter $1" >&2; exit 2; }
 fi
@@ -145,23 +153,26 @@ for n in 1 2; do
     pnpm exec vitest run --reporter=default --reporter=json --outputFile.json="$OUT/api-$n.json"
 done
 step -C apps/api tier env TIER=pr-integration bash scripts/run-tests.sh
-grep '^TOTAL' "$OUT/tier.log" || echo "tier: no TOTAL line in tier.log"
+# Shows the tier's totals to the reader; it is not a gate. The gate is the tier
+# step's exit code above, and apps/api/scripts/run-tests.sh already fails on its
+# own when a tier collects zero tests.
+grep '^TOTAL' "$OUT/tier.log" || echo "tier: tier.log carries no TOTAL line to show; the tier step's exit code above is its result"
 step audit-end pnpm audit --audit-level low
 
 # The verdict certifies the commit only if no step changed the tree or moved
 # HEAD; either is reported to the verdict, which turns RED on it.
 DIRTY_AT_END=0
 if ! END_STATUS=$(git status --porcelain); then
-  echo "battery: git status failed after the last step"
+  echo "battery: git status failed after the last step" >&2
   DIRTY_AT_END=1
 elif [ -n "$END_STATUS" ]; then
-  echo "battery: the tree changed during the battery:"
-  printf '%s\n' "$END_STATUS"
+  echo "battery: the tree changed during the battery:" >&2
+  printf '%s\n' "$END_STATUS" >&2
   DIRTY_AT_END=1
 fi
 END_SHA=$(git rev-parse HEAD) || END_SHA=""
 if [ "$END_SHA" != "$SHA" ]; then
-  echo "battery: HEAD moved from $SHA to ${END_SHA:-an unreadable commit} during the battery"
+  echo "battery: HEAD moved from $SHA to ${END_SHA:-an unreadable commit} during the battery" >&2
   DIRTY_AT_END=1
 fi
 
