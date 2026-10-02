@@ -29,8 +29,6 @@ playwright-report/
 **/playwright-report/
 test-results/
 **/test-results/
-# Storybook test-runner
-*.storybook-test-results/
 
 **/reports/mutation/
 
