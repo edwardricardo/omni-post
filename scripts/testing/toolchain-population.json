@@ -67,8 +67,7 @@
       "name": "@vitest/coverage-v8"
     },
     {
-      "name": "@vitest/eslint-plugin",
-      "absence": "candidate"
+      "name": "@vitest/eslint-plugin"
     },
     {
       "name": "@vitest/ui"

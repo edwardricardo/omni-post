@@ -1,22 +1,28 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-02, slice `0.9` `refound/0-toolchain-rtl` (pull request #333), rebased onto slice `0.7`
-— the testing-library family moves as one: `@testing-library/dom` 10.4.1 → **10.4.2**, `jest-dom` 7.0.0 →
-**7.0.1**, `react` 16.3.2 → **16.3.3** and `user-event` 14.6.1 → **14.6.7**, each the latest stable and the
-latest mature release, re-measured `2026-10-02T09:39Z` against the registry. The set is version-locked by
-its own peers — `react` peers `@testing-library/dom ^10.0.0`, `user-event` peers it `>=7.21.4` and
-`jest-dom` peers it `>=10 <11` — so the four cannot split; `jest-dom` 7.0.1 adds an optional peer
-`vitest >= 0.32`, met by the held 4.1.11. Against slice `0.7`'s lockfile, the bare `name@version` keys of
-both lockfile documents number 2683 before and after and move by exactly these four; the full key set,
-with the peer-suffixed snapshot ids, numbers 3289 before and after and changes in 18 places — 7 of the
-family's own ids and 11 re-spellings of the storybook chain, which peers `@testing-library/dom`.
-`pnpm dedupe --check` exits 0. The suites of the four declarers are green: `apps/client` 541 tests,
-`apps/admin` 114, `@packages/query-client` 6, `@observability/browser-logger` 34. The canon hold row for
-all four is DELETED and the holds gate falls from 36 lags to 32. No metric moves: M7 `7/7` was last moved
-by slice `P.4`, M1 `955 + 8` and M8 `1/87` by slice `P.2`; slices `0.7` and `0.9` moved none.
-Previous: slice `0.7` `refound/0-toolchain-browser` (pull request #332) — `@playwright/test` 1.61.1 →
-1.63.0 and `@axe-core/playwright` 4.10.2 → 4.13.0, their shared hold row retired, 38 lags → 36.
+**As of:** 2026-10-02, slice `0.10` `refound/0-toolchain-vitest-plugin` (pull request #334), rebased onto
+slice `0.9` — the first toolchain slice that ADDS a package instead of moving one: `@vitest/eslint-plugin`
+**1.6.27**, the latest stable and the latest mature release, re-measured `2026-10-02T09:46Z` (published
+`2026-08-10T02:34Z`, no later release). It is a ROOT devDependency **literal**, not a catalog entry, because
+ADR-0018 gives the catalog to a direct dependency declared in two or more manifests and a literal to one
+declared in exactly one; the plan's WU-2.4 prose says "catalog", the rule wins, and the discrepancy is
+recorded here. Its peers are met: `eslint >=8.57.0` (9.39.5), and the optional `typescript >=5.0.0` (6.0.3),
+`vitest *` (4.1.11) and `@typescript-eslint/eslint-plugin *` (8.70.1). Against slice `0.9`'s lockfile, the
+bare `name@version` keys of both lockfile documents go 2683 → 2684 and the full key set 3289 → 3291 — the
+plugin's own id and its one snapshot id — because its two dependencies, `@typescript-eslint/utils` and
+`@typescript-eslint/scope-manager` (`^8.58.0`), resolve onto the 8.70.1 copies already present, one version
+across all ten `@typescript-eslint` packages. The plugin is registered in `eslint.config.ts` on the test
+globs with ZERO rules enabled; choosing the rules belongs to a separate change. That the registration is
+live is proven: `eslint --print-config` on a test file lists `vitest:vitest@1.6.27` and no `vitest/*` rule,
+and a planted `it.only` passed through `--stdin --stdin-filename` exits 1 naming `vitest/no-focused-tests`
+when that rule is forced on the command line and exits 0 under the repository config. The holds gate now
+measures the package (its population entry is no longer a declared-absent candidate); a planted stale
+absence makes it exit 1. The lag count stays 32, because the package enters at latest. The same slice
+pre-registers the `@typescript-eslint` pair's hold row: 8.71.0 matures on `2026-10-05T17:09Z`. No metric
+moves: M7 `7/7` was last moved by slice `P.4`, M1 `955 + 8` and M8 `1/87` by slice `P.2`.
+Previous: slice `0.9` `refound/0-toolchain-rtl` (pull request #333) — the testing-library family moved as
+one to 10.4.2 / 7.0.1 / 16.3.3 / 14.6.7, its shared hold row retired, 36 lags → 32.
 This line moves with the last pull request that moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
@@ -140,7 +146,7 @@ One row per work unit of [§Plan (fixed)](#plan-fixed). Status: ⬜ not started 
 | 0     | T.4(b) | Playwright 1.63.0 + axe 4.13.0 — first done 2026-09-28, rebased 2026-10-02  | ✅     | `0.7`                         | `refound/0-toolchain-browser` · 37+834  | 2026-10-02 |
 | 0     | T.4(b) | msw 2.15.0 · getResponse public — first done 2026-09-28, rebased 2026-10-02 | ✅     | `0.8`                         | `refound/0-toolchain-msw` · 674 green   | 2026-10-02 |
 | 0     | T.4(b) | `@testing-library/react` family — first done 2026-09-28, rebased 2026-10-02 | ✅     | `0.9`                         | `refound/0-toolchain-rtl` · 541+114     | 2026-10-02 |
-| 0     | T.4(b) | `@vitest/eslint-plugin` 1.6.27                                              | ⬜     | —                             | —                                       | —          |
+| 0     | T.4(b) | `@vitest/eslint-plugin` 1.6.27 — first done 2026-09-28, rebased 2026-10-02  | ✅     | `0.10`                        | `refound/0-toolchain-vitest-plugin`     | 2026-10-02 |
 | 0     | T.4(d) | Storybook family; Jest leaves with `@storybook/test-runner`                 | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(b) | jsdom 30 — **[H1]** crosses into production, raises the node floor          | ⬜     | —                             | —                                       | —          |
 | 0     | T.4(e) | The 86 dead `vite` shims                                                    | ⬜     | —                             | —                                       | —          |
@@ -386,9 +392,9 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-02T09:40:50Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
-stderr: of the 52 packages in `scripts/testing/toolchain-population.json` (48 direct, 3 named transitives,
-1 declared-absent candidate), 32 sit below latest mature and NOT ONE of them is unheld.**
+**CURRENT, re-measured 2026-10-02T09:48:34Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
+stderr: of the 52 packages in `scripts/testing/toolchain-population.json` (49 direct, 3 named transitives,
+no declared-absent candidate left), 32 sit below latest mature and NOT ONE of them is unheld.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
 and what moved it. A slice that moves the count appends its own line.
@@ -478,7 +484,7 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 | `vitest`                                      | 4.1.11                  | 5.0.1 (2026-09-15) — `latest` 5.0.2 (2026-09-25) is 2.4 d, immature. **v4 ceiling = 4.1.11 = installed** | **held** — canon row `vitest` (the `@vitest/*` peers move with it). Staying on 4 is signed (D20) and reasoned in research; the row is what a gate can read           | 4.1.11 (CVE-floor row `vitest` + `@vitest/*`) — met; a floor, not a ceiling         |
 | `@vitest/coverage-v8`                         | 4.1.11                  | 5.0.1 (2026-09-15) — exact peer of the runner, moves in lockstep                                         | **held** — canon row `vitest`, which names it                                                                                                                        | 4.1.11 (CVE-floor row `vitest` + `@vitest/*`) — met                                 |
 | `@vitest/ui`                                  | 4.1.11                  | 5.0.1 (2026-09-15) — same family lock                                                                    | **held** — canon row `vitest`, which names it                                                                                                                        | 4.1.11 (CVE-floor row `vitest` + `@vitest/*`) — met                                 |
-| `@vitest/eslint-plugin`                       | — (declared in 0 of 98) | 1.6.27 (2026-08-10, 48.6 d)                                                                              | n/a — an addition, not a lag                                                                                                                                         | —                                                                                   |
+| `@vitest/eslint-plugin`                       | 1.6.27 since 2026-10-02 | **1.6.27 (2026-08-10, 53.3 d) — latest mature**, added by slice `0.10`, at `2026-10-02T09:46Z`           | **no** — no lag; an ADDITION, declared as a root devDependency LITERAL (one manifest, ADR-0018), never a catalog entry                                               | —                                                                                   |
 | `@playwright/test`                            | 1.63.0                  | **1.63.0 (2026-09-04, 27.4 d) — latest mature** since 2026-10-02 (slice `0.7`), at `2026-10-02T09:27Z`   | **no** — no lag; the canon row `@playwright/test` was DELETED by slice `0.7`, its own remove-when met                                                                | —                                                                                   |
 | `playwright` / `playwright-core` (transitive) | 1.63.0                  | **1.63.0 (2026-09-04)**                                                                                  | **no** — no lag; `@playwright/test` 1.63.0 pins `playwright` at its own exact version, so both moved with the runner                                                 | —                                                                                   |
 | `@axe-core/playwright`                        | 4.13.0                  | **4.13.0 (2026-08-11, 51.7 d) — latest mature** since 2026-10-02 (slice `0.7`), at `2026-10-02T09:27Z`   | **no** — no lag; deleted with the canon row `@playwright/test`, which named it too                                                                                   | —                                                                                   |
@@ -505,8 +511,8 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 | ---------------------------------- | --------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
 | `eslint`                           | 9.39.5    | 10.11.0 (2026-09-18, 9.1 d). **v9 ceiling 9.39.5 = installed**, the line's final release | **held** — canon row `eslint`, rewritten 2026-09-27; the 9.36.0 → 9.39.5 gap that row did not cover is closed by the bump                                                       | —         |
 | `@eslint/js`                       | 9.39.5    | 10.0.1 (2026-02-06, 233.0 d). **v9 ceiling 9.39.5 = installed**                          | **held** — canon row `@eslint/js`, written 2026-09-27; a root `package.json` literal, not a catalog entry                                                                       | —         |
-| `@typescript-eslint/parser`        | 8.70.1    | 8.70.1 (2026-09-21, 8.4 d) — **no lag**; `latest` 8.71.0 (2026-09-28) is 1.4 d, immature | n/a — 8.70.0 by `refound/0-toolchain-eslint`, then 8.70.1 by `refound/0-audit-floors` on 2026-09-30 after 8.70.1 matured at 2026-09-28T17:09Z and re-opened the lag with no row | —         |
-| `@typescript-eslint/eslint-plugin` | 8.70.1    | 8.70.1 (2026-09-21, 8.4 d) — **no lag**; same band                                       | n/a — same two bumps. Its `typescript` peer `>=4.8.4 <6.1.0` is what keeps TypeScript 7 out, and is byte-identical at 8.70.0, 8.70.1 and the immature 8.71.0                    | —         |
+| `@typescript-eslint/parser`        | 8.70.1    | 8.70.1 (2026-09-21) — **no lag** until 8.71.0 (2026-09-28) matures, `2026-10-05T17:09Z`  | **held** from `2026-10-05T17:09Z` — canon row `@typescript-eslint/parser`, pre-registered by slice `0.10`; scheduled bump to 8.71.0, validated by its lint and `tsc -b --force` | —         |
+| `@typescript-eslint/eslint-plugin` | 8.70.1    | 8.70.1 (2026-09-21) — **no lag** until 8.71.0 matures at `2026-10-05T17:13Z`             | **held** from `2026-10-05T17:13Z` — same canon row; its `typescript` peer `>=4.8.4 <6.1.0` keeps TypeScript 7 out at 8.70.0, 8.70.1 and 8.71.0 alike                            | —         |
 | `eslint-plugin-react`              | 7.37.5    | 7.37.5 (2025-04-03) — no lag, and no newer release exists                                | n/a. Its peer `eslint: … \|\| ^9.7` is half the reason eslint stays on 9                                                                                                        | —         |
 | `eslint-plugin-jsx-a11y`           | 6.10.2    | 6.10.2 (2024-10-26) — no lag, and no newer release exists                                | n/a. Its peer `eslint: … \|\| ^9` is the other half                                                                                                                             | —         |
 | `eslint-plugin-boundaries`         | 7.2.0     | 7.2.0 (2026-08-09, 53.5 d) — **no lag**; no newer release exists                         | n/a — 7.1.0 → 7.2.0 by slice `0.21` on 2026-10-02, with its config on the v7 syntax (SMELL-66 closed); its canon hold row is deleted                                            | —         |
@@ -623,7 +629,7 @@ from a published manifest or from this tree, not inferred.
 | `refound/0-toolchain-browser` (WU-T.4(b))                                | `@playwright/test` 1.61.1 → 1.63.0 (with `playwright` / `playwright-core`), `@axe-core/playwright` 4.10.2 → 4.13.0                                                                                                                                                                                                 | LANDED: 1.63 drops Ubuntu 20.04; no CI job runs it (M2 `0`), runners `ubuntu-latest`; Debian 12 proven; image → WU-6.E8  |
 | `refound/0-toolchain-msw` (WU-T.4(b))                                    | `msw` 2.14.6 → 2.15.0. msw 3 is a crossing held by the canon row `msw` from `2026-10-05T15:45Z`: ESM-only, and outside the `msw ^2.4.9` peer of `@vitest/mocker` 4.1.11                                                                                                                                            | the suites that already use MSW stay green                                                                               |
 | `refound/0-toolchain-rtl` (WU-T.4(b))                                    | `@testing-library/{dom,jest-dom,react,user-event}` — the family moves atomically                                                                                                                                                                                                                                   | LANDED: client 541 + admin 114 green; syncpack 0 over 614, so no split; bare lock keys moved by exactly 4                |
-| `refound/0-toolchain-vitest-plugin` (WU-T.4(b))                          | add `@vitest/eslint-plugin` 1.6.27 (declared in 0 of 98 today)                                                                                                                                                                                                                                                     | `assertFunctionNames` covers the `node:assert` files; `eslint` exit 0                                                    |
+| `refound/0-toolchain-vitest-plugin` (WU-T.4(b))                          | **LANDED 2026-09-28, rebased 2026-10-02.** add `@vitest/eslint-plugin` 1.6.27 as a root devDependency LITERAL — ADR-0018 gives a direct dependency declared in ONE manifest a literal, not a catalog entry — registered in `eslint.config.ts` with ZERO rules enabled                                              | LANDED: zero rules enabled; `vitest/no-focused-tests` resolves and fires only when forced; `eslint` exit 0               |
 | `refound/0-toolchain-storybook` (WU-T.4(d))                              | `@storybook/test-runner` removed unless a consumer is proven — taking `jest`, `nyc`, `jest-process-manager`, `wait-on` and the stray `@types/node@26.0.0` with it; the `storybook` family 10.4.6 → 10.6.0 only if the lock survives its own remove-when review                                                     | no workflow or script invokes it; Jest absent from the lockfile afterwards                                               |
 | `refound/0-toolchain-jsdom` (WU-T.4(b), **[H1]**)                        | `jsdom` 29.1.1 → 30.1.0, `isomorphic-dompurify` 3.19.0 → 4.3.0, the `undici` re-audit and the `tough-cookie` re-scope                                                                                                                                                                                              | all THREE crossings resolved in one pull request, or a hold naming all three                                             |
 | `refound/0-toolchain-build` (WU-T.4(b)) — **re-plan 2026-09-27**         | the build and format six: `vite`, `turbo`, `webpack`, `cross-env`, `jiti`, `prettier`                                                                                                                                                                                                                              | `tsc -b --force`, `pnpm build` and `format:check` exit 0; a prettier reformat is its own EVIDENCE commit                 |
