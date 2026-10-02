@@ -51,7 +51,7 @@ describe("SkipLink", () => {
     const link = screen.getByRole("link");
 
     await user.tab(); // Focus the link
-    expect(link).toHaveStyle({ position: "fixed", left: "1rem" });
+    expect(link).toHaveStyle({ position: "fixed", left: "16px" });
   });
 
   it("hides again on blur (position absolute)", async () => {

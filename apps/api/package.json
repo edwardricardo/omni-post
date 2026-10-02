@@ -158,7 +158,7 @@
     "fastify-type-provider-zod": "catalog:",
     "ioredis": "catalog:",
     "ipaddr.js": "2.3.0",
-    "isomorphic-dompurify": "3.19.0",
+    "isomorphic-dompurify": "4.4.0",
     "jsonwebtoken": "9.0.2",
     "openai": "6.33.0",
     "openid-client": "6.8.2",
