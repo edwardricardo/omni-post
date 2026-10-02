@@ -1,12 +1,10 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-02, `mental-map-hooks` `workstream/hooks-battery` — the verdict of the local battery
-becomes a tested module, and its test file moves M1 `947 + 8` → `948 + 8`. Previous: slice `0.17`
-`refound/0-audit-floors`, the repair slice (six CVE-floor bands the advisory database overtook, one new floor
-and five raises, each at its minimal patched version, plus `@typescript-eslint` 8.70.1;
-`pnpm audit --audit-level moderate` and `holds-gate.mjs` 1 → **0** with no ignore added and no threshold
-moved). This line moves with the last pull request that moved a row.
+**As of:** 2026-10-02, `mental-map-hooks` `workstream/hooks-battery-state` — the battery's verdict is written
+to a state file, and the test file of that module moves M1 `948 + 8` → `949 + 8`. Previous:
+`workstream/hooks-battery`, the same day (the verdict module's test file, M1 `947 + 8` → `948 + 8`). This line
+moves with the last pull request that moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
 The measured state of the testing re-foundation, and the fixed plan it executes. Rules live in
@@ -47,7 +45,7 @@ alias its slice used for review — `PR B` is the `metrics.mjs` half of `refound
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 948 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR gate  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 949 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR gate  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
