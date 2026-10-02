@@ -168,6 +168,11 @@ skills-lock.json
 # already-committed domain agents (.claude/agents/*.md) or .claude/commands/canon-check.md.
 # `.gentle-ai-instance` is the per-machine SDD instance id gentle-ai writes next to an
 # openspec change (and carries into its archive); it is never project state and stays local.
+# `.mcp.json` is the project MCP registration gentle-ai 4 writes at workspace sync (context7),
+# and `odd/` is where its ODD workflow keeps per-feature task trackers; both are per-machine
+# tooling state, never project code.
+.mcp.json
+odd/
 .claude/agents/
 .claude/commands/
 .claude/mcp/

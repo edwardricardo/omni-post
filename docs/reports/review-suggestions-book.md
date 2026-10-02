@@ -13,25 +13,39 @@
 
 ## Index
 
-| Id     | Candidate                                                          | Finding                                                          | Location                                                                                       | Kind                         | Status                                                                                               |
-| ------ | ------------------------------------------------------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------- |
-| SB-001 | `mental-map-hooks` 1a-ii (`workstream/hooks-memory-dir`, 817c93bf) | R2-001                                                           | `.claude/hooks-py/_common.py:85-96`                                                            | comment placement            | implemented (book sweep, f885c98d)                                                                   |
-| SB-002 | same                                                               | R2-002                                                           | `.claude/hooks-py/_common.py:118` + `tests/test_common.py`                                     | test sentinel                | implemented (book sweep, f885c98d)                                                                   |
-| SB-003 | same                                                               | R2-003                                                           | `.claude/hooks-py/tests/test_common.py:5-6`                                                    | docstring wording            | implemented (book sweep, f885c98d)                                                                   |
-| SB-004 | same                                                               | R2-004                                                           | `.claude/hooks-py/tests/test_common.py:62`                                                     | fixture comment              | implemented (book sweep, f885c98d)                                                                   |
-| SB-T01 | same                                                               | R3-worktree-detection-depends-on-common-dir-basename             | `.claude/hooks-py/_common.py:67-68`                                                            | test coverage                | closed: a hook never runs inside a bare repository; the branch reaches the fallback the suite proves |
-| SB-T02 | same                                                               | R3-fallback-branches-of-main-repository-root-untested            | `.claude/hooks-py/_common.py:57-62`                                                            | test coverage                | implemented (book sweep, f885c98d)                                                                   |
-| SB-005 | `mental-map-hooks` 1d (`workstream/hooks-visibility`)              | R4-notices-log-dedup-race                                        | `.claude/hooks-py/_common.py` `notice_already_sent`                                            | concurrency design           | implemented (1d, second review raised it to WARNING)                                                 |
-| SB-006 | same                                                               | R4-notices-log-unbounded, R3-notices-log-unbounded               | `.claude/hooks-py/_common.py` `notice_already_sent`                                            | growth bound                 | implemented (1d, second review raised it to WARNING)                                                 |
-| SB-007 | same                                                               | R3-cross-hook-dedup-shares-consequence                           | `.claude/hooks-py/_common.py` `emit_missing_file_context`                                      | dedup key design             | closed: one notice per session about the file is the contract, whichever hook detects it             |
-| SB-T03 | same                                                               | R3-session-id-tab-collision                                      | `.claude/hooks-py/_common.py` `notice_already_sent`                                            | test coverage / escaping     | implemented (book sweep, f885c98d)                                                                   |
-| SB-008 | `mental-map-hooks` 1d                                              | R4-003                                                           | `.claude/hooks-py/_common.py` `emit_missing_file_context`                                      | recovery notice design       | implemented (book sweep, f885c98d)                                                                   |
-| SB-009 | same                                                               | R2-emit-missing-file-context-hard-coded-hook-event-default       | `.claude/hooks-py/_common.py` `emit_missing_file_context`                                      | parameter default            | implemented (book sweep, f885c98d)                                                                   |
-| SB-010 | same                                                               | R2-load-index-signature-divergence                               | `.claude/hooks-py/pre_edit_decision_guard.py` `load_index`                                     | signature symmetry           | implemented (book sweep, f885c98d)                                                                   |
-| SB-011 | book sweep (`workstream/hooks-book-sweep`, 1e6a3c66)               | R2-duplicated-prefix-lines-pattern, R3-prefix-lines-module-state | `.claude/hooks-py/pre_edit_canon.py`, `pre_edit_decision_guard.py` (`_PREFIX_LINES`, `emit_*`) | shared helper / test hygiene | implemented (book sweep, f885c98d)                                                                   |
-| SB-012 | same                                                               | R2-load-index-signature-asimetrica                               | `.claude/hooks-py/pre_edit_decision_guard.py` `load_index`                                     | parameter order              | implemented (book sweep, f885c98d)                                                                   |
-| SB-013 | same                                                               | R2-recovered-notice-key-contract-implicito                       | `.claude/hooks-py/_common.py` `emit_missing_file_context` / `recovered_file_notice`            | shared key helper            | implemented (book sweep, f885c98d)                                                                   |
-| SB-T04 | same                                                               | R3-notice-newline-unescaped                                      | `.claude/hooks-py/_common.py` `_notice_field`                                                  | escaping / test              | implemented (book sweep, f885c98d)                                                                   |
+| Id     | Candidate                                                                             | Finding                                                          | Location                                                                                                                                    | Kind                         | Status                                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SB-001 | `mental-map-hooks` 1a-ii (`workstream/hooks-memory-dir`, 817c93bf)                    | R2-001                                                           | `.claude/hooks-py/_common.py:85-96`                                                                                                         | comment placement            | implemented (book sweep, f885c98d)                                                                                                                              |
+| SB-002 | same                                                                                  | R2-002                                                           | `.claude/hooks-py/_common.py:118` + `tests/test_common.py`                                                                                  | test sentinel                | implemented (book sweep, f885c98d)                                                                                                                              |
+| SB-003 | same                                                                                  | R2-003                                                           | `.claude/hooks-py/tests/test_common.py:5-6`                                                                                                 | docstring wording            | implemented (book sweep, f885c98d)                                                                                                                              |
+| SB-004 | same                                                                                  | R2-004                                                           | `.claude/hooks-py/tests/test_common.py:62`                                                                                                  | fixture comment              | implemented (book sweep, f885c98d)                                                                                                                              |
+| SB-T01 | same                                                                                  | R3-worktree-detection-depends-on-common-dir-basename             | `.claude/hooks-py/_common.py:67-68`                                                                                                         | test coverage                | closed: a hook never runs inside a bare repository; the branch reaches the fallback the suite proves                                                            |
+| SB-T02 | same                                                                                  | R3-fallback-branches-of-main-repository-root-untested            | `.claude/hooks-py/_common.py:57-62`                                                                                                         | test coverage                | implemented (book sweep, f885c98d)                                                                                                                              |
+| SB-005 | `mental-map-hooks` 1d (`workstream/hooks-visibility`)                                 | R4-notices-log-dedup-race                                        | `.claude/hooks-py/_common.py` `notice_already_sent`                                                                                         | concurrency design           | implemented (1d, second review raised it to WARNING)                                                                                                            |
+| SB-006 | same                                                                                  | R4-notices-log-unbounded, R3-notices-log-unbounded               | `.claude/hooks-py/_common.py` `notice_already_sent`                                                                                         | growth bound                 | implemented (1d, second review raised it to WARNING)                                                                                                            |
+| SB-007 | same                                                                                  | R3-cross-hook-dedup-shares-consequence                           | `.claude/hooks-py/_common.py` `emit_missing_file_context`                                                                                   | dedup key design             | closed: one notice per session about the file is the contract, whichever hook detects it                                                                        |
+| SB-T03 | same                                                                                  | R3-session-id-tab-collision                                      | `.claude/hooks-py/_common.py` `notice_already_sent`                                                                                         | test coverage / escaping     | implemented (book sweep, f885c98d)                                                                                                                              |
+| SB-008 | `mental-map-hooks` 1d                                                                 | R4-003                                                           | `.claude/hooks-py/_common.py` `emit_missing_file_context`                                                                                   | recovery notice design       | implemented (book sweep, f885c98d)                                                                                                                              |
+| SB-009 | same                                                                                  | R2-emit-missing-file-context-hard-coded-hook-event-default       | `.claude/hooks-py/_common.py` `emit_missing_file_context`                                                                                   | parameter default            | implemented (book sweep, f885c98d)                                                                                                                              |
+| SB-010 | same                                                                                  | R2-load-index-signature-divergence                               | `.claude/hooks-py/pre_edit_decision_guard.py` `load_index`                                                                                  | signature symmetry           | implemented (book sweep, f885c98d)                                                                                                                              |
+| SB-011 | book sweep (`workstream/hooks-book-sweep`, 1e6a3c66)                                  | R2-duplicated-prefix-lines-pattern, R3-prefix-lines-module-state | `.claude/hooks-py/pre_edit_canon.py`, `pre_edit_decision_guard.py` (`_PREFIX_LINES`, `emit_*`)                                              | shared helper / test hygiene | implemented (book sweep, f885c98d)                                                                                                                              |
+| SB-012 | same                                                                                  | R2-load-index-signature-asimetrica                               | `.claude/hooks-py/pre_edit_decision_guard.py` `load_index`                                                                                  | parameter order              | implemented (book sweep, f885c98d)                                                                                                                              |
+| SB-013 | same                                                                                  | R2-recovered-notice-key-contract-implicito                       | `.claude/hooks-py/_common.py` `emit_missing_file_context` / `recovered_file_notice`                                                         | shared key helper            | implemented (book sweep, f885c98d)                                                                                                                              |
+| SB-T04 | same                                                                                  | R3-notice-newline-unescaped                                      | `.claude/hooks-py/_common.py` `_notice_field`                                                                                               | escaping / test              | implemented (book sweep, f885c98d)                                                                                                                              |
+| SB-014 | `testing-refoundation` contract part 3 (`workstream/trf-contract-3`, 7138e554)        | R2-unexplained-constant-floor-formula                            | `openspec/changes/testing-refoundation/specs/coverage-floor-ratchet/spec.md:79`                                                             | prose structure              | deferred: bullet the three constants of the floor formula (truncate to one decimal, subtract 0.1 pp, clamp at 0) instead of one sentence                        |
+| SB-015 | same                                                                                  | R2-overlong-sentence-parallel-writers                            | `openspec/changes/testing-refoundation/specs/behavioural-coverage-backfill/spec.md:178-179`                                                 | prose structure              | deferred: split the five acceptance conditions of the parallel-writer scenario into bullets                                                                     |
+| SB-016 | same                                                                                  | R2-cross-spec-mirroring-duplication                              | `openspec/changes/testing-refoundation/specs/testing-toolchain-alignment/spec.md:116-124` and `dependency-version-management/spec.md:14-33` | cross-reference              | deferred: name which spec OWNS the mirrored `@types/node` / `engines.node` rule and which one restates it                                                       |
+| SB-017 | same                                                                                  | R2-ambiguous-maturity-anchor                                     | `openspec/changes/testing-refoundation/specs/dependency-version-management/spec.md:72`                                                      | cross-reference              | deferred: make the ADR-0018 citation a repository-relative path (`docs/technical/ADR-0018-dependency-freshness-canon.md`)                                       |
+| SB-018 | same                                                                                  | R3-k6-cv-boundary-ambiguity                                      | `openspec/changes/testing-refoundation/specs/k6-load-gate/spec.md:89-90`                                                                    | prose precision              | deferred: say in words that EITHER condition alone deletes the tool (the sentence already says "OR")                                                            |
+| SB-019 | same                                                                                  | R3-coverage-floor-formula-edge                                   | `openspec/changes/testing-refoundation/specs/coverage-floor-ratchet/spec.md:79`                                                             | prose precision              | deferred: state the two endpoints explicitly (0.1 → 0.0, 100 → 99.9)                                                                                            |
+| SB-020 | same                                                                                  | R3-env-port-refusal-recovery                                     | `openspec/changes/testing-refoundation/specs/test-environment-contract/spec.md:88-90`                                                       | scenario precision           | deferred: the refusal MUST always include the bound port and the whole test port set, process identity being optional                                           |
+| SB-021 | same                                                                                  | R3-mutation-no-both-directions-proof                             | `openspec/changes/testing-refoundation/specs/mutation-score-floors/spec.md:133-139`                                                         | missing red scenario         | deferred: add a Red scenario where a new assertion-free test fails the incremental mutation lane, or state that the ledger reopening is the enforcement surface |
+| SB-022 | same                                                                                  | R3-dependency-closure-coverage-silent                            | `openspec/changes/testing-refoundation/specs/dependency-version-management/spec.md:47-49`                                                   | missing red scenario         | deferred: add a Red scenario where a documented chain that the parsed lockfile does not contain exits non-zero naming the entry                                 |
+| SB-023 | `testing-refoundation` contract part 7 (`workstream/trf-contract-7`, tasks-part-2.md) | R3-phase2-ordering-vs-H3                                         | `openspec/changes/testing-refoundation/tasks-part-2.md` Phase 2 preamble                                                                    | prose precision              | deferred: name gate H8 (2.3.1) in the Phase 2 preamble next to H3, since later block-deletion slices can descend floors                                         |
+| SB-024 | same                                                                                  | R3-S4-decline-branch-undefined                                   | `openspec/changes/testing-refoundation/tasks-part-2.md` task S.4.2                                                                          | decision record              | deferred: give the S.4.2 decline branch a human-gate id so the taken branch is observable from the plan, not only from the tracker Decisions log                |
+| SB-025 | same                                                                                  | R3-4b5-measured-branch-no-acceptance                             | `openspec/changes/testing-refoundation/tasks-part-2.md` task 4b.5.2                                                                         | acceptance line              | deferred: add an acceptance line citing the measured N and either the removed db steps (N=0) or the opened ledger rows and the resume condition (N>0)           |
+| SB-026 | same                                                                                  | R3-X2-decision-rule-ambiguity                                    | `openspec/changes/testing-refoundation/tasks-part-2.md` task X.2.1                                                                          | prose precision              | deferred: restate the fork rule as "any hard criterion other than H5 failing keeps node:test" so no reader has to infer the two-failures case                   |
+| SB-027 | same                                                                                  | R3-1-11-3-env-coupling                                           | `openspec/changes/testing-refoundation/tasks-part-2.md` task 1.11.3                                                                         | missing red row              | deferred: add a RED row where an unset `TEST_API_URL` fails fast with a named error, so the deleted `localhost:3000` default is proved gone                     |
 
 ## Entries — code and prose
 
@@ -114,6 +128,118 @@
 - **Suggestion:** a `_notice_key(tag, name, state)` helper so a format change cannot silently break recovery detection.
 - **Why deferred:** both sites are ten lines apart in the same module and covered by the recovery test, which fails if they drift.
 - **To implement:** one helper, two call sites.
+
+### SB-014 — unexplained constant floor formula
+
+- **Source:** review `trf-contract-3r2` (part 3 of the contract landing, round 2), readability lens, finding `R2-unexplained-constant-floor-formula`.
+- **Location:** `openspec/changes/testing-refoundation/specs/coverage-floor-ratchet/spec.md:79`.
+- **Suggestion:** bullet the three constants of the floor formula (truncate to one decimal, subtract 0.1 pp, clamp at 0) instead of one sentence.
+- **Why deferred:** the sentence already names all three constants; a bullet list is layout, not meaning.
+- **To implement:** a prose edit in the spec named above, reviewed with the slice that next touches it.
+
+### SB-015 — overlong sentence parallel writers
+
+- **Source:** review `trf-contract-3r2` (part 3 of the contract landing, round 2), readability lens, finding `R2-overlong-sentence-parallel-writers`.
+- **Location:** `openspec/changes/testing-refoundation/specs/behavioural-coverage-backfill/spec.md:178-179`.
+- **Suggestion:** split the five acceptance conditions of the parallel-writer scenario into bullets.
+- **Why deferred:** the five conditions are each checkable as written; the parenthetical is the single CODE definition pointer round 1 asked for.
+- **To implement:** a prose edit in the spec named above, reviewed with the slice that next touches it.
+
+### SB-016 — cross spec mirroring duplication
+
+- **Source:** review `trf-contract-3r2` (part 3 of the contract landing, round 2), readability lens, finding `R2-cross-spec-mirroring-duplication`.
+- **Location:** `openspec/changes/testing-refoundation/specs/testing-toolchain-alignment/spec.md:116-124` and `dependency-version-management/spec.md:14-33`.
+- **Suggestion:** name which spec OWNS the mirrored `@types/node` / `engines.node` rule and which one restates it.
+- **Why deferred:** both statements are identical today and both are reviewed together in this part; ownership is a naming decision for the canon pass (Phase 8).
+- **To implement:** a prose edit in the spec named above, reviewed with the slice that next touches it.
+
+### SB-017 — ambiguous maturity anchor
+
+- **Source:** review `trf-contract-3r2` (part 3 of the contract landing, round 2), readability lens, finding `R2-ambiguous-maturity-anchor`.
+- **Location:** `openspec/changes/testing-refoundation/specs/dependency-version-management/spec.md:72`.
+- **Suggestion:** make the ADR-0018 citation a repository-relative path (`docs/technical/ADR-0018-dependency-freshness-canon.md`).
+- **Why deferred:** the ADR is unique by number and lives under `docs/technical/`; a path is one hop from a grep.
+- **To implement:** a prose edit in the spec named above, reviewed with the slice that next touches it.
+
+### SB-018 — k6 cv boundary ambiguity
+
+- **Source:** review `trf-contract-3r2` (part 3 of the contract landing, round 2), reliability lens, finding `R3-k6-cv-boundary-ambiguity`.
+- **Location:** `openspec/changes/testing-refoundation/specs/k6-load-gate/spec.md:89-90`.
+- **Suggestion:** say in words that EITHER condition alone deletes the tool (the sentence already says "OR").
+- **Why deferred:** `DELETED if A, OR B` is a disjunction; the reviewer asks for the same rule in a second wording.
+- **To implement:** a prose edit in the spec named above, reviewed with the slice that next touches it.
+
+### SB-019 — coverage floor formula edge
+
+- **Source:** review `trf-contract-3r2` (part 3 of the contract landing, round 2), reliability lens, finding `R3-coverage-floor-formula-edge`.
+- **Location:** `openspec/changes/testing-refoundation/specs/coverage-floor-ratchet/spec.md:79`.
+- **Suggestion:** state the two endpoints explicitly (0.1 → 0.0, 100 → 99.9).
+- **Why deferred:** the arithmetic at both endpoints is self-consistent, as the finding itself concedes.
+- **To implement:** a prose edit in the spec named above, reviewed with the slice that next touches it.
+
+### SB-020 — env port refusal recovery
+
+- **Source:** review `trf-contract-3r2` (part 3 of the contract landing, round 2), reliability lens, finding `R3-env-port-refusal-recovery`.
+- **Location:** `openspec/changes/testing-refoundation/specs/test-environment-contract/spec.md:88-90`.
+- **Suggestion:** the refusal MUST always include the bound port and the whole test port set, process identity being optional.
+- **Why deferred:** the scenario already requires the port in every refusal; process identity was added as optional in round 2.
+- **To implement:** a prose edit in the spec named above, reviewed with the slice that next touches it.
+
+### SB-021 — mutation no both directions proof
+
+- **Source:** review `trf-contract-3r2` (part 3 of the contract landing, round 2), reliability lens, finding `R3-mutation-no-both-directions-proof`.
+- **Location:** `openspec/changes/testing-refoundation/specs/mutation-score-floors/spec.md:133-139`.
+- **Suggestion:** add a Red scenario where a new assertion-free test fails the incremental mutation lane, or state that the ledger reopening is the enforcement surface.
+- **Why deferred:** the enforcement surface is decided in Phase 7 (7.5 mutation PR lane); writing the scenario before the lane exists would be fiction.
+- **To implement:** a prose edit in the spec named above, reviewed with the slice that next touches it.
+
+### SB-022 — dependency closure coverage silent
+
+- **Source:** review `trf-contract-3r2` (part 3 of the contract landing, round 2), reliability lens, finding `R3-dependency-closure-coverage-silent`.
+- **Location:** `openspec/changes/testing-refoundation/specs/dependency-version-management/spec.md:47-49`.
+- **Suggestion:** add a Red scenario where a documented chain that the parsed lockfile does not contain exits non-zero naming the entry.
+- **Why deferred:** the gate lands with slice 0.3/0.18 and carries its own red proof there; the spec scenario can name the exit when that gate is final.
+- **To implement:** a prose edit in the spec named above, reviewed with the slice that next touches it.
+
+### SB-023 — phase2 ordering vs H3
+
+- **Source:** review `trf-contract-7` (part 7 of the contract landing), reliability lens, finding `R3-phase2-ordering-vs-H3`.
+- **Location:** `openspec/changes/testing-refoundation/tasks-part-2.md` Phase 2 preamble.
+- **Suggestion:** name gate H8 (2.3.1) in the Phase 2 preamble next to H3, since later block-deletion slices can descend floors.
+- **Why deferred:** H8 is named at the slice that owns it and the Decisions log records it when it fires; the preamble line is a reading aid.
+- **To implement:** a prose edit in the tasks file named above, reviewed with the slice that next touches it.
+
+### SB-024 — S4 decline branch undefined
+
+- **Source:** review `trf-contract-7` (part 7 of the contract landing), reliability lens, finding `R3-S4-decline-branch-undefined`.
+- **Location:** `openspec/changes/testing-refoundation/tasks-part-2.md` task S.4.2.
+- **Suggestion:** give the S.4.2 decline branch a human-gate id so the taken branch is observable from the plan, not only from the tracker Decisions log.
+- **Why deferred:** the tracker Decisions log is the existing typed record for every human decision; a gate id is a cross-reference on top of it.
+- **To implement:** a prose edit in the tasks file named above, reviewed with the slice that next touches it.
+
+### SB-025 — 4b5 measured branch no acceptance
+
+- **Source:** review `trf-contract-7` (part 7 of the contract landing), reliability lens, finding `R3-4b5-measured-branch-no-acceptance`.
+- **Location:** `openspec/changes/testing-refoundation/tasks-part-2.md` task 4b.5.2.
+- **Suggestion:** add an acceptance line citing the measured N and either the removed db steps (N=0) or the opened ledger rows and the resume condition (N>0).
+- **Why deferred:** the line can only be written with the measured N, when slice 4b.5 runs.
+- **To implement:** a prose edit in the tasks file named above, reviewed with the slice that next touches it.
+
+### SB-026 — X2 decision rule ambiguity
+
+- **Source:** review `trf-contract-7` (part 7 of the contract landing), reliability lens, finding `R3-X2-decision-rule-ambiguity`.
+- **Location:** `openspec/changes/testing-refoundation/tasks-part-2.md` task X.2.1.
+- **Suggestion:** restate the fork rule as "any hard criterion other than H5 failing keeps node:test" so no reader has to infer the two-failures case.
+- **Why deferred:** the rule is total as written; the request is a second wording of the same rule.
+- **To implement:** a prose edit in the tasks file named above, reviewed with the slice that next touches it.
+
+### SB-027 — 1 11 3 env coupling
+
+- **Source:** review `trf-contract-7` (part 7 of the contract landing), reliability lens, finding `R3-1-11-3-env-coupling`.
+- **Location:** `openspec/changes/testing-refoundation/tasks-part-2.md` task 1.11.3.
+- **Suggestion:** add a RED row where an unset `TEST_API_URL` fails fast with a named error, so the deleted `localhost:3000` default is proved gone.
+- **Why deferred:** slice 1.11 carries its own red proofs and is planned in detail when it is next in the queue.
+- **To implement:** a prose edit in the tasks file named above, reviewed with the slice that next touches it.
 
 ## Entries — tests
 
