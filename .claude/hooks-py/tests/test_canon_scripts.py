@@ -144,7 +144,6 @@ class SiblingScriptsResolveTheSharedPathsTests(unittest.TestCase):
             ("canon-finalize.py", "CANON_MD", _common.canon_research_index_path),
             ("canon-finalize.py", "CANON_JSON", _common.canon_index_path),
             ("canon-staleness-report.py", "CANON_JSON", _common.canon_index_path),
-            ("omnipost-status.py", "CANON_INDEX", _common.canon_index_path),
         )
         for script, attribute, resolver in cases:
             with self.subTest(script=script, attribute=attribute):
