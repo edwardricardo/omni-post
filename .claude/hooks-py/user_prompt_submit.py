@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""UserPromptSubmit hook — inyecta contexto del repo y de archivos mencionados.
+"""UserPromptSubmit hook — injects repository context and mentioned files.
 
-Goal: que Claude no tenga que invocar `git status` ni leer canon_research_index
-al inicio de cada turno. Lo más relevante (branch, archivos sin commit, edad
-del canon, plan activo, layer de archivos mencionados en el prompt) se inyecta
-como `additionalContext` y entra al razonamiento del modelo antes de su
-primera respuesta.
+Goal: Claude should not need to run `git status` or read canon_research_index
+at the start of every turn. The most relevant facts (branch, uncommitted
+files, canon index status, active plan, @layer of files mentioned in the
+prompt) are injected as `additionalContext` and reach the model's reasoning
+before its first answer.
 
-Este hook no bloquea; en caso de error logguea y exit 0 para no frenar al
-usuario.
+This hook never blocks; on error it logs and exits 0 so the user is not
+stopped.
 """
 
 import json
@@ -19,7 +19,16 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import LOG_PATH, PROJECT_ROOT, canon_research_index_path, current_branch  # noqa: E402
+from _common import (  # noqa: E402
+    LOG_PATH,
+    PROJECT_ROOT,
+    canon_index_path,
+    canon_index_staleness,
+    canon_research_index_path,
+    current_branch,
+    parse_synthesized_at,
+    read_canon_index,
+)
 
 HOOK_NAME = "user-prompt-submit"
 # Los planes reales viven en ~/.claude/plans/*.md (los escribe Plan Mode).
@@ -95,11 +104,30 @@ def ahead_behind(branch: str) -> str:
     return "n/a"
 
 
-def file_age_min(path: Path) -> int | None:
-    if not path.exists():
-        return None
-    age_sec = datetime.now().timestamp() - path.stat().st_mtime
-    return int(age_sec / 60)
+def canon_index_line() -> str:
+    """The canon index status as one line, on every prompt.
+
+    `current (<n> entries, synthesized <date>)`, `STALE — <reason>` (the reason
+    comes from `canon_index_staleness`, the same one pre_edit_canon uses) or
+    `MISSING <path>` for the JSON or its source. One read of the JSON and no
+    subprocess: it runs before every answer.
+    """
+    try:
+        index_path, source_path = canon_index_path(), canon_research_index_path()
+        for path in (index_path, source_path):
+            if not path.exists():
+                return f"canon_index: MISSING {path}"
+        index, error = read_canon_index(index_path)
+        reason = error or canon_index_staleness(index_path, source_path, index=index)
+        if reason:
+            return f"canon_index: STALE — {reason}"
+        synthesized = parse_synthesized_at(index)
+        return f"canon_index: current ({len(index['entries'])} entries, synthesized {synthesized.date().isoformat()})"
+    except Exception as e:
+        # An index with an unexpected shape must not take down the whole context
+        # or leave the line blank: the failure is named and the rest goes on.
+        log(f"ERROR evaluating canon-index: {e!r}")
+        return f"canon_index: STALE — status check failed ({type(e).__name__})"
 
 
 def find_active_plan(transcript_path: str) -> Path | None:
@@ -163,11 +191,9 @@ def find_files_in_prompt(prompt: str) -> list[str]:
 
 
 def build_context(prompt: str, transcript_path: str) -> str:
-    research_index = canon_research_index_path()
     branch = current_branch(PROJECT_ROOT)
     counts = status_counts()
     ab = ahead_behind(branch)
-    canon_age = file_age_min(research_index)
     active_plan = find_active_plan(transcript_path)
     files = find_files_in_prompt(prompt)
 
@@ -175,11 +201,8 @@ def build_context(prompt: str, transcript_path: str) -> str:
         f"branch: {branch or '(no branch)'}",
         f"uncommitted: {counts['staged']} staged, {counts['unstaged']} unstaged, {counts['untracked']} untracked",
         f"ahead/behind: {ab}",
+        canon_index_line(),
     ]
-    if canon_age is not None:
-        lines.append(f"canon_index_age: {canon_age} min")
-    else:
-        lines.append(f"canon_index: MISSING {research_index}")
     if active_plan:
         lines.append(f"active_plan: {active_plan.name} (read or edited in this session)")
     else:

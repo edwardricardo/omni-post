@@ -1,10 +1,15 @@
-"""Tests del hook de prompt: plan activo desde el transcript y conteo de `git status`."""
+"""Tests of the prompt hook: active plan from the transcript, `git status`
+counts, and the canon index status line."""
 
+import contextlib
+import io
+import json
 import os
 import shutil
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -96,24 +101,112 @@ class FindFilesInPromptTests(unittest.TestCase):
         self.assertEqual(out, ["- apps/x.ts (existing, @layer infrastructure)", f"- {absolute} (existing)"])
 
 
-class CanonIndexAgeLineTests(unittest.TestCase):
-    """La línea `canon_index…` sale de la ruta que `canon_research_index_path()`
-    devuelve al correr (el directorio de memoria), exista el índice o no."""
+LIVE_PATTERN = ".claude/hooks-py/"
+DEAD_PATTERN = "apps/zz-no-such-dir-fixture/"
+SYNTHESIZED = "2026-05-07T12:00:00+00:00"
+SYNTHESIZED_EPOCH = datetime.fromisoformat(SYNTHESIZED).timestamp()
 
-    def _context(self, index: Path) -> list[str]:
-        with mock.patch.object(ups, "canon_research_index_path", return_value=index), \
+
+def _write_index(tmp: Path, payload: object | None = None, *, applies_to: tuple[str, ...] = (LIVE_PATTERN,)) -> Path:
+    if payload is None:
+        payload = {"synthesizedAt": SYNTHESIZED, "entries": {"e": {"key": "e", "appliesTo": list(applies_to)}}}
+    index = tmp / "canon-index.json"
+    index.write_text(payload if isinstance(payload, str) else json.dumps(payload))
+    return index
+
+
+def _write_source(tmp: Path, seconds_after_synthesis: float) -> Path:
+    source = tmp / "canon_research_index.md"
+    source.write_text("# canon\n")
+    mtime = SYNTHESIZED_EPOCH + seconds_after_synthesis
+    os.utime(source, (mtime, mtime))
+    return source
+
+
+class CanonIndexLineTests(unittest.TestCase):
+    """The prompt's `canon_index…` line: `current` with entries and date, or
+    `STALE — <reason>` when the index does not reflect its source or the tree,
+    or `MISSING <path>`. Age alone is not a reason."""
+
+    def _context_through_main(self, index: Path, source: Path) -> list[str]:
+        out = io.StringIO()
+        with mock.patch.object(ups, "canon_index_path", return_value=index), \
+                mock.patch.object(ups, "canon_research_index_path", return_value=source), \
                 mock.patch.object(ups, "current_branch", return_value="workstream/x"), \
-                mock.patch.object(ups, "run", return_value=""):
-            return ups.build_context("hola", "").split("\n")
+                mock.patch.object(ups, "run", return_value=""), \
+                mock.patch.object(ups, "log"), \
+                mock.patch.object(sys, "stdin", io.StringIO(json.dumps({"prompt": "hello"}))), \
+                contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as raised:
+            ups.main()
+        self.assertEqual(raised.exception.code, 0)
+        return json.loads(out.getvalue())["hookSpecificOutput"]["additionalContext"].split("\n")
 
-    def test_age_in_minutes_when_the_index_exists(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            index = Path(tmp) / "canon_research_index.md"
-            index.write_text("# canon\n")
-            self.assertIn("canon_index_age: 0 min", self._context(index))
+    def _canon_line(self, index: Path, source: Path) -> str:
+        return next(line for line in self._context_through_main(index, source) if line.startswith("canon_index"))
 
-    def test_not_found_when_the_memory_dir_has_no_index(self):
-        self.assertIn("canon_index: MISSING /nonexistent/canon_research_index.md", self._context(Path("/nonexistent/canon_research_index.md")))
+    def test_a_current_index_reports_its_entries_and_synthesis_date(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            line = self._canon_line(_write_index(tmp), _write_source(tmp, -3600))
+        self.assertEqual(line, "canon_index: current (1 entries, synthesized 2026-05-07)")
+
+    def test_an_old_index_from_an_unchanged_source_is_current_not_stale(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            index = _write_index(tmp, {"synthesizedAt": "2020-01-01T00:00:00+00:00", "entries": {}})
+            source = tmp / "canon_research_index.md"
+            source.write_text("# canon\n")
+            os.utime(source, (0, 0))
+            line = self._canon_line(index, source)
+        self.assertTrue(line.startswith("canon_index: current"), line)
+
+    def test_an_index_older_than_its_markdown_is_stale(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            line = self._canon_line(_write_index(tmp), _write_source(tmp, 3600))
+        self.assertTrue(line.startswith("canon_index: STALE — "), line)
+        self.assertIn("modified after synthesizedAt", line)
+
+    def test_a_dead_pattern_in_an_otherwise_current_index_is_stale_and_named(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            line = self._canon_line(_write_index(tmp, applies_to=(LIVE_PATTERN, DEAD_PATTERN)), _write_source(tmp, -3600))
+        self.assertTrue(line.startswith("canon_index: STALE — "), line)
+        self.assertIn(DEAD_PATTERN, line)
+        self.assertIn("1 dead appliesTo", line)
+
+    def test_missing_or_unparseable_synthesized_at_is_stale(self):
+        for payload, expected in (
+            ({"entries": {}}, "synthesizedAt missing"),
+            ({"synthesizedAt": "not-a-date", "entries": {}}, "synthesizedAt unparseable"),
+        ):
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as d:
+                tmp = Path(d)
+                line = self._canon_line(_write_index(tmp, payload), _write_source(tmp, -3600))
+                self.assertTrue(line.startswith("canon_index: STALE — "), line)
+                self.assertIn(expected, line)
+
+    def test_unreadable_json_is_stale_and_names_the_error_class(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            line = self._canon_line(_write_index(tmp, "{not json"), _write_source(tmp, -3600))
+        self.assertTrue(line.startswith("canon_index: STALE — "), line)
+        self.assertIn("JSONDecodeError", line)
+
+    def test_an_unexpected_failure_is_named_in_the_line_not_silenced(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            index, source = _write_index(tmp), _write_source(tmp, -3600)
+            with mock.patch.object(ups, "canon_index_staleness", side_effect=RuntimeError("boom")):
+                line = self._canon_line(index, source)
+        self.assertEqual(line, "canon_index: STALE — status check failed (RuntimeError)")
+
+    def test_missing_index_or_source_is_reported_with_its_path(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            source = _write_source(tmp, -3600)
+            self.assertEqual(self._canon_line(tmp / "absent.json", source), f"canon_index: MISSING {tmp / 'absent.json'}")
+            self.assertEqual(self._canon_line(_write_index(tmp), tmp / "absent.md"), f"canon_index: MISSING {tmp / 'absent.md'}")
 
 
 if __name__ == "__main__":

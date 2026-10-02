@@ -1,41 +1,41 @@
 #!/usr/bin/env python3
-"""Pre-edit canon orquestador.
+"""Pre-edit canon orchestrator.
 
-Para cada Edit/Write/MultiEdit, clasifica el archivo por path, busca canon
-relevante en `canon-index.json`, e inyecta resumen como `additionalContext`.
-Cumple `feedback_check_canon_index_first.md` proactivamente sin frenar el flujo.
+For each Edit/Write/MultiEdit, classifies the file by path, looks up relevant
+canon in `canon-index.json`, and injects a summary as `additionalContext`.
+Applies `feedback_check_canon_index_first.md` proactively without stopping the flow.
 
-Arquitectura 4-stage (sin web search):
+4-stage architecture (no web search):
   1. CLASSIFY — file_path → path patterns matched
-  2. LOOKUP   — canon entries cuyo appliesTo matchea + relevance ≥ MIN_RELEVANCE
-  3. FALLBACK — miss = log a canon-misses.log + allow sin contexto
-  4. INJECT   — formato top-N entries en additionalContext
+  2. LOOKUP   — canon entries whose appliesTo matches + relevance ≥ MIN_RELEVANCE
+  3. FALLBACK — miss = log to canon-misses.log + allow without context
+  4. INJECT   — top-N entries formatted into additionalContext
 
-Staleness: si canon-index.json synthesizedAt > 30 días, warning al inicio
-del contexto.
+Staleness: when the index does not reflect its markdown (source modified after
+`synthesizedAt`, date missing or unparseable) or carries dead `appliesTo`
+patterns, a warning opens the context. Age alone does not count.
 
-Dedup multi-capa (todas reset al iniciar nueva session):
-  - per-file: cada file_path recibe canon UNA vez por session (subsiguientes Edits silent)
-  - per-key:  cada canon entry se inyecta UNA vez por session (cross-file)
-  - hard cap: MAX_INJECTIONS_PER_SESSION limita el ruido total
+Multi-layer dedup (all reset when a new session starts):
+  - per-file: each file_path receives canon ONCE per session (later Edits are silent)
+  - per-key:  each canon entry is injected ONCE per session (cross-file)
+  - hard cap: MAX_INJECTIONS_PER_SESSION bounds the total noise
 
 Relevance scoring (path):
   ratio = len(longest matched path) / len(file_path).
-  Matches con ratio < MIN_RELEVANCE quedan fuera. Evita inyectar canon de
-  scope amplio (e.g. apps/api/src/) cuando existe canon más específico.
+  Matches with ratio < MIN_RELEVANCE are dropped. Avoids injecting broad-scope
+  canon (e.g. apps/api/src/) when more specific canon exists.
 
 Content-keyword filter:
-  Cada canon entry deriva un vocabulario desde topic + keyTakeaway +
-  patternAdopted (tokenizado, lowercased, filtrado por STOP_WORDS y
-  MIN_TOKEN_LEN). Un canon dispara solo si ≥1 token del vocab aparece en el
-  diff (new_string / content / MultiEdit edits). Si el canon no deriva
-  keywords, NO fire (conservador — evita ruido sin signal).
+  Each canon entry derives a vocabulary from topic + keyTakeaway +
+  patternAdopted (tokenized, lowercased, filtered by STOP_WORDS and
+  MIN_TOKEN_LEN). A canon fires only if ≥1 vocabulary token appears in the
+  diff (new_string / content / MultiEdit edits). A canon with no derivable
+  keywords does NOT fire (conservative — avoids noise without signal).
 
-Este hook NUNCA bloquea: exit 0 siempre. Errores se loguean y allowean.
+This hook NEVER blocks: always exit 0. Errors are logged and allowed.
 """
 
 import json
-import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -45,6 +45,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
     PROJECT_ROOT,
     canon_index_path,
+    canon_index_staleness,
+    canon_research_index_path,
     emit_additional_context,
     emit_missing_file_context,
     make_logger,
@@ -63,7 +65,6 @@ MAX_ENTRIES_INJECTED = 2
 MAX_INJECTIONS_PER_SESSION = 50
 MIN_RELEVANCE = 0.15
 MIN_TOKEN_LEN = 3
-STALE_THRESHOLD_DAYS = 30
 
 _TOKEN_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
 
@@ -208,22 +209,16 @@ def load_index(session_id: str = "") -> dict:
 
 
 def staleness_warning(index: dict) -> str | None:
-    """Si la última síntesis es vieja, devolver warning string. Else None."""
-    synth_str = index.get("synthesizedAt", "")
-    if not synth_str:
-        return None
-    try:
-        synth = datetime.fromisoformat(synth_str)
-    except ValueError:
-        return None
-    if synth.tzinfo is None:
-        synth = synth.replace(tzinfo=timezone.utc)
-    age_days = (datetime.now(timezone.utc) - synth).days
-    if age_days > STALE_THRESHOLD_DAYS:
-        return (
-            f"[STALE CANON: index sintetizado hace {age_days} días "
-            f"(umbral {STALE_THRESHOLD_DAYS}d). Verificá relevancia antes de aplicar.]"
-        )
+    """A warning when the index does not reflect its source or the tree; else None.
+
+    The reason comes from `canon_index_staleness`, the same one the prompt
+    hook shows: the two surfaces cannot disagree. Age alone does not warn — a
+    threshold in days flagged a current index as old and stayed silent about
+    one that drifted yesterday.
+    """
+    reason = canon_index_staleness(canon_index_path(), canon_research_index_path(), index=index)
+    if reason:
+        return f"[STALE CANON: {reason}. Verify relevance before applying.]"
     return None
 
 

@@ -7,6 +7,7 @@ import os
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -77,6 +78,43 @@ class NonObjectIndexIsUnreadableTests(unittest.TestCase):
                 self.assertEqual(canon.load_index(), {"entries": {}})
             with mock.patch.object(guard, "canon_index_path", return_value=index):
                 self.assertEqual(guard.load_index(decision_ids="p"), {"entries": {}})
+
+
+class PreEditCanonStalenessTests(unittest.TestCase):
+    """The STALE CANON line of `pre_edit_canon` comes from the same reason as
+    the prompt line: a source newer than the synthesis, a dead pattern, or a
+    missing `synthesizedAt`. An old index from an unchanged source warns nothing."""
+
+    def _warning(self, index: dict, source_offset: float = -3600.0) -> str | None:
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "canon_research_index.md"
+            source.write_text("# canon\n")
+            synthesized = index.get("synthesizedAt")
+            base = datetime.fromisoformat(synthesized).timestamp() if synthesized else 0.0
+            os.utime(source, (base + source_offset, base + source_offset))
+            with mock.patch.object(canon, "canon_index_path", return_value=Path(tmp) / "canon-index.json"), \
+                    mock.patch.object(canon, "canon_research_index_path", return_value=source):
+                return canon.staleness_warning(index)
+
+    def _index(self, synthesized: str | None = "2020-01-01T00:00:00+00:00", applies_to: tuple[str, ...] = (".claude/hooks-py/",)) -> dict:
+        index: dict = {"entries": {"e": {"key": "e", "appliesTo": list(applies_to)}}}
+        if synthesized is not None:
+            index["synthesizedAt"] = synthesized
+        return index
+
+    def test_age_alone_is_not_a_warning(self):
+        self.assertIsNone(self._warning(self._index()))
+
+    def test_a_source_newer_than_the_synthesis_warns(self):
+        self.assertIn("modified after synthesizedAt", self._warning(self._index(), source_offset=3600.0) or "")
+
+    def test_a_dead_pattern_warns_and_is_named(self):
+        warning = self._warning(self._index(applies_to=(".claude/hooks-py/", "apps/zz-no-such-dir-fixture/"))) or ""
+        self.assertTrue(warning.startswith("[STALE CANON: "), warning)
+        self.assertIn("apps/zz-no-such-dir-fixture/", warning)
+
+    def test_missing_synthesized_at_warns(self):
+        self.assertIn("synthesizedAt missing", self._warning(self._index(synthesized=None)) or "")
 
 
 class DecisionGuardWithoutIndexTests(unittest.TestCase):

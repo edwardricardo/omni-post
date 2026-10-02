@@ -1,7 +1,7 @@
 # Review Suggestions Book
 
 **Owner:** Platform engineering
-**As of:** 2026-10-01
+**As of:** 2026-10-02
 **Purpose:** the ledger of review findings disposed as **JUSTIFIED — deferred** because they change no behaviour: comment placement, docstring wording, naming, test-fixture readability, and extra test coverage for branches that already share tested code. Every entry names the candidate, the finding, the exact location and what implementing it would take, so it can be picked up later without re-deriving anything.
 
 ## Rules
@@ -46,6 +46,7 @@
 | SB-025 | same                                                                                  | R3-4b5-measured-branch-no-acceptance                             | `openspec/changes/testing-refoundation/tasks-part-2.md` task 4b.5.2                                                                         | acceptance line              | deferred: add an acceptance line citing the measured N and either the removed db steps (N=0) or the opened ledger rows and the resume condition (N>0)           |
 | SB-026 | same                                                                                  | R3-X2-decision-rule-ambiguity                                    | `openspec/changes/testing-refoundation/tasks-part-2.md` task X.2.1                                                                          | prose precision              | deferred: restate the fork rule as "any hard criterion other than H5 failing keeps node:test" so no reader has to infer the two-failures case                   |
 | SB-027 | same                                                                                  | R3-1-11-3-env-coupling                                           | `openspec/changes/testing-refoundation/tasks-part-2.md` task 1.11.3                                                                         | missing red row              | deferred: add a RED row where an unset `TEST_API_URL` fails fast with a named error, so the deleted `localhost:3000` default is proved gone                     |
+| SB-028 | `mental-map-hooks` 3a-i (`workstream/hooks-canon-index`, 4c921dbb)                    | R2-canon-finalize-import-ordering                                | `.claude/scripts/canon-finalize.py:34-41` and the three sibling canon scripts                                                               | duplication                  | deferred: revisit the `_common` bootstrap repeated in four scripts once it is decided which of those scripts survive                                            |
 
 ## Entries — code and prose
 
@@ -240,6 +241,14 @@
 - **Suggestion:** add a RED row where an unset `TEST_API_URL` fails fast with a named error, so the deleted `localhost:3000` default is proved gone.
 - **Why deferred:** slice 1.11 carries its own red proofs and is planned in detail when it is next in the queue.
 - **To implement:** a prose edit in the tasks file named above, reviewed with the slice that next touches it.
+
+### SB-028 — four canon scripts repeat the `_common` bootstrap
+
+- **Source:** review `hooks-canon-index` (`mental-map-hooks` 3a-i, lineage `review-d419d8af1b0cdde5`), readability lens, finding `R2-canon-finalize-import-ordering`.
+- **Location:** `.claude/scripts/canon-finalize.py:34-41`, and the same two lines in `canon-staleness-report.py`, `omnipost-status.py` and `migrate-canon-index.py`.
+- **Suggestion:** move the `sys.path.insert` plus `from _common import` pair into one helper, or say next to it that `sys` is imported at the top of the file.
+- **Why deferred:** no behaviour changes. A helper module in the scripts directory would not resolve when the suite loads a script by path, so the pair is the smallest form that works both ways; how many scripts carry it depends on a pending decision about the report scripts that read paths which no longer exist.
+- **To implement:** after that decision, with the scripts that remain: either one bootstrap the tests can also load, or closing this row with the count that is left.
 
 ## Entries — tests
 
