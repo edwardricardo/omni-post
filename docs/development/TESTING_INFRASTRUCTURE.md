@@ -53,10 +53,10 @@ The executed runs left their output in the scratchpad of the session that measur
 | `jsdom`                         | 29.1.1                                                                                         | DOM environment for frontend vitest runs                                                                | M     |
 | MSW                             | 2.15.0 since 2026-10-02 (slice `0.8`); 2.14.6 when this document was measured on 2026-09-27    | HTTP mocking. Declared by `apps/api`, `apps/client` and `packages/providers/shared`; no config wires it | M     |
 | k6                              | `grafana/k6:latest` Docker image, unpinned                                                     | Load tests, 6 scenarios under `performance/k6/scenarios/`                                               | M     |
-| Jest 30                         | `jest@30.4.2` in the store                                                                     | Not a direct dependency: arrives with `@storybook/test-runner@0.24.4` in `apps/admin`                   | P + M |
+| Jest 30                         | Absent since 2026-10-02 (slice `0.11`); `jest@30.4.2` in the store on 2026-09-27               | Left with `@storybook/test-runner`; only `jest-worker@27.5.1` remains, via webpack's terser plugin      | P + M |
 | Mutation testing                | None since 2026-09-27 (removed by PRs #307, #310, #311; see MASTER_PLAN_ES.md N-CI-4)          | No replacement chosen                                                                                   | F     |
 
-Versions above come from `pnpm-workspace.yaml` (the catalog) and `apps/admin/package.json`; the store entries from `eza -d node_modules/.pnpm/<name>@*`.
+Versions above come from `pnpm-workspace.yaml` (the catalog); the store entries from `eza -d node_modules/.pnpm/<name>@*`, and the Jest row's 2026-10-02 state from parsing `pnpm-lock.yaml` (no `jest@` key; `jest-worker@27.5.1` declared by `terser-webpack-plugin@5.6.1`).
 
 ### Vitest configuration
 
