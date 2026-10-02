@@ -136,20 +136,101 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install gitleaks
+        env:
+          # Pinned version AND pinned artifact, as the squawk job below does:
+          # `--fail` turns an HTTP error into a non-zero exit instead of an error
+          # page handed to `tar`, and the digest is the linux_x64 entry of the
+          # release's own gitleaks_8.30.0_checksums.txt, so a substituted asset
+          # fails the step instead of deciding what this gate enforces.
+          GITLEAKS_VERSION: 8.30.0
+          GITLEAKS_SHA256: 79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e
         run: |
-          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks_8.30.0_linux_x64.tar.gz" -o /tmp/gl.tgz
+          set -euo pipefail
+          curl -fsSL --retry 3 --retry-all-errors \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            -o /tmp/gl.tgz
+          echo "${GITLEAKS_SHA256}  /tmp/gl.tgz" | sha256sum -c -
           tar -xzf /tmp/gl.tgz -C /usr/local/bin gitleaks
           chmod +x /usr/local/bin/gitleaks
           gitleaks version
-      - name: Scan PR diff (block new secrets)
+      - name: Scan the PR's commits (block new secrets)
         if: github.event_name == 'pull_request'
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          gitleaks protect \
+          # The subject is the commits this pull request introduces. The form this
+          # replaces, `gitleaks protect --staged`, read the git index, which a fresh
+          # checkout leaves empty, so it passed whatever the branch carried.
+          #
+          # No verdict below reads gitleaks' log prose. Its "N commits scanned."
+          # counts only commits that ADD lines — a deletion-only or merge-only pull
+          # request reports 0 — and is coloured on any stream. git decides the range
+          # and that it is not empty; the JSON report and the exit status decide the
+          # findings; and the error stream must stay empty, because gitleaks 8.30.0
+          # logs a failed `git log` at ERR level and still exits 0 with an empty report.
+          set -euo pipefail
+
+          # The ids arrive through `env:`, never inlined into this script, and must be
+          # 40 hex characters: gitleaks splits `--log-opts` on spaces and runs git
+          # without a shell, so a range of two hex ids is always ONE argument.
+          for name in PR_BASE_SHA PR_HEAD_SHA; do
+            if ! [[ "${!name:-}" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error title=gitleaks has no valid PR range::${name} is not a 40-character commit id, so the commits to scan are unknown. Refusing to scan."
+              exit 1
+            fi
+          done
+
+          # From the fork point, as the Files-changed view reads it: identical to
+          # base..head with one merge base, wider with several, never narrower.
+          # `git merge-base` fails when either commit is absent, so a checkout
+          # shallower than `fetch-depth: 0` above fails here instead of scanning less.
+          if ! MERGE_BASE="$(git merge-base "$PR_BASE_SHA" "$PR_HEAD_SHA")"; then
+            echo "::error title=gitleaks cannot resolve the PR range::git merge-base ${PR_BASE_SHA} ${PR_HEAD_SHA} failed; both commits must be present in the checkout. Refusing to scan a range it cannot resolve."
+            exit 1
+          fi
+          RANGE="${MERGE_BASE}..${PR_HEAD_SHA}"
+          COMMITS="$(git rev-list --count "$RANGE")"
+          if [ "$COMMITS" -eq 0 ]; then
+            echo "::error title=gitleaks has nothing to scan::${RANGE} holds no commits. A scan with no subject cannot fail, so this gate fails closed instead of reporting a clean run."
+            exit 1
+          fi
+
+          REPORT="$RUNNER_TEMP/gitleaks-report.json"
+          ERRORS="$RUNNER_TEMP/gitleaks-errors.log"
+          rm -f "$REPORT" "$ERRORS"
+          STATUS=0
+          # `--redact` keeps the value out of the log and the report; `--verbose`
+          # prints each finding's file, line and commit on stdout; `--log-level error`
+          # leaves only errors on stderr, which is kept whole.
+          gitleaks git \
             --config .gitleaks.toml \
-            --staged \
+            --log-opts="$RANGE" \
             --no-banner \
             --redact \
-            --verbose
+            --verbose \
+            --log-level error \
+            --report-format json \
+            --report-path "$REPORT" \
+            2> "$ERRORS" || STATUS=$?
+          if [ -s "$ERRORS" ]; then
+            cat "$ERRORS"
+          fi
+
+          if ! FINDINGS="$(jq -e 'if type == "array" then length else error("not an array") end' "$REPORT")"; then
+            echo "::error title=gitleaks wrote no readable report::${REPORT} is missing or is not a JSON array (gitleaks exit ${STATUS}), so a clean scan cannot be told from a failed one."
+            exit 1
+          fi
+          if [ "$FINDINGS" -gt 0 ]; then
+            echo "::error title=gitleaks found a secret in this PR's commits::${FINDINGS} finding(s) in the ${COMMITS} commit(s) of ${RANGE} (gitleaks exit ${STATUS}). The log above names each file, line and commit; the value is redacted. Rotate the credential, then remove it from this branch's history."
+            exit 1
+          fi
+          if [ -s "$ERRORS" ] || [ "$STATUS" -ne 0 ]; then
+            echo "::error title=gitleaks did not complete the scan::gitleaks exited ${STATUS} and wrote the errors above while reading ${RANGE}, so it may have read less than the range. Refusing to report a clean run."
+            exit 1
+          fi
+
+          echo "gitleaks: no findings in the ${COMMITS} commit(s) of ${RANGE}."
       - name: Scan repository (informational — baseline has historical hits)
         if: github.event_name == 'push'
         run: |
