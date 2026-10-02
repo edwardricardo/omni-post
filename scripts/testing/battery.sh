@@ -64,13 +64,21 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 2
 fi
 
+# Digits only, and greater than zero once read as decimal: `timeout` takes a
+# zero duration (`0`, `00`, …) as "no limit", which would switch the bound off
+# while looking like a setting.
 STEP_TIMEOUT=${BATTERY_STEP_TIMEOUT:-3600}
 case "$STEP_TIMEOUT" in
-  '' | *[!0-9]* | 0)
+  '' | *[!0-9]*)
     echo "battery: BATTERY_STEP_TIMEOUT must be a positive number of seconds, got '$STEP_TIMEOUT'" >&2
     exit 2
     ;;
 esac
+if [ "$((10#$STEP_TIMEOUT))" -le 0 ]; then
+  echo "battery: BATTERY_STEP_TIMEOUT must be a positive number of seconds, got '$STEP_TIMEOUT'" >&2
+  exit 2
+fi
+STEP_TIMEOUT=$((10#$STEP_TIMEOUT))
 
 # A battery certifies a commit, so it refuses a tree that is not that commit.
 if ! START_STATUS=$(git status --porcelain); then
