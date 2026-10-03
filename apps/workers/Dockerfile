@@ -8,7 +8,7 @@
 # docs/deployment/image-build-model.md and is not restated in either.
 # ==============================================================================
 
-FROM node:24-bookworm-slim AS base
+FROM node:25-bookworm-slim AS base
 RUN corepack enable
 WORKDIR /app
 
