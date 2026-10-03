@@ -370,6 +370,16 @@ auditConfig:
     # publishes >=2.0.3 and the tree resolves it.
     - GHSA-w3rx-r6r6-pgpr
     - GHSA-5p2g-fcmc-qvqq
+    # braces stack-exhaustion DoS through deeply nested brace patterns,
+    # CVE-2026-93687 (added 2026-10-03). No fixed release exists: npm ends at
+    # 3.0.3, OSV records last_affected 3.0.3 and GitHub first_patched_version
+    # null. The one copy, braces@3.0.3, sits under micromatch@4.0.8 on
+    # devDependency chains only (depcheck, eslint-plugin-boundaries, jscpd,
+    # secretlint, @storybook/nextjs); no production importer reaches it, and
+    # micromatch hands braces glob patterns only, which here come from
+    # repository configuration or a committer's own staged paths. Remove when
+    # braces publishes a release above 3.0.3 and the lockfile resolves it.
+    - GHSA-vfj7-8cjw-p6xm
 
 # Patched dependency (migrated from package.json `pnpm` field, ADR-0019).
 patchedDependencies:
