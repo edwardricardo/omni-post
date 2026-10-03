@@ -10,7 +10,6 @@ failures go to PostToolUseFailure (a separate event). It does not check
 whether the Edit worked — if this hook runs, the file was written.
 """
 
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -36,17 +35,19 @@ SKIP_SUBSTRINGS = (
 
 SECRETLINT_TIMEOUT_SEC = 10
 
-# secretlint treats its file argument as a glob. Next.js route filenames contain
-# glob metacharacters — dynamic `[id]`, catch-all `[...path]`, route groups
-# `(group)` — which a glob parser reads as character classes / extglob, so the
-# literal file is never matched ("Not found target files") and the scan silently
-# never runs. Escaping these makes secretlint scan the actual file.
-_GLOB_MAGIC = re.compile(r"([\[\]()?*!{}@+])")
+# The argument is the one file just written, never a pattern. Next.js route
+# segments such as `[id]`, `[...path]` and `(group)` are glob syntax. secretlint
+# 13 already reads a path that exists on disk literally; this flag states it,
+# so the scan never depends on that rule. lint-staged passes the same flag. The
+# path goes verbatim: a backslash-escaped one names no file ("Not found target
+# files").
+LITERAL_PATH_FLAG = "--no-glob"
 
-
-def escape_glob(path: str) -> str:
-    """Backslash-escape glob metacharacters so a literal path matches itself."""
-    return _GLOB_MAGIC.sub(r"\\\1", path)
+# File selection must be the one lint-staged and secret:scan use. secretlint
+# merges `.gitignore` into the same ignore level as `.secretlintignore` unless
+# told not to, and `.gitignore` is read last, so its `!.env.example` negations
+# re-include the env templates `.secretlintignore` excludes on purpose.
+SECRETLINTIGNORE_ONLY_FLAG = "--no-gitignore"
 
 
 def should_skip(file_path: str) -> bool:
@@ -84,9 +85,11 @@ def main() -> None:
                 ".secretlintrc.json",
                 "--secretlintignore",
                 ".secretlintignore",
+                SECRETLINTIGNORE_ONLY_FLAG,
+                LITERAL_PATH_FLAG,
                 "--format",
                 "compact",
-                escape_glob(file_path),
+                file_path,
             ],
             capture_output=True,
             text=True,

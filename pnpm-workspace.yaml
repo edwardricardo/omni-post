@@ -354,14 +354,16 @@ auditConfig:
     # CVE-2026-93687 (added 2026-10-03). No fixed release exists: npm ends at
     # 3.0.3, OSV records last_affected 3.0.3 and GitHub first_patched_version
     # null. The one copy, braces@3.0.3, sits under micromatch@4.0.8 on
-    # devDependency chains only (eslint-plugin-boundaries, jscpd, secretlint,
-    # @storybook/nextjs; depcheck was a fifth until 2026-10-03, decision D35); no
-    # production importer reaches it, and
+    # devDependency chains only (eslint-plugin-boundaries, jscpd,
+    # @storybook/nextjs; depcheck and secretlint carried it until 2026-10-03,
+    # decisions D35 and D38); no production importer reaches it, and
     # micromatch hands braces glob patterns only, which here come from
-    # repository configuration or a committer's own staged paths. Remove when
+    # repository configuration alone. secretlint was the one carrier that
+    # received a committer's staged paths as patterns, and 13.0.6 no longer
+    # depends on micromatch (decision D38). Remove when
     # braces publishes a release above 3.0.3 and the lockfile resolves it.
     - GHSA-vfj7-8cjw-p6xm
 
 # Patched dependency (migrated from package.json `pnpm` field, ADR-0019).
 patchedDependencies:
-  "@secretlint/node@12.3.1": patches/@secretlint__node@12.3.1.patch
+  "@secretlint/node@13.0.6": patches/@secretlint__node@13.0.6.patch

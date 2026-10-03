@@ -62,6 +62,8 @@
 | SB-041 | `testing-refoundation` 0.12 (`workstream/refound-0-jsdom`, a618c8bf)                  | R2-001, R3-prisma-shape-fragile                                  | `apps/api/tests/unit/security/sanitizerOutputs.test.ts` (the `unusedPrisma` client)                                                         | test-fixture readability     | deferred: a named stub factory for the client `sanitize` never reaches                                                                                          |
 | SB-042 | same                                                                                  | R2-002                                                           | `apps/api/tests/unit/security/sanitizerOutputs.test.ts` (`SanitizerCase.templateEngine`)                                                    | naming                       | deferred: rename the field to `templateEngineHtml`, symmetric with `validatorHtml`                                                                              |
 | SB-043 | replacement slice (i-a) (`workstream/refound-dead-devdeps`, 29077cb2)                 | R2-packagejson-any-field                                         | `quality/scripts/bundle-analyzer.ts` (`packageJson` and `lockfile` fields)                                                                  | typing                       | deferred: type the two `any` fields the analyzer has carried since it was written                                                                               |
+| SB-044 | night slice N3 (`workstream/refound-secretlint-13`, fec21f88)                         | R2-test-secret-content-concat                                    | `.claude/hooks-py/tests/test_post_edit.py` (`SECRET_CONTENT`)                                                                               | test-fixture readability     | deferred: name the credential key once instead of splitting it across three literals                                                                            |
+| SB-045 | same                                                                                  | R3-003                                                           | `.claude/hooks-py/tests/test_post_edit.py` (the argv test)                                                                                  | test precision               | deferred: assert the whole argv, so the flags' position before the path is pinned too                                                                           |
 
 ## Entries — code and prose
 
@@ -426,6 +428,22 @@
 - **Suggestion:** give both fields the shape the analyzer reads (or `unknown` with guards), now that the new `runCommand: CommandRunner` field beside them is typed.
 - **Why deferred:** pre-existing and outside this slice's change: the slice did not touch either field or the code that reads them, and typing them changes no behaviour. `quality/scripts` is in no tsconfig, so fitness #3 does not see it.
 - **To implement:** two field types plus the guards at the points where the parsed JSON is read.
+
+### SB-044 — the hook test splits the planted credential's key across three literals
+
+- **Source:** review of night slice N3 (commit `fec21f88`), readability lens, finding `R2-test-secret-content-concat`.
+- **Location:** `.claude/hooks-py/tests/test_post_edit.py`, `SECRET_CONTENT`.
+- **Suggestion:** build the key name once (a named constant joined at run time) and interpolate it, keeping the source free of a detectable credential.
+- **Why deferred:** readability of a fixture; the split is what keeps the file from tripping the scanner it tests, the comment above it says so, and the suite proves the fixture is detected (the AWS rule names it in three cases).
+- **To implement:** one constant and one f-string.
+
+### SB-045 — the hook's argv test checks the flags' presence, not their position
+
+- **Source:** review of night slice N3 (commit `fec21f88`), reliability lens, finding `R3-003`.
+- **Location:** `.claude/hooks-py/tests/test_post_edit.py`, `test_the_command_passes_the_path_verbatim_with_both_selection_flags`.
+- **Suggestion:** assert the complete argv, so a reorder that put the path before the flags is caught.
+- **Why deferred:** no behaviour depends on the order today: secretlint parses flags anywhere on the line, and the three end-to-end cases run the real binary with the real argv, so a reorder that broke selection would fail them.
+- **To implement:** replace the three `assert*` lines with one `assertEqual` on the argv.
 
 ## Implemented
 
