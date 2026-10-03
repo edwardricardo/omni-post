@@ -52,17 +52,24 @@ tracked owner of that obligation — it must trend toward empty.
 - **Exit criteria**: genuinely deduplicate the real clones (top: Approve/
   Reject & Create/Update PostUseCase, admin/client `notificationStore`,
   inbox use cases) with tests. The PR that removes a clone runs
-  `pnpm check:duplicates:update-baseline` and commits the rewritten baseline;
-  the baseline count → 0.
+  `pnpm check:duplicates:update-baseline` and commits the rewritten baseline,
+  and CI fails it until it does; the baseline count → 0.
 - **Owner signal**: the baseline's fingerprint total, the `(N total)` that
   `pnpm check:duplicates:update-baseline` prints (the sum of the counts in
   `.jscpd-baseline.json`). Each restoration PR must lower it.
-- **Stale entries — not detected by jscpd**: jscpd never reports or fails on
-  a stale entry, a fingerprint no current clone matches. A removed clone keeps
-  its entry until the baseline is rewritten, and while it stays, an identical
-  clone added back passes unflagged (measured 2026-10-03: both runs exit 0).
-  Edward decided on 2026-10-03 that CI fails them; the gate that does it is
-  the next slice of this stack.
+- **Stale entries fail**: a stale entry is a fingerprint whose committed count
+  is above the count the tree produces now. jscpd never reports or fails one:
+  a removed clone kept its entry, and while it stayed, an identical clone
+  added back passed unflagged (measured 2026-10-03: both jscpd runs exit 0).
+  Edward decided on 2026-10-03 that CI fails them, so `pnpm check:duplicates`
+  runs `scripts/testing/jscpd-baseline-gate.mjs`: after jscpd's own run, it
+  writes the tree's fingerprints to a scratch file, prints each stale entry
+  with its committed and current counts, and exits 1 (measured 2026-10-03: a
+  fake fingerprint added to the baseline exits 1, and so does moving out a
+  file that holds one baselined clone). The remedy is
+  `pnpm check:duplicates:update-baseline`, then commit the rewritten
+  `.jscpd-baseline.json`. jscpd maps no fingerprint back to its fragments, so
+  a stale entry is named by its hash.
 
 ## 3. Security `pnpm.overrides`
 
