@@ -253,6 +253,38 @@ ledger is untouched; only its **file location** moved from
 | The vite 7→8 collapse breaks a frontend test path                | Full suites re-run: client 510/510 + admin 106/106 under vite 8 with the added `@vitejs/plugin-react`.                                             |
 | Node floor unmet on some environment                             | pnpm 11 requires Node 22+; repo already on Node 24. Enforced by `REQUIRED_PNPM_VERSION` in `setup-environment.sh`.                                 |
 
+## Later change (2026-10-03)
+
+The sections above record the migration as it was decided and are left as written. On 2026-10-03
+Edward removed two of the `allowBuilds` entries of item 3 and the `@secretlint/node` patch of item 2
+(decision D40 in `docs/development/TESTING_REFOUNDATION.md`), on the evidence below, measured under
+pnpm 12.6.0.
+
+- **`"@prisma/client": true` and `sharp: false` left `allowBuilds`: neither package has a build
+  script.** The lockfile resolves one version of each, `@prisma/client` 7.9.1 and `sharp` 0.35.4, and
+  neither installed `package.json` declares `preinstall`, `install`, `postinstall` or `prepare`, nor
+  ships a root `binding.gyp`; the registry metadata of both versions agrees. Each entry therefore
+  approved or denied nothing. Without them, `pnpm install --force` relinks all 2,295 packages and
+  exits 0 with no ignored build, `prisma generate` still runs through the `infra/prisma` postinstall
+  (the one exception of fitness #42), and the lockfile does not change. The same install exits 1 with
+  `ERR_PNPM_IGNORED_BUILDS` when an entry that does carry a script (`protobufjs`) is removed, so the
+  silence is a measurement. The map now holds 3 allowed builders (`prisma`, `@prisma/engines`,
+  `esbuild`) and 10 denials, and every one of its 13 installed packages declares an install-lifecycle
+  script.
+- **The `@secretlint/node` patch was removed** (its `patchedDependencies` key and its file). The
+  installed 13.0.6 `module/index.js` is byte-identical to the registry tarball. Unpatched, the config
+  loader leaves its base directory empty and resolves the rule preset by Node's directory walk from
+  the in-repository virtual store up to the root `node_modules`, where the preset is a direct
+  devDependency. That walk reaches the root because `enableGlobalVirtualStore` is `false` (item 7),
+  and it does not depend on the working directory. Measured: `pnpm secret:scan` exits 0 on the tree
+  and 1, naming `AWSSecretAccessKey`, on a planted key; with process cwd `apps/api`, secretlint exits
+  1 on a planted key and 0 on a clean file, where the patched build exited 2 on both with "rule module
+  not found" (SMELL-20); the lint-staged `*` command and the 128 hook tests pass. The lockfile changes
+  only in its `patchedDependencies` mirror, the `@secretlint/node` snapshot key and the `secretlint`
+  snapshot that names it. With its last file gone `patches/` no longer exists, and git does not track
+  an empty directory, so the four Dockerfiles drop `COPY patches/ ./patches/`: a `COPY` of a missing
+  path fails the image build.
+
 ## References
 
 - pnpm 11 bulk-audit-endpoint support — pnpm PR #11268 (breaking, no 10.x backport)

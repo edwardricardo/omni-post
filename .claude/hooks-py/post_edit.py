@@ -94,11 +94,11 @@ def main() -> None:
             capture_output=True,
             text=True,
             timeout=SECRETLINT_TIMEOUT_SEC,
-            # Always from the repository root: the patched @secretlint/node pins
-            # node_moduleDir to "<cwd>/node_modules" and the rule preset lives
-            # only in the root node_modules; from apps/* (no local @secretlint)
-            # the loader does not find the preset and aborts with a false
-            # positive. lint-staged and the secret:scan script invoke it the same way.
+            # From the repository root, as lint-staged and the secret:scan script
+            # run it, so the relative .secretlintrc.json and .secretlintignore
+            # name the same files for every caller. The rule preset itself
+            # resolves from any working directory while enableGlobalVirtualStore
+            # is false (measured 2026-10-03, decision D40).
             cwd=str(PROJECT_ROOT),
         )
     except subprocess.TimeoutExpired:

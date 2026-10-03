@@ -17,7 +17,6 @@ enableGlobalVirtualStore: false
 allowBuilds:
   prisma: true
   "@prisma/engines": true
-  "@prisma/client": true
   esbuild: true
   # The following carry build scripts but were NOT in pnpm-10's exclusive
   # `onlyBuiltDependencies` allowlist, so their scripts did NOT run under pnpm 10
@@ -34,7 +33,6 @@ allowBuilds:
   msgpackr-extract: false
   msw: false
   protobufjs: false
-  sharp: false
   utf-8-validate: false
 
 # `pnpm add` writes an exact spec (no caret range), backing the ADR-0018
@@ -363,7 +361,3 @@ auditConfig:
     # depends on micromatch (decision D38). Remove when
     # braces publishes a release above 3.0.3 and the lockfile resolves it.
     - GHSA-vfj7-8cjw-p6xm
-
-# Patched dependency (migrated from package.json `pnpm` field, ADR-0019).
-patchedDependencies:
-  "@secretlint/node@13.0.6": patches/@secretlint__node@13.0.6.patch
