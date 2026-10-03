@@ -9,7 +9,7 @@ tracked owner of that obligation — it must trend toward empty.
 > (patched upstream code runs — verified by `pnpm audit` → 0 fixable left).
 > What is a stopgap is the _mechanism_ (forced `overrides`) and the
 > _acceptance ledgers_ for legacy analyzer debt (knip baseline, jscpd
-> threshold). None of these hide a problem; each fails CI on any regression.
+> baseline). None of these hide a problem; each fails CI on any regression.
 
 ## 1. knip baseline ratchet
 
@@ -24,17 +24,44 @@ tracked owner of that obligation — it must trend toward empty.
 - **Owner signal**: the baseline `count` field. Each restoration PR must
   lower it; CI prints resolved entries to nudge.
 
-## 2. jscpd threshold ratchet
+## 2. jscpd baseline ratchet
 
-- **Stopgap**: threshold ratcheted 5 → 4.84 (current real value); cannot grow.
-  `*.config.ts` excluded (legitimate: config boilerplate, like the existing
-  tests/stories/generated excludes — not logic duplication).
+- **Stopgap**: `.jscpd-baseline.json` accepts the clones found when it was last
+  written: 1,012 fingerprint instances over 1,004 distinct fingerprints
+  (jscpd 5.3.2, 2026-10-03). `.jscpd.json` sets `failOnNewClones: 0`, so
+  `pnpm check:duplicates` fails CI on any clone the baseline does not hold
+  (the console marks it `[NEW]`); a missing baseline file fails it too, and
+  `failOnEmpty: true` fails a scan that reads no file. `*.config.ts` excluded
+  (legitimate: config boilerplate, like the existing tests/stories/generated
+  excludes — not logic duplication); generated code also covers
+  `**/api-generated/**` and `**/*.generated.ts`, which jscpd 4 skipped only
+  because they passed its 1,000-line cap.
+- **What a fingerprint is**: a hash of the raw text of a clone's two
+  fragments. It survives line shifts and file renames, but any edit inside a
+  duplicated fragment, whitespace included, makes that clone new (measured:
+  one trailing space inside a baselined fragment → exit 1). Touching
+  duplicated code therefore means removing the duplication, or rewriting the
+  baseline in the same PR for a reviewer to see.
+- **The number it replaced covered less**: the 4.84% threshold never scanned a
+  `.tsx` file. `.jscpd.json` named the format `typescriptreact`, which jscpd
+  does not have: jscpd 4 skipped it in silence, jscpd 5 refuses it. The format
+  is `tsx` now, and the first baseline holds the 70 clones of the 369 `.tsx`
+  files it scanned.
 - **Why not fixed now**: rushed dedup of production use cases at session-end
   = regression risk (a different time bomb).
 - **Exit criteria**: genuinely deduplicate the real clones (top: Approve/
   Reject & Create/Update PostUseCase, admin/client `notificationStore`,
-  inbox use cases) with tests; ratchet the threshold further down each time.
-  Target trajectory: 4.84 → … → a healthy baseline (e.g. ≤2%).
+  inbox use cases) with tests. The PR that removes a clone runs
+  `pnpm check:duplicates:update-baseline` and commits the rewritten baseline;
+  the baseline count → 0.
+- **Owner signal**: the baseline's fingerprint total, the `(N total)` that
+  `pnpm check:duplicates:update-baseline` prints (the sum of the counts in
+  `.jscpd-baseline.json`). Each restoration PR must lower it.
+- **Not detected — decision pending**: jscpd never reports or fails on a stale
+  entry, a fingerprint no current clone matches. A removed clone keeps its
+  entry until the baseline is rewritten, and while it stays, an identical
+  clone added back passes unflagged (measured 2026-10-03: both runs exit 0).
+  Whether CI fails on stale entries is an open decision.
 
 ## 3. Security `pnpm.overrides`
 

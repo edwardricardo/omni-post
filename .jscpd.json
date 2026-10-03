@@ -1,20 +1,24 @@
 {
-  "threshold": 4.84,
   "minLines": 10,
   "minTokens": 50,
+  "format": ["typescript", "tsx"],
   "ignore": [
     "**/node_modules/**",
     "**/dist/**",
     "**/reports/**",
     "**/.next/**",
     "**/generated/**",
-    "**/pnpm-lock.yaml",
+    "**/api-generated/**",
+    "**/*.generated.ts",
     "**/tests/**",
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.stories.tsx",
     "**/*.config.ts"
   ],
-  "format": ["typescript", "typescriptreact"],
-  "absolute": true
+  "absolute": true,
+  "baseline": ".jscpd-baseline.json",
+  "failOnNewClones": 0,
+  "failOnEmpty": true,
+  "noTips": true
 }
