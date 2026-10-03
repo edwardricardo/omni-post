@@ -7,8 +7,9 @@
 > RFC 2119 keywords (MUST / SHALL / SHOULD / MAY) are normative. Each requirement carries
 > Given/When/Then acceptance scenarios. Scenarios marked **[static]** are checkable without
 > installing or building — by inspecting manifests, lockfile, `pnpm-workspace.yaml`, or a
-> deterministic CLI gate (`syncpack list-mismatches`, `pnpm dedupe --check`,
-> `pnpm install --frozen-lockfile`). Scenarios marked **[runtime]** require a build/test run.
+> deterministic CLI gate (`syncpack@15.3.3 lint --dependency-types prod,dev,peer,overrides`,
+> `pnpm dedupe --check`, `pnpm install --frozen-lockfile`). Scenarios marked **[runtime]** require a
+> build/test run.
 >
 > **Governing model (ADR-0018).** "Always latest stable, single version, pinned exact"
 > governs **DIRECT** (manifest-declared, catalog-managed) registry dependencies only.
@@ -28,7 +29,7 @@
 The single-version invariant applies to **DIRECT** (manifest-declared / catalog-managed)
 registry dependencies. **TRANSITIVE** deps are **consumer-governed** — pnpm resolves each to
 the highest version in its consumers' declared ranges, and multiple versions MAY legitimately
-coexist (e.g. vite 7.3.5 + 8.x for the JSX-frontend hold; minimatch multi-versions for the
+coexist (e.g. fast-uri 3.x + 4.x under Fastify's schema stack; minimatch multi-versions for the
 eslint toolchain). A transitive override is justified ONLY by a real CVE floor at the minimal
 patched version, never to chase the latest major.
 
@@ -49,7 +50,7 @@ MUST pass.
 #### Scenario: syncpack single-version group passes [static]
 
 - **Given** the syncpack config defines a single-version-group over registry deps
-- **When** `syncpack list-mismatches` runs (the CI gate command — `syncpack lint` is not used because syncpack@12 reports every `catalog:` reference as an `UnsupportedMismatch` under the exact-range semverGroup, which is catalog-protocol tooling noise, not a range violation)
+- **When** `syncpack@15.3.3 lint --dependency-types prod,dev,peer,overrides` runs (the CI gate command — syncpack 15 reads the `catalog:` protocol natively, so a `catalog:` reference is a valid instance (`IsCatalog`) and a literal that differs from its catalog entry is a mismatch (`DiffersToCatalog`))
 - **Then** the single-version check reports **0** mismatches across all manifests
 
 #### Scenario: each previously drifting name resolves once in the lockfile [static]
@@ -72,8 +73,8 @@ MUST be set so a future `pnpm add` writes exact, not caret-prefixed, specs.
 #### Scenario: exact ranges are enforced (no `^ ~ * >=` on registry specs) [static]
 
 - **Given** registry deps are catalog-managed (`catalog:` refs) and the catalog values are exact pins, with `catalogMode: strict` + `save-prefix=""` set
-- **When** `syncpack list-mismatches` runs over the literal (non-catalog) specs and the manifests are inspected for any `^ ~ * >= x` range
-- **Then** **0** non-exact registry specs remain (catalog values are exact by construction; `save-prefix=""` keeps future `pnpm add` exact; `catalog:` refs themselves report `UnsupportedMismatch` under `syncpack lint`, which is catalog-protocol tooling noise — so the CI gate uses `list-mismatches`)
+- **When** `syncpack@15.3.3 lint --dependency-types prod,dev,peer,overrides` runs its exact-range semverGroup over the literal (non-catalog) specs and the manifests are inspected for any `^ ~ * >= x` range
+- **Then** **0** non-exact registry specs remain (catalog values are exact by construction; `save-prefix=""` keeps future `pnpm add` exact; `catalog:` refs themselves are read natively as `IsCatalog`, not as range violations)
 
 #### Scenario: the three wildcards are eliminated [static]
 
@@ -84,7 +85,7 @@ MUST be set so a future `pnpm add` writes exact, not caret-prefixed, specs.
 #### Scenario: workspace protocol specs are not flagged as ranges [static]
 
 - **Given** a local package referenced as `workspace:*` (or another `workspace:` form)
-- **When** `syncpack list-mismatches` runs
+- **When** `syncpack@15.3.3 lint --dependency-types prod,dev,peer,overrides` runs
 - **Then** the `workspace:` spec is **not** reported as a range violation (the `workspace protocol` versionGroup is `isIgnored`; only registry deps are subject to the exact-pin rule)
 
 #### Scenario: savePrefix forces exact on future adds [static]
@@ -231,21 +232,21 @@ is the drift-hydra mitigation.
 
 ### Requirement: The CI guard holds the single-version line on every PR
 
-CI MUST gate every pull request with the three-part dependency guard: `syncpack
-list-mismatches` (single-version + literal-range invariant — `list-mismatches`, not `lint`,
-because syncpack@12 cannot evaluate the `catalog:` protocol and reports those refs as
-`UnsupportedMismatch` noise), `pnpm install --frozen-lockfile` (a drifted lockfile becomes a
-hard failure, not a silent re-resolve), and `pnpm dedupe --check` (no duplicate versions for
-DIRECT/catalog-managed deps). The guard is wired as the `dependency-consistency` job in
-`.github/workflows/fitness.yml` (fitness.yml is the invariant home, not a new workflow).
-Renovate MUST be configured with `rangeStrategy: pin`, family grouping, and catalog-awareness
-so automated bumps preserve the invariant.
+CI MUST gate every pull request with the three-part dependency guard:
+`syncpack@15.3.3 lint --dependency-types prod,dev,peer,overrides` (single-version + literal-range
+invariant — syncpack 15 reads the `catalog:` protocol natively, so a `catalog:` reference is
+valid and a literal that differs from its catalog entry fails), `pnpm install --frozen-lockfile`
+(a drifted lockfile becomes a hard failure, not a silent re-resolve), and `pnpm dedupe --check`
+(no duplicate versions for DIRECT/catalog-managed deps). The guard is wired as the
+`dependency-consistency` job in `.github/workflows/fitness.yml` (fitness.yml is the invariant
+home, not a new workflow). Renovate MUST be configured with `rangeStrategy: pin`, family grouping,
+and catalog-awareness so automated bumps preserve the invariant.
 
 #### Scenario: the three CI gate steps are wired [static]
 
 - **Given** the `dependency-consistency` job in `.github/workflows/fitness.yml` after the baseline
 - **When** it is inspected
-- **Then** there is a step running `syncpack list-mismatches`, a step running `pnpm install --frozen-lockfile`, and a step running `pnpm dedupe --check`, each gating the PR (non-zero exit fails the PR)
+- **Then** there is a step running `syncpack@15.3.3 lint --dependency-types prod,dev,peer,overrides`, a step running `pnpm install --frozen-lockfile`, and a step running `pnpm dedupe --check`, each gating the PR (non-zero exit fails the PR)
 
 #### Scenario: a drifted lockfile fails frozen-lockfile [static]
 

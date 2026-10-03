@@ -122,8 +122,9 @@ needed no documented hold.)
 ### Requirement: The CI guard holds the single-version line on every PR
 
 CI MUST gate every pull request with the dependency guard, now FOUR parts: the single-version and
-literal-range check (`list-mismatches`, not `lint`, because the tooling cannot evaluate the catalog
-protocol and reports those references as unsupported-mismatch noise), a frozen-lockfile install (a
+literal-range check (`syncpack@15.3.3 lint --dependency-types prod,dev,peer,overrides`, which reads
+the catalog protocol natively: a `catalog:` reference is `IsCatalog`, a literal that differs from
+its catalog entry is `DiffersToCatalog`), a frozen-lockfile install (a
 drifted lockfile becomes a hard failure, not a silent re-resolve), a deduplication check (no
 duplicate versions for DIRECT/catalog-managed deps), and a **freshness-lag check** that compares the
 documented holds table against the measured lag set and FAILS when a dependency sits below its

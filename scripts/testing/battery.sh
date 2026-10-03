@@ -148,7 +148,7 @@ step format pnpm format:check
 # two such compilers side by side exhaust a 9 GB machine; turbo hands
 # NODE_OPTIONS to its tasks in strict environment mode.
 step typecheck env NODE_OPTIONS=--max-old-space-size=6144 pnpm exec turbo run typecheck --concurrency=1
-step syncpack pnpm dlx syncpack@12 list-mismatches
+step syncpack pnpm dlx syncpack@15.3.3 lint --dependency-types prod,dev,peer,overrides
 step knip node scripts/knip-ratchet.mjs
 step metrics node scripts/testing/metrics.mjs --all --offline
 step scripts pnpm --filter @apps/api exec vitest run tests/unit/scripts/
