@@ -19,23 +19,22 @@ allowBuilds:
   "@prisma/engines": true
   "@prisma/client": true
   esbuild: true
-  bcrypt: false
   # The following carry build scripts but were NOT in pnpm-10's exclusive
   # `onlyBuiltDependencies` allowlist, so their scripts did NOT run under pnpm 10
   # (they rely on prebuilt binaries). `false` preserves that exact behavior — pnpm 11's
   # allowBuilds is exhaustive, so every build-script package must be listed (ADR-0019).
+  # Every entry names a package the lockfile resolves: one that leaves the tree leaves
+  # this map with it, and one that returns needs a new explicit entry.
   "@parcel/watcher": false
   "@sentry/cli": false
   "@swc/core": false
   argon2: false
   bufferutil: false
-  contextify: false
   core-js-pure: false
   msgpackr-extract: false
   msw: false
   protobufjs: false
   sharp: false
-  unrs-resolver: false
   utf-8-validate: false
 
 # `pnpm add` writes an exact spec (no caret range), backing the ADR-0018
@@ -132,7 +131,7 @@ catalog:
   axios: 1.20.0 # CVE floor raised 2026-09-30: TWELVE advisories landed in 34 minutes (GHSA-542g-h47m-68v8, -3pq3-5fj3-cg6v, -x97p-jq2g-jp4f, -mghh-pgcx-3jjj, -c29m-xwm3-cm6r, -9fr6-4gfg-395g, -vh66-26gq-q6x8, -r4gj-5m52-g5wh, -44g4-m2mj-wpvx, -m8m8-qj5v-23w3, -4hqw-qxg8-jxx2, -j8rh-479h-cp32 — 7 high / 5 moderate), every one first_patched at 1.20.0, so 1.20.0 is the minimal patched version for the whole set even though it is also the latest. Was 1.18.0 (GHSA-42h9-826w-cgv3 + GHSA-xj6q-8x83-jv6g + GHSA-pmv8-rq9r-6j72; MAX over tiktok 1.7.7)
   form-data: 4.0.6 # CVE floor (MAX over tiktok 4.0.0)
   validator: 13.15.35 # latest stable (taze -l --maturity-period 7), >= CVE floor; was 13.15.22
-  uuid: 14.0.0 # latest stable; was 13.0.1 (MAJOR 13->14)
+  uuid: 14.0.0 # CVE floor, dual-role: the `uuid: "catalog:"` override extends it to the five transitive consumers, four of which declare ^8 or ^9 — ranges that admit only versions inside GHSA-w5hq-g745-h8pq (moderate, vulnerable <11.1.1, no 8.x or 9.x fix). Measured 2026-10-03: removing the override resolves uuid 8.3.2 and 9.0.1 and turns `pnpm audit` red. See SECURITY_CANON §"CVE-floor pins", row `uuid`. NOT latest stable: 14.0.2 is (published 2026-08-18); OSV lists nothing for 14.0.0. Was 13.0.1 (MAJOR 13->14)
   ws: 8.21.1 # CVE floor
 
   # ── Shared direct deps (T1.11 completion — declared in ≥2 manifests; reconcile-UP, structure-only) ──
@@ -320,16 +319,12 @@ overrides:
   # leave the other behind — the shape `scripts/testing/override-bands-gate.mjs` refuses. With
   # `<1.4.2` the bound IS the target and the two can only move together. Resolution unchanged: 1.4.2.
   "valibot@<1.4.2": 1.4.2
-  shell-quote: 1.8.4
   esbuild: 0.28.1
-  xmlhttprequest-ssl: 4.0.0
   "@babel/plugin-transform-modules-systemjs": 7.29.7
-  "@hono/node-server": 2.0.10
   "@opentelemetry/instrumentation": "catalog:otel"
   "@opentelemetry/resources": "catalog:otel"
   "@opentelemetry/semantic-conventions": "catalog:otel"
   "@protobufjs/utf8": 1.1.1
-  "@smithy/config-resolver": 4.5.7
   "@tootallnate/once": 3.0.1
   bn.js: 5.2.3
   defu: 6.1.7
@@ -341,16 +336,13 @@ overrides:
   "gaxios@7": 7.1.5
   "google-auth-library@10": 10.7.0
   googleapis-common: 8.0.2
-  hono: 4.12.34
   icu-minify: 4.13.0
   js-yaml: 4.3.2
   jws: 4.0.1
   lodash: 4.18.1
-  markdown-it: 14.2.0
   "msw>path-to-regexp": 6.3.0
   path-to-regexp: 8.4.2
   rollup: 4.62.0
-  serialize-javascript: 7.0.5
 
 # Audited audit-ignores: GHSAs accepted as non-exploitable in our context, each with
 # a documented remove-when (SECURITY_CANON §Audited-audit-ignores). pnpm audit still
