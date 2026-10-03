@@ -2,6 +2,8 @@
 
 > Este documento describe el stack tecnologico completo utilizado en el desarrollo de OmniPost. Esta dirigido a desarrolladores que evaluan el proyecto o que se incorporan al equipo.
 
+> **Vigencia de las versiones.** Las versiones siguientes se midieron el 2026-10-03 contra `pnpm-lock.yaml`. Una fila se actualiza en el mismo cambio que trabaja su dependencia, o en cualquier cambio que la toque. El lockfile y `pnpm-workspace.yaml` siguen siendo la fuente de verdad.
+
 ---
 
 ## Estructura del Repositorio
@@ -10,10 +12,10 @@
 
 | Herramienta | Version | Proposito                                                |
 | ----------- | ------- | -------------------------------------------------------- |
-| pnpm        | 11.13.0 | Gestor de paquetes con soporte de workspaces             |
-| Turbo       | 2.8.21  | Orquestacion de builds en monorepo con cache inteligente |
+| pnpm        | 12.6.0  | Gestor de paquetes con soporte de workspaces             |
+| Turbo       | 2.9.16  | Orquestacion de builds en monorepo con cache inteligente |
 | Node.js     | 24      | Runtime (ultima version LTS)                             |
-| TypeScript  | 6.0.2   | Lenguaje — modo estricto en toda la base de codigo       |
+| TypeScript  | 6.0.3   | Lenguaje — modo estricto en toda la base de codigo       |
 
 ### Vista General de Workspaces
 
@@ -42,7 +44,7 @@
 
 | Paquete                       | Version | Proposito                    | Razon de Eleccion                                                  |
 | ----------------------------- | ------- | ---------------------------- | ------------------------------------------------------------------ |
-| fastify                       | 5.6.1   | Servidor HTTP                | 2x el throughput de Express, TypeScript nativo, rutas schema-first |
+| fastify                       | 5.12.5  | Servidor HTTP                | 2x el throughput de Express, TypeScript nativo, rutas schema-first |
 | fastify-plugin                | 5.0.1   | Sistema de plugins           |                                                                    |
 | fastify-type-provider-zod     | 6.1.0   | Integracion con esquemas Zod | Validacion type-safe de request/response                           |
 | @fastify/cors                 | 11.1.0  | Middleware CORS              |                                                                    |
@@ -69,8 +71,8 @@ La capa de dominio no importa nada externo — ni Prisma, ni Fastify, ni Redis. 
 
 | Paquete        | Version     | Proposito                   | Razon de Eleccion                            |
 | -------------- | ----------- | --------------------------- | -------------------------------------------- |
-| @prisma/client | 7.4.1       | Cliente de queries generado | Queries type-safe generadas desde el esquema |
-| prisma         | 7.4.1       | ORM + migraciones           | Herramientas de migracion e introspeccion    |
+| @prisma/client | 7.9.1       | Cliente de queries generado | Queries type-safe generadas desde el esquema |
+| prisma         | 7.9.1       | ORM + migraciones           | Herramientas de migracion e introspeccion    |
 | postgresql     | 16 (Docker) | Base de datos principal     | ACID, soporte JSON, ecosistema maduro        |
 
 **Tamanio del esquema:** 98 modelos. Esto refleja la complejidad real del negocio: publicacion de posts en 10 proveedores con aprobaciones, campanas, programacion recurrente, ingesta de analiticas, sincronizacion de inbox, enriquecimiento con IA, facturacion y referidos.
@@ -97,7 +99,7 @@ La capa de dominio no importa nada externo — ni Prisma, ni Fastify, ni Redis. 
 | Paquete | Version | Proposito     | Razon de Eleccion                                                           |
 | ------- | ------- | ------------- | --------------------------------------------------------------------------- |
 | bullmq  | 5.58.9  | Cola de jobs  | Respaldada por Redis, nativa en TypeScript, fiabilidad de nivel empresarial |
-| ioredis | 5.7.0   | Cliente Redis | Requerido por BullMQ                                                        |
+| ioredis | 5.11.1  | Cliente Redis | Requerido por BullMQ                                                        |
 
 **14 colas activas:**
 
@@ -147,32 +149,32 @@ Ambos detras del puerto `IPaymentAdapter`. Cambiar de proveedor de pagos = una v
 
 ### Almacenamiento
 
-| Paquete                       | Version | Proposito                               |
-| ----------------------------- | ------- | --------------------------------------- |
-| @aws-sdk/client-s3            | 3.894.0 | Almacenamiento compatible con S3        |
-| @aws-sdk/s3-presigned-post    | 3.894.0 | Presigning de uploads directos          |
-| @aws-sdk/s3-request-presigner | 3.894.0 | Presigning de URLs de descarga          |
-| cloudinary                    | 2.0.0   | Adaptador de almacenamiento alternativo |
+| Paquete                       | Version  | Proposito                               |
+| ----------------------------- | -------- | --------------------------------------- |
+| @aws-sdk/client-s3            | 3.1091.0 | Almacenamiento compatible con S3        |
+| @aws-sdk/s3-presigned-post    | 3.1091.0 | Presigning de uploads directos          |
+| @aws-sdk/s3-request-presigner | 3.1091.0 | Presigning de URLs de descarga          |
+| cloudinary                    | 2.10.0   | Adaptador de almacenamiento alternativo |
 
 ### Validacion
 
 | Paquete              | Version  | Proposito                                                 |
 | -------------------- | -------- | --------------------------------------------------------- |
-| zod                  | 4.3.6    | Validacion de esquemas — nativo en TypeScript, componible |
-| validator            | 13.15.15 | Utilidades de validacion de strings                       |
-| isomorphic-dompurify | 2.28.0   | Sanitizacion de HTML                                      |
+| zod                  | 4.4.3    | Validacion de esquemas — nativo en TypeScript, componible |
+| validator            | 13.15.35 | Utilidades de validacion de strings                       |
+| isomorphic-dompurify | 4.4.0    | Sanitizacion de HTML                                      |
 
 ### Observabilidad
 
 | Paquete                                 | Version | Proposito                                |
 | --------------------------------------- | ------- | ---------------------------------------- |
-| @opentelemetry/sdk-node                 | 0.214.0 | SDK de OpenTelemetry                     |
+| @opentelemetry/sdk-node                 | 0.219.0 | SDK de OpenTelemetry                     |
 | @opentelemetry/api                      | 1.9.1   | API de tracing                           |
 | @opentelemetry/instrumentation-fastify  | 0.57.0  | Auto-instrumentacion de Fastify          |
-| @opentelemetry/instrumentation-http     | 0.214.0 | Auto-instrumentacion HTTP                |
-| @opentelemetry/instrumentation-redis    | 0.62.0  | Auto-instrumentacion de Redis            |
-| @opentelemetry/exporter-prometheus      | 0.214.0 | Exportacion de metricas a Prometheus     |
-| @opentelemetry/exporter-trace-otlp-http | 0.214.0 | Exportacion de trazas OTLP               |
+| @opentelemetry/instrumentation-http     | 0.219.0 | Auto-instrumentacion HTTP                |
+| @opentelemetry/instrumentation-redis    | 0.67.0  | Auto-instrumentacion de Redis            |
+| @opentelemetry/exporter-prometheus      | 0.219.0 | Exportacion de metricas a Prometheus     |
+| @opentelemetry/exporter-trace-otlp-http | 0.219.0 | Exportacion de trazas OTLP               |
 | pino                                    | 10.3.1  | Logging estructurado de alto rendimiento |
 | prom-client                             | 15.1.3  | Cliente de metricas Prometheus           |
 
@@ -190,45 +192,45 @@ Ambos detras del puerto `IPaymentAdapter`. Cambiar de proveedor de pagos = una v
 
 | Paquete    | Version | Proposito                                       |
 | ---------- | ------- | ----------------------------------------------- |
-| next       | 16.1.6  | Framework React (App Router, server components) |
-| react      | 19.2.4  | Biblioteca de UI                                |
-| react-dom  | 19.2.4  | Renderizado DOM                                 |
-| typescript | 6.0.2   | Lenguaje                                        |
+| next       | 16.3.8  | Framework React (App Router, server components) |
+| react      | 19.2.7  | Biblioteca de UI                                |
+| react-dom  | 19.2.7  | Renderizado DOM                                 |
+| typescript | 6.0.3   | Lenguaje                                        |
 
 ### Obtencion de Datos y Estado
 
 | Paquete                        | Version | Proposito                                                        |
 | ------------------------------ | ------- | ---------------------------------------------------------------- |
-| @tanstack/react-query          | 5.90.2  | Gestion de estado del servidor (cache, refetch en segundo plano) |
-| @tanstack/react-query-devtools | 5.90.2  | DevTools para depuracion de queries                              |
-| zustand                        | 5.0.12  | Estado del cliente (store de notificaciones)                     |
+| @tanstack/react-query          | 5.101.0 | Gestion de estado del servidor (cache, refetch en segundo plano) |
+| @tanstack/react-query-devtools | 5.95.0  | DevTools para depuracion de queries                              |
+| zustand                        | 5.0.14  | Estado del cliente (store de notificaciones)                     |
 
 ### Componentes de UI
 
-| Paquete                  | Version            | Proposito                                         |
-| ------------------------ | ------------------ | ------------------------------------------------- |
-| tailwindcss              | 4.2.1              | Framework de CSS utilitario                       |
-| lucide-react             | 0.544.0            | Biblioteca de iconos                              |
-| radix-ui                 | (via @packages/ui) | Primitivas de componentes accesibles              |
-| class-variance-authority | 0.7.0              | Gestion de variantes de componentes               |
-| recharts                 | 2.15.0             | Visualizacion de datos (dashboards de analiticas) |
-| @emoji-mart/react        | 1.1.1              | Selector de emojis                                |
-| fuse.js                  | 7.0.0              | Busqueda difusa del lado del cliente              |
+| Paquete                  | Version | Proposito                                         |
+| ------------------------ | ------- | ------------------------------------------------- |
+| tailwindcss              | 4.3.0   | Framework de CSS utilitario                       |
+| lucide-react             | 1.7.0   | Biblioteca de iconos                              |
+| radix-ui                 | 1.4.3   | Primitivas de componentes accesibles              |
+| class-variance-authority | 0.7.1   | Gestion de variantes de componentes               |
+| recharts                 | 3.8.1   | Visualizacion de datos (dashboards de analiticas) |
+| @emoji-mart/react        | 1.1.1   | Selector de emojis                                |
+| fuse.js                  | 7.0.0   | Busqueda difusa del lado del cliente              |
 
 ### Editor de Texto Enriquecido
 
 | Paquete                           | Version | Proposito                                |
 | --------------------------------- | ------- | ---------------------------------------- |
-| @tiptap/core                      | 3.6.1   | Framework de editor de texto enriquecido |
-| @tiptap/react                     | 3.6.1   | Integracion con React                    |
-| @tiptap/starter-kit               | 3.6.1   | Funcionalidades basicas del editor       |
-| @tiptap/extension-character-count | 3.6.1   | Conteo de caracteres                     |
-| @tiptap/extension-color           | 3.6.1   | Color de texto                           |
-| @tiptap/extension-highlight       | 3.6.1   | Resaltado de texto                       |
-| @tiptap/extension-link            | 3.6.1   | Manejo de enlaces                        |
-| @tiptap/extension-placeholder     | 3.6.1   | Texto placeholder                        |
-| @tiptap/extension-text-style      | 3.6.1   | Estilizado de texto                      |
-| @tiptap/extension-typography      | 3.6.1   | Tipografia inteligente                   |
+| @tiptap/core                      | 3.30.5  | Framework de editor de texto enriquecido |
+| @tiptap/react                     | 3.30.5  | Integracion con React                    |
+| @tiptap/starter-kit               | 3.30.5  | Funcionalidades basicas del editor       |
+| @tiptap/extension-character-count | 3.30.5  | Conteo de caracteres                     |
+| @tiptap/extension-color           | 3.30.5  | Color de texto                           |
+| @tiptap/extension-highlight       | 3.30.5  | Resaltado de texto                       |
+| @tiptap/extension-link            | 3.30.5  | Manejo de enlaces                        |
+| @tiptap/extension-placeholder     | 3.30.5  | Texto placeholder                        |
+| @tiptap/extension-text-style      | 3.30.5  | Estilizado de texto                      |
+| @tiptap/extension-typography      | 3.30.5  | Tipografia inteligente                   |
 
 ### Utilidades
 
@@ -243,7 +245,7 @@ Ambos detras del puerto `IPaymentAdapter`. Cambiar de proveedor de pagos = una v
 
 ## Frontend — Portal de Administracion (apps/admin)
 
-Mismo stack base que apps/client (Next.js 16.1.6, React 19.2.4, Tailwind, Recharts). 13 paginas enfocadas en la administracion de la plataforma: cuentas, suscripciones, precios, seguridad, cumplimiento, logs de auditoria, webhooks, dashboard ejecutivo.
+Mismo stack base que apps/client (Next.js 16.3.8, React 19.2.7, Tailwind, Recharts). 13 paginas enfocadas en la administracion de la plataforma: cuentas, suscripciones, precios, seguridad, cumplimiento, logs de auditoria, webhooks, dashboard ejecutivo.
 
 ---
 
@@ -266,18 +268,18 @@ Mismo stack base que apps/client (Next.js 16.1.6, React 19.2.4, Tailwind, Rechar
 
 Cada plataforma es un paquete workspace separado que implementa `IProviderAdapter` desde `packages/ports`. Agregar la plataforma numero 11 requiere un paquete nuevo — cero cambios en la logica de negocio central.
 
-| Plataforma  | SDK/Biblioteca                                 | Capacidades                                         |
-| ----------- | ---------------------------------------------- | --------------------------------------------------- |
-| X (Twitter) | twitter-api-v2 1.27.0                          | Publicacion, analiticas, inbox, hilos               |
-| Instagram   | API directa (fetch)                            | Publicacion, stories, analiticas, inbox, carrusel   |
-| Facebook    | API directa (fetch)                            | Publicacion, analiticas, inbox                      |
-| YouTube     | googleapis 160.0.0, google-auth-library 9.14.1 | Publicacion, analiticas                             |
-| TikTok      | axios 1.7.7                                    | Publicacion, analiticas, descubrimiento de hashtags |
-| LinkedIn    | API directa (fetch)                            | Publicacion, analiticas, inbox                      |
-| Pinterest   | API directa (fetch)                            | Publicacion, analiticas                             |
-| Snapchat    | API directa (fetch)                            | Publicacion, analiticas                             |
-| Telegram    | API directa (fetch)                            | Publicacion, inbox                                  |
-| Bluesky     | @atproto/api 0.13.28                           | Publicacion, protocolo AT                           |
+| Plataforma  | SDK/Biblioteca                                                                              | Capacidades                                         |
+| ----------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| X (Twitter) | twitter-api-v2 1.27.0                                                                       | Publicacion, analiticas, inbox, hilos               |
+| Instagram   | API directa (fetch)                                                                         | Publicacion, stories, analiticas, inbox, carrusel   |
+| Facebook    | API directa (fetch)                                                                         | Publicacion, analiticas, inbox                      |
+| YouTube     | @googleapis/youtube 39.0.1, @googleapis/youtubeanalytics 11.0.1, google-auth-library 10.7.0 | Publicacion, analiticas                             |
+| TikTok      | axios 1.20.0                                                                                | Publicacion, analiticas, descubrimiento de hashtags |
+| LinkedIn    | API directa (fetch)                                                                         | Publicacion, analiticas, inbox                      |
+| Pinterest   | API directa (fetch)                                                                         | Publicacion, analiticas                             |
+| Snapchat    | API directa (fetch)                                                                         | Publicacion, analiticas                             |
+| Telegram    | API directa (fetch)                                                                         | Publicacion, inbox                                  |
+| Bluesky     | @atproto/api 0.13.28                                                                        | Publicacion, protocolo AT                           |
 
 ---
 
@@ -291,7 +293,7 @@ Puertos definidos: `IProviderAdapter`, `IPaymentAdapter`, `IEmailAdapter`, `ICrm
 
 ### packages/shared
 
-Dependencias: date-fns 4.1.0, handlebars 4.7.8
+Dependencias: date-fns 4.1.0, handlebars 4.7.9
 
 Contiene: Tipos Result (`ok()`, `err()`), definiciones de eventos de dominio, primitivas CQRS, tipos de saga, enums compartidos, configuracion de proveedores.
 
@@ -299,7 +301,7 @@ Contiene: Tipos Result (`ok()`, `err()`), definiciones de eventos de dominio, pr
 
 Componentes React compartidos: Button, Dialog, Input, Label, Textarea, Tabs, Badge, Alert, Toast, Tooltip, Progress, Select, Switch, Slider, Checkbox, ScrollArea, Separator, Card, DropdownMenu, Avatar. Tambien incluye el editor de contenido TipTap y el selector de emojis.
 
-Construido con: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tailwind-merge 2.6.0.
+Construido con: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind-merge 2.6.0.
 
 ---
 
@@ -309,14 +311,14 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tail
 
 | Paquete                   | Version | Proposito                                |
 | ------------------------- | ------- | ---------------------------------------- |
-| vitest                    | 4.0.18  | Test runner (basado en Vite, ESM nativo) |
-| @vitest/coverage-v8       | 4.0.18  | Proveedor de cobertura                   |
-| @testing-library/react    | 16.1.0  | Testing de componentes                   |
-| @testing-library/dom      | 10.4.0  | Utilidades DOM                           |
-| @testing-library/jest-dom | 6.6.3   | Matchers personalizados                  |
-| jsdom                     | 25.0.1  | Simulacion de entorno de navegador       |
-| @playwright/test          | 1.55.1  | Testing E2E                              |
-| @faker-js/faker           | 10.0.0  | Generacion de datos de prueba            |
+| vitest                    | 4.1.11  | Test runner (basado en Vite, ESM nativo) |
+| @vitest/coverage-v8       | 4.1.11  | Proveedor de cobertura                   |
+| @testing-library/react    | 16.3.3  | Testing de componentes                   |
+| @testing-library/dom      | 10.4.2  | Utilidades DOM                           |
+| @testing-library/jest-dom | 7.0.1   | Matchers personalizados                  |
+| jsdom                     | 30.1.1  | Simulacion de entorno de navegador       |
+| @playwright/test          | 1.63.0  | Testing E2E                              |
+| @faker-js/faker           | 10.5.0  | Generacion de datos de prueba            |
 
 ### Metricas
 
@@ -343,11 +345,11 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tail
 
 | Herramienta | Version | Proposito                             |
 | ----------- | ------- | ------------------------------------- |
-| eslint      | 9.36.0  | Analisis estatico (flat config, v9)   |
-| prettier    | 3.8.1   | Formateo de codigo                    |
+| eslint      | 9.39.5  | Analisis estatico (flat config, v9)   |
+| prettier    | 3.9.5   | Formateo de codigo                    |
 | husky       | 9.1.7   | Git hooks                             |
 | lint-staged | 16.4.0  | Linting de archivos staged pre-commit |
-| knip        | 6.1.0   | Deteccion de codigo muerto            |
+| knip        | 6.12.2  | Deteccion de codigo muerto            |
 | madge       | 8.0.0   | Deteccion de dependencias circulares  |
 | jscpd       | 5.3.2   | Deteccion de codigo duplicado         |
 
@@ -365,15 +367,17 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tail
 
 ### Servicios de Docker Compose
 
-| Servicio   | Imagen                      | Puerto | Proposito               |
-| ---------- | --------------------------- | ------ | ----------------------- |
-| PostgreSQL | postgres:16                 | 5432   | Base de datos principal |
-| Redis      | redis:7                     | 6379   | Colas BullMQ + cache    |
-| Grafana    | grafana:11.2.2              | 3001   | Dashboards de metricas  |
-| Prometheus | prom/prometheus:v2.48.1     | 9090   | Recoleccion de metricas |
-| Jaeger     | jaegertracing/jaeger:latest | 16686  | Tracing distribuido     |
+| Servicio   | Imagen                      | Puerto     | Proposito                                                          |
+| ---------- | --------------------------- | ---------- | ------------------------------------------------------------------ |
+| PostgreSQL | pgvector/pgvector:pg16      | 5432       | Base de datos principal                                            |
+| Redis      | redis:7                     | 6379       | Colas BullMQ + cache                                               |
+| Grafana    | grafana/grafana:11.2.2      | 3001       | Dashboards de metricas                                             |
+| Prometheus | prom/prometheus:v2.48.1     | 9090       | Recoleccion de metricas                                            |
+| Jaeger     | jaegertracing/jaeger:latest | 16686      | Tracing distribuido                                                |
+| MinIO      | minio/minio:latest          | 9000, 9001 | Almacenamiento de medios compatible con S3 (API, consola)          |
+| MinIO init | minio/mc:latest             | —          | Crea el bucket `omni-post-media` cuando MinIO está listo y termina |
 
-### Workflows de GitHub Actions (7)
+### Workflows de GitHub Actions (12)
 
 1. **ci.yml** — CI principal: lint, test, build, seguridad, tests de proveedores, tests de frontend
 2. **security-testing.yml** — SAST (CodeQL), DAST, escaneo de dependencias (diario a las 2 AM UTC)
@@ -382,6 +386,11 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tail
 5. **production-ci.yml** — Verificaciones de despliegue a produccion
 6. **dependency-updates.yml** — Gestion automatizada de dependencias
 7. **cleanup.yml** — Tareas de limpieza
+8. **audit.yml** — Auditoría previa al merge: un job por herramienta en cada push y PR, con SARIF a Code Scanning cuando la herramienta lo admite (también diario a las 3 AM UTC)
+9. **fitness.yml** — Funciones de fitness de arquitectura: los greps de CLAUDE.md §Automated Compliance Checks
+10. **eval.yml** — Evals de trayectoria de IA para los slices de repurpose, triage y trends; una regresión bloquea el merge
+11. **chaos.yml** — Escenarios de caos de saga y outbox, cada noche (3:30 AM UTC), con el mismo runner de tests que usa CI
+12. **cache-divergence.yml** — Sonda diaria de un acierto de caché de Turborepo que repite artefactos no construidos desde el commit (4:17 AM UTC)
 
 ### Servicios Externos Requeridos
 
@@ -447,7 +456,7 @@ El trade-off es claro: mayor ceremonia inicial al modelar el dominio, pero acopl
 ### Prerrequisitos
 
 - Node.js 24
-- pnpm 11.13.0+
+- pnpm 12.6.0+
 - Docker (para PostgreSQL + Redis)
 
 ### Inicio Rapido

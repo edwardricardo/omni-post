@@ -2,6 +2,8 @@
 
 > This document describes the complete technical stack used in OmniPost development. It is intended for developers evaluating the project or onboarding to the team.
 
+> **Currency of the versions.** The versions below were measured on 2026-10-03 against `pnpm-lock.yaml`. A row is updated in the same change that works on its dependency, or in any change that touches it. The lockfile and `pnpm-workspace.yaml` remain the source of truth.
+
 ---
 
 ## Repository Structure
@@ -10,10 +12,10 @@
 
 | Tool       | Version | Purpose                                   |
 | ---------- | ------- | ----------------------------------------- |
-| pnpm       | 11.13.0 | Package manager with workspace support    |
-| Turbo      | 2.8.21  | Monorepo build orchestration with caching |
+| pnpm       | 12.6.0  | Package manager with workspace support    |
+| Turbo      | 2.9.16  | Monorepo build orchestration with caching |
 | Node.js    | 24      | Runtime (latest LTS)                      |
-| TypeScript | 6.0.2   | Language — strict mode throughout         |
+| TypeScript | 6.0.3   | Language — strict mode throughout         |
 
 ### Workspace Overview
 
@@ -42,7 +44,7 @@
 
 | Package                       | Version | Purpose                 | Why Chosen                                                    |
 | ----------------------------- | ------- | ----------------------- | ------------------------------------------------------------- |
-| fastify                       | 5.6.1   | HTTP server             | 2x Express throughput, native TypeScript, schema-first routes |
+| fastify                       | 5.12.5  | HTTP server             | 2x Express throughput, native TypeScript, schema-first routes |
 | fastify-plugin                | 5.0.1   | Plugin system           |                                                               |
 | fastify-type-provider-zod     | 6.1.0   | Zod schema integration  | Type-safe request/response validation                         |
 | @fastify/cors                 | 11.1.0  | CORS middleware         |                                                               |
@@ -69,8 +71,8 @@ The domain layer imports nothing external — no Prisma, no Fastify, no Redis. A
 
 | Package        | Version     | Purpose                | Why Chosen                           |
 | -------------- | ----------- | ---------------------- | ------------------------------------ |
-| @prisma/client | 7.4.1       | Generated query client | Type-safe queries from schema        |
-| prisma         | 7.4.1       | ORM + migrations       | Migration tooling, introspection     |
+| @prisma/client | 7.9.1       | Generated query client | Type-safe queries from schema        |
+| prisma         | 7.9.1       | ORM + migrations       | Migration tooling, introspection     |
 | postgresql     | 16 (Docker) | Primary database       | ACID, JSON support, mature ecosystem |
 
 **Schema size:** 98 models. This reflects actual business complexity: post publication across 10 providers with approvals, campaigns, recurring schedules, analytics ingestion, inbox sync, AI enrichment, billing, and referrals.
@@ -97,7 +99,7 @@ The domain layer imports nothing external — no Prisma, no Fastify, no Redis. A
 | Package | Version | Purpose      | Why Chosen                                              |
 | ------- | ------- | ------------ | ------------------------------------------------------- |
 | bullmq  | 5.58.9  | Job queue    | Redis-backed, TypeScript-native, enterprise reliability |
-| ioredis | 5.7.0   | Redis client | Required by BullMQ                                      |
+| ioredis | 5.11.1  | Redis client | Required by BullMQ                                      |
 
 **14 active queues:**
 
@@ -147,32 +149,32 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 ### Storage
 
-| Package                       | Version | Purpose                     |
-| ----------------------------- | ------- | --------------------------- |
-| @aws-sdk/client-s3            | 3.894.0 | S3-compatible storage       |
-| @aws-sdk/s3-presigned-post    | 3.894.0 | Direct upload presigning    |
-| @aws-sdk/s3-request-presigner | 3.894.0 | Download URL presigning     |
-| cloudinary                    | 2.0.0   | Alternative storage adapter |
+| Package                       | Version  | Purpose                     |
+| ----------------------------- | -------- | --------------------------- |
+| @aws-sdk/client-s3            | 3.1091.0 | S3-compatible storage       |
+| @aws-sdk/s3-presigned-post    | 3.1091.0 | Direct upload presigning    |
+| @aws-sdk/s3-request-presigner | 3.1091.0 | Download URL presigning     |
+| cloudinary                    | 2.10.0   | Alternative storage adapter |
 
 ### Validation
 
 | Package              | Version  | Purpose                                           |
 | -------------------- | -------- | ------------------------------------------------- |
-| zod                  | 4.3.6    | Schema validation — TypeScript-native, composable |
-| validator            | 13.15.15 | String validation utilities                       |
-| isomorphic-dompurify | 2.28.0   | HTML sanitization                                 |
+| zod                  | 4.4.3    | Schema validation — TypeScript-native, composable |
+| validator            | 13.15.35 | String validation utilities                       |
+| isomorphic-dompurify | 4.4.0    | HTML sanitization                                 |
 
 ### Observability
 
 | Package                                 | Version | Purpose                             |
 | --------------------------------------- | ------- | ----------------------------------- |
-| @opentelemetry/sdk-node                 | 0.214.0 | OpenTelemetry SDK                   |
+| @opentelemetry/sdk-node                 | 0.219.0 | OpenTelemetry SDK                   |
 | @opentelemetry/api                      | 1.9.1   | Tracing API                         |
 | @opentelemetry/instrumentation-fastify  | 0.57.0  | Fastify auto-instrumentation        |
-| @opentelemetry/instrumentation-http     | 0.214.0 | HTTP auto-instrumentation           |
-| @opentelemetry/instrumentation-redis    | 0.62.0  | Redis auto-instrumentation          |
-| @opentelemetry/exporter-prometheus      | 0.214.0 | Prometheus metrics export           |
-| @opentelemetry/exporter-trace-otlp-http | 0.214.0 | OTLP trace export                   |
+| @opentelemetry/instrumentation-http     | 0.219.0 | HTTP auto-instrumentation           |
+| @opentelemetry/instrumentation-redis    | 0.67.0  | Redis auto-instrumentation          |
+| @opentelemetry/exporter-prometheus      | 0.219.0 | Prometheus metrics export           |
+| @opentelemetry/exporter-trace-otlp-http | 0.219.0 | OTLP trace export                   |
 | pino                                    | 10.3.1  | High-performance structured logging |
 | prom-client                             | 15.1.3  | Prometheus metrics client           |
 
@@ -190,45 +192,45 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 | Package    | Version | Purpose                                         |
 | ---------- | ------- | ----------------------------------------------- |
-| next       | 16.1.6  | React framework (App Router, server components) |
-| react      | 19.2.4  | UI library                                      |
-| react-dom  | 19.2.4  | DOM rendering                                   |
-| typescript | 6.0.2   | Language                                        |
+| next       | 16.3.8  | React framework (App Router, server components) |
+| react      | 19.2.7  | UI library                                      |
+| react-dom  | 19.2.7  | DOM rendering                                   |
+| typescript | 6.0.3   | Language                                        |
 
 ### Data Fetching & State
 
 | Package                        | Version | Purpose                                               |
 | ------------------------------ | ------- | ----------------------------------------------------- |
-| @tanstack/react-query          | 5.90.2  | Server state management (caching, background refetch) |
-| @tanstack/react-query-devtools | 5.90.2  | DevTools for debugging queries                        |
-| zustand                        | 5.0.12  | Client state (notifications store)                    |
+| @tanstack/react-query          | 5.101.0 | Server state management (caching, background refetch) |
+| @tanstack/react-query-devtools | 5.95.0  | DevTools for debugging queries                        |
+| zustand                        | 5.0.14  | Client state (notifications store)                    |
 
 ### UI Components
 
-| Package                  | Version            | Purpose                                   |
-| ------------------------ | ------------------ | ----------------------------------------- |
-| tailwindcss              | 4.2.1              | Utility CSS framework                     |
-| lucide-react             | 0.544.0            | Icon library                              |
-| radix-ui                 | (via @packages/ui) | Accessible component primitives           |
-| class-variance-authority | 0.7.0              | Component variant management              |
-| recharts                 | 2.15.0             | Data visualization (analytics dashboards) |
-| @emoji-mart/react        | 1.1.1              | Emoji picker                              |
-| fuse.js                  | 7.0.0              | Client-side fuzzy search                  |
+| Package                  | Version | Purpose                                   |
+| ------------------------ | ------- | ----------------------------------------- |
+| tailwindcss              | 4.3.0   | Utility CSS framework                     |
+| lucide-react             | 1.7.0   | Icon library                              |
+| radix-ui                 | 1.4.3   | Accessible component primitives           |
+| class-variance-authority | 0.7.1   | Component variant management              |
+| recharts                 | 3.8.1   | Data visualization (analytics dashboards) |
+| @emoji-mart/react        | 1.1.1   | Emoji picker                              |
+| fuse.js                  | 7.0.0   | Client-side fuzzy search                  |
 
 ### Rich Text Editor
 
 | Package                           | Version | Purpose                    |
 | --------------------------------- | ------- | -------------------------- |
-| @tiptap/core                      | 3.6.1   | Rich text editor framework |
-| @tiptap/react                     | 3.6.1   | React integration          |
-| @tiptap/starter-kit               | 3.6.1   | Basic editor features      |
-| @tiptap/extension-character-count | 3.6.1   | Character counting         |
-| @tiptap/extension-color           | 3.6.1   | Text color                 |
-| @tiptap/extension-highlight       | 3.6.1   | Text highlighting          |
-| @tiptap/extension-link            | 3.6.1   | Link handling              |
-| @tiptap/extension-placeholder     | 3.6.1   | Placeholder text           |
-| @tiptap/extension-text-style      | 3.6.1   | Text styling               |
-| @tiptap/extension-typography      | 3.6.1   | Smart typography           |
+| @tiptap/core                      | 3.30.5  | Rich text editor framework |
+| @tiptap/react                     | 3.30.5  | React integration          |
+| @tiptap/starter-kit               | 3.30.5  | Basic editor features      |
+| @tiptap/extension-character-count | 3.30.5  | Character counting         |
+| @tiptap/extension-color           | 3.30.5  | Text color                 |
+| @tiptap/extension-highlight       | 3.30.5  | Text highlighting          |
+| @tiptap/extension-link            | 3.30.5  | Link handling              |
+| @tiptap/extension-placeholder     | 3.30.5  | Placeholder text           |
+| @tiptap/extension-text-style      | 3.30.5  | Text styling               |
+| @tiptap/extension-typography      | 3.30.5  | Smart typography           |
 
 ### Utilities
 
@@ -243,7 +245,7 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 ## Frontend — Owner Portal (apps/admin)
 
-Same core stack as apps/client (Next.js 16.1.6, React 19.2.4, Tailwind, Recharts). 13 pages focused on platform administration: accounts, subscriptions, pricing, security, compliance, audit logs, webhooks, executive dashboard.
+Same core stack as apps/client (Next.js 16.3.8, React 19.2.7, Tailwind, Recharts). 13 pages focused on platform administration: accounts, subscriptions, pricing, security, compliance, audit logs, webhooks, executive dashboard.
 
 ---
 
@@ -266,18 +268,18 @@ Same core stack as apps/client (Next.js 16.1.6, React 19.2.4, Tailwind, Recharts
 
 Each platform is a separate workspace package implementing `IProviderAdapter` from `packages/ports`. Adding platform 11 requires a new package — zero changes to core business logic.
 
-| Platform    | SDK/Library                                    | Capabilities                                 |
-| ----------- | ---------------------------------------------- | -------------------------------------------- |
-| X (Twitter) | twitter-api-v2 1.27.0                          | Publish, analytics, inbox, threads           |
-| Instagram   | Direct API (fetch)                             | Publish, stories, analytics, inbox, carousel |
-| Facebook    | Direct API (fetch)                             | Publish, analytics, inbox                    |
-| YouTube     | googleapis 160.0.0, google-auth-library 9.14.1 | Publish, analytics                           |
-| TikTok      | axios 1.7.7                                    | Publish, analytics, hashtag discovery        |
-| LinkedIn    | Direct API (fetch)                             | Publish, analytics, inbox                    |
-| Pinterest   | Direct API (fetch)                             | Publish, analytics                           |
-| Snapchat    | Direct API (fetch)                             | Publish, analytics                           |
-| Telegram    | Direct API (fetch)                             | Publish, inbox                               |
-| Bluesky     | @atproto/api 0.13.28                           | Publish, AT Protocol                         |
+| Platform    | SDK/Library                                                                                 | Capabilities                                 |
+| ----------- | ------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| X (Twitter) | twitter-api-v2 1.27.0                                                                       | Publish, analytics, inbox, threads           |
+| Instagram   | Direct API (fetch)                                                                          | Publish, stories, analytics, inbox, carousel |
+| Facebook    | Direct API (fetch)                                                                          | Publish, analytics, inbox                    |
+| YouTube     | @googleapis/youtube 39.0.1, @googleapis/youtubeanalytics 11.0.1, google-auth-library 10.7.0 | Publish, analytics                           |
+| TikTok      | axios 1.20.0                                                                                | Publish, analytics, hashtag discovery        |
+| LinkedIn    | Direct API (fetch)                                                                          | Publish, analytics, inbox                    |
+| Pinterest   | Direct API (fetch)                                                                          | Publish, analytics                           |
+| Snapchat    | Direct API (fetch)                                                                          | Publish, analytics                           |
+| Telegram    | Direct API (fetch)                                                                          | Publish, inbox                               |
+| Bluesky     | @atproto/api 0.13.28                                                                        | Publish, AT Protocol                         |
 
 ---
 
@@ -291,7 +293,7 @@ Defined ports: `IProviderAdapter`, `IPaymentAdapter`, `IEmailAdapter`, `ICrmAdap
 
 ### packages/shared
 
-Dependencies: date-fns 4.1.0, handlebars 4.7.8
+Dependencies: date-fns 4.1.0, handlebars 4.7.9
 
 Contains: Result types (`ok()`, `err()`), domain event definitions, CQRS primitives, saga types, shared enums, provider configuration.
 
@@ -299,7 +301,7 @@ Contains: Result types (`ok()`, `err()`), domain event definitions, CQRS primiti
 
 Shared React components: Button, Dialog, Input, Label, Textarea, Tabs, Badge, Alert, Toast, Tooltip, Progress, Select, Switch, Slider, Checkbox, ScrollArea, Separator, Card, DropdownMenu, Avatar. Also includes TipTap content editor and emoji picker.
 
-Built with: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tailwind-merge 2.6.0.
+Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind-merge 2.6.0.
 
 ---
 
@@ -309,14 +311,14 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tailwind
 
 | Package                   | Version | Purpose                              |
 | ------------------------- | ------- | ------------------------------------ |
-| vitest                    | 4.0.18  | Test runner (Vite-based, native ESM) |
-| @vitest/coverage-v8       | 4.0.18  | Coverage provider                    |
-| @testing-library/react    | 16.1.0  | Component testing                    |
-| @testing-library/dom      | 10.4.0  | DOM utilities                        |
-| @testing-library/jest-dom | 6.6.3   | Custom matchers                      |
-| jsdom                     | 25.0.1  | Browser environment simulation       |
-| @playwright/test          | 1.55.1  | E2E testing                          |
-| @faker-js/faker           | 10.0.0  | Test data generation                 |
+| vitest                    | 4.1.11  | Test runner (Vite-based, native ESM) |
+| @vitest/coverage-v8       | 4.1.11  | Coverage provider                    |
+| @testing-library/react    | 16.3.3  | Component testing                    |
+| @testing-library/dom      | 10.4.2  | DOM utilities                        |
+| @testing-library/jest-dom | 7.0.1   | Custom matchers                      |
+| jsdom                     | 30.1.1  | Browser environment simulation       |
+| @playwright/test          | 1.63.0  | E2E testing                          |
+| @faker-js/faker           | 10.5.0  | Test data generation                 |
 
 ### Metrics
 
@@ -343,11 +345,11 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tailwind
 
 | Tool        | Version | Purpose                           |
 | ----------- | ------- | --------------------------------- |
-| eslint      | 9.36.0  | Static analysis (flat config, v9) |
-| prettier    | 3.8.1   | Code formatting                   |
+| eslint      | 9.39.5  | Static analysis (flat config, v9) |
+| prettier    | 3.9.5   | Code formatting                   |
 | husky       | 9.1.7   | Git hooks                         |
 | lint-staged | 16.4.0  | Pre-commit staged file linting    |
-| knip        | 6.1.0   | Dead code detection               |
+| knip        | 6.12.2  | Dead code detection               |
 | madge       | 8.0.0   | Circular dependency detection     |
 | jscpd       | 5.3.2   | Copy-paste detection              |
 
@@ -365,15 +367,17 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tailwind
 
 ### Docker Compose Services
 
-| Service    | Image                       | Port  | Purpose               |
-| ---------- | --------------------------- | ----- | --------------------- |
-| PostgreSQL | postgres:16                 | 5432  | Primary database      |
-| Redis      | redis:7                     | 6379  | BullMQ queues + cache |
-| Grafana    | grafana:11.2.2              | 3001  | Metrics dashboards    |
-| Prometheus | prom/prometheus:v2.48.1     | 9090  | Metrics collection    |
-| Jaeger     | jaegertracing/jaeger:latest | 16686 | Distributed tracing   |
+| Service    | Image                       | Port       | Purpose                                                           |
+| ---------- | --------------------------- | ---------- | ----------------------------------------------------------------- |
+| PostgreSQL | pgvector/pgvector:pg16      | 5432       | Primary database                                                  |
+| Redis      | redis:7                     | 6379       | BullMQ queues + cache                                             |
+| Grafana    | grafana/grafana:11.2.2      | 3001       | Metrics dashboards                                                |
+| Prometheus | prom/prometheus:v2.48.1     | 9090       | Metrics collection                                                |
+| Jaeger     | jaegertracing/jaeger:latest | 16686      | Distributed tracing                                               |
+| MinIO      | minio/minio:latest          | 9000, 9001 | S3-compatible media storage (API, console)                        |
+| MinIO init | minio/mc:latest             | —          | Creates the `omni-post-media` bucket once MinIO is up, then exits |
 
-### GitHub Actions Workflows (7)
+### GitHub Actions Workflows (12)
 
 1. **ci.yml** — Main CI: lint, test, build, security, provider tests, frontend tests
 2. **security-testing.yml** — SAST (CodeQL), DAST, dependency scanning (daily at 2 AM UTC)
@@ -382,6 +386,11 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tailwind
 5. **production-ci.yml** — Production deployment checks
 6. **dependency-updates.yml** — Automated dependency management
 7. **cleanup.yml** — Cleanup tasks
+8. **audit.yml** — Pre-merge audit toolkit: one job per tool on every push and PR, SARIF to Code Scanning where supported (also daily at 3 AM UTC)
+9. **fitness.yml** — Architectural fitness functions: the greps of CLAUDE.md §Automated Compliance Checks
+10. **eval.yml** — AI trajectory evals for the repurpose, triage and trends slices; a regression blocks the merge
+11. **chaos.yml** — Saga and outbox chaos scenarios, nightly (3:30 AM UTC), through the same test runner CI uses
+12. **cache-divergence.yml** — Daily probe for a Turborepo cache hit that replays artifacts not built from the commit (4:17 AM UTC)
 
 ### Required External Services
 
@@ -435,7 +444,7 @@ Post publication across 10 providers with approvals, campaigns, recurring schedu
 ### Prerequisites
 
 - Node.js 24
-- pnpm 11.13.0+
+- pnpm 12.6.0+
 - Docker (for PostgreSQL + Redis)
 
 ### Quick Start
