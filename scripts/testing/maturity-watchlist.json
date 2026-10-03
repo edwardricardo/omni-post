@@ -1,0 +1,125 @@
+{
+  "description": "Package versions that entered the tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication (advisories, upstream issues, release notes), and dated milestones that ride the same list. Milestones are UTC dates derived from `published`. A review is recorded under `reviews.<milestone>` as { date, outcome: clean | flagged, note }; an entry leaves the list in the change that records its clean 14-day review, a date entry in the change that records its review. Read by scripts/testing/maturity-watchlist.mjs (--check in CI, --remind in the maturity-reminder workflow).",
+  "entries": [
+    {
+      "kind": "package",
+      "name": "pnpm",
+      "version": "12.6.0",
+      "published": "2026-09-22T17:08:08.061Z",
+      "members": [
+        "@pnpm/exe@12.6.0",
+        "@pnpm/exe.android-arm64@12.6.0",
+        "@pnpm/exe.android-x64@12.6.0",
+        "@pnpm/exe.darwin-arm64@12.6.0",
+        "@pnpm/exe.darwin-x64@12.6.0",
+        "@pnpm/exe.freebsd-x64@12.6.0",
+        "@pnpm/exe.linux-arm64@12.6.0",
+        "@pnpm/exe.linux-arm64-musl@12.6.0",
+        "@pnpm/exe.linux-ppc64@12.6.0",
+        "@pnpm/exe.linux-riscv64@12.6.0",
+        "@pnpm/exe.linux-s390x@12.6.0",
+        "@pnpm/exe.linux-x64@12.6.0",
+        "@pnpm/exe.linux-x64-musl@12.6.0",
+        "@pnpm/exe.win32-arm64@12.6.0",
+        "@pnpm/exe.win32-x64@12.6.0"
+      ],
+      "entered": {
+        "date": "2026-09-25",
+        "commit": "feb371ae",
+        "pr": 305,
+        "via": "the root packageManager field, 2.4 days after publication"
+      },
+      "milestones": { "maturity": "2026-09-29", "final": "2026-10-06" },
+      "reviews": {}
+    },
+    {
+      "kind": "package",
+      "name": "@googleapis/youtube",
+      "version": "39.0.1",
+      "published": "2026-09-24T02:04:16.483Z",
+      "members": ["@googleapis/youtubeanalytics@11.0.1"],
+      "entered": {
+        "date": "2026-09-25",
+        "commit": "feb371ae",
+        "pr": 305,
+        "via": "packages/providers/youtube, replacing the googleapis monolith, 1.1 days after publication"
+      },
+      "milestones": { "maturity": "2026-10-01", "final": "2026-10-08" },
+      "reviews": {}
+    },
+    {
+      "kind": "package",
+      "name": "memfs",
+      "version": "4.80.0",
+      "published": "2026-09-29T20:28:26.960Z",
+      "members": [
+        "@jsonjoy.com/fs-core@4.80.0",
+        "@jsonjoy.com/fs-fsa@4.80.0",
+        "@jsonjoy.com/fs-node@4.80.0",
+        "@jsonjoy.com/fs-node-builtins@4.80.0",
+        "@jsonjoy.com/fs-node-to-fsa@4.80.0",
+        "@jsonjoy.com/fs-node-utils@4.80.0",
+        "@jsonjoy.com/fs-print@4.80.0",
+        "@jsonjoy.com/fs-snapshot@4.80.0"
+      ],
+      "entered": {
+        "date": "2026-09-30",
+        "commit": "dba49d7c",
+        "pr": 325,
+        "via": "webpack-dev-middleware 7.4.6, the CVE-floor override, 0.4 days after publication"
+      },
+      "milestones": { "maturity": "2026-10-06", "final": "2026-10-13" },
+      "reviews": {}
+    },
+    {
+      "kind": "package",
+      "name": "next",
+      "version": "16.3.8",
+      "published": "2026-09-30T16:07:21.198Z",
+      "members": [
+        "@next/env@16.3.8",
+        "@next/swc-darwin-arm64@16.3.8",
+        "@next/swc-darwin-x64@16.3.8",
+        "@next/swc-linux-arm64-gnu@16.3.8",
+        "@next/swc-linux-arm64-musl@16.3.8",
+        "@next/swc-linux-x64-gnu@16.3.8",
+        "@next/swc-linux-x64-musl@16.3.8",
+        "@next/swc-win32-arm64-msvc@16.3.8",
+        "@next/swc-win32-x64-msvc@16.3.8"
+      ],
+      "entered": {
+        "date": "2026-10-01",
+        "commit": "dfc52e15",
+        "pr": 325,
+        "via": "the catalog CVE floor, a deliberate deviation from the buffer approved on 2026-10-01, 0.4 days after publication"
+      },
+      "milestones": { "maturity": "2026-10-07", "final": "2026-10-14" },
+      "reviews": {}
+    },
+    {
+      "kind": "package",
+      "name": "ignore",
+      "version": "7.0.12",
+      "published": "2026-10-02T12:24:54.844Z",
+      "entered": {
+        "date": "2026-10-03",
+        "commit": "fec21f88",
+        "pr": 377,
+        "via": "@secretlint/walker 13.0.6, and @typescript-eslint/eslint-plugin 8.70.1 by deduplication, 0.9 days after publication"
+      },
+      "milestones": { "maturity": "2026-10-09", "final": "2026-10-16" },
+      "reviews": {}
+    },
+    {
+      "kind": "date",
+      "id": "contract-0.16-node-26",
+      "title": "Contract task 0.16 is due: move the runtime to Node 26 on its Active LTS date",
+      "due": "2026-10-28",
+      "refs": [
+        "openspec/changes/testing-refoundation/tasks.md, task 0.16",
+        "docs/development/TESTING_REFOUNDATION.md, decision D45: Phase 0 closes without it"
+      ],
+      "reviews": {}
+    }
+  ]
+}
