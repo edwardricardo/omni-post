@@ -1816,11 +1816,16 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: "Single-version gate: syncpack (catalog-managed direct deps; transitives are consumer-governed)"
-        # syncpack@12 `lint` chokes on the catalog: protocol (reports every catalog ref
-        # as UnsupportedMismatch); `list-mismatches` is the real single-version + exact-range
-        # gate. Consumer-governed transitives are not manifest-declared, so they are
-        # structurally invisible to the single-version group. See ADR-0018 / Step 5 T5.1.
-        run: pnpm dlx syncpack@12 list-mismatches
+        # syncpack 15 is a native binary with no JavaScript dependency tree, so a fresh
+        # `pnpm dlx` install prints no deprecation warning; syncpack 12 pulled the
+        # npm-deprecated @effect/schema@0.69.0. v15 reads the pnpm catalog: protocol
+        # natively, so `lint` is the gate itself: one version per manifest-declared
+        # dependency across every workspace manifest, and exact ranges on literal specs.
+        # The dependency types are a CLI flag because v15 deprecated the `dependencyTypes`
+        # config key; `overrides` is the npm field, as before, and the pnpm-workspace.yaml
+        # overrides stay out of scope. Consumer-governed transitives are not
+        # manifest-declared, so the single-version group cannot see them. See ADR-0018.
+        run: pnpm dlx syncpack@15.3.3 lint --dependency-types prod,dev,peer,overrides
 
       - name: "Dedupe gate: pnpm dedupe --check (no flattenable duplicates)"
         # pnpm 11 fixed the pnpm-10.16 false-positive (which needed a double invocation);
