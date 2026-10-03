@@ -31,7 +31,7 @@ set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=18
+PLANNED_STEPS=19
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -150,6 +150,9 @@ step format pnpm format:check
 step typecheck env NODE_OPTIONS=--max-old-space-size=6144 pnpm exec turbo run typecheck --concurrency=1
 step syncpack pnpm dlx syncpack@15.3.3 lint --dependency-types prod,dev,peer,overrides
 step knip node scripts/knip-ratchet.mjs
+# The duplicate-code gate of CI's code-quality job: it fails a new clone and a
+# stale baseline entry, and without it here only CI would see either.
+step duplicates pnpm check:duplicates
 step metrics node scripts/testing/metrics.mjs --all --offline
 step scripts pnpm --filter @apps/api exec vitest run tests/unit/scripts/
 step api-common pnpm --filter @packages/api-common test
