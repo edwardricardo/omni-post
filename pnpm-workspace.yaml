@@ -53,10 +53,10 @@ catalogMode: strict
 
 catalog:
   # ── React family (move atomically: react + react-dom + @types) ──
-  react: 19.2.7 # latest stable (taze -l --maturity-period 7); was 19.2.4
-  react-dom: 19.2.7 # latest stable; was 19.2.4
-  "@types/react": 19.2.17 # latest stable; was 19.2.14
-  "@types/react-dom": 19.2.3 # already latest stable
+  react: 19.2.7 # taken 2026-06-20 (`08e662b6`), not moved since; 19.3.0 is newer and mature (registry, 2026-10-03); was 19.2.4
+  react-dom: 19.2.7 # moves with react; 19.3.0 is newer and mature (registry, 2026-10-03); was 19.2.4
+  "@types/react": 19.2.17 # moves with react; 19.3.0 is newer and mature (registry, 2026-10-03); was 19.2.14
+  "@types/react-dom": 19.2.3 # moves with react, unchanged since 2026-06-20 (`7d9da4aa`); 19.3.0 is newer and mature (registry, 2026-10-03)
 
   # ── Tiptap + prosemirror family (atomic) ──
   # CVE floor raised 2026-09-09 to 3.30.5: GHSA-j95f-988m-3j2f (high) — quadratic
@@ -75,18 +75,18 @@ catalog:
   "@tiptap/extension-placeholder": 3.30.5
 
   # ── LangChain family (atomic) ──
-  "@langchain/core": 1.2.0 # already latest stable (7d candidate 1.1.49 is older; never pin lower)
-  "@langchain/langgraph": 1.4.4 # already latest stable (7d candidate 1.4.2 is older; never pin lower)
+  "@langchain/core": 1.2.0 # taken 2026-06-20 (`7d9da4aa`), not moved since; 1.2.14 is newer, 1.2.12 the newest mature (registry, 2026-10-03)
+  "@langchain/langgraph": 1.4.4 # taken 2026-06-20 (`7d9da4aa`), not moved since; 1.4.19 is newer, 1.4.18 the newest mature (registry, 2026-10-03)
 
   # ── Google API clients (the `google-auth-library@10` scoped override stays in pnpm.overrides) ──
-  google-auth-library: 10.7.0 # latest stable (taze -l --maturity-period 7); was 9.14.1 (MAJOR 9->10)
+  google-auth-library: 10.7.0 # held on the 10.x line: the move to 11.x retires the googleapis-common and google-auth-library@10 compatibility pins and is its own change (SECURITY_CANON §"Compatibility pins"); 11.1.0 is newer and mature (registry, 2026-10-03); was 9.14.1 (MAJOR 9->10)
   # The per-API packages, NOT the `googleapis` monolith this replaced: that one
   # ships EVERY Google API and weighs 204MB, of which this repository uses two
   # surfaces. Measured in a `pnpm deploy --prod` of the API: 204MB of 998MB.
   # These two are NOT an atomic family — they version independently and share no
   # advisory, so each is pinned on its own evidence.
-  "@googleapis/youtube": 39.0.1 # latest stable
-  "@googleapis/youtubeanalytics": 11.0.1 # latest stable
+  "@googleapis/youtube": 39.0.1 # taken 2026-09-25 (`feb371ae`), a day after its publication, so the maturity watchlist reviews it; 40.0.0 is newer, published 2026-10-03 and still inside the 7-day buffer
+  "@googleapis/youtubeanalytics": 11.0.1 # the newest release on 2026-10-03
 
   # ── Build/test toolchain ──
   cross-env: 10.0.0 # catalog since 2026-10-03 (decision D35): declared by apps/api and apps/workers, and ADR-0018 gives a direct dependency declared in two manifests a catalog entry, not two literals. NOT latest mature: 10.1.0 (2025-09-29) is, and the lag is held by the SECURITY_CANON row `vite` (the six build tools, one shared reason), so the move into the catalog keeps the installed version
@@ -95,15 +95,15 @@ catalog:
   tsx: 4.23.15 # latest MATURE and latest stable, re-measured 2026-10-02T07:22Z: published 2026-09-20T07:22:17Z, no later release. No hold row, because there is no lag. Declared via `catalog:` by root, apps/api, apps/workers and infra/prisma; also an optional peer (^4.8.1) of vite and postcss-load-config. Depends on esbuild ~0.28.0, which the blanket esbuild 0.28.1 override satisfies
   "@types/node": 24.13.6 # DELIBERATELY NOT latest stable, and not latest mature either: the runtime major is 24 (the Krypton LTS line — .nvmrc, setup-node and both Dockerfiles), and types ahead of the runtime describe APIs it does not have. 24.13.6 is the latest MATURE 24.x measured 2026-09-28T02:42:36Z (published 2026-09-19, 9.1 d; 24.19.0 is 2.2 d and immature). Was 25.9.3 — a major ABOVE the runtime on an odd, non-LTS line. The major is now gated by scripts/testing/engines-node-gate.mjs against engines.node; holds row in SECURITY_CANON
   jsdom: 30.1.1 # latest stable AND latest mature, re-measured 2026-10-02T20:22Z: published 2026-09-22T02:07Z. Taken under human gate H1 together with isomorphic-dompurify 4.4.0 (an apps/api literal, which requires jsdom ^30.0.0), so this pin reaches production through the HTML sanitizer. Declared via `catalog:` by apps/admin, apps/client, packages/query-client and packages/observability/browser-logger; also vitest's optional peer. Its `undici ^8.10.2` and `tough-cookie ^6.0.2` resolve naturally (8.11.2, 6.0.2) and its engines.node `^22.22.2 || ^24.15.0 || >=26.0.0` admits the repository's `>=24.15.0 <25`
-  msw: 2.15.0 # latest MATURE, re-measured 2026-10-02T07:36Z: published 2026-07-08T01:43:07Z. NOT latest stable: 3.0.0 (2026-09-28T15:45Z) and 3.0.1 (2026-09-30T12:39Z) are younger than 7 days, and 2 -> 3 is a crossing, not a bump — ESM-only, Node >= 22, TypeScript >= 5.9, and outside the `msw ^2.4.9` peer of @vitest/mocker 4.1.11. No lag while 2.15.0 is the latest mature. 3.0.0 matures 2026-10-05T15:45Z and 3.0.1 on 2026-10-07T12:39Z; the holds gate targets the highest stable release published at least 7 days earlier, so 3.0.0's maturity is the instant msw becomes a lag, held from then by the `msw` row of SECURITY_CANON §"Build-tool version holds", and 3.0.1's maturity only moves that target from 3.0.0 to 3.0.1. Declared via `catalog:` by root, apps/api and apps/client (devDependency) and by packages/providers/shared (OPTIONAL peer). Its dependency ranges equal 2.14.6's key for key: `tough-cookie ^6.0.1` resolves naturally to 6.0.2 and no override touches it: the tough-cookie override was range-scoped to `<4.1.3` (2026-10-02, decision H1), then deleted with the root devDependency jq (2026-10-02, decision D32), and `path-to-regexp ^6.3.0` is what the scoped `msw>path-to-regexp: 6.3.0` override pins
+  msw: 2.15.0 # latest MATURE, re-measured 2026-10-02T07:36Z: published 2026-07-08T01:43:07Z. NOT latest stable: 3.0.0 (2026-09-28T15:45Z) and 3.0.1 (2026-09-30T12:39Z) are younger than 7 days, and 2 -> 3 is a crossing, not a bump — ESM-only, Node >= 22, TypeScript >= 5.9, and outside the `msw ^2.4.9` peer of @vitest/mocker 4.1.11. No lag while 2.15.0 is the latest mature. 3.0.0 matures 2026-10-05T15:45Z and 3.0.1 on 2026-10-07T12:39Z; the holds gate targets the highest stable release published at least 7 days earlier, so 3.0.0's maturity is the instant msw becomes a lag, held from then by the `msw` row of SECURITY_CANON §"Build-tool version holds", and 3.0.1's maturity only moves that target from 3.0.0 to 3.0.1. Declared via `catalog:` by root, apps/api and apps/client (devDependency) and by packages/providers/shared (OPTIONAL peer). Its dependency ranges equal 2.14.6's key for key: `tough-cookie ^6.0.1` resolves naturally to 6.0.2 and no override touches it: the tough-cookie override was range-scoped to `<4.1.3` (2026-10-02, decision H1), then deleted with the root devDependency jq (2026-10-02, decision D32), and `path-to-regexp ^6.3.0` resolves 6.3.0 on its own: the scoped `msw>path-to-regexp: 6.3.0` override existed only to undo a global 8.4.2 pin, and both left together (2026-10-03, decision D47)
   next: 16.3.8 # CVE floor raised 2026-09-30 to the MINIMAL version that patches the WHOLE advisory set, which is NOT the one `pnpm audit` can see: the DB knows only GHSA-vcvr-r3jv-pc5j (CRITICAL, RCE in next/og ImageResponse, >=16.2.0 <16.3.6, first_patched 16.3.6), but the 16.3.8 release notes name SEVEN more — GHSA-cjq9-62q9-8jv4 (HIGH, SSRF in Image Optimization, REACHABLE: optimization is on by default) + 5 medium + 1 low, all published 2026-09-30T16:14Z as vercel/next.js repository advisories and not yet globalized to OSV. Pinning 16.3.6 would make the audit go GREEN over a version with a reachable HIGH still open — the exact webpack-dev-middleware defect of 2026-09-30, and what the canon's cross-derive-from-the-changelog rule exists to stop. Deviates from the 7-day maturity buffer (16.3.8 is 9.6 h old when committed — published 2026-09-30T16:07Z) DELIBERATELY and measured: both portal production builds and both portal suites are green on it. Was 16.3.3 (GHSA-p293-qw3h-jr36 + GHSA-2xp9-vwfh-vxw4, 2026-09-09); before that 16.2.11
-  next-intl: 4.13.0 # latest stable; was 4.9.2
-  postcss: 8.5.24 # latest stable within the 7-day maturity buffer (2026-08-05; 8.5.25 is younger), >= the 8.5.23 CVE floor (GHSA-fxqj-rqcc-2cmp); was 8.5.21
-  zustand: 5.0.14 # latest stable (taze -l --maturity-period 7); was 5.0.12
-  "@tanstack/react-query": 5.101.0 # latest stable; was 5.95.0
+  next-intl: 4.13.0 # taken 2026-06-20 (`4681bcb7`), not moved since; 4.14.9 is newer, 4.14.7 the newest mature (registry, 2026-10-03); was 4.9.2
+  postcss: 8.5.24 # CVE floor >= 8.5.23 (GHSA-fxqj-rqcc-2cmp); taken 2026-08-05 (`daf74565`) as the newest release outside the 7-day buffer that day; 8.5.28 is newer and mature (registry, 2026-10-03); was 8.5.21
+  zustand: 5.0.14 # taken 2026-06-20 (`80627448`), not moved since; 5.0.15 is newer and mature (registry, 2026-10-03); was 5.0.12
+  "@tanstack/react-query": 5.101.0 # taken 2026-06-20 (`80627448`), not moved since; 5.104.1 is newer, 5.104.0 the newest mature (registry, 2026-10-03); was 5.95.0
 
   # ── Runtime-critical drifters (MAX of declared) ──
-  "@prisma/client": 7.9.1 # latest stable (taze -l --maturity-period 7); was 7.8.0
+  "@prisma/client": 7.9.1 # taken 2026-08-17 (`9b872895`), not moved since; 7.10.0 is newer and mature (registry, 2026-10-03); was 7.8.0
   opossum: 9.0.0 # MAX of 8.0.0 / 9.0.0 (fitness #25)
   prom-client: 15.1.3 # MAX of 15.0.0 / 15.1.3
 
@@ -123,12 +123,12 @@ catalog:
   fastify: 5.12.5 # CVE floor raised 2026-10-01: five advisories published 2026-09-30T23:44-23:53Z — GHSA-667r-xxjv-c9mm, GHSA-p68q-wchp-6fh7 (auth bypass via malformed URLs), GHSA-hwr6-493r-vm6h, GHSA-9q9j-q6p8-xq58 (all high, fixed 5.12.2) and GHSA-4mh8-r7rc-xpvc (moderate, fixed 5.12.5); OSV and the 5.12.2/5.12.5 release notes agree, so 5.12.5 is the minimal version closing the set and also the latest (14.8 d mature). Still paired with the find-my-way override: 5.12.5 declares find-my-way ^9.6.0, which still admits the vulnerable 9.6.0, so the override stays
   pino: 10.3.1
   zod: 4.4.3 # reconcile UP to apps' 4.4.3 (override 4.3.6 is stale)
-  "@anthropic-ai/sdk": 0.104.1 # latest stable (taze -l --maturity-period 7); was 0.91.1
-  cloudinary: 2.10.0 # latest stable; was 2.7.0
+  "@anthropic-ai/sdk": 0.104.1 # taken 2026-06-20 (`9ab44e82`), not moved since; 0.131.0 is newer, 0.128.0 the newest mature (registry, 2026-10-03); was 0.91.1
+  cloudinary: 2.10.0 # taken 2026-06-20 (`9ab44e82`), not moved since; 2.11.0 is newer and mature (registry, 2026-10-03); was 2.7.0
   handlebars: 4.7.9 # override forces newer than manifest 4.7.8
   axios: 1.20.0 # CVE floor raised 2026-09-30: TWELVE advisories landed in 34 minutes (GHSA-542g-h47m-68v8, -3pq3-5fj3-cg6v, -x97p-jq2g-jp4f, -mghh-pgcx-3jjj, -c29m-xwm3-cm6r, -9fr6-4gfg-395g, -vh66-26gq-q6x8, -r4gj-5m52-g5wh, -44g4-m2mj-wpvx, -m8m8-qj5v-23w3, -4hqw-qxg8-jxx2, -j8rh-479h-cp32 — 7 high / 5 moderate), every one first_patched at 1.20.0, so 1.20.0 is the minimal patched version for the whole set even though it is also the latest. Was 1.18.0 (GHSA-42h9-826w-cgv3 + GHSA-xj6q-8x83-jv6g + GHSA-pmv8-rq9r-6j72; MAX over tiktok 1.7.7)
   form-data: 4.0.6 # CVE floor (MAX over tiktok 4.0.0)
-  validator: 13.15.35 # latest stable (taze -l --maturity-period 7), >= CVE floor; was 13.15.22
+  validator: 13.15.35 # the newest release on 2026-10-03, >= CVE floor; was 13.15.22
   uuid: 14.0.0 # CVE floor, dual-role: the `uuid: "catalog:"` override extends it to the five transitive consumers, four of which declare ^8 or ^9 — ranges that admit only versions inside GHSA-w5hq-g745-h8pq (moderate, vulnerable <11.1.1, no 8.x or 9.x fix). Measured 2026-10-03: removing the override resolves uuid 8.3.2 and 9.0.1 and turns `pnpm audit` red. See SECURITY_CANON §"CVE-floor pins", row `uuid`. NOT latest stable: 14.0.2 is (published 2026-08-18); OSV lists nothing for 14.0.0. Was 13.0.1 (MAJOR 13->14)
   ws: 8.21.1 # CVE floor
 
@@ -186,24 +186,25 @@ catalog:
 catalogs:
   # OTel set: a named catalog documents the independent release train (the 0.NNN
   # instrumentation line vs the 2.x core/SDK line) and that they bump together.
-  # Values adopt the override (newer) where the manifest is stale — removing the
-  # override must not downgrade.
-  # All values at latest stable (taze -l --maturity-period 7) — moved atomically.
+  # Every value was taken on 2026-06-20 (`7d9da4aa`, then `725c8363`) and the set
+  # moves atomically. It is not the newest: on 2026-10-03 the registry carries a
+  # newer release for 12 of the 14 members, named per line. Only `core` is still
+  # extended to transitive copies by an override, as a CVE floor (decision D47).
   otel:
-    "@opentelemetry/api": 1.9.1 # already latest stable
-    "@opentelemetry/auto-instrumentations-node": 0.77.0 # latest stable; was 0.75.0
-    "@opentelemetry/core": 2.8.0 # already latest stable
-    "@opentelemetry/exporter-prometheus": 0.219.0 # latest stable; was 0.217.0
-    "@opentelemetry/sdk-node": 0.219.0 # latest stable; was 0.217.0
-    "@opentelemetry/exporter-trace-otlp-http": 0.219.0 # latest stable; was 0.214.0
-    "@opentelemetry/instrumentation": 0.219.0 # latest stable; was 0.214.0
-    "@opentelemetry/instrumentation-fastify": 0.57.0 # already latest stable
-    "@opentelemetry/instrumentation-fs": 0.38.0 # latest stable; was 0.33.0
-    "@opentelemetry/instrumentation-http": 0.219.0 # latest stable; was 0.214.0
-    "@opentelemetry/instrumentation-redis": 0.67.0 # latest stable; was 0.62.0
-    "@opentelemetry/propagation-utils": 0.31.22 # latest stable; was 0.31.17
-    "@opentelemetry/resources": 2.8.0 # latest stable; was 2.6.1
-    "@opentelemetry/semantic-conventions": 1.41.1 # latest stable; was 1.40.0
+    "@opentelemetry/api": 1.9.1 # the newest release on 2026-10-03
+    "@opentelemetry/auto-instrumentations-node": 0.77.0 # 0.80.0 is newer and mature; was 0.75.0
+    "@opentelemetry/core": 2.8.0 # the CVE floor of GHSA-8988-4f7v-96qf (SECURITY_CANON row `@opentelemetry/core`); 2.11.0 is newer and mature
+    "@opentelemetry/exporter-prometheus": 0.219.0 # 0.222.0 is newer and mature; was 0.217.0
+    "@opentelemetry/sdk-node": 0.219.0 # 0.222.0 is newer and mature; was 0.217.0
+    "@opentelemetry/exporter-trace-otlp-http": 0.219.0 # 0.222.0 is newer and mature; was 0.214.0
+    "@opentelemetry/instrumentation": 0.219.0 # 0.222.0 is newer and mature; was 0.214.0
+    "@opentelemetry/instrumentation-fastify": 0.57.0 # the newest release on 2026-10-03
+    "@opentelemetry/instrumentation-fs": 0.38.0 # 0.41.0 is newer and mature; was 0.33.0
+    "@opentelemetry/instrumentation-http": 0.219.0 # 0.222.0 is newer and mature; was 0.214.0
+    "@opentelemetry/instrumentation-redis": 0.67.0 # 0.70.0 is newer and mature; was 0.62.0
+    "@opentelemetry/propagation-utils": 0.31.22 # 0.31.23 is newer and mature; was 0.31.17
+    "@opentelemetry/resources": 2.8.0 # 2.11.0 is newer and mature; was 2.6.1
+    "@opentelemetry/semantic-conventions": 1.41.1 # 1.43.0 is newer and mature; was 1.40.0
 
 # Dependency resolution overrides. Migrated verbatim from the package.json `pnpm`
 # field (ADR-0019). `catalog:` / `catalog:otel` values resolve against the catalogs
@@ -226,10 +227,12 @@ overrides:
   uuid: "catalog:"
   ws: "catalog:"
   postcss: "catalog:"
-  "@opentelemetry/auto-instrumentations-node": "catalog:otel"
+  # CVE floor, dual-role (the `axios` shape), measured 2026-10-03 (decision D47): without it,
+  # @sentry/node 10.48.0's @opentelemetry/instrumentation-http 0.214.0, which declares core 2.6.1
+  # exactly, resolves 2.6.1, inside GHSA-8988-4f7v-96qf (moderate, unbounded W3C Baggage
+  # allocation, fixed 2.8.0), and `pnpm audit` exits 1. The catalog:otel value 2.8.0 is the
+  # minimal patched version. See SECURITY_CANON §"CVE-floor pins", row `@opentelemetry/core`.
   "@opentelemetry/core": "catalog:otel"
-  "@opentelemetry/exporter-prometheus": "catalog:otel"
-  "@opentelemetry/sdk-node": "catalog:otel"
   "@opentelemetry/propagator-jaeger@<2.9.0": 2.9.0
   "deepmerge-ts@<8.0.0": 8.0.0
   # All three bands raised 2026-09-30 for THREE new advisories, each with a fix on
@@ -318,29 +321,19 @@ overrides:
   # `<1.4.2` the bound IS the target and the two can only move together. Resolution unchanged: 1.4.2.
   "valibot@<1.4.2": 1.4.2
   esbuild: 0.28.1
-  "@babel/plugin-transform-modules-systemjs": 7.29.7
-  "@opentelemetry/instrumentation": "catalog:otel"
-  "@opentelemetry/resources": "catalog:otel"
-  "@opentelemetry/semantic-conventions": "catalog:otel"
-  "@protobufjs/utf8": 1.1.1
-  "@tootallnate/once": 3.0.1
-  bn.js: 5.2.3
-  defu: 6.1.7
   dompurify: 3.4.16 # raised 2026-10-01 for GHSA-p98j-92pf-mc4p (low, OSV introduced 3.4.13 fixed 3.4.16); monaco-editor pins 3.2.7 exactly, so the floor stays an override
-  fast-xml-builder: 1.2.0
-  fast-xml-parser: 5.8.0
-  flatted: 3.4.2
-  follow-redirects: 1.16.0
-  "gaxios@7": 7.1.5
+  # Compatibility pins, not CVE floors: OSV lists no advisory for either package. Measured
+  # 2026-10-03 (decision D47): @googleapis/youtube 39.0.1 and @googleapis/youtubeanalytics 11.0.1
+  # declare googleapis-common ^9.0.0, which brings google-auth-library 11, while @providers/youtube
+  # passes its own catalog google-auth-library 10.7.0 OAuth2Client into them, and two copies of
+  # that class are not assignable. Removing either pin fails the provider's typecheck with seven
+  # TS2769. googleapis-common holds that package on the 8.x line; google-auth-library@10 lifts
+  # the 10.5.0 that line declares exactly to the catalog's 10.7.0. Both leave when the catalog
+  # google-auth-library moves to the 11.x line: with 11.1.0 and neither pin, the provider
+  # typechecks, builds and passes its 84 tests. See SECURITY_CANON §"Compatibility pins".
   "google-auth-library@10": 10.7.0
   googleapis-common: 8.0.2
-  icu-minify: 4.13.0
   js-yaml: 4.3.2
-  jws: 4.0.1
-  lodash: 4.18.1
-  "msw>path-to-regexp": 6.3.0
-  path-to-regexp: 8.4.2
-  rollup: 4.62.0
 
 # Audited audit-ignores: GHSAs accepted as non-exploitable in our context, each with
 # a documented remove-when (SECURITY_CANON §Audited-audit-ignores). pnpm audit still

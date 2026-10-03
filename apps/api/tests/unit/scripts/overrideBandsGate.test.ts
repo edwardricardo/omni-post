@@ -18,9 +18,9 @@
  *   prove the red path once the real file is clean.
  *
  *   The ALLOWLIST is a literal inside the gate rather than an injected input, because an injected
- *   allowlist would prove the mechanism and leave the three real exceptions unmeasured. Every
- *   fixture therefore carries those three keys, which is also what drives the two cases that only
- *   the allowlist can make green, and one fixture drops one of them to drive the orphan refusal.
+ *   allowlist would prove the mechanism and leave the two real exceptions unmeasured. Every
+ *   fixture therefore carries both keys, which is also what drives the two cases that only the
+ *   allowlist can make green, and one fixture drops one of them to drive the orphan refusal.
  *
  *   The fail-closed cases carry as much weight as the happy path. A gate that reports a clean zero
  *   over a block it could not parse, a line it could not read, or a file that is not there asserts
@@ -47,13 +47,12 @@ const BLOCK_READER = path.join(REPO_ROOT, "scripts", "testing", "workspace-block
 
 /**
  * The keys the gate's own allowlist names, written here exactly as the real manifest writes them.
- * Every fixture renders all three unless it deliberately drops one: an allowlist entry that matches
- * no override key is itself a violation, so omitting them would make every other case red for the
+ * Every fixture renders both unless it deliberately drops one: an allowlist entry that matches no
+ * override key is itself a violation, so omitting them would make every other case red for the
  * wrong reason.
  */
 const ALLOWLISTED: readonly (readonly [string, string])[] = [
   ['"find-my-way@<9.6.1"', "9.7.0"],
-  ['"gaxios@7"', "7.1.5"],
   ['"google-auth-library@10"', "10.7.0"],
 ];
 
@@ -180,7 +179,7 @@ describe("override bands gate", () => {
       expect(result.stderr).toBe("");
       expect(result.status).toBe(0);
       expect(result.stdout).toContain("sentinel@<1.0.0\t1.0.0\tcanonical");
-      expect(result.stdout).toContain("4 range-scoped overrides measured, 0 violating");
+      expect(result.stdout).toContain("3 range-scoped overrides measured, 0 violating");
     });
   });
 
@@ -213,7 +212,7 @@ describe("override bands gate", () => {
       const result = runGate({ overrides: [['"widget@<2.0.0"', "2.0.0"]] });
 
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("4 range-scoped overrides measured, 0 violating");
+      expect(result.stdout).toContain("3 range-scoped overrides measured, 0 violating");
     });
 
     it("accepts an exclusive lower bound alongside the canonical upper one", () => {
@@ -237,7 +236,7 @@ describe("override bands gate", () => {
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("bad@>=3.0.0 <3.1.8");
-      expect(result.stdout).toContain("4 range-scoped overrides measured, 1 violating");
+      expect(result.stdout).toContain("3 range-scoped overrides measured, 1 violating");
     });
 
     it("does not count the comment itself as an unreadable entry", () => {
@@ -245,7 +244,7 @@ describe("override bands gate", () => {
 
       expect(result.stderr).toBe("");
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("3 range-scoped overrides measured, 0 violating");
+      expect(result.stdout).toContain("2 range-scoped overrides measured, 0 violating");
     });
   });
 
@@ -350,23 +349,21 @@ describe("override bands gate", () => {
       expect(result.stdout).toContain("npm never published it");
     });
 
-    it("accepts the two major-scoped de-dup exceptions through their entries", () => {
+    it("accepts the major-scoped compatibility pin through its entry, and prints its recorded reason", () => {
       const result = runGate({});
 
       expect(result.status).toBe(0);
       expect(result.stdout).toContain(
-        "gaxios@7\t7.1.5\tallowlisted: a de-dup pin scoped to ONE major"
+        "google-auth-library@10\t10.7.0\tallowlisted: a compatibility pin scoped to ONE major"
       );
-      expect(result.stdout).toContain(
-        "google-auth-library@10\t10.7.0\tallowlisted: the same major-scoped de-dup"
-      );
+      expect(result.stdout).toContain("seven TS2769");
     });
 
     it("exits 1 when an allowlist entry matches no override key, so the list can only shrink", () => {
-      const result = runGate({ omitAllowlisted: ['"gaxios@7"'] });
+      const result = runGate({ omitAllowlisted: ['"google-auth-library@10"'] });
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain("gaxios@7");
+      expect(result.stderr).toContain("google-auth-library@10");
       expect(result.stderr).toContain("allowlist");
     });
   });
@@ -383,7 +380,7 @@ describe("override bands gate", () => {
       expect(result.stderr).toContain("valibot@<=1.4.1");
       expect(result.stderr).toContain("upper bound `<=1.4.1` is INCLUSIVE");
       expect(result.stdout).toContain("REFUSED: inclusive upper bound");
-      expect(result.stdout).toContain("4 range-scoped overrides measured, 1 violating");
+      expect(result.stdout).toContain("3 range-scoped overrides measured, 1 violating");
       expect(result.stderr).toContain("`valibot@<1.4.2`");
     });
   });

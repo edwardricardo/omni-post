@@ -73,8 +73,11 @@ tracked owner of that obligation — it must trend toward empty.
 
 ## 3. Security `pnpm.overrides`
 
-- **Stopgap**: 52 `overrides` (counted 2026-10-03) force upstream-patched transitive versions
-  (124 advisories genuinely resolved). `auditConfig.ignoreGhsas` — in
+- **Stopgap**: 30 `overrides` (counted 2026-10-03, after decision D47 deleted 22 that pinned
+  nothing or only de-duplicated). Most force upstream-patched transitive versions (124
+  advisories genuinely resolved); the compatibility pins among them carry their measured
+  reasons in `docs/security/SECURITY_CANON.md` §"Compatibility pins" and
+  §"Override audit". `auditConfig.ignoreGhsas` — in
   `pnpm-workspace.yaml` as of ADR-0019 (pnpm 11 stopped reading the
   `package.json` `pnpm` field) — holds only advisories with no upstream fix,
   the rule of `docs/security/dependency-audit-policy.md`. The entries, each
