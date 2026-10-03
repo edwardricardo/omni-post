@@ -377,7 +377,7 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tail
 | MinIO      | minio/minio:latest          | 9000, 9001 | Almacenamiento de medios compatible con S3 (API, consola)          |
 | MinIO init | minio/mc:latest             | —          | Crea el bucket `omni-post-media` cuando MinIO está listo y termina |
 
-### Workflows de GitHub Actions (12)
+### Workflows de GitHub Actions (13)
 
 1. **ci.yml** — CI principal: lint, test, build, seguridad, tests de proveedores, tests de frontend
 2. **security-testing.yml** — SAST (CodeQL), DAST, escaneo de dependencias (diario a las 2 AM UTC)
@@ -391,6 +391,7 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tail
 10. **eval.yml** — Evals de trayectoria de IA para los slices de repurpose, triage y trends; una regresión bloquea el merge
 11. **chaos.yml** — Escenarios de caos de saga y outbox, cada noche (3:30 AM UTC), con el mismo runner de tests que usa CI
 12. **cache-divergence.yml** — Sonda diaria de un acierto de caché de Turborepo que repite artefactos no construidos desde el commit (4:17 AM UTC)
+13. **maturity-reminder.yml** — Abre, o comenta, el issue de cada revisión de la lista de madurez que vence ese día (1 PM, 5 PM y 9 PM UTC)
 
 ### Servicios Externos Requeridos
 

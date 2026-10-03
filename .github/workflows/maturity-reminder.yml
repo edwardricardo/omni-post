@@ -1,0 +1,40 @@
+name: Maturity Reminder
+
+# Opens one issue per maturity watchlist review due today (a package version that entered inside
+# the 7-day maturity buffer, reviewed 7 and 14 days after publication, or a dated milestone) and
+# comments on it at the day's later firings while it stays open. Closing the issue, once the outcome
+# is recorded in scripts/testing/maturity-watchlist.json, cancels the rest of that day. Three
+# firings a day, 13:00, 17:00 and 21:00 UTC. Pinned by
+# apps/api/tests/unit/scripts/maturityWatchlist.test.ts.
+
+on:
+  schedule:
+    - cron: "0 13,17,21 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: maturity-reminder
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  remind:
+    name: Open or comment on today's maturity reviews
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Remind
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/testing/maturity-watchlist.mjs --remind
