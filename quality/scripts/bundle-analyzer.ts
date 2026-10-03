@@ -31,7 +31,22 @@ import type {
 /** Large enough for the workspace-wide JSON reports below; the 1 MiB default is not. */
 const REPORT_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 
-/** A dependency knip reports as declared but never imported. */
+/** The kinds of analysis the CLI accepts as its first argument. */
+export type AnalysisType = "full" | "quick" | "dependencies-only";
+
+/**
+ * Runs a shell command in `cwd` and returns its stdout, throwing when the command fails. The
+ * analyzer takes it as a constructor argument so a test can stand in for the tools it calls.
+ */
+export type CommandRunner = (command: string, cwd: string) => string;
+
+const runCommandSync: CommandRunner = (command, cwd) =>
+  execSync(command, { cwd, encoding: "utf8", maxBuffer: REPORT_MAX_BUFFER_BYTES });
+
+/**
+ * A dependency knip reports as declared but never imported. `name` is the only field this script
+ * reads, so it is the whole contract the parser validates.
+ */
 interface KnipDependency {
   name: string;
 }
@@ -138,9 +153,18 @@ export class BundleAnalyzer {
   private packageJson: any;
   private lockfile: any;
   private reportsDir: string;
+  private readonly runCommand: CommandRunner;
 
-  constructor(projectRoot: string = process.cwd()) {
+  /**
+   * @method constructor
+   * @description Loads the project's manifest and lockfile and ensures the report directory.
+   * @param projectRoot - The repository the analysis reads and writes its reports under.
+   * @param runCommand - Runs the external tools whose output the analysis parses (knip,
+   *   `pnpm licenses`); the default executes them for real.
+   */
+  constructor(projectRoot: string = process.cwd(), runCommand: CommandRunner = runCommandSync) {
     this.projectRoot = projectRoot;
+    this.runCommand = runCommand;
     this.reportsDir = join(projectRoot, "quality/reports/bundle");
     this.loadProjectFiles();
     this.ensureReportsDirectory();
@@ -180,9 +204,7 @@ export class BundleAnalyzer {
     }
   }
 
-  async analyzeBundles(
-    analysisType: "full" | "quick" | "dependencies-only" = "full"
-  ): Promise<BundleAnalysis> {
+  async analyzeBundles(analysisType: AnalysisType = "full"): Promise<BundleAnalysis> {
     console.log(`📦 Starting ${analysisType} bundle analysis...`);
 
     const analysis: BundleAnalysis = {
@@ -436,9 +458,9 @@ export class BundleAnalyzer {
    */
   private async findUnusedDependencies(): Promise<string[]> {
     // `--no-exit-code` makes findings exit 0, so a non-zero exit is a knip failure and propagates.
-    const output = execSync(
+    const output = this.runCommand(
       "pnpm exec knip --include dependencies --reporter json --no-exit-code --no-progress",
-      { cwd: this.projectRoot, encoding: "utf8", maxBuffer: REPORT_MAX_BUFFER_BYTES }
+      this.projectRoot
     );
     return parseKnipUnusedDependencies(output);
   }
@@ -550,11 +572,7 @@ export class BundleAnalyzer {
    */
   private async findLicenseIssues(): Promise<LicenseIssue[]> {
     try {
-      const output = execSync("pnpm licenses list --json", {
-        cwd: this.projectRoot,
-        encoding: "utf8",
-        maxBuffer: REPORT_MAX_BUFFER_BYTES,
-      });
+      const output = this.runCommand("pnpm licenses list --json", this.projectRoot);
       const licenses: unknown = JSON.parse(output);
       if (!isPnpmLicenseReport(licenses)) {
         console.warn("pnpm licenses produced an unexpected report; licenses were not checked");
@@ -839,18 +857,32 @@ export class BundleAnalyzer {
   }
 }
 
-// CLI Interface
-if (require.main === module) {
-  const analyzer = new BundleAnalyzer();
-  const analysisType = (process.argv[2] as "full" | "quick" | "dependencies-only") || "full";
+/**
+ * @method runBundleAnalysisCli
+ * @description The CLI entry point: runs the analysis and prints its summary, or names the failure.
+ * @param analyzer - The analyzer to run, already bound to its project root and command runner.
+ * @param analysisType - The kind of analysis to run.
+ * @returns The process exit code: 0 when the analysis completes, 1 when any step of it fails.
+ */
+export async function runBundleAnalysisCli(
+  analyzer: BundleAnalyzer,
+  analysisType: AnalysisType
+): Promise<number> {
+  try {
+    analyzer.printSummary(await analyzer.analyzeBundles(analysisType));
+    return 0;
+  } catch (error: unknown) {
+    console.error("❌ Bundle analysis failed:", error);
+    return 1;
+  }
+}
 
-  analyzer
-    .analyzeBundles(analysisType)
-    .then((analysis) => {
-      analyzer.printSummary(analysis);
-    })
-    .catch((error) => {
-      console.error("❌ Bundle analysis failed:", error);
-      process.exit(1);
-    });
+const ANALYSIS_TYPES: readonly AnalysisType[] = ["full", "quick", "dependencies-only"];
+
+// Runs only when executed directly (`tsx quality/scripts/bundle-analyzer.ts`), never on import.
+if (require.main === module) {
+  const analysisType = ANALYSIS_TYPES.find((type) => type === process.argv[2]) ?? "full";
+  void runBundleAnalysisCli(new BundleAnalyzer(), analysisType).then((exitCode) => {
+    process.exitCode = exitCode;
+  });
 }
