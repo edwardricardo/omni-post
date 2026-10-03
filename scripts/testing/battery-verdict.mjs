@@ -14,13 +14,19 @@
  *   Each check starts from what was actually written, so a verdict computed over missing inputs is
  *   RED, never GREEN.
  *
- *   A warning line is any line of any `*.log` matching `\bwarn(ing)?s?\b`, case-insensitive: the
- *   toolchain and the runtime (ESLint plugins, Node, vite, React, the package manager) all speak
- *   that way. There is NO allowlist and no parameter to pass one: a warning is fixed, not waived,
- *   and the list in the verdict is the evidence of why it is RED. Two kinds of line are not
- *   warnings: command echoes carrying `--max-warnings 0`, and the application's own pino records at
- *   level "warn" — the code under test logging on the failure paths its tests exercise. Those
- *   records are counted per message, so a new one is visible without failing the run.
+ *   A warning line is any line of any `*.log` carrying the word `warn`, `warns`, `warning` or
+ *   `warnings` in any case, or a runtime warning category such as `DeprecationWarning`: the
+ *   toolchain and the runtime (ESLint plugins, Node, Python, vite, React, the package manager) all
+ *   speak that way. The word counts only when it stands apart from a path: a letter, digit, `_`,
+ *   `.`, `/` or `-` glued to it on either side makes it part of a file name, a directory or a flag
+ *   (`warning-banner.ts`, `src/warnings/`, `--max-warnings 0`), which a step that lists files or
+ *   echoes its command prints without warning about anything. A `.` after the word still ends it
+ *   when no letter, digit or `_` follows, so a sentence ending in "1 warning." is a warning. There is NO
+ *   allowlist and no parameter to pass one: a warning is fixed, not waived, and the list in the
+ *   verdict is the evidence of why it is RED. One kind of line is not a warning: the application's
+ *   own pino records at level "warn" — the code under test logging on the failure paths its tests
+ *   exercise. Those records are counted per message, so a new one is visible without failing the
+ *   run.
  * @layer infrastructure
  */
 import { readdirSync, readFileSync } from "node:fs";
@@ -28,8 +34,9 @@ import path from "node:path";
 
 const STEPS_FILE = "steps.tsv";
 const STEP_ROW = /^([^\t]+)\t(\d+)$/;
-const WARNING_LINE = /\bwarn(ing)?s?\b/i;
-const COMMAND_ECHO = "--max-warnings 0";
+const WARNING_WORD = /(?<![\w./-])warn(?:ing)?s?(?![\w/-]|\.\w)/i;
+/** Case-sensitive: `[A-Z]` is what tells Node's and Python's category names from prose. */
+const WARNING_CATEGORY = /(?<![\w./-])[A-Z][A-Za-z]*Warning(?![\w/-]|\.\w)/;
 const APP_WARN_RECORD = '"level":"warn"';
 const APP_WARN_MESSAGE = /"msg":"((?:[^"\\]|\\.)*)/;
 const NO_MESSAGE = "<no msg field>";
@@ -190,7 +197,7 @@ function scanLogs(outDir, entries) {
         messages.set(msg, (messages.get(msg) ?? 0) + 1);
         return;
       }
-      if (!WARNING_LINE.test(text) || text.includes(COMMAND_ECHO)) return;
+      if (!WARNING_WORD.test(text) && !WARNING_CATEGORY.test(text)) return;
       warnings.push({ log, line: index + 1, text: text.slice(0, WARNING_TEXT_LIMIT) });
     });
   }

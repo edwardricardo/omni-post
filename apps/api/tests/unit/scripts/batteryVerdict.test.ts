@@ -217,6 +217,91 @@ describe("battery verdict", () => {
       expect(verdict.status).toBe("GREEN");
     });
 
+    it("returns GREEN over file paths and file names that carry warn or warning", async () => {
+      const outDir = makeLogDir({
+        logs: {
+          "lint.log": [
+            " - apps/client/components/warning-banner.ts [1:1 - 14:2] (13 lines, 100 tokens)",
+            "src/warnings/index.ts",
+            "apps/client/hooks/useWarn.tsx",
+            "warning-banner.ts",
+            "warnings.ts:12:5",
+            "packages/ui/src/DeprecationWarning.tsx",
+            "",
+          ].join("\n"),
+        },
+      });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.warnings).toEqual([]);
+      expect(verdict.reasons).toEqual([]);
+      expect(verdict.status).toBe("GREEN");
+    });
+
+    it("returns GREEN over command-line flags that carry the word", async () => {
+      const outDir = makeLogDir({
+        logs: {
+          "lint.log": [
+            "> eslint . --max-warnings=0",
+            "> madge --circular --warning apps/api/src/",
+            "$ node --trace-warnings server.js",
+            "",
+          ].join("\n"),
+        },
+      });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.warnings).toEqual([]);
+      expect(verdict.status).toBe("GREEN");
+    });
+
+    it.each([
+      ["npm's", "npm warn deprecated inflight@1.0.6: This module is not supported"],
+      ["pnpm's", " WARN  deprecated eslint@9.39.5"],
+      ["a compiler's", "warning: unused import"],
+      ["a bracketed", "[WARN] 1 deprecated subdependencies found: @effect/schema@0.69.0"],
+      [
+        "a plugin's",
+        "[boundaries][warning]: Some element descriptors appear to use file patterns.",
+      ],
+      ["a bundler's", "(!) Warning: some chunks are larger than 500 kB"],
+      [
+        "eslint's column",
+        "  12:5  warning  'x' is assigned a value but never used  no-unused-vars",
+      ],
+      ["eslint's summary", "✖ 3 problems (0 errors, 3 warnings)"],
+      ["madge's summary", "Processed 1566 files (6.5s) (422 warnings)"],
+      ["node's hint", "(Use `node --trace-deprecation ...` to show where the warning was created)"],
+      ["a sentence-ending", "Compiled with 1 warning."],
+      ["a path-prefixed", "apps/client/components/warning-banner.ts:3:1: warning: Unexpected any"],
+      [
+        "a --max-warnings 0 carrying",
+        'npm warn Unknown cli config "--max-warnings 0". This will stop working soon.',
+      ],
+    ])("returns RED over %s warning line", async (_form, line) => {
+      const outDir = makeLogDir({ logs: { "lint.log": `ok\n${line}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([{ log: "lint.log", line: 2, text: line }]);
+    });
+
+    it.each([
+      ["node's", "(node:1824577) [DEP0040] DeprecationWarning: The punycode module is deprecated."],
+      ["python's", "/root/hooks/mod.py:6: DeprecationWarning: x is old"],
+      ["an experimental", "(node:7) ExperimentalWarning: VM Modules is an experimental feature"],
+    ])("returns RED over %s runtime warning category", async (_form, line) => {
+      const outDir = makeLogDir({ logs: { "hooks.log": `ok\n${line}\n` } });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.status).toBe("RED");
+      expect(verdict.warnings).toEqual([{ log: "hooks.log", line: 2, text: line }]);
+    });
+
     it("returns GREEN over the application's own pino records and counts them per message", async () => {
       const longMessage = "m".repeat(120);
       const outDir = makeLogDir({
