@@ -50,11 +50,11 @@ const BSKY_SERVICE = new URL("https://bsky.social");
 
 /**
  * Formats Bluesky accepts for image blobs. The magic-byte gate below admits
- * ONLY these into image-size: its ICNS/JXL/HEIF parsers can be driven into an
- * infinite loop by a crafted buffer (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq
- * — no patched release exists), and a hung parser blocks the event loop, which
- * a try/catch cannot contain. Restricting by leading bytes makes the
- * vulnerable parsers unreachable regardless of what the upload claims to be.
+ * ONLY these into image-size: up to 2.0.2 its ICNS/JXL/HEIF parsers could be
+ * driven into an infinite loop by a crafted buffer (GHSA-w3rx-r6r6-pgpr,
+ * GHSA-5p2g-fcmc-qvqq, fixed in 2.0.3), and a hung parser blocks the event loop,
+ * which a try/catch cannot contain. Restricting by leading bytes keeps any such
+ * parser defect unreachable regardless of what the upload claims to be.
  */
 function isAcceptedImageFormat(buffer: Uint8Array): boolean {
   if (buffer.length < 12) return false;

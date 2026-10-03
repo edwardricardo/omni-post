@@ -38,11 +38,14 @@ tracked owner of that obligation — it must trend toward empty.
 
 ## 3. Security `pnpm.overrides`
 
-- **Stopgap**: 53 `overrides` force upstream-patched transitive versions
+- **Stopgap**: 52 `overrides` (counted 2026-10-03) force upstream-patched transitive versions
   (124 advisories genuinely resolved). `auditConfig.ignoreGhsas` — in
   `pnpm-workspace.yaml` as of ADR-0019 (pnpm 11 stopped reading the
-  `package.json` `pnpm` field) — holds only the 3 advisories with no upstream
-  fix (documented in `docs/security/dependency-audit-policy.md`).
+  `package.json` `pnpm` field) — holds only advisories with no upstream fix,
+  the rule of `docs/security/dependency-audit-policy.md`. The entries, each
+  with its chain, reason and remove-when, live in
+  `docs/security/SECURITY_CANON.md` §"Ignored GHSAs"; this page keeps no count
+  of them, because a copied count drifts.
 - **Why a stopgap**: the clean end-state is the _direct_ dependencies
   upgrading (the open Dependabot PRs) so transitive patches arrive naturally;
   a forced override is a hand-maintained pin that can rot or conflict

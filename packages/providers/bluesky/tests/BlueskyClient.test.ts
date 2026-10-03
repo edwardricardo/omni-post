@@ -401,8 +401,9 @@ describe("BlueskyClient", () => {
     it("never hands a buffer with an unaccepted format signature to image-size", async () => {
       const client = makeClient();
       // ICNS ("icns"), JXL codestream (FF 0A), and HEIF (ftyp heic at offset 4):
-      // the three parser families a crafted buffer can drive into an infinite
-      // loop (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq). The gate must refuse
+      // the three parser families a crafted buffer could drive into an infinite
+      // loop up to 2.0.2 (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq, fixed in
+      // 2.0.3). The gate must refuse
       // them before image-size ever sees the bytes — a hung parser cannot be
       // caught, so not-calling is the only effective containment.
       const icns = new Uint8Array(100);
