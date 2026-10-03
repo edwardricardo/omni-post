@@ -1,7 +1,7 @@
 # Review Suggestions Book
 
 **Owner:** Platform engineering
-**As of:** 2026-10-02
+**As of:** 2026-10-03
 **Purpose:** the ledger of review findings disposed as **JUSTIFIED — deferred** because they change no behaviour: comment placement, docstring wording, naming, test-fixture readability, and extra test coverage for branches that already share tested code. Every entry names the candidate, the finding, the exact location and what implementing it would take, so it can be picked up later without re-deriving anything.
 
 ## Rules
@@ -64,6 +64,10 @@
 | SB-043 | replacement slice (i-a) (`workstream/refound-dead-devdeps`, 29077cb2)                 | R2-packagejson-any-field                                         | `quality/scripts/bundle-analyzer.ts` (`packageJson` and `lockfile` fields)                                                                  | typing                       | deferred: type the two `any` fields the analyzer has carried since it was written                                                                               |
 | SB-044 | night slice N3 (`workstream/refound-secretlint-13`, fec21f88)                         | R2-test-secret-content-concat                                    | `.claude/hooks-py/tests/test_post_edit.py` (`SECRET_CONTENT`)                                                                               | test-fixture readability     | deferred: name the credential key once instead of splitting it across three literals                                                                            |
 | SB-045 | same                                                                                  | R3-003                                                           | `.claude/hooks-py/tests/test_post_edit.py` (the argv test)                                                                                  | test precision               | deferred: assert the whole argv, so the flags' position before the path is pinned too                                                                           |
+| SB-046 | night slice N4 (`workstream/refound-jscpd-5`, 778aad25)                               | R2-baseline-opaque-fingerprints                                  | `.jscpd-baseline.json` (the `fingerprints` keys)                                                                                            | readability                  | closed: the gate's own output names every clone's paths and marks `[NEW]`; a generated mapping file would drift                                                 |
+| SB-047 | same                                                                                  | R4-fail-on-empty-risk                                            | `.jscpd.json` (`failOnEmpty: true`)                                                                                                         | failure mode                 | closed: a scan that reads nothing must not report green (fitness #36, #44); a misconfiguration is what it stops                                                 |
+| SB-048 | same                                                                                  | R3-pnpm-lock-generated                                           | `pnpm-lock.yaml`                                                                                                                            | review scope                 | closed: the battery installs frozen and audits; CI runs `pnpm dedupe --check`; D39 (b) carries the delta                                                        |
+| SB-049 | same                                                                                  | R2-unused-code-inventory-stale                                   | `docs/reports/UNUSED_CODE_INVENTORY.md` (the `jscpd.json` rows of §4.5 and §8.1)                                                            | audit record                 | closed: the inventory is an audit record; a resolution is appended in its row, as D35 did (7f4f6e0b)                                                            |
 
 ## Entries — code and prose
 
@@ -445,6 +449,34 @@
 - **Why deferred:** no behaviour depends on the order today: secretlint parses flags anywhere on the line, and the three end-to-end cases run the real binary with the real argv, so a reorder that broke selection would fail them.
 - **To implement:** replace the three `assert*` lines with one `assertEqual` on the argv.
 
+### SB-046 — the baseline's fingerprints say nothing about the clones they forgive
+
+- **Source:** review `review-e42ff63c1b339429` of night slice N4 (commit `4948650c`, rebased as `778aad25`), readability lens, finding `R2-baseline-opaque-fingerprints`.
+- **Location:** `.jscpd-baseline.json`, the keys of `fingerprints`.
+- **Suggestion:** make the baseline readable, for example with a generated file that maps each fingerprint to its clone's paths.
+- **Why closed:** the readable view is the gate's own output, which names every clone's paths and marks `[NEW]` on each run; a second, generated mapping file would drift from the baseline it explains.
+
+### SB-047 — `failOnEmpty` turns a misconfigured scan into a red build
+
+- **Source:** review `review-e42ff63c1b339429` of night slice N4 (commit `4948650c`, rebased as `778aad25`), resilience lens, finding `R4-fail-on-empty-risk`.
+- **Location:** `.jscpd.json`, `failOnEmpty: true`.
+- **Suggestion:** add a diagnostic that tells "no files scanned because of a misconfiguration" apart from a duplication regression, instead of one binary failure.
+- **Why closed:** failing closed on an empty scan is deliberate: a gate that reads nothing must not report green, the rule fitness #36 and #44 follow, and a misconfiguration is exactly what it should stop; jscpd's own message already names the cause ("jscpd analyzed no files (--fail-on-empty)"), distinct from its new-clone error.
+
+### SB-048 — the lockfile diff is generated and unreviewable by eye
+
+- **Source:** review `review-e42ff63c1b339429` of night slice N4 (commit `4948650c`, rebased as `778aad25`), reliability lens, finding `R3-pnpm-lock-generated`.
+- **Location:** `pnpm-lock.yaml`.
+- **Suggestion:** give the reviewer a way to trust the generated lockfile change.
+- **Why closed:** the battery runs `pnpm install --frozen-lockfile` and `pnpm audit` on every candidate, CI's `Dependency Consistency` job runs `pnpm dedupe --check`, and the commit message and D39 (b) carry the lockfile delta in snapshots (61 out, 9 in).
+
+### SB-049 — the inventory keeps the deleted `jscpd.json` in its rows
+
+- **Source:** review `review-e42ff63c1b339429` of night slice N4 (commit `4948650c`, rebased as `778aad25`), readability lens, finding `R2-unused-code-inventory-stale`.
+- **Location:** `docs/reports/UNUSED_CODE_INVENTORY.md`, the `jscpd.json` rows of §4.5 and §8.1.
+- **Suggestion:** drop or rewrite the rows that describe a file which no longer exists.
+- **Why closed:** the inventory is an audit record; a resolution is appended in the row it resolves, as D35 did in `7f4f6e0b`, so the finding and its outcome stay side by side.
+
 ## Implemented
 
 | Id                                                                     | Implemented in                                       | How                                                                                                            |
@@ -462,3 +494,7 @@
 | SB-007 | one notice per session about the missing file is the contract, whichever hook detects it                                                                                                               |
 | SB-T01 | a hook never runs inside a bare repository; the branch reaches the fallback the suite already proves                                                                                                   |
 | SB-028 | three scripts are left after the four report scripts were deleted; each keeps the two-line bootstrap, which a shared helper could not replace because nothing can import it before the path it sets up |
+| SB-046 | the readable view is the gate's own output, which names every clone's paths and marks `[NEW]` on each run; a second, generated mapping file would drift from the baseline it explains                  |
+| SB-047 | failing closed on an empty scan is deliberate: a gate that reads nothing must not report green (fitness #36 and #44), and a misconfiguration is exactly what it should stop                            |
+| SB-048 | the battery runs `pnpm install --frozen-lockfile` and `pnpm audit`, CI's dependency job runs `pnpm dedupe --check`, and D39 (b) carries the parsed lockfile delta                                      |
+| SB-049 | the inventory is an audit record: a resolution is appended in its row, as D35 did (7f4f6e0b), so a finding and its outcome stay side by side                                                           |

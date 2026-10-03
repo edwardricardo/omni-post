@@ -349,7 +349,7 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tailwind
 | lint-staged | 16.4.0  | Pre-commit staged file linting    |
 | knip        | 6.1.0   | Dead code detection               |
 | madge       | 8.0.0   | Circular dependency detection     |
-| jscpd       | 4.0.8   | Copy-paste detection              |
+| jscpd       | 5.3.2   | Copy-paste detection              |
 
 ### Standards
 
