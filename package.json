@@ -52,7 +52,7 @@
     "check:dead-code": "node scripts/knip-ratchet.mjs",
     "check:duplicates": "jscpd apps/ packages/",
     "check:circular": "madge --circular --extensions ts,tsx --exclude 'generated|node_modules|dist' apps/api/src/ packages/",
-    "secret:scan": "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore 'apps/**/*' 'packages/**/*' 'infra/**/*' '.env*' '*.{ts,tsx,js,jsx,json,md,yml,yaml,toml,sh}'",
+    "secret:scan": "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore --no-gitignore 'apps/**/*' 'packages/**/*' 'infra/**/*' '*.{ts,tsx,js,jsx,json,md,yml,yaml,toml,sh}'",
     "env:backup": "bash scripts/env-backup.sh",
     "env:restore": "bash scripts/env-restore.sh",
     "typecheck:configs": "tsc -p tsconfig.vitest-configs.json"
@@ -60,7 +60,7 @@
   "devDependencies": {
     "@eslint/js": "9.39.5",
     "@hey-api/openapi-ts": "0.97.3",
-    "@secretlint/secretlint-rule-preset-recommend": "12.3.1",
+    "@secretlint/secretlint-rule-preset-recommend": "13.0.6",
     "@size-limit/preset-small-lib": "12.1.0",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
@@ -86,7 +86,7 @@
     "prettier": "3.9.5",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "secretlint": "12.3.1",
+    "secretlint": "13.0.6",
     "size-limit": "12.1.0",
     "tsx": "catalog:",
     "turbo": "2.9.16",
@@ -106,7 +106,7 @@
       "prettier --write"
     ],
     "*": [
-      "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore"
+      "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore --no-gitignore"
     ]
   },
   "size-limit": [
