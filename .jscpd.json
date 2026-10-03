@@ -17,6 +17,7 @@
     "**/*.config.ts"
   ],
   "absolute": true,
+  "reporters": ["console"],
   "baseline": ".jscpd-baseline.json",
   "failOnNewClones": 0,
   "failOnEmpty": true,

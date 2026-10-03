@@ -57,11 +57,12 @@ tracked owner of that obligation — it must trend toward empty.
 - **Owner signal**: the baseline's fingerprint total, the `(N total)` that
   `pnpm check:duplicates:update-baseline` prints (the sum of the counts in
   `.jscpd-baseline.json`). Each restoration PR must lower it.
-- **Not detected — decision pending**: jscpd never reports or fails on a stale
-  entry, a fingerprint no current clone matches. A removed clone keeps its
-  entry until the baseline is rewritten, and while it stays, an identical
+- **Stale entries — not detected by jscpd**: jscpd never reports or fails on
+  a stale entry, a fingerprint no current clone matches. A removed clone keeps
+  its entry until the baseline is rewritten, and while it stays, an identical
   clone added back passes unflagged (measured 2026-10-03: both runs exit 0).
-  Whether CI fails on stale entries is an open decision.
+  Edward decided on 2026-10-03 that CI fails them; the gate that does it is
+  the next slice of this stack.
 
 ## 3. Security `pnpm.overrides`
 
