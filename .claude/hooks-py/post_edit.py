@@ -36,8 +36,11 @@ SKIP_SUBSTRINGS = (
 SECRETLINT_TIMEOUT_SEC = 10
 
 # The argument is the one file just written, never a pattern. Next.js route
-# segments such as `[id]`, `[...path]` and `(group)` are glob syntax, and read
-# as a pattern the path matches nothing ("Not found target files").
+# segments such as `[id]`, `[...path]` and `(group)` are glob syntax. secretlint
+# 13 already reads a path that exists on disk literally; this flag states it,
+# so the scan never depends on that rule. lint-staged passes the same flag. The
+# path goes verbatim: a backslash-escaped one names no file ("Not found target
+# files").
 LITERAL_PATH_FLAG = "--no-glob"
 
 # File selection must be the one lint-staged and secret:scan use. secretlint

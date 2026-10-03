@@ -106,7 +106,7 @@
       "prettier --write"
     ],
     "*": [
-      "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore --no-gitignore"
+      "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore --no-gitignore --no-glob"
     ]
   },
   "size-limit": [

@@ -85,6 +85,17 @@ class PostEditScanTests(unittest.TestCase):
     def test_an_env_template_stays_excluded_as_secretlintignore_states(self):
         template = ROOT / ".env.example"
         self.assertTrue(template.exists(), f"{template} is the fixture: it holds example connection strings")
+        # Precondition: with no ignore file at all, the template is flagged, so
+        # the exit 0 below is the exclusion working and not an empty fixture.
+        empty_ignore = self.base / "empty.secretlintignore"
+        empty_ignore.write_text("", encoding="utf-8")
+        unexcluded = post_edit.subprocess.run(
+            [str(ROOT / "node_modules" / ".bin" / "secretlint"), "--secretlintrc", ".secretlintrc.json",
+             "--secretlintignore", str(empty_ignore), "--no-gitignore", "--no-glob", "--format", "compact",
+             str(template)],
+            capture_output=True, text=True, cwd=ROOT, timeout=post_edit.SECRETLINT_TIMEOUT_SEC,
+        )
+        self.assertEqual(unexcluded.returncode, 1, unexcluded.stdout + unexcluded.stderr)
         code, stderr = self._run(template)
         self.assertEqual(code, 0, stderr)
 
