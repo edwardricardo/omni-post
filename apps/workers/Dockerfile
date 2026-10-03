@@ -16,7 +16,6 @@ WORKDIR /app
 FROM base AS build
 ENV CI=true
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json tsconfig.base.json tsconfig.build.base.json tsconfig.build.json turbo.json ./
-COPY patches/ ./patches/
 COPY packages/ ./packages/
 COPY infra/ ./infra/
 COPY apps/workers ./apps/workers

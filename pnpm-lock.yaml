@@ -476,9 +476,6 @@ overrides:
   path-to-regexp: 8.4.2
   rollup: 4.62.0
 
-patchedDependencies:
-  '@secretlint/node@13.0.6': 0beb52ca67dfcc6b888d426411d6814202bd4f58b22559d3332e83bcb27854c4
-
 importers:
 
   .:
@@ -19874,7 +19871,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@secretlint/node@13.0.6(patch_hash=0beb52ca67dfcc6b888d426411d6814202bd4f58b22559d3332e83bcb27854c4)(supports-color@10.2.2)':
+  '@secretlint/node@13.0.6(supports-color@10.2.2)':
     dependencies:
       '@secretlint/config-loader': 13.0.6(supports-color@10.2.2)
       '@secretlint/core': 13.0.6(supports-color@10.2.2)
@@ -26217,7 +26214,7 @@ snapshots:
     dependencies:
       '@secretlint/config-creator': 13.0.6
       '@secretlint/formatter': 13.0.6(supports-color@10.2.2)
-      '@secretlint/node': 13.0.6(patch_hash=0beb52ca67dfcc6b888d426411d6814202bd4f58b22559d3332e83bcb27854c4)(supports-color@10.2.2)
+      '@secretlint/node': 13.0.6(supports-color@10.2.2)
       '@secretlint/profiler': 13.0.6
       '@secretlint/resolver': 13.0.6
       '@secretlint/walker': 13.0.6

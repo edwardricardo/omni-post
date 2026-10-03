@@ -23,7 +23,7 @@ metadata:
 
 Use `pnpm` for ALL package management and script execution, never `npm` or `npx`.
 
-**Why:** every version constraint this repo enforces lives in `pnpm-workspace.yaml` — the `catalog`/`catalogs` exact pins, the `overrides` CVE floors, the `auditConfig` GHSA allowlist and `patchedDependencies` — and `.npmrc` is deliberately empty of non-auth config (ADR-0019). `pnpm-workspace.yaml` is a pnpm-only file that npm and npx never read, so anything `npx` resolves is resolved outside every pin, CVE floor and patch this repo depends on. (The older evidence for this rule — an `npm warn Unknown project config "public-hoist-pattern"` warning — can no longer occur: the repo's only hoist entry was removed on 2026-09-26. The rule is unchanged; only its evidence was.)
+**Why:** every version constraint this repo enforces lives in `pnpm-workspace.yaml` — the `catalog`/`catalogs` exact pins, the `overrides` CVE floors and the `auditConfig` GHSA allowlist — and `.npmrc` is deliberately empty of non-auth config (ADR-0019). `pnpm-workspace.yaml` is a pnpm-only file that npm and npx never read, so anything `npx` resolves is resolved outside every pin and CVE floor this repo depends on. (The older evidence for this rule — an `npm warn Unknown project config "public-hoist-pattern"` warning — can no longer occur: the repo's only hoist entry was removed on 2026-09-26. The rule is unchanged; only its evidence was.)
 
 **How to apply:**
 

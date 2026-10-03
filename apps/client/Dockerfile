@@ -22,7 +22,6 @@ ENV CI=true
 # `tsc -b` against `packages/shared/tsconfig.build.json`, which extends it.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json tsconfig.base.json tsconfig.build.base.json ./
 COPY ${SERVICE_PATH}/package.json ./${SERVICE_PATH}/
-COPY patches/ ./patches/
 COPY packages/ ./packages/
 COPY infra/ ./infra/
 
