@@ -333,31 +333,39 @@ run_dependency_scan() {
 
     # License compliance check. pnpm groups every package installed in the workspace under
     # its declared SPDX expression; an expression passes when one OR-alternative has every
-    # AND-term in the allowlist, so `(MIT AND CC-BY-3.0)` fails and `(MIT OR GPL-3.0)` passes.
-    # A license finding never downgrades a failed audit: it raises a pass to a warning only.
+    # AND-term in the allowlist, so `(MIT AND CC-BY-3.0)` fails and `(MIT OR GPL-3.0)` passes,
+    # and `X WITH <exception>` is judged as `X`. jq and pnpm are separate steps so that a
+    # failure names the tool that failed. A license finding never downgrades a failed audit:
+    # it raises a pass to a warning only.
     log_verbose "Running license compliance check..."
     local licenses_report="${REPORTS_DIR}/licenses_${TIMESTAMP}.json"
     local allowed_licenses='["mit","apache-2.0","bsd-2-clause","bsd-3-clause","isc","0bsd"]'
     local disallowed=""
-    if pnpm licenses list --json > "$licenses_report" 2>/dev/null &&
-        disallowed=$(jq -r --argjson allowed "$allowed_licenses" '
-            def approved: ascii_downcase | gsub("[()]"; "") | split(" or ")
+    local license_problem=""
+    if ! command -v jq >/dev/null 2>&1; then
+        license_problem="jq is not installed, so the license allowlist was not evaluated"
+    elif ! pnpm licenses list --json > "$licenses_report" 2>/dev/null; then
+        license_problem="pnpm licenses could not list the installed packages"
+    elif ! disallowed=$(jq -r --argjson allowed "$allowed_licenses" '
+            def approved: ascii_downcase | gsub("[()]"; "") | gsub(" with [^ ]+"; "")
+                | split(" or ")
                 | any(split(" and ") | all(sub("^ +"; "") | sub(" +$"; "") as $term
                     | $allowed | any(.[]; . == $term)));
             to_entries | map(select(.key | approved | not))
             | map("\(.key) (packages: \(.value | length))") | join(", ")' "$licenses_report"); then
-        if [[ -z "$disallowed" ]]; then
-            log_success "License compliance check passed"
-            deps_results+="<h3>✅ License Compliance</h3><p>All dependencies use approved licenses.</p>"
-        else
-            log_warning "Licenses outside the allowlist: $disallowed"
-            [[ "$deps_status" == "failed" ]] || deps_status="warning"
-            deps_results+="<h3>⚠️ License Compliance</h3><p>Licenses outside the allowlist: ${disallowed}.</p>"
-        fi
-    else
-        log_warning "pnpm licenses could not list the installed packages"
+        license_problem="jq could not evaluate the license report ${licenses_report}"
+    fi
+    if [[ -n "$license_problem" ]]; then
+        log_warning "$license_problem"
         [[ "$deps_status" == "failed" ]] || deps_status="warning"
-        deps_results+="<h3>⚠️ License Compliance</h3><p>The installed packages' licenses could not be listed.</p>"
+        deps_results+="<h3>⚠️ License Compliance</h3><p>${license_problem}.</p>"
+    elif [[ -z "$disallowed" ]]; then
+        log_success "License compliance check passed"
+        deps_results+="<h3>✅ License Compliance</h3><p>All dependencies use approved licenses.</p>"
+    else
+        log_warning "Licenses outside the allowlist: $disallowed"
+        [[ "$deps_status" == "failed" ]] || deps_status="warning"
+        deps_results+="<h3>⚠️ License Compliance</h3><p>Licenses outside the allowlist: ${disallowed}.</p>"
     fi
 
     add_report_section "Dependency Vulnerability Scanning" "$deps_results" "$deps_status"

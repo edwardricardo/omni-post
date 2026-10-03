@@ -55,11 +55,73 @@ interface PnpmLicensedPackage {
 
 type PnpmLicenseReport = Record<string, PnpmLicensedPackage[]>;
 
-function isKnipReport(value: unknown): value is KnipReport {
+function isKnipDependencyList(value: unknown): value is KnipDependency[] | undefined {
   return (
-    typeof value === "object" &&
-    value !== null &&
-    Array.isArray((value as { issues?: unknown }).issues)
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.every(
+        (entry) =>
+          typeof entry === "object" &&
+          entry !== null &&
+          typeof (entry as { name?: unknown }).name === "string"
+      ))
+  );
+}
+
+function isKnipReport(value: unknown): value is KnipReport {
+  if (typeof value !== "object" || value === null) return false;
+  const issues = (value as { issues?: unknown }).issues;
+  return (
+    Array.isArray(issues) &&
+    issues.every((issue) => {
+      if (typeof issue !== "object" || issue === null) return false;
+      const manifest = issue as {
+        file?: unknown;
+        dependencies?: unknown;
+        devDependencies?: unknown;
+      };
+      return (
+        typeof manifest.file === "string" &&
+        isKnipDependencyList(manifest.dependencies) &&
+        isKnipDependencyList(manifest.devDependencies)
+      );
+    })
+  );
+}
+
+/**
+ * @method parseKnipUnusedDependencies
+ * @description Reads knip's JSON report from its stdout and lists every unused dependency and
+ *   devDependency as `<manifest>: <name>`. The report starts at the first line that opens an
+ *   object, because a dotenv banner can precede it, and runs to the end of stdout, so a
+ *   pretty-printed report parses as well as a one-line one.
+ * @param stdout - Everything `knip --reporter json` printed on stdout.
+ * @returns One entry per unused dependency; empty only when knip measured none.
+ * @throws Error when stdout holds no report, the report does not parse, or it does not have
+ *   knip's shape — a measurement that failed must never read as zero unused dependencies.
+ */
+export function parseKnipUnusedDependencies(stdout: string): string[] {
+  const start = stdout.search(/^\{/m);
+  if (start === -1) {
+    throw new Error("knip printed no JSON report, so unused dependencies were not measured");
+  }
+  let report: unknown;
+  try {
+    report = JSON.parse(stdout.slice(start));
+  } catch (error: unknown) {
+    throw new Error("knip's JSON report does not parse, so unused dependencies were not measured", {
+      cause: error,
+    });
+  }
+  if (!isKnipReport(report)) {
+    throw new Error(
+      "knip's JSON report does not have the expected shape, so unused dependencies were not measured"
+    );
+  }
+  return report.issues.flatMap((manifest) =>
+    [...(manifest.dependencies ?? []), ...(manifest.devDependencies ?? [])].map(
+      (dependency) => `${manifest.file}: ${dependency.name}`
+    )
   );
 }
 
@@ -368,30 +430,17 @@ export class BundleAnalyzer {
    * @description Lists the declared dependencies nothing imports, as `<manifest>: <name>`, from
    *   knip — the tool that gates unused dependencies in CI (`pnpm check:dead-code`), so this
    *   report and the gate cannot disagree about what "unused" means.
-   * @returns One entry per unused dependency or devDependency; empty when knip cannot run.
+   * @returns One entry per unused dependency or devDependency; empty only when knip measured none.
+   * @throws Error when knip cannot run or its report cannot be read; the analysis then fails as a
+   *   whole rather than reporting an unmeasured repository as having no unused dependencies.
    */
   private async findUnusedDependencies(): Promise<string[]> {
-    try {
-      const output = execSync(
-        "pnpm exec knip --include dependencies --reporter json --no-exit-code --no-progress",
-        { cwd: this.projectRoot, encoding: "utf8", maxBuffer: REPORT_MAX_BUFFER_BYTES }
-      );
-      // A dotenv banner can precede the report on stdout; the report is the line opening a JSON object.
-      const reportLine = output.split("\n").find((line) => line.startsWith("{"));
-      const report: unknown = reportLine === undefined ? null : JSON.parse(reportLine);
-      if (!isKnipReport(report)) {
-        console.warn("knip produced no JSON report; unused dependencies were not measured");
-        return [];
-      }
-      return report.issues.flatMap((manifest) =>
-        [...(manifest.dependencies ?? []), ...(manifest.devDependencies ?? [])].map(
-          (dependency) => `${manifest.file}: ${dependency.name}`
-        )
-      );
-    } catch (error: unknown) {
-      console.warn("Unused-dependency analysis failed:", error);
-      return [];
-    }
+    // `--no-exit-code` makes findings exit 0, so a non-zero exit is a knip failure and propagates.
+    const output = execSync(
+      "pnpm exec knip --include dependencies --reporter json --no-exit-code --no-progress",
+      { cwd: this.projectRoot, encoding: "utf8", maxBuffer: REPORT_MAX_BUFFER_BYTES }
+    );
+    return parseKnipUnusedDependencies(output);
   }
 
   private async findOutdatedDependencies(): Promise<OutdatedDependency[]> {
