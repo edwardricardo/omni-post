@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BundleAnalyzer,
   parseKnipUnusedDependencies,
+  resolveAnalysisType,
   runBundleAnalysisCli,
   type CommandRunner,
 } from "../../../../../quality/scripts/bundle-analyzer";
@@ -186,5 +187,20 @@ describe("BundleAnalyzer when knip's measurement fails", () => {
       "❌ Bundle analysis failed:",
       expect.objectContaining({ message: NO_REPORT })
     );
+  });
+});
+
+describe("resolveAnalysisType", () => {
+  it("returns full when no analysis type is given", () => {
+    expect(resolveAnalysisType(undefined)).toBe("full");
+  });
+
+  it("returns the analysis type it is given when that type is known", () => {
+    expect(resolveAnalysisType("quick")).toBe("quick");
+    expect(resolveAnalysisType("dependencies-only")).toBe("dependencies-only");
+  });
+
+  it("returns undefined for an unknown analysis type instead of running full", () => {
+    expect(resolveAnalysisType("quik")).toBeUndefined();
   });
 });

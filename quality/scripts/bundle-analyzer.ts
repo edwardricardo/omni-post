@@ -879,10 +879,36 @@ export async function runBundleAnalysisCli(
 
 const ANALYSIS_TYPES: readonly AnalysisType[] = ["full", "quick", "dependencies-only"];
 
+/**
+ * @method resolveAnalysisType
+ * @description Maps the CLI argument to an analysis type: no argument means "full", a known type
+ *              is returned as is, and anything else is refused rather than silently run as "full".
+ * @param argument - The first CLI argument, if any.
+ * @returns The analysis type, or undefined when the argument names no known type.
+ */
+export function resolveAnalysisType(argument: string | undefined): AnalysisType | undefined {
+  if (argument === undefined) return "full";
+  return ANALYSIS_TYPES.find((type) => type === argument);
+}
+
 // Runs only when executed directly (`tsx quality/scripts/bundle-analyzer.ts`), never on import.
 if (require.main === module) {
-  const analysisType = ANALYSIS_TYPES.find((type) => type === process.argv[2]) ?? "full";
-  void runBundleAnalysisCli(new BundleAnalyzer(), analysisType).then((exitCode) => {
-    process.exitCode = exitCode;
-  });
+  const analysisType = resolveAnalysisType(process.argv[2]);
+  if (analysisType === undefined) {
+    console.error(
+      `❌ Unknown analysis type "${process.argv[2]}". Use one of: ${ANALYSIS_TYPES.join(", ")}.`
+    );
+    // 2 marks a usage error, kept apart from 1, which means the analysis itself failed.
+    process.exitCode = 2;
+  } else {
+    runBundleAnalysisCli(new BundleAnalyzer(), analysisType).then(
+      (exitCode) => {
+        process.exitCode = exitCode;
+      },
+      (error: unknown) => {
+        console.error("❌ Bundle analysis failed:", error);
+        process.exitCode = 1;
+      }
+    );
+  }
 }
