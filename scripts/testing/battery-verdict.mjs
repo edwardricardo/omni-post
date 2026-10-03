@@ -21,9 +21,9 @@
  *   `.`, `/` or `-` glued to it on either side makes it part of a file name, a directory or a flag
  *   (`warning-banner.ts`, `src/warnings/`, `--max-warnings 0`), which a step that lists files or
  *   echoes its command prints without warning about anything. A `.` after the word still ends it
- *   when no letter, digit or `_` follows, so a sentence ending in "1 warning." is a warning. There is NO
- *   allowlist and no parameter to pass one: a warning is fixed, not waived, and the list in the
- *   verdict is the evidence of why it is RED. One kind of line is not a warning: the application's
+ *   when no letter, digit or `_` follows, so a sentence ending in "1 warning." is a warning. There
+ *   is NO allowlist and no parameter to pass one: a warning is fixed, not waived, and the list in
+ *   the verdict is the evidence of why it is RED. One kind of line is not a warning: the application's
  *   own pino records at level "warn" — the code under test logging on the failure paths its tests
  *   exercise. Those records are counted per message, so a new one is visible without failing the
  *   run.
@@ -34,9 +34,22 @@ import path from "node:path";
 
 const STEPS_FILE = "steps.tsv";
 const STEP_ROW = /^([^\t]+)\t(\d+)$/;
-const WARNING_WORD = /(?<![\w./-])warn(?:ing)?s?(?![\w/-]|\.\w)/i;
+/**
+ * The neighbours that make a warning word part of a path, a file name or a flag. Before it: a word
+ * character (`useWarn`), `.` (`warnings.warn`), `/` (`src/warnings/`) or `-` (`--max-warnings`).
+ * After it: a word character (`warnings2`), `/` (`warnings/index.ts`), `-` (`warning-banner.ts`),
+ * or `.` with a word character next (`warnings.ts`); a bare `.` ends a sentence and still counts.
+ */
+const NO_PATH_NEIGHBOUR_BEFORE = String.raw`(?<![\w./-])`;
+const NO_PATH_NEIGHBOUR_AFTER = String.raw`(?![\w/-]|\.\w)`;
+const WARNING_WORD = new RegExp(
+  `${NO_PATH_NEIGHBOUR_BEFORE}warn(?:ing)?s?${NO_PATH_NEIGHBOUR_AFTER}`,
+  "i"
+);
 /** Case-sensitive: `[A-Z]` is what tells Node's and Python's category names from prose. */
-const WARNING_CATEGORY = /(?<![\w./-])[A-Z][A-Za-z]*Warning(?![\w/-]|\.\w)/;
+const WARNING_CATEGORY = new RegExp(
+  `${NO_PATH_NEIGHBOUR_BEFORE}[A-Z][A-Za-z]*Warning${NO_PATH_NEIGHBOUR_AFTER}`
+);
 const APP_WARN_RECORD = '"level":"warn"';
 const APP_WARN_MESSAGE = /"msg":"((?:[^"\\]|\\.)*)/;
 const NO_MESSAGE = "<no msg field>";
