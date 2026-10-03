@@ -183,7 +183,7 @@ catalog:
   "@storybook/addon-docs": 10.6.0
   "@storybook/nextjs": 10.6.0
   "@types/opossum": 8.1.9
-  image-size: 2.0.2
+  image-size: 2.0.4 # latest stable AND latest mature, measured 2026-10-03T08:14Z: published 2026-09-14T16:38Z; nothing newer. Also a CVE floor: GHSA-w3rx-r6r6-pgpr (ICNS) and GHSA-5p2g-fcmc-qvqq (JXL/HEIF), both high infinite-loop DoS, are vulnerable <=2.0.2 and fixed in 2.0.3 per OSV and GitHub; 2.0.4 adds one bound check on the ICO/CUR image count, and OSV lists nothing for either. Declared by packages/providers/bluesky alone, whose magic-byte gate stays as defense in depth. Was 2.0.2, which the two advisories were ignored on until 2026-10-03 (decision D37)
 
 catalogs:
   # OTel set: a named catalog documents the independent release train (the 0.NNN
@@ -350,18 +350,6 @@ overrides:
 auditConfig:
   ignoreGhsas:
     - GHSA-848j-6mx2-7j84
-    # image-size ICNS/JXL/HEIF parser infinite-loop DoS (added 2026-08-11). The
-    # advisories name >=2.0.3 as patched but npm has no release above 2.0.2 —
-    # there is nothing to pin to. The one production caller
-    # (packages/providers/bluesky BlueskyClient.getImageDimensions) now gates
-    # buffers by magic bytes and admits only jpeg/png/gif/webp — the vulnerable
-    # parsers are unreachable by construction, pinned by unit tests asserting
-    # image-size is never invoked for crafted ICNS/JXL/HEIF signatures. It is
-    # the only consumer since @storybook/nextjs 10.6.0 replaced image-size with
-    # probe-image-size (lockfile parsed 2026-10-02). Remove when image-size
-    # publishes >=2.0.3 and the tree resolves it.
-    - GHSA-w3rx-r6r6-pgpr
-    - GHSA-5p2g-fcmc-qvqq
     # braces stack-exhaustion DoS through deeply nested brace patterns,
     # CVE-2026-93687 (added 2026-10-03). No fixed release exists: npm ends at
     # 3.0.3, OSV records last_affected 3.0.3 and GitHub first_patched_version
