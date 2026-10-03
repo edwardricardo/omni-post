@@ -39,6 +39,7 @@
   "devDependencies": {
     "@packages/vitest-shared": "workspace:*",
     "@types/node": "catalog:",
+    "@types/opossum": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

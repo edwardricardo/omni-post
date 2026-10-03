@@ -105,11 +105,16 @@ Migración por ruta toma ~5-15 min. La 342 routes restantes → §3.1.b (~50-60h
 
 ## Consumo desde frontend (admin/client)
 
-`@hey-api/client-fetch` ya está instalado. Patrón:
+The fetch client is not a separate package: the standalone `@hey-api/client-fetch` was removed on
+2026-10-03 (decision D35 in `docs/development/TESTING_REFOUNDATION.md`), because npm deprecates it as
+bundled inside `@hey-api/openapi-ts` since 0.73. The bundled plugin carries the same name: adding
+`"@hey-api/client-fetch"` to `plugins` in `openapi-ts.config.ts` generates `client/` (which exports
+`createClient`) and `client.gen.ts` next to `types.gen.ts` — measured against openapi-ts 0.97.3 on
+2026-10-03. Pattern, once that plugin is enabled:
 
 ```typescript
 // apps/admin/lib/api/typed-client.ts (NEW — §3.1.b)
-import { createClient } from "@hey-api/client-fetch";
+import { createClient } from "@shared/api-generated/client";
 import type { GetHealthData, GetHealthResponses } from "@shared/api-generated";
 
 export const apiClient = createClient({
@@ -130,7 +135,8 @@ Phase A1 NO wire admin/client aún — el wireup es §3.1.b una vez que más rut
 
 ✅ **DONE:**
 
-- `@hey-api/openapi-ts` v0.97.3 + `@hey-api/client-fetch` v0.13.1 instalados (pinned exact).
+- `@hey-api/openapi-ts` v0.97.3 installed (pinned exact). `@hey-api/client-fetch` v0.13.1 was installed beside it
+  and removed on 2026-10-03 (decision D35): deprecated, and bundled inside openapi-ts since 0.73.
 - `openapi-ts.config.ts` en repo root.
 - `scripts/generate-api-types.ts` + `apps/api/scripts/dump-openapi-spec.ts`.
 - `pnpm generate:api-types` script en root package.json.

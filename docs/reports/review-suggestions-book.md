@@ -61,6 +61,7 @@
 | SB-040 | `testing-refoundation` 0.11 (`workstream/refound-0-11`, e3c26b2e)                     | R2-003                                                           | `docs/security/SECURITY_CANON.md` (the `webpack-dev-middleware` CVE-floor row)                                                              | prose                        | deferred: give the row a per-version structure — added against / installed / latest immature                                                                    |
 | SB-041 | `testing-refoundation` 0.12 (`workstream/refound-0-jsdom`, a618c8bf)                  | R2-001, R3-prisma-shape-fragile                                  | `apps/api/tests/unit/security/sanitizerOutputs.test.ts` (the `unusedPrisma` client)                                                         | test-fixture readability     | deferred: a named stub factory for the client `sanitize` never reaches                                                                                          |
 | SB-042 | same                                                                                  | R2-002                                                           | `apps/api/tests/unit/security/sanitizerOutputs.test.ts` (`SanitizerCase.templateEngine`)                                                    | naming                       | deferred: rename the field to `templateEngineHtml`, symmetric with `validatorHtml`                                                                              |
+| SB-043 | replacement slice (i-a) (`workstream/refound-dead-devdeps`, 29077cb2)                 | R2-packagejson-any-field                                         | `quality/scripts/bundle-analyzer.ts` (`packageJson` and `lockfile` fields)                                                                  | typing                       | deferred: type the two `any` fields the analyzer has carried since it was written                                                                               |
 
 ## Entries — code and prose
 
@@ -417,6 +418,14 @@
 - **Suggestion:** rename the field `templateEngine` to `templateEngineHtml`, symmetric with `validatorHtml`.
 - **Why deferred:** naming only; the field's JSDoc already reads "Observed output of `ServerTemplateEngine.sanitize(input)`", and no assertion changes.
 - **To implement:** one rename across the interface, the 27 rows and the destructuring in the test body.
+
+### SB-043 — the bundle analyzer still types its manifest and lockfile as `any`
+
+- **Source:** third review of replacement slice (i-a) (commit `29077cb2`), readability lens, finding `R2-packagejson-any-field`.
+- **Location:** `quality/scripts/bundle-analyzer.ts`, `private packageJson: any;` and `private lockfile: any;`.
+- **Suggestion:** give both fields the shape the analyzer reads (or `unknown` with guards), now that the new `runCommand: CommandRunner` field beside them is typed.
+- **Why deferred:** pre-existing and outside this slice's change: the slice did not touch either field or the code that reads them, and typing them changes no behaviour. `quality/scripts` is in no tsconfig, so fitness #3 does not see it.
+- **To implement:** two field types plus the guards at the points where the parsed JSON is read.
 
 ## Implemented
 

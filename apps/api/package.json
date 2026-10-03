@@ -187,7 +187,7 @@
     "@types/ws": "8.18.1",
     "@types/xml2js": "0.4.14",
     "@vitest/coverage-v8": "catalog:",
-    "cross-env": "10.0.0",
+    "cross-env": "catalog:",
     "msw": "catalog:",
     "tsx": "catalog:",
     "vitest": "catalog:"

@@ -1,10 +1,11 @@
 #!/usr/bin/env tsx
 
 /**
- * Bundle Analysis & Dependency Optimizer
- *
- * Comprehensive bundle analysis tool that identifies optimization opportunities,
- * analyzes dependency health, and provides actionable recommendations.
+ * @file bundle-analyzer.ts
+ * @description Bundle analysis and dependency optimizer: identifies optimization opportunities,
+ *   analyzes dependency health (unused dependencies through knip, restrictive licenses through
+ *   `pnpm licenses`), and provides actionable recommendations.
+ * @layer infrastructure
  */
 
 import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from "fs";
@@ -27,14 +28,143 @@ import type {
   SizeTrend,
 } from "./bundle-analyzer-types.js";
 
+/** Large enough for the workspace-wide JSON reports below; the 1 MiB default is not. */
+const REPORT_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+
+/** The kinds of analysis the CLI accepts as its first argument. */
+export type AnalysisType = "full" | "quick" | "dependencies-only";
+
+/**
+ * Runs a shell command in `cwd` and returns its stdout, throwing when the command fails. The
+ * analyzer takes it as a constructor argument so a test can stand in for the tools it calls.
+ */
+export type CommandRunner = (command: string, cwd: string) => string;
+
+const runCommandSync: CommandRunner = (command, cwd) =>
+  execSync(command, { cwd, encoding: "utf8", maxBuffer: REPORT_MAX_BUFFER_BYTES });
+
+/**
+ * A dependency knip reports as declared but never imported. `name` is the only field this script
+ * reads, so it is the whole contract the parser validates.
+ */
+interface KnipDependency {
+  name: string;
+}
+
+/** One manifest's entry in knip's JSON report; only the dependency categories are read. */
+interface KnipManifestIssues {
+  file: string;
+  dependencies?: KnipDependency[];
+  devDependencies?: KnipDependency[];
+}
+
+interface KnipReport {
+  issues: KnipManifestIssues[];
+}
+
+/** One package of `pnpm licenses list --json`, which groups packages by declared license. */
+interface PnpmLicensedPackage {
+  name: string;
+  versions: string[];
+}
+
+type PnpmLicenseReport = Record<string, PnpmLicensedPackage[]>;
+
+function isKnipDependencyList(value: unknown): value is KnipDependency[] | undefined {
+  return (
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.every(
+        (entry) =>
+          typeof entry === "object" &&
+          entry !== null &&
+          typeof (entry as { name?: unknown }).name === "string"
+      ))
+  );
+}
+
+function isKnipReport(value: unknown): value is KnipReport {
+  if (typeof value !== "object" || value === null) return false;
+  const issues = (value as { issues?: unknown }).issues;
+  return (
+    Array.isArray(issues) &&
+    issues.every((issue) => {
+      if (typeof issue !== "object" || issue === null) return false;
+      const manifest = issue as {
+        file?: unknown;
+        dependencies?: unknown;
+        devDependencies?: unknown;
+      };
+      return (
+        typeof manifest.file === "string" &&
+        isKnipDependencyList(manifest.dependencies) &&
+        isKnipDependencyList(manifest.devDependencies)
+      );
+    })
+  );
+}
+
+/**
+ * @method parseKnipUnusedDependencies
+ * @description Reads knip's JSON report from its stdout and lists every unused dependency and
+ *   devDependency as `<manifest>: <name>`. The report starts at the first line that opens an
+ *   object, because a dotenv banner can precede it, and runs to the end of stdout, so a
+ *   pretty-printed report parses as well as a one-line one.
+ * @param stdout - Everything `knip --reporter json` printed on stdout.
+ * @returns One entry per unused dependency; empty only when knip measured none.
+ * @throws Error when stdout holds no report, the report does not parse, or it does not have
+ *   knip's shape — a measurement that failed must never read as zero unused dependencies.
+ */
+export function parseKnipUnusedDependencies(stdout: string): string[] {
+  const start = stdout.search(/^\{/m);
+  if (start === -1) {
+    throw new Error("knip printed no JSON report, so unused dependencies were not measured");
+  }
+  let report: unknown;
+  try {
+    report = JSON.parse(stdout.slice(start));
+  } catch (error: unknown) {
+    throw new Error("knip's JSON report does not parse, so unused dependencies were not measured", {
+      cause: error,
+    });
+  }
+  if (!isKnipReport(report)) {
+    throw new Error(
+      "knip's JSON report does not have the expected shape, so unused dependencies were not measured"
+    );
+  }
+  return report.issues.flatMap((manifest) =>
+    [...(manifest.dependencies ?? []), ...(manifest.devDependencies ?? [])].map(
+      (dependency) => `${manifest.file}: ${dependency.name}`
+    )
+  );
+}
+
+function isPnpmLicenseReport(value: unknown): value is PnpmLicenseReport {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.values(value).every((packages) => Array.isArray(packages))
+  );
+}
+
 export class BundleAnalyzer {
   private projectRoot: string;
   private packageJson: any;
   private lockfile: any;
   private reportsDir: string;
+  private readonly runCommand: CommandRunner;
 
-  constructor(projectRoot: string = process.cwd()) {
+  /**
+   * @method constructor
+   * @description Loads the project's manifest and lockfile and ensures the report directory.
+   * @param projectRoot - The repository the analysis reads and writes its reports under.
+   * @param runCommand - Runs the external tools whose output the analysis parses (knip,
+   *   `pnpm licenses`); the default executes them for real.
+   */
+  constructor(projectRoot: string = process.cwd(), runCommand: CommandRunner = runCommandSync) {
     this.projectRoot = projectRoot;
+    this.runCommand = runCommand;
     this.reportsDir = join(projectRoot, "quality/reports/bundle");
     this.loadProjectFiles();
     this.ensureReportsDirectory();
@@ -74,9 +204,7 @@ export class BundleAnalyzer {
     }
   }
 
-  async analyzeBundles(
-    analysisType: "full" | "quick" | "dependencies-only" = "full"
-  ): Promise<BundleAnalysis> {
+  async analyzeBundles(analysisType: AnalysisType = "full"): Promise<BundleAnalysis> {
     console.log(`📦 Starting ${analysisType} bundle analysis...`);
 
     const analysis: BundleAnalysis = {
@@ -235,7 +363,7 @@ export class BundleAnalyzer {
       for (const line of lines) {
         const parts = line.trim().split(/\s+/);
         if (parts.length >= 9) {
-          const size = parseInt(parts[4]);
+          const size = parseInt(parts[4] ?? "", 10);
           const sizeMB = size / (1024 * 1024);
           const path = parts.slice(8).join(" ");
 
@@ -319,19 +447,22 @@ export class BundleAnalyzer {
     }
   }
 
+  /**
+   * @method findUnusedDependencies
+   * @description Lists the declared dependencies nothing imports, as `<manifest>: <name>`, from
+   *   knip — the tool that gates unused dependencies in CI (`pnpm check:dead-code`), so this
+   *   report and the gate cannot disagree about what "unused" means.
+   * @returns One entry per unused dependency or devDependency; empty only when knip measured none.
+   * @throws Error when knip cannot run or its report cannot be read; the analysis then fails as a
+   *   whole rather than reporting an unmeasured repository as having no unused dependencies.
+   */
   private async findUnusedDependencies(): Promise<string[]> {
-    try {
-      // Use depcheck to find unused dependencies
-      const output = execSync("npx depcheck --json", {
-        cwd: this.projectRoot,
-        encoding: "utf8",
-      });
-
-      const data = JSON.parse(output);
-      return data.dependencies || [];
-    } catch {
-      return [];
-    }
+    // `--no-exit-code` makes findings exit 0, so a non-zero exit is a knip failure and propagates.
+    const output = this.runCommand(
+      "pnpm exec knip --include dependencies --reporter json --no-exit-code --no-progress",
+      this.projectRoot
+    );
+    return parseKnipUnusedDependencies(output);
   }
 
   private async findOutdatedDependencies(): Promise<OutdatedDependency[]> {
@@ -362,8 +493,8 @@ export class BundleAnalyzer {
   }
 
   private hasMajorVersionChange(current: string, latest: string): boolean {
-    const currentMajor = parseInt(current.split(".")[0]);
-    const latestMajor = parseInt(latest.split(".")[0]);
+    const currentMajor = parseInt(current.split(".")[0] ?? "", 10);
+    const latestMajor = parseInt(latest.split(".")[0] ?? "", 10);
     return latestMajor > currentMajor;
   }
 
@@ -432,33 +563,42 @@ export class BundleAnalyzer {
     return [];
   }
 
+  /**
+   * @method findLicenseIssues
+   * @description Flags every installed package whose declared license expression names a
+   *   copyleft license, read from `pnpm licenses list --json`, which covers the whole workspace
+   *   and groups packages by that expression.
+   * @returns One issue per flagged `<name>@<version>`; empty when pnpm cannot list licenses.
+   */
   private async findLicenseIssues(): Promise<LicenseIssue[]> {
     try {
-      const output = execSync("npx license-checker --json", {
-        cwd: this.projectRoot,
-        encoding: "utf8",
-      });
+      const output = this.runCommand("pnpm licenses list --json", this.projectRoot);
+      const licenses: unknown = JSON.parse(output);
+      if (!isPnpmLicenseReport(licenses)) {
+        console.warn("pnpm licenses produced an unexpected report; licenses were not checked");
+        return [];
+      }
 
-      const licenses = JSON.parse(output);
-      const issues: LicenseIssue[] = [];
-
-      // Check for potentially problematic licenses
+      // A substring match also flags the LGPL family, which a reviewer must see too.
       const problematicLicenses = ["GPL-2.0", "GPL-3.0", "AGPL-3.0"];
-
-      for (const [dependency, info] of Object.entries(licenses as Record<string, any>)) {
-        const license = info.licenses;
-        if (problematicLicenses.some((prob) => license?.includes(prob))) {
-          issues.push({
-            dependency,
-            license,
-            issue: "restrictive",
-            risk_level: "high",
-          });
+      const issues: LicenseIssue[] = [];
+      for (const [license, packages] of Object.entries(licenses)) {
+        if (!problematicLicenses.some((prob) => license.includes(prob))) continue;
+        for (const pkg of packages) {
+          for (const version of pkg.versions) {
+            issues.push({
+              dependency: `${pkg.name}@${version}`,
+              license,
+              issue: "restrictive",
+              risk_level: "high",
+            });
+          }
         }
       }
 
       return issues;
-    } catch {
+    } catch (error: unknown) {
+      console.warn("License analysis failed:", error);
       return [];
     }
   }
@@ -717,18 +857,58 @@ export class BundleAnalyzer {
   }
 }
 
-// CLI Interface
-if (require.main === module) {
-  const analyzer = new BundleAnalyzer();
-  const analysisType = (process.argv[2] as "full" | "quick" | "dependencies-only") || "full";
+/**
+ * @method runBundleAnalysisCli
+ * @description The CLI entry point: runs the analysis and prints its summary, or names the failure.
+ * @param analyzer - The analyzer to run, already bound to its project root and command runner.
+ * @param analysisType - The kind of analysis to run.
+ * @returns The process exit code: 0 when the analysis completes, 1 when any step of it fails.
+ */
+export async function runBundleAnalysisCli(
+  analyzer: BundleAnalyzer,
+  analysisType: AnalysisType
+): Promise<number> {
+  try {
+    analyzer.printSummary(await analyzer.analyzeBundles(analysisType));
+    return 0;
+  } catch (error: unknown) {
+    console.error("❌ Bundle analysis failed:", error);
+    return 1;
+  }
+}
 
-  analyzer
-    .analyzeBundles(analysisType)
-    .then((analysis) => {
-      analyzer.printSummary(analysis);
-    })
-    .catch((error) => {
-      console.error("❌ Bundle analysis failed:", error);
-      process.exit(1);
-    });
+const ANALYSIS_TYPES: readonly AnalysisType[] = ["full", "quick", "dependencies-only"];
+
+/**
+ * @method resolveAnalysisType
+ * @description Maps the CLI argument to an analysis type: no argument means "full", a known type
+ *              is returned as is, and anything else is refused rather than silently run as "full".
+ * @param argument - The first CLI argument, if any.
+ * @returns The analysis type, or undefined when the argument names no known type.
+ */
+export function resolveAnalysisType(argument: string | undefined): AnalysisType | undefined {
+  if (argument === undefined) return "full";
+  return ANALYSIS_TYPES.find((type) => type === argument);
+}
+
+// Runs only when executed directly (`tsx quality/scripts/bundle-analyzer.ts`), never on import.
+if (require.main === module) {
+  const analysisType = resolveAnalysisType(process.argv[2]);
+  if (analysisType === undefined) {
+    console.error(
+      `❌ Unknown analysis type "${process.argv[2]}". Use one of: ${ANALYSIS_TYPES.join(", ")}.`
+    );
+    // 2 marks a usage error, kept apart from 1, which means the analysis itself failed.
+    process.exitCode = 2;
+  } else {
+    runBundleAnalysisCli(new BundleAnalyzer(), analysisType).then(
+      (exitCode) => {
+        process.exitCode = exitCode;
+      },
+      (error: unknown) => {
+        console.error("❌ Bundle analysis failed:", error);
+        process.exitCode = 1;
+      }
+    );
+  }
 }
