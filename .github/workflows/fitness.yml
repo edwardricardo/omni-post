@@ -1924,3 +1924,16 @@ jobs:
             echo "::error title=Override band violation::A range-scoped override in pnpm-workspace.yaml declares a band that no longer matches its own target, or the gate could not read one of its inputs. The override-bands-gate lines above name every key with its target and its verdict. A CVE floor is written so the band's exclusive upper bound IS the target ('pkg@<X' pinned to X), because that is what forces the two to move together: raise the band and the target in the same edit, never only the value. A band that genuinely cannot take that shape is recorded in the gate's allowlist with its measured reason, never left to drift — and an allowlist entry that matches no key is a violation too, so the list can only shrink."
             exit 1
           fi
+
+      - name: "Maturity watchlist: every entry is well formed and its milestones derive from its publish date"
+        # scripts/testing/maturity-watchlist.json lists the versions that entered inside the 7-day
+        # maturity buffer with their 7- and 14-day review dates. A malformed entry, or a milestone that
+        # is not its publish date plus 7 or 14 days, would put a review on the wrong day or on none;
+        # this refuses it in the pull request that writes it. Reads one tracked file: no install, no
+        # registry, no API. Pinned by apps/api/tests/unit/scripts/maturityWatchlist.test.ts.
+        run: |
+          set -uo pipefail
+          if ! node scripts/testing/maturity-watchlist.mjs --check; then
+            echo "::error title=Maturity watchlist violation::scripts/testing/maturity-watchlist.json is unreadable or malformed. The maturity-watchlist lines above name each entry and field: a missing or malformed field, a milestone that is not its publish date plus 7 or 14 days, a review dated before its milestone or without a clean or flagged outcome, or a duplicate id."
+            exit 1
+          fi
