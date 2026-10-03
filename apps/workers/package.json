@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "cross-env": "10.0.0",
+    "cross-env": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

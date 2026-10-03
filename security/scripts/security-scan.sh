@@ -331,20 +331,33 @@ run_dependency_scan() {
         deps_results+="<h3>⚠️ NPM Audit</h3><p>Failed to run dependency audit.</p>"
     fi
 
-    # License compliance check
+    # License compliance check. pnpm groups every package installed in the workspace under
+    # its declared SPDX expression; an expression passes when one OR-alternative has every
+    # AND-term in the allowlist, so `(MIT AND CC-BY-3.0)` fails and `(MIT OR GPL-3.0)` passes.
+    # A license finding never downgrades a failed audit: it raises a pass to a warning only.
     log_verbose "Running license compliance check..."
-    if command -v license-checker >/dev/null 2>&1; then
-        if license-checker --json --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD' > "${REPORTS_DIR}/licenses_${TIMESTAMP}.json" 2>/dev/null; then
+    local licenses_report="${REPORTS_DIR}/licenses_${TIMESTAMP}.json"
+    local allowed_licenses='["mit","apache-2.0","bsd-2-clause","bsd-3-clause","isc","0bsd"]'
+    local disallowed=""
+    if pnpm licenses list --json > "$licenses_report" 2>/dev/null &&
+        disallowed=$(jq -r --argjson allowed "$allowed_licenses" '
+            def approved: ascii_downcase | gsub("[()]"; "") | split(" or ")
+                | any(split(" and ") | all(sub("^ +"; "") | sub(" +$"; "") as $term
+                    | $allowed | any(.[]; . == $term)));
+            to_entries | map(select(.key | approved | not))
+            | map("\(.key) (packages: \(.value | length))") | join(", ")' "$licenses_report"); then
+        if [[ -z "$disallowed" ]]; then
             log_success "License compliance check passed"
             deps_results+="<h3>✅ License Compliance</h3><p>All dependencies use approved licenses.</p>"
         else
-            log_warning "License compliance check found issues"
-            deps_status="warning"
-            deps_results+="<h3>⚠️ License Compliance</h3><p>Some dependencies may use non-compliant licenses.</p>"
+            log_warning "Licenses outside the allowlist: $disallowed"
+            [[ "$deps_status" == "failed" ]] || deps_status="warning"
+            deps_results+="<h3>⚠️ License Compliance</h3><p>Licenses outside the allowlist: ${disallowed}.</p>"
         fi
     else
-        log_verbose "license-checker not available"
-        deps_results+="<h3>ℹ️ License Compliance</h3><p>license-checker not installed, skipping check.</p>"
+        log_warning "pnpm licenses could not list the installed packages"
+        [[ "$deps_status" == "failed" ]] || deps_status="warning"
+        deps_results+="<h3>⚠️ License Compliance</h3><p>The installed packages' licenses could not be listed.</p>"
     fi
 
     add_report_section "Dependency Vulnerability Scanning" "$deps_results" "$deps_status"

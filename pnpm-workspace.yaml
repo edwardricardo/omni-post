@@ -24,7 +24,6 @@ allowBuilds:
   # `onlyBuiltDependencies` allowlist, so their scripts did NOT run under pnpm 10
   # (they rely on prebuilt binaries). `false` preserves that exact behavior — pnpm 11's
   # allowBuilds is exhaustive, so every build-script package must be listed (ADR-0019).
-  "@ast-grep/cli": false
   "@parcel/watcher": false
   "@sentry/cli": false
   "@swc/core": false
@@ -32,7 +31,6 @@ allowBuilds:
   bufferutil: false
   contextify: false
   core-js-pure: false
-  es5-ext: false
   msgpackr-extract: false
   msw: false
   protobufjs: false
@@ -94,6 +92,7 @@ catalog:
   "@googleapis/youtubeanalytics": 11.0.1 # latest stable
 
   # ── Build/test toolchain ──
+  cross-env: 10.0.0 # catalog since 2026-10-03 (decision D35): declared by apps/api and apps/workers, and ADR-0018 gives a direct dependency declared in two manifests a catalog entry, not two literals. NOT latest mature: 10.1.0 (2025-09-29) is, and the lag is held by the SECURITY_CANON row `vite` (the six build tools, one shared reason), so the move into the catalog keeps the installed version
   vitest: 4.1.11 # CVE floor raised 2026-09-09: GHSA-82fw-gwwq-j7x9 (moderate, @vitest/mocker redirect-mock path traversal), vulnerable >=2.1.0 <4.1.11. vitest 4.1.11 pins @vitest/mocker EXACTLY at 4.1.11, so the transitive needs no override of its own. Peer-locked to @vitest/* 4.1.11 (was 4.1.10)
   typescript: 6.0.3 # NOT latest stable (the previous comment said so and was false, corrected 2026-09-27): latest mature is 7.0.2. 6.0.3 is the v6 ceiling, HELD — @typescript-eslint 8.70.1 peers typescript ">=4.8.4 <6.1.0" (the range is unchanged from 8.70.0; only the version naming it moved, 2026-09-30). See SECURITY_CANON §"Build-tool version holds"
   tsx: 4.23.15 # latest MATURE and latest stable, re-measured 2026-10-02T07:22Z: published 2026-09-20T07:22:17Z, no later release. No hold row, because there is no lag. Declared via `catalog:` by root, apps/api, apps/workers and infra/prisma; also an optional peer (^4.8.1) of vite and postcss-load-config. Depends on esbuild ~0.28.0, which the blanket esbuild 0.28.1 override satisfies
@@ -215,14 +214,15 @@ catalogs:
 # and dated-debt holds (SECURITY_CANON §Audited-audit-ignores, PENDING_WORK_INVENTORY §7).
 overrides:
   axios: "catalog:"
-  # Added 2026-09-04. The root declares `fastify-type-provider-zod` but no fastify,
-  # so its `fastify` peer is auto-installed UNCONSTRAINED and drifted to a different
-  # version than the catalog governs (apps/api + api-common) — two fastify copies in
-  # one tree, with the security-relevant pin authoritative for only one of them. This
-  # binds every fastify in the tree to the catalog value, so when the held 5.12.1
-  # floor is unblocked (see SECURITY_CANON §"Blocked floors") the dev-only peer moves
-  # with it instead of silently lagging. Not a de-dup-only override (ADR-0018 drops
-  # those): it exists to make ONE version answer for the CVE floor.
+  # Added 2026-09-04, when the root declared `fastify-type-provider-zod` but no
+  # fastify, so its `fastify` peer was auto-installed UNCONSTRAINED and drifted from
+  # the catalog — two fastify copies in one tree, the CVE floor authoritative for only
+  # one of them. That root copy left on 2026-10-03 (decision D35): every fastify in
+  # the lockfile is now the catalog-declared direct dependency of apps/api or
+  # api-common, or the peer that apps/api's own `fastify-type-provider-zod` resolves
+  # to it. The override stays as the dual-role CVE-floor override, the `axios`
+  # precedent: a future transitive or peer fastify resolves to the catalog floor
+  # instead of drifting below it. Not a de-dup-only override (ADR-0018 drops those).
   fastify: "catalog:"
   form-data: "catalog:"
   validator: "catalog:"
@@ -374,8 +374,9 @@ auditConfig:
     # CVE-2026-93687 (added 2026-10-03). No fixed release exists: npm ends at
     # 3.0.3, OSV records last_affected 3.0.3 and GitHub first_patched_version
     # null. The one copy, braces@3.0.3, sits under micromatch@4.0.8 on
-    # devDependency chains only (depcheck, eslint-plugin-boundaries, jscpd,
-    # secretlint, @storybook/nextjs); no production importer reaches it, and
+    # devDependency chains only (eslint-plugin-boundaries, jscpd, secretlint,
+    # @storybook/nextjs; depcheck was a fifth until 2026-10-03, decision D35); no
+    # production importer reaches it, and
     # micromatch hands braces glob patterns only, which here come from
     # repository configuration or a committer's own staged paths. Remove when
     # braces publishes a release above 3.0.3 and the lockfile resolves it.

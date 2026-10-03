@@ -281,7 +281,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ✅ **Phase A1 closure:**
 
-- **Tooling canon-aligned**: tras recon descubrimos que `openapi-typescript` v7.13 tiene bug con Node 24 (transitive `@redocly@1.34` + `js-yaml@3.14`). Switched a `@hey-api/openapi-ts` v0.97.3 + `@hey-api/client-fetch` v0.13.1 (canon 2026, 2.7M downloads/week, backed Vercel/PayPal/Amazon).
+- **Tooling canon-aligned**: tras recon descubrimos que `openapi-typescript` v7.13 tiene bug con Node 24 (transitive `@redocly@1.34` + `js-yaml@3.14`). Switched a `@hey-api/openapi-ts` v0.97.3 + `@hey-api/client-fetch` v0.13.1 (canon 2026, 2.7M downloads/week, backed Vercel/PayPal/Amazon). `@hey-api/client-fetch` was removed on 2026-10-03 (decision D35 in `docs/development/TESTING_REFOUNDATION.md`): npm deprecates it as bundled inside openapi-ts since 0.73, so the fetch client is now the openapi-ts plugin of the same name.
 - **Root cause fix**: agregado `transform: jsonSchemaTransform` al `@fastify/swagger` register en `apps/api/src/index.ts` — sin esto el spec emitía Zod raw (`{def: ...}`) y los tipos generados eran `{[key:string]: unknown}`.
 - **Override removed**: el pnpm `js-yaml: 3.14.2` override (commit 3fd4203) forzaba a eslint/eslintrc DOWN a v3 cuando wants v4; removido sin breakage (eslint, secretlint, etc. siguen ok).
 - **Generator pipeline**: `apps/api/scripts/dump-openapi-spec.ts` (bootea createApp + dumpea swagger spec a `/tmp`) + `scripts/generate-api-types.ts` (orquesta dump + openapi-ts + post-procesa `@file/@layer` headers JSDoc para survivar regen).

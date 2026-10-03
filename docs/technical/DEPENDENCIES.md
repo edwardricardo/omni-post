@@ -377,7 +377,7 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.0, clsx 2.1.1, tailwind
 
 1. **ci.yml** — Main CI: lint, test, build, security, provider tests, frontend tests
 2. **security-testing.yml** — SAST (CodeQL), DAST, dependency scanning (daily at 2 AM UTC)
-3. **performance.yml** — Performance testing with autocannon/loadtest
+3. **performance.yml** — Performance testing: database and memory stress (`perf:db`, `perf:memory`) and a k6 load test
 4. **nightly.yml** — Nightly builds
 5. **production-ci.yml** — Production deployment checks
 6. **dependency-updates.yml** — Automated dependency management

@@ -160,13 +160,13 @@ run_security_scan() {
         fi
     fi
 
-    # License compliance check
+    # License inventory: pnpm groups every package installed in the workspace under its
+    # declared license, so the package manager already carries this check.
     log_info "Checking license compliance..."
-    if command_exists license-checker; then
-        npx license-checker --json --out "$security_dir/licenses.json"
-        log_success "License compliance check completed"
+    if pnpm licenses list --json > "$security_dir/licenses.json"; then
+        log_success "License inventory written to $security_dir/licenses.json"
     else
-        log_warning "License checker not available"
+        log_warning "pnpm licenses could not list the installed packages"
     fi
 
     return 0
@@ -240,11 +240,7 @@ analyze_bundle() {
 
     log_info "Analyzing bundle size and dependencies..."
 
-    # Dependency analysis
-    if command_exists depcheck; then
-        npx depcheck --json > "$analysis_dir/depcheck.json" 2>/dev/null || true
-        log_success "Dependency analysis completed"
-    fi
+    # Unused dependencies are not re-checked here: knip gates them in CI (`pnpm check:dead-code`).
 
     # Package size analysis
     if command_exists bundlesize; then
@@ -256,7 +252,7 @@ analyze_bundle() {
         echo "{"
         echo "  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\","
         echo "  \"node_modules_size\": \"$(du -sh node_modules 2>/dev/null | cut -f1 || echo 'unknown')\","
-        echo "  \"package_count\": $(find node_modules -name package.json | wc -l 2>/dev/null || echo 0)
+        echo "  \"package_count\": $(find node_modules -name package.json | wc -l 2>/dev/null || echo 0)"
         echo "}"
     } > "$analysis_dir/bundle-analysis.json"
 

@@ -1,9 +1,6 @@
 {
   "packages": [
     {
-      "name": "@ast-grep/cli"
-    },
-    {
       "name": "@axe-core/playwright"
     },
     {
@@ -11,9 +8,6 @@
     },
     {
       "name": "@faker-js/faker"
-    },
-    {
-      "name": "@hey-api/client-fetch"
     },
     {
       "name": "@hey-api/openapi-ts"
@@ -107,9 +101,6 @@
     },
     {
       "name": "lint-staged"
-    },
-    {
-      "name": "loadtest"
     },
     {
       "name": "msw"

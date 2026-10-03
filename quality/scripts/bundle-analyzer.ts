@@ -1,10 +1,11 @@
 #!/usr/bin/env tsx
 
 /**
- * Bundle Analysis & Dependency Optimizer
- *
- * Comprehensive bundle analysis tool that identifies optimization opportunities,
- * analyzes dependency health, and provides actionable recommendations.
+ * @file bundle-analyzer.ts
+ * @description Bundle analysis and dependency optimizer: identifies optimization opportunities,
+ *   analyzes dependency health (unused dependencies through knip, restrictive licenses through
+ *   `pnpm licenses`), and provides actionable recommendations.
+ * @layer infrastructure
  */
 
 import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from "fs";
@@ -26,6 +27,49 @@ import type {
   Recommendation,
   SizeTrend,
 } from "./bundle-analyzer-types.js";
+
+/** Large enough for the workspace-wide JSON reports below; the 1 MiB default is not. */
+const REPORT_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+
+/** A dependency knip reports as declared but never imported. */
+interface KnipDependency {
+  name: string;
+}
+
+/** One manifest's entry in knip's JSON report; only the dependency categories are read. */
+interface KnipManifestIssues {
+  file: string;
+  dependencies?: KnipDependency[];
+  devDependencies?: KnipDependency[];
+}
+
+interface KnipReport {
+  issues: KnipManifestIssues[];
+}
+
+/** One package of `pnpm licenses list --json`, which groups packages by declared license. */
+interface PnpmLicensedPackage {
+  name: string;
+  versions: string[];
+}
+
+type PnpmLicenseReport = Record<string, PnpmLicensedPackage[]>;
+
+function isKnipReport(value: unknown): value is KnipReport {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Array.isArray((value as { issues?: unknown }).issues)
+  );
+}
+
+function isPnpmLicenseReport(value: unknown): value is PnpmLicenseReport {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.values(value).every((packages) => Array.isArray(packages))
+  );
+}
 
 export class BundleAnalyzer {
   private projectRoot: string;
@@ -235,7 +279,7 @@ export class BundleAnalyzer {
       for (const line of lines) {
         const parts = line.trim().split(/\s+/);
         if (parts.length >= 9) {
-          const size = parseInt(parts[4]);
+          const size = parseInt(parts[4] ?? "", 10);
           const sizeMB = size / (1024 * 1024);
           const path = parts.slice(8).join(" ");
 
@@ -319,17 +363,33 @@ export class BundleAnalyzer {
     }
   }
 
+  /**
+   * @method findUnusedDependencies
+   * @description Lists the declared dependencies nothing imports, as `<manifest>: <name>`, from
+   *   knip — the tool that gates unused dependencies in CI (`pnpm check:dead-code`), so this
+   *   report and the gate cannot disagree about what "unused" means.
+   * @returns One entry per unused dependency or devDependency; empty when knip cannot run.
+   */
   private async findUnusedDependencies(): Promise<string[]> {
     try {
-      // Use depcheck to find unused dependencies
-      const output = execSync("npx depcheck --json", {
-        cwd: this.projectRoot,
-        encoding: "utf8",
-      });
-
-      const data = JSON.parse(output);
-      return data.dependencies || [];
-    } catch {
+      const output = execSync(
+        "pnpm exec knip --include dependencies --reporter json --no-exit-code --no-progress",
+        { cwd: this.projectRoot, encoding: "utf8", maxBuffer: REPORT_MAX_BUFFER_BYTES }
+      );
+      // A dotenv banner can precede the report on stdout; the report is the line opening a JSON object.
+      const reportLine = output.split("\n").find((line) => line.startsWith("{"));
+      const report: unknown = reportLine === undefined ? null : JSON.parse(reportLine);
+      if (!isKnipReport(report)) {
+        console.warn("knip produced no JSON report; unused dependencies were not measured");
+        return [];
+      }
+      return report.issues.flatMap((manifest) =>
+        [...(manifest.dependencies ?? []), ...(manifest.devDependencies ?? [])].map(
+          (dependency) => `${manifest.file}: ${dependency.name}`
+        )
+      );
+    } catch (error: unknown) {
+      console.warn("Unused-dependency analysis failed:", error);
       return [];
     }
   }
@@ -362,8 +422,8 @@ export class BundleAnalyzer {
   }
 
   private hasMajorVersionChange(current: string, latest: string): boolean {
-    const currentMajor = parseInt(current.split(".")[0]);
-    const latestMajor = parseInt(latest.split(".")[0]);
+    const currentMajor = parseInt(current.split(".")[0] ?? "", 10);
+    const latestMajor = parseInt(latest.split(".")[0] ?? "", 10);
     return latestMajor > currentMajor;
   }
 
@@ -432,33 +492,46 @@ export class BundleAnalyzer {
     return [];
   }
 
+  /**
+   * @method findLicenseIssues
+   * @description Flags every installed package whose declared license expression names a
+   *   copyleft license, read from `pnpm licenses list --json`, which covers the whole workspace
+   *   and groups packages by that expression.
+   * @returns One issue per flagged `<name>@<version>`; empty when pnpm cannot list licenses.
+   */
   private async findLicenseIssues(): Promise<LicenseIssue[]> {
     try {
-      const output = execSync("npx license-checker --json", {
+      const output = execSync("pnpm licenses list --json", {
         cwd: this.projectRoot,
         encoding: "utf8",
+        maxBuffer: REPORT_MAX_BUFFER_BYTES,
       });
+      const licenses: unknown = JSON.parse(output);
+      if (!isPnpmLicenseReport(licenses)) {
+        console.warn("pnpm licenses produced an unexpected report; licenses were not checked");
+        return [];
+      }
 
-      const licenses = JSON.parse(output);
-      const issues: LicenseIssue[] = [];
-
-      // Check for potentially problematic licenses
+      // A substring match also flags the LGPL family, which a reviewer must see too.
       const problematicLicenses = ["GPL-2.0", "GPL-3.0", "AGPL-3.0"];
-
-      for (const [dependency, info] of Object.entries(licenses as Record<string, any>)) {
-        const license = info.licenses;
-        if (problematicLicenses.some((prob) => license?.includes(prob))) {
-          issues.push({
-            dependency,
-            license,
-            issue: "restrictive",
-            risk_level: "high",
-          });
+      const issues: LicenseIssue[] = [];
+      for (const [license, packages] of Object.entries(licenses)) {
+        if (!problematicLicenses.some((prob) => license.includes(prob))) continue;
+        for (const pkg of packages) {
+          for (const version of pkg.versions) {
+            issues.push({
+              dependency: `${pkg.name}@${version}`,
+              license,
+              issue: "restrictive",
+              risk_level: "high",
+            });
+          }
         }
       }
 
       return issues;
-    } catch {
+    } catch (error: unknown) {
+      console.warn("License analysis failed:", error);
       return [];
     }
   }
