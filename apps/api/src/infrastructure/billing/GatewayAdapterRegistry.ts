@@ -30,7 +30,9 @@ export class GatewayAdapterRegistry implements GatewayAdapterRegistryPort {
     if (provider === "stripe") {
       if (!this.stripeAdapter) {
         if (!this.config.stripe) {
-          throw new Error("Stripe adapter requested but STRIPE_SECRET_KEY is not configured");
+          throw new Error(
+            "Stripe adapter requested but Stripe is not configured: set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET"
+          );
         }
         this.stripeAdapter = new StripePaymentAdapter(this.config.stripe);
       }
@@ -39,7 +41,9 @@ export class GatewayAdapterRegistry implements GatewayAdapterRegistryPort {
 
     if (!this.paddleAdapter) {
       if (!this.config.paddle) {
-        throw new Error("Paddle adapter requested but PADDLE_API_KEY is not configured");
+        throw new Error(
+          "Paddle adapter requested but Paddle is not configured: set PADDLE_API_KEY and PADDLE_WEBHOOK_SECRET"
+        );
       }
       this.paddleAdapter = new PaddlePaymentAdapter(this.config.paddle);
     }
@@ -87,6 +91,8 @@ export function createGatewayRegistry(): GatewayAdapterRegistry {
     );
   }
 
+  // A gateway is present only when both its key and its webhook secret are set; spreading a falsy
+  // `&&` result adds no property, so an unconfigured gateway is simply absent.
   return new GatewayAdapterRegistry({
     ...(env.STRIPE_SECRET_KEY &&
       env.STRIPE_WEBHOOK_SECRET && {

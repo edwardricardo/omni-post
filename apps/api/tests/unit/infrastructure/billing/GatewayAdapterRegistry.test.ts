@@ -48,14 +48,20 @@ describe("GatewayAdapterRegistry", () => {
   it("refuses both gateways when no gateway variable is set", () => {
     const registry = createGatewayRegistry();
 
-    expect(() => registry.getAdapter("stripe")).toThrow("STRIPE_SECRET_KEY is not configured");
-    expect(() => registry.getAdapter("paddle")).toThrow("PADDLE_API_KEY is not configured");
+    expect(() => registry.getAdapter("stripe")).toThrow(
+      "set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET"
+    );
+    expect(() => registry.getAdapter("paddle")).toThrow(
+      "set PADDLE_API_KEY and PADDLE_WEBHOOK_SECRET"
+    );
   });
 
   it("refuses a gateway the registry was constructed without", () => {
     const registry = new GatewayAdapterRegistry({ paddle: PADDLE });
 
-    expect(() => registry.getAdapter("stripe")).toThrow("STRIPE_SECRET_KEY is not configured");
+    expect(() => registry.getAdapter("stripe")).toThrow(
+      "set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET"
+    );
     expect(registry.getAdapter("paddle")).toBeInstanceOf(PaddlePaymentAdapter);
   });
 
