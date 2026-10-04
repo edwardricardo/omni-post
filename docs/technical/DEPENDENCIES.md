@@ -273,7 +273,7 @@ Each platform is a separate workspace package implementing `IProviderAdapter` fr
 | X (Twitter) | twitter-api-v2 1.27.0                                                                       | Publish, analytics, inbox, threads           |
 | Instagram   | Direct API (fetch)                                                                          | Publish, stories, analytics, inbox, carousel |
 | Facebook    | Direct API (fetch)                                                                          | Publish, analytics, inbox                    |
-| YouTube     | @googleapis/youtube 39.0.1, @googleapis/youtubeanalytics 11.0.1, google-auth-library 10.7.0 | Publish, analytics                           |
+| YouTube     | @googleapis/youtube 39.0.1, @googleapis/youtubeanalytics 11.0.1, google-auth-library 11.1.0 | Publish, analytics                           |
 | TikTok      | axios 1.20.0                                                                                | Publish, analytics, hashtag discovery        |
 | LinkedIn    | Direct API (fetch)                                                                          | Publish, analytics, inbox                    |
 | Pinterest   | Direct API (fetch)                                                                          | Publish, analytics                           |

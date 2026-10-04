@@ -19,15 +19,15 @@
  *   open-ended (a band overtaken by its own target, a band whose upper bound was never the target, a
  *   major-line scope, an inclusive bound, a future shape nobody predicted), while the admissible one
  *   is a sentence: the band's written `<X` equals the target. Everything else is a violation by
- *   construction, and the two measured exceptions are named with their reasons below rather than
- *   predicted by a pattern.
+ *   construction, and each measured exception is named with its reason below rather than predicted
+ *   by a pattern.
  *
  *   INCLUSIVE UPPER BOUNDS ARE VIOLATIONS. `"pkg@<=W": X` cannot state the floor invariant at all:
  *   the bound is a DIFFERENT number from the target, so raising one leaves the other silently
  *   behind, which is the whole defect this gate closes. The canonical rewrite is `"pkg@<X": X`, the
  *   same set of lifted versions expressed so the two can only move together.
  *
- *   SCOPE. Only keys carrying a band (`name@<range>`) are read. A blanket key (`shell-quote: 1.8.4`)
+ *   SCOPE. Only keys carrying a band (`name@<range>`) are read. A blanket key (`esbuild: 0.28.1`)
  *   has no band to disagree with its target, and `patchedDependencies:` is a different mechanism with
  *   no version selector at all. The block is located by its top-level `overrides:` key, never by a
  *   first-hit-anywhere scan, because the same package name legitimately appears in `catalog:` and in
@@ -96,14 +96,6 @@ const ALLOWED = new Map([
     "the advisory names 9.6.1 as its patched version but npm never published it (the registry goes " +
       "9.6.0 then 9.7.0), so 9.7.0 is the minimal AVAILABLE patched version and ADR-0018's " +
       'minimal-patch rule is satisfied rather than waived (SECURITY_CANON.md §"CVE-floor pins")',
-  ],
-  [
-    "google-auth-library@10",
-    "a compatibility pin scoped to ONE major line rather than a floor, so its target necessarily " +
-      "satisfies the band: without it googleapis-common@8.0.2 resolves the 10.5.0 it declares exactly " +
-      "beside the catalog's 10.7.0, and @providers/youtube fails its typecheck with seven TS2769 " +
-      '(SECURITY_CANON.md §"Compatibility pins"); the lockfile carries 9.15.1 beside 10.7.0, so the ' +
-      "band has to be the 10.x line rather than the whole name",
   ],
 ]);
 
