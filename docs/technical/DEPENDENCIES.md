@@ -318,7 +318,7 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | @testing-library/jest-dom | 7.0.1   | Custom matchers                      |
 | jsdom                     | 30.1.1  | Browser environment simulation       |
 | @playwright/test          | 1.63.0  | E2E testing                          |
-| @faker-js/faker           | 10.5.0  | Test data generation                 |
+| @faker-js/faker           | 10.6.0  | Test data generation                 |
 
 ### Metrics
 
@@ -348,8 +348,8 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | eslint      | 9.39.5  | Static analysis (flat config, v9) |
 | prettier    | 3.9.9   | Code formatting                   |
 | husky       | 9.1.7   | Git hooks                         |
-| lint-staged | 16.4.0  | Pre-commit staged file linting    |
-| knip        | 6.12.2  | Dead code detection               |
+| lint-staged | 17.6.0  | Pre-commit staged file linting    |
+| knip        | 6.38.0  | Dead code detection               |
 | madge       | 8.0.0   | Circular dependency detection     |
 | jscpd       | 5.3.2   | Copy-paste detection              |
 

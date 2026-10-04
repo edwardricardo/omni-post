@@ -131,6 +131,10 @@ WU-5.9 makes every package measured or listed with a reason.
 One row per work unit of [§Plan (fixed)](#plan-fixed). Status: ⬜ not started · 🔄 in progress ·
 ✅ done · ⛔ blocked. `Evidence` is a run id, a checksum, or the pull request's own evidence block.
 
+**Phase 0 is open on 2026-10-04.** Its toolchain rows are done except `dependency-cruiser`, held for item (v)
+of the replacement plan ([D43](#decisions-log)); contract slices `0.20` and `0.22` are open; and `0.16`,
+date-gated to 2026-10-28, does not hold it open ([D46](#decisions-log)).
+
 | Phase | WU     | Title                                                                       | Status | PR                            | Evidence                                | Date       |
 | ----- | ------ | --------------------------------------------------------------------------- | ------ | ----------------------------- | --------------------------------------- | ---------- |
 | 0     | T.1    | The tracker exists, with the baseline measured                              | ✅     | `#316`                        | main `29cd6682` (PR #316)               | 2026-09-27 |
@@ -152,6 +156,7 @@ One row per work unit of [§Plan (fixed)](#plan-fixed). Status: ⬜ not started 
 | 0     | T.4(b) | jsdom 30.1.1 + `isomorphic-dompurify` 4.4.0 — **[H1]**, into production     | ✅     | `0.12`                        | `workstream/refound-0-jsdom` · 55 = 55  | 2026-10-02 |
 | 0     | T.4(e) | The 86 dead `vite` shims                                                    | ✅     | `0.13`                        | `workstream/refound-0-cleanup` · 0 dead | 2026-10-02 |
 | 0     | T.4(b) | The build six at latest mature: vite 8.3.1, turbo 2.11.4, webpack 5.111.1   | ✅     | `0.14`                        | `workstream/toolchain-build` · 15       | 2026-10-04 |
+| 0     | T.4(b) | Five quality gates at latest mature; `dependency-cruiser` held for item (v) | ✅     | `0.15`                        | `toolchain-quality-gates` · 9           | 2026-10-04 |
 | 1     | 1.1    | Free the `.integration` suffix; name the k6 scenarios                       | ⬜     | —                             | —                                       | —          |
 | 1     | 1.2    | Reserve the tier suffixes inside every collector                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.2b   | vitest resolves every workspace import to `src/`                            | ⬜     | —                             | —                                       | —          |
@@ -423,9 +428,9 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-04T05:07:09Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
+**CURRENT, re-measured 2026-10-04T05:41:03Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
 stderr: of the 47 packages in `scripts/testing/toolchain-population.json` (45 direct, 2 named transitives,
-no declared-absent candidate left), 15 sit below latest mature and NOT ONE of them is unheld.**
+no declared-absent candidate left), 9 sit below latest mature and NOT ONE of them is unheld.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
 and what moved it. A slice that moves the count appends its own line.
@@ -475,6 +480,11 @@ and what moved it. A slice that moves the count appends its own line.
     10.0.0 → 10.1.0, `jiti` 2.6.1 → 2.7.0, `prettier` 3.9.5 → 3.9.9 — and deleted the canon row that held all
     six, so six lags left together; `vite` and `turbo` carry PRE-REGISTERED rows for the releases still inside
     the buffer.
+17. `2026-10-04T05:41:03Z` — **9**: slice `0.15` took five of the quality gates to their latest mature
+    releases — `knip` 6.12.2 → 6.38.0, `size-limit` and its preset 12.1.0 → 14.0.1, `lint-staged` 16.4.0 →
+    17.6.0, `@hey-api/openapi-ts` 0.97.3 → 0.99.0, `@faker-js/faker` 10.5.0 → 10.6.0 — and replaced the canon
+    row that held them with what still lags, so six lags left together: `dependency-cruiser` keeps a row of
+    its own until item (v) of the replacement plan, and `knip` and `size-limit` carry PRE-REGISTERED rows.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
@@ -545,7 +555,7 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 | `@testing-library/dom`                        | 10.4.2                  | **10.4.2 (2026-09-13, 18.6 d) — latest mature** since 2026-10-02 (slice `0.9`), at `2026-10-02T09:39Z`   | **no** — no lag; deleted with that same canon row, the one it was named first in                                                                                     | —                                                                                   |
 | `@testing-library/jest-dom`                   | 7.0.1                   | **7.0.1 (2026-08-09, 53.4 d) — latest mature** since 2026-10-02 (slice `0.9`), at `2026-10-02T09:39Z`    | **no** — no lag; deleted with that same canon row; 7.0.1 adds an OPTIONAL `vitest` peer, met by 4.1.11                                                               | —                                                                                   |
 | `@testing-library/user-event`                 | 14.6.7                  | **14.6.7 (2026-09-02, 30.3 d) — latest mature** since 2026-10-02 (slice `0.9`), at `2026-10-02T09:39Z`   | **no** — no lag; deleted with that same canon row, which named it too                                                                                                | —                                                                                   |
-| `@faker-js/faker`                             | 10.5.0                  | 10.6.0 (2026-08-14, 44.0 d)                                                                              | **held** — canon row `knip` (seven quality gates, one shared reason). Its CVE-floor row's "not raised to the latest 10.6.0" is the minimal-patch rule, never a hold. | 10.5.0 (CVE-floor row `@faker-js/faker`) — met                                      |
+| `@faker-js/faker`                             | 10.6.0                  | **10.6.0 (2026-08-14, 50.5 d) — latest mature** since 2026-10-04 (slice `0.15`)                          | **no** — no lag; deleted with the shared quality-gate canon row that named it. Its CVE-floor row now pins 10.6.0, the latest stable, over the minimal patched 10.5.0 | 10.5.0 (CVE-floor row `@faker-js/faker`) — met by 10.6.0                            |
 
 ### Types, runtime and transpiler
 
@@ -594,16 +604,16 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 
 | dep                                            | installed | latest mature (published)                                             | documented hold (yes/no — where)                                       | CVE floor                                                                       |
 | ---------------------------------------------- | --------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `knip`                                         | 6.12.2    | 6.37.0 (2026-09-18) — `latest` 6.38.0 (2026-09-23) is 4.3 d, immature | **held** — canon row `knip` (seven quality gates, one shared reason)   | `smol-toml` 1.7.1 (CVE-floor row `smol-toml`) — knip's own chain                |
+| `knip`                                         | 6.38.0    | **6.38.0 (2026-09-23, 10.8 d) — latest mature**; 6.39.0 is only 3.7 d | **no** lag today; **held** from `2026-10-07T12:46Z` — canon row `knip` | `smol-toml` 1.9.0 by natural resolution; its override deleted with the bump     |
 | `jscpd`                                        | 5.3.2     | 5.3.2 — **no lag** until 5.3.3 matures, `2026-10-05T13:44Z`           | **held** after `2026-10-05T13:44Z` — canon row `jscpd`, scheduled      | —                                                                               |
-| `dependency-cruiser`                           | 17.4.0    | 18.4.0 (2026-09-20, 7.3 d — matured today)                            | **held** — canon row `knip` (seven quality gates, one shared reason)   | —                                                                               |
+| `dependency-cruiser`                           | 17.4.0    | 18.4.0 (2026-09-20, 13.8 d); 18.5.0 matures `2026-10-07T19:18Z`       | **held** — canon row `dependency-cruiser`: it moves with item (v)      | —                                                                               |
 | `secretlint`                                   | 13.0.6    | 13.0.6 — **no lag** until 13.0.7 matures, `2026-10-10T01:06Z`         | **held** after `2026-10-10T01:06Z` — canon row `secretlint`, scheduled | —                                                                               |
 | `@secretlint/secretlint-rule-preset-recommend` | 13.0.6    | 13.0.6 — same band; 13.0.7 matures `2026-10-10T01:07Z`                | **held** after then — canon row `secretlint`, with `secretlint`        | —                                                                               |
-| `size-limit`                                   | 12.1.0    | 14.0.0 (2026-09-15) — `latest` 14.1.0 was published **today**, 0.2 d  | **held** — canon row `knip` (seven quality gates, one shared reason)   | —                                                                               |
-| `@size-limit/preset-small-lib`                 | 12.1.0    | 14.0.0 (2026-09-15) — same band                                       | **held** — canon row `knip` (seven quality gates, one shared reason)   | —                                                                               |
+| `size-limit`                                   | 14.0.1    | **14.0.1 (2026-09-25, 8.9 d) — latest mature**; 14.1.0 is 6.7 d       | **held** from `2026-10-04T13:10Z` — canon row `size-limit`             | —                                                                               |
+| `@size-limit/preset-small-lib`                 | 14.0.1    | 14.0.1 — same band; 14.1.0 matures `2026-10-04T13:10Z`                | **held** from then — canon row `size-limit`, with `size-limit`         | —                                                                               |
 | `@ast-grep/cli`                                | —         | n/a — REMOVED since 2026-10-03 ([D35](#decisions-log))                | **no** — no lag, because the package is gone: nothing invoked it       | —                                                                               |
-| `lint-staged`                                  | 16.4.0    | 17.5.1 (2026-09-10) — `latest` 17.6.0 (2026-09-26) is 1.5 d, immature | **held** — canon row `knip` (seven quality gates, one shared reason)   | —                                                                               |
-| `@hey-api/openapi-ts`                          | 0.97.3    | 0.99.0 (2026-06-22, 97.5 d)                                           | **held** — canon row `knip` (seven quality gates, one shared reason)   | `js-yaml` 4.3.2 (CVE-floor row `js-yaml`) — that row names this package's chain |
+| `lint-staged`                                  | 17.6.0    | **17.6.0 (2026-09-26, 8.0 d) — latest mature**, and `latest`          | **no** — no lag; its config validates on 17.6.0 (`--debug`)            | —                                                                               |
+| `@hey-api/openapi-ts`                          | 0.99.0    | **0.99.0 (2026-06-22, 104.0 d) — latest mature**, and `latest`        | **no** — no lag; regenerated types are byte-identical                  | `js-yaml` 4.3.2 (CVE-floor row `js-yaml`) — that row names this package's chain |
 | `@hey-api/client-fetch`                        | —         | n/a — REMOVED since 2026-10-03 ([D35](#decisions-log))                | **no** — no lag: npm-deprecated, bundled in `@hey-api/openapi-ts`      | —                                                                               |
 
 ### Load generators, and the one tool with no version to measure
@@ -689,7 +699,7 @@ from a published manifest or from this tree, not inferred.
 | `refound/0-toolchain-storybook` (WU-T.4(d) + T.4(e))                     | **LANDED 2026-09-29, rebased 2026-10-02.** `@storybook/test-runner` REMOVED — nothing invoked it — and `jest`, `nyc`, `jest-process-manager`, `wait-on` and `joi` left with it; the `storybook` family 10.4.6 → 10.6.0 atomically; the dead `GHSA-q7cg` ignore deleted                                             | LANDED: Jest absent, 0 files import it; `@types/node@26.0.0` SURVIVES (37 → 19) — plan clause FALSE                      |
 | `refound/0-toolchain-jsdom` (WU-T.4(b), **[H1]**)                        | **TAKEN 2026-10-02 by slice `0.12`, not yet published.** `jsdom` 29.1.1 → 30.1.1, `isomorphic-dompurify` 3.19.0 → 4.4.0; the `undici` override deleted, no 7.x copy left; `tough-cookie` range-scoped to `<4.1.3`                                                                                                  | all THREE crossings resolved in one pull request, or a hold naming all three                                             |
 | `refound/0-toolchain-build` (WU-T.4(b)) — **re-plan 2026-09-27**         | **TAKEN 2026-10-04 by slice `0.14`, not yet published.** `vite` 8.3.1, `turbo` 2.11.4, `webpack` 5.111.1, `cross-env` 10.1.0, `jiti` 2.7.0, `prettier` 3.9.9; `postcss` 8.5.28 for vite's own range                                                                                                                | TAKEN: tsc, the builds, lint and `format:check` exit 0; 3.9.9 reformats nothing; vite and turbo pre-registered           |
-| `refound/0-toolchain-quality-gates` (WU-T.4(b)) — **re-plan 2026-09-27** | the quality-gate eleven, now seven: `knip`, `dependency-cruiser`, `size-limit` + preset, `lint-staged`, `@hey-api/openapi-ts`, `@faker-js/faker`; `@ast-grep/cli` was removed ([D35](#decisions-log)); `secretlint` + preset took 13.0.6 ([D38](#decisions-log)) and `jscpd` 5.3.2 ([D39](#decisions-log))         | every gate those tools back keeps its verdict; a changed verdict is a finding to fix, never to baseline                  |
+| `refound/0-toolchain-quality-gates` (WU-T.4(b)) — **re-plan 2026-09-27** | **TAKEN 2026-10-04 by slice `0.15`, not yet published.** `knip` 6.38.0, `size-limit` + preset 14.0.1, `lint-staged` 17.6.0, `@hey-api/openapi-ts` 0.99.0, `@faker-js/faker` 10.6.0; `dependency-cruiser` stays at 17.4.0 with its own canon row and moves with item (v) of the replacement plan                    | TAKEN: every gate keeps its verdict; `du` ignored, ledger 312 → 310; size-limit, knip pre-registered                     |
 | `workstream/eslint-boundaries-policies` (WU-T.4(b), slice `0.21`)        | **LANDED 2026-10-02.** `eslint-plugin-boundaries` 7.1.0 → 7.2.0, with the `boundaries/dependencies` config migrated to the v7 syntax (SMELL-66) — the package left the no-slice row below when the contract gave it slice `0.21`                                                                                   | `pnpm lint --max-warnings 0` exit 0 with 0 `[boundaries]` lines; every per-layer probe still errors on the bumped plugin |
 | **No enumerated slice — a hold row is the deliverable**                  | `typescript` (peer-blocked at every published `@typescript-eslint`), `@vitejs/plugin-react` (crossing), `jest` (left the tree with `@storybook/test-runner` in slice `0.11`, never bumped), and k6's floating tag                                                                                                  | each row carries a measured reason, today's date, and a remove-when that can actually fire                               |
 
