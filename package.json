@@ -61,6 +61,7 @@
   "devDependencies": {
     "@eslint/js": "9.39.5",
     "@hey-api/openapi-ts": "0.99.0",
+    "@packages/eslint-plugin-testing": "workspace:*",
     "@secretlint/secretlint-rule-preset-recommend": "13.0.6",
     "@size-limit/preset-small-lib": "14.0.1",
     "@types/node": "catalog:",

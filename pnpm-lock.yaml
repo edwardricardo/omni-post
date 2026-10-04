@@ -489,6 +489,9 @@ importers:
       '@hey-api/openapi-ts':
         specifier: 0.99.0
         version: 0.99.0(magicast@0.5.3)(typescript@6.0.3)
+      '@packages/eslint-plugin-testing':
+        specifier: workspace:*
+        version: link:packages/eslint-plugin-testing
       '@secretlint/secretlint-rule-preset-recommend':
         specifier: 13.0.6
         version: 13.0.6
