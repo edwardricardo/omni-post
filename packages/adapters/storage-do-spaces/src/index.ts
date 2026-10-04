@@ -20,7 +20,7 @@ export interface DOSpacesConfig {
 }
 
 /**
- * @method createDigitalOceanSpacesAdapter
+ * @function createDigitalOceanSpacesAdapter
  * @description Builds a StoragePort backed by DigitalOcean Spaces through the S3 adapter.
  * @param config - Spaces credentials, bucket, region and bare endpoint host
  * @returns StoragePort that signs uploads and reads metadata against the Spaces endpoint

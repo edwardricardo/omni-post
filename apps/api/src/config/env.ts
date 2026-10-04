@@ -191,7 +191,15 @@ const serverSchema = {
   DO_SPACES_REGION: z.string().optional(),
   DO_SPACES_KEY: z.string().optional(),
   DO_SPACES_SECRET: z.string().optional(),
-  DO_SPACES_ENDPOINT: z.string().optional(),
+  // The Spaces adapter prepends `https://`, so a value carrying a scheme would build
+  // `https://https://…` and fail only on the first storage request; refuse it at boot instead.
+  DO_SPACES_ENDPOINT: z
+    .string()
+    .refine((value) => !value.includes("://"), {
+      message:
+        "DO_SPACES_ENDPOINT must be a bare host without a scheme, e.g. fra1.digitaloceanspaces.com",
+    })
+    .optional(),
 
   // ── Payment (CONDITIONAL on PAYMENT_PROVIDER) ───────────────────────
   PAYMENT_PROVIDER: z.enum(["stripe", "paddle", "none"]).default("none"),

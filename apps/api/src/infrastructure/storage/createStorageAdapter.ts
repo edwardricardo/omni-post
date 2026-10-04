@@ -45,7 +45,7 @@ function optionalS3Credentials(): Pick<S3Config, "accessKeyId" | "secretAccessKe
 }
 
 /**
- * @method createStorageAdapter
+ * @function createStorageAdapter
  * @description Builds the StoragePort adapter for the configured STORAGE_PROVIDER.
  * @returns StoragePort instance for the active provider
  * @throws Error naming the first required variable the selected provider is missing
