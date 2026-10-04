@@ -191,13 +191,14 @@ const serverSchema = {
   DO_SPACES_REGION: z.string().optional(),
   DO_SPACES_KEY: z.string().optional(),
   DO_SPACES_SECRET: z.string().optional(),
-  // The Spaces adapter prepends `https://`, so a value carrying a scheme would build
-  // `https://https://…` and fail only on the first storage request; refuse it at boot instead.
+  // The Spaces adapter prepends `https://`, so anything but a bare host (a scheme, a path,
+  // stray whitespace) would build a malformed URL and fail only on the first storage request;
+  // refuse it at boot instead.
   DO_SPACES_ENDPOINT: z
     .string()
-    .refine((value) => !value.includes("://"), {
+    .regex(/^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*(:\d{1,5})?$/, {
       message:
-        "DO_SPACES_ENDPOINT must be a bare host without a scheme, e.g. fra1.digitaloceanspaces.com",
+        "DO_SPACES_ENDPOINT must be a bare host (no scheme, path or whitespace), e.g. fra1.digitaloceanspaces.com",
     })
     .optional(),
 

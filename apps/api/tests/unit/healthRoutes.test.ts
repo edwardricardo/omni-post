@@ -10,7 +10,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeAll, afterAll, vi, expect } from "vitest";
+import { describe, it, beforeAll, beforeEach, afterAll, vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import {
   serializerCompiler,
@@ -231,6 +231,10 @@ describe("healthRoutes - Unit Tests", () => {
   let mockRedis: MockRedis;
   let mockCacheManager: MockCacheManager;
 
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   beforeAll(async () => {
     mockRedis = createMockRedis();
     mockCacheManager = createMockCacheManager(true);
@@ -276,6 +280,8 @@ describe("healthRoutes - Unit Tests", () => {
     app.decorate("container", container);
 
     const { healthRoutes } = await import("../../src/health/healthRoutes.js");
+    // The checker double records at registration, so the record holds this registration only.
+    storageCheckerTargets.length = 0;
     await app.register(healthRoutes, {
       redis: mockRedis as Redis,
       cacheManager: mockCacheManager as RedisCacheManager,

@@ -180,7 +180,7 @@ Production: separate runbook (`docs/security/T0A_SECRETS_ROTATION_RUNBOOK.md`) c
 
 ## Troubleshooting
 
-**"Environment validation failed. Refusing to boot."** — the schema rejected one or more values. The error lists every offending key with its constraint. Common causes: secret `< 32` chars (placeholder leftover), `STORAGE_PROVIDER` set to a value not in the enum, malformed `DATABASE_URL`, `DO_SPACES_ENDPOINT` carrying a scheme (it takes a bare host such as `fra1.digitaloceanspaces.com`).
+**"Environment validation failed. Refusing to boot."** — the schema rejected one or more values. The error lists every offending key with its constraint. Common causes: secret `< 32` chars (placeholder leftover), `STORAGE_PROVIDER` set to a value not in the enum, malformed `DATABASE_URL`, `DO_SPACES_ENDPOINT` that is not a bare host — a scheme, a path or whitespace (it takes a host such as `fra1.digitaloceanspaces.com`, optionally with a port).
 
 **Test suite fails with the same error** — `.env.test` is missing a key the schema requires. Add it with a deterministic dummy value (`>= 32` chars).
 

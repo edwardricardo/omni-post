@@ -190,10 +190,15 @@ describe("env schema (apps/api/src/config/env.ts)", () => {
   // The Spaces adapter prepends `https://`; a scheme in the value would only surface as a broken
   // URL on the first storage request instead of at boot.
   describe("DO_SPACES_ENDPOINT shape", () => {
-    it("rejects a value carrying a scheme, naming the bare-host shape it expects", async () => {
-      await expect(
-        loadEnvWith({ DO_SPACES_ENDPOINT: "https://ams3.digitaloceanspaces.com" })
-      ).rejects.toThrow(/DO_SPACES_ENDPOINT.*bare host.*fra1\.digitaloceanspaces\.com/);
+    it.each([
+      "https://ams3.digitaloceanspaces.com",
+      "//ams3.digitaloceanspaces.com",
+      " ams3.digitaloceanspaces.com",
+      "ams3.digitaloceanspaces.com/bucket",
+    ])("rejects %j, naming the bare-host shape it expects", async (value) => {
+      await expect(loadEnvWith({ DO_SPACES_ENDPOINT: value })).rejects.toThrow(
+        /DO_SPACES_ENDPOINT.*bare host.*fra1\.digitaloceanspaces\.com/
+      );
     });
 
     it("accepts a bare host", async () => {
