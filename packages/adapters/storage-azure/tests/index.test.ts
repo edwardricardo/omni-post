@@ -71,6 +71,7 @@ describe("createAzureBlobStorageAdapter", () => {
 
     const result = await adapter.generateUploadSignature("clip.mp4", "video/mp4");
 
+    expect(result.ok).toBe(true);
     expect(result.ok && result.value.url).toMatch(
       /^https:\/\/omniacct\.blob\.core\.windows\.net\/media\/\d+-clip\.mp4\?sv=fixture&sig=fixture$/
     );

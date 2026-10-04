@@ -80,12 +80,22 @@ describe("createGcsStorageAdapter", () => {
     getSignedUrl.mockResolvedValue(["https://storage.googleapis.com/signed"]);
     const adapter = createGcsStorageAdapter(BASE_CONFIG);
 
-    const result = await adapter.generateUploadSignature("photo.png", "image/png");
+    const now = new Date("2026-10-04T12:00:00Z");
+    vi.useFakeTimers({ now, toFake: ["Date"] });
+    try {
+      const result = await adapter.generateUploadSignature("photo.png", "image/png");
 
-    expect(result.ok && result.value.url).toBe("https://storage.googleapis.com/signed");
-    expect(getSignedUrl).toHaveBeenCalledWith(
-      expect.objectContaining({ version: "v4", action: "write", contentType: "image/png" })
-    );
+      expect(result.ok).toBe(true);
+      expect(result.ok && result.value.url).toBe("https://storage.googleapis.com/signed");
+      expect(getSignedUrl).toHaveBeenCalledWith(
+        expect.objectContaining({ version: "v4", action: "write", contentType: "image/png" })
+      );
+      // The URL must expire, and soon: exactly 15 minutes after it is signed.
+      const { expires } = getSignedUrl.mock.calls[0]![0] as { expires: Date };
+      expect(expires.getTime()).toBe(now.getTime() + 15 * 60 * 1000);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("returns INVALID_TYPE without calling the SDK when the content type is not allowed", async () => {
