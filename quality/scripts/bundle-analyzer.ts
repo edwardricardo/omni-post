@@ -70,6 +70,25 @@ interface PnpmLicensedPackage {
 
 type PnpmLicenseReport = Record<string, PnpmLicensedPackage[]>;
 
+/** The fields of the project's `package.json` the analysis reads: it counts each map's keys. */
+interface PackageManifest {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+}
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** A manifest whose two dependency fields, when present, are maps the analysis can count. */
+function isPackageManifest(value: unknown): value is PackageManifest {
+  return (
+    isPlainObject(value) &&
+    [value.dependencies, value.devDependencies].every(
+      (field) => field === undefined || isPlainObject(field)
+    )
+  );
+}
+
 function isKnipDependencyList(value: unknown): value is KnipDependency[] | undefined {
   return (
     value === undefined ||
@@ -150,14 +169,13 @@ function isPnpmLicenseReport(value: unknown): value is PnpmLicenseReport {
 
 export class BundleAnalyzer {
   private projectRoot: string;
-  private packageJson: any;
-  private lockfile: any;
+  private readonly packageJson: PackageManifest;
   private reportsDir: string;
   private readonly runCommand: CommandRunner;
 
   /**
    * @method constructor
-   * @description Loads the project's manifest and lockfile and ensures the report directory.
+   * @description Loads the project's manifest and ensures the report directory.
    * @param projectRoot - The repository the analysis reads and writes its reports under.
    * @param runCommand - Runs the external tools whose output the analysis parses (knip,
    *   `pnpm licenses`); the default executes them for real.
@@ -166,36 +184,25 @@ export class BundleAnalyzer {
     this.projectRoot = projectRoot;
     this.runCommand = runCommand;
     this.reportsDir = join(projectRoot, "quality/reports/bundle");
-    this.loadProjectFiles();
+    this.packageJson = this.readPackageManifest();
     this.ensureReportsDirectory();
   }
 
-  private loadProjectFiles(): void {
-    // Load package.json
+  private readPackageManifest(): PackageManifest {
     const packagePath = join(this.projectRoot, "package.json");
-    if (existsSync(packagePath)) {
-      this.packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
-    } else {
+    if (!existsSync(packagePath)) {
       throw new Error("package.json not found");
     }
-
-    // Load lockfile (pnpm-lock.yaml or package-lock.json)
-    const pnpmLockPath = join(this.projectRoot, "pnpm-lock.yaml");
-    const npmLockPath = join(this.projectRoot, "package-lock.json");
-
-    if (existsSync(pnpmLockPath)) {
-      try {
-        this.lockfile = { type: "pnpm", content: readFileSync(pnpmLockPath, "utf8") };
-      } catch {
-        this.lockfile = null;
-      }
-    } else if (existsSync(npmLockPath)) {
-      try {
-        this.lockfile = { type: "npm", content: JSON.parse(readFileSync(npmLockPath, "utf8")) };
-      } catch {
-        this.lockfile = null;
-      }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(readFileSync(packagePath, "utf8"));
+    } catch (error: unknown) {
+      throw new Error(`package.json at ${packagePath} is not valid JSON`, { cause: error });
     }
+    if (!isPackageManifest(parsed)) {
+      throw new Error(`package.json at ${packagePath} is not an object of dependency maps`);
+    }
+    return parsed;
   }
 
   private ensureReportsDirectory(): void {

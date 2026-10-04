@@ -135,7 +135,7 @@ Phase A1 NO wire admin/client aún — el wireup es §3.1.b una vez que más rut
 
 ✅ **DONE:**
 
-- `@hey-api/openapi-ts` v0.97.3 installed (pinned exact). `@hey-api/client-fetch` v0.13.1 was installed beside it
+- `@hey-api/openapi-ts` v0.99.0 installed (pinned exact). It replaced 0.97.3 on 2026-10-04; from the same spec, 0.97.3 and 0.99.0 generate byte-identical types. `@hey-api/client-fetch` v0.13.1 was installed beside it
   and removed on 2026-10-03 (decision D35): deprecated, and bundled inside openapi-ts since 0.73.
 - `openapi-ts.config.ts` en repo root.
 - `scripts/generate-api-types.ts` + `apps/api/scripts/dump-openapi-spec.ts`.

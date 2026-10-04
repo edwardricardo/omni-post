@@ -540,7 +540,7 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Register health routes first (no authentication required)
   const { healthRoutes } = await import("./health/healthRoutes.js");
-  await typedApp.register(healthRoutes, { redis, cacheManager });
+  await typedApp.register(healthRoutes, { redis, cacheManager, storageAdapter });
 
   // Billing webhooks — no auth, raw body (must be before auth middleware)
   await typedApp.register(billingWebhookRoutes);

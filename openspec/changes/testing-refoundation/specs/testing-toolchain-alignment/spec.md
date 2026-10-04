@@ -109,8 +109,11 @@ change. Mutation testing MUST run only on vitest 4 while this hold stands.
 when a higher major is published — this is a named exception to "never pin lower", because types
 ahead of the runtime describe APIs the runtime does not have. Every workspace manifest MUST
 declare `engines.node` at that runtime major so the drift is gateable rather than folklore.
-(The exception clause and the declaration are mirrored into
-`dependency-version-management`.)
+(`dependency-version-management` OWNS both rules, because they apply to every workspace manifest
+and not only to testing dependencies: the exception clause belongs to its requirement "Pinned
+DIRECT versions are the latest stable release, with no pre-releases", and the declaration to its
+requirement "Every workspace manifest declares `engines.node` at the runtime major". This
+requirement restates them for the testing toolchain.)
 
 #### Scenario: The types major equals the runtime major [static]
 

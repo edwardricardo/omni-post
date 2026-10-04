@@ -89,6 +89,7 @@ quiet edit.
 The tool MUST be DELETED if, over the ten calibration runs, the coefficient of variation of ANY gated
 latency threshold exceeds 50 % (strictly greater: exactly 50 % keeps the tool), OR a non-zero failed-request rate appears in at least THREE runs (three or more) with
 no application defect behind it — thresholds that shared runners cannot reproduce are decoration.
+Either condition alone deletes the tool; neither needs the other.
 Otherwise the tool MUST become a merge-gate job that runs per pull request through the environment
 contract. Either outcome MUST be recorded with its numbers and reported to the repository owner.
 

@@ -208,7 +208,8 @@ export class PaddlePaymentAdapter implements PaymentAdapter {
    * @method parseWebhookEvent
    * @description Verifies the signature and parses a Paddle webhook payload.
    * @param params - Raw payload buffer/string and the Paddle-Signature header value
-   * @returns Normalised webhook event (id, type, data)
+   * @returns Normalised webhook event (id, type, data); rejects when the SDK refuses the
+   *          signature or its header
    */
   async parseWebhookEvent(params: {
     payload: Buffer | string;
@@ -216,13 +217,13 @@ export class PaddlePaymentAdapter implements PaymentAdapter {
   }): Promise<WebhookEvent> {
     const body =
       typeof params.payload === "string" ? params.payload : params.payload.toString("utf-8");
-    const event = this.paddle.webhooks.unmarshal(body, this.webhookSecret, params.signature);
-    if (!event) throw new Error("Invalid Paddle webhook signature");
-    const raw = event as unknown as Record<string, unknown>;
+    // The SDK verifies asynchronously and rejects a bad signature: awaiting it is what turns a
+    // forged request into a rejection the route answers, instead of one nobody handles.
+    const event = await this.paddle.webhooks.unmarshal(body, this.webhookSecret, params.signature);
     return {
-      id: (raw.eventId ?? raw.event_id ?? raw.notificationId ?? "") as string,
-      type: raw.eventType as string,
-      data: raw.data as Record<string, unknown>,
+      id: event.eventId,
+      type: event.eventType,
+      data: { ...event.data },
     };
   }
 
