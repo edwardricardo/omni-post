@@ -6,11 +6,21 @@
  *              and a missing verifier is rejected (PKCE is mandatory).
  * @layer infrastructure
  */
-import { describe, it, expect, beforeAll, afterEach, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from "vitest";
 import assert from "node:assert/strict";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 import { oauthProviders } from "../../../src/auth/providerOAuthConfigs.js";
+
+// X without credentials refuses the exchange before any request, so it gets a
+// pair on top of the real test env.
+vi.mock("../../../src/config/env.js", async (importOriginal) => {
+  const actual = await importOriginal<{ env: Record<string, unknown> }>();
+  return {
+    ...actual,
+    env: { ...actual.env, X_CLIENT_ID: "x-client-id", X_CLIENT_SECRET: "x-client-secret" },
+  };
+});
 
 const server = setupServer();
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));

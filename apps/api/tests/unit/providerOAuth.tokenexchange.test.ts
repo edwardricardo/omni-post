@@ -6,6 +6,24 @@
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import { oauthProviders } from "../../src/auth/providerOAuth.js";
 
+// A provider without credentials refuses the exchange before any request, so
+// the providers exercised here get a pair on top of the real test env.
+vi.mock("../../src/config/env.js", async (importOriginal) => {
+  const actual = await importOriginal<{ env: Record<string, unknown> }>();
+  return {
+    ...actual,
+    env: {
+      ...actual.env,
+      X_CLIENT_ID: "x-client-id",
+      X_CLIENT_SECRET: "x-client-secret",
+      INSTAGRAM_CLIENT_ID: "ig-client-id",
+      INSTAGRAM_CLIENT_SECRET: "ig-client-secret",
+      YOUTUBE_CLIENT_ID: "yt-client-id",
+      YOUTUBE_CLIENT_SECRET: "yt-client-secret",
+    },
+  };
+});
+
 let globalFetch: typeof global.fetch;
 let oauthStates: Map<string, Record<string, unknown>>;
 

@@ -25,17 +25,23 @@ import { AppError } from "../lib/errors/AppError.js";
 import { env } from "../config/env.js";
 
 export interface OAuthConfig {
-  clientId: string;
-  clientSecret: string;
   redirectUri: string;
   scopes: string[];
   authUrl: string;
   tokenUrl: string;
 }
 
+/** Client credentials a provider's token requests are authenticated with. */
+export interface OAuthCredentials {
+  readonly clientId: string;
+  readonly clientSecret: string;
+}
+
 export interface OAuthProvider {
   id: ProviderId;
   config: OAuthConfig;
+  /** Absent when neither of the provider's credential variables is set. */
+  credentials?: OAuthCredentials;
   validateCode(
     code: string,
     state: string,
@@ -60,8 +66,6 @@ export interface OAuthProvider {
 
 /** Placeholder config for providers whose OAuth flow is not yet built. */
 const EMPTY_OAUTH_CONFIG: OAuthConfig = {
-  clientId: "",
-  clientSecret: "",
   redirectUri: "",
   scopes: [],
   authUrl: "",
@@ -89,15 +93,55 @@ function createUnimplementedProvider(id: ProviderId): OAuthProvider {
   };
 }
 
+type OAuthEnvPrefix =
+  "X" | "INSTAGRAM" | "FACEBOOK" | "YOUTUBE" | "TIKTOK" | "LINKEDIN" | "PINTEREST" | "SNAPCHAT";
+
+/**
+ * Reads a provider's client id and secret as one pair. An unset pair leaves the
+ * provider without credentials, so "not configured" is an absence rather than an
+ * empty string that a token request would send as a real value. A half-set pair
+ * can only be a deployment mistake, so it stops the module from loading instead
+ * of surfacing as a rejected token exchange after the user has consented.
+ */
+function credentialsFromEnv(prefix: OAuthEnvPrefix): Pick<OAuthProvider, "credentials"> {
+  const idVar = `${prefix}_CLIENT_ID` as const;
+  const secretVar = `${prefix}_CLIENT_SECRET` as const;
+  const clientId = env[idVar];
+  const clientSecret = env[secretVar];
+  if (clientId === undefined && clientSecret === undefined) {
+    return {};
+  }
+  if (clientId === undefined || clientSecret === undefined) {
+    const [missing, present] = clientId === undefined ? [idVar, secretVar] : [secretVar, idVar];
+    throw AppError.configuration(`${missing} is not set while ${present} is: set both or neither`, {
+      provider: prefix,
+    });
+  }
+  return { credentials: { clientId, clientSecret } };
+}
+
+/**
+ * Returns the credentials a token request is authenticated with. The refusal
+ * lives where the secret is read, so every exchange path is covered — not only
+ * the callback handler — and none can reach a provider with missing credentials.
+ */
+function requireCredentials(provider: OAuthProvider): OAuthCredentials {
+  if (!provider.credentials) {
+    throw AppError.configuration(`OAuth is not configured for provider "${provider.id}"`, {
+      provider: provider.id,
+    });
+  }
+  return provider.credentials;
+}
+
 /**
  * OAuth Provider Configurations for all supported platforms
  */
 export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   x: {
     id: "x",
+    ...credentialsFromEnv("X"),
     config: {
-      clientId: env.X_CLIENT_ID ?? "",
-      clientSecret: env.X_CLIENT_SECRET ?? "",
       redirectUri: env.X_REDIRECT_URI ?? "http://localhost:3000/auth/callback/x",
       scopes: ["tweet.read", "tweet.write", "users.read", "offline.access"],
       authUrl: "https://twitter.com/i/oauth2/authorize",
@@ -120,7 +164,7 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
      * @param state - The state parameter used to look up the stored PKCE verifier
      */
     async validateCode(code: string, _state: string, codeVerifier?: string) {
-      const config = this.config;
+      const config = { ...this.config, ...requireCredentials(this) };
 
       // The PKCE verifier is resolved + single-use-consumed by the OAuth
       // flow store (cross-pod) and passed in here for the token exchange.
@@ -181,16 +225,15 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
 
   instagram: {
     id: "instagram",
+    ...credentialsFromEnv("INSTAGRAM"),
     config: {
-      clientId: env.INSTAGRAM_CLIENT_ID ?? "",
-      clientSecret: env.INSTAGRAM_CLIENT_SECRET ?? "",
       redirectUri: env.INSTAGRAM_REDIRECT_URI ?? "http://localhost:3000/auth/callback/instagram",
       scopes: ["user_profile", "user_media", "instagram_basic"],
       authUrl: "https://api.instagram.com/oauth/authorize",
       tokenUrl: "https://api.instagram.com/oauth/access_token",
     },
     async validateCode(code: string, _state: string) {
-      const config = this.config;
+      const config = { ...this.config, ...requireCredentials(this) };
       const tokenResponse = await fetch(config.tokenUrl, {
         method: "POST",
         body: new URLSearchParams({
@@ -236,16 +279,15 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
 
   facebook: {
     id: "facebook",
+    ...credentialsFromEnv("FACEBOOK"),
     config: {
-      clientId: env.FACEBOOK_CLIENT_ID ?? "",
-      clientSecret: env.FACEBOOK_CLIENT_SECRET ?? "",
       redirectUri: env.FACEBOOK_REDIRECT_URI ?? "http://localhost:3000/auth/callback/facebook",
       scopes: ["pages_manage_posts", "pages_read_engagement", "pages_show_list"],
       authUrl: "https://www.facebook.com/v18.0/dialog/oauth",
       tokenUrl: "https://graph.facebook.com/v18.0/oauth/access_token",
     },
     async validateCode(code: string, _state: string) {
-      const config = this.config;
+      const config = { ...this.config, ...requireCredentials(this) };
       const tokenResponse = await fetch(
         `${config.tokenUrl}?client_id=${config.clientId}&client_secret=${config.clientSecret}&redirect_uri=${config.redirectUri}&code=${code}`,
         { signal: AbortSignal.timeout(10_000) }
@@ -283,9 +325,8 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
 
   youtube: {
     id: "youtube",
+    ...credentialsFromEnv("YOUTUBE"),
     config: {
-      clientId: env.YOUTUBE_CLIENT_ID ?? "",
-      clientSecret: env.YOUTUBE_CLIENT_SECRET ?? "",
       redirectUri: env.YOUTUBE_REDIRECT_URI ?? "http://localhost:3000/auth/callback/youtube",
       scopes: [
         "https://www.googleapis.com/auth/youtube.upload",
@@ -295,7 +336,7 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
       tokenUrl: "https://oauth2.googleapis.com/token",
     },
     async validateCode(code: string, _state: string) {
-      const config = this.config;
+      const config = { ...this.config, ...requireCredentials(this) };
       const tokenResponse = await fetch(config.tokenUrl, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -352,16 +393,15 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
 
   tiktok: {
     id: "tiktok",
+    ...credentialsFromEnv("TIKTOK"),
     config: {
-      clientId: env.TIKTOK_CLIENT_ID ?? "",
-      clientSecret: env.TIKTOK_CLIENT_SECRET ?? "",
       redirectUri: env.TIKTOK_REDIRECT_URI ?? "http://localhost:3000/auth/callback/tiktok",
       scopes: ["user.info.basic", "video.upload"],
       authUrl: "https://www.tiktok.com/auth/authorize/",
       tokenUrl: "https://open-api.tiktok.com/oauth/access_token/",
     },
     async validateCode(code: string, _state: string) {
-      const config = this.config;
+      const config = { ...this.config, ...requireCredentials(this) };
       const tokenResponse = await fetch(config.tokenUrl, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -415,16 +455,15 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   // -----------------------------------------------------------------
   linkedin: {
     id: "linkedin",
+    ...credentialsFromEnv("LINKEDIN"),
     config: {
-      clientId: env.LINKEDIN_CLIENT_ID ?? "",
-      clientSecret: env.LINKEDIN_CLIENT_SECRET ?? "",
       redirectUri: env.LINKEDIN_REDIRECT_URI ?? "http://localhost:3000/auth/callback/linkedin",
       scopes: ["openid", "profile", "w_member_social"],
       authUrl: "https://www.linkedin.com/oauth/v2/authorization",
       tokenUrl: "https://www.linkedin.com/oauth/v2/accessToken",
     },
     async validateCode(code: string, _state: string) {
-      const config = this.config;
+      const config = { ...this.config, ...requireCredentials(this) };
       const tokenResponse = await fetch(config.tokenUrl, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -475,16 +514,15 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   // -----------------------------------------------------------------
   pinterest: {
     id: "pinterest",
+    ...credentialsFromEnv("PINTEREST"),
     config: {
-      clientId: env.PINTEREST_CLIENT_ID ?? "",
-      clientSecret: env.PINTEREST_CLIENT_SECRET ?? "",
       redirectUri: env.PINTEREST_REDIRECT_URI ?? "http://localhost:3000/auth/callback/pinterest",
       scopes: ["boards:read", "boards:write", "pins:read", "pins:write"],
       authUrl: "https://www.pinterest.com/oauth/",
       tokenUrl: "https://api.pinterest.com/v5/oauth/token",
     },
     async validateCode(code: string, _state: string) {
-      const config = this.config;
+      const config = { ...this.config, ...requireCredentials(this) };
       const tokenResponse = await fetch(config.tokenUrl, {
         method: "POST",
         headers: {
@@ -536,16 +574,15 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
   // -----------------------------------------------------------------
   snapchat: {
     id: "snapchat",
+    ...credentialsFromEnv("SNAPCHAT"),
     config: {
-      clientId: env.SNAPCHAT_CLIENT_ID ?? "",
-      clientSecret: env.SNAPCHAT_CLIENT_SECRET ?? "",
       redirectUri: env.SNAPCHAT_REDIRECT_URI ?? "http://localhost:3000/auth/callback/snapchat",
       scopes: ["snapchat-marketing-api"],
       authUrl: "https://accounts.snapchat.com/login/oauth2/authorize",
       tokenUrl: "https://accounts.snapchat.com/login/oauth2/access_token",
     },
     async validateCode(code: string, _state: string) {
-      const config = this.config;
+      const config = { ...this.config, ...requireCredentials(this) };
       const tokenResponse = await fetch(config.tokenUrl, {
         method: "POST",
         headers: {
