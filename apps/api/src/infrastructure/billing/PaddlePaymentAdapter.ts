@@ -32,6 +32,14 @@ export class PaddlePaymentAdapter implements PaymentAdapter {
   private readonly webhookSecret: string;
 
   constructor(config: PaddleConfig) {
+    if (!config.apiKey) {
+      throw new Error("Paddle API key must not be empty");
+    }
+    // The SDK accepts a signature computed with an empty key, so an empty
+    // webhook secret would let anyone sign an event this adapter trusts.
+    if (!config.webhookSecret) {
+      throw new Error("Paddle webhook secret must not be empty");
+    }
     this.paddle = new Paddle(config.apiKey, {
       environment: config.sandbox ? Environment.sandbox : Environment.production,
     });

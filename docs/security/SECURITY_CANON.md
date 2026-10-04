@@ -31,7 +31,7 @@ Every module parses `process.env` once at module load. If any required key is mi
 | Test fixture                           | Set in `.env.test` at root; tests should not mutate `process.env` at runtime                                                           |
 | Runtime-mutable allowlist (non-secret) | Extract to a factory function that takes the allowlist as a parameter (cf. `makeMediaUrlSchema`)                                       |
 
-- **Fail-fast required, no fallbacks for secrets** (CWE-798). CI fitness greps #15 + #16 + #17 enforce this in `apps/api/src`, `apps/workers/src`, and the Next.js apps respectively.
+- **Fail-fast required, no fallbacks for secrets** (CWE-798). CI fitness greps #15 + #16 + #17 enforce this in `apps/api/src`, `apps/workers/src`, and the Next.js apps respectively. The typed form is forbidden too: `env.X ?? ""` on a secret the schema marks optional boots with an empty string that reads as configured, so an unconfigured secret is an absent optional field, never `""`; fitness #15 matches `env.X` as well as `process.env.X`.
 - **Single source of truth on disk**: root `.env` for dev, root `.env.test` for tests. Per-app `.env`s were removed.
 - **Browser bundle leak prevention**: Next.js `clientPrefix: "NEXT_PUBLIC_"` enforced — referencing a server-only env var (e.g. `env.SENTRY_DSN`) from a client component throws at runtime via `onInvalidAccess`, surfacing the leak before it reaches users.
 

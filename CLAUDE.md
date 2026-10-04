@@ -455,8 +455,17 @@ grep -rnE "^\s+private \w*[Cc]ache.*= new Map" apps/api/src --include="*.ts" | \
 # masking misconfiguration in dev and shipping insecurely to prod. The fix
 # is the typed env constant from apps/api/src/config/env.ts (Zod fail-fast)
 # in app code, and constructor injection of secrets into provider apiClients.
+# The typed constant is matched too: `env.X_SECRET ?? ""` on a variable the
+# schema marks optional boots with an empty string that reads as configured,
+# and a request then carries it as the secret. An unconfigured secret is an
+# absent optional field, never "". `env` matches after any character but `!`
+# or an identifier character, so `process.env`, the typed `env` and a member
+# chain (`this.env`) are all read, while the boolean guard `!env.X_SECRET ||`
+# is not a fallback and is skipped. Residual limits: an alias
+# (`const e = env`), bracket access (`env["X_SECRET"]`) or a destructuring
+# default is invisible to this line grep.
 # Excludes `_template` (scaffolding example).
-grep -rnE "process\.env\.[A-Z_]*(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL)[A-Z_]*\s*(\|\||\?\?)" \
+grep -rnE '(^|[^![:alnum:]_])env\.[A-Z_]*(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL)[A-Z_]*\s*(\|\||\?\?)' \
   apps/api/src apps/workers/src packages/providers --include="*.ts" | \
   grep -v "node_modules\|\.test\.\|/tests/\|/dist/\|config/env\.ts\|providers/_template/" | wc -l
 
