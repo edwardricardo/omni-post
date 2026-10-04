@@ -71,6 +71,7 @@ ruleTester.run("no-unowned-handle-unref", rule, {
     lines("const t = fast ? setImmediate(run) : setTimeout(run, 10);", "t.unref();"),
     lines("const t = setTimeout(f, 1);", "const same = t;", "same.unref();"),
     lines("let t = setTimeout(f, 1);", "t = t;", "t.unref();"),
+    lines("let a, b;", "a = b = setTimeout(f, 1);", "a.unref();"),
     lines("const server = await app.listen(0);", "server.unref();"),
     lines("setTimeout(done, 10).unref();", "createServer(handler).listen(0).unref();"),
     lines(
@@ -102,6 +103,14 @@ ruleTester.run("no-unowned-handle-unref", rule, {
       "  #timer: NodeJS.Timeout | null = null;",
       "  arm() { this.#timer = setTimeout(fire, 5); }",
       "  stop() { this.#timer?.unref(); }",
+      "}"
+    ),
+    lines(
+      "class Lazy {",
+      "  armOr() { this.t ||= setTimeout(f, 1); }",
+      "  armNullish() { this.t ??= setTimeout(f, 1); }",
+      "  armAnd() { this.t &&= setTimeout(f, 1); }",
+      "  stop() { this.t.unref(); }",
       "}"
     ),
     lines(
@@ -217,6 +226,39 @@ ruleTester.run("no-unowned-handle-unref", rule, {
     {
       code: "function rearm(h: NodeJS.Timeout) { h = setTimeout(g, 1); h.unref(); }",
       errors: [unowned("h")],
+    },
+    {
+      code: lines(
+        "class Foreign {",
+        "  constructor(foreign: NodeJS.Timeout) { this.t ??= foreign; }",
+        "  stop() { this.t.unref(); }",
+        "}"
+      ),
+      errors: [unowned("this.t", 3)],
+    },
+    {
+      code: lines(
+        "class Counter {",
+        "  t = setTimeout(f, 1);",
+        "  bump() { this.t += setTimeout(g, 1); }",
+        "  stop() { this.t.unref(); }",
+        "}"
+      ),
+      errors: [unowned("this.t", 4)],
+    },
+    {
+      code: lines("let t = setTimeout(f, 1);", "t += setTimeout(g, 1);", "t.unref();"),
+      errors: [unowned("t", 3)],
+    },
+    { code: lines("let a, b;", "a = b = foreign;", "a.unref();"), errors: [unowned("a", 3)] },
+    {
+      code: lines("let t = null;", "t = undefined;", "t.unref();"),
+      errors: [unowned("t", 3)],
+    },
+    { code: lines("let t: NodeJS.Timeout;", "t.unref();"), errors: [unowned("t", 2)] },
+    {
+      code: lines("const p = process;", "p.stdout.unref();"),
+      errors: [processHandle("p.stdout", 2)],
     },
     {
       code: lines(

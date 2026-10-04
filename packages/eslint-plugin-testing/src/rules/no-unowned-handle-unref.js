@@ -52,6 +52,9 @@ const CREATORS = new Set([
   "listen",
 ]);
 
+/** Assignment operators whose stored value is the right-hand side or the prior value. */
+const STORES_RIGHT = new Set(["=", "||=", "&&=", "??="]);
+
 /** Wrappers that change neither the value nor who created it, with the key of what they wrap. */
 const TRANSPARENT = new Map([
   ["ChainExpression", "expression"],
@@ -137,8 +140,28 @@ function enclosingClass(node) {
 }
 
 /**
+ * @param {unknown} write The written expression the scope manager or an assignment names.
+ * @returns {unknown} The value the write stores. A logical assignment stores the prior value,
+ *   itself a recorded write, or its right-hand side, so the right-hand side stands for it; an
+ *   arithmetic one stores a computed value, never a handle, so the assignment itself stands for it
+ *   and is judged not owned. A chained assignment (`a = b = x`) stores what its inner assignment
+ *   stores, by the same rules.
+ */
+function storedValue(write) {
+  const parent = isNode(write) ? write.parent : null;
+  const arithmetic =
+    isNode(parent) &&
+    parent.type === "AssignmentExpression" &&
+    !STORES_RIGHT.has(`${parent.operator}`);
+  if (arithmetic) return parent;
+  return isNode(write) && write.type === "AssignmentExpression" ? storedValue(write.right) : write;
+}
+
+/**
  * @param {Ownership[]} verdicts One per write.
- * @returns {Ownership} Owned only when no write is foreign and at least one mints the handle.
+ * @returns {Ownership} `process` when any write reaches `process`; otherwise owned only when no
+ *   write is foreign and at least one mints the handle. No write at all, or only neutral ones,
+ *   is `unowned`: nothing the file created ever reached the binding.
  */
 function combine(verdicts) {
   if (verdicts.includes("process")) return "process";
@@ -260,7 +283,7 @@ const rule = {
         if (variable.defs.some((def) => def.type !== "Variable")) return "unowned";
         const writes = variable.references.filter((ref) => ref.isWrite());
         const inner = new Set(path).add(variable);
-        return combine(writes.map((ref) => classify(ref.writeExpr, inner)));
+        return combine(writes.map((ref) => classify(storedValue(ref.writeExpr), inner)));
       }
       if (isThisMember(node)) {
         const name = staticName(node);
@@ -271,7 +294,8 @@ const rule = {
         return combine(writes.map((write) => classify(write, inner)));
       }
       if (node.type === "MemberExpression") {
-        return classify(node.object, path) === "owned" ? "owned" : "unowned";
+        const owner = classify(node.object, path);
+        return owner === "owned" || owner === "process" ? owner : "unowned";
       }
       return "unowned";
     }
@@ -296,7 +320,7 @@ const rule = {
       AssignmentExpression(node) {
         const target = unwrap(node.left);
         if (isNode(node) && target !== null && isThisMember(target)) {
-          recordThisWrite(node, staticName(target), node.right);
+          recordThisWrite(node, staticName(target), storedValue(node.right));
         }
       },
       PropertyDefinition(node) {
