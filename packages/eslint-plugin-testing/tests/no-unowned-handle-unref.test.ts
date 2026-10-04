@@ -61,6 +61,17 @@ ruleTester.run("no-unowned-handle-unref", rule, {
       errors: [enumeration("_getActiveHandles")],
     },
     {
+      code: "const { _getActiveHandles } = somethingElse;",
+      errors: [enumeration("_getActiveHandles")],
+    },
+    {
+      code: lines(
+        "const { _getActiveHandles } = process;",
+        "_getActiveHandles().forEach(release);"
+      ),
+      errors: [enumeration("_getActiveHandles")],
+    },
+    {
       code: lines("process.stdout.unref();", "process.stdin.unref();", "process.stderr.unref();"),
       errors: [
         processHandle("process.stdout"),
@@ -81,6 +92,8 @@ ruleTester.run("no-unowned-handle-unref", rule, {
     { code: "process.channel?.unref?.();", errors: [processHandle("process.channel")] },
     { code: "(<any>process).channel.unref();", errors: [processHandle("(<any>process).channel")] },
     { code: 'process.stdout["unref"]();', errors: [processHandle("process.stdout")] },
+    { code: "process.stdout?.unref?.();", errors: [processHandle("process.stdout")] },
+    { code: '(process)["stdout"].unref();', errors: [processHandle('(process)["stdout"]')] },
     {
       code: lines("globalThis.process.stdout.unref();", "global.process.channel.unref();"),
       errors: [

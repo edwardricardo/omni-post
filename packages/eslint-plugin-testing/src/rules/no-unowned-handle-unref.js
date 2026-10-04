@@ -11,7 +11,10 @@
  *   enumeration (`_getActiveHandles`, `_getActiveRequests`, `getActiveResourcesInfo`, read as a
  *   member or destructured), and an `unref()` whose receiver is reached from the global `process`,
  *   directly or through `globalThis` / `global`. Casts, non-null assertions, optional chains and
- *   line breaks are looked through; a local binding named `process` is not the global.
+ *   line breaks are looked through; a local binding named `process` is not the global. An
+ *   enumerator is matched by its name alone, whatever object it is read or destructured from: the
+ *   names exist only on `process`, and the name also catches an alias of `process` this check
+ *   cannot resolve.
  *
  *   Not covered yet: a receiver the file did not mint by another route — a parameter, an import,
  *   an unresolved name, an alias of a process stream. Deciding that needs ownership resolved
@@ -21,6 +24,9 @@
 
 /** Process-wide enumeration: its result includes the handles the test runner itself holds. */
 const ENUMERATORS = new Set(["_getActiveHandles", "_getActiveRequests", "getActiveResourcesInfo"]);
+
+/** The global objects `process` can also be read from. */
+const GLOBAL_ROOTS = new Set(["globalThis", "global"]);
 
 /** Wrappers that change neither the value nor who created it, with the key of what they wrap. */
 const TRANSPARENT = new Map([
@@ -104,16 +110,17 @@ const rule = {
 
     /**
      * @param {AstNode} identifier
+     * @param {string} name The identifier's name.
      * @returns {import("eslint").Scope.Variable | null}
      */
-    function findVariable(identifier) {
+    function findVariable(identifier, name) {
       const estree = /** @type {import("eslint").Rule.Node} */ (
         /** @type {unknown} */ (identifier)
       );
       /** @type {import("eslint").Scope.Scope | null} */
       let scope = sourceCode.getScope(estree);
       for (; scope !== null; scope = scope.upper) {
-        const variable = scope.set.get(`${identifier.name}`);
+        const variable = scope.set.get(name);
         if (variable !== undefined) return variable;
       }
       return null;
@@ -126,12 +133,11 @@ const rule = {
     function isProcess(node) {
       if (node.type === "MemberExpression") {
         const object = unwrap(node.object);
-        const global =
-          object?.type === "Identifier" && /^(globalThis|global)$/.test(`${object.name}`);
-        return global && staticName(node) === "process";
+        const name = object?.type === "Identifier" ? object.name : null;
+        return typeof name === "string" && GLOBAL_ROOTS.has(name) && staticName(node) === "process";
       }
       if (node.type !== "Identifier" || node.name !== "process") return false;
-      const variable = findVariable(node);
+      const variable = findVariable(node, node.name);
       return variable === null || variable.defs.length === 0;
     }
 
@@ -140,12 +146,13 @@ const rule = {
      * @returns {boolean} Whether the receiver is `process` or a member chain rooted at it.
      */
     function reachesProcess(receiver) {
-      /** @type {AstNode | null} */
       let root = receiver;
-      for (; root !== null; root = root.type === "MemberExpression" ? unwrap(root.object) : null) {
-        if (isProcess(root)) return true;
+      while (root.type === "MemberExpression" && !isProcess(root)) {
+        const object = unwrap(root.object);
+        if (object === null) return false;
+        root = object;
       }
-      return false;
+      return isProcess(root);
     }
 
     /** @param {AstNode} node */
