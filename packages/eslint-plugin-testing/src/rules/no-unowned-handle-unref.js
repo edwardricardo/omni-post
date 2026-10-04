@@ -13,12 +13,19 @@
  *   directly or through `globalThis` / `global`. Casts, non-null assertions, optional chains and
  *   line breaks are looked through; a local binding named `process` is not the global. An
  *   enumerator is matched by its name alone, whatever object it is read or destructured from: the
- *   names exist only on `process`, and the name also catches an alias of `process` this check
- *   cannot resolve.
+ *   names exist only on `process`, and the name also catches a read through an alias of
+ *   `process` without resolving the alias.
  *
- *   Not covered yet: a receiver the file did not mint by another route — a parameter, an import,
- *   an unresolved name, an alias of a process stream. Deciding that needs ownership resolved
- *   through the scope manager.
+ *   Every other receiver must be one the file minted, resolved through ESLint's scope manager. An
+ *   identifier is owned when every write to its variable (its initialiser and every assignment,
+ *   followed through aliases) is a creator call, or hands over no handle (`null`, `undefined`, the
+ *   variable itself), and at least one write is a creator call; `this.x` is owned on the same terms
+ *   over its field initialiser and every assignment to `this.x` in its class; a member of an owned
+ *   value is owned; `await` is looked through. A parameter, an import, an unresolved name, a value
+ *   a helper returns, or an alias of a process stream is not owned.
+ *
+ *   Not seen: an `unref` taken by reference instead of called as a member (`const u = h.unref`),
+ *   or behind a computed key that is not a string literal.
  * @layer infrastructure
  */
 
@@ -28,6 +35,23 @@ const ENUMERATORS = new Set(["_getActiveHandles", "_getActiveRequests", "getActi
 /** The global objects `process` can also be read from. */
 const GLOBAL_ROOTS = new Set(["globalThis", "global"]);
 
+/** The calls that mint a handle the calling file then owns, by callee name or member name. */
+const CREATORS = new Set([
+  "setTimeout",
+  "setInterval",
+  "setImmediate",
+  "createServer",
+  "createConnection",
+  "createSocket",
+  "createReadStream",
+  "createWriteStream",
+  "watchFile",
+  "spawn",
+  "fork",
+  "execFile",
+  "listen",
+]);
+
 /** Wrappers that change neither the value nor who created it, with the key of what they wrap. */
 const TRANSPARENT = new Map([
   ["ChainExpression", "expression"],
@@ -35,9 +59,14 @@ const TRANSPARENT = new Map([
   ["TSNonNullExpression", "expression"],
   ["TSSatisfiesExpression", "expression"],
   ["TSTypeAssertion", "expression"],
+  ["AwaitExpression", "argument"],
 ]);
 
-/** @typedef {{ type: string, [key: string]: unknown }} AstNode */
+/**
+ * @typedef {{ type: string, [key: string]: unknown }} AstNode
+ * @typedef {"owned" | "neutral" | "process" | "unowned"} Ownership `neutral`: a write that hands
+ *   over no handle — `null`, `undefined`, or the binding itself.
+ */
 
 /**
  * @param {unknown} value
@@ -76,15 +105,45 @@ function unwrap(value) {
 }
 
 /**
- * @param {AstNode} node A `MemberExpression` or a `Property`.
- * @returns {string | null} The static key: `a.b`, `a["b"]`, or `{ b }`.
+ * @param {AstNode} node A `MemberExpression`, a `Property` or a `PropertyDefinition`.
+ * @returns {string | null} The static key: `a.b`, `a["b"]`, `a.#b`, `{ b }`, `b = …` in a class.
  */
 function staticName(node) {
   const key = child(node, node.type === "MemberExpression" ? "property" : "key");
   if (key === null) return null;
   if (key.type === "Literal") return typeof key.value === "string" ? key.value : null;
-  if (node.computed === true) return null;
-  return key.type === "Identifier" && typeof key.name === "string" ? key.name : null;
+  if (node.computed === true || typeof key.name !== "string") return null;
+  if (key.type === "PrivateIdentifier") return `#${key.name}`;
+  return key.type === "Identifier" ? key.name : null;
+}
+
+/**
+ * @param {AstNode} node
+ * @returns {boolean}
+ */
+function isThisMember(node) {
+  return node.type === "MemberExpression" && unwrap(node.object)?.type === "ThisExpression";
+}
+
+/**
+ * @param {AstNode} node
+ * @returns {AstNode | null} The class whose instance `this` names at `node`; `null` at file level.
+ */
+function enclosingClass(node) {
+  for (let current = node.parent; isNode(current); current = current.parent) {
+    if (current.type === "ClassDeclaration" || current.type === "ClassExpression") return current;
+  }
+  return null;
+}
+
+/**
+ * @param {Ownership[]} verdicts One per write.
+ * @returns {Ownership} Owned only when no write is foreign and at least one mints the handle.
+ */
+function combine(verdicts) {
+  if (verdicts.includes("process")) return "process";
+  if (verdicts.includes("unowned")) return "unowned";
+  return verdicts.includes("owned") ? "owned" : "unowned";
 }
 
 /** @type {import("eslint").Rule.RuleModule} */
@@ -103,10 +162,29 @@ const rule = {
       processHandle:
         "`{{receiver}}.unref()` releases a handle the process owns, not this file; inside a " +
         "vitest fork that lets the worker exit under the pool with zero failing assertions.",
+      unowned:
+        "`{{receiver}}.unref()` releases a handle this file did not create from a known creator " +
+        "(setTimeout, createServer, spawn, listen, …). Close the handle that leaks with its own API.",
     },
   },
   create(context) {
     const { sourceCode } = context;
+    /** @type {Map<AstNode | null, Map<string, unknown[]>>} */
+    const thisWrites = new Map();
+    /** @type {{ call: import("eslint").Rule.Node, receiver: AstNode }[]} */
+    const unrefs = [];
+
+    /**
+     * @param {AstNode} anchor
+     * @param {string | null} name
+     * @param {unknown} value
+     */
+    function recordThisWrite(anchor, name, value) {
+      if (name === null) return;
+      const container = enclosingClass(anchor);
+      const byName = thisWrites.get(container) ?? new Map();
+      thisWrites.set(container, byName.set(name, [...(byName.get(name) ?? []), value]));
+    }
 
     /**
      * @param {AstNode} identifier
@@ -155,6 +233,49 @@ const rule = {
       return isProcess(root);
     }
 
+    /**
+     * @param {unknown} value An expression that produced, or holds, the receiver.
+     * @param {Set<unknown>} path The variables and `this` members already being resolved.
+     * @returns {Ownership}
+     */
+    function classify(value, path) {
+      const node = unwrap(value);
+      if (node === null) return "unowned";
+      if (reachesProcess(node)) return "process";
+      if (node.type === "CallExpression" || node.type === "NewExpression") {
+        const callee = unwrap(node.callee);
+        const name = callee?.type === "MemberExpression" ? staticName(callee) : callee?.name;
+        return typeof name === "string" && CREATORS.has(name) ? "owned" : "unowned";
+      }
+      if (node.type === "Literal" && node.raw === "null") return "neutral";
+      if (node.type === "ConditionalExpression") {
+        return combine([classify(node.consequent, path), classify(node.alternate, path)]);
+      }
+      if (node.type === "Identifier" && typeof node.name === "string") {
+        const variable = findVariable(node, node.name);
+        if (variable === null || variable.defs.length === 0) {
+          return node.name === "undefined" ? "neutral" : "unowned";
+        }
+        if (path.has(variable)) return "neutral";
+        if (variable.defs.some((def) => def.type !== "Variable")) return "unowned";
+        const writes = variable.references.filter((ref) => ref.isWrite());
+        const inner = new Set(path).add(variable);
+        return combine(writes.map((ref) => classify(ref.writeExpr, inner)));
+      }
+      if (isThisMember(node)) {
+        const name = staticName(node);
+        const writes = name === null ? undefined : thisWrites.get(enclosingClass(node))?.get(name);
+        if (writes === undefined) return "unowned";
+        if (path.has(writes)) return "neutral";
+        const inner = new Set(path).add(writes);
+        return combine(writes.map((write) => classify(write, inner)));
+      }
+      if (node.type === "MemberExpression") {
+        return classify(node.object, path) === "owned" ? "owned" : "unowned";
+      }
+      return "unowned";
+    }
+
     /** @param {AstNode} node */
     function checkEnumeration(node) {
       const name = staticName(node);
@@ -172,17 +293,36 @@ const rule = {
           checkEnumeration(node);
         }
       },
+      AssignmentExpression(node) {
+        const target = unwrap(node.left);
+        if (isNode(node) && target !== null && isThisMember(target)) {
+          recordThisWrite(node, staticName(target), node.right);
+        }
+      },
+      PropertyDefinition(node) {
+        if (isNode(node) && node.value !== null) {
+          recordThisWrite(node, staticName(node), node.value);
+        }
+      },
       CallExpression(node) {
         const callee = unwrap(node.callee);
         const receiver = callee?.type === "MemberExpression" ? unwrap(callee.object) : null;
         if (callee === null || receiver === null || staticName(callee) !== "unref") return;
-        if (!reachesProcess(receiver)) return;
-        const range = /** @type {[number, number]} */ (receiver.range);
-        context.report({
-          node,
-          messageId: "processHandle",
-          data: { receiver: sourceCode.text.slice(range[0], range[1]) },
-        });
+        unrefs.push({ call: node, receiver });
+      },
+      // Deferred to the end of the file: a class may unref `this.x` in a method written above the
+      // one that assigns it.
+      "Program:exit"() {
+        for (const { call, receiver } of unrefs) {
+          const verdict = classify(receiver, new Set());
+          if (verdict === "owned") continue;
+          const range = /** @type {[number, number]} */ (receiver.range);
+          context.report({
+            node: call,
+            messageId: verdict === "process" ? "processHandle" : "unowned",
+            data: { receiver: sourceCode.text.slice(range[0], range[1]) },
+          });
+        }
       },
     };
   },
