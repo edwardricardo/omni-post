@@ -27,7 +27,7 @@
  *   behind, which is the whole defect this gate closes. The canonical rewrite is `"pkg@<X": X`, the
  *   same set of lifted versions expressed so the two can only move together.
  *
- *   SCOPE. Only keys carrying a band (`name@<range>`) are read. A blanket key (`esbuild: 0.28.1`)
+ *   SCOPE. Only keys carrying a band (`name@<range>`) are read. A blanket key (`name: 1.2.3`, illustrative)
  *   has no band to disagree with its target, and `patchedDependencies:` is a different mechanism with
  *   no version selector at all. The block is located by its top-level `overrides:` key, never by a
  *   first-hit-anywhere scan, because the same package name legitimately appears in `catalog:` and in
