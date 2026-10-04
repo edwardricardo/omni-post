@@ -751,6 +751,9 @@ importers:
       '@adapters/queue-bullmq':
         specifier: workspace:*
         version: link:../../packages/adapters/queue-bullmq
+      '@adapters/storage-do-spaces':
+        specifier: workspace:*
+        version: link:../../packages/adapters/storage-do-spaces
       '@adapters/storage-s3':
         specifier: workspace:*
         version: link:../../packages/adapters/storage-s3
@@ -1824,10 +1827,10 @@ importers:
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports
-      '@shared/types':
-        specifier: workspace:*
-        version: link:../../shared
     devDependencies:
+      '@packages/vitest-shared':
+        specifier: workspace:*
+        version: link:../../vitest-shared
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

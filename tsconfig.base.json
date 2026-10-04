@@ -144,6 +144,7 @@
       "@adapters/cache-redis": ["./packages/adapters/cache-redis/src/index.ts"],
       "@adapters/queue-bullmq": ["./packages/adapters/queue-bullmq/src/index.ts"],
       "@adapters/storage-s3": ["./packages/adapters/storage-s3/src/index.ts"],
+      "@adapters/storage-do-spaces": ["./packages/adapters/storage-do-spaces/src/index.ts"],
       "@adapters/external-apis": ["./packages/adapters/external-apis/src/index.ts"],
       "@adapters/fallback-strategies": ["./packages/adapters/fallback-strategies/src/index.ts"],
       "@adapters/dead-letter-queue": ["./packages/adapters/dead-letter-queue/src/index.ts"],
