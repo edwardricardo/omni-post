@@ -22,7 +22,7 @@ import {
 // blobs in the coverage-merge job. Local and merge runs keep the full thresholds.
 const sharded = process.env.VITEST_SHARDED === "true";
 
-const root = findMonorepoRoot(__dirname);
+const root = findMonorepoRoot(import.meta.dirname);
 
 export default defineConfig({
   resolve: {

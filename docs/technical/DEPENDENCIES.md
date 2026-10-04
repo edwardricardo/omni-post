@@ -346,7 +346,7 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | Tool        | Version | Purpose                           |
 | ----------- | ------- | --------------------------------- |
 | eslint      | 9.39.5  | Static analysis (flat config, v9) |
-| prettier    | 3.9.5   | Code formatting                   |
+| prettier    | 3.9.9   | Code formatting                   |
 | husky       | 9.1.7   | Git hooks                         |
 | lint-staged | 16.4.0  | Pre-commit staged file linting    |
 | knip        | 6.12.2  | Dead code detection               |

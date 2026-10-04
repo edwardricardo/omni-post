@@ -346,7 +346,7 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tail
 | Herramienta | Version | Proposito                             |
 | ----------- | ------- | ------------------------------------- |
 | eslint      | 9.39.5  | Analisis estatico (flat config, v9)   |
-| prettier    | 3.9.5   | Formateo de codigo                    |
+| prettier    | 3.9.9   | Formateo de codigo                    |
 | husky       | 9.1.7   | Git hooks                             |
 | lint-staged | 16.4.0  | Linting de archivos staged pre-commit |
 | knip        | 6.12.2  | Deteccion de codigo muerto            |
