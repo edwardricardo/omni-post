@@ -76,12 +76,6 @@ interface PackageManifest {
   devDependencies?: Record<string, string>;
 }
 
-/**
- * The lockfile the constructor finds, as it is read: pnpm's YAML as text, npm's JSON parsed. No
- * step of the analysis reads it.
- */
-type ProjectLockfile = { type: "pnpm"; content: string } | { type: "npm"; content: unknown };
-
 function isKnipDependencyList(value: unknown): value is KnipDependency[] | undefined {
   return (
     value === undefined ||
@@ -162,15 +156,13 @@ function isPnpmLicenseReport(value: unknown): value is PnpmLicenseReport {
 
 export class BundleAnalyzer {
   private projectRoot: string;
-  /** Assigned by `loadProjectFiles`, which the constructor calls before anything reads it. */
-  private packageJson!: PackageManifest;
-  private lockfile: ProjectLockfile | null = null;
+  private readonly packageJson: PackageManifest;
   private reportsDir: string;
   private readonly runCommand: CommandRunner;
 
   /**
    * @method constructor
-   * @description Loads the project's manifest and lockfile and ensures the report directory.
+   * @description Loads the project's manifest and ensures the report directory.
    * @param projectRoot - The repository the analysis reads and writes its reports under.
    * @param runCommand - Runs the external tools whose output the analysis parses (knip,
    *   `pnpm licenses`); the default executes them for real.
@@ -179,36 +171,16 @@ export class BundleAnalyzer {
     this.projectRoot = projectRoot;
     this.runCommand = runCommand;
     this.reportsDir = join(projectRoot, "quality/reports/bundle");
-    this.loadProjectFiles();
+    this.packageJson = this.readPackageManifest();
     this.ensureReportsDirectory();
   }
 
-  private loadProjectFiles(): void {
-    // Load package.json
+  private readPackageManifest(): PackageManifest {
     const packagePath = join(this.projectRoot, "package.json");
-    if (existsSync(packagePath)) {
-      this.packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
-    } else {
+    if (!existsSync(packagePath)) {
       throw new Error("package.json not found");
     }
-
-    // Load lockfile (pnpm-lock.yaml or package-lock.json)
-    const pnpmLockPath = join(this.projectRoot, "pnpm-lock.yaml");
-    const npmLockPath = join(this.projectRoot, "package-lock.json");
-
-    if (existsSync(pnpmLockPath)) {
-      try {
-        this.lockfile = { type: "pnpm", content: readFileSync(pnpmLockPath, "utf8") };
-      } catch {
-        this.lockfile = null;
-      }
-    } else if (existsSync(npmLockPath)) {
-      try {
-        this.lockfile = { type: "npm", content: JSON.parse(readFileSync(npmLockPath, "utf8")) };
-      } catch {
-        this.lockfile = null;
-      }
-    }
+    return JSON.parse(readFileSync(packagePath, "utf8"));
   }
 
   private ensureReportsDirectory(): void {

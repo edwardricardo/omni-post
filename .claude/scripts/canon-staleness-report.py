@@ -92,7 +92,7 @@ def main() -> None:
     lines.append("")
     lines.append(
         f"**Total entries**: {len(data.get('entries', {}))} | "
-        f"**Stale synth**: {len(stale_date)} | "
+        f"**Stale by date**: {len(stale_date)} | "
         f"**Stale verify**: {len(stale_verify)} | "
         f"**Undated**: {len(undated)}"
     )
