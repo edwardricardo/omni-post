@@ -222,12 +222,16 @@ describe("BundleAnalyzer reading the project's package.json", () => {
     return () => new BundleAnalyzer(projectRoot, makeKnipRunner(knipCannotRun));
   };
 
-  it("refuses a package.json that is not valid JSON, naming the file", () => {
-    expect(analyzerOver("{ not json\n")).toThrow(/package\.json at .+ is not valid JSON/);
+  it("refuses a package.json that is not valid JSON, naming the file and keeping the parse error", () => {
+    const construct = analyzerOver("{ not json\n");
+    expect(construct).toThrow(/package\.json at .+ is not valid JSON/);
+    expect(() => construct()).toThrow(expect.objectContaining({ cause: expect.any(SyntaxError) }));
   });
 
-  it("refuses a package.json that is not an object", () => {
-    expect(analyzerOver("[]\n")).toThrow(/package\.json at .+ is not an object of dependency maps/);
+  it.each(["[]", "null"])("refuses a package.json that is %s, not an object", (manifest) => {
+    expect(analyzerOver(`${manifest}\n`)).toThrow(
+      /package\.json at .+ is not an object of dependency maps/
+    );
   });
 
   it("refuses a package.json whose dependencies field is not a map", () => {
