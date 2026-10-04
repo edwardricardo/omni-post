@@ -195,6 +195,8 @@ describe("env schema (apps/api/src/config/env.ts)", () => {
       "//ams3.digitaloceanspaces.com",
       " ams3.digitaloceanspaces.com",
       "ams3.digitaloceanspaces.com/bucket",
+      "-ams3.digitaloceanspaces.com",
+      "ams3-.digitaloceanspaces.com",
     ])("rejects %j, naming the bare-host shape it expects", async (value) => {
       await expect(loadEnvWith({ DO_SPACES_ENDPOINT: value })).rejects.toThrow(
         /DO_SPACES_ENDPOINT.*bare host.*fra1\.digitaloceanspaces\.com/

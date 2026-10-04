@@ -192,14 +192,17 @@ const serverSchema = {
   DO_SPACES_KEY: z.string().optional(),
   DO_SPACES_SECRET: z.string().optional(),
   // The Spaces adapter prepends `https://`, so anything but a bare host (a scheme, a path,
-  // stray whitespace) would build a malformed URL and fail only on the first storage request;
-  // refuse it at boot instead.
+  // stray whitespace, a DNS label that starts or ends with a hyphen, which RFC 1035 forbids)
+  // would build a malformed URL and fail only on the first storage request; refuse it at boot.
   DO_SPACES_ENDPOINT: z
     .string()
-    .regex(/^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*(:\d{1,5})?$/, {
-      message:
-        "DO_SPACES_ENDPOINT must be a bare host (no scheme, path or whitespace), e.g. fra1.digitaloceanspaces.com",
-    })
+    .regex(
+      /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*(?::\d{1,5})?$/,
+      {
+        message:
+          "DO_SPACES_ENDPOINT must be a bare host (no scheme, path or whitespace), e.g. fra1.digitaloceanspaces.com",
+      }
+    )
     .optional(),
 
   // ── Payment (CONDITIONAL on PAYMENT_PROVIDER) ───────────────────────
