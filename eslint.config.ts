@@ -9,6 +9,17 @@ import jsxA11yPlugin from "eslint-plugin-jsx-a11y";
 import boundariesPlugin from "eslint-plugin-boundaries";
 import vitestPlugin from "@vitest/eslint-plugin";
 import prettierConfig from "eslint-config-prettier";
+import testingPlugin from "@packages/eslint-plugin-testing";
+
+// Files a test runner collects, or loads as test code beside them.
+const testFiles = [
+  "**/*.test.ts",
+  "**/*.test.tsx",
+  "**/*.spec.ts",
+  "**/*.spec.tsx",
+  "**/tests/**/*.ts",
+  "**/tests/**/*.tsx",
+];
 
 // Paths that benefit from type-aware linting (no-floating-promises).
 // Scoped narrowly to keep memory usage bounded — full-monorepo projectService OOMs.
@@ -483,14 +494,7 @@ export default defineConfig([
   },
   // Test files — allow console.* (debugging), any (mocks), and fire-and-forget promises
   {
-    files: [
-      "**/*.test.ts",
-      "**/*.test.tsx",
-      "**/*.spec.ts",
-      "**/*.spec.tsx",
-      "**/tests/**/*.ts",
-      "**/tests/**/*.tsx",
-    ],
+    files: testFiles,
     // The vitest plugin is registered so its rules are RESOLVABLE on these globs,
     // and deliberately enables none of them: this glob set also covers the node:test
     // suites, where a rule such as `vitest/no-import-node-test` would be wrong. Both
@@ -502,6 +506,14 @@ export default defineConfig([
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-floating-promises": "off",
     },
+  },
+  // Test code may unref only the handles it creates: a vitest fork also holds the IPC channel to
+  // the pool, and a fork whose channel was unref'd exits with zero failing assertions. The glob
+  // reaches past the test files because the defect this rule holds lived in a helper module.
+  {
+    files: [...testFiles, "**/__tests__/**", "**/test-utils/**", "packages/vitest-shared/src/**"],
+    plugins: { testing: testingPlugin },
+    rules: { "testing/no-unowned-handle-unref": "error" },
   },
   // Disable stylistic rules that conflict with Prettier. Must be last to override all preceding.
   prettierConfig,
