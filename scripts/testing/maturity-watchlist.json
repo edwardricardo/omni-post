@@ -126,17 +126,6 @@
     },
     {
       "kind": "date",
-      "id": "hold-size-limit-14.1.0",
-      "title": "Pre-registered hold due: size-limit 14.1.0 is mature, move size-limit and its preset from 14.0.1",
-      "due": "2026-10-04",
-      "refs": [
-        "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `size-limit`: 14.1.0 matures 2026-10-04T13:10Z",
-        "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `size-limit` row"
-      ],
-      "reviews": {}
-    },
-    {
-      "kind": "date",
       "id": "hold-knip-6.39.0",
       "title": "Pre-registered hold due: knip 6.39.0 is mature, move the root pin from 6.38.0",
       "due": "2026-10-07",
