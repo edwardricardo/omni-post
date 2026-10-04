@@ -17,7 +17,9 @@ Every workspace manifest MUST declare `engines.node` at the major of the Node ru
 actually runs, so a runtime/type/tooling drift is a gate rather than folklore. Today no manifest
 declares it, which is why the `@types/node` major was free to run ahead of the runtime unnoticed.
 The declaration MUST be consistent across manifests, and the package manager's own engine check is
-the enforcement inside this project (a stricter global mode is NOT required).
+the enforcement inside this project (a stricter global mode is NOT required). This capability OWNS
+the declaration and the `@types/node` exception clause; `testing-toolchain-alignment` restates both
+in its `@types/node` requirement.
 
 #### Scenario: every manifest declares the runtime major [static]
 
@@ -69,7 +71,9 @@ delivered through a JSON-processing tool's DOM dependency).
 ### Requirement: Pinned DIRECT versions are the latest stable release, with no pre-releases
 
 Every catalog-pinned DIRECT registry version MUST correspond to the latest **mature** release: the
-package's npm `latest` dist-tag subject to a 7-day maturity buffer (ADR-0018's buffer against yanked or broken releases), never `latest` taken literally.
+package's npm `latest` dist-tag subject to a 7-day maturity buffer (the buffer against yanked or
+broken releases that `docs/technical/ADR-0018-dependency-freshness-canon.md` sets), never `latest`
+taken literally.
 A candidate younger than the buffer is NOT the target; the target is the newest stable release at
 least 7 days old. No spec MAY pin or resolve to a pre-release identifier — `rc`, `beta`, `alpha`,
 `next`, `canary`, or any version carrying a SemVer pre-release tag. The sanctioned updater is a

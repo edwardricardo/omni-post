@@ -112,6 +112,50 @@
     },
     {
       "kind": "date",
+      "id": "hold-size-limit-14.1.0",
+      "title": "Pre-registered hold due: size-limit 14.1.0 is mature, move size-limit and its preset from 14.0.1",
+      "due": "2026-10-04",
+      "refs": [
+        "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `size-limit`: 14.1.0 matures 2026-10-04T13:10Z",
+        "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `size-limit` row"
+      ],
+      "reviews": {}
+    },
+    {
+      "kind": "date",
+      "id": "hold-knip-6.39.0",
+      "title": "Pre-registered hold due: knip 6.39.0 is mature, move the root pin from 6.38.0",
+      "due": "2026-10-07",
+      "refs": [
+        "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `knip`: 6.39.0 matures 2026-10-07T12:46Z",
+        "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `knip` row"
+      ],
+      "reviews": {}
+    },
+    {
+      "kind": "date",
+      "id": "hold-vite-8.3.2",
+      "title": "Pre-registered hold due: vite 8.3.2 is mature, move the catalog pin from 8.3.1",
+      "due": "2026-10-08",
+      "refs": [
+        "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `vite`: 8.3.2 matures 2026-10-08T10:17Z",
+        "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `vite` row"
+      ],
+      "reviews": {}
+    },
+    {
+      "kind": "date",
+      "id": "hold-turbo-2.11.x",
+      "title": "Pre-registered hold due: turbo 2.11.5 to 2.11.7 are mature, move the root pin from 2.11.4",
+      "due": "2026-10-09",
+      "refs": [
+        "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `turbo`: 2.11.5 matures 2026-10-05T00:45Z, 2.11.7 on 2026-10-09T14:58Z",
+        "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `turbo` row"
+      ],
+      "reviews": {}
+    },
+    {
+      "kind": "date",
       "id": "contract-0.16-node-26",
       "title": "Contract task 0.16 is due: move the runtime to Node 26 on its Active LTS date",
       "due": "2026-10-28",

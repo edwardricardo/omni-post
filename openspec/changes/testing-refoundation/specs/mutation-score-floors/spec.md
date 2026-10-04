@@ -135,8 +135,10 @@ baseline and update exactly ONE tracking issue rather than opening a new one per
 The results MUST feed back into the test ledger: a clean dry run evidences "passes when the code
 complies"; a killed mutant evidences "fails when it does not"; a CONFIRMED survivor evidences
 unconstrained behaviour; and a test that kills ZERO mutants — reliable only because early termination is
-disabled — MUST REOPEN its ledger row under criterion (a) or (d). The tracker MUST record the minimum,
-median and floor score per package.
+disabled — MUST REOPEN its ledger row under criterion (a) or (d). That reopening is the enforcement
+surface for a test that kills nothing, an assertion-free test included: the pull-request lane enforces
+only its configured failure condition over the changed sources and is not required to fail on such a
+test. The tracker MUST record the minimum, median and floor score per package.
 
 #### Scenario: A test that kills no mutants reopens its ledger row [runtime]
 

@@ -35,6 +35,8 @@ Every backend module imports `env` from `apps/api/src/config/env.ts`. The schema
 
 Conditional validation is enforced at the point of use (e.g. `paymentAdapterFactory.ts` throws if Stripe is selected but its secrets are unset), not in the Zod schema, because the schema can't easily express cross-field constraints without losing the simple "all-fields-optional or required" mental model.
 
+Storage follows the same pattern in `apps/api/src/infrastructure/storage/createStorageAdapter.ts`, which runs while the API boots. `STORAGE_PROVIDER=s3` requires `S3_BUCKET` and `S3_REGION`; `do-spaces` requires `DO_SPACES_BUCKET`, `DO_SPACES_REGION`, `DO_SPACES_KEY`, `DO_SPACES_SECRET` and `DO_SPACES_ENDPOINT`; the default `local` requires none. For `s3` and `local` the `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` pair is both-or-neither: with neither set, the AWS SDK default credential chain applies (prefer an instance role or OIDC where the deployment supports it), and half a pair is refused. No storage credential falls back to an empty string: the health route checks the adapter the factory built.
+
 ### Non-secret vars that still carry a compliance consequence
 
 Not every var worth documenting is a credential. `DELETION_RECORD_RETENTION_YEARS` holds no secret and leaks nothing if read, yet it is the **only operator control over how long erased customers' plaintext names are retained**, which makes an undocumented default a policy decision nobody made.
@@ -178,10 +180,12 @@ Production: separate runbook (`docs/security/T0A_SECRETS_ROTATION_RUNBOOK.md`) c
 
 ## Troubleshooting
 
-**"Environment validation failed. Refusing to boot."** — the schema rejected one or more values. The error lists every offending key with its constraint. Common causes: secret `< 32` chars (placeholder leftover), `STORAGE_PROVIDER` set to a value not in the enum, malformed `DATABASE_URL`.
+**"Environment validation failed. Refusing to boot."** — the schema rejected one or more values. The error lists every offending key with its constraint. Common causes: secret `< 32` chars (placeholder leftover), `STORAGE_PROVIDER` set to a value not in the enum, malformed `DATABASE_URL`, `DO_SPACES_ENDPOINT` that is not a bare host — a scheme, a path or whitespace (it takes a host such as `fra1.digitaloceanspaces.com`, optionally with a port).
 
 **Test suite fails with the same error** — `.env.test` is missing a key the schema requires. Add it with a deterministic dummy value (`>= 32` chars).
 
-**Boot succeeds but a feature crashes at first call** — usually a conditional (Stripe/Paddle/S3) where the toggle is set but the matching credentials aren't. Look for the explicit "required when X is configured" error message in the factory.
+**Boot fails with `Missing required env var: X (STORAGE_PROVIDER=…)`** — the selected storage provider is missing variable `X`. See the storage paragraph under [Key categories](#key-categories).
+
+**Boot succeeds but a feature crashes at first call** — usually a conditional (Stripe/Paddle) where the toggle is set but the matching credentials aren't. Look for the explicit "required when X is configured" error message in the factory.
 
 **Lint error on `process.env.X` access** — fitness check #16 caught a regression. Replace with `env.X`.

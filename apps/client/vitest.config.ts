@@ -13,7 +13,7 @@ import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { buildWorkspaceAliases, findMonorepoRoot } from "@packages/vitest-shared";
 
-const root = findMonorepoRoot(__dirname);
+const root = findMonorepoRoot(import.meta.dirname);
 
 // App-local aliases — resolved BEFORE the shared workspace map (precedence is
 // array order). These come from the app's OWN tsconfig.json, not tsconfig.base.json:
@@ -39,7 +39,7 @@ const appLocalAliases: { find: string; replacement: string }[] = [
     find: "@packages/api-errors",
     replacement: path.resolve(root, "packages/api-errors/src/index.ts"),
   },
-  { find: "@", replacement: path.resolve(__dirname, "./") },
+  { find: "@", replacement: path.resolve(import.meta.dirname, "./") },
 ];
 
 export default defineConfig({
