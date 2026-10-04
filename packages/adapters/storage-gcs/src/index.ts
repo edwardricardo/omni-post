@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 
-import { Storage } from "@google-cloud/storage";
+import { Storage, type StorageOptions } from "@google-cloud/storage";
 import { ok, err, type Result } from "@shared/types";
 import type { StoragePort, UploadSignature, MediaMetadata } from "@ports/core";
 
@@ -12,8 +12,39 @@ export interface GcsStorageConfig {
   projectId: string;
   bucketName: string;
   keyFilePath?: string;
+  /** Base64 of a service-account JSON key. Omit both key options to use Application Default Credentials. */
   keyJson?: string;
   cdnUrl?: string;
+}
+
+type GcsCredentials = NonNullable<StorageOptions["credentials"]>;
+
+const INVALID_KEY_JSON = "GCS keyJson must be a base64-encoded service-account JSON key";
+
+function isServiceAccountKey(value: unknown): value is GcsCredentials {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "client_email" in value &&
+    typeof value.client_email === "string" &&
+    "private_key" in value &&
+    typeof value.private_key === "string"
+  );
+}
+
+/**
+ * Decodes the key once, at construction, so a malformed value fails the boot
+ * instead of the first upload. The message never echoes the key material.
+ */
+function parseServiceAccountKey(keyJson: string): GcsCredentials {
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(Buffer.from(keyJson, "base64").toString("utf8"));
+  } catch {
+    throw new Error(INVALID_KEY_JSON);
+  }
+  if (!isServiceAccountKey(decoded)) throw new Error(INVALID_KEY_JSON);
+  return decoded;
 }
 
 const ALLOWED_TYPES = new Set([
@@ -30,18 +61,12 @@ const _MAX_FILE_SIZE = 100 * 1024 * 1024;
 const SIGNATURE_EXPIRY_MS = 15 * 60 * 1000;
 
 export function createGcsStorageAdapter(config: GcsStorageConfig): StoragePort {
-  const credentials = config.keyJson
-    ? (JSON.parse(Buffer.from(config.keyJson, "base64").toString()) as Record<string, unknown>)
-    : undefined;
+  const credentials = config.keyJson ? parseServiceAccountKey(config.keyJson) : undefined;
 
   const storage = new Storage({
     projectId: config.projectId,
     ...(config.keyFilePath ? { keyFilename: config.keyFilePath } : {}),
-    ...(credentials
-      ? {
-          credentials: credentials as import("@google-cloud/storage").StorageOptions["credentials"],
-        }
-      : {}),
+    ...(credentials ? { credentials } : {}),
   });
 
   const bucket = storage.bucket(config.bucketName);
@@ -89,7 +114,7 @@ export function createGcsStorageAdapter(config: GcsStorageConfig): StoragePort {
 
         return ok({
           filename: blobName.split("/").pop() ?? blobName,
-          contentType: (metadata.contentType as string) ?? "application/octet-stream",
+          contentType: metadata.contentType ?? "application/octet-stream",
           size: Number(metadata.size ?? 0),
         });
       } catch (error: unknown) {

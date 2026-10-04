@@ -1768,10 +1768,10 @@ importers:
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
-      prom-client:
-        specifier: 'catalog:'
-        version: 15.1.3
     devDependencies:
+      '@packages/vitest-shared':
+        specifier: workspace:*
+        version: link:../../vitest-shared
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1849,10 +1849,10 @@ importers:
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
-      prom-client:
-        specifier: 'catalog:'
-        version: 15.1.3
     devDependencies:
+      '@packages/vitest-shared':
+        specifier: workspace:*
+        version: link:../../vitest-shared
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

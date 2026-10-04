@@ -1,14 +1,10 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-03, the override audit on `workstream/refound-override-audit`
-([D47](#decisions-log)): the 24 overrides with neither a canon row nor a comment were measured one by
-one; 21 leave, `gaxios@7` with its allowlist entry in the override-bands gate, `@opentelemetry/core`
-stays as a CVE floor and two google-auth pins stay as compatibility pins; `@protobufjs/utf8` leaves
-too, and the catalog comments stop claiming "latest". No metric moves: M1 stays `959 + 8` and M7
-`12/12`. Previous: Phase 0's closing rule on
-`workstream/refound-phase0-without-016` ([D46](#decisions-log)). This line moves with the last pull
-request that moved a row.
+**As of:** 2026-10-04, the storage adapters on `workstream/storage-adapters-wiring`: the GCS and
+Azure adapters compile, build and are tested like the S3 one, which adds their two suites and vitest
+configs (M1 `959 + 8` → `961 + 8`, M8 `1/87` → `1/89`). Previous: the override audit on `workstream/refound-override-audit`
+([D47](#decisions-log)). This line moves with the last pull request that moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
 The measured state of the testing re-foundation, and the fixed plan it executes. Rules live in
@@ -67,9 +63,11 @@ on `workstream/refound-dead-devdeps` ([D35](#decisions-log)), which added the bu
 ([D38](#decisions-log)), which added the secret-scan gate row (M7 `9/9` → `10/10`), `PR iv` is slice
 (iv) on `workstream/refound-jscpd-5` ([D39](#decisions-log)), which added the duplicate-code gate row (M7
 `10/10` → `11/11`), `PR iv-b` is the stale-entry gate on `workstream/refound-jscpd-stale-gate`,
-stacked on slice (iv), which added the gate's suite (M1 `957 + 8` → `958 + 8`), and `PR watch` is the
+stacked on slice (iv), which added the gate's suite (M1 `957 + 8` → `958 + 8`), `PR watch` is the
 maturity watchlist on `workstream/refound-maturity-watchlist` ([D45](#decisions-log)), which added its
-suite and its gate row (M1 `958 + 8` → `959 + 8`, M7 `11/11` → `12/12`). A `PR` followed by a
+suite and its gate row (M1 `958 + 8` → `959 + 8`, M7 `11/11` → `12/12`), and `PR store` is the storage
+adapters change on `workstream/storage-adapters-wiring`, which added the GCS and Azure adapter suites
+and vitest configs (M1 `959 + 8` → `961 + 8`, M8 `1/87` → `1/89`). A `PR` followed by a
 letter and a number with no dot between them — `PR R4`, `PR V6`, `PR E2`, `PR C1`, `PR X1` — is the
 [§Plan (fixed)](#plan-fixed)'s own label for the pull request that
 closes the work-unit bullet it ends: `R` in Phase 1, `V` in Phase 3, `E` in Phase 4b, `C` in Phase 5
@@ -78,14 +76,14 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 959 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR watch |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 961 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR store |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
 | M5  | Orphan test files · files with 2 collectors                       | 23 · ≥10              | 23 · ≥10              | 0 · 0         | `metrics.mjs --m5` (`test-contracts reach --json`, WU-1.9; absent at baseline)          | —        |
 | M6  | Ledger rows: machine / confirmed / total                          | —                     | —                     | 0 / N / N     | `metrics.mjs --m6` (`ledger.json`; absent at baseline)                                  | —        |
 | M7  | Gates new/modified, red proven                                    | 0/0                   | 12/12                 | n/n           | `metrics.mjs --m7` (derived: this document's [§Gates](#gates) table)                    | PR watch |
-| M8  | Packages with coverage measured · floors min/median/api           | 1/86 · —/—/56.8       | 1/87 · —/—/56.8       | all / all     | `metrics.mjs --m8` (derived: tracked `vitest.config.*` thresholds)                      | PR P.2   |
+| M8  | Packages with coverage measured · floors min/median/api           | 1/86 · —/—/56.8       | 1/89 · —/—/56.8       | all / all     | `metrics.mjs --m8` (derived: tracked `vitest.config.*` thresholds)                      | PR store |
 | M9  | TIER runs: skipped / cancelled · runtime `t.skip` sites           | 0/0 · 114             | 0/0 · 114             | 0/0 · 0       | `metrics.mjs --m9` (pasted: TIER run summary; sites by WU-1.13 AST scan)                | —        |
 | M10 | E2E specs in CI, required? · last verdict                         | 0 · no                | 0 · no                | ≥6 · yes      | `metrics.mjs --m10` (run id, once WU-6.E8 lands the job)                                | —        |
 | M11 | k6 runs in CI · last verdict                                      | 0                     | 0                     | every PR      | `metrics.mjs --m11` (run id, once WU-6.K4 lands the job)                                | —        |

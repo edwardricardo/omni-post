@@ -9,14 +9,32 @@
   "files": [
     "dist"
   ],
-  "main": "src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./*": {
+      "development": "./src/*",
+      "default": "./dist/*"
+    }
+  },
   "dependencies": {
     "@google-cloud/storage": "7.19.0",
     "@ports/core": "workspace:*",
-    "@shared/types": "workspace:*",
-    "prom-client": "catalog:"
+    "@shared/types": "workspace:*"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "build": "tsc -b tsconfig.build.json",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@packages/vitest-shared": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
