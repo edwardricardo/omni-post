@@ -1,10 +1,11 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-04, the storage adapters on `workstream/storage-adapters-wiring`: the GCS and
-Azure adapters compile, build and are tested like the S3 one, which adds their two suites and vitest
-configs (M1 `959 + 8` → `961 + 8`, M8 `1/87` → `1/89`). Previous: the override audit on `workstream/refound-override-audit`
-([D47](#decisions-log)). This line moves with the last pull request that moved a row.
+**As of:** 2026-10-04, DigitalOcean Spaces on `workstream/storage-do-spaces-selection`: the provider
+goes through its adapter package, which gains a suite and a vitest config, and the factory's suite moves
+under `tests/unit/infrastructure/storage` (M1 `961 + 8` → `962 + 8`, M8 `1/89` → `1/90`). Previous: the
+storage adapters on `workstream/storage-adapters-wiring`. This line moves with the last pull request that
+moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
 The measured state of the testing re-foundation, and the fixed plan it executes. Rules live in
@@ -65,9 +66,11 @@ on `workstream/refound-dead-devdeps` ([D35](#decisions-log)), which added the bu
 `10/10` → `11/11`), `PR iv-b` is the stale-entry gate on `workstream/refound-jscpd-stale-gate`,
 stacked on slice (iv), which added the gate's suite (M1 `957 + 8` → `958 + 8`), `PR watch` is the
 maturity watchlist on `workstream/refound-maturity-watchlist` ([D45](#decisions-log)), which added its
-suite and its gate row (M1 `958 + 8` → `959 + 8`, M7 `11/11` → `12/12`), and `PR store` is the storage
+suite and its gate row (M1 `958 + 8` → `959 + 8`, M7 `11/11` → `12/12`), `PR store` is the storage
 adapters change on `workstream/storage-adapters-wiring`, which added the GCS and Azure adapter suites
-and vitest configs (M1 `959 + 8` → `961 + 8`, M8 `1/87` → `1/89`). A `PR` followed by a
+and vitest configs (M1 `959 + 8` → `961 + 8`, M8 `1/87` → `1/89`), and `PR space` is the DigitalOcean
+Spaces change on `workstream/storage-do-spaces-selection`, which added that adapter's suite and config
+and moved the factory's suite (M1 `961 + 8` → `962 + 8`, M8 `1/89` → `1/90`). A `PR` followed by a
 letter and a number with no dot between them — `PR R4`, `PR V6`, `PR E2`, `PR C1`, `PR X1` — is the
 [§Plan (fixed)](#plan-fixed)'s own label for the pull request that
 closes the work-unit bullet it ends: `R` in Phase 1, `V` in Phase 3, `E` in Phase 4b, `C` in Phase 5
@@ -76,14 +79,14 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 961 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR store |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 962 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR space |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
 | M5  | Orphan test files · files with 2 collectors                       | 23 · ≥10              | 23 · ≥10              | 0 · 0         | `metrics.mjs --m5` (`test-contracts reach --json`, WU-1.9; absent at baseline)          | —        |
 | M6  | Ledger rows: machine / confirmed / total                          | —                     | —                     | 0 / N / N     | `metrics.mjs --m6` (`ledger.json`; absent at baseline)                                  | —        |
 | M7  | Gates new/modified, red proven                                    | 0/0                   | 12/12                 | n/n           | `metrics.mjs --m7` (derived: this document's [§Gates](#gates) table)                    | PR watch |
-| M8  | Packages with coverage measured · floors min/median/api           | 1/86 · —/—/56.8       | 1/89 · —/—/56.8       | all / all     | `metrics.mjs --m8` (derived: tracked `vitest.config.*` thresholds)                      | PR store |
+| M8  | Packages with coverage measured · floors min/median/api           | 1/86 · —/—/56.8       | 1/90 · —/—/56.8       | all / all     | `metrics.mjs --m8` (derived: tracked `vitest.config.*` thresholds)                      | PR space |
 | M9  | TIER runs: skipped / cancelled · runtime `t.skip` sites           | 0/0 · 114             | 0/0 · 114             | 0/0 · 0       | `metrics.mjs --m9` (pasted: TIER run summary; sites by WU-1.13 AST scan)                | —        |
 | M10 | E2E specs in CI, required? · last verdict                         | 0 · no                | 0 · no                | ≥6 · yes      | `metrics.mjs --m10` (run id, once WU-6.E8 lands the job)                                | —        |
 | M11 | k6 runs in CI · last verdict                                      | 0                     | 0                     | every PR      | `metrics.mjs --m11` (run id, once WU-6.K4 lands the job)                                | —        |
