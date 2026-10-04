@@ -159,9 +159,12 @@ Measured on `main` at `bad953f2`:
 - **The exact seed list.** The decision names regions ("the EU, the UK, Norway, Switzerland, Canada,
   Australia, New Zealand and similar VAT/GST regimes"), not ISO codes. The implementation slice
   proposes the full ISO list, including which "similar regimes" it adds, for Edward to confirm.
-- **What "suspended" means at a missed routing deadline**: which state of the billing-access state
-  machine in [ADR-0026](ADR-0026-non-payment-lifecycle.md) the account enters, read-only or
-  payment-only. Not decided on 2026-10-04.
+- **Resolved 2026-10-04 — what "suspended" means at a missed routing deadline.** Edward: the
+  account goes through the same flow as a non-payment suspension in
+  [ADR-0026](ADR-0026-non-payment-lifecycle.md) — 72 hours read-only with scheduled posts paused,
+  then the 30-day payment-only lock with weekly deadline notices, then cancellation — with the
+  messages adapted to the routing change (accept the new payment option, rather than fix a failed
+  payment). The new gateway is still never charged before the customer accepts.
 
 ## Revisit if
 
