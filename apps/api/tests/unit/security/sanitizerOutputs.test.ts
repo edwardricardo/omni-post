@@ -27,96 +27,108 @@ interface SanitizerCase {
   /** Observed output of `EnhancedValidator.sanitizeString(input, "html")`. */
   readonly validatorHtml: string;
   /** Observed output of `ServerTemplateEngine.sanitize(input)`. */
-  readonly templateEngine: string;
+  readonly templateEngineHtml: string;
 }
 
-// `sanitize` never reaches the database, so the engine is built over an empty client.
-const unusedPrisma = {} as unknown as PrismaClient;
+/**
+ * The client the engine's constructor requires. `sanitize` never reaches the database, so a read
+ * of any member is a broken premise of this suite: it throws an error naming the member, instead of
+ * returning `undefined` for a later call to fail on with a bare TypeError.
+ */
+const makeUnusedPrismaClient = (): PrismaClient =>
+  new Proxy({} as PrismaClient, {
+    get(_client, member): never {
+      throw new Error(
+        `the sanitizer suite's unused PrismaClient was read at "${String(member)}": ` +
+          "ServerTemplateEngine.sanitize must not reach the database"
+      );
+    },
+  });
 
 const CASES: readonly SanitizerCase[] = [
   {
     name: "a script element",
     input: "<p>kept</p><script>alert(1)</script>",
     validatorHtml: "<p>kept</p>",
-    templateEngine: "<p>kept</p>",
+    templateEngineHtml: "<p>kept</p>",
   },
   {
     name: "an inline event handler on an image",
     input: "<img src=x onerror=alert(1)>",
     validatorHtml: "",
-    templateEngine: '<img src="x">',
+    templateEngineHtml: '<img src="x">',
   },
   {
     name: "a mixed-case javascript URL on an image",
     input: "<IMG SRC=JaVaScRiPt:alert('XSS')>",
     validatorHtml: "",
-    templateEngine: "<img>",
+    templateEngineHtml: "<img>",
   },
   {
     name: "a javascript URL on a link",
     input: '<a href="javascript:alert(1)">link</a>',
     validatorHtml: "link",
-    templateEngine: "<a>link</a>",
+    templateEngineHtml: "<a>link</a>",
   },
   {
     name: "a tab-encoded javascript URL on a link",
     input: '<a href="jav&#x09;ascript:alert(1)">link</a>',
     validatorHtml: "link",
-    templateEngine: "<a>link</a>",
+    templateEngineHtml: "<a>link</a>",
   },
   {
     name: "a data URL on a link",
     input: '<a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">data</a>',
     validatorHtml: "data",
-    templateEngine: "<a>data</a>",
+    templateEngineHtml: "<a>data</a>",
   },
   {
     name: "a data URL on an image",
     input: '<img src="data:image/png;base64,iVBORw0KGgo=">',
     validatorHtml: "",
-    templateEngine: '<img src="data:image/png;base64,iVBORw0KGgo=">',
+    templateEngineHtml: '<img src="data:image/png;base64,iVBORw0KGgo=">',
   },
   {
     name: "an https link with target and rel",
     input: '<a href="https://example.com/" target="_blank" rel="noopener">site</a>',
     validatorHtml: "site",
-    templateEngine: '<a href="https://example.com/" rel="noopener">site</a>',
+    templateEngineHtml: '<a href="https://example.com/" rel="noopener">site</a>',
   },
   {
     name: "an svg carrying onload",
     input: '<svg onload=alert(1)><circle r="1"></circle></svg>',
     validatorHtml: "",
-    templateEngine: '<svg><circle r="1"></circle></svg>',
+    templateEngineHtml: '<svg><circle r="1"></circle></svg>',
   },
   {
     name: "a math element carrying a javascript href",
     input: '<math><mi xlink:href="javascript:alert(1)">x</mi></math>',
     validatorHtml: "",
-    templateEngine: "<math><mi>x</mi></math>",
+    templateEngineHtml: "<math><mi>x</mi></math>",
   },
   {
     name: "an iframe",
     input: '<iframe src="https://evil.example/"></iframe><p>after</p>',
     validatorHtml: "<p>after</p>",
-    templateEngine: "<p>after</p>",
+    templateEngineHtml: "<p>after</p>",
   },
   {
     name: "object and embed elements",
     input: '<object data="evil.swf"></object><embed src="evil.swf"><p>after</p>',
     validatorHtml: "<p>after</p>",
-    templateEngine: "<p>after</p>",
+    templateEngineHtml: "<p>after</p>",
   },
   {
     name: "a style element",
     input: "<style>body{background:url(javascript:alert(1))}</style><p>styled</p>",
     validatorHtml: "<p>styled</p>",
-    templateEngine: "<p>styled</p>",
+    templateEngineHtml: "<p>styled</p>",
   },
   {
     name: "style and event attributes on an allowed tag",
     input: '<p style="color:red" onclick="alert(1)">attrs</p>',
     validatorHtml: "<p>attrs</p>",
-    templateEngine: '<p style="color:red">attrs</p>',
+    templateEngineHtml: '<p style="color:red">attrs</p>',
   },
   // `ALLOWED_ATTR: []` does not remove `data-*`: DOMPurify's ALLOW_DATA_ATTR defaults to
   // true and is checked independently of the attribute allowlist.
@@ -124,13 +136,13 @@ const CASES: readonly SanitizerCase[] = [
     name: "class, id and data attributes on an allowed tag",
     input: '<strong class="x" id="y" data-x="1">kept tag</strong>',
     validatorHtml: '<strong data-x="1">kept tag</strong>',
-    templateEngine: '<strong class="x" id="y" data-x="1">kept tag</strong>',
+    templateEngineHtml: '<strong class="x" id="y" data-x="1">kept tag</strong>',
   },
   {
     name: "an html comment",
     input: "<!-- secret --><p>after comment</p>",
     validatorHtml: "<p>after comment</p>",
-    templateEngine: "<p>after comment</p>",
+    templateEngineHtml: "<p>after comment</p>",
   },
   // Input without a `<` is returned untouched, never parsed; the next row exercises the
   // parser's entity serialization instead.
@@ -138,67 +150,69 @@ const CASES: readonly SanitizerCase[] = [
     name: "escaped entities with no markup",
     input: "&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;quoted&quot; &#x3C;b&#x3E;",
     validatorHtml: "&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;quoted&quot; &#x3C;b&#x3E;",
-    templateEngine: "&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;quoted&quot; &#x3C;b&#x3E;",
+    templateEngineHtml:
+      "&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;quoted&quot; &#x3C;b&#x3E;",
   },
   {
     name: "escaped entities inside markup",
     input: "<p>&lt;b&gt; &amp; &#x3C;i&#x3E; &quot;q&quot; &nbsp;&copy;</p>",
     validatorHtml: '<p>&lt;b&gt; &amp; &lt;i&gt; "q" &nbsp;©</p>',
-    templateEngine: '<p>&lt;b&gt; &amp; &lt;i&gt; "q" &nbsp;©</p>',
+    templateEngineHtml: '<p>&lt;b&gt; &amp; &lt;i&gt; "q" &nbsp;©</p>',
   },
   {
     name: "unclosed markup",
     input: "<p>unclosed <strong>bold <em>both",
     validatorHtml: "<p>unclosed <strong>bold <em>both</em></strong></p>",
-    templateEngine: "<p>unclosed <strong>bold <em>both</em></strong></p>",
+    templateEngineHtml: "<p>unclosed <strong>bold <em>both</em></strong></p>",
   },
   {
     name: "misnested markup",
     input: "<div><p>nested</div></p>",
     validatorHtml: "<p>nested</p><p></p>",
-    templateEngine: "<div><p>nested</p></div><p></p>",
+    templateEngineHtml: "<div><p>nested</p></div><p></p>",
   },
   {
     name: "a noscript title mutation payload",
     input: '<noscript><p title="</noscript><img src=x onerror=alert(1)>">',
     validatorHtml: "<p></p>",
-    templateEngine: "<p></p>",
+    templateEngineHtml: "<p></p>",
   },
   {
     name: "an svg style mutation payload",
     input: "<svg><style><img src=x onerror=1></style></svg>",
     validatorHtml: "",
-    templateEngine: '<svg><style></style></svg><img src="x">',
+    templateEngineHtml: '<svg><style></style></svg><img src="x">',
   },
   {
     name: "a form and mglyph namespace-confusion payload",
     input: "<form><math><mtext></form><form><mglyph><style></math><img src onerror=alert(1)>",
     validatorHtml: "",
-    templateEngine: "<form><math><mtext><form></form></mtext></math></form>",
+    templateEngineHtml: "<form><math><mtext><form></form></mtext></math></form>",
   },
   {
     name: "list, break and underline markup",
     input: '<ul><li title="t">one</li><li>two</li></ul><ol><li>x</li></ol><br><u>u</u>',
     validatorHtml: "<ul><li>one</li><li>two</li></ul><ol><li>x</li></ol><br><u>u</u>",
-    templateEngine: '<ul><li title="t">one</li><li>two</li></ul><ol><li>x</li></ol><br><u>u</u>',
+    templateEngineHtml:
+      '<ul><li title="t">one</li><li>two</li></ul><ol><li>x</li></ol><br><u>u</u>',
   },
   {
     name: "a table",
     input: "<table><tr><td>cell</td></tr></table>",
     validatorHtml: "cell",
-    templateEngine: "<table><tbody><tr><td>cell</td></tr></tbody></table>",
+    templateEngineHtml: "<table><tbody><tr><td>cell</td></tr></tbody></table>",
   },
   {
     name: "plain text with an ampersand",
     input: "Hello world & friends",
     validatorHtml: "Hello world & friends",
-    templateEngine: "Hello world & friends",
+    templateEngineHtml: "Hello world & friends",
   },
   {
     name: "an empty string",
     input: "",
     validatorHtml: "",
-    templateEngine: "",
+    templateEngineHtml: "",
   },
 ];
 
@@ -237,12 +251,15 @@ describe("ServerTemplateEngine.sanitize with the default DOMPurify profile", () 
   let engine: ServerTemplateEngine;
 
   beforeEach(() => {
-    engine = new ServerTemplateEngine(unusedPrisma);
+    engine = new ServerTemplateEngine(makeUnusedPrismaClient());
   });
 
-  it.each(CASES)("returns the observed output when given $name", ({ input, templateEngine }) => {
-    const output = engine.sanitize(input);
+  it.each(CASES)(
+    "returns the observed output when given $name",
+    ({ input, templateEngineHtml }) => {
+      const output = engine.sanitize(input);
 
-    expect(output).toBe(templateEngine);
-  });
+      expect(output).toBe(templateEngineHtml);
+    }
+  );
 });

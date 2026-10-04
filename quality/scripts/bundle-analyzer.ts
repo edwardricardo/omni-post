@@ -70,6 +70,18 @@ interface PnpmLicensedPackage {
 
 type PnpmLicenseReport = Record<string, PnpmLicensedPackage[]>;
 
+/** The fields of the project's `package.json` the analysis reads: it counts each map's keys. */
+interface PackageManifest {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+}
+
+/**
+ * The lockfile the constructor finds, as it is read: pnpm's YAML as text, npm's JSON parsed. No
+ * step of the analysis reads it.
+ */
+type ProjectLockfile = { type: "pnpm"; content: string } | { type: "npm"; content: unknown };
+
 function isKnipDependencyList(value: unknown): value is KnipDependency[] | undefined {
   return (
     value === undefined ||
@@ -150,8 +162,9 @@ function isPnpmLicenseReport(value: unknown): value is PnpmLicenseReport {
 
 export class BundleAnalyzer {
   private projectRoot: string;
-  private packageJson: any;
-  private lockfile: any;
+  /** Assigned by `loadProjectFiles`, which the constructor calls before anything reads it. */
+  private packageJson!: PackageManifest;
+  private lockfile: ProjectLockfile | null = null;
   private reportsDir: string;
   private readonly runCommand: CommandRunner;
 
