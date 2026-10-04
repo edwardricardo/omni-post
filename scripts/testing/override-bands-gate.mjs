@@ -98,15 +98,12 @@ const ALLOWED = new Map([
       'minimal-patch rule is satisfied rather than waived (SECURITY_CANON.md §"CVE-floor pins")',
   ],
   [
-    "gaxios@7",
-    "a de-dup pin scoped to ONE major line rather than a floor, so its target necessarily satisfies " +
-      "the band: measured in the lockfile, 6.7.1 coexists with 7.1.5, and a blanket pin would force " +
-      "every 6.x consumer onto a major it does not declare",
-  ],
-  [
     "google-auth-library@10",
-    "the same major-scoped de-dup as gaxios@7, in the same atomic family: the lockfile carries " +
-      "9.15.1 beside 10.7.0, so the band has to be the 10.x line rather than the whole name",
+    "a compatibility pin scoped to ONE major line rather than a floor, so its target necessarily " +
+      "satisfies the band: without it googleapis-common@8.0.2 resolves the 10.5.0 it declares exactly " +
+      "beside the catalog's 10.7.0, and @providers/youtube fails its typecheck with seven TS2769 " +
+      '(SECURITY_CANON.md §"Compatibility pins"); the lockfile carries 9.15.1 beside 10.7.0, so the ' +
+      "band has to be the 10.x line rather than the whole name",
   ],
 ]);
 
@@ -411,7 +408,8 @@ function judge(entry) {
         `override pins the tree to a version the band still selects and can lift nothing above it — ` +
         `it is inert against the advisory it was written for. Raise the bound to the target ` +
         `(\`${canonicalKey(name, band, entry.value)}\`), or record the key in this gate's allowlist ` +
-        `with the measured reason it is a de-dup scoped to one line rather than a floor.`,
+        `with the measured behaviour that makes a pin scoped to one line necessary rather than a ` +
+        `floor; a pin that only de-duplicates is dropped instead (ADR-0018).`,
     };
   }
 
