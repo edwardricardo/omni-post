@@ -480,11 +480,13 @@ and what moved it. A slice that moves the count appends its own line.
     10.0.0 → 10.1.0, `jiti` 2.6.1 → 2.7.0, `prettier` 3.9.5 → 3.9.9 — and deleted the canon row that held all
     six, so six lags left together; `vite` and `turbo` carry PRE-REGISTERED rows for the releases still inside
     the buffer.
-17. `2026-10-04T05:41:03Z` — **9**: slice `0.15` took five of the quality gates to their latest mature
-    releases — `knip` 6.12.2 → 6.38.0, `size-limit` and its preset 12.1.0 → 14.0.1, `lint-staged` 16.4.0 →
-    17.6.0, `@hey-api/openapi-ts` 0.97.3 → 0.99.0, `@faker-js/faker` 10.5.0 → 10.6.0 — and replaced the canon
-    row that held them with what still lags, so six lags left together: `dependency-cruiser` keeps a row of
-    its own until item (v) of the replacement plan, and `knip` and `size-limit` carry PRE-REGISTERED rows.
+17. `2026-10-04T05:41:03Z` — **9**: slice `0.15` took five quality-gate tools, `size-limit` with its preset,
+    to their latest mature releases — `knip` 6.12.2 → 6.38.0, `size-limit` and its preset 12.1.0 → 14.0.1,
+    `lint-staged` 16.4.0 → 17.6.0, `@hey-api/openapi-ts` 0.97.3 → 0.99.0, `@faker-js/faker` 10.5.0 → 10.6.0 —
+    and replaced the canon row that held them with what still lags, so six lags left together:
+    `dependency-cruiser` keeps a row of its own until item (v) of the replacement plan, and `knip` and
+    `size-limit`, at their latest mature releases, carry PRE-REGISTERED rows for the newer releases still
+    inside the buffer.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
