@@ -1,7 +1,7 @@
 # Review Suggestions Book
 
 **Owner:** Platform engineering
-**As of:** 2026-10-03
+**As of:** 2026-10-04
 **Purpose:** the ledger of review findings disposed as **JUSTIFIED — deferred** because they change no behaviour: comment placement, docstring wording, naming, test-fixture readability, and extra test coverage for branches that already share tested code. Every entry names the candidate, the finding, the exact location and what implementing it would take, so it can be picked up later without re-deriving anything.
 
 ## Rules
@@ -68,6 +68,7 @@
 | SB-047 | same                                                                                  | R4-fail-on-empty-risk                                            | `.jscpd.json` (`failOnEmpty: true`)                                                                                                         | failure mode                 | closed: a scan that reads nothing must not report green (fitness #36, #44); a misconfiguration is what it stops                                                 |
 | SB-048 | same                                                                                  | R3-pnpm-lock-generated                                           | `pnpm-lock.yaml`                                                                                                                            | review scope                 | closed: the battery installs frozen and audits; CI runs `pnpm dedupe --check`; D39 (b) carries the delta                                                        |
 | SB-049 | same                                                                                  | R2-unused-code-inventory-stale                                   | `docs/reports/UNUSED_CODE_INVENTORY.md` (the `jscpd.json` rows of §4.5 and §8.1)                                                            | audit record                 | closed: the inventory is an audit record; a resolution is appended in its row, as D35 did (7f4f6e0b)                                                            |
+| SB-050 | F6a (`workstream/env-secret-fallbacks`, eb6bc726)                                     | R2-config-spread-shadowing                                       | `apps/api/src/auth/providerOAuthConfigs.ts`, the eight `validateCode` bodies                                                                | naming                       | deferred: name the credentials-merged local apart from `OAuthConfig`, or destructure the credentials                                                            |
 
 ## Entries — code and prose
 
@@ -342,6 +343,14 @@
 - **Suggestion:** the progress a reader comes for (metrics, work units, gates, decisions) sits inside a document dominated by the fixed plan and by measurement narratives.
 - **Why deferred:** prose structure only. Moving the plan out touches every link into it and every slice of the stack that edits it; the split is its own change, not a line in a rebase.
 - **To implement:** keep §Estado and the tables in the tracker; move §Plan (fixed) to a sibling file under `docs/development/` and the measurement narratives (toolchain lag, OSV) to `docs/reports/`, leaving one link each.
+
+### SB-050 — each `validateCode` names its credentials-merged object `config`
+
+- **Source:** review `review-b1e3dfd3916d6f28` of night slice F6a (`workstream/env-secret-fallbacks`, `eb6bc726`), readability lens, finding `R2-config-spread-shadowing`.
+- **Location:** `apps/api/src/auth/providerOAuthConfigs.ts`, the `const config = { ...this.config, ...requireCredentials(this) }` line of each of the eight `validateCode` bodies, and their `config.*` reads.
+- **Suggestion:** name the merged local apart from the exported `OAuthConfig` (for example `authenticatedConfig`), or destructure the credentials, so a reader does not look for `clientId` on a type that no longer carries it.
+- **Why deferred:** naming; the merged object and every read of it behave the same under either name, and the rename touches about thirty lines across eight functions.
+- **To implement:** rename the local in the eight bodies, or read `{ clientId, clientSecret }` from `requireCredentials(this)` and the rest from `this.config`.
 
 ## Entries — tests
 

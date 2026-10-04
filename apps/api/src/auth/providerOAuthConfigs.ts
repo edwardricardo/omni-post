@@ -64,7 +64,10 @@ export interface OAuthProvider {
 // Helpers — declared before oauthProviders to avoid Temporal Dead Zone errors
 // ---------------------------------------------------------------------------
 
-/** Placeholder config for providers whose OAuth flow is not yet built. */
+/**
+ * Placeholder config for providers whose OAuth flow is not yet built. Such a provider has no
+ * `credentials` either, which is what `providerOAuthFlow.ts` checks before starting a flow.
+ */
 const EMPTY_OAUTH_CONFIG: OAuthConfig = {
   redirectUri: "",
   scopes: [],
