@@ -1,10 +1,10 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-04, the Paddle webhook fix on `workstream/paddle-webhook-await`: the adapter awaits
-the SDK's signature check, and its new suite moves M1 `963 + 8` → `964 + 8`. Previous: slice `0.20`'s third
-pull request on `workstream/no-unowned-handle-unref-wiring`. This line moves with the last pull request
-that moved a row.
+**As of:** 2026-10-04, the OAuth credentials change on `workstream/env-secret-fallbacks`: a provider with no
+credentials is unconfigured rather than configured with empty strings, and its new suite moves M1 `964 + 8` →
+`965 + 8`. Previous: the Paddle webhook fix on `workstream/paddle-webhook-await`. This line moves with the
+last pull request that moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
 The measured state of the testing re-foundation, and the fixed plan it executes. Rules live in
@@ -73,8 +73,10 @@ and moved the factory's suite (M1 `961 + 8` → `962 + 8`, M8 `1/89` → `1/90`)
 `0.20` on `workstream/no-unowned-handle-unref`, which created `packages/eslint-plugin-testing` with its
 rule suite and vitest config (M1 `962 + 8` → `963 + 8`, M8 `1/90` → `1/91`) and, in its third pull
 request on `workstream/no-unowned-handle-unref-wiring`, wired the rule into `eslint.config.ts` and added
-its gate row (M7 `12/12` → `13/13`), and `PR await` is the Paddle webhook fix on
-`workstream/paddle-webhook-await`, which added the adapter's suite (M1 `963 + 8` → `964 + 8`). A `PR` followed by a
+its gate row (M7 `12/12` → `13/13`), `PR await` is the Paddle webhook fix on
+`workstream/paddle-webhook-await`, which added the adapter's suite (M1 `963 + 8` → `964 + 8`), and `PR envfb` is
+the OAuth credentials change on `workstream/env-secret-fallbacks`, which added the credentials suite (M1
+`964 + 8` → `965 + 8`). A `PR` followed by a
 letter and a number with no dot between them — `PR R4`, `PR V6`, `PR E2`, `PR C1`, `PR X1` — is the
 [§Plan (fixed)](#plan-fixed)'s own label for the pull request that
 closes the work-unit bullet it ends: `R` in Phase 1, `V` in Phase 3, `E` in Phase 4b, `C` in Phase 5
@@ -83,7 +85,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 964 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR await |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 965 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR envfb |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |

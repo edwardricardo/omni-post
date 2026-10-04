@@ -95,13 +95,13 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
     projectId: string
   ): Promise<string> {
     const provider = oauthProviders[providerId];
-    if (!provider || !provider.config.clientId) {
+    if (!provider?.credentials) {
       throw AppError.badRequest(`OAuth not configured for provider: ${providerId}`);
     }
 
     return buildAuthorizationUrl({
       authUrl: provider.config.authUrl,
-      clientId: provider.config.clientId,
+      clientId: provider.credentials.clientId,
       redirectUri: provider.config.redirectUri,
       scopes: provider.config.scopes,
       providerId,

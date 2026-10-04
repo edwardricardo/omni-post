@@ -68,6 +68,8 @@
 | SB-047 | same                                                                                  | R4-fail-on-empty-risk                                            | `.jscpd.json` (`failOnEmpty: true`)                                                                                                         | failure mode                 | closed: a scan that reads nothing must not report green (fitness #36, #44); a misconfiguration is what it stops                                                 |
 | SB-048 | same                                                                                  | R3-pnpm-lock-generated                                           | `pnpm-lock.yaml`                                                                                                                            | review scope                 | closed: the battery installs frozen and audits; CI runs `pnpm dedupe --check`; D39 (b) carries the delta                                                        |
 | SB-049 | same                                                                                  | R2-unused-code-inventory-stale                                   | `docs/reports/UNUSED_CODE_INVENTORY.md` (the `jscpd.json` rows of §4.5 and §8.1)                                                            | audit record                 | closed: the inventory is an audit record; a resolution is appended in its row, as D35 did (7f4f6e0b)                                                            |
+| SB-050 | F6a (`workstream/env-secret-fallbacks`, eb6bc726)                                     | R2-config-spread-shadowing                                       | `apps/api/src/auth/providerOAuthConfigs.ts`, the eight `validateCode` bodies                                                                | naming                       | deferred: name the credentials-merged local apart from `OAuthConfig`, or destructure the credentials                                                            |
+| SB-051 | F6a (`workstream/env-secret-fallbacks`, 7d93feb9)                                     | R2-credentialsfromenv-return-type-opaque                         | `apps/api/src/auth/providerOAuthConfigs.ts` `credentialsFromEnv`                                                                            | naming                       | deferred: name the return type (for example `OAuthCredentialFields`) instead of `Pick<OAuthProvider, "credentials">`                                            |
 
 ## Entries — code and prose
 
@@ -342,6 +344,22 @@
 - **Suggestion:** the progress a reader comes for (metrics, work units, gates, decisions) sits inside a document dominated by the fixed plan and by measurement narratives.
 - **Why deferred:** prose structure only. Moving the plan out touches every link into it and every slice of the stack that edits it; the split is its own change, not a line in a rebase.
 - **To implement:** keep §Estado and the tables in the tracker; move §Plan (fixed) to a sibling file under `docs/development/` and the measurement narratives (toolchain lag, OSV) to `docs/reports/`, leaving one link each.
+
+### SB-050 — each `validateCode` names its credentials-merged object `config`
+
+- **Source:** review `review-b1e3dfd3916d6f28` of night slice F6a (`workstream/env-secret-fallbacks`, `eb6bc726`), readability lens, finding `R2-config-spread-shadowing`.
+- **Location:** `apps/api/src/auth/providerOAuthConfigs.ts`, the `const config = { ...this.config, ...requireCredentials(this) }` line of each of the eight `validateCode` bodies, and their `config.*` reads.
+- **Suggestion:** name the merged local apart from the exported `OAuthConfig` (for example `authenticatedConfig`), or destructure the credentials, so a reader does not look for `clientId` on a type that no longer carries it.
+- **Why deferred:** naming; the merged object and every read of it behave the same under either name, and the rename touches about thirty lines across eight functions.
+- **To implement:** rename the local in the eight bodies, or read `{ clientId, clientSecret }` from `requireCredentials(this)` and the rest from `this.config`.
+
+### SB-051 — `credentialsFromEnv` returns an unnamed `Pick<…>` type
+
+- **Source:** review `review-ac79acc5d00d298c` of F6a merged after F7 (`workstream/env-secret-fallbacks`, `7d93feb9`), readability lens, finding `R2-credentialsfromenv-return-type-opaque`.
+- **Location:** `apps/api/src/auth/providerOAuthConfigs.ts`, the return type of `credentialsFromEnv`.
+- **Suggestion:** give the spread's shape a name, so a reader sees what the helper contributes to a provider without resolving `Pick<OAuthProvider, "credentials">`.
+- **Why deferred:** naming; the type and every call site behave the same under either spelling.
+- **To implement:** declare `type OAuthCredentialFields = Pick<OAuthProvider, "credentials">` beside `OAuthCredentials` and use it as the return type.
 
 ## Entries — tests
 

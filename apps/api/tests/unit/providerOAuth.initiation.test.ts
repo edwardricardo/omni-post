@@ -43,7 +43,7 @@ describe("ProviderOAuth - OAuth Initiation", () => {
     const provider = oauthProviders.facebook;
 
     expect(provider).toBeTruthy();
-    expect(provider.config.clientId !== undefined).toBeTruthy();
+    expect(provider.credentials).toBeUndefined();
     expect(provider.config.scopes.includes("pages_manage_posts")).toBeTruthy();
   });
 
@@ -64,7 +64,7 @@ describe("ProviderOAuth - OAuth Initiation", () => {
   it("should include required OAuth parameters in URL", () => {
     const provider = oauthProviders.x;
     const params = new URLSearchParams({
-      client_id: provider.config.clientId,
+      client_id: "x-client-id",
       redirect_uri: provider.config.redirectUri,
       scope: provider.config.scopes.join(" "),
       state: "test-state",
@@ -84,7 +84,7 @@ describe("ProviderOAuth - OAuth Initiation", () => {
     const provider = oauthProviders.x;
 
     const params = new URLSearchParams({
-      client_id: provider.config.clientId,
+      client_id: "x-client-id",
       code_challenge: "challenge",
       code_challenge_method: "plain",
     });
