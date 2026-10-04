@@ -10,7 +10,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeAll, afterAll, vi, expect } from "vitest";
+import { describe, it, beforeAll, beforeEach, afterAll, vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import {
   serializerCompiler,
@@ -23,6 +23,19 @@ import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler
 import { createTestContainer } from "../../src/infrastructure/container/setup.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import type { PrismaClient } from "@infra/prisma";
+import type { StoragePort } from "@ports/core";
+
+const { storageCheckerTargets } = vi.hoisted(() => ({
+  storageCheckerTargets: [] as unknown[],
+}));
+
+const stubStorageAdapter: StoragePort = {
+  generateUploadSignature: vi.fn(async () => ({
+    ok: false as const,
+    error: "SERVICE_ERROR" as const,
+  })),
+  getMediaMetadata: vi.fn(async () => ({ ok: false as const, error: "SERVICE_ERROR" as const })),
+};
 
 // ─── Mock Types ─────────────────────────────────────────────────────
 type MockRedis = Pick<Redis, "ping" | "get" | "set" | "del" | "keys">;
@@ -187,7 +200,11 @@ vi.mock("@monitoring/health-checks", async (importOriginal) => {
     RedisHealthChecker: class {},
     CacheHealthChecker: class {},
     QueueHealthChecker: class {},
-    StorageHealthChecker: class {},
+    StorageHealthChecker: class {
+      constructor(storage: unknown) {
+        storageCheckerTargets.push(storage);
+      }
+    },
     ProviderHealthChecker: class {},
   };
 });
@@ -205,11 +222,6 @@ vi.mock("@adapters/queue-bullmq", async (importOriginal) => {
   return { ...actual };
 });
 
-// Full REPLACE intentional — storage-s3 has import-time side effects.
-vi.mock("@adapters/storage-s3", () => ({
-  createS3StorageAdapter: vi.fn(() => ({})),
-}));
-
 vi.mock("../../src/providers/providerRegistry.js", () => ({
   providerRegistry: {},
 }));
@@ -218,6 +230,10 @@ describe("healthRoutes - Unit Tests", () => {
   let app: FastifyInstance;
   let mockRedis: MockRedis;
   let mockCacheManager: MockCacheManager;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   beforeAll(async () => {
     mockRedis = createMockRedis();
@@ -264,9 +280,12 @@ describe("healthRoutes - Unit Tests", () => {
     app.decorate("container", container);
 
     const { healthRoutes } = await import("../../src/health/healthRoutes.js");
+    // The checker double records at registration, so the record holds this registration only.
+    storageCheckerTargets.length = 0;
     await app.register(healthRoutes, {
       redis: mockRedis as Redis,
       cacheManager: mockCacheManager as RedisCacheManager,
+      storageAdapter: stubStorageAdapter,
     });
   });
 
@@ -502,6 +521,13 @@ describe("healthRoutes - Unit Tests", () => {
       expect(body.ok).toBe(false);
       expect(body.dependency).toBe("exploding");
       expect(body.status).toBe("unhealthy");
+    });
+  });
+
+  describe("storage dependency", () => {
+    it("checks the storage adapter the composition root injected", () => {
+      expect(storageCheckerTargets).toHaveLength(1);
+      expect(storageCheckerTargets[0]).toBe(stubStorageAdapter);
     });
   });
 });

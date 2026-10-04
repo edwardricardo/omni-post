@@ -187,6 +187,30 @@ describe("env schema (apps/api/src/config/env.ts)", () => {
     });
   });
 
+  // The Spaces adapter prepends `https://`; a scheme in the value would only surface as a broken
+  // URL on the first storage request instead of at boot.
+  describe("DO_SPACES_ENDPOINT shape", () => {
+    it.each([
+      "https://ams3.digitaloceanspaces.com",
+      "//ams3.digitaloceanspaces.com",
+      " ams3.digitaloceanspaces.com",
+      "ams3.digitaloceanspaces.com/bucket",
+      "-ams3.digitaloceanspaces.com",
+      "ams3-.digitaloceanspaces.com",
+    ])("rejects %j, naming the bare-host shape it expects", async (value) => {
+      await expect(loadEnvWith({ DO_SPACES_ENDPOINT: value })).rejects.toThrow(
+        /DO_SPACES_ENDPOINT.*bare host.*fra1\.digitaloceanspaces\.com/
+      );
+    });
+
+    it("accepts a bare host", async () => {
+      const env = (await loadEnvWith({ DO_SPACES_ENDPOINT: "fra1.digitaloceanspaces.com" })) as {
+        DO_SPACES_ENDPOINT: string;
+      };
+      expect(env.DO_SPACES_ENDPOINT).toBe("fra1.digitaloceanspaces.com");
+    });
+  });
+
   // The trusted-proxy interlock (ADR-0021). These are boot-refusal tests, not
   // value tests: the point is that an inconsistent pair CANNOT produce a running
   // app that quietly picks one of the two models on the operator's behalf.

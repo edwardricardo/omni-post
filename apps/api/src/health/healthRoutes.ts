@@ -17,15 +17,13 @@ import {
 } from "@monitoring/health-checks";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import type { QueuePortRegistry } from "@ports/core";
-import { createS3StorageAdapter } from "@adapters/storage-s3";
+import type { QueuePortRegistry, StoragePort } from "@ports/core";
 import { providerRegistry } from "../providers/providerRegistry.js";
 import type { Redis } from "ioredis";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { PrismaClient } from "@infra/prisma";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { env } from "../config/env.js";
 
 /**
  * Health check routes for monitoring and Kubernetes probes
@@ -42,9 +40,14 @@ export async function healthRoutes(
   options: {
     redis: Redis;
     cacheManager: RedisCacheManager;
+    /**
+     * The adapter the composition root built for the configured STORAGE_PROVIDER, so the
+     * probe checks the backend the app actually uses.
+     */
+    storageAdapter: StoragePort;
   }
 ) {
-  const { redis, cacheManager } = options;
+  const { redis, cacheManager, storageAdapter } = options;
   const scheduler = fastify.container!.resolve<BackgroundTaskScheduler>(
     TOKENS.BackgroundTaskScheduler
   );
@@ -70,12 +73,6 @@ export async function healthRoutes(
   const queueAdapter = fastify
     .container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
     .forQueue(QUEUE_NAMES.PUBLISH);
-  const storageAdapter = createS3StorageAdapter({
-    bucket: env.S3_BUCKET || "omni-post-media",
-    region: env.S3_REGION || "us-east-1",
-    accessKeyId: env.S3_ACCESS_KEY_ID || "",
-    secretAccessKey: env.S3_SECRET_ACCESS_KEY || "",
-  });
 
   // Register health checkers
   healthManager.register("database", new DatabaseHealthChecker(repoAdapter), {
