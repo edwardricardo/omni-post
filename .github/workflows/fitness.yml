@@ -1911,9 +1911,9 @@ jobs:
         # An ALLOWLIST by shape, the form fitness #28 and #40 use: the admissible shape is one
         # sentence while the inadmissible set is open-ended (a band its target overtook, a bound that
         # was never the target, a major-line scope, an inclusive bound, a shape nobody predicted). The
-        # deliberate exceptions — an advisory whose named patched version was never published, and one
-        # compatibility pin scoped to one major line — are named inside the gate with their measured reasons, and an
-        # allowlist entry matching no override key is itself a violation, so the list can only shrink.
+        # one deliberate exception — an advisory whose named patched version was never published — is
+        # named inside the gate with its measured reason, and an allowlist entry matching no override
+        # key is itself a violation, so the list can only shrink.
         #
         # It lives in THIS job because the job already owns the manifest and lockfile invariants
         # (syncpack, dedupe, the toolchain holds, the engines declaration), and this gate reads one

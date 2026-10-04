@@ -26,6 +26,9 @@
       "path": "../../packages/adapters/queue-bullmq/tsconfig.build.json"
     },
     {
+      "path": "../../packages/adapters/storage-do-spaces/tsconfig.build.json"
+    },
+    {
       "path": "../../packages/adapters/storage-s3/tsconfig.build.json"
     },
     {

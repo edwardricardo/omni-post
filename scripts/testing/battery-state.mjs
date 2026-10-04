@@ -153,6 +153,8 @@ function errorText(error) {
  */
 function removeStaging(staging, primary) {
   try {
+    // Not recursive on purpose: this process only ever writes a file at the staging path, so a
+    // directory found there makes rmSync refuse with EISDIR and is reported below, never torn down.
     rmSync(staging, { force: true });
   } catch (cleanup) {
     throw new Error(

@@ -147,7 +147,7 @@
 
 ---
 
-## Phase 2 — Demolition (design §7.4). **No deletion task may precede gate H3 (task 2.2.2).**
+## Phase 2 — Demolition (design §7.4). **No deletion task may precede gate H3 (task 2.2.2), and the slices that depend on slice 2.3 (2.4 and 2.7–2.15) also wait for gate H8 (task 2.3.1): their deletions can descend a coverage floor, and slice 2.3 adds the marker that admits the descent.**
 
 ### 2.1 · `refound/2-lint-rules` — the durable form (WU-2.4 + WU-8.1a land together)
 
@@ -322,7 +322,7 @@
 ### 4b.5 · `refound/4b-hermetic-shards` (PR E8) — measured first
 
 - [ ] 4b.5.1 **Measured** WU-4b.8 · test-environment-contract › The hermetic profile makes an accidental service dependency fail fast · CODE ~0 · slice `refound/4b-hermetic-shards` — run the api vitest suite under the hermetic profile locally and in a draft PR; list every failure. EVIDENCE ~80.
-- [ ] 4b.5.2 GREEN WU-4b.8 · test-environment-contract › The hermetic profile makes an accidental service dependency fail fast · CODE ~70 (net −70) · slice `refound/4b-hermetic-shards` — **if 4b.5.1 measured 0**: the `test` job loses its `services` and database steps. **If N > 0**: those files are integration tests in the wrong tier → open a ledger row each and this slice waits (record the decision; never soften the profile).
+- [ ] 4b.5.2 GREEN WU-4b.8 · test-environment-contract › The hermetic profile makes an accidental service dependency fail fast · CODE ~70 (net −70) · slice `refound/4b-hermetic-shards` — **if 4b.5.1 measured 0**: the `test` job loses its `services` and database steps. **If N > 0**: those files are integration tests in the wrong tier → open a ledger row each and this slice waits (record the decision; never soften the profile). Acceptance: the slice records the N that 4b.5.1 measured and, for N = 0, the removed `services` and database steps; for N > 0, the ledger row opened for each failing file and the resume condition, a re-run of 4b.5.1 that measures 0.
 - [ ] 4b.5.3 **Red proof** WU-4b.8 · CODE ~0 · slice `refound/4b-hermetic-shards` — a planted api unit test that opens Prisma fails with `ECONNREFUSED 127.0.0.1:1` → restore.
 - [ ] 4b.5.4 Tracker: M8 (shards measured hermetic); Decisions log · CODE ~4 · slice `refound/4b-hermetic-shards`.
 
@@ -480,7 +480,7 @@
 
 ### X.2 · decision — **[HUMAN GATE H7]**
 
-- [ ] X.2.1 **[HUMAN GATE H7]** WU-4.X2 · integration-tier-preconditions › The runner fork is decided by a measured table against stated hypotheses · design §2j · CODE ~20 · slice `refound/x-runner-evidence` — apply the decision rule to X1's table: hard criteria H1 parity 100 %, H2 every red case exits ≠ 0 under B, H3 the guards expressible in config + reporter ≤ 60 lines, H4 no assertion change **and no mock/alias/stub added to make Prisma or the saga engine run under vite**, H5 CI runtime ≤ 1.25× and within 15 min. All pass → consolidate on vitest; one hard fails → keep node:test and record the failed criterion as the class only it sees; only H5 fails with everything else better → Edward with the numbers. **Do not hard-code a runner before this task; later tasks say "per X2 outcome".** Write the outcome into the Decisions log.
+- [ ] X.2.1 **[HUMAN GATE H7]** WU-4.X2 · integration-tier-preconditions › The runner fork is decided by a measured table against stated hypotheses · design §2j · CODE ~20 · slice `refound/x-runner-evidence` — apply the decision rule to X1's table: hard criteria H1 parity 100 %, H2 every red case exits ≠ 0 under B, H3 the guards expressible in config + reporter ≤ 60 lines, H4 no assertion change **and no mock/alias/stub added to make Prisma or the saga engine run under vite**, H5 CI runtime ≤ 1.25× and within 15 min. All pass → consolidate on vitest; any hard criterion other than H5 fails, alone or together with others (H5 included) → keep node:test and record each failed criterion as the class only it sees; only H5 fails → keep node:test the same way, unless everything else is better, in which case → Edward with the numbers. **Do not hard-code a runner before this task; later tasks say "per X2 outcome".** Write the outcome into the Decisions log.
 - [ ] X.2.2 WU-4.X2 · testing-canon-and-tracker › The coding standard states the framework per BOUNDARY, the both-directions rule, and the criterion · CODE ~10 · slice `refound/x-runner-evidence` — resolve the "node:test (or vitest per X2)" cell of the CODING_STANDARDS table (task 2.1.6) to the decided runner; the suffix router is unchanged either way.
 
 ---

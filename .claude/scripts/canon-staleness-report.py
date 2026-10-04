@@ -62,24 +62,25 @@ def main() -> None:
     with CANON_JSON.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
-    stale_synth: list[tuple[int, dict]] = []
+    stale_date: list[tuple[int, dict]] = []
     stale_verify: list[tuple[int, dict]] = []
     undated: list[dict] = []
 
     for entry in data.get("entries", {}).values():
-        synth_age = days_since(entry.get("date") or "")  # the .md date approximates the synthesis
+        # The entry's date in the canon .md: when its research was cited or added.
+        date_age = days_since(entry.get("date") or "")
         verify_age = days_since(entry.get("lastVerified") or "")
 
-        if synth_age is None and verify_age is None:
+        if date_age is None and verify_age is None:
             undated.append(entry)
             continue
-        if synth_age is not None and synth_age > args.synth_days:
-            stale_synth.append((synth_age, entry))
+        if date_age is not None and date_age > args.synth_days:
+            stale_date.append((date_age, entry))
         if verify_age is not None and verify_age > args.verify_days:
             stale_verify.append((verify_age, entry))
 
     # Oldest first.
-    stale_synth.sort(key=lambda t: -t[0])
+    stale_date.sort(key=lambda t: -t[0])
     stale_verify.sort(key=lambda t: -t[0])
 
     lines: list[str] = []
@@ -91,18 +92,18 @@ def main() -> None:
     lines.append("")
     lines.append(
         f"**Total entries**: {len(data.get('entries', {}))} | "
-        f"**Stale synth**: {len(stale_synth)} | "
+        f"**Stale by date**: {len(stale_date)} | "
         f"**Stale verify**: {len(stale_verify)} | "
         f"**Undated**: {len(undated)}"
     )
     lines.append("")
 
-    if stale_synth:
+    if stale_date:
         lines.append(f"## Entries stale by `date` (> {args.synth_days} days)")
         lines.append("")
         lines.append("| Age (d) | Topic | Area | Main URL |")
         lines.append("|---------|-------|------|----------|")
-        for age, entry in stale_synth:
+        for age, entry in stale_date:
             url = ""
             sources = entry.get("sources") or []
             if sources:
@@ -130,7 +131,7 @@ def main() -> None:
             lines.append(f"- {entry.get('topic','')} (area: {entry.get('area','')})")
         lines.append("")
 
-    if not stale_synth and not stale_verify and not undated:
+    if not stale_date and not stale_verify and not undated:
         lines.append("Every entry is within the thresholds. No action required.")
 
     output = "\n".join(lines) + "\n"

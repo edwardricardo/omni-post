@@ -175,8 +175,11 @@ test MAY be written before the infrastructure that measures it exists.
 
 - **GIVEN** several writers working concurrently
 - **WHEN** their pull requests are inspected
-- **THEN** each is scoped to one package, is at most 400 CODE lines (CODE as the budget convention D1 in `tasks.md` defines it), raises its own floor, updates the
-  tracker, and was authored in its own worktree
+- **THEN** each is scoped to one package
+- **AND** each is at most 400 CODE lines (CODE as the budget convention D1 in `tasks.md` defines it)
+- **AND** each raises its own floor
+- **AND** each updates the tracker
+- **AND** each was authored in its own worktree
 
 #### Scenario: No backfill precedes the measuring infrastructure [static]
 

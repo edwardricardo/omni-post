@@ -27,6 +27,9 @@ class ListOperationsTests(unittest.TestCase):
     def test_descriptions_start_at_the_same_column(self):
         listing = _load_cli().list_operations()
         self.assertGreater(len(listing.splitlines()), 1, listing)
+        # " — " is the separator list_operations() writes between the padded
+        # operation name and its description, so its index is the column the
+        # description starts at; a changed separator makes .index() raise.
         columns = {line.index(" — ") for line in listing.splitlines()}
         self.assertEqual(len(columns), 1, listing)
 
