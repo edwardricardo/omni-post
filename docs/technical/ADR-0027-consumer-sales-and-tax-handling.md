@@ -7,7 +7,8 @@
 - **Superseded by**: —
 - **Related**: [ADR-0024](ADR-0024-billing-currency-and-price-catalog.md) (tax-exclusive prices),
   [ADR-0025](ADR-0025-payment-gateway-selection-and-country-routing.md) (country routing),
-  [ADR-0021](ADR-0021-trusted-proxy-peer-model.md) (client IP derivation)
+  [ADR-0021](ADR-0021-trusted-proxy-peer-model.md) (client IP derivation),
+  [ADR-0030](ADR-0030-pricing-model.md) (prepaid terms, early-exit refunds, trial)
 
 ## Context
 
@@ -85,6 +86,20 @@ and 4) established:
    ([ADR-0021](ADR-0021-trusted-proxy-peer-model.md)). A geolocation header such as Cloudflare's
    `CF-IPCountry` is trusted only if the origin is reachable solely through Cloudflare. IP breaks a
    tie; it never decides alone, because VPNs are the documented false positive.
+
+**Pricing model ([ADR-0030](ADR-0030-pricing-model.md), decided later on 2026-10-04).** Four points
+of this record meet the pricing model:
+
+- **Term length follows the business checkbox of point 1.6.** Consumers choose prepaid terms of up
+  to 12 months; buyers who tick "buying as a business" may choose 18 or 24 months.
+- **The voluntary 14-day refund of point 1.2 takes precedence over the early-exit refund formula**
+  (ADR-0030, point 8, rule 4). That rule names "the 14-day consumer withdrawal window"; whether it
+  also covers business buyers, as point 1.2 does, is an open point of ADR-0030.
+- **The reminder of point 1.5 is written for annual renewals.** Which of the other prepaid terms (3,
+  6, 18 and 24 months) get one is an open point of ADR-0030.
+- **A card-required trial** (ADR-0030, point 11, off by default) brings a notice before the first
+  charge, and, under the UK subscription regime from 2027, the cooling-off period after a trial that
+  the Consequences below already list.
 
 ## Rationale
 
@@ -169,6 +184,7 @@ and 4) established:
   competitors, §2 EU and UK consumer rules, §3 Paddle and Stripe coverage, §4 business-only, §5
   options).
 - Specification: [billing-gateways.md](../features/billing-gateways.md).
+- Pricing model: [ADR-0030](ADR-0030-pricing-model.md).
 - Stripe tax IDs — https://docs.stripe.com/invoicing/customer/tax-ids · customer locations —
   https://docs.stripe.com/tax/customer-locations
 - Paddle buyer terms — https://www.paddle.com/legal/buyer-terms · refund policy —

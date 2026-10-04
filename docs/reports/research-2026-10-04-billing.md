@@ -4,14 +4,18 @@
 - **Purpose**: the evidence behind the owner's payment-gateway decisions of 2026-10-04, recorded in
   [ADR-0024](../technical/ADR-0024-billing-currency-and-price-catalog.md),
   [ADR-0025](../technical/ADR-0025-payment-gateway-selection-and-country-routing.md),
-  [ADR-0026](../technical/ADR-0026-non-payment-lifecycle.md) and
-  [ADR-0027](../technical/ADR-0027-consumer-sales-and-tax-handling.md), and specified in
+  [ADR-0026](../technical/ADR-0026-non-payment-lifecycle.md),
+  [ADR-0027](../technical/ADR-0027-consumer-sales-and-tax-handling.md),
+  [ADR-0030](../technical/ADR-0030-pricing-model.md) (pricing model) and
+  [ADR-0031](../technical/ADR-0031-domain-vocabulary.md) (vocabulary), and specified in
   [billing-gateways.md](../features/billing-gateways.md).
-- **Method**: four read-only research workers, each answering one question for Edward. Their
-  reports are reproduced below **verbatim**, each under its own heading, in the order they were
-  produced. Only markdown formatting was adjusted so prettier accepts the file (table padding, list
-  markers); no wording, figure or URL was changed. The reports keep their own headings, so some
-  headings repeat across reports (`Sources`, `Gaps`, `Key Learnings`).
+- **Method**: four read-only research workers, each answering one question for Edward, then, later
+  the same day, a read-only code explorer that mapped the plan model on `main` (Report 5) and a fifth
+  research worker on commitment terms (Report 6). Their reports are reproduced below **verbatim**,
+  each under its own heading, in the order they were produced. Only markdown formatting was adjusted
+  so prettier accepts the file (table padding, list markers); no wording, figure, path or URL was
+  changed. The reports keep their own headings, so some headings repeat across reports (`Sources`,
+  `Gaps`, `Key Learnings`).
 - **This is research, not legal advice.** The reports quote statutes, regulations and gateway terms
   as read on 2026-10-04. Local counsel should confirm anything a decision rests on legally, as
   Report 4 itself says.
@@ -27,6 +31,12 @@ levels:
 | Primary source seen only through a search-engine snippet                 | `S`                    | `V-s`               | `P`                         | (not used)            |
 | Unverified: third party, secondary source, or the worker's own inference | `U`                    | `A`                 | `A`                         | `[U]`                 |
 
+Report 6 (commitment terms) uses `V` for read in the primary source (or "V, secondary" when the
+source is secondary), `U` for a search-result snippet or summary, and `A` for the worker's own
+inference. Report 5 (plan model) is a code map: every claim cites a path and line on `main` at
+`bad953f2`, except its §5, which the explorer marks as general knowledge not checked against the
+gateways.
+
 ## Contents
 
 1. Competitor billing: currency, price lists and tax display (13 social-media-management tools).
@@ -34,6 +44,8 @@ levels:
 3. Customer location for SaaS tax and display: EU, UK and US rules, Stripe, Paddle, IP geolocation.
 4. Business-only versus consumers too: competitors, EU and UK consumer rules, Paddle and Stripe
    coverage.
+5. Plan model map: where plans and prices are defined in the code, and how billing ignores them.
+6. Commitment terms, early-exit fees and proration: legality, competitors, Stripe and Paddle.
 
 ---
 
@@ -731,3 +743,259 @@ Sources: https://www.hootsuite.com/legal/terms · https://www.hootsuite.com/plan
 3. Paddle's seller agreement s.10.2 lets Paddle refund any buyer, including businesses, within 14 days of purchase or of the last subscription renewal at its own discretion, and s.10.4 charges the refund back to the vendor.
 4. Hootsuite and Iconosquare restrict use to businesses or professionals, while Buffer, Publer and SocialBee accept individuals and offer free plans or money-back windows of 14–30 days.
 5. EU consumer status is decided objectively (CJEU Costea C-110/14, Schrems C-498/16), so a business-only clause does not settle it, and VAT-number status under Reg. 282/2011 Art. 18 is a separate question.
+
+---
+
+## Report 5: Plan model map
+
+Explorer report `plan-model-map.md`, reproduced verbatim. A read-only code explorer mapped `main` at
+`bad953f2`; every claim cites a path and line. Its §5 is the explorer's general knowledge of Stripe
+and Paddle and says so; Report 6 checks those points against the gateways' documentation.
+
+## Plan model map: omni-post (main), read-only
+
+### Summary
+
+There is no table of named plans. The real model is a set of pricing rules stored in the database: per-provider tiers, an account-count multiplier, and named "bundles". The Admin Pricing page edits these rules. Billing code never reads them. The payment adapters use a `BASIC/PRO/ENTERPRISE` × monthly/yearly map built from env vars. Nothing in the API calls the adapters' subscription create/update methods, and checkout sends no price.
+
+### 1. Where plans are defined
+
+- **Prisma models (the real source of truth):**
+  - `ProviderPricingTier` (min/max provider count, `pricePerProviderMonth`): `infra/prisma/schema.prisma:3006-3017`
+  - `AccountPricingTier` (min/max account count, `multiplier`): `:3019-3030`
+  - `ProviderBundle` (`slug`, `providers Provider[]`, `pricePerAccountMonth`, `maxPostsPerMonth`, `maxChannels`): `:3032-3053`
+  - `BundleFeatureFlag`: `:3055-3064`
+  - `AccountSubscription` (`bundleId`, `providers`, `accountCount`=1, `maxProjects`=3, `pricePerMonth`, `billingCycle`, `gatewayProvider`, `gatewaySubscriptionId`, `externalSubscriptionId`): `:3066-3094`
+  - `SubscriptionPriceHistory`: `:3096`
+  - Old limit fields on `Account`: `maxProjects`=1, `billingCycle` string, `stripeCustomerId`, `maxTeamMembers`, `maxStorageBytes`, `maxRecurringPosts`: `:16-32`
+- **Admin UI:** `apps/admin/app/[locale]/(dashboard)/pricing/page.tsx` has Providers, Accounts, Bundles and MRR tabs (`:65-73`). It also uses `components/pricing/ProviderTiersTab.tsx`, `AccountTiersTab.tsx` and the types in `hooks/api/usePricingTiers/types.ts:8-43`.
+- **Admin API:** `apps/api/src/admin/pricingRoutes.ts:368+`, backed by `PricingAdminService.ts:71-294`, which uses Prisma directly with no domain port (`:4-6`).
+- **Pricing logic:** `packages/core/domain/src/billing/PricingCalculator.ts:59-205`, used by `CreateAccountSubscriptionUseCase.ts` and `ChangeAccountSubscriptionUseCase.ts`.
+- **Seed values:** `infra/prisma/seed.ts:798-892`.
+- **Plan read APIs:** both return the active bundles. Admin: `SubscriptionPlanService.getAllPlansFromDB` (`packages/core/billing/src/SubscriptionPlanService.ts:59-61`). Public: `/billing/plans` (`apps/api/src/billing/clientBillingRoutes.ts:115-127`, which calls `GatewayBillingService.ts:786-789`).
+- **Old tier enum, marked deprecated:** `SUBSCRIPTION_TIER` BASIC/PRO/ENTERPRISE and `TIER_LIMITS` in `packages/core/domain/src/entities/Account.ts:16-63`.
+
+### 2. Plan catalog (seeded; editable in Admin)
+
+- **Custom plan (pick providers):** price per provider by how many are chosen: 1-3 = $10, 4-7 = $8, 8+ = $6 (`seed.ts:799-803`). Monthly base per account = provider price × provider count (`PricingCalculator.ts:66-69`).
+- **Account multiplier:** applied per account in order: account 1 = 1.0, accounts 2-5 = 0.9, 6+ = 0.8 (`seed.ts:818-822`, `PricingCalculator.ts:74-81`). A gap in the tier configuration is an error (`:175-181`, `:196-201`).
+- **Bundles (fixed price per account per month):**
+  - Starter: X, Instagram, Facebook; $20; 100 posts/month; 3 channels (`seed.ts:835-844`)
+  - Growth: 6 providers; $40; 500 posts; 10 channels (`:845-854`)
+  - Agency Full: all 11 providers; $60; unlimited (`:855-877`)
+- `findCheaperBundle` suggests a bundle when it is cheaper than the custom quote (`PricingCalculator.ts:129-163`).
+- **How each dimension works:**
+  - **Platforms:** priced by count only; which providers are chosen does not change the price.
+  - **Accounts:** the `accountCount` multiplier.
+  - **Projects:** not priced. `maxProjects` = providers × 3 (`CreateAccountSubscriptionUseCase.ts:131,157`; `ChangeAccountSubscriptionUseCase.ts:159,193,219`); default 3.
+  - **Posts/channels:** limits on bundles only.
+  - **AI:** pool tokens per month = providers × accountCount × 10,000 (`packages/core/ai/src/AiRequestService.ts:44,163-165`).
+  - **Seats and storage:** `Account` fields (`schema.prisma:30-31`). There are no add-ons.
+- **Billing cycle:** `MONTHLY`/`YEARLY` enum (`schema.prisma:3194`), but only a monthly price is stored (`:3074`). The server bills yearly as monthly × 12 (`TrialManagementService.ts:356,439`).
+- **Trial length:** 14 days at registration (`RegisterCustomerUseCase.ts:137-144`) and as the use-case default (`CreateAccountSubscriptionUseCase.ts:75`). It is 7 days with tier "PRO" in `TrialManagementService.ts:152-153`.
+
+### 3. How plans connect to billing today
+
+- **Price IDs:** they come only from env vars `{STRIPE|PADDLE}_PRICE_{BASIC|PRO|ENTERPRISE}_{MONTHLY|YEARLY}` (`GatewayAdapterRegistry.ts:54-71`, `paymentAdapterFactory.ts:24-39`). These vars are not in the env schema (`apps/api/src/config/env.ts:208-214`) or in `.env.example:98-103`. Nothing links a bundle or tier to a price ID.
+- **Adapter API:** takes `plan: BillingPlan` plus cycle, with no quantity (`packages/ports/src/PaymentAdapter.ts:8,66-81`).
+  - Stripe sends one item with no quantity (`StripePaymentAdapter.ts:77-80`, `104-110`).
+  - Paddle's create returns a placeholder and never uses the price ID (`PaddlePaymentAdapter.ts:84-93`); its update forces `quantity: 1` (`:107-109`).
+- **No callers:** `adapter.createSubscription` and `updateSubscription` are never called from non-test code. The only adapter calls are `createCheckoutSession`, `cancelAtPeriodEnd` and `reactivateSubscription` (`GatewayBillingService.ts:130,219,658`).
+- **Checkout:** the client sends only `{gatewayProvider}` (`apps/client/app/[locale]/dashboard/settings/billing/page.tsx:140,154`; `clientBillingRoutes.ts:140-161`). The service passes only customer, URLs and `accountId` (`GatewayBillingService.ts:658-663`).
+  - Stripe Checkout is created in subscription mode with no `line_items` (`StripePaymentAdapter.ts:190-197`).
+  - The Paddle URL has no items (`PaddlePaymentAdapter.ts:193-195`).
+  - So the bundle, providers, account count and cycle the user picked are dropped.
+- **Webhooks:** `subscription.activated` goes to `handleCheckoutCompleted` (`billingWebhookRoutes.ts:109-119`). That handler does nothing unless a gateway switch is pending (`GatewayBillingService.ts:391`). `subscription.updated` is not handled (`billingWebhookRoutes.ts:151-155`). The plan and price are never written back from the gateway.
+- **Limit checks actually enforced:**
+  - Project creation checks `Account.maxProjects` (`apps/api/src/projects/projectRoutes.ts:161-193`), not `AccountSubscription.maxProjects`.
+  - The AI pool budget is enforced (`AiRequestService.ts:153-177`).
+  - `validateSubscriptionLimits` runs only through the admin route `/admin/billing/accounts/:id/validate-limits` (`subscriptionRoutes.ts:95-96`, `SubscriptionAccountHandler.ts:161`). In it, the team limit is maxProjects × 5 but counts projects, not members, and storage is maxProjects × 10 GB (`SubscriptionManagementService.ts:91-110`).
+  - Bundle `maxPostsPerMonth` and `maxChannels` are only displayed (`PrismaUsageMetricRepository.ts:118-126`).
+  - `BundleFeatureFlag` has no reader outside the schema in non-test code.
+- **Usage counting:** `UsageMetric` (`schema.prisma:2621-2636`).
+  - Only `aiCallsMade` is incremented, from `apps/api/src/ai-image/aiImageRoutes.ts:95-96`. `postsPublished` is never incremented in non-test code.
+  - Channels are counted live (`PrismaUsageMetricRepository.ts:111-116`).
+  - With no bundle, the usage page shows the plan as "Free" (`:121`).
+
+### 4. Inconsistencies
+
+1. **Three plan vocabularies:**
+   - Bundle slugs `starter/growth/agency-full` in the database (`seed.ts:837-857`).
+   - `BASIC/PRO/ENTERPRISE` in the port, env vars, the registration schema (`customerAuthRoutes.ts:42`) and the admin tier schemas (`subscriptionSchemas.ts:64-85`).
+   - Admin gateway credentials `priceStarter*/pricePro*` (`apps/admin/components/settings/constants.ts:26-44`; `packages/core/settings/src/credentialKeys.ts:18-30`). These credentials are only read by a test (`SettingsService.test.ts:135`); the Stripe connection test uses only `secretKey` (`SettingsService.ts:361-363`). The Admin form has no Growth or Enterprise slot.
+2. **Billing cannot express the real dimensions:** provider count, the per-account multiplier, bundle versus custom, and quantity.
+3. **`GET /admin/billing/plans/:tier` can never succeed:** it validates against BASIC/PRO/ENTERPRISE but matches `slug` (`SubscriptionPlanHandler.ts:47-49`), and slugs must be lowercase (`pricingRoutes.ts:58-70`).
+4. **Bulk upgrade does nothing:** it ignores `newTier` and calls the change use case with only `accountId` (`SubscriptionAccountHandler.ts:235-248`).
+5. **Hard-coded client prices that differ from the database:**
+   - Provider tiers $12/10/8/6 and multipliers 1/0.8/0.65/0.5 (`apps/client/app/[locale]/dashboard/settings/billing/utils/pricing.ts:26-38`).
+   - Only 10 providers; THREADS is missing (`:13-24`), while the enum has 11 (`packages/shared/src/types.ts:197-209`).
+   - Yearly = monthly × 10 (`components/CustomPlanTab.tsx:45`); the server uses × 12.
+   - The account slider is labelled "Social accounts", from 1 to 20 (`CustomPlanTab.tsx:82-91`).
+   - A third table in `docs/product/INVESTOR_EN.md:252-268` lists Creator/Social Pro/Agency Full at $25/$32/$55.
+6. **Two `maxProjects` sources:** `Account.maxProjects` is enforced and editable by admins (`AnalyticsAccountHandlers.ts:87-88`). `AccountSubscription.maxProjects` is set by plan changes and shown on the dashboard (`dashboardService.ts:124`). Nothing keeps them in sync.
+   - Registering with `ENTERPRISE` sets `maxProjects=-1` (`Account.ts:56,157`; `RegisterCustomerUseCase.ts:87`). The domain treats -1 as unlimited (`Account.ts:354`), but `projectRoutes.ts:180` checks `heldSlots >= -1`, which is always true, so that account can create no projects.
+   - The old maps disagree: 1/5/-1 (`Account.ts:38-63`), 1/3/5 (`packages/adapters/db-prisma/src/mappers.ts:70-80`), 1/5/50 (`apps/api/scripts/seed-large-dataset.ts:28-39`).
+7. **`accountCount` is never written.** It defaults to 1; the admin view hard-codes 1 (`CustomerAccountBillingService.ts:212-217,229,291`) and creation uses 1 (`CreateAccountSubscriptionUseCase.ts:139-144`).
+   - Creating a bundle subscription skips the multiplier (`:130`), but changing plans applies it (`ChangeAccountSubscriptionUseCase.ts:176-180`).
+   - The admin `ChangePlanDialog` estimate ignores account tiers and falls back to the last tier where the server would error (`apps/admin/components/subscriptions/ChangePlanDialog.tsx:80-89`).
+8. **Admin edit gaps:**
+   - Bundle updates silently drop `slug` and `sortOrder` (sent at `pricing/page.tsx:105-117`; schema at `pricingRoutes.ts:35-40`).
+   - Bundle `isActive`, post/channel limits and feature flags cannot be edited.
+   - The "MRR" tab just sums list prices (`page.tsx:224-226`).
+   - The page promises grandfathering on price changes (`apps/admin/messages/en.json:392`), but `UpdatePricingConfigUseCase` is registered and never resolved (`setupBillingUseCases.ts:133-136`). `CreateAccountSubscriptionUseCase` is likewise registered only (`:114-117`).
+9. **Duplicate gateway IDs:** `Account.stripeCustomerId`/`gatewayCustomerId` versus `AccountSubscription.externalSubscriptionId`/`gatewaySubscriptionId` (`schema.prisma:24,3076,3084`).
+
+### 5. Per-unit pricing in Stripe and Paddle (general knowledge, not checked against this repo)
+
+- **Stripe:** a subscription can hold several items, each with a price and a `quantity`. Graduated or volume price tiers (`tiers_mode`) could express the provider and account tiers directly. Checkout in subscription mode needs `line_items` with quantities, and `subscriptions.update` can change quantities per item with proration.
+- **Paddle Billing:** subscriptions and transactions take `items: [{priceId, quantity}]` with several items allowed, and prices carry min/max quantity. As far as I know there is no native graduated tiering, so tiers would need separate prices or custom one-off prices per transaction. The current adapter forces `quantity: 1`.
+- **Gap for both:** the port has no quantity field and checkout has no line items (`PaymentAdapter.ts:66-110`). Neither can be represented today.
+
+Couldn't determine:
+
+- Whether price-ID env vars are set in any deployed environment. No infra file sets them.
+- What an "account" means in the multiplier. The client says "social accounts"; the investor doc says agency client accounts.
+
+---
+
+## Report 6: Commitment terms, early-exit fees and proration
+
+Worker report `commitment-terms-penalties.md`, reproduced verbatim.
+
+**Research only, not legal advice.** I checked each claim against a source and marked it: **V** means I read it in the source (primary unless it says "secondary"). **U** means it comes only from a search snippet or summary. **A** means it is my own inference.
+
+## 1. Legality of minimum terms and early-exit fees
+
+**EU consumers**
+
+- **The EU directive.** The Unfair Contract Terms Directive's grey list includes four relevant terms (**V**, https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:31993L0013):
+  - Annex 1(e): "requiring any consumer who fails to fulfil his obligation to pay a disproportionately high sum in compensation".
+  - Annex 1(d): the trader keeping sums the consumer paid.
+  - Annex 1(h): automatic extension where the deadline to opt out is "unreasonably early".
+  - Annex 1(l): a price increase with no right to cancel. This matters for the price lock and the "new units at current list price" rule.
+- **Pending CJEU case on exactly the clawback question.** In C-821/24 A1 Bulgaria, question 4 asks whether early-termination compensation may be fixed "in proportion to a standard amount (excluding contractually agreed discounts, which also include recompense for part of the amount of discounts on subscription contracts…)". **V**, https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=OJ:C_202501082. I found no judgment, so this is a **gap**.
+- **Germany.** Three rules in § 309 BGB apply (**V**, https://dejure.org/gesetze/BGB/309.html):
+  - Nr. 9: an initial term of up to 2 years is allowed. Tacit extension is allowed only into an open-ended contract the consumer can end on at most 1 month's notice, and the notice before the first term ends may be at most 1 month.
+  - Nr. 6: standard terms may not set a penalty (Vertragsstrafe) for the case "dass der andere Vertragsteil sich vom Vertrag löst".
+  - Nr. 5: a flat-rate damages clause must not exceed the typical loss, and must expressly let the customer prove the loss was lower or nil.
+  - **A:** a 12- or 24-month commitment billed monthly is lawful for consumers. A "% of remaining value" exit fee is very likely void under Nr. 6 or Nr. 5.
+  - Since 1 July 2022 there is also a mandatory online cancellation button, § 312k (**U**, https://www.bmjv.de/SharedDocs/Pressemitteilungen/DE/2022/0228_faire_Verbrauchervertraege.html).
+- **France.** L215-1 Code de la consommation: the trader must send a written reminder 1–3 months before the opt-out deadline. If it doesn't, the consumer can end the contract free of charge at any time from the renewal date (**V**, https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000034072591/). R212-2 presumes abusive a "manifestly disproportionate" indemnity (**U**, https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000032807198).
+- **Spain.** Arts. 62.3 and 85.6 TRLGDCU ban excessive durations, obstacles to termination and disproportionately high indemnities. The Supreme Court held 5 years excessive for ongoing services (**U**, https://www.boe.es/buscar/act.php?id=BOE-A-2007-20555).
+- **Italy.** Art. 33(2)(f) Codice del consumo presumes a manifestly excessive penalty unfair, and this extends to withdrawal (**U**, https://www.brocardi.it/codice-del-consumo/parte-iii/titolo-i/art33.html).
+
+**EU businesses (B2B)**
+
+- **Germany.** § 309 does not apply to standard terms used against businesses, § 310(1) (**V**, https://dejure.org/gesetze/BGB/310.html). The general fairness test in § 307 still applies to B2B standard terms (**A**). A court can reduce a disproportionate penalty under § 343 BGB, but not one a merchant promised in its trade, § 348 HGB (**V**, https://dejure.org/gesetze/BGB/343.html, https://dejure.org/gesetze/HGB/348.html). dejure also shows a new § 310(1a) exemption for "large enterprises" (**U**, needs checking).
+- **France.** Under art. 1231-5 Code civil a judge may reduce, even on its own initiative, a penalty clause that is "manifestly excessive"; this is public policy (**V, secondary**, https://justice.pappers.fr/loi/LEGITEXT000006070721/article/LEGIARTI000032010131).
+
+**UK**
+
+- **Consumers: the CMA's July 2026 guidance (CMA37, 22 July 2026).** All points **V**, https://assets.publishing.service.gov.uk/media/6a609329b00f3323bf1a23f3/unfair_contract_terms_guidance.pdf:
+  - Para 6.63: requiring all outstanding sums on early termination is more likely unfair where the trader no longer has to supply the service and the payments "exceed the benefit the consumer gained by signing up to the contract (instead of… a contract with a shorter duration or different payment plan)". That benefit is exactly what a discount clawback recovers.
+  - Para 6.63 also says a fee must reflect the trader's savings, its ability to mitigate, and the benefit of being paid early.
+  - Para 6.64: a sliding scale can be fair if it is never punitive.
+  - Para 6.70: "tie-ins of over 12 months have been found to be unfair".
+  - Para 6.69: a formal right to cancel without liability is not required.
+  - Para 4.43: early-termination fees need prominence.
+- **Consumers: the new UK subscription rules (DMCC Act 2024).** They start in **January 2027** (No. 10 announcement, 9 Aug 2026). They require reminders, easy exit, and cooling-off periods with refunds. They do not themselves cap minimum terms or exit fees. **V, secondary**: https://wiggin.co.uk/insight/digital-markets-competition-and-consumer-act-tracker/
+- **Businesses: the penalty test (Cavendish v Makdessi [2015] UKSC 67, para 32).** A clause is a penalty if it is a secondary obligation imposing a detriment "out of all proportion to any legitimate interest" of the innocent party. The rule bites only on obligations triggered by breach. A price paid for exercising a contractual exit option is a primary obligation, so it falls outside the rule. **V, secondary**: https://en.wikipedia.org/wiki/Cavendish_Square_Holding_BV_v_Talal_El_Makdessi
+
+**US**
+
+- **Liquidated damages.** UCC § 2-718(1): damages may be fixed in advance only "at an amount which is reasonable…"; "unreasonably large liquidated damages is void as a penalty" (**V**, https://www.law.cornell.edu/ucc/2/2-718). The common law takes the same approach for services (**A**).
+- **California's Automatic Renewal Law.** It covers consumers buying for personal or household use only. Cancellation must be possible "exclusively online, at will", with a "click to cancel" link. Price changes need 7–30 days' notice, and annual plans need a yearly reminder. It says nothing on early-termination fees. **V**, https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?lawCode=BPC&division=7.&title=&part=3.&chapter=1.&article=9.
+- **New York GOL § 5-903.** It reaches B2B contracts too, for services "to or for any real or personal property" with renewal periods over 1 month. The provider must give written notice 15–30 days before the opt-out deadline, by personal service or certified mail (**V**, https://www.nysenate.gov/legislation/laws/GOB/5-903). Whether it covers SaaS is **U**.
+- **Federal.** The FTC's click-to-cancel rule was vacated in July 2025. A new rulemaking notice came out in March 2026, and enforcement under ROSCA continues (**V, secondary**, https://www.gibsondunn.com/ftc-restarts-negative-option-rulemaking-after-eighth-circuit-vacatur-enforcement-under-rosca-continues/).
+
+**Canada and Australia**
+
+- **Quebec (CPA ss. 214.1–214.11).** These cover remote digital services, including "databases and cloud data storage". The consumer may terminate "at any time, even if a term is specified". The fee is capped at about $50 / 10%, or limited to the economic inducements disclosed in the contract — in effect a statutory discount clawback. **V, secondary**: https://www.blg.com/en/insights/2022/07/mise-a-jour-abonnements-a-des-services-numeriques-et-dautres-services-fournis-a-distance-au-quebec. Whether OmniPost falls in scope is **U**.
+- **Ontario.** The Consumer Protection Act 2023 is not yet in force (**U**).
+- **Australia.** Since 9 Nov 2023 unfair terms in standard-form consumer and small-business contracts are illegal. Small business means under 100 staff or under $10m turnover. Penalties run up to the greatest of $50m, 3× the benefit, or 30% of turnover (**V**, https://www.accc.gov.au/media-release/businesses-urged-to-remove-unfair-contract-terms-ahead-of-law-changes).
+
+**Practical conclusion (A)**
+
+- **Consumers:** "X% of the remaining value" is high-risk in Germany, the UK (para 6.63), France, Spain, Italy and Quebec.
+- **The discount clawback** — repaying monthly list price minus committed price for the months used — matches the ceiling CMA37 itself names and Quebec's model. It is the most defensible variant, but not risk-free while A1 Bulgaria is pending.
+- **Businesses:** a "pay the rest of the term" clause is common and usually enforceable in the UK and US. It is reducible in France and Germany (outside merchants), and reviewable for Australian small businesses. The clawback is the safe choice everywhere.
+
+## 2. Competitors
+
+| Vendor                          | Terms                                                     | Early cancellation                                                                                                                                                                                         | Upgrade / downgrade                                                                                                    | Price lock                                                                                                                       |
+| ------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Hootsuite                       | monthly/annual                                            | "must continue to pay for the rest of your plan term", no refund (V, https://www.hootsuite.com/legal/terms, 29 Jul 2025)                                                                                   | no clause                                                                                                              | "no price change will apply during your then-current subscription term" (V, https://www.hootsuite.com/legal/payment-terms, 2019) |
+| Sprout Social                   | monthly; annual upfront; **annual paid monthly** (§5.1.3) | no refunds; 30 days' notice before term end                                                                                                                                                                | upgrade prorated at "then-current price"; downgrade: no refund                                                         | renewal increase ≤7% unless 60 days' notice (V, https://sproutsocial.com/terms/)                                                 |
+| Agorapulse                      | term auto-renews                                          | termination for convenience: remaining fees stay due (§6.4, V, https://www.agorapulse.com/terms-of-service/)                                                                                               | upgrade prorated now; downgrade next cycle with prorated credit (V, help article 8762784)                              | legacy plans **not** grandfathered, moved in 2026 (V, help article 10982218)                                                     |
+| Later                           | monthly/annual                                            | refunds case by case (V, https://later.com/terms/)                                                                                                                                                         | upgrade prorated; downgrade next cycle (U, help page returned 403)                                                     | price changes at renewal with notice (V)                                                                                         |
+| Buffer                          | renews for the same period                                | fees non-refundable (V, https://buffer.com/legal)                                                                                                                                                          | adding channels prorated, removing at next billing date (U)                                                            | none stated                                                                                                                      |
+| Metricool                       | monthly/annual                                            | 15-day withdrawal on first purchase; otherwise access to period end, no refund                                                                                                                             | upgrade proportional; downgrade at period end, no refund (V, https://help.metricool.com/metricool-refund-policy-0lrpo) | —                                                                                                                                |
+| Sendible                        | any time unless a signed fixed term                       | no refunds                                                                                                                                                                                                 | upgrade pro-rata; downgrade gives a non-refundable credit (V, https://www.sendible.com/terms)                          | "increase the Charges at any time"                                                                                               |
+| Vista Social                    | annual billed upfront                                     | access to period end, no refund                                                                                                                                                                            | upgrade prorated; downgrade at cycle end, no credit                                                                    | renewal increase ≤7% unless 60 days' notice (V, https://vistasocial.com/terms/)                                                  |
+| Planable (prices per workspace) | —                                                         | "All sales are final"                                                                                                                                                                                      | downgrade, including removing workspaces, is credited to future invoices (V, https://planable.io/terms/)               | advance notice                                                                                                                   |
+| Loomly                          | renews for the same period                                | no refund                                                                                                                                                                                                  | downgrade at period end, no credit                                                                                     | changes at renewal; EEA/UK 30 days' notice (V, https://www.loomly.com/terms)                                                     |
+| Iconosquare                     | monthly/annual; B2B only, no withdrawal right             | refund only within 7 days (monthly) / 30 days (annual) of start or renewal                                                                                                                                 | upgrade gets a reduction; downgrade at period end (V, https://www.iconosquare.com/terms-of-subscription)               | prices may change                                                                                                                |
+| Publer (sells via Paddle)       | monthly/yearly                                            | 14-day full refund; after that a pro-rated refund but "the discount for paying yearly… will be waived" — **a discount clawback** (V, https://publer.com/help/en/article/what-is-the-refund-policy-lflgew/) | upgrade prorated (U)                                                                                                   | —                                                                                                                                |
+| SocialBee                       | monthly/yearly                                            | 30-day money-back guarantee on first purchase; no prorated refunds (V, https://socialbee.com/terms-of-service/)                                                                                            | none stated                                                                                                            | none                                                                                                                             |
+
+What this shows:
+
+- Nobody charges a % of the remaining value.
+- The common pattern is annual prepaid with no refund, plus prorated upgrades and downgrades at period end.
+- Only Hootsuite, Sprout and Agorapulse enforce "pay the rest of the term"; Sprout does it on annual plans paid monthly.
+- **Gap:** I found no self-serve 2-year plans.
+
+## 3. Gateway feasibility
+
+**Stripe**
+
+- **Proration.** `proration_behavior` takes `create_prorations` (default), `always_invoice` (bill immediately) or `none`. It is computed against the current period's start and end, to the second, and the granularity can be changed. "Negative prorations aren't automatically refunded" (**V**, https://docs.stripe.com/billing/subscriptions/prorations).
+- **Downgrade without refund, effective next period.** Create a schedule with `from_subscription`, then add a second phase (**V**, https://docs.stripe.com/billing/subscriptions/subscription-schedules). Alternatively, `proration_behavior=none` changes the plan with no credit and bills the new price on the next invoice (**V**).
+- **Price lock.** One subscription can hold several items with different prices for the same product: up to 20 items in classic mode, 100 in flexible. All items need the same currency, and the same interval unless mixed-interval subscriptions are used (**V**, https://docs.stripe.com/billing/subscriptions/multiple-products).
+- **Commitment billed monthly.** Schedule phases support `duration`/`iterations`, and `end_behavior` can be `release` or `cancel` (**V**). Enforcing the commitment is contractual, not something Stripe does (**A**).
+- **Exit fee or clawback.** `add_invoice_items` adds one-time charges to the next invoice; a separate one-off invoice also works (**V**).
+- **Calendar-month billing.** Use `billing_cycle_anchor_config[day_of_month]` (prorated first period), or `phases[].billing_cycle_anchor=phase_start` on a schedule (**V**, https://docs.stripe.com/billing/subscriptions/billing-cycle).
+- **Note:** API versions from `2025-09-30.clover` on default to flexible billing mode, which bases credits on the last billed price (**V**, https://docs.stripe.com/billing/subscriptions/billing-mode).
+
+**Paddle**
+
+- **Proration.** All five modes exist, calculated "to the minute" (**V**, https://developer.paddle.com/concepts/subscriptions/proration).
+- **Scheduled changes.** `scheduled_change.action` accepts only `cancel`, `pause` or `resume` (**V**, https://developer.paddle.com/api-reference/subscriptions/update-subscription/). A downgrade "at the next period" therefore has to be applied by OmniPost itself at renewal (**A**). No changes are allowed within 30 minutes of the next billing, or while the subscription is `past_due` (**V**).
+- **Price lock.** A subscription takes 1–100 recurring items, which must share one billing interval (**V**). So price lock works by keeping two price entities.
+- **Commitments.** There is no native minimum-commitment field. A price can bill every N years (e.g. year × 2), so a prepaid 2-year term is possible (**V**, https://developer.paddle.com/api-reference/prices/create-price/).
+- **One-time charges.** `POST /subscriptions/{id}/charge` with `effective_from` `immediately` or `next_billing_period`; non-catalog items are allowed (**V**). The documented uses are setup and services. **Whether Paddle accepts an exit fee charged this way is undocumented — ask Paddle.**
+- **Calendar-month billing.** `next_billed_at` can be set to the 1st, and that resets the anchor (**V**, https://developer.paddle.com/build/subscriptions/change-billing-dates/).
+- **Critical: Paddle's buyer terms (31 Mar 2026), §6.** "You can cancel a Subscription at any time with effect from the end of your current billing period… you will not be charged again after that." Subscriptions renew for the same term (§3). (**V**, https://www.paddle.com/legal/buyer-terms)
+  - The cancellation clause makes no exception for business buyers.
+  - The buyer buys from Paddle; OmniPost's own terms only govern use of the product.
+- **Paddle can refund on its own.** Under its MSA clause 10.2(i), Paddle may refund within 14 days of the last renewal "in its sole discretion", and the supplier reimburses it (**V**, https://www.paddle.com/legal/terms).
+- **Refund policy.** EU/UK withdrawal applies to the first subscription payment, and UK annual subscribers get a new 14-day window at renewal (**V**, https://www.paddle.com/legal/refund-policy).
+- **Consequence (A):** on Paddle, a monthly-billed commitment with an exit fee cannot be enforced. The commitment can only be the billing period itself.
+
+## 4. Recommendation (A)
+
+**Simplest structure that works the same on both gateways:**
+
+- **Commitment = billing period.** Offer monthly, annual prepaid, and optionally 2-year prepaid, with the discount rising with length. No exit fee. No refund after the withdrawal window (14 days EU, plus the UK renewal window). This is what Hootsuite, Vista, Metricool and Loomly do.
+- **Optional goodwill refund on early exit, Publer-style.** Refund = amount paid − months used × monthly list price. It is a refund, not a later charge, so it fits Paddle and is the clawback the CMA treats as the ceiling.
+- **Expansion:** prorate to the end of the current period (Stripe `always_invoice`, Paddle `prorated_immediately`). "To the end of the current month" only holds on monthly billing; on annual plans it prorates to the end of the term, as Sprout and Vista do.
+- **Reduction:** takes effect at the next renewal with no credit. On Stripe use a schedule; on Paddle, OmniPost runs its own job at renewal.
+- **Price lock:** keep a separate item per price cohort, locked for the term. Change prices only at renewal, with notice, which covers UCTD 1(j)/1(l) and the Sprout 7%/60-day pattern.
+- **Optional, business buyers on Stripe only:** an annual commitment billed monthly, with early exit costing the discount clawback, or at most a non-punitive sliding scale. **Never "% of the remaining value"** — it is high-risk for consumers and cannot be enforced through Paddle.
+- **Consumers:** monthly, or prepaid terms only.
+
+**Contradictions and gaps**
+
+- **ACCC penalty amount:** a search result said $100m; the ACCC page says $50m, and I used the ACCC.
+- **Paddle scheduled changes:** a Paddle overview page says item updates create scheduled changes, but the API enum excludes them. I relied on the enum — verify in the Paddle sandbox.
+- **A1 Bulgaria:** no judgment found.
+- **Snippet-only sources:** Spain, Italy, France R212-2, Later's and Buffer's help pages, Quebec's coverage of SaaS, New York § 5-903's coverage of SaaS, and the new § 310(1a) BGB detail.
+- **Multi-year plans:** no self-serve competitor offers one, as far as I found.
+
+## Key Learnings
+
+1. Paddle Buyer Terms §6 (31 Mar 2026) let any buyer cancel effective at the end of the current billing period with no further charges, so monthly-billed multi-month commitments cannot be enforced through Paddle.
+2. Paddle Billing `scheduled_change.action` supports only cancel, pause and resume, so a downgrade effective next period must be applied by the vendor at renewal.
+3. CMA37 (22 July 2026) para 6.63 treats an early-termination charge as more likely unfair when it exceeds the benefit the consumer gained over a shorter contract — effectively capping it at a discount clawback.
+4. § 309 Nr. 6 BGB voids standard-term penalties for a consumer ending the contract, while § 309 Nr. 9 allows initial consumer terms of up to two years.
+5. Among 13 social-media SaaS competitors, none charges a percentage of the remaining contract value; Publer, which sells via Paddle, refunds early exits pro rata minus the yearly discount.

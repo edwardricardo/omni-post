@@ -6,7 +6,9 @@
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [ADR-0025](ADR-0025-payment-gateway-selection-and-country-routing.md) (routing-change
-  grace period), [ADR-0006](ADR-0006-result-type-over-throws.md) (Result over throws)
+  grace period), [ADR-0006](ADR-0006-result-type-over-throws.md) (Result over throws),
+  [ADR-0030](ADR-0030-pricing-model.md) (a trial that ends without a payment method enters this
+  flow)
 
 ## Context
 
@@ -82,6 +84,12 @@ customer may still do, or what happens to the posts they scheduled.
 
    **A successful payment at any step returns the account to `ACTIVE`.** Nothing is deleted
    automatically: deletion stays with the existing soft-delete, restore and tombstone retention flows.
+
+   **Trial end ([ADR-0030](ADR-0030-pricing-model.md) point 11, decided later on 2026-10-04).**
+   While a trial does not require a card, a trial that reaches its last day (14 by default) without
+   a payment method enters this same flow, as a cut-off does: `SUSPENDED_READ_ONLY`, then
+   `LOCKED_PAYMENT_ONLY`, then `CANCELED`. Whether such a trial holds a gateway subscription for the
+   day-30 cancellation to act on is an open point of ADR-0030.
 
 4. **One API guard enforces the state.** It rejects every mutating request except the billing
    endpoints, with a dedicated error code. The portals map that code to the "update payment details"
@@ -188,6 +196,7 @@ customer may still do, or what happens to the posts they scheduled.
 - Research: [research-2026-10-04-billing.md](../reports/research-2026-10-04-billing.md) — Report 2 §1
   (gateway behaviour), Report 4 §3 (what each gateway covers on refunds and cancellation).
 - Specification: [billing-gateways.md](../features/billing-gateways.md).
+- Pricing model and trial: [ADR-0030](ADR-0030-pricing-model.md).
 - Backlog: SMELL-184 (F13) in [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md);
   master plan item N-COR-4 in [MASTER_PLAN_ES.md](../product/MASTER_PLAN_ES.md).
 - Code: `packages/core/billing/src/GatewayBillingService.ts:859`, `:868`, `:899`, `:918`, `:942`;

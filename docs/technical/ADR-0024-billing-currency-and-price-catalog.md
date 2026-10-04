@@ -6,7 +6,8 @@
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [ADR-0025](ADR-0025-payment-gateway-selection-and-country-routing.md) (gateway
-  routing), [ADR-0027](ADR-0027-consumer-sales-and-tax-handling.md) (tax display)
+  routing), [ADR-0027](ADR-0027-consumer-sales-and-tax-handling.md) (tax display),
+  [ADR-0030](ADR-0030-pricing-model.md) (the pricing rules each price list holds)
 
 ## Context
 
@@ -86,6 +87,14 @@ The code measured on `main` at `bad953f2` has no price catalog and stores money 
    value cannot be changed after creation and the default would make them tax-inclusive. Prices are
    displayed tax-exclusive; [ADR-0027](ADR-0027-consumer-sales-and-tax-handling.md) covers the
    VAT-inclusive total a consumer sees before ordering.
+
+**Pricing model ([ADR-0030](ADR-0030-pricing-model.md), decided later on 2026-10-04).** The plans
+and cycles this record keys the catalog on are now pricing rules: per-channel tiers, workspace
+volume tiers and term multipliers, configured per currency. Each currency's price list (point 2) is
+that currency's hand-set set of rule values, and a list is complete (point 4) when every rule has a
+value. A charged amount is computed from the rules of the customer's currency, never from an
+exchange rate, so points 2 and 5 to 8 hold unchanged. How the computed amounts are synchronised to
+the gateways (point 3) is an open point of ADR-0030.
 
 ## Rationale
 
@@ -171,6 +180,7 @@ The code measured on `main` at `bad953f2` has no price catalog and stores money 
   (competitor currencies and tax display), Report 2 §1 (gateways and EU display law), §2
   (exchange-rate sources), §3 (money storage), §5 (options A, B and C).
 - Specification: [billing-gateways.md](../features/billing-gateways.md).
+- Pricing model: [ADR-0030](ADR-0030-pricing-model.md).
 - Stripe: tax behavior — https://docs.stripe.com/tax/products-prices-tax-codes-tax-behavior ·
   manual currency prices —
   https://docs.stripe.com/payments/checkout/localize-prices/manual-currency-prices.md?payment-ui=stripe-hosted
