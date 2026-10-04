@@ -347,17 +347,24 @@ jobs:
         if: always()
         run: |
           set -uo pipefail
-          # Block the patterns:
-          #   process.env.X_SECRET || "dev-only-..."
-          #   process.env.X_KEY ?? ""
-          #   process.env.X_TOKEN || generated()
-          # The fix in app code is the typed `env` constant from
-          # apps/api/src/config/env.ts (Zod-validated, fail-fast). In provider
-          # apiClients, secrets must arrive via constructor injection from the
-          # composition root, never read from env at module/method scope.
-          # Scope: apps/api/src + apps/workers/src + packages/providers/*
-          # (excluding _template scaffolding).
-          MATCHES=$(grep -rnE 'process\.env\.[A-Z_]*(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL)[A-Z_]*\s*(\|\||\?\?)' \
+          # 15. No insecure secret fallbacks (CWE-798) in apps/api/src + apps/workers/src
+          # + packages/providers/*/src.
+          # Reason: `process.env.X || "dev-only-..."`, `... ?? ""`, `... || generated()`
+          # patterns let the app boot with hard-coded / empty / per-restart secrets,
+          # masking misconfiguration in dev and shipping insecurely to prod. The fix
+          # is the typed env constant from apps/api/src/config/env.ts (Zod fail-fast)
+          # in app code, and constructor injection of secrets into provider apiClients.
+          # The typed constant is matched too: `env.X_SECRET ?? ""` on a variable the
+          # schema marks optional boots with an empty string that reads as configured,
+          # and a request then carries it as the secret. An unconfigured secret is an
+          # absent optional field, never "". `env` matches after any character but `!`
+          # or an identifier character, so `process.env`, the typed `env` and a member
+          # chain (`this.env`) are all read, while the boolean guard `!env.X_SECRET ||`
+          # is not a fallback and is skipped. Residual limits: an alias
+          # (`const e = env`), bracket access (`env["X_SECRET"]`) or a destructuring
+          # default is invisible to this line grep.
+          # Excludes `_template` (scaffolding example).
+          MATCHES=$(grep -rnE '(^|[^![:alnum:]_])env\.[A-Z_]*(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL)[A-Z_]*\s*(\|\||\?\?)' \
             apps/api/src apps/workers/src packages/providers --include="*.ts" 2>/dev/null | \
             grep -v "node_modules\|\.test\.\|/tests/\|/dist/\|config/env\.ts\|providers/_template/" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)

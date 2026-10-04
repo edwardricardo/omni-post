@@ -30,6 +30,14 @@ export class StripePaymentAdapter implements PaymentAdapter {
   private readonly webhookSecret: string;
 
   constructor(config: StripeConfig) {
+    if (!config.secretKey) {
+      throw new Error("Stripe secret key must not be empty");
+    }
+    // The SDK accepts a signature computed with an empty key, so an empty
+    // webhook secret would let anyone sign an event this adapter trusts.
+    if (!config.webhookSecret) {
+      throw new Error("Stripe webhook secret must not be empty");
+    }
     this.stripe = new Stripe(config.secretKey);
     this.priceMap = config.prices;
     this.webhookSecret = config.webhookSecret;

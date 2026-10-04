@@ -11,9 +11,10 @@ import { env } from "../../config/env.js";
 import { StripePaymentAdapter, type StripeConfig } from "./StripePaymentAdapter.js";
 import { PaddlePaymentAdapter, type PaddleConfig } from "./PaddlePaymentAdapter.js";
 
+/** A gateway that is not configured is absent, never a config of empty strings. */
 interface GatewayRegistryConfig {
-  stripe: StripeConfig;
-  paddle: PaddleConfig;
+  stripe?: StripeConfig;
+  paddle?: PaddleConfig;
 }
 
 export class GatewayAdapterRegistry implements GatewayAdapterRegistryPort {
@@ -28,8 +29,10 @@ export class GatewayAdapterRegistry implements GatewayAdapterRegistryPort {
   getAdapter(provider: GatewayProviderType): PaymentAdapter {
     if (provider === "stripe") {
       if (!this.stripeAdapter) {
-        if (!this.config.stripe.secretKey) {
-          throw new Error("Stripe adapter requested but STRIPE_SECRET_KEY is not configured");
+        if (!this.config.stripe) {
+          throw new Error(
+            "Stripe adapter requested but Stripe is not configured: set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET"
+          );
         }
         this.stripeAdapter = new StripePaymentAdapter(this.config.stripe);
       }
@@ -37,8 +40,10 @@ export class GatewayAdapterRegistry implements GatewayAdapterRegistryPort {
     }
 
     if (!this.paddleAdapter) {
-      if (!this.config.paddle.apiKey) {
-        throw new Error("Paddle adapter requested but PADDLE_API_KEY is not configured");
+      if (!this.config.paddle) {
+        throw new Error(
+          "Paddle adapter requested but Paddle is not configured: set PADDLE_API_KEY and PADDLE_WEBHOOK_SECRET"
+        );
       }
       this.paddleAdapter = new PaddlePaymentAdapter(this.config.paddle);
     }
@@ -86,17 +91,25 @@ export function createGatewayRegistry(): GatewayAdapterRegistry {
     );
   }
 
+  // A gateway is present only when both its key and its webhook secret are set; spreading a falsy
+  // `&&` result adds no property, so an unconfigured gateway is simply absent.
   return new GatewayAdapterRegistry({
-    stripe: {
-      secretKey: env.STRIPE_SECRET_KEY ?? "",
-      webhookSecret: env.STRIPE_WEBHOOK_SECRET ?? "",
-      prices: buildPriceMap("STRIPE"),
-    },
-    paddle: {
-      apiKey: env.PADDLE_API_KEY ?? "",
-      webhookSecret: env.PADDLE_WEBHOOK_SECRET ?? "",
-      sandbox: env.PADDLE_SANDBOX ?? false,
-      prices: buildPriceMap("PADDLE"),
-    },
+    ...(env.STRIPE_SECRET_KEY &&
+      env.STRIPE_WEBHOOK_SECRET && {
+        stripe: {
+          secretKey: env.STRIPE_SECRET_KEY,
+          webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+          prices: buildPriceMap("STRIPE"),
+        },
+      }),
+    ...(env.PADDLE_API_KEY &&
+      env.PADDLE_WEBHOOK_SECRET && {
+        paddle: {
+          apiKey: env.PADDLE_API_KEY,
+          webhookSecret: env.PADDLE_WEBHOOK_SECRET,
+          sandbox: env.PADDLE_SANDBOX ?? false,
+          prices: buildPriceMap("PADDLE"),
+        },
+      }),
   });
 }
