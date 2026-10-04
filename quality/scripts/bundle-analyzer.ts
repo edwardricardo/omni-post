@@ -76,6 +76,19 @@ interface PackageManifest {
   devDependencies?: Record<string, string>;
 }
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** A manifest whose two dependency fields, when present, are maps the analysis can count. */
+function isPackageManifest(value: unknown): value is PackageManifest {
+  return (
+    isPlainObject(value) &&
+    [value.dependencies, value.devDependencies].every(
+      (field) => field === undefined || isPlainObject(field)
+    )
+  );
+}
+
 function isKnipDependencyList(value: unknown): value is KnipDependency[] | undefined {
   return (
     value === undefined ||
@@ -180,7 +193,16 @@ export class BundleAnalyzer {
     if (!existsSync(packagePath)) {
       throw new Error("package.json not found");
     }
-    return JSON.parse(readFileSync(packagePath, "utf8"));
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(readFileSync(packagePath, "utf8"));
+    } catch (error: unknown) {
+      throw new Error(`package.json at ${packagePath} is not valid JSON`, { cause: error });
+    }
+    if (!isPackageManifest(parsed)) {
+      throw new Error(`package.json at ${packagePath} is not an object of dependency maps`);
+    }
+    return parsed;
   }
 
   private ensureReportsDirectory(): void {

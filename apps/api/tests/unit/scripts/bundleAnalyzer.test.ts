@@ -204,3 +204,35 @@ describe("resolveAnalysisType", () => {
     expect(resolveAnalysisType("quik")).toBeUndefined();
   });
 });
+
+describe("BundleAnalyzer reading the project's package.json", () => {
+  let projectRoot = "";
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    projectRoot = mkdtempSync(path.join(tmpdir(), "bundle-analyzer-manifest-"));
+  });
+
+  afterEach(() => {
+    rmSync(projectRoot, { recursive: true, force: true });
+  });
+
+  const analyzerOver = (manifest: string): (() => BundleAnalyzer) => {
+    writeFileSync(path.join(projectRoot, "package.json"), manifest);
+    return () => new BundleAnalyzer(projectRoot, makeKnipRunner(knipCannotRun));
+  };
+
+  it("refuses a package.json that is not valid JSON, naming the file", () => {
+    expect(analyzerOver("{ not json\n")).toThrow(/package\.json at .+ is not valid JSON/);
+  });
+
+  it("refuses a package.json that is not an object", () => {
+    expect(analyzerOver("[]\n")).toThrow(/package\.json at .+ is not an object of dependency maps/);
+  });
+
+  it("refuses a package.json whose dependencies field is not a map", () => {
+    expect(analyzerOver('{ "dependencies": "react" }\n')).toThrow(
+      /package\.json at .+ is not an object of dependency maps/
+    );
+  });
+});
