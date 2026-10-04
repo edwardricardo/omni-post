@@ -18,7 +18,7 @@ function findMonorepoRoot(startDir: string): string {
   return path.resolve(startDir, "../../");
 }
 
-const root = findMonorepoRoot(__dirname);
+const root = findMonorepoRoot(import.meta.dirname);
 
 export default defineConfig({
   resolve: {

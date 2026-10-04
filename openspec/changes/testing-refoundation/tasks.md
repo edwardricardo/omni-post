@@ -166,9 +166,9 @@ Chain strategy: stacked-to-main
 
 ### 0.14 · `refound/0-toolchain-build` — the build and format six · **BATCH 14** (re-plan 2026-09-27: can wait; tail of Phase 0)
 
-- [ ] 0.14.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~40 · slice `refound/0-toolchain-build` — re-measure latest mature on the day for `vite`, `turbo`, `webpack`, `cross-env`, `jiti`, `prettier`; bump each catalog entry; validate empirically: `pnpm exec tsc -b --force`, `pnpm -r build` for the packages that emit, `pnpm lint --max-warnings 0`, the api unit suite; if the prettier bump reformats files, run `pnpm format` and commit the reformat as its own EVIDENCE commit with `pnpm format:check` green after it.
-- [ ] 0.14.2 WU-T.4(f) · testing-toolchain-alignment › Every lag below latest mature carries a documented hold, and a gate proves it · CODE ~6 · slice `refound/0-toolchain-build` — delete the grouped build-tooling hold row from `docs/security/SECURITY_CANON.md`; `node scripts/testing/holds-gate.mjs` exit 0.
-- [ ] 0.14.3 Tracker: T.4 table rows move; WU row ✅ · CODE ~4 · slice `refound/0-toolchain-build`.
+- [x] 0.14.1 WU-T.4(b) · testing-toolchain-alignment › Each family moves as one PR, validated empirically, at the minimal mature version · CODE ~40 · slice `refound/0-toolchain-build` — re-measure latest mature on the day for `vite`, `turbo`, `webpack`, `cross-env`, `jiti`, `prettier`; bump each catalog entry; validate empirically: `pnpm exec tsc -b --force`, `pnpm -r build` for the packages that emit, `pnpm lint --max-warnings 0`, the api unit suite; if the prettier bump reformats files, run `pnpm format` and commit the reformat as its own EVIDENCE commit with `pnpm format:check` green after it.
+- [x] 0.14.2 WU-T.4(f) · testing-toolchain-alignment › Every lag below latest mature carries a documented hold, and a gate proves it · CODE ~6 · slice `refound/0-toolchain-build` — delete the grouped build-tooling hold row from `docs/security/SECURITY_CANON.md`; `node scripts/testing/holds-gate.mjs` exit 0.
+- [x] 0.14.3 Tracker: T.4 table rows move; WU row ✅ · CODE ~4 · slice `refound/0-toolchain-build`.
 
 ### 0.15 · `refound/0-toolchain-quality-gates` — the quality-gate eleven · **BATCH 15** (re-plan 2026-09-27: can wait; tail of Phase 0)
 
