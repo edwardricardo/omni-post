@@ -61,6 +61,7 @@
     "@adapters/dead-letter-queue": "workspace:*",
     "@adapters/external-apis": "workspace:*",
     "@adapters/queue-bullmq": "workspace:*",
+    "@adapters/storage-do-spaces": "workspace:*",
     "@adapters/storage-s3": "workspace:*",
     "@anthropic-ai/sdk": "catalog:",
     "@core/accounts": "workspace:*",

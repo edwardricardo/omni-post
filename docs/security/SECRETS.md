@@ -195,16 +195,26 @@ six rotate independently; the typical pattern is staggered rotation
 with a dual-key validity window so existing sessions stay valid until
 their natural expiry.
 
-### 4.4 Storage (S3 / MinIO)
+### 4.4 Storage (S3 / MinIO / DigitalOcean Spaces)
 
 | Env var                | Required                            | Used by         | Rotation cadence        | Notes                                                                                |
 | ---------------------- | ----------------------------------- | --------------- | ----------------------- | ------------------------------------------------------------------------------------ |
-| `S3_ACCESS_KEY_ID`     | conditional (`STORAGE_PROVIDER=s3`) | Storage adapter | NIST 1 year (cloud IAM) | Static IAM credential                                                                |
-| `S3_SECRET_ACCESS_KEY` | conditional (`STORAGE_PROVIDER=s3`) | Storage adapter | NIST 1 year             | Static IAM credential — prefer instance role / OIDC where the deployment supports it |
+| `S3_ACCESS_KEY_ID`     | both or neither (for `s3`, `local`) | Storage adapter | NIST 1 year (cloud IAM) | Static IAM credential                                                                |
+| `S3_SECRET_ACCESS_KEY` | both or neither (for `s3`, `local`) | Storage adapter | NIST 1 year             | Static IAM credential — prefer instance role / OIDC where the deployment supports it |
+| `DO_SPACES_KEY`        | conditional (`do-spaces`)           | Storage adapter | NIST 1 year             | Spaces access key id                                                                 |
+| `DO_SPACES_SECRET`     | conditional (`do-spaces`)           | Storage adapter | NIST 1 year             | Spaces secret key                                                                    |
 
-The `STORAGE_PROVIDER=local` default disables S3 entirely. Rotation
-procedure: cloud-provider IAM rotation; not in T0A because the credential
-is not omni-post-controlled.
+`s3` and the `STORAGE_PROVIDER=local` default both build the S3 adapter. For
+both, the static key pair is both-or-neither: with neither
+`S3_ACCESS_KEY_ID` nor `S3_SECRET_ACCESS_KEY` set, the AWS SDK default
+credential chain applies — prefer an instance role or OIDC where the
+deployment supports it — and half a pair is refused. `s3` also requires
+`S3_BUCKET` and `S3_REGION`, which `local` defaults; `do-spaces` requires all
+five `DO_SPACES_*` variables. A missing required variable stops the boot and
+is named (`apps/api/src/infrastructure/storage/createStorageAdapter.ts`).
+Rotation procedure: cloud-provider key rotation (AWS IAM or DigitalOcean
+Spaces access keys); not in T0A because the credential is not
+omni-post-controlled.
 
 ### 4.5 Logging and observability
 
@@ -483,7 +493,7 @@ schedule template in
 | Session / cookie secrets — `COOKIE_SECRET`                                          | 90 days                        | Same dual-key window                                                      |
 | Database password (embedded in `DATABASE_URL`)                                      | 1 year                         | Roll the DB role password, update env var, restart                        |
 | Redis password (`REDIS_PASSWORD`)                                                   | 1 year                         | Same as DB                                                                |
-| Storage credentials (`S3_*`)                                                        | 1 year (cloud IAM convention)  | Provider-side rotation                                                    |
+| Storage credentials (`S3_*`, `DO_SPACES_KEY`, `DO_SPACES_SECRET`)                   | 1 year (cloud IAM convention)  | Provider-side rotation                                                    |
 | Third-party API keys (`OPENAI_*`, `RESEND_*`, `STRIPE_*`, etc.)                     | 1 year                         | Provider-side rotation; update env var                                    |
 | Provider OAuth client secrets                                                       | Provider-controlled (re-issue) | Re-issue in provider console; update env var                              |
 | Hashed values (Class B)                                                             | N/A (re-hash on update)        | Transparent rehash via `needsRehash`                                      |
