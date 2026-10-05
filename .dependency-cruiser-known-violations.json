@@ -95,17 +95,6 @@
   },
   {
     "type": "dependency",
-    "from": "apps/api/src/admin/queueRoutes.ts",
-    "to": "packages/adapters/queue-bullmq/src/index.ts",
-    "unresolvedTo": "@adapters/queue-bullmq",
-    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "routes-no-adapters-or-providers"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "apps/api/src/channels/channelRoutes.ts",
     "to": "packages/providers/bluesky/src/index.ts",
     "unresolvedTo": "@providers/bluesky",
