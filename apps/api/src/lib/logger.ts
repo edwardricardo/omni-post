@@ -45,9 +45,12 @@ const baseOptions: LoggerOptions = {
   },
   formatters: {
     level: (label) => ({ level: label }),
+    // Pino hands the logger's `name` to this formatter with the other root bindings,
+    // so a formatter that omits it strips the name from every line `createLogger(name)` writes.
     bindings: (bindings) => ({
       pid: bindings.pid,
       host: bindings.hostname,
+      ...(bindings.name !== undefined && { name: bindings.name }),
       service: "omnipost-api",
     }),
   },

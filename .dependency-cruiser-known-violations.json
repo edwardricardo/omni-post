@@ -23,17 +23,6 @@
   },
   {
     "type": "dependency",
-    "from": "packages/core/billing/src/GatewayBillingService.ts",
-    "to": "packages/observability/logger/src/index.ts",
-    "unresolvedTo": "@observability/logger",
-    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "core-application-no-infrastructure"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "packages/core/compliance/src/ComplianceService.ts",
     "to": "packages/observability/logger/src/index.ts",
     "unresolvedTo": "@observability/logger",

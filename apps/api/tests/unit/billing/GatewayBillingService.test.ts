@@ -20,6 +20,7 @@ import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPor
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { GatewayAdapterRegistryPort } from "@ports/core";
+import { createFakeLoggerPort, type FakeLoggerPort } from "../helpers/fakeLoggerPort.js";
 
 // ── Mock Factories ──────────────────────────────────────────────────────────
 
@@ -192,10 +193,12 @@ describe("GatewayBillingService", () => {
   let auditEmitter: AuditEmitterPort;
   let emailPort: EmailPort;
   let unitOfWork: UnitOfWork;
+  let logger: FakeLoggerPort;
   let mockRegistry: ReturnType<typeof makeMockRegistry>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    logger = createFakeLoggerPort();
     accountRepo = makeAccountRepo();
     subscriptionRepo = makeSubscriptionRepo();
     switchEventRepo = makeSwitchEventRepo();
@@ -218,6 +221,7 @@ describe("GatewayBillingService", () => {
       switchJobs,
       emailPort,
       auditEmitter,
+      logger,
       unitOfWork
     );
   });
@@ -377,15 +381,18 @@ describe("GatewayBillingService", () => {
       assert.equal(result.value.toGateway, "PADDLE");
     });
 
-    it("returns DATABASE_ERROR when account read throws", async () => {
-      (accountRepo.findById as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error("Connection lost")
-      );
+    it("returns DATABASE_ERROR and reports the cause through the injected logger when account read throws", async () => {
+      const cause = new Error("Connection lost");
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockRejectedValue(cause);
 
       const result = await service.initiateGatewaySwitch("account-001", "paddle");
 
       assert.ok(!result.ok);
       assert.equal(result.error, "DATABASE_ERROR");
+      expect(logger.error).toHaveBeenCalledWith(
+        { err: cause, accountId: "account-001" },
+        "Failed to initiate gateway switch"
+      );
     });
 
     it("works without externalSubscriptionId (uses currentPeriodEnd from DB)", async () => {
