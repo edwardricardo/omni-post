@@ -3,9 +3,10 @@ name: Maturity Reminder
 # Opens one issue per maturity watchlist review due today (a package version that entered inside
 # the 7-day maturity buffer, reviewed 7 and 14 days after publication, or a dated milestone) and
 # comments on it at the day's later firings while it stays open. Closing the issue, once the outcome
-# is recorded in scripts/testing/maturity-watchlist.json, cancels the rest of that day. Three
-# firings a day, 13:00, 17:00 and 21:00 UTC. Pinned by
-# apps/api/tests/unit/scripts/maturityWatchlist.test.ts.
+# is recorded in scripts/testing/maturity-watchlist.json, cancels the rest of that day. A review
+# still unrecorded after its day stays due: the reminder comments on its open issue every day,
+# reopens one closed on an earlier day, and skips one closed today. Three firings a day, 13:00,
+# 17:00 and 21:00 UTC. Pinned by apps/api/tests/unit/scripts/maturityWatchlist.test.ts.
 
 on:
   schedule:

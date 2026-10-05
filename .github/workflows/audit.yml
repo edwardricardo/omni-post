@@ -165,10 +165,10 @@ jobs:
           #
           # No verdict below reads gitleaks' log prose. Its "N commits scanned."
           # counts only commits that ADD lines — a deletion-only or merge-only pull
-          # request reports 0 — and is coloured on any stream. git decides the range
-          # and that it is not empty; the JSON report and the exit status decide the
-          # findings; and the error stream must stay empty, because gitleaks 8.30.0
-          # logs a failed `git log` at ERR level and still exits 0 with an empty report.
+          # request reports 0. git decides the range and that it is not empty; the
+          # JSON report and the exit status decide the findings; and the error stream
+          # must stay empty, because gitleaks 8.30.0 logs a failed `git log` at ERR
+          # level and still exits 0 with an empty report.
           set -euo pipefail
 
           # The ids arrive through `env:`, never inlined into this script, and must be
