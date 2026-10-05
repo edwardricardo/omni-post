@@ -37,6 +37,9 @@ export interface OAuthCredentials {
   readonly clientSecret: string;
 }
 
+/** The part of an `OAuthProvider` that `credentialsFromEnv` contributes: its credentials, or nothing. */
+type OAuthCredentialFields = Pick<OAuthProvider, "credentials">;
+
 export interface OAuthProvider {
   id: ProviderId;
   config: OAuthConfig;
@@ -106,7 +109,7 @@ type OAuthEnvPrefix =
  * can only be a deployment mistake, so it stops the module from loading instead
  * of surfacing as a rejected token exchange after the user has consented.
  */
-function credentialsFromEnv(prefix: OAuthEnvPrefix): Pick<OAuthProvider, "credentials"> {
+function credentialsFromEnv(prefix: OAuthEnvPrefix): OAuthCredentialFields {
   const idVar = `${prefix}_CLIENT_ID` as const;
   const secretVar = `${prefix}_CLIENT_SECRET` as const;
   const clientId = env[idVar];
@@ -167,7 +170,7 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
      * @param state - The state parameter used to look up the stored PKCE verifier
      */
     async validateCode(code: string, _state: string, codeVerifier?: string) {
-      const config = { ...this.config, ...requireCredentials(this) };
+      const authenticatedConfig = { ...this.config, ...requireCredentials(this) };
 
       // The PKCE verifier is resolved + single-use-consumed by the OAuth
       // flow store (cross-pod) and passed in here for the token exchange.
@@ -175,16 +178,16 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
         throw AppError.badRequest("Missing PKCE code_verifier for X token exchange");
       }
 
-      const tokenResponse = await fetch(config.tokenUrl, {
+      const tokenResponse = await fetch(authenticatedConfig.tokenUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`,
+          Authorization: `Basic ${Buffer.from(`${authenticatedConfig.clientId}:${authenticatedConfig.clientSecret}`).toString("base64")}`,
         },
         body: new URLSearchParams({
           grant_type: "authorization_code",
           code,
-          redirect_uri: config.redirectUri,
+          redirect_uri: authenticatedConfig.redirectUri,
           code_verifier: codeVerifier,
         }),
         signal: AbortSignal.timeout(10_000),
@@ -236,14 +239,14 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
       tokenUrl: "https://api.instagram.com/oauth/access_token",
     },
     async validateCode(code: string, _state: string) {
-      const config = { ...this.config, ...requireCredentials(this) };
-      const tokenResponse = await fetch(config.tokenUrl, {
+      const authenticatedConfig = { ...this.config, ...requireCredentials(this) };
+      const tokenResponse = await fetch(authenticatedConfig.tokenUrl, {
         method: "POST",
         body: new URLSearchParams({
-          client_id: config.clientId,
-          client_secret: config.clientSecret,
+          client_id: authenticatedConfig.clientId,
+          client_secret: authenticatedConfig.clientSecret,
           grant_type: "authorization_code",
-          redirect_uri: config.redirectUri,
+          redirect_uri: authenticatedConfig.redirectUri,
           code,
         }),
         signal: AbortSignal.timeout(10_000),
@@ -290,9 +293,9 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
       tokenUrl: "https://graph.facebook.com/v18.0/oauth/access_token",
     },
     async validateCode(code: string, _state: string) {
-      const config = { ...this.config, ...requireCredentials(this) };
+      const authenticatedConfig = { ...this.config, ...requireCredentials(this) };
       const tokenResponse = await fetch(
-        `${config.tokenUrl}?client_id=${config.clientId}&client_secret=${config.clientSecret}&redirect_uri=${config.redirectUri}&code=${code}`,
+        `${authenticatedConfig.tokenUrl}?client_id=${authenticatedConfig.clientId}&client_secret=${authenticatedConfig.clientSecret}&redirect_uri=${authenticatedConfig.redirectUri}&code=${code}`,
         { signal: AbortSignal.timeout(10_000) }
       );
 
@@ -339,16 +342,16 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
       tokenUrl: "https://oauth2.googleapis.com/token",
     },
     async validateCode(code: string, _state: string) {
-      const config = { ...this.config, ...requireCredentials(this) };
-      const tokenResponse = await fetch(config.tokenUrl, {
+      const authenticatedConfig = { ...this.config, ...requireCredentials(this) };
+      const tokenResponse = await fetch(authenticatedConfig.tokenUrl, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
-          client_id: config.clientId,
-          client_secret: config.clientSecret,
+          client_id: authenticatedConfig.clientId,
+          client_secret: authenticatedConfig.clientSecret,
           code,
           grant_type: "authorization_code",
-          redirect_uri: config.redirectUri,
+          redirect_uri: authenticatedConfig.redirectUri,
         }),
         signal: AbortSignal.timeout(10_000),
       });
@@ -404,16 +407,16 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
       tokenUrl: "https://open-api.tiktok.com/oauth/access_token/",
     },
     async validateCode(code: string, _state: string) {
-      const config = { ...this.config, ...requireCredentials(this) };
-      const tokenResponse = await fetch(config.tokenUrl, {
+      const authenticatedConfig = { ...this.config, ...requireCredentials(this) };
+      const tokenResponse = await fetch(authenticatedConfig.tokenUrl, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
-          client_key: config.clientId,
-          client_secret: config.clientSecret,
+          client_key: authenticatedConfig.clientId,
+          client_secret: authenticatedConfig.clientSecret,
           code,
           grant_type: "authorization_code",
-          redirect_uri: config.redirectUri,
+          redirect_uri: authenticatedConfig.redirectUri,
         }),
         signal: AbortSignal.timeout(10_000),
       });
@@ -466,16 +469,16 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
       tokenUrl: "https://www.linkedin.com/oauth/v2/accessToken",
     },
     async validateCode(code: string, _state: string) {
-      const config = { ...this.config, ...requireCredentials(this) };
-      const tokenResponse = await fetch(config.tokenUrl, {
+      const authenticatedConfig = { ...this.config, ...requireCredentials(this) };
+      const tokenResponse = await fetch(authenticatedConfig.tokenUrl, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
           grant_type: "authorization_code",
           code,
-          client_id: config.clientId,
-          client_secret: config.clientSecret,
-          redirect_uri: config.redirectUri,
+          client_id: authenticatedConfig.clientId,
+          client_secret: authenticatedConfig.clientSecret,
+          redirect_uri: authenticatedConfig.redirectUri,
         }),
         signal: AbortSignal.timeout(10_000),
       });
@@ -525,17 +528,17 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
       tokenUrl: "https://api.pinterest.com/v5/oauth/token",
     },
     async validateCode(code: string, _state: string) {
-      const config = { ...this.config, ...requireCredentials(this) };
-      const tokenResponse = await fetch(config.tokenUrl, {
+      const authenticatedConfig = { ...this.config, ...requireCredentials(this) };
+      const tokenResponse = await fetch(authenticatedConfig.tokenUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`,
+          Authorization: `Basic ${Buffer.from(`${authenticatedConfig.clientId}:${authenticatedConfig.clientSecret}`).toString("base64")}`,
         },
         body: new URLSearchParams({
           grant_type: "authorization_code",
           code,
-          redirect_uri: config.redirectUri,
+          redirect_uri: authenticatedConfig.redirectUri,
         }),
         signal: AbortSignal.timeout(10_000),
       });
@@ -585,17 +588,17 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
       tokenUrl: "https://accounts.snapchat.com/login/oauth2/access_token",
     },
     async validateCode(code: string, _state: string) {
-      const config = { ...this.config, ...requireCredentials(this) };
-      const tokenResponse = await fetch(config.tokenUrl, {
+      const authenticatedConfig = { ...this.config, ...requireCredentials(this) };
+      const tokenResponse = await fetch(authenticatedConfig.tokenUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`,
+          Authorization: `Basic ${Buffer.from(`${authenticatedConfig.clientId}:${authenticatedConfig.clientSecret}`).toString("base64")}`,
         },
         body: new URLSearchParams({
           grant_type: "authorization_code",
           code,
-          redirect_uri: config.redirectUri,
+          redirect_uri: authenticatedConfig.redirectUri,
         }),
         signal: AbortSignal.timeout(10_000),
       });

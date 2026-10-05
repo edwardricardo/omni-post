@@ -87,7 +87,10 @@ server that happens to be up. The test port set is fixed on purpose: an override
 
 - **GIVEN** a process already listening on the test API port
 - **WHEN** the script is asked to start the API
-- **THEN** it exits non-zero naming the port and, where the platform exposes it, the listening process, and starts nothing
+- **THEN** it exits non-zero and starts nothing
+- **AND** the refusal always names the bound port and the whole test port set
+- **AND** where the platform exposes it, the refusal also names the listening process; that part
+  is optional, so a platform that hides the process still gets a refusal naming both of the above
 
 #### Scenario: The reserved logical database is fixed, not derived [static]
 

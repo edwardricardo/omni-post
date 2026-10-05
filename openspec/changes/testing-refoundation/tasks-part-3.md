@@ -342,7 +342,7 @@ Every slice targets `main` (`stacked-to-main`) and is merged in the order below.
 | 1.8    | `refound/1-runner-envfix`            | —     | 1.1 (or before)                           | 1.8.1–1.8.4  | ~134       | A1 data-loss refusal ✅                             | M7                  |
 | 1.9    | `refound/1-services-collector`       | —     | 1.7, 1.8                                  | 1.9.1–1.9.7  | ~264       | 4 runner guards ✅, interim #30 ✅                  | M5, M9, M7          |
 | 1.10   | `refound/4b-db` (PR E2)              | —     | P.6, 1.9                                  | 1.10.1–5     | ~274       | 4 identity/contamination refusals ✅                | M15, M7             |
-| 1.11   | `refound/4b-processes` (PR E3a)      | —     | 1.10                                      | 1.11.1–5     | ~294       | 7 subprocess-lifecycle REDs ✅                      | M7                  |
+| 1.11   | `refound/4b-processes` (PR E3a)      | —     | 1.10                                      | 1.11.1–5     | ~304       | 7 subprocess-lifecycle REDs ✅                      | M7                  |
 | 1.12   | `refound/4b-integration-recipe`      | —     | 1.11                                      | 1.12.1–5     | ~204       | recipe phase order ✅, `full-integration` ✅        | M9, M7              |
 | 1.13   | `refound/1-live-collector` (PR R8)   | —     | 1.12                                      | 1.13.1–5     | ~244       | `probe_live` ✅×2                                   | M5, M9, M7          |
 | 1.14   | `refound/1-reach-engine` (PR R9a)    | —     | 1.13                                      | 1.14.1–4     | ~254       | fail-closed conditions                              | Decisions           |
