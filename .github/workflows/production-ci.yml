@@ -5,7 +5,9 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # A stacked PR targets its parent branch and its retarget to main starts no run here,
+    # so without these patterns the PR lacks Test and Build, which main requires to merge.
+    branches: [main, omni-post-cc, "feature/**", "workstream/**"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
