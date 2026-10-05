@@ -194,8 +194,8 @@ A gate that reports a clean graph it never read is worse than no gate
 ## Implementation notes (2026-10-05)
 
 PR2 of decisions 4 to 6 shipped as two pull requests of item (v): `PR v-b`
-(`workstream/item-v-rules`, `515487b9`), the layer rules and the baseline, and `PR v-c`
-(`workstream/item-v-boundaries`, `63881f50`), the retirement of `eslint-plugin-boundaries`. The
+(#411, `workstream/item-v-rules`, `515487b9`), the layer rules and the baseline, and `PR v-c`
+(#412, `workstream/item-v-boundaries`, `63881f50`), the retirement of `eslint-plugin-boundaries`. The
 decisions stand as written; these notes record where the code differs from their text.
 
 - **The scope grew in `PR v-b`** beyond the list of decision 2, which is PR #408's. The command also
@@ -224,8 +224,9 @@ decisions stand as written; these notes record where the code differs from their
   `routes-domain-types-only`, 6 `core-application-no-infrastructure` and 5
   `routes-no-adapters-or-providers`. The six `@observability/logger` entries of decision 4's
   application row left when ADR-0033's `LoggerPort` landed, one in `PR v-d1`
-  (`workstream/item-v-logger-a`) and five in `PR v-d2` (`workstream/item-v-logger-port`); `PR v-e1`,
-  `PR v-e2` and `PR v-e3` removed two, one and five route entries. At `783aeebe`: 75
+  (#413, `workstream/item-v-logger-a`) and five in `PR v-d2` (#414, `workstream/item-v-logger-port`);
+  `PR v-e1` (#415), `PR v-e2` (#416) and `PR v-e3` (#417) removed two, one and five route entries.
+  At `783aeebe`: 75
   `routes-no-container`, 23 `routes-no-prisma`, 17 `routes-no-repositories`, 8
   `routes-domain-types-only` and 1 `routes-no-adapters-or-providers`.
 

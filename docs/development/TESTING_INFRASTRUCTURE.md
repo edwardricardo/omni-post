@@ -298,11 +298,11 @@ The admin config run by hand, because `apps/admin/package.json` has no E2E scrip
 
 These are not coverage gaps. Each is a check whose construction prevents it from turning red, or from saying why it did.
 
-1. **`Test and Build` runs no tests on a pull request.** The step carries `if: github.event_name == 'push'` (`production-ci.yml:141-147`), the check is required, and on push it tests only packages changed against `HEAD^1`.
+1. **`Test and Build` runs no tests on a pull request.** The step carries `if: github.event_name == 'push'` (`production-ci.yml:143-149`), the check is required, and on push it tests only packages changed against `HEAD^1`.
 2. **`Coverage Merge` cannot fail when a shard fails.** `needs: test` covers the whole matrix (`ci.yml:235`), so when a shard is red the only job that enforces the coverage floors does not run — and it is also the only job that would render the blob into a readable failure (P). Whether a skipped required check satisfies branch protection is under "Not measured".
 3. **The blind shard.** `--reporter=blob` replaces the default reporter and `apps/api` declares no other, so a red shard prints no test name, file, count or error class; a search of the failing log for 10 distinct markers returns nothing (P). `Integration Tests` is the opposite model: it names the failing batch and prints every `not ok` with its TAP block (R, `ci-outbox.log`).
 4. **The OpenAPI drift gate skips silently.** Both steps carry `if: matrix.shard == 1` (`ci.yml:206`, `:222`), which GitHub wraps in an implicit `success()`, so any earlier failure in shard 1 skips the drift check; the plan saw that in 4 of the last 6 red runs (P).
-5. **`Security Audit` is emitted by two jobs** (`ci.yml:628` and `production-ci.yml:23`) and satisfies one required context.
+5. **`Security Audit` is emitted by two jobs** (`ci.yml:628` and `production-ci.yml:25`) and satisfies one required context.
 
 Two related defects surfaced while executing:
 
