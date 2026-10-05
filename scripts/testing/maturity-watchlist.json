@@ -111,14 +111,17 @@
       "reviews": {}
     },
     {
-      "kind": "date",
-      "id": "hold-size-limit-14.1.0",
-      "title": "Pre-registered hold due: size-limit 14.1.0 is mature, move size-limit and its preset from 14.0.1",
-      "due": "2026-10-04",
-      "refs": [
-        "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `size-limit`: 14.1.0 matures 2026-10-04T13:10Z",
-        "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `size-limit` row"
-      ],
+      "kind": "package",
+      "name": "unbash",
+      "version": "4.0.12",
+      "published": "2026-09-30T05:23:10.752Z",
+      "entered": {
+        "date": "2026-10-04",
+        "commit": "465897f0",
+        "pr": 392,
+        "via": "knip 6.38.0, which declares `^4.0.11`, 4.0 days after publication"
+      },
+      "milestones": { "maturity": "2026-10-07", "final": "2026-10-14" },
       "reviews": {}
     },
     {
