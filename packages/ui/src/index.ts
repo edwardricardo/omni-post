@@ -49,14 +49,6 @@ export { EmojiPickerButton } from "./components/business/EmojiPickerButton";
 export * from "./components/business/ValidationContentEditor";
 
 // Hooks
-export { usePublishingEngine } from "./hooks/usePublishingEngine";
-export type {
-  PublishResult,
-  ValidationError,
-  PublishingStats,
-  PublishingEngineOptions,
-  PublishingEngineState,
-} from "./hooks/usePublishingEngine";
 export { useProviderConstraints } from "./hooks/useProviderConstraints";
 
 // Utils
