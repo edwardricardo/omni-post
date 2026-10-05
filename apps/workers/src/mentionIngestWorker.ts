@@ -42,7 +42,10 @@ import { setTenantGuc } from "@infra/prisma/extensions/tenantGuc.js";
 import { verifyDatabaseAuth } from "./container/workerContainer.js";
 import { env } from "./config/env.js";
 import { createPrismaRepoAdapter, PrismaMentionRepository } from "@adapters/db-prisma";
-import { decryptChannelCredentials } from "@shared/types/channelCredentialsCrypto.js";
+import {
+  buildWorkerEncryptionKeyRing,
+  createChannelCredentialsDecryptor,
+} from "./services/channelCredentialsDecryptor.js";
 import type { ProviderAdapter, ProviderMention } from "@ports/core";
 import { IngestMentionUseCase } from "@core/listening/IngestMentionUseCase.js";
 import type { ProviderType } from "@core/domain/value-objects/Provider.js";
@@ -56,26 +59,18 @@ const MAX_SEARCH_PAGES = 5;
 const SEARCH_PAGE_SIZE = 100;
 
 // Built lazily on first use (and eagerly at worker startup) rather than at
-// module import, so importing this module to unit-test its pure helpers does
-// not require PLATFORM_ENCRYPTION_KEY. The fail-fast on a missing key still
-// fires at worker startup via startMentionIngestWorker's getCredentialResolver
-// call, not at module import time.
+// module import, so importing this module to unit-test its pure helpers decodes
+// no key and builds no repository. A malformed key still stops the worker at
+// startup, through startMentionIngestWorker's getCredentialResolver call: the
+// key ring decodes every configured key when it is built.
 let cachedCredentialResolver: CredentialResolver | undefined;
 function getCredentialResolver(prisma: PrismaClient): CredentialResolver {
   if (cachedCredentialResolver) {
     return cachedCredentialResolver;
   }
-  // env.PLATFORM_ENCRYPTION_KEY is validated fail-fast at module load by the
-  // workers env module (env.ts). No runtime guard needed here.
-  const platformEncryptionKey = env.PLATFORM_ENCRYPTION_KEY;
   const repo = createPrismaRepoAdapter({
     prisma,
-    decryptChannelCredentials: (envelope: {
-      credentialsCiphertext: string;
-      credentialsIv: string;
-      credentialsAuthTag: string;
-      credentialsKeyVersion: number;
-    }) => decryptChannelCredentials(envelope, platformEncryptionKey),
+    decryptChannelCredentials: createChannelCredentialsDecryptor(buildWorkerEncryptionKeyRing(env)),
   });
   cachedCredentialResolver = new CredentialResolver(repo);
   return cachedCredentialResolver;
@@ -421,8 +416,8 @@ export async function startMentionIngestWorker(
 ): Promise<ShutdownTarget> {
   await verifyDatabaseAuth();
 
-  // Fail fast at startup if PLATFORM_ENCRYPTION_KEY is missing (and warm the
-  // resolver), instead of deferring the failure to the first processed job.
+  // Fail fast at startup on a malformed encryption key (and warm the resolver),
+  // instead of deferring the failure to the first processed job.
   // Thread options.prisma through so the resolver uses the injected client.
   getCredentialResolver(options.prisma);
 

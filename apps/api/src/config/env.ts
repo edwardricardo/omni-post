@@ -22,6 +22,7 @@ dotenv.config({ path: path.resolve(__dirname, "../../../..", envFile) });
 
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
+import { platformEncryptionKeyEnvFields } from "@shared/types/platformEncryptionKeyEnv.js";
 import { firstMissingRingVersion, parseNameDigestKeyRing } from "../security/nameDigest/keyRing.js";
 import { TRUSTED_PROXY_MODES, parseTrustedProxyRanges } from "../security/trustedProxy.js";
 
@@ -110,23 +111,12 @@ const serverSchema = {
   COOKIE_SECRET: z.string().min(SECRET_MIN),
 
   // ── Cryptography (REQUIRED — encryption is core, not opt-in) ────────
-  PLATFORM_ENCRYPTION_KEY: z.string().min(SECRET_MIN),
+  // PLATFORM_ENCRYPTION_KEY, its active version and the prior-version keys of a
+  // rotation window: one fragment, spread by the workers' env as well, so the
+  // process that stamps a key version and the one that resolves it read the
+  // same variables. The rotation procedure lives in the fragment's JSDoc.
+  ...platformEncryptionKeyEnvFields(SECRET_MIN),
   OAUTH_ENCRYPTION_KEY: z.string().min(SECRET_MIN),
-
-  // Active key version for new ciphertexts. Used by EncryptionService to
-  // stamp new EncryptedValue rows with `keyVersion = N`. Defaults to 1
-  // (the steady state). Bump to N+1 during a key rotation, alongside
-  // setting `PLATFORM_ENCRYPTION_KEY_V<N>` to the previous key for the
-  // dual-key validity window.
-  PLATFORM_ENCRYPTION_KEY_VERSION: z.coerce.number().int().min(1).default(1),
-
-  // Prior key versions, available during a rotation grace window so
-  // existing ciphertexts (stamped with keyVersion=N-1) can still be
-  // decrypted while new writes use the v=N key. Drop these env vars
-  // after the re-wrap script has migrated all rows to the current key.
-  PLATFORM_ENCRYPTION_KEY_V1: z.string().min(SECRET_MIN).optional(),
-  PLATFORM_ENCRYPTION_KEY_V2: z.string().min(SECRET_MIN).optional(),
-  PLATFORM_ENCRYPTION_KEY_V3: z.string().min(SECRET_MIN).optional(),
 
   // The HMAC key ring that degrades a tombstone's plaintext `name` into a
   // keyed digest once its retention window closes. REQUIRED with no default:

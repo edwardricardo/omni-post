@@ -215,8 +215,17 @@ vi.mock("@observability/background-scheduler", () => {
   return { DefaultBackgroundTaskScheduler };
 });
 
-vi.mock("@shared/types/channelCredentialsCrypto.js", () => ({
-  decryptChannelCredentials: vi.fn(),
+/**
+ * The key ring and the decryptor the worker builds at startup. The adapter is mocked, so
+ * the decryptor is never called here; the wiring test asserts that this exact function is
+ * the one the repository adapter receives.
+ */
+const workerKeyRing = { activeVersion: 1 };
+const workerDecryptor = (): Record<string, unknown> => ({ accessToken: "unit-test-token" });
+
+vi.mock("../../src/services/channelCredentialsDecryptor.js", () => ({
+  buildWorkerEncryptionKeyRing: vi.fn(() => workerKeyRing),
+  createChannelCredentialsDecryptor: vi.fn(() => workerDecryptor),
 }));
 
 vi.mock("../../src/services/CredentialResolver.js", () => {
@@ -254,6 +263,31 @@ describe("startPublishWorker", () => {
     assert.ok(handle.target, "handle.target must be defined");
     assert.ok(handle.repo, "handle.repo must be defined");
     assert.ok(handle.metricsRegistry, "handle.metricsRegistry must be defined");
+  });
+
+  it("hands the repository adapter the decryptor built from the workers' key ring", async () => {
+    const { startPublishWorker } = await import("../../src/publishWorker.js");
+    const { workerPrisma } = await import("../../src/container/workerContainer.js");
+    const { createPrismaRepoAdapter } = await import("@adapters/db-prisma");
+    const { env } = await import("../../src/config/env.js");
+    const { buildWorkerEncryptionKeyRing, createChannelCredentialsDecryptor } =
+      await import("../../src/services/channelCredentialsDecryptor.js");
+
+    await startPublishWorker({ prisma: workerPrisma, registerShutdown: false });
+
+    assert.strictEqual(
+      vi.mocked(buildWorkerEncryptionKeyRing).mock.calls[0]?.[0],
+      env,
+      "the key ring must be built from the workers' validated env"
+    );
+    assert.deepStrictEqual(vi.mocked(createChannelCredentialsDecryptor).mock.calls, [
+      [workerKeyRing],
+    ]);
+    assert.strictEqual(
+      vi.mocked(createPrismaRepoAdapter).mock.calls[0]?.[0]?.decryptChannelCredentials,
+      workerDecryptor,
+      "the repository must decrypt through the decryptor built from the env key ring"
+    );
   });
 
   it("handle.target.workers has exactly one BullMQ Worker", async () => {

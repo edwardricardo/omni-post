@@ -30,7 +30,10 @@ import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { verifyDatabaseAuth } from "./container/workerContainer.js";
-import { decryptChannelCredentials } from "@shared/types/channelCredentialsCrypto.js";
+import {
+  buildWorkerEncryptionKeyRing,
+  createChannelCredentialsDecryptor,
+} from "./services/channelCredentialsDecryptor.js";
 import { CredentialResolver } from "./services/CredentialResolver.js";
 import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
@@ -121,15 +124,12 @@ export async function startPublishWorker(
   // Fail fast if DATABASE_URL credentials don't authenticate.
   await verifyDatabaseAuth();
 
-  // Fail fast if PLATFORM_ENCRYPTION_KEY is missing (env module validates at
-  // module load, so this is just for the decrypt closure below).
-  const platformEncryptionKey = env.PLATFORM_ENCRYPTION_KEY;
-  const decryptCredentialsForWorker = (envelope: {
-    credentialsCiphertext: string;
-    credentialsIv: string;
-    credentialsAuthTag: string;
-    credentialsKeyVersion: number;
-  }) => decryptChannelCredentials(envelope, platformEncryptionKey);
+  // The env module already refused to boot without a key; building the ring here
+  // decodes every configured key, so a malformed one stops the worker at startup
+  // rather than failing each publish.
+  const decryptChannelCredentials = createChannelCredentialsDecryptor(
+    buildWorkerEncryptionKeyRing(env)
+  );
 
   const scheduler = new DefaultBackgroundTaskScheduler({
     logger: {
@@ -142,7 +142,7 @@ export async function startPublishWorker(
   const repo = createPrismaRepoAdapter({
     prisma: options.prisma,
     scheduler,
-    decryptChannelCredentials: decryptCredentialsForWorker,
+    decryptChannelCredentials,
   });
 
   const metricsRegistry = new client.Registry();

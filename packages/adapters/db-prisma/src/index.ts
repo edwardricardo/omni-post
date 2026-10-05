@@ -20,7 +20,7 @@ import type { RepoPort } from "@ports/core";
 import { createAccountRepository } from "./AccountRepository.js";
 import { createProjectRepository } from "./ProjectRepository.js";
 import { createPostRepository } from "./PostRepository.js";
-import { createChannelRepository } from "./ChannelRepository.js";
+import { createChannelRepository, type ChannelCredentialsDecryptor } from "./ChannelRepository.js";
 import { createPublishLogRepository } from "./PublishLogRepository.js";
 import { createAnalyticsRepository } from "./AnalyticsRepository.js";
 import { createThreadRepository } from "./ThreadRepository.js";
@@ -34,7 +34,7 @@ export {
 export { createAccountRepository } from "./AccountRepository.js";
 export { createProjectRepository, type CreateProjectInput } from "./ProjectRepository.js";
 export { createPostRepository } from "./PostRepository.js";
-export { createChannelRepository } from "./ChannelRepository.js";
+export { createChannelRepository, type ChannelCredentialsDecryptor } from "./ChannelRepository.js";
 export { createPublishLogRepository } from "./PublishLogRepository.js";
 export { createAnalyticsRepository } from "./AnalyticsRepository.js";
 export { createThreadRepository } from "./ThreadRepository.js";
@@ -78,12 +78,8 @@ export {
 export function createPrismaRepoAdapter(options: {
   prisma: PrismaClient;
   scheduler?: BackgroundTaskScheduler;
-  decryptChannelCredentials?: (envelope: {
-    credentialsCiphertext: string;
-    credentialsIv: string;
-    credentialsAuthTag: string;
-    credentialsKeyVersion: number;
-  }) => Record<string, unknown>;
+  /** Receives each channel row's id with its envelope; see `ChannelCredentialsDecryptor`. */
+  decryptChannelCredentials?: ChannelCredentialsDecryptor;
 }): RepoPort & {
   getDatabaseHealthMetrics(): DatabaseHealthMetrics;
   close(): Promise<void>;
