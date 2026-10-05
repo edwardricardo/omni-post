@@ -53,10 +53,10 @@ catalogMode: strict
 
 catalog:
   # ── React family (move atomically: react + react-dom + @types) ──
-  react: 19.2.7 # taken 2026-06-20 (`08e662b6`), not moved since; 19.3.0 is newer and mature (registry, 2026-10-03); was 19.2.4
-  react-dom: 19.2.7 # moves with react; 19.3.0 is newer and mature (registry, 2026-10-03); was 19.2.4
-  "@types/react": 19.2.17 # moves with react; 19.3.0 is newer and mature (registry, 2026-10-03); was 19.2.14
-  "@types/react-dom": 19.2.3 # moves with react, unchanged since 2026-06-20 (`7d9da4aa`); 19.3.0 is newer and mature (registry, 2026-10-03)
+  react: 19.3.0 # taken 2026-06-20 (`08e662b6`), not moved since; 19.3.0 is newer and mature (registry, 2026-10-03); was 19.2.4
+  react-dom: 19.3.0 # moves with react; 19.3.0 is newer and mature (registry, 2026-10-03); was 19.2.4
+  "@types/react": 19.3.0 # moves with react; 19.3.0 is newer and mature (registry, 2026-10-03); was 19.2.14
+  "@types/react-dom": 19.3.0 # moves with react, unchanged since 2026-06-20 (`7d9da4aa`); 19.3.0 is newer and mature (registry, 2026-10-03)
 
   # ── Tiptap + prosemirror family (atomic) ──
   # CVE floor raised 2026-09-09 to 3.30.5: GHSA-j95f-988m-3j2f (high) — quadratic
