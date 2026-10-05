@@ -35,7 +35,12 @@
  *   in the change that removes the violation. Regenerate it after fixing violations, never to
  *   add one, with `pnpm check:architecture:update-baseline`, which runs in shrink-only mode:
  *   it drops the entries that no longer occur and adds nothing. A new violation is a canon
- *   violation to fix, not an entry to list.
+ *   violation to fix, not an entry to list. An entry is matched on its rule, both ends AND the
+ *   edge's shape (its dependency types, whether it resolved): rewriting a listed import without
+ *   removing it (alias ↔ relative path, value ↔ `import type`) makes the entry stale and the
+ *   edge new at once, and the check stays red until the violation is gone — fail-closed, by
+ *   design. `apps/api/tests/unit/scripts/architectureBaseline.test.ts` pins all of this on a
+ *   fixture the tool itself baselines.
  *
  *   A rule sees only the edges the resolver produced: an import that resolves into a build
  *   output (`dist/`), or does not resolve at all, is invisible to every layer rule. The
@@ -301,7 +306,7 @@ module.exports = {
       name: "routes-domain-types-only",
       severity: "error",
       comment:
-        "A route module imports a domain module for its runtime value. A route passes primitives and the use case builds the value objects (Cockburn's adapter parses its input and calls the application; Vernon's application services take primitives). Type references stay allowed — `import type`, marked `type-only`, and inline `import(...)` types, marked `type-import` — as do the two vocabularies routes use as data: the Permission enumeration (authorization) and the notification types (validation). Repository modules are reported by routes-no-repositories.",
+        "A route module imports a domain module for its runtime value. A route passes primitives and the use case builds the value objects (Cockburn's adapter parses its input and calls the application; Vernon's application services take primitives). Type references stay allowed — `import type`, marked `type-only`, and inline `import(...)` types, marked `type-import` — as do the two vocabularies routes use as data: the Permission enumeration (authorization) and the notification types (validation). Repository modules are reported by routes-no-repositories. The other route rules exempt no type reference, so their baseline entries carry `type-only` or `type-import`: a route imports `PrismaClient`, a repository or an adapter type to resolve that instance from the container. dependency-cruiser keeps one edge per specifier and kind (`import type` or not), the first it reads, and reads import statements before nested references: an inline type never hides an `import` statement, but one written before a dynamic `import()` of the same module records the edge as `type-import`, and this rule misses that value import.",
       from: ROUTE_MODULES,
       to: {
         path: "^packages/core/domain/",
