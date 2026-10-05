@@ -343,7 +343,8 @@ Resolve ambiguity by path. When a file could fit two layers, pick by this table:
 
 | Path                                                                                              | @layer           |
 | ------------------------------------------------------------------------------------------------- | ---------------- |
-| `apps/api/src/domain/`, `packages/shared/`, `packages/ports/` (pure contracts, no framework deps) | `domain`         |
+| `apps/api/src/domain/`, `packages/shared/` (pure contracts, no framework deps)                    | `domain`         |
+| `packages/ports/` (pure contracts, no framework deps; may import `@core/application/UseCase` too) | `domain`         |
 | `apps/api/src/application/`                                                                       | `application`    |
 | `apps/api/src/infrastructure/`, `apps/api/src/**/*Routes.ts`, `apps/api/src/**/*Processor.ts`     | `infrastructure` |
 | `apps/workers/src/`                                                                               | `infrastructure` |
@@ -353,6 +354,8 @@ Resolve ambiguity by path. When a file could fit two layers, pick by this table:
 | `packages/monitoring/`, `packages/observability/` (cross-cutting)                                 | `infrastructure` |
 | `packages/api-common/` (shared HTTP helpers)                                                      | `infrastructure` |
 | Tests (`**/tests/**`, `**/*.test.ts`, `**/*.test.tsx`)                                            | `infrastructure` |
+
+A `packages/ports/` module stays `@layer domain` although it may import `@core/application/UseCase`: the application owns its ports (Cockburn: the application defines them; Martin: the boundaries live in the use-case ring), so a port may use the `Result` and `UseCaseError` vocabulary of that one file and nothing else of the application layer. The `ports-depend-only-on-domain-and-shared` rule of `.dependency-cruiser.cjs` holds it.
 
 **Examples:**
 

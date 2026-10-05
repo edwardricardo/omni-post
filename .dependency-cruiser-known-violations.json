@@ -1,0 +1,1797 @@
+[
+  {
+    "type": "dependency",
+    "from": "packages/core/ai/src/AiRequestService.ts",
+    "to": "packages/observability/logger/src/index.ts",
+    "unresolvedTo": "@observability/logger",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "core-application-no-infrastructure"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/auth/src/RoleManagementService.ts",
+    "to": "packages/observability/logger/src/index.ts",
+    "unresolvedTo": "@observability/logger",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "core-application-no-infrastructure"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/billing/src/GatewayBillingService.ts",
+    "to": "packages/observability/logger/src/index.ts",
+    "unresolvedTo": "@observability/logger",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "core-application-no-infrastructure"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/compliance/src/ComplianceService.ts",
+    "to": "packages/observability/logger/src/index.ts",
+    "unresolvedTo": "@observability/logger",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "core-application-no-infrastructure"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/compliance/src/DataRetentionService.ts",
+    "to": "packages/observability/logger/src/index.ts",
+    "unresolvedTo": "@observability/logger",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "core-application-no-infrastructure"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/webhooks/src/DlqArchivalService.ts",
+    "to": "packages/observability/logger/src/index.ts",
+    "unresolvedTo": "@observability/logger",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "core-application-no-infrastructure"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/accounts/accountRoutes.ts",
+    "to": "packages/core/domain/src/value-objects/AdminActorId.ts",
+    "unresolvedTo": "@core/domain/value-objects/AdminActorId.js",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-domain-types-only"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/accounts/accountRoutes.ts",
+    "to": "packages/core/domain/src/value-objects/EmailAddress.ts",
+    "unresolvedTo": "@core/domain/value-objects/EmailAddress.js",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-domain-types-only"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+    "to": "packages/core/domain/src/value-objects/EmailAddress.ts",
+    "unresolvedTo": "@core/domain/value-objects/EmailAddress.js",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-domain-types-only"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/channels/channelRoutes.ts",
+    "to": "packages/core/domain/src/index.ts",
+    "unresolvedTo": "@core/domain/index.js",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-domain-types-only"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/cqrs/handlers/PostCommandHandlers.ts",
+    "to": "packages/core/domain/src/index.ts",
+    "unresolvedTo": "@core/domain/index.js",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-domain-types-only"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/custom-reports/customReportRoutes.ts",
+    "to": "packages/core/domain/src/analytics/ReportSchema.ts",
+    "unresolvedTo": "@core/domain/analytics/ReportSchema.js",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-domain-types-only"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/projects/projectRoutes.ts",
+    "to": "packages/core/domain/src/value-objects/AdminActorId.ts",
+    "unresolvedTo": "@core/domain/value-objects/AdminActorId.js",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-domain-types-only"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/reports/reportRoutes.ts",
+    "to": "packages/core/domain/src/value-objects/EntityId.ts",
+    "unresolvedTo": "@core/domain/value-objects/EntityId.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "dynamic-import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-domain-types-only"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/queueRoutes.ts",
+    "to": "packages/adapters/queue-bullmq/src/index.ts",
+    "unresolvedTo": "@adapters/queue-bullmq",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-adapters-or-providers"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/channels/channelRoutes.ts",
+    "to": "packages/providers/bluesky/src/index.ts",
+    "unresolvedTo": "@providers/bluesky",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-adapters-or-providers"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/health/healthRoutes.ts",
+    "to": "packages/adapters/cache-redis/src/index.ts",
+    "unresolvedTo": "@adapters/cache-redis",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-adapters-or-providers"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/health/healthRoutes.ts",
+    "to": "packages/adapters/queue-bullmq/src/index.ts",
+    "unresolvedTo": "@adapters/queue-bullmq",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-adapters-or-providers"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/monitoring/cacheStatsRoutes.ts",
+    "to": "packages/adapters/cache-redis/src/index.ts",
+    "unresolvedTo": "@adapters/cache-redis",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-adapters-or-providers"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/accounts/accountRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/accountLifecycleRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/adminUserRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/analyticsRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/apiKeyAdminRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/channelReauthRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/dashboardRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/massReauthRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/oidcAdminRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/pricingRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/schedulingRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/secretsRotationRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/webhookAdminRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/ai-image/aiImageRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/ai/aiLocalizedRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/ai/promptTemplateRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/ai/routes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/analytics/analyticsRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/announcements/announcementRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/approvals/approvalRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/approvals/approvalWorkflowRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/assets/assetRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/audit/activityFeedRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/audit/auditRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/auth/apiKeyRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/auth/authRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/auth/customerAuthRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/auth/mfaRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/auth/oidcRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/auth/rbacRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/auth/samlRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/billing/adminBillingRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/billing/billingWebhookRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/billing/clientBillingRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/billing/subscriptionRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/brand-kit/brandKitRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/brand-voice/brandVoiceRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/bulk-scheduling/bulkScheduleRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/campaigns/campaignRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/channels/channelRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/comments/commentRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/compliance/complianceRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/content/ContentHandlers.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/crm/crmRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/custom-reports/customReportRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/external-notifications/externalNotificationRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/first-comment/firstCommentRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/health/healthRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/inbox/conversationNoteRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/inbox/inboxRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/integrations/makeRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/integrations/zapierRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/links/linkRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/listening/listeningRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/monitoring/cacheStatsRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/notifications/notificationRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/onboarding/onboardingRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/outbox/outboxAdminRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/posts/optimizedPostsRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/posts/postRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/projects/crisisRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/projects/projectRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/providers/providerRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/recurring/recurringPostRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/reports/reportRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/repurpose/repurposeRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/scheduling/schedulingClientRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/settings/settingsRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/tasks/taskRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/team/teamRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/templates/templateRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/trends/trendRadarRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/trends/trendRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/usage/usageRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/utm/utmRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+    "to": "apps/api/src/infrastructure/container/types.ts",
+    "unresolvedTo": "../infrastructure/container/types.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-container"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/accounts/accountRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/AnalyticsAccountHandlers.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/AnalyticsComplianceHandlers.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/AnalyticsDashboardHandlers.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/AnalyticsHandlers.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/analyticsRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/SchedulingPostHandlers.ts",
+    "to": "infra/prisma/src/extensions/tenantGuc.ts",
+    "unresolvedTo": "@infra/prisma/extensions/tenantGuc.js",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/SchedulingPostHandlers.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/schedulingRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/SchedulingSlotHandlers.ts",
+    "to": "infra/prisma/src/extensions/tenantGuc.ts",
+    "unresolvedTo": "@infra/prisma/extensions/tenantGuc.js",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/SchedulingSlotHandlers.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/announcements/announcementRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/billing/adminBillingRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/billing/clientBillingRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/channels/channelRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/health/healthRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/health/healthRoutes.ts",
+    "to": "packages/adapters/db-prisma/src/index.ts",
+    "unresolvedTo": "@adapters/db-prisma",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/integrations/makeRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/integrations/zapierRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/onboarding/onboardingRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/outbox/outboxAdminRoutes.ts",
+    "to": "infra/prisma/src/extensions/tenantGuc.ts",
+    "unresolvedTo": "@infra/prisma/extensions/tenantGuc.js",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/outbox/outboxAdminRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/projects/projectRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/scheduling/schedulingClientRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/trends/trendRoutes.ts",
+    "to": "infra/prisma/src/index.ts",
+    "unresolvedTo": "@infra/prisma",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-prisma"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/adminUserRoutes.ts",
+    "to": "packages/core/domain/src/repositories/EmailPort.ts",
+    "unresolvedTo": "@core/domain/repositories/EmailPort.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/AnalyticsAccountHandlers.ts",
+    "to": "packages/core/domain/src/repositories/AuditLogRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/AuditLogRepository.js",
+    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+    "to": "packages/core/domain/src/repositories/EmailPort.ts",
+    "unresolvedTo": "@core/domain/repositories/EmailPort.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/analytics/analyticsRoutes.ts",
+    "to": "packages/core/domain/src/repositories/AnalyticsReadRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/AnalyticsReadRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/analytics/analyticsRoutes.ts",
+    "to": "packages/core/domain/src/repositories/ProjectQueryRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/ProjectQueryRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/analytics/analyticsRoutes.ts",
+    "to": "packages/core/domain/src/repositories/ThreadReadRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/ThreadReadRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/assets/assetRoutes.ts",
+    "to": "packages/core/domain/src/repositories/AssetFolderRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/AssetFolderRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/assets/assetRoutes.ts",
+    "to": "packages/core/domain/src/repositories/AssetTagRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/AssetTagRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/assets/assetRoutes.ts",
+    "to": "packages/core/domain/src/repositories/MediaAssetRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/MediaAssetRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/auth/apiKeyRoutes.ts",
+    "to": "packages/core/domain/src/repositories/ApiKeyRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/ApiKeyRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/auth/oidcRoutes.ts",
+    "to": "packages/core/domain/src/repositories/OidcConfigurationRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/OidcConfigurationRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/auth/samlRoutes.ts",
+    "to": "packages/core/domain/src/repositories/SamlConfigurationRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/SamlConfigurationRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/channels/channelRoutes.ts",
+    "to": "packages/core/domain/src/repositories/ChannelRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/ChannelRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/channels/channelRoutes.ts",
+    "to": "packages/core/domain/src/repositories/ProjectRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/ProjectRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/notifications/notificationRoutes.ts",
+    "to": "packages/core/domain/src/repositories/NotificationRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/NotificationRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/reports/reportRoutes.ts",
+    "to": "packages/core/domain/src/repositories/ScheduledReportRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/ScheduledReportRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/api/src/tasks/taskRoutes.ts",
+    "to": "packages/core/domain/src/repositories/TaskRepository.ts",
+    "unresolvedTo": "@core/domain/repositories/TaskRepository.js",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "routes-no-repositories"
+    }
+  }
+]
