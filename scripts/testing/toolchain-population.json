@@ -76,9 +76,6 @@
       "name": "eslint"
     },
     {
-      "name": "eslint-plugin-boundaries"
-    },
-    {
       "name": "eslint-plugin-jsx-a11y"
     },
     {
