@@ -158,8 +158,16 @@ A gate that reports a clean graph it never read is worse than no gate
 - **Resolution depends on two files.** `.dependency-cruiser-resolve.cjs` carries the
   `@shared/types` alias, and a workspace package added without a `development` export condition
   fails `not-to-unresolvable` until it gets one.
-- **The plugin's pinning suite goes with it** (`apps/api/tests/unit/lint/boundariesPolicies.test.ts`).
-  The cruiser rules' red proofs replace what it pinned.
+- **The plugin's pinning suite goes with it** (`apps/api/tests/unit/lint/boundariesPolicies.test.ts`),
+  and `apps/api/tests/unit/lint/architecturePolicies.test.ts` takes its place. It loads
+  `.dependency-cruiser.cjs` and pins what the baseline cannot: the exact rule set, each rule's
+  severity and anchors (`from`, `to`, `pathNot`, `dependencyTypesNot`), and the `options.exclude`
+  scope. A weakened rule leaves a stale entry only where it has entries, so a rule with none
+  (`workers-no-api`, `shared-depends-only-on-shared`, the domain and ports rules) could be deleted
+  or widened while the gate still exits 0. Measured: with `workers-no-api` removed and
+  `core-domain-no-framework` widened to admit `packages/ports`, the gate stayed green and the
+  suite failed on both rules. The cruiser rules' own red proofs cover the rest of what the old
+  suite pinned.
 - **The rules see imports, not calls.** What a module does with an object it receives is outside
   the graph; ADR-0012's revisit names the AST check for that case.
 
