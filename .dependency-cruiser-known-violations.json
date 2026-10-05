@@ -146,24 +146,6 @@
   },
   {
     "type": "dependency",
-    "from": "apps/api/src/monitoring/cacheStatsRoutes.ts",
-    "to": "packages/adapters/cache-redis/src/index.ts",
-    "unresolvedTo": "@adapters/cache-redis",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "type-only",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "routes-no-adapters-or-providers"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "apps/api/src/accounts/accountRoutes.ts",
     "to": "apps/api/src/infrastructure/container/types.ts",
     "unresolvedTo": "../infrastructure/container/types.js",
@@ -759,17 +741,6 @@
   {
     "type": "dependency",
     "from": "apps/api/src/listening/listeningRoutes.ts",
-    "to": "apps/api/src/infrastructure/container/types.ts",
-    "unresolvedTo": "../infrastructure/container/types.js",
-    "dependencyTypes": ["local", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "routes-no-container"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "apps/api/src/monitoring/cacheStatsRoutes.ts",
     "to": "apps/api/src/infrastructure/container/types.ts",
     "unresolvedTo": "../infrastructure/container/types.js",
     "dependencyTypes": ["local", "import"],

@@ -1,12 +1,12 @@
 /**
  * @file cacheStatsRoutes.ts
  * @description REST API endpoints for monitoring cache performance, hit rates, and
- *              invalidation operations. Resolves the concrete `RedisCacheManager`
- *              from the DI container — `getStats`, `flush`, `warmCache`,
+ *              invalidation operations. They drive the `CacheAdminPort` the composition
+ *              root passes in the plugin's options — `getStats`, `flush`, `warmCache`,
  *              `healthCheck`, and `invalidateByPattern` are ops-tier concerns that
  *              live outside the application `CachePort` surface.
  *
- *              The `RedisCacheManager` is a GLOBAL, cross-tenant, cross-pod
+ *              The cache behind that port is a GLOBAL, cross-tenant, cross-pod
  *              instance, so these routes are admin system-ops — not customer
  *              endpoints. They are guarded by admin auth plus a system permission:
  *              reads require `SYSTEM_MONITOR`, destructive operations (flush,
@@ -17,27 +17,27 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
-import type { RedisCacheManager } from "@adapters/cache-redis";
+import type { CacheAdminPort } from "@ports/core";
 import { createLogger } from "../lib/logger.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";
-import { TOKENS } from "../infrastructure/container/types.js";
 
 const logger = createLogger("cache-stats-routes");
+
+/** What the composition root hands the cache statistics routes. */
+interface CacheStatsRoutesOptions {
+  /** The application-wide cache, as the operations surface these routes drive. */
+  cacheAdmin: CacheAdminPort;
+}
 
 /**
  * Cache statistics routes
  */
-export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
-  const container = fastify.container;
-  const cacheManager = container?.resolve<RedisCacheManager>(TOKENS.RedisCacheManager);
-
-  if (!cacheManager) {
-    fastify.log.warn("DI container or RedisCacheManager unavailable — cache stats routes disabled");
-    return;
-  }
-
+export const cacheStatsRoutes: FastifyPluginAsync<CacheStatsRoutesOptions> = async (
+  fastify,
+  { cacheAdmin: cacheManager }
+) => {
   /**
    * GET /cache/stats - Get comprehensive cache statistics
    */
