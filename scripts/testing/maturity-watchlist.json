@@ -179,6 +179,31 @@
         "docs/development/TESTING_REFOUNDATION.md, decision D45: Phase 0 closes without it"
       ],
       "reviews": {}
+    },
+    {
+      "kind": "package",
+      "name": "@typescript-eslint/parser",
+      "version": "8.71.0",
+      "published": "2026-09-28T17:09:20.244Z",
+      "members": [
+        "@typescript-eslint/eslint-plugin@8.71.0",
+        "@typescript-eslint/project-service@8.71.0",
+        "@typescript-eslint/scope-manager@8.71.0",
+        "@typescript-eslint/tsconfig-utils@8.71.0",
+        "@typescript-eslint/type-utils@8.71.0",
+        "@typescript-eslint/types@8.71.0",
+        "@typescript-eslint/typescript-estree@8.71.0",
+        "@typescript-eslint/utils@8.71.0",
+        "@typescript-eslint/visitor-keys@8.71.0"
+      ],
+      "entered": {
+        "date": "2026-10-05",
+        "commit": "53e6cc0c",
+        "pr": 421,
+        "via": "the catalog entry of @typescript-eslint/parser and the root literal of @typescript-eslint/eslint-plugin, 6.9 days after publication and 2.9 hours before the 17:09Z maturity, on Edward's instruction of 2026-10-05 (the pre-registered hold row scheduled this move for maturity)"
+      },
+      "milestones": { "maturity": "2026-10-05", "final": "2026-10-12" },
+      "reviews": {}
     }
   ]
 }
