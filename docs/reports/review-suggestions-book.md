@@ -70,6 +70,13 @@
 | SB-049 | same                                                                                  | R2-unused-code-inventory-stale                                   | `docs/reports/UNUSED_CODE_INVENTORY.md` (the `jscpd.json` rows of §4.5 and §8.1)                                                            | audit record                 | closed: the inventory is an audit record; a resolution is appended in its row, as D35 did (7f4f6e0b)                                                            |
 | SB-050 | F6a (`workstream/env-secret-fallbacks`, eb6bc726)                                     | R2-config-spread-shadowing                                       | `apps/api/src/auth/providerOAuthConfigs.ts`, the eight `validateCode` bodies                                                                | naming                       | implemented (book sweep, `workstream/book-sweep-contract`)                                                                                                      |
 | SB-051 | F6a (`workstream/env-secret-fallbacks`, 7d93feb9)                                     | R2-credentialsfromenv-return-type-opaque                         | `apps/api/src/auth/providerOAuthConfigs.ts` `credentialsFromEnv`                                                                            | naming                       | implemented (book sweep, `workstream/book-sweep-contract`)                                                                                                      |
+| SB-052 | item (v) PR1 (`workstream/item-v-cruiser`, ba39279b)                                  | R2-module-path-comment-misleading                                | `.dependency-cruiser-resolve.cjs:17` (the comment above the `@shared/types` alias)                                                          | comment                      | deferred: say that `module.path` is this file's directory, so the file stays at the repository root or the alias path moves with it                             |
+| SB-053 | same                                                                                  | R2-forbidden-to-path-array-no-comment-on-regex-semantics         | `.dependency-cruiser.cjs:141-168` (the `to.path` arrays of `core-domain-no-framework` and `core-application-no-infrastructure`)             | comment                      | deferred: say what each form in the arrays matches, a written name or a resolved path, and that both are needed                                                 |
+| SB-054 | same                                                                                  | R2-planned-steps-magic-number                                    | `scripts/testing/battery.sh:34` (`PLANNED_STEPS`)                                                                                           | duplication                  | deferred: derive the count from the `step` invocations or check it against them; the battery's owner decides                                                    |
+| SB-055 | same                                                                                  | R2-architecture-step-warn-vs-red-contract-buried                 | `scripts/testing/battery.sh:156-159` (the comment above `step architecture`)                                                                | cross-reference              | deferred: point the comment at the verdict's warn-line rule in `scripts/testing/battery-verdict.mjs`                                                            |
+| SB-056 | same                                                                                  | R2-knip-entry-cjs-config-file-unexplained                        | `knip.json:6` (the `.dependency-cruiser-resolve.cjs` entry)                                                                                 | comment                      | deferred: say why the file is an entry; strict JSON takes no comment, so the file becomes `knip.jsonc`                                                          |
+| SB-057 | same                                                                                  | R3-batteryverdict-architecture-fixture-coverage                  | `apps/api/tests/unit/scripts/batteryVerdict.test.ts:257-274` (the architecture step's clean-log case)                                       | test coverage                | deferred: a RED case built from a real error log, an `error no-circular:` record plus the `(1 errors, 0 warnings)` summary                                      |
+| SB-058 | same                                                                                  | R3-battery-architecture-warn-no-assertion                        | `scripts/testing/battery.sh:156-159` (the comment above `step architecture`)                                                                | failure mode                 | closed: `--output-type err` prints every severity; a warn-severity violation reaches the log and the verdict reads it as RED                                    |
 
 ## Entries — code and prose
 
@@ -369,6 +376,46 @@
 - **Why deferred:** naming; the type and every call site behave the same under either spelling.
 - **To implement:** declare `type OAuthCredentialFields = Pick<OAuthProvider, "credentials">` beside `OAuthCredentials` and use it as the return type.
 
+### SB-052 — the alias comment does not say that `module.path` depends on where the file sits
+
+- **Source:** review `review-d18095cc939a06db` of item (v) PR1 (`workstream/item-v-cruiser`, `ba39279b`), readability lens, finding `R2-module-path-comment-misleading`.
+- **Location:** `.dependency-cruiser-resolve.cjs:17`, the comment above the `@shared/types` alias: "`module.path` is this file's directory, the repository root."
+- **Suggestion:** say that CommonJS `module.path` is the directory of this file and that the alias target is resolved relative to it, so the file must stay at the repository root or the alias path must move with it.
+- **Why deferred:** prose only; the comment is true where the file stands and the alias target is right, so no behaviour changes. A move that leaves its pointer behind already fails loudly: `.dependency-cruiser.cjs` names the file in `webpackConfig.fileName`, and the gate exits 1 on a name with no file behind it (measured 2026-10-05).
+- **To implement:** reword the comment as the suggestion says; no code change.
+
+### SB-053 — the two `to.path` arrays do not say what each of their forms matches
+
+- **Source:** review `review-d18095cc939a06db` of item (v) PR1 (`workstream/item-v-cruiser`, `ba39279b`), readability lens, finding `R2-forbidden-to-path-array-no-comment-on-regex-semantics`.
+- **Location:** `.dependency-cruiser.cjs:141-168`, the `to.path` arrays of `core-domain-no-framework` and `core-application-no-infrastructure`.
+- **Suggestion:** say in each array that the alias-name alternation matches an UNRESOLVED specifier (an import that fails to resolve keeps its written name) while the anchored `^packages/adapters/`, `^infra/` and `^packages/api-common/` prefixes match RESOLVED paths, and that both forms are needed.
+- **Why deferred:** comment wording; the rules match the same imports whatever the comment says. The comment above the first array already says that `to.path` is matched against the resolved path, that a workspace adapter or the infra package resolves to a source path the alias names never match, and that the names still catch an import that fails to resolve; the second array points back at it. The finding asks for those facts at each array, in the words of the two forms.
+- **To implement:** one sentence per array saying what the name alternation catches and what the anchored prefixes catch, so neither is taken for the redundant one.
+
+### SB-054 — `PLANNED_STEPS` is raised by hand with every step
+
+- **Source:** review `review-d18095cc939a06db` of item (v) PR1 (`workstream/item-v-cruiser`, `ba39279b`), readability lens, finding `R2-planned-steps-magic-number`.
+- **Location:** `scripts/testing/battery.sh:34`, `PLANNED_STEPS=20`.
+- **Suggestion:** derive the count from the `step` invocations, or check it against them before the first step runs, instead of keeping the number in step with them by convention.
+- **Why deferred:** the shape is older than this change: the duplicate-code step (D42) moved the number from 18 to 19 the same way, and this change moved it from 19 to 20. A drift is loud, not silent: the verdict refuses a `steps.tsv` with any other number of rows (`expected N steps, found M`), so a step added without raising the number turns the battery RED, as the comment above the line says. Whether to derive the number is a decision for the battery's owner, not for a change that adds one step.
+- **To implement:** derive it from the step list, or add a pre-run check; the api loop starts two steps from one `step` line, so counting source lines gives 19, not 20. The verdict's own count check stays either way.
+
+### SB-055 — the architecture step's comment does not point at where a warn line turns RED
+
+- **Source:** review `review-d18095cc939a06db` of item (v) PR1 (`workstream/item-v-cruiser`, `ba39279b`), readability lens, finding `R2-architecture-step-warn-vs-red-contract-buried`.
+- **Location:** `scripts/testing/battery.sh:156-159`, the comment above `step architecture`.
+- **Suggestion:** point the comment at the verdict's warn-line rule (`scripts/testing/battery-verdict.mjs`, pinned by `apps/api/tests/unit/scripts/batteryVerdict.test.ts`), so the "any warn line is RED" contract can be found from one place.
+- **Why deferred:** comment wording; the comment already says the `warn`-severity rules print `warn` lines "which this battery reads as RED", and the script's header states the rule for every log: a warning anywhere in any log makes the verdict RED, with no allowlist and no waiver. The finding asks for the pointer to the rule's home, not for the rule.
+- **To implement:** one clause in that comment naming the verdict module and its suite; no code change.
+
+### SB-056 — `knip.json` lists the resolve file as an entry without saying why
+
+- **Source:** review `review-d18095cc939a06db` of item (v) PR1 (`workstream/item-v-cruiser`, `ba39279b`), readability lens, finding `R2-knip-entry-cjs-config-file-unexplained`.
+- **Location:** `knip.json:6`, the `.dependency-cruiser-resolve.cjs` entry of the root workspace.
+- **Suggestion:** a local signal for why a `.cjs` file that no module imports is an entry: `.dependency-cruiser.cjs` reads it through `webpackConfig.fileName`.
+- **Why deferred:** strict JSON carries no comments, so the signal needs the file renamed to `knip.jsonc` (knip reads it) for one line of prose. The explanation exists where the file is: the header of `.dependency-cruiser-resolve.cjs` says its `resolve` section reaches the resolver through the `webpackConfig` option of `.dependency-cruiser.cjs`.
+- **To implement:** rename `knip.json` to `knip.jsonc` and put a `//` comment above the entry. The name appears in two scripts (`scripts/knip-ratchet.mjs:115`, a message, and `.claude/scripts/migrate-canon-index.py:133`) and in docs and specs that cite it, which follow the rename.
+
 ## Entries — tests
 
 ### SB-T01 — a bare repository's `--git-common-dir` is not named `.git`
@@ -503,6 +550,21 @@
 - **Suggestion:** drop or rewrite the rows that describe a file which no longer exists.
 - **Why closed:** the inventory is an audit record; a resolution is appended in the row it resolves, as D35 did in `7f4f6e0b`, so the finding and its outcome stay side by side.
 
+### SB-057 — the verdict suite pins the architecture step's clean log but no error log
+
+- **Source:** review `review-d18095cc939a06db` of item (v) PR1 (`workstream/item-v-cruiser`, `ba39279b`), reliability lens, finding `R3-batteryverdict-architecture-fixture-coverage`.
+- **Location:** `apps/api/tests/unit/scripts/batteryVerdict.test.ts:257-274`, `returns GREEN over the architecture step's clean log`.
+- **Suggestion:** a RED case beside it built from a real error log: an `error no-circular: …` record and the summary `x N dependency violations (1 errors, 0 warnings)`.
+- **Why deferred:** no reading is left unproven. A failing step is pinned by `returns RED naming the step when one step exits non-zero`, and dependency-cruiser's `warn` line and its summary line by two rows of the RED table (`dependency-cruiser's`, `dependency-cruiser's summary`). A log of the suggested shape reads RED for exactly those two reasons, `step architecture exit 1` and `1 warning line(s)` (the summary carries the word `warnings`), measured 2026-10-05; the new case would run their combination over one realistic log.
+- **To implement:** one case in the same `describe`: `steps` with `architecture` at exit 1, and an `architecture.log` holding the `error no-circular:` record with its continuation lines and the summary line; assert RED and both reasons.
+
+### SB-058 — `--output-type err` is read as keeping `warn` lines out of the architecture log
+
+- **Source:** review `review-d18095cc939a06db` of item (v) PR1 (`workstream/item-v-cruiser`, `ba39279b`), reliability lens, finding `R3-battery-architecture-warn-no-assertion`.
+- **Location:** `scripts/testing/battery.sh:156-159`, the comment above `step architecture`.
+- **Suggestion:** assert that the `warn` lines the step comment mentions can reach the log; the finding assumed `--output-type err` emits error-severity violations only.
+- **Why closed:** the premise is false, measured 2026-10-05 on the candidate's tree: a planted orphan, `packages/shared/src/zzOrphanProbe.ts` (the `no-orphans` rule is warn-severity), made `pnpm check:architecture` print `warn no-orphans: packages/shared/src/zzOrphanProbe.ts` and `x 1 dependency violations (0 errors, 1 warnings). 1685 modules, 7325 dependencies cruised.` and exit 0. The `err` reporter prints every severity and only the exit code is error-only, so both lines reach `architecture.log`; the verdict's warn-line rule reads each as RED, and its suite pins both forms (`warn no-orphans: …` and the `x N dependency violations (0 errors, N warnings)` summary). The step comment is accurate as written.
+
 ## Implemented
 
 | Id                                                                     | Implemented in                                       | How                                                                                                            |
@@ -551,3 +613,4 @@
 | SB-047 | failing closed on an empty scan is deliberate: a gate that reads nothing must not report green (fitness #36 and #44), and a misconfiguration is exactly what it should stop                            |
 | SB-048 | the battery runs `pnpm install --frozen-lockfile` and `pnpm audit`, CI's dependency job runs `pnpm dedupe --check`, and D39 (b) carries the parsed lockfile delta                                      |
 | SB-049 | the inventory is an audit record: a resolution is appended in its row, as D35 did (7f4f6e0b), so a finding and its outcome stay side by side                                                           |
+| SB-058 | `--output-type err` prints every severity and exits non-zero on errors only: a planted orphan printed a `warn` line and a `(0 errors, 1 warnings)` summary at exit 0, both read as RED by the verdict  |

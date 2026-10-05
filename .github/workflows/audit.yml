@@ -9,7 +9,7 @@ name: Pre-merge Audit Toolkit
 # for tools with pre-existing findings (ratchet down over time).
 #
 # Tools wired (canon: ~/.claude/.../canon_research_index.md §Pre-merge audit toolkit):
-#   - dependency-cruiser  (hexagonal layer enforcement, ERROR-level fail)
+#   - dependency-cruiser  (hexagonal layer rules + dependency cycles, ERROR-level fail)
 #   - Semgrep CE          (TS/Node SAST, ERROR-level fail)
 #   - OSV-Scanner         (dep vulnerabilities, report-only baseline)
 #   - gitleaks            (secret scanning, hard fail on NEW secrets)
@@ -47,7 +47,9 @@ permissions:
 
 jobs:
   # ──────────────────────────────────────────────────────────────────────
-  # 1. dependency-cruiser — hexagonal layer enforcement (graph-level rules)
+  # 1. dependency-cruiser — the architecture gate: hexagonal layer rules and
+  #    dependency cycles (`no-circular`) over one resolved graph. The command
+  #    is `pnpm check:architecture`, the same one the local battery runs.
   # ──────────────────────────────────────────────────────────────────────
   dependency-cruiser:
     if: github.event_name != 'schedule'
@@ -62,8 +64,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-pnpm-cache
-      - name: Cruise apps/api + @core + @shared
-        run: pnpm exec depcruise apps/api/src packages/core packages/shared --config .dependency-cruiser.cjs --output-type err
+      - name: Architecture gate (layer rules + no-circular)
+        run: pnpm check:architecture
 
   # ──────────────────────────────────────────────────────────────────────
   # 2. Semgrep CE — TS/Node SAST (taint, security rules, OWASP)

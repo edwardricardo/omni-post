@@ -343,15 +343,15 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 
 ## Code Quality
 
-| Tool        | Version | Purpose                           |
-| ----------- | ------- | --------------------------------- |
-| eslint      | 9.39.5  | Static analysis (flat config, v9) |
-| prettier    | 3.9.9   | Code formatting                   |
-| husky       | 9.1.7   | Git hooks                         |
-| lint-staged | 17.6.0  | Pre-commit staged file linting    |
-| knip        | 6.38.0  | Dead code detection               |
-| madge       | 8.0.0   | Circular dependency detection     |
-| jscpd       | 5.3.2   | Copy-paste detection              |
+| Tool               | Version | Purpose                                              |
+| ------------------ | ------- | ---------------------------------------------------- |
+| eslint             | 9.39.5  | Static analysis (flat config, v9)                    |
+| prettier           | 3.9.9   | Code formatting                                      |
+| husky              | 9.1.7   | Git hooks                                            |
+| lint-staged        | 17.6.0  | Pre-commit staged file linting                       |
+| knip               | 6.38.0  | Dead code detection                                  |
+| dependency-cruiser | 18.4.0  | Architecture rules and circular dependency detection |
+| jscpd              | 5.3.2   | Copy-paste detection                                 |
 
 ### Standards
 

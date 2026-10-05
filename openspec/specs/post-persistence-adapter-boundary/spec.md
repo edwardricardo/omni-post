@@ -363,5 +363,5 @@ the guard, so both halves are asserted.
 Integration scenarios need DB + Redis via `pnpm db:up` and, on LXC, run as heap-capped single files
 under a `timeout` wrapper. The behaviour suites named above MUST be green with import-specifier and
 constructor-argument edits only; an assertion edit in any of them invalidates the preservation claim
-they exist to prove. `pnpm lint --max-warnings 0`, `pnpm format:check`, `madge --circular` and
+they exist to prove. `pnpm lint --max-warnings 0`, `pnpm format:check`, `pnpm check:architecture` and
 `pnpm --filter @adapters/db-prisma test` all end at 0 error / 0 warning.

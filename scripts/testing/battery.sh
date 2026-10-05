@@ -31,7 +31,7 @@ set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=19
+PLANNED_STEPS=21
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -149,10 +149,19 @@ step format pnpm format:check
 # NODE_OPTIONS to its tasks in strict environment mode.
 step typecheck env NODE_OPTIONS=--max-old-space-size=6144 pnpm exec turbo run typecheck --concurrency=1
 step syncpack pnpm dlx syncpack@15.3.3 lint --dependency-types prod,dev,peer,overrides
+# The dedupe gate of CI's Dependency Consistency job: without it only CI sees a
+# flattenable duplicate, after a push (measured on pull request #408). It runs at
+# error level: a resolution prints pnpm's deprecation and peer notices as warnings,
+# which the frozen install never shows; a failing check still prints its duplicates.
+step dedupe pnpm dedupe --check --loglevel=error
 step knip node scripts/knip-ratchet.mjs
 # The duplicate-code gate of CI's code-quality job: it fails a new clone and a
 # stale baseline entry, and without it here only CI would see either.
 step duplicates pnpm check:duplicates
+# The architecture gate of audit.yml: dependency-cruiser's layer rules and its
+# `no-circular` cycle check over one resolved import graph. Its `warn`-severity
+# rules print `warn` lines, which this battery reads as RED.
+step architecture pnpm check:architecture
 step metrics node scripts/testing/metrics.mjs --all --offline
 step scripts pnpm --filter @apps/api exec vitest run tests/unit/scripts/
 step api-common pnpm --filter @packages/api-common test
