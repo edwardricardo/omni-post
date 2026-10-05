@@ -7,7 +7,6 @@
  * @layer domain
  */
 
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { EventStoreEvent } from "./events.js";
 
@@ -536,7 +535,7 @@ export function createCommand<T>(
   metadata: Omit<CommandMetadata, "correlationId">
 ): Command<T> {
   return {
-    id: `cmd-${randomUUID()}`,
+    id: `cmd-${globalThis.crypto.randomUUID()}`,
     type,
     aggregateId,
     aggregateType,
@@ -547,7 +546,7 @@ export function createCommand<T>(
       source: metadata.source,
       ...(metadata.userAgent && { userAgent: metadata.userAgent }),
       ...(metadata.ipAddress && { ipAddress: metadata.ipAddress }),
-      correlationId: `corr-${randomUUID()}`,
+      correlationId: `corr-${globalThis.crypto.randomUUID()}`,
     },
     timestamp: new Date(),
   };
@@ -562,14 +561,14 @@ export function createQuery<T>(
   metadata: Omit<QueryMetadata, "correlationId">
 ): Query<T> {
   return {
-    id: `qry-${randomUUID()}`,
+    id: `qry-${globalThis.crypto.randomUUID()}`,
     type,
     data,
     metadata: {
       ...(metadata.userId && { userId: metadata.userId }),
       ...(metadata.sessionId && { sessionId: metadata.sessionId }),
       source: metadata.source,
-      correlationId: `corr-${randomUUID()}`,
+      correlationId: `corr-${globalThis.crypto.randomUUID()}`,
     },
     timestamp: new Date(),
   };
@@ -640,6 +639,19 @@ export function validateQuery<T extends Query>(query: unknown, schema: z.ZodType
 }
 
 /**
+ * Base64 of the UTF-8 bytes of `text`, built from the Web APIs Node and every browser share
+ * (`TextEncoder`, `btoa`) so this module stays loadable in browser code. It returns the string
+ * `Buffer.from(text).toString("base64")` returns, so a cache key keeps its value across runtimes.
+ */
+function utf8ToBase64(text: string): string {
+  let binary = "";
+  for (const byte of new TextEncoder().encode(text)) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
+/**
  * Cache key generator for queries
  */
 export function generateCacheKey(query: Query): string {
@@ -648,7 +660,7 @@ export function generateCacheKey(query: Query): string {
     data,
     data && typeof data === "object" ? Object.keys(data).sort() : undefined
   );
-  const hash = Buffer.from(dataString).toString("base64").replace(/[+/=]/g, "");
+  const hash = utf8ToBase64(dataString).replace(/[+/=]/g, "");
   return `query:${type}:${hash}`;
 }
 

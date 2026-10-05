@@ -30,7 +30,7 @@ import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { verifyDatabaseAuth } from "./container/workerContainer.js";
-import { decryptChannelCredentials } from "@shared/types";
+import { decryptChannelCredentials } from "@shared/types/channelCredentialsCrypto.js";
 import { CredentialResolver } from "./services/CredentialResolver.js";
 import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
