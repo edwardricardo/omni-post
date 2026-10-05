@@ -61,6 +61,7 @@ import type { RateLimiterPort } from "@ports/core";
 import { createErrorHandler } from "./lib/errors/errorHandler.js";
 import { createRedisConnection, getRedisUrl } from "./lib/redis.js";
 import type { Redis } from "ioredis";
+import { Queue } from "bullmq";
 import { logger } from "./lib/logger.js";
 import { ApiMetrics } from "./metrics/apiMetrics.js";
 import { setPublishQueueHealthProvider } from "./metrics/sagaRecoveryMetrics.js";
@@ -340,6 +341,29 @@ async function createApp(): Promise<FastifyInstance> {
   const queueAdapter = queueRegistry.forQueue(QUEUE_NAMES.PUBLISH);
   const storageAdapter = createStorageAdapter();
 
+  // The admin queue routes list, retry and remove jobs of the publish queue, which the
+  // QueuePort does not expose, so this root builds that BullMQ queue for them and closes it
+  // with the app. lazyConnect: true keeps its dedicated connection from blocking startup
+  // when Redis is not yet reachable (e.g. Railway private network cold-start).
+  const publishQueueUrl = new URL(getRedisUrl());
+  const publishQueue = new Queue(QUEUE_NAMES.PUBLISH, {
+    connection: {
+      host: publishQueueUrl.hostname || "localhost",
+      port: Number(publishQueueUrl.port) || 6379,
+      ...(publishQueueUrl.password && { password: publishQueueUrl.password }),
+      lazyConnect: true,
+      enableOfflineQueue: true,
+    },
+  });
+  typedApp.addHook("onClose", async () => {
+    await publishQueue.close().catch((err: unknown) => {
+      logger.warn(
+        { error: err instanceof Error ? err.message : String(err) },
+        "Queue close warning"
+      );
+    });
+  });
+
   // Publish-queue attendance, published by the API because the observer has to
   // survive the outage: a worker-side gauge goes absent exactly when the workers
   // die, and absence is ambiguous with a broken scrape. This process holds the
@@ -561,7 +585,7 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(adminAuthRoutes);
   await typedApp.register(adminAnalyticsRoutes);
   await typedApp.register(schedulingRoutes);
-  await typedApp.register(queueRoutes);
+  await typedApp.register(queueRoutes, { queue: publishQueue });
   await typedApp.register(subscriptionRoutes);
   await typedApp.register(clientBillingRoutes);
   await typedApp.register(adminBillingRoutes);

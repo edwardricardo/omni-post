@@ -1,21 +1,29 @@
 /**
  * @file queueRoutes.ts
  * @description Admin endpoints for monitoring and managing the BullMQ publishing queue
- *              including job listing, stats, retry, and removal.
+ *              including job listing, stats, retry, and removal. The composition root
+ *              builds that queue and passes it in the plugin's options.
  * @layer infrastructure
  */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
-import { Queue, Job } from "bullmq";
+import type { Job, Queue } from "bullmq";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";
-import { getRedisUrl } from "../lib/redis.js";
 import { createLogger } from "../lib/logger.js";
-import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 
 const log = createLogger("admin-queue-routes");
+
+/** The publish queue, narrowed to the operations these routes call on it. */
+type PublishQueue = Pick<Queue, "name" | "getJobCounts" | "getJobs" | "getJob" | "getJobLogs">;
+
+/** What the composition root hands the queue routes. */
+interface QueueRoutesOptions {
+  /** The publish queue; the root owns its connection and closes it with the app. */
+  queue: PublishQueue;
+}
 
 // ---------------------------------------------------------------------------
 // Validation schemas
@@ -52,7 +60,7 @@ function filterValidStates(input: string[]): BullMQJobState[] {
 class QueueRouteHandler extends BaseRouteHandler {
   protected routeName = "admin-queue";
 
-  constructor(private readonly queue: Queue) {
+  constructor(private readonly queue: PublishQueue) {
     super();
   }
 
@@ -250,24 +258,8 @@ class QueueRouteHandler extends BaseRouteHandler {
 // Plugin registration
 // ---------------------------------------------------------------------------
 
-export const queueRoutes: FastifyPluginAsync = async (fastify) => {
-  // Parse the shared Redis URL into connection options.
-  // lazyConnect: true prevents this read-only connection from blocking startup
-  // when Redis is not yet reachable (e.g. Railway private network cold-start).
-  const redisUrl = getRedisUrl();
-  const parsedUrl = new URL(redisUrl);
-
-  const queue = new Queue(QUEUE_NAMES.PUBLISH, {
-    connection: {
-      host: parsedUrl.hostname || "localhost",
-      port: Number(parsedUrl.port) || 6379,
-      ...(parsedUrl.password && { password: parsedUrl.password }),
-      lazyConnect: true,
-      enableOfflineQueue: true,
-    },
-  });
-
-  log.info(`Queue management routes registered — queue: ${QUEUE_NAMES.PUBLISH}`);
+export const queueRoutes: FastifyPluginAsync<QueueRoutesOptions> = async (fastify, { queue }) => {
+  log.info(`Queue management routes registered — queue: ${queue.name}`);
 
   const handler = new QueueRouteHandler(queue);
 
@@ -320,11 +312,4 @@ export const queueRoutes: FastifyPluginAsync = async (fastify) => {
     },
     (req, rep) => handler.removeJob(req, rep)
   );
-
-  // Gracefully close the dedicated queue connection on server shutdown
-  fastify.addHook("onClose", async () => {
-    await queue.close().catch((err: unknown) => {
-      log.warn({ error: err instanceof Error ? err.message : String(err) }, "Queue close warning");
-    });
-  });
 };
