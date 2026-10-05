@@ -5,8 +5,11 @@
  *   enableAutoDataDeletion is true.
  *
  *   Framework-free: depends only on @core/domain ports + AuditEmitterPort. Each
- *   run's counts are recorded by the DATA_RETENTION_CLEANUP audit entry, so the
- *   service writes no log line of its own.
+ *   run's counts are recorded by the `auditEmitter.emit({ action: "DATA_RETENTION_CLEANUP" })`
+ *   call that closes the sweep below (pinned by
+ *   apps/api/tests/unit/compliance/DataRetentionService.test.ts), so the service writes no
+ *   log line of its own; the application layer logs WARN and ERROR only, and a run that
+ *   completes is neither.
  * @layer application
  */
 
