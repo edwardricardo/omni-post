@@ -4177,9 +4177,6 @@ importers:
       '@observability/browser-logger':
         specifier: workspace:*
         version: link:../observability/browser-logger
-      '@shared/types':
-        specifier: workspace:*
-        version: link:../shared
       '@tiptap/core':
         specifier: 'catalog:'
         version: 3.30.5(@tiptap/pm@3.30.5)
