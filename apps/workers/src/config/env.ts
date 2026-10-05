@@ -9,6 +9,8 @@
  * @layer infrastructure
  */
 
+import { platformEncryptionKeyEnvFields } from "@shared/types/platformEncryptionKeyEnv.js";
+
 // Load .env first so callers that import env.ts without setting up dotenv
 // (e.g. vitest) still see the variables. Idempotent when the env is already set.
 import dotenv from "dotenv";
@@ -59,7 +61,11 @@ export const env = createEnv({
     REDIS_URL: z.string().url(),
 
     // ── Cryptography (REQUIRED — decrypt Channel.credentials) ─────────────
-    PLATFORM_ENCRYPTION_KEY: z.string().min(SECRET_MIN),
+    // PLATFORM_ENCRYPTION_KEY, its active version and the prior-version keys of
+    // a rotation window, from the fragment the API's env spreads too: the API
+    // stamps the version on every envelope and the workers resolve it, so both
+    // read the same variables. The rotation procedure lives in its JSDoc.
+    ...platformEncryptionKeyEnvFields(SECRET_MIN),
 
     // ── Telemetry ───────────────────────────────────────────────────────
     METRICS_PORT: z.coerce.number().int().min(1).max(65535).optional(),

@@ -1,14 +1,16 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-05, PR B of slice 0.22 (`workstream/0-22-b-shared-root`, number assigned at
-publication): the `@shared/types` root barrel loads in a browser — `globalThis.crypto.randomUUID()`
-and a `TextEncoder` base64 replace `node:crypto` and `Buffer`, and the credentials crypto is served
-only from its subpath — held by the cruiser rule `shared-root-no-node-core` and an ESLint `Buffer`
-restriction. M7 `16/16` → `17/17`, M1 `969 + 8` → `970 + 8` (the cache-key equivalence suite).
-Previous: the second pull request of the core's `LoggerPort`, `PR v-d2` (#414,
-`workstream/item-v-logger-port`), where M1 moved `968 + 8` → `969 + 8` (the `AiRequestService`
-suite). This line moves with the last pull request that moved a row.
+**As of:** 2026-10-05, PR 1 of DEF-29 (`workstream/def-29-channel-credentials-aad`, number assigned
+at publication): the workers decrypt `Channel.credentials` through one AAD-bound, version-aware
+cipher, the shared kernel's crypto module, with a key ring built from their typed env, so they read
+what the API writes; both env modules take the platform-key variables from one shared fragment.
+M1 `970 + 8` → `972 + 8` (the shared cipher's suite, held under `apps/api/tests/unit/security`
+until WU-6.N5 gives `packages/shared` its own vitest config, and the channel repository's
+decrypt-input suite).
+Previous: PR B of slice 0.22 (`workstream/0-22-b-shared-root`, number assigned at publication),
+where M7 moved `16/16` → `17/17` and M1 `969 + 8` → `970 + 8` (the cache-key equivalence suite).
+This line moves with the last pull request that moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
 The measured state of the testing re-foundation, and the fixed plan it executes. Rules live in
@@ -88,9 +90,12 @@ rows (M7 `14/14` → `16/16`), `PR v-b` (#411) is its layer-rules change on `wor
 architecture ratchet suite (M1 `966 + 8` → `967 + 8`), `PR v-d` is its `LoggerPort` change in two pull
 requests, `PR v-d1` (#413) on `workstream/item-v-logger-a` and `PR v-d2` (#414) on `workstream/item-v-logger-port`,
 which added the port's contract suite and the `AiRequestService` suite (M1 `967 + 8` → `968 + 8` →
-`969 + 8`), and `PR 0.22` is slice `0.22` ([D29](#decisions-log)), whose pull request B on
+`969 + 8`), `PR 0.22` is slice `0.22` ([D29](#decisions-log)), whose pull request B on
 `workstream/0-22-b-shared-root` added the browser-safe shared kernel's gate row (M7 `16/16` → `17/17`)
-and the cache-key equivalence suite (M1 `969 + 8` → `970 + 8`). A `PR` followed by a
+and the cache-key equivalence suite (M1 `969 + 8` → `970 + 8`), and `PR aad-1` is the first pull
+request of DEF-29, the `Channel.credentials` envelope the workers could not decrypt, on
+`workstream/def-29-channel-credentials-aad`, which added the shared cipher's suite and the channel
+repository's decrypt-input suite (M1 `970 + 8` → `972 + 8`). A `PR` followed by a
 letter and a number with no dot between them — `PR R4`, `PR V6`, `PR E2`, `PR C1`, `PR X1` — is the
 [§Plan (fixed)](#plan-fixed)'s own label for the pull request that
 closes the work-unit bullet it ends: `R` in Phase 1, `V` in Phase 3, `E` in Phase 4b, `C` in Phase 5
@@ -99,7 +104,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 970 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR 0.22  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 972 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR aad-1 |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |

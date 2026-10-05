@@ -2,8 +2,9 @@
  * @file ChannelRepository.ts
  * @description Prisma-backed repository for Channel entities — retrieves channels by ids and
  *              maps Prisma rows to the domain Channel shape. Channel credentials are stored
- *              as an encrypted envelope; the caller injects a `decryptCredentials` callback
- *              so this package stays free of any specific crypto-service implementation.
+ *              as an encrypted envelope; the caller injects a decryptor, which receives each
+ *              row's id with its envelope because the writer binds that id as AAD, so this
+ *              package stays free of any specific crypto implementation.
  * @layer infrastructure
  */
 import { ok, err, type Result } from "@shared/types";
@@ -40,14 +41,30 @@ export interface EncryptedChannelCredentialsEnvelope {
   credentialsKeyVersion: number;
 }
 
+/** What the decryptor receives for one row: its envelope and the id its AAD binds. */
+export interface ChannelCredentialsDecryptInput {
+  /** The row's primary key, bound as AAD when the envelope was written. */
+  readonly channelId: string;
+  /** The row's four envelope columns. */
+  readonly envelope: EncryptedChannelCredentialsEnvelope;
+}
+
+/**
+ * Unwraps one row's envelope into the plaintext credentials object provider adapters
+ * consume. Throws when the envelope does not decrypt (unknown key version, another
+ * row's id, tampered bytes); `getChannelsByIds` then logs the row and fails the lookup.
+ */
+export type ChannelCredentialsDecryptor = (
+  input: ChannelCredentialsDecryptInput
+) => Record<string, unknown>;
+
 export interface CreateChannelRepositoryOptions {
   /**
-   * Decryption callback supplied by the application composition root. It must
-   * unwrap the persisted envelope into the plaintext credentials object that
-   * provider adapters consume. When omitted (e.g. tests that do not exercise
-   * credentials), `getChannelsByIds` returns an empty credentials object.
+   * Decryptor supplied by the application composition root. When omitted (e.g. tests
+   * that do not exercise credentials), `getChannelsByIds` returns an empty credentials
+   * object.
    */
-  decryptCredentials?: (envelope: EncryptedChannelCredentialsEnvelope) => Record<string, unknown>;
+  decryptCredentials?: ChannelCredentialsDecryptor;
 }
 
 export function createChannelRepository(
@@ -76,20 +93,20 @@ export function createChannelRepository(
           });
         });
 
-        const mapped = channels.map((ch) => ({
-          id: ch.id,
-          projectId: ch.projectId,
-          provider: mapProviderFromDB(ch.provider),
-          handle: ch.handle,
-          credentials: decryptCredentials
-            ? decryptCredentials({
-                credentialsCiphertext: ch.credentialsCiphertext,
-                credentialsIv: ch.credentialsIv,
-                credentialsAuthTag: ch.credentialsAuthTag,
-                credentialsKeyVersion: ch.credentialsKeyVersion,
-              })
-            : {},
-        }));
+        const mapped: Channel[] = [];
+        for (const ch of channels) {
+          const credentials = decryptCredentials
+            ? decryptRowCredentials(decryptCredentials, ch)
+            : ok({});
+          if (!credentials.ok) return err("DATABASE_ERROR");
+          mapped.push({
+            id: ch.id,
+            projectId: ch.projectId,
+            provider: mapProviderFromDB(ch.provider),
+            handle: ch.handle,
+            credentials: credentials.value,
+          });
+        }
 
         return ok(mapped);
       } catch (error) {
@@ -129,4 +146,43 @@ export function createChannelRepository(
       }
     },
   };
+}
+
+/**
+ * @function decryptRowCredentials
+ * @description Decrypts one channel row's envelope with that row's own id. A failure is
+ *              logged by channel id and key version, with the decryptor's reason and never
+ *              the envelope, so an unreadable row is told apart from a missing one in the
+ *              logs; the caller fails the whole lookup with `DATABASE_ERROR`.
+ * @param decrypt - The injected decryptor.
+ * @param row - The channel row: its id and its four envelope columns.
+ * @returns The plaintext credentials, or `DECRYPT_FAILED` once the failure is logged.
+ */
+function decryptRowCredentials(
+  decrypt: ChannelCredentialsDecryptor,
+  row: EncryptedChannelCredentialsEnvelope & { readonly id: string }
+): Result<Record<string, unknown>, "DECRYPT_FAILED"> {
+  try {
+    return ok(
+      decrypt({
+        channelId: row.id,
+        envelope: {
+          credentialsCiphertext: row.credentialsCiphertext,
+          credentialsIv: row.credentialsIv,
+          credentialsAuthTag: row.credentialsAuthTag,
+          credentialsKeyVersion: row.credentialsKeyVersion,
+        },
+      })
+    );
+  } catch (error: unknown) {
+    logger.error(
+      {
+        channelId: row.id,
+        keyVersion: row.credentialsKeyVersion,
+        reason: error instanceof Error ? error.message : "non-Error thrown by the decryptor",
+      },
+      "getChannelsByIds: channel credentials could not be decrypted"
+    );
+    return err("DECRYPT_FAILED");
+  }
 }

@@ -12,11 +12,13 @@ import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
+import { platformEncryptionKeyEnvFields } from "@shared/types/platformEncryptionKeyEnv.js";
 
 /**
  * Build a test-local instance of the workers env schema so each test case
  * can supply exactly the env it needs, bypassing the ESM module cache.
- * The schema mirrors apps/workers/src/config/env.ts.
+ * The schema mirrors apps/workers/src/config/env.ts, and spreads the same
+ * platform-key fragment, so the key cases test the shared definitions.
  */
 function buildEnv(runtimeEnv: Record<string, string | undefined>) {
   const SECRET_MIN = 32;
@@ -25,7 +27,7 @@ function buildEnv(runtimeEnv: Record<string, string | undefined>) {
       NODE_ENV: z.enum(["development", "production", "test", "staging"]).default("development"),
       DATABASE_URL: z.string().url(),
       REDIS_URL: z.string().url(),
-      PLATFORM_ENCRYPTION_KEY: z.string().min(SECRET_MIN),
+      ...platformEncryptionKeyEnvFields(SECRET_MIN),
       METRICS_PORT: z.coerce.number().int().min(1).max(65535).optional(),
       LOG_LEVEL: z
         .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
@@ -134,5 +136,31 @@ describe("apps/workers env module schema", () => {
   it("METRICS_PORT is undefined when not provided", () => {
     const env = buildEnv({ ...VALID_ENV, METRICS_PORT: undefined });
     assert.strictEqual(env.METRICS_PORT, undefined);
+  });
+
+  it("defaults PLATFORM_ENCRYPTION_KEY_VERSION to 1 and leaves the prior keys unset", () => {
+    const env = buildEnv(VALID_ENV);
+    assert.strictEqual(env.PLATFORM_ENCRYPTION_KEY_VERSION, 1);
+    assert.strictEqual(env.PLATFORM_ENCRYPTION_KEY_V1, undefined);
+  });
+
+  it("parses a rotated key version with its prior key", () => {
+    const env = buildEnv({
+      ...VALID_ENV,
+      PLATFORM_ENCRYPTION_KEY_VERSION: "2",
+      PLATFORM_ENCRYPTION_KEY_V1: "the-previous-platform-key-for-testing-purposes",
+    });
+    assert.strictEqual(env.PLATFORM_ENCRYPTION_KEY_VERSION, 2);
+    assert.strictEqual(
+      env.PLATFORM_ENCRYPTION_KEY_V1,
+      "the-previous-platform-key-for-testing-purposes"
+    );
+  });
+
+  it("throws when PLATFORM_ENCRYPTION_KEY_VERSION is below 1", () => {
+    assert.throws(
+      () => buildEnv({ ...VALID_ENV, PLATFORM_ENCRYPTION_KEY_VERSION: "0" }),
+      /PLATFORM_ENCRYPTION_KEY_VERSION/
+    );
   });
 });

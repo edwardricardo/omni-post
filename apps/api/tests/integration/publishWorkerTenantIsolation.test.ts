@@ -4,6 +4,10 @@
  *   tenant scoping, exercised against a REAL database with the REAL worker
  *   collaborators (`CredentialResolver`, `ChannelAuthFailureRecorder`,
  *   `PublishHandler`) wired over the production `createPrismaRepoAdapter`.
+ *   The channel envelopes are written by the API's own `ChannelCredentialsCrypto`
+ *   and read through the workers' own decryptor, so the own-tenant cases also
+ *   prove the contract between the two processes: what the API writes, with the
+ *   channel id bound as AAD, the workers read.
  *
  *   Workers run the raw Prisma client — the API's `$extends` tenant guard is
  *   not in their process and PostgreSQL RLS is inert while the connection role
@@ -21,7 +25,11 @@
  *       channel's tenant and the publish proceeds — the deploy-compat path for
  *       jobs enqueued before the payload carried the tenant;
  *     - reauth recorder: a foreign tenant flips no flag and emits no outbox
- *       event, while the owner flips both.
+ *       event, while the owner flips both;
+ *     - key versions: a row written under version 1 decrypts once the workers
+ *       rotate to version 2 and keep the old key as `PLATFORM_ENCRYPTION_KEY_V1`,
+ *       and a row stamped with a version the workers' ring does not hold fails
+ *       its job with AUTH before the provider is invoked.
  *
  *   It lives under `apps/api/tests/integration/` (node:test, real DB) rather
  *   than `apps/workers/tests/` because the worker vitest suite runs in CI
@@ -35,12 +43,13 @@ import assert from "node:assert/strict";
 import { randomUUID, randomBytes } from "node:crypto";
 import { type PrismaClient } from "@infra/prisma";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
-import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { createChannelRepository, createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { EncryptionService } from "../../src/security/EncryptionService.js";
+import { ChannelCredentialsCrypto } from "../../src/security/ChannelCredentialsCrypto.js";
 import {
-  encryptChannelCredentials,
-  decryptChannelCredentials,
-  type EncryptedChannelCredentialsEnvelope,
-} from "@shared/types/channelCredentialsCrypto.js";
+  buildWorkerEncryptionKeyRing,
+  createChannelCredentialsDecryptor,
+} from "../../../../apps/workers/src/services/channelCredentialsDecryptor.js";
 import { CredentialResolver } from "../../../../apps/workers/src/services/CredentialResolver.js";
 import { ChannelAuthFailureRecorder } from "../../../../apps/workers/src/services/ChannelAuthFailureRecorder.js";
 import { PublishHandler } from "../../../../apps/workers/src/publishHandler.js";
@@ -56,10 +65,15 @@ import {
 
 const TAG = `pub-iso-${Date.now()}`;
 
-// Test-local key: the suite encrypts the seeded envelopes and injects the
-// matching decrypt callback, so the assertions never depend on the deployment
-// key material.
+// Test-local key, given to the API's writer and to the workers' decryptor
+// alike, so the assertions never depend on the deployment key material.
 const TEST_KEY = randomBytes(32).toString("base64");
+
+// The API's own writer, built as `PrismaChannelRepository` builds it: the
+// seeded envelopes are the ones production stores, AAD and key version included.
+const apiCredentialsCrypto = new ChannelCredentialsCrypto(
+  new EncryptionService({ activeKeyBase64: TEST_KEY, activeKeyVersion: 1 })
+);
 
 interface Seeded {
   accountId: string;
@@ -77,6 +91,8 @@ describe("Publish worker — two-tenant isolation (MERGE-BLOCKING)", { concurren
   let tenantA: Seeded;
   let tenantB: Seeded;
   let postId: string;
+  /** Tenant A's second channel, written after the API rotated to key version 7. */
+  let unknownVersionChannelId: string;
 
   /** Counts entries into the decrypt callback — the "nothing decrypted" probe. */
   let decryptions = 0;
@@ -107,6 +123,27 @@ describe("Publish worker — two-tenant isolation (MERGE-BLOCKING)", { concurren
     });
   }
 
+  async function seedChannel(
+    owner: Pick<Seeded, "accountId" | "projectId">,
+    name: string,
+    token: string,
+    writer: ChannelCredentialsCrypto
+  ): Promise<string> {
+    // Minted before the insert: the writer binds the channel id as AAD.
+    const channelId = randomUUID();
+    await base.channel.create({
+      data: {
+        id: channelId,
+        projectId: owner.projectId,
+        accountId: owner.accountId,
+        provider: "X",
+        handle: `${TAG}-${name}-handle`,
+        ...writer.encrypt({ accessToken: token }, { recordId: channelId }),
+      },
+    });
+    return channelId;
+  }
+
   async function seedTenant(name: string): Promise<Seeded> {
     const account = await base.account.create({
       data: {
@@ -118,18 +155,10 @@ describe("Publish worker — two-tenant isolation (MERGE-BLOCKING)", { concurren
     const project = await base.project.create({
       data: { accountId: account.id, name: `${TAG}-${name}-project` },
     });
+    const owner = { accountId: account.id, projectId: project.id };
     const token = `tok-${name}-${randomUUID()}`;
-    const envelope = encryptChannelCredentials({ accessToken: token }, TEST_KEY);
-    const channel = await base.channel.create({
-      data: {
-        projectId: project.id,
-        accountId: account.id,
-        provider: "X",
-        handle: `${TAG}-${name}-handle`,
-        ...envelope,
-      },
-    });
-    return { accountId: account.id, projectId: project.id, channelId: channel.id, token };
+    const channelId = await seedChannel(owner, name, token, apiCredentialsCrypto);
+    return { ...owner, channelId, token };
   }
 
   before(async () => {
@@ -137,12 +166,27 @@ describe("Publish worker — two-tenant isolation (MERGE-BLOCKING)", { concurren
 
     tenantA = await seedTenant("A");
     tenantB = await seedTenant("B");
+    unknownVersionChannelId = await seedChannel(
+      tenantA,
+      "A-v7",
+      `tok-A-v7-${randomUUID()}`,
+      new ChannelCredentialsCrypto(
+        new EncryptionService({ activeKeyBase64: TEST_KEY, activeKeyVersion: 7 })
+      )
+    );
 
+    // The workers' own decryptor, built the way publishWorker builds it from its env.
+    const decryptForWorker = createChannelCredentialsDecryptor(
+      buildWorkerEncryptionKeyRing({
+        PLATFORM_ENCRYPTION_KEY: TEST_KEY,
+        PLATFORM_ENCRYPTION_KEY_VERSION: 1,
+      })
+    );
     repo = createPrismaRepoAdapter({
       prisma: base,
-      decryptChannelCredentials: (envelope: EncryptedChannelCredentialsEnvelope) => {
+      decryptChannelCredentials: (input) => {
         decryptions += 1;
-        return decryptChannelCredentials(envelope, TEST_KEY);
+        return decryptForWorker(input);
       },
     });
     resolver = new CredentialResolver(repo);
@@ -158,7 +202,7 @@ describe("Publish worker — two-tenant isolation (MERGE-BLOCKING)", { concurren
   });
 
   after(async () => {
-    const channelIds = [tenantA.channelId, tenantB.channelId];
+    const channelIds = [tenantA.channelId, tenantB.channelId, unknownVersionChannelId];
     const projectIds = [tenantA.projectId, tenantB.projectId];
     const accountIds = [tenantA.accountId, tenantB.accountId];
     // FK order: publish logs → outbox events → posts → channels → projects → accounts.
@@ -273,6 +317,50 @@ describe("Publish worker — two-tenant isolation (MERGE-BLOCKING)", { concurren
       );
       const okLog = await base.publishLog.findFirst({ where: { dedupeKey, status: "OK" } });
       assert.ok(okLog, "a legacy job must still publish and log OK");
+    });
+  });
+
+  describe("key versions", () => {
+    it("decrypts a version-1 row once the workers rotate to version 2 and keep the old key", async () => {
+      const rotated = createChannelRepository(
+        {
+          decryptCredentials: createChannelCredentialsDecryptor(
+            buildWorkerEncryptionKeyRing({
+              PLATFORM_ENCRYPTION_KEY: randomBytes(32).toString("base64"),
+              PLATFORM_ENCRYPTION_KEY_VERSION: 2,
+              PLATFORM_ENCRYPTION_KEY_V1: TEST_KEY,
+            })
+          ),
+        },
+        base
+      );
+
+      const resolved = await new CredentialResolver(rotated).resolve(
+        tenantA.channelId,
+        tenantA.accountId
+      );
+
+      assert.ok(resolved.ok, "a version-1 row must decrypt with the key kept as _V1");
+      assert.deepStrictEqual(resolved.value, { accessToken: tenantA.token });
+    });
+
+    it("fails a job whose row carries a key version the ring does not hold, before the provider", async () => {
+      providerCredentials = [];
+      const dedupeKey = `${TAG}-unknown-version`;
+
+      const lookup = await repo.getChannelsByIds([unknownVersionChannelId], tenantA.accountId);
+      const resolved = await resolver.resolve(unknownVersionChannelId, tenantA.accountId);
+      await assert.rejects(
+        buildHandler().handleJob({
+          payload: { postId, channelId: unknownVersionChannelId, accountId: tenantA.accountId },
+          dedupeKey,
+        }),
+        /AUTH/
+      );
+
+      assert.deepStrictEqual(lookup, { ok: false, error: "DATABASE_ERROR" });
+      assert.deepStrictEqual(resolved, { ok: false, error: "AUTH" });
+      assert.deepStrictEqual(providerCredentials, [], "the provider must never be invoked");
     });
   });
 
