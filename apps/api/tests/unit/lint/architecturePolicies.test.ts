@@ -38,6 +38,14 @@ const POLICY: Record<string, [string, object | null, object | null]> = {
   "not-to-unresolvable": ["error", {}, { couldNotResolve: true }],
   "no-orphans": ["warn", null, null],
   "no-deprecated-core": ["warn", null, null],
+  "shared-root-no-node-core": [
+    "error",
+    {
+      path: "^packages/shared/src/",
+      pathNot: ["^packages/shared/src/channelCredentialsCrypto\\.ts$", "\\.test\\.ts$"],
+    },
+    { dependencyTypes: ["core"] },
+  ],
   "core-no-apps": ["error", { path: "^packages/core/" }, { path: "^apps/" }],
   "core-domain-no-application": [
     "error",

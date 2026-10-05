@@ -180,6 +180,26 @@ export default defineConfig([
       "no-undef": "off",
     },
   },
+  // The shared kernel runs in the portals' browser code, which has no Buffer. The architecture
+  // gate (shared-root-no-node-core) sees imports only; this block covers the Node global, with
+  // the same exceptions: the Node-only credentials crypto module and tests.
+  {
+    files: ["packages/shared/src/**/*.ts"],
+    ignores: [
+      "packages/shared/src/channelCredentialsCrypto.ts",
+      "packages/shared/src/**/*.test.ts",
+    ],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "Buffer",
+          message:
+            "The portals load the shared kernel in the browser, which has no Buffer: encode with TextEncoder, or keep Node-only code in channelCredentialsCrypto.ts, served from its own subpath.",
+        },
+      ],
+    },
+  },
   // Type-aware linting for backend: floating promises enforcement.
   // projectService is scoped to this block only to bound memory usage.
   {

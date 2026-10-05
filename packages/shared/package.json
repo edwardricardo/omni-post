@@ -25,7 +25,8 @@
   },
   "dependencies": {
     "date-fns": "catalog:",
-    "handlebars": "catalog:"
+    "handlebars": "catalog:",
+    "zod": "catalog:"
   },
   "peerDependencies": {
     "zustand": "catalog:"

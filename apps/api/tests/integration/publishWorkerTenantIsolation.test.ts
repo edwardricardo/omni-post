@@ -40,7 +40,7 @@ import {
   encryptChannelCredentials,
   decryptChannelCredentials,
   type EncryptedChannelCredentialsEnvelope,
-} from "@shared/types";
+} from "@shared/types/channelCredentialsCrypto.js";
 import { CredentialResolver } from "../../../../apps/workers/src/services/CredentialResolver.js";
 import { ChannelAuthFailureRecorder } from "../../../../apps/workers/src/services/ChannelAuthFailureRecorder.js";
 import { PublishHandler } from "../../../../apps/workers/src/publishHandler.js";

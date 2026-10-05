@@ -1,14 +1,14 @@
 /**
  * @file index.ts
  * @description Barrel exports for the shared domain package — types, errors, events, saga, CQRS,
- *              provider configuration, and template engine.
+ *              provider configuration, and template engine. The portals import this barrel in
+ *              browser code, so nothing it reaches may need Node: the Node-only Channel.credentials
+ *              envelope encryption is served from its own subpath,
+ *              `@shared/types/channelCredentialsCrypto.js`, and is never re-exported here.
  * @layer domain
  */
 // Core type definitions
 export * from "./types.js";
-
-// Channel.credentials envelope encryption (api, workers, seed all use this)
-export * from "./channelCredentialsCrypto.js";
 
 // CSV export (pure RFC 4180 serializer; api, workers, admin frontend all use this)
 export * from "./csv.js";

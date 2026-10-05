@@ -19,7 +19,10 @@
  *                     packages/api-common, packages/observability, packages/monitoring, infra
  *                                                   → anything
  *   Every inner layer (domain, application, ports, shared) may also use plain npm libraries and
- *   Node built-ins; FRAMEWORKS below names the npm packages none of them imports.
+ *   Node built-ins; FRAMEWORKS below names the npm packages none of them imports. The shared
+ *   kernel is the exception to the built-ins (shared-root-no-node-core): the portals load it in
+ *   the browser, so only its Node-only credentials crypto module, served from a subpath, imports
+ *   one.
  *   A route module (`*Routes.ts`, `routes.ts`) and the handler modules beside it
  *   (`*Handlers.ts`) are infrastructure with limits of their own: they never reach the Prisma
  *   client, a repository, an adapter, a provider or the DI container, and they import the
@@ -133,6 +136,19 @@ module.exports = {
       to: {
         dependencyTypes: ["core"],
         path: ["^(punycode|domain|constants|sys|_linklist|_stream_wrap)$"],
+      },
+    },
+    {
+      name: "shared-root-no-node-core",
+      severity: "error",
+      comment:
+        "The portals load the shared kernel in browser code, where no Node built-in exists, so only the Node-only credentials crypto, served from its own subpath (@shared/types/channelCredentialsCrypto.js) and never from the root barrel, may import one.",
+      from: {
+        path: "^packages/shared/src/",
+        pathNot: ["^packages/shared/src/channelCredentialsCrypto\\.ts$", "\\.test\\.ts$"],
+      },
+      to: {
+        dependencyTypes: ["core"],
       },
     },
     {

@@ -23,7 +23,10 @@ const root = findMonorepoRoot(import.meta.dirname);
 export default defineConfig({
   resolve: {
     alias: {
-      "@shared/types": path.join(root, "packages/shared/src/index.ts"),
+      // The src DIR, not index.ts: an alias matches by prefix, so a file target turns a subpath
+      // import (`@shared/types/channelCredentialsCrypto.js`) into `<file>/<subpath>` and fails
+      // with ENOTDIR. The bare `@shared/types` still resolves the directory's index.ts.
+      "@shared/types": path.join(root, "packages/shared/src"),
       "@shared": path.join(root, "packages/shared/src"),
       "@ports/core": path.join(root, "packages/ports/src/index.ts"),
       "@ports": path.join(root, "packages/ports/src"),

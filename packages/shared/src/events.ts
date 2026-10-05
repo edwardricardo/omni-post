@@ -15,7 +15,6 @@
  * - Integration with Redis pub/sub
  */
 
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 // Base event interface with metadata
@@ -272,7 +271,7 @@ export function createEventStoreEvent<T>(
   }
 ): EventStoreEvent<T> {
   return {
-    id: `${type}-${randomUUID()}`,
+    id: `${type}-${globalThis.crypto.randomUUID()}`,
     type,
     version: options?.version || 1,
     timestamp: new Date(),

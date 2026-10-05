@@ -215,7 +215,7 @@ vi.mock("@observability/background-scheduler", () => {
   return { DefaultBackgroundTaskScheduler };
 });
 
-vi.mock("@shared/types", () => ({
+vi.mock("@shared/types/channelCredentialsCrypto.js", () => ({
   decryptChannelCredentials: vi.fn(),
 }));
 

@@ -11,7 +11,6 @@
  * @layer domain
  */
 
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { EventStoreEvent } from "./events.js";
 import { ok, err, type Result } from "./types.js";
@@ -1189,7 +1188,7 @@ export const SagaCompletedEventSchema = z.object({
 export type SagaCompletedEvent = z.infer<typeof SagaCompletedEventSchema>;
 
 export function createSagaId(definitionId: string): string {
-  return `saga-${definitionId}-${randomUUID()}`;
+  return `saga-${definitionId}-${globalThis.crypto.randomUUID()}`;
 }
 
 /**

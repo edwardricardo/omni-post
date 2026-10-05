@@ -42,7 +42,7 @@ import { setTenantGuc } from "@infra/prisma/extensions/tenantGuc.js";
 import { verifyDatabaseAuth } from "./container/workerContainer.js";
 import { env } from "./config/env.js";
 import { createPrismaRepoAdapter, PrismaMentionRepository } from "@adapters/db-prisma";
-import { decryptChannelCredentials } from "@shared/types";
+import { decryptChannelCredentials } from "@shared/types/channelCredentialsCrypto.js";
 import type { ProviderAdapter, ProviderMention } from "@ports/core";
 import { IngestMentionUseCase } from "@core/listening/IngestMentionUseCase.js";
 import type { ProviderType } from "@core/domain/value-objects/Provider.js";
