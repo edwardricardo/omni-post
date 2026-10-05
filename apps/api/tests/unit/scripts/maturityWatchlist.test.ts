@@ -2,8 +2,10 @@
  * @file maturityWatchlist.test.ts
  * @description Pins `scripts/testing/maturity-watchlist.mjs`: the list of versions that entered
  *   inside the 7-day maturity buffer, reviewed 7 and 14 days after publication. `validate` refuses
- *   each malformed shape, `dueToday` returns every unrecorded review on or past its milestone with
- *   the days it is overdue, and `--check`, the CI step, exits 1 naming every problem of a list
+ *   each malformed shape, a review dated after the day it runs, and a review dated before its
+ *   milestone unless it carries an early reason and is at most 2 days early. `dueToday` returns
+ *   every unrecorded review on or past its milestone with the days it is overdue, counting an early
+ *   review as recorded, and `--check`, the CI step, exits 1 naming every problem of a list
  *   written to a scratch file and every review more than 3 days overdue. `--remind` plans one issue
  *   action per due review, reopening the issue of a review still unrecorded after a closing; an
  *   injected fetch stands in for the GitHub API, answering each route and recording every call.
@@ -25,7 +27,7 @@ type Fetch = (url: string, init: { method: string; body?: string }) => Promise<R
 type Io = { env?: Record<string, string>; file?: string; fetchImpl?: Fetch };
 /** The module's surface; a literal import of an untyped `.mjs` would be an implicit any. */
 type WatchlistModule = {
-  validate: (list: unknown) => string[];
+  validate: (list: unknown, today?: string) => string[];
   dueToday: (list: List, today: string) => { milestone: string; overdueDays: number }[];
   planReminders: (list: List, today: string, issues: Issue[]) => Record<string, unknown>[];
   runCli: (argv: string[], io?: { file?: string }) => Outcome;
@@ -60,6 +62,12 @@ const dated = (overrides: Entry = {}): Entry => ({
 });
 const one = (entry: Entry): List => ({ entries: [entry] });
 const review = (date: string, outcome = "clean") => ({ maturity: { date, outcome, note: "" } });
+/** A 7-day review dated before its milestone, carrying the reason an early review must give. */
+const earlyReview = (date: string, reason = "recorded early on the owner's instruction") => ({
+  maturity: { date, outcome: "clean", note: "", early: { reason } },
+});
+/** The fixture's 7-day milestone, and the day the validation cases are measured on. */
+const MATURITY_DAY = "2026-10-09";
 const BOTH_REVIEWED = {
   ...review("2026-10-09"),
   final: { date: "2026-10-16", outcome: "clean", note: "" },
@@ -108,7 +116,7 @@ describe("validate", () => {
     const committed: unknown = JSON.parse(readFileSync(SCRIPT.replace(/mjs$/, "json"), "utf8"));
 
     expect(validate(committed)).toEqual([]);
-    expect(validate(one(pkg({ reviews: review("2026-10-10") })))).toEqual([]);
+    expect(validate(one(pkg({ reviews: review("2026-10-10") })), "2026-10-10")).toEqual([]);
   });
 
   it.each([
@@ -121,12 +129,77 @@ describe("validate", () => {
     ],
     ["an impossible date", one(dated({ due: "2026-02-30" })), "entry 0: missing or malformed due"],
     ["an underived milestone", one(pkg({ milestones: {} })), "is undefined, derived 2026-10-09"],
-    ["an early review", one(pkg({ reviews: review("2026-10-08") })), "dated 2026-10-08, before"],
+    [
+      "an early review with no early field",
+      one(pkg({ reviews: review("2026-10-08") })),
+      "dated 2026-10-08, before",
+    ],
     ["an unknown outcome", one(pkg({ reviews: review("2026-10-09", "ok") })), "needs a date"],
     ["no such milestone", one(dated({ reviews: review("2026-10-28") })), "unknown milestone"],
     ["a duplicate id", { entries: [pkg(), pkg()] }, "entry 1: duplicate id left-pad@1.3.1"],
+    [
+      "a review dated after the day it runs",
+      one(pkg({ reviews: review("2026-10-10") })),
+      "left-pad@1.3.1: review maturity dated 2026-10-10, after today 2026-10-09",
+    ],
+    [
+      "an early review more than 2 days early, even with its reason",
+      one(pkg({ reviews: earlyReview("2026-10-06") })),
+      "left-pad@1.3.1: review maturity dated 2026-10-06 is 3 days before 2026-10-09; " +
+        "an early review may be at most 2 days early",
+    ],
+    [
+      "an early review with an empty reason",
+      one(pkg({ reviews: earlyReview("2026-10-08", "") })),
+      "left-pad@1.3.1: review maturity has an early field without a non-empty reason",
+    ],
+    [
+      "an early review with a blank reason",
+      one(pkg({ reviews: earlyReview("2026-10-08", "   ") })),
+      "left-pad@1.3.1: review maturity has an early field without a non-empty reason",
+    ],
+    [
+      "an early field that holds no reason object",
+      one(
+        pkg({
+          reviews: { maturity: { date: "2026-10-08", outcome: "clean", note: "", early: true } },
+        })
+      ),
+      "left-pad@1.3.1: review maturity has an early field without a non-empty reason",
+    ],
+    [
+      "an early field on a review that is not early",
+      one(pkg({ reviews: earlyReview("2026-10-09") })),
+      "left-pad@1.3.1: review maturity dated 2026-10-09 has an early field, but is not before " +
+        "2026-10-09",
+    ],
   ])("returns a problem for %s", (_case, list, problem) => {
-    expect(validate(list).join("\n")).toContain(problem);
+    expect(validate(list, MATURITY_DAY).join("\n")).toContain(problem);
+  });
+
+  it.each([
+    ["1 day", "2026-10-08"],
+    ["2 days", "2026-10-07"],
+  ])("returns no problem for a review recorded %s early with its reason", (_case, date) => {
+    expect(validate(one(pkg({ reviews: earlyReview(date) })), date)).toEqual([]);
+  });
+
+  it("returns only the date problem for an early review dated after the day it runs", () => {
+    const list = one(pkg({ reviews: earlyReview("2026-10-08") }));
+
+    expect(validate(list, "2026-10-07")).toEqual([
+      "left-pad@1.3.1: review maturity dated 2026-10-08, after today 2026-10-07",
+    ]);
+  });
+
+  it("measures the day it runs from the real UTC date when no today is given", () => {
+    const problems = validate(one(pkg({ reviews: review("2999-01-01") })));
+
+    expect(problems.join("\n")).toContain("review maturity dated 2999-01-01, after today ");
+  });
+
+  it("returns a problem for an impossible today", () => {
+    expect(validate(one(pkg()), "2026-10-9")).toEqual(["today 2026-10-9 is not a YYYY-MM-DD date"]);
   });
 });
 
@@ -156,6 +229,18 @@ describe("dueToday", () => {
     ],
     ["nothing before the maturity day", one(pkg()), "2026-10-08", []],
     ["nothing once both are recorded", one(pkg({ reviews: BOTH_REVIEWED })), "2026-10-30", []],
+    [
+      "nothing on the maturity day once the 7-day review is recorded early",
+      one(pkg({ reviews: earlyReview("2026-10-08") })),
+      "2026-10-09",
+      [],
+    ],
+    [
+      "the 14-day review on its day after the 7-day one was recorded early",
+      one(pkg({ reviews: earlyReview("2026-10-08") })),
+      "2026-10-16",
+      [["final", 0]],
+    ],
     ["a date entry on its due day", one(dated()), "2026-10-28", [["due", 0]]],
     ["a date entry past its due day", one(dated()), "2026-11-02", [["due", 5]]],
   ])("returns %s", (_case, list, today, due) => {
@@ -207,6 +292,24 @@ describe("--check", () => {
 
     expect(outcome.exitCode).toBe(1);
     expect(outcome.messages.join("\n")).toContain("review maturity was due 2020-01-08");
+  });
+
+  it("exits 1 naming a review dated after --today", () => {
+    writeFileSync(file, JSON.stringify({ entries: [pkg({ reviews: review("2026-10-10") })] }));
+
+    expect(check("2026-10-09")).toEqual({
+      exitCode: 1,
+      messages: ["left-pad@1.3.1: review maturity dated 2026-10-10, after today 2026-10-09"],
+    });
+  });
+
+  it("exits 1 naming a review dated after the real UTC date without --today", () => {
+    writeFileSync(file, JSON.stringify({ entries: [pkg({ reviews: review("2999-01-01") })] }));
+
+    const outcome = runCli(["--check"], { file });
+
+    expect(outcome.exitCode).toBe(1);
+    expect(outcome.messages.join("\n")).toContain("review maturity dated 2999-01-01, after today ");
   });
 
   it("exits 1 naming each problem of an invalid list", () => {
@@ -318,6 +421,18 @@ describe("--remind", () => {
     const outcome = await runRemind(argv, { env: {}, file, fetchImpl: github({}) });
 
     expect(outcome).toEqual({ exitCode: 0, messages });
+    expect(calls).toEqual([]);
+  });
+
+  it("exits 1 naming a review dated after --today, calling no API", async () => {
+    writeFileSync(file, JSON.stringify({ entries: [pkg({ reviews: review("2026-10-10") })] }));
+
+    const outcome = await remindOn("2026-10-09", {});
+
+    expect(outcome).toEqual({
+      exitCode: 1,
+      messages: ["left-pad@1.3.1: review maturity dated 2026-10-10, after today 2026-10-09"],
+    });
     expect(calls).toEqual([]);
   });
 
