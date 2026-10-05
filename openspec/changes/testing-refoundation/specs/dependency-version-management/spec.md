@@ -50,6 +50,13 @@ delivered through a JSON-processing tool's DOM dependency).
 - **When** the chain named in the entry is compared against the resolved chains in the lockfile
 - **Then** each entry names a chain the lockfile actually contains
 
+#### Scenario: a documented chain the lockfile does not contain fails the gate [static]
+
+- **Given** one audited-ignore or CVE-floor entry whose documented chain the parsed lockfile does
+  not contain
+- **When** the chain check runs
+- **Then** it exits non-zero naming the entry
+
 #### Scenario: a corrected chain makes the remove-when observable [static]
 
 - **Given** an entry whose documented chain was wrong
