@@ -106,35 +106,6 @@
   },
   {
     "type": "dependency",
-    "from": "apps/api/src/health/healthRoutes.ts",
-    "to": "packages/adapters/cache-redis/src/index.ts",
-    "unresolvedTo": "@adapters/cache-redis",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "type-only",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "routes-no-adapters-or-providers"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "apps/api/src/health/healthRoutes.ts",
-    "to": "packages/adapters/queue-bullmq/src/index.ts",
-    "unresolvedTo": "@adapters/queue-bullmq",
-    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "routes-no-adapters-or-providers"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "apps/api/src/accounts/accountRoutes.ts",
     "to": "apps/api/src/infrastructure/container/types.ts",
     "unresolvedTo": "../infrastructure/container/types.js",
@@ -653,17 +624,6 @@
   {
     "type": "dependency",
     "from": "apps/api/src/first-comment/firstCommentRoutes.ts",
-    "to": "apps/api/src/infrastructure/container/types.ts",
-    "unresolvedTo": "../infrastructure/container/types.js",
-    "dependencyTypes": ["local", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "routes-no-container"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "apps/api/src/health/healthRoutes.ts",
     "to": "apps/api/src/infrastructure/container/types.ts",
     "unresolvedTo": "../infrastructure/container/types.js",
     "dependencyTypes": ["local", "import"],
@@ -1220,35 +1180,6 @@
       "type-only",
       "import"
     ],
-    "rule": {
-      "severity": "error",
-      "name": "routes-no-prisma"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "apps/api/src/health/healthRoutes.ts",
-    "to": "infra/prisma/src/index.ts",
-    "unresolvedTo": "@infra/prisma",
-    "dependencyTypes": [
-      "aliased",
-      "aliased-tsconfig",
-      "aliased-tsconfig-paths",
-      "local",
-      "type-only",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "routes-no-prisma"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "apps/api/src/health/healthRoutes.ts",
-    "to": "packages/adapters/db-prisma/src/index.ts",
-    "unresolvedTo": "@adapters/db-prisma",
-    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
     "rule": {
       "severity": "error",
       "name": "routes-no-prisma"
