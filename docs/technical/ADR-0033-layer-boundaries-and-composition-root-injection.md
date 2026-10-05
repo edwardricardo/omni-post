@@ -228,12 +228,14 @@ that `packages/ports` carries says otherwise.
 ## Implementation notes (2026-10-05)
 
 Item (v) delivered the first stage of decision 6 on 2026-10-05. PR2 shipped as `PR v-b`
-(`workstream/item-v-rules`, `515487b9`) and `PR v-c` (`workstream/item-v-boundaries`, `63881f50`);
-PR3a as `PR v-d1` (`workstream/item-v-logger-a`, `0986c8ad`) and `PR v-d2`
-(`workstream/item-v-logger-port`, `beb017e1`); PR3b as `PR v-e1` (`workstream/item-v-cheap-repairs`,
-`05f1d28f`), `PR v-e2` (`workstream/item-v-cheap-queue`, `33476917`) and `PR v-e3`
-(`workstream/item-v-cheap-health`, `783aeebe`). The decisions stand as written; these notes record
-where the code that shipped differs from their text.
+(#411, `workstream/item-v-rules`, `515487b9`) and `PR v-c`
+(#412, `workstream/item-v-boundaries`, `63881f50`); PR3a as `PR v-d1`
+(#413, `workstream/item-v-logger-a`, `0986c8ad`) and `PR v-d2`
+(#414, `workstream/item-v-logger-port`, `beb017e1`); PR3b as `PR v-e1`
+(#415, `workstream/item-v-cheap-repairs`, `05f1d28f`), `PR v-e2`
+(#416, `workstream/item-v-cheap-queue`, `33476917`) and `PR v-e3`
+(#417, `workstream/item-v-cheap-health`, `783aeebe`). The decisions stand as written; these notes
+record where the code that shipped differs from their text.
 
 **D-R10 shipped with no adapter class.** Decision 3 reads "An adapter over `@observability/logger`
 implements it, and the composition root injects it into the six services." The port
