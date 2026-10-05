@@ -1917,7 +1917,10 @@ jobs:
         # scripts/testing/maturity-watchlist.json lists the versions that entered inside the 7-day
         # maturity buffer with their 7- and 14-day review dates. A malformed entry, or a milestone that
         # is not its publish date plus 7 or 14 days, would put a review on the wrong day or on none;
-        # this refuses it in the pull request that writes it. It also fails when a review is still
+        # this refuses it in the pull request that writes it. A review is dated the day it is
+        # written, so one dated after the run's UTC date is refused; one dated before its milestone
+        # is refused unless it carries early: { reason } and is at most 2 days early, and an early
+        # field on a review that is not early is refused too. It also fails when a review is still
         # unrecorded more than three days past its milestone, measured against the run's UTC date,
         # so a missed review turns this step red on every run until its outcome is recorded. Reads
         # one tracked file: no install, no registry, no API. Pinned by
@@ -1925,6 +1928,6 @@ jobs:
         run: |
           set -uo pipefail
           if ! node scripts/testing/maturity-watchlist.mjs --check; then
-            echo "::error title=Maturity watchlist violation::scripts/testing/maturity-watchlist.json is unreadable or malformed, or a review is overdue by more than three days and not recorded. The maturity-watchlist lines above name each cause: a missing or malformed field, a milestone that is not its publish date plus 7 or 14 days, a review dated before its milestone or without a clean or flagged outcome, a duplicate id, or a review due more than three days ago and not recorded. Record an overdue review's outcome under reviews.<milestone> in scripts/testing/maturity-watchlist.json."
+            echo "::error title=Maturity watchlist violation::scripts/testing/maturity-watchlist.json is unreadable or malformed, or a review is overdue by more than three days and not recorded. The maturity-watchlist lines above name each cause: a missing or malformed field, a milestone that is not its publish date plus 7 or 14 days, a review without a clean or flagged outcome, a review dated after the day the list is read, a review dated before its milestone with no early field, an early review more than 2 days early or without a reason, an early field on a review that is not early, a duplicate id, or a review due more than three days ago and not recorded. Record an overdue review's outcome under reviews.<milestone> in scripts/testing/maturity-watchlist.json."
             exit 1
           fi

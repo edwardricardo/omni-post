@@ -1,5 +1,5 @@
 {
-  "description": "Package versions that entered the tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication (advisories, upstream issues, release notes), and dated milestones that ride the same list. Milestones are UTC dates derived from `published`. A review is recorded under `reviews.<milestone>` as { date, outcome: clean | flagged, note }; an entry leaves the list in the change that records its clean 14-day review, a date entry in the change that records its review. Read by scripts/testing/maturity-watchlist.mjs (--check in CI, --remind in the maturity-reminder workflow).",
+  "description": "Package versions that entered the tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication (advisories, upstream issues, release notes), and dated milestones that ride the same list. Milestones are UTC dates derived from `published`. A review is recorded under `reviews.<milestone>` as { date, outcome: clean | flagged, note }, dated the day it is written and never later; one written up to 2 days before its milestone also carries early: { reason }, and the entry's later milestone stays due. An entry leaves the list in the change that records its clean 14-day review, a date entry in the change that records its review. Read by scripts/testing/maturity-watchlist.mjs (--check in CI, --remind in the maturity-reminder workflow).",
   "entries": [
     {
       "kind": "package",
@@ -35,6 +35,14 @@
           "date": "2026-10-05",
           "outcome": "flagged",
           "note": "Reviewed 2026-10-05, six days late: the reminder workflow started on 2026-10-03 and carried no day over. OSV: nothing for 12.6.0. Upstream: pnpm 12.7.0 (2026-09-25) ships three security fixes that apply to 12.6.0 — a userAgent env placeholder in pnpm-workspace.yaml was expanded and sent to the registry; on Nix a dependency bin named like a system utility could redirect the shims and launchers; manifests inside the store, cache, state or modules directories counted as workspace projects, letting lifecycle scripts run without allowBuilds approval. 12.8.2 fixes a regression introduced in 12.6.0: pnpm run kept waiting after SIGTERM when pnpm is PID 1 in a container. 12.9.0 stops pnpm login forwarding credentials to another origin on redirect. None is reachable here today (no userAgent or storeDir configured, no Nix, the four Dockerfiles run node directly, pnpm login unused), but a package manager three security fixes behind is not kept: bump packageManager to the latest mature release in its own PR (12.8.1 from 2026-10-05T17:38Z, 12.8.2 from 2026-10-07T01:15Z, 12.9.1 from 2026-10-10T20:48Z)."
+        },
+        "final": {
+          "date": "2026-10-05",
+          "early": {
+            "reason": "Recorded on 2026-10-05, one day before the 2026-10-06 milestone, on Edward's instruction of 2026-10-05. The registry and OSV were re-checked at 2026-10-05T14:05Z, as this record was written, and are unchanged since the research: latest still 12.9.1 (modified 2026-10-03T21:10Z), no OSV entry for 12.6.0 or 12.9.1."
+          },
+          "outcome": "flagged",
+          "note": "Researched 2026-10-05, a day before the milestone, and recorded the same day as an early review. Registry after 12.6.0: 12.7.0 (2026-09-25T10:38Z), 12.8.0 (09-28T07:34Z), 12.8.1 (09-28T17:38Z), 12.8.2 (09-30T01:15Z), 12.9.0 (10-02T22:27Z), 12.9.1 (10-03T20:48Z, latest). OSV: nothing for 12.6.0 or 12.9.1; the newest GitHub pnpm advisories (2026-09-02) cover 10.x, 11.x and 12.0.0 alphas only. Release notes: 12.7.0 carries four security fixes for 12.6.0, not three; the fourth stops hard-linking packages that run a build script into the virtual store, where the script could rewrite an injected package's source or its store copy (#15483). 12.9.0 stops pnpm login forwarding credentials on redirect; 12.8.2 fixes 12.6.0's PID-1 SIGTERM regression. None is reachable beyond the store copies of the three packages allowed to build (prisma, @prisma/engines, esbuild): no userAgent or storeDir set, no Nix, no injected workspace package, the four images run node directly, pnpm login unused. A regression in the newer releases is reachable: 12.7.0 to 12.8.2 fail pnpm install --frozen-lockfile when a workspace project the lockfile records has no directory (pnpm/pnpm#16453, fixed in 12.9.0 by #16462), and each Dockerfile runs that install with three of the four apps absent (main's admin image build at 8400ba05, run 37265374768: 96 of the lockfile's 99 importers in scope, pnpm v12.6.0). Reproduced 2026-10-05 with one of two workspace projects removed: exit 1 ERR_PNPM_OUTDATED_LOCKFILE on 12.7.0, 12.8.0, 12.8.1 and 12.8.2; exit 0 on 12.6.0, 12.9.0 and 12.9.1. 12.9.0's package also unpacks to 55 MB (12.9.1: 4.1 MB). Flagged: the packageManager bump is still owed and its target moves to 12.9.1, mature from 2026-10-10T20:48Z, not the 12.8.1 or 12.8.2 the maturity review named; its PR reads the four 'Build container image' steps, green on main while their Container Security jobs fail at Trivy. The entry stays until that bump takes 12.6.0 out of the tree."
         }
       }
     },
@@ -81,7 +89,16 @@
         "via": "webpack-dev-middleware 7.4.6, the CVE-floor override, 0.4 days after publication"
       },
       "milestones": { "maturity": "2026-10-06", "final": "2026-10-13" },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-05",
+          "early": {
+            "reason": "Recorded on 2026-10-05, one day before the 2026-10-06 milestone, on Edward's instruction of 2026-10-05. The registry and OSV were re-checked at 2026-10-05T14:05Z, as this record was written, and are unchanged since the research: memfs and its eight @jsonjoy.com/fs-* siblings still latest 4.80.0, no OSV entry for any of them at any version. The 14-day review on 2026-10-13 stays due."
+          },
+          "outcome": "clean",
+          "note": "Researched 2026-10-05, a day before the milestone, and recorded the same day as an early review. Registry: no release after 4.80.0 for memfs or its eight @jsonjoy.com/fs-* siblings (memfs published 2026-09-29T20:28Z, the siblings between 20:26Z and 20:33Z). OSV, which carries the GitHub database: nothing for memfs or the siblings at any version. Release notes: 4.80.0's one change makes the synchronous FSA worker timeout configurable (streamich/memfs#1298); nothing on security. Upstream issues: none opened since 4.80.0; the open #1296 (2026-09-18), the default vol's virtual-root cwd since 4.71.0, which the maintainer keeps, does not apply: webpack-dev-middleware 7.4.6 builds its own volume (memfs.createFsFromVolume(new memfs.Volume())) and webpack writes absolute output paths. Reachability, the lockfile parsed with yaml.safe_load_all and walked uncut: memfs 4.80.0 has one consumer, webpack-dev-middleware 7.4.6, reached only from the devDependencies of apps/admin and apps/client through @storybook/nextjs 10.6.0 and @storybook/builder-webpack5 10.6.0; the eight siblings reach the same two devDependency edges and no production one. Works here: storybook dev --smoke-test --ci (@apps/client), whose dev-server start builds that volume, exited 0 on 2026-10-01 and again under Storybook 10.6.0 on 2026-10-02 (SECURITY_CANON.md, webpack-dev-middleware floor history). Clean; the 14-day review is due 2026-10-13."
+        }
+      }
     },
     {
       "kind": "package",

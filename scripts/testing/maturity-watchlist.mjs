@@ -4,12 +4,16 @@
  * @description Reads `scripts/testing/maturity-watchlist.json`: package versions that entered the
  *   tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication, and dated
  *   milestones. `validate` names every reason the list cannot be trusted, and `dueToday` the reviews
- *   due on or before a date and not recorded yet. `--check`, the CI step, exits 0 on a valid list
- *   whose reviews are at most 3 days overdue, or 1 naming each cause. `--remind`, the scheduled
- *   workflow, opens one issue per due review, or comments on it while it stays open; closing it
- *   cancels the rest of that day, and a review still unrecorded on a later day reopens the same
- *   issue. `--dry-run` calls no API, so it plans as if no issue existed; `--today YYYY-MM-DD`
- *   replaces the UTC date in both modes.
+ *   due on or before a date and not recorded yet. A review is dated the day it is written, so never
+ *   after the day the list is read. It may precede its milestone by at most `EARLY_DAYS`, and only
+ *   when it carries `early: { reason }`: the exception and its reason stay in the list itself. An
+ *   early review counts as recorded, and the entry's later milestone stays due. `--check`, the CI
+ *   step, exits 0 on a valid list whose reviews are at most 3 days overdue, or 1 naming each cause.
+ *   `--remind`, the scheduled workflow, opens one issue per due review, or comments on it while it
+ *   stays open; closing it cancels the rest of that day, and a review still unrecorded on a later
+ *   day reopens the same issue. `--dry-run` calls no API, so it plans as if no issue existed;
+ *   `--today YYYY-MM-DD` replaces the UTC date in both modes, including the day reviews are
+ *   measured against.
  * @layer infrastructure
  */
 import { existsSync, readFileSync, realpathSync } from "node:fs";
@@ -28,14 +32,19 @@ const CHECK_OPTIONS = { check: FLAG, today: DATE };
 const REMIND_OPTIONS = { remind: FLAG, "dry-run": FLAG, today: DATE };
 /** Days past its milestone an unrecorded review may stay before `--check` fails. */
 const GRACE_DAYS = 3;
+/** Days a review with an early reason may precede its milestone; Edward set it on 2026-10-05. */
+const EARLY_DAYS = 2;
 /** Days from publication to each package milestone. @type {Record<string, number>} */
 const MILESTONE_DAYS = { maturity: 7, final: 14 };
 const OUTCOMES = ["clean", "flagged"];
 
 /**
+ * A recorded review: `date` is the day it was written; `early` is present only when that day
+ * precedes the milestone, and its `reason` says why the review could not wait for it.
+ * @typedef {{ date: string, outcome: string, note: string, early?: { reason: string } }} Review
  * @typedef {{ kind: string, name: string, version: string, published: string, members?: string[],
  *   entered: { date: string, commit: string, pr: number }, milestones: Record<string, string>,
- *   id: string, title: string, due: string, refs: string[], reviews: Record<string, unknown> }} Entry
+ *   id: string, title: string, due: string, refs: string[], reviews: Record<string, Review> }} Entry
  * @typedef {{ entries: Entry[] }} List
  * @typedef {{ entry: Entry, milestone: string, date: string, overdueDays: number }} Due
  * @typedef {{ number: number, title: string, state: string, closed_at: string | null }} Issue
@@ -65,6 +74,9 @@ const daysText = (count) => `${count} day${count === 1 ? "" : "s"}`;
 const reason = (error) => (error instanceof Error ? error.message : String(error));
 /** @type {(message: string) => Outcome} */
 const refuse = (message) => ({ exitCode: 1, messages: [message] });
+/** The current UTC day, the `today` of `validate` and of both modes unless one is given. */
+/** @type {() => string} */
+const utcToday = () => new Date().toISOString().slice(0, 10);
 
 /** @type {Record<string, Record<string, (v: unknown) => boolean>>} */
 const SHAPES = {
@@ -86,8 +98,45 @@ const idOf = (entry) => (entry.kind === "package" ? `${entry.name}@${entry.versi
 const milestonesOf = ({ kind, due, milestones }) =>
   kind === "date" ? { due } : { maturity: milestones.maturity, final: milestones.final };
 
-/** Every reason the list cannot be trusted, in entry order. @type {(list: unknown) => string[]} */
-export function validate(list) {
+/**
+ * The problems of a well-formed review's date: after `today`, before its milestone without an early
+ * reason or more than `EARLY_DAYS` before it with one, or an early field on a review not early.
+ * @type {(review: string, date: string, milestone: string, early: unknown, today: string) => string[]}
+ */
+function dateProblems(review, date, milestone, early, today) {
+  const problems = [];
+  if (date > today) problems.push(`${review} dated ${date}, after today ${today}`);
+  const why = fieldsOf(early).reason;
+  if (early !== undefined && !(typeof why === "string" && why.trim().length > 0)) {
+    problems.push(`${review} has an early field without a non-empty reason`);
+  }
+  const daysEarly = daysBetween(date, milestone);
+  if (date >= milestone) {
+    if (early !== undefined) {
+      problems.push(`${review} dated ${date} has an early field, but is not before ${milestone}`);
+    }
+  } else if (early === undefined) {
+    problems.push(`${review} dated ${date}, before ${milestone}`);
+  } else if (daysEarly > EARLY_DAYS) {
+    const bound = `an early review may be at most ${daysText(EARLY_DAYS)} early`;
+    problems.push(
+      `${review} dated ${date} is ${daysText(daysEarly)} before ${milestone}; ${bound}`
+    );
+  }
+  return problems;
+}
+
+/**
+ * @method validate
+ * @description Every reason the list cannot be trusted, in entry order. Among them: a review
+ *   dated after `today`, since its date is the day it was written, and a review dated before its
+ *   milestone unless it carries `early: { reason }` and is at most `EARLY_DAYS` early.
+ * @param {unknown} list - The parsed list.
+ * @param {string} [today] - The day the list is read, `YYYY-MM-DD`; the current UTC day by default.
+ * @returns {string[]} One message per problem; empty when the list can be trusted.
+ */
+export function validate(list, today = utcToday()) {
+  if (!day(today)) return [`today ${today} is not a YYYY-MM-DD date`];
   const { entries } = fieldsOf(list);
   if (!Array.isArray(entries)) return ["the list has no `entries` array"];
   const problems = [];
@@ -112,15 +161,17 @@ export function validate(list) {
       }
     }
     for (const [key, done] of Object.entries(entry.reviews)) {
-      const { date, outcome, note } = fieldsOf(done);
+      const { date, outcome, note, early } = fieldsOf(done);
       const wellFormed =
         day(date) && OUTCOMES.includes(String(outcome)) && typeof note === "string";
       if (!(key in dates)) {
         problems.push(`${id}: review of unknown milestone ${key}`);
       } else if (!wellFormed) {
         problems.push(`${id}: review ${key} needs a date, a clean or flagged outcome, and a note`);
-      } else if (date < String(dates[key])) {
-        problems.push(`${id}: review ${key} dated ${date}, before ${dates[key]}`);
+      } else {
+        problems.push(
+          ...dateProblems(`${id}: review ${key}`, date, String(dates[key]), early, today)
+        );
       }
     }
   }
@@ -240,17 +291,17 @@ async function remind(list, today, env, fetchImpl, log) {
 }
 
 /**
- * Reads and validates the list, or answers why it cannot.
- * @type {(file: string) => { list: List } | { outcome: Outcome }}
+ * Reads the list and validates it as of `today`, or answers why it cannot.
+ * @type {(file: string, today: string) => { list: List } | { outcome: Outcome }}
  */
-function load(file) {
+function load(file, today) {
   let parsed;
   try {
     parsed = JSON.parse(readFileSync(file, "utf8"));
   } catch (error) {
     return { outcome: refuse(`${file} is unreadable: ${reason(error)}`) };
   }
-  const problems = validate(parsed);
+  const problems = validate(parsed, today);
   if (problems.length > 0) return { outcome: { exitCode: 1, messages: problems } };
   return { list: /** @type {List} */ (parsed) };
 }
@@ -266,22 +317,22 @@ function parse(argv, options) {
   } catch (error) {
     return { outcome: refuse(`${reason(error)}; ${USAGE}`) };
   }
-  const today = String(values.today ?? new Date().toISOString().slice(0, 10));
+  const today = String(values.today ?? utcToday());
   if (!day(today)) return { outcome: refuse(`--today ${today} is not a YYYY-MM-DD date`) };
   return { values, today };
 }
 
 /**
- * Runs the check: the list must be valid, and no review may stay unrecorded more than
- * `GRACE_DAYS` past its milestone. The list file is injectable, so the suite drives every path
- * without the repository's list.
+ * Runs the check: the list must be valid on the day it runs (`--today`, or the UTC date), and no
+ * review may stay unrecorded more than `GRACE_DAYS` past its milestone. The list file is
+ * injectable, so the suite drives every path without the repository's list.
  * @type {(argv: string[], io?: { file?: string }) => Outcome}
  */
 export function runCli(argv, { file = LIST_FILE } = {}) {
   const parsed = parse(argv, CHECK_OPTIONS);
   if ("outcome" in parsed) return parsed.outcome;
   if (!parsed.values.check) return refuse(USAGE);
-  const loaded = load(file);
+  const loaded = load(file, parsed.today);
   if ("outcome" in loaded) return loaded.outcome;
   const overdue = dueToday(loaded.list, parsed.today)
     .filter(({ overdueDays }) => overdueDays > GRACE_DAYS)
@@ -295,8 +346,9 @@ export function runCli(argv, { file = LIST_FILE } = {}) {
 }
 
 /**
- * Runs the reminder. The list file, the environment and fetch are injectable, so the suite drives
- * every path without the repository's list or the GitHub API.
+ * Runs the reminder on a list valid on the day it runs (`--today`, or the UTC date), refusing any
+ * other before a call. The list file, the environment and fetch are injectable, so the suite
+ * drives every path without the repository's list or the GitHub API.
  * @type {(argv: string[], io?: { env?: NodeJS.ProcessEnv, file?: string, fetchImpl?: typeof fetch }) => Promise<Outcome>}
  */
 export async function runRemind(argv, io = {}) {
@@ -305,7 +357,7 @@ export async function runRemind(argv, io = {}) {
   if ("outcome" in parsed) return parsed.outcome;
   const { values, today } = parsed;
   if (!values.remind) return refuse(USAGE);
-  const loaded = load(file);
+  const loaded = load(file, today);
   if ("outcome" in loaded) return loaded.outcome;
   const { list } = loaded;
   const plan = planReminders(list, today, []).map(({ action, title }) => `${action}: ${title}`);
