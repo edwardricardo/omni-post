@@ -243,7 +243,8 @@ export function setupServices(
     () =>
       new RoleManagementService(
         container.resolve<RoleManagementRepository>(TOKENS.RoleManagementRepository),
-        container.resolve<RbacCacheInvalidatorPort>(TOKENS.RbacCacheInvalidatorPort)
+        container.resolve<RbacCacheInvalidatorPort>(TOKENS.RbacCacheInvalidatorPort),
+        createLogger("role-management")
       ),
     true
   );
@@ -313,7 +314,8 @@ export function setupServices(
         container.resolve<AccountSubscriptionBillingRepository>(
           TOKENS.AccountSubscriptionBillingRepository
         ),
-        container.resolve<AiTokenUsageReader>(TOKENS.AiTokenUsageReader)
+        container.resolve<AiTokenUsageReader>(TOKENS.AiTokenUsageReader),
+        createLogger("ai-request")
       ),
     true
   );
@@ -563,7 +565,8 @@ export function setupServices(
         container.resolve<AuditLogRetentionPort>(TOKENS.AuditLogRetentionPort),
         container.resolve<AccountNotificationReader>(TOKENS.AccountNotificationReader),
         container.resolve<EmailPort>(TOKENS.EmailPort),
-        container.resolve(TOKENS.AuditEmitterPort)
+        container.resolve(TOKENS.AuditEmitterPort),
+        createLogger("compliance")
       ),
     true
   );
@@ -576,7 +579,8 @@ export function setupServices(
     TOKENS.DlqArchivalService,
     () =>
       new DlqArchivalService(
-        container.resolve<WebhookDeadLetterArchivalPort>(TOKENS.WebhookDeadLetterArchivalPort)
+        container.resolve<WebhookDeadLetterArchivalPort>(TOKENS.WebhookDeadLetterArchivalPort),
+        createLogger("dlq-archival")
       ),
     true
   );

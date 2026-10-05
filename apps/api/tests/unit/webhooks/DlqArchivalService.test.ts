@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { DlqArchivalService } from "@core/webhooks/DlqArchivalService.js";
 import type { WebhookDeadLetterArchivalPort } from "@core/domain/repositories/WebhookDeadLetterArchivalPort.js";
+import { createFakeLoggerPort, type FakeLoggerPort } from "../helpers/fakeLoggerPort.js";
 
 function makeArchivalPort(): WebhookDeadLetterArchivalPort {
   return {
@@ -29,7 +30,7 @@ describe("DlqArchivalService - archiveResolvedEvents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     archivalRepo = makeArchivalPort();
-    service = new DlqArchivalService(archivalRepo);
+    service = new DlqArchivalService(archivalRepo, createFakeLoggerPort());
   });
 
   it("archives resolved events older than retentionDays", async () => {
@@ -102,14 +103,16 @@ describe("DlqArchivalService - archiveResolvedEvents", () => {
 describe("DlqArchivalService - flagStaleEvents", () => {
   let service: DlqArchivalService;
   let archivalRepo: WebhookDeadLetterArchivalPort;
+  let logger: FakeLoggerPort;
 
   beforeEach(() => {
     vi.clearAllMocks();
     archivalRepo = makeArchivalPort();
-    service = new DlqArchivalService(archivalRepo);
+    logger = createFakeLoggerPort();
+    service = new DlqArchivalService(archivalRepo, logger);
   });
 
-  it("finds stale unresolved events older than staleAfterDays", async () => {
+  it("returns the stale events and warns through the injected logger when unresolved events are older than staleAfterDays", async () => {
     const staleEvents = [
       {
         id: "evt-1",
@@ -133,6 +136,10 @@ describe("DlqArchivalService - flagStaleEvents", () => {
 
     assert.strictEqual(result.stale, 2);
     assert.deepStrictEqual(result.eventIds, ["evt-1", "evt-2"]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { stale: 2, eventIds: ["evt-1", "evt-2"], staleAfterDays: 14 },
+      "DLQ archival: stale unresolved events detected"
+    );
   });
 
   it("delegates to the archival port with a cutoff Date", async () => {

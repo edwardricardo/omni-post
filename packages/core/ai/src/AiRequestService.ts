@@ -5,20 +5,17 @@
  *   the appropriate provider (BYOK if configured, pool otherwise), enforces
  *   rate limits for pool requests, and tracks token usage in AiTokenUsage.
  *
- *   Framework-free: depends only on @core/domain ports + @observability/logger.
- *   The concrete BullMQ scheduler + cache + provider SDKs are wrapped behind
- *   the `AIRequestExecutorPort` adapter that lives in apps/api.
+ *   Framework-free: depends only on @core/domain ports + the LoggerPort its
+ *   composition root injects. The concrete BullMQ scheduler + cache + provider
+ *   SDKs are wrapped behind the `AIRequestExecutorPort` adapter that lives in apps/api.
  * @layer application
  */
 import { ok, err, type Result } from "@shared/types";
-import { createLogger } from "@observability/logger";
-import type { PlatformCredentialPort } from "@ports/core";
+import type { LoggerPort, PlatformCredentialPort } from "@ports/core";
 import type { AIProviderName, AIResponse, AITask } from "@core/domain/ai/AIContracts.js";
 import type { AIRequestExecutorPort } from "@core/domain/repositories/AIRequestExecutorPort.js";
 import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";
 import type { AiTokenUsageReader } from "@core/domain/repositories/AiTokenUsageReader.js";
-
-const aiLogger = createLogger("ai-request");
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,7 +50,8 @@ export class AiRequestService {
     private readonly credentialService: PlatformCredentialPort,
     private readonly executor: AIRequestExecutorPort,
     private readonly subscriptionRepo: AccountSubscriptionBillingRepository,
-    private readonly tokenUsageRepo: AiTokenUsageReader
+    private readonly tokenUsageRepo: AiTokenUsageReader,
+    private readonly logger: LoggerPort
   ) {}
 
   /**
@@ -155,7 +153,10 @@ export class AiRequestService {
   ): Promise<{ allowed: boolean; remaining: number }> {
     const subResult = await this.subscriptionRepo.findActiveOrTrialingByAccount(accountId);
     if (!subResult.ok) {
-      aiLogger.warn({ accountId }, "Rate limit check: subscription read failed, allowing request");
+      this.logger.warn(
+        { accountId },
+        "Rate limit check: subscription read failed, allowing request"
+      );
       return { allowed: true, remaining: BASE_TOKENS_PER_UNIT };
     }
     const subscription = subResult.value;
@@ -166,7 +167,7 @@ export class AiRequestService {
 
     const usageResult = await this.tokenUsageRepo.sumTokensThisMonth(accountId, false);
     if (!usageResult.ok) {
-      aiLogger.warn({ accountId }, "Rate limit check: usage read failed, allowing request");
+      this.logger.warn({ accountId }, "Rate limit check: usage read failed, allowing request");
       return { allowed: true, remaining: monthlyBudget };
     }
 
@@ -188,7 +189,7 @@ export class AiRequestService {
   ): Promise<void> {
     const result = await this.tokenUsageRepo.recordUsage(accountId, provider, tokens, isByok);
     if (!result.ok) {
-      aiLogger.warn({ accountId, provider }, "Failed to write AiTokenUsage");
+      this.logger.warn({ accountId, provider }, "Failed to write AiTokenUsage");
     }
   }
 }

@@ -5,13 +5,13 @@
  *   All public methods return Result<T, E> — no throws.
  *
  *   Framework-free: depends only on @core/domain ports + AuditEmitterPort +
- *   @observability/logger.
+ *   the LoggerPort its composition root injects.
  * @layer application
  */
 
 import { ok, err, type Result } from "@shared/types";
 import crypto from "crypto";
-import { createLogger } from "@observability/logger";
+import type { LoggerPort } from "@ports/core";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import type {
@@ -38,8 +38,6 @@ import type {
 } from "@core/domain/repositories/DataBreachReportRepository.js";
 import type { AuditLogRetentionPort } from "@core/domain/repositories/AuditLogRetentionPort.js";
 import type { AccountNotificationReader } from "@core/domain/repositories/AccountNotificationReader.js";
-
-const logger = createLogger("compliance");
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -92,7 +90,8 @@ export class ComplianceService {
     private readonly auditLogRetention: AuditLogRetentionPort,
     private readonly accountNotifications: AccountNotificationReader,
     private readonly emailPort: EmailPort,
-    private readonly auditEmitter: AuditEmitterPort
+    private readonly auditEmitter: AuditEmitterPort,
+    private readonly logger: LoggerPort
   ) {}
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -155,7 +154,7 @@ export class ComplianceService {
 
       return ok(updated.value);
     } catch (error) {
-      logger.error({ err: error }, "Failed to update GDPR settings");
+      this.logger.error({ err: error }, "Failed to update GDPR settings");
       return err("DATABASE_ERROR");
     }
   }
@@ -217,7 +216,7 @@ export class ComplianceService {
 
       return ok(updated.value);
     } catch (error) {
-      logger.error({ err: error }, "Failed to update security settings");
+      this.logger.error({ err: error }, "Failed to update security settings");
       return err("DATABASE_ERROR");
     }
   }
@@ -382,7 +381,7 @@ export class ComplianceService {
 
       return ok(updated.value);
     } catch (error) {
-      logger.error({ err: error, id }, "Failed to acknowledge DSAR");
+      this.logger.error({ err: error, id }, "Failed to acknowledge DSAR");
       return err("DATABASE_ERROR");
     }
   }
@@ -423,7 +422,7 @@ export class ComplianceService {
 
       return ok(updated.value);
     } catch (error) {
-      logger.error({ err: error, id }, "Failed to complete DSAR");
+      this.logger.error({ err: error, id }, "Failed to complete DSAR");
       return err("DATABASE_ERROR");
     }
   }
@@ -462,7 +461,7 @@ export class ComplianceService {
 
       return ok(updated.value);
     } catch (error) {
-      logger.error({ err: error, id }, "Failed to reject DSAR");
+      this.logger.error({ err: error, id }, "Failed to reject DSAR");
       return err("DATABASE_ERROR");
     }
   }
@@ -521,7 +520,7 @@ export class ComplianceService {
         message: `Your request has been received. We will respond within ${daysToRespond} days.`,
       });
     } catch (error) {
-      logger.error({ err: error }, "Failed to submit DSAR request");
+      this.logger.error({ err: error }, "Failed to submit DSAR request");
       return err("DATABASE_ERROR");
     }
   }
@@ -593,7 +592,7 @@ export class ComplianceService {
 
       return ok(created.value);
     } catch (error) {
-      logger.error({ err: error }, "Failed to create breach report");
+      this.logger.error({ err: error }, "Failed to create breach report");
       return err("DATABASE_ERROR");
     }
   }
@@ -649,7 +648,7 @@ export class ComplianceService {
 
       return ok({ notified, errors });
     } catch (error) {
-      logger.error({ err: error }, "Failed to send breach notifications");
+      this.logger.error({ err: error }, "Failed to send breach notifications");
       return err("DATABASE_ERROR");
     }
   }

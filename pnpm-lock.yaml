@@ -2010,9 +2010,6 @@ importers:
       '@core/embeddings':
         specifier: workspace:*
         version: link:../embeddings
-      '@observability/logger':
-        specifier: workspace:*
-        version: link:../../observability/logger
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports
@@ -2231,9 +2228,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@observability/logger':
-        specifier: workspace:*
-        version: link:../../observability/logger
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports
@@ -2461,9 +2455,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@observability/logger':
-        specifier: workspace:*
-        version: link:../../observability/logger
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports
@@ -3376,9 +3367,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@observability/logger':
-        specifier: workspace:*
-        version: link:../../observability/logger
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports

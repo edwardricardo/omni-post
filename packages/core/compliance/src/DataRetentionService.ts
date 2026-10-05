@@ -4,18 +4,16 @@
  *   and marks overdue DSAR requests as EXPIRED. Only runs when
  *   enableAutoDataDeletion is true.
  *
- *   Framework-free: depends only on @core/domain ports + AuditEmitterPort +
- *   @observability/logger.
+ *   Framework-free: depends only on @core/domain ports + AuditEmitterPort. Each
+ *   run's counts are recorded by the DATA_RETENTION_CLEANUP audit entry, so the
+ *   service writes no log line of its own.
  * @layer application
  */
 
-import { createLogger } from "@observability/logger";
 import type { GdprSettingsRepository } from "@core/domain/repositories/GdprSettingsRepository.js";
 import type { AuditLogRetentionPort } from "@core/domain/repositories/AuditLogRetentionPort.js";
 import type { DsarRequestRepository } from "@core/domain/repositories/DsarRequestRepository.js";
 import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
-
-const logger = createLogger("data-retention");
 
 export class DataRetentionService {
   constructor(
@@ -59,8 +57,6 @@ export class DataRetentionService {
       details: result,
       success: true,
     });
-
-    logger.info(result, "Data retention cleanup completed");
 
     return result;
   }
