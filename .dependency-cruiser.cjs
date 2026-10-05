@@ -142,10 +142,13 @@ module.exports = {
       name: "shared-root-no-node-core",
       severity: "error",
       comment:
-        "The portals load the shared kernel in browser code, where no Node built-in exists, so only the Node-only credentials crypto, served from its own subpath (@shared/types/channelCredentialsCrypto.js) and never from the root barrel, may import one.",
+        "The portals load the shared kernel in browser code, where no Node built-in exists, so only the Node-only credentials crypto (served from its own subpath, @shared/types/channelCredentialsCrypto.js, never from the root barrel) and test files, which never ship, may import one.",
       from: {
         path: "^packages/shared/src/",
-        pathNot: ["^packages/shared/src/channelCredentialsCrypto\\.ts$", "\\.test\\.ts$"],
+        pathNot: [
+          "^packages/shared/src/channelCredentialsCrypto\\.ts$",
+          "\\.(test|spec)\\.[cm]?[jt]sx?$",
+        ],
       },
       to: {
         dependencyTypes: ["core"],

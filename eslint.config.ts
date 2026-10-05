@@ -182,12 +182,13 @@ export default defineConfig([
   },
   // The shared kernel runs in the portals' browser code, which has no Buffer. The architecture
   // gate (shared-root-no-node-core) sees imports only; this block covers the Node global, with
-  // the same exceptions: the Node-only credentials crypto module and tests.
+  // the same exceptions: the Node-only credentials crypto module and test files. It names .ts
+  // and .tsx because `pnpm lint` reads no other TypeScript extension.
   {
-    files: ["packages/shared/src/**/*.ts"],
+    files: ["packages/shared/src/**/*.{ts,tsx}"],
     ignores: [
       "packages/shared/src/channelCredentialsCrypto.ts",
-      "packages/shared/src/**/*.test.ts",
+      "packages/shared/src/**/*.{test,spec}.{ts,tsx}",
     ],
     rules: {
       "no-restricted-globals": [

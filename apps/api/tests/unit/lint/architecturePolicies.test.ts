@@ -42,7 +42,10 @@ const POLICY: Record<string, [string, object | null, object | null]> = {
     "error",
     {
       path: "^packages/shared/src/",
-      pathNot: ["^packages/shared/src/channelCredentialsCrypto\\.ts$", "\\.test\\.ts$"],
+      pathNot: [
+        "^packages/shared/src/channelCredentialsCrypto\\.ts$",
+        "\\.(test|spec)\\.[cm]?[jt]sx?$",
+      ],
     },
     { dependencyTypes: ["core"] },
   ],
