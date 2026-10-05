@@ -12,9 +12,11 @@
  *     routes/index  ← composition root, imports use cases only
  *
  *   A rule sees only the edges the resolver produced: an import that resolves into a build
- *   output (`dist/`), or does not resolve at all, is invisible to every rule. The resolution
- *   options below therefore make each workspace-alias import reach the SOURCE file it names,
- *   whether or not the packages have been built:
+ *   output (`dist/`), or does not resolve at all, is invisible to every layer rule. The
+ *   `not-to-unresolvable` rule turns the second case into an error, so a resolution regression
+ *   fails the gate instead of thinning the graph it reads. The resolution options below make
+ *   each workspace-alias import reach the SOURCE file it names, whether or not the packages
+ *   have been built:
  *     - the `development` export condition maps `@core/*`, `@ports/*` and the other workspace
  *       packages to their `src/`, the same condition dev, test and CI resolve with (ADR-0017);
  *     - `tsconfig.base.json` holds the path mappings (the root `tsconfig.json` has none);
@@ -38,6 +40,16 @@ module.exports = {
       from: {},
       to: {
         circular: true,
+      },
+    },
+    {
+      name: "not-to-unresolvable",
+      severity: "error",
+      comment:
+        "An import the resolver cannot map to a file on disk is not a missing edge, it is this gate reading less than the code: the specifier is wrong, or the resolution regressed (a new workspace package without a `development` condition, an alias whose file moved). An error here keeps the graph the layer rules see equal to the graph the code has.",
+      from: {},
+      to: {
+        couldNotResolve: true,
       },
     },
     {
