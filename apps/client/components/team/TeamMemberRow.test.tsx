@@ -12,25 +12,6 @@ import { TeamMemberRow } from "./TeamMemberRow";
 import { IntlTestProvider } from "../../tests/intl-test-utils";
 import type { TeamMemberDto } from "@/hooks/api/useTeam";
 
-vi.mock("@packages/ui", () => ({
-  Button: ({
-    children,
-    onClick,
-    title,
-    ...rest
-  }: {
-    children: React.ReactNode;
-    onClick?: () => void;
-    title?: string;
-    variant?: string;
-    size?: string;
-  }) => (
-    <button onClick={onClick} title={title} {...rest}>
-      {children}
-    </button>
-  ),
-}));
-
 vi.mock("lucide-react", () => ({
   Trash2: ({ className }: { className?: string }) => (
     <svg data-testid="trash-icon" className={className} />

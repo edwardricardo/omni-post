@@ -8,23 +8,15 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import RepurposePage from "../../app/[locale]/dashboard/ai/repurpose/page";
 import { IntlTestProvider } from "../intl-test-utils";
 
 const toastSpy = vi.fn();
-// Mock @packages/ui to the surface the page uses — the full barrel pulls
-// paths Vite cannot resolve in this test environment.
-vi.mock("@packages/ui", () => ({
-  Button: ({ children, disabled, onClick }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} disabled={disabled}>
-      {children}
-    </button>
-  ),
-  Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  Card: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+// The detection test asserts on the toast the page shows, so `toast` is a spy; every other
+// export of the barrel stays real.
+vi.mock("@packages/ui", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@packages/ui")>()),
   toast: (args: unknown) => toastSpy(args),
 }));
 

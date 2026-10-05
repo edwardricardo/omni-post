@@ -15,20 +15,10 @@ import { SetPrimaryChannelButton } from "../../components/channels/SetPrimaryCha
 import { IntlTestProvider } from "../intl-test-utils";
 
 const toastSpy = vi.fn();
-// Fully mock @packages/ui to avoid pulling the whole barrel (which imports
-// `usePublishingEngine` -> `@shared/types`, a path Vite cannot resolve in this
-// test environment). Only the surface the button uses is mocked.
-vi.mock("@packages/ui", () => ({
-  Button: ({
-    children,
-    disabled,
-    onClick,
-    ...rest
-  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} disabled={disabled} {...rest}>
-      {children}
-    </button>
-  ),
+// The success and failure tests assert on the toast the button shows, so `toast` is a spy;
+// every other export of the barrel stays real.
+vi.mock("@packages/ui", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@packages/ui")>()),
   toast: (args: unknown) => toastSpy(args),
 }));
 

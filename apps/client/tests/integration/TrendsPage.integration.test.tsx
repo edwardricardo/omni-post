@@ -10,9 +10,8 @@
  *              Canon: `msw-v2-setup-for-vitest-tests-with-tanstack-query`.
  * @layer infrastructure
  */
-import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterEach, afterAll } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import React from "react";
 import { http, HttpResponse } from "msw";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -22,16 +21,6 @@ import { IntlTestProvider } from "../intl-test-utils";
 import type { ScoredTrend } from "../../hooks/api/useTrendRadar";
 
 const PROXY = "/api/backend";
-
-// Mock @packages/ui — the full barrel pulls paths Vite cannot resolve in
-// the test env; same pattern as RepurposePage.integration.test.tsx.
-vi.mock("@packages/ui", () => ({
-  Badge: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <span className={className}>{children}</span>
-  ),
-  Card: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => server.resetHandlers());

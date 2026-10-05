@@ -20,15 +20,12 @@ import { IntlTestProvider } from "../intl-test-utils";
 
 const PROXY = "/api/backend";
 
-// EmptyState pulls the locale-aware nav primitives + the UI Button barrel; stub
-// both so importing the dashboard doesn't drag in next/navigation or Vite-unresolvable paths.
+// EmptyState pulls the locale-aware nav primitives; mock them so importing the dashboard
+// doesn't drag in next/navigation.
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
   ),
-}));
-vi.mock("@packages/ui", () => ({
-  Button: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
 }));
 
 // Stub the recharts-backed charts: recharts needs layout geometry jsdom lacks,

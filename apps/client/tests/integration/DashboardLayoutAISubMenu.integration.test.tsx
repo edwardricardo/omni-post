@@ -54,21 +54,6 @@ vi.mock("@/components/shared/LanguageSwitcher", () => ({
   LanguageSwitcher: () => null,
 }));
 
-// Minimal @packages/ui surface used by DashboardLayout.
-vi.mock("@packages/ui", () => ({
-  Button: ({ children, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button {...rest}>{children}</button>
-  ),
-  Avatar: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  AvatarFallback: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  AvatarInitial: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuSeparator: () => null,
-}));
-
 import DashboardLayout from "../../app/[locale]/dashboard/layout";
 
 beforeEach(() => {
