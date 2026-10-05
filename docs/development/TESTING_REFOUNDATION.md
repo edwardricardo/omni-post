@@ -613,16 +613,16 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 
 ### Lint and formatting
 
-| dep                                | installed | latest mature (published)                                                                | documented hold (yes/no — where)                                                                                                                                                | CVE floor |
-| ---------------------------------- | --------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| `eslint`                           | 9.39.5    | 10.11.0 (2026-09-18, 9.1 d). **v9 ceiling 9.39.5 = installed**, the line's final release | **held** — canon row `eslint`, rewritten 2026-09-27; the 9.36.0 → 9.39.5 gap that row did not cover is closed by the bump                                                       | —         |
-| `@eslint/js`                       | 9.39.5    | 10.0.1 (2026-02-06, 233.0 d). **v9 ceiling 9.39.5 = installed**                          | **held** — canon row `@eslint/js`, written 2026-09-27; a root `package.json` literal, not a catalog entry                                                                       | —         |
-| `@typescript-eslint/parser`        | 8.70.1    | 8.70.1 (2026-09-21) — **no lag** until 8.71.0 (2026-09-28) matures, `2026-10-05T17:09Z`  | **held** from `2026-10-05T17:09Z` — canon row `@typescript-eslint/parser`, pre-registered by slice `0.10`; scheduled bump to 8.71.0, validated by its lint and `tsc -b --force` | —         |
-| `@typescript-eslint/eslint-plugin` | 8.70.1    | 8.70.1 (2026-09-21) — **no lag** until 8.71.0 matures at `2026-10-05T17:13Z`             | **held** from `2026-10-05T17:13Z` — same canon row; its `typescript` peer `>=4.8.4 <6.1.0` keeps TypeScript 7 out at 8.70.0, 8.70.1 and 8.71.0 alike                            | —         |
-| `eslint-plugin-react`              | 7.37.5    | 7.37.5 (2025-04-03) — no lag, and no newer release exists                                | n/a. Its peer `eslint: … \|\| ^9.7` is half the reason eslint stays on 9                                                                                                        | —         |
-| `eslint-plugin-jsx-a11y`           | 6.10.2    | 6.10.2 (2024-10-26) — no lag, and no newer release exists                                | n/a. Its peer `eslint: … \|\| ^9` is the other half                                                                                                                             | —         |
-| `eslint-plugin-boundaries`         | removed   | 7.2.0 (2026-08-09) — no longer measured: removed from the tree                           | n/a — **removed** in `PR v-c` (2026-10-05), dependency-cruiser's rules in its place (SMELL-183 closed); 7.1.0 → 7.2.0 by slice `0.21` on 2026-10-02 (SMELL-66)                  | —         |
-| `prettier`                         | 3.9.9     | **3.9.9 (2026-09-23, 10.9 d) — latest mature** since 2026-10-04 (slice `0.14`)           | **no** — no lag; deleted with the six-tool canon row, which named it; 3.9.9 reformats no file (`pnpm format:check` exit 0 before any edit)                                      | —         |
+| dep                                | installed | latest mature (published)                                                                | documented hold (yes/no — where)                                                                                                                                               | CVE floor |
+| ---------------------------------- | --------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| `eslint`                           | 9.39.5    | 10.11.0 (2026-09-18, 9.1 d). **v9 ceiling 9.39.5 = installed**, the line's final release | **held** — canon row `eslint`, rewritten 2026-09-27; the 9.36.0 → 9.39.5 gap that row did not cover is closed by the bump                                                      | —         |
+| `@eslint/js`                       | 9.39.5    | 10.0.1 (2026-02-06, 233.0 d). **v9 ceiling 9.39.5 = installed**                          | **held** — canon row `@eslint/js`, written 2026-09-27; a root `package.json` literal, not a catalog entry                                                                      | —         |
+| `@typescript-eslint/parser`        | 8.71.0    | **8.71.0 (2026-09-28)** — latest stable; **latest mature** from `2026-10-05T17:09Z`      | **no** — no lag; taken 2026-10-05, a few hours before maturity, on Edward's instruction, tracked in `scripts/testing/maturity-watchlist.json`; its canon row was DELETED       | —         |
+| `@typescript-eslint/eslint-plugin` | 8.71.0    | **8.71.0 (2026-09-28)** — latest stable; **latest mature** from `2026-10-05T17:13Z`      | **no** — no lag; moved with the parser (its peer `^8.71.0`): same watchlist entry, same deleted canon row; its `typescript` peer `>=4.8.4 <6.1.0` still keeps TypeScript 7 out | —         |
+| `eslint-plugin-react`              | 7.37.5    | 7.37.5 (2025-04-03) — no lag, and no newer release exists                                | n/a. Its peer `eslint: … \|\| ^9.7` is half the reason eslint stays on 9                                                                                                       | —         |
+| `eslint-plugin-jsx-a11y`           | 6.10.2    | 6.10.2 (2024-10-26) — no lag, and no newer release exists                                | n/a. Its peer `eslint: … \|\| ^9` is the other half                                                                                                                            | —         |
+| `eslint-plugin-boundaries`         | removed   | 7.2.0 (2026-08-09) — no longer measured: removed from the tree                           | n/a — **removed** in `PR v-c` (2026-10-05), dependency-cruiser's rules in its place (SMELL-183 closed); 7.1.0 → 7.2.0 by slice `0.21` on 2026-10-02 (SMELL-66)                 | —         |
+| `prettier`                         | 3.9.9     | **3.9.9 (2026-09-23, 10.9 d) — latest mature** since 2026-10-04 (slice `0.14`)           | **no** — no lag; deleted with the six-tool canon row, which named it; 3.9.9 reformats no file (`pnpm format:check` exit 0 before any edit)                                     | —         |
 
 ### Build and orchestration
 
@@ -704,10 +704,11 @@ from a published manifest or from this tree, not inferred.
      7.x override was deleted as inert; `tough-cookie` is range-scoped to `<4.1.3`, so jsdom 30 and msw
      take 6.0.2 while `request`'s chain keeps the floor.
 2. **`typescript` 6.0.3 → 7.0.2 — HOLD; there is no Phase 0 slice for it, and that is correct.**
-   `@typescript-eslint/parser@8.70.1` and `@typescript-eslint/eslint-plugin@8.70.1` — the newest
-   mature versions as of 2026-09-30 — still peer `typescript: ">=4.8.4 <6.1.0"`, byte-identical to
-   8.70.0's and to the immature 8.71.0's. TypeScript 7 is therefore not takeable
-   today at any `@typescript-eslint` version, so the hold row is the deliverable, not a bump. Its
+   `@typescript-eslint/parser@8.71.0` and `@typescript-eslint/eslint-plugin@8.71.0` — installed since
+   2026-10-05, taken a few hours before their `17:09Z` / `17:13Z` maturity on Edward's instruction and
+   tracked in `scripts/testing/maturity-watchlist.json` — still peer `typescript: ">=4.8.4 <6.1.0"`,
+   byte-identical to 8.70.0's and 8.70.1's, and so do the 8.71.1 alphas. TypeScript 7 is therefore not
+   takeable today at any `@typescript-eslint` version, so the hold row is the deliverable, not a bump. Its
    remove-when is observable: `@typescript-eslint` publishes a peer range admitting 7.
 3. **`@vitejs/plugin-react` 5.1.4 → 6.1.1 — its own decision, and NOT slice
    `refound/0-toolchain-vite-shims`.** That slice is WU-T.4(e), the 86 dead `vite` shims; it is not a
