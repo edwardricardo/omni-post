@@ -100,7 +100,16 @@ import type { UpdateChannelAuthStateUseCase } from "@core/channels/UpdateChannel
 import type { DispatchDetectRepurposeUseCase } from "@core/ai/DispatchDetectRepurposeUseCase.js";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import fastifyCookie from "@fastify/cookie";
-import { createTenantHealthMonitor } from "@monitoring/health-checks";
+import {
+  CacheHealthChecker,
+  createTenantHealthMonitor,
+  DatabaseHealthChecker,
+  ProviderHealthChecker,
+  QueueHealthChecker,
+  RedisHealthChecker,
+  StorageHealthChecker,
+} from "@monitoring/health-checks";
+import { providerRegistry } from "./providers/providerRegistry.js";
 import { authRoutes } from "./auth/authRoutes.js";
 import { setRedisInstance } from "./auth/redisSessionHelpers.js";
 import { auditRoutes } from "./audit/auditRoutes.js";
@@ -292,8 +301,8 @@ async function createApp(): Promise<FastifyInstance> {
   typedApp.decorate("cache", cachePort);
 
   // Concrete RedisCacheManager — kept as a local reference for ops-tier
-  // consumers (health checks, tenant monitor, healthRoutes plugin, cacheStatsRoutes) that
-  // need access to features outside the CachePort surface (`getStats`,
+  // consumers (the cache health checker, the tenant monitor, cacheStatsRoutes)
+  // that need access to features outside the CachePort surface (`getStats`,
   // `healthCheck`, raw `Result`-shaped reads).
   const cacheManager = container.resolve<RedisCacheManager>(TOKENS.RedisCacheManager);
 
@@ -324,8 +333,9 @@ async function createApp(): Promise<FastifyInstance> {
   // Initialize components
   // The container's client, not the raw `@infra/prisma` singleton: the tenant guard and the
   // request-scoped GUC binding are applied in `setupContainer`, so feeding the singleton here
-  // would leave this adapter's reads unguarded and unbound while `healthRoutes.ts` — which
-  // builds the same adapter — already resolves the guarded one. The package's own repositories
+  // would leave this adapter's reads unguarded and unbound. It is the one repository adapter of
+  // this process — the health routes' database checker probes this instance — so its connection
+  // monitor is the one task `db-prisma-connection-monitor` names. The package's own repositories
   // bind their scope explicitly for their worker callers, and that stays true underneath: an
   // explicit `withGucBoundTransaction` holds the marker, so the per-operation binding passes its
   // inner operations through instead of re-wrapping them onto a second connection.
@@ -562,9 +572,20 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Route registration (Fastify v5 async plugin pattern)
 
-  // Register health routes first (no authentication required)
+  // Register health routes first (no authentication required). Each checker probes an
+  // adapter this root built for serving traffic, so a probe reports on the connection in use.
   const { healthRoutes } = await import("./health/healthRoutes.js");
-  await typedApp.register(healthRoutes, { redis, cacheManager, storageAdapter });
+  await typedApp.register(healthRoutes, {
+    scheduler: bootstrapScheduler,
+    checkers: {
+      database: new DatabaseHealthChecker(repoAdapter),
+      redis: new RedisHealthChecker(redis),
+      cache: new CacheHealthChecker(cacheManager),
+      queue: new QueueHealthChecker(queueAdapter),
+      storage: new StorageHealthChecker(storageAdapter),
+      providers: new ProviderHealthChecker(providerRegistry),
+    },
+  });
 
   // Billing webhooks — no auth, raw body (must be before auth middleware)
   await typedApp.register(billingWebhookRoutes);

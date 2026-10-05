@@ -6,7 +6,9 @@
  * Coverage Target: 95%+
  *
  * @file healthRoutes.test.ts
- * @description Tests for healthRoutes - Unit Tests
+ * @description Tests for healthRoutes - Unit Tests. The plugin receives its health checkers and
+ *              its scheduler from the composition root through its options, so the suite passes
+ *              doubles there and decorates no DI container.
  * @layer infrastructure
  */
 
@@ -17,77 +19,26 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from "fastify-type-provider-zod";
-import type { Redis } from "ioredis";
-import type { RedisCacheManager } from "@adapters/cache-redis";
+import type { HealthChecker } from "@monitoring/health-checks";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
-import { createTestContainer } from "../../src/infrastructure/container/setup.js";
-import { TOKENS } from "../../src/infrastructure/container/types.js";
-import type { PrismaClient } from "@infra/prisma";
-import type { StoragePort } from "@ports/core";
 
-const { storageCheckerTargets } = vi.hoisted(() => ({
-  storageCheckerTargets: [] as unknown[],
-}));
-
-const stubStorageAdapter: StoragePort = {
-  generateUploadSignature: vi.fn(async () => ({
-    ok: false as const,
-    error: "SERVICE_ERROR" as const,
-  })),
-  getMediaMetadata: vi.fn(async () => ({ ok: false as const, error: "SERVICE_ERROR" as const })),
+// One checker double per dependency the composition root probes. The route registers each one
+// under its dependency name, and the doubles are told apart by identity.
+const createChecker = (): HealthChecker => ({
+  check: vi.fn(async () => ({ status: "healthy" as const, latency: 1 })),
+});
+const checkers = {
+  database: createChecker(),
+  redis: createChecker(),
+  cache: createChecker(),
+  queue: createChecker(),
+  storage: createChecker(),
+  providers: createChecker(),
 };
 
-// ─── Mock Types ─────────────────────────────────────────────────────
-type MockRedis = Pick<Redis, "ping" | "get" | "set" | "del" | "keys">;
-type MockCacheManager = Pick<
-  RedisCacheManager,
-  "healthCheck" | "getStats" | "flush" | "invalidateByTag" | "invalidateByPattern" | "warmCache"
->;
-
-// Mock dependencies
-const createMockRedis = (): MockRedis => {
-  return {
-    ping: vi.fn(async () => "PONG"),
-    get: vi.fn(async () => null),
-    set: vi.fn(async () => "OK"),
-    del: vi.fn(async () => 1),
-    keys: vi.fn(async () => []),
-  };
-};
-
-const createMockCacheManager = (healthy = true): MockCacheManager => {
-  return {
-    healthCheck: vi.fn(async () => ({
-      ok: true,
-      value: {
-        status: healthy ? "healthy" : "unhealthy",
-        latency: 10,
-      },
-    })),
-    getStats: vi.fn(async () => ({
-      ok: true,
-      value: {
-        hits: 100,
-        misses: 20,
-        hitRate: 0.83,
-        totalKeys: 150,
-        memoryUsage: 1024000,
-        l1Hits: 80,
-        l2Hits: 20,
-        l1Size: 100,
-        avgTtl: 300,
-        hotKeys: [
-          { key: "key1", hits: 50 },
-          { key: "key2", hits: 30 },
-        ],
-      },
-    })),
-    flush: vi.fn(async () => ({ ok: true, value: undefined })),
-    invalidateByTag: vi.fn(async () => ({ ok: true, value: 5 })),
-    invalidateByPattern: vi.fn(async () => ({ ok: true, value: 3 })),
-    warmCache: vi.fn(async () => ({ ok: true, value: 10 })),
-  };
-};
+// What the route registered on the manager, by name. A plain map rather than the spy's own
+// record, because `vi.clearAllMocks()` empties that record before every test.
+const registrations = new Map<string, unknown>();
 
 // Mock health check manager
 const createMockHealthCheckManager = (status: "healthy" | "degraded" | "unhealthy" = "healthy") => {
@@ -185,7 +136,9 @@ const createMockHealthCheckManager = (status: "healthy" | "degraded" | "unhealth
       }
       return { ok: false, error: "NOT_FOUND" };
     }),
-    register: vi.fn(),
+    register: vi.fn((name: string, checker: unknown) => {
+      registrations.set(name, checker);
+    }),
     start: vi.fn(),
     stop: vi.fn(),
   };
@@ -196,49 +149,17 @@ vi.mock("@monitoring/health-checks", async (importOriginal) => {
   return {
     ...actual,
     createHealthCheckManager: vi.fn(),
-    DatabaseHealthChecker: class {},
-    RedisHealthChecker: class {},
-    CacheHealthChecker: class {},
-    QueueHealthChecker: class {},
-    StorageHealthChecker: class {
-      constructor(storage: unknown) {
-        storageCheckerTargets.push(storage);
-      }
-    },
-    ProviderHealthChecker: class {},
   };
 });
-
-vi.mock("@adapters/db-prisma", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@adapters/db-prisma")>();
-  return {
-    ...actual,
-    createPrismaRepoAdapter: vi.fn(() => ({})),
-  };
-});
-
-vi.mock("@adapters/queue-bullmq", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@adapters/queue-bullmq")>();
-  return { ...actual };
-});
-
-vi.mock("../../src/providers/providerRegistry.js", () => ({
-  providerRegistry: {},
-}));
 
 describe("healthRoutes - Unit Tests", () => {
   let app: FastifyInstance;
-  let mockRedis: MockRedis;
-  let mockCacheManager: MockCacheManager;
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   beforeAll(async () => {
-    mockRedis = createMockRedis();
-    mockCacheManager = createMockCacheManager(true);
-
     // Configure the mocked createHealthCheckManager
     const healthChecks = await import("@monitoring/health-checks");
     vi.mocked(healthChecks.createHealthCheckManager).mockImplementation(() =>
@@ -252,41 +173,10 @@ describe("healthRoutes - Unit Tests", () => {
     app.setValidatorCompiler(validatorCompiler);
     app.setSerializerCompiler(serializerCompiler);
 
-    // Provide a DI container so healthRoutes can resolve BackgroundTaskScheduler.
-    const container = createTestContainer();
-    // healthRoutes resolves PrismaClient from the container to build its repo adapter.
-    container.registerInstance(TOKENS.PrismaClient, {} as unknown as PrismaClient);
-    container.registerInstance(TOKENS.BackgroundTaskScheduler, new NoopBackgroundTaskScheduler());
-    // healthRoutes resolves a queue adapter via the registry. Provide a
-    // stub that exercises the QueuePortRegistry contract without touching
-    // BullMQ or Redis.
-    const stubQueuePort = {
-      enqueue: vi.fn(async () => ({ ok: true as const, value: "stub-id" })),
-      enqueueBulk: vi.fn(async () => ({ ok: true as const, value: [] as string[] })),
-      health: vi.fn(async () => ({
-        ok: true as const,
-        value: { connected: true, waiting: 0, active: 0, completed: 0, failed: 0, consumers: 1 },
-      })),
-      remove: vi.fn(async () => ({ ok: true as const, value: true })),
-      getJobStates: vi.fn(async () => ({
-        ok: true as const,
-        value: { completed: 0, failed: 0, pending: 0 },
-      })),
-    };
-    container.registerInstance(TOKENS.QueuePortRegistry, {
-      forQueue: () => stubQueuePort,
-      close: async () => {},
-    });
-    app.decorate("container", container);
-
     const { healthRoutes } = await import("../../src/health/healthRoutes.js");
-    // The checker double records at registration, so the record holds this registration only.
-    storageCheckerTargets.length = 0;
-    await app.register(healthRoutes, {
-      redis: mockRedis as Redis,
-      cacheManager: mockCacheManager as RedisCacheManager,
-      storageAdapter: stubStorageAdapter,
-    });
+    // The manager double records at registration, so the record holds this registration only.
+    registrations.clear();
+    await app.register(healthRoutes, { scheduler: new NoopBackgroundTaskScheduler(), checkers });
   });
 
   afterAll(async () => {
@@ -524,10 +414,16 @@ describe("healthRoutes - Unit Tests", () => {
     });
   });
 
-  describe("storage dependency", () => {
-    it("checks the storage adapter the composition root injected", () => {
-      expect(storageCheckerTargets).toHaveLength(1);
-      expect(storageCheckerTargets[0]).toBe(stubStorageAdapter);
+  describe("composition-root wiring", () => {
+    it("registers each checker the composition root built under its dependency name", () => {
+      expect([...registrations.keys()].sort()).toEqual(Object.keys(checkers).sort());
+      for (const [name, checker] of Object.entries(checkers)) {
+        expect(registrations.get(name), name).toBe(checker);
+      }
+    });
+
+    it("serves its routes from the options alone, with no DI container on the instance", () => {
+      expect(app.hasDecorator("container")).toBe(false);
     });
   });
 });

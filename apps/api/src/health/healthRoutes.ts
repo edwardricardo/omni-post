@@ -1,29 +1,31 @@
 /**
  * @file healthRoutes.ts
  * @description Health check REST endpoints for monitoring and Kubernetes probes including
- *              simple, detailed, liveness, readiness, and per-dependency health checks.
+ *              simple, detailed, liveness, readiness, and per-dependency health checks. The
+ *              composition root builds the checkers and passes them in; this module decides
+ *              how each dependency is probed and serves the results.
  * @layer infrastructure
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import {
-  createHealthCheckManager,
-  DatabaseHealthChecker,
-  RedisHealthChecker,
-  CacheHealthChecker,
-  QueueHealthChecker,
-  StorageHealthChecker,
-  ProviderHealthChecker,
-} from "@monitoring/health-checks";
-import { createPrismaRepoAdapter } from "@adapters/db-prisma";
-import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import type { QueuePortRegistry, StoragePort } from "@ports/core";
-import { providerRegistry } from "../providers/providerRegistry.js";
-import type { Redis } from "ioredis";
-import type { RedisCacheManager } from "@adapters/cache-redis";
+import { createHealthCheckManager, type HealthChecker } from "@monitoring/health-checks";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
-import type { PrismaClient } from "@infra/prisma";
-import { TOKENS } from "../infrastructure/container/types.js";
+
+/** What the composition root hands the health routes. */
+interface HealthRoutesOptions {
+  /** Runs the periodic checks whose last report `GET /health` answers from. */
+  scheduler: BackgroundTaskScheduler;
+  /**
+   * One checker per probed dependency, under the name `GET /health/dependency/:name` answers
+   * to. The root builds each one over the adapter the application itself uses — its
+   * repository adapter, its publish queue, the configured storage backend — so a probe
+   * reports on the connection that serves traffic.
+   */
+  checkers: Record<
+    "database" | "redis" | "cache" | "queue" | "storage" | "providers",
+    HealthChecker
+  >;
+}
 
 /**
  * Health check routes for monitoring and Kubernetes probes
@@ -35,22 +37,8 @@ import { TOKENS } from "../infrastructure/container/types.js";
  * - GET /health/ready - Kubernetes readiness probe
  * - GET /health/dependency/:name - Individual dependency health
  */
-export async function healthRoutes(
-  fastify: FastifyInstance,
-  options: {
-    redis: Redis;
-    cacheManager: RedisCacheManager;
-    /**
-     * The adapter the composition root built for the configured STORAGE_PROVIDER, so the
-     * probe checks the backend the app actually uses.
-     */
-    storageAdapter: StoragePort;
-  }
-) {
-  const { redis, cacheManager, storageAdapter } = options;
-  const scheduler = fastify.container!.resolve<BackgroundTaskScheduler>(
-    TOKENS.BackgroundTaskScheduler
-  );
+export async function healthRoutes(fastify: FastifyInstance, options: HealthRoutesOptions) {
+  const { scheduler, checkers } = options;
 
   // Initialize health check manager
   const healthManager = createHealthCheckManager(
@@ -67,40 +55,33 @@ export async function healthRoutes(
     scheduler
   );
 
-  // Initialize adapters
-  const prismaClient = fastify.container!.resolve<PrismaClient>(TOKENS.PrismaClient);
-  const repoAdapter = createPrismaRepoAdapter({ prisma: prismaClient, scheduler });
-  const queueAdapter = fastify
-    .container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
-    .forQueue(QUEUE_NAMES.PUBLISH);
-
   // Register health checkers
-  healthManager.register("database", new DatabaseHealthChecker(repoAdapter), {
+  healthManager.register("database", checkers.database, {
     type: "database",
     critical: true,
   });
 
-  healthManager.register("redis", new RedisHealthChecker(redis), {
+  healthManager.register("redis", checkers.redis, {
     type: "cache",
     critical: true,
   });
 
-  healthManager.register("cache", new CacheHealthChecker(cacheManager), {
+  healthManager.register("cache", checkers.cache, {
     type: "cache",
     critical: false,
   });
 
-  healthManager.register("queue", new QueueHealthChecker(queueAdapter), {
+  healthManager.register("queue", checkers.queue, {
     type: "queue",
     critical: true,
   });
 
-  healthManager.register("storage", new StorageHealthChecker(storageAdapter), {
+  healthManager.register("storage", checkers.storage, {
     type: "storage",
     critical: false,
   });
 
-  healthManager.register("providers", new ProviderHealthChecker(providerRegistry), {
+  healthManager.register("providers", checkers.providers, {
     type: "external_api",
     critical: false,
   });
