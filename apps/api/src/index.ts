@@ -284,14 +284,14 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Decorate Fastify with the application-tier cache port. Single
   // decoration semantically scoped to "caching for routes + middleware".
-  // Ops tooling (cacheStatsRoutes) resolves the concrete RedisCacheManager
-  // from the DI container directly — never via this decoration.
+  // Ops tooling (cacheStatsRoutes) receives the concrete RedisCacheManager
+  // from this root as its CacheAdminPort — never via this decoration.
   const cachePort = container.resolve<CachePort>(TOKENS.CachePort);
   typedApp.decorate("redis", redis);
   typedApp.decorate("cache", cachePort);
 
   // Concrete RedisCacheManager — kept as a local reference for ops-tier
-  // consumers (health checks, tenant monitor, healthRoutes plugin) that
+  // consumers (health checks, tenant monitor, healthRoutes plugin, cacheStatsRoutes) that
   // need access to features outside the CachePort surface (`getStats`,
   // `healthCheck`, raw `Result`-shaped reads).
   const cacheManager = container.resolve<RedisCacheManager>(TOKENS.RedisCacheManager);
@@ -653,7 +653,7 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Register cache monitoring routes
   const { cacheStatsRoutes } = await import("./monitoring/cacheStatsRoutes.js");
-  await typedApp.register(cacheStatsRoutes);
+  await typedApp.register(cacheStatsRoutes, { cacheAdmin: cacheManager });
 
   // Register OAuth routes
   await registerOAuthRoutes(

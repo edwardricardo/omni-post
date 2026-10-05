@@ -3,8 +3,9 @@
  * Unit Tests for cacheStatsRoutes
  * Testing cache statistics and monitoring endpoints plus their authorization.
  *
- * The cache routes drive the GLOBAL cross-tenant/cross-pod RedisCacheManager,
- * so they are admin system-ops endpoints: read routes require SYSTEM_MONITOR,
+ * The cache routes drive the GLOBAL cross-tenant/cross-pod cache through the
+ * CacheAdminPort the composition root passes in the plugin's options, so they
+ * are admin system-ops endpoints: read routes require SYSTEM_MONITOR,
  * destructive routes (flush/invalidate/warm) require SYSTEM_CONFIGURE. These
  * tests exercise both the behavior (authenticated as SUPER_ADMIN) and the
  * authorization boundary (client rejected, ADMIN blocked from destructive ops).
@@ -37,7 +38,7 @@ vi.mock("../../src/admin/auth/adminAuthMiddleware.js", async () => {
 // ─── Dynamic imports after mocks ─────────────────────────────────────────────
 const Fastify = (await import("fastify")).default;
 type FastifyInstance = import("fastify").FastifyInstance;
-type RedisCacheManager = import("@adapters/cache-redis").RedisCacheManager;
+type CacheAdminPort = import("@ports/core").CacheAdminPort;
 const { Container } = await import("../../src/infrastructure/container/Container.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 const { RbacService } = await import("../../src/auth/rbacService.js");
@@ -76,10 +77,7 @@ function authHeaders(token: string): Record<string, string> {
 }
 
 // ─── Mock cache manager ──────────────────────────────────────────────────────
-type MockCacheManager = Pick<
-  RedisCacheManager,
-  "getStats" | "healthCheck" | "flush" | "invalidateByTag" | "invalidateByPattern" | "warmCache"
->;
+type MockCacheManager = CacheAdminPort;
 
 function createMockCacheManager(
   config: {
@@ -150,13 +148,13 @@ function createMockCacheManager(
   };
 }
 
-// ─── App factory (registers the cache manager + a real RbacService) ──────────
+// ─── App factory (passes the cache double, registers a real RbacService) ─────
+// The container holds no cache: it serves only the RBAC guard, which still
+// resolves RbacService per request.
 async function buildApp(cacheManager: MockCacheManager): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
 
   const container = new Container();
-  container.registerInstance(TOKENS.RedisCacheManager, cacheManager as RedisCacheManager);
-
   const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
   const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
   container.registerInstance(
@@ -167,7 +165,7 @@ async function buildApp(cacheManager: MockCacheManager): Promise<FastifyInstance
   app.decorate("container", container);
 
   const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
-  await app.register(cacheStatsRoutes);
+  await app.register(cacheStatsRoutes, { cacheAdmin: cacheManager });
   await app.ready();
   return app;
 }
@@ -585,19 +583,27 @@ describe("cacheStatsRoutes - Unit Tests", () => {
     });
   });
 
-  describe("plugin fail-fast", () => {
-    it("registers no routes when DI container is unavailable", async () => {
-      const bareApp = Fastify({ logger: false });
-      const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
-      await bareApp.register(cacheStatsRoutes);
+  // ── Composition-root wiring ───────────────────────────────────────────────
+  // The plugin receives the cache administration port through its options; no
+  // container holds a cache manager for it to look up.
+  describe("cache administration port", () => {
+    it("serves each operation from the port the composition root passes", async () => {
+      await app.inject({
+        method: "GET",
+        url: "/cache/stats",
+        headers: authHeaders(superAdminToken),
+      });
+      const response = await app.inject({
+        method: "POST",
+        url: "/cache/invalidate",
+        headers: authHeaders(superAdminToken),
+        payload: { tags: ["users"], patterns: ["user:*"] },
+      });
 
-      // Without container, the plugin returns early — none of the cache
-      // ops routes are registered, so requests 404 instead of being
-      // checked per-handler.
-      const response = await bareApp.inject({ method: "GET", url: "/cache/stats" });
-      expect(response.statusCode).toBe(404);
-
-      await bareApp.close();
+      expect(mockCacheManager.getStats).toHaveBeenCalledTimes(1);
+      expect(mockCacheManager.invalidateByTag).toHaveBeenCalledWith("users");
+      expect(mockCacheManager.invalidateByPattern).toHaveBeenCalledWith("user:*");
+      expect(JSON.parse(response.body).invalidated).toBe(25);
     });
   });
 });
