@@ -30,7 +30,13 @@
         "via": "the root packageManager field, 2.4 days after publication"
       },
       "milestones": { "maturity": "2026-09-29", "final": "2026-10-06" },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-05",
+          "outcome": "flagged",
+          "note": "Reviewed 2026-10-05, six days late: the reminder workflow started on 2026-10-03 and carried no day over. OSV: nothing for 12.6.0. Upstream: pnpm 12.7.0 (2026-09-25) ships three security fixes that apply to 12.6.0 — a userAgent env placeholder in pnpm-workspace.yaml was expanded and sent to the registry; on Nix a dependency bin named like a system utility could redirect the shims and launchers; manifests inside the store, cache, state or modules directories counted as workspace projects, letting lifecycle scripts run without allowBuilds approval. 12.8.2 fixes a regression introduced in 12.6.0: pnpm run kept waiting after SIGTERM when pnpm is PID 1 in a container. 12.9.0 stops pnpm login forwarding credentials to another origin on redirect. None is reachable here today (no userAgent or storeDir configured, no Nix, the four Dockerfiles run node directly, pnpm login unused), but a package manager three security fixes behind is not kept: bump packageManager to the latest mature release in its own PR (12.8.1 from 2026-10-05T17:38Z, 12.8.2 from 2026-10-07T01:15Z, 12.9.1 from 2026-10-10T20:48Z)."
+        }
+      }
     },
     {
       "kind": "package",
@@ -45,7 +51,13 @@
         "via": "packages/providers/youtube, replacing the googleapis monolith, 1.1 days after publication"
       },
       "milestones": { "maturity": "2026-10-01", "final": "2026-10-08" },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-05",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-05, four days late: the reminder workflow started on 2026-10-03 and carried no day over. OSV: nothing for @googleapis/youtube 39.0.1 or @googleapis/youtubeanalytics 11.0.1. Changelog: 39.0.1 (2026-09-23) is 'Bug Fixes: update the API'. Upstream issues: none opened against the youtube client since 39.0.0 (googleapis/google-api-nodejs-client, searched 2026-10-05). Works here: @providers/youtube typechecks, builds and passes its 84 tests on it (measured 2026-10-04 with google-auth-library 11.1.0). Noted: 40.0.0 (2026-10-03T03:50Z) is a breaking major ('update the API') with the same googleapis-common ^9.0.0 and Node >=22; it matures 2026-10-10T03:50Z and moves in its own PR with the provider's typecheck, build and tests."
+        }
+      }
     },
     {
       "kind": "package",
