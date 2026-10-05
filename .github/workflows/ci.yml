@@ -693,9 +693,11 @@ jobs:
           echo "::error title=Security audit COULD NOT MEASURE::npm's bulk advisory endpoint was unreachable on all $ATTEMPTS attempts. This is NOT a clean result and NOT a vulnerability finding — nothing was measured, so a required security gate fails closed rather than passing on silence. Re-run when the endpoint recovers (it returned error 23/503 during the 2026-09-04 outage and recovered on its own)."
           exit 1
 
-  # ── Code quality checks: dead code, duplication, circular deps ──
+  # ── Code quality checks: dead code, duplication ──
+  # Dependency cycles are not checked here: dependency-cruiser's `no-circular`
+  # rule enforces them in audit.yml's architecture gate.
   code-quality:
-    name: Code Quality (knip + jscpd + madge)
+    name: Code Quality (knip + jscpd)
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -711,9 +713,6 @@ jobs:
 
       - name: Duplicate code check (jscpd)
         run: pnpm check:duplicates
-
-      - name: Circular dependency check (madge)
-        run: pnpm check:circular
 
   # ── Monorepo package tests (providers, adapters, core, observability) ──
   # Deterministic turbo run over every package with a `test` script, excluding the

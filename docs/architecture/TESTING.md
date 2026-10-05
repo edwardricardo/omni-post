@@ -508,7 +508,7 @@ The CI pipeline uses a composite action (`.github/actions/setup-node-pnpm-cache`
 | `test-frontend`   | Admin + Client vitest unit tests                                                                          | None                   |
 | `build`           | Build all packages + admin app                                                                            | None                   |
 | `security`        | pnpm audit for vulnerabilities                                                                            | None                   |
-| `code-quality`    | knip (dead code) + jscpd (duplicates) + madge (circular deps)                                             | None                   |
+| `code-quality`    | knip (dead code) + jscpd (duplicates); layer rules and cycles: dependency-cruiser in `audit.yml`          | None                   |
 
 ### CI/CD Best Practices
 

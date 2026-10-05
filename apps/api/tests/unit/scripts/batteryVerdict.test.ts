@@ -242,10 +242,25 @@ describe("battery verdict", () => {
     it("returns GREEN over command-line flags that carry the word", async () => {
       const outDir = makeLogDir({
         logs: {
-          "lint.log": [
-            "> eslint . --max-warnings=0",
-            "> madge --circular --warning apps/api/src/",
-            "$ node --trace-warnings server.js",
+          "lint.log": ["> eslint . --max-warnings=0", "$ node --trace-warnings server.js", ""].join(
+            "\n"
+          ),
+        },
+      });
+
+      const verdict = await evaluate(outDir);
+
+      expect(verdict.warnings).toEqual([]);
+      expect(verdict.status).toBe("GREEN");
+    });
+
+    it("returns GREEN over the architecture step's clean log", async () => {
+      const outDir = makeLogDir({
+        logs: {
+          "architecture.log": [
+            "$ depcruise apps/api/src packages --config .dependency-cruiser.cjs --output-type err",
+            "",
+            "✔ no dependency violations found (1684 modules, 7325 dependencies cruised)",
             "",
           ].join("\n"),
         },
@@ -254,6 +269,7 @@ describe("battery verdict", () => {
       const verdict = await evaluate(outDir);
 
       expect(verdict.warnings).toEqual([]);
+      expect(verdict.reasons).toEqual([]);
       expect(verdict.status).toBe("GREEN");
     });
 
@@ -272,7 +288,11 @@ describe("battery verdict", () => {
         "  12:5  warning  'x' is assigned a value but never used  no-unused-vars",
       ],
       ["eslint's summary", "✖ 3 problems (0 errors, 3 warnings)"],
-      ["madge's summary", "Processed 1566 files (6.5s) (422 warnings)"],
+      ["dependency-cruiser's", "  warn no-orphans: packages/shared/src/orchestration.ts"],
+      [
+        "dependency-cruiser's summary",
+        "x 27 dependency violations (0 errors, 27 warnings). 1445 modules, 3350 dependencies cruised.",
+      ],
       ["node's hint", "(Use `node --trace-deprecation ...` to show where the warning was created)"],
       ["a sentence-ending", "Compiled with 1 warning."],
       ["a path-prefixed", "apps/client/components/warning-banner.ts:3:1: warning: Unexpected any"],

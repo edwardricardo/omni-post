@@ -31,7 +31,7 @@ set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=19
+PLANNED_STEPS=20
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -153,6 +153,10 @@ step knip node scripts/knip-ratchet.mjs
 # The duplicate-code gate of CI's code-quality job: it fails a new clone and a
 # stale baseline entry, and without it here only CI would see either.
 step duplicates pnpm check:duplicates
+# The architecture gate of audit.yml: dependency-cruiser's layer rules and its
+# `no-circular` cycle check over one resolved import graph. Its `warn`-severity
+# rules print `warn` lines, which this battery reads as RED.
+step architecture pnpm check:architecture
 step metrics node scripts/testing/metrics.mjs --all --offline
 step scripts pnpm --filter @apps/api exec vitest run tests/unit/scripts/
 step api-common pnpm --filter @packages/api-common test

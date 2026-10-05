@@ -1,7 +1,7 @@
 # Code Quality — Specification
 
 > Living specification for the **code-quality** capability: the dead-code gate
-> (`Code Quality (knip + jscpd + madge)`) and how knip resolves `@/*` aliases in the Next
+> (`Code Quality (knip + jscpd)`) and how knip resolves `@/*` aliases in the Next
 > apps. Source of truth: the empirically-verified RCA (a live knip run with
 > `oxc-resolver.resolveFileSync` monkeypatched to capture the resolution path; fix applied
 > to `knip.json` and validated — `pnpm check:dead-code` → `RATCHET_EXIT=0`).
@@ -50,7 +50,7 @@ regression.
 
 ### Requirement: The 12-finding false-positive cascade is cleared
 
-After the change, the `knip` sub-check of the `Code Quality (knip + jscpd + madge)` gate MUST report
+After the change, the `knip` sub-check of the `Code Quality (knip + jscpd)` gate MUST report
 **zero** of the 12 findings that flowed from the unresolved `@/` edges: 5 unresolved imports
 (`@/hooks/api/useTeam` ×4, `@/lib/api/types` ×1), 3 unused exports (the `useTeam` hooks), 2 unused
 files (`apps/admin/hooks/api/useAuditLogs.ts`, `useContentLibrary.ts`), and 2 unused types

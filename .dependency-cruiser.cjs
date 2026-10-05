@@ -1,14 +1,32 @@
 /**
  * @file .dependency-cruiser.cjs
- * @description Hexagonal architecture layer enforcement for the omni-post
- *   monorepo. Complements ESLint flat config + 14 fitness greps with
- *   graph-level rules (arrow direction, cycles, orphan modules).
+ * @description The architecture gate for the omni-post monorepo: graph-level rules (layer
+ *   direction, dependency cycles, orphan modules) over the resolved import graph of
+ *   apps/api/src and every workspace package. `pnpm check:architecture` runs it, both in the
+ *   local battery and in the dependency-cruiser job of audit.yml.
  *
  *   Layers (per CLAUDE.md):
  *     domain        ← imports nothing external (no Prisma/Fastify/Redis/BullMQ)
  *     application   ← imports domain only
  *     infrastructure← imports application + domain + external libs
  *     routes/index  ← composition root, imports use cases only
+ *
+ *   A rule sees only the edges the resolver produced: an import that resolves into a build
+ *   output (`dist/`), or does not resolve at all, is invisible to every rule. The resolution
+ *   options below therefore make each workspace-alias import reach the SOURCE file it names,
+ *   whether or not the packages have been built:
+ *     - the `development` export condition maps `@core/*`, `@ports/*` and the other workspace
+ *       packages to their `src/`, the same condition dev, test and CI resolve with (ADR-0017);
+ *     - `tsconfig.base.json` holds the path mappings (the root `tsconfig.json` has none);
+ *     - an import spelled with the NodeNext `.js` extension that does not resolve is retried
+ *       by dependency-cruiser itself as `.ts` / `.tsx` / `.d.ts`, which reaches the source;
+ *     - `@shared/types` declares no `development` condition, so its alias to `src/` comes
+ *       from `.dependency-cruiser-resolve.cjs` through `webpackConfig`: this schema accepts
+ *       no `alias` under `enhancedResolveOptions`;
+ *     - `tsPreCompilationDeps` keeps type-only imports: the compiler erases them, but they are
+ *       dependencies between layers all the same;
+ *     - only a workspace package's own `dist/` is excluded, so an npm package that ships from a
+ *       `dist/` directory (bullmq) stays visible to the framework rules.
  */
 module.exports = {
   forbidden: [
@@ -120,7 +138,15 @@ module.exports = {
         path: "packages/core/domain/",
       },
       to: {
-        path: "(prisma|fastify|ioredis|bullmq|next|@fastify|@prisma|@infra|@adapters)",
+        // `to.path` is matched against the RESOLVED path. A workspace adapter or the
+        // infra package resolves to `packages/adapters/<name>/src/…` or `infra/<name>/src/…`,
+        // which the alias names never match; the alias names still catch an import that
+        // fails to resolve.
+        path: [
+          "(prisma|fastify|ioredis|bullmq|next|@fastify|@prisma|@infra|@adapters)",
+          "^packages/adapters/",
+          "^infra/",
+        ],
       },
     },
     {
@@ -132,7 +158,13 @@ module.exports = {
         path: "packages/core/application/",
       },
       to: {
-        path: "(prisma|fastify|ioredis|bullmq|next|@fastify|@prisma|@infra|@adapters|@packages/api-common)",
+        // Matched against the RESOLVED path, as in core-domain-no-framework above.
+        path: [
+          "(prisma|fastify|ioredis|bullmq|next|@fastify|@prisma|@infra|@adapters|@packages/api-common)",
+          "^packages/adapters/",
+          "^packages/api-common/",
+          "^infra/",
+        ],
       },
     },
     {
@@ -189,7 +221,12 @@ module.exports = {
     },
     exclude: {
       path: [
-        "(^|/)dist/",
+        // A workspace package's own build output, at one or two directory levels
+        // (`packages/shared/dist/`, `packages/core/posts/dist/`). Never a bare `dist/`
+        // segment: that would also drop npm packages resolved into
+        // `node_modules/.pnpm/<pkg>/dist/`, which the framework rules must see.
+        "^(apps|packages|infra)/[^/]+/dist/",
+        "^packages/[^/]+/[^/]+/dist/",
         "(^|/)\\.next/",
         "(^|/)reports/",
         "(^|/)coverage/",
@@ -198,12 +235,16 @@ module.exports = {
         "(^|/)generated/",
       ],
     },
+    tsPreCompilationDeps: true,
     tsConfig: {
-      fileName: "tsconfig.json",
+      fileName: "tsconfig.base.json",
+    },
+    webpackConfig: {
+      fileName: ".dependency-cruiser-resolve.cjs",
     },
     enhancedResolveOptions: {
       exportsFields: ["exports"],
-      conditionNames: ["import", "require", "node", "default", "types"],
+      conditionNames: ["development", "import", "require", "node", "default", "types"],
       mainFields: ["main", "types"],
     },
     reporterOptions: {

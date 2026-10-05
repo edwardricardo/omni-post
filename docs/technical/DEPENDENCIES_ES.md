@@ -343,15 +343,15 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tail
 
 ## Calidad de Codigo
 
-| Herramienta | Version | Proposito                             |
-| ----------- | ------- | ------------------------------------- |
-| eslint      | 9.39.5  | Analisis estatico (flat config, v9)   |
-| prettier    | 3.9.9   | Formateo de codigo                    |
-| husky       | 9.1.7   | Git hooks                             |
-| lint-staged | 17.6.0  | Linting de archivos staged pre-commit |
-| knip        | 6.38.0  | Deteccion de codigo muerto            |
-| madge       | 8.0.0   | Deteccion de dependencias circulares  |
-| jscpd       | 5.3.2   | Deteccion de codigo duplicado         |
+| Herramienta        | Version | Proposito                                                     |
+| ------------------ | ------- | ------------------------------------------------------------- |
+| eslint             | 9.39.5  | Analisis estatico (flat config, v9)                           |
+| prettier           | 3.9.9   | Formateo de codigo                                            |
+| husky              | 9.1.7   | Git hooks                                                     |
+| lint-staged        | 17.6.0  | Linting de archivos staged pre-commit                         |
+| knip               | 6.38.0  | Deteccion de codigo muerto                                    |
+| dependency-cruiser | 18.4.0  | Reglas de arquitectura y deteccion de dependencias circulares |
+| jscpd              | 5.3.2   | Deteccion de codigo duplicado                                 |
 
 ### Estandares
 
