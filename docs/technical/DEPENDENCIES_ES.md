@@ -391,7 +391,7 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tail
 10. **eval.yml** — Evals de trayectoria de IA para los slices de repurpose, triage y trends; una regresión bloquea el merge
 11. **chaos.yml** — Escenarios de caos de saga y outbox, cada noche (3:30 AM UTC), con el mismo runner de tests que usa CI
 12. **cache-divergence.yml** — Sonda diaria de un acierto de caché de Turborepo que repite artefactos no construidos desde el commit (4:17 AM UTC)
-13. **maturity-reminder.yml** — Abre, o comenta, el issue de cada revisión de la lista de madurez que vence ese día (1 PM, 5 PM y 9 PM UTC)
+13. **maturity-reminder.yml** — Abre, o comenta, el issue de cada revisión de la lista de madurez que vence ese día (1 PM, 5 PM y 9 PM UTC), y arrastra cada día, en el mismo issue, una revisión que sigue sin registrarse después de su día, reabriéndolo si se cerró un día anterior
 
 ### Servicios Externos Requeridos
 

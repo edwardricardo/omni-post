@@ -21,7 +21,8 @@ ROOT = post_edit.PROJECT_ROOT
 REAL_RUN = subprocess.run
 
 # Assembled at run time so this source file never holds a detectable credential.
-SECRET_CONTENT = "export const probeConfig = { aws_secret" + '_access_key: "' + "Zq7Wx3Rt2Lmn4Pvb9Hk8" * 2 + '" };\n'
+PLANTED_KEY_NAME = "_".join(("aws", "secret", "access", "key"))
+SECRET_CONTENT = f'export const probeConfig = {{ {PLANTED_KEY_NAME}: "{"Zq7Wx3Rt2Lmn4Pvb9Hk8" * 2}" }};\n'
 CLEAN_CONTENT = "export const probeConfig = { region: \"eu-west-1\" };\n"
 
 # Next.js route segment shapes that are also glob syntax.
@@ -166,9 +167,14 @@ class PostEditScanTests(HookRunMixin, unittest.TestCase):
         path = self._plant("[id]/page.tsx", CLEAN_CONTENT)
         argv, kwargs = self._scan_call(path)
         self.assertEqual(kwargs["cwd"], str(ROOT))
-        self.assertEqual(argv[-1], str(path.relative_to(ROOT)))
-        self.assertIn("--no-glob", argv)
-        self.assertIn("--no-gitignore", argv)
+        self.assertEqual(argv, [
+            "pnpm", "exec", "secretlint",
+            "--secretlintrc", ".secretlintrc.json",
+            "--secretlintignore", ".secretlintignore",
+            "--no-gitignore", "--no-glob",
+            "--format", "compact",
+            str(path.relative_to(ROOT)),
+        ])
 
     def test_the_scan_never_lets_pnpm_install_the_checkout_first(self):
         argv, kwargs = self._scan_call(self._plant("page.tsx", CLEAN_CONTENT))

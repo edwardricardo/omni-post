@@ -1897,34 +1897,15 @@ jobs:
           fi
 
       - name: "Override bands: every range-scoped override band moves with its own target"
-        # A range-scoped override is written so the band's EXCLUSIVE UPPER BOUND and the target are the
-        # same number ('pkg@<X' pinned to X), because that is what makes it lift exactly the versions
-        # below X onto X. Raise the target and leave the band behind and the tree is already resolved
-        # to the PREVIOUS target — a version the old band no longer selects — so the override applies
-        # to nothing while the manifest and the canon still read as a held floor. An inert floor is
-        # worse than no floor: the audit goes green because the advisory's range stopped matching.
-        #
-        # WHY IT EXISTS, measured: eight instances in this repository before anything detected the
-        # shape — fast-uri twice inside one change, brace-expansion on all three of its lines, undici,
-        # sharp, and one variant where the advisory's vulnerable set WAS the target.
-        #
-        # An ALLOWLIST by shape, the form fitness #28 and #40 use: the admissible shape is one
-        # sentence while the inadmissible set is open-ended (a band its target overtook, a bound that
-        # was never the target, a major-line scope, an inclusive bound, a shape nobody predicted). The
-        # one deliberate exception — an advisory whose named patched version was never published — is
-        # named inside the gate with its measured reason, and an allowlist entry matching no override
-        # key is itself a violation, so the list can only shrink.
-        #
         # It lives in THIS job because the job already owns the manifest and lockfile invariants
         # (syncpack, dedupe, the toolchain holds, the engines declaration), and this gate reads one
         # tracked file — no install and no registry.
         #
-        # FAIL-CLOSED by construction: an unreadable manifest, a manifest with no top-level overrides
-        # block, a line inside the block the parser cannot read, zero range-scoped entries parsed, a
-        # target that is not a three-number version, a band declaring two exclusive upper bounds, and
-        # an orphan allowlist entry each exit 1 rather than reporting a clean zero over inputs the gate
-        # never read. Pinned by apps/api/tests/unit/scripts/overrideBandsGate.test.ts, whose fixtures
-        # drive every one of those refusals without reading the repository's own manifest.
+        # The gate's rationale — why, allowlist, fail-closed — lives in the header of
+        # scripts/testing/override-bands-gate.mjs. The one deliberate exception, an advisory whose
+        # named patched version was never published, is named inside the gate with its measured
+        # reason. Pinned by apps/api/tests/unit/scripts/overrideBandsGate.test.ts, whose fixtures
+        # drive every refusal the header lists without reading the repository's own manifest.
         run: |
           set -uo pipefail
           if ! node scripts/testing/override-bands-gate.mjs; then
@@ -1936,11 +1917,14 @@ jobs:
         # scripts/testing/maturity-watchlist.json lists the versions that entered inside the 7-day
         # maturity buffer with their 7- and 14-day review dates. A malformed entry, or a milestone that
         # is not its publish date plus 7 or 14 days, would put a review on the wrong day or on none;
-        # this refuses it in the pull request that writes it. Reads one tracked file: no install, no
-        # registry, no API. Pinned by apps/api/tests/unit/scripts/maturityWatchlist.test.ts.
+        # this refuses it in the pull request that writes it. It also fails when a review is still
+        # unrecorded more than three days past its milestone, measured against the run's UTC date,
+        # so a missed review turns this step red on every run until its outcome is recorded. Reads
+        # one tracked file: no install, no registry, no API. Pinned by
+        # apps/api/tests/unit/scripts/maturityWatchlist.test.ts.
         run: |
           set -uo pipefail
           if ! node scripts/testing/maturity-watchlist.mjs --check; then
-            echo "::error title=Maturity watchlist violation::scripts/testing/maturity-watchlist.json is unreadable or malformed. The maturity-watchlist lines above name each entry and field: a missing or malformed field, a milestone that is not its publish date plus 7 or 14 days, a review dated before its milestone or without a clean or flagged outcome, or a duplicate id."
+            echo "::error title=Maturity watchlist violation::scripts/testing/maturity-watchlist.json is unreadable or malformed, or a review is overdue by more than three days and not recorded. The maturity-watchlist lines above name each cause: a missing or malformed field, a milestone that is not its publish date plus 7 or 14 days, a review dated before its milestone or without a clean or flagged outcome, a duplicate id, or a review due more than three days ago and not recorded. Record an overdue review's outcome under reviews.<milestone> in scripts/testing/maturity-watchlist.json."
             exit 1
           fi
