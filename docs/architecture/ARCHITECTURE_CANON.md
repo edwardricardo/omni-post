@@ -17,12 +17,13 @@ Routes → Application → Domain ← (never imports from) → Infrastructure
 ```
 
 - `domain/` imports **nothing** external — no Prisma, no Fastify, no Redis, no BullMQ, no SDKs
-- `application/` imports **domain only** — no concrete adapters, no infrastructure classes
+- `application/` imports **domain, ports and the shared kernel only** — no concrete adapters, no infrastructure classes
 - `infrastructure/` imports application + domain + external libs
-- Routes import **use cases only** — never repositories, never Prisma directly
-- **Never** `import { prisma } from "@infra/prisma"` in a route file — resolve from DI: `fastify.container.resolve(TOKENS.XRepository)`
+- Routes call **use cases only**: a route plugin receives its dependencies from the composition root, and a route never reaches the Prisma client, a repository, an adapter or a provider. It imports the domain for its types and passes primitives; the use case builds the value objects
+- **Never** `import { prisma } from "@infra/prisma"` in a route file, and never `fastify.container.resolve(...)` either — §Dependency Injection gives the composition-root shape and the routes still on the container
 - Ports (interfaces) live in `packages/ports/` — technology-free names (`PostRepository` not `PrismaPostPort`)
 - Concrete adapters are instantiated **only** in the DI composition root (`Container.ts`)
+- The gate is dependency-cruiser's rule set (`.dependency-cruiser.cjs`, run by `pnpm check:architecture` in the local battery and in CI) with the shrink-only known-violations baseline `.dependency-cruiser-known-violations.json`: a violation the baseline does not list fails the check, and so does a listed entry that no longer occurs, so the baseline only shrinks
 
 ---
 
@@ -243,7 +244,8 @@ Engine checks this at the top of `executeSaga` — terminal sagas never re-execu
 
 - **Only a composition root may import a singleton or construct an adapter.** The composition root is `apps/api/src/infrastructure/container/**` (and the bootstrap `apps/api/src/index.ts`, which passes the singleton into `setupContainer`). Every other unit — services, adapters, repositories, processors, route handlers, workers — **RECEIVES its dependencies by constructor injection** and never reaches for a global.
 - **Never `import { prisma } from "@infra/prisma"` outside the composition root.** Take `constructor(private readonly prisma: PrismaClient)` and have the root pass `container.resolve(TOKENS.PrismaClient)`. The same rule applies to any other singleton/global (Redis, queues, caches): inject the port, don't import the instance. Enforced by fitness **#21** (hard-zero).
-- **Routes resolve use cases only** — `fastify.container.resolve(TOKENS.X)` — never repositories, never `prisma`. Enforced by fitness **#1**.
+- **Route plugins receive their dependencies from the composition root.** The root resolves the use cases a route plugin needs and passes them in as the plugin's options; a route module references neither the container nor `TOKENS`, and never a repository, `prisma`, an adapter or a provider. A container referenced outside the Composition Root is a Service Locator (Seemann): it hides a module's dependencies until run time, the failure fitness **#43** was written for. Fitness **#1** keeps the `prisma` singleton out of route files, and `pnpm check:architecture` holds the rest. Decided in ADR-0033.
+- **The deviation, stated rather than hidden.** 76 route modules and one route-handler module still resolve from the container with `fastify.container.resolve(TOKENS.X)`. Each is an entry of the known-violations baseline `.dependency-cruiser-known-violations.json` under `routes-no-container`, beside the route modules that still reach Prisma, a repository, an adapter or a provider. The entries may only shrink: a new one fails the check, and so does a listed one that no longer occurs. The routes workstream (`docs/product/MASTER_PLAN_ES.md` §5.12) removes them context by context. The five per-request guards (`rbacMiddleware`, `adminAuthMiddleware`, `customerOrAdminAuth`, `integrationAuthMiddleware`, `auditMiddleware`) resolve from `request.server.container` too, so they need their own injected dependencies before the container can leave Fastify: converting the route plugins alone does not remove it.
 - **A class that already receives a port must USE that port** — never inject a repository and then also call `prisma.*` directly (the "paradox" anti-pattern). If the port lacks a method you need, add it to the port + its adapter; do not bypass it.
 
 ### Composition root per executable; the application core is shared, never duplicated
@@ -261,10 +263,10 @@ Adding new architecture patterns or amending these rules:
 1. **New aggregate / VO / domain event** → follow the DDD section. New invariants live in the entity method, not the use case.
 2. **New use case** → mutating ones use UoW (mandatory). Reads return DTOs, not domain objects.
 3. **New saga** → use `defineSaga()` factory; classify every step; declare countermeasures explicitly. Saga that doesn't fit the canon → write an ADR justifying the deviation.
-4. **New port / adapter** → port in `packages/ports/` (technology-free name), adapter in infrastructure. Register in the composition root only.
+4. **New port / adapter** → port in `packages/ports/` (technology-free name), adapter in infrastructure. Register in the composition root only. A port imports domain types, `@shared/types` and the `Result` and `UseCaseError` vocabulary of `@core/application/UseCase`, and nothing else of the core: the application owns its ports (Cockburn: the application defines them; Martin: the boundaries live in the use-case ring).
 5. **New DI token** → `TOKENS.MY_DEPENDENCY` symbol, register in `setupContainer`. Never `new` a concrete in domain or application code.
 6. **Amending a canon rule** → ADR required (see `docs/technical/ADR-NNNN-*.md` template via ADR-0001). Update this file with the new wording, link the ADR.
 
 Companion fitness checks live in `CLAUDE.md §Automated Compliance Checks`:
 
-- `#1` no Prisma in routes · `#2` domain framework-free · `#6` CQRS handlers without raw prisma · `#21` no prisma singleton outside composition roots · `#22` no `@layer application` in apps/api/src.
+- `#1` no Prisma in routes · `#2` domain framework-free · `#6` CQRS handlers without raw prisma · `#21` no prisma singleton outside composition roots · `#22` no `@layer application` in apps/api/src · `pnpm check:architecture` (dependency-cruiser rules + the shrink-only baseline).
