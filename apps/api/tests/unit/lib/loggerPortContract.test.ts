@@ -28,9 +28,16 @@ interface Harness {
 function portFromFactory(name: string): Harness {
   const logger = createLogger(name);
   logger.level = "warn";
-  const destination = Reflect.get(logger, pino.symbols.streamSym) as {
-    write(line: string): boolean;
-  };
+  const destination = Reflect.get(logger, pino.symbols.streamSym) as
+    { write(line: string): boolean } | undefined;
+  // `pino.symbols` is pino's exported extension surface, not a private; still, a pino that
+  // stops exposing the destination there must fail HERE, by name, and not later as an empty
+  // capture that reads like a port writing nothing.
+  if (typeof destination?.write !== "function") {
+    throw new Error(
+      "pino.symbols.streamSym no longer resolves the logger's destination: update this capture before trusting the assertions"
+    );
+  }
   const write = vi.spyOn(destination, "write").mockImplementation(() => true);
   const port: LoggerPort = logger;
   return {
