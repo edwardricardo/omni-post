@@ -329,9 +329,12 @@ auditConfig:
     # CVE-2026-93687 (added 2026-10-03). No fixed release exists: npm ends at
     # 3.0.3, OSV records last_affected 3.0.3 and GitHub first_patched_version
     # null. The one copy, braces@3.0.3, sits under micromatch@4.0.8 on
-    # devDependency chains only (eslint-plugin-boundaries, @storybook/nextjs;
-    # depcheck, secretlint and jscpd carried it until 2026-10-03, decisions
-    # D35, D38 and D39); no production importer reaches it, and
+    # devDependency chains only: 2 lockfile paths, one per portal, both
+    # @storybook/nextjs@10.6.0 > @storybook/preset-react-webpack >
+    # @storybook/react-docgen-typescript-plugin > micromatch@4.0.8
+    # (eslint-plugin-boundaries carried it until its removal on 2026-10-05;
+    # depcheck, secretlint and jscpd until 2026-10-03, decisions D35, D38
+    # and D39); no production importer reaches it, and
     # micromatch hands braces glob patterns only, which here come from
     # repository configuration alone. secretlint was the one carrier that
     # received a committer's staged paths as patterns, and 13.0.6 no longer
