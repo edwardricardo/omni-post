@@ -8,7 +8,8 @@
  * @layer infrastructure
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import pino from "pino";
 import {
   createLogger,
   createChildLogger,
@@ -37,8 +38,19 @@ describe("Logger Factory", () => {
 
     it("should include the name in log bindings", () => {
       const testLogger = createLogger("my-service");
-      // Logger should have the name set
-      expect(testLogger).toBeTruthy();
+      testLogger.level = "warn";
+      // The serialized line is what an operator reads, so the assertion reads it.
+      const destination = Reflect.get(testLogger, pino.symbols.streamSym) as {
+        write(line: string): boolean;
+      };
+      const write = vi.spyOn(destination, "write").mockImplementation(() => true);
+
+      testLogger.warn("name binding check");
+
+      const [line] = write.mock.calls.map(
+        ([chunk]) => JSON.parse(chunk) as Record<string, unknown>
+      );
+      expect(line?.name).toBe("my-service");
     });
 
     it("should default to info level when LOG_LEVEL not set", () => {

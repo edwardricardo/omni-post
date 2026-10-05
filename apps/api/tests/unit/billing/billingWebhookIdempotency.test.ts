@@ -21,6 +21,7 @@ import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPor
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { GatewayAdapterRegistryPort } from "@ports/core";
+import { createFakeLoggerPort } from "../helpers/fakeLoggerPort.js";
 
 // ─── Mock Factories ─────────────────────────────────────────────────────────
 
@@ -133,6 +134,7 @@ describe("GatewayBillingService — webhook helpers", () => {
       makeSwitchJobs(),
       makeEmailPort(),
       makeAuditEmitter(),
+      createFakeLoggerPort(),
       makeUnitOfWork()
     );
   });

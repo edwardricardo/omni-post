@@ -33,6 +33,7 @@ import type { AccountBillingRepository } from "@core/domain/repositories/Account
 import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";
 import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import { createLogger } from "../../lib/logger.js";
 
 /**
  * @function setupBillingUseCases
@@ -106,6 +107,7 @@ export function setupBillingUseCases(container: Container): void {
         container.resolve<GatewaySwitchJobPort>(TOKENS.GatewaySwitchJobPort),
         container.resolve<EmailPort>(TOKENS.EmailPort),
         container.resolve<AuditEmitterPort>(TOKENS.AuditEmitterPort),
+        createLogger("gateway-billing"),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true // singleton

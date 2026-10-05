@@ -4,14 +4,14 @@
  *   Handles initiation, cancellation, extension, webhook-driven transitions,
  *   admin force-actions, and dunning. All public methods return Result<T, E>.
  *
- *   Framework-free: depends only on @core/domain ports + UoW. The concrete
- *   Prisma adapters live in apps/api/src/infrastructure/repositories/; the
- *   BullMQ job scheduler lives in apps/api/src/billing/GatewaySwitchJobService.ts.
+ *   Framework-free: depends only on @core/domain ports + UoW + the LoggerPort its
+ *   composition root injects. The concrete Prisma adapters live in
+ *   apps/api/src/infrastructure/repositories/; the BullMQ job scheduler lives in
+ *   apps/api/src/billing/GatewaySwitchJobService.ts.
  * @layer application
  */
 
 import { ok, err, type Result } from "@shared/types";
-import { createLogger } from "@observability/logger";
 import type { AccountBillingRepository } from "@core/domain/repositories/AccountBillingRepository.js";
 import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";
 import type {
@@ -29,9 +29,7 @@ import type { GatewaySwitchJobPort } from "@core/domain/repositories/GatewaySwit
 import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import type { GatewayAdapterRegistryPort, GatewayProviderType } from "@ports/core";
-
-const logger = createLogger("gateway-billing");
+import type { GatewayAdapterRegistryPort, GatewayProviderType, LoggerPort } from "@ports/core";
 
 // ─── Error Types ────────────────────────────────────────────────────────────
 
@@ -85,6 +83,7 @@ export class GatewayBillingService {
     private readonly switchJobs: GatewaySwitchJobPort,
     private readonly emailPort: EmailPort,
     private readonly auditEmitter: AuditEmitterPort,
+    private readonly logger: LoggerPort,
     private readonly unitOfWork: UnitOfWork
   ) {}
 
@@ -181,7 +180,7 @@ export class GatewayBillingService {
         toGateway: targetGateway,
       });
     } catch (error) {
-      logger.error({ err: error, accountId }, "Failed to initiate gateway switch");
+      this.logger.error({ err: error, accountId }, "Failed to initiate gateway switch");
       return err("DATABASE_ERROR");
     }
   }
@@ -247,7 +246,7 @@ export class GatewayBillingService {
 
       return ok({ cancelled: true });
     } catch (error) {
-      logger.error({ err: error, accountId }, "Failed to cancel pending gateway switch");
+      this.logger.error({ err: error, accountId }, "Failed to cancel pending gateway switch");
       return err("DATABASE_ERROR");
     }
   }
@@ -285,7 +284,7 @@ export class GatewayBillingService {
 
       return ok({ newDeadline, extendedBy: adminUserId });
     } catch (error) {
-      logger.error({ err: error, accountId }, "Failed to extend switch deadline");
+      this.logger.error({ err: error, accountId }, "Failed to extend switch deadline");
       return err("DATABASE_ERROR");
     }
   }
@@ -316,7 +315,7 @@ export class GatewayBillingService {
               subject: "Your subscription has been cancelled",
               body: `Your subscription has been cancelled. You will have access until ${accessUntil}.`,
             })
-            .catch((e) => logger.warn({ err: e }, "Failed to send cancellation email"));
+            .catch((e) => this.logger.warn({ err: e }, "Failed to send cancellation email"));
         }
         return ok(undefined);
       }
@@ -359,7 +358,7 @@ export class GatewayBillingService {
 
       return ok(undefined);
     } catch (error) {
-      logger.error(
+      this.logger.error(
         { err: error, accountId },
         "Failed to handle subscription canceled for gateway switch"
       );
@@ -435,7 +434,7 @@ export class GatewayBillingService {
 
       return ok(undefined);
     } catch (error) {
-      logger.error(
+      this.logger.error(
         { err: error, accountId },
         "Failed to handle checkout completed for gateway switch"
       );
@@ -492,7 +491,7 @@ export class GatewayBillingService {
 
       return ok(undefined);
     } catch (error) {
-      logger.error({ err: error, switchEventId }, "Failed to force-complete gateway switch");
+      this.logger.error({ err: error, switchEventId }, "Failed to force-complete gateway switch");
       return err("DATABASE_ERROR");
     }
   }
@@ -552,7 +551,7 @@ export class GatewayBillingService {
 
       return ok(undefined);
     } catch (error) {
-      logger.error({ err: error, switchEventId }, "Failed to force-suspend gateway switch");
+      this.logger.error({ err: error, switchEventId }, "Failed to force-suspend gateway switch");
       return err("DATABASE_ERROR");
     }
   }
@@ -613,7 +612,7 @@ export class GatewayBillingService {
         pendingSwitch,
       });
     } catch (error) {
-      logger.error({ err: error, accountId }, "Failed to get account switch status");
+      this.logger.error({ err: error, accountId }, "Failed to get account switch status");
       return err("DATABASE_ERROR");
     }
   }
@@ -664,7 +663,7 @@ export class GatewayBillingService {
 
       return ok({ url: session.url });
     } catch (error) {
-      logger.error({ err: error, accountId }, "Failed to create checkout session");
+      this.logger.error({ err: error, accountId }, "Failed to create checkout session");
       return err("GATEWAY_ERROR");
     }
   }
@@ -695,7 +694,7 @@ export class GatewayBillingService {
 
       return ok({ url: portal.url });
     } catch (error) {
-      logger.error({ err: error, accountId }, "Failed to get billing portal URL");
+      this.logger.error({ err: error, accountId }, "Failed to get billing portal URL");
       return err("GATEWAY_ERROR");
     }
   }
@@ -918,13 +917,12 @@ export class GatewayBillingService {
               ? `Your payment of ${currency} ${amountDue.toFixed(2)} failed after ${attemptCount} attempts. Your account has been suspended.`
               : `Your payment of ${currency} ${amountDue.toFixed(2)} could not be processed (attempt ${attemptCount}). Please update your payment method.`,
           })
-          .catch((e) => logger.warn({ err: e }, "Failed to send dunning email"));
+          .catch((e) => this.logger.warn({ err: e }, "Failed to send dunning email"));
       }
 
-      logger.info({ accountId: account.id, attemptCount, invoiceId }, "Payment failed processed");
       return ok(undefined);
     } catch (error) {
-      logger.error({ err: error, gatewayCustomerId }, "Failed to handle payment failed");
+      this.logger.error({ err: error, gatewayCustomerId }, "Failed to handle payment failed");
       return err("DATABASE_ERROR");
     }
   }
@@ -991,12 +989,11 @@ export class GatewayBillingService {
       if (sub) {
         const upd = await this.subscriptionRepo.update(sub.id, { status: "ACTIVE" });
         if (!upd.ok) return err("DATABASE_ERROR");
-        logger.info({ accountId: account.id }, "Subscription recovered from PAST_DUE");
       }
 
       return ok(undefined);
     } catch (error) {
-      logger.error({ err: error, gatewayCustomerId }, "Failed to handle payment succeeded");
+      this.logger.error({ err: error, gatewayCustomerId }, "Failed to handle payment succeeded");
       return err("DATABASE_ERROR");
     }
   }
