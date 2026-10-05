@@ -60,7 +60,8 @@ and 4) established:
       Admin moves a European country to Stripe, or enables Stripe only, **Admin shows a warning** that
       the consumer obligations — withdrawal button, statutory refunds, VAT — become OmniPost's.
    2. **A voluntary 100% refund within 14 days** of the first payment, and within 14 days of the first
-      payment after a trial converts.
+      payment after a trial converts. It applies to **every customer, consumer or business**, and
+      takes precedence over the early-exit refund formula of ADR-0030 (decided 2026-10-05).
    3. **On surfaces OmniPost controls, the VAT-inclusive total and an "order with obligation to pay"
       button** are shown to consumers.
    4. **Online cancellation at the end of the period**, with a confirmation step.
@@ -93,10 +94,9 @@ of this record meet the pricing model:
 - **Term length follows the business checkbox of point 1.6.** Consumers choose prepaid terms of up
   to 12 months; buyers who tick "buying as a business" may choose 18 or 24 months.
 - **The voluntary 14-day refund of point 1.2 takes precedence over the early-exit refund formula**
-  (ADR-0030, point 8, rule 4). That rule names "the 14-day consumer withdrawal window"; whether it
-  also covers business buyers, as point 1.2 does, is an open point of ADR-0030.
-- **The reminder of point 1.5 is written for annual renewals.** Which of the other prepaid terms (3,
-  6, 18 and 24 months) get one is an open point of ADR-0030.
+  (ADR-0030, point 8, rule 4), for every customer, consumer or business (resolved 2026-10-05).
+- **The reminder of point 1.5 is written for annual renewals** and, per ADR-0030 (resolved
+  2026-10-05), is sent for every prepaid term of 3 months or more.
 - **A card-required trial** (ADR-0030, point 11, off by default) brings a notice before the first
   charge, and, under the UK subscription regime from 2027, the cooling-off period after a trial that
   the Consequences below already list.

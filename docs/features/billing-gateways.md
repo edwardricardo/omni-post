@@ -150,7 +150,7 @@ Until the rename lands, an **organization** is an `Account` in the code (tenant-
 - **R26** Prices are displayed tax-exclusive. On surfaces OmniPost controls, a consumer sees the
   VAT-inclusive total and an "order with obligation to pay" button before ordering.
 - **R27** Online cancellation at the end of the period, with a confirmation step.
-- **R28** A reminder before an annual renewal is charged.
+- **R28** A reminder before a renewal is charged, for every prepaid term of 3 months or more.
 - **R29** An optional "buying as a business" checkbox plus VAT ID at checkout.
 - **R30** The reverse charge applies only when the VAT ID's verification status is `verified`.
 - **R31** On the Stripe path, each invoice keeps its location evidence, append-only, for 10 years
@@ -182,27 +182,35 @@ Until the rename lands, an **organization** is an `Account` in the code (tenant-
 - **R40** The units contracted at the start of a term keep their price until the term ends. A
   renewal prices the subscription at the then-current list.
 - **R41** A unit added during a term pays the then-current list price with the term's multiplier,
-  charged at once and prorated to the end of the paid term.
+  charged at once and prorated to the end of the paid term. The price lock is a ceiling: when the
+  expansion moves the workspace or the organization into a cheaper tier, all units move to the
+  cheaper price, and the difference for the remaining prepaid months is credited against the
+  expansion charge by the refund rule (§7.4; never negative, nothing extra is ever charged).
 - **R42** A unit removed during a prepaid term is refunded: amount paid for it − (months used × its
   monthly list price); a started month counts as used; the refund is never negative and nothing is
-  ever charged. On the monthly term there is no refund and the reduction applies from the next
-  month. The remaining units keep their lock even if the workspace volume tier changes; the new tier
+  ever charged. A reduction is an explicit billing action; disconnecting a channel or an expired
+  token changes nothing, and reconnecting is not billed again. On the monthly term there is no
+  refund and the reduction applies from the next month. The remaining units keep their lock even if the workspace volume tier changes; the new tier
   applies at renewal.
 - **R43** An organization that leaves early is refunded amount paid − (months used × monthly list
   price), with the four rules of ADR-0030 point 8: a started month counts as used and access runs to
-  its end; never negative; added units use the same formula; within the 14-day withdrawal window the
-  refund is 100%.
+  its end; never negative; added units use the same formula; within 14 days of the first payment the
+  refund is 100% for every customer, consumer or business, and takes precedence. The monthly list
+  price is the one in force at purchase.
 - **R44** No exit fee is ever charged.
 - **R45** A list-price change reaches a subscriber only at a renewal at least the notice period
   (default 30 days) after the notice is sent.
 - **R46** The trial lasts 14 days by default, configurable in Admin. Whether a card is required to
-  start is an Admin setting, off by default. A trial that ends without a payment method enters the
+  start is an Admin setting, off by default. The trial unlocks all features, with quantity caps
+  configurable in Admin (§4.9). A trial that ends without a payment method enters the
   §7.1 flow at `SUSPENDED_READ_ONLY`. When a card is required, the customer is notified before the
   first charge.
 - **R47** The free plan is off by default. When Admin switches it on, its fixed limits apply, each
   configurable in Admin: workspaces, channels, scheduled posts per month, members, storage, AI
   tokens.
-- **R48** The monthly AI pool is a number of tokens per channel, configurable in Admin.
+- **R48** The monthly AI pool is a number of tokens per channel, configurable in Admin. Computed
+  amounts are rounded per line to integer minor units, half-up, and only workspaces with at least
+  one paid channel count toward the volume tier.
 - **R49** There is no separate workspace (project) limit for paying organizations, no yearly × 12 or
   × 10, no `BASIC`/`PRO`/`ENTERPRISE` tier, and no price table in the client.
 - **R50** Each organization has one gateway subscription with one item per price cohort and the term
@@ -304,16 +312,30 @@ the new price on, and sends the notices.
 
 ### 4.9 Trial and free plan
 
-| Field                                                    | Default | Notes                                                       |
-| -------------------------------------------------------- | ------- | ----------------------------------------------------------- |
-| Trial length                                             | 14 days | R46. Replaces the 14-day and 7-day values in the code today |
-| Card required to start a trial                           | off     | When on, the notice before the first charge is sent (R46)   |
-| Free plan                                                | off     | R47. Switched on only when it is profitable                 |
-| Free plan: workspaces                                    | 1       | Proposed default                                            |
-| Free plan: channels                                      | 3       | Proposed default                                            |
-| Free plan: members                                       | 1       | Proposed default                                            |
-| Free plan: scheduled posts per month, storage, AI tokens | open    | Proposed as caps; the values are an open point (§11)        |
-| AI tokens per channel per month                          | open    | R48; the value is an open point (§11)                       |
+| Field                                | Default | Notes                                                       |
+| ------------------------------------ | ------- | ----------------------------------------------------------- |
+| Trial length                         | 14 days | R46. Replaces the 14-day and 7-day values in the code today |
+| Card required to start a trial       | off     | When on, the notice before the first charge is sent (R46)   |
+| Trial cap: workspaces                | 3       | All features unlocked; caps configurable (R46)              |
+| Trial cap: channels                  | 10      |                                                             |
+| Trial cap: members                   | 3       |                                                             |
+| Trial cap: AI tokens                 | 20,000  |                                                             |
+| Trial cap: storage                   | 1 GB    |                                                             |
+| Free plan                            | off     | R47. Switched on only when it is profitable                 |
+| Free plan: workspaces                | 1       |                                                             |
+| Free plan: channels                  | 3       |                                                             |
+| Free plan: members                   | 1       |                                                             |
+| Free plan: scheduled posts per month | 30      |                                                             |
+| Free plan: storage                   | 500 MB  |                                                             |
+| Free plan: AI tokens per month       | 2,000   |                                                             |
+| AI tokens per channel per month      | 10,000  | R48                                                         |
+
+**Seed data.** The initial values of every pricing rule (per-channel tiers in USD and EUR,
+workspace volume multipliers, term multipliers), these caps, the notice period, the non-payment
+numbers and the signed-URL validity are listed in
+[ADR-0030, "Initial values"](../technical/ADR-0030-pricing-model.md#initial-values). They are seed
+data, all Admin-configurable and meant to be tuned later; the seed must make every currency
+complete (R37).
 
 ## 5. Customer surfaces
 
@@ -384,7 +406,7 @@ follows `docs/security/MULTI_TENANT_GUARDS.md`. The global configuration tables 
 | `AccountSubscription`                       | Loses `providers`, `accountCount`, `maxProjects` and `pricePerMonth` (the items carry the amounts); `billingCycle` becomes `termMonths`; gains `currency`; one gateway subscription id instead of `externalSubscriptionId` and `gatewaySubscriptionId` |
 | `Account`                                   | Loses `maxProjects` and `billingCycle`; one gateway customer id instead of `stripeCustomerId` and `gatewayCustomerId`                                                                                                                                  |
 | `ProviderBundle`                            | Loses `pricePerAccountMonth`, `maxPostsPerMonth` and `maxChannels`                                                                                                                                                                                     |
-| `BundleFeatureFlag`                         | Reviewed: it has no reader today (open point)                                                                                                                                                                                                          |
+| `BundleFeatureFlag`                         | Deleted (decided 2026-10-05): no reader today                                                                                                                                                                                                          |
 | `ProviderPricingTier`, `AccountPricingTier` | Replaced by `ChannelPriceTier` and `WorkspaceVolumeTier`, with a data migration                                                                                                                                                                        |
 | `UsageMetric`                               | `postsPublished` is never incremented today; the free plan caps scheduled posts per month, so the slice counts those or removes the column                                                                                                             |
 
@@ -461,18 +483,34 @@ Only `VERIFIED` applies the reverse charge.
 
 ### 7.4 Units during a term (per organization)
 
-| Event                                  | Prepaid term (3–24 months)                                                                                                                                                                | Monthly term                                                            |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Unit added (expansion)                 | New cohort item at the current list price × the term multiplier; charged now, prorated to the term end (Stripe `always_invoice`, Paddle `prorated_immediately`)                           | The same, prorated to the end of the month                              |
-| Unit removed (reduction)               | Refund = paid for the unit − months used × its monthly list price (started month used; never negative); the item's quantity drops without a gateway credit; other cohorts keep their lock | No refund; the quantity drops from the next month                       |
-| Organization leaves (early exit)       | Refund = paid − months used × monthly list price, with the four rules; access to the end of the started month; then the subscription ends                                                 | Ends at the end of the month (R27); no refund outside the 14-day window |
-| Renewal                                | Every cohort is priced at the current list; a list change applies only if noticed at least the notice period before                                                                       | The same, every month                                                   |
-| Workspace volume tier changes mid-term | Locked cohorts keep their price until the term ends; the new tier applies at renewal (for a reduction; an expansion across a tier boundary is an open point)                              | Applies from the next month                                             |
+| Event                                  | Prepaid term (3–24 months)                                                                                                                                                                                     | Monthly term                                                            |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Unit added (expansion)                 | New cohort item at the current list price × the term multiplier; charged now, prorated to the term end (Stripe `always_invoice`, Paddle `prorated_immediately`)                                                | The same, prorated to the end of the month                              |
+| Unit removed (reduction)               | Refund = paid for the unit − months used × its monthly list price (started month used; never negative); the item's quantity drops without a gateway credit; other cohorts keep their lock                      | No refund; the quantity drops from the next month                       |
+| Organization leaves (early exit)       | Refund = paid − months used × monthly list price, with the four rules; access to the end of the started month; then the subscription ends                                                                      | Ends at the end of the month (R27); no refund outside the 14-day window |
+| Renewal                                | Every cohort is priced at the current list; a list change applies only if noticed at least the notice period before                                                                                            | The same, every month                                                   |
+| Workspace volume tier changes mid-term | Reduction: locked cohorts keep their price until the term ends; the new tier applies at renewal. Expansion into a cheaper tier: the lock is a ceiling, all units move to the cheaper price (credit flow below) | Applies from the next month                                             |
 
 **Examples** ([ADR-0030](../technical/ADR-0030-pricing-model.md)): a workspace listed at $50 a month
 on a 6-month term at 10% off ($270 paid) removed during month 4 is refunded $270 − 4 × $50 = $70; an
 organization on a 12-month term at 20% off a $100 list ($960 paid) that leaves after 4 months is
 refunded $960 − 4 × $100 = $560.
+
+**Tier-crossing credit flow** (expansion into a cheaper per-channel or volume tier). If the list
+rose instead, locked units keep their lock and only the new unit pays the current price.
+
+1. The month in progress counts as used at the old price; the new price applies from the next month.
+2. Credit = for each already-paid unit, (old monthly price − new monthly price) × remaining prepaid
+   months.
+3. The new unit is charged prorated for the rest of the current month, plus the remaining months at
+   the new price.
+4. The charge is the new unit's amount minus the credit; if the credit is larger the difference is
+   refunded. Never negative, and nothing extra is ever charged.
+
+Worked example (term multiplier omitted): 12 months × 3 channels × $10 = $360 paid. In the middle
+of month 4 a 4th channel is added and the workspace moves to the $8 tier. Credit for the old
+channels: 3 × ($10 − $8) × 8 = $48. New channel: half of month 4 ($4) + 8 × $8 = $68. Charged:
+$68 − $48 = $20.
 
 ### 7.5 Trial (per organization)
 
@@ -549,7 +587,7 @@ between them may run in any order.
 | BILL-17 | `ExchangeRatePort`, ECB adapter, `CachePort` entry and daily scheduler task; USD reporting of non-USD revenue                                                                                                                                                                                                                                                                                                       | BILL-4                   | [0024](../technical/ADR-0024-billing-currency-and-price-catalog.md)                                                                                                                                                   | —                                                    |
 | BILL-18 | Pricing rules in the domain, per currency: per-channel tiers, workspace volume tiers, term multipliers, behind a port; a new `PricingCalculator` (channel unit, one volume multiplier for every workspace, term multiplier, integer minor units, the rounding rule); `findCheaperBundle` removed; `ProviderPricingTier` and `AccountPricingTier` migrated                                                           | —                        | [0030](../technical/ADR-0030-pricing-model.md), [0024](../technical/ADR-0024-billing-currency-and-price-catalog.md)                                                                                                   | —                                                    |
 | BILL-19 | Admin pricing screens per currency (§4.3, §4.8): rules, term multipliers, notice period, completeness per currency, preview; `pricingRoutes.ts` and `PricingAdminService` through the port instead of Prisma; `UpdatePricingConfigUseCase` resolved or deleted; the MRR tab computed from subscriptions                                                                                                             | BILL-18                  | [0030](../technical/ADR-0030-pricing-model.md)                                                                                                                                                                        | SMELL-191 (with BILL-20, BILL-27)                    |
-| BILL-20 | Bundles as templates (§4.7): three `ProviderBundle` fields dropped; editor with the live computed price; every field editable; `BundleFeatureFlag` reviewed; `/billing/plans` and the Admin plan reads return computed prices; `GET /admin/billing/plans/:tier` replaced                                                                                                                                            | BILL-19                  | [0030](../technical/ADR-0030-pricing-model.md)                                                                                                                                                                        | SMELL-191, SMELL-192 (part)                          |
+| BILL-20 | Bundles as templates (§4.7): three `ProviderBundle` fields dropped; editor with the live computed price; every field editable; `BundleFeatureFlag` deleted; `/billing/plans` and the Admin plan reads return computed prices; `GET /admin/billing/plans/:tier` replaced                                                                                                                                             | BILL-19                  | [0030](../technical/ADR-0030-pricing-model.md)                                                                                                                                                                        | SMELL-191, SMELL-192 (part)                          |
 | BILL-21 | Channels counted per workspace: the quote reads live channels per workspace, replacing `AccountSubscription.providers` and `accountCount`; `maxProjects` removed from `Account` and `AccountSubscription` with the project-creation quota check; the AI pool per channel                                                                                                                                            | BILL-18                  | [0030](../technical/ADR-0030-pricing-model.md)                                                                                                                                                                        | SMELL-188 (part), SMELL-192 (part), SMELL-193 (part) |
 | BILL-22 | Subscription state from the gateway: subscription events in the typed event for both gateways; items, term, period and status written back; checkout completion no longer acted on only during a gateway switch; the adapters' `createSubscription` and `updateSubscription` wired or deleted; one gateway customer id and one subscription id                                                                      | BILL-3, BILL-8           | [0030](../technical/ADR-0030-pricing-model.md), [0026](../technical/ADR-0026-non-payment-lifecycle.md)                                                                                                                | SMELL-187 (with BILL-6, BILL-8), SMELL-193 (part)    |
 | BILL-23 | Price-lock cohorts (§7.4): `SubscriptionItem` and `BilledUnit`; expansion at the current list × term multiplier, prorated to the term end; reduction refunded by the formula on a prepaid term, from the next month on the monthly term; renewal re-pricing; the list-price notice and its notifications                                                                                                            | BILL-21, BILL-22         | [0030](../technical/ADR-0030-pricing-model.md)                                                                                                                                                                        | —                                                    |
@@ -574,27 +612,21 @@ variables it removes.
 - **Resolved 2026-10-04 — the plan set.** There are no plans: [ADR-0030](../technical/ADR-0030-pricing-model.md)
   prices with rules, and bundles are templates priced by them. `BASIC`/`PRO`/`ENTERPRISE` and the
   Admin Starter/Pro fields go in BILL-5 and BILL-27.
-- **Pricing open points** of [ADR-0030](../technical/ADR-0030-pricing-model.md), with the slice each
-  blocks:
-  - default values: tiers, EUR amounts, term multipliers, AI tokens per channel, free-plan caps
-    (BILL-18, BILL-19, BILL-26);
-  - an expansion across a tier boundary: which tier prices the added unit, and whether locked units
-    follow (BILL-23);
-  - empty workspaces counting toward the volume tier (BILL-18);
-  - what removing a unit is: disconnecting a channel, or an explicit reduction; expired-token
-    reconnections must not be billed (BILL-23);
-  - which list price the refund formula uses after a list change (BILL-23, BILL-24);
-  - the scope of early-exit rule 4 against the voluntary refund of ADR-0027 point 1.2 (BILL-24);
-  - whether a trial without a card holds a gateway subscription, and the limits during a trial
-    (BILL-25);
-  - which terms besides 12 months get the pre-renewal reminder of R28 (BILL-16, BILL-24);
-  - rounding to integer minor units (BILL-18);
+- **Resolved 2026-10-05 — pricing points** of [ADR-0030](../technical/ADR-0030-pricing-model.md)
+  (decisions 16 to 24 and "Initial values"): default values (seed data, §4.9); an expansion across a
+  tier boundary (the lock is a ceiling, credited by the refund rule, §7.4; BILL-23); empty
+  workspaces (only those with a paid channel count; BILL-18); what removing a unit is (an explicit
+  billing action; BILL-23); which list price refunds use (the one in force at purchase; BILL-23,
+  BILL-24); early-exit rule 4 (every customer, within 14 days of the first payment; BILL-24); trial
+  limits (all features, Admin-configurable caps; BILL-25); pre-renewal reminders (every prepaid term
+  of 3 months or more; BILL-16, BILL-24); rounding (per line, half-up; BILL-18); `BundleFeatureFlag`
+  (deleted; BILL-20); migration of existing subscriptions (none, no paying customers; BILL-22).
+- **Pricing open points still open**, with the slice each blocks:
+  - whether a trial without a card holds a gateway subscription (BILL-25);
   - synchronised or inline gateway prices (BILL-6);
-  - migration of existing subscriptions, if any environment has paying ones (BILL-22);
-  - whether `BundleFeatureFlag` stays (BILL-20);
   - 18- and 24-month billing on Paddle, to confirm in the sandbox (BILL-24).
-- **Names in code written before the rename** —
-  [ADR-0031](../technical/ADR-0031-domain-vocabulary.md). It affects the identifiers every slice
-  above introduces.
+- **Resolved 2026-10-05 — names in code written before the rename**
+  ([ADR-0031](../technical/ADR-0031-domain-vocabulary.md)): new code keeps today's names until the
+  rename lands.
 - **Withdrawal button and mid-period withdrawal on the Paddle path** —
   [ADR-0027](../technical/ADR-0027-consumer-sales-and-tax-handling.md), open points; for counsel.

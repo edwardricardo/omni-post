@@ -117,7 +117,7 @@ then established:
      exchange rate.
 
    **Illustration** (today's seeded USD figures read as per-channel and workspace tiers, and an
-   assumed 12-month multiplier of ×0.80; the real defaults are an open point): workspace A has 3
+   assumed 12-month multiplier of ×0.80; the initial values actually seeded are in "Initial values" below): workspace A has 3
    channels, 3 × $10 = $30; workspace B has 5, 5 × $8 = $40; two workspaces take ×0.9, so the
    monthly list price is ($30 + $40) × 0.9 = $63.00. On a 12-month term at ×0.80 that is $50.40 a
    month, $604.80 charged upfront.
@@ -148,7 +148,7 @@ then established:
    - The term is the subscription's billing interval, identical on both gateways.
 5. **Price lock.** The units contracted at the start of a term keep their price until the term ends.
    Units added later pay the then-current list price (point 6). A renewal prices the subscription at
-   the then-current list (point 10).
+   the then-current list (point 10). The lock is a ceiling, not a floor (point 16).
 6. **Expansion during a term** (2026-10-04, option A). A unit — a channel, or a workspace with its
    channels — added during a prepaid term pays the then-current list price **with that term's
    multiplier**: the "normal price" is the price without the original lock, not without the term
@@ -183,7 +183,10 @@ then established:
    2. The refund is never negative. Zero or less means nothing is refunded and nothing extra is ever
       charged (Paddle could not charge it anyway).
    3. Units added during the term use the same formula, on what was paid for them.
-   4. Within the 14-day consumer withdrawal window the refund is 100%, which takes precedence.
+   4. Within 14 days of the first payment the refund is 100% for **every** customer, consumer or
+      business ([ADR-0027](ADR-0027-consumer-sales-and-tax-handling.md), point 1.2), which takes
+      precedence over the formula. Paddle's new window for UK annual subscribers at renewal is
+      statutory and is handled by Paddle.
 
    The monthly list price in the formula is the one the unit's term price was computed from; only
    then does the formula equal "the remaining amount minus the promotion enjoyed", as both examples
@@ -196,7 +199,9 @@ then established:
     period is configurable in Admin; a default stated to Edward and not objected to). A change takes
     effect at the first renewal that falls at least the notice period after the notice.
 11. **Trial: 14 days**, configurable in Admin, replacing today's two values (14 at registration, 7
-    with tier `PRO` in `TrialManagementService`).
+    with tier `PRO` in `TrialManagementService`). **Resolved 2026-10-05 (option B): the trial
+    unlocks all features, with quantity caps configurable in Admin** (initial values below), not the
+    free plan's limits.
     - **Whether a card is required to start is an Admin setting, and it starts off** (option A): at
       day 14 without a payment method the organization enters the suspension and lock flow of
       [ADR-0026](ADR-0026-non-payment-lifecycle.md).
@@ -207,9 +212,10 @@ then established:
 12. **Free plan: it exists and is off by default** (option B). Admin switches it on only when it is
     profitable. Its limits are fixed and all configurable in Admin; the proposed defaults are 1
     workspace, 3 channels, a monthly cap on scheduled posts, 1 member, a storage cap and an AI-token
-    cap.
+    cap; the values are in "Initial values" below.
 13. **The monthly AI pool is per channel**, configurable in Admin, replacing platforms ×
-    `accountCount` × 10,000 tokens (a default stated to Edward and not objected to).
+    `accountCount` × 10,000 tokens (a default stated to Edward and not objected to); the initial value
+    is 10,000 tokens per paid channel per month.
 14. **Removed** (defaults stated to Edward and not objected to, plus what follows from points 1–4):
     - the separate "max projects" limit: workspaces are what is paid, so `Account.maxProjects`,
       `AccountSubscription.maxProjects` and the project-creation quota check go;
@@ -240,6 +246,63 @@ then established:
       scheduled changes accept only cancel, pause and resume, so OmniPost applies it at renewal).
     - **Today's checkout sends no price at all (F16).** The checkout must send the line items of the
       computed quote, and the gateways' subscription events must write the subscription back.
+
+16. **The price lock is a ceiling** (2026-10-05, option B, with "the same refund rule"). When an
+    expansion moves a workspace into a cheaper per-channel tier, or the organization into a cheaper
+    workspace volume tier, **all units move to the cheaper price**. If the list price rose instead,
+    locked units keep their lock and only the new unit pays the current price. The repricing of
+    already-paid units follows the refund rule of point 8: the month in progress counts as used at
+    the old price; from the next month the new price applies; the difference for the remaining
+    prepaid months is a **credit netted against the expansion charge** (refunded if larger). It is
+    never negative and nothing extra is ever charged. A reduction keeps the remaining units' lock
+    until the term ends (point 7).
+    **Worked example** (term multiplier omitted): 12 months × 3 channels × $10 = $360 paid. In the
+    middle of month 4 a 4th channel is added and the workspace moves to the $8 tier. The old
+    channels are credited 3 × ($10 − $8) × 8 remaining months = $48. The new channel pays the rest of
+    month 4 prorated (half a month = $4) plus 8 × $8 = $68. Charged: $68 − $48 = **$20**.
+17. **Which list price a refund uses**: the one in force at purchase (point 8 reads it as the price
+    the term price was computed from; a later list change does not alter it).
+18. **What removing a unit is**: an explicit billing action by the customer. Disconnecting a channel
+    or an expired token changes nothing in billing, and reconnecting is not billed again.
+19. **Empty workspaces**: only workspaces with at least one paid channel count toward the volume
+    tier.
+20. **Pre-renewal reminders** are sent for every prepaid term of 3 months or more
+    ([ADR-0027](ADR-0027-consumer-sales-and-tax-handling.md), point 1.5, extended from annual
+    renewals).
+21. **Rounding**: each computed line is rounded to integer minor units, half-up, per line.
+22. **`BundleFeatureFlag` is deleted**: it had no reader, and bundles carry no limits.
+23. **Names**: new code keeps today's names until the rename of
+    [ADR-0031](ADR-0031-domain-vocabulary.md) lands (measured: `accountId` appears in 948 files).
+24. **Existing subscriptions**: there are no paying customers in any environment (the app is in
+    development), so the model starts clean, with no migration or grandfathering of old
+    subscriptions.
+
+## Initial values
+
+Edward, 2026-10-05: realistic, test-worthy initial values now, tuned later. Every value is
+Admin-configurable per currency and is seed data, not a constant in code. Competitor anchors:
+Buffer about $6 a channel, Hootsuite about $10 an account, Metricool €16 / $20 a brand, Later
+Starter $25.
+
+| Rule                            | Initial value                                                                                          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Per-channel price, 1–3 channels | $10 / €9                                                                                               |
+| Per-channel price, 4–7 channels | $8 / €7                                                                                                |
+| Per-channel price, 8+ channels  | $6 / €5                                                                                                |
+| Workspace volume multiplier     | 1 workspace ×1.00; 2–5 ×0.90; 6+ ×0.80                                                                 |
+| Term multipliers                | monthly ×1.00; 3 months ×0.95; 6 ×0.90; 12 ×0.83 (about 2 months free); 18 ×0.80; 24 ×0.77             |
+| AI tokens                       | 10,000 per paid channel per month                                                                      |
+| Trial                           | 14 days, all features; caps: 3 workspaces, 10 channels, 3 members, 20,000 AI tokens, 1 GB storage      |
+| Free plan (off by default)      | 1 workspace, 3 channels, 1 member, 2,000 AI tokens a month, 500 MB storage, 30 scheduled posts a month |
+| List-price change notice        | 30 days                                                                                                |
+| Non-payment (ADR-0026)          | N = 3 failed attempts; 72 hours read-only; 30-day lock                                                 |
+| Signed URL validity (ADR-0028)  | 15 minutes for previews; 24 hours for network downloads                                                |
+
+**Sanity examples**
+
+- A creator with 1 workspace and 3 channels on the monthly term pays 3 × $10 = **$30 a month**.
+- An agency with 3 workspaces of 6 channels each on a 12-month term pays (6 × $8) × 3 × 0.90 × 0.83 =
+  **$107.57 a month**, about $1,291 upfront.
 
 ## Rationale
 
@@ -338,39 +401,24 @@ then established:
 
 Each blocks the slice named in [billing-gateways.md](../features/billing-gateways.md) §11.
 
-- **Default values**: per-channel tier boundaries and amounts, the EUR amounts, the workspace volume
-  tiers, the multipliers for 3, 6, 12, 18 and 24 months, the AI tokens per channel, and the free
-  plan's caps on posts, storage and AI tokens. Today's seeded USD figures are platform tiers, not
-  channel tiers.
-- **Expansion across a tier boundary.** A reduction leaves the locked units on their price even when
-  the volume tier changes; for an expansion that moves a workspace into a cheaper per-channel tier,
-  or the organization into a cheaper volume tier, it is not decided which tier prices the added unit
-  and whether the locked units follow.
-- **Empty workspaces.** As written, a workspace with no connected channel costs nothing and still
-  counts toward the organization's volume tier.
-- **What removing a unit is.** Whether disconnecting a channel is itself a reduction, or the customer
-  lowers a paid count explicitly; a reconnection after an expired token must not be billed as a
-  removal and a re-addition.
-- **Which list price the refund formula uses** when the list changed between purchase and exit. Point
-  8 reads it as the price the term price was computed from; the examples do not cover a change.
-- **The scope of early-exit rule 4.** It names "the 14-day consumer withdrawal window"; the voluntary
-  14-day refund of [ADR-0027](ADR-0027-consumer-sales-and-tax-handling.md) (point 1.2) is not limited
-  to consumers, and Paddle gives UK annual subscribers a new window at renewal.
+**Resolved 2026-10-05** (Edward; decisions 16 to 24 and "Initial values" above): the default values;
+expansion across a tier boundary (the lock is a ceiling, credited by the refund rule); empty
+workspaces; what removing a unit is; which list price a refund uses; the scope of early-exit rule 4
+(every customer, within 14 days of the first payment); limits during a trial (all features, capped
+in Admin); pre-renewal reminders (every prepaid term of 3 months or more); rounding (per line, half-up);
+`BundleFeatureFlag` (deleted); existing subscriptions (none); naming before the rename (today's
+names).
+
+Still open:
+
 - **A trial without a card at the gateway.** Whether it holds a gateway subscription at all decides
   what the day-30 cancellation of [ADR-0026](ADR-0026-non-payment-lifecycle.md) acts on.
-- **Limits during a trial**: the free plan's, none, or others.
-- **Pre-renewal reminders.** [ADR-0027](ADR-0027-consumer-sales-and-tax-handling.md) point 1.5 names
-  annual renewals; which of the 3-, 6-, 18- and 24-month terms get one is not decided.
-- **Rounding** of computed amounts to integer minor units (per item or per quote). Today's calculator
-  rounds each account line to cents.
 - **How computed amounts reach the gateways**: a synchronised gateway price per distinct unit amount,
   or a price created inline per item. [ADR-0024](ADR-0024-billing-currency-and-price-catalog.md)
   point 3 was written for a plan × cycle catalog; the slice decides after a sandbox check on both
   gateways.
-- **Existing subscriptions.** Whether any deployed environment has paying subscriptions under the
-  environment price ids could not be determined; their migration depends on it.
-- **`BundleFeatureFlag`** has no reader today; with bundles as templates without limits, whether it
-  stays is to be reviewed.
+- **18- and 24-month billing on Paddle**, to confirm in the sandbox before those terms are offered
+  (point 15).
 
 ## Revisit if
 
