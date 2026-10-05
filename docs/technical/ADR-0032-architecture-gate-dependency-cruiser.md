@@ -188,8 +188,46 @@ A gate that reports a clean graph it never read is worse than no gate
 | A baseline entry hides a new violation on the same edge                                                              | Entries match on `from`, `to` and rule. A new import between two modules already listed is that same edge, and it is repaired with it                                                                                                                                                   |
 | The baseline is regenerated in `full` mode and absorbs a new violation                                               | The file is versioned; a grown entry count shows in the diff of the pull request that grows it, and review refuses it, as for the ratchets of fitness #30 and #38                                                                                                                       |
 | A rule pattern stops matching after a path moves, and the rule passes over nothing                                   | PR #408 found two rules that would have gone blind once imports resolved and gave them resolved-path patterns. Every rule change carries its red proof ([CLAUDE.md](../../CLAUDE.md) §Automated Compliance Checks, "Extending the suite", step 3)                                       |
-| The renamed required check blocks every merge                                                                        | Edward updates the branch protection before PR #408 merges                                                                                                                                                                                                                              |
+| The renamed required check blocks every merge                                                                        | Edward updates the branch protection before PR #408 merges — done on 2026-10-05 at 05:59Z through the API on his instruction: `Code Quality (knip + jscpd + madge)` → `Code Quality (knip + jscpd)`, 19 required checks before and after                                                |
 | 18.5.0 changes behaviour                                                                                             | The hold row schedules the move after maturity, and the rules' red proofs run again on the bump                                                                                                                                                                                         |
+
+## Implementation notes (2026-10-05)
+
+PR2 of decisions 4 to 6 shipped as two pull requests of item (v): `PR v-b`
+(`workstream/item-v-rules`, `515487b9`), the layer rules and the baseline, and `PR v-c`
+(`workstream/item-v-boundaries`, `63881f50`), the retirement of `eslint-plugin-boundaries`. The
+decisions stand as written; these notes record where the code differs from their text.
+
+- **The scope grew in `PR v-b`** beyond the list of decision 2, which is PR #408's. The command also
+  cruises `apps/workers/src`, which `workers-no-api` and `api-no-workers` need to keep one
+  composition root per executable, and the inherited `(^|/)reports/` exclusion is narrowed to
+  `(^|/)reports/mutation/` (`.dependency-cruiser.cjs:362`): it had hidden
+  `apps/api/src/reports/reportRoutes.ts` and the whole `packages/core/reports` context. The same pull
+  request added `shared-depends-only-on-shared` beside the `shared-no-*` rules of decision 4, the one
+  policy of `eslint-plugin-boundaries` the cruiser lacked. Measured: 1,711 modules and 7,488
+  dependencies at `PR v-b`, 1,714 and 7,491 at `783aeebe`.
+- **A baseline entry matches more than `from`, `to` and rule.** dependency-cruiser also compares the
+  edge's dependency types and how it resolved, so rewriting a listed import without removing it (an
+  alias for a relative path, a value import for `import type`) turns the entry stale and the edge new
+  at once, and the gate stays red until the violation is gone. The header of `.dependency-cruiser.cjs`
+  states it, and `apps/api/tests/unit/scripts/architectureBaseline.test.ts` pins the stale-entry
+  failure and the shrink-only regeneration on a fixture the tool baselines itself. The case of the
+  Risks row "A baseline entry hides a new violation on the same edge" narrows to a second import of
+  the same specifier and kind between two listed modules, which dependency-cruiser records as the
+  same edge.
+- **Shrink-only is a config option, not a flag.** `options.baseline` sets `mode: "shrink-only"` and
+  `staleEntriesSeverity: "error"` (`.dependency-cruiser.cjs:383-385`); `check:architecture` reads the
+  file through `--ignore-known`, and `check:architecture:update-baseline` regenerates it with
+  `--baseline` and formats it with prettier.
+- **The baseline was written at 138 entries and holds 124 at `783aeebe`.** At `PR v-b`: 77
+  `routes-no-container`, 25 `routes-no-prisma`, 17 `routes-no-repositories`, 8
+  `routes-domain-types-only`, 6 `core-application-no-infrastructure` and 5
+  `routes-no-adapters-or-providers`. The six `@observability/logger` entries of decision 4's
+  application row left when ADR-0033's `LoggerPort` landed, one in `PR v-d1`
+  (`workstream/item-v-logger-a`) and five in `PR v-d2` (`workstream/item-v-logger-port`); `PR v-e1`,
+  `PR v-e2` and `PR v-e3` removed two, one and five route entries. At `783aeebe`: 75
+  `routes-no-container`, 23 `routes-no-prisma`, 17 `routes-no-repositories`, 8
+  `routes-domain-types-only` and 1 `routes-no-adapters-or-providers`.
 
 ## References
 

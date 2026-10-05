@@ -225,6 +225,68 @@ that `packages/ports` carries says otherwise.
 | The four `info` calls disappear silently                     | PR3a resolves each one under LOGGING_CANON and says how in its body                                                                                                                                                                                       |
 | The guards keep the container alive indefinitely             | They are their own row (ARCH-21), the prerequisite for removing the decoration                                                                                                                                                                            |
 
+## Implementation notes (2026-10-05)
+
+Item (v) delivered the first stage of decision 6 on 2026-10-05. PR2 shipped as `PR v-b`
+(`workstream/item-v-rules`, `515487b9`) and `PR v-c` (`workstream/item-v-boundaries`, `63881f50`);
+PR3a as `PR v-d1` (`workstream/item-v-logger-a`, `0986c8ad`) and `PR v-d2`
+(`workstream/item-v-logger-port`, `beb017e1`); PR3b as `PR v-e1` (`workstream/item-v-cheap-repairs`,
+`05f1d28f`), `PR v-e2` (`workstream/item-v-cheap-queue`, `33476917`) and `PR v-e3`
+(`workstream/item-v-cheap-health`, `783aeebe`). The decisions stand as written; these notes record
+where the code that shipped differs from their text.
+
+**D-R10 shipped with no adapter class.** Decision 3 reads "An adapter over `@observability/logger`
+implements it, and the composition root injects it into the six services." The port
+(`packages/ports/src/LoggerPort.ts`) takes pino's own `(context, message)` order, with a
+message-only overload per level, so the redacting `createLogger(name)` of
+`apps/api/src/lib/logger.ts` satisfies it by construction, and the composition root passes that
+logger directly (`setupBillingUseCases.ts:110`; `setupServices.ts:247,318,569,583`). Core entries
+therefore carry the API factory's redaction and its `name` binding, which `PR v-d1` fixed in that
+factory (its `bindings` formatter had dropped the name); `@observability/logger` never redacted, and
+`packages/core` no longer imports it. Two suites
+pin the choice: `apps/api/tests/unit/lib/loggerPortContract.type-test.ts`, compiled by the package's
+`typecheck`, assigns the factory's logger to the port and rejects a message-first impostor through
+`@ts-expect-error` (which fails as `TS2578` if a message-first port ever accepts it), and
+`loggerPortContract.test.ts` writes through the port and reads back the name, the message, the
+context fields, the `err` serialization and the redaction. Five services take the port by
+constructor. The sixth, `DataRetentionService`, takes none: its one call was an `info` line that
+repeated the `DATA_RETENTION_CLEANUP` audit entry. The four `info` calls went as follows:
+`GatewayBillingService`'s two, because the invoice row and the subscription status already record
+the dunning outcome and the recovery; `DlqArchivalService`'s, because the method returns its count
+(the daily task discards it, which DEF-18 of [MASTER_PLAN_ES.md](../product/MASTER_PLAN_ES.md)
+§5.11 queues with the port failures the service swallows); and `DataRetentionService`'s, for the
+reason above.
+
+**Decision 6, PR3b, as shipped.**
+
+- **R4** (`PR v-e3`): `healthRoutes` receives `{ scheduler, checkers }` (`apps/api/src/index.ts:578-588`),
+  not the root's repository adapter and queue. Decision 1 lets no route receive a repository, an
+  adapter or a cache manager, and `CacheHealthChecker` takes the concrete `RedisCacheManager`
+  (`packages/monitoring/health-checks/src/checkers/redis.ts:114-115`), so the root builds the six
+  checkers over the objects it already owns — the repository adapter, `redis`, the cache manager,
+  the publish queue adapter, the storage adapter and the provider registry — and the route keeps
+  the probe policy (types, criticality) and starts and stops the health manager. R1 fell with it:
+  the route no longer resolves `PrismaClient` or builds an adapter of its own, so
+  `createPrismaRepoAdapter(` has one call (`index.ts:342`) and the scheduler task
+  `db-prisma-connection-monitor` one owner. Before, the route's second adapter registered that id
+  again, and registering an id replaces its task
+  (`packages/observability/background-scheduler/src/default-scheduler.ts:59`).
+- **R5** (`PR v-e2`): `queueRoutes` receives the publish `Queue` the root builds (`index.ts:358-367`,
+  closed in the `onClose` hook at `:368-375`, registered at `:609`), typed as
+  `Pick<Queue, "name" | "getJobCounts" | "getJobs" | "getJob" | "getJobLogs">` with a type-only
+  `bullmq` import (`apps/api/src/admin/queueRoutes.ts:9,20-25`); the route imports neither
+  `QUEUE_NAMES` nor the queue adapter. The construction moved from the route unchanged; DEF-25 of
+  MASTER_PLAN_ES §5.11 queues what it drops from `REDIS_URL` and its overlap with the registry's
+  adapter for the same queue.
+- **R6** (`PR v-e1`): `cacheStatsRoutes` receives a `CacheAdminPort`
+  (`packages/ports/src/CacheAdminPort.ts:47`), the six operations the routes call, each returning a
+  `Result`. The root passes the `RedisCacheManager`, which satisfies the port structurally; the
+  registration at `index.ts:701` is where the compiler checks it.
+- **The deviation, measured on `783aeebe`:** 74 of the 78 route modules resolve from the container
+  (76 when decided; `cacheStatsRoutes` and `healthRoutes` left it), 23 reach Prisma, a repository or
+  the email port (24; `healthRoutes` left), and five build value objects. ADR-0032's baseline holds
+  124 entries, 138 when `PR v-b` wrote it.
+
 ## References
 
 - Alistair Cockburn, "Hexagonal architecture" — https://alistair.cockburn.us/hexagonal-architecture

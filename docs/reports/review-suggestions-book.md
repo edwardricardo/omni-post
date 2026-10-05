@@ -77,6 +77,18 @@
 | SB-056 | same                                                                                  | R2-knip-entry-cjs-config-file-unexplained                        | `knip.json:6` (the `.dependency-cruiser-resolve.cjs` entry)                                                                                 | comment                      | deferred: say why the file is an entry; strict JSON takes no comment, so the file becomes `knip.jsonc`                                                          |
 | SB-057 | same                                                                                  | R3-batteryverdict-architecture-fixture-coverage                  | `apps/api/tests/unit/scripts/batteryVerdict.test.ts:257-274` (the architecture step's clean-log case)                                       | test coverage                | deferred: a RED case built from a real error log, an `error no-circular:` record plus the `(1 errors, 0 warnings)` summary                                      |
 | SB-058 | same                                                                                  | R3-battery-architecture-warn-no-assertion                        | `scripts/testing/battery.sh:156-159` (the comment above `step architecture`)                                                                | failure mode                 | closed: `--output-type err` prints every severity; a warn-severity violation reaches the log and the verdict reads it as RED                                    |
+| SB-059 | item (v) PR v-d1 (`workstream/item-v-logger-a`, 0986c8ad)                             | R3-single-error-path-covered, R3-004                             | `apps/api/tests/unit/billing/GatewayBillingService.test.ts:384-396` (the one case on the injected logger)                                   | test coverage                | deferred: a case per remaining catch site and per email `.catch` warning, asserting the injected logger's context and message                                   |
+| SB-060 | same                                                                                  | R3-bindings-formatter-conditional, R3-003                        | `apps/api/src/lib/logger.ts:48-55` (the `bindings` formatter)                                                                               | test coverage                | deferred: a case for a logger with no name (no `name` key) and one for a child (its parent's `name` kept), both measured 2026-10-05                             |
+| SB-061 | same                                                                                  | R3-type-test-collector-fragility                                 | `apps/api/vitest.config.ts:53-54` (`include`, `exclude`) and the four `*.type-test.ts` under `apps/api/tests/unit`                          | test configuration           | deferred: `**/*.type-test.ts` in `test.exclude`, so no wider glob collects a compile-time pin                                                                   |
+| SB-062 | same                                                                                  | R3-pino-internal-symbol-dependency                               | `apps/api/tests/unit/logger.test.ts:39-54` (the name-binding case; the contract suite's capture fixed in 0986c8ad)                          | test capture                 | deferred: one guarded capture shared by both suites, or a destination the test hands to `createLogger`                                                          |
+| SB-063 | item (v) PR v-d2 (`workstream/item-v-logger-port`, beb017e1)                          | R2-logging-canon-core-row-prose-is-tangled                       | `docs/observability/LOGGING_CANON.md:19` (the `Why` cell of the `packages/core/**` row)                                                     | prose structure              | deferred: three sentences, with the factory's logger as the subject of "It implements the port as is"                                                           |
+| SB-064 | same                                                                                  | R2-data-retention-doc-references-test                            | `packages/core/compliance/src/DataRetentionService.ts:7-12` (the header)                                                                    | comment                      | deferred: keep the audit call, drop the suite's path; in the change that takes DEF-17                                                                           |
+| SB-065 | same                                                                                  | R2-dlq-archive-silent-sweep, R2-dlq-archival-asymmetric-logging  | `packages/core/webhooks/src/DlqArchivalService.ts:1-38` (the header and both method comments)                                               | comment                      | deferred: one class-level sentence on why only the stale lookup warns; in the change that takes DEF-18                                                          |
+| SB-066 | same                                                                                  | R2-logger-param-position                                         | `packages/core/compliance/src/ComplianceService.ts:85-95` (the constructor)                                                                 | parameter shape              | deferred: the logger's place among many ports in LOGGING_CANON, or an ADR for one dependencies object                                                           |
+| SB-067 | same                                                                                  | R3-004                                                           | `packages/core/auth/tests/unit/RoleManagementService.test.ts:188-200` (the `deleteRole` case)                                               | test coverage                | deferred: a case each for `createRole`, `updateRole` and `setRolePermissions`                                                                                   |
+| SB-068 | same                                                                                  | R3-005                                                           | `packages/core/compliance/tests/unit/ComplianceService.test.ts:181-193` (the `updateGdprSettings` case)                                     | test coverage                | deferred: a case per remaining logger call, seven in all                                                                                                        |
+| SB-069 | item (v) PR v-e2 (`workstream/item-v-cheap-queue`, 33476917)                          | R3-001                                                           | `apps/api/tests/unit/queueRoutes.test.ts:73-108` (the module-level publish-queue double)                                                    | test determinism             | deferred: a double built per test, before a case overrides a mock or mutates `storedJob`                                                                        |
+| SB-070 | same                                                                                  | R3-002                                                           | `apps/api/tests/unit/queueRoutes.test.ts:105` (`getJobs`) and the listing cases at `:188-226`                                               | test precision               | deferred: a `getJobs` answer per state and offset; with DEF-26, which rewrites the `total` assertion                                                            |
 
 ## Entries — code and prose
 
@@ -416,6 +428,38 @@
 - **Why deferred:** strict JSON carries no comments, so the signal needs the file renamed to `knip.jsonc` (knip reads it) for one line of prose. The explanation exists where the file is: the header of `.dependency-cruiser-resolve.cjs` says its `resolve` section reaches the resolver through the `webpackConfig` option of `.dependency-cruiser.cjs`.
 - **To implement:** rename `knip.json` to `knip.jsonc` and put a `//` comment above the entry. The name appears in two scripts (`scripts/knip-ratchet.mjs:115`, a message, and `.claude/scripts/migrate-canon-index.py:133`) and in docs and specs that cite it, which follow the rename.
 
+### SB-063 — LOGGING_CANON's `packages/core/**` row packs four statements into one cell
+
+- **Source:** two reviews of item (v) PR v-d2 (`workstream/item-v-logger-port`, `beb017e1`), readability lens, the same suggestion: `review-0e1b0a09928ffaa3` (log `itemv3a2b`), finding `R2-logging-canon-core-row-prose-is-tangled`, and `review-f1691ed852d066ae` (log `itemv3a2d`), finding `R2-docs-table-row-awkward-phrasing`.
+- **Location:** `docs/observability/LOGGING_CANON.md:19`, the `Why` cell of the `packages/core/**` row, whose second sentence reads "It implements the port as is, because the port uses Pino's `(context, message)` order".
+- **Suggestion:** split the cell into the statements it makes — what the composition root passes, why that logger satisfies the port without an adapter, what `packages/core` never imports — and give "It" its subject, the logger the factory returns.
+- **Why deferred:** wording; the rule is the same either way. `loggerPortContract.type-test.ts` pins the argument order and `loggerPortContract.test.ts` the written line, and item 5 of the canon's How to extend states the rule again in full sentences.
+- **To implement:** for example: "The composition root passes the logger that `createLogger(name)` returns from the deployable's own factory. That logger satisfies the port without an adapter, because the port takes Pino's `(context, message)` order, so core entries carry the factory's redaction and `name`. `packages/core` never imports `@observability/logger` or `pino`, and the port exposes `warn` and `error` only."
+
+### SB-064 — the retention service's header names the suite that pins it by path
+
+- **Source:** review `review-f1691ed852d066ae` of item (v) PR v-d2 (`workstream/item-v-logger-port`, `beb017e1`; log `itemv3a2d`), readability lens, finding `R2-data-retention-doc-references-test`.
+- **Location:** `packages/core/compliance/src/DataRetentionService.ts:7-12`, the header paragraph, which names `apps/api/tests/unit/compliance/DataRetentionService.test.ts` at `:10`.
+- **Suggestion:** state the invariant where it lives — each run's counts reach `auditEmitter.emit({ action: "DATA_RETENTION_CLEANUP" })`, and the application layer logs WARN and ERROR only — without naming a test file, which can move and leave the comment stale.
+- **Why deferred:** comment wording; the path is right today, and that suite's case `emits cleanup summary via AuditEmitterPort` (`:198-219`) pins the counts on the audit entry. The two rounds pull in opposite directions: `bd4e9376` put the audit call and the suite in the header to answer the round before, whose WARNING `R2-dataretention-doc-mismatch` (`review-d48267d0d8a7d331`) asked for a code reference. DEF-17 of `docs/product/MASTER_PLAN_ES.md` §5.11 changes what the sweep records on a failure, and with it this header.
+- **To implement:** keep the audit call and drop or shorten the suite's path, in the change that takes DEF-17.
+
+### SB-065 — the DLQ archival service does not say why only one of its two methods logs
+
+- **Source:** two reviews of item (v) PR v-d2 (`workstream/item-v-logger-port`, `beb017e1`), readability lens: `review-0266f5fe272cd583` (log `itemv3a2`), finding `R2-dlq-archive-silent-sweep`, and `review-f1691ed852d066ae` (log `itemv3a2d`), finding `R2-dlq-archival-asymmetric-logging`, which asks for the first one's pointer at the class level.
+- **Location:** `packages/core/webhooks/src/DlqArchivalService.ts`, the file header (`:1-10`) and the two method comments (`:21-25`, `:35-38`).
+- **Suggestion:** say at the class level that `archiveResolvedEvents` returns its count and logs nothing while `flagStaleEvents` warns, because stale unresolved events need an operator, so a reader takes neither the silent sweep for a lost call nor the constructor's `LoggerPort` for half used.
+- **Why deferred:** comment wording; the archive method's comment already says "The count is returned, not logged: a routine sweep asks nothing of an operator" (`:24`). DEF-18 of `docs/product/MASTER_PLAN_ES.md` §5.11 queues the failure side of that silence — both methods turn a port failure into `0` or `[]` — and its fix changes what the comment has to say.
+- **To implement:** one class-level sentence, written in the change that takes DEF-18.
+
+### SB-066 — `ComplianceService` takes nine positional parameters, the logger last
+
+- **Source:** review `review-d48267d0d8a7d331` of item (v) PR v-d2 (`workstream/item-v-logger-port`, `beb017e1`; log `itemv3a2c`), readability lens, finding `R2-logger-param-position`.
+- **Location:** `packages/core/compliance/src/ComplianceService.ts:85-95`, the constructor; its one production call is `apps/api/src/infrastructure/container/setupServices.ts:560-570`.
+- **Suggestion:** a convention for services with many ports — the logger last among them — or one dependencies object for a service with five or more ports, so a reader of the call site does not count positions. The finding counts eight parameters; the constructor takes nine.
+- **Why deferred:** constructor shape, not behaviour: the nine parameters are typed ports, and their one production call sits in the type-checked composition root. Item 5 of LOGGING_CANON's How to extend already places the logger "ahead of a trailing `unitOfWork`"; a service with nine ports and no `unitOfWork` is where that rule says nothing more.
+- **To implement:** a sentence in that item naming the logger as the last port. A dependencies object is a constructor-injection shape the DI canon does not name, so it goes through an ADR.
+
 ## Entries — tests
 
 ### SB-T01 — a bare repository's `--git-common-dir` is not named `.git`
@@ -564,6 +608,70 @@
 - **Location:** `scripts/testing/battery.sh:156-159`, the comment above `step architecture`.
 - **Suggestion:** assert that the `warn` lines the step comment mentions can reach the log; the finding assumed `--output-type err` emits error-severity violations only.
 - **Why closed:** the premise is false, measured 2026-10-05 on the candidate's tree: a planted orphan, `packages/shared/src/zzOrphanProbe.ts` (the `no-orphans` rule is warn-severity), made `pnpm check:architecture` print `warn no-orphans: packages/shared/src/zzOrphanProbe.ts` and `x 1 dependency violations (0 errors, 1 warnings). 1685 modules, 7325 dependencies cruised.` and exit 0. The `err` reporter prints every severity and only the exit code is error-only, so both lines reach `architecture.log`; the verdict's warn-line rule reads each as RED, and its suite pins both forms (`warn no-orphans: …` and the `x N dependency violations (0 errors, N warnings)` summary). The step comment is accurate as written.
+
+### SB-059 — the billing suite asserts one of the service's fourteen logger calls
+
+- **Source:** two reviews of item (v) PR v-d1 (`workstream/item-v-logger-a`, `0986c8ad`), reliability lens, the same suggestion: `review-476cc1c6a49fadfa` (log `itemv3a1`), finding `R3-single-error-path-covered`, and `review-a085bbeff6850b14` (log `itemv3a1c`, after the rebase), finding `R3-004`.
+- **Location:** `apps/api/tests/unit/billing/GatewayBillingService.test.ts:384-396`, the one case that asserts the injected logger; the service's other calls are at `packages/core/billing/src/GatewayBillingService.ts:249, 287, 318, 361, 437, 494, 554, 615, 666, 697, 920, 925, 996` (eleven more `error` calls, and the two `warn` calls at `:318` and `:920` for the cancellation and dunning emails).
+- **Suggestion:** assert the injected logger at every catch site, so a site that stops reporting its cause fails a test.
+- **Why deferred:** extra coverage of a path already exercised: every site writes through the one `logger` field the constructor takes, and the case at `:384-396` proves that field end to end; the port's argument order and the written line are pinned by `apps/api/tests/unit/lib/loggerPortContract.type-test.ts` and `loggerPortContract.test.ts`. What each other site adds is its own context fields and message, which change no return value.
+- **To implement:** one case per site: the collaborator throws, or `emailPort.send` rejects for the two warnings, and the case asserts the returned error and the injected logger's `{ err: cause, … }` and message.
+
+### SB-060 — no case pins the API logger's line for a logger without a name
+
+- **Source:** two reviews of item (v) PR v-d1 (`workstream/item-v-logger-a`, `0986c8ad`), reliability lens, the same suggestion: `review-476cc1c6a49fadfa` (log `itemv3a1`), finding `R3-bindings-formatter-conditional`, and `review-a085bbeff6850b14` (log `itemv3a1c`), finding `R3-003`.
+- **Location:** `apps/api/src/lib/logger.ts:48-55`, the `bindings` formatter, which spreads `name` only when it is present (`:53`); the positive case is `apps/api/tests/unit/logger.test.ts:39-54`.
+- **Suggestion:** a case for a logger built without a name (its line carries no `name` key) and one for a child logger (its line keeps the parent's `name` beside the child's bindings).
+- **Why deferred:** the omission branch has no caller in the tree: `createLogger(name: string)` requires a name, and every pre-built logger passes one. Both behaviours were measured on 2026-10-05 with the same formatter on the installed pino 10.3.1: a logger without a name writes no `name` key, and a child of a named logger keeps the parent's `name` beside its own bindings. The cases would pin that measurement, not change it.
+- **To implement:** two cases beside `should include the name in log bindings`, through the same capture, or through the shared one SB-062 proposes.
+
+### SB-061 — the type tests stay out of vitest by their file name alone
+
+- **Source:** review `review-8efd780a24d196da` of item (v) PR v-d1 (`workstream/item-v-logger-a`, `0986c8ad`; log `itemv3a1b`), reliability lens, finding `R3-type-test-collector-fragility`.
+- **Location:** `apps/api/vitest.config.ts:53-54`, the `include` and `exclude` globs, and the four `*.type-test.ts` files under `apps/api/tests/unit`: `lib/loggerPortContract`, `infrastructure/container/containerSetupOptionsContract`, `infrastructure/repositories/customerCredentialWriteContract` and `security/tenantScopedQueryContract`.
+- **Suggestion:** exclude `**/*.type-test.ts` from the collector explicitly, or give each type test a shape that is harmless at run time, so a wider include glob cannot collect them.
+- **Why deferred:** no behaviour changes. The include globs (`tests/unit/**/*.test.ts`, `tests/eval/**/*.test.ts`) do not match the `.type-test.ts` suffix, `tsconfig.type-tests.json` compiles the four files in the package's `typecheck`, and the header of `loggerPortContract.type-test.ts` states the reliance. A glob that admitted them would fail at collection rather than pass: the logger type test reads two `declare const` bindings at run time, a `ReferenceError` on import. The convention is older than item (v): the other three files date from 2026-09-09, 2026-09-11 and 2026-09-23.
+- **To implement:** add `"**/*.type-test.ts"` to `test.exclude` in `apps/api/vitest.config.ts`; fitness #36 reads only `include` arrays, so the exclusion needs no fixture.
+
+### SB-062 — the name-binding case reads pino's destination without the contract suite's guard
+
+- **Source:** review `review-8efd780a24d196da` of item (v) PR v-d1 (`workstream/item-v-logger-a`, `0986c8ad`; log `itemv3a1b`), reliability lens, finding `R3-pino-internal-symbol-dependency`. The next round raised it to a WARNING, `R3-002` of `review-a085bbeff6850b14` (log `itemv3a1c`), which `0986c8ad` fixed for the contract suite; this row keeps what that commit left.
+- **Location:** `apps/api/tests/unit/logger.test.ts:39-54`, `should include the name in log bindings`, which spies on `Reflect.get(testLogger, pino.symbols.streamSym)` with no check; the guarded capture is `portFromFactory` in `apps/api/tests/unit/lib/loggerPortContract.test.ts:28-47`.
+- **Suggestion:** capture the written line through a destination the test owns rather than through `pino.symbols.streamSym`, in both suites.
+- **Why deferred:** test robustness, not behaviour. The case cannot pass in silence: an unresolved destination makes `vi.spyOn` throw, and an empty capture fails `expect(line?.name).toBe("my-service")`. What it lacks is the contract suite's error naming the cause. `pino.symbols` is pino's exported surface, and pino 10.3.1 resolves the destination through it.
+- **To implement:** move the guarded capture into a shared test helper used by both suites, or give `createLogger` an optional destination for tests; the second changes the factory's signature, not what it does for the callers that pass none.
+
+### SB-067 — the role service's suite asserts one of its four logger calls
+
+- **Source:** review `review-f1691ed852d066ae` of item (v) PR v-d2 (`workstream/item-v-logger-port`, `beb017e1`; log `itemv3a2d`), reliability lens, finding `R3-004`.
+- **Location:** `packages/core/auth/tests/unit/RoleManagementService.test.ts:188-200`, the `deleteRole` case; the other calls are `packages/core/auth/src/RoleManagementService.ts:137` (`createRole`), `:178` (`updateRole`) and `:212` (`setRolePermissions`).
+- **Suggestion:** a case per remaining catch site asserting `DATABASE_ERROR` and the injected logger's `{ err: cause }` with that site's message.
+- **Why deferred:** as SB-059: the four calls share the constructor's `logger` field, which the `deleteRole` case proves; each other site adds only its message.
+- **To implement:** three cases in the same `describe`, each making the repository method its operation calls reject.
+
+### SB-068 — the compliance suite asserts one of the service's eight logger calls
+
+- **Source:** review `review-f1691ed852d066ae` of item (v) PR v-d2 (`workstream/item-v-logger-port`, `beb017e1`; log `itemv3a2d`), reliability lens, finding `R3-005`.
+- **Location:** `packages/core/compliance/tests/unit/ComplianceService.test.ts:181-193`, the `updateGdprSettings` case; the other calls are `packages/core/compliance/src/ComplianceService.ts:219, 384, 425, 464, 523, 595, 651` (the security settings, the three DSAR transitions, the DSAR submission, the breach report and its notifications).
+- **Suggestion:** a case per remaining site, as SB-067 asks for the role service.
+- **Why deferred:** as SB-059 and SB-067.
+- **To implement:** seven cases, each making the collaborator its operation writes through reject and asserting the returned error and the injected logger's call.
+
+### SB-069 — the queue suite shares one publish-queue double across its cases
+
+- **Source:** review `review-088f335c47c5ebd3` of item (v) PR v-e2 (`workstream/item-v-cheap-queue`, `33476917`; log `itemv3b2`), reliability lens, finding `R3-001`.
+- **Location:** `apps/api/tests/unit/queueRoutes.test.ts:73-108`, the module-level double (`storedJob`, the `retry` and `remove` spies and the queue's mocks), registered once in `beforeAll` (`:137`) and cleared by `vi.clearAllMocks()` in `beforeEach` (`:149-151`).
+- **Suggestion:** build the double per test, so a future case that overrides a mock or mutates `storedJob` cannot leak into the cases after it.
+- **Why deferred:** the suite is deterministic as written: no case overrides a mock implementation or writes to `storedJob`, so clearing the call history is all it needs. The finding guards against a case that does not exist yet.
+- **To implement:** a `makePublishQueue()` factory called from `beforeEach`, with the app registered per test, before the first case that overrides the double.
+
+### SB-070 — the queue double answers every `getJobs` call with the same job
+
+- **Source:** review `review-088f335c47c5ebd3` of item (v) PR v-e2 (`workstream/item-v-cheap-queue`, `33476917`; log `itemv3b2`), reliability lens, finding `R3-002`.
+- **Location:** `apps/api/tests/unit/queueRoutes.test.ts:105`, `getJobs: vi.fn(async () => [storedJob])`, which the three listing cases read (`:188-226`).
+- **Suggestion:** answer per state and offset, and assert that the response items follow what the queue returned, so the listing cases prove more than the arguments the route forwards.
+- **Why deferred:** test precision. What the route decides is the state filter and the range defaults, and the cases pin both through the arguments it forwards (`:203`, `:214`, `:225`), while the first case's `items[0]` pins how a job becomes an item. That case's `total` assertion (`:197`) reads the page length the route returns, which DEF-26 of `docs/product/MASTER_PLAN_ES.md` §5.11 queues; fixing that defect rewrites the case.
+- **To implement:** a `getJobs` double keyed by state and offset, with the listing cases asserting the items they get back; take it with DEF-26.
 
 ## Implemented
 
