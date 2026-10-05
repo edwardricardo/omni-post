@@ -4,15 +4,10 @@
  *   duplicate name guard, and deleteRole guarded paths.
  * @layer infrastructure
  */
-import { describe, it, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { ok } from "@shared/types";
-
-// @observability/logger is not in this package's deps; mock it so the
-// source module can be imported without the pino transport.
-vi.mock("@observability/logger", () => ({
-  createLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }),
-}));
+import type { LoggerPort } from "@ports/core";
 import { RoleManagementService } from "../../src/RoleManagementService.js";
 import type { RoleManagementRepository } from "@core/domain/repositories/RoleManagementRepository.js";
 import type { RbacCacheInvalidatorPort } from "@core/domain/repositories/RbacCacheInvalidatorPort.js";
@@ -77,6 +72,10 @@ function makeMockCache(): RbacCacheInvalidatorPort {
   return { invalidate: vi.fn(async () => undefined) } as unknown as RbacCacheInvalidatorPort;
 }
 
+function makeMockLogger() {
+  return { warn: vi.fn(), error: vi.fn() } satisfies LoggerPort;
+}
+
 describe("RoleManagementService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -84,7 +83,7 @@ describe("RoleManagementService", () => {
 
   describe("createRole", () => {
     it("returns the created role detail when input is valid", async () => {
-      const svc = new RoleManagementService(makeMockRepo(), makeMockCache());
+      const svc = new RoleManagementService(makeMockRepo(), makeMockCache(), makeMockLogger());
       const r = await svc.createRole({
         name: "CUSTOM_ROLE",
         description: "A test role",
@@ -96,7 +95,7 @@ describe("RoleManagementService", () => {
     });
 
     it("returns INVALID_NAME when the name does not match the pattern", async () => {
-      const svc = new RoleManagementService(makeMockRepo(), makeMockCache());
+      const svc = new RoleManagementService(makeMockRepo(), makeMockCache(), makeMockLogger());
       const r = await svc.createRole({
         name: "invalid name",
         description: "test",
@@ -108,7 +107,7 @@ describe("RoleManagementService", () => {
     });
 
     it("returns LEVEL_TOO_HIGH when level is >= 100", async () => {
-      const svc = new RoleManagementService(makeMockRepo(), makeMockCache());
+      const svc = new RoleManagementService(makeMockRepo(), makeMockCache(), makeMockLogger());
       const r = await svc.createRole({
         name: "HIGH_ROLE",
         description: "test",
@@ -123,7 +122,8 @@ describe("RoleManagementService", () => {
       const existingRole = { id: "existing-id", name: "CUSTOM_ROLE" };
       const svc = new RoleManagementService(
         makeMockRepo({ findByName: ok(existingRole) }),
-        makeMockCache()
+        makeMockCache(),
+        makeMockLogger()
       );
       const r = await svc.createRole({
         name: "CUSTOM_ROLE",
@@ -138,7 +138,7 @@ describe("RoleManagementService", () => {
 
   describe("deleteRole", () => {
     it("returns void ok when the role exists, is not a system role, and has no users", async () => {
-      const svc = new RoleManagementService(makeMockRepo(), makeMockCache());
+      const svc = new RoleManagementService(makeMockRepo(), makeMockCache(), makeMockLogger());
       const r = await svc.deleteRole("role-uuid-001");
       assert.ok(r.ok);
     });
@@ -146,7 +146,8 @@ describe("RoleManagementService", () => {
     it("returns ROLE_NOT_FOUND when the summary is null", async () => {
       const svc = new RoleManagementService(
         makeMockRepo({ findSummaryById: ok(null) }),
-        makeMockCache()
+        makeMockCache(),
+        makeMockLogger()
       );
       const r = await svc.deleteRole("nonexistent-id");
       assert.ok(!r.ok);
@@ -158,7 +159,8 @@ describe("RoleManagementService", () => {
         makeMockRepo({
           findSummaryById: ok({ id: "sys-id", name: "SUPER_ADMIN", isSystem: true, userCount: 0 }),
         }),
-        makeMockCache()
+        makeMockCache(),
+        makeMockLogger()
       );
       const r = await svc.deleteRole("sys-id");
       assert.ok(!r.ok);
@@ -175,11 +177,26 @@ describe("RoleManagementService", () => {
             userCount: 3,
           }),
         }),
-        makeMockCache()
+        makeMockCache(),
+        makeMockLogger()
       );
       const r = await svc.deleteRole("used-id");
       assert.ok(!r.ok);
       assert.strictEqual(r.error, "ROLE_IN_USE");
+    });
+
+    it("returns DATABASE_ERROR and reports the cause through the injected logger when the repository throws", async () => {
+      const cause = new Error("connection reset");
+      const repo = makeMockRepo();
+      vi.mocked(repo.findSummaryById).mockRejectedValue(cause);
+      const logger = makeMockLogger();
+      const svc = new RoleManagementService(repo, makeMockCache(), logger);
+
+      const r = await svc.deleteRole("role-uuid-001");
+
+      assert.ok(!r.ok);
+      assert.strictEqual(r.error, "DATABASE_ERROR");
+      expect(logger.error).toHaveBeenCalledWith({ err: cause }, "Delete role error");
     });
   });
 });

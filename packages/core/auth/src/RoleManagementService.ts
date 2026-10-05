@@ -2,17 +2,15 @@
  * @file RoleManagementService.ts
  * @description CRUD operations for configurable RBAC roles. Framework-free:
  *   depends only on `RoleManagementRepository` + `RbacCacheInvalidatorPort`
- *   + the canonical `Permission` enum.
+ *   + the canonical `Permission` enum + the `LoggerPort` its composition root injects.
  * @layer application
  */
 
 import { ok, err, type Result } from "@shared/types";
-import { createLogger } from "@observability/logger";
+import type { LoggerPort } from "@ports/core";
 import { Permission } from "@core/domain/auth/Permission.js";
 import type { RoleManagementRepository } from "@core/domain/repositories/RoleManagementRepository.js";
 import type { RbacCacheInvalidatorPort } from "@core/domain/repositories/RbacCacheInvalidatorPort.js";
-
-const authLogger = createLogger("role-management");
 
 // ---------------------------------------------------------------------------
 // Types
@@ -94,7 +92,8 @@ function detailToRoleDetail(detail: {
 export class RoleManagementService {
   constructor(
     private readonly roleRepo: RoleManagementRepository,
-    private readonly rbacCache: RbacCacheInvalidatorPort
+    private readonly rbacCache: RbacCacheInvalidatorPort,
+    private readonly logger: LoggerPort
   ) {}
 
   /** Create a new custom role. */
@@ -135,7 +134,7 @@ export class RoleManagementService {
 
       return ok(detailToRoleDetail(created.value));
     } catch (error: unknown) {
-      authLogger.error({ err: error }, "Create role error");
+      this.logger.error({ err: error }, "Create role error");
       return err("DATABASE_ERROR");
     }
   }
@@ -176,7 +175,7 @@ export class RoleManagementService {
 
       return ok(detailToRoleDetail(updated.value));
     } catch (error: unknown) {
-      authLogger.error({ err: error }, "Update role error");
+      this.logger.error({ err: error }, "Update role error");
       return err("DATABASE_ERROR");
     }
   }
@@ -210,7 +209,7 @@ export class RoleManagementService {
 
       return ok(detailToRoleDetail(replaced.value));
     } catch (error: unknown) {
-      authLogger.error({ err: error }, "Set role permissions error");
+      this.logger.error({ err: error }, "Set role permissions error");
       return err("DATABASE_ERROR");
     }
   }
@@ -234,7 +233,7 @@ export class RoleManagementService {
 
       return ok(undefined);
     } catch (error: unknown) {
-      authLogger.error({ err: error }, "Delete role error");
+      this.logger.error({ err: error }, "Delete role error");
       return err("DATABASE_ERROR");
     }
   }

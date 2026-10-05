@@ -4,15 +4,10 @@
  *   and acknowledgeDsar happy/not-found paths.
  * @layer infrastructure
  */
-import { describe, it, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { ok } from "@shared/types";
-
-// @observability/logger is not in this package's deps; mock it so the
-// source module can be imported without the pino transport.
-vi.mock("@observability/logger", () => ({
-  createLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }),
-}));
+import type { LoggerPort } from "@ports/core";
 import { ComplianceService } from "../../src/ComplianceService.js";
 import type {
   GdprSettingsRepository,
@@ -133,10 +128,15 @@ function makeMockAuditEmitter(): AuditEmitterPort {
   return { emit: vi.fn(async () => undefined) } as unknown as AuditEmitterPort;
 }
 
+function makeMockLogger() {
+  return { warn: vi.fn(), error: vi.fn() } satisfies LoggerPort;
+}
+
 function makeService(
   opts: {
     gdprRepo?: GdprSettingsRepository;
     dsarRepo?: DsarRequestRepository;
+    logger?: LoggerPort;
   } = {}
 ) {
   return new ComplianceService(
@@ -147,7 +147,8 @@ function makeService(
     makeMockAuditRetention(),
     makeMockAccountNotifications(),
     makeMockEmail(),
-    makeMockAuditEmitter()
+    makeMockAuditEmitter(),
+    opts.logger ?? makeMockLogger()
   );
 }
 
@@ -175,6 +176,20 @@ describe("ComplianceService", () => {
       const r = await svc.updateGdprSettings({ dataRetentionDays: 5 }, "admin-1");
       assert.ok(!r.ok);
       assert.strictEqual(r.error, "VALIDATION_ERROR");
+    });
+
+    it("returns DATABASE_ERROR and reports the cause through the injected logger when the settings write throws", async () => {
+      const cause = new Error("connection reset");
+      const gdprRepo = makeMockGdprRepo();
+      vi.mocked(gdprRepo.update).mockRejectedValue(cause);
+      const logger = makeMockLogger();
+      const svc = makeService({ gdprRepo, logger });
+
+      const r = await svc.updateGdprSettings({ dataRetentionDays: 90 }, "admin-1");
+
+      assert.ok(!r.ok);
+      assert.strictEqual(r.error, "DATABASE_ERROR");
+      expect(logger.error).toHaveBeenCalledWith({ err: cause }, "Failed to update GDPR settings");
     });
   });
 

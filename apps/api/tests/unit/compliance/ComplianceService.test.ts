@@ -16,6 +16,7 @@ import type { AuditLogRetentionPort } from "@core/domain/repositories/AuditLogRe
 import type { AccountNotificationReader } from "@core/domain/repositories/AccountNotificationReader.js";
 import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
+import { createFakeLoggerPort } from "../helpers/fakeLoggerPort.js";
 
 // ── Mock Factories ─────────────────────────────────────────────────────────
 
@@ -140,7 +141,8 @@ function createService(bag: Bag): ComplianceService {
     bag.auditLog,
     bag.notifications,
     bag.email,
-    bag.audit
+    bag.audit,
+    createFakeLoggerPort()
   );
 }
 
