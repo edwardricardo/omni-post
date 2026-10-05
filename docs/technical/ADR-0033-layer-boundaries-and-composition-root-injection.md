@@ -250,14 +250,33 @@ pin the choice: `apps/api/tests/unit/lib/loggerPortContract.type-test.ts`, compi
 `typecheck`, assigns the factory's logger to the port and rejects a message-first impostor through
 `@ts-expect-error` (which fails as `TS2578` if a message-first port ever accepts it), and
 `loggerPortContract.test.ts` writes through the port and reads back the name, the message, the
-context fields, the `err` serialization and the redaction. Five services take the port by
-constructor. The sixth, `DataRetentionService`, takes none: its one call was an `info` line that
+context fields, the `err` serialization and the redaction. The composition root injects the port
+into five services, not the six that decision 3 names. Measured on 2026-10-05, theirs are the only
+constructors in `packages/core` that take a logger, and each types it `LoggerPort`:
+`GatewayBillingService` (`packages/core/billing/src/GatewayBillingService.ts:86`),
+`RoleManagementService` (`packages/core/auth/src/RoleManagementService.ts:96`),
+`AiRequestService` (`packages/core/ai/src/AiRequestService.ts:54`), `ComplianceService`
+(`packages/core/compliance/src/ComplianceService.ts:94`) and `DlqArchivalService`
+(`packages/core/webhooks/src/DlqArchivalService.ts:18`), injected at the five sites above in that
+order. The sixth, `DataRetentionService`, takes none: its one call was an `info` line that
 repeated the `DATA_RETENTION_CLEANUP` audit entry. The four `info` calls went as follows:
 `GatewayBillingService`'s two, because the invoice row and the subscription status already record
 the dunning outcome and the recovery; `DlqArchivalService`'s, because the method returns its count
 (the daily task discards it, which DEF-18 of [MASTER_PLAN_ES.md](../product/MASTER_PLAN_ES.md)
 §5.11 queues with the port failures the service swallows); and `DataRetentionService`'s, for the
 reason above.
+
+**D-R10 confirmed as shipped.** Edward confirmed D-R10 as shipped on 2026-10-05, in a veto
+session: the port keeps pino's `(context, message)` order, and the composition root passes the
+factory's logger with no adapter class. Two alternatives were declined. A message-first port with a
+`PinoLoggerAdapter` was declined because a raw pino logger satisfies a message-first port through
+its `(msg, ...args)` overload — measured the same day with pino 10.3.1 and TypeScript 6.0.3, the
+assignment compiles — so the type could no longer reject a logger passed without the adapter, and
+the protection would rest on a rule instead of a type. A pass-through adapter kept as a seam for a
+future backend was declined as code with no present use. The opposite order has a measured failure
+in this repository: DEF-16 of [MASTER_PLAN_ES.md](../product/MASTER_PLAN_ES.md) §5.11, the
+scheduler's message-first `SchedulerLogger`, which receives a pino logger and records a scheduled
+task's error without its `taskId` or `err`.
 
 **Decision 6, PR3b, as shipped.**
 
