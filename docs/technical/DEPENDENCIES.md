@@ -351,7 +351,7 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | lint-staged        | 17.6.0  | Pre-commit staged file linting                       |
 | knip               | 6.38.0  | Dead code detection                                  |
 | dependency-cruiser | 18.4.0  | Architecture rules and circular dependency detection |
-| jscpd              | 5.3.2   | Copy-paste detection                                 |
+| jscpd              | 5.3.3   | Copy-paste detection                                 |
 
 ### Standards
 

@@ -166,6 +166,17 @@
     },
     {
       "kind": "date",
+      "id": "hold-jscpd-5.4.0",
+      "title": "Pre-registered hold due: jscpd 5.4.0 is mature, move the root pin from 5.3.3",
+      "due": "2026-10-07",
+      "refs": [
+        "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `jscpd`: 5.4.0 matures 2026-10-07T18:11Z",
+        "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `jscpd` row"
+      ],
+      "reviews": {}
+    },
+    {
+      "kind": "date",
       "id": "hold-vite-8.3.2",
       "title": "Pre-registered hold due: vite 8.3.2 is mature, move the catalog pin from 8.3.1",
       "due": "2026-10-08",
