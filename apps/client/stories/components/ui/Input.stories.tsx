@@ -4,7 +4,7 @@
  *              and icon-prefixed variants.
  * @layer infrastructure
  */
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import type { ComponentProps } from "react";
 import { action } from "storybook/actions";
 import { Input } from "@packages/ui";
@@ -95,6 +95,7 @@ export const Disabled: Story = {
   args: {
     disabled: true,
     value: "Disabled input",
+    "aria-label": "Disabled input",
   },
 };
 
@@ -168,12 +169,14 @@ export const NumberInput: Story = {
 export const DateInput: Story = {
   args: {
     type: "date",
+    "aria-label": "Publish date",
   },
 };
 
 export const TimeInput: Story = {
   args: {
     type: "time",
+    "aria-label": "Publish time",
   },
 };
 
@@ -181,6 +184,7 @@ export const FileInput: Story = {
   args: {
     type: "file",
     accept: "image/*,.pdf",
+    "aria-label": "Attachment",
   },
 };
 
@@ -299,15 +303,15 @@ export const ValidationStates: Story = {
   render: () => (
     <div className="space-y-6 max-w-md">
       <div className="space-y-2">
-        <Label htmlFor="valid-input" className="text-green-600">
+        <Label htmlFor="valid-input" className="text-green-700">
           Valid Input
         </Label>
         <Input
           id="valid-input"
-          value="valid@example.com"
+          defaultValue="valid@example.com"
           className="border-green-500 focus-visible:ring-green-500"
         />
-        <p className="text-xs text-green-600">Email format is correct</p>
+        <p className="text-xs text-green-700">Email format is correct</p>
       </div>
 
       <div className="space-y-2">
@@ -316,22 +320,22 @@ export const ValidationStates: Story = {
         </Label>
         <Input
           id="invalid-input"
-          value="invalid-email"
+          defaultValue="invalid-email"
           className="border-red-500 focus-visible:ring-red-500"
         />
         <p className="text-xs text-red-600">Please enter a valid email address</p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="warning-input" className="text-yellow-600">
+        <Label htmlFor="warning-input" className="text-yellow-700">
           Warning Input
         </Label>
         <Input
           id="warning-input"
-          value="user@tempmail.com"
+          defaultValue="user@tempmail.com"
           className="border-yellow-500 focus-visible:ring-yellow-500"
         />
-        <p className="text-xs text-yellow-600">
+        <p className="text-xs text-yellow-700">
           Temporary email addresses may not receive notifications
         </p>
       </div>

@@ -4,7 +4,7 @@
  *              layout rhythm across the client app.
  * @layer infrastructure
  */
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { useId } from "react";
 
 /**

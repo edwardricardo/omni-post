@@ -4,7 +4,7 @@
  *              used for theming and light/dark adaptation.
  * @layer infrastructure
  */
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import type { ComponentType } from "react";
 
 /**
@@ -120,19 +120,22 @@ const ColorPalette = () => {
       colors: [
         { name: "Border", value: "hsl(var(--border))", textValue: "hsl(var(--foreground))" },
         { name: "Input", value: "hsl(var(--input))", textValue: "hsl(var(--foreground))" },
-        { name: "Ring", value: "hsl(var(--ring))", textValue: "hsl(var(--background))" },
+        // The ring is an outline, never a background behind text, so its swatch label takes the
+        // one color that reaches 4.5:1 on the ring of both themes.
+        { name: "Ring", value: "hsl(var(--ring))", textValue: "#ffffff" },
       ],
     },
     {
       title: "Social Media Brand Colors",
       description: "Platform-specific brand colors for social media integrations",
+      // The label color is the one of black and white that reaches 4.5:1 on the brand color.
       colors: [
-        { name: "Twitter Blue", value: "#1da1f2", textValue: "#ffffff" },
-        { name: "Instagram Pink", value: "#e4405f", textValue: "#ffffff" },
-        { name: "Facebook Blue", value: "#1877f2", textValue: "#ffffff" },
+        { name: "Twitter Blue", value: "#1da1f2", textValue: "#000000" },
+        { name: "Instagram Pink", value: "#e4405f", textValue: "#000000" },
+        { name: "Facebook Blue", value: "#1877f2", textValue: "#000000" },
         { name: "LinkedIn Blue", value: "#0a66c2", textValue: "#ffffff" },
         { name: "TikTok Black", value: "#000000", textValue: "#ffffff" },
-        { name: "YouTube Red", value: "#ff0000", textValue: "#ffffff" },
+        { name: "YouTube Red", value: "#ff0000", textValue: "#000000" },
       ],
     },
   ];
@@ -179,7 +182,7 @@ const ColorPalette = () => {
 }
 
 // Social media brand colors
-<div className="bg-[#1da1f2] text-white">Twitter Blue</div>`}</code>
+<div className="bg-[#1da1f2] text-black">Twitter Blue</div>`}</code>
         </pre>
       </div>
     </div>

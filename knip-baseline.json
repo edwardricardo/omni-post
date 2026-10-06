@@ -1,6 +1,6 @@
 {
   "_README": "Tracked dead-code debt ledger. The CI gate (scripts/knip-ratchet.mjs) FAILS on any knip finding NOT listed here, so new dead code is prevented. These pre-existing entries must be burned down — never grow this list to silence a new finding. Regenerate after genuine removals: node scripts/knip-ratchet.mjs --write. See docs/development/knip-baseline.md.",
-  "count": 309,
+  "count": 308,
   "keys": [
     "binaries::package.json::k6",
     "dependencies::apps/workers/package.json::@adapters/external-apis",
@@ -46,7 +46,6 @@
     "exports::apps/api/src/providers/providerCapabilityManager.ts::capabilityManager",
     "exports::apps/api/src/services/audit.ts::logServiceError",
     "exports::apps/api/src/webhooks/webhookManager.ts::WebhookManager",
-    "exports::apps/client/.storybook/theme.ts::socialBrandColors",
     "exports::apps/client/app/[locale]/dashboard/posts/components/PostCard.tsx::STATUS_COLORS",
     "exports::apps/client/app/[locale]/dashboard/posts/components/PostCard.tsx::STATUS_ICONS",
     "exports::apps/client/app/[locale]/dashboard/posts/components/index.ts::PostCard",

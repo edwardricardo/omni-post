@@ -27,11 +27,16 @@
 #
 # No `set -e`: a failing step must not stop the run, because the verdict needs
 # every gate's result, not only the first failure.
+#
+# The battery installs offline and never downloads a browser. The stories step
+# runs in Playwright's Chromium, a one-time prerequisite per machine:
+#   pnpm --filter @apps/client exec playwright install chromium
+# A missing browser fails that step loudly; it is never fetched mid-run.
 set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=21
+PLANNED_STEPS=22
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -163,6 +168,16 @@ step duplicates pnpm check:duplicates
 # rules print `warn` lines, which this battery reads as RED.
 step architecture pnpm check:architecture
 step metrics node scripts/testing/metrics.mjs --all --offline
+# Every client story as a vitest browser test in headless Chromium: it renders,
+# its play function runs, and axe at `error` and the console contract can fail it.
+# The preflight turns a missing browser into a one-line verdict instead of a
+# Playwright stack trace deep in the run; nothing is downloaded either way.
+# Quoting, outside in: the step runs `bash -c "<double-quoted>"`, which expands
+# STORIES_PREFLIGHT once; node then receives the single-quoted JavaScript whole.
+# The probe's own error (an ENOENT naming the missing binary) stays on stderr,
+# followed by the remedy, so an unrelated failure is never mislabelled.
+STORIES_PREFLIGHT='require("fs").accessSync(require("playwright").chromium.executablePath())'
+step stories bash -c "pnpm --filter @apps/client exec node -e '$STORIES_PREFLIGHT' || { echo 'stories: the Playwright Chromium probe failed (see the error above); if the browser is missing, run: pnpm --filter @apps/client exec playwright install chromium' >&2; exit 1; }; exec pnpm --filter @apps/client test:stories"
 step scripts pnpm --filter @apps/api exec vitest run tests/unit/scripts/
 step api-common pnpm --filter @packages/api-common test
 step workers pnpm --filter @apps/workers test

@@ -4,7 +4,7 @@
  *              icon integrations.
  * @layer infrastructure
  */
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import type { ComponentProps } from "react";
 import { action } from "storybook/actions";
 import { Button } from "@packages/ui";
@@ -123,6 +123,7 @@ export const Large: Story = {
 export const IconButton: Story = {
   args: {
     size: "icon",
+    "aria-label": "Settings",
     children: <Settings className="h-4 w-4" />,
   },
 };
@@ -167,6 +168,7 @@ export const IconOnly: Story = {
   args: {
     size: "icon",
     variant: "outline",
+    "aria-label": "Like",
     children: <Heart className="h-4 w-4" />,
   },
 };
@@ -191,7 +193,7 @@ export const SocialMediaActions: Story = {
         <Trash2 className="mr-2 h-4 w-4" />
         Delete
       </Button>
-      <Button variant="ghost" size="icon">
+      <Button variant="ghost" size="icon" aria-label="Settings">
         <Settings className="h-4 w-4" />
       </Button>
     </div>
@@ -271,7 +273,7 @@ export const ResponsiveSizes: Story = {
         <Button size="sm">Small</Button>
         <Button>Default</Button>
         <Button size="lg">Large</Button>
-        <Button size="icon">
+        <Button size="icon" aria-label="Add">
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -366,7 +368,7 @@ export const AllVariants: Story = {
           <Button size="sm">Small</Button>
           <Button size="default">Default</Button>
           <Button size="lg">Large</Button>
-          <Button size="icon">
+          <Button size="icon" aria-label="Settings">
             <Settings className="h-4 w-4" />
           </Button>
         </div>

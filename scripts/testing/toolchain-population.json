@@ -28,7 +28,13 @@
       "name": "@storybook/addon-docs"
     },
     {
+      "name": "@storybook/addon-vitest"
+    },
+    {
       "name": "@storybook/nextjs"
+    },
+    {
+      "name": "@storybook/nextjs-vite"
     },
     {
       "name": "@testing-library/dom"
@@ -53,6 +59,12 @@
     },
     {
       "name": "@vitejs/plugin-react"
+    },
+    {
+      "name": "@vitest/browser"
+    },
+    {
+      "name": "@vitest/browser-playwright"
     },
     {
       "name": "@vitest/coverage-v8"
@@ -103,8 +115,7 @@
       "name": "msw"
     },
     {
-      "name": "playwright",
-      "absence": "transitive"
+      "name": "playwright"
     },
     {
       "name": "playwright-core",
