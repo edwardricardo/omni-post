@@ -54,7 +54,7 @@ the organizing index rather than a header that the technical sections abandon.
 
 ### Provenance sources
 
-- **product-spine** — `docs/product/IMPLEMENTATION_PLAN_ES.md` + `FEATURE_TRACE_MATRIX_ES.md` + `MULTILINGUAL_SCOPE_ES.md` + `INVESTOR_ES.md`.
+- **product-spine** — `docs/archive/IMPLEMENTATION_PLAN_ES.md` + `FEATURE_TRACE_MATRIX_ES.md` + `MULTILINGUAL_SCOPE_ES.md` + `INVESTOR_ES.md`.
 - **WF1 / WF2** — the paused "Full Repo Assessment 2026-06-12" (`/root/.claude/projects/-root-omni-post/assessment-work/`). WF1 docs+engram audit is COMPLETE; WF2 code review is PARTIAL (9/20 finders) and UNVERIFIED.
 - **F5 / FN-\*** — the f5-audit (`_AUDIT_FINDINGS.md` + `AUDIT_REVIEW_TRACKING.md`).
 - **SMELL-\*** — `docs/reports/roadmap-detected-smells-backlog.md`.

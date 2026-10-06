@@ -116,7 +116,7 @@ Before invoking ExitPlanMode, run "runtime-validity pre-flight check" on critica
 
 ## Rule: Feature trace matrix is source of truth for roadmap; canon index may be stale
 
-The **main source of truth** is the **feature trace matrix** (`docs/product/FEATURE_TRACE_MATRIX_ES.md` + `IMPLEMENTATION_PLAN_ES.md`). The **canon index** is a hint; its information **may be stale** and MUST be confirmed via web research before treating it as current.
+The **main source of truth** is the **feature trace matrix** (`docs/product/FEATURE_TRACE_MATRIX_ES.md` + `docs/product/MASTER_PLAN_ES.md`; `IMPLEMENTATION_PLAN_ES.md` was archived under `docs/archive/` on 2026-10-06). The **canon index** is a hint; its information **may be stale** and MUST be confirmed via web research before treating it as current.
 
 **Why:** APIs, pricing, best-practices change (e.g., X moved to paid $0.005/read Feb 2026; Threads added keyword search 2025-2026). Static canon index leads to outdated decisions. Index guides; web confirms (2026-05-20, F0-CLI-1).
 
