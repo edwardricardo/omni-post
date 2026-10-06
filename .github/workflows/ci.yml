@@ -783,3 +783,48 @@ jobs:
 
       - name: Run Client unit tests (vitest)
         run: pnpm --filter @apps/client exec vitest run
+
+  # ── Tier 0: Storybook stories as vitest browser tests (headless Chromium) ──
+  # Every client story renders in a real browser through @storybook/addon-vitest:
+  # its play function runs, axe fails it at `error` over WCAG 2.1 A/AA, and a
+  # console error or warning fails it. A job of its own because Frontend Tests
+  # runs the jsdom suite, which must never start a browser.
+  stories:
+    name: Storybook Stories
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Read the Playwright version
+        id: playwright
+        # The browser revision is a property of the driver version, so it keys
+        # the cache. The lockfile can hold more than one playwright line; this
+        # asks the client's own driver, which the frozen install resolved from
+        # pnpm-lock.yaml, and fails the step if it prints nothing.
+        run: |
+          version=$(pnpm --filter @apps/client exec playwright --version | awk '{print $2}')
+          if [ -z "$version" ]; then
+            echo "::error title=Playwright version::the client's playwright driver reported no version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium and its system libraries
+        # A cache hit skips the browser download; the system libraries are not
+        # cached, so --with-deps installs them on every run.
+        run: pnpm --filter @apps/client exec playwright install --with-deps chromium
+
+      - name: Run the stories (vitest browser mode)
+        run: pnpm --filter @apps/client test:stories

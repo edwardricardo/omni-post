@@ -27,11 +27,16 @@
 #
 # No `set -e`: a failing step must not stop the run, because the verdict needs
 # every gate's result, not only the first failure.
+#
+# The battery installs offline and never downloads a browser. The stories step
+# runs in Playwright's Chromium, a one-time prerequisite per machine:
+#   pnpm --filter @apps/client exec playwright install chromium
+# A missing browser fails that step loudly; it is never fetched mid-run.
 set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=21
+PLANNED_STEPS=22
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -163,6 +168,9 @@ step duplicates pnpm check:duplicates
 # rules print `warn` lines, which this battery reads as RED.
 step architecture pnpm check:architecture
 step metrics node scripts/testing/metrics.mjs --all --offline
+# Every client story as a vitest browser test in headless Chromium: it renders,
+# its play function runs, and axe at `error` and the console contract can fail it.
+step stories pnpm --filter @apps/client test:stories
 step scripts pnpm --filter @apps/api exec vitest run tests/unit/scripts/
 step api-common pnpm --filter @packages/api-common test
 step workers pnpm --filter @apps/workers test
