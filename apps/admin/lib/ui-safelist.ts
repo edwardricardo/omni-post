@@ -1,10 +1,15 @@
 /**
  * @file ui-safelist.ts
- * @description Tailwind class safelist for @packages/ui components.
+ * @description Tailwind class safelist for the Dialog, AlertDialog, Toast and Toaster of
+ *              @packages/ui.
  *
- * The Tailwind v4 @source scanner cannot resolve classes from pnpm workspace
- * symlinked packages. This file ensures all classes used by Dialog, AlertDialog,
- * Toast, and Toaster from @packages/ui are detected and generated in the CSS.
+ * The classes it lists were missing from the admin stylesheet because the packages/ui
+ * @source path in app/globals.css resolved to apps/packages/ui/src, not because the
+ * Tailwind v4 scanner cannot follow pnpm workspace symlinks. That path is fixed and the
+ * scanner reads packages/ui/src directly, so this list is redundant. Remove-when: a
+ * dead-code change deletes this file, its @source line and the override rules at the end
+ * of app/globals.css, after a visual check of Dialog, AlertDialog and Toast, because those
+ * rules also change their animation.
  *
  * This file is never imported at runtime — it exists only for the Tailwind scanner
  * (referenced via @source in globals.css).
