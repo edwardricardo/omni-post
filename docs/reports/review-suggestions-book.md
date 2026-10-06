@@ -108,6 +108,14 @@
 | SB-087 | same                                                                                  | R2-003                                                           | `packages/core/domain/src/entities/Channel.ts:117` (the class-level invariant) against `:175-185` (`validateCredentials`)                   | docstring wording            | deferred: add "top-level" to the class-level invariant, or link it to `Channel.validateCredentials`                                                             |
 | SB-088 | same                                                                                  | R3-001                                                           | `apps/api/src/channels/channelRoutes.ts:252-256` (the POST gate) and the body schemas at `:41` and `:48`                                    | comment                      | deferred: the comment of SB-086; validating whenever `credentials` is sent would turn POST with `{}`, the OAuth hand-off, into a 400                            |
 | SB-089 | same                                                                                  | R3-002                                                           | `apps/api/tests/unit/channelRoutes.test.ts:289-296` (the POST case that stores `{}` when no credentials are sent)                           | test precision               | deferred: assert the response's `status` is PENDING in that case; the first POST case pins it on the same payload (`:268`)                                      |
+| SB-090 | DC-4 group (a) (`workstream/dc-4-dead-security-modules`, 4d5780f8)                    | R2-stale-test-comment                                            | `apps/api/tests/unit/security/sanitizerOutputs.test.ts:123` (the comment above the entities row; the review cites `:69`)                    | comment                      | deferred: say the row holds entity-escaped markup and no live tag, when the suite is next edited                                                                |
+| SB-091 | same                                                                                  | R2-docs-smell47-contradiction                                    | `docs/reports/UNUSED_CODE_INVENTORY.md:496` (the `credentialManager.ts` row) and `:303` (its "The fix"; the review cites `:303`)            | cross-reference              | deferred: true until DC-4 group (b) moves SMELL-47 from 14 to 10 sites; that change rewrites both lines                                                         |
+| SB-092 | same                                                                                  | R2-master-plan-group-marker                                      | `docs/product/MASTER_PLAN_ES.md:826` (the DC-4 group (a) note; `:831` after the docs touch)                                                 | prose structure              | implemented (docs touch, `workstream/docs-touch-oct06b`)                                                                                                        |
+| SB-093 | slice 0.22 PR D (`workstream/0-22-d-admin-storybook`, a56a026b)                       | R3-001                                                           | `apps/admin/tsconfig.json:30` (the `exclude` list after `"stories"` left it)                                                                | failure mode                 | closed: `apps/admin` holds no story file (0, measured twice), and the entry excluded only a top-level `stories/` directory                                      |
+| SB-094 | slice 0.22 PR E (`workstream/0-22-e-ui-stories`, 73f3b139, amended to 4a5b50fe)       | R3-button-no-assertions                                          | `packages/ui/src/components/button.stories.tsx` (19 stories moved from `apps/client`, none with a `play`)                                   | test coverage                | deferred: play assertions for Button, with the next slice of 0.22.3                                                                                             |
+| SB-095 | same                                                                                  | R3-input-no-assertions                                           | `packages/ui/src/components/input.stories.tsx` (17 stories moved from `apps/client`, none with a `play`)                                    | test coverage                | deferred: play assertions for Input, with the next slice of 0.22.3                                                                                              |
+| SB-096 | slice 0.22 PR E (`workstream/0-22-e-ui-stories`, 4a5b50fe)                            | R3-002                                                           | `packages/ui/src/components/avatar.stories.tsx:26` (`onImageStatusChange`, a module-scope `fn()`; the review cites `:24`)                   | test determinism             | deferred: a mock per story, housekeeping for the next slice of 0.22.3; the assertion uses `toHaveBeenLastCalledWith`                                            |
+| SB-097 | same                                                                                  | R3-003                                                           | `scripts/testing/story-coverage-baseline.json:2` (the `packages/ui/src/components` count, 40 → 34)                                          | schema documentation         | deferred: the JSON takes no comment; the gate states the count at `story-per-component-gate.mjs:39` and in its messages                                         |
 
 ## Entries — code and prose
 
@@ -608,6 +616,37 @@
 - **Why deferred:** the premise does not hold, as SB-086 shows: both body schemas declare `credentials` as `z.record(z.string(), z.unknown()).optional()`, so a string, an array or `null` is a 400 at parse and never reaches the gate. Validating whenever `credentials` is sent would also reject `{}`, which POST accepts for the OAuth hand-off (an omitted or `{}` value still registers the PENDING channel), so the finding's remedy is a behaviour change, not a prose one. The update branch is stricter on purpose: storing credentials there replaces the stored ones whole.
 - **To implement:** the one-line comment of SB-086; the gate itself stays.
 
+### SB-091 — the inventory records `credentialManager` as deleted while SMELL-47 still counts its site, with no pointer to where that count moves
+
+- **Source:** review `review-7e3f066c9c820e21` of DC-4 group (a) (`workstream/dc-4-dead-security-modules`, integrating commit `4d5780f8`; log `review-dcr7.log`), readability lens, finding `R2-docs-smell47-contradiction`.
+- **Location:** `docs/reports/UNUSED_CODE_INVENTORY.md:496`, the `credentialManager.ts` row of §4.1, which ends "SMELL-47 still counts its site", and `:303`, whose "The fix" paragraph still asks to "remove the 4 sites from SMELL-47's list" (the review cites `:303`). `SMELL-47` (`docs/reports/roadmap-detected-smells-backlog.md:79`) still lists `security/credentialManager (1)` among its 14 sites.
+- **Suggestion:** a short cross-reference from the inventory to where the SMELL-47 correction is tracked, so a reader does not take the deletion as fully done.
+- **Why deferred:** the statement is true and the correction has an owner: the DC-4 row of `docs/product/MASTER_PLAN_ES.md` §5.13 names "SMELL-47 de 14 a 10 sitios" among its corrections, the unit's PR body leaves that count to group (b), which deletes `auditLogger`, the other module SMELL-47 counts, and since the docs touch of 2026-10-06 the group (a) note under DC-4 says SMELL-47 still counts the `credentialManager` site (SB-092). No value changes.
+- **To implement:** in DC-4 group (b), move SMELL-47 to 10 sites in 7 files and, in the same change, end the `:496` row with the new count and the PR number, and mark the SMELL-47 step of `:303` done.
+
+### SB-092 — the DC-4 parent row lists both groups' files, and the group (a) note does not say which remain
+
+- **Source:** review `review-7e3f066c9c820e21` of DC-4 group (a) (`workstream/dc-4-dead-security-modules`, integrating commit `4d5780f8`; log `review-dcr7.log`), readability lens, finding `R2-master-plan-group-marker`.
+- **Location:** `docs/product/MASTER_PLAN_ES.md:826` at `4d5780f8` (`:831` after the docs touch), the "Grupo (a)" note under DC-4, which ended "El grupo (b) sigue pendiente." while the parent row above it lists the six modules and the test files of both groups.
+- **Suggestion:** name group (b)'s contents (`auditLogger`, `rateLimitingDashboard`, `correlationMiddleware` and their tests) in the same note, or mark them in the parent list, so a reader checking DC-4 off does not diff the two lists by hand.
+- **Why deferred:** prose structure; no value changes.
+- **Implemented:** the docs touch of 2026-10-06 (`workstream/docs-touch-oct06b`), which was writing the PR number (#436) into that same note: it now names group (b)'s four modules (`auditLogger.ts`, `rateLimitingDashboard.ts`, `correlationMiddleware.ts` and `correlationTracking.ts`, the last one in `packages/observability/opentelemetry`, which the finding does not list), their three test files, and SMELL-47's open count.
+
+### SB-093 — dropping `"stories"` from the admin `exclude` list is not shown to be safe
+
+- **Source:** review `review-590751c289f36a76` of slice 0.22 PR D (`workstream/0-22-d-admin-storybook`, the admin configuration commit `a56a026b`; log `review-dd1.log`), reliability lens, finding `R3-001`.
+- **Location:** `apps/admin/tsconfig.json:30`, the `exclude` list (`["node_modules", "tests", "playwright.config.ts", "vitest.config.ts"]`), from which PR D removed `"stories"`.
+- **Suggestion:** confirm that no story file remains under `apps/admin`, or re-add the entry as a safety net, since a residual `*.stories.ts(x)` would now be typechecked by `tsc --noEmit`.
+- **Why closed:** the confirmation was made and holds. PR D measured `fd -e stories.tsx -e stories.ts . apps/admin` at 0 before acknowledging the review, and the docs touch of 2026-10-06 measured 0 again on `main` `73a03dea`. The entry excluded `apps/admin/stories`, a top-level directory that does not exist; a story written by the convention of ADR-0035 sits beside its component, where that entry never reached.
+
+### SB-097 — the story baseline does not say what its counts are
+
+- **Source:** review `review-20036995f120bbea` of slice 0.22 PR E (`workstream/0-22-e-ui-stories`, the stories commit `4a5b50fe`, second pass; log `review-e2.log`), reliability lens, finding `R3-003`.
+- **Location:** `scripts/testing/story-coverage-baseline.json:2`, `"packages/ui/src/components": 34` on PR E's branch (40 on `main`), beside the `apps/client/components` (160) and `apps/admin/components` (54) counts.
+- **Suggestion:** a short key description, or a link to the consuming check, so a reviewer can tell from the diff alone that the number is a debt counter and that 40 → 34 is the right direction.
+- **Why deferred:** the file is strict JSON, which takes no comment, and the gate refuses any key that is not one of its roots (`scripts/testing/story-per-component-gate.mjs:100`), so a description key would fail it. The meaning is stated where the number is checked: the JSDoc of `BASELINE` (`:39`, "The committed count, per root, of component files without a sibling story") and every message the gate prints ("34 components without a sibling story, baseline 33"); CODING_STANDARDS §Mandatory Requirements for Every Sprint describes the baseline too.
+- **To implement:** if a reader still trips on it, the gate's usage text names the file and what its counts are; the JSON itself stays as it is.
+
 ## Entries — tests
 
 ### SB-T01 — a bare repository's `--git-common-dir` is not named `.git`
@@ -845,6 +884,38 @@
 - **Why deferred:** test precision; the first POST case, "should create a channel successfully" (`:254-270`), posts the same payload shape (no credentials) and asserts `body.data.status` is `PENDING` at `:268`, so the status is already pinned for the branch, and the case at issue pins what it is named for.
 - **To implement:** one more assertion in that case: the response's `data.status` is `PENDING`.
 
+### SB-090 — the sanitizer suite's comment says its entities row carries no markup at all
+
+- **Source:** review `review-7e3f066c9c820e21` of DC-4 group (a) (`workstream/dc-4-dead-security-modules`, integrating commit `4d5780f8`; log `review-dcr7.log`), readability lens, finding `R2-stale-test-comment`.
+- **Location:** `apps/api/tests/unit/security/sanitizerOutputs.test.ts:123`, "The next row carries no markup at all: it exercises the parser's entity serialization alone.", above the row `escaped entities with no markup` (`:124-129`; the review cites `:69`).
+- **Suggestion:** say that the input holds entity-escaped markup and no live tag, for example "exercises the parser's entity serialization on an input that contains no live tags", since the string literally contains markup-shaped sequences and the reduced suite now characterizes one caller, the template engine.
+- **Why deferred:** comment wording in a test; no assertion or value changes. The row's name and its input already show that the markup is escaped.
+- **To implement:** reword the comment as the finding proposes, the next time the suite is edited.
+
+### SB-094 — the moved Button stories carry no `play` assertion
+
+- **Source:** first pass of the review of slice 0.22 PR E's stories commit (`workstream/0-22-e-ui-stories`, `73f3b139`, amended to `4a5b50fe`), reliability lens, finding `R3-button-no-assertions`. The second pass overwrote that pass's log (`review-e2.log`), so the finding survives as its id and its disposition in the PR body; this entry describes it from the tree.
+- **Location:** `packages/ui/src/components/button.stories.tsx` at PR E's tip `440ce053` (396 lines, 19 stories), moved from `apps/client/stories/components/ui/Button.stories.tsx` with only its `@file` line and its imports changed; no story has a `play` function or an `expect`.
+- **Suggestion:** play assertions on the Button stories, so the runner proves their behaviour beyond rendering, the console contract and axe.
+- **Why deferred:** PR E moved the existing stories without changing their content, and play assertions for the moved Button and Input stories belong to the next slice of decision 0.22.3, which also writes stories for the 34 components that still have none. Each moved story already runs under the pass criterion of CODING_STANDARDS §Test Framework Rules: it renders, writes nothing to the console and passes axe.
+- **To implement:** a `play` per meaningful state (default, disabled, loading) asserting what the user sees, in that slice.
+
+### SB-095 — the moved Input stories carry no `play` assertion
+
+- **Source:** first pass of the review of slice 0.22 PR E's stories commit (`workstream/0-22-e-ui-stories`, `73f3b139`, amended to `4a5b50fe`), reliability lens, finding `R3-input-no-assertions`; its text survives only as its id and disposition, as for SB-094.
+- **Location:** `packages/ui/src/components/input.stories.tsx` at `440ce053` (446 lines, 17 stories), moved from `apps/client/stories/components/ui/Input.stories.tsx` with only its `@file` line and its imports changed; no story has a `play` function or an `expect`.
+- **Suggestion:** play assertions on the Input stories, as for SB-094.
+- **Why deferred:** the reason of SB-094: the moved stories keep their content, and their play assertions belong to the next slice of 0.22.3.
+- **To implement:** a `play` per meaningful state (default, disabled, error) asserting what the user sees and types, in that slice.
+
+### SB-096 — the avatar stories share one module-scope spy across runs
+
+- **Source:** review `review-20036995f120bbea` of slice 0.22 PR E (`workstream/0-22-e-ui-stories`, the stories commit `4a5b50fe`, second pass; log `review-e2.log`), reliability lens, finding `R3-002`.
+- **Location:** `packages/ui/src/components/avatar.stories.tsx:26` at `440ce053`, `const onImageStatusChange = fn();` (the review cites `:24`), which the `ImageFailed` story asserts at `:71`.
+- **Suggestion:** create the mock inside the story, or reset it in a loader or `beforeEach`, because nothing clears its call history between runs and a future assertion that counts calls would depend on run order.
+- **Why deferred:** test determinism for an assertion that does not exist yet: the one at `:71` uses `toHaveBeenLastCalledWith("error")`, which reads only the last call whatever ran before. A mock per story is housekeeping for the next slice of 0.22.3, which writes the remaining stories.
+- **To implement:** create the `fn()` per story (in its `args`) or reset it in a `beforeEach`, in that slice.
+
 ## Implemented
 
 | Id                                                                     | Implemented in                                       | How                                                                                                            |
@@ -881,6 +952,7 @@
 | SB-038                                                                 | book sweep part 2                                    | the colour remark is cut; the sentence keeps only that a deletion- or merge-only pull request reports 0        |
 | SB-044                                                                 | book sweep part 2                                    | `PLANTED_KEY_NAME` is joined at run time and interpolated by one f-string; the three AWS cases still block     |
 | SB-045                                                                 | book sweep part 2                                    | one `assertEqual` pins the whole argv, the flags before the path; the `cwd` assertion stays beside it          |
+| SB-092                                                                 | docs touch (`workstream/docs-touch-oct06b`)          | the group (a) note under DC-4 names group (b)'s modules and tests, and SMELL-47's open count                   |
 
 ## Closed with a reason
 
@@ -894,3 +966,4 @@
 | SB-048 | the battery runs `pnpm install --frozen-lockfile` and `pnpm audit`, CI's dependency job runs `pnpm dedupe --check`, and D39 (b) carries the parsed lockfile delta                                      |
 | SB-049 | the inventory is an audit record: a resolution is appended in its row, as D35 did (7f4f6e0b), so a finding and its outcome stay side by side                                                           |
 | SB-058 | `--output-type err` prints every severity and exits non-zero on errors only: a planted orphan printed a `warn` line and a `(0 errors, 1 warnings)` summary at exit 0, both read as RED by the verdict  |
+| SB-093 | `apps/admin` holds no story file (0 in PR D and again on 2026-10-06), and the dropped entry excluded only a top-level `apps/admin/stories/` directory, never a colocated story                         |
