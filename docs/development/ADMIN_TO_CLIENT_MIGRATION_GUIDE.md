@@ -17,9 +17,9 @@ During the admin portal overhaul (commits `91aa3b0` through `40f797d`), multiple
 | Prisma Decimal wrapping          | All `Number()` wrapped                                     | Raw `.toFixed()` on Decimal strings                          | **P0**                |
 | AccessDenied component           | Full component with i18n                                   | Missing                                                      | **P0**                |
 | `tw-animate-css`                 | Imported in globals.css                                    | Imported in globals.css                                      | OK                    |
-| `@source` directives             | Present                                                    | Present                                                      | OK                    |
+| `@source` directives             | Present                                                    | Present                                                      | Fixed (§3.3)          |
 | Dialog animation override CSS    | `[role="dialog"][data-state]` neutralizes slide            | Missing                                                      | **P1**                |
-| `ui-safelist.ts`                 | Present, referenced by `@source`                           | Missing                                                      | **P1**                |
+| `ui-safelist.ts`                 | Present, referenced by `@source`                           | Missing                                                      | Not needed (§3.4)     |
 | Toaster positioning              | `AdminToaster` with inline `style`                         | Direct `@packages/ui` Toaster                                | **P1 (verify)**       |
 | Token refresh in proxy           | Auto-refresh on 401 TOKEN_EXPIRED + retry                  | Clears cookies on 401 (no retry)                             | **P1**                |
 | CSRF cookie                      | 3-cookie system (session, refresh, csrf)                   | 2-cookie system (session, refresh)                           | **P1 (evaluate)**     |
@@ -161,7 +161,7 @@ Client already has `@import 'tw-animate-css'` at line 2 of `apps/client/app/glob
 
 **Problem:** Radix UI v1.4.3 removed `data-radix-*` attributes. Without this CSS override, Dialog/AlertDialog components have an unwanted slide animation on open/close.
 
-**Admin fix:** `apps/admin/app/globals.css` lines 181-187
+**Admin fix:** the `@packages/ui component overrides` block at the end of `apps/admin/app/globals.css` (lines 178-185 before the `@source` fix of §3.3, 189-196 after it)
 
 ```css
 /* Dialog / AlertDialog -- fade+zoom only, neutralize directional slide */
@@ -174,22 +174,19 @@ Client already has `@import 'tw-animate-css'` at line 2 of `apps/client/app/glob
 }
 ```
 
-**Action:** Add this CSS block to `apps/client/app/globals.css` after the base layer rules.
+**Action:** Add this CSS block to `apps/client/app/globals.css` after the base layer rules, once DC-14 of `docs/product/MASTER_PLAN_ES.md` §5.13 has decided to keep it: that unit decides, after a visual check of Dialog, AlertDialog and Toast, whether the rule stays in admin or goes with the safelist of §3.4.
 
-### 3.3 @source Directives -- OK, no action needed
+### 3.3 @source Directives -- FIXED, no action needed
 
-Client already has `@source '../../packages/ui/src/**/*.{ts,tsx}'` at line 6 of `apps/client/app/globals.css`.
+Both portals' line 6 read `@source '../../packages/ui/src/**/*.{ts,tsx}'` until 2026-10-06. Tailwind v4 resolves an `@source` path against the stylesheet, so from `apps/<app>/app/` it pointed at `apps/packages/ui/src`, a directory that does not exist, and neither portal scanned `packages/ui`: the classes only its components use were missing from both builds. The fix on `workstream/tailwind-ui-source-fix` (DEF-49 of `docs/product/MASTER_PLAN_ES.md` §5.11) makes it `'../../../packages/ui/src/**/*.{ts,tsx}'` in both portals, and `tests/unit/styles/tailwindSources.test.ts` in each app fails on an `@source` directive that resolves to no existing path.
 
-### 3.4 ui-safelist.ts -- MISSING
+### 3.4 ui-safelist.ts -- NOT NEEDED
 
-**Problem:** The Tailwind v4 `@source` scanner cannot resolve all classes from pnpm workspace symlinked packages. Dialog overlay, Toast viewport, and AlertDialog classes may be missing from the generated CSS, causing invisible components.
+**Problem, as first diagnosed:** the Tailwind v4 `@source` scanner was believed unable to resolve classes from pnpm workspace symlinked packages, so Dialog overlay, Toast viewport and AlertDialog classes went missing from the generated CSS. The scanner resolves them; they were missing because the `packages/ui` `@source` path was wrong (§3.3).
 
-**Admin fix:** `apps/admin/lib/ui-safelist.ts` -- a file that exports string constants containing all Tailwind classes used by `@packages/ui` components (Dialog, AlertDialog, Toast). Referenced via `@source "../lib/ui-safelist.ts"` in globals.css.
+**Admin today:** `apps/admin/lib/ui-safelist.ts` exports string constants with the Tailwind classes of the `@packages/ui` Dialog, AlertDialog, Toast and Toaster, loaded through `@source "../lib/ui-safelist.ts"` in globals.css. With the path fixed, Tailwind's own oxide scanner extracts all 124 classes it lists from `packages/ui/src` alone (measured 2026-10-06), so the list is redundant, and DC-14 of `docs/product/MASTER_PLAN_ES.md` §5.13 deletes it after a visual check.
 
-**Action:**
-
-1. Create `apps/client/lib/ui-safelist.ts` -- copy from admin (same `@packages/ui` components)
-2. Add `@source '../lib/ui-safelist.ts';` to `apps/client/app/globals.css` (after existing `@source` directives)
+**Action:** none for the client: its `@source` directive scans `packages/ui` once the §3.3 fix is in place.
 
 ### 3.5 Toaster Positioning -- VERIFY
 
@@ -461,8 +458,8 @@ if (error) {
 | 1   | `parseApiError.ts`                    | P0       | Missing             | `lib/parseApiError.ts`, `lib/api/client.ts`            | `admin/lib/parseApiError.ts`               | TODO   |
 | 2   | Prisma Decimal `Number()` wrapping    | P0       | Raw strings         | All components with `.toFixed()` / `.toLocaleString()` | Commit `7b510bb`                           | TODO   |
 | 3   | `AccessDenied` component              | P0       | Missing             | `components/shared/AccessDenied.tsx`                   | `admin/components/shared/AccessDenied.tsx` | TODO   |
-| 4   | Dialog animation override CSS         | P1       | Missing             | `app/globals.css`                                      | `admin/app/globals.css:181-187`            | TODO   |
-| 5   | `ui-safelist.ts`                      | P1       | Missing             | `lib/ui-safelist.ts`, `app/globals.css`                | `admin/lib/ui-safelist.ts`                 | TODO   |
+| 4   | Dialog animation override CSS         | P1       | Missing             | `app/globals.css`                                      | `admin/app/globals.css` (override block)   | TODO   |
+| 5   | `ui-safelist.ts`                      | P1       | Not needed (§3.4)   | None                                                   | `admin/lib/ui-safelist.ts`                 | CLOSED |
 | 6   | Toaster positioning (verify)          | P1       | Unverified          | Possibly `components/ui/ClientToaster.tsx`             | `admin/components/ui/AdminToaster.tsx`     | TODO   |
 | 7   | Token refresh + retry in proxy        | P1       | Only clears cookies | `app/api/backend/[...path]/route.ts`                   | `admin/app/api/backend/[...path]/route.ts` | TODO   |
 | 8   | CSRF cookie evaluation                | P1       | No CSRF             | Proxy route                                            | Admin 3-cookie pattern                     | DECIDE |
@@ -476,8 +473,8 @@ if (error) {
 
 ```
 Phase 1 (P0): Items 1, 2, 3
-Phase 2 (P1): Items 4, 5, 6 -> 7 -> 8, 9
+Phase 2 (P1): Items 4, 6 -> 7 -> 8, 9
 Phase 3 (P2): Items 10, 11, 12, 13
 ```
 
-Items within the same phase can be parallelized. Item 7 (proxy refresh) should be done before 8 (CSRF evaluation). Item 6 depends on a build verification.
+Items within the same phase can be parallelized. Item 7 (proxy refresh) should be done before 8 (CSRF evaluation). Item 6 depends on a build verification. Item 4 waits for DC-14's decision on the override rule (§3.2). Item 5 is closed: the client needs no safelist once its `@source` path is fixed (§3.3, §3.4).
