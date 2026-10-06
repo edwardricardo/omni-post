@@ -12,35 +12,21 @@ import { InvalidValueError, InvariantViolationError } from "../errors/index.js";
 
 /**
  * Provider-specific credential material of a channel, kept exactly as its connect flow stored it.
- * Which keys a provider needs is the provider contract's concern; the domain guarantees only that the
- * object is non-empty and holds no blank string.
+ * Which keys a provider needs is the provider contract's concern; the domain guarantees only the
+ * invariant `Channel.validateCredentials` states.
  */
 export type ChannelCredentials = Readonly<Record<string, unknown>>;
 
-function isBlankString(value: unknown): boolean {
-  return typeof value === "string" && value.trim().length === 0;
+function isCredentialsObject(value: unknown): value is ChannelCredentials {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/**
- * The credentials invariant: a plain object with at least one key and no top-level blank string.
- * The rejected value is never echoed into the error, which may be logged.
- */
-function validateCredentials(credentials: ChannelCredentials): Result<void, InvalidValueError> {
-  const isPlainObject =
-    typeof credentials === "object" && credentials !== null && !Array.isArray(credentials);
-  if (
-    isPlainObject &&
-    Object.keys(credentials).length > 0 &&
-    !Object.values(credentials).some(isBlankString)
-  ) {
-    return ok(undefined);
-  }
-  return err(
-    new InvalidValueError(
-      "credentials",
-      "[hidden]",
-      "Credentials must be a non-empty object with no blank values"
-    )
+/** A key with no value, or a blank string, is never a credential. */
+function isMissingOrBlank(value: unknown): boolean {
+  return (
+    value === null ||
+    value === undefined ||
+    (typeof value === "string" && value.trim().length === 0)
   );
 }
 
@@ -128,7 +114,7 @@ export interface CreateChannelInput {
  *
  * Invariants:
  * - A channel must have a valid provider
- * - A channel's credentials must be a non-empty object with no blank value
+ * - A channel's credentials must be a non-empty object with no missing or blank value
  * - Handle cannot be empty
  *
  * @example
@@ -187,6 +173,34 @@ export class Channel extends Entity<ChannelId> {
   }
 
   /**
+   * @method validateCredentials
+   * @description The credentials invariant: a plain object with at least one key, none of whose
+   *   top-level values is `null`, `undefined` or a blank string. Numbers, booleans, arrays and
+   *   nested objects are accepted because provider shapes carry them (`expiresIn`, a `scope` list,
+   *   an `expiresAt` Date). Nested values are not inspected: which nested keys a provider needs, and
+   *   whether they may be blank, belongs to the typed per-provider credentials contract.
+   * @param credentials - Candidate credentials of any type, a request body included
+   * @returns ok when the invariant holds; otherwise an InvalidValueError on `credentials` whose value
+   *   is "[hidden]" and whose message names no key or value, so it is safe to log and to send back
+   */
+  static validateCredentials(credentials: unknown): Result<void, InvalidValueError> {
+    if (
+      isCredentialsObject(credentials) &&
+      Object.keys(credentials).length > 0 &&
+      !Object.values(credentials).some(isMissingOrBlank)
+    ) {
+      return ok(undefined);
+    }
+    return err(
+      new InvalidValueError(
+        "credentials",
+        "[hidden]",
+        "Credentials must be a non-empty object with no missing or blank values"
+      )
+    );
+  }
+
+  /**
    * Factory method to create a new Channel
    */
   static create(
@@ -197,7 +211,7 @@ export class Channel extends Entity<ChannelId> {
       return err(new InvalidValueError("handle", input.handle, "Handle cannot be empty"));
     }
 
-    const credentialsCheck = validateCredentials(input.credentials);
+    const credentialsCheck = Channel.validateCredentials(input.credentials);
     if (!credentialsCheck.ok) {
       return err(credentialsCheck.error);
     }
@@ -413,7 +427,7 @@ export class Channel extends Entity<ChannelId> {
    * Update credentials (e.g., after token refresh)
    */
   updateCredentials(credentials: ChannelCredentials): Result<void, InvalidValueError> {
-    const credentialsCheck = validateCredentials(credentials);
+    const credentialsCheck = Channel.validateCredentials(credentials);
     if (!credentialsCheck.ok) {
       return credentialsCheck;
     }
