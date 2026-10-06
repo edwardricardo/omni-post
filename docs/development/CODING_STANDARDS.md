@@ -420,10 +420,10 @@ Gotchas documented during T1-F research:
 
 ### Storybook port convention
 
-Each app runs its own Storybook on a dedicated port to avoid collisions during parallel development:
+An app that runs a Storybook runs it on its own dedicated port, so two can run side by side during parallel development:
 
 - `apps/client`: `6006`
-- `apps/admin`: `6007`
+- `apps/admin`: `6007`, reserved — the app has had no Storybook since 2026-10-06 (its configuration had no stories and never built, so it was removed); a Storybook re-created there takes this port, and no other app does
 
 `packages/ui` does **not** run its own Storybook; its stories are picked up by the client Storybook via a cross-package glob in `apps/client/.storybook/main.ts`. This avoids dual-maintenance of addons/preview configuration.
 
