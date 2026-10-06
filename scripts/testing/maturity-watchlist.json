@@ -227,6 +227,20 @@
           "note": "Reviewed 2026-10-05, the milestone day, researched from 17:56Z, after the 7-day buffer had closed for all ten packages (8.71.0 published 2026-09-28 between 17:09Z and 17:13Z). Registry: 8.71.0 is no longer latest: 8.71.1, after fifteen alphas, is latest for all ten since 2026-10-05T17:08Z to 17:09Z; it keeps the typescript >=4.8.4 <6.1.0 and eslint peers, its plugin peers @typescript-eslint/parser ^8.71.1, and it matures 2026-10-12T17:08Z to 17:09Z, the final milestone's day. OSV, which carries the GitHub database: nothing for any of the ten at 8.71.0, at 8.71.1 or at any version; GitHub's global advisories and the repository's security advisories list none. Release notes: 8.71.0 adds no-unsafe-enum-assignment (#12732) and fixes switch-exhaustiveness-check, unbound-method, no-unnecessary-type-assertion and no-misused-promises; nothing on security, and none of the five is enabled here: eslint.config.ts configures no-unused-vars, no-explicit-any and no-floating-promises and spreads no typescript-eslint preset. 8.71.1's nine fixes carry nothing on security; two reach this configuration: no-unused-vars now reports a value used only as a type when a same-named type is exported (#12892, closing #10658 of 2025-01-15: a false negative, not a regression of 8.71.0), and the project service throttles its cleanup when opening files (#12934). Upstream issues: five opened since 2026-09-28, the search and the issues API agreeing; three name no-unsafe-enum-assignment (#12951 and #12956 closed, #12966 open), #12947 asks for a no-shadow option, and #12940 (no-unnecessary-type-parameters, fixed in 8.71.1 by #12941) was opened hours before 8.71.0; none names the parser, the project service or a rule enabled here. Reachability, the lockfile parsed with yaml.safe_load_all and walked uncut: no production dependency of the 99 importers reaches any of the ten; they come only through the devDependencies of the root and of packages/eslint-plugin-testing. Works here: PR #421 recorded pnpm lint --max-warnings 0 (no cache) and pnpm exec tsc -b --force exit 0 on 8.71.0, @packages/eslint-plugin-testing, whose RuleTester parses TypeScript, 67/67, and the battery on its tip dbbfeeb6 green (15:06Z to 15:27Z, 21 steps exit 0). The holds gate, re-run at 17:59Z, exits 0 with both packages at or above latest mature (target 8.71.0, 8.71.1 being inside the buffer); evaluated at --instant 2026-10-12T17:11Z it names both as an undocumented lag against 8.71.1, so the move to 8.71.1, or a pre-registered hold row, is owed by 2026-10-12T17:08Z. Clean; the 14-day review is due 2026-10-12."
         }
       }
+    },
+    {
+      "kind": "package",
+      "name": "source-map-js",
+      "version": "1.2.2",
+      "published": "2026-09-30T14:08:09.382Z",
+      "entered": {
+        "date": "2026-10-06",
+        "commit": "ff73e83b",
+        "pr": 431,
+        "via": "natural resolution: `pnpm update -r source-map-js` moved the one copy inside the `^1.2.1` ranges of postcss 8.5.28, @tailwindcss/node 4.3.0, css-tree 3.2.1 and magicast 0.5.3, 5.6 days after publication and 1.4 days before the 2026-10-07T14:08Z maturity, as the CVE floor for GHSA-68fv-2mgg-jv7q (high; the flawed indexed-source-map path runs at build time only, and the production css-tree import via jsdom uses only the generator). Taken inside the buffer because the audit gate was red over it and blocked every battery; the lesser deviation against a knowingly-red gate or an ignore the policy forbids for an advisory with a published fix"
+      },
+      "milestones": { "maturity": "2026-10-07", "final": "2026-10-14" },
+      "reviews": {}
     }
   ]
 }
