@@ -714,6 +714,9 @@ jobs:
       - name: Duplicate code check (jscpd)
         run: pnpm check:duplicates
 
+      - name: Story per component check
+        run: pnpm check:stories
+
   # ── Monorepo package tests (providers, adapters, core, observability) ──
   # Deterministic turbo run over every package with a `test` script, excluding the
   # apps covered elsewhere: @apps/api (Test Suite shards) and @apps/admin/@apps/client

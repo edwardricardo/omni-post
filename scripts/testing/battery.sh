@@ -36,7 +36,7 @@ set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=22
+PLANNED_STEPS=23
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -163,6 +163,10 @@ step knip node scripts/knip-ratchet.mjs
 # The duplicate-code gate of CI's code-quality job: it fails a new clone and a
 # stale baseline entry, and without it here only CI would see either.
 step duplicates pnpm check:duplicates
+# The story gate of the same job: each component root's count of components
+# without a sibling story must equal its committed baseline, so a new component
+# without a story fails it and so does a baseline left above the tree.
+step stories-gate pnpm check:stories
 # The architecture gate of audit.yml: dependency-cruiser's layer rules and its
 # `no-circular` cycle check over one resolved import graph. Its `warn`-severity
 # rules print `warn` lines, which this battery reads as RED.
