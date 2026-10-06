@@ -141,9 +141,9 @@ order:
 **Negative / costs**
 
 - **Regex false positives** are possible. Each rule has explicit
-  exclusion paths in its regex (e.g., `#11` excludes
-  `enhancedValidator.ts` which holds `"setInterval("` as a literal
-  string in a security denylist). Maintaining these exclusions is
+  exclusion paths in its regex (e.g., `#13` excludes
+  `lib/logger.ts`, the logger factory that holds the one sanctioned
+  `import pino`). Maintaining these exclusions is
   ongoing.
 - **Rule drift between CLAUDE.md and workflow.** The "paste don't
   paraphrase" rule mitigates but doesn't eliminate. Workflow is

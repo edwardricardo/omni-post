@@ -163,31 +163,31 @@ const SecureSchemas = {
 
 ### Credential Encryption and Storage ✅ IMPLEMENTED
 
-Comprehensive credential management system:
+Two live paths: one encrypts the secrets the platform stores, the other issues API keys.
 
-- **AES-256-GCM Encryption**: Strong encryption for sensitive data with authentication
-- **Key Derivation**: Secure key derivation from environment secrets
-- **API Key Management**: Cryptographically secure API key generation and rotation
-- **Hash Storage**: API keys stored as SHA-256 hashes, never in plaintext
-- **Automatic Rotation**: Configurable automatic key rotation with grace periods
-- **Redis Caching**: Fast credential validation with encrypted cache
+- **AES-256-GCM encryption** (`apps/api/src/security/EncryptionService.ts`): a 256-bit
+  key read base64-encoded from `PLATFORM_ENCRYPTION_KEY`, used as is (no derivation) and
+  never stored in the database; a fresh 12-byte IV and a 16-byte auth tag per value.
+- **Key versioning**: every envelope carries the `keyVersion` that wrote it, and prior
+  keys (`PLATFORM_ENCRYPTION_KEY_V1` to `_V3`) keep decrypting the envelopes they wrote
+  after the active key changes.
+- **Context binding and audit**: every call passes an `EncryptionContext` (`fieldName`,
+  `recordId`) that is bound as AAD, so a ciphertext copied to another field or row does
+  not decrypt, and the API audits every decrypt attempt as `CREDENTIAL_DECRYPTED`.
+  `Channel.credentials` goes through `ChannelCredentialsCrypto.ts`, and the workers
+  decrypt it with the shared kernel's cipher (`packages/shared/src/channelCredentialsCrypto.ts`).
+- **API keys** (`packages/core/apiKeys`): `op_{prefix}_{secret}` from `randomBytes`,
+  hashed with Argon2id (`Argon2PasswordHasher`) and shown in plaintext once. Rotation
+  issues a new key and invalidates the old one immediately. A `rotationSchedule` is
+  stored but nothing applies it, and no request path authenticates with these keys yet:
+  PREG-1 in `docs/product/MASTER_PLAN_ES.md` §5.13 decides the public API's credential.
 
 ```typescript
-// Credential encryption implementation
-class CredentialManager {
-  encrypt(data: string): { encrypted: string; iv: string; tag: string } {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv("aes-256-gcm", this.secretKey, iv);
-    cipher.setAAD(Buffer.from("api-credentials"));
-    // ... encryption logic
-  }
-
-  async generateApiKey(accountId: string): Promise<{ apiKey: string; keyId: string }> {
-    const keyBytes = crypto.randomBytes(32);
-    const keyString = keyBytes.toString("base64url");
-    const prefix = "sk_" + crypto.randomBytes(4).toString("hex");
-    // ... secure key generation
-  }
+// The port the application layer depends on
+// (packages/core/domain/src/repositories/EncryptionPort.ts).
+interface EncryptionPort {
+  encrypt(plaintext: string, context: EncryptionContext): EncryptedValue;
+  decrypt(encrypted: EncryptedValue, context: EncryptionContext): string;
 }
 ```
 

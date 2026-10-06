@@ -284,7 +284,7 @@ jobs:
         run: |
           set -uo pipefail
           MATCHES=$(grep -rnE "setInterval\(" apps/api/src apps/workers/src packages/ --include="*.ts" 2>/dev/null | \
-            grep -vE "default-scheduler|node_modules|dist|\.test\.|/tests/|eslint\.config|DANGEROUS_STRINGS|enhancedValidator\.ts" || true)
+            grep -vE "default-scheduler|node_modules|dist|\.test\.|/tests/|eslint\.config" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then

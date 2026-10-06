@@ -414,10 +414,8 @@ grep -rn "@layer" apps/ packages/ --include="*.ts" --include="*.tsx" | \
   grep -v "@layer application\|@layer domain\|@layer infrastructure" | wc -l
 
 # 11. No raw setInterval in backend (scheduler-adapter excepted).
-# Excludes `enhancedValidator.ts` which holds `"setInterval("` as a literal
-# string in a security denylist of dangerous patterns — not a real call.
 grep -rnE "setInterval\(" apps/api/src apps/workers/src packages/ --include="*.ts" | \
-  grep -vE "default-scheduler|node_modules|dist|\.test\.|/tests/|eslint\.config|DANGEROUS_STRINGS|enhancedValidator\.ts" | wc -l
+  grep -vE "default-scheduler|node_modules|dist|\.test\.|/tests/|eslint\.config" | wc -l
 
 # 12. Every React component file carries an @component tag.
 # Scan component directories and fail if any canonical component .tsx lacks @component.

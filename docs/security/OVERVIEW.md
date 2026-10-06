@@ -167,16 +167,21 @@ Referrer-Policy: strict-origin-when-cross-origin
 
 ### Encryption
 
-- **Algorithm**: AES-256-GCM
-- **Key Derivation**: Secure derivation from environment secrets
-- **API Keys**: Cryptographically secure generation
-- **Storage**: SHA-256 hashes, never plaintext
+- **Algorithm**: AES-256-GCM in `apps/api/src/security/EncryptionService.ts`, with a fresh
+  12-byte IV and a 16-byte auth tag per value
+- **Key**: a 256-bit key read base64-encoded from `PLATFORM_ENCRYPTION_KEY`, used as is (no
+  derivation); each envelope carries its `keyVersion`, so prior keys keep decrypting the
+  envelopes they wrote after the active key changes
+- **Context binding**: `{ fieldName, recordId }` is bound as AAD, and the API audits every
+  decrypt attempt as `CREDENTIAL_DECRYPTED`
+- **API keys**: `op_{prefix}_{secret}` from `randomBytes`, stored as an Argon2id hash and shown
+  in plaintext once (`packages/core/apiKeys`); no request path authenticates with them yet
+  (PREG-1 in `docs/product/MASTER_PLAN_ES.md` §5.13)
 
 ```typescript
-class CredentialManager {
-  encrypt(data: string): { encrypted: string; iv: string; tag: string };
-  decrypt(encrypted: string, iv: string, tag: string): string;
-  generateApiKey(accountId: string): { apiKey: string; keyId: string };
+interface EncryptionPort {
+  encrypt(plaintext: string, context: EncryptionContext): EncryptedValue;
+  decrypt(encrypted: EncryptedValue, context: EncryptionContext): string;
 }
 ```
 
