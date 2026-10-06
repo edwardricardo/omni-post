@@ -26,8 +26,9 @@
 # a scanner was installed to answer them rather than to restate them.
 #
 # Trivy 0.74.0 — the version the CI log shows in use — scanning this
-# repository's own `pnpm-lock.yaml`, which reports exactly these two ids and
-# nothing else, making it an exact fixture:
+# repository's own `pnpm-lock.yaml`, which then reported exactly the two
+# image-size ids this file held until 2026-10-06 and nothing else, making it an
+# exact fixture:
 #
 #   no ignore file              -> 2 findings
 #   exp: 2027-12-31 (future)    -> 0 findings   suppression active
@@ -50,26 +51,11 @@
 # argument and its remove-when. Then project it here. Never the other way round:
 # the canon is explicit that a reachable, un-mitigated advisory is not something
 # this kind of list may close.
-
-# image-size 2.0.2 — infinite-loop DoS in two parsers.
-#   Canon rows: GHSA-w3rx-r6r6-pgpr (ICNS) and GHSA-5p2g-fcmc-qvqq (JXL/HEIF),
-#   both already in §"Audited audit-ignores" and both already in ignoreGhsas.
-#   BOTH pairings verified against Trivy's own descriptions, not assumed — the
-#   second one too, because a file that tells a reader to check the pairing owes
-#   them the check for every id it lists:
-#     CVE-2025-71330 "image-size through 2.0.2 ... a specially crafted ICNS
-#       image buffer"                  -> GHSA-w3rx-r6r6-pgpr, "ICNS parser
-#                                         infinite-loop DoS"
-#     CVE-2025-71329 "infinite loop in the JXL or HEIF image parsers"
-#                                      -> GHSA-5p2g-fcmc-qvqq, "JXL/HEIF parser
-#                                         infinite-loop DoS"
-#   Not pinnable: the advisories name >=2.0.3 as patched and npm has published
-#   no release above 2.0.2, so there is nothing to raise a floor to.
-#   Mitigation (the canon's, restated so this file reads alone): the one
-#   production caller, packages/providers/bluesky's BlueskyClient, gates buffers
-#   by magic bytes and admits only jpeg/png/gif/webp, so the vulnerable parsers
-#   are unreachable by construction — unit-pinned. The remaining chain is
-#   @storybook/nextjs, which is dev-only and reaches no shipped image.
-#   Remove when image-size publishes >=2.0.3 and the tree resolves it.
-CVE-2025-71330 exp:2026-12-23
-CVE-2025-71329 exp:2026-12-23
+#
+# CURRENTLY EMPTY: no id is suppressed, matching the canon's empty "Ignored GHSAs"
+# section and `ignoreGhsas: []`. The last entries, CVE-2025-71330 and
+# CVE-2025-71329 (image-size 2.0.2, GHSA-w3rx-r6r6-pgpr and GHSA-5p2g-fcmc-qvqq),
+# left on 2026-10-06: their remove-when fired on 2026-10-03, when the catalog
+# moved image-size to 2.0.4, outside both advisories' `<=2.0.2` range (canon row
+# `image-size`, decision D37), and the lockfile holds no 2.0.2 copy. The file
+# stays because production-ci.yml passes it to the scanner by name.

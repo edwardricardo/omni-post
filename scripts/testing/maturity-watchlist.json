@@ -1,5 +1,5 @@
 {
-  "description": "Package versions that entered the tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication (advisories, upstream issues, release notes), and dated milestones that ride the same list. Milestones are UTC dates derived from `published`. A review is recorded under `reviews.<milestone>` as { date, outcome: clean | flagged, note }, dated the day it is written and never later; one written up to 2 days before its milestone also carries early: { reason }, and the entry's later milestone stays due. An entry leaves the list in the change that records its clean 14-day review, a date entry in the change that records its review. Read by scripts/testing/maturity-watchlist.mjs (--check in CI, --remind in the maturity-reminder workflow).",
+  "description": "Package versions that entered the tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication (advisories, upstream issues, release notes), and dated milestones that ride the same list. Milestones are UTC dates derived from `published`. A review is recorded under `reviews.<milestone>` as { date, outcome: clean | flagged, note }, dated the day it is written and never later; one written up to 2 days before its milestone also carries early: { reason }, and the entry's later milestone stays due. An entry leaves the list in the change that records its clean 14-day review, a date entry in the change that records its review; a package entry whose version leaves the tree before that review leaves the list too, because nothing is left to review. Read by scripts/testing/maturity-watchlist.mjs (--check in CI, --remind in the maturity-reminder workflow).",
   "entries": [
     {
       "kind": "package",
@@ -64,39 +64,6 @@
           "date": "2026-10-05",
           "outcome": "clean",
           "note": "Reviewed 2026-10-05, four days late: the reminder workflow started on 2026-10-03 and carried no day over. OSV: nothing for @googleapis/youtube 39.0.1 or @googleapis/youtubeanalytics 11.0.1. Changelog: 39.0.1 (2026-09-23) is 'Bug Fixes: update the API'. Upstream issues: none opened against the youtube client since 39.0.0 (googleapis/google-api-nodejs-client, searched 2026-10-05). Works here: @providers/youtube typechecks, builds and passes its 84 tests on it (measured 2026-10-04 with google-auth-library 11.1.0). Noted: 40.0.0 (2026-10-03T03:50Z) is a breaking major ('update the API') with the same googleapis-common ^9.0.0 and Node >=22; it matures 2026-10-10T03:50Z and moves in its own PR with the provider's typecheck, build and tests."
-        }
-      }
-    },
-    {
-      "kind": "package",
-      "name": "memfs",
-      "version": "4.80.0",
-      "published": "2026-09-29T20:28:26.960Z",
-      "members": [
-        "@jsonjoy.com/fs-core@4.80.0",
-        "@jsonjoy.com/fs-fsa@4.80.0",
-        "@jsonjoy.com/fs-node@4.80.0",
-        "@jsonjoy.com/fs-node-builtins@4.80.0",
-        "@jsonjoy.com/fs-node-to-fsa@4.80.0",
-        "@jsonjoy.com/fs-node-utils@4.80.0",
-        "@jsonjoy.com/fs-print@4.80.0",
-        "@jsonjoy.com/fs-snapshot@4.80.0"
-      ],
-      "entered": {
-        "date": "2026-09-30",
-        "commit": "dba49d7c",
-        "pr": 325,
-        "via": "webpack-dev-middleware 7.4.6, the CVE-floor override, 0.4 days after publication"
-      },
-      "milestones": { "maturity": "2026-10-06", "final": "2026-10-13" },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-05",
-          "early": {
-            "reason": "Recorded on 2026-10-05, one day before the 2026-10-06 milestone, on Edward's instruction of 2026-10-05. The registry and OSV were re-checked at 2026-10-05T14:05Z, as this record was written, and are unchanged since the research: memfs and its eight @jsonjoy.com/fs-* siblings still latest 4.80.0, no OSV entry for any of them at any version. The 14-day review on 2026-10-13 stays due."
-          },
-          "outcome": "clean",
-          "note": "Researched 2026-10-05, a day before the milestone, and recorded the same day as an early review. Registry: no release after 4.80.0 for memfs or its eight @jsonjoy.com/fs-* siblings (memfs published 2026-09-29T20:28Z, the siblings between 20:26Z and 20:33Z). OSV, which carries the GitHub database: nothing for memfs or the siblings at any version. Release notes: 4.80.0's one change makes the synchronous FSA worker timeout configurable (streamich/memfs#1298); nothing on security. Upstream issues: none opened since 4.80.0; the open #1296 (2026-09-18), the default vol's virtual-root cwd since 4.71.0, which the maintainer keeps, does not apply: webpack-dev-middleware 7.4.6 builds its own volume (memfs.createFsFromVolume(new memfs.Volume())) and webpack writes absolute output paths. Reachability, the lockfile parsed with yaml.safe_load_all and walked uncut: memfs 4.80.0 has one consumer, webpack-dev-middleware 7.4.6, reached only from the devDependencies of apps/admin and apps/client through @storybook/nextjs 10.6.0 and @storybook/builder-webpack5 10.6.0; the eight siblings reach the same two devDependency edges and no production one. Works here: storybook dev --smoke-test --ci (@apps/client), whose dev-server start builds that volume, exited 0 on 2026-10-01 and again under Storybook 10.6.0 on 2026-10-02 (SECURITY_CANON.md, webpack-dev-middleware floor history). Clean; the 14-day review is due 2026-10-13."
         }
       }
     },
