@@ -31,9 +31,6 @@
       "name": "@storybook/addon-vitest"
     },
     {
-      "name": "@storybook/nextjs"
-    },
-    {
       "name": "@storybook/nextjs-vite"
     },
     {
@@ -147,9 +144,6 @@
     },
     {
       "name": "vitest"
-    },
-    {
-      "name": "webpack"
     }
   ]
 }
