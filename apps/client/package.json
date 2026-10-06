@@ -14,6 +14,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:stories": "vitest run --config vitest.stories.config.ts",
     "test:e2e": "playwright test --config=tests/e2e/config/playwright.config.ts",
     "test:e2e:ui": "playwright test --config=tests/e2e/config/playwright.config.ts --ui",
     "test:e2e:headed": "playwright test --config=tests/e2e/config/playwright.config.ts --headed",
@@ -29,8 +30,7 @@
     "test:e2e:visual": "playwright test --config=tests/e2e/config/playwright.config.ts --project=visual-regression",
     "type-check": "tsc --noEmit",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build",
-    "chromatic": "npx chromatic --project-token=<project-token>"
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@core/bulk-scheduling": "workspace:*",
@@ -82,7 +82,8 @@
     "@playwright/test": "catalog:",
     "@storybook/addon-a11y": "catalog:",
     "@storybook/addon-docs": "catalog:",
-    "@storybook/nextjs": "catalog:",
+    "@storybook/addon-vitest": "catalog:",
+    "@storybook/nextjs-vite": "catalog:",
     "@tailwindcss/postcss": "catalog:",
     "@testing-library/dom": "catalog:",
     "@testing-library/jest-dom": "catalog:",
@@ -92,18 +93,20 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
+    "@vitest/browser": "catalog:",
+    "@vitest/browser-playwright": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "@vitest/ui": "catalog:",
     "eslint": "catalog:",
     "jsdom": "catalog:",
     "msw": "catalog:",
+    "playwright": "1.63.0",
     "postcss": "catalog:",
     "postcss-load-config": "catalog:",
     "storybook": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vitest": "catalog:",
-    "webpack": "catalog:"
+    "vitest": "catalog:"
   }
 }
