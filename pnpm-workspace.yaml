@@ -234,6 +234,30 @@ overrides:
   # allocation, fixed 2.8.0), and `pnpm audit` exits 1. The catalog:otel value 2.8.0 is the
   # minimal patched version. See SECURITY_CANON §"CVE-floor pins", row `@opentelemetry/core`.
   "@opentelemetry/core": "catalog:otel"
+  # CVE floor added 2026-10-06 for GHSA-qqmp-wf37-98f9 (moderate, CWE-532): these eight
+  # instrumentations set the database username as an unconditional `db.user` span attribute. OSV,
+  # GitHub's first_patched_version and the upstream repository advisory agree on every target, all
+  # published 2026-07-23 with open-telemetry/opentelemetry-js-contrib#3585; each band is the minimal
+  # patched version. Neither consumer reaches them by its own range: @sentry/node 10.48.0 pins six
+  # of them EXACTLY, and @opentelemetry/auto-instrumentations-node 0.77.0 declares 0.x caret ranges
+  # two minors short of all eight. A Sentry bump is not the fix: from 10.54.0 these are no longer
+  # Sentry dependencies, and the copies Sentry vendors instead still set db.user (read in 10.75.3
+  # and 11.4.0), so the advisory would leave the audit while the attribute stayed. The patched
+  # releases emit only stable semantic conventions: Sentry 10.48.0 still marks their spans op `db`,
+  # but describes a query by its span name, since it reads `db.statement` and they write
+  # `db.query.text`. pg 0.73.0 and mongoose 0.67.0 declare @opentelemetry/core ^2.9.0 and run on the
+  # 2.8.0 the override above holds; the five core exports they reach, @opentelemetry/sql-common's
+  # included, exist in 2.8.0. Measured with pg loaded through @prisma/adapter-pg: db.user on 4 of 4
+  # Sentry spans and 4 of 6 SDK spans before, on none after. See SECURITY_CANON §"CVE-floor pins",
+  # row `@opentelemetry/instrumentation-*`.
+  "@opentelemetry/instrumentation-cassandra-driver@<0.66.0": 0.66.0
+  "@opentelemetry/instrumentation-knex@<0.65.0": 0.65.0
+  "@opentelemetry/instrumentation-mongoose@<0.67.0": 0.67.0
+  "@opentelemetry/instrumentation-mysql@<0.67.0": 0.67.0
+  "@opentelemetry/instrumentation-mysql2@<0.67.0": 0.67.0
+  "@opentelemetry/instrumentation-oracledb@<0.46.0": 0.46.0
+  "@opentelemetry/instrumentation-pg@<0.73.0": 0.73.0
+  "@opentelemetry/instrumentation-tedious@<0.40.0": 0.40.0
   "@opentelemetry/propagator-jaeger@<2.9.0": 2.9.0
   "deepmerge-ts@<8.0.0": 8.0.0
   # All three bands raised 2026-09-30 for THREE new advisories, each with a fix on
