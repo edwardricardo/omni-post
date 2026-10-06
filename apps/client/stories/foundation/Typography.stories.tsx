@@ -4,7 +4,7 @@
  *              line-height guidelines for the client app.
  * @layer infrastructure
  */
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 /**
  * # Typography System

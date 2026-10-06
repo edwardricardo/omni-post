@@ -100,7 +100,7 @@
     "eslint": "catalog:",
     "jsdom": "catalog:",
     "msw": "catalog:",
-    "playwright": "1.63.0",
+    "playwright": "catalog:",
     "postcss": "catalog:",
     "postcss-load-config": "catalog:",
     "storybook": "catalog:",

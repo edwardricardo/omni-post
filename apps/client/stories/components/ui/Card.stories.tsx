@@ -4,7 +4,7 @@
  *              composition with avatars, badges, and action buttons.
  * @layer infrastructure
  */
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { action } from "storybook/actions";
 import {
   Card,
@@ -142,7 +142,7 @@ export const SocialPostCard: Story = {
             </div>
             <CardDescription className="text-xs">Posted 2 hours ago • Twitter</CardDescription>
           </div>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" aria-label="More actions">
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </div>
@@ -248,7 +248,7 @@ export const MetricsCard: Story = {
         <div className="space-y-2">
           <div className="text-2xl font-bold">12.5K</div>
           <div className="flex items-center text-sm">
-            <span className="text-green-600 font-medium">+12.3%</span>
+            <span className="text-green-700 font-medium">+12.3%</span>
             <span className="text-muted-foreground ml-1">from last week</span>
           </div>
           <div className="w-full bg-secondary rounded-full h-2">
@@ -334,7 +334,12 @@ export const SettingsCard: Story = {
             <div className="font-medium">Email Notifications</div>
             <div className="text-sm text-muted-foreground">Receive updates about your posts</div>
           </div>
-          <input type="checkbox" className="toggle" defaultChecked />
+          <input
+            type="checkbox"
+            className="toggle"
+            aria-label="Email Notifications"
+            defaultChecked
+          />
         </div>
         <div className="flex items-center justify-between">
           <div>
@@ -343,14 +348,14 @@ export const SettingsCard: Story = {
               Automatically save content as you type
             </div>
           </div>
-          <input type="checkbox" className="toggle" defaultChecked />
+          <input type="checkbox" className="toggle" aria-label="Auto-save Drafts" defaultChecked />
         </div>
         <div className="flex items-center justify-between">
           <div>
             <div className="font-medium">Dark Mode</div>
             <div className="text-sm text-muted-foreground">Use dark theme across the app</div>
           </div>
-          <input type="checkbox" className="toggle" />
+          <input type="checkbox" className="toggle" aria-label="Dark Mode" />
         </div>
       </CardContent>
       <CardFooter>

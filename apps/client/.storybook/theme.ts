@@ -1,7 +1,7 @@
 /**
  * @file theme.ts
  * @description Storybook theme configuration for the client app design system, defining brand,
- *              typography, colors, and social platform brand color palette.
+ *              typography and colors.
  * @layer infrastructure
  */
 import { create } from "storybook/theming/create";
@@ -10,7 +10,6 @@ export default create({
   base: "light",
   brandTitle: "Social Media CMS Design System",
   brandUrl: "/",
-  brandImage: undefined,
   brandTarget: "_self",
 
   // UI
@@ -43,13 +42,3 @@ export default create({
   colorPrimary: "#3b82f6",
   colorSecondary: "#6b7280",
 });
-
-// Social media brand colors for social platform components (not part of Storybook theme API)
-export const socialBrandColors = {
-  twitter: "#1da1f2",
-  instagram: "#e4405f",
-  facebook: "#1877f2",
-  linkedin: "#0a66c2",
-  tiktok: "#000000",
-  youtube: "#ff0000",
-} as const;
