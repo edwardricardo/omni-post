@@ -1,6 +1,6 @@
 /**
  * @file Channel.ts
- * @description Domain entity representing a social media channel connected to a project — manages OAuth credentials, connection status, and provider metadata.
+ * @description Domain entity representing a social media channel connected to a project — manages provider credentials, connection status, and provider metadata.
  * @layer domain
  */
 
@@ -11,14 +11,49 @@ import { Provider, type ProviderType } from "../value-objects/Provider.js";
 import { InvalidValueError, InvariantViolationError } from "../errors/index.js";
 
 /**
- * OAuth credentials for a channel
+ * Provider-specific credential material of a channel, kept exactly as its connect flow stored it.
+ * Which keys a provider needs is the provider contract's concern; the domain guarantees only that the
+ * object is non-empty and holds no blank string.
  */
-export interface ChannelCredentials {
-  accessToken: string;
-  refreshToken?: string;
-  expiresAt?: Date;
-  tokenType?: string;
-  scope?: string[];
+export type ChannelCredentials = Readonly<Record<string, unknown>>;
+
+function isBlankString(value: unknown): boolean {
+  return typeof value === "string" && value.trim().length === 0;
+}
+
+/**
+ * The credentials invariant: a plain object with at least one key and no top-level blank string.
+ * The rejected value is never echoed into the error, which may be logged.
+ */
+function validateCredentials(credentials: ChannelCredentials): Result<void, InvalidValueError> {
+  const isPlainObject =
+    typeof credentials === "object" && credentials !== null && !Array.isArray(credentials);
+  if (
+    isPlainObject &&
+    Object.keys(credentials).length > 0 &&
+    !Object.values(credentials).some(isBlankString)
+  ) {
+    return ok(undefined);
+  }
+  return err(
+    new InvalidValueError(
+      "credentials",
+      "[hidden]",
+      "Credentials must be a non-empty object with no blank values"
+    )
+  );
+}
+
+/**
+ * Reads a credential expiry held as a `Date` (a connect flow sets one in memory) or as an
+ * ISO-8601 string (how the persisted JSON carries it). Any other value is no expiry; a string
+ * that does not parse yields an invalid Date, which never compares as past.
+ */
+function readExpiry(value: unknown): Date | undefined {
+  if (value instanceof Date) {
+    return value;
+  }
+  return typeof value === "string" ? new Date(value) : undefined;
 }
 
 /**
@@ -93,7 +128,7 @@ export interface CreateChannelInput {
  *
  * Invariants:
  * - A channel must have a valid provider
- * - A channel must have credentials with at least an access token
+ * - A channel's credentials must be a non-empty object with no blank value
  * - Handle cannot be empty
  *
  * @example
@@ -162,9 +197,9 @@ export class Channel extends Entity<ChannelId> {
       return err(new InvalidValueError("handle", input.handle, "Handle cannot be empty"));
     }
 
-    // Validate credentials
-    if (!input.credentials.accessToken || input.credentials.accessToken.trim().length === 0) {
-      return err(new InvalidValueError("accessToken", "[hidden]", "Access token is required"));
+    const credentialsCheck = validateCredentials(input.credentials);
+    if (!credentialsCheck.ok) {
+      return err(credentialsCheck.error);
     }
 
     // Get or create provider
@@ -256,7 +291,7 @@ export class Channel extends Entity<ChannelId> {
     return this._handle;
   }
 
-  get credentials(): Readonly<ChannelCredentials> {
+  get credentials(): ChannelCredentials {
     return { ...this._credentials };
   }
 
@@ -344,13 +379,11 @@ export class Channel extends Entity<ChannelId> {
   }
 
   /**
-   * Check if credentials are expired
+   * Check if credentials are expired: true only when they carry an `expiresAt` in the past
    */
   get areCredentialsExpired(): boolean {
-    if (!this._credentials.expiresAt) {
-      return false;
-    }
-    return this._credentials.expiresAt.getTime() < Date.now();
+    const expiresAt = readExpiry(this._credentials.expiresAt);
+    return expiresAt !== undefined && expiresAt.getTime() < Date.now();
   }
 
   /**
@@ -380,8 +413,9 @@ export class Channel extends Entity<ChannelId> {
    * Update credentials (e.g., after token refresh)
    */
   updateCredentials(credentials: ChannelCredentials): Result<void, InvalidValueError> {
-    if (!credentials.accessToken || credentials.accessToken.trim().length === 0) {
-      return err(new InvalidValueError("accessToken", "[hidden]", "Access token is required"));
+    const credentialsCheck = validateCredentials(credentials);
+    if (!credentialsCheck.ok) {
+      return credentialsCheck;
     }
 
     this._credentials = { ...credentials };

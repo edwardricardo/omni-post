@@ -28,6 +28,11 @@
  *   into a redirect (`providerOAuthFlow.ts` catch), so a literal 404 there is
  *   unsatisfiable. The Bluesky JSON route keeps the literal 404.
  *
+ *   It also pins that the owner's own saves (set-primary, rename, credential
+ *   replacement) keep the credentials object a connect flow stored, read back
+ *   through the workers' decryptor: the row the API rewrites is the row a
+ *   publish resolves.
+ *
  * @layer infrastructure
  */
 import { describe, it, before, after } from "node:test";
@@ -56,6 +61,10 @@ import { PrismaProjectRepository } from "../../src/infrastructure/repositories/P
 import { PrismaChannelRepository } from "../../src/infrastructure/repositories/PrismaChannelRepository.js";
 import { EncryptionService } from "../../src/security/EncryptionService.js";
 import { ChannelCredentialsCrypto } from "../../src/security/ChannelCredentialsCrypto.js";
+import {
+  buildWorkerEncryptionKeyRing,
+  createChannelCredentialsDecryptor,
+} from "../../../../apps/workers/src/services/channelCredentialsDecryptor.js";
 import { channelRoutes } from "../../src/channels/channelRoutes.js";
 import { registerOAuthRoutes } from "../../src/auth/providerOAuth.js";
 import { oauthProviders } from "../../src/auth/providerOAuthConfigs.js";
@@ -428,6 +437,96 @@ describe("Channel — two-tenant isolation (MERGE-BLOCKING)", () => {
       assert.strictEqual(res.statusCode, 200);
       const body = res.json() as { ok: boolean; data: unknown[] };
       assert.ok(body.data.length >= 1, "A must see its own channels");
+    });
+  });
+
+  describe("the owner's saves keep the credentials its connect flow stored", () => {
+    // The workers' decryptor, built the way publishWorker builds it from its env.
+    const decryptForWorker = createChannelCredentialsDecryptor(
+      buildWorkerEncryptionKeyRing({
+        PLATFORM_ENCRYPTION_KEY: TEST_KEY,
+        PLATFORM_ENCRYPTION_KEY_VERSION: 1,
+      })
+    );
+
+    /** Seeds a Bluesky channel in A's project the way `connectBluesky` stores one. */
+    async function seedBlueskyChannel(label: string, isPrimary = false) {
+      const channelId = randomUUID();
+      const credentials = {
+        identifier: `${label}.bsky.social`,
+        appPassword: "abcd-efgh-ijkl-mnop",
+      };
+      const enc = credentialsCrypto.encrypt(credentials, { recordId: channelId });
+      await base.channel.create({
+        data: {
+          id: channelId,
+          projectId: tenantA.projectId,
+          accountId: tenantA.accountId,
+          provider: "BLUESKY",
+          handle: `${TAG}-${label}.bsky.social`,
+          providerAccountId: credentials.identifier,
+          isPrimary,
+          ...enc,
+        },
+      });
+      return { channelId, credentials };
+    }
+
+    /** Reads a row back and decrypts its credentials as a publish job does. */
+    async function readAsWorker(channelId: string) {
+      const row = await base.channel.findUniqueOrThrow({ where: { id: channelId } });
+      return { row, credentials: decryptForWorker({ channelId, envelope: row }) };
+    }
+
+    /** Sends `PUT /channels/:id` as A, the channel's owner. */
+    const putAsOwner = (channelId: string, payload: Record<string, unknown>) =>
+      app.inject({
+        method: "PUT",
+        url: `/channels/${channelId}`,
+        headers: {
+          authorization: bearerFor(tenantA.accountId),
+          "content-type": "application/json",
+        },
+        payload,
+      });
+
+    it("making a Bluesky channel primary keeps the credentials of both rows the swap saves", async () => {
+      const previous = await seedBlueskyChannel("previous", true);
+      const target = await seedBlueskyChannel("target");
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/channels/${target.channelId}/set-primary`,
+        headers: { authorization: bearerFor(tenantA.accountId) },
+      });
+
+      assert.strictEqual(res.statusCode, 200);
+      for (const seeded of [previous, target]) {
+        const { row, credentials } = await readAsWorker(seeded.channelId);
+        assert.strictEqual(row.isPrimary, seeded === target, "the swap must have saved this row");
+        assert.deepStrictEqual(credentials, seeded.credentials);
+      }
+    });
+
+    it("renaming a Bluesky channel keeps its credentials", async () => {
+      const seeded = await seedBlueskyChannel("renamed");
+
+      const res = await putAsOwner(seeded.channelId, { name: `${TAG}-renamed-handle` });
+
+      assert.strictEqual(res.statusCode, 200);
+      const { row, credentials } = await readAsWorker(seeded.channelId);
+      assert.strictEqual(row.handle, `${TAG}-renamed-handle`, "the rename must have saved the row");
+      assert.deepStrictEqual(credentials, seeded.credentials);
+    });
+
+    it("replacing a channel's credentials stores exactly the submitted object", async () => {
+      const seeded = await seedBlueskyChannel("replaced");
+      const submitted = { identifier: "replaced.bsky.social", appPassword: "wxyz-wxyz-wxyz-wxyz" };
+
+      const res = await putAsOwner(seeded.channelId, { credentials: submitted });
+
+      assert.strictEqual(res.statusCode, 200);
+      assert.deepStrictEqual((await readAsWorker(seeded.channelId)).credentials, submitted);
     });
   });
 

@@ -18,6 +18,7 @@ import {
   AccountId,
   ProjectId,
   Provider,
+  InvalidValueError,
 } from "@core/domain/index.js";
 
 describe("Domain Entities", () => {
@@ -54,7 +55,7 @@ describe("Domain Entities", () => {
       expect(result.ok).toBeFalsy();
     });
 
-    it("should reject missing access token", () => {
+    it("rejects credentials holding a blank value with the named credentials error", () => {
       const result = Channel.create({
         projectId,
         accountId,
@@ -64,6 +65,7 @@ describe("Domain Entities", () => {
       });
 
       expect(result.ok).toBeFalsy();
+      expect(!result.ok && (result.error as InvalidValueError).field).toBe("credentials");
     });
 
     it("should accept Provider object", () => {
@@ -100,6 +102,43 @@ describe("Domain Entities", () => {
         expect(updateResult.ok).toBeTruthy();
         expect(channel.credentials.accessToken).toBe("new_token");
       }
+    });
+
+    describe("credentials of any provider shape", () => {
+      const createWith = (credentials: Record<string, unknown>, provider = Provider.x()) =>
+        Channel.create({ projectId, accountId, provider, handle: "@test", credentials });
+
+      it("rejects an empty credentials object with the named credentials error", () => {
+        const result = createWith({});
+        expect(!result.ok && (result.error as InvalidValueError).field).toBe("credentials");
+      });
+
+      it("creates a channel from credentials without an access token, kept exactly as given", () => {
+        const credentials = { identifier: "alice.bsky.social", appPassword: "abcd-efgh-ijkl-mnop" };
+        const result = createWith(credentials, Provider.bluesky());
+        expect(result.ok && result.value.credentials).toEqual(credentials);
+      });
+
+      it("updates to credentials without an access token, replacing the previous object whole", () => {
+        const result = createWith({ botToken: "111:old", chatId: "-1" }, Provider.telegram());
+        if (!result.ok) throw result.error;
+        const next = { botToken: "222:new", chatId: "-2" };
+
+        const updateResult = result.value.updateCredentials(next);
+
+        expect(updateResult.ok).toBe(true);
+        expect(result.value.credentials).toEqual(next);
+      });
+
+      it("refuses an empty credentials update and keeps the previous credentials", () => {
+        const result = createWith({ accessToken: "kept" });
+        if (!result.ok) throw result.error;
+
+        const updateResult = result.value.updateCredentials({});
+
+        expect(!updateResult.ok && updateResult.error.field).toBe("credentials");
+        expect(result.value.credentials).toEqual({ accessToken: "kept" });
+      });
     });
 
     it("should track error count", () => {
@@ -391,6 +430,36 @@ describe("Domain Entities", () => {
       const updatedAtBefore = channel.updatedAt.getTime();
       channel.updateProfile({});
       expect(channel.updatedAt.getTime()).toBe(updatedAtBefore);
+    });
+
+    describe("areCredentialsExpired", () => {
+      const reconstituteWith = (credentials: Record<string, unknown>): Channel =>
+        Channel.reconstitute(ChannelId.generate(), {
+          projectId,
+          accountId,
+          provider: Provider.x(),
+          handle: "@test",
+          credentials,
+          status: "CONNECTED",
+          errorCount: 0,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        });
+
+      it("returns true when a persisted expiresAt is an ISO string in the past", () => {
+        const channel = reconstituteWith({ expiresAt: "2020-01-01T00:00:00.000Z" });
+        expect(channel.areCredentialsExpired).toBe(true);
+      });
+
+      it("returns false when expiresAt is a Date in the future", () => {
+        const channel = reconstituteWith({ expiresAt: new Date(Date.now() + 60_000) });
+        expect(channel.areCredentialsExpired).toBe(false);
+      });
+
+      it("returns false when the credentials store no expiresAt", () => {
+        const channel = reconstituteWith({ identifier: "alice.bsky.social", appPassword: "x" });
+        expect(channel.areCredentialsExpired).toBe(false);
+      });
     });
   });
 
