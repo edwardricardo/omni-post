@@ -102,23 +102,23 @@
 | Technology | Version | Purpose          |
 | ---------- | ------- | ---------------- |
 | Node.js    | ES2022  | Runtime          |
-| TypeScript | 6.0.2   | Language         |
-| Fastify    | 5.8.4   | Web framework    |
-| Prisma     | 7.5.0   | Database ORM     |
+| TypeScript | 6.0.3   | Language         |
+| Fastify    | 5.12.5  | Web framework    |
+| Prisma     | 7.9.1   | Database ORM     |
 | PostgreSQL | 16      | Primary database |
 | Redis      | 7       | Caching & queues |
-| BullMQ     | 5.71.1  | Job processing   |
+| BullMQ     | 5.58.9  | Job processing   |
 
 ### Frontend
 
 | Technology   | Version                    | Purpose               |
 | ------------ | -------------------------- | --------------------- |
-| Next.js      | 16.2.1                     | React framework       |
-| React        | 19.2.4                     | UI library            |
-| Tailwind CSS | 4.2.1                      | Styling               |
+| Next.js      | 16.3.8                     | React framework       |
+| React        | 19.2.7                     | UI library            |
+| Tailwind CSS | 4.3.0                      | Styling               |
 | Radix UI     | 1.4.3 (unified `radix-ui`) | Component primitives  |
-| React Query  | 5.90.2                     | Data fetching         |
-| Storybook    | 10.6.0                     | Component development |
+| React Query  | 5.101.0                    | Data fetching         |
+| Storybook    | 10.6.1                     | Component development |
 
 ### Infrastructure
 

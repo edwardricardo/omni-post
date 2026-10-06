@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Universal Client Dashboard is a modern React 19.2.4 application built with Next.js 16.2.1 (with Turbopack), providing a comprehensive content management interface for multi-platform social media publishing. It features a dynamic content editor, provider-agnostic architecture, and real-time collaboration capabilities.
+The Universal Client Dashboard is a modern React 19.2.7 application built with Next.js 16.3.8 (with Turbopack), providing a comprehensive content management interface for multi-platform social media publishing. It features a dynamic content editor, provider-agnostic architecture, and real-time collaboration capabilities.
 
 **Port**: 3200 (configurable via environment)
 
@@ -10,45 +10,45 @@ The Universal Client Dashboard is a modern React 19.2.4 application built with N
 
 ### Core Framework
 
-- **React**: 19.2.4 with concurrent rendering and automatic batching
-- **Next.js**: 16.2.1 with App Router, server components, and Turbopack
-- **TypeScript**: 6.0.2 with strict mode and exact optional properties
-- **Node.js**: v24.14.1 with ES modules support
+- **React**: 19.2.7 with concurrent rendering and automatic batching
+- **Next.js**: 16.3.8 with App Router, server components, and Turbopack
+- **TypeScript**: 6.0.3 with strict mode and exact optional properties
+- **Node.js**: 24 (`.nvmrc`; `engines.node` `>=24.15.0 <25`) with ES modules support
 
 ### State Management & Data Fetching
 
-- **TanStack Query**: 5.90.2 for server state management
-- **TanStack Query Devtools**: 5.90.2 for development debugging
+- **TanStack Query**: 5.101.0 for server state management
+- **TanStack Query Devtools**: 5.95.0 for development debugging
 - **Local State**: React 19 hooks (useState, useReducer, useContext)
 - **Form State**: Custom hooks with auto-save functionality
 
 ### UI & Styling
 
-- **Tailwind CSS**: 4.2.1 for utility-first styling (via `@tailwindcss/postcss`)
+- **Tailwind CSS**: 4.3.0 for utility-first styling (via `@tailwindcss/postcss`)
 - **Radix UI**: Unified `radix-ui` 1.4.3 accessible component library (migrated from individual `@radix-ui/react-*` packages)
-- **Lucide React**: 0.544.0 for icons
-- **Class Variance Authority**: 0.7.0 for component variants
+- **Lucide React**: 1.7.0 for icons
+- **Class Variance Authority**: 0.7.1 for component variants
 
 ### Rich Text Editing
 
-- **TipTap**: 3.6.1 core editor
-- **TipTap Starter Kit**: 3.6.1 basic functionality
-- **TipTap Character Count**: 3.6.1 for platform constraints
-- **TipTap Placeholder**: 3.6.1 for user guidance
+- **TipTap**: 3.30.5 core editor
+- **TipTap Starter Kit**: 3.30.5 basic functionality
+- **TipTap Character Count**: 3.30.5 for platform constraints
+- **TipTap Placeholder**: 3.30.5 for user guidance
 
 ### Testing & Quality
 
-- **Vitest**: 4.0.18 for unit and integration testing
-- **React Testing Library**: 16.1.0 for component testing
-- **Jest DOM**: 6.6.3 for DOM testing utilities
-- **Playwright**: 1.55.1 for end-to-end testing
-- **JSDOM**: 25.0.1 for DOM simulation
-- **Storybook**: 10.6.0 on `@storybook/nextjs-vite` for component documentation; its stories run as vitest browser tests in headless Chromium (`test:stories`)
+- **Vitest**: 4.1.11 for unit and integration testing
+- **React Testing Library**: 16.3.3 for component testing
+- **Jest DOM**: 7.0.1 for DOM testing utilities
+- **Playwright**: 1.63.0 for end-to-end testing
+- **JSDOM**: 30.1.1 for DOM simulation
+- **Storybook**: 10.6.1 on `@storybook/nextjs-vite` for component documentation; its stories run as vitest browser tests in headless Chromium (`test:stories`)
 
 ### Development Tools
 
-- **ESLint**: 9.36.0 with Next.js configuration
-- **PostCSS**: 8.5.6 for CSS processing
+- **ESLint**: 9.39.5 with Next.js configuration
+- **PostCSS**: 8.5.28 for CSS processing
 
 ## Application Architecture
 
@@ -456,7 +456,7 @@ const nextConfig = {
 ---
 
 **Version**: 1.0
-**Last Updated**: March 8, 2026
-**React Version**: 19.2.4
-**Next.js Version**: 16.2.1
-**TypeScript Version**: 6.0.2
+**Last Updated**: October 6, 2026 (versions re-read from `pnpm-lock.yaml`)
+**React Version**: 19.2.7
+**Next.js Version**: 16.3.8
+**TypeScript Version**: 6.0.3
