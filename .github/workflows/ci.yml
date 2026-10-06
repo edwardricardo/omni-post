@@ -809,10 +809,11 @@ jobs:
         # pnpm-lock.yaml, and fails the step if it prints nothing.
         run: |
           version=$(pnpm --filter @apps/client exec playwright --version | awk '{print $2}')
-          # The cache key must be a real driver version: an empty or reshaped
-          # `--version` output would otherwise poison the key without failing.
+          # The cache key must be a release version (major.minor.patch); an empty or
+          # reshaped `--version` output, or a pre-release or build suffix, would
+          # otherwise poison the key without failing the step.
           if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error title=Playwright version::the client's playwright driver reported '$version', not a semver"
+            echo "::error title=Playwright version::the client's playwright driver reported '$version', not a release version (major.minor.patch)"
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
