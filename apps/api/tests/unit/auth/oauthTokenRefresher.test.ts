@@ -29,7 +29,7 @@ beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-function makeChannel(refreshToken: string | undefined) {
+function makeChannel(refreshToken: unknown) {
   const created = Channel.create({
     projectId: ProjectId.generate(),
     accountId: AccountId.generate(),
@@ -106,6 +106,22 @@ describe("OAuthTokenRefresher", () => {
     const result = await new OAuthTokenRefresher(makeRepo(channel)).refresh(channel.id, CONFIG);
 
     assert.ok(!result.ok);
+    assert.strictEqual(channel.needsReauth, true);
+  });
+
+  it("flags for reauth without calling the provider when the stored refresh token is not a string", async () => {
+    let providerCalls = 0;
+    server.use(
+      http.post(TOKEN_URL, () => {
+        providerCalls += 1;
+        return HttpResponse.json({ access_token: "new-access", expires_in: 3600 });
+      })
+    );
+    const channel = makeChannel(123);
+    const result = await new OAuthTokenRefresher(makeRepo(channel)).refresh(channel.id, CONFIG);
+
+    assert.ok(!result.ok);
+    assert.strictEqual(providerCalls, 0);
     assert.strictEqual(channel.needsReauth, true);
   });
 });

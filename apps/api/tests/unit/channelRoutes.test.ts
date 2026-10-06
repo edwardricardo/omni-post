@@ -14,6 +14,9 @@
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import type { InjectOptions, LightMyRequestResponse } from "fastify";
+import { ChannelId } from "@core/domain/index.js";
+import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";
 import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
@@ -158,7 +161,7 @@ async function createTestApp() {
   await localApp.register(authRoutes);
   await localApp.register(channelRoutes);
   await localApp.ready();
-  return { app: localApp, authSvc };
+  return { app: localApp, authSvc, container };
 }
 
 /**
@@ -185,11 +188,13 @@ function fakeCustomerToken(opts: { sub: string; accountId: string; roleName?: st
 describe("channelRoutes", () => {
   let authSvc: InstanceType<typeof AuthService>;
   let customerToken: string;
+  let channelRepo: ChannelRepository;
 
   beforeAll(async () => {
     const result = await createTestApp();
     app = result.app;
     authSvc = result.authSvc;
+    channelRepo = result.container.resolve<ChannelRepository>(TOKENS.ChannelRepository);
 
     // Create account and project via mock prisma
     const account = await (mockPrisma.prisma.account as { create: Function }).create({
@@ -229,15 +234,18 @@ describe("channelRoutes", () => {
    * Wraps app.inject to attach a customer Bearer token by default. Tests can
    * override with their own headers (e.g. SUPER_ADMIN for hard-delete).
    */
-  function injectCustomer(opts: Parameters<typeof app.inject>[0]): ReturnType<typeof app.inject> {
-    const o = opts as Record<string, unknown> & { headers?: Record<string, string> };
+  function injectCustomer(opts: InjectOptions): Promise<LightMyRequestResponse> {
     return app.inject({
-      ...o,
-      headers: {
-        authorization: `Bearer ${customerToken}`,
-        ...(o.headers ?? {}),
-      },
-    } as Parameters<typeof app.inject>[0]);
+      ...opts,
+      headers: { authorization: `Bearer ${customerToken}`, ...opts.headers },
+    });
+  }
+
+  /** Reads a channel's credentials back through the repository, decrypted from what was stored. */
+  async function storedCredentials(channelId: string) {
+    const found = await channelRepo.findById(ChannelId.fromStringUnsafe(channelId));
+    if (!found.ok) throw found.error;
+    return found.value.credentials;
   }
 
   // ── POST /channels ─────────────────────────────────────────────────────
@@ -276,6 +284,31 @@ describe("channelRoutes", () => {
       const body = JSON.parse(res.body);
       expect(body.ok).toBe(true);
       expect(body.data.platform).toBe("INSTAGRAM");
+    });
+
+    it("stores an empty credentials object when the channel is created without credentials", async () => {
+      const res = await injectCustomer({
+        method: "POST",
+        url: "/channels",
+        payload: { projectId: testProjectId, name: "@awaiting-oauth", platform: "X" },
+      });
+      expect(res.statusCode).toBe(201);
+      expect(await storedCredentials(JSON.parse(res.body).data.id)).toEqual({});
+    });
+
+    it("answers 400 without echoing them when given credentials holding a key with no value", async () => {
+      const res = await injectCustomer({
+        method: "POST",
+        url: "/channels",
+        payload: {
+          projectId: testProjectId,
+          name: "@missing-value",
+          platform: "X",
+          credentials: { accessToken: "s3cret-token", refreshToken: null },
+        },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.body).not.toContain("s3cret-token");
     });
 
     it("should return 404 for non-existent project", async () => {
@@ -421,16 +454,40 @@ describe("channelRoutes", () => {
       expect(body.data.name).toBe("@updated-handle");
     });
 
-    it("should update channel credentials", async () => {
+    it("stores valid provider-shaped credentials whole, replacing the previous ones", async () => {
+      const credentials = {
+        accessToken: "new-token-456",
+        refreshToken: "refresh-456",
+        expiresIn: 3600,
+        scope: ["tweet.write", "offline.access"],
+      };
       const res = await injectCustomer({
         method: "PUT",
         url: `/channels/${createdChannelId}`,
-        payload: { credentials: { accessToken: "new-token-456" } },
+        payload: { credentials },
       });
       expect(res.statusCode).toBe(200);
-      const body = JSON.parse(res.body);
-      expect(body.ok).toBe(true);
+      expect(JSON.parse(res.body).ok).toBe(true);
+      expect(await storedCredentials(createdChannelId)).toEqual(credentials);
     });
+
+    it.each([
+      { shape: "an empty credentials object", credentials: {} },
+      { shape: "credentials holding a blank value", credentials: { accessToken: " " } },
+      { shape: "credentials holding a key with no value", credentials: { accessToken: null } },
+    ])(
+      "answers 400 and keeps the stored credentials when given $shape",
+      async ({ credentials }) => {
+        const before = await storedCredentials(createdChannelId);
+        const res = await injectCustomer({
+          method: "PUT",
+          url: `/channels/${createdChannelId}`,
+          payload: { credentials },
+        });
+        expect(res.statusCode).toBe(400);
+        expect(await storedCredentials(createdChannelId)).toEqual(before);
+      }
+    );
 
     it("should return 404 for non-existent channel", async () => {
       const res = await injectCustomer({

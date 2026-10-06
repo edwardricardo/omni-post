@@ -139,6 +139,45 @@ describe("Domain Entities", () => {
         expect(!updateResult.ok && updateResult.error.field).toBe("credentials");
         expect(result.value.credentials).toEqual({ accessToken: "kept" });
       });
+
+      it.each([
+        { shape: "null", credentials: { accessToken: null } },
+        { shape: "undefined", credentials: { token: undefined } },
+      ])(
+        "rejects a key whose value is $shape with the named credentials error",
+        ({ credentials }) => {
+          const result = createWith(credentials);
+          expect(!result.ok && (result.error as InvalidValueError).field).toBe("credentials");
+        }
+      );
+
+      it.each([
+        { shape: "a nested blank", credentials: { nested: { token: "" } } },
+        {
+          shape: "numbers, booleans and arrays",
+          credentials: { expiresIn: 3600, isBot: true, scope: [] },
+        },
+      ])("accepts $shape, kept exactly as given", ({ credentials }) => {
+        const result = createWith(credentials);
+        expect(result.ok && result.value.credentials).toEqual(credentials);
+      });
+
+      it.each([{ value: null }, { value: ["token"] }, { value: "token" }])(
+        "rejects credentials that are not an object: $value",
+        ({ value }) => {
+          expect(Channel.validateCredentials(value).ok).toBe(false);
+        }
+      );
+
+      it("keeps the rejected credentials out of the error it returns", () => {
+        const result = Channel.validateCredentials({
+          accessToken: "s3cret-token",
+          refreshToken: null,
+        });
+        if (result.ok) throw new Error("expected the credentials to be rejected");
+        expect(result.error.value).toBe("[hidden]");
+        expect(result.error.message).not.toContain("s3cret-token");
+      });
     });
 
     it("should track error count", () => {
@@ -458,6 +497,11 @@ describe("Domain Entities", () => {
 
       it("returns false when the credentials store no expiresAt", () => {
         const channel = reconstituteWith({ identifier: "alice.bsky.social", appPassword: "x" });
+        expect(channel.areCredentialsExpired).toBe(false);
+      });
+
+      it("returns false when a persisted expiresAt does not parse as a date", () => {
+        const channel = reconstituteWith({ expiresAt: "not-a-date" });
         expect(channel.areCredentialsExpired).toBe(false);
       });
     });

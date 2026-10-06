@@ -236,7 +236,9 @@ class ChannelRouteHandler extends BaseRouteHandler {
   /**
    * POST /channels
    * Create a new channel within a project. Credentials are optional at creation
-   * time — the OAuth flow provides the access token after the channel is registered.
+   * time: omitted or `{}` registers the channel PENDING for the OAuth flow to
+   * fill; anything else must satisfy the channel credentials invariant or the
+   * request is answered 400 with the invariant's message.
    */
   async createChannel(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -246,6 +248,11 @@ class ChannelRouteHandler extends BaseRouteHandler {
     if (!bodyResult.ok) return this.sendError(ctx, 400, "Validation failed");
 
     const { projectId, name, platform, credentials } = bodyResult.value;
+
+    if (credentials !== undefined && Object.keys(credentials).length > 0) {
+      const credentialsCheck = Channel.validateCredentials(credentials);
+      if (!credentialsCheck.ok) return this.sendError(ctx, 400, credentialsCheck.error.message);
+    }
 
     // Cross-tenant ownership gate (CWE-639): caller must own the project.
     const ownedProject = await this.assertCallerOwnsProject(ctx, projectId);
@@ -257,10 +264,9 @@ class ChannelRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, `Unknown platform: ${platform}`);
     }
 
-    // Channels can be created in PENDING state (token provided later via OAuth).
-    // Use reconstitute to bypass the Channel.create() invariant that requires
-    // non-empty credentials — this is intentional: the credential is set via
-    // OAuth after creation. Submitted credentials are stored exactly as sent.
+    // `reconstitute`, not `Channel.create()`: a channel registered ahead of its
+    // OAuth grant starts PENDING with `{}`, which `create()` refuses. Sent
+    // credentials passed the same invariant above and are stored exactly as sent.
     const now = new Date();
     const channel = Channel.reconstitute(ChannelId.generate(), {
       projectId: ProjectId.fromStringUnsafe(projectId),
@@ -354,7 +360,10 @@ class ChannelRouteHandler extends BaseRouteHandler {
 
   /**
    * PUT /channels/:channelId
-   * Update a channel's handle or credentials.
+   * Update a channel's handle or credentials. Sent credentials replace the
+   * stored ones whole, so they must satisfy the channel credentials invariant
+   * (`{}` included: storing it would erase them) or the request is answered
+   * 400 with the invariant's message. Omitted credentials keep the stored ones.
    */
   async updateChannel(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -368,6 +377,11 @@ class ChannelRouteHandler extends BaseRouteHandler {
 
     const { channelId } = paramsResult.value;
     const { name, credentials } = bodyResult.value;
+
+    if (credentials !== undefined) {
+      const credentialsCheck = Channel.validateCredentials(credentials);
+      if (!credentialsCheck.ok) return this.sendError(ctx, 400, credentialsCheck.error.message);
+    }
 
     // Cross-tenant ownership gate (CWE-639).
     const existing = await this.assertCallerOwnsChannel(ctx, channelId);
