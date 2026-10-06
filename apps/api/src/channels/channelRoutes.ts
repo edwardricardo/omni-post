@@ -18,7 +18,6 @@ import {
   EntityNotFoundError,
   CONNECTION_STATUS,
 } from "@core/domain/index.js";
-import type { ChannelCredentials } from "@core/domain/entities/Channel.js";
 import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import type { ChannelCredentialsCrypto } from "../security/ChannelCredentialsCrypto.js";
@@ -68,17 +67,6 @@ const BlueskyConnectBody = z.object({
 type BlueskyConnectBodyType = z.infer<typeof BlueskyConnectBody>;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Map a raw credentials blob to the typed ChannelCredentials interface */
-function mapCredentials(raw: Record<string, unknown>): ChannelCredentials {
-  return {
-    accessToken: String(raw.accessToken ?? ""),
-    ...(raw.refreshToken !== undefined && { refreshToken: String(raw.refreshToken) }),
-    ...(raw.expiresAt !== undefined && { expiresAt: new Date(raw.expiresAt as string) }),
-    ...(raw.tokenType !== undefined && { tokenType: String(raw.tokenType) }),
-    ...(Array.isArray(raw.scope) && { scope: (raw.scope as unknown[]).map(String) }),
-  };
-}
 
 /**
  * Rich channel DTO returned by the listing + single-resource endpoints. The
@@ -270,15 +258,16 @@ class ChannelRouteHandler extends BaseRouteHandler {
     }
 
     // Channels can be created in PENDING state (token provided later via OAuth).
-    // Use reconstitute to bypass the Channel.create() invariant that requires an
-    // access token — this is intentional: the credential is set via OAuth after creation.
+    // Use reconstitute to bypass the Channel.create() invariant that requires
+    // non-empty credentials — this is intentional: the credential is set via
+    // OAuth after creation. Submitted credentials are stored exactly as sent.
     const now = new Date();
     const channel = Channel.reconstitute(ChannelId.generate(), {
       projectId: ProjectId.fromStringUnsafe(projectId),
       accountId: AccountId.fromStringUnsafe(ownedProject.accountId),
       provider: providerResult.value,
       handle: name.trim(),
-      credentials: mapCredentials(credentials ?? {}),
+      credentials: credentials ?? {},
       status: CONNECTION_STATUS.PENDING,
       errorCount: 0,
       createdAt: now,
@@ -390,8 +379,7 @@ class ChannelRouteHandler extends BaseRouteHandler {
       accountId: existing.accountId,
       provider: existing.provider,
       handle: name !== undefined ? name.trim() : existing.handle,
-      credentials:
-        credentials !== undefined ? mapCredentials(credentials) : { ...existing.credentials },
+      credentials: credentials ?? existing.credentials,
       status: existing.status,
       errorCount: existing.errorCount,
       ...(existing.lastError !== undefined && { lastError: existing.lastError }),

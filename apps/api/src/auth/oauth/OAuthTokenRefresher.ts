@@ -55,7 +55,7 @@ export class OAuthTokenRefresher {
     const channel = found.value;
     const currentRefreshToken = channel.credentials.refreshToken;
 
-    if (!currentRefreshToken) {
+    if (typeof currentRefreshToken !== "string" || !currentRefreshToken) {
       return this.flagReauth(channelId, "No refresh token stored for channel");
     }
 

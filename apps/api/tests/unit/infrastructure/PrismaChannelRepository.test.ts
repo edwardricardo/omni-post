@@ -12,7 +12,10 @@
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { randomBytes } from "node:crypto";
 import { PrismaChannelRepository } from "../../../src/infrastructure/repositories/PrismaChannelRepository.js";
-import { ChannelCredentialsCrypto } from "../../../src/security/ChannelCredentialsCrypto.js";
+import {
+  ChannelCredentialsCrypto,
+  type EncryptedChannelCredentialsRow,
+} from "../../../src/security/ChannelCredentialsCrypto.js";
 import { EncryptionService } from "../../../src/security/EncryptionService.js";
 import { ChannelId, ProjectId, AccountId } from "@core/domain/index.js";
 
@@ -25,20 +28,20 @@ const sharedEncryption = new EncryptionService({
 });
 const sharedCrypto = new ChannelCredentialsCrypto(sharedEncryption);
 
+const CHANNEL_ID = "f0000000-0000-4000-8000-000000000001";
+const BASE_CREDENTIALS = { accessToken: "tok_123", refreshToken: "ref_456" };
+
 /**
- * Builds a Channel row with credentials already encrypted via the shared
+ * Builds a Channel row whose envelope encrypts `credentials` via the shared
  * crypto helper, so `repo.findById` returns a valid Channel domain entity.
  */
-function baseRow() {
+function rowWithCredentials(credentials: Record<string, unknown>, provider = "X") {
   // Match the recordId the repository uses on read (`row.id`).
-  const enc = sharedCrypto.encrypt(
-    { accessToken: "tok_123", refreshToken: "ref_456" },
-    { recordId: "f0000000-0000-4000-8000-000000000001" }
-  );
+  const enc = sharedCrypto.encrypt(credentials, { recordId: CHANNEL_ID });
   return {
-    id: "f0000000-0000-4000-8000-000000000001",
+    id: CHANNEL_ID,
     projectId: "b0000000-0000-4000-8000-000000000001",
-    provider: "X",
+    provider,
     handle: "@myaccount",
     credentialsCiphertext: enc.credentialsCiphertext,
     credentialsIv: enc.credentialsIv,
@@ -50,12 +53,31 @@ function baseRow() {
   };
 }
 
+function baseRow() {
+  return rowWithCredentials(BASE_CREDENTIALS);
+}
+
+/** The two branches of the upsert `save` issues; each carries the credentials envelope. */
+interface ChannelUpsertArgs {
+  create: EncryptedChannelCredentialsRow;
+  update: EncryptedChannelCredentialsRow;
+}
+
+/** Decrypts the envelope each branch of the first upsert carries: `[create, update]`. */
+function savedCredentials(prisma: ReturnType<typeof makeMockPrisma>): Record<string, unknown>[] {
+  const args = prisma.channel.upsert.mock.calls[0]?.[0];
+  if (!args) return [];
+  return [args.create, args.update].map((envelope) =>
+    sharedCrypto.decrypt(envelope, { recordId: CHANNEL_ID })
+  );
+}
+
 function makeMockPrisma() {
   return {
     channel: {
       findFirst: vi.fn(async () => baseRow()),
       findMany: vi.fn(async () => [baseRow()]),
-      upsert: vi.fn(async () => baseRow()),
+      upsert: vi.fn(async (_args: ChannelUpsertArgs) => baseRow()),
       update: vi.fn(async () => baseRow()),
       delete: vi.fn(async () => baseRow()),
     },
@@ -86,7 +108,7 @@ describe("PrismaChannelRepository", () => {
       expect(result.ok).toBeTruthy();
       expect(result.value.handle).toBe("@myaccount");
       expect(result.value.provider.type).toBe("X");
-      expect(result.value.credentials.accessToken).toBe("tok_123");
+      expect(result.value.credentials).toEqual(BASE_CREDENTIALS);
       // Uses findFirst (not findUnique) to allow deletedAt: null filter
       expect(prisma.channel.findFirst.mock.calls.length).toBe(1);
     });
@@ -203,8 +225,6 @@ describe("PrismaChannelRepository", () => {
   });
 
   describe("findOwnerAccountIdByChannelId", () => {
-    const CHANNEL_ID = "f0000000-0000-4000-8000-000000000001";
-
     it("returns ok(accountId) resolved via the project relation", async () => {
       prisma.channel.findFirst.mockImplementation(
         async () => ({ project: { accountId: "a0000000-0000-4000-8000-000000000009" } }) as never
@@ -239,6 +259,42 @@ describe("PrismaChannelRepository", () => {
       const saveResult = await repo.save(findResult.value);
       expect(saveResult.ok).toBeTruthy();
       expect(prisma.channel.upsert.mock.calls.length).toBe(1);
+      expect(savedCredentials(prisma)).toEqual([BASE_CREDENTIALS, BASE_CREDENTIALS]);
+    });
+
+    it("returns a Bluesky row's credentials whole and writes them back unchanged", async () => {
+      const stored = { identifier: "alice.bsky.social", appPassword: "abcd-efgh-ijkl-mnop" };
+      prisma.channel.findFirst.mockImplementation(async () =>
+        rowWithCredentials(stored, "BLUESKY")
+      );
+
+      const found = await repo.findById(ChannelId.fromStringUnsafe(CHANNEL_ID));
+      expect(found.ok && found.value.credentials).toEqual(stored);
+      if (!found.ok) return;
+      const saveResult = await repo.save(found.value);
+
+      expect(saveResult.ok).toBeTruthy();
+      expect(savedCredentials(prisma)).toEqual([stored, stored]);
+    });
+
+    it("keeps keys beyond the OAuth token fields and the stored expiry through read and save", async () => {
+      const stored = {
+        accessToken: "tok_123",
+        refreshToken: "ref_456",
+        expiresAt: "2020-01-01T00:00:00.000Z",
+        pageId: "123",
+      };
+      prisma.channel.findFirst.mockImplementation(async () =>
+        rowWithCredentials(stored, "FACEBOOK")
+      );
+
+      const found = await repo.findById(ChannelId.fromStringUnsafe(CHANNEL_ID));
+      expect(found.ok && found.value.credentials).toEqual(stored);
+      expect(found.ok && found.value.areCredentialsExpired).toBe(true);
+      if (!found.ok) return;
+      await repo.save(found.value);
+
+      expect(savedCredentials(prisma)).toEqual([stored, stored]);
     });
 
     it("returns err when prisma throws", async () => {

@@ -16,7 +16,6 @@ import {
   Provider,
   EntityNotFoundError,
 } from "@core/domain/index.js";
-import type { ChannelCredentials } from "@core/domain/entities/Channel.js";
 import { CONNECTION_STATUS } from "@core/domain/entities/Channel.js";
 import type {
   ChannelRepository,
@@ -49,19 +48,6 @@ interface ChannelRow {
 }
 
 /**
- * Maps a decrypted JSON credentials blob to the typed ChannelCredentials.
- */
-function parseCredentials(blob: Record<string, unknown>): ChannelCredentials {
-  return {
-    accessToken: String(blob.accessToken ?? ""),
-    ...(blob.refreshToken !== undefined && { refreshToken: String(blob.refreshToken) }),
-    ...(blob.expiresAt !== undefined && { expiresAt: new Date(blob.expiresAt as string) }),
-    ...(blob.tokenType !== undefined && { tokenType: String(blob.tokenType) }),
-    ...(Array.isArray(blob.scope) && { scope: (blob.scope as unknown[]).map(String) }),
-  };
-}
-
-/**
  * PrismaChannelRepository - Implements ChannelRepository using Prisma
  *
  * This is an ADAPTER in the hexagonal architecture — it implements
@@ -79,7 +65,9 @@ export class PrismaChannelRepository implements ChannelRepository {
 
   /**
    * Maps a Prisma Channel row to the Channel domain entity, decrypting
-   * the credentials envelope through the injected crypto helper.
+   * the credentials envelope through the injected crypto helper. The
+   * decrypted object reaches the entity whole: which keys a provider needs
+   * is not this adapter's to decide.
    */
   private toDomain(row: ChannelRow): Channel {
     const id = ChannelId.fromStringUnsafe(row.id);
@@ -112,7 +100,7 @@ export class PrismaChannelRepository implements ChannelRepository {
       accountId,
       provider: providerResult.value,
       handle: row.handle,
-      credentials: parseCredentials(decrypted),
+      credentials: decrypted,
       isPrimary: row.isPrimary,
       status: derivedStatus,
       errorCount: 0,
@@ -325,27 +313,13 @@ export class PrismaChannelRepository implements ChannelRepository {
   }
 
   /**
-   * Save a channel (create or update via upsert). Credentials are encrypted
-   * before persistence — plaintext never touches the upsert payload.
+   * Save a channel (create or update via upsert). The credentials object is
+   * encrypted as the entity holds it, every key kept — plaintext never touches
+   * the upsert payload.
    */
   async save(channel: Channel): Promise<Result<void, Error>> {
     try {
-      const plaintextCreds: Record<string, unknown> = {
-        accessToken: channel.credentials.accessToken,
-        ...(channel.credentials.refreshToken !== undefined && {
-          refreshToken: channel.credentials.refreshToken,
-        }),
-        ...(channel.credentials.expiresAt !== undefined && {
-          expiresAt: channel.credentials.expiresAt.toISOString(),
-        }),
-        ...(channel.credentials.tokenType !== undefined && {
-          tokenType: channel.credentials.tokenType,
-        }),
-        ...(channel.credentials.scope !== undefined && {
-          scope: channel.credentials.scope,
-        }),
-      };
-      const enc = this.credentialsCrypto.encrypt(plaintextCreds, {
+      const enc = this.credentialsCrypto.encrypt(channel.credentials, {
         recordId: channel.id.value,
         caller: "PrismaChannelRepository.save",
       });
