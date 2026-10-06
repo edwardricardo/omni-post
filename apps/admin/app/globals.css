@@ -3,11 +3,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
-@source "../../packages/ui/src/**/*.{ts,tsx}";
+@source "../../../packages/ui/src/**/*.{ts,tsx}";
 @source "../components/**/*.{ts,tsx}";
 
-/* @packages/ui class safelist — scanner can't resolve pnpm workspace symlinks.
-   This .ts file contains all classes from dialog, alert-dialog, toast, toaster. */
+/* Class safelist for the Dialog, AlertDialog, Toast and Toaster of @packages/ui. The
+   classes it lists were missing because the packages/ui @source path above resolved to
+   apps/packages/ui/src, not because the scanner cannot follow pnpm workspace symlinks;
+   that path is fixed, so the list is redundant. Remove-when: a dead-code change deletes
+   it, this @source line and the override rules at the end of this file, after a visual
+   check of Dialog, AlertDialog and Toast, because those rules also change their
+   animation. */
 @source "../lib/ui-safelist.ts";
 @source "../app/**/*.{ts,tsx}";
 @source "../providers/**/*.{ts,tsx}";
@@ -170,9 +175,15 @@ body {
 
 /* ═══════════════════════════════════════════════════════════════
    @packages/ui component overrides
-   Tailwind v4 @source cannot resolve classes from pnpm workspace
-   symlinked packages. These explicit styles guarantee Dialog,
-   AlertDialog, and Toast render correctly.
+   The packages/ui classes were missing from this stylesheet
+   because the packages/ui @source path at the top of this file
+   resolved to apps/packages/ui/src, not because the scanner
+   cannot follow pnpm workspace symlinks; that path is fixed.
+   The rule below still changes what users see: it cancels the
+   directional slide of every element with role dialog or
+   alertdialog, Dialog and AlertDialog among them. Remove-when:
+   the dead-code change that deletes the safelist decides this
+   rule too, after a visual check of Dialog, AlertDialog and Toast.
    ═══════════════════════════════════════════════════════════════ */
 
 /* Dialog / AlertDialog — fade+zoom only, neutralize directional slide */
