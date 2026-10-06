@@ -1,16 +1,17 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-06, PR F of slice 0.22 (`workstream/0-22-f-story-gate`, number assigned at
-publication): `pnpm check:stories` requires a sibling `<basename>.stories.tsx` beside every
-component file under `packages/ui/src/components`, `apps/client/components` and
-`apps/admin/components`, ratcheted on `scripts/testing/story-coverage-baseline.json` (40, 160 and
-54 components without one), in the battery step `stories-gate` and the `code-quality` job of
-`ci.yml`. M1 `968 + 8` → `969 + 8` (its suite); M7 `19/19` → `20/20` (its gate row). Previous: group
-(a) of dead-code unit DC-4 (#436, `workstream/dc-4-dead-security-modules`), which deleted the
-unreached `enhancedValidator` and `credentialManager` with their four test files (M1 `972 + 8` →
-`968 + 8`) and added the fitness #11 gate row (M7 `18/18` → `19/19`). This line moves with the last
-pull request that moved a row.
+**As of:** 2026-10-06, the Tailwind `@source` fix beneath PR E of slice 0.22
+(`workstream/tailwind-ui-source-fix`, number assigned at publication): both portals' `globals.css`
+pointed `@source` at `../../packages/ui/src`, which Tailwind resolves against the stylesheet to the
+nonexistent `apps/packages/ui/src`, so `packages/ui` was never scanned and its classes were missing
+from both production builds; the path is fixed, and one vitest test per app asserts that every
+`@source` directive resolves and that `packages/ui/src` is among them. M1 `969 + 8` → `971 + 8` (the
+two tests). Previous: PR F of slice 0.22 (#441, `workstream/0-22-f-story-gate`), the
+story-per-component gate (`pnpm check:stories`, ratcheted on
+`scripts/testing/story-coverage-baseline.json`, in the battery step `stories-gate` and the
+`code-quality` job of `ci.yml`; M1 `968 + 8` → `969 + 8`, M7 `19/19` → `20/20`). This line moves with
+the last pull request that moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
 The measured state of the testing re-foundation, and the fixed plan it executes. Rules live in
@@ -94,7 +95,7 @@ which added the port's contract suite and the `AiRequestService` suite (M1 `967 
 `workstream/0-22-b-shared-root` added the browser-safe shared kernel's gate row (M7 `16/16` → `17/17`)
 and the cache-key equivalence suite (M1 `969 + 8` → `970 + 8`) and whose pull request C on
 `workstream/0-22-c-runner` added the story runner's gate row (M7 `17/17` → `18/18`) and whose pull request F on
-`workstream/0-22-f-story-gate` added the story-per-component gate (M1 `968 + 8` → `969 + 8`, M7 `19/19` → `20/20`), and `PR aad-1` is the first pull
+`workstream/0-22-f-story-gate` added the story-per-component gate (M1 `968 + 8` → `969 + 8`, M7 `19/19` → `20/20`) and whose pull request E's prerequisite on `workstream/tailwind-ui-source-fix` added one Tailwind `@source` test per portal (M1 `969 + 8` → `971 + 8`), and `PR aad-1` is the first pull
 request of DEF-29, the `Channel.credentials` envelope the workers could not decrypt, on
 `workstream/def-29-channel-credentials-aad`, which added the shared cipher's suite and the channel
 repository's decrypt-input suite (M1 `970 + 8` → `972 + 8`), and `PR dc-4a` is group (a) of
@@ -109,7 +110,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 969 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR 0.22  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 971 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR 0.22  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
