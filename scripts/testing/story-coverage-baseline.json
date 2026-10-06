@@ -1,0 +1,5 @@
+{
+  "packages/ui/src/components": 40,
+  "apps/client/components": 160,
+  "apps/admin/components": 54
+}

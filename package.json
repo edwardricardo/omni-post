@@ -52,6 +52,7 @@
     "check:dead-code": "node scripts/knip-ratchet.mjs",
     "check:duplicates": "node scripts/testing/jscpd-baseline-gate.mjs",
     "check:duplicates:update-baseline": "node scripts/testing/jscpd-baseline-gate.mjs --update",
+    "check:stories": "node scripts/testing/story-per-component-gate.mjs",
     "check:architecture": "depcruise apps/api/src apps/workers/src packages --config .dependency-cruiser.cjs --output-type err --ignore-known .dependency-cruiser-known-violations.json",
     "check:architecture:update-baseline": "depcruise apps/api/src apps/workers/src packages --config .dependency-cruiser.cjs --baseline .dependency-cruiser-known-violations.json && prettier -w .dependency-cruiser-known-violations.json",
     "secret:scan": "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore --no-gitignore 'apps/**/*' 'packages/**/*' 'infra/**/*' '*.{ts,tsx,js,jsx,json,md,yml,yaml,toml,sh}'",
