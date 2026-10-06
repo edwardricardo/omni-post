@@ -118,7 +118,7 @@
 | Tailwind CSS | 4.2.1                      | Styling               |
 | Radix UI     | 1.4.3 (unified `radix-ui`) | Component primitives  |
 | React Query  | 5.90.2                     | Data fetching         |
-| Storybook    | 10.2.13                    | Component development |
+| Storybook    | 10.6.0                     | Component development |
 
 ### Infrastructure
 

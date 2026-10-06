@@ -14,9 +14,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage",
     "typecheck": "tsc --noEmit",
-    "i18n:lint": "node scripts/i18n-validate.mjs",
-    "storybook": "storybook dev -p 6007",
-    "build-storybook": "storybook build"
+    "i18n:lint": "node scripts/i18n-validate.mjs"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "1.5.0",
@@ -45,9 +43,6 @@
     "@axe-core/playwright": "catalog:",
     "@formatjs/icu-messageformat-parser": "catalog:",
     "@playwright/test": "catalog:",
-    "@storybook/addon-a11y": "catalog:",
-    "@storybook/addon-docs": "catalog:",
-    "@storybook/nextjs": "catalog:",
     "@tailwindcss/postcss": "catalog:",
     "@testing-library/dom": "catalog:",
     "@testing-library/jest-dom": "catalog:",
@@ -61,12 +56,10 @@
     "jsdom": "catalog:",
     "postcss": "catalog:",
     "postcss-load-config": "catalog:",
-    "storybook": "catalog:",
     "tailwindcss": "catalog:",
     "tw-animate-css": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vitest": "catalog:",
-    "webpack": "catalog:"
+    "vitest": "catalog:"
   }
 }

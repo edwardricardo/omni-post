@@ -150,7 +150,6 @@ catalog:
   tailwindcss: 4.3.0
   "@tailwindcss/postcss": 4.3.0
   postcss-load-config: 6.0.1
-  webpack: 5.111.1 # latest stable AND latest mature, measured 2026-10-04T04:45Z: published 2026-09-18T11:27Z, nothing newer; OSV lists nothing. Declared by apps/admin for its Storybook builder (@storybook/builder-webpack5 peers webpack ^5); apps/client left it on 2026-10-05 for @storybook/nextjs-vite; next 16 builds with Turbopack and bundles its own compiled webpack. 5.111.0 removed `experiments.outputModule`, which neither Storybook 10.6.0 nor next 16.3.8 sets. Was 5.106.2
   vite: 8.3.1 # latest MATURE, measured 2026-10-04T04:45Z: published 2026-09-24T12:26Z; OSV lists nothing. NOT latest stable: 8.3.2 (2026-10-01T10:17Z) matures 2026-10-08T10:17Z, a pre-registered hold in SECURITY_CANON. From 8.3.0 it declares postcss ^8.5.28, which is why the postcss floor moved with it. One version tree-wide since apps/client gained @vitejs/plugin-react (ADR-0019). Was 8.0.16
   eslint: 9.39.5 # the v9 line's FINAL release and its ceiling. Still held below 10: eslint-plugin-react@7.37.5 peers eslint up to ^9.7, eslint-plugin-jsx-a11y@6.10.2 up to ^9, both already at their own latest. Measured 2026-09-27; see SECURITY_CANON §"Build-tool version holds"
   "@typescript-eslint/parser": 8.71.0 # latest stable, re-measured 2026-10-05T13:56Z: published 2026-09-28T17:09Z, only 8.71.1 alphas are newer; OSV lists nothing. Taken 2026-10-05, a few hours before its 17:09Z maturity, on Edward's instruction: a deviation from the 7-day buffer tracked in scripts/testing/maturity-watchlist.json. In the catalog since 2026-10-04 (slice 0.20): declared by the root and by packages/eslint-plugin-testing, whose RuleTester parses TypeScript. @typescript-eslint/eslint-plugin stays a root literal (one manifest) and moves with it. Was 8.70.1
@@ -182,15 +181,14 @@ catalog:
   # stories as vitest browser tests; OSV lists nothing for either at 10.6.0.
   # @storybook/nextjs-vite@10.6.0 peers next "^14.1.0 || ^15.0.0 || ^16.0.0" (repo 16.3.8), vite
   # ^5 to ^8 (8.3.1) and react/react-dom up to ^19 (19.2.7); @storybook/addon-vitest@10.6.0 peers
-  # vitest, @vitest/browser and @vitest/browser-playwright ^4, all optional. @storybook/nextjs, the
-  # webpack framework, stays for @apps/admin alone, red at 10.6.0 with SB_BUILDER-WEBPACK5_0002,
-  # the signature it also produced at 10.4.6 in the A/B control of 2026-09-29 (it has no stories and
-  # its config globs a missing directory), so that red is not the version's.
+  # vitest, @vitest/browser and @vitest/browser-playwright ^4, all optional. @apps/client is the
+  # family's one declarer since 2026-10-06, when the admin Storybook left with its webpack framework
+  # @storybook/nextjs: it had no stories and its build exited 1 with SB_BUILDER-WEBPACK5_0002 at
+  # 10.4.6 and at 10.6.0 (re-measured 2026-10-06T07:51Z), so what did not run was removed.
   storybook: 10.6.0
   "@storybook/addon-a11y": 10.6.0
   "@storybook/addon-docs": 10.6.0
   "@storybook/addon-vitest": 10.6.0
-  "@storybook/nextjs": 10.6.0
   "@storybook/nextjs-vite": 10.6.0
   "@types/opossum": 8.1.9
   image-size: 2.0.4 # latest stable AND latest mature, measured 2026-10-03T08:14Z: published 2026-09-14T16:38Z; nothing newer. Also a CVE floor: GHSA-w3rx-r6r6-pgpr (ICNS) and GHSA-5p2g-fcmc-qvqq (JXL/HEIF), both high infinite-loop DoS, are vulnerable <=2.0.2 and fixed in 2.0.3 per OSV and GitHub; 2.0.4 adds one bound check on the ICO/CUR image count, and OSV lists nothing for either. Declared by packages/providers/bluesky alone, whose magic-byte gate stays as defense in depth. Was 2.0.2, which the two advisories were ignored on until 2026-10-03 (decision D37)
@@ -306,32 +304,6 @@ overrides:
   # range-scoped so the 4.x line is not dragged into it.
   "fast-uri@>=3.0.0 <3.1.8": 3.1.8
   "fast-uri@>=4.0.0 <4.1.5": 4.1.5
-  # Added 2026-09-30 for GHSA-g84c-rxfj-3j2c (high, path traversal via a
-  # non-slash-terminated publicPath; CVE-2024-29180 / CVE-2026-76844).
-  # THE FLOOR IS 7.4.6, NOT 7.4.5, AND `pnpm audit` CANNOT SEE THE DIFFERENCE. The
-  # advisory's own `vulnerable_version_range` string reads "< 7.4.5" while its
-  # `first_patched_version` is 7.4.6, and OSV records `introduced 0, fixed 7.4.6`
-  # (plus `introduced 8.0.0, fixed 8.3.0`). Upstream confirms OSV: v7.4.6
-  # (2026-09-03) is "reject requests that resolve outside the output directory",
-  # while v7.4.5 (2025-09-24) is "unpin memfs", a year earlier and unrelated. So a
-  # 7.4.5 pin makes `pnpm audit` go green by matching a malformed range string over
-  # a still-vulnerable version. EVERY floor here is therefore cross-derived from OSV
-  # + the upstream changelog, never from the audit range alone.
-  # DEV-only chain, measured: @storybook/builder-webpack5 > @storybook/nextjs >
-  # apps/{admin,client} devDependencies. It CANNOT resolve naturally —
-  # builder-webpack5 declares `webpack-dev-middleware: ^6.1.2` at 10.4.6, at the
-  # installed 10.6.0 and at 10.6.1 (re-read 2026-10-02), and 6.1.3 is the 6.x
-  # ceiling, so `pnpm update -r` leaves it on the
-  # vulnerable version (verified). A MAJOR forced over an upstream range, the
-  # @hono/node-server / deepmerge-ts precedent: 7.4.6's peerDependencies and engines
-  # are byte-identical to 7.4.5's; its peer (`webpack ^5.0.0`) is 6.1.3's, and
-  # engines.node rises only from >=14.15.0 to >=18.12.0, below this repo's
-  # >=24.15.0. Honest scope: builder-webpack5 imports the 7.x major statically and
-  # calls it only on the `storybook dev` path; `storybook dev --smoke-test --ci`
-  # (apps/client) and `storybook build` are green on 7.4.6, under Storybook 10.4.6
-  # on 2026-10-01 and under 10.6.0 on 2026-10-02.
-  # Minimal patched 7.4.6, not the latest 8.3.0, per ADR-0018.
-  "webpack-dev-middleware@<7.4.6": 7.4.6
   # Raised 2026-09-09 for GHSA-rgj7-g3m4-5g8c (high) — sharp's bundled libvips ships
   # libheif, wrapping GHSA-g89c-p67h-r497 + GHSA-2jg2-4ch7-h545; vulnerable <0.35.4.
   # BOTH the band and the target moved, the fast-uri gotcha again: the tree already
@@ -357,22 +329,8 @@ overrides:
 # Audited audit-ignores: GHSAs accepted as non-exploitable in our context, each with
 # a documented remove-when (SECURITY_CANON §Audited-audit-ignores). pnpm audit still
 # fails on any NEW advisory — the gate stays real. Migrated from package.json (ADR-0019).
+# Empty since 2026-10-06: the last two entries, GHSA-848j-6mx2-7j84 (elliptic) and
+# GHSA-vfj7-8cjw-p6xm (braces), left with @storybook/nextjs, the only package whose
+# chains carried either, so neither suppressed anything any more.
 auditConfig:
-  ignoreGhsas:
-    - GHSA-848j-6mx2-7j84
-    # braces stack-exhaustion DoS through deeply nested brace patterns,
-    # CVE-2026-93687 (added 2026-10-03). No fixed release exists: npm ends at
-    # 3.0.3, OSV records last_affected 3.0.3 and GitHub first_patched_version
-    # null. The one copy, braces@3.0.3, sits under micromatch@4.0.8 on
-    # devDependency chains only: 2 lockfile paths, one per portal, both
-    # @storybook/nextjs@10.6.0 > @storybook/preset-react-webpack >
-    # @storybook/react-docgen-typescript-plugin > micromatch@4.0.8
-    # (eslint-plugin-boundaries carried it until its removal on 2026-10-05;
-    # depcheck, secretlint and jscpd until 2026-10-03, decisions D35, D38
-    # and D39); no production importer reaches it, and
-    # micromatch hands braces glob patterns only, which here come from
-    # repository configuration alone. secretlint was the one carrier that
-    # received a committer's staged paths as patterns, and 13.0.6 no longer
-    # depends on micromatch (decision D38). Remove when
-    # braces publishes a release above 3.0.3 and the lockfile resolves it.
-    - GHSA-vfj7-8cjw-p6xm
+  ignoreGhsas: []
