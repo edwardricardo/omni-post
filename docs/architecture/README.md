@@ -67,7 +67,7 @@ apps/api/src/
 ├── projects/              # projectRoutes, ProjectRepository.ts
 ├── providers/             # providerRoutes, providerRegistry, cachedProviderRoutes
 ├── saga/                  # SagaManager, SagaIntegration
-├── security/              # enhancedValidator, inputValidation, securityHeaders, rateLimit
+├── security/              # inputValidation, securityHeaders, rateLimit
 ├── templates/             # templateRoutes, templateService, TemplateHandlers
 ├── trends/                # trendAnalysisService, TrendReportBuilder
 ├── types/                 # fastify.d.ts type declarations
