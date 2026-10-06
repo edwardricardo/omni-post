@@ -1,14 +1,14 @@
 /**
- * @file Button.stories.tsx
+ * @file button.stories.tsx
  * @description Storybook stories for the Button component showcasing variants, sizes, and
  *              icon integrations.
  * @layer infrastructure
  */
-import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import type { ComponentProps } from "react";
+import type { Meta, StoryObj } from "@storybook/react";
 import { action } from "storybook/actions";
-import { Button } from "@packages/ui";
 import { Download, Heart, Mail, Plus, Settings, Trash2, Upload } from "lucide-react";
+import { Button } from "./button";
 
 const meta = {
   title: "Components/UI/Button",

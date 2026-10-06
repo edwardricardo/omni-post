@@ -234,6 +234,9 @@ catalogs:
     '@storybook/nextjs-vite':
       specifier: 10.6.0
       version: 10.6.0
+    '@storybook/react':
+      specifier: 10.6.0
+      version: 10.6.0
     '@t3-oss/env-core':
       specifier: 0.13.11
       version: 0.13.11
@@ -4229,6 +4232,9 @@ importers:
         specifier: 2.6.0
         version: 2.6.0
     devDependencies:
+      '@storybook/react':
+        specifier: 'catalog:'
+        version: 10.6.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(storybook@10.6.0(@types/react@19.2.17)(bufferutil@4.1.0)(prettier@3.9.9)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(utf-8-validate@5.0.10))(supports-color@10.2.2)(typescript@6.0.3)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -4241,6 +4247,9 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.2.7(react@19.2.7)
+      storybook:
+        specifier: 'catalog:'
+        version: 10.6.0(@types/react@19.2.17)(bufferutil@4.1.0)(prettier@3.9.9)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(utf-8-validate@5.0.10)
       typescript:
         specifier: 'catalog:'
         version: 6.0.3

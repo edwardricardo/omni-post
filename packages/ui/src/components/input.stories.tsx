@@ -1,17 +1,16 @@
 /**
- * @file Input.stories.tsx
+ * @file input.stories.tsx
  * @description Storybook stories for the Input component covering default, password, search,
  *              and icon-prefixed variants.
  * @layer infrastructure
  */
-import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import type { ComponentProps } from "react";
+import { useState, type ComponentProps } from "react";
+import type { Meta, StoryObj } from "@storybook/react";
 import { action } from "storybook/actions";
-import { Input } from "@packages/ui";
-import { Label } from "@packages/ui";
-import { Button } from "@packages/ui";
 import { Eye, EyeOff, Search, Mail, Lock, DollarSign, Phone, Globe, AtSign } from "lucide-react";
-import { useState } from "react";
+import { Input } from "./input";
+import { Label } from "./label";
+import { Button } from "./button";
 
 const meta = {
   title: "Components/UI/Input",

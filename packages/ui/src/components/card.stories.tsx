@@ -1,22 +1,11 @@
 /**
- * @file Card.stories.tsx
+ * @file card.stories.tsx
  * @description Storybook stories for the Card component demonstrating header/footer/content
  *              composition with avatars, badges, and action buttons.
  * @layer infrastructure
  */
-import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import type { Meta, StoryObj } from "@storybook/react";
 import { action } from "storybook/actions";
-import {
-  Card,
-  CardHeader,
-  CardFooter,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@packages/ui";
-import { Button } from "@packages/ui";
-import { Badge } from "@packages/ui";
-import { Avatar, AvatarFallback, AvatarImage } from "@packages/ui";
 import {
   Heart,
   MessageCircle,
@@ -32,6 +21,15 @@ import {
   CheckCircle,
   AlertTriangle,
 } from "lucide-react";
+import { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from "./card";
+import { Button } from "./button";
+import { Badge } from "./badge";
+import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
+
+// A data URL, so the story runner makes no network request for the avatar images.
+const AVATAR_SRC = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" fill="#94a3b8"/></svg>'
+)}`;
 
 const meta: Meta<typeof Card> = {
   title: "Components/UI/Card",
@@ -130,7 +128,7 @@ export const SocialPostCard: Story = {
       <CardHeader className="pb-3">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10">
-            <AvatarImage src="/api/placeholder/40/40" alt="User" />
+            <AvatarImage src={AVATAR_SRC} alt="User" />
             <AvatarFallback>UN</AvatarFallback>
           </Avatar>
           <div className="flex-1">
@@ -381,7 +379,7 @@ export const TeamMemberCard: Story = {
       <CardHeader className="pb-3">
         <div className="flex items-center space-x-3">
           <Avatar className="h-12 w-12">
-            <AvatarImage src="/api/placeholder/48/48" alt="Team member" />
+            <AvatarImage src={AVATAR_SRC} alt="Team member" />
             <AvatarFallback>SM</AvatarFallback>
           </Avatar>
           <div className="flex-1">

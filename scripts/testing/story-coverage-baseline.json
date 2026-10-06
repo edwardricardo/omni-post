@@ -1,5 +1,5 @@
 {
-  "packages/ui/src/components": 40,
+  "packages/ui/src/components": 34,
   "apps/client/components": 160,
   "apps/admin/components": 54
 }

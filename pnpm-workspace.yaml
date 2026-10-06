@@ -181,15 +181,21 @@ catalog:
   # stories as vitest browser tests; OSV lists nothing for either at 10.6.0.
   # @storybook/nextjs-vite@10.6.0 peers next "^14.1.0 || ^15.0.0 || ^16.0.0" (repo 16.3.8), vite
   # ^5 to ^8 (8.3.1) and react/react-dom up to ^19 (19.2.7); @storybook/addon-vitest@10.6.0 peers
-  # vitest, @vitest/browser and @vitest/browser-playwright ^4, all optional. @apps/client is the
-  # family's one declarer since 2026-10-06, when the admin Storybook left with its webpack framework
-  # @storybook/nextjs: it had no stories and its build exited 1 with SB_BUILDER-WEBPACK5_0002 at
-  # 10.4.6 and at 10.6.0 (re-measured 2026-10-06T07:51Z), so what did not run was removed.
+  # vitest, @vitest/browser and @vitest/browser-playwright ^4, all optional. The admin Storybook
+  # left on 2026-10-06 with its webpack framework @storybook/nextjs: it had no stories and its build
+  # exited 1 with SB_BUILDER-WEBPACK5_0002 at 10.4.6 and at 10.6.0 (re-measured
+  # 2026-10-06T07:51Z), so what did not run was removed. @apps/client declares storybook, the
+  # framework and the addons; since 2026-10-06 (slice 0.22) @packages/ui declares storybook and
+  # @storybook/react for the stories colocated with its components, which the client Storybook
+  # runs. @storybook/react has that one declarer and is a catalog member anyway, because the family
+  # moves as one; 10.6.0 peers react/react-dom up to ^19 (19.2.7) and storybook ^10.6.0, and OSV
+  # lists nothing for it at 10.6.0 or 10.6.1.
   storybook: 10.6.0
   "@storybook/addon-a11y": 10.6.0
   "@storybook/addon-docs": 10.6.0
   "@storybook/addon-vitest": 10.6.0
   "@storybook/nextjs-vite": 10.6.0
+  "@storybook/react": 10.6.0
   "@types/opossum": 8.1.9
   image-size: 2.0.4 # latest stable AND latest mature, measured 2026-10-03T08:14Z: published 2026-09-14T16:38Z; nothing newer. Also a CVE floor: GHSA-w3rx-r6r6-pgpr (ICNS) and GHSA-5p2g-fcmc-qvqq (JXL/HEIF), both high infinite-loop DoS, are vulnerable <=2.0.2 and fixed in 2.0.3 per OSV and GitHub; 2.0.4 adds one bound check on the ICO/CUR image count, and OSV lists nothing for either. Declared by packages/providers/bluesky alone, whose magic-byte gate stays as defense in depth. Was 2.0.2, which the two advisories were ignored on until 2026-10-03 (decision D37)
 
