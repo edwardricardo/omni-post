@@ -1,6 +1,14 @@
 # Plan de Implementación — OmniPost (roadmap de gaps)
 
-> Derivado de [FEATURE_TRACE_MATRIX_ES.md](FEATURE_TRACE_MATRIX_ES.md) §8.4 (orden) y §9 (canon 2026). Solo cubre **gaps** (🟡/📐/💬/⛔); lo ✅ no entra. Orden macro: **Bloqueantes compartidos → Fase 0 → Fase 1 → Fase 2 → Fase 3**.
+> **⚠️ ESTADO: ARCHIVADO EL 2026-10-06 — REGISTRO HISTÓRICO, NO SE ACTUALIZA.**
+> Lo reemplaza [`MASTER_PLAN_ES.md`](../product/MASTER_PLAN_ES.md), la única fuente de planificación y trabajo,
+> que lo retiró el 2026-06-29 (§7). Siguió en `docs/product/` con casillas vivas hasta que Edward decidió
+> archivarlo el 2026-10-06 (§5.15 del plan). Sus casillas, conteos y estados son los de su último cambio
+> (2026-07-21) y no se mantienen: figuran abiertos ítems ya entregados (`F0-CLI-1`, `F0-WRK-2`) y cita 24 fitness
+> donde hoy hay 44. Al moverlo sólo se reapuntaron a `../product/` sus enlaces a los documentos hermanos; el resto
+> del texto queda como estaba.
+
+> Derivado de [FEATURE_TRACE_MATRIX_ES.md](../product/FEATURE_TRACE_MATRIX_ES.md) §8.4 (orden) y §9 (canon 2026). Solo cubre **gaps** (🟡/📐/💬/⛔); lo ✅ no entra. Orden macro: **Bloqueantes compartidos → Fase 0 → Fase 1 → Fase 2 → Fase 3**.
 >
 > **Canon arquitectónico post S1'→S5** (workstream `application-services-to-core`, cerrado 2026-05-27): los items que crean services de aplicación viven en `packages/core/application/<context>/` con ports en `packages/core/domain/repositories/` + adapters Prisma en `apps/api/src/infrastructure/repositories/`. Los routes en `apps/api/src/<context>/` solo resuelven use cases del DI container. Ver [../architecture/NORMALIZATION_ROADMAP.md](../architecture/NORMALIZATION_ROADMAP.md) para mejoras transversales (multi-tenant guards, ADRs, contract tests, chaos testing).
 >
@@ -16,7 +24,7 @@
 > item against the CURRENT bar before re-marking `[x]`**:
 >
 > 1. **0-defect** — lint (`--max-warnings 0`) · tsc · the 24 fitness functions · tests, all green.
-> 2. **Security** — the verified security cluster for the item's area, now tracked in [`MASTER_PLAN_ES.md`](MASTER_PLAN_ES.md) §1 (Fase N · Nivelación), evidence-based on `docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md` §2 (which verified the former inventory §2 leads).
+> 2. **Security** — the verified security cluster for the item's area, now tracked in [`MASTER_PLAN_ES.md`](../product/MASTER_PLAN_ES.md) §1 (Fase N · Nivelación), evidence-based on `docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md` §2 (which verified the former inventory §2 leads).
 > 3. **Dependency-freshness gate** (ADR-0018) — every shared dep asserted equal to its catalog pin (latest stable, exact, single version); private deps freshened + `pnpm install --frozen-lockfile` + `syncpack lint` green.
 >
 > This plan is THE center; the consolidated inventory + all technical/security debt
@@ -56,7 +64,7 @@
 - [ ] **B1** `[M]` **Decisión + spike orquestación de agentes (LangGraph vs propio)** — ⛔ bloquea: Fase 0 completa. Spike de LangGraph (grafo con estado, ReAct, evals de trayectoria) sobre 1 caso (repurpose). **DoD:** ADR en `docs/technical/` con decisión, PoC mínimo que ejecuta un grafo plan→act→reflect y un eval de trayectoria en CI.
 - [ ] **B2** `[M]` **Migración BullMQ repeatable jobs → Job Schedulers (`upsert`)** (API+WRK) — ⛔ bloquea: RSS, recycling, scheduled reports, scheduling tz. Repeatable deprecado desde 5.16.0. **DoD:** cero usos de `repeat:` legacy; todos los recurrentes vía Job Scheduler; tests verdes; sin jobs duplicados tras deploy.
 - [ ] **B3** `[M]` **Sustrato OAuth 2.1 + PKCE compartido** (API) — ⛔ bloquea: Canva, MCP, hardening connect. Helper único Auth Code + PKCE (S256), state server-side, refresh token rotation, tokens cifrados at-rest. **DoD:** módulo reutilizable + tests; redirect exact-match; un proveedor piloto migrado.
-- [ ] **B4** `[S]` **Decisión de producto: alcance multi-idioma** — ⛔ bloquea: Fase 1 multi-idioma. Decisión de negocio (locales objetivo LATAM, ¿UI + generación IA?). **DoD:** decisión registrada en `docs/product/` con locales y alcance (UI / contenido IA / ambos). → [MULTILINGUAL_SCOPE_ES.md](MULTILINGUAL_SCOPE_ES.md) (es/en, default es, alcance UI+IA, extensible).
+- [ ] **B4** `[S]` **Decisión de producto: alcance multi-idioma** — ⛔ bloquea: Fase 1 multi-idioma. Decisión de negocio (locales objetivo LATAM, ¿UI + generación IA?). **DoD:** decisión registrada en `docs/product/` con locales y alcance (UI / contenido IA / ambos). → [MULTILINGUAL_SCOPE_ES.md](../product/MULTILINGUAL_SCOPE_ES.md) (es/en, default es, alcance UI+IA, extensible).
 - [ ] **B5** `[M]` **Semantic layer mínimo (métricas/dims gobernadas)** (API) — ⛔ bloquea: custom report builder, Looker connector. Definición única de métricas (engagement rate, alcance…) que compila queries. **DoD:** capa con ≥10 métricas core, una métrica = una definición; consumida por al menos un reporte existente. → `MetricRegistry`/`DimensionRegistry` (dominio puro, 10 métricas, drift-guard); `RunCustomReportQuery` delega; catálogo honesto (fantasma fuera).
 
 ---
@@ -194,4 +202,4 @@
 
 ---
 
-_Plan derivado de [FEATURE_TRACE_MATRIX_ES.md](FEATURE_TRACE_MATRIX_ES.md) (rastreo + canon mayo 2026). Estimaciones S/M son tamaño de iteración, no compromiso de fecha. Reverificar canon §9 antes de cada track (modelos/APIs cambian rápido). Actualizar el Dashboard de progreso al cerrar cada tarea._
+_Plan derivado de [FEATURE_TRACE_MATRIX_ES.md](../product/FEATURE_TRACE_MATRIX_ES.md) (rastreo + canon mayo 2026). Estimaciones S/M son tamaño de iteración, no compromiso de fecha. Reverificar canon §9 antes de cada track (modelos/APIs cambian rápido). Actualizar el Dashboard de progreso al cerrar cada tarea._
