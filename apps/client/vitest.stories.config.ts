@@ -21,8 +21,8 @@ export default defineConfig({
     browser: {
       enabled: true,
       headless: true,
-      // Playwright launches Chromium without its sandbox unless `chromiumSandbox` is set, which
-      // is what lets the run start as root inside a container.
+      // No launch option is needed for root inside a container: Playwright passes `--no-sandbox`
+      // to Chromium itself unless `chromiumSandbox: true` is set (measured on Playwright 1.63).
       provider: playwright(),
       instances: [{ browser: "chromium" }],
     },

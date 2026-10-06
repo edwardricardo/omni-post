@@ -787,8 +787,8 @@ jobs:
   # ── Tier 0: Storybook stories as vitest browser tests (headless Chromium) ──
   # Every client story renders in a real browser through @storybook/addon-vitest:
   # its play function runs, axe fails it at `error` over WCAG 2.1 A/AA, and a
-  # console error or warning fails it. A job of its own because Frontend Tests
-  # runs the jsdom suite, which must never start a browser.
+  # console error or warning fails it. A job of its own because `test-frontend`
+  # (Frontend Tests, above) runs the jsdom suite, which must never start a browser.
   stories:
     name: Storybook Stories
     runs-on: ubuntu-latest
@@ -809,8 +809,10 @@ jobs:
         # pnpm-lock.yaml, and fails the step if it prints nothing.
         run: |
           version=$(pnpm --filter @apps/client exec playwright --version | awk '{print $2}')
-          if [ -z "$version" ]; then
-            echo "::error title=Playwright version::the client's playwright driver reported no version"
+          # The cache key must be a real driver version: an empty or reshaped
+          # `--version` output would otherwise poison the key without failing.
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error title=Playwright version::the client's playwright driver reported '$version', not a semver"
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -820,6 +822,10 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
+          # A version bump restores the previous revision's cache and lets
+          # `playwright install` fetch only the missing browser.
+          restore-keys: |
+            ${{ runner.os }}-playwright-
 
       - name: Install Chromium and its system libraries
         # A cache hit skips the browser download; the system libraries are not
