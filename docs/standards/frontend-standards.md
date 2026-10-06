@@ -6,6 +6,7 @@
 **Version:** 2
 **Supersedes:** `REACT_STANDARDS.md` v1 (2026-04-03)
 **Transversal rules:** see `CODE_STANDARDS.md` for TypeScript, catch blocks, path conventions, code hygiene, dead code policy.
+**Canonical summary:** [`docs/frontend/REACT_STANDARDS.md`](../frontend/REACT_STANDARDS.md) (2026-10-06, a new page, not the v1 this file superseded) — the short page CODING_STANDARDS cites, with the story per component, its pass criterion and its gate (ADR-0035); this file stays the detailed body.
 
 ---
 

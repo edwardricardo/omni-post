@@ -164,12 +164,17 @@ The target is **0 cancelled** on every run. If you find cancelled tests, diagnos
 
 **Three frameworks, strict domain boundaries. Jest is NOT allowed.**
 
-| Domain                                                    | Framework    | Imports                                                                        |
-| --------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------ |
-| Backend unit tests (`apps/api/tests/unit/`)               | `vitest`     | `import { describe, it, expect, vi } from "vitest"` + `assert`                 |
-| Backend integration tests (`apps/api/tests/integration/`) | `node:test`  | `import { describe, it, before, after } from "node:test"` + `assert`           |
-| Frontend (admin components, client hooks)                 | `vitest`     | `import { describe, it, expect, vi } from "vitest"` + `@testing-library/react` |
-| E2E (admin auth, client publishing)                       | `Playwright` | `import { test, expect } from "@playwright/test"`                              |
+| Domain                                                      | Framework                                                                    | Imports                                                                                                                              |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Backend unit tests (`apps/api/tests/unit/`)                 | `vitest`                                                                     | `import { describe, it, expect, vi } from "vitest"` + `assert`                                                                       |
+| Backend integration tests (`apps/api/tests/integration/`)   | `node:test`                                                                  | `import { describe, it, before, after } from "node:test"` + `assert`                                                                 |
+| Frontend (admin components, client hooks)                   | `vitest`                                                                     | `import { describe, it, expect, vi } from "vitest"` + `@testing-library/react`                                                       |
+| E2E (admin auth, client publishing)                         | `Playwright`                                                                 | `import { test, expect } from "@playwright/test"`                                                                                    |
+| Component stories (`packages/ui`, client, admin components) | `vitest` browser mode through `@storybook/addon-vitest`, Playwright Chromium | `import type { Meta, StoryObj } from "@storybook/react"` (packages) / `"@storybook/nextjs-vite"` (apps); `storybook/test` for `play` |
+
+The story row adds no fourth framework: it is `vitest` in browser mode, with Playwright's Chromium as the browser. `pnpm --filter @apps/client test:stories` (`apps/client/vitest.stories.config.ts`) runs every story the client Storybook collects, its own and those of `packages/ui`, in the CI job `Storybook Stories` and the battery step `stories`; the admin has no runner until its Storybook is re-created ([ADR-0035](../technical/ADR-0035-stories-part-of-creating-ui.md)).
+
+**A story passes** when that run is green for it: it renders with no page error; it writes nothing to `console.error` or `console.warn` (the console contract of `apps/client/.storybook/vitest.setup.ts`); its `play` function, when it has one, passes; and axe reports zero violations at `error` over the WCAG 2.1 A/AA tags `wcag2a`, `wcag2aa`, `wcag21a` and `wcag21aa` (`parameters.a11y` in `apps/client/.storybook/preview.tsx`). It runs in a real browser because jsdom cannot evaluate colour contrast (axe-core's README: the `color-contrast` rule is known not to work with JSDOM). A component's stories cover its meaningful states — default, disabled, loading, error, empty — not only its first render, and a state the component does not have is named as absent in the story file's header. A failing story is a defect, fixed in the same change or, if large, tracked as its own item: never skipped (`tags: ["!test"]`), never suppressed (an `a11y.test` of `todo` or `off`, or an axe rule switched off). The flow before hand-over and the gate: [REACT_STANDARDS.md](../frontend/REACT_STANDARDS.md).
 
 ### Backend Unit Test Pattern (Vitest)
 
@@ -259,7 +264,7 @@ describe("Integration Feature", () => {
 
 ## React Component Standards
 
-> Full React standards: `docs/frontend/REACT_STANDARDS.md`
+> React standards: [docs/frontend/REACT_STANDARDS.md](../frontend/REACT_STANDARDS.md) — the story requirement, and the map to the detailed rules in [docs/standards/frontend-standards.md](../standards/frontend-standards.md)
 
 - Function Declaration Order:
   1. State declarations (useState)
@@ -286,8 +291,11 @@ Every new or modified class, method, or function requires tests in the same spri
 - **New service / use case** → unit tests with mock factory pattern (`apps/api/tests/unit/`)
 - **New route / endpoint** → integration test with real HTTP request (`apps/api/tests/integration/`)
 - **New React component** → Vitest component test with `@testing-library/react`
+- **New React component** → a colocated `<basename>.stories.tsx` covering its meaningful states, run green with `pnpm --filter @apps/client test:stories` before hand-over (an admin component: with its own runner once the admin Storybook is re-created) — [REACT_STANDARDS.md](../frontend/REACT_STANDARDS.md), [ADR-0035](../technical/ADR-0035-stories-part-of-creating-ui.md)
 - **New hook** → Vitest hook test
 - **Modified method** → update existing tests to cover new behavior
+
+`pnpm check:stories` enforces the story. In `packages/ui/src/components`, `apps/client/components` and `apps/admin/components` it counts the component files without a sibling story and fails when a count differs from that root's baseline in `scripts/testing/story-coverage-baseline.json`: above it, a component landed without its story; below it, a story landed and the baseline is lowered in the same change. The baseline is deleted once every count reaches 0, and the gate then requires 0.
 
 Tests are never deferred to a later sprint. A sprint that produces code without tests
 is incomplete regardless of TypeScript compiling cleanly.
@@ -425,7 +433,7 @@ An app that runs a Storybook runs it on its own dedicated port, so two can run s
 - `apps/client`: `6006`
 - `apps/admin`: `6007`, reserved — the app has had no Storybook since 2026-10-06 (its configuration had no stories and never built, so it was removed); a Storybook re-created there takes this port, and no other app does
 
-`packages/ui` does **not** run its own Storybook; its stories are picked up by the client Storybook via a cross-package glob in `apps/client/.storybook/main.ts`. This avoids dual-maintenance of addons/preview configuration.
+`packages/ui` does **not** run its own Storybook; its stories are picked up by the client Storybook via a cross-package glob in `apps/client/.storybook/main.ts`. This avoids dual-maintenance of addons/preview configuration. A `packages/ui` story goes beside its component (`packages/ui/src/components/<basename>.stories.tsx`), as every component story does: `pnpm check:stories` counts only a sibling `<basename>.stories.tsx` as a component's story (§Mandatory Requirements for Every Sprint).
 
 ### Comment Quality Rules
 
@@ -447,6 +455,7 @@ Adding or amending coding rules:
 4. **New `@layer` value** → forbidden. Three values total (`domain`, `application`, `infrastructure`). Amendments require an ADR.
 5. **New mandatory artefact per sprint** → extend §"Mandatory Requirements for Every Sprint". Keep the bar high but realistic.
 6. **Amending a rule** → ADR required (see ADR-0001 template). Update this doc with the new wording + link the ADR.
+7. **New story requirement or runner change** → ADR (ADR-0035 is the current one); update §"Test Framework Rules", §"Mandatory Requirements for Every Sprint" and `docs/frontend/REACT_STANDARDS.md` together.
 
 Companion fitness checks live in `CLAUDE.md §Automated Compliance Checks`:
 
