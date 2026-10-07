@@ -13,6 +13,8 @@ Target behaviour lives in `docs/features/` and the ADRs, the endpoint reference 
 3. Write the eight sections in the template's order; `## Verification` holds the one line `Last verified against main <sha> on <date> by <who>`, equal to the stamp.
 4. Run `pnpm support:index` and commit the regenerated pages.
 
+Before step 4, a page also marks each candidate it documents as `documented`, with its `doc`, in `classification/non-features.json`; [NON_FEATURES.md](NON_FEATURES.md) lists every candidate the tree yields and what covers it.
+
 ## What the check verifies
 
 `pnpm check:support` refuses a support page that misses a template key or adds one, has an unknown status, a stamp that is no 40-hex sha, `YYYY-MM-DD` date and author, a `paths` entry that does not exist, a repeated capability, a `legal` reference that names no register section or inventory row, or headings other than the eight in order; and it refuses this page when it differs from the one regenerated. It reads structure only: no date is compared with today and no commit is counted.

@@ -89,6 +89,13 @@
 | [Legal Facts Register](legal/README.md)  | How the register grows, inventories, pending decisions |
 | [Processing Register](legal/REGISTER.md) | Record of processing activities (GDPR art. 30)         |
 
+### Support
+
+| Document                                             | Description                                                                      |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------- |
+| [Support Documentation](support/README.md)           | One page per feature: how it works and where to look when a ticket opens         |
+| [Non-features and Coverage](support/NON_FEATURES.md) | Every capability candidate and the support page that covers it, or why none does |
+
 ### Reports (Historical)
 
 | Directory / file                                               | Content                                    |
