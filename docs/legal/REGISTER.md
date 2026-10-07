@@ -15,7 +15,7 @@ The skeleton of OmniPost's record of processing activities, laid out on the elem
 | 3   | [Legal bases per purpose](#3-legal-bases-per-purpose)                  | —               | `pending decision (owner: Edward)` |
 | 4   | [Categories of data subjects](#4-categories-of-data-subjects)          | (c)             | `generated`                        |
 | 5   | [Categories of personal data](#5-categories-of-personal-data)          | (c)             | `generated`                        |
-| 6   | [Recipients and subprocessors](#6-recipients-and-subprocessors)        | (d)             | `upcoming (unit L-1d)`             |
+| 6   | [Recipients and subprocessors](#6-recipients-and-subprocessors)        | (d)             | `generated`                        |
 | 7   | [Transfers to third countries](#7-transfers-to-third-countries)        | (e)             | `pending decision (owner: Edward)` |
 | 8   | [Retention and erasure](#8-retention-and-erasure)                      | (f)             | `linked`                           |
 | 9   | [Security measures](#9-technical-and-organisational-security-measures) | (g)             | `linked`                           |
@@ -87,9 +87,13 @@ The `pending` rows are listed on the page with Status `pending`, each with a not
 
 ## 6. Recipients and subprocessors
 
-**Status:** `upcoming (unit L-1d)`
+**Status:** `generated` — [subprocessors inventory](inventories/subprocessors.generated.md)
 
-The `subprocessors` generator lists the direct dependencies of every workspace that are external services, from the workspace manifests and the parsed lockfile. Until it lands, this section names no recipient.
+The generator reads the root `package.json` and every `package.json` under `apps/`, `packages/` and `infra/`, skipping `node_modules`, `dist` and `.next`, and takes each direct dependency named in a `dependencies`, `devDependencies`, `optionalDependencies` or `peerDependencies` block that is not a workspace package; a `catalog:` specifier still names its package. It joins each name with [`classification/subprocessors.json`](classification/subprocessors.json), keyed by the package name as declared, scoped names included, and marks it production or dev-only from the blocks and manifests that declare it. Versions are not read and the lockfile is not parsed: a recipient is what a manifest declares, so the lockfile source the plan named was dropped.
+
+Each name is classified `service` (it talks to a third-party service that may receive personal data, or ships the product's telemetry to one), `library` (no third-party endpoint of its own) or `pending`. A service row states the vendor, the purpose, what turns it on (an environment variable, an Admin credential or an account's configuration), the data it sends and its production path (`yes`, `no` or `build-time only`). A service the code reaches by `fetch`, which no dependency traces, is added with `"manual": true`, such as the Resend email API. The page leads with the services, then lists the social providers of the `Provider` enum that no service dependency reaches, whose OAuth permissions are in section 11, then the `pending` rows. The current figures are the page's Summary table.
+
+The classification's `pendingBaseline` holds the count of `pending` rows: it cannot rise, and a fall lowers the baseline in the same change.
 
 ## 7. Transfers to third countries
 

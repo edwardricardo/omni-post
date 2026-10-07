@@ -10,13 +10,13 @@
 
 ## When `pnpm check:legal` fails
 
-`pnpm check:legal` regenerates every inventory in memory and compares it with the committed page. It exits 1 when a page is stale or missing, a candidate has no classification entry, an entry names a row that no longer exists, an OAuth scope's declared `sources` differ from the scan, a `pending` count differs from the file's `pendingBaseline`, or a scan read nothing.
+`pnpm check:legal` regenerates every inventory in memory and compares it with the committed page. It exits 1 when a page is stale or missing, a candidate has no classification entry, an entry names a row that no longer exists, an OAuth scope's declared `sources` differ from the scan, a service lacks one of its fields, a manual service names a declared package, a `pending` count differs from the file's `pendingBaseline`, or a scan read nothing.
 
 1. Run `pnpm legal:inventory`: it rewrites every page and prints each problem as `legal-inventory <name>: <problem>`.
-2. Classify each new row in `classification/<name>.json`: its status, the fields the generator requires (category and subject for a personal field, lifetime for a cookie, sources and grants for an OAuth scope) and a note stating what the code does with it.
+2. Classify each new row in `classification/<name>.json`: its status, the fields the generator requires (category and subject for a personal field, lifetime for a cookie, sources and grants for an OAuth scope, vendor, purpose, envToggle, dataSent and productionPath for a service) and a note stating what the code does with it.
 3. Run `pnpm check:legal` again until every page reports `is current`, and commit the classification and the page with the change that moved them.
 
-**Not applicable is a row, never a sentence.** A touched surface that holds nothing legally relevant is declared in its classification file — `not-personal` for a schema field, `library` for a dependency once the `subprocessors` generator lands — with a note that says why. A pull request description or a label is never read by any check.
+**Not applicable is a row, never a sentence.** A touched surface that holds nothing legally relevant is declared in its classification file — `not-personal` for a schema field, `library` for a dependency — with a note that says why. A pull request description or a label is never read by any check.
 
 ## Inventories
 
@@ -27,7 +27,7 @@ The current figures are each page's Summary table.
 | `personal-data`       | [`personal-data.mjs`](../../scripts/legal/personal-data.mjs)             | [`personal-data.json`](classification/personal-data.json)             | [page](inventories/personal-data.generated.md)       | Fields of `infra/prisma/schema.prisma` whose name may hold personal data                                                                               | `personal`, `not-personal`, `pending`                          |
 | `cookies-and-storage` | [`cookies-and-storage.mjs`](../../scripts/legal/cookies-and-storage.mjs) | [`cookies-and-storage.json`](classification/cookies-and-storage.json) | [page](inventories/cookies-and-storage.generated.md) | Cookies and `localStorage` / `sessionStorage` keys of the API, both portals and `packages/ui`                                                          | `essential`, `functional`, `analytics`, `marketing`, `pending` |
 | `oauth-scopes`        | [`oauth-scopes.mjs`](../../scripts/legal/oauth-scopes.mjs)               | [`oauth-scopes.json`](classification/oauth-scopes.json)               | [page](inventories/oauth-scopes.generated.md)        | OAuth scopes each provider connection requests or declares: the connect flows, the adapters, the shared provider metadata and the CRM authorize routes | `required`, `optional`, `unused`, `pending`                    |
-| `subprocessors`       | upcoming (unit L-1d)                                                     | —                                                                     | —                                                    | Direct dependencies that are external services, from the workspace manifests and the lockfile                                                          | —                                                              |
+| `subprocessors`       | [`subprocessors.mjs`](../../scripts/legal/subprocessors.mjs)             | [`subprocessors.json`](classification/subprocessors.json)             | [page](inventories/subprocessors.generated.md)       | Direct dependencies of the root and every workspace manifest, and the services the code reaches by `fetch`                                             | `service`, `library`, `pending`                                |
 
 After the generators, the check becomes a gate: a fitness check and a battery step that run `pnpm check:legal`, so a pull request that adds a personal field, a dependency, a scope or a cookie stays red until its row is classified. A later unit adds a `## Legal impact` section to the ADR and specification templates; ADR-0034 and ADR-0035 already carry one.
 

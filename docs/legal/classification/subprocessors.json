@@ -1,0 +1,916 @@
+{
+  "generator": "scripts/legal/subprocessors.mjs",
+  "pendingBaseline": 1,
+  "entries": {
+    "@anthropic-ai/sdk": {
+      "status": "service",
+      "vendor": "Anthropic",
+      "purpose": "AI content generation, analysis and optimization",
+      "envToggle": "an Anthropic key in the Admin `AI_POOL` credentials, or an account's `AI_BYOK` credentials",
+      "dataSent": "prompts built from the user's post text, brand and content context",
+      "productionPath": "yes",
+      "note": "`AnthropicProvider` in `apps/api/src/ai/providers/anthropic.ts` calls the Messages API."
+    },
+    "@atproto/api": {
+      "status": "service",
+      "vendor": "Bluesky Social",
+      "purpose": "Publishes posts and reads account data for connected Bluesky accounts",
+      "envToggle": "an account connecting a channel of that provider",
+      "dataSent": "the post text and media the user publishes, with the account's session",
+      "productionPath": "yes",
+      "note": "The Bluesky provider package."
+    },
+    "@aws-sdk/client-s3": {
+      "status": "service",
+      "vendor": "Amazon Web Services (S3), or DigitalOcean (Spaces)",
+      "purpose": "Media storage",
+      "envToggle": "`STORAGE_PROVIDER=s3` or `STORAGE_PROVIDER=do-spaces`",
+      "dataSent": "the media files users upload, with their object keys",
+      "productionPath": "yes",
+      "note": "`@adapters/storage-s3`, on which `@adapters/storage-do-spaces` builds; `createStorageAdapter` selects it. `S3_ENDPOINT` can point it at another S3-compatible host."
+    },
+    "@aws-sdk/s3-presigned-post": {
+      "status": "library",
+      "note": "Signs S3 upload forms locally; the upload goes to the storage service `@aws-sdk/client-s3` is listed for."
+    },
+    "@aws-sdk/s3-request-presigner": {
+      "status": "library",
+      "note": "Signs S3 URLs locally; the transfer goes to the storage service `@aws-sdk/client-s3` is listed for."
+    },
+    "@axe-core/playwright": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@azure/storage-blob": {
+      "status": "service",
+      "vendor": "Microsoft (Azure Blob Storage)",
+      "purpose": "Media storage adapter",
+      "envToggle": "none: no app declares `@adapters/storage-azure`",
+      "dataSent": "the media files the adapter stores",
+      "productionPath": "no",
+      "note": "`@adapters/storage-azure`; no app declares that package and `createStorageAdapter` does not select it."
+    },
+    "@emoji-mart/data": {
+      "status": "library",
+      "note": "Emoji data the picker imports from the bundle; no third-party endpoint of its own."
+    },
+    "@emoji-mart/react": {
+      "status": "library",
+      "note": "The emoji picker of `packages/ui`; it renders native emoji, with no third-party endpoint of its own."
+    },
+    "@eslint/js": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@faker-js/faker": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@fastify/cookie": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "@fastify/cors": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "@fastify/helmet": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "@fastify/rate-limit": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "@fastify/swagger": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "@fastify/websocket": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "@formatjs/icu-messageformat-parser": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@git-diff-view/file": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@git-diff-view/react": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@google-cloud/storage": {
+      "status": "service",
+      "vendor": "Google (Cloud Storage)",
+      "purpose": "Media storage adapter",
+      "envToggle": "none: no app declares `@adapters/storage-gcs`",
+      "dataSent": "the media files the adapter stores",
+      "productionPath": "no",
+      "note": "`@adapters/storage-gcs`; no app declares that package and `createStorageAdapter` does not select it."
+    },
+    "@google/genai": {
+      "status": "service",
+      "vendor": "Google (Gemini API)",
+      "purpose": "AI content generation, analysis and text embeddings",
+      "envToggle": "`GEMINI_API_KEY`, a Gemini key in the Admin `AI_POOL` credentials, or an account's `AI_BYOK` credentials",
+      "dataSent": "prompts built from the user's post text, brand and content context, and the text it embeds",
+      "productionPath": "yes",
+      "note": "`GeminiProvider` in `apps/api/src/ai/providers/gemini.ts` generates content and embeddings."
+    },
+    "@googleapis/youtube": {
+      "status": "service",
+      "vendor": "Google (YouTube Data API)",
+      "purpose": "Publishes videos and reads channel data for connected YouTube channels",
+      "envToggle": "an account connecting a channel of that provider",
+      "dataSent": "the videos, titles and descriptions the user publishes, with the channel's OAuth token",
+      "productionPath": "yes",
+      "note": "The YouTube provider package."
+    },
+    "@googleapis/youtubeanalytics": {
+      "status": "service",
+      "vendor": "Google (YouTube Analytics API)",
+      "purpose": "Reads the analytics of connected YouTube channels",
+      "envToggle": "an account connecting a channel of that provider",
+      "dataSent": "analytics queries with the channel's OAuth token",
+      "productionPath": "yes",
+      "note": "The YouTube provider package's analytics client."
+    },
+    "@hey-api/openapi-ts": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@langchain/core": {
+      "status": "library",
+      "note": "In-process orchestration of the AI agent graph. Its LangSmith tracing ships runs only when `LANGSMITH_TRACING` or `LANGCHAIN_TRACING_V2` is set, and `apps/api/src/config/env.ts` declares neither."
+    },
+    "@langchain/langgraph": {
+      "status": "library",
+      "note": "In-process orchestration of the AI agent graph. Its LangSmith tracing ships runs only when `LANGSMITH_TRACING` or `LANGCHAIN_TRACING_V2` is set, and `apps/api/src/config/env.ts` declares neither."
+    },
+    "@marsidev/react-turnstile": {
+      "status": "service",
+      "vendor": "Cloudflare (Turnstile)",
+      "purpose": "Bot challenge on the Admin password-reset page",
+      "envToggle": "a `turnstileSiteKey` in the Admin `PLATFORM` credentials",
+      "dataSent": "the browser signals Cloudflare's challenge collects from the visitor",
+      "productionPath": "yes",
+      "note": "The Admin `reset-password` page renders the widget; the API verifies its token (`fetch:cloudflare-turnstile`)."
+    },
+    "@monaco-editor/react": {
+      "status": "service",
+      "vendor": "jsDelivr (public CDN)",
+      "purpose": "Loads the Monaco code editor for the client portal's template editor",
+      "envToggle": "always, when a user opens the template editor in code mode",
+      "dataSent": "the browser's requests for the editor files: the visitor's IP address and request headers",
+      "productionPath": "yes",
+      "note": "`TemplateEditorCanvas` loads the editor through `next/dynamic`; no `loader.config` replaces the loader's default path on `cdn.jsdelivr.net`."
+    },
+    "@node-saml/node-saml": {
+      "status": "service",
+      "vendor": "The SAML identity provider an account configures",
+      "purpose": "Single sign-on",
+      "envToggle": "an account's `SamlConfiguration`",
+      "dataSent": "SAML authentication requests; the identity provider returns the user's identity attributes",
+      "productionPath": "yes",
+      "note": "`apps/api/src/auth/samlRoutes.ts`."
+    },
+    "@opentelemetry/api": {
+      "status": "library",
+      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
+    },
+    "@opentelemetry/auto-instrumentations-node": {
+      "status": "library",
+      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
+    },
+    "@opentelemetry/core": {
+      "status": "library",
+      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
+    },
+    "@opentelemetry/exporter-prometheus": {
+      "status": "library",
+      "note": "Exposes a metrics endpoint that the operator's Prometheus scrapes; it sends nothing itself."
+    },
+    "@opentelemetry/exporter-trace-otlp-http": {
+      "status": "service",
+      "vendor": "The OTLP collector `OTEL_EXPORTER_OTLP_ENDPOINT` names (`http://localhost:4318` when unset)",
+      "purpose": "Distributed tracing of the API and the workers",
+      "envToggle": "`TRACING_ENABLED`",
+      "dataSent": "request traces: span names, timings, routes and span attributes",
+      "productionPath": "yes",
+      "note": "`@observability/opentelemetry`, which the API and the workers start when tracing is on."
+    },
+    "@opentelemetry/instrumentation": {
+      "status": "library",
+      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
+    },
+    "@opentelemetry/instrumentation-fastify": {
+      "status": "library",
+      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
+    },
+    "@opentelemetry/instrumentation-fs": {
+      "status": "library",
+      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
+    },
+    "@opentelemetry/instrumentation-http": {
+      "status": "library",
+      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
+    },
+    "@opentelemetry/instrumentation-redis": {
+      "status": "library",
+      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
+    },
+    "@opentelemetry/propagation-utils": {
+      "status": "library",
+      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
+    },
+    "@opentelemetry/resources": {
+      "status": "library",
+      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
+    },
+    "@opentelemetry/sdk-node": {
+      "status": "library",
+      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
+    },
+    "@opentelemetry/semantic-conventions": {
+      "status": "library",
+      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
+    },
+    "@paddle/paddle-node-sdk": {
+      "status": "service",
+      "vendor": "Paddle",
+      "purpose": "Subscription billing",
+      "envToggle": "`PAYMENT_PROVIDER=paddle`, or `PADDLE_API_KEY` with `PADDLE_WEBHOOK_SECRET` for gateway switching",
+      "dataSent": "the billing customer's email, and subscription and plan changes",
+      "productionPath": "yes",
+      "note": "`PaddlePaymentAdapter` creates customers and manages subscriptions."
+    },
+    "@playwright/test": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@prisma/adapter-pg": {
+      "status": "library",
+      "note": "Connects to the deployment's own PostgreSQL or Redis, whose host is a deployment decision; no third-party endpoint of its own."
+    },
+    "@prisma/client": {
+      "status": "library",
+      "note": "Connects to the deployment's own PostgreSQL or Redis, whose host is a deployment decision; no third-party endpoint of its own."
+    },
+    "@radix-ui/react-popover": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@radix-ui/react-scroll-area": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@react-email/components": {
+      "status": "library",
+      "note": "Builds email bodies locally; Resend delivers them (`fetch:resend`)."
+    },
+    "@react-email/render": {
+      "status": "library",
+      "note": "Renders email bodies locally; Resend delivers them (`fetch:resend`)."
+    },
+    "@scalar/fastify-api-reference": {
+      "status": "pending",
+      "note": "Serves the API reference at `/docs` from its bundled script. The bundle names Scalar's request proxy (`proxy.scalar.com`), and whether its request client sends calls through that proxy under this configuration is not established."
+    },
+    "@secretlint/secretlint-rule-preset-recommend": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@sentry/nextjs": {
+      "status": "service",
+      "vendor": "Sentry",
+      "purpose": "Error tracking and performance tracing of both portals, in the browser and on the server",
+      "envToggle": "`NEXT_PUBLIC_SENTRY_DSN`",
+      "dataSent": "error events with stack traces, browser and request context, and a sample of performance traces",
+      "productionPath": "yes",
+      "note": "Each portal's `sentry.client.config.ts` and `sentry.server.config.ts`; `withSentryConfig` wraps each `next.config.mjs`."
+    },
+    "@sentry/node": {
+      "status": "service",
+      "vendor": "Sentry",
+      "purpose": "Error tracking of the API",
+      "envToggle": "a `sentryDsn` in the Admin `MONITORING` credentials",
+      "dataSent": "error events with stack traces and request context, and a sample of performance traces",
+      "productionPath": "yes",
+      "note": "`initSentry` in `apps/api/src/observability/sentryInit.ts`; `apps/workers` declares the package and does not import it."
+    },
+    "@size-limit/preset-small-lib": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@storybook/addon-a11y": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@storybook/addon-docs": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@storybook/addon-vitest": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@storybook/nextjs-vite": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@storybook/react": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@t3-oss/env-core": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "@t3-oss/env-nextjs": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@tailwindcss/postcss": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@tanstack/react-query": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@tanstack/react-query-devtools": {
+      "status": "library",
+      "note": "A development panel for the client portal's query cache; no third-party endpoint of its own."
+    },
+    "@testing-library/dom": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@testing-library/jest-dom": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@testing-library/react": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@testing-library/user-event": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@tiptap/core": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@tiptap/extension-character-count": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@tiptap/extension-color": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@tiptap/extension-highlight": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@tiptap/extension-link": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@tiptap/extension-placeholder": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@tiptap/extension-text-style": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@tiptap/extension-typography": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@tiptap/pm": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@tiptap/react": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@tiptap/starter-kit": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "@types/jsonwebtoken": {
+      "status": "library",
+      "note": "Type declarations for the compiler; no runtime code."
+    },
+    "@types/node": {
+      "status": "library",
+      "note": "Type declarations for the compiler; no runtime code."
+    },
+    "@types/opossum": {
+      "status": "library",
+      "note": "Type declarations for the compiler; no runtime code."
+    },
+    "@types/papaparse": {
+      "status": "library",
+      "note": "Type declarations for the compiler; no runtime code."
+    },
+    "@types/qrcode": {
+      "status": "library",
+      "note": "Type declarations for the compiler; no runtime code."
+    },
+    "@types/react": {
+      "status": "library",
+      "note": "Type declarations for the compiler; no runtime code."
+    },
+    "@types/react-dom": {
+      "status": "library",
+      "note": "Type declarations for the compiler; no runtime code."
+    },
+    "@types/validator": {
+      "status": "library",
+      "note": "Type declarations for the compiler; no runtime code."
+    },
+    "@types/ws": {
+      "status": "library",
+      "note": "Type declarations for the compiler; no runtime code."
+    },
+    "@types/xml2js": {
+      "status": "library",
+      "note": "Type declarations for the compiler; no runtime code."
+    },
+    "@typescript-eslint/eslint-plugin": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@typescript-eslint/parser": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@vitejs/plugin-react": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@vitest/browser": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@vitest/browser-playwright": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@vitest/coverage-v8": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@vitest/eslint-plugin": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "@vitest/ui": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "argon2": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "autocannon": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "aws-sdk-client-mock": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "axios": {
+      "status": "service",
+      "vendor": "TikTok",
+      "purpose": "Publishes videos and reads account data for connected TikTok accounts",
+      "envToggle": "an account connecting a channel of that provider",
+      "dataSent": "the videos and captions the user publishes, with the account's OAuth token",
+      "productionPath": "yes",
+      "note": "Declared only by the TikTok provider package, whose API client makes every TikTok call through it."
+    },
+    "bullmq": {
+      "status": "library",
+      "note": "Connects to the deployment's own PostgreSQL or Redis, whose host is a deployment decision; no third-party endpoint of its own."
+    },
+    "class-variance-authority": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "cloudinary": {
+      "status": "service",
+      "vendor": "Cloudinary",
+      "purpose": "Media storage adapter",
+      "envToggle": "none: no app declares `@adapters/storage-cloudinary`",
+      "dataSent": "the media files the adapter stores",
+      "productionPath": "no",
+      "note": "`@adapters/storage-cloudinary`; no app declares that package and `createStorageAdapter` does not select it."
+    },
+    "clsx": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "cronstrue": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "cross-env": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "csv-parse": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "date-fns": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "dependency-cruiser": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "dotenv": {
+      "status": "library",
+      "note": "Reads environment files from the local disk; no network endpoint of its own."
+    },
+    "eslint": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "eslint-config-prettier": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "eslint-plugin-jsx-a11y": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "eslint-plugin-react": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "eslint-plugin-react-hooks": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "fastify": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "fastify-plugin": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "fastify-type-provider-zod": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "fetch:chat-webhooks": {
+      "status": "service",
+      "manual": true,
+      "vendor": "The Slack or Microsoft Teams workspace whose webhook URL an account configures",
+      "purpose": "External notifications",
+      "envToggle": "an account's external notification configuration",
+      "dataSent": "the notification messages the account configured",
+      "productionPath": "yes",
+      "note": "`SlackNotifierAdapter` and `TeamsNotifierAdapter` post to the webhook URL of each configuration."
+    },
+    "fetch:cloudflare-turnstile": {
+      "status": "service",
+      "manual": true,
+      "vendor": "Cloudflare (Turnstile)",
+      "purpose": "Server-side verification of the Admin password-reset challenge",
+      "envToggle": "a `turnstileSecretKey` in the Admin `PLATFORM` credentials",
+      "dataSent": "the challenge token and the site's secret key",
+      "productionPath": "yes",
+      "note": "`adminAuthRoutes` posts to `https://challenges.cloudflare.com/turnstile/v0/siteverify`."
+    },
+    "fetch:google-analytics": {
+      "status": "service",
+      "manual": true,
+      "vendor": "Google (Analytics 4 Measurement Protocol)",
+      "purpose": "Short-link click analytics",
+      "envToggle": "`GA4_MEASUREMENT_ID` with `GA4_API_SECRET`",
+      "dataSent": "a `link_click` event with the short code, the original URL, the referrer and the country, under a generated client id",
+      "productionPath": "yes",
+      "note": "`GA4TrackingAdapter` posts the event that `RedirectAndTrackClickUseCase` fires on each short-link click."
+    },
+    "fetch:hubspot": {
+      "status": "service",
+      "manual": true,
+      "vendor": "HubSpot",
+      "purpose": "CRM contact sync",
+      "envToggle": "`HUBSPOT_CLIENT_ID`, and an account connecting HubSpot",
+      "dataSent": "OAuth code and token exchanges, and contact-read requests with the account's token; the responses bring the portal's contacts in",
+      "productionPath": "yes",
+      "note": "`apps/api/src/crm/crmRoutes.ts` and `@adapters/crm-hubspot` call `https://api.hubapi.com`; its `logActivity`, which would write timeline events, has no caller."
+    },
+    "fetch:integration-webhooks": {
+      "status": "service",
+      "manual": true,
+      "vendor": "The endpoint of each integration subscription an account creates",
+      "purpose": "Integration events",
+      "envToggle": "an active integration subscription",
+      "dataSent": "the event name, its payload and the time it fired",
+      "productionPath": "yes",
+      "note": "`TriggerIntegrationEventService` posts each event to the `targetUrl` of every active subscription for it."
+    },
+    "fetch:perplexity": {
+      "status": "service",
+      "manual": true,
+      "vendor": "Perplexity AI",
+      "purpose": "AI content generation and web research for trends",
+      "envToggle": "`PERPLEXITY_API_KEY`, a Perplexity key in the Admin `AI_POOL` credentials, or an account's `AI_BYOK` credentials",
+      "dataSent": "prompts built from the user's post text, brand and content context",
+      "productionPath": "yes",
+      "note": "`PerplexityProvider` in `apps/api/src/ai/providers/perplexity.ts` posts to `https://api.perplexity.ai/chat/completions`."
+    },
+    "fetch:resend": {
+      "status": "service",
+      "manual": true,
+      "vendor": "Resend",
+      "purpose": "Transactional and report email",
+      "envToggle": "`RESEND_API_KEY`",
+      "dataSent": "each email's recipient addresses, subject, body and attachments",
+      "productionPath": "yes",
+      "note": "`ResendEmailAdapter` posts to `https://api.resend.com/emails`; `@react-email/*` renders the bodies."
+    },
+    "fetch:salesforce": {
+      "status": "service",
+      "manual": true,
+      "vendor": "Salesforce",
+      "purpose": "CRM contact sync",
+      "envToggle": "`SALESFORCE_CLIENT_ID`, and an account connecting Salesforce",
+      "dataSent": "OAuth code and token exchanges, and contact-read requests with the account's token; the responses bring the org's contacts in",
+      "productionPath": "yes",
+      "note": "`apps/api/src/crm/crmRoutes.ts` and `@adapters/crm-salesforce` call the Salesforce login and instance hosts; its `logActivity`, which would write tasks, has no caller."
+    },
+    "form-data": {
+      "status": "library",
+      "note": "Encodes multipart bodies for the TikTok provider package; the request goes to TikTok through `axios`."
+    },
+    "fuse.js": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "geist": {
+      "status": "library",
+      "note": "Font files bundled with the Admin portal and served by it; no third-party endpoint of its own."
+    },
+    "google-auth-library": {
+      "status": "service",
+      "vendor": "Google (OAuth)",
+      "purpose": "Token exchange and refresh for connected YouTube channels",
+      "envToggle": "an account connecting a channel of that provider",
+      "dataSent": "OAuth authorization codes and refresh tokens",
+      "productionPath": "yes",
+      "note": "The YouTube provider package's OAuth client."
+    },
+    "handlebars": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "husky": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "image-size": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "ioredis": {
+      "status": "library",
+      "note": "Connects to the deployment's own PostgreSQL or Redis, whose host is a deployment decision; no third-party endpoint of its own."
+    },
+    "ipaddr.js": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "isomorphic-dompurify": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "jiti": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "jscpd": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "jsdom": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "jsonwebtoken": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "knip": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "lint-staged": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "lucide-react": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "msw": {
+      "status": "library",
+      "note": "Mocks HTTP requests in tests; no network endpoint of its own."
+    },
+    "next": {
+      "status": "library",
+      "note": "The portals' framework, run by the deployment itself; no third-party endpoint at runtime."
+    },
+    "next-intl": {
+      "status": "library",
+      "note": "Translations bundled with the portals; no third-party endpoint of its own."
+    },
+    "openai": {
+      "status": "service",
+      "vendor": "OpenAI",
+      "purpose": "AI content generation, analysis and text embeddings",
+      "envToggle": "`OPENAI_API_KEY`, an OpenAI key in the Admin `AI_POOL` credentials, or an account's `AI_BYOK` credentials",
+      "dataSent": "prompts built from the user's post text, brand and content context, and the text it embeds",
+      "productionPath": "yes",
+      "note": "`OpenAIProvider` in `apps/api/src/ai/providers/openai.ts` calls chat completions and embeddings."
+    },
+    "openid-client": {
+      "status": "service",
+      "vendor": "The OpenID Connect provider an account configures",
+      "purpose": "Single sign-on",
+      "envToggle": "an account's `OidcConfiguration`",
+      "dataSent": "authorization and token requests; the provider returns the user's identity claims",
+      "productionPath": "yes",
+      "note": "`apps/api/src/auth/oidcRoutes.ts` and `OpenidClientHandshakeProbe`."
+    },
+    "opossum": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "otplib": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "papaparse": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "pgvector": {
+      "status": "library",
+      "note": "Connects to the deployment's own PostgreSQL or Redis, whose host is a deployment decision; no third-party endpoint of its own."
+    },
+    "pino": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "playwright": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "postcss": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "postcss-load-config": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "prettier": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "prisma": {
+      "status": "library",
+      "note": "The Prisma CLI: it generates the client and applies migrations against the deployment's own database."
+    },
+    "prom-client": {
+      "status": "library",
+      "note": "Collects metrics that the operator's Prometheus scrapes from the API and the workers; it sends nothing itself."
+    },
+    "qrcode": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "radix-ui": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "react": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "react-dom": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "recharts": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "secretlint": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "size-limit": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "storybook": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "stripe": {
+      "status": "service",
+      "vendor": "Stripe",
+      "purpose": "Subscription billing",
+      "envToggle": "`PAYMENT_PROVIDER=stripe`, or `STRIPE_SECRET_KEY` with `STRIPE_WEBHOOK_SECRET` for gateway switching",
+      "dataSent": "the billing customer's email and name, and subscription and plan changes",
+      "productionPath": "yes",
+      "note": "`StripePaymentAdapter` creates customers and manages subscriptions."
+    },
+    "tailwind-merge": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "tailwindcss": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "tsx": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "turbo": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "tw-animate-css": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    },
+    "twitter-api-v2": {
+      "status": "service",
+      "vendor": "X Corp.",
+      "purpose": "Publishes posts and reads account data for connected X accounts",
+      "envToggle": "an account connecting a channel of that provider",
+      "dataSent": "the post text and media the user publishes, with the account's OAuth token",
+      "productionPath": "yes",
+      "note": "The X provider package."
+    },
+    "typescript": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "uuid": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "validator": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "vite": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "vitest": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
+    "ws": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "xml2js": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "zod": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "zod-to-json-schema": {
+      "status": "library",
+      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
+    },
+    "zustand": {
+      "status": "library",
+      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
+    }
+  }
+}
