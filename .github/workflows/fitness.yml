@@ -1931,3 +1931,18 @@ jobs:
             echo "::error title=Maturity watchlist violation::scripts/testing/maturity-watchlist.json is unreadable or malformed, or a review is overdue by more than three days and not recorded. The maturity-watchlist lines above name each cause: a missing or malformed field, a milestone that is not its publish date plus 7 or 14 days, a review without a clean or flagged outcome, a review dated after the day the list is read, a review dated before its milestone with no early field, an early review more than 2 days early or without a reason, an early field on a review that is not early, a duplicate id, or a review due more than three days ago and not recorded. Record an overdue review's outcome under reviews.<milestone> in scripts/testing/maturity-watchlist.json."
             exit 1
           fi
+
+      - name: "#45 Legal inventories are current and every row is classified"
+        if: always()
+        run: |
+          # Mirrors CLAUDE.md #45. Every legal inventory generator under scripts/legal/ regenerates
+          # its page in memory and compares it with the committed one under docs/legal/inventories/;
+          # a stale page, a candidate with no entry in docs/legal/classification/, a stale entry, or
+          # a pending count off its baseline exits 1. It lives in this job because the generators
+          # render through prettier's API and need the installed tree; the Fitness Functions job
+          # installs nothing. Pinned by apps/api/tests/unit/scripts/*Inventory.test.ts.
+          set -euo pipefail
+          if ! pnpm check:legal; then
+            echo "::error title=Fitness #45 violation::A legal inventory is stale or incompletely classified. Run pnpm legal:inventory, classify every new row in docs/legal/classification/ (not applicable is a row, never a sentence), and commit the regenerated page with the change that moved it. The legal-inventory lines above name each problem with its generator."
+            exit 1
+          fi
