@@ -82,6 +82,13 @@
 | [Security Overview](security/OVERVIEW.md) | JWT, MFA, password, audit     |
 | [Auth Architecture](security/AUTH.md)     | Cookie auth, dual-app pattern |
 
+### Legal
+
+| Document                                 | Description                                            |
+| ---------------------------------------- | ------------------------------------------------------ |
+| [Legal Facts Register](legal/README.md)  | How the register grows, inventories, pending decisions |
+| [Processing Register](legal/REGISTER.md) | Record of processing activities (GDPR art. 30)         |
+
 ### Reports (Historical)
 
 | Directory / file                                               | Content                                    |

@@ -136,6 +136,8 @@ To rebuild a graph manually: `cd <target> && graphify update .` (sub-second for 
 | `docs/features/`      | Feature specifications and design docs                                                                                                                                             |
 | `docs/reports/`       | Sprint reports and session logs                                                                                                                                                    |
 | `docs/security/`      | Security policies and audits                                                                                                                                                       |
+| `docs/legal/`         | Legal facts register: the record of processing activities, generated inventories and their classifications                                                                         |
+| `docs/compliance/`    | Compliance operations: `RETENTION_CALENDAR.md`, the retention window per data type and the scheduled job that enforces it                                                          |
 | `docs/deployment/`    | Infrastructure and deployment guides                                                                                                                                               |
 | `docs/technical/`     | Technical deep-dives and ADRs (`ADR-NNNN-*.md`, see ADR-0001 for template — Status/Date/Deciders/Context/Decision/Rationale/Alternatives/Consequences/Revisit if/Risks/References) |
 | `docs/product/`       | Product requirements and roadmap                                                                                                                                                   |
