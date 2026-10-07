@@ -18,7 +18,10 @@ const GENERATORS = [personalData, cookiesAndStorage, oauthScopes, subprocessors]
 const args = process.argv.slice(2);
 const onlyAt = args.indexOf("--only");
 const only = onlyAt === -1 ? null : (args[onlyAt + 1] ?? null);
-const extra = args.filter((a, i) => !["--check", "--only"].includes(a) && i !== onlyAt + 1);
+// Only the token after a present --only is exempt; with --only absent no position is, so an unknown
+// first token cannot slip through as the value of an --only that was never given.
+const onlyValueAt = onlyAt === -1 ? -1 : onlyAt + 1;
+const extra = args.filter((a, i) => !["--check", "--only"].includes(a) && i !== onlyValueAt);
 // A missing or flag-shaped value after --only is a usage error, never a generator name: refusing it
 // here keeps "--only --check" from being read as a request to run a generator called "--check".
 const onlyMisused = onlyAt !== -1 && (only === null || only.startsWith("--"));

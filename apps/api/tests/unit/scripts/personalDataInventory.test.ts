@@ -164,20 +164,37 @@ describe("the generator's stdout", () => {
 
 describe("the runner", () => {
   const RUNNER = path.join(REPO_ROOT, "scripts/legal/run.mjs");
+  const spawnRunner = (args: string[]) =>
+    spawnSync(process.execPath, [RUNNER, ...args], { cwd: REPO_ROOT, encoding: "utf8" });
 
   it.each([
     ["no value", ["--only"]],
     ["a flag as its value", ["--only", "--check"]],
   ])("refuses --only with %s before any generator runs", (_case, args) => {
-    const run = spawnSync(process.execPath, [RUNNER, ...args], {
-      cwd: REPO_ROOT,
-      encoding: "utf8",
-    });
+    const run = spawnRunner(args);
 
     expect(run.status).toBe(1);
     expect(run.stderr).toContain("usage: run.mjs [--check] [--only <name>]");
     expect(run.stdout).toBe("");
   });
+
+  // Without --only, no position is exempt: an unknown token anywhere must stop the run before a
+  // generator writes or checks a page, or a typo silently becomes a full regeneration.
+  it.each([
+    ["an unknown flag in first position", ["--unknown"], "--unknown"],
+    ["a bare word in first position", ["typo"], "typo"],
+    ["a bare word after --check", ["--check", "typo"], "typo"],
+    ["a bare word before --check", ["typo", "--check"], "typo"],
+  ])(
+    "refuses %s with the usage error naming it before any generator runs",
+    (_case, args, token) => {
+      const run = spawnRunner(args);
+
+      expect(run.status).toBe(1);
+      expect(run.stderr).toContain(`usage: run.mjs [--check] [--only <name>]; got ${token}`);
+      expect(run.stdout).toBe("");
+    }
+  );
 });
 
 describe("the real tree", () => {
