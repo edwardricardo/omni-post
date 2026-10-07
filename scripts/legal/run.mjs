@@ -8,10 +8,11 @@
  */
 import { runGenerators } from "./lib/inventory.mjs";
 import { generator as cookiesAndStorage } from "./cookies-and-storage.mjs";
+import { generator as oauthScopes } from "./oauth-scopes.mjs";
 import { generator as personalData } from "./personal-data.mjs";
 
 /** Every registered generator, run in this order. */
-const GENERATORS = [personalData, cookiesAndStorage];
+const GENERATORS = [personalData, cookiesAndStorage, oauthScopes];
 
 const args = process.argv.slice(2);
 const onlyAt = args.indexOf("--only");
