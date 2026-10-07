@@ -16,7 +16,12 @@ import prettier from "prettier";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Entry = Record<string, unknown>;
-type Allowed = { statuses: string[]; categories: string[]; subjects: string[] };
+type Allowed = {
+  statuses: string[];
+  categories: string[];
+  subjects: string[];
+  listFields?: Record<string, string[]>;
+};
 type Inventory = { pagePath: string; markdown: string; problems: string[]; scopeError?: string };
 type Generator = { name: string; generate: () => Promise<Inventory> };
 type Page = {
@@ -153,6 +158,30 @@ describe("loadClassification", () => {
     const allowed = { ...ALLOWED, extraFields: { owner: true } };
 
     expect(loadClassification(root, FILE, allowed).problems).toEqual([`${FILE}: b has no owner`]);
+  });
+
+  describe("a list field", () => {
+    const LISTED = { ...ALLOWED, listFields: { sources: ["a", "b"] } };
+
+    it.each<[string, unknown]>([
+      ["absent", undefined],
+      ["empty", []],
+      ["holding a repeated value", ["a", "a"]],
+      ["holding a value outside the set", ["a", "c"]],
+      ["a plain string", "a"],
+    ])("is refused when %s", (_case, sources) => {
+      put(FILE, JSON.stringify(entry({ sources })));
+
+      expect(loadClassification(root, FILE, LISTED).problems).toEqual([
+        `${FILE}: Visitor.email has sources ${JSON.stringify(sources)}, not a non-empty list of distinct a|b`,
+      ]);
+    });
+
+    it("is accepted as a list of distinct allowed values, and is no unknown key", () => {
+      put(FILE, JSON.stringify(entry({ sources: ["b", "a"] })));
+
+      expect(loadClassification(root, FILE, LISTED).problems).toEqual([]);
+    });
   });
 });
 
