@@ -1,0 +1,246 @@
+{
+  "generator": "scripts/legal/oauth-scopes.mjs",
+  "pendingBaseline": 0,
+  "entries": {
+    "facebook:pages_manage_posts": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "create, edit and delete posts on the Pages the person manages",
+      "note": "`FacebookApiClient` publishes to `/{pageId}/feed` and replies to comments through `/{commentId}/comments`."
+    },
+    "facebook:pages_read_engagement": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "read the content, comments, insights and engagement of the Pages the person manages",
+      "note": "`FacebookApiClient` reads Page insights, post comments and the Page's details for analytics and mentions."
+    },
+    "facebook:pages_show_list": {
+      "status": "required",
+      "sources": ["login", "shared"],
+      "grants": "list the Pages the person manages",
+      "note": "The Facebook connect step requests it because Meta makes it a prerequisite of `pages_manage_posts`; no adapter declares it and no scanned code lists Pages."
+    },
+    "hubspot:crm.objects.contacts.read": {
+      "status": "required",
+      "sources": ["crm"],
+      "grants": "read the portal's contacts",
+      "note": "`HubSpotAdapter.fetchContacts` reads `/crm/v3/objects/contacts` for the contact sync."
+    },
+    "hubspot:crm.objects.contacts.write": {
+      "status": "unused",
+      "sources": ["crm"],
+      "grants": "create, update and delete the portal's contacts",
+      "note": "Requested by the HubSpot authorize route, but `HubSpotAdapter` never writes a contact."
+    },
+    "hubspot:timeline": {
+      "status": "required",
+      "sources": ["crm"],
+      "grants": "create timeline events on CRM records",
+      "note": "`HubSpotAdapter.logActivity` posts to `/crm/v3/timeline/events` to log OmniPost activity."
+    },
+    "instagram:instagram_basic": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "read the professional account's profile and media",
+      "note": "`InstagramApiClient` reads the account's media list and media objects on `graph.facebook.com`."
+    },
+    "instagram:instagram_content_publish": {
+      "status": "required",
+      "sources": ["adapter", "shared"],
+      "grants": "publish media to the professional account",
+      "note": "`InstagramApiClient` publishes through `/{userId}/media` and `/{userId}/media_publish`, yet the Instagram connect step never requests it."
+    },
+    "instagram:pages_read_engagement": {
+      "status": "unused",
+      "sources": ["shared"],
+      "grants": "read the content and engagement of the Facebook Pages the person manages",
+      "note": "Listed only by the shared metadata for Instagram; the Instagram connect step does not request it and no Instagram code path reads a Page."
+    },
+    "instagram:user_media": {
+      "status": "unused",
+      "sources": ["login"],
+      "grants": "read the account's media (Basic Display API)",
+      "note": "Requested by the Instagram connect step, but no scanned code reads media with the Basic Display token; `InstagramApiClient` reads media through the Graph API instead."
+    },
+    "instagram:user_profile": {
+      "status": "required",
+      "sources": ["login"],
+      "grants": "read the account's id, username, account type and media count (Basic Display API)",
+      "note": "The Instagram connect step reads `graph.instagram.com/me?fields=id,username,media_count,account_type` with it; it belongs to the Basic Display API, which Meta retired, and no adapter declares it."
+    },
+    "linkedin:openid": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "authenticate the member through OpenID Connect",
+      "note": "The LinkedIn connect step reads `/v2/userinfo`, which needs it."
+    },
+    "linkedin:profile": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "read the member's name and picture",
+      "note": "The LinkedIn connect step reads the member's name and picture from `/v2/userinfo`."
+    },
+    "linkedin:w_member_social": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "create, edit and delete posts and comments on the member's behalf",
+      "note": "`LinkedInApiClient` publishes posts and comments with the member URN as author."
+    },
+    "linkedin:w_organization_social": {
+      "status": "optional",
+      "sources": ["adapter", "shared"],
+      "grants": "create, edit and delete posts and comments for an organization the member administers",
+      "note": "`LinkedInApiClient` acts as the organization only when the channel's credentials carry an `organizationUrn`; the LinkedIn connect step never requests it."
+    },
+    "pinterest:boards:read": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "read the account's public boards and their pins",
+      "note": "`PinterestApiClient.createPin` creates a Pin on a board, and Pinterest needs this scope to read that board."
+    },
+    "pinterest:boards:write": {
+      "status": "unused",
+      "sources": ["login", "adapter"],
+      "grants": "create, update and delete the account's public boards",
+      "note": "`PinterestApiClient.createBoard` exists, but no adapter or route calls it; the shared metadata does not list it."
+    },
+    "pinterest:pins:read": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "read the account's public pins and their analytics",
+      "note": "`PinterestAdapter` reads Pin analytics through `PinterestApiClient.getPinAnalytics`."
+    },
+    "pinterest:pins:write": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "create, update and delete the account's public pins",
+      "note": "`PinterestAdapter` publishes through `PinterestApiClient.createPin`."
+    },
+    "pinterest:user_accounts:read": {
+      "status": "required",
+      "sources": ["adapter"],
+      "grants": "read the account's profile and account information",
+      "note": "The Pinterest connect step reads `/v5/user_account` and `PinterestAdapter` validates credentials through it, yet the connect step does not request this scope."
+    },
+    "salesforce:api": {
+      "status": "required",
+      "sources": ["crm"],
+      "grants": "access the org's data through the REST API",
+      "note": "`SalesforceAdapter` reads contacts by SOQL and creates `Task` records to log OmniPost activity."
+    },
+    "salesforce:refresh_token": {
+      "status": "required",
+      "sources": ["crm"],
+      "grants": "receive a refresh token for offline access",
+      "note": "`SalesforceAdapter.refreshAccessToken` renews the access token with the refresh token this scope yields."
+    },
+    "snapchat:snapchat-marketing-api": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "use the Marketing API, including the member's profile and email",
+      "note": "The Snapchat connect step reads `adsapi.snapchat.com/v1/me`, email included, and `SnapchatApiClient` uploads story media on the same API."
+    },
+    "snapchat:snapchat-profile-api": {
+      "status": "unused",
+      "sources": ["adapter"],
+      "grants": "manage the account's Public Profile and its stories",
+      "note": "`SnapchatAdapter` declares it, but every scanned Snapchat call goes to the Marketing API (`adsapi.snapchat.com`) and no connect step requests it."
+    },
+    "threads:threads_basic": {
+      "status": "required",
+      "sources": ["adapter", "shared"],
+      "grants": "read the account's profile and posts",
+      "note": "`ThreadsAdapter` reads the account's posts; the Threads login entry is a stub, so no connect step requests it."
+    },
+    "threads:threads_content_publish": {
+      "status": "required",
+      "sources": ["adapter", "shared"],
+      "grants": "publish posts and replies to the account",
+      "note": "`ThreadsAdapter` publishes posts and replies; the Threads login entry is a stub, so no connect step requests it."
+    },
+    "threads:threads_manage_replies": {
+      "status": "required",
+      "sources": ["adapter"],
+      "grants": "reply to, hide and manage replies on the account's posts",
+      "note": "`ThreadsAdapter` declares it for its replies capability and posts replies with `reply_to_id`; only the adapter declares it."
+    },
+    "threads:threads_read_replies": {
+      "status": "required",
+      "sources": ["adapter"],
+      "grants": "read replies to and by the account",
+      "note": "`ThreadsAdapter` reads `/{userId}/replies` for its replies capability; only the adapter declares it."
+    },
+    "tiktok:user.info.basic": {
+      "status": "required",
+      "sources": ["login", "adapter"],
+      "grants": "read the account's open id, avatar and display name",
+      "note": "The TikTok connect step reads `/v2/user/info/` with it; the shared metadata does not list it."
+    },
+    "tiktok:video.publish": {
+      "status": "required",
+      "sources": ["shared"],
+      "grants": "post content directly to the account",
+      "note": "`TikTokApiClient` posts videos through `/post/publish/video/init/`, which TikTok gates behind this scope; only the shared metadata lists it, and the TikTok connect step never requests it."
+    },
+    "tiktok:video.upload": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "upload content to the account as a draft the user posts in TikTok",
+      "note": "Requested by the TikTok connect step; `TikTokApiClient` posts photos through `/post/publish/content/init/`, which TikTok accepts under this scope or `video.publish`."
+    },
+    "x:offline.access": {
+      "status": "required",
+      "sources": ["login"],
+      "grants": "receive a refresh token, so access outlives the access token",
+      "note": "The X connect step stores the `refresh_token` the token exchange returns, which X issues only under this scope; adapters never request tokens, so none declares it."
+    },
+    "x:tweet.read": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "read posts, including public replies and mentions",
+      "note": "`XApiClient` reads post metrics for analytics and searches recent posts for replies and brand mentions."
+    },
+    "x:tweet.write": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "publish posts on the account's behalf",
+      "note": "`XAdapter` publishes posts, threads, replies, polls and quote posts through `XApiClient`."
+    },
+    "x:users.read": {
+      "status": "required",
+      "sources": ["login", "adapter", "shared"],
+      "grants": "read the account's profile and other users' public profiles",
+      "note": "The X connect step reads `/2/users/me` with it, and `XApiClient.validateCredentials` calls the same endpoint."
+    },
+    "youtube:https://www.googleapis.com/auth/youtube": {
+      "status": "unused",
+      "sources": ["shared"],
+      "grants": "manage the YouTube account: videos, playlists, comments and channel settings",
+      "note": "Listed only by the shared metadata; the YouTube connect step does not request it, so no token carries it."
+    },
+    "youtube:https://www.googleapis.com/auth/youtube.readonly": {
+      "status": "required",
+      "sources": ["login"],
+      "grants": "read the channel, its videos and its playlists",
+      "note": "The YouTube connect step reads `channels?part=snippet&mine=true` with it; the same grant as the adapter's `youtube.readonly`, spelled as the Google scope string."
+    },
+    "youtube:https://www.googleapis.com/auth/youtube.upload": {
+      "status": "required",
+      "sources": ["login", "shared"],
+      "grants": "upload videos to the channel",
+      "note": "Requested by the YouTube connect step and listed by the shared metadata; the same grant as the adapter's `youtube.upload`, spelled as the Google scope string."
+    },
+    "youtube:youtube.readonly": {
+      "status": "required",
+      "sources": ["adapter"],
+      "grants": "read the channel, its videos and its playlists",
+      "note": "`YouTubeAdapter` declares it for channel and video reads; the same grant as the connect step's `https://www.googleapis.com/auth/youtube.readonly`, and the short name is not a Google scope string."
+    },
+    "youtube:youtube.upload": {
+      "status": "required",
+      "sources": ["adapter"],
+      "grants": "upload videos to the channel",
+      "note": "`YouTubeAdapter` declares it for video upload; the same grant as the connect step's `https://www.googleapis.com/auth/youtube.upload`, and the short name is not a Google scope string."
+    }
+  }
+}

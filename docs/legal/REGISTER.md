@@ -20,7 +20,7 @@ The skeleton of OmniPost's record of processing activities, laid out on the elem
 | 8   | [Retention and erasure](#8-retention-and-erasure)                      | (f)             | `linked`                           |
 | 9   | [Security measures](#9-technical-and-organisational-security-measures) | (g)             | `linked`                           |
 | 10  | [Cookies and browser storage](#10-cookies-and-browser-storage)         | —               | `generated`                        |
-| 11  | [OAuth permissions per provider](#11-oauth-permissions-per-provider)   | —               | `upcoming (unit L-1c)`             |
+| 11  | [OAuth permissions per provider](#11-oauth-permissions-per-provider)   | —               | `generated`                        |
 | 12  | [Consent and acceptance evidence](#12-consent-and-acceptance-evidence) | —               | `pending decision (owner: Edward)` |
 | 13  | [Commercial and billing rules](#13-commercial-and-billing-rules)       | —               | `linked`                           |
 
@@ -133,9 +133,13 @@ Pending within this section: whether any of these needs consent, under the conse
 
 ## 11. OAuth permissions per provider
 
-**Status:** `upcoming (unit L-1c)`
+**Status:** `generated` — [OAuth scopes inventory](inventories/oauth-scopes.generated.md)
 
-The `oauth-scopes` generator lists the scopes each provider connection requests, from both sources the code holds (`apps/api/src/auth/providerOAuthConfigs.ts` and each adapter's `requiredScopes`), and reports where they disagree. Until it lands, this section lists no scope.
+The generator reads four sources: the scopes each connect flow requests in `apps/api/src/auth/providerOAuthConfigs.ts` (`login`), each provider adapter's `requiredScopes` (`adapter`), the `requiredScopes` of `PROVIDER_CONFIGS` in `packages/shared/src/providers/providerConfig.ts`, which the product shows the user (`shared`), and the scope literal of the HubSpot and Salesforce authorize routes in `apps/api/src/crm/crmRoutes.ts` (`crm`). It joins each scope with [`classification/oauth-scopes.json`](classification/oauth-scopes.json) as `<provider>:<scope>`, spelled as its source writes it; the providers are the `Provider` enum of `infra/prisma/schema.prisma` and the two CRMs. Each entry lists in `sources` the sources that declare the scope, and `pnpm check:legal` fails when that list differs from the scan, so a new mismatch, or one that heals, is acknowledged in the classification. A mismatch is a provider's scope that one of `login`, `adapter` and `shared` does not declare.
+
+Each row is classified `required` (a shipped feature needs it), `optional` (a gated or partial feature asks for it), `unused` (declared or requested, but no code path uses it) or `pending`, and its Grants column states, in the provider's terms, what the scope lets the product read or do. The page leads with its Mismatches section and lists the declarations it does not scan, each with the reason. The current figures are the page's Summary table.
+
+The mismatches the page lists are tracked as defects in the [Master Plan](../product/MASTER_PLAN_ES.md) once recorded.
 
 ## 12. Consent and acceptance evidence
 

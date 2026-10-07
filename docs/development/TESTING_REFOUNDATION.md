@@ -1,13 +1,14 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-07, the first four code units of the legal facts register (`workstream/legal-l1a-lib`,
-`workstream/legal-l1a-generators`, `workstream/legal-l1b-scanner` and `workstream/legal-l1b-scanners`,
-Master Plan §5.10, numbers assigned at publication): the suites of the shared inventory library, of the
-`personal-data` generator, of the shared source scanner and of the `cookies-and-storage` generator,
+**As of:** 2026-10-07, the first five code units of the legal facts register (`workstream/legal-l1a-lib`,
+`workstream/legal-l1a-generators`, `workstream/legal-l1b-scanner`, `workstream/legal-l1b-scanners` and
+`workstream/legal-l1c-oauth-scopes`, Master Plan §5.10, numbers assigned at publication): the suites of the
+shared inventory library, of the `personal-data` generator, of the shared source scanner, of the
+`cookies-and-storage` generator and of the `oauth-scopes` generator,
 `apps/api/tests/unit/scripts/legalInventoryLib.test.ts`, `personalDataInventory.test.ts`,
-`legalSourceScan.test.ts` and `cookiesAndStorageInventory.test.ts`, moved M1 `971 + 8` → `975 + 8` (one
-file each); M7 stays `20/20`. Previous: the close of Phase 0 (#449, `workstream/0-22-h-phase0-close`) under
+`legalSourceScan.test.ts`, `cookiesAndStorageInventory.test.ts` and `oauthScopesInventory.test.ts`, moved
+M1 `971 + 8` → `976 + 8` (one file each); M7 stays `20/20`. Previous: the close of Phase 0 (#449, `workstream/0-22-h-phase0-close`) under
 [D51](#decisions-log), which ticks the story backfill (task 0.22.3) with PR E as its first slice,
 names the follow-up slices, keeps slice `0.16` a dated unit for 2026-10-28 ([D46](#decisions-log))
 and moved no metric; before it the Storybook family's 10.6.0 → 10.6.1 hold bump (#447,
@@ -113,7 +114,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 975 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR L-1b  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 976 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR L-1c  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
