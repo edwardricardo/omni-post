@@ -18,8 +18,10 @@ context: |
     (apps/api/tests/integration/, node --import tsx --test); frontend = vitest + @testing-library;
     E2E = Playwright. Test env auto-loads .env.test. Strict TDD ENABLED.
   Style: conventional commits (NO AI attribution); deps exact-pinned; canon-exception markers required;
-    pre-edit tripwire hooks active. Docs only under /docs/. 42 CI fitness functions (hard-zero
-    except the documented ratchets: #30 baseline 21, #38 db-prisma sub-count baseline 11).
+    pre-edit tripwire hooks active. Docs only under /docs/. 45 CI fitness functions (hard-zero
+    except the documented ratchets: #30 baseline 20; #38 one sub-count for packages/adapters/db-prisma,
+    baseline 11; #45 one pending count per legal inventory, held exactly at its pendingBaseline; every
+    baseline may fall and must never rise).
   Env: LXC dev box ~9GB RAM cap, V8 default heap 2240 MB (raise with
     --max-old-space-size for tsc and large runs). Docker and Podman DO work here — the four
     images were built and Trivy-scanned locally. The full suite DOES run: 8988 tests in apps/api
@@ -59,16 +61,18 @@ testing:
 rules:
   proposal:
     - Include a rollback plan for risky changes.
-    - State which fitness functions (#1-#41) the change interacts with.
+    - State which fitness functions (#1-#45) the change interacts with.
   specs:
     - Use Given/When/Then for scenarios.
     - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
     - Include a "Legal impact" section naming the docs/legal/REGISTER.md section or inventory row touched (personal data, cookies and storage, OAuth scopes, subprocessors, retention, consent evidence, controller/processor role), or the answer None with a one-line reason.
+    - 'Include a "Support impact" section beside the "Legal impact" one, with one line per support document under docs/support/ whose paths the change touches, in the fixed form `docs/support/<feature>.md — updated: <sections> → verified <sha>` (the ## sections changed and the sha its verified stamp now carries), or the line `none for <feature> — <reason>` with a one-line reason; silence is not an answer.'
   design:
     - Respect the NodeNext (backend) vs bundler (frontend) split — do not unify them.
     - Document architecture decisions with rationale; cite ADR-0017 for build/emit choices.
     - New canon-affecting decisions require an ADR (docs/technical/ADR-NNNN-*.md).
-    - Include a "Legal impact" section with the same semantics as the specs one: name the register section or inventory row touched, or None with a one-line reason.
+    - 'Include a "Legal impact" section with the same semantics as the specs one: name the register section or inventory row touched, or None with a one-line reason.'
+    - 'Include a "Support impact" section with the same semantics as the specs one: one line per support document touched, `docs/support/<feature>.md — updated: <sections> → verified <sha>`, or `none for <feature> — <reason>` with a one-line reason.'
   tasks:
     - Group by phase, hierarchical numbering; keep tasks completable in one session.
     - Honor the 400-line PR review budget; recommend chained PRs when exceeded.
@@ -85,7 +89,7 @@ rules:
     build_command: "pnpm build"
     coverage_threshold: 85
     rules:
-      - Run all 41 fitness functions; hard-zero except the documented ratchets (#30, #38 db-prisma), which must never rise.
+      - "Run all 45 fitness functions; hard-zero except the documented ratchets (#30 baseline 20; #38 one sub-count for packages/adapters/db-prisma; #45 one pending count per legal inventory, equal to its pendingBaseline); every baseline may fall and must never rise."
   archive:
     - Warn before merging destructive deltas.
     - Archive is an audit trail — never delete or modify archived changes.

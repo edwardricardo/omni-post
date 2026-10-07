@@ -12,4 +12,4 @@
 
 ## Support impact
 
-<What changes for a support agent or an end user, or `None`.>
+<One line per support document whose `paths` this change touches, `docs/support/<feature>.md — updated: <sections> → verified <sha>`, or `none for <feature> — <reason>`.>
