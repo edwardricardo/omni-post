@@ -54,6 +54,7 @@ const ALLOWED = {
   statuses: ["personal", "not-personal"],
   categories: ["contact"],
   subjects: ["x"],
+  extraFields: { lifetime: false },
 };
 const VALID = { status: "personal", category: "contact", subject: "x", note: "Address." };
 const FILE = "classification.json";
@@ -135,12 +136,23 @@ describe("loadClassification", () => {
     ["an entry with no note", entry({ note: "" }), "Visitor.email has no note"],
     ["an unknown key", entry({ catgory: "contact" }), "has unknown keys catgory"],
     ["manual other than true", entry({ manual: false }), "has manual false, not true or absent"],
+    ["an empty extra field", entry({ lifetime: "" }), "Visitor.email has no lifetime"],
   ])("refuses %s", (_case, body, expected) => {
     if (body !== null) put(FILE, typeof body === "string" ? body : JSON.stringify(body));
 
     const { problems } = loadClassification(root, FILE, ALLOWED);
 
     expect(problems.join("\n")).toContain(expected);
+  });
+
+  it("accepts a declared extra field and requires one declared as required", () => {
+    put(
+      FILE,
+      JSON.stringify({ pendingBaseline: 0, entries: { a: { ...VALID, owner: "o" }, b: VALID } })
+    );
+    const allowed = { ...ALLOWED, extraFields: { owner: true } };
+
+    expect(loadClassification(root, FILE, allowed).problems).toEqual([`${FILE}: b has no owner`]);
   });
 });
 

@@ -17,7 +17,7 @@ import prettier from "prettier";
 export const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 
 /** @typedef {{ status: string, category?: string, subject?: string, note: string, manual?: boolean }} Entry */
-/** @typedef {{ statuses: readonly string[], categories: readonly string[], subjects: readonly string[] }} Allowed */
+/** @typedef {{ statuses: readonly string[], categories: readonly string[], subjects: readonly string[], extraFields?: Readonly<Record<string, boolean>> }} Allowed */
 /** @typedef {{ entries: Map<string, Entry>, pendingBaseline: number, problems: string[], text: string }} Classification */
 /** @typedef {{ pagePath: string, markdown: string, problems: string[], scopeError?: string }} Inventory */
 /** @typedef {{ name: string, generate: () => Promise<Inventory> }} Generator */
@@ -35,9 +35,12 @@ export const sha256Of = (text) => createHash("sha256").update(text).digest("hex"
  * Reads `{ pendingBaseline, entries: { "<Model.field>": Entry } }`. Every entry needs a valid
  * status and a note; a `personal` one also needs a category and a subject. `manual` is `true` or
  * absent, and a key outside `Entry` is refused, so a misspelt field never reads as a valid entry.
+ * `extraFields` adds string fields, each mapped to whether it is required; one that is present
+ * must be a non-empty string.
  * @type {(root: string, file: string, allowed: Allowed) => Classification}
  */
-export function loadClassification(root, file, { statuses, categories, subjects }) {
+export function loadClassification(root, file, { statuses, categories, subjects, ...more }) {
+  const extraFields = more.extraFields ?? {};
   const target = path.join(root, file);
   const text = existsSync(target) ? readFileSync(target, "utf8") : "";
   /** @type {unknown} */
@@ -64,7 +67,8 @@ export function loadClassification(root, file, { statuses, categories, subjects 
     const fields = isObject(entry) ? entry : NONE;
     const { status, category, subject, note, manual } = fields;
     const personal = status === "personal";
-    const unknown = Object.keys(fields).filter((name) => !ENTRY_KEYS.includes(name));
+    const known = [...ENTRY_KEYS, ...Object.keys(extraFields)];
+    const unknown = Object.keys(fields).filter((name) => !known.includes(name));
     if (unknown.length > 0) problems.push(`${file}: ${key} has unknown keys ${unknown.join(", ")}`);
     if (manual !== undefined && manual !== true) {
       problems.push(`${file}: ${key} has manual ${JSON.stringify(manual)}, not true or absent`);
@@ -73,6 +77,11 @@ export function loadClassification(root, file, { statuses, categories, subjects 
     if (personal || category !== undefined) oneOf(key, "category", category, categories);
     if (personal || subject !== undefined) oneOf(key, "subject", subject, subjects);
     if (typeof note !== "string" || note === "") problems.push(`${file}: ${key} has no note`);
+    for (const [name, required] of Object.entries(extraFields)) {
+      const value = fields[name];
+      if ((required || value !== undefined) && (typeof value !== "string" || value === ""))
+        problems.push(`${file}: ${key} has no ${name}`);
+    }
   }
   const sorted = Object.keys(raw).sort();
   const map = new Map(sorted.map((key) => [key, /** @type {Entry} */ (raw[key])]));
