@@ -12,7 +12,8 @@
         "scripts/legal/personal-data.mjs",
         "scripts/legal/cookies-and-storage.mjs",
         "scripts/legal/oauth-scopes.mjs",
-        "scripts/legal/subprocessors.mjs"
+        "scripts/legal/subprocessors.mjs",
+        "scripts/support/lib/front-matter.mjs"
       ],
       "project": ["*.{ts,js,cjs,mjs}", "scripts/**/*.{ts,js,mjs}"],
       "ignore": ["performance/**", "security/**", "scripts/migrations/**", "scripts/depscan.mjs"],

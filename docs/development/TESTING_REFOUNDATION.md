@@ -1,9 +1,14 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-07, the legal gate unit (`workstream/legal-l2-gate`, Master Plan §5.10, LEGAL-3): fitness
-#45 (`pnpm check:legal` in the `dependency-consistency` job of `fitness.yml`) and the battery step `legal`
-added their gate row, M7 `20/20` → `21/21`, and moved no M1 (no new suite). Previous: the first six code
+**As of:** 2026-10-07, the support front-matter library unit (`workstream/support-sup1-lib`, Master Plan
+§5.15, SUP-1): the suite of the flat front-matter parser and the generic checks shared by the support
+documentation generators, `apps/api/tests/unit/scripts/supportFrontMatter.test.ts`, with three cases added
+to `legalInventoryLib.test.ts` for the inventory library's new `commands`, `heading` and `optionalNote`
+options, moved M1 `977 + 8` → `978 + 8` and left M7 at `21/21`. Previous: the legal gate unit
+(`workstream/legal-l2-gate`, Master Plan §5.10, LEGAL-3): fitness #45 (`pnpm check:legal` in the
+`dependency-consistency` job of `fitness.yml`) and the battery step `legal` added their gate row, M7
+`20/20` → `21/21`, and moved no M1 (no new suite); before it the first six code
 units of the legal facts register (`workstream/legal-l1a-lib`,
 `workstream/legal-l1a-generators`, `workstream/legal-l1b-scanner`, `workstream/legal-l1b-scanners`,
 `workstream/legal-l1c-oauth-scopes` and `workstream/legal-l1d-subprocessors`, Master Plan §5.10, numbers
@@ -118,13 +123,13 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 977 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR L-1d  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 978 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR S-1a  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
 | M5  | Orphan test files · files with 2 collectors                       | 23 · ≥10              | 23 · ≥10              | 0 · 0         | `metrics.mjs --m5` (`test-contracts reach --json`, WU-1.9; absent at baseline)          | —        |
 | M6  | Ledger rows: machine / confirmed / total                          | —                     | —                     | 0 / N / N     | `metrics.mjs --m6` (`ledger.json`; absent at baseline)                                  | —        |
-| M7  | Gates new/modified, red proven                                    | 0/0                   | 21/21                 | n/n           | `metrics.mjs --m7` (derived: this document's [§Gates](#gates) table)                    | PR 0.22  |
+| M7  | Gates new/modified, red proven                                    | 0/0                   | 21/21                 | n/n           | `metrics.mjs --m7` (derived: this document's [§Gates](#gates) table)                    | PR L-2   |
 | M8  | Packages with coverage measured · floors min/median/api           | 1/86 · —/—/56.8       | 1/91 · —/—/56.8       | all / all     | `metrics.mjs --m8` (derived: tracked `vitest.config.*` thresholds)                      | PR 0.20  |
 | M9  | TIER runs: skipped / cancelled · runtime `t.skip` sites           | 0/0 · 114             | 0/0 · 114             | 0/0 · 0       | `metrics.mjs --m9` (pasted: TIER run summary; sites by WU-1.13 AST scan)                | —        |
 | M10 | E2E specs in CI, required? · last verdict                         | 0 · no                | 0 · no                | ≥6 · yes      | `metrics.mjs --m10` (run id, once WU-6.E8 lands the job)                                | —        |

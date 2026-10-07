@@ -21,6 +21,7 @@ type Allowed = {
   categories: string[];
   subjects: string[];
   listFields?: Record<string, string[]>;
+  optionalNote?: string[];
 };
 type Inventory = { pagePath: string; markdown: string; problems: string[]; scopeError?: string };
 type Generator = { name: string; generate: () => Promise<Inventory> };
@@ -33,7 +34,10 @@ type Page = {
   summary: Record<string, number>;
   columns: string[];
   rows: string[][];
+  commands?: Commands;
+  heading?: string;
 };
+type Commands = { label: string; write: string; check: string };
 /** The module's surface; a literal import of an untyped `.mjs` would be an implicit any. */
 type Library = {
   sha256Of: (text: string) => string;
@@ -46,7 +50,7 @@ type Library = {
   checkInventory: (input: Inventory & { root: string }) => { ok: boolean; problems: string[] };
   runGenerators: (
     generators: Generator[],
-    options: { check?: boolean; only?: string | null; root: string }
+    options: { check?: boolean; only?: string | null; root: string; commands?: Commands }
   ) => Promise<number>;
 };
 
@@ -160,6 +164,18 @@ describe("loadClassification", () => {
     expect(loadClassification(root, FILE, allowed).problems).toEqual([`${FILE}: b has no owner`]);
   });
 
+  it("lets a status named in optionalNote omit its note, but never leave it empty", () => {
+    const { note: _note, ...noteless } = VALID;
+    const entries = { a: { status: "x" }, b: { status: "x", note: "" }, c: noteless };
+    put(FILE, JSON.stringify({ pendingBaseline: 0, entries }));
+    const allowed = { ...ALLOWED, statuses: ["personal", "x"], optionalNote: ["x"] };
+
+    expect(loadClassification(root, FILE, allowed).problems).toEqual([
+      `${FILE}: b has no note`,
+      `${FILE}: c has no note`,
+    ]);
+  });
+
   describe("a list field", () => {
     const LISTED = { ...ALLOWED, listFields: { sources: ["a", "b"] } };
 
@@ -199,6 +215,15 @@ describe("renderInventory", () => {
     expect(first).toContain("x \\| y");
     expect(second).toBe(first);
     expect(await prettier.check(first, { ...config, parser: "markdown" })).toBe(true);
+  });
+
+  it("names the given commands and table heading instead of the legal ones", async () => {
+    const commands = { label: "docs", write: "pnpm w", check: "pnpm c" };
+    const page = await renderInventory({ ...FIXTURE_PAGE, commands, heading: "Index" });
+
+    expect(page).toContain("`pnpm w` regenerates it and `pnpm c` fails when it is stale.");
+    expect(page).toContain("\n## Index\n");
+    expect(page).not.toMatch(/legal:inventory|check:legal|## Inventory/);
   });
 });
 
@@ -281,5 +306,16 @@ describe("runGenerators", () => {
     expect(await runGenerators(generators, { only: "fixture", root })).toBe(0);
     expect(await runGenerators(generators, { only: "nope", root })).toBe(1);
     expect(output).toContain("legal-inventory: no generator is named nope\n");
+  });
+
+  it("prints the label of the given commands and names their write command", async () => {
+    const commands = { label: "docs", write: "pnpm w", check: "pnpm c" };
+
+    expect(await runGenerators([fixture({})], { check: true, root, commands })).toBe(1);
+    expect(await runGenerators([], { only: "x", root, commands })).toBe(1);
+    expect(output).toEqual([
+      `docs fixture: ${PAGE} is missing: run pnpm w\n`,
+      "docs: no generator is named x\n",
+    ]);
   });
 });
