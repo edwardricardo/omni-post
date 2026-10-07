@@ -64,7 +64,7 @@
       "lifetime": "until cleared",
       "note": "The account and project ids the user last selected, as JSON; `ProjectProvider` writes and reads it."
     },
-    "client:localStorage:unresolved:draftKey": {
+    "client:localStorage:unresolved:apps/client/lib/hooks/useAutoSave.ts:draftKey": {
       "status": "functional",
       "resolvesTo": "draft_<post id, or new_post>",
       "lifetime": "until the draft is published or scheduled",

@@ -4,9 +4,11 @@
  * @description The `cookies-and-storage` legal inventory: every cookie the code sets or clears and
  *   every `localStorage` / `sessionStorage` key it writes, reads or removes, found under `ROOTS`
  *   and joined with `CLASSIFICATION` as `<app>:<kind>:<name>`. A name its own file does not state
- *   becomes `<app>:<kind>:unresolved:<argument>`, whose entry must carry `resolvesTo`; a cookie a
- *   dependency sets, which no site names, is added with `"manual": true`. A missing root or zero
- *   sites is a scope error.
+ *   becomes `<app>:<kind>:unresolved:<file>:<argument>`, whose entry must carry `resolvesTo`; the
+ *   path keeps two files' identical arguments apart. A cookie a dependency sets, which no site
+ *   names, is added with `"manual": true`. A missing root or zero sites is a scope error, reported
+ *   with the classification's own problems. The page holds no file count, so a source file that
+ *   sets nothing never stales it; `generate` prints that count instead.
  * @layer infrastructure
  */
 import { readFileSync } from "node:fs";
@@ -78,15 +80,25 @@ export function toCandidate({ file, line, matcher, args }, text) {
   const name = verb === "assign" ? (resolved?.split("=")[0]?.trim() ?? null) : resolved;
   const options = kind === "cookie" && action === "set" ? (args.at(-1) ?? "") : "";
   const attributes = scan.objectEntries(options, ATTRIBUTES).join(", ");
-  const key = `${app}:${kind}:${name ?? `unresolved:${arg}`}`;
+  const key = `${app}:${kind}:${name ?? `unresolved:${file}:${arg}`}`;
   return { key, arg, site: `${file}:${line}`, action, attributes };
 }
 
 /**
  * Scans the roots under `root`, joins the candidates with the classification and renders the page.
- * @type {(options?: { root?: string }) => Promise<import("./lib/inventory.mjs").Inventory & { counts?: Record<string, number> }>}
+ * The classification is read first, so a scope error still carries the problems of its entries;
+ * the joins that need a complete scan run only once the scope is whole.
+ * @type {(options?: { root?: string }) => Promise<import("./lib/inventory.mjs").Inventory & { counts?: Record<string, number>, filesScanned?: number }>}
  */
 export async function buildInventory({ root = REPO_ROOT } = {}) {
+  const classification = loadClassification(root, CLASSIFICATION, ALLOWED);
+  const { pendingBaseline, problems } = classification;
+  const entries = /** @type {Map<string, StorageEntry>} */ (classification.entries);
+  for (const [key, { resolvesTo }] of entries) {
+    if (!KEY_SHAPE.test(key)) problems.push(`${key} is not <app>:<kind>:<name>`);
+    if (UNRESOLVED.test(key) !== (resolvesTo !== undefined))
+      problems.push(`${key}: resolvesTo belongs on an unresolved name, and only there`);
+  }
   const { files, missing } = scan.listSourceFiles(root, { roots: ROOTS });
   const candidates = files.flatMap((file) => {
     const text = readFileSync(path.join(root, file), "utf8");
@@ -95,10 +107,8 @@ export async function buildInventory({ root = REPO_ROOT } = {}) {
   const empty = candidates.length === 0 ? "the roots yielded zero call sites" : null;
   const scope = missing.length > 0 ? `${missing.join(", ")} does not exist` : empty;
   const scopeError = `${scope}: a scan that cannot read its whole scope is not clean`;
-  if (scope !== null) return { pagePath: PAGE, markdown: "", problems: [], scopeError };
-  const classification = loadClassification(root, CLASSIFICATION, ALLOWED);
-  const { pendingBaseline, problems } = classification;
-  const entries = /** @type {Map<string, StorageEntry>} */ (classification.entries);
+  const filesScanned = files.length;
+  if (scope !== null) return { pagePath: PAGE, markdown: "", problems, scopeError, filesScanned };
   /** @type {Map<string, Candidate[]>} */
   const byKey = new Map();
   for (const found of candidates) byKey.set(found.key, [...(byKey.get(found.key) ?? []), found]);
@@ -106,12 +116,9 @@ export async function buildInventory({ root = REPO_ROOT } = {}) {
     const fix = UNRESOLVED.test(key) ? "document it with resolvesTo" : "classify it";
     if (!entries.has(key)) problems.push(`${key} is a candidate with no entry: ${fix}`);
   }
-  for (const [key, { manual = false, resolvesTo }] of entries) {
-    if (!KEY_SHAPE.test(key)) problems.push(`${key} is not <app>:<kind>:<name>`);
+  for (const [key, { manual = false }] of entries) {
     if (manual && byKey.has(key)) problems.push(`${key}: manual, but call sites name it`);
     if (!manual && !byKey.has(key)) problems.push(`${key} is classified but no call site names it`);
-    if (UNRESOLVED.test(key) !== (resolvesTo !== undefined))
-      problems.push(`${key}: resolvesTo belongs on an unresolved name, and only there`);
   }
   const added = [...entries.keys()].filter((key) => entries.get(key)?.manual);
   const keys = [...new Set([...byKey.keys(), ...added])].sort();
@@ -123,11 +130,7 @@ export async function buildInventory({ root = REPO_ROOT } = {}) {
   if (pending < pendingBaseline)
     problems.push(`stale pendingBaseline ${pendingBaseline}: lower it to ${pending}`);
   const documented = [...byKey.keys()].filter((k) => UNRESOLVED.test(k) && entries.has(k)).length;
-  const scanned = {
-    "files scanned": files.length,
-    sites: candidates.length,
-    candidates: byKey.size,
-  };
+  const scanned = { sites: candidates.length, candidates: byKey.size };
   const extra = { "unresolved names documented": documented, "manual additions": added.length };
   const statuses = Object.fromEntries([...STATUSES, "unclassified"].map((s) => [s, tally(s)]));
   const counts = { ...scanned, ...extra, ...statuses };
@@ -148,18 +151,29 @@ export async function buildInventory({ root = REPO_ROOT } = {}) {
       const [app = "", kind = "", ...rest] = key.split(":");
       const e = /** @type {Partial<StorageEntry>} */ (entries.get(key) ?? {});
       const sites = byKey.get(key) ?? [];
-      const unresolved = `\`${e.resolvesTo ?? "?"}\` (from \`${rest.slice(1).join(":")}\`)`;
+      const [, file = "", ...arg] = rest;
+      const unresolved = `\`${e.resolvesTo ?? "?"}\` (from \`${arg.join(":")}\` in ${file})`;
       const name = UNRESOLVED.test(key) ? unresolved : `\`${rest.join(":")}\``;
       const status = `${e.status ?? "unclassified"}${e.manual ? " (manual)" : ""}`;
-      const options = [...new Set(sites.map((s) => s.attributes).filter(Boolean))];
+      // Sorted, so the column never depends on site order; each literal keeps its own entry
+      // order, because a spread placed after an option overrides it.
+      const options = [...new Set(sites.map((s) => s.attributes).filter(Boolean))].sort();
       const shown = options.map((option) => `\`{ ${option} }\``).join("; ");
       const where = sites.map((s) => `${s.site} (${s.action})`).join(", ");
       const cells = [e.lifetime ?? "", shown, e.note ?? "", where || "none in the scanned code"];
       return [app, kind, name, status, ...cells];
     }),
   });
-  return { pagePath: PAGE, markdown, problems, counts };
+  return { pagePath: PAGE, markdown, problems, counts, filesScanned };
 }
 
 /** @type {import("./lib/inventory.mjs").Generator} */
-export const generator = { name: "cookies-and-storage", generate: () => buildInventory() };
+export const generator = {
+  name: "cookies-and-storage",
+  generate: async () => {
+    const inventory = await buildInventory();
+    const sites = `${inventory.filesScanned ?? 0} files, ${inventory.counts?.sites ?? 0} sites`;
+    process.stdout.write(`legal-inventory cookies-and-storage: scanned ${sites}\n`);
+    return inventory;
+  },
+};

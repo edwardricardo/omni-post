@@ -1,10 +1,11 @@
 /**
  * @file cookiesAndStorageInventory.test.ts
  * @description Pins `scripts/legal/cookies-and-storage.mjs`: sites grouped per app, kind and name
- *   with the attributes a cookie sets, an unresolved name refused until `resolvesTo` documents it,
- *   the classification refusals and scope errors, and the committed page equal byte for byte to
- *   the one regenerated from the real tree. Each case runs on a scratch tree holding every root,
- *   which starts green; the scanner's own rules are pinned by `legalSourceScan.test.ts`.
+ *   with the attributes a cookie sets in a fixed order, an unresolved name refused until
+ *   `resolvesTo` documents it and kept apart per file, manual entries, the classification
+ *   refusals and scope errors, and the committed page equal byte for byte to the one regenerated
+ *   from the real tree. Each case runs on a scratch tree holding every root, which starts green;
+ *   the scanner's own rules are pinned by `legalSourceScan.test.ts`.
  * @layer infrastructure
  */
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -12,18 +13,21 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Inventory = { pagePath: string; markdown: string; problems: string[]; scopeError?: string };
 type Entry = Record<string, unknown>;
 /** The module's surface; a literal import of an untyped `.mjs` would be an implicit any. */
 type Generator = { CLASSIFICATION: string; PAGE: string; ROOTS: readonly string[] } & {
   buildInventory: (options: { root: string }) => Promise<Inventory>;
+  generator: { generate: () => Promise<Inventory> };
 };
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
 const GENERATOR = path.join(REPO_ROOT, "scripts/legal/cookies-and-storage.mjs");
-const { CLASSIFICATION, PAGE, ROOTS, buildInventory } = (await import(GENERATOR)) as Generator;
+const { CLASSIFICATION, PAGE, ROOTS, buildInventory, generator } = (await import(
+  GENERATOR
+)) as Generator;
 
 const SID = { status: "essential", lifetime: "1 minute", note: "Session." };
 const KEEP = { status: "functional", lifetime: "until cleared", note: "Preference." };
@@ -57,12 +61,16 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   rmSync(root, { recursive: true, force: true });
 });
 
 describe("the candidates", () => {
   it("group every site per app, kind and name, with the attributes, in the same bytes twice", async () => {
-    put("apps/api/src/logout.ts", 'reply.clearCookie("sid");\n');
+    put(
+      "apps/api/src/logout.ts",
+      'reply.setCookie("sid", "", { expires: EPOCH });\nreply.clearCookie("sid");\n'
+    );
     const store = "const store = await cookies();\nstore.set(NAME, t, { ...BASE, maxAge: 1 });\n";
     put("apps/admin/lib/session.ts", `export const NAME = "s";\n${store}store.delete(NAME);\n`);
     put(
@@ -85,9 +93,10 @@ describe("the candidates", () => {
 
     expect(first.problems).toEqual([]);
     expect(first.markdown).toContain(
-      "apps/api/src/auth.ts:1 (set), apps/api/src/logout.ts:1 (clear)"
+      "apps/api/src/auth.ts:1 (set), apps/api/src/logout.ts:1 (set), apps/api/src/logout.ts:2 (clear)"
     );
-    expect(first.markdown).toContain("`{ httpOnly: true }`");
+    expect(first.markdown).toContain("`{ expires: EPOCH }`; `{ httpOnly: true }`");
+    expect(first.markdown).not.toContain("files scanned");
     expect(first.markdown).toContain("`{ ...BASE, maxAge: 1 }`");
     expect(first.markdown).toContain(
       "apps/admin/lib/session.ts:3 (set), apps/admin/lib/session.ts:4 (clear)"
@@ -102,15 +111,36 @@ describe("the candidates", () => {
   it("refuse a name its file does not state until resolvesTo documents it", async () => {
     const write = "window.localStorage.setItem(\n  draftKey,\n  value\n);\n";
     put("apps/client/lib/draft.ts", `const draftKey = \`draft_\${id}\`;\n${write}`);
-    const key = "client:localStorage:unresolved:draftKey";
+    const key = "client:localStorage:unresolved:apps/client/lib/draft.ts:draftKey";
 
     expect(await problemsOf()).toContain(`${key} is a candidate with no entry: document it`);
     entries[key] = { ...KEEP, resolvesTo: "draft_<id>" };
     const { problems, markdown } = await build();
 
     expect(problems).toEqual([]);
-    expect(markdown).toContain("`draft_<id>` (from `draftKey`)");
+    expect(markdown).toContain("`draft_<id>` (from `draftKey` in apps/client/lib/draft.ts)");
     expect(markdown).toContain("apps/client/lib/draft.ts:2 (set)");
+  });
+
+  it("keep two files' identical unresolved arguments apart, one candidate per file", async () => {
+    ["a", "b"].forEach((file) => put(`apps/client/lib/${file}.ts`, "localStorage.getItem(key);\n"));
+    const prefix = "client:localStorage:unresolved:apps/client/lib";
+
+    const problems = await problemsOf();
+
+    expect(problems).toContain(`${prefix}/a.ts:key is a candidate with no entry`);
+    expect(problems).toContain(`${prefix}/b.ts:key is a candidate with no entry`);
+  });
+
+  it("accept a manual entry that no site names, and render it as manual", async () => {
+    entries["admin:cookie:NEXT_LOCALE"] = { ...KEEP, manual: true };
+
+    const { problems, markdown } = await build();
+
+    expect(problems).toEqual([]);
+    expect(markdown).toMatch(
+      /`NEXT_LOCALE` +\| functional \(manual\) .*\| none in the scanned code/
+    );
   });
 });
 
@@ -141,12 +171,32 @@ describe("the classification", () => {
 
     expect(await problemsOf()).toContain(expected);
   });
+
+  it("reports an invalid entry together with a scope error", async () => {
+    remove("apps/client/providers")();
+    setSid({ status: "personal" })();
+
+    const { problems, scopeError } = await build();
+
+    expect(scopeError).toContain("apps/client/providers does not exist");
+    expect(problems.join("\n")).toContain('api:cookie:sid has status "personal"');
+  });
 });
 
 describe("the real tree", () => {
+  // The byte equality is the gate's content by design: a committed page that no longer matches
+  // the code is exactly the drift the legal register must not carry.
   it("reports no problem, lists the API refresh and admin session cookies, equals the page", async () => {
-    const { problems, markdown } = await buildInventory({ root: REPO_ROOT });
+    const printed: string[] = [];
+    vi.spyOn(process.stdout, "write").mockImplementation((chunk) => printed.push(`${chunk}`) > 0);
 
+    const { problems, markdown } = await generator.generate();
+
+    expect(printed).toEqual([
+      expect.stringMatching(
+        /^legal-inventory cookies-and-storage: scanned \d+ files, \d+ sites\n$/
+      ),
+    ]);
     expect(problems).toEqual([]);
     expect(markdown).toMatch(/\| api +\| cookie +\| `refreshToken` +\| essential /);
     expect(markdown).toMatch(/\| admin +\| cookie +\| `admin-session` +\| essential /);
