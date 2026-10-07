@@ -7,6 +7,7 @@
  *   runner rules of `scripts/legal/lib/inventory.mjs` are pinned by `legalInventoryLib.test.ts`.
  * @layer infrastructure
  */
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -115,6 +116,24 @@ describe("the classification", () => {
     const inventory = await build();
 
     expect([...inventory.problems, inventory.scopeError].join("\n")).toContain(expected);
+  });
+});
+
+describe("the runner", () => {
+  const RUNNER = path.join(REPO_ROOT, "scripts/legal/run.mjs");
+
+  it.each([
+    ["no value", ["--only"]],
+    ["a flag as its value", ["--only", "--check"]],
+  ])("refuses --only with %s before any generator runs", (_case, args) => {
+    const run = spawnSync(process.execPath, [RUNNER, ...args], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    });
+
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain("usage: run.mjs [--check] [--only <name>]");
+    expect(run.stdout).toBe("");
   });
 });
 
