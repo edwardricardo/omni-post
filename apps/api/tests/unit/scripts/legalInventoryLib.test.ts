@@ -240,6 +240,19 @@ describe("runGenerators", () => {
     }
   );
 
+  it.each([false, true])(
+    "survives a bare scope error with no problems list and keeps running with check %s",
+    async (check) => {
+      // The shape under test is exactly the missing field, so the result is built outside the type.
+      const bare = { scopeError: "read nothing" } as unknown as Inventory;
+      const generators = [{ name: "bare", generate: () => Promise.resolve(bare) }, fixture({})];
+
+      expect(await runGenerators(generators, { check, root })).toBe(1);
+      expect(output).toContain("legal-inventory bare: scope error: read nothing\n");
+      expect(output.some((line) => line.startsWith("legal-inventory fixture: "))).toBe(true);
+    }
+  );
+
   it("lets a generator that throws reject the run", async () => {
     const thrower = { name: "thrower", generate: () => Promise.reject(new Error("boom")) };
 
