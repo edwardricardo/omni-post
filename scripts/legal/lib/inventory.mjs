@@ -1,9 +1,10 @@
 // @ts-check
 /**
  * @file inventory.mjs
- * @description The library of the legal inventory generators run by `scripts/legal/run.mjs`: it
- *   validates a classification file, renders a page through Prettier, compares it with the
- *   committed one and runs the generators. A page carries the sha256 prefix of each source and no
+ * @description The library of the legal inventory generators run by `scripts/legal/run.mjs`, also
+ *   used by the support documentation generators of `scripts/support/run.mjs`, which pass their own
+ *   commands: it validates a classification file, renders a page through Prettier, compares it with
+ *   the committed one and runs the generators. A page carries the sha256 prefix of each source and no
  *   timestamp, so a clean checkout regenerates it byte for byte. A generator that read nothing
  *   reports a scope error, which exits 1 in both modes rather than rendering a clean inventory.
  * @layer infrastructure
@@ -17,11 +18,23 @@ import prettier from "prettier";
 export const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 
 /** @typedef {{ status: string, category?: string, subject?: string, note: string, manual?: boolean }} Entry */
-/** @typedef {{ statuses: readonly string[], categories: readonly string[], subjects: readonly string[], extraFields?: Readonly<Record<string, boolean>>, listFields?: Readonly<Record<string, readonly string[]>> }} Allowed */
+/** @typedef {{ statuses: readonly string[], categories: readonly string[], subjects: readonly string[], extraFields?: Readonly<Record<string, boolean>>, listFields?: Readonly<Record<string, readonly string[]>>, optionalNote?: readonly string[] }} Allowed */
 /** @typedef {{ entries: Map<string, Entry>, pendingBaseline: number, problems: string[], text: string }} Classification */
 /** @typedef {{ pagePath: string, markdown: string, problems: string[], scopeError?: string }} Inventory */
 /** @typedef {{ name: string, generate: () => Promise<Inventory> }} Generator */
-/** @typedef {{ title: string, intro: string[], generatorPath: string, pagePath: string, sources: Record<string, string>, summary: Record<string, number>, columns: string[], rows: string[][] }} Page */
+/** @typedef {{ label: string, write: string, check: string }} Commands */
+/** @typedef {{ title: string, intro: string[], generatorPath: string, pagePath: string, sources: Record<string, string>, summary: Record<string, number>, columns: string[], rows: string[][], commands?: Commands, heading?: string }} Page */
+
+/**
+ * The legal runner's line prefix and commands, the default wherever a page or a line names them;
+ * another runner of these generators passes its own.
+ * @type {Readonly<Commands>}
+ */
+export const LEGAL_COMMANDS = Object.freeze({
+  label: "legal-inventory",
+  write: "pnpm legal:inventory",
+  check: "pnpm check:legal",
+});
 
 /** @type {(value: unknown) => value is Record<string, unknown>} */
 const isObject = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -37,12 +50,14 @@ export const sha256Of = (text) => createHash("sha256").update(text).digest("hex"
  * absent, and a key outside `Entry` is refused, so a misspelt field never reads as a valid entry.
  * `extraFields` adds string fields, each mapped to whether it is required; one that is present
  * must be a non-empty string. `listFields` adds required array fields, each mapped to the values an
- * item may take; one must be a non-empty list of distinct allowed values.
+ * item may take; one must be a non-empty list of distinct allowed values. `optionalNote` names the
+ * statuses whose entry may omit its note; a note that is present must still be non-empty.
  * @type {(root: string, file: string, allowed: Allowed) => Classification}
  */
 export function loadClassification(root, file, { statuses, categories, subjects, ...more }) {
   const extraFields = more.extraFields ?? {};
   const listFields = more.listFields ?? {};
+  const optionalNote = more.optionalNote ?? [];
   const target = path.join(root, file);
   const text = existsSync(target) ? readFileSync(target, "utf8") : "";
   /** @type {unknown} */
@@ -78,7 +93,9 @@ export function loadClassification(root, file, { statuses, categories, subjects,
     oneOf(key, "status", status, statuses);
     if (personal || category !== undefined) oneOf(key, "category", category, categories);
     if (personal || subject !== undefined) oneOf(key, "subject", subject, subjects);
-    if (typeof note !== "string" || note === "") problems.push(`${file}: ${key} has no note`);
+    const noteless = note === undefined && optionalNote.includes(String(status));
+    if (!noteless && (typeof note !== "string" || note === ""))
+      problems.push(`${file}: ${key} has no note`);
     for (const [name, required] of Object.entries(extraFields)) {
       const value = fields[name];
       if ((required || value !== undefined) && (typeof value !== "string" || value === ""))
@@ -100,11 +117,13 @@ export function loadClassification(root, file, { statuses, categories, subjects,
 
 /**
  * Renders a page through the repository's Prettier configuration (`.editorconfig` included, as the
- * CLI reads it), so the page is already what the pre-commit formatter writes.
+ * CLI reads it), so the page is already what the pre-commit formatter writes. The page names the
+ * commands of `page.commands` and titles its table `page.heading`, by default the legal ones.
  *
  * @type {(page: Page) => Promise<string>}
  */
 export async function renderInventory(page) {
+  const { write, check } = page.commands ?? LEGAL_COMMANDS;
   const cell = (/** @type {string} */ text) => text.replaceAll("|", "\\|").replaceAll("\n", " ");
   /** @type {(head: string[], body: string[][]) => string} */
   const table = (head, body) =>
@@ -112,39 +131,41 @@ export async function renderInventory(page) {
   const from = Object.entries(page.sources).map(([file, sha]) => `\`${file}\` (sha256 \`${sha}\`)`);
   const generated =
     `> Generated by \`${page.generatorPath}\` from ${from.join(" and ")}; never edit it by hand. ` +
-    "`pnpm legal:inventory` regenerates it and `pnpm check:legal` fails when it is stale.";
+    `\`${write}\` regenerates it and \`${check}\` fails when it is stale.`;
   const counts = Object.entries(page.summary).map(([measure, count]) => [measure, `${count}`]);
   const summary = table(["Measure", "Count"], counts);
-  const body = [`# ${page.title}`, ...page.intro, generated, "## Summary", summary, "## Inventory"];
+  const heading = `## ${page.heading ?? "Inventory"}`;
+  const body = [`# ${page.title}`, ...page.intro, generated, "## Summary", summary, heading];
   const markdown = [...body, table(page.columns, page.rows)].join("\n\n");
   const target = path.join(REPO_ROOT, page.pagePath);
   const config = await prettier.resolveConfig(target, { editorconfig: true });
   return prettier.format(markdown, { ...config, parser: "markdown" });
 }
 
-/** @type {(input: Inventory & { root?: string }) => { ok: boolean, problems: string[] }} */
-export function checkInventory({ root = REPO_ROOT, pagePath, markdown, problems }) {
+/** @type {(input: Inventory & { root?: string, commands?: Commands }) => { ok: boolean, problems: string[] }} */
+export function checkInventory({ root = REPO_ROOT, pagePath, markdown, problems, ...more }) {
+  const { write } = more.commands ?? LEGAL_COMMANDS;
   const file = path.join(root, pagePath);
   const committed = existsSync(file) ? readFileSync(file, "utf8") : null;
   if (committed === markdown) return { ok: problems.length === 0, problems };
   const stale = committed === null ? "is missing" : "differs from the regenerated page";
-  return { ok: false, problems: [...problems, `${pagePath} ${stale}: run pnpm legal:inventory`] };
+  return { ok: false, problems: [...problems, `${pagePath} ${stale}: run ${write}`] };
 }
 
 /**
  * Writes every page, or with `check` compares each with the committed one; every problem prints
- * as `legal-inventory <name>: <problem>` and makes the exit code 1.
- * @type {(generators: Generator[], options?: { check?: boolean, only?: string | null, root?: string }) => Promise<number>}
+ * as `<label> <name>: <problem>`, the label of `commands`, and makes the exit code 1.
+ * @type {(generators: Generator[], options?: { check?: boolean, only?: string | null, root?: string, commands?: Commands }) => Promise<number>}
  */
 export async function runGenerators(generators, options = {}) {
-  const { check = false, only = null, root = REPO_ROOT } = options;
+  const { check = false, only = null, root = REPO_ROOT, commands = LEGAL_COMMANDS } = options;
   const selected = generators.filter((generator) => only === null || generator.name === only);
   let exitCode = selected.length === 0 ? 1 : 0;
-  if (exitCode === 1) process.stderr.write(`legal-inventory: no generator is named ${only}\n`);
+  if (exitCode === 1) process.stderr.write(`${commands.label}: no generator is named ${only}\n`);
   for (const { name, generate } of selected) {
     /** @type {(line: string, failed?: boolean) => void} */
     const say = (line, failed = true) => {
-      (failed ? process.stderr : process.stdout).write(`legal-inventory ${name}: ${line}\n`);
+      (failed ? process.stderr : process.stdout).write(`${commands.label} ${name}: ${line}\n`);
       if (failed) exitCode = 1;
     };
     const inventory = await generate();
@@ -155,7 +176,7 @@ export async function runGenerators(generators, options = {}) {
       say(`scope error: ${inventory.scopeError}`);
       problems.forEach((problem) => say(problem));
     } else if (check) {
-      const verdict = checkInventory({ root, ...inventory });
+      const verdict = checkInventory({ root, ...inventory, commands });
       verdict.problems.forEach((problem) => say(problem));
       if (verdict.ok) say(`${inventory.pagePath} is current`, false);
     } else {
