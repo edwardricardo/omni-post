@@ -303,7 +303,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 20, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). Both baselines may fall and must never rise.) There are **44 checks, numbered #1-#44**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 20, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 is hard-zero on stale pages and unclassified rows and carries one ratcheted `pending` count per legal inventory**, the `pendingBaseline` of each file under `docs/legal/classification/`: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **45 checks, numbered #1-#45**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -1830,6 +1830,62 @@ if ! node scripts/testing/fitness-inventory-gate.mjs --summary "${GITHUB_STEP_SU
   echo "::error title=Fitness #44 violation::The fitness inventory has a hole or a duplicate, fitness.yml and CLAUDE.md §Automated Compliance Checks disagree on its set, the stated count is not the derived N, or the gate could not read one of its inputs. The fitness-inventory-gate lines above name each violation with its file and line."
   exit 1
 fi
+
+# 45. The legal inventories are current, and every row they hold is classified.
+# Threat: the legal facts register falls silently behind the code. A pull request that adds a
+# personal field to the schema, a cookie or a browser-storage key, an OAuth scope or a dependency
+# changes what the product stores, sets, asks for or sends, and nothing tied docs/legal/ to that
+# change: every per-site update of the register drifted back with the next change that did not
+# know the register existed.
+# WHAT IT RUNS: `pnpm check:legal`, which is `node scripts/legal/run.mjs --check`, with one
+# generator per surface under scripts/legal/, each pinned by its suite in
+# apps/api/tests/unit/scripts/*Inventory.test.ts — personal-data (the fields of
+# infra/prisma/schema.prisma whose name matches its vocabulary), cookies-and-storage (the cookies
+# and the localStorage / sessionStorage keys of the API, both portals and packages/ui),
+# oauth-scopes (the connect flows, the provider adapters, the shared provider metadata and the CRM
+# authorize routes) and subprocessors (the direct dependencies of every workspace manifest, and
+# the services the code reaches by `fetch`). Each regenerates its page in memory and compares it
+# with the committed one under docs/legal/inventories/.
+# WHERE IT RUNS, and why: in the dependency-consistency job of fitness.yml, not the Fitness
+# Functions job. The pages render through prettier's API, so the generators need the installed
+# tree, and the Fitness Functions job installs nothing; dependency-consistency is the job that runs
+# `pnpm install --frozen-lockfile`. #44 reads a `#N` step name from any job, so the inventory still
+# counts this check.
+# WHAT FAILS, each printed as `legal-inventory <name>: <problem>`: a committed page that is missing
+# or differs from the regenerated one; a candidate with no entry in
+# docs/legal/classification/<name>.json; a stale entry, whose row no longer exists; an entry the
+# generator refuses (a status it does not list, no note, a field its status requires left out, a
+# `manual` flag on a row the scan finds, an OAuth scope whose declared `sources` differ from the
+# scan); and a `pending` count above or below the file's `pendingBaseline`.
+# NOT APPLICABLE IS A ROW. A touched surface that holds nothing legally relevant is declared in its
+# classification file — `not-personal` for a schema field, `library` for a dependency — with a note
+# saying why. A pull request sentence or a label never satisfies this check, because nothing reads
+# either.
+# RECORDED FACTS ONLY. A page carries the facts its generator extracted and the sha256 prefix of
+# its classification file and of its normalized scan result: no scan-size counter, no source-file
+# hash, no line number and no timestamp. The check therefore fires on a legally relevant change (a
+# new or removed field, cookie, scope or dependency, or a reclassification), stays green over a
+# change that moves code without moving a fact, and a clean checkout reproduces every page byte for
+# byte.
+# RATCHET. `pendingBaseline` is the check's one counted residual: the rows that still wait for a
+# human classification. It may fall and must never rise, and the check holds it EXACT, so the
+# change that classifies a pending row lowers the baseline in the same diff or goes red.
+# FAIL-CLOSED: a generator whose scan cannot read its whole scope, or read nothing (a missing root,
+# zero models, candidates, call sites, adapter files, scopes, manifests or dependency names, an
+# unreadable manifest), reports a scope error and exits 1 instead of rendering an empty inventory
+# as clean; a classification file that is missing or not JSON is a problem, never an empty file.
+# RESIDUAL LIMITS, stated rather than implied: (1) the vocabularies are enumerated, not derived: a
+# personal field whose name matches no token, a cookie set through a helper the scanner does not
+# know, and a service reached by `fetch` with no package are invisible until a human adds the
+# token, the matcher or a `"manual": true` entry; (2) the four pages are the four surfaces, so a
+# recipient no manifest declares and no manual entry names — the hosting provider, the deployment
+# platform — appears on no page; (3) a classification is a human judgement, and the check proves
+# only that it is present and well formed, never that it is right.
+pnpm check:legal   # expect exit 0, and one `is current` line per page:
+#   legal-inventory personal-data: docs/legal/inventories/personal-data.generated.md is current
+#   legal-inventory cookies-and-storage: docs/legal/inventories/cookies-and-storage.generated.md is current
+#   legal-inventory oauth-scopes: docs/legal/inventories/oauth-scopes.generated.md is current
+#   legal-inventory subprocessors: docs/legal/inventories/subprocessors.generated.md is current
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One

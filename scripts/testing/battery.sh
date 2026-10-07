@@ -36,7 +36,7 @@ set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=23
+PLANNED_STEPS=24
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -167,6 +167,8 @@ step duplicates pnpm check:duplicates
 # without a sibling story must equal its committed baseline, so a new component
 # without a story fails it and so does a baseline left above the tree.
 step stories-gate pnpm check:stories
+# Fitness #45: every legal inventory page is current and every row classified.
+step legal pnpm check:legal
 # The architecture gate of audit.yml: dependency-cruiser's layer rules and its
 # `no-circular` cycle check over one resolved import graph. Its `warn`-severity
 # rules print `warn` lines, which this battery reads as RED.
