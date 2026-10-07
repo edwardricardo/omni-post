@@ -7,7 +7,11 @@
  *   (the connect flow's `scopes` in `LOGIN`), `adapter` (each adapter's `requiredScopes`) and
  *   `shared` (`requiredScopes` in `SHARED`); each CRM is read from its authorize route in
  *   `CRM_ROUTES` as `crm`. An entry whose `sources` differ from the scan is a problem, so a new or
- *   healed mismatch is acknowledged; a missing source or a reader that finds nothing is a scope error.
+ *   healed mismatch is acknowledged. A missing source, a record not declared exactly once, a CRM
+ *   route with no scope literal of its own, a CRM listed twice, a provider name holding `:` (all
+ *   names are checked before any source is read) or a reader that finds nothing is a scope error,
+ *   which carries the problems found before it. The page hashes the scan result, not the source
+ *   files, so an edit that changes no scope, source or provider leaves it current.
  * @layer infrastructure
  */
 import { existsSync, readFileSync } from "node:fs";
@@ -28,11 +32,17 @@ const SOCIAL = SOURCES.slice(0, 3);
 const STATUSES = ["required", "optional", "unused", "pending"];
 const FIELDS = { extraFields: { grants: true }, listFields: { sources: SOURCES } };
 const ALLOWED = Object.freeze({ statuses: STATUSES, categories: [], subjects: [], ...FIELDS });
-/** @type {Array<[string, RegExp, RegExp]>} each CRM, its scope literal in its authorize route, the separator */
+/** @typedef {[string, RegExp, RegExp]} Crm a CRM's name, its scope literal in its authorize route, the separator */
+/** @type {Crm[]} */
 const CRMS = [
   ["hubspot", /\bscopes\s*=\s*"([^"]+)"/, /\s+/],
   ["salesforce", /[?&]scope=([\w.:+-]+)/, /\+/],
 ];
+/** The name the page gives the hash of the scan result. */
+const SCAN_RESULT = "the oauth-scopes scan result";
+/** A Fastify route registration; the next one ends the block of the route before it. */
+const REGISTRATION = String.raw`\bapp\.(?:get|post|put|patch|delete|head|options|all|route)\(`;
+const ROUTE_START = new RegExp(REGISTRATION);
 const NOT_SCANNED = [
   "`apps/client/lib/utils/providerMapper.ts` (`getDefaultScopes`): client display metadata whose names, such as `read`, `write` and `r_liteprofile`, are not the providers' scope strings.",
   "`packages/providers/tiktok/src/apiClient.ts` (the `scopes` of its auth service): the TikTok package's internal authorization service, which no connect flow of `apps/api` calls.",
@@ -43,27 +53,38 @@ const NOT_SCANNED = [
 /** @typedef {{ values: string[], unread: string[] }} Scopes */
 /** @typedef {import("./lib/inventory.mjs").Inventory & { counts?: Record<string, number> }} Built */
 
-/** @type {(scope: string) => Built} */
-const failClosed = (scope) => {
+/** @type {(scope: string, problems?: string[]) => Built} carries the problems found before the error */
+const failClosed = (scope, problems = []) => {
   const scopeError = `${scope}: a scan that cannot read its whole scope is not clean`;
-  return { pagePath: PAGE, markdown: "", problems: [], scopeError };
+  return { pagePath: PAGE, markdown: "", problems, scopeError };
 };
 
 /** @type {(schema: string) => string[]} the `Provider` enum values, lower-cased as the code keys them */
 export const providerEnum = (schema) =>
   (/^enum Provider \{([^}]*)\}/m.exec(schema)?.[1] ?? "")
     .split("\n")
-    .map((line) => line.replace(/\/\/.*$/, "").trim())
-    .filter((value) => /^\w+$/.test(value))
+    .map(
+      (line) =>
+        line
+          .replace(/\/\/.*$/, "")
+          .trim()
+          .split(/\s+/)[0] ?? ""
+    )
+    .filter((value) => value !== "" && !value.startsWith("@@"))
     .map((value) => value.toLowerCase());
 
 /**
- * The top-level `key: value` entries of the object literal a `const` named `name` holds in `code`.
- * @type {(code: string, name: string) => Array<[string, string]>}
+ * The top-level `key: value` entries of the object literal a `const` named `name` holds in `code`,
+ * or `null` unless `code` declares that `const` exactly once, so a second declaration is never
+ * silently ignored.
+ * @type {(code: string, name: string) => Array<[string, string]> | null}
  */
 export function recordEntries(code, name) {
-  const start = new RegExp(String.raw`\bconst\s+${name}\b[^=;]*=\s*\{`).exec(code);
-  const entries = start === null ? [] : scan.splitArguments(code, start.index + start[0].length);
+  const escaped = name.replace(/[$.*+?^()[\]{}|\\]/g, "\\$&");
+  const declared = new RegExp(String.raw`\bconst\s+${escaped}(?![\w$])[^=;]*=\s*\{`, "g");
+  const [start, ...others] = [...code.matchAll(declared)];
+  if (start === undefined || others.length > 0) return null;
+  const entries = scan.splitArguments(code, (start.index ?? 0) + start[0].length);
   return entries.flatMap((entry) => {
     const keyed = /^([A-Za-z_$][\w$]*)\s*:\s*/.exec(entry);
     return keyed === null ? [] : [[keyed[1] ?? "", entry.slice(keyed[0].length)]];
@@ -89,8 +110,23 @@ export function scopesIn(text, code, property) {
   return found;
 }
 
-/** @type {(options?: { root?: string }) => Promise<Built>} reads the sources under `root` and renders the page */
-export async function buildInventory({ root = REPO_ROOT } = {}) {
+/**
+ * The source of the route registered with the path `route`: from its `app.<verb>(` registration
+ * up to the next registration, or to the end of the file for the last route; `null` when no route
+ * is registered with that path. The same path quoted elsewhere, such as a redirect URL, is no route.
+ * @type {(code: string, route: string) => string | null}
+ */
+export function routeBlock(code, route) {
+  const escaped = route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const registered = new RegExp(String.raw`${REGISTRATION}\s*"${escaped}"`).exec(code);
+  if (registered === null) return null;
+  const from = registered.index + registered[0].length;
+  const next = code.slice(from).search(ROUTE_START);
+  return code.slice(registered.index, next === -1 ? code.length : from + next);
+}
+
+/** @type {(options?: { root?: string, crms?: Crm[] }) => Promise<Built>} reads the sources under `root` and renders the page */
+export async function buildInventory({ root = REPO_ROOT, crms = CRMS } = {}) {
   const roots = [LOGIN, SHARED, CRM_ROUTES, ADAPTERS];
   const { files, missing } = scan.listSourceFiles(root, { roots });
   if (!existsSync(path.join(root, SCHEMA))) missing.push(SCHEMA);
@@ -98,11 +134,28 @@ export async function buildInventory({ root = REPO_ROOT } = {}) {
   const read = (/** @type {string} */ file) => readFileSync(path.join(root, file), "utf8");
   const adapterFiles = files.filter((file) => ADAPTER_FILE.test(file));
   const providers = providerEnum(read(SCHEMA));
+  // Provider names are checked before any source is read: a key splits on its first colon, so a
+  // name holding one, or a CRM listed twice, would corrupt every key collected after it.
+  const crmNames = crms.map(([name]) => name);
+  const everyone = [...providers, ...crmNames];
+  const colons = everyone.filter((name) => name.includes(":"));
+  const twice = crmNames.filter((name, at) => crmNames.indexOf(name) !== at);
+  const unnamed = [
+    [providers.length, `${SCHEMA} yielded zero Provider enum values`],
+    [colons.length === 0, `provider ${colons.join(", ")} holds ":", the key's separator`],
+    [twice.length === 0, `CRM ${twice.join(", ")} is listed more than once`],
+  ].find(([count]) => !count);
+  if (unnamed !== undefined) return failClosed(String(unnamed[1]));
   const found = /** @type {Map<string, Set<string>>} */ (new Map());
   const problems = /** @type {string[]} */ ([]);
   /** @type {(source: string, owner: string, provider: string, scopes: Scopes) => void} */
   const add = (source, owner, provider, { values, unread }) => {
-    if (!providers.includes(provider)) problems.push(`${owner}: ${provider} is no Provider value`);
+    if (!providers.includes(provider)) {
+      problems.push(
+        `${owner}: ${provider} is no Provider value, so none of its scopes is collected`
+      );
+      return;
+    }
     unread.forEach((item) => problems.push(`${owner}: ${item} is no string literal`));
     for (const key of values.map((scope) => `${provider}:${scope}`))
       found.set(key, (found.get(key) ?? new Set()).add(source));
@@ -114,7 +167,10 @@ export async function buildInventory({ root = REPO_ROOT } = {}) {
   ];
   for (const [file, source, name, property] of records) {
     const text = read(file);
-    for (const [provider, value] of recordEntries(scan.blankComments(text), name))
+    const record = recordEntries(scan.blankComments(text), name);
+    const once = `${file} does not declare const ${name} exactly once`;
+    if (record === null) return failClosed(once, problems);
+    for (const [provider, value] of record)
       add(source, `${file} ${provider}`, provider, scopesIn(text, value, property));
   }
   for (const file of adapterFiles) {
@@ -122,24 +178,23 @@ export async function buildInventory({ root = REPO_ROOT } = {}) {
     add("adapter", file, provider, scopesIn(text, scan.blankComments(text), "requiredScopes"));
   }
   const crmCode = scan.blankComments(read(CRM_ROUTES));
-  const crmEmpty = CRMS.flatMap(([name, pattern, separator]) => {
-    const at = crmCode.indexOf(`"/crm/${name}/authorize"`);
-    const route = at === -1 ? "" : crmCode.slice(at);
-    const end = route.slice(1).search(/\bapp\.\w+\(/) + 1;
-    const scopes = pattern.exec(end === 0 ? route : route.slice(0, end))?.[1]?.split(separator);
-    scopes?.forEach((scope) => found.set(`${name}:${scope}`, new Set(["crm"])));
-    return scopes === undefined ? [name] : [];
+  const crmGaps = crms.flatMap(([name, pattern, separator]) => {
+    const route = `/crm/${name}/authorize`;
+    const block = routeBlock(crmCode, route);
+    const literal = block === null ? undefined : pattern.exec(block)?.[1];
+    literal?.split(separator).forEach((scope) => found.set(`${name}:${scope}`, new Set(["crm"])));
+    if (block === null) return [`it has no ${route} route`];
+    return literal === undefined ? [`its ${route} route holds no scope literal`] : [];
   });
   const kindOf = (/** @type {string} */ key) =>
-    CRMS.some(([name]) => key.startsWith(`${name}:`)) ? "crm" : "social";
+    crms.some(([name]) => key.startsWith(`${name}:`)) ? "crm" : "social";
   const social = [...found.keys()].filter((key) => kindOf(key) === "social");
   const empty = [
-    [providers.length, `${SCHEMA} yielded zero Provider enum values`],
     [adapterFiles.length, `${ADAPTERS} yielded zero adapter files`],
     [social.length, "the social sources yielded zero scopes"],
-    [crmEmpty.length === 0, `${CRM_ROUTES} yielded no scope for ${crmEmpty.join(", ")}`],
+    [crmGaps.length === 0, `${CRM_ROUTES}: ${crmGaps.join("; ")}`],
   ].find(([count]) => !count);
-  if (empty !== undefined) return failClosed(String(empty[1]));
+  if (empty !== undefined) return failClosed(String(empty[1]), problems);
   const classification = loadClassification(root, CLASSIFICATION, ALLOWED);
   const { pendingBaseline } = classification;
   const entries = /** @type {Map<string, ScopeEntry>} */ (classification.entries);
@@ -163,17 +218,18 @@ export async function buildInventory({ root = REPO_ROOT } = {}) {
     problems.push(`${pending} pending exceed pendingBaseline ${pendingBaseline}`);
   if (pending < pendingBaseline)
     problems.push(`stale pendingBaseline ${pendingBaseline}: lower it to ${pending}`);
+  // A key splits on its first colon: no provider name holds one (refused above), while a scope
+  // may (`boards:read`, Google's scope URLs).
   const providerOf = (/** @type {string} */ key) => key.slice(0, key.indexOf(":"));
   const scopeOf = (/** @type {string} */ key) => key.slice(key.indexOf(":") + 1);
   const sourcesOf = (/** @type {string} */ key) => found.get(key) ?? new Set();
   const mismatches = social.filter((key) => sourcesOf(key).size < SOCIAL.length).sort();
-  const everyone = [...providers, ...CRMS.map(([name]) => name)];
   const without = everyone.filter((name) => !keys.some((key) => providerOf(key) === name));
   const withSource = (/** @type {string} */ source) =>
     new Set(keys.filter((key) => sourcesOf(key).has(source)).map(providerOf)).size;
   const counts = {
     "social providers": providers.length,
-    "CRM providers": CRMS.length,
+    "CRM providers": crms.length,
     ...Object.fromEntries(SOCIAL.map((source) => [`with ${source} scopes`, withSource(source)])),
     "providers without scopes": without.length,
     scopes: keys.length,
@@ -184,7 +240,8 @@ export async function buildInventory({ root = REPO_ROOT } = {}) {
     const absent = SOCIAL.filter((source) => !sourcesOf(key).has(source)).join(", ");
     return `- **${providerOf(key)}** \`${scopeOf(key)}\`: declared by ${ordered(sourcesOf(key))}; missing from ${absent}.`;
   });
-  const adapterText = adapterFiles.map((file) => `${file}\n${read(file)}`).join("\n");
+  const scanned = keys.map((key) => `${key}:${ordered(sourcesOf(key))}`).sort();
+  const scanResult = [...scanned, `without:${without.join(",")}`].join("\n");
   const markdown = await renderInventory({
     title: "OAuth scopes inventory",
     intro: [
@@ -198,14 +255,14 @@ export async function buildInventory({ root = REPO_ROOT } = {}) {
       NOT_SCANNED.map((line) => `- ${line}`).join("\n"),
       "## About this page",
       "- **Not the register.** Legal basis, consent and retention are owned by `docs/legal/REGISTER.md`, never by this page.\n" +
-        `- **What is scanned.** \`login\` is the \`scopes\` of each \`oauthProviders\` entry in \`${LOGIN}\`; \`adapter\` is \`requiredScopes\` in \`${ADAPTERS}/*/src/*Adapter.ts\`; \`shared\` is the \`requiredScopes\` of \`PROVIDER_CONFIGS\` in \`${SHARED}\`; \`crm\` is the scope literal of each authorize route in \`${CRM_ROUTES}\`. The providers are the \`Provider\` enum of \`${SCHEMA}\` and the two CRMs. The adapter hash covers the adapter files together, in path order.\n` +
+        `- **What is scanned.** \`login\` is the \`scopes\` of each \`oauthProviders\` entry in \`${LOGIN}\`; \`adapter\` is \`requiredScopes\` in \`${ADAPTERS}/*/src/*Adapter.ts\`; \`shared\` is the \`requiredScopes\` of \`PROVIDER_CONFIGS\` in \`${SHARED}\`; \`crm\` is the scope literal of each authorize route in \`${CRM_ROUTES}\`. The providers are the \`Provider\` enum of \`${SCHEMA}\` and the two CRMs.\n` +
+        `- **What the hash covers.** The hash of \`${SCAN_RESULT}\` covers the sorted \`<provider>:<scope>:<sources>\` lines and the providers without scopes, not the source files, so the scan hash changes only when a scope, a source or a provider changes; the regenerating commit is the provenance.\n` +
         `- **How a row gets here.** Each scope becomes \`<provider>:<scope>\`, spelled as its source writes it, and every one needs an entry in \`${CLASSIFICATION}\` whose \`sources\` equal the scan, so a new or healed mismatch must be acknowledged there.`,
     ],
     generatorPath: "scripts/legal/oauth-scopes.mjs",
     pagePath: PAGE,
     sources: {
-      ...Object.fromEntries([SCHEMA, LOGIN, SHARED, CRM_ROUTES].map((f) => [f, sha256Of(read(f))])),
-      [`${ADAPTERS}/*/src/*Adapter.ts`]: sha256Of(adapterText),
+      [SCAN_RESULT]: sha256Of(scanResult),
       [CLASSIFICATION]: sha256Of(classification.text),
     },
     summary: counts,

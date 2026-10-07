@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Field = { field: string; attributes: string[] };
 type Models = Array<{ name: string; fields: Field[] }>;
@@ -27,12 +27,15 @@ type Generator = {
   parsePrismaSchema: (text: string) => Models;
   findCandidates: (models: Models) => Field[];
   buildInventory: (options: { root: string }) => Promise<Inventory>;
+  generator: { generate: (options?: { root: string }) => Promise<Inventory> };
 };
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
 const GENERATOR = path.join(REPO_ROOT, "scripts/legal/personal-data.mjs");
-const { SCHEMA, CLASSIFICATION, PAGE, parsePrismaSchema, findCandidates, buildInventory } =
-  (await import(GENERATOR)) as Generator;
+const { SCHEMA, CLASSIFICATION, PAGE, parsePrismaSchema, findCandidates, ...api } = (await import(
+  GENERATOR
+)) as Generator;
+const { buildInventory, generator } = api;
 
 const EMAIL = { status: "personal", category: "contact", subject: "third-party", note: "Address." };
 
@@ -53,6 +56,8 @@ const build = (): Promise<Inventory> => {
 const setEmail = (overrides: Entry) => (): void => {
   entries["Visitor.email"] = { ...EMAIL, ...overrides };
 };
+const provenance = (markdown: string): string =>
+  markdown.split("\n").find((line) => line.startsWith("> Generated")) ?? "";
 
 beforeEach(() => {
   root = mkdtempSync(path.join(tmpdir(), "personal-data-inventory-test-"));
@@ -61,6 +66,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Restored here, not in the test body, so a throwing generate() cannot leak the stdout stub.
+  vi.restoreAllMocks();
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -119,6 +126,42 @@ describe("the classification", () => {
   });
 });
 
+describe("the page hash", () => {
+  it("leaves the page byte-identical on a schema edit that changes no row", async () => {
+    const before = await build();
+    schema = `// Visitors.\n${schema.replace("nickname String?\n", "nickname String?\n  @@index([email])\n")}`;
+
+    expect((await build()).markdown).toBe(before.markdown);
+  });
+
+  it("leaves the page byte-identical when a model with no candidate field is added", async () => {
+    const before = await build();
+    schema += "\nmodel Tag {\n  id String @id\n  label String\n}\n";
+
+    expect((await build()).markdown).toBe(before.markdown);
+  });
+
+  it("moves the scan hash when a candidate is planted", async () => {
+    const before = await build();
+    schema = schema.replace("nickname String?\n", "nickname String?\n  phone String\n");
+
+    expect(provenance((await build()).markdown)).not.toBe(provenance(before.markdown));
+  });
+});
+
+describe("the generator's stdout", () => {
+  it("prints nothing when the scan fails closed", async () => {
+    const printed: string[] = [];
+    vi.spyOn(process.stdout, "write").mockImplementation((chunk) => printed.push(`${chunk}`) > 0);
+    put(SCHEMA, "enum Kind {\n  A\n}\n");
+
+    const { scopeError } = await generator.generate({ root });
+
+    expect(scopeError).toContain("yielded zero models");
+    expect(printed).toEqual([]);
+  });
+});
+
 describe("the runner", () => {
   const RUNNER = path.join(REPO_ROOT, "scripts/legal/run.mjs");
 
@@ -138,10 +181,18 @@ describe("the runner", () => {
 });
 
 describe("the real tree", () => {
-  it("over the real tree: no problem, and the committed page equals the regenerated one", async () => {
-    const inventory = await buildInventory({ root: REPO_ROOT });
+  // The byte equality is the gate's content by design: the page moves only when a row does.
+  it("prints the model count, reports no problem and equals the committed page", async () => {
+    const printed: string[] = [];
+    vi.spyOn(process.stdout, "write").mockImplementation((chunk) => printed.push(`${chunk}`) > 0);
 
+    const inventory = await generator.generate();
+
+    expect(printed).toEqual([
+      expect.stringMatching(/^legal-inventory personal-data: scanned \d+ models\n$/),
+    ]);
     expect(inventory.problems).toEqual([]);
+    expect(inventory.markdown).not.toContain("models scanned");
     expect(inventory.markdown).toBe(readFileSync(path.join(REPO_ROOT, PAGE), "utf8"));
   });
 });

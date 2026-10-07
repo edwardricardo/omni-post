@@ -56,7 +56,7 @@ A retro batch takes ledger rows in order of exposure (credentials, OAuth, billin
 
 - **English.** Everything under `docs/legal/` is written in English.
 - **Generated pages are never edited by hand.** `pnpm legal:inventory` writes them and `pnpm check:legal` fails on any difference.
-- **No timestamps.** A page carries the sha256 prefix of each source it read; the commit that regenerated it is its verification date, so a clean checkout reproduces it byte for byte.
+- **No timestamps.** A page carries the sha256 prefix of its classification file and of the facts its generator extracted, never of a source file (`personal-data` and `oauth-scopes` hash their normalized scan result, and `cookies-and-storage` lists every site it found on the page itself), so a page changes only when a fact it records changes, the commit that regenerated it is its provenance, and a clean checkout reproduces it byte for byte.
 - **Notes are facts.** A classification note says what the code holds, sets or sends and where; it never argues a legal basis, a lawfulness or a recommendation.
 - **Link, do not restate.** The register points at the document that is the source of truth (the [retention calendar](../compliance/RETENTION_CALENDAR.md), an ADR, a canon) instead of copying it.
 
