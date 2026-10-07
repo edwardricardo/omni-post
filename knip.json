@@ -9,7 +9,8 @@
         "scripts/testing/battery-state.mjs",
         "scripts/legal/lib/inventory.mjs",
         "scripts/legal/lib/source-scan.mjs",
-        "scripts/legal/personal-data.mjs"
+        "scripts/legal/personal-data.mjs",
+        "scripts/legal/cookies-and-storage.mjs"
       ],
       "project": ["*.{ts,js,cjs,mjs}", "scripts/**/*.{ts,js,mjs}"],
       "ignore": ["performance/**", "security/**", "scripts/migrations/**", "scripts/depscan.mjs"],
