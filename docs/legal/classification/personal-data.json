@@ -1,0 +1,1280 @@
+{
+  "generator": "scripts/legal/personal-data.mjs",
+  "pendingBaseline": 16,
+  "entries": {
+    "ABTest.name": {
+      "status": "not-personal",
+      "note": "Name of an A/B test."
+    },
+    "AIPromptTemplate.name": {
+      "status": "not-personal",
+      "note": "Name of an AI prompt template."
+    },
+    "Account.accountCredentials": {
+      "status": "not-personal",
+      "note": "Prisma back-relation to AccountCredential rows; it has no column of its own."
+    },
+    "Account.aiTokenUsage": {
+      "status": "not-personal",
+      "note": "Prisma back-relation to AiTokenUsage rows; it has no column of its own."
+    },
+    "Account.customerUsers": {
+      "status": "not-personal",
+      "note": "Prisma back-relation to CustomerUser rows; it has no column of its own."
+    },
+    "Account.email": {
+      "status": "personal",
+      "category": "contact",
+      "subject": "customer-user",
+      "note": "Email address the tenant account was registered with, unique among live accounts."
+    },
+    "Account.gatewayCustomerId": {
+      "status": "pending",
+      "note": "Identifier of the tenant at its payment gateway; the tenant may be a natural person."
+    },
+    "Account.locale": {
+      "status": "not-personal",
+      "note": "Default language of the tenant account."
+    },
+    "Account.name": {
+      "status": "pending",
+      "note": "Name given to the tenant account at registration, which may be a company or a person."
+    },
+    "Account.phone": {
+      "status": "personal",
+      "category": "contact",
+      "subject": "customer-user",
+      "note": "Phone number recorded on the tenant account."
+    },
+    "Account.stripeCustomerId": {
+      "status": "pending",
+      "note": "Identifier of the tenant at Stripe; the tenant may be a natural person."
+    },
+    "Account.timezone": {
+      "status": "not-personal",
+      "note": "Default time zone of the tenant account."
+    },
+    "AccountOnboarding.invitedTeamMember": {
+      "status": "not-personal",
+      "note": "Whether the tenant completed the onboarding step of inviting a team member."
+    },
+    "AccountSubscription.externalCustomerId": {
+      "status": "pending",
+      "note": "Identifier of the tenant at its billing provider; the tenant may be a natural person."
+    },
+    "AdminLoginAttempt.deviceId": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Identifier of the device the admin login attempt came from."
+    },
+    "AdminLoginAttempt.email": {
+      "status": "personal",
+      "category": "contact",
+      "subject": "admin-user",
+      "note": "Email address typed in an admin login attempt."
+    },
+    "AdminLoginAttempt.ipAddress": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "IP address the admin login attempt came from."
+    },
+    "AdminLoginAttempt.location": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Approximate geographic location of the admin login attempt, as JSON."
+    },
+    "AdminLoginAttempt.mfaAttempted": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Whether the login attempt reached the MFA step."
+    },
+    "AdminLoginAttempt.mfaSuccess": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Whether the MFA step of the login attempt succeeded."
+    },
+    "AdminLoginAttempt.user": {
+      "status": "not-personal",
+      "note": "Prisma relation to AdminUser; the reference is stored in `userId`."
+    },
+    "AdminLoginAttempt.userAgent": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Browser user agent of the admin login attempt."
+    },
+    "AdminLoginAttempt.userId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator the login attempt matched, when the email belongs to one."
+    },
+    "AdminRoleHistory.changedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who changed the role."
+    },
+    "AdminRoleHistory.user": {
+      "status": "not-personal",
+      "note": "Prisma relation to AdminUser; the reference is stored in `userId`."
+    },
+    "AdminRoleHistory.userId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator whose role changed."
+    },
+    "AdminSession.csrfToken": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "admin-user",
+      "note": "Anti-forgery token bound to the operator's session."
+    },
+    "AdminSession.deviceId": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Identifier of the device the operator's session runs on."
+    },
+    "AdminSession.deviceName": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Name of the device the operator's session runs on."
+    },
+    "AdminSession.ipAddress": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "IP address the operator's session was opened from."
+    },
+    "AdminSession.location": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Approximate geographic location of the session, as JSON."
+    },
+    "AdminSession.refreshTokenHash": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "admin-user",
+      "note": "Hash of the session's refresh token."
+    },
+    "AdminSession.revokedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who revoked the session."
+    },
+    "AdminSession.user": {
+      "status": "not-personal",
+      "note": "Prisma relation to AdminUser; the reference is stored in `userId`."
+    },
+    "AdminSession.userAgent": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Browser user agent of the operator's session."
+    },
+    "AdminSession.userId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who owns the session."
+    },
+    "AdminUser.avatarUrl": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Link to the operator's profile picture."
+    },
+    "AdminUser.email": {
+      "status": "personal",
+      "category": "contact",
+      "subject": "admin-user",
+      "note": "Login email address of an operator."
+    },
+    "AdminUser.emailVerified": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Whether the operator has verified their email address."
+    },
+    "AdminUser.locale": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Language the operator chose for the admin interface."
+    },
+    "AdminUser.mfaBackupCodes": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "admin-user",
+      "note": "Hashes of the operator's single-use MFA backup codes."
+    },
+    "AdminUser.mfaBackupUsedAt": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "admin-user",
+      "note": "Which of the operator's backup codes were consumed, and when."
+    },
+    "AdminUser.mfaEnabled": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Whether the operator has multi-factor authentication turned on."
+    },
+    "AdminUser.mfaLastUsedTotpStep": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "admin-user",
+      "note": "Last TOTP time step the operator used, kept to refuse a replayed code."
+    },
+    "AdminUser.mfaSecret": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "admin-user",
+      "note": "TOTP secret of the operator's authenticator."
+    },
+    "AdminUser.mustChangePassword": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Whether the operator must set a new password at next login."
+    },
+    "AdminUser.name": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Display name of an operator."
+    },
+    "AdminUser.passwordChangedAt": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "When the operator last changed their password."
+    },
+    "AdminUser.passwordHash": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "admin-user",
+      "note": "Argon2id hash of the operator's password."
+    },
+    "AdminUser.passwordHashAlgo": {
+      "status": "not-personal",
+      "note": "Name of the algorithm that produced the password hash; the same value for every operator."
+    },
+    "AdminUser.passwordHistory": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "admin-user",
+      "note": "Hashes of the operator's previous passwords, kept to refuse reuse."
+    },
+    "AdminUser.passwordResetExpires": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Expiry of the operator's password reset token."
+    },
+    "AdminUser.passwordResetToken": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "admin-user",
+      "note": "Single-use token that lets the operator set a new password."
+    },
+    "AdminUser.timezone": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "admin-user",
+      "note": "Time zone the operator chose for the admin interface."
+    },
+    "AdminUserPermission.grantedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who granted the permission."
+    },
+    "AdminUserPermission.user": {
+      "status": "not-personal",
+      "note": "Prisma relation to AdminUser; the reference is stored in `userId`."
+    },
+    "AdminUserPermission.userId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who holds the permission."
+    },
+    "AiTokenUsage.tokensUsed": {
+      "status": "not-personal",
+      "note": "Number of AI model tokens a request consumed."
+    },
+    "ApiKey.name": {
+      "status": "not-personal",
+      "note": "Label of a tenant API key."
+    },
+    "ApprovalRequest.submitter": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `submitterId`."
+    },
+    "ApprovalRequest.submitterId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who submitted the content for approval."
+    },
+    "ApprovalReview.reviewer": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `reviewerId`."
+    },
+    "ApprovalReview.reviewerId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who reviewed the approval request."
+    },
+    "ApprovalWorkflow.name": {
+      "status": "not-personal",
+      "note": "Name of an approval workflow."
+    },
+    "ApprovalWorkflowLevel.assignee": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `assigneeId`."
+    },
+    "ApprovalWorkflowLevel.assigneeId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user assigned to approve at this level."
+    },
+    "AssetFolder.name": {
+      "status": "not-personal",
+      "note": "Name of a media folder."
+    },
+    "AssetTag.name": {
+      "status": "not-personal",
+      "note": "Name of a media tag."
+    },
+    "AuditLog.actorType": {
+      "status": "not-personal",
+      "note": "Kind of actor behind the audited action: system, admin or customer."
+    },
+    "AuditLog.customerUser": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `customerUserId`."
+    },
+    "AuditLog.customerUserId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who performed the audited action."
+    },
+    "AuditLog.ipAddress": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "customer-user",
+      "note": "IP address of the operator or tenant user who performed the audited action."
+    },
+    "AuditLog.user": {
+      "status": "not-personal",
+      "note": "Prisma relation to AdminUser; the reference is stored in `userId`."
+    },
+    "AuditLog.userAgent": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "customer-user",
+      "note": "Browser user agent of the operator or tenant user who performed the audited action."
+    },
+    "AuditLog.userId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who performed the audited action."
+    },
+    "BrandVoice.name": {
+      "status": "not-personal",
+      "note": "Name of a brand voice profile."
+    },
+    "Campaign.name": {
+      "status": "not-personal",
+      "note": "Name of a campaign."
+    },
+    "Campaign.utmMedium": {
+      "status": "not-personal",
+      "note": "Campaign parameter the tenant sets on its campaign links."
+    },
+    "Campaign.utmSource": {
+      "status": "not-personal",
+      "note": "Campaign parameter the tenant sets on its campaign links."
+    },
+    "Channel.accountName": {
+      "status": "pending",
+      "note": "Display name of the connected social account, which may be a person or a brand."
+    },
+    "Channel.credentialsAuthTag": {
+      "status": "not-personal",
+      "note": "Authentication tag of the encrypted channel credentials."
+    },
+    "Channel.credentialsCiphertext": {
+      "status": "pending",
+      "note": "Encrypted access tokens of the connected social account, which may be a person's own account."
+    },
+    "Channel.credentialsIv": {
+      "status": "not-personal",
+      "note": "Random initialisation vector of the encrypted channel credentials."
+    },
+    "Channel.credentialsKeyVersion": {
+      "status": "not-personal",
+      "note": "Generation of the key that encrypted the channel credentials."
+    },
+    "Channel.handle": {
+      "status": "pending",
+      "note": "Handle of the connected social account, which may be a person's own account or a brand's."
+    },
+    "Channel.profileImage": {
+      "status": "pending",
+      "note": "Link to the profile picture of the connected social account, which may show a person."
+    },
+    "ConsentRecord.consentType": {
+      "status": "personal",
+      "category": "behavioural",
+      "subject": "customer-user",
+      "note": "Which consent the tenant user gave or withdrew."
+    },
+    "ConsentRecord.consentVersion": {
+      "status": "personal",
+      "category": "behavioural",
+      "subject": "customer-user",
+      "note": "Version of the document the tenant user consented to."
+    },
+    "ConsentRecord.ipAddress": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "customer-user",
+      "note": "IP address the consent was given from."
+    },
+    "ConsentRecord.userAgent": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "customer-user",
+      "note": "Browser user agent the consent was given from."
+    },
+    "ConsentRecord.userId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who gave or withdrew the consent."
+    },
+    "ContentTemplate.name": {
+      "status": "not-personal",
+      "note": "Name of a content template."
+    },
+    "ContentVersion.approvedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who approved the content version."
+    },
+    "ContentVersion.createdBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who created the content version."
+    },
+    "ConversationNote.author": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `authorId`."
+    },
+    "ConversationNote.authorId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who wrote the note."
+    },
+    "ConversationNote.body": {
+      "status": "personal",
+      "category": "content",
+      "subject": "third-party",
+      "note": "Internal note a tenant user writes about a conversation with a person who messaged the channel."
+    },
+    "CrmActivity.contactEmail": {
+      "status": "personal",
+      "category": "contact",
+      "subject": "third-party",
+      "note": "Email address of the CRM contact an activity concerns."
+    },
+    "CrmConnection.accessToken": {
+      "status": "pending",
+      "note": "Access token of the tenant's CRM account, which may be a person's own account."
+    },
+    "CrmConnection.refreshToken": {
+      "status": "pending",
+      "note": "Refresh token of the tenant's CRM account, which may be a person's own account."
+    },
+    "CrmConnection.tokenExpiresAt": {
+      "status": "not-personal",
+      "note": "Expiry of the CRM access token."
+    },
+    "CrmContact.company": {
+      "status": "personal",
+      "category": "contact",
+      "subject": "third-party",
+      "note": "Company a contact synced from the tenant's CRM works for."
+    },
+    "CrmContact.email": {
+      "status": "personal",
+      "category": "contact",
+      "subject": "third-party",
+      "note": "Email address of a contact synced from the tenant's CRM."
+    },
+    "CrmContact.externalId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "third-party",
+      "note": "Identifier of the contact in the tenant's CRM.",
+      "manual": true
+    },
+    "CrmContact.firstName": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "third-party",
+      "note": "First name of a contact synced from the tenant's CRM."
+    },
+    "CrmContact.lastName": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "third-party",
+      "note": "Last name of a contact synced from the tenant's CRM."
+    },
+    "CrmContact.phone": {
+      "status": "personal",
+      "category": "contact",
+      "subject": "third-party",
+      "note": "Phone number of a contact synced from the tenant's CRM."
+    },
+    "CrmContact.title": {
+      "status": "personal",
+      "category": "contact",
+      "subject": "third-party",
+      "note": "Job title of a contact synced from the tenant's CRM.",
+      "manual": true
+    },
+    "CustomReport.createdBy": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `createdById`."
+    },
+    "CustomReport.createdById": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who created the report."
+    },
+    "CustomReport.name": {
+      "status": "not-personal",
+      "note": "Name of a custom report."
+    },
+    "CustomReport.shareToken": {
+      "status": "not-personal",
+      "note": "Token in the link that shares a custom report."
+    },
+    "CustomerRole.name": {
+      "status": "not-personal",
+      "note": "Name of a tenant team role."
+    },
+    "CustomerUser.avatarUrl": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Link to the tenant user's profile picture."
+    },
+    "CustomerUser.customerRole": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerRole; the reference is stored in `roleId`."
+    },
+    "CustomerUser.email": {
+      "status": "personal",
+      "category": "contact",
+      "subject": "customer-user",
+      "note": "Login email address of a tenant user."
+    },
+    "CustomerUser.emailVerifyExpiry": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "customer-user",
+      "note": "Expiry of the tenant user's email verification token."
+    },
+    "CustomerUser.emailVerifyToken": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "customer-user",
+      "note": "Single-use token sent to verify the tenant user's email address."
+    },
+    "CustomerUser.firstName": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "First name of a tenant user."
+    },
+    "CustomerUser.inviteToken": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "customer-user",
+      "note": "Single-use token of the invitation sent to the tenant user."
+    },
+    "CustomerUser.inviteTokenExpiry": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "customer-user",
+      "note": "Expiry of the tenant user's invitation token."
+    },
+    "CustomerUser.invitedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who sent the invitation."
+    },
+    "CustomerUser.isEmailVerified": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "customer-user",
+      "note": "Whether the tenant user has verified their email address."
+    },
+    "CustomerUser.lastName": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Last name of a tenant user."
+    },
+    "CustomerUser.mfaBackupCodes": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "customer-user",
+      "note": "Hashes of the tenant user's single-use MFA backup codes."
+    },
+    "CustomerUser.mfaBackupUsedAt": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "customer-user",
+      "note": "Which of the tenant user's backup codes were consumed, and when."
+    },
+    "CustomerUser.mfaEnabled": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "customer-user",
+      "note": "Whether the tenant user has multi-factor authentication turned on."
+    },
+    "CustomerUser.mfaLastUsedTotpStep": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "customer-user",
+      "note": "Last TOTP time step the tenant user used, kept to refuse a replayed code."
+    },
+    "CustomerUser.mfaSecret": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "customer-user",
+      "note": "TOTP secret of the tenant user's authenticator."
+    },
+    "CustomerUser.passwordHash": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "customer-user",
+      "note": "Hash of the tenant user's password."
+    },
+    "CustomerUser.resetToken": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "customer-user",
+      "note": "Single-use token that lets the tenant user set a new password."
+    },
+    "CustomerUser.resetTokenExpiry": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "customer-user",
+      "note": "Expiry of the tenant user's password reset token."
+    },
+    "DataBreachReport.affectedUserCount": {
+      "status": "not-personal",
+      "note": "Number of users a breach affected."
+    },
+    "DataBreachReport.notificationSentBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who sent the breach notification."
+    },
+    "DataBreachReport.reportedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who reported the breach."
+    },
+    "DeletionRecord.deletedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who executed the hard delete."
+    },
+    "DeletionRecord.name": {
+      "status": "pending",
+      "note": "Plaintext name a deleted entity had, such as an account name that may be a person's."
+    },
+    "DeletionRecord.nameDigest": {
+      "status": "pending",
+      "note": "HMAC of the deleted entity's name, which may be a person's name."
+    },
+    "DeletionRecord.nameDigestKeyVersion": {
+      "status": "not-personal",
+      "note": "Generation of the HMAC key that produced the name digest."
+    },
+    "DsarRequest.completedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who completed the data subject request."
+    },
+    "DsarRequest.exportUrl": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "third-party",
+      "note": "Link to the export of the requestor's data; holding it grants access to that data.",
+      "manual": true
+    },
+    "DsarRequest.ipAddress": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "third-party",
+      "note": "IP address the data subject request was filed from."
+    },
+    "DsarRequest.notes": {
+      "status": "personal",
+      "category": "content",
+      "subject": "third-party",
+      "note": "Free-text notes kept on the data subject request.",
+      "manual": true
+    },
+    "DsarRequest.rejectedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who rejected the data subject request."
+    },
+    "DsarRequest.requestorEmail": {
+      "status": "personal",
+      "category": "contact",
+      "subject": "third-party",
+      "note": "Email address of the person who filed the data subject request."
+    },
+    "DsarRequest.requestorName": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "third-party",
+      "note": "Name of the person who filed the data subject request."
+    },
+    "DsarRequest.verificationToken": {
+      "status": "personal",
+      "category": "credential",
+      "subject": "third-party",
+      "note": "Random token that verifies the data subject request."
+    },
+    "ExternalNotificationConfig.webhookUrlCiphertext": {
+      "status": "not-personal",
+      "note": "Encrypted URL of the external webhook the tenant receives notifications on."
+    },
+    "FirstComment.body": {
+      "status": "pending",
+      "note": "Text of the first comment the tenant publishes under its own post; whether it is personal data when the tenant is an individual creator is an owner decision."
+    },
+    "GatewaySwitchEvent.extendedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who extended the payment gateway switch deadline."
+    },
+    "GdprSettings.dpoEmail": {
+      "status": "pending",
+      "note": "Contact address of the data protection officer, which may be a named person or a role mailbox."
+    },
+    "GdprSettings.updatedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who last changed the GDPR settings."
+    },
+    "Glossary.locale": {
+      "status": "not-personal",
+      "note": "Language of a glossary."
+    },
+    "InstagramStoryProject.name": {
+      "status": "not-personal",
+      "note": "Name of an Instagram story project."
+    },
+    "InstagramStoryProject.timezone": {
+      "status": "not-personal",
+      "note": "Time zone the story project is scheduled in."
+    },
+    "LinkClick.city": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "third-party",
+      "note": "City of a visitor who clicked a tracked link."
+    },
+    "LinkClick.country": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "third-party",
+      "note": "Country of a visitor who clicked a tracked link."
+    },
+    "LinkClick.ipAddress": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "third-party",
+      "note": "IP address of a visitor who clicked a tracked link."
+    },
+    "LinkClick.referrer": {
+      "status": "personal",
+      "category": "behavioural",
+      "subject": "third-party",
+      "note": "Page a visitor came from when clicking a tracked link."
+    },
+    "LinkClick.userAgent": {
+      "status": "personal",
+      "category": "technical",
+      "subject": "third-party",
+      "note": "Browser user agent of a visitor who clicked a tracked link."
+    },
+    "MediaAsset.name": {
+      "status": "not-personal",
+      "note": "Name of a media asset in the tenant's library."
+    },
+    "Mention.authorAvatarUrl": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "third-party",
+      "note": "Link to the profile picture of the author of a public post that mentions the tenant."
+    },
+    "Mention.authorHandle": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "third-party",
+      "note": "Handle of the author of a public post that mentions the tenant."
+    },
+    "Mention.authorName": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "third-party",
+      "note": "Name of the author of a public post that mentions the tenant."
+    },
+    "Mention.authorProviderId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "third-party",
+      "note": "Platform identifier of the author of a public post that mentions the tenant."
+    },
+    "Mention.body": {
+      "status": "personal",
+      "category": "content",
+      "subject": "third-party",
+      "note": "Text of a public post that mentions the tenant."
+    },
+    "Mention.mediaUrls": {
+      "status": "personal",
+      "category": "content",
+      "subject": "third-party",
+      "note": "Links to the media attached to a public post that mentions the tenant.",
+      "manual": true
+    },
+    "Mention.url": {
+      "status": "personal",
+      "category": "content",
+      "subject": "third-party",
+      "note": "Link to the public post that mentions the tenant.",
+      "manual": true
+    },
+    "Notification.actorId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user whose action the notification reports."
+    },
+    "Notification.actorName": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Name of the tenant user whose action the notification reports."
+    },
+    "Notification.body": {
+      "status": "personal",
+      "category": "content",
+      "subject": "customer-user",
+      "note": "Text of an in-app notification shown to its recipient."
+    },
+    "Notification.recipientId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who receives the notification.",
+      "manual": true
+    },
+    "NotificationPreference.member": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `memberId`."
+    },
+    "NotificationPreference.memberId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user the notification preferences belong to."
+    },
+    "OidcConfiguration.clientSecretAuthTag": {
+      "status": "not-personal",
+      "note": "Authentication tag of the encrypted client secret."
+    },
+    "OidcConfiguration.clientSecretCiphertext": {
+      "status": "not-personal",
+      "note": "Encrypted client secret of the tenant's single sign-on application."
+    },
+    "OidcConfiguration.clientSecretIv": {
+      "status": "not-personal",
+      "note": "Random initialisation vector of the encrypted client secret."
+    },
+    "OidcConfiguration.clientSecretKeyVersion": {
+      "status": "not-personal",
+      "note": "Generation of the key that encrypted the client secret."
+    },
+    "OutboxDeadLetter.resolvedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who resolved the dead-lettered outbox event, or a system marker."
+    },
+    "OutboxEvent.claimedBy": {
+      "status": "not-personal",
+      "note": "Identifier of the outbox worker process holding the event's lease."
+    },
+    "PlatformCredential.updatedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who last changed the platform credential."
+    },
+    "PlatformEncryptionKey.rotatedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who rotated the encryption key."
+    },
+    "PostComment.author": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `authorId`."
+    },
+    "PostComment.authorId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who wrote the comment."
+    },
+    "PostComment.body": {
+      "status": "personal",
+      "category": "content",
+      "subject": "customer-user",
+      "note": "Text of a comment a tenant user writes on a post inside the workspace."
+    },
+    "PostContent.body": {
+      "status": "pending",
+      "note": "Text of a post the tenant writes for publication; whether it is personal data when the tenant is an individual creator is an owner decision."
+    },
+    "PostContent.locale": {
+      "status": "not-personal",
+      "note": "Language of a post's content."
+    },
+    "Project.locale": {
+      "status": "not-personal",
+      "note": "Default language of a project."
+    },
+    "Project.name": {
+      "status": "not-personal",
+      "note": "Name of a project inside a tenant."
+    },
+    "ProjectMember.member": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `memberId`."
+    },
+    "ProjectMember.memberId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who is a member of the project."
+    },
+    "ProviderBundle.name": {
+      "status": "not-personal",
+      "note": "Name of a provider bundle."
+    },
+    "RecurringPost.name": {
+      "status": "not-personal",
+      "note": "Name of a recurring post."
+    },
+    "RecurringPost.timezone": {
+      "status": "not-personal",
+      "note": "Time zone a recurring post is scheduled in."
+    },
+    "Referral.referredEmail": {
+      "status": "personal",
+      "category": "contact",
+      "subject": "third-party",
+      "note": "Email address of the person a referral invited."
+    },
+    "ReportSchedule.timezone": {
+      "status": "not-personal",
+      "note": "Time zone a report schedule runs in."
+    },
+    "RepurposeProposal.reviewedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who reviewed the repurpose proposal."
+    },
+    "Role.name": {
+      "status": "not-personal",
+      "note": "Name of an operator role."
+    },
+    "ScheduledReport.name": {
+      "status": "not-personal",
+      "note": "Name of a scheduled report."
+    },
+    "SchedulingRule.name": {
+      "status": "not-personal",
+      "note": "Name of a scheduling rule."
+    },
+    "SchedulingRule.timezone": {
+      "status": "not-personal",
+      "note": "Time zone a scheduling rule is evaluated in."
+    },
+    "SecretRotationLog.rotatedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who rotated the secret."
+    },
+    "SecretRotationLog.secretCategory": {
+      "status": "not-personal",
+      "note": "Category of a platform secret that was rotated."
+    },
+    "SecretRotationLog.secretName": {
+      "status": "not-personal",
+      "note": "Name of a platform secret that was rotated."
+    },
+    "SecuritySettings.ipAllowlist": {
+      "status": "pending",
+      "note": "IP addresses and ranges the IP allowlist admits, which may include a person's own address."
+    },
+    "SecuritySettings.ipAllowlistEnabled": {
+      "status": "not-personal",
+      "note": "Whether the IP allowlist is enforced."
+    },
+    "SecuritySettings.passwordMinLength": {
+      "status": "not-personal",
+      "note": "Minimum password length the platform enforces."
+    },
+    "SecuritySettings.updatedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who last changed the security settings."
+    },
+    "SocialConversation.resolvedBy": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `resolvedById`."
+    },
+    "SocialConversation.resolvedById": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who resolved the conversation."
+    },
+    "SocialMessage.assignee": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `assigneeId`."
+    },
+    "SocialMessage.assigneeId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user the message is assigned to."
+    },
+    "SocialMessage.authorAvatarUrl": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "third-party",
+      "note": "Link to the profile picture of the author of a message sent to a connected channel."
+    },
+    "SocialMessage.authorHandle": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "third-party",
+      "note": "Handle of the author of a message sent to a connected channel."
+    },
+    "SocialMessage.authorName": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "third-party",
+      "note": "Name of the author of a message sent to a connected channel."
+    },
+    "SocialMessage.authorProviderId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "third-party",
+      "note": "Platform identifier of the author of a message sent to a connected channel."
+    },
+    "SocialMessage.body": {
+      "status": "personal",
+      "category": "content",
+      "subject": "third-party",
+      "note": "Text of a message sent to a connected channel."
+    },
+    "SocialMessage.crmContactId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "third-party",
+      "note": "CRM contact the message author is linked to."
+    },
+    "SocialMessage.mediaUrls": {
+      "status": "personal",
+      "category": "content",
+      "subject": "third-party",
+      "note": "Links to the media attached to a message sent to a connected channel.",
+      "manual": true
+    },
+    "SocialOutboundReply.author": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `authorId`."
+    },
+    "SocialOutboundReply.authorId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who wrote the reply."
+    },
+    "SocialOutboundReply.body": {
+      "status": "personal",
+      "category": "content",
+      "subject": "third-party",
+      "note": "Reply a tenant user sends to a person who messaged the channel."
+    },
+    "StyleGuideRule.locale": {
+      "status": "not-personal",
+      "note": "Language of a style guide rule."
+    },
+    "SystemAnnouncement.createdBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who created the announcement."
+    },
+    "Task.assignee": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `assigneeId`."
+    },
+    "Task.assigneeId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user the task is assigned to."
+    },
+    "Task.createdBy": {
+      "status": "not-personal",
+      "note": "Prisma relation to CustomerUser; the reference is stored in `createdById`."
+    },
+    "Task.createdById": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who created the task."
+    },
+    "Template.name": {
+      "status": "not-personal",
+      "note": "Name of a template."
+    },
+    "TemplateCollaboration.userId": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Tenant user who collaborates on the template."
+    },
+    "TemplateCommit.author": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Author of the template commit as JSON: id, name and avatar."
+    },
+    "TemplateComponent.name": {
+      "status": "not-personal",
+      "note": "Name of a template component."
+    },
+    "TemplateVersion.author": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "customer-user",
+      "note": "Author of the template version as JSON: id, name and avatar."
+    },
+    "TemplateVersion.branchName": {
+      "status": "not-personal",
+      "note": "Name of the template branch a version belongs to."
+    },
+    "TrackedLink.utmCampaign": {
+      "status": "not-personal",
+      "note": "Campaign parameter the tenant sets on a tracked link."
+    },
+    "TrackedLink.utmContent": {
+      "status": "not-personal",
+      "note": "Campaign parameter the tenant sets on a tracked link."
+    },
+    "TrackedLink.utmMedium": {
+      "status": "not-personal",
+      "note": "Campaign parameter the tenant sets on a tracked link."
+    },
+    "TrackedLink.utmSource": {
+      "status": "not-personal",
+      "note": "Campaign parameter the tenant sets on a tracked link."
+    },
+    "TrackedLink.utmTerm": {
+      "status": "not-personal",
+      "note": "Campaign parameter the tenant sets on a tracked link."
+    },
+    "UsageMetric.teamMemberCount": {
+      "status": "not-personal",
+      "note": "Number of team members in a tenant."
+    },
+    "WebhookDeadLetter.resolvedBy": {
+      "status": "personal",
+      "category": "identifier",
+      "subject": "admin-user",
+      "note": "Operator who resolved the dead-lettered webhook, or a system marker."
+    },
+    "WebhookEvent.signature": {
+      "status": "not-personal",
+      "note": "Signature a platform sent with an inbound webhook, kept to verify it."
+    },
+    "WebhookSubscription.previousSecretKey": {
+      "status": "not-personal",
+      "note": "Signing secret replaced by the last rotation, accepted until its expiry."
+    },
+    "WebhookSubscription.previousSecretKeyExpiresAt": {
+      "status": "not-personal",
+      "note": "When the previous webhook signing secret stops being accepted."
+    },
+    "WebhookSubscription.secretKey": {
+      "status": "not-personal",
+      "note": "Signing secret of a webhook subscription."
+    },
+    "WebhookSubscription.verifyToken": {
+      "status": "not-personal",
+      "note": "Token that verifies the endpoint of a webhook subscription."
+    }
+  }
+}
