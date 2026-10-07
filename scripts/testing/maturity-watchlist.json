@@ -1,5 +1,5 @@
 {
-  "description": "Package versions that entered the tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication (advisories, upstream issues, release notes), and dated milestones that ride the same list. Milestones are UTC dates derived from `published`. A review is recorded under `reviews.<milestone>` as { date, outcome: clean | flagged, note }, dated the day it is written and never later; one written up to 2 days before its milestone also carries early: { reason }, and the entry's later milestone stays due. An entry leaves the list in the change that records its clean 14-day review, a date entry in the change that records its review; a package entry whose version leaves the tree before that review leaves the list too, because nothing is left to review. Read by scripts/testing/maturity-watchlist.mjs (--check in CI, --remind in the maturity-reminder workflow).",
+  "description": "Package versions that entered the tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication (advisories, upstream issues, release notes), and dated milestones that ride the same list. Milestones are UTC dates derived from `published`. A review is recorded under `reviews.<milestone>` as { date, outcome: clean | flagged, note }, dated the day it is written and never later; one written up to 2 days before its milestone also carries early: { reason }, and the entry's later milestone stays due. A package entry leaves the list in the change that records its clean 14-day review; a date entry stays, with its `due` review recorded as the evidence that the day was reviewed; a package entry whose version leaves the tree before that review leaves the list too, because nothing is left to review. Read by scripts/testing/maturity-watchlist.mjs (--check in CI, --remind in the maturity-reminder workflow).",
   "entries": [
     {
       "kind": "package",
@@ -90,7 +90,13 @@
         "via": "the catalog CVE floor, a deliberate deviation from the buffer approved on 2026-10-01, 0.4 days after publication"
       },
       "milestones": { "maturity": "2026-10-07", "final": "2026-10-14" },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-07",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-07, the milestone day, after 16.3.8 left the 7-day buffer at 16:07Z (published 2026-09-30T16:07:21Z). Registry: 16.3.8 is the newest 16.3.x; 16.4.0 is latest, published 2026-10-06T18:35:31Z, and matures 2026-10-13T18:35Z, the day before the final milestone. OSV: nothing for next 16.3.8 or 16.4.0, nor for @next/env or @next/swc-linux-x64-gnu 16.3.8; the seven repository advisories of 2026-09-30 that this floor closes reach OSV only as CVE records with git ranges (CVE-2026-94483 for GHSA-cjq9-62q9-8jv4, CVE-2026-103004 for GHSA-h694-7cp9-m8p3, CVE-2026-94486 for GHSA-39w2-rjm5-chcv, published 2026-10-01 and 2026-10-02), whose fixed commit b0fad0d4 is the v16.3.8 tag itself. GitHub: the global advisory search lists none affecting next@16.3.8, and the repository's newest advisories are those seven, published 2026-09-30T16:14Z to 16:15Z and fixed in 16.3.8. Release notes of 16.4.0: core and misc changes, among them upgrade prompts for vulnerable versions and a HackerOne disclosure pointer; no advisory is named as fixed. Upstream issues opened since 2026-09-30 that name 16.3.8 include two regressions, #99683 (the image optimizer ignores HTTP(S)_PROXY) and #99680 (stale route-cache entries survive an in-place deploy), and several Cache Components defects; none is a security report, and no file of apps/admin or apps/client names HTTP(S)_PROXY, cacheComponents or 'use cache'. Reachability: production, the dependencies of apps/admin and apps/client; the lockfile, parsed with yaml.safe_load_all, holds one next@16.3.8 and one @next/env@16.3.8. Works here: both portals' production builds and suites were measured green on it when it was taken (canon CVE-floor row next). Clean; the 14-day review is due 2026-10-14, when 16.4.0 is already mature."
+        }
+      }
     },
     {
       "kind": "package",
@@ -152,7 +158,13 @@
         "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `jscpd`: 5.4.0 matures 2026-10-07T18:11Z",
         "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `jscpd` row"
       ],
-      "reviews": {}
+      "reviews": {
+        "due": {
+          "date": "2026-10-07",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-07, the due day, after 5.4.0 left the 7-day buffer at 18:11Z (published 2026-09-30T18:11:43Z). Done at 18:12:40Z: the root package.json literal moved 5.3.3 → 5.4.0, and pnpm install moved only jscpd in the lockfile (parsed with yaml.safe_load_all: jscpd and its eight platform binaries, nine packages and nine snapshots, 5.3.3 → 5.4.0, and the root importer). Registry: 5.4.0 is latest, and nothing newer is published. OSV: nothing for 5.3.3 or 5.4.0, nor for the 5.4.0 platform binaries; 5.4.0 keeps engines node >=18 and, like 5.3.3, declares only its eight platform binaries, at its own version. Release notes of 5.4.0: a language server (--lsp), an experimental --compare of two codebases, agent skills for ports, and a SARIF rule of its own for --similarity pairs (jscpd/similar-function); nothing on security, and .jscpd.json turns on none of them. Baseline: the scan of 1779 .ts and .tsx files finds the same 1005 clones at the same positions on both versions (the console reports are identical but for the timing line), a fingerprint baseline written under 5.4.0 is byte-identical to .jscpd-baseline.json, and pnpm check:duplicates exits 0 with no stale entry and no new clone. Holds gate: with 5.3.3 still installed it measured 13 below latest mature at 18:12:08Z, jscpd held by its canon row, and exited 1 naming jscpd on a canon without that row; after the bump it exits 0 with empty stderr at 18:16:09Z, 12 of 49 below latest mature, jscpd at latest, and on jscpd alone without the row it exits 0 at 18:13Z and at --instant 2026-10-14 and 2026-10-28. Nothing newer is left to pre-register, so the canon row jscpd was deleted with the bump (D25) and no date entry follows. Clean."
+        }
+      }
     },
     {
       "kind": "date",
@@ -241,7 +253,13 @@
         "via": "natural resolution: `pnpm update -r source-map-js` moved the one copy inside the `^1.2.1` ranges of postcss 8.5.28, @tailwindcss/node 4.3.0, css-tree 3.2.1 and magicast 0.5.3, 5.6 days after publication and 1.4 days before the 2026-10-07T14:08Z maturity, as the CVE floor for GHSA-68fv-2mgg-jv7q (high; the flawed indexed-source-map path runs at build time only, and the production css-tree import via jsdom uses only the generator). Taken inside the buffer because the audit gate was red over it and blocked every battery; the lesser deviation against a knowingly-red gate or an ignore the policy forbids for an advisory with a published fix"
       },
       "milestones": { "maturity": "2026-10-07", "final": "2026-10-14" },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-07",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-07, the milestone day, after 1.2.2 left the 7-day buffer at 14:08Z (published 2026-09-30T14:08:09Z). Registry: 1.2.2 is latest, and nothing newer is published. OSV: nothing for 1.2.2; GHSA-68fv-2mgg-jv7q records introduced 1.0.0, fixed 1.2.2. Release notes of 1.2.2: the indexed-source-map denial-of-service fix (CVE-2026-93749, PR #79) and the CSP fix of PR #29, which probes new Function once at module load and sorts without eval when the probe fails. Upstream issues: #81 (opened 2026-10-07T09:42Z, open) reports that this probe itself raises a CSP violation in a browser bundle whose script-src forbids unsafe-eval, PR #80 (open) tests both sort paths, and #76 to #79, the advisory's own trail, are closed. Not reachable here: its four consumers, postcss 8.5.28, @tailwindcss/node 4.3.0, css-tree 3.2.1 and magicast 0.5.3, are build or server tooling, and no source of apps/client, apps/admin or packages/ui imports postcss, css-tree, magicast, jsdom, isomorphic-dompurify or source-map-js, so the probe never runs in a portal's browser bundle. Lockfile, parsed with yaml.safe_load_all: one copy, 1.2.2. Clean; the 14-day review is due 2026-10-14."
+        }
+      }
     }
   ]
 }

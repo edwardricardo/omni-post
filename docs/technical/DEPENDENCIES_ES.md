@@ -351,7 +351,7 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tail
 | lint-staged        | 17.6.0  | Linting de archivos staged pre-commit                         |
 | knip               | 6.39.0  | Deteccion de codigo muerto                                    |
 | dependency-cruiser | 18.4.0  | Reglas de arquitectura y deteccion de dependencias circulares |
-| jscpd              | 5.3.3   | Deteccion de codigo duplicado                                 |
+| jscpd              | 5.4.0   | Deteccion de codigo duplicado                                 |
 
 ### Estandares
 
