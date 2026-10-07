@@ -4,11 +4,12 @@ name: Architectural Fitness Functions
 # Checks to CI (the step summary enumerates the current set). Any new
 # occurrence of any pattern fails the workflow and is annotated on the PR diff.
 #
-# Strategy: hard-zero for every check but one (each returns count = 0). #1 and
-# #21 ran as ratchets during the prisma->DI remediation; that workstream is
-# complete, so both are now hard-zero like the rest. #30 is the single live
-# ratchet, at a measured baseline of 20, because its violations are unrun test
-# suites whose wiring is a separate body of work.
+# Strategy: hard-zero (each returns count = 0), with the documented ratchets that
+# CLAUDE.md names: #1 and #21 ran as ratchets during the prisma->DI remediation
+# and are hard-zero again; #30 holds a measured baseline of 20 unrun test suites;
+# #38 carries one ratcheted sub-count for packages/adapters/db-prisma; #45 and
+# #46 hold one `pending` count per inventory, exact at its pendingBaseline. Every
+# baseline may fall and must never rise.
 #
 # A check whose scope path does not exist is WORSE than no check: `grep -r` on
 # an absent directory exits 2, prints nothing, and `| wc -l` renders that as 0 —
@@ -1944,5 +1945,23 @@ jobs:
           set -euo pipefail
           if ! pnpm check:legal; then
             echo "::error title=Fitness #45 violation::A legal inventory is stale or incompletely classified. Run pnpm legal:inventory, classify every new row in docs/legal/classification/ (not applicable is a row, never a sentence), and commit the regenerated page with the change that moved it. The legal-inventory lines above name each problem with its generator."
+            exit 1
+          fi
+
+      - name: "#46 Support documents are current and every tree candidate is classified"
+        if: always()
+        run: |
+          # Mirrors CLAUDE.md #46, the support twin of #45. scripts/support/run.mjs --check
+          # re-renders docs/support/README.md (the index of the support documents, each held to
+          # docs/support/_TEMPLATE.md) and docs/support/NON_FEATURES.md (every route, package,
+          # worker, queue and portal page the tree yields, classified in
+          # docs/support/classification/non-features.json) and compares both with the committed
+          # pages; a document off the template, a stale page, an unclassified candidate, a stale
+          # entry or a pending count off its baseline exits 1. Same job as #45 for the same
+          # reason: the pages render through prettier's API. Pinned by apps/api/tests/unit/scripts/
+          # supportIndex.test.ts, supportNonFeatures.test.ts and supportFrontMatter.test.ts.
+          set -euo pipefail
+          if ! pnpm check:support; then
+            echo "::error title=Fitness #46 violation::A support document breaks the template, a generated support page is stale, or a tree candidate is unclassified. Run pnpm support:index, classify every new candidate in docs/support/classification/non-features.json (documented with its doc, non-feature with its reason, or pending within the baseline), and commit the regenerated pages with the change that moved them. The support-docs lines above name each problem with its generator."
             exit 1
           fi

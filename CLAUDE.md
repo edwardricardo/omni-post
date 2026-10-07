@@ -306,7 +306,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 20, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 is hard-zero on stale pages and unclassified rows and carries one ratcheted `pending` count per legal inventory**, the `pendingBaseline` of each file under `docs/legal/classification/`: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **45 checks, numbered #1-#45**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 20, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **46 checks, numbered #1-#46**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -1889,6 +1889,82 @@ pnpm check:legal   # expect exit 0, and one `is current` line per page:
 #   legal-inventory cookies-and-storage: docs/legal/inventories/cookies-and-storage.generated.md is current
 #   legal-inventory oauth-scopes: docs/legal/inventories/oauth-scopes.generated.md is current
 #   legal-inventory subprocessors: docs/legal/inventories/subprocessors.generated.md is current
+
+# 46. The support documents follow their template, and every tree candidate is classified.
+# Threat: support documentation falls silently behind the product. A pull request that adds a route
+# module, a core package, a worker, a queue or a portal section adds something a ticket can be
+# about, and nothing tied docs/support/ to that change: a page written by hand drifts from its
+# template, and a capability with no page stays invisible until the first ticket about it.
+# WHAT IT RUNS: `pnpm check:support`, which is `node scripts/support/run.mjs --check`, with two
+# generators under scripts/support/, pinned by apps/api/tests/unit/scripts/supportIndex.test.ts and
+# supportNonFeatures.test.ts, and the flat front-matter grammar they share,
+# scripts/support/lib/front-matter.mjs, pinned by supportFrontMatter.test.ts:
+#   - index holds every `*.md` directly under docs/support/, its companion pages aside (README.md,
+#     _TEMPLATE.md, NON_FEATURES.md, EXCEPTIONS.md), to docs/support/_TEMPLATE.md: the seven
+#     front-matter keys (feature, owner, status, verified, paths, covers, legal) and no other; a
+#     `feature` equal to the kebab-case file name; a status of live, partial or planned; a
+#     `verified` stamp of exactly sha (40 hex), date (YYYY-MM-DD) and by; `paths` that exist, with
+#     no glob and a directory ending in /; distinct `covers`; `legal` references that each name a
+#     section of docs/legal/REGISTER.md or a row of a generated legal inventory, or `none`; the
+#     eight `##` sections in the template's order; and a `## Verification` section that is the one
+#     line `Last verified against main <sha> on <date> by <who>`, equal to the stamp. The template
+#     is held to the same keys and sections, and each document is one row of docs/support/README.md.
+#   - non-features derives every candidate of the tree: a route module of apps/api/src (named
+#     `*Routes.ts` or `routes.ts`, or registering a route with a path literal, comments ignored), a
+#     package of packages/core, a `*Worker.ts` or `*Handler.ts` directly under apps/workers/src, a
+#     value of QUEUE_NAMES in packages/adapters/queue-bullmq/src/constants.ts, and a first route
+#     segment of the Admin and client apps under app/[locale]. It joins each `<kind>:<name>` with
+#     docs/support/classification/non-features.json — `documented` with the support document that
+#     covers it, `non-feature` with the reason support needs no page, or `pending` — and renders
+#     docs/support/NON_FEATURES.md.
+# Each generator regenerates its page in memory and compares it with the committed one.
+# WHERE IT RUNS, and why: in the dependency-consistency job of fitness.yml, beside #45 and for its
+# reason. Both pages render through prettier's API, by way of the inventory library under
+# scripts/legal/lib/ that the legal and support generators share, so the check needs the installed
+# tree, and the Fitness Functions job installs nothing. #44 reads a `#N` step name from any job, so
+# the inventory still counts this check. The battery runs the same command as its step `support`.
+# WHAT FAILS, each printed as `support-docs <generator>: <problem>`: a document off the template
+# (the problem names the file, and its line number when the grammar refuses a front-matter line); a
+# template whose keys or sections drift from the contract; a committed page that is missing or
+# differs from the regenerated one; a candidate with no entry in the classification; a stale entry,
+# whose candidate the tree no longer yields; a `documented` entry whose `doc` names no support
+# document, or a `doc` on an entry of any other status; an entry the shared loader refuses (a status
+# it does not list, an unknown key, a `non-feature` with no note); and a `pending` count above or
+# below `pendingBaseline`.
+# NOT APPLICABLE IS A ROW. A candidate support needs no page for is declared in the classification
+# as `non-feature`, with a note saying why. A pull request sentence or a label never satisfies this
+# check, because nothing reads either.
+# RECORDED FACTS ONLY. README.md carries the sha256 prefix of its rendered index rows, and
+# NON_FEATURES.md that of the derived candidate list and of the classification file; each page's
+# summary counts its documents or candidates per status. No scan-size counter (the documents read
+# and the candidates per kind are printed by the generators, never written), no hash of a scanned
+# source file, no line number and no timestamp. The check therefore fires on a recorded change (a
+# document added or removed, a changed status, stamp, capability, legal reference or owner, a
+# candidate added or removed, a reclassification), stays green over a change that moves code
+# without moving a candidate or edits a document's prose within its template, and a clean checkout
+# reproduces both pages byte for byte.
+# RATCHET. `pendingBaseline` in the classification file is the check's one counted residual: the
+# candidates that still wait for their support page, 184 when this check landed. It may fall and
+# must never rise, and the check holds it EXACT, so the change that documents or reclassifies a
+# pending candidate lowers the baseline in the same diff or goes red, and a rise can only land as a
+# visible edit of the baseline, for review to refuse.
+# FAIL-CLOSED: a missing root (docs/support/, its template, apps/api/src, packages/core,
+# apps/workers/src, the queue constants file, either portal's app/[locale]) or a kind that yields
+# no candidate is a scope error and exits 1 instead of rendering an empty inventory as clean; a
+# classification file that is missing or not JSON is a problem, never an empty file. Zero support
+# documents is NOT a scope error: it renders an empty index, the state this check landed in.
+# RESIDUAL LIMITS, stated rather than implied: (1) the derivation reads the tree by file-name
+# convention and path literals, so a capability it does not see (a middleware, an adapter or
+# provider package, a page at an app root, a route registered with no path literal in a file not
+# named as a route module) has no row, and a support page that describes one names it in its
+# `paths`; a path literal on any receiver can raise a false candidate, refused until it is
+# classified; (2) the structure check sees no freshness: no stamp date is compared with today and no
+# commit is counted since a stamp, so a page whose `paths` changed after its stamp still passes —
+# that is SUP-3's part; (3) a classification is a human judgement, and the check proves only that it
+# is present and well formed, never that it is right.
+pnpm check:support   # expect exit 0, and one `is current` line per page:
+#   support-docs index: docs/support/README.md is current
+#   support-docs non-features: docs/support/NON_FEATURES.md is current
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One

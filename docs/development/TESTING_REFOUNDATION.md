@@ -1,38 +1,44 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-07, the support non-features unit (`workstream/support-sup1-nonfeatures`, Master
-Plan §5.15, SUP-1): the non-features generator `scripts/support/non-features.mjs`, registered in
-`scripts/support/run.mjs`, with its suite `apps/api/tests/unit/scripts/supportNonFeatures.test.ts`, and the
-battery step `support` (`pnpm check:support`) with its gate row, moved M1 `979 + 8` → `980 + 8` and M7
-`21/21` → `22/22`. Previous: the support index unit (`workstream/support-sup1-index`, Master Plan §5.15,
-SUP-1): the support index generator `scripts/support/index.mjs`, its runner `scripts/support/run.mjs`
-(`pnpm support:index`, `pnpm check:support`) and the template `docs/support/_TEMPLATE.md`, with the suite
-`apps/api/tests/unit/scripts/supportIndex.test.ts`, moved M1 `978 + 8` → `979 + 8` and left M7 at
-`21/21`; before it the support front-matter library unit (`workstream/support-sup1-lib`, Master Plan
-§5.15, SUP-1): the suite of the flat front-matter parser and the generic checks shared by the support
-documentation generators, `apps/api/tests/unit/scripts/supportFrontMatter.test.ts`, with three cases added
-to `legalInventoryLib.test.ts` for the inventory library's new `commands`, `heading` and `optionalNote`
-options, moved M1 `977 + 8` → `978 + 8` and left M7 at `21/21`; before it the legal gate unit
-(`workstream/legal-l2-gate`, Master Plan §5.10, LEGAL-3): fitness #45 (`pnpm check:legal` in the
-`dependency-consistency` job of `fitness.yml`) and the battery step `legal` added their gate row, M7
-`20/20` → `21/21`, and moved no M1 (no new suite); before it the first six code
-units of the legal facts register (`workstream/legal-l1a-lib`,
-`workstream/legal-l1a-generators`, `workstream/legal-l1b-scanner`, `workstream/legal-l1b-scanners`,
-`workstream/legal-l1c-oauth-scopes` and `workstream/legal-l1d-subprocessors`, Master Plan §5.10, numbers
-assigned at publication): the suites of the shared inventory library, of the `personal-data` generator, of
-the shared source scanner and of the `cookies-and-storage`, `oauth-scopes` and `subprocessors` generators,
+**As of:** 2026-10-07, the support gate unit (`workstream/support-fitness-46`, Master Plan §5.15, SUP-1)
+wired fitness #46 (`pnpm check:support` in the `dependency-consistency` job of `fitness.yml`) with its
+canon block in `CLAUDE.md` and added the CI red to the support gate row; it moved no metric (M1
+`980 + 8`, M7 `22/22`: a modified gate, the same row).
+Pending fitness reservations renumbered on 2026-10-07 after #45 and #46 landed out of the reserved
+order: WU-3.9/3.10 → #47, WU-3.13 → #48, WU-4b.7 → #49 (D24 unchanged).
+Previous: the support non-features unit (`workstream/support-sup1-nonfeatures`, Master Plan §5.15,
+SUP-1) added the non-features generator `scripts/support/non-features.mjs`, registered in
+`scripts/support/run.mjs`, with its suite `apps/api/tests/unit/scripts/supportNonFeatures.test.ts`, and
+the battery step `support` (`pnpm check:support`) with its gate row; it moved M1 `979 + 8` → `980 + 8`
+and M7 `21/21` → `22/22`. Before it, the support index unit (`workstream/support-sup1-index`, Master
+Plan §5.15, SUP-1) added the support index generator `scripts/support/index.mjs`, its runner
+`scripts/support/run.mjs` (`pnpm support:index`, `pnpm check:support`) and the template
+`docs/support/_TEMPLATE.md`, with the suite `apps/api/tests/unit/scripts/supportIndex.test.ts`; it moved
+M1 `978 + 8` → `979 + 8` and left M7 at `21/21`. Before it, the support front-matter library unit
+(`workstream/support-sup1-lib`, Master Plan §5.15, SUP-1) added the suite of the flat front-matter
+parser and the generic checks shared by the support documentation generators,
+`apps/api/tests/unit/scripts/supportFrontMatter.test.ts`, with three cases added to
+`legalInventoryLib.test.ts` for the inventory library's new `commands`, `heading` and `optionalNote`
+options; it moved M1 `977 + 8` → `978 + 8` and left M7 at `21/21`. Before it, the legal gate unit
+(`workstream/legal-l2-gate`, Master Plan §5.10, LEGAL-3) added fitness #45 (`pnpm check:legal` in the
+`dependency-consistency` job of `fitness.yml`) and the battery step `legal` with their gate row; it
+moved M7 `20/20` → `21/21` and no M1 (no new suite). Before it, the first six code units of the legal
+facts register (`workstream/legal-l1a-lib`, `workstream/legal-l1a-generators`,
+`workstream/legal-l1b-scanner`, `workstream/legal-l1b-scanners`, `workstream/legal-l1c-oauth-scopes` and
+`workstream/legal-l1d-subprocessors`, Master Plan §5.10, numbers assigned at publication) added the
+suites of the shared inventory library, of the `personal-data` generator, of the shared source scanner
+and of the `cookies-and-storage`, `oauth-scopes` and `subprocessors` generators,
 `apps/api/tests/unit/scripts/legalInventoryLib.test.ts`, `personalDataInventory.test.ts`,
 `legalSourceScan.test.ts`, `cookiesAndStorageInventory.test.ts`, `oauthScopesInventory.test.ts` and
-`subprocessorsInventory.test.ts`, moved M1 `971 + 8` → `977 + 8` (one file each) and left M7 at `20/20`;
-before them the close of Phase 0 (#449, `workstream/0-22-h-phase0-close`) under
-[D51](#decisions-log), which ticks the story backfill (task 0.22.3) with PR E as its first slice,
-names the follow-up slices, keeps slice `0.16` a dated unit for 2026-10-28 ([D46](#decisions-log))
-and moved no metric; before it the Storybook family's 10.6.0 → 10.6.1 hold bump (#447,
-`workstream/hold-storybook-10-6-1`), which moved the holds rows and the CURRENT paragraph but not this
-line, and the Tailwind `@source` fix beneath PR E (#444, `workstream/tailwind-ui-source-fix`, DEF-49),
-whose two tests moved M1 `969 + 8` → `971 + 8`. This line moves with the last pull request that moved
-a row.
+`subprocessorsInventory.test.ts`; they moved M1 `971 + 8` → `977 + 8` (one file each) and left M7 at
+`20/20`. Before them, the close of Phase 0 (#449, `workstream/0-22-h-phase0-close`) under
+[D51](#decisions-log) ticked the story backfill (task 0.22.3) with PR E as its first slice, named the
+follow-up slices and kept slice `0.16` a dated unit for 2026-10-28 ([D46](#decisions-log)); it moved no
+metric. Before it, the Storybook family's 10.6.0 → 10.6.1 hold bump (#447,
+`workstream/hold-storybook-10-6-1`) moved the holds rows and the CURRENT paragraph but not this line,
+and the Tailwind `@source` fix beneath PR E (#444, `workstream/tailwind-ui-source-fix`, DEF-49) moved M1
+`969 + 8` → `971 + 8` with its two tests. This line moves with the last pull request that moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
 The measured state of the testing re-foundation, and the fixed plan it executes. Rules live in
@@ -296,18 +302,18 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 3     | 3.7(a) | OSV-Scanner finding classes — first done 2026-09-28, rebased 2026-10-02     | ✅     | `P.5`                         | `refound/3-osv-measure` · 6 = 6 · 4 = 4 | 2026-10-02 |
 | 3     | 3.7(b) | OSV-Scanner: real gate, or removed                                          | ⬜     | —                             | —                                       | —          |
 | 3     | 3.8    | A skipped vitest test fails CI                                              | ⬜     | —                             | —                                       | —          |
-| 3     | 3.9    | #45 verdict composition, static rules                                       | ⬜     | —                             | —                                       | —          |
-| 3     | 3.10   | #45 operational rules and drift read from GitHub                            | ⬜     | —                             | —                                       | —          |
+| 3     | 3.9    | #47 verdict composition, static rules                                       | ⬜     | —                             | —                                       | —          |
+| 3     | 3.10   | #47 operational rules and drift read from GitHub                            | ⬜     | —                             | —                                       | —          |
 | 3     | 3.11   | The merge-gate composition, versioned                                       | ⬜     | —                             | —                                       | —          |
 | 3     | 3.12   | Nightly rebuilt; one alarm per workflow; chaos folded in                    | ⬜     | —                             | —                                       | —          |
-| 3     | 3.13   | Script entrypoints cannot swallow errors (#46)                              | ⬜     | —                             | —                                       | —          |
+| 3     | 3.13   | Script entrypoints cannot swallow errors (#48)                              | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.1   | `test-env.sh env <hermetic\|services>`                                      | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.2   | `test-env.sh db [--reset]`                                                  | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.3   | `up \| serve \| down \| liveness \| logs \| run`                            | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.4   | Adoption in performance, ZAP and nightly                                    | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.5   | A test-env loader that fails closed                                         | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.6   | Playwright `webServer` from the script, both apps                           | ⬜     | —                             | —                                       | —          |
-| 4b    | 4b.7   | One environment identity (#47)                                              | ⬜     | —                             | —                                       | —          |
+| 4b    | 4b.7   | One environment identity (#49)                                              | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.8   | The api shards run hermetic                                                 | ⬜     | —                             | —                                       | —          |
 | 4     | 4.1a   | Availability is a precondition, never a skip — live suites                  | ⬜     | —                             | —                                       | —          |
 | 4     | 4.1b   | Availability is a precondition, never a skip — the rest                     | ⬜     | —                             | —                                       | —          |
@@ -415,7 +421,7 @@ exact command, the observed non-zero exit, and the byte-exact restore evidence.
 | Raw `setInterval` (fitness #11): no exclusion outlives the deleted `enhancedValidator.ts` and its `DANGEROUS_STRINGS` denylist     | CI step `#11` in the `fitness` job of `fitness.yml`, a `grep -rnE` with `::error` paired to `exit 1` (fitness #34 PAIRED); same regex as CLAUDE.md #11                 | **On the COMPLETE step** (2026-10-06): its `run:` body extracted from `fitness.yml` with PyYAML and run with `bash` from the worktree root exits 0 on the tree, and CLAUDE.md's #11 command prints 0. The two removed terms, `enhancedValidator\.ts` and `DANGEROUS_STRINGS`, existed only for that file's denylist literal `"setInterval("` (`DANGEROUS_STRINGS` since 2026-04-22, never matching the literal's line; the path since 2026-05-01), and with the file gone either term could hide a real call: (1) `setInterval(tick, 1000);` planted at the deleted path `apps/api/src/security/enhancedValidator.ts` → exit 1, the `::error` counting 1 call and naming `apps/api/src/security/enhancedValidator.ts:2`, while the old filter reads 0 on the same tree; (2) `export const DANGEROUS_STRINGS = [setInterval(() => undefined, 1000)];` planted as the new file `apps/api/src/fitness11RedProbe.ts` → exit 1 naming that line, the old filter again 0. After each, the plant deleted, `git status --porcelain` identical to before (sha256 `fb39d16a…` and `372f26c4…`), re-run → exit 0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `workstream/dc-4-dead-security-modules`                        |
 | Story per component (D29, 0.22.5): every component file has a sibling story, ratcheted per root against a committed count          | CI step `Story per component check`, `code-quality` job of `ci.yml` → `pnpm check:stories` → `scripts/testing/story-per-component-gate.mjs`; battery `stories-gate`    | **Two reds and a green on the COMPLETE command** (2026-10-06): `pnpm check:stories` exits 0 on the tree, `254 components; those without a sibling story equal scripts/testing/story-coverage-baseline.json: packages/ui/src/components 40, apps/client/components 160, apps/admin/components 54`. (1) `apps/client/components/Planted.tsx`, a component carrying the canon header and no story, exits 1: `apps/client/components: 161 components without a sibling story, baseline 160`, then the 161 files, `apps/client/components/Planted.tsx` among them. (2) `packages/ui/src/components/badge.stories.tsx` with the baseline left at 40 exits 1: `packages/ui/src/components: stale baseline: 39 components without a sibling story, baseline 40. Lower it to 39 in scripts/testing/story-coverage-baseline.json`. After each, the plant deleted, a fingerprint of the worktree (porcelain with every untracked file, tracked-diff hash, untracked-file hashes) matched the one taken before, and the re-run exits 0. **In the battery**: the `stories-gate` step of `scripts/testing/battery.sh`, run alone through the script's own `step` function and then `battery-state.mjs` with `--expected-steps 1`, exits 0 with a GREEN verdict and no warning line in its log; plant (1) makes it exit 1 and the verdict RED, `step stories-gate exit 1`. The `ci.yml` step was written on a copy (actionlint 1.7.12 exit 0, prettier clean, its `run:` body exactly `pnpm check:stories`) and pasted by the orchestrator. Seventeen mutants of the script (a comparison branch disabled, a `.spec.tsx` counted, a dot-directory or `node_modules` entered, a story matched case-insensitively, subdirectories skipped, a baseline check dropped, a missing or empty root accepted, an absent baseline read anyway or let a regression pass, arguments ignored) each turn `storyPerComponentGate.test.ts` (20 tests) red, each restore matching its `sha256sum`. **Residual**: a count, not a ledger, so one change that adds a story and an uncovered component in the same root passes (fitness #38's tradeoff), the printed list and review being the defence; and a file is a component by its name, so a `use*.tsx` hook under a root would need a story too (none exists)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `workstream/0-22-f-story-gate`                                 |
 | Legal inventories (LEGAL-3, §5.10): each generated page under `docs/legal/inventories/` is current, every row classified           | CI step `#45`, `dependency-consistency` job of `fitness.yml` → `pnpm check:legal` (`scripts/legal/run.mjs --check`; `::error` paired to `exit 1`); battery `legal`     | **Two reds on the COMPLETE step and a green** (2026-10-07): the `run:` body of step `#45`, extracted from `fitness.yml` with PyYAML and run with `bash` from the worktree root, exits 0 on the tree with one `is current` line per page (4). (1) `reply.setCookie("planted", "1")` appended to `apps/api/src/auth/oidcRoutes.ts` → the same body exits 1: `legal-inventory cookies-and-storage: api:cookie:planted is a candidate with no entry: classify it`, the page `differs from the regenerated page`, then the `::error title=Fitness #45 violation` line; the plant deleted, `sha256sum -c` OK, `git status` clean, the re-run exits 0. (2) `"planted-sdk": "1.0.0"` added to the dependencies of `apps/api/package.json` → `PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false pnpm check:legal` exits 1: `legal-inventory subprocessors: planted-sdk is a candidate with no entry: classify it` and the page stale; restored, `sha256sum -c` OK (a plain `pnpm check:legal` also exits 1 there, but from pnpm's pre-run dependency check, `ERR_PNPM_FETCH_404`, before the gate runs). **In the battery**: `step legal pnpm check:legal` after `stories-gate`, `PLANNED_STEPS` 23 → 24. Gate #44 counts the `#45` name from the `dependency-consistency` job (`derived N=45`), where the step lives because the generators render through prettier's API and the Fitness Functions job installs nothing. **Residual**: enumerated vocabularies, so a personal field with no matching token, a cookie set through an unknown helper and a `fetch`-reached service with no package stay invisible until a token, a matcher or a `manual` entry names them; the gate proves a classification is present and well formed, never that it is right                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | `workstream/legal-l2-gate`                                     |
-| Support docs (SUP-1, §5.15): both generated pages current, each support doc on the template, every candidate classified            | Battery step `support` → `pnpm check:support` (`scripts/support/run.mjs --check`); its CI twin, fitness #46 in `fitness.yml`, waits for an owner token                 | **Four reds and a green on the COMPLETE command** (2026-10-07): `pnpm check:support` exits 0 on the tree, printing `support-docs index: support docs read: 0`, `support-docs index: docs/support/README.md is current`, `support-docs non-features: 82 route, 51 package, 3 worker, 19 queue, 16 admin, 19 client` and `support-docs non-features: docs/support/NON_FEATURES.md is current`. (1) A planted `docs/support/planted.md`, complete but for `## Data and privacy` → exit 1: `support-docs index: docs/support/planted.md: heading 6 must be "## Data and privacy", not "## Related documents"`, then both pages `differs from the regenerated page`. (2) `Hand edit.` appended to `docs/support/README.md` → exit 1: `support-docs index: docs/support/README.md differs from the regenerated page: run pnpm support:index`. (3) An empty `apps/api/src/planted/plantedRoutes.ts` → exit 1: `support-docs non-features: route:planted/plantedRoutes.ts has no entry: classify it` (the scan reads 83 routes) and `NON_FEATURES.md` stale. (4) `pendingBaseline` raised to 185 in `docs/support/classification/non-features.json` → exit 1: `support-docs non-features: stale pendingBaseline 185: lower it to 184`. After each, the plant deleted or the file restored, `sha256sum -c` OK over the README, `NON_FEATURES.md`, `_TEMPLATE.md` and the classification, and the re-run exits 0. **In the battery**: `step support pnpm check:support` after `legal`, `PLANNED_STEPS` 24 → 25; run alone through the script's own `step` function (extracted from `battery.sh`) and `battery-state.mjs` with `--expected-steps 1` into a scratch state directory, it gives `support exit=0` and `BATTERY GREEN`, and with plant (1) `support exit=1`, `RED because step support exit 1` and `BATTERY RED`. Mutants: 14 of `scripts/support/lib/front-matter.mjs`, 6 of `index.mjs` and 6 of `non-features.mjs`, each killed by its suite (`supportFrontMatter.test.ts`, `supportIndex.test.ts`, `supportNonFeatures.test.ts`) and restored byte for byte. **Residual**: structure only, so no stamp date is compared with today and no commit is counted since a stamp (the freshness part of the support docs gate); a capability the derivation does not see (a middleware, an adapter or provider package, a page at an app root) has no row; and a path literal registered on any receiver can raise a false candidate, refused until it is classified                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `workstream/support-sup1-nonfeatures`                          |
+| Support docs (SUP-1, §5.15): both generated pages current, each support doc on the template, every candidate classified            | CI step `#46`, `dependency-consistency` job of `fitness.yml` → `pnpm check:support` (`scripts/support/run.mjs --check`; `::error` with `exit 1`); battery `support`    | **Four reds and a green on the COMPLETE command** (2026-10-07): `pnpm check:support` exits 0 on the tree, printing `support-docs index: support docs read: 0`, `support-docs index: docs/support/README.md is current`, `support-docs non-features: 82 route, 51 package, 3 worker, 19 queue, 16 admin, 19 client` and `support-docs non-features: docs/support/NON_FEATURES.md is current`. (1) A planted `docs/support/planted.md`, complete but for `## Data and privacy` → exit 1: `support-docs index: docs/support/planted.md: heading 6 must be "## Data and privacy", not "## Related documents"`, then both pages `differs from the regenerated page`. (2) `Hand edit.` appended to `docs/support/README.md` → exit 1: `support-docs index: docs/support/README.md differs from the regenerated page: run pnpm support:index`. (3) An empty `apps/api/src/planted/plantedRoutes.ts` → exit 1: `support-docs non-features: route:planted/plantedRoutes.ts has no entry: classify it` (the scan reads 83 routes) and `NON_FEATURES.md` stale. (4) `pendingBaseline` raised to 185 in `docs/support/classification/non-features.json` → exit 1: `support-docs non-features: stale pendingBaseline 185: lower it to 184`. After each, the plant deleted or the file restored, `sha256sum -c` OK over the README, `NON_FEATURES.md`, `_TEMPLATE.md` and the classification, and the re-run exits 0. **On the COMPLETE CI step** (2026-10-07): the `run:` body of step `#46`, extracted from `fitness.yml` with PyYAML and run with `bash` from the worktree root, exits 0 with the two `is current` lines; with plant (1) it exits 1, printing the `heading 6 must be` line, both pages stale and the `::error title=Fitness #46 violation` line; the plant deleted, `sha256sum -c` OK and `git status --short` clean, the re-run exits 0. Gate #44 counts the step (`derived N=46`). **In the battery**: `step support pnpm check:support` after `legal`, `PLANNED_STEPS` 24 → 25; run alone through the script's own `step` function (extracted from `battery.sh`) and `battery-state.mjs` with `--expected-steps 1` into a scratch state directory, it gives `support exit=0` and `BATTERY GREEN`, and with plant (1) `support exit=1`, `RED because step support exit 1` and `BATTERY RED`. Mutants: 14 of `scripts/support/lib/front-matter.mjs`, 6 of `index.mjs` and 6 of `non-features.mjs`, each killed by its suite (`supportFrontMatter.test.ts`, `supportIndex.test.ts`, `supportNonFeatures.test.ts`) and restored byte for byte. **Residual**: structure only, so no stamp date is compared with today and no commit is counted since a stamp (the freshness part of the support docs gate); a capability the derivation does not see (a middleware, an adapter or provider package, a page at an app root) has no row; and a path literal registered on any receiver can raise a false candidate, refused until it is classified                                     | `workstream/support-sup1-nonfeatures`                          |
 
 `metrics.mjs --m7` counts the data rows of this table: total rows, and rows whose `Red proof` cell is
 filled. **A script in the tree is not a gate until a workflow runs it** — the same rule fitness #30
@@ -1600,7 +1606,7 @@ the pull request and in the tracker.
   main); delete :170 (the `needs`); rename the workflow to "Container Images". **Edward's admin step
   before merging**: remove "Test and Build" from the required list (otherwise the pull request waits
   forever for a check that does not exist). Acceptance: `required_status_checks` without "Test and
-  Build"; "Security Audit" only from `ci.yml:627`. Red: rule V1 of #45 with a duplicated
+  Build"; "Security Audit" only from `ci.yml:627`. Red: rule V1 of #47 with a duplicated
   `name: Security Audit` → exit 1. CODE ~−140. PR V5.
 - **WU-3.6** gitleaks scans the pull request's commits: `audit.yml:144-152` →
   `gitleaks git --config .gitleaks.toml --log-opts="${BASE}..${HEAD}" --no-banner --redact --verbose |
@@ -1624,8 +1630,8 @@ tee log` with `set -o pipefail`; fail-closed if "N commits scanned" is under 1 (
   reconstruction). Precondition: demolition removes the 43 todos. Red:
   `it("x", (ctx) => ctx.skip())` in `packages/core/posts` → `CI=true pnpm --filter @core/posts test`
   exits non-zero naming the test. Dep: WU-3.2, Phase 2. CODE ~60. PR V8.
-- **WU-3.9** #45 verdict composition, static rules (Test Contracts):
-  `packages/test-contracts/src/verdict.ts` plus self-tests plus a #45 block in `CLAUDE.md`; it parses
+- **WU-3.9** #47 verdict composition, static rules (Test Contracts):
+  `packages/test-contracts/src/verdict.ts` plus self-tests plus a #47 block in `CLAUDE.md`; it parses
   every workflow with `yaml` and reads `.github/rulesets/main.json`. V1: each required context is
   produced by exactly one job of a workflow that runs on `pull_request` to main (expanding
   `${{ matrix.* }}`; 0 = the pull request waits forever; more than 1 = two jobs answer for one
@@ -1638,7 +1644,7 @@ tee log` with `set -o pipefail`; fail-closed if "N commits scanned" is under 1 (
   delete the Integration Tests job → V1; `if: github.event_name == 'push'` on `test-packages` → V2;
   remove `!cancelled()` from Coverage Merge → V3; `paths:` on `ci.yml`'s `pull_request` → V7.
   Dep: WU-1.10, 3.4, 3.5. CODE ~330. PR V9.
-- **WU-3.10** #45 operational rules and drift read from GitHub: V4 no step of a required job has
+- **WU-3.10** #47 operational rules and drift read from GitHub: V4 no step of a required job has
   `continue-on-error: true` unless its name ends in "(never gates)"; V5 no `|| true` on a line that
   invokes a gate tool
   (`vitest|node --test|playwright|k6|osv-scanner|gitleaks|pnpm audit|semgrep|squawk|turbo run|run-tests.sh`);
@@ -1657,7 +1663,7 @@ tee log` with `set -o pipefail`; fail-closed if "N commits scanned" is under 1 (
   (shard 1|2) (named reporters) · Coverage Merge (`!cancelled()`, certifying) · **OpenAPI Drift
   (new)** · Package Tests and Frontend Tests (with coverage from Phase 5) · Integration Tests · Build
   Check · Code Quality · Security Audit (one emitter) · Fitness Functions · **Test Contracts (new:
-  #30, #32, #36, #37, #45, #47)** · CodeQL (one `javascript-typescript` context) · gitleaks (fixed) ·
+  #30, #32, #36, #37, #47, #49)** · CodeQL (one `javascript-typescript` context) · gitleaks (fixed) ·
   secretlint · dependency-cruiser · Squawk · OSV-Scanner (per WU-3.7) · **Test and Build: removed** ·
   Semgrep CE, size-limit, Dependency Consistency, Container Security ×4, lychee · E2E and k6
   (Phase 6): required once they exist and block. Acceptance: V6 green on main; the count and strict
@@ -1675,15 +1681,15 @@ tee log` with `set -o pipefail`; fail-closed if "N commits scanned" is under 1 (
   of a real test; 0 or 1 open issue. Red: dispatch on a scratch branch with a planted broken
   integration test → an issue is created; dispatch again → one comment, not a second issue; without
   the plant → the issue is closed. Dep: WU-4b.3, 1.8. CODE ~90 (net ~−60). PR V12.
-- **WU-3.13** Script entrypoints cannot swallow errors (#46) plus performance verdicts (conditional on
-  the k6/perf decision of Phase 6): #46 is a hard-zero grep in the dependency-free job —
+- **WU-3.13** Script entrypoints cannot swallow errors (#48) plus performance verdicts (conditional on
+  the k6/perf decision of Phase 6): #48 is a hard-zero grep in the dependency-free job —
   `git ls-files '*.ts' '*.mts' '*.js' | xargs rg -n '\.catch\(\s*console\.(error|log|warn)\s*\)'`
   (today 5: `postgres-stress.test.ts:621`, `generate-reports.ts:712`, `baseline-capture.ts:453`,
   `memory-leak-detector.ts:641`, `regression-detector.ts:451`); k6 (if kept):
   `performance.yml:221` `-e BASE_URL=$TEST_API_URL`; each scenario throws without `__ENV.BASE_URL`;
   mount `performance/` and `--out json=/perf/reports/k6/${SCENARIO}-results.json`; upload
   `performance/reports/`; `generate-reports.ts` exits 1 with no results; pin by digest (:207-208);
-  remove `needs: db-stress` (:117). Red: a planted `.catch(console.error)` → #46 exits 1; `k6 run`
+  remove `needs: db-stress` (:117). Red: a planted `.catch(console.error)` → #48 exits 1; `k6 run`
   without `BASE_URL` → exits non-zero; a report over an empty directory → exit 1. Dep: Phase 6,
   WU-4b.3. CODE ~60. PR V13.
 
@@ -1715,7 +1721,7 @@ is up (test ports = dev + 10; the script rejects an already-bound port).
   `ci-setup-test-env.sh` (`ci.yml:146,379,744`, nightly, chaos, performance ×2, ZAP). Acceptance: jobs
   green; the grep for the old script returns 0. Red: (a) a missing input → exit non-zero naming the
   key; (b) under hermetic, a planted package test that connects with `pg` fails in under 5 s with
-  `ECONNREFUSED 127.0.0.1:1`; (c) remove a key from the example → #47 exits 1. CODE ~220. PR E1.
+  `ECONNREFUSED 127.0.0.1:1`; (c) remove a key from the example → #49 exits 1. CODE ~220. PR E1.
 - **WU-4b.2** `test-env.sh db [--reset]`: preflight (reaches and authenticates owner and app role —
   `db-up.sh`'s method; `server_version_num` major 16; `vector` in `pg_available_extensions`; the name
   is `omnipost_test` or it rejects); a contamination check (rows in `_prisma_migrations` with no
@@ -1750,7 +1756,7 @@ is up (test ports = dev + 10; the script rejects an already-bound port).
 - **WU-4b.4** Adoption in performance (`performance.yml:64-111`, :146-252), ZAP
   (`security-testing.yml:327-396`) and nightly (WU-3.12). Acceptance: no workflow boots an app process
   except through the script; the grep for inline `dev:test` in the workflow directory returns 0.
-  Red: #47 with a planted inline `pnpm --filter @apps/api dev:test &` → exit 1. Dep: 4b.3. CODE ~150
+  Red: #49 with a planted inline `pnpm --filter @apps/api dev:test &` → exit 1. Dep: 4b.3. CODE ~150
   (deletions). PR E4.
 - **WU-4b.5** A test-env loader that fails closed: `packages/vitest-shared/src/loadTestEnv.ts` (root
   through `findMonorepoRoot`, loads the test env file, THROWS if it is missing with "run
@@ -1767,7 +1773,7 @@ is up (test ports = dev + 10; the script rejects an already-bound port).
   always (the `!isCI` branch goes); `baseURL` reads `TEST_CLIENT_URL`/`TEST_ADMIN_URL`, not the
   overloaded `BASE_URL`. Acceptance: `playwright test --list` unchanged. Red: with the API's env
   broken, `playwright test` fails in `webServer` before any test. Dep: 4b.3. CODE ~60. PR E6.
-- **WU-4b.7** One environment identity (#47, Test Contracts):
+- **WU-4b.7** One environment identity (#49, Test Contracts):
   `packages/test-contracts/src/identity.ts` — every `services.postgres` uses
   `pgvector/pgvector:pg16`, `POSTGRES_DB=omnipost_test`, `POSTGRES_USER=postgres`; every
   `services.redis` is `redis:7-alpine`; every `postgresql://` literal in the workflow directory is the
@@ -2273,9 +2279,9 @@ of roadmap §4.1.b/c, and the settings route-contract gap.
 4. **Demolition**: 2.4 (lint) → 2.5 (listing and Edward's approval) → 2.0 (coverage scenario) →
    2.6a/2.6b/2.7 in parallel → 2.8.1 … 2.8.7 (serially inside api because of the coverage floor) →
    2.9, 2.10. Unblocks R13 (#32 AST) and V8 (skip gate). 8.1a lands with 2.4.
-5. **Verdict**: V4 → V5 (Edward removes "Test and Build" from required) → V9 (#45) → V11 (ruleset;
+5. **Verdict**: V4 → V5 (Edward removes "Test and Build" from required) → V9 (#47) → V11 (ruleset;
    Edward) → V10 (drift) → V7b.
-6. **Environment**: E4, E5, E6 → E7 (#47) → E8 (hermetic shards; needs V3).
+6. **Environment**: E4, E5, E6 → E7 (#49) → E8 (hermetic shards; needs V3).
 7. **Tooling**: S.1 after 2.5 → S.2–S.6 → S.7, S.8; each migration after its package's demolition
    slice.
 8. **Integration**: 4.1a/b → 4.2, 4.3 → 4.4 (F-6; needs E3) → 4.5 → 4.6 → 4.7 → 4.9; V12 (nightly)
