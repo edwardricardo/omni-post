@@ -152,9 +152,28 @@ A gate that reports a clean graph it never read is worse than no gate
   `Code Quality (knip + jscpd)`. The branch protection of `main` still requires
   `Code Quality (knip + jscpd + madge)` and must be updated before PR #408 merges, or that pull
   request waits forever.
-- **The version is held one release behind until 18.5.0 matures** on 2026-10-07T19:18Z;
-  [SECURITY_CANON.md](../security/SECURITY_CANON.md) carries a pre-registered hold row scheduled
-  to it.
+- **Version pin, record of 2026-10-07.** The version was held one release behind until 18.5.0
+  matured at 2026-10-07T19:18:29Z; [SECURITY_CANON.md](../security/SECURITY_CANON.md) carried a
+  pre-registered hold row scheduled to it. 18.5.0 was taken on 2026-10-07, after it matured, and the
+  hold row was deleted with the bump, the precedent D25 of
+  [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md) set: nothing newer than 18.5.0
+  is published, so nothing is left to pre-register. The lockfile moved `dependency-cruiser`,
+  `enhanced-resolve`, `ignore` and `is-installed-globally` only. On the 2026-10-07 tree both
+  versions cruise the same graph: 1,721 modules, 7,497 dependencies and the same 124 known
+  violations. Those counts move with the tree (1,684 and 7,325 at PR #408); the comparison that
+  matters is the two versions on one tree, and it is identical. The rules' red proofs re-ran on the
+  bump, on that tree, with the same exits and rules on 18.4.0 and 18.5.0: two `apps/api/src` files
+  importing each other exit 1 on `no-circular`; `@packages/api-common` and `@adapters/cache-redis`
+  in `packages/core/application/src/hardDeletePolicy.ts` exit 2 on `not-to-unresolvable` and
+  `core-application-no-infrastructure`; `@core/accounts` in
+  `packages/core/domain/src/repositories/AccountRepository.ts` exits 7 on six `no-circular` and one
+  `core-domain-no-application` (the 2026-10-05 run exited 6: the seventh error is the rule
+  `PR v-b`, `ac3c30be`, added after that run, measured identically on 18.4.0 and 18.5.0, so not a
+  change of 18.5.0); `bullmq` in that file exits 1 on `not-to-unresolvable`; and a relative import
+  of `packages/adapters/cache-redis/src/index.js` there exits 1 on `core-domain-no-framework`. An
+  import that does not resolve from `packages/core` fires `not-to-unresolvable`, which a layer rule
+  never sees, so a layer-rule proof needs a plant that resolves. On 18.5.0, a baseline short one
+  entry exits 1 naming its rule, and a stale entry exits 1.
 - **Resolution depends on two files.** `.dependency-cruiser-resolve.cjs` carries the
   `@shared/types` alias, and a workspace package added without a `development` export condition
   fails `not-to-unresolvable` until it gets one.
@@ -189,7 +208,7 @@ A gate that reports a clean graph it never read is worse than no gate
 | The baseline is regenerated in `full` mode and absorbs a new violation                                               | The file is versioned; a grown entry count shows in the diff of the pull request that grows it, and review refuses it, as for the ratchets of fitness #30 and #38                                                                                                                       |
 | A rule pattern stops matching after a path moves, and the rule passes over nothing                                   | PR #408 found two rules that would have gone blind once imports resolved and gave them resolved-path patterns. Every rule change carries its red proof ([CLAUDE.md](../../CLAUDE.md) §Automated Compliance Checks, "Extending the suite", step 3)                                       |
 | The renamed required check blocks every merge                                                                        | Edward updates the branch protection before PR #408 merges — done on 2026-10-05 at 05:59Z through the API on his instruction: `Code Quality (knip + jscpd + madge)` → `Code Quality (knip + jscpd)`, 19 required checks before and after                                                |
-| 18.5.0 changes behaviour                                                                                             | The hold row schedules the move after maturity, and the rules' red proofs run again on the bump                                                                                                                                                                                         |
+| 18.5.0 changes behaviour                                                                                             | A new release waits in a pre-registered hold row until it matures; then the pin moves and the rules' red proofs re-run on one tree under the old and the new version, recorded in Consequences. A layer-rule plant must resolve: an unresolvable one fires `not-to-unresolvable`        |
 
 ## Implementation notes (2026-10-05)
 
