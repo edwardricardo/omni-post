@@ -8,7 +8,9 @@
  *   path keeps two files' identical arguments apart. A cookie a dependency sets, which no site
  *   names, is added with `"manual": true`. A missing root or zero sites is a scope error, reported
  *   with the classification's own problems. The page holds no file count, so a source file that
- *   sets nothing never stales it; `generate` prints that count instead.
+ *   sets nothing never stales it; `generate` prints that count instead. A row names each file that
+ *   holds its sites, with their count and actions, never a line, so an edit that only moves a call
+ *   site leaves the page current.
  * @layer infrastructure
  */
 import { readFileSync } from "node:fs";
@@ -39,9 +41,11 @@ const ATTRIBUTES = ["maxAge", "expires", "httpOnly", "secure", "sameSite", "path
 const KEY_SHAPE = new RegExp(`^(?:${Object.keys(APPS).join("|")}):(?:${KINDS.join("|")}):.`);
 const UNRESOLVED = /^[^:]+:[^:]+:unresolved:/;
 const STORAGE_METHODS = { set: "setItem", read: "getItem", clear: "removeItem" };
+/** The actions a site performs, in the order a row lists them. */
+const ACTIONS = Object.keys(STORAGE_METHODS);
 
 /** @typedef {import("./lib/inventory.mjs").Entry & { lifetime?: string, resolvesTo?: string }} StorageEntry */
-/** @typedef {{ key: string, arg: string, site: string, action: string, attributes: string }} Candidate */
+/** @typedef {{ key: string, arg: string, file: string, action: string, attributes: string }} Candidate */
 
 /**
  * The matchers of one file, named `<kind>:<action>`: the fixed forms, plus `.set(` and `.delete(`
@@ -72,7 +76,7 @@ export function matchersFor(text) {
  * argument resolves to, and the options shown for a cookie it sets.
  * @type {(site: import("./lib/source-scan.mjs").Site, text: string) => Candidate}
  */
-export function toCandidate({ file, line, matcher, args }, text) {
+export function toCandidate({ file, matcher, args }, text) {
   const app = Object.entries(APPS).find(([, prefix]) => file.startsWith(prefix))?.[0] ?? "other";
   const [kind = "", verb = ""] = matcher.split(":");
   const [arg = "", action] = [args[0], verb === "assign" ? "set" : verb];
@@ -81,7 +85,7 @@ export function toCandidate({ file, line, matcher, args }, text) {
   const options = kind === "cookie" && action === "set" ? (args.at(-1) ?? "") : "";
   const attributes = scan.objectEntries(options, ATTRIBUTES).join(", ");
   const key = `${app}:${kind}:${name ?? `unresolved:${file}:${arg}`}`;
-  return { key, arg, site: `${file}:${line}`, action, attributes };
+  return { key, arg, file, action, attributes };
 }
 
 /**
@@ -140,7 +144,7 @@ export async function buildInventory({ root = REPO_ROOT } = {}) {
       "Every cookie the code sets or clears, and every `localStorage` / `sessionStorage` key it writes, reads or removes, with its category, lifetime and purpose as the code states them.",
       "- **Not the register.** Legal basis, consent and retention are owned by `docs/legal/REGISTER.md`, never by this page.\n" +
         "- **What is scanned.** Source files under `apps/api/src`, `apps/{admin,client}/{app,components,hooks,lib,providers}` and `packages/ui/src`, plus `apps/{admin,client}/proxy.ts`. Tests, stories, declaration files, build output and `.env*` files are skipped.\n" +
-        `- **How a row gets here.** Each call site's name becomes \`<app>:<kind>:<name>\`, and every one needs an entry in \`${CLASSIFICATION}\`. A name its own file does not state is documented there with \`resolvesTo\`; a cookie a dependency sets, which no call site names, is added with \`"manual": true\`.`,
+        `- **How a row gets here.** Each call site's name becomes \`<app>:<kind>:<name>\`, and every one needs an entry in \`${CLASSIFICATION}\`. A name its own file does not state is documented there with \`resolvesTo\`; a cookie a dependency sets, which no call site names, is added with \`"manual": true\`. The Sites column names each file once, with the distinct actions of its call sites and \`×n\` when it holds several of the row's call sites (\`n\` counts sites, not actions), never a line number.`,
     ],
     generatorPath: "scripts/legal/cookies-and-storage.mjs",
     pagePath: PAGE,
@@ -159,7 +163,15 @@ export async function buildInventory({ root = REPO_ROOT } = {}) {
       // order, because a spread placed after an option overrides it.
       const options = [...new Set(sites.map((s) => s.attributes).filter(Boolean))].sort();
       const shown = options.map((option) => `\`{ ${option} }\``).join("; ");
-      const where = sites.map((s) => `${s.site} (${s.action})`).join(", ");
+      // A file, not a line: the count and the actions are facts, a line number only a position.
+      const where = [...new Set(sites.map((s) => s.file))]
+        .sort()
+        .map((file) => {
+          const here = sites.filter((s) => s.file === file);
+          const actions = ACTIONS.filter((action) => here.some((s) => s.action === action));
+          return `${file}${here.length > 1 ? ` ×${here.length}` : ""} (${actions.join(", ")})`;
+        })
+        .join(", ");
       const cells = [e.lifetime ?? "", shown, e.note ?? "", where || "none in the scanned code"];
       return [app, kind, name, status, ...cells];
     }),

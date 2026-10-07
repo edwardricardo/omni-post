@@ -1,7 +1,7 @@
 /**
  * @file cookiesAndStorageInventory.test.ts
  * @description Pins `scripts/legal/cookies-and-storage.mjs`: sites grouped per app, kind and name
- *   with the attributes a cookie sets in a fixed order, an unresolved name refused until
+ *   with the attributes a cookie sets in a fixed order, listed by file and never by line, an unresolved name refused until
  *   `resolvesTo` documents it and kept apart per file, manual entries, the classification
  *   refusals and scope errors, and the committed page equal byte for byte to the one regenerated
  *   from the real tree. Each case runs on a scratch tree holding every root, which starts green;
@@ -31,6 +31,7 @@ const { CLASSIFICATION, PAGE, ROOTS, buildInventory, generator } = (await import
 
 const SID = { status: "essential", lifetime: "1 minute", note: "Session." };
 const KEEP = { status: "functional", lifetime: "until cleared", note: "Preference." };
+const AUTH = 'reply.setCookie("sid", token, { httpOnly: true, domain: "x" });\n';
 
 let root = "";
 let entries: Record<string, Entry> = {};
@@ -56,7 +57,7 @@ const remove = (file: string) => (): void => rmSync(path.join(root, file), { rec
 beforeEach(() => {
   root = mkdtempSync(path.join(tmpdir(), "cookies-and-storage-inventory-test-"));
   ROOTS.forEach((dir) => (dir.endsWith(".ts") ? put(dir, "") : put(`${dir}/.keep`, "")));
-  put("apps/api/src/auth.ts", 'reply.setCookie("sid", token, { httpOnly: true, domain: "x" });\n');
+  put("apps/api/src/auth.ts", AUTH);
   [entries, pendingBaseline] = [{ "api:cookie:sid": SID }, 0];
 });
 
@@ -93,17 +94,15 @@ describe("the candidates", () => {
 
     expect(first.problems).toEqual([]);
     expect(first.markdown).toContain(
-      "apps/api/src/auth.ts:1 (set), apps/api/src/logout.ts:1 (set), apps/api/src/logout.ts:2 (clear)"
+      "apps/api/src/auth.ts (set), apps/api/src/logout.ts ×2 (set, clear)"
     );
     expect(first.markdown).toContain("`{ expires: EPOCH }`; `{ httpOnly: true }`");
     expect(first.markdown).not.toContain("files scanned");
     expect(first.markdown).toContain("`{ ...BASE, maxAge: 1 }`");
-    expect(first.markdown).toContain(
-      "apps/admin/lib/session.ts:3 (set), apps/admin/lib/session.ts:4 (clear)"
-    );
-    expect(first.markdown).toContain("apps/admin/hooks/prefs.ts:2 (read)");
+    expect(first.markdown).toContain("apps/admin/lib/session.ts ×2 (set, clear)");
+    expect(first.markdown).toContain("apps/admin/hooks/prefs.ts (read)");
     expect(first.markdown).toMatch(
-      /\| client +\| cookie +\| `theme` .*components\/theme\.tsx:1 \(set\)/
+      /\| client +\| cookie +\| `theme` .*components\/theme\.tsx \(set\)/
     );
     expect(second.markdown).toBe(first.markdown);
   });
@@ -119,7 +118,31 @@ describe("the candidates", () => {
 
     expect(problems).toEqual([]);
     expect(markdown).toContain("`draft_<id>` (from `draftKey` in apps/client/lib/draft.ts)");
-    expect(markdown).toContain("apps/client/lib/draft.ts:2 (set)");
+    expect(markdown).toContain("apps/client/lib/draft.ts (set)");
+  });
+
+  it("name a site's file, not its line, so moving a site keeps the page and a second one counts", async () => {
+    const before = await build();
+    put("apps/api/src/auth.ts", `// Session cookie.\n\n${AUTH}`);
+    const moved = await build();
+    put("apps/api/src/auth.ts", `${AUTH}reply.setCookie("sid", other);\n`);
+    const second = await build();
+
+    expect(moved.markdown).toBe(before.markdown);
+    expect(second.markdown).toContain("apps/api/src/auth.ts ×2 (set)");
+  });
+
+  it("list a file's actions in one fixed order, whatever its source order", async () => {
+    put("apps/admin/hooks/a.ts", 'localStorage.getItem("k");\nlocalStorage.setItem("k", v);\n');
+    put("apps/admin/hooks/b.ts", 'localStorage.setItem("k", v);\nlocalStorage.getItem("k");\n');
+    entries["admin:localStorage:k"] = KEEP;
+
+    const { problems, markdown } = await build();
+
+    expect(problems).toEqual([]);
+    expect(markdown).toContain(
+      "apps/admin/hooks/a.ts ×2 (set, read), apps/admin/hooks/b.ts ×2 (set, read)"
+    );
   });
 
   it("keep two files' identical unresolved arguments apart, one candidate per file", async () => {

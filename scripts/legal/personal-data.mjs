@@ -9,6 +9,8 @@
  *   a reviewer catches is recorded with `"manual": true`. Problems: a candidate with no entry, an
  *   entry whose field is gone or that is neither a candidate nor manual, `manual` on a candidate,
  *   and a pending count other than `pendingBaseline`. Zero models or candidates is a scope error.
+ *   The page hashes its scan result (each row's `Model.field:type`), not the schema file, so a
+ *   schema edit that changes no row, such as a comment or an index, leaves it current.
  * @layer infrastructure
  */
 import { readFileSync } from "node:fs";
@@ -18,6 +20,8 @@ import { REPO_ROOT, loadClassification, renderInventory, sha256Of } from "./lib/
 export const SCHEMA = "infra/prisma/schema.prisma";
 export const CLASSIFICATION = "docs/legal/classification/personal-data.json";
 export const PAGE = "docs/legal/inventories/personal-data.generated.md";
+/** The name the page gives the hash of the scan result. */
+const SCAN_RESULT = "the personal-data scan result";
 const CATEGORIES = "identifier contact credential technical content financial behavioural special";
 const ALLOWED = Object.freeze({
   statuses: ["personal", "not-personal", "pending"],
@@ -90,8 +94,9 @@ export const findCandidates = (models, vocabulary = VOCABULARY) => {
 };
 
 /**
- * Joins the candidates with the classification and renders the page under `root`.
- * @type {(options?: { root?: string }) => Promise<import("./lib/inventory.mjs").Inventory & { counts?: Record<string, number> }>}
+ * Joins the candidates with the classification and renders the page under `root`. The page holds
+ * no model count, so a model with no candidate field never stales it; `generate` prints it instead.
+ * @type {(options?: { root?: string }) => Promise<import("./lib/inventory.mjs").Inventory & { counts?: Record<string, number>, modelsScanned?: number }>}
  */
 export async function buildInventory({ root = REPO_ROOT } = {}) {
   const schema = readFileSync(path.join(root, SCHEMA), "utf8");
@@ -122,32 +127,56 @@ export async function buildInventory({ root = REPO_ROOT } = {}) {
     problems.push(`${pending} pending exceed pendingBaseline ${pendingBaseline}`);
   if (pending < pendingBaseline)
     problems.push(`stale pendingBaseline ${pendingBaseline}: lower it to ${pending}`);
+  const typeOf = (/** @type {string} */ key) => {
+    const f = /** @type {Field} */ (fields.get(key));
+    return `${f.type}${f.isList ? "[]" : ""}${f.optional ? "?" : ""}`;
+  };
+  const scanResult = rows
+    .map((key) => `${key}:${typeOf(key)}`)
+    .sort()
+    .join("\n");
   const totals = ["personal", "not-personal", "pending", "unclassified"].map((s) => [s, tally(s)]);
-  const counts = { "models scanned": models.length, candidates: candidates.length };
-  Object.assign(counts, { "manual additions": manual }, Object.fromEntries(totals));
+  const counts = { candidates: candidates.length, "manual additions": manual };
+  Object.assign(counts, Object.fromEntries(totals));
   const markdown = await renderInventory({
     title: "Personal data inventory",
     intro: [
       "Every database field whose name may hold personal data, and what the code says it holds: whether it is personal data, its category, and whose data it is.",
       "- **Not the register.** Legal basis, purpose and retention are owned by `docs/legal/REGISTER.md` and the [retention calendar](../../compliance/RETENTION_CALENDAR.md), never by this page.\n" +
-        `- **How a field gets here.** A field is a candidate when a segment of its name matches the vocabulary of the generator, and every candidate needs an entry in \`${CLASSIFICATION}\`. A personal field the vocabulary misses is added there with \`"manual": true\`.`,
+        `- **How a field gets here.** A field is a candidate when a segment of its name matches the vocabulary of the generator, and every candidate needs an entry in \`${CLASSIFICATION}\`. A personal field the vocabulary misses is added there with \`"manual": true\`.\n` +
+        `- **What the hash covers.** The hash of \`${SCAN_RESULT}\` covers the sorted \`Model.field:type\` line of every row, candidates and manual additions alike, not \`${SCHEMA}\` itself, so the scan hash changes only when a row's field or type changes; the regenerating commit is the provenance.`,
     ],
     generatorPath: "scripts/legal/personal-data.mjs",
     pagePath: PAGE,
-    sources: { [SCHEMA]: sha256Of(schema), [CLASSIFICATION]: sha256Of(classification.text) },
+    sources: {
+      [SCAN_RESULT]: sha256Of(scanResult),
+      [CLASSIFICATION]: sha256Of(classification.text),
+    },
     summary: counts,
     columns: ["Model", "Field", "Type", "Status", "Category", "Subject", "Note"],
     rows: rows.sort().map((key) => {
       const f = /** @type {Field} */ (fields.get(key));
       const e = /** @type {Partial<Entry>} */ (entries.get(key) ?? {});
       const status = `${e.status ?? "unclassified"}${e.manual ? " (manual)" : ""}`;
-      const type = `\`${f.type}${f.isList ? "[]" : ""}${f.optional ? "?" : ""}\``;
       const cells = [e.category, e.subject, e.note].map((value) => value ?? "");
-      return [f.model, `\`${f.field}\``, type, status, ...cells];
+      return [f.model, `\`${f.field}\``, `\`${typeOf(key)}\``, status, ...cells];
     }),
   });
-  return { pagePath: PAGE, markdown, problems, counts };
+  return { pagePath: PAGE, markdown, problems, counts, modelsScanned: models.length };
 }
 
-/** @type {import("./lib/inventory.mjs").Generator} */
-export const generator = { name: "personal-data", generate: () => buildInventory() };
+/**
+ * Prints the model count only for a scan that read its scope; a scope error speaks for itself.
+ * @type {import("./lib/inventory.mjs").Generator}
+ */
+export const generator = {
+  name: "personal-data",
+  generate: async (/** @type {{ root?: string }} */ options = {}) => {
+    const inventory = await buildInventory(options);
+    if (inventory.scopeError === undefined)
+      process.stdout.write(
+        `legal-inventory personal-data: scanned ${inventory.modelsScanned ?? 0} models\n`
+      );
+    return inventory;
+  },
+};
