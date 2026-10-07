@@ -219,5 +219,4 @@ Every capability candidate the tree yields, and what covers it for support: the 
 
 ## Documented
 
-| Support page | Candidates it documents |
-| ------------ | ----------------------- |
+None.

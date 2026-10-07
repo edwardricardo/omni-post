@@ -51,13 +51,14 @@ const FENCE = "```\n## not a heading\n```";
 const BODY = SECTIONS.map((t) => `## ${t}\n\n${t === "Verification" ? STAMP : FENCE}\n`);
 const GOOD = `${FRONT}\n# Publishing\n\n${BODY.join("\n")}`;
 /**
- * One refusal per row: what it is | text replaced in the good doc | its replacement | the problem.
- * The grammar and the generic checks have their variants in `supportFrontMatter.test.ts`; a row
- * here proves each reaches the index with the doc's name.
+ * One refusal per row: what it is | text replaced in the good doc | its replacement, `-` to delete
+ * the text | the problem. Every cell is non-empty, so each row splits into exactly four. The
+ * grammar and the generic checks have their variants in `supportFrontMatter.test.ts`; a row here
+ * proves each reaches the index with the doc's name.
  */
 const REFUSALS = String.raw`
 no front matter | ---\nfeature | feature | : no front matter between two --- lines
-a missing key | owner: Platform engineering # a team\n |  | : front matter has no owner
+a missing key | owner: Platform engineering # a team\n | - | : front matter has no owner
 a feature that is no file name | feature: publishing | feature: shipping | : feature is "shipping", not the file name publishing
 an empty owner | owner: Platform engineering # a team | owner: "" | : owner is empty
 an unknown status | status: live | status: done | : status is "done", not live|partial|planned
@@ -70,7 +71,7 @@ a repeated capability | "Schedule: later" | Publish a post now | : covers is no 
 a register section that is missing | register:9 | register:99 | : legal register:99 names no register section or inventory row
 an inventory row that is missing | subprocessors:stripe | subprocessors:paypal | : legal subprocessors:paypal names no register section or inventory row
 none beside a reference | register:9\n | register:9\n  - none\n | : legal is no list nor none
-a missing section | ## Data and privacy\n |  | : heading 6 must be "## Data and privacy", not "## Related documents"
+a missing section | ## Data and privacy\n | - | : heading 6 must be "## Data and privacy", not "## Related documents"
 a Verification line that is not the stamp | ${STAMP} | ${STAMP}\nMore. | : ## Verification must be the one line "${STAMP}"`
   .trim()
   .split("\n")
@@ -90,7 +91,7 @@ beforeEach(() => {
   put("docs/legal/inventories/subprocessors.generated.md", "| `stripe` |\n");
   put("apps/api/src/posts/postRoutes.ts", "");
   put(DOC, GOOD);
-  ["README", "NON_FEATURES", "EXCEPTIONS"].forEach((page) => put(`docs/support/${page}.md`, "#"));
+  ["README", "NON_FEATURES"].forEach((page) => put(`docs/support/${page}.md`, "#"));
 });
 
 afterEach(() => rmSync(root, { recursive: true, force: true }));
@@ -100,9 +101,10 @@ describe("a support doc", () => {
     expect((await build()).problems).toEqual([]);
   });
 
-  it.each(REFUSALS)("refuses %s", async (_, from = "", to = "", problem = "") => {
+  it.each(REFUSALS)("refuses %s", async (title, from, to, problem, ...extra) => {
+    expect([title, from, to, problem, ...extra].filter(Boolean)).toHaveLength(4);
     expect(GOOD).toContain(from);
-    put(DOC, GOOD.replace(from, to));
+    put(DOC, GOOD.replace(from, to === "-" ? "" : to));
 
     expect((await build()).problems).toContain(`${DOC}${problem}`);
   });
@@ -114,6 +116,17 @@ describe("a support doc", () => {
     expect((await build()).problems).toEqual([
       "docs/support/Bad_Name.md: the file name is no kebab-case slug",
     ]);
+  });
+
+  it("returns the template problems of a stray EXCEPTIONS.md when it is no companion page", async () => {
+    const stray = "docs/support/EXCEPTIONS.md";
+    put(stray, "# Exceptions\n\nDated exceptions live here.\n");
+
+    const built = await build();
+
+    expect(built.markdown).toContain("| [EXCEPTIONS](EXCEPTIONS.md) |");
+    expect(built.problems).toContain(`${stray}: no front matter between two --- lines`);
+    expect(built.problems.every((problem) => problem.startsWith(`${stray}: `))).toBe(true);
   });
 });
 
@@ -138,7 +151,7 @@ describe("the index", () => {
     rmSync(path.join(root, TEMPLATE));
 
     expect(empty.problems).toEqual([]);
-    expect(empty.markdown).toMatch(/\| Owner \|\n\| -+ \| -+ \| -+ \| -+ \| -+ \| -+ \|\n$/);
+    expect(empty.markdown).toMatch(/## Index\n\nNone\.\n$/);
     expect((await build()).scopeError).toMatch(/^docs\/support\/_TEMPLATE\.md does not exist/);
     rmSync(path.join(root, "docs/support"), { recursive: true });
     expect((await build()).scopeError).toMatch(/^docs\/support does not exist/);

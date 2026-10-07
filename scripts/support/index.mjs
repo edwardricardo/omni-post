@@ -19,7 +19,7 @@ import { parseFrontMatter, pathProblem, sectionProblem } from "./lib/front-matte
 export const DIR = "docs/support";
 export const PAGE = `${DIR}/README.md`;
 export const TEMPLATE = `${DIR}/_TEMPLATE.md`;
-export const COMPANIONS = ["README.md", "_TEMPLATE.md", "NON_FEATURES.md", "EXCEPTIONS.md"];
+export const COMPANIONS = ["README.md", "_TEMPLATE.md", "NON_FEATURES.md"];
 const write = "pnpm support:index";
 export const COMMANDS = { label: "support-docs", write, check: "pnpm check:support" };
 export const KEYS = ["feature", "owner", "status", "verified", "paths", "covers", "legal"];

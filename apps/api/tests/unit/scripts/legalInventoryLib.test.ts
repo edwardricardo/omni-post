@@ -46,6 +46,7 @@ type Library = {
     file: string,
     allowed: Allowed
   ) => { entries: Map<string, Entry>; pendingBaseline: number; problems: string[]; text: string };
+  renderTable: (head: string[], body: string[][]) => string;
   renderInventory: (page: Page) => Promise<string>;
   checkInventory: (input: Inventory & { root: string }) => { ok: boolean; problems: string[] };
   runGenerators: (
@@ -56,8 +57,14 @@ type Library = {
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
 const LIBRARY = path.join(REPO_ROOT, "scripts/legal/lib/inventory.mjs");
-const { sha256Of, loadClassification, renderInventory, checkInventory, runGenerators } =
-  (await import(LIBRARY)) as Library;
+const {
+  sha256Of,
+  loadClassification,
+  renderTable,
+  renderInventory,
+  checkInventory,
+  runGenerators,
+} = (await import(LIBRARY)) as Library;
 
 const ALLOWED = {
   statuses: ["personal", "not-personal"],
@@ -201,7 +208,31 @@ describe("loadClassification", () => {
   });
 });
 
+describe("renderTable", () => {
+  it("returns the header, the separator and each row, a pipe escaped and a line break flattened, when given rows", () => {
+    const table = renderTable(
+      ["Key", "Note"],
+      [
+        ["a | b", "one\ntwo"],
+        ["a\r\nb", "c\rd"],
+      ]
+    );
+
+    expect(table).toBe("| Key | Note |\n| --- | --- |\n| a \\| b | one two |\n| a b | c d |");
+  });
+
+  it("returns None. when the body has no rows", () => {
+    expect(renderTable(["Key", "Note"], [])).toBe("None.");
+  });
+});
+
 describe("renderInventory", () => {
+  it("renders None. when the inventory has no rows", async () => {
+    const page = await renderInventory({ ...FIXTURE_PAGE, rows: [] });
+
+    expect(page).toMatch(/\n## Inventory\n\nNone\.\n$/);
+  });
+
   it("renders the sources, the summary and an escaped table, as Prettier writes it", async () => {
     const [first, second] = [
       await renderInventory(FIXTURE_PAGE),

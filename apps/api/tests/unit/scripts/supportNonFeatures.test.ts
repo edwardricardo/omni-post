@@ -2,10 +2,11 @@
  * @file supportNonFeatures.test.ts
  * @description Pins `scripts/support/non-features.mjs`: the derivation of every candidate kind
  *   (comments, tests and non-packages excluded, route groups and `dashboard` opened), each refusal
- *   of the classification against the tree and the support docs, the pending ratchet, the scope
- *   errors, a page that moves with the candidates and not with an edit that adds none, and the
- *   committed page equal to the one regenerated from the real tree. Each case runs on a scratch
- *   tree that starts green.
+ *   of the classification against the tree and the support docs, an unclassified route found by
+ *   its path literal alone, the pending ratchet, the scope errors and the runner printing one beside
+ *   the classification's own problems, a page that moves with the candidates and not with an edit
+ *   that adds none, and the committed page equal to the one regenerated from the real tree. Each
+ *   case runs on a scratch tree that starts green.
  * @layer infrastructure
  */
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -17,17 +18,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Built = { markdown: string; problems: string[]; scopeError?: string };
 type Entry = Record<string, unknown>;
-/** The module's surface; a literal import of an untyped `.mjs` would be an implicit any. */
+type Commands = { label: string; write: string; check: string };
+type Generator = { name: string; generate: () => Promise<Built> };
+/** The modules' surface; a literal import of an untyped `.mjs` would be an implicit any. */
 type NonFeatures = Record<"CLASSIFICATION" | "PAGE", string> & {
   deriveCandidates: (root: string) => Record<string, string[]>;
   buildNonFeatures: (options: { root: string }) => Promise<Built>;
-  generator: { generate: (options?: { root: string }) => Promise<Built> };
+  generator: { name: string; generate: (options?: { root: string }) => Promise<Built> };
+};
+type Runner = {
+  COMMANDS: Commands;
+  runGenerators: (
+    generators: Generator[],
+    options: { check: boolean; root: string; commands: Commands }
+  ) => Promise<number>;
 };
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
 const MODULE = path.join(REPO_ROOT, "scripts/support/non-features.mjs");
 const { CLASSIFICATION, PAGE, ...api } = (await import(MODULE)) as NonFeatures;
 const { deriveCandidates, buildNonFeatures, generator } = api;
+const { COMMANDS } = (await import(path.join(REPO_ROOT, "scripts/support/index.mjs"))) as Runner;
+const LIBRARY = path.join(REPO_ROOT, "scripts/legal/lib/inventory.mjs");
+const { runGenerators } = (await import(LIBRARY)) as Runner;
 
 const QUEUES = "packages/adapters/queue-bullmq/src/constants.ts";
 const ROUTE = "route:posts/postRoutes.ts";
@@ -132,6 +145,25 @@ describe("the derivation", () => {
 
     expect((await build()).scopeError).toMatch(scopeError);
   });
+
+  it("returns exit 1 and prints the scope error and the classification problem when a root is missing and a non-feature has no note", async () => {
+    rmSync(path.join(root, "apps/client/app/[locale]"), { recursive: true });
+    entries["package:application"] = { status: "non-feature" };
+    put(CLASSIFICATION, JSON.stringify({ pendingBaseline, entries }));
+    vi.spyOn(process.stderr, "write").mockImplementation(record);
+    const nonFeatures = { name: generator.name, generate: () => generator.generate({ root }) };
+
+    const exitCode = await runGenerators([nonFeatures], { check: true, root, commands: COMMANDS });
+
+    expect(exitCode).toBe(1);
+    // Both lines must reach the operator; which prints first is the runner's internal sequence.
+    expect([...output].sort()).toEqual(
+      [
+        "support-docs non-features: scope error: apps/client/app/[locale] does not exist: a scan that cannot read its whole scope is not clean\n",
+        `support-docs non-features: ${CLASSIFICATION}: package:application has no note\n`,
+      ].sort()
+    );
+  });
 });
 
 describe("the classification", () => {
@@ -187,6 +219,15 @@ a baseline above the pending count | pendingBaseline | 12 | stale pendingBaselin
     else entries[id] = value === "-" ? undefined : (JSON.parse(value) as Entry);
 
     expect((await build()).problems).toContain(problem);
+  });
+
+  it("returns the no-entry refusal when a module outside the route naming registers app.get with a path literal", async () => {
+    put("apps/api/src/lib/planted.ts", 'app.get("/planted", handler);\n');
+
+    const [derived, built] = [deriveCandidates(root), await build()];
+
+    expect(derived.route).toContain("lib/planted.ts");
+    expect(built.problems).toEqual(["route:lib/planted.ts has no entry: classify it"]);
   });
 
   it("finds the real tree clean and its committed page current", async () => {
