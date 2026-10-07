@@ -48,7 +48,10 @@ covers:
 ---
 # Publishing
 `;
-/** One refusal per row: what it is | text replaced in the front matter | its replacement | the problem. */
+/**
+ * One refusal per row: what it is | text replaced in the front matter | its replacement | the
+ * problem. Every cell is non-empty, so each row splits into exactly four.
+ */
 const REFUSALS = String.raw`
 no opening line | ---\nfeature | feature | : no front matter between two --- lines
 no closing line | ---\n# Publishing | # Publishing | : no front matter between two --- lines
@@ -94,7 +97,8 @@ describe("parseFrontMatter", () => {
     expect(Object.fromEntries(data)).toEqual({ paths: [], legal: "none" });
   });
 
-  it.each(REFUSALS)("refuses %s", (_, from = "", to = "", problem = "") => {
+  it.each(REFUSALS)("refuses %s", (title, from, to, problem, ...extra) => {
+    expect([title, from, to, problem, ...extra].filter(Boolean)).toHaveLength(4);
     expect(FRONT).toContain(from);
 
     expect(parseFrontMatter(FILE, FRONT.replace(from, to)).problems).toContain(`${FILE}${problem}`);

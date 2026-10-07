@@ -31,5 +31,4 @@ Before step 4, a page also marks each candidate it documents as `documented`, wi
 
 ## Index
 
-| Feature | Status | Verified | Covers | Legal | Owner |
-| ------- | ------ | -------- | ------ | ----- | ----- |
+None.

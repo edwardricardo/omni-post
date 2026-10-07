@@ -18,6 +18,7 @@ import {
   REPO_ROOT,
   loadClassification,
   renderInventory,
+  renderTable,
   sha256Of,
 } from "../legal/lib/inventory.mjs";
 import { blankComments, listSourceFiles } from "../legal/lib/source-scan.mjs";
@@ -92,14 +93,6 @@ export function deriveCandidates(root) {
   };
 }
 
-/** @type {(head: string[], body: string[][]) => string} a Markdown table, or "None." with no rows */
-const table = (head, body) =>
-  body.length === 0
-    ? "None."
-    : [head, head.map(() => "---"), ...body]
-        .map((row) => `| ${row.map((cell) => cell.replaceAll("|", "\\|")).join(" | ")} |`)
-        .join("\n");
-
 /** @type {(options?: { root?: string }) => Promise<Built>} derives the candidates and renders the page */
 export async function buildNonFeatures({ root = REPO_ROOT } = {}) {
   const classification = loadClassification(root, CLASSIFICATION, ALLOWED);
@@ -147,7 +140,7 @@ export async function buildNonFeatures({ root = REPO_ROOT } = {}) {
     intro: [
       "Every capability candidate the tree yields, and what covers it for support: the support page that documents it, the reason it needs none, or nothing yet. A ticket about a candidate listed under Pending has no support page to read.",
       "## Non-features",
-      table(
+      renderTable(
         ["Candidate", "Why support needs no page"],
         ofStatus("non-feature").map((id) => [code(id), note(id)])
       ),
