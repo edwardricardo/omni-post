@@ -227,6 +227,32 @@ describe("runGenerators", () => {
     expect(output).toContain("legal-inventory fixture: scope error: read nothing\n");
   });
 
+  it.each([false, true])(
+    "prints a scope error's problems beside it with check %s",
+    async (check) => {
+      const generators = [fixture({ scopeError: "x", problems: ["P"] })];
+
+      expect(await runGenerators(generators, { check, root })).toBe(1);
+      expect(output).toEqual([
+        "legal-inventory fixture: scope error: x\n",
+        "legal-inventory fixture: P\n",
+      ]);
+    }
+  );
+
+  it.each([false, true])(
+    "survives a bare scope error with no problems list and keeps running with check %s",
+    async (check) => {
+      // The shape under test is exactly the missing field, so the result is built outside the type.
+      const bare = { scopeError: "read nothing" } as unknown as Inventory;
+      const generators = [{ name: "bare", generate: () => Promise.resolve(bare) }, fixture({})];
+
+      expect(await runGenerators(generators, { check, root })).toBe(1);
+      expect(output).toContain("legal-inventory bare: scope error: read nothing\n");
+      expect(output.some((line) => line.startsWith("legal-inventory fixture: "))).toBe(true);
+    }
+  );
+
   it("lets a generator that throws reject the run", async () => {
     const thrower = { name: "thrower", generate: () => Promise.reject(new Error("boom")) };
 

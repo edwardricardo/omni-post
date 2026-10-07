@@ -138,8 +138,12 @@ export async function runGenerators(generators, options = {}) {
       if (failed) exitCode = 1;
     };
     const inventory = await generate();
+    // A generator that fails closed may return only its scope error: the problems list is optional
+    // on that path, so a bare `{ scopeError }` result must not abort the loop for the other generators.
+    const problems = inventory.problems ?? [];
     if (inventory.scopeError !== undefined) {
       say(`scope error: ${inventory.scopeError}`);
+      problems.forEach((problem) => say(problem));
     } else if (check) {
       const verdict = checkInventory({ root, ...inventory });
       verdict.problems.forEach((problem) => say(problem));
@@ -148,7 +152,7 @@ export async function runGenerators(generators, options = {}) {
       mkdirSync(path.dirname(path.join(root, inventory.pagePath)), { recursive: true });
       writeFileSync(path.join(root, inventory.pagePath), inventory.markdown);
       say(`wrote ${inventory.pagePath}`, false);
-      inventory.problems.forEach((problem) => say(problem));
+      problems.forEach((problem) => say(problem));
     }
   }
   return exitCode;

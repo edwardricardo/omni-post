@@ -1,0 +1,74 @@
+{
+  "generator": "scripts/legal/cookies-and-storage.mjs",
+  "pendingBaseline": 0,
+  "entries": {
+    "admin:cookie:NEXT_LOCALE": {
+      "status": "functional",
+      "manual": true,
+      "lifetime": "session",
+      "note": "The locale of the admin request; next-intl 4.13.0 sets it from `apps/admin/proxy.ts` (`createMiddleware(routing)`) when the request's locale differs from the cookie or from Accept-Language, and reads it to choose the locale of a path without one."
+    },
+    "admin:cookie:admin-csrf": {
+      "status": "essential",
+      "lifetime": "7 days",
+      "note": "The CSRF token the backend issues at admin login, httpOnly; `lib/auth/sessionCookie.ts` sets and clears it, and the refresh route and the backend proxy send it with the refresh token."
+    },
+    "admin:cookie:admin-refresh": {
+      "status": "essential",
+      "lifetime": "7 days",
+      "note": "The admin refresh token, httpOnly; `lib/auth/sessionCookie.ts` sets and clears it, and the refresh route and the backend proxy read it to obtain a new access token."
+    },
+    "admin:cookie:admin-session": {
+      "status": "essential",
+      "lifetime": "15 minutes at login; 1 day when the backend proxy refreshes it",
+      "note": "The admin access token, httpOnly; `lib/auth/sessionCookie.ts` and the backend proxy set it, and the proxy, the dashboard layout and `proxy.ts` read it to authenticate requests."
+    },
+    "admin:localStorage:admin-setup-dismissed": {
+      "status": "functional",
+      "lifetime": "until cleared",
+      "note": "Whether the admin dismissed the dashboard setup banner; `SetupBanner` writes and reads it."
+    },
+    "admin:localStorage:admin-theme": {
+      "status": "functional",
+      "lifetime": "until cleared",
+      "note": "The light or dark theme the admin chose; `ThemeProvider` writes and reads it."
+    },
+    "api:cookie:refreshToken": {
+      "status": "essential",
+      "lifetime": "7000 days as written: `maxAge` is 604800000, which @fastify/cookie reads as seconds, while the code comment says 7 days",
+      "note": "The refresh token issued at `/auth` login and the SAML and OIDC callbacks, httpOnly and scoped to `/auth`; token refresh and logout read it, and a failed refresh, logout and revoke-all clear it."
+    },
+    "client:cookie:NEXT_LOCALE": {
+      "status": "functional",
+      "manual": true,
+      "lifetime": "session",
+      "note": "The locale of the customer request; next-intl 4.13.0 sets it from `apps/client/proxy.ts` (`createMiddleware(routing)`) and from its router when `LanguageSwitcher` changes the locale, and reads it to choose the locale of a path without one."
+    },
+    "client:cookie:customer-refresh": {
+      "status": "essential",
+      "lifetime": "7 days; 30 days with remember me",
+      "note": "The customer refresh token, httpOnly; `lib/auth/sessionCookie.ts` sets and clears it, and the backend proxy reads it to refresh the session."
+    },
+    "client:cookie:customer-session": {
+      "status": "essential",
+      "lifetime": "15 minutes",
+      "note": "The customer access token, httpOnly; `lib/auth/sessionCookie.ts` sets and clears it, and the backend proxy and `proxy.ts` read it to authenticate requests."
+    },
+    "client:localStorage:dismissed-announcements": {
+      "status": "functional",
+      "lifetime": "until cleared",
+      "note": "The ids of the system announcements the user dismissed, as a JSON array; `AnnouncementBanner` writes and reads it."
+    },
+    "client:localStorage:omnipost-active-project": {
+      "status": "functional",
+      "lifetime": "until cleared",
+      "note": "The account and project ids the user last selected, as JSON; `ProjectProvider` writes and reads it."
+    },
+    "client:localStorage:unresolved:apps/client/lib/hooks/useAutoSave.ts:draftKey": {
+      "status": "functional",
+      "resolvesTo": "draft_<post id, or new_post>",
+      "lifetime": "until the draft is published or scheduled",
+      "note": "An unsaved post draft (body, title, tags, project, locale and providers) with its save time; `useAutoSave` writes, reads and removes it, and the editor removes it once the post is published or scheduled."
+    }
+  }
+}

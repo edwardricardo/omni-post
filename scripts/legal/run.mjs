@@ -7,10 +7,11 @@
  * @layer infrastructure
  */
 import { runGenerators } from "./lib/inventory.mjs";
+import { generator as cookiesAndStorage } from "./cookies-and-storage.mjs";
 import { generator as personalData } from "./personal-data.mjs";
 
 /** Every registered generator, run in this order. */
-const GENERATORS = [personalData];
+const GENERATORS = [personalData, cookiesAndStorage];
 
 const args = process.argv.slice(2);
 const onlyAt = args.indexOf("--only");
