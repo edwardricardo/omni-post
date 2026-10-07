@@ -8,6 +8,7 @@
  */
 import { runGenerators } from "../legal/lib/inventory.mjs";
 import { COMMANDS, generator as index } from "./index.mjs";
+import { generator as nonFeatures } from "./non-features.mjs";
 
 const args = process.argv.slice(2);
 const at = args.indexOf("--only");
@@ -20,4 +21,4 @@ if (!known || (at !== -1 && (only === null || only.startsWith("--")))) {
   throw new Error(`usage: run.mjs [--check] [--only <name>]; got ${args.join(" ")}`);
 }
 const check = args.includes("--check");
-process.exitCode = await runGenerators([index], { check, only, commands: COMMANDS });
+process.exitCode = await runGenerators([index, nonFeatures], { check, only, commands: COMMANDS });

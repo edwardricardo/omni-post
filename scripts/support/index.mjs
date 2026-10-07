@@ -6,7 +6,8 @@
  *   checks live in `lib/front-matter.mjs`; this module holds the contract: the keys, statuses and
  *   eight sections, the stamp line and the `legal` references. A missing directory or template is
  *   a scope error; zero docs renders an empty index. Nothing is time-based, and `generate` prints
- *   how many docs it read.
+ *   how many docs it read. The page renders and hashes through the inventory library under
+ *   `scripts/legal/lib/`, which the legal and support generators share: it is not legal-only.
  * @layer infrastructure
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
@@ -38,6 +39,7 @@ const INTRO = [
   "One page per support-facing feature: how it works today, by code path, and where an operator looks when a ticket opens. Each page lists the code it describes in `paths`, so a change to that code shows which page to re-read.",
   "## What this directory is not\n\nTarget behaviour lives in `docs/features/` and the ADRs, the endpoint reference in `docs/api/`, alert procedures in `docs/runbooks/` and legal facts in `docs/legal/`. A support page links them and never repeats them.",
   "## Writing a support page\n\n1. Copy `_TEMPLATE.md` to `<feature>.md`, a kebab-case slug that its `feature` key repeats.\n2. Fill the front matter: `owner`, `status` (`live`, `partial` or `planned`), the `verified` stamp (`sha`, `date`, `by`), the `paths` it describes, the capabilities it `covers` and its `legal` references (`register:<N>` for a section of the register, `<inventory>:<row key>` for an inventory row, or `none`).\n3. Write the eight sections in the template's order; `## Verification` holds the one line `Last verified against main <sha> on <date> by <who>`, equal to the stamp.\n4. Run `pnpm support:index` and commit the regenerated pages.",
+  "Before step 4, a page also marks each candidate it documents as `documented`, with its `doc`, in `classification/non-features.json`; [NON_FEATURES.md](NON_FEATURES.md) lists every candidate the tree yields and what covers it.",
   "## What the check verifies\n\n`pnpm check:support` refuses a support page that misses a template key or adds one, has an unknown status, a stamp that is no 40-hex sha, `YYYY-MM-DD` date and author, a `paths` entry that does not exist, a repeated capability, a `legal` reference that names no register section or inventory row, or headings other than the eight in order; and it refuses this page when it differs from the one regenerated. It reads structure only: no date is compared with today and no commit is counted.",
 ];
 
