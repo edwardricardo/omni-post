@@ -140,6 +140,7 @@ export async function runGenerators(generators, options = {}) {
     const inventory = await generate();
     if (inventory.scopeError !== undefined) {
       say(`scope error: ${inventory.scopeError}`);
+      inventory.problems.forEach((problem) => say(problem));
     } else if (check) {
       const verdict = checkInventory({ root, ...inventory });
       verdict.problems.forEach((problem) => say(problem));

@@ -227,6 +227,19 @@ describe("runGenerators", () => {
     expect(output).toContain("legal-inventory fixture: scope error: read nothing\n");
   });
 
+  it.each([false, true])(
+    "prints a scope error's problems beside it with check %s",
+    async (check) => {
+      const generators = [fixture({ scopeError: "x", problems: ["P"] })];
+
+      expect(await runGenerators(generators, { check, root })).toBe(1);
+      expect(output).toEqual([
+        "legal-inventory fixture: scope error: x\n",
+        "legal-inventory fixture: P\n",
+      ]);
+    }
+  );
+
   it("lets a generator that throws reject the run", async () => {
     const thrower = { name: "thrower", generate: () => Promise.reject(new Error("boom")) };
 
