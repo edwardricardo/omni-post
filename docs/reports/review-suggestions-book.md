@@ -122,6 +122,7 @@
 | SB-101 | same                                                                                  | R3-002                                                           | `scripts/support/non-features.mjs:103-113` (the scope-error return, which carries the classification's own problems)                        | test coverage                | deferred: one combined case in `supportNonFeatures.test.ts`, in the same follow-up unit as SB-099                                                               |
 | SB-102 | SUP-1 non-features unit (`workstream/support-sup1-nonfeatures`, ce84d6c2)             | R3-generator-counts-whitespace-tie                               | `scripts/support/non-features.mjs:40-48` (the route rule: a path literal on any receiver)                                                   | test coverage                | deferred: an unclassified `app.get("/planted"` fixture outside the route naming, in the same follow-up unit as SB-099                                           |
 | SB-103 | SUP-1 non-features unit (`workstream/support-sup1-nonfeatures`, d0cedc55)             | R3-real-tree-case-nondeterministic                               | `apps/api/tests/unit/scripts/supportNonFeatures.test.ts:192-197` (the real-tree case compares the committed page)                           | test design                  | deferred: decide once, across the six suites that compare a committed page, and apply it in one pass                                                            |
+| SB-104 | dependency-cruiser 18.5.0 hold bump (`workstream/hold-cruiser-18-5`, f6554165)        | R2-testing-row-dense-run-on                                      | `docs/development/TESTING_REFOUNDATION.md:389` (the Red proof cell of the Architecture row of `### Gates`)                                  | doc structure                | deferred: a table cell takes no paragraph break and this one sits at its column's 2871-character cap; move the history to ADR-0032                              |
 
 ## Entries — code and prose
 
@@ -669,6 +670,14 @@
 - **Suggestion:** one table renderer for both sections, so their formats cannot drift.
 - **Why deferred:** unifying them means the library exports its table renderer and gains a case, and this unit sits at 399 CODE against the 400 cap. The two helpers write the same header, separator and row shape and both escape a pipe in a cell; only the library's also flattens a newline in a cell, which no Non-features reason contains. Both pages are pinned byte for byte against the committed ones by `pnpm check:support`.
 - **To implement:** in the same follow-up unit as SB-099: export the table renderer from `scripts/legal/lib/inventory.mjs` (with SB-099's `None.` for an empty body), use it for the Non-features section, keep both support pages byte-identical and add the library case.
+
+### SB-104 — the Architecture gate row packs every dated proof into one capped cell
+
+- **Source:** the native review of the dependency-cruiser 18.5.0 hold bump (`workstream/hold-cruiser-18-5`, `f6554165`), readability lens, finding `R2-testing-row-dense-run-on`.
+- **Location:** `docs/development/TESTING_REFOUNDATION.md:389`, the Red proof cell of the Architecture row of `### Gates`: it holds the five plants and two baseline reds of 2026-10-07, the resolution control and the battery run of 2026-10-05, `PR v-b`'s layer rules and `PR v-c`, at the column's 2871-character cap.
+- **Suggestion:** split the dated history out of the cell, so a reader cannot attribute plant (3)'s 2026-10-05 `exit 6` to 18.5.0.
+- **Why deferred:** a table cell cannot carry a paragraph break, and the cap leaves no room: a longer cell re-pads every row of the Gates table. The cell already dates each proof and says the seventh error of plant (3) is the rule `PR v-b` added, not 18.5.0, and ADR-0032's Consequences records the same.
+- **To implement:** a docs unit that touches only `docs/development/TESTING_REFOUNDATION.md` and `docs/technical/ADR-0032-architecture-gate-dependency-cruiser.md` (or a `docs/reports/` note in place of the ADR section): move the gate's dated proof history to a short section of ADR-0032, and leave the row with the current proof and a link to that section.
 
 ## Entries — tests
 

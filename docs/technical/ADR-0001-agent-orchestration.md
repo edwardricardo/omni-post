@@ -122,6 +122,24 @@ silence is not an answer.
 
 The section records facts for the register; it is not legal advice.
 
+## Support impact
+
+Every ADR states what the decision changes for the people who answer tickets, in this position,
+after Legal impact. Write one line per support document under `docs/support/` whose `paths` the
+decision touches, in this fixed form:
+
+`docs/support/<feature>.md — updated: <sections> → verified <sha>`
+
+When no support document applies, write `none for <feature> — <one-line reason>`; silence is not
+an answer.
+
+- **Document**: which page, by its path; a decision that touches two pages writes two lines.
+- **Sections**: which `##` headings of that page changed, in the page's order.
+- **Verified stamp**: which commit sha the page's `verified` stamp now carries, the same sha as its
+  `## Verification` line.
+
+The section records what changed for support; it is not marketing copy.
+
 ## Revisit if
 
 If LangGraph's engine-state model fights the `Result` contract or TypeScript
