@@ -127,23 +127,23 @@ To rebuild a graph manually: `cd <target> && graphify update .` (sub-second for 
 
 ### `/docs/` Structure
 
-| Directory             | Content                                                                                                                                                                            |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/api/`           | REST API reference (endpoints, services, types)                                                                                                                                    |
-| `docs/frontend/`      | Frontend portals (admin-portal, client-portal, REACT_STANDARDS)                                                                                                                    |
-| `docs/architecture/`  | System design and architectural decisions                                                                                                                                          |
-| `docs/development/`   | Developer guides, contributing, migration guides                                                                                                                                   |
-| `docs/features/`      | Feature specifications and design docs                                                                                                                                             |
-| `docs/reports/`       | Sprint reports and session logs                                                                                                                                                    |
-| `docs/security/`      | Security policies and audits                                                                                                                                                       |
-| `docs/legal/`         | Legal facts register: the record of processing activities, generated inventories and their classifications                                                                         |
-| `docs/compliance/`    | Compliance operations: `RETENTION_CALENDAR.md`, the retention window per data type and the scheduled job that enforces it                                                          |
-| `docs/deployment/`    | Infrastructure and deployment guides                                                                                                                                               |
-| `docs/technical/`     | Technical deep-dives and ADRs (`ADR-NNNN-*.md`, see ADR-0001 for template — Status/Date/Deciders/Context/Decision/Rationale/Alternatives/Consequences/Revisit if/Risks/References) |
-| `docs/product/`       | Product requirements and roadmap                                                                                                                                                   |
-| `docs/admin/`         | Admin-specific operational docs                                                                                                                                                    |
-| `docs/client/`        | Client-facing documentation                                                                                                                                                        |
-| `docs/observability/` | Logging, redaction, caching, background tasks (canon child)                                                                                                                        |
+| Directory             | Content                                                                                                                                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/api/`           | REST API reference (endpoints, services, types)                                                                                                                                                 |
+| `docs/frontend/`      | Frontend portals (admin-portal, client-portal, REACT_STANDARDS)                                                                                                                                 |
+| `docs/architecture/`  | System design and architectural decisions                                                                                                                                                       |
+| `docs/development/`   | Developer guides, contributing, migration guides                                                                                                                                                |
+| `docs/features/`      | Feature specifications and design docs                                                                                                                                                          |
+| `docs/reports/`       | Sprint reports and session logs                                                                                                                                                                 |
+| `docs/security/`      | Security policies and audits                                                                                                                                                                    |
+| `docs/legal/`         | Legal facts register: the record of processing activities, generated inventories and their classifications                                                                                      |
+| `docs/compliance/`    | Compliance operations: `RETENTION_CALENDAR.md`, the retention window per data type and the scheduled job that enforces it                                                                       |
+| `docs/deployment/`    | Infrastructure and deployment guides                                                                                                                                                            |
+| `docs/technical/`     | Technical deep-dives and ADRs (`ADR-NNNN-*.md`, see ADR-0001 for template — Status/Date/Deciders/Context/Decision/Rationale/Alternatives/Consequences/Legal impact/Revisit if/Risks/References) |
+| `docs/product/`       | Product requirements and roadmap                                                                                                                                                                |
+| `docs/admin/`         | Admin-specific operational docs                                                                                                                                                                 |
+| `docs/client/`        | Client-facing documentation                                                                                                                                                                     |
+| `docs/observability/` | Logging, redaction, caching, background tasks (canon child)                                                                                                                                     |
 
 **Normalization Roadmap.** Cross-cutting improvements to architecture, security, DX, and operational quality are tracked in [docs/architecture/NORMALIZATION_ROADMAP.md](docs/architecture/NORMALIZATION_ROADMAP.md). Each item has a `STATUS` (PENDING / DONE) and a commit SHA on closure; consult before starting any non-feature work to avoid duplicating an in-flight item.
 

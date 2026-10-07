@@ -63,10 +63,12 @@ rules:
   specs:
     - Use Given/When/Then for scenarios.
     - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
+    - Include a "Legal impact" section naming the docs/legal/REGISTER.md section or inventory row touched (personal data, cookies and storage, OAuth scopes, subprocessors, retention, consent evidence, controller/processor role), or the answer None with a one-line reason.
   design:
     - Respect the NodeNext (backend) vs bundler (frontend) split — do not unify them.
     - Document architecture decisions with rationale; cite ADR-0017 for build/emit choices.
     - New canon-affecting decisions require an ADR (docs/technical/ADR-NNNN-*.md).
+    - Include a "Legal impact" section with the same semantics as the specs one: name the register section or inventory row touched, or None with a one-line reason.
   tasks:
     - Group by phase, hierarchical numbering; keep tasks completable in one session.
     - Honor the 400-line PR review budget; recommend chained PRs when exceeded.

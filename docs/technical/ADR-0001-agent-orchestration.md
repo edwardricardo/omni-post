@@ -104,6 +104,24 @@ rather than corrupting a caller.
 - LangGraph's engine state model must be bridged to `Result` at the adapter
   boundary (no throwing across the port).
 
+## Legal impact
+
+Every ADR states what the decision changes for the legal register (`docs/legal/REGISTER.md`), in
+this position, after Consequences. Answer each question below by naming the register section or
+inventory row the decision touches. When nothing is touched, write `None: <one-line reason>`;
+silence is not an answer.
+
+- **Personal data** stored or read: which `personal-data` inventory rows are added, changed or
+  removed.
+- **Cookies and browser storage**: which rows of the cookies and storage inventory.
+- **OAuth permissions**: which scopes, per provider.
+- **Recipients**: which subprocessors receive data, or stop receiving it.
+- **Retention and deletion**: which retention period or erasure path changes.
+- **Consent and acceptance evidence**: which acceptance record is created or changed.
+- **Controller or processor role**: whether the role for any processing changes.
+
+The section records facts for the register; it is not legal advice.
+
 ## Revisit if
 
 If LangGraph's engine-state model fights the `Result` contract or TypeScript
