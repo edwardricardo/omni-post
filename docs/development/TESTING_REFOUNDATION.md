@@ -500,7 +500,7 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-06T20:39:02Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
+**CURRENT, re-measured 2026-10-07T15:27:33Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
 stderr: of the 49 packages in `scripts/testing/toolchain-population.json` (48 direct, 1 named transitive,
 no declared-absent candidate left), 12 sit below latest mature and NOT ONE of them is unheld.**
 
@@ -580,6 +580,13 @@ and what moved it. A slice that moves the count appends its own line.
     50 → 49: the admin Storybook removal (slice `0.22`, PR D) took `@storybook/nextjs` and `webpack` out,
     neither a lag, and PR E enrolled `@storybook/react` at 10.6.0, a lag held by that row from the moment
     its 10.6.1 matured at `17:19Z`.
+21. `2026-10-07T15:27:33Z` — **12**: the hold bump took `knip` 6.38.0 → 6.39.0, the latest mature release,
+    so it left the set; the same gate with 6.38.0 injected through `--installed` measures **13** at
+    `15:22:47Z`, because 6.39.0 matured at `12:46Z` and the canon row `knip` held it until the bump. Since
+    line 20 the population and the twelve lagging packages are unchanged; only targets moved inside held
+    lags: the `vitest` family's 5.0.3 matured at `11:30Z` and `msw` 3.0.1 at `12:39Z`, each still held by
+    its row. The canon row `knip` is now the PRE-REGISTERED hold until 6.40.0 matures on
+    `2026-10-13T16:07Z`.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
@@ -702,19 +709,19 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 
 ### Repository-quality gates that run in the same workflows
 
-| dep                                            | installed | latest mature (published)                                             | documented hold (yes/no — where)                                       | CVE floor                                                                       |
-| ---------------------------------------------- | --------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `knip`                                         | 6.38.0    | **6.38.0 (2026-09-23, 10.8 d) — latest mature**; 6.39.0 is only 3.7 d | **no** lag today; **held** from `2026-10-07T12:46Z` — canon row `knip` | `smol-toml` 1.9.0 by natural resolution; its override deleted with the bump     |
-| `jscpd`                                        | 5.3.3     | 5.3.3 — **no lag** until 5.4.0 matures, `2026-10-07T18:11Z`           | **held** after `2026-10-07T18:11Z` — canon row `jscpd`, scheduled      | —                                                                               |
-| `dependency-cruiser`                           | 18.4.0    | 18.4.0 — **no lag** until 18.5.0 matures, `2026-10-07T19:18Z`         | **held** after `2026-10-07T19:18Z` — canon row, PRE-REGISTERED         | —                                                                               |
-| `secretlint`                                   | 13.0.6    | 13.0.6 — **no lag** until 13.0.7 matures, `2026-10-10T01:06Z`         | **held** after `2026-10-10T01:06Z` — canon row `secretlint`, scheduled | —                                                                               |
-| `@secretlint/secretlint-rule-preset-recommend` | 13.0.6    | 13.0.6 — same band; 13.0.7 matures `2026-10-10T01:07Z`                | **held** after then — canon row `secretlint`, with `secretlint`        | —                                                                               |
-| `size-limit`                                   | 14.1.0    | **14.1.0 (2026-09-27, 7.2 d) — latest mature**, and `latest`          | **no** — no lag; its canon row deleted with the bump                   | —                                                                               |
-| `@size-limit/preset-small-lib`                 | 14.1.0    | 14.1.0 — same band, and `latest`                                      | **no** — no lag; moves with `size-limit`, whose row was deleted        | —                                                                               |
-| `@ast-grep/cli`                                | —         | n/a — REMOVED since 2026-10-03 ([D35](#decisions-log))                | **no** — no lag, because the package is gone: nothing invoked it       | —                                                                               |
-| `lint-staged`                                  | 17.6.0    | **17.6.0 (2026-09-26, 8.0 d) — latest mature**, and `latest`          | **no** — no lag; its config validates on 17.6.0 (`--debug`)            | —                                                                               |
-| `@hey-api/openapi-ts`                          | 0.99.0    | **0.99.0 (2026-06-22, 104.0 d) — latest mature**, and `latest`        | **no** — no lag; regenerated types are byte-identical                  | `js-yaml` 4.3.2 (CVE-floor row `js-yaml`) — that row names this package's chain |
-| `@hey-api/client-fetch`                        | —         | n/a — REMOVED since 2026-10-03 ([D35](#decisions-log))                | **no** — no lag: npm-deprecated, bundled in `@hey-api/openapi-ts`      | —                                                                               |
+| dep                                            | installed | latest mature (published)                                      | documented hold (yes/no — where)                                       | CVE floor                                                                       |
+| ---------------------------------------------- | --------- | -------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `knip`                                         | 6.39.0    | 6.39.0 — **no lag** until 6.40.0 matures, `2026-10-13T16:07Z`  | **held** after `2026-10-13T16:07Z` — canon row `knip`, scheduled       | `smol-toml` 1.9.0 by natural resolution; its override deleted with the bump     |
+| `jscpd`                                        | 5.3.3     | 5.3.3 — **no lag** until 5.4.0 matures, `2026-10-07T18:11Z`    | **held** after `2026-10-07T18:11Z` — canon row `jscpd`, scheduled      | —                                                                               |
+| `dependency-cruiser`                           | 18.4.0    | 18.4.0 — **no lag** until 18.5.0 matures, `2026-10-07T19:18Z`  | **held** after `2026-10-07T19:18Z` — canon row, PRE-REGISTERED         | —                                                                               |
+| `secretlint`                                   | 13.0.6    | 13.0.6 — **no lag** until 13.0.7 matures, `2026-10-10T01:06Z`  | **held** after `2026-10-10T01:06Z` — canon row `secretlint`, scheduled | —                                                                               |
+| `@secretlint/secretlint-rule-preset-recommend` | 13.0.6    | 13.0.6 — same band; 13.0.7 matures `2026-10-10T01:07Z`         | **held** after then — canon row `secretlint`, with `secretlint`        | —                                                                               |
+| `size-limit`                                   | 14.1.0    | **14.1.0 (2026-09-27, 7.2 d) — latest mature**, and `latest`   | **no** — no lag; its canon row deleted with the bump                   | —                                                                               |
+| `@size-limit/preset-small-lib`                 | 14.1.0    | 14.1.0 — same band, and `latest`                               | **no** — no lag; moves with `size-limit`, whose row was deleted        | —                                                                               |
+| `@ast-grep/cli`                                | —         | n/a — REMOVED since 2026-10-03 ([D35](#decisions-log))         | **no** — no lag, because the package is gone: nothing invoked it       | —                                                                               |
+| `lint-staged`                                  | 17.6.0    | **17.6.0 (2026-09-26, 8.0 d) — latest mature**, and `latest`   | **no** — no lag; its config validates on 17.6.0 (`--debug`)            | —                                                                               |
+| `@hey-api/openapi-ts`                          | 0.99.0    | **0.99.0 (2026-06-22, 104.0 d) — latest mature**, and `latest` | **no** — no lag; regenerated types are byte-identical                  | `js-yaml` 4.3.2 (CVE-floor row `js-yaml`) — that row names this package's chain |
+| `@hey-api/client-fetch`                        | —         | n/a — REMOVED since 2026-10-03 ([D35](#decisions-log))         | **no** — no lag: npm-deprecated, bundled in `@hey-api/openapi-ts`      | —                                                                               |
 
 ### Load generators, and the one tool with no version to measure
 
