@@ -293,7 +293,7 @@ Defined ports: `IProviderAdapter`, `IPaymentAdapter`, `IEmailAdapter`, `ICrmAdap
 
 ### packages/shared
 
-Dependencies: date-fns 4.1.0, handlebars 4.7.9
+Dependencies: date-fns 4.1.0, handlebars 4.7.10
 
 Contains: Result types (`ok()`, `err()`), domain event definitions, CQRS primitives, saga types, shared enums, provider configuration.
 

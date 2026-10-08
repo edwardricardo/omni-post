@@ -293,7 +293,7 @@ Puertos definidos: `IProviderAdapter`, `IPaymentAdapter`, `IEmailAdapter`, `ICrm
 
 ### packages/shared
 
-Dependencias: date-fns 4.1.0, handlebars 4.7.9
+Dependencias: date-fns 4.1.0, handlebars 4.7.10
 
 Contiene: Tipos Result (`ok()`, `err()`), definiciones de eventos de dominio, primitivas CQRS, tipos de saga, enums compartidos, configuracion de proveedores.
 
