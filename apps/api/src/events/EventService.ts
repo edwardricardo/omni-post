@@ -529,7 +529,15 @@ export function createUserActionEvent(
 }
 
 /**
- * Create an analytics event
+ * @method createAnalyticsEvent
+ * @description Creates an analytics-collected event whose period is the 24 hours that end at the
+ *   collection instant.
+ * @param postId - The post the metrics belong to
+ * @param channelId - The channel the metrics were collected from
+ * @param provider - The provider that reported the metrics
+ * @param metrics - The collected metric values
+ * @returns The event, with `collectedAt` and `period.end` at one instant and `period.start` exactly
+ *   24 hours before it
  */
 export function createAnalyticsEvent(
   postId: string,
@@ -537,6 +545,9 @@ export function createAnalyticsEvent(
   provider: string,
   metrics: Record<string, unknown>
 ): EventStoreEvent {
+  // One read of the clock: separate reads for the window's ends let a millisecond boundary fall
+  // between them, and the window then measured 24 hours plus or minus one millisecond.
+  const collectedAtMs = Date.now();
   return createEventStoreEvent(
     EVENT_TYPES.ANALYTICS_COLLECTED,
     postId,
@@ -546,10 +557,10 @@ export function createAnalyticsEvent(
       channelId,
       provider,
       metrics,
-      collectedAt: new Date(),
+      collectedAt: new Date(collectedAtMs),
       period: {
-        start: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
-        end: new Date(),
+        start: new Date(collectedAtMs - 24 * 60 * 60 * 1000), // Last 24 hours
+        end: new Date(collectedAtMs),
       },
     },
     {
