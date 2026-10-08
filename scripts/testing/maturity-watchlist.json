@@ -277,6 +277,20 @@
           "note": "Reviewed 2026-10-07, the milestone day, after 1.2.2 left the 7-day buffer at 14:08Z (published 2026-09-30T14:08:09Z). Registry: 1.2.2 is latest, and nothing newer is published. OSV: nothing for 1.2.2; GHSA-68fv-2mgg-jv7q records introduced 1.0.0, fixed 1.2.2. Release notes of 1.2.2: the indexed-source-map denial-of-service fix (CVE-2026-93749, PR #79) and the CSP fix of PR #29, which probes new Function once at module load and sorts without eval when the probe fails. Upstream issues: #81 (opened 2026-10-07T09:42Z, open) reports that this probe itself raises a CSP violation in a browser bundle whose script-src forbids unsafe-eval, PR #80 (open) tests both sort paths, and #76 to #79, the advisory's own trail, are closed. Not reachable here: its four consumers, postcss 8.5.28, @tailwindcss/node 4.3.0, css-tree 3.2.1 and magicast 0.5.3, are build or server tooling, and no source of apps/client, apps/admin or packages/ui imports postcss, css-tree, magicast, jsdom, isomorphic-dompurify or source-map-js, so the probe never runs in a portal's browser bundle. Lockfile, parsed with yaml.safe_load_all: one copy, 1.2.2. Clean; the 14-day review is due 2026-10-14."
         }
       }
+    },
+    {
+      "kind": "package",
+      "name": "vite",
+      "version": "8.3.3",
+      "published": "2026-10-06T04:10:19.326Z",
+      "entered": {
+        "date": "2026-10-08",
+        "commit": "29cf002c",
+        "pr": 487,
+        "via": "the catalog CVE floor, 2.4 days after publication and about 4.5 days before the 2026-10-13T04:10Z maturity: the latest mature 8.3.2 is inside the range >=8.3.0 <=8.3.2 of GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg and GHSA-9jrq-w75r-8gcw (vitejs/vite repository advisories of 2026-10-06, not yet in OSV or the GitHub global database), and 8.3.3 is the minimal patched version; dev-only, the devDependencies of apps/admin and apps/client"
+      },
+      "milestones": { "maturity": "2026-10-13", "final": "2026-10-20" },
+      "reviews": {}
     }
   ]
 }
