@@ -175,7 +175,13 @@
         "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `vite`: 8.3.2 matures 2026-10-08T10:17Z",
         "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `vite` row"
       ],
-      "reviews": {}
+      "reviews": {
+        "due": {
+          "date": "2026-10-08",
+          "outcome": "flagged",
+          "note": "Reviewed 2026-10-08, the due day, after 8.3.2 left the 7-day buffer at 10:17Z (published 2026-10-01T10:17:44Z). Not taken: 8.3.2 is inside the range >=8.3.0 <=8.3.2 of three vitejs/vite repository advisories published 2026-10-06T14:15Z and fixed in 8.3.3, GHSA-rq7h-c2jc-7f22 (medium, a file outside server.fs.allow served when an imported file's root-relative URL is also an absolute host path), GHSA-vfpm-58rq-9qcg (medium, a ?vite-wasm-instance request skips the server.fs check and its parse error carries a file's first 4 bytes) and GHSA-9jrq-w75r-8gcw (low, cross-origin script execution when custom middleware passes the raw request URL to transformIndexHtml). At 2026-10-08T14:45Z OSV and GitHub's global endpoint answered 404 for all three and OSV listed nothing for vite 8.3.1 to 8.3.4, so pnpm audit cannot see them; the 8.3.3 release notes carry the fixes (#23653, #23655, #23656). Superseded by the CVE floor: the catalog pin moved 8.3.1 → 8.3.3, the minimal patched version, 2.4 days after its publication (2026-10-06T04:10:19Z), a deviation from the buffer recorded in the canon CVE-floor row vite. A reproduction of GHSA-rq7h-c2jc-7f22 on 8.3.1 served the host's /etc/hostname through /@fs/ with 200, and 8.3.3 answers 403. pnpm install moved only vite in the lockfile (parsed with yaml.safe_load_all: one package, 8.3.1 → 8.3.3, and the peer suffix of the snapshots that name it). The holds gate exits 0 with empty stderr at 14:58:21Z, 12 of 49 below latest mature, vite at or above latest mature. 8.3.4 is latest, published 2026-10-08T12:07:04Z, and matures 2026-10-15T12:07Z: the canon row vite pre-registers it, and the date entry hold-vite-8.3.4 schedules that bump. Flagged: the scheduled target was vulnerable."
+        }
+      }
     },
     {
       "kind": "date",
@@ -196,6 +202,17 @@
       "refs": [
         "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `knip`: 6.40.0 matures 2026-10-13T16:07Z",
         "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `knip` row"
+      ],
+      "reviews": {}
+    },
+    {
+      "kind": "date",
+      "id": "hold-vite-8.3.4",
+      "title": "Pre-registered hold due: vite 8.3.4 is mature, move the catalog pin from 8.3.3",
+      "due": "2026-10-15",
+      "refs": [
+        "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `vite`: 8.3.4 matures 2026-10-15T12:07Z; it declares postcss ^8.5.29, so the postcss catalog (8.5.28) moves with it",
+        "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `vite` row"
       ],
       "reviews": {}
     },
