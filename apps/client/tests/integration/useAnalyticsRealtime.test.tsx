@@ -1,5 +1,5 @@
 /**
- * @file useAnalyticsRealtime.integration.test.tsx
+ * @file useAnalyticsRealtime.test.tsx
  * @description Tests for the useAnalyticsRealtime SSE hook — same-origin EventSource
  *              URL + credentials, live-status flag, delta-merge into the dashboard
  *              query cache (mirrors the backend aggregation), ignoring the connected

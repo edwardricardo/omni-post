@@ -220,7 +220,7 @@ run_k6_tests() {
             --out json="$output_file" \
             --env BASE_URL="$BASE_URL" \
             --env TEST_ENV="$TEST_ENV" \
-            "$K6_DIR/scenarios/${scenario}.js" &
+            "$K6_DIR/scenarios/${scenario}.k6.js" &
         local k6_pid=$!
         CHILD_PIDS+=("$k6_pid")
         wait "$k6_pid" || status=$?

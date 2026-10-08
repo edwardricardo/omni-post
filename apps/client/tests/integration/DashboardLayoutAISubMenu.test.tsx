@@ -1,5 +1,5 @@
 /**
- * @file DashboardLayoutAISubMenu.integration.test.tsx
+ * @file DashboardLayoutAISubMenu.test.tsx
  * @description Integration tests for the dashboard sidebar's AI
  *              sub-menu: renders 6 sub-entries (Generate, Trends,
  *              Repurpose, Optimizer, Templates, AI Analytics),

@@ -1,5 +1,5 @@
 /**
- * @file TrendsPage.integration.test.tsx
+ * @file TrendsPage.test.tsx
  * @description Integration tests for the Trend Radar page: renders the
  *              hook's loading / error / empty / populated states, the
  *              provenance badge per source (PERPLEXITY_WEB /

@@ -1,5 +1,5 @@
 /**
- * @file ListeningPage.integration.test.tsx
+ * @file ListeningPage.test.tsx
  * @description Integration tests for the brand-listening dashboard: renders the
  *              Share-of-Voice summary cards + mention feed from real (MSW-served)
  *              data, the empty state, and the error state. Charts are stubbed to

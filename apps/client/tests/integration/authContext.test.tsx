@@ -1,5 +1,5 @@
 /**
- * @file authContext.integration.test.tsx
+ * @file authContext.test.tsx
  * @description Integration tests for AuthProvider and useAuthContext hook.
  * @layer infrastructure
  */

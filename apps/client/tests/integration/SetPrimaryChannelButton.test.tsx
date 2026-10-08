@@ -1,5 +1,5 @@
 /**
- * @file SetPrimaryChannelButton.integration.test.tsx
+ * @file SetPrimaryChannelButton.test.tsx
  * @description Integration tests for the inline "Set as primary" button.
  *              Verifies the disabled state when already primary, the toast
  *              feedback on success/error, and that clicking issues the right

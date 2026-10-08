@@ -1,5 +1,5 @@
 /**
- * @file apiClient.integration.test.ts
+ * @file apiClient.test.ts
  * @description Integration tests for LinkedInApiClient.
  * Requires: real LinkedIn OAuth credentials
  *

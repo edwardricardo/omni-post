@@ -1,5 +1,5 @@
 /**
- * @file RepurposePage.integration.test.tsx
+ * @file RepurposePage.test.tsx
  * @description Integration tests for the repurpose page: lists proposals from
  *              the backend, renders the empty and error states, and triggers
  *              on-demand detection with toast feedback + list refetch.

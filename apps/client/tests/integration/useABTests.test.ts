@@ -1,5 +1,5 @@
 /**
- * @file useABTests.integration.test.ts
+ * @file useABTests.test.ts
  * @description Integration tests for the useABTests hook — project-scoped A/B test
  *              list query (with optional status filter) + create / start / stop
  *              lifecycle mutations, exercised through the proxy with MSW v2.

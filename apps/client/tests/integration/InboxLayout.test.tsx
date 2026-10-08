@@ -1,5 +1,5 @@
 /**
- * @file InboxLayout.integration.test.tsx
+ * @file InboxLayout.test.tsx
  * @description Integration tests for the Social Inbox layout: surfaces the
  *              triage classification (priority, sentiment, suggested replies,
  *              CRM badge) on inbox messages, opens a conversation thread on

@@ -1,13 +1,17 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-07, the support gate unit (`workstream/support-fitness-46`, Master Plan §5.15, SUP-1)
+**As of:** 2026-10-08, the suffix unit (`workstream/phase1-u1-suffixes`, PR R1, WU-1.1) renamed the 30
+vitest files carrying `.integration.test.*` (24 client, 4 provider, 2 in `apps/api/tests/unit`) to
+`*.test.*`, leaving the suffix to the 20 node:test files under `apps/api/tests`, and the 6 k6 scenarios
+to `*.k6.js`; it moved M1 `980 + 8` → `980 + 14` (the scenarios are test-shaped now) and left M7 at `22/22`.
+Previous: the support gate unit (`workstream/support-fitness-46`, Master Plan §5.15, SUP-1)
 wired fitness #46 (`pnpm check:support` in the `dependency-consistency` job of `fitness.yml`) with its
 canon block in `CLAUDE.md` and added the CI red to the support gate row; it moved no metric (M1
 `980 + 8`, M7 `22/22`: a modified gate, the same row).
 Pending fitness reservations renumbered on 2026-10-07 after #45 and #46 landed out of the reserved
 order: WU-3.9/3.10 → #47, WU-3.13 → #48, WU-4b.7 → #49 (D24 unchanged).
-Previous: the support non-features unit (`workstream/support-sup1-nonfeatures`, Master Plan §5.15,
+Before it, the support non-features unit (`workstream/support-sup1-nonfeatures`, Master Plan §5.15,
 SUP-1) added the non-features generator `scripts/support/non-features.mjs`, registered in
 `scripts/support/run.mjs`, with its suite `apps/api/tests/unit/scripts/supportNonFeatures.test.ts`, and
 the battery step `support` (`pnpm check:support`) with its gate row; it moved M1 `979 + 8` → `980 + 8`
@@ -137,7 +141,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 980 + 8               | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR S-1c  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 980 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR R1    |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -246,7 +250,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 0     | DEF-49 | Tailwind `@source` reaches `packages/ui` in both portals, beneath PR E      | ✅     | `#444`                        | `tailwind-ui-source-fix` · 2 tests      | 2026-10-06 |
 | 0     | 0.22 E | PR E: `packages/ui` stories colocated; badge, label and avatar added        | ✅     | `#445`                        | `0-22-e-ui-stories` · 40 → 34 · 68/68   | 2026-10-06 |
 | 0     | T.4(b) | Storybook family 10.6.0 → 10.6.1, the pre-registered hold bump              | ✅     | `#447`                        | `hold-storybook-10-6-1` · 77 entries    | 2026-10-06 |
-| 1     | 1.1    | Free the `.integration` suffix; name the k6 scenarios                       | ⬜     | —                             | —                                       | —          |
+| 1     | 1.1    | Free the `.integration` suffix; name the k6 scenarios                       | ✅     | `R1`                          | `workstream/phase1-u1-suffixes` · 14    | 2026-10-08 |
 | 1     | 1.2    | Reserve the tier suffixes inside every collector                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.2b   | vitest resolves every workspace import to `src/`                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.3    | Remove double collection and the subset entrypoints                         | ⬜     | —                             | —                                       | —          |
@@ -1342,7 +1346,7 @@ false })` plus `globTestSpecifications()`, falling back to `vitest list --filesO
   argument); Playwright `test.skip(` / `test.fixme(` in any position. #32 (fitness :807-838) moves to
   Test Contracts; `CLAUDE.md:740-758` rewritten, removing the false claim "5 of 83 forbidOnly" and
   the `.todo` exemption. Precondition: demolition removes the 6 `test.skip(` in specs, the
-  `describeIf` at `authContext.integration.test.tsx:54`, `{ skip: USE_REAL_ADAPTERS }`
+  `describeIf` at `authContext.test.tsx:54`, `{ skip: USE_REAL_ADAPTERS }`
   (`providerRegistry.test.ts:386`) and the 43 `it.todo`. Red: plant (a) `test.fixme(` in a spec,
   (b) `const d = describe.skip;`, (c) `it("x", { skip: true }, …)`, (d) `{ skip: 2 }` inside a Prisma
   call — (a)–(c) exit 1, (d) green (proving it does not flag Prisma's `skip`). Dep: WU-1.10, Phase 2.
@@ -2035,7 +2039,7 @@ formula `ratchetFloor = (n) => (Math.floor(n*10) - 1) / 10` moves from
   `apps/api/tests/setup-env.ts`, `apps/workers/tests/setup-env.ts` (`../../../` at :19 →
   `findMonorepoRoot`); `defineWorkspaceVitestConfig` gains a default `setupFiles` with MSW isolation;
   the 6 per-file `setupServer` calls become `server.use(...)`; the `bypass`
-  (`useBulkScheduleParse.integration.test.tsx:56`) becomes `error` plus a handler. Red: plant
+  (`useBulkScheduleParse.test.tsx:56`) becomes `error` plus a handler. Red: plant
   `await fetch("https://example.com")` in any test → it fails naming the request → restore. CODE ~120.
   PR `refound/6-msw-core` (M1 + M2).
 - **WU-6.M3** Shared API handlers typed by OpenAPI: move

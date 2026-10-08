@@ -1,5 +1,5 @@
 /**
- * @file useTemplates.integration.test.ts
+ * @file useTemplates.test.ts
  * @description Integration tests for the useTemplates hook — project-scoped
  *              template list query + create / update / delete / duplicate
  *              mutations, exercised through the proxy with MSW v2.

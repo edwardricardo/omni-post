@@ -1,5 +1,5 @@
 /**
- * @file useTemplateVersions.integration.test.ts
+ * @file useTemplateVersions.test.ts
  * @description Integration tests for the useTemplateVersions hook — version
  *              history list (only when both ids are present) + create / restore
  *              mutations, exercised through the proxy with MSW v2.

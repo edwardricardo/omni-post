@@ -1,5 +1,5 @@
 /**
- * @file useSchedulePostViaSaga.integration.test.tsx
+ * @file useSchedulePostViaSaga.test.tsx
  * @description Integration tests for the `useSchedulePostViaSaga` mutation hook
  *              (saga `mode="schedule"` with the existing postId). Verifies
  *              the wire shape (saga endpoint + ownership lookup), the
