@@ -1,7 +1,11 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-08, the reserved-suffixes unit (`workstream/phase1-u2-reserved-suffixes`, PR R2,
+**As of:** 2026-10-08, the U5a measurement (Phase 1, WU-1.5's precondition) recorded the measured
+tier of the 98 node:test files under `apps/api/tests` outside unit/eval in the section "U5a — measured
+tier of the node:test population": integration 80, live 18, hermetic 8, 38 disagreements with the
+runner's batches. It is a data section with no file and no gate, so it moved no metric (M1
+`980 + 14`, M7 `23/23`); the 1.5 status row flips when U5 lands. Previous: the reserved-suffixes unit (`workstream/phase1-u2-reserved-suffixes`, PR R2,
 WU-1.2) reserved the tier suffixes inside the collectors: `RESERVED_TIER_EXCLUDES` in
 `packages/vitest-shared` (`*.integration.test.*`, `*.live.test.*`, `*.spec.*`, `*.k6.js`) is set by
 `defineWorkspaceVitestConfig` in its 87 configs and spread by the four app configs, `apps/admin` and
@@ -11,7 +15,7 @@ list (the lockfile adds only that workspace link), and a planted `x.integration.
 listed with its old config and not with the new one. It added the reserved-suffixes gate row, moving
 M7 `22/22` → `23/23`, and left M1 at `980 + 14`: it adds no test file, and every vitest and Playwright
 list is unchanged.
-Previous: the suffix unit (`workstream/phase1-u1-suffixes`, PR R1, WU-1.1) renamed the 30
+Before it, the suffix unit (`workstream/phase1-u1-suffixes`, PR R1, WU-1.1) renamed the 30
 vitest files carrying `.integration.test.*` (24 client, 4 provider, 2 in `apps/api/tests/unit`) to
 `*.test.*`, leaving the suffix to the 20 node:test files under `apps/api/tests`, and the 6 k6 scenarios
 to `*.k6.js`; it moved M1 `980 + 8` → `980 + 14` (the scenarios are test-shaped now) and left M7 at `22/22`.
@@ -1261,12 +1265,15 @@ installed → a new `Test Contracts` job in `fitness.yml`.
   immediately after `integration:flows` passes without `wait_for_api`. Red: without the `after()`
   that sequence fails with 429 (proving the coupling was real); with `{ timeout: 120_000 }` a planted
   `sleep(45_000)` passes under `--test-timeout=30000`, and fails without the option. CODE ~35. PR R4.
-- **WU-1.5** Rename the node:test population by MEASURED tier: run each of the 100 files (98 under
-  `apps/api/tests` outside unit/eval plus 2 under `tests/chaos`) alone, with Postgres and Redis up and
+- **WU-1.5** Rename the node:test population by MEASURED tier: run each of the 98 files (under
+  `apps/api/tests` outside unit/eval, the 2 under `tests/chaos` included; the earlier 100 double-counted
+  chaos or counted the two tracked non-test files `.disabled` and `.old`) alone, with Postgres and Redis up and
   API and workers down — passes with 0 skips → `.integration.test.ts`; otherwise → `.live.test.ts`;
   also record which pass with services down (hermetic; they feed the ledger and the experiment).
+  The measurement is the U5a section above (2026-10-08): 80 → `.integration.test.ts`, 18 →
+  `.live.test.ts`, 8 of the 80 hermetic; U5 renames by that table.
   Starting point: `run-tests.sh` puts 52 on the database and 26 in live; a grep heuristic puts 10 of
-  the 20 dark ones in live — the measurement decides. `git mv` of the 100; paths in `run-tests.sh`
+  the 20 dark ones in live — the measurement decides. `git mv` of the 98; paths in `run-tests.sh`
   (:221-445), constants in `sagaContextInvariants.static.test.ts:1638-1641`,
   `sagaLiveSuitePrecondition.static.test.ts:21`, the RLS table in `CLAUDE.md:1737`, about 28 documents
   (link check); re-key `apps/api/tests-typecheck-baseline.json` with `typecheck-tests-ratchet.mjs
@@ -1401,6 +1408,197 @@ crm-salesforce}`, `@observability/{background-scheduler,browser-logger}`, `@prov
   `--test-reporter=json` (or to the programmatic `run()` API), keeping EXACTLY the four guards
   (fail/cancel/skip/zero) and updating #31 B's pins in the same pull request; the red re-demonstrated
   for each guard. After R7/R8. CODE ~120. PR R16.
+
+### U5a — measured tier of the node:test population (2026-10-08)
+
+Data section: the measurement WU-1.5 renames by. It adds no file and no gate, so it moves no metric.
+
+**Method.** Measured on 2026-10-08T18:00Z on `main` `4c76d66a`. Population: the 98 `*.test.ts` files
+under `apps/api/tests` outside `tests/unit` and `tests/eval` (the 2 `tests/chaos` files are among
+them). Each file ran alone, the way `run-tests.sh` runs one (`node --conditions development --import
+tsx --test --test-force-exit` with the batch's concurrency and timeout, `.env.test` sourced,
+`NODE_ENV=test`, `TIER=full-integration`), with Postgres 15.19 and Redis 7 up on localhost and the
+API (:3000) and workers (:3300) down. Two channels, with identical status for all 98 files: **owner**
+(`DATABASE_URL` = the owner) and **app-role** (`DATABASE_URL` = `omnipost_app`, `MIGRATE_DATABASE_URL` =
+the owner, the split `.env.test` and CI already use). A third, **hermetic** probe ran each file under
+`unshare -n` (loopback only) with every database and Redis URL on a closed port. The owner pass ran
+three times; the four `*.flow` files ran 8 more. Redis was the native localhost one, not the one
+`.env.test` names (see DEF-63).
+
+**Tier rule as applied.** `integration` when the owner pass has 0 fail, 0 cancelled, 0 skipped and exit
+0; `live` otherwise. A file that also passes with services down is noted as hermetic (it feeds the
+ledger and the experiment; it does not change the tier).
+
+**Result.** integration 80, live 18, hermetic 8 (the 2 `chaos` files, `integration/publishing/failedWrite.smoke`,
+`planPublication`, `schemaUtils` and the three `threading.*`). The 18 `live` files all stop on the API: 11
+through a `before` hook that throws "API not reachable at http://localhost:3000" (every test
+cancelled), 7 through `t.skip("API not available")`. None of the 80 `integration` files references
+the live API, so none passes by silently skipping work. The "100" in WU-1.5 was wrong: the population is
+98; the 100 double-counts `tests/chaos` or counts the two tracked non-test files
+`tests/analytics-ml-integration.test.ts.disabled` and `tests/threading.flow.test.ts.old`.
+
+**Runner batch vs measured tier (38 disagreements).** 18 files sit in `run-tests.sh` batches that the
+runner treats as live-API and measured `integration` (the hermetic ones among them); 20 files are in no
+batch at all.
+
+- Runner batch `remaining` (10):
+  - `tests/accountLifecycle.test.ts` → integration
+  - `tests/adapters.test.ts` → integration
+  - `tests/mfa.test.ts` → integration
+  - `tests/planPublication.test.ts` → integration (hermetic)
+  - `tests/rbac.test.ts` → integration
+  - `tests/schemaUtils.test.ts` → integration (hermetic)
+  - `tests/threading.canonical.test.ts` → integration (hermetic)
+  - `tests/threading.planner.test.ts` → integration (hermetic)
+  - `tests/threading.xprovider.test.ts` → integration (hermetic)
+  - `tests/trialPeriod.test.ts` → integration
+- Runner batch `flow` (4):
+  - `tests/analytics.flow.test.ts` → integration
+  - `tests/media.flow.test.ts` → integration
+  - `tests/publish.flow.test.ts` → integration
+  - `tests/schedule.flow.test.ts` → integration
+- Runner batch `integration:flows` (4):
+  - `tests/audit.test.ts` → integration
+  - `tests/auth.test.ts` → integration
+  - `tests/cache.test.ts` → integration
+  - `tests/integration/publishing/failedWrite.smoke.test.ts` → integration (hermetic)
+- Runner batch `(none)` (20):
+  - `tests/integration/aiLocalizedRoutes.test.ts` → live
+  - `tests/integration/analyticsPremiumRoutes.test.ts` → live
+  - `tests/integration/analyticsStreamRoutes.test.ts` → live
+  - `tests/integration/auditActorPolymorphism.integration.test.ts` → integration
+  - `tests/integration/bulkScheduleMediaPath.integration.test.ts` → integration
+  - `tests/integration/bulkScheduleReconciliation.integration.test.ts` → integration
+  - `tests/integration/bulkScheduleRelayRetry.integration.test.ts` → integration
+  - `tests/integration/customerLoginMfa.integration.test.ts` → integration
+  - `tests/integration/customerLoginMfaE2e.integration.test.ts` → live
+  - `tests/integration/data-retention.integration.test.ts` → integration
+  - `tests/integration/inboxRoutes.test.ts` → live
+  - `tests/integration/mentionIngest.test.ts` → integration
+  - `tests/integration/mfaCustomer.integration.test.ts` → live
+  - `tests/integration/mfaTotpSingleUse.integration.test.ts` → integration
+  - `tests/integration/redisTokenBucketRateLimiter.test.ts` → integration
+  - `tests/integration/repurposeRoutes.test.ts` → live
+  - `tests/integration/sendReplyGuardrail.integration.test.ts` → live
+  - `tests/integration/shareOfVoice.test.ts` → integration
+  - `tests/integration/trendRadarRoutes.test.ts` → live
+  - `tests/universal-client-dashboard.integration.test.ts` → live
+
+**Flaky and nondeterministic.**
+
+- `tests/publish.flow.test.ts` passed 7 of 10 clean owner runs and `tests/schedule.flow.test.ts` 9 of 10. A failing run ends in `uncaughtException: Unable to deserialize cloned data due to invalid or
+unsupported version`, raised by the node:test runner itself on Node v24.15.0 after tests had
+  passed. Independent of services; cause not established (DEF-64). By the rule both stay `integration`.
+- `tests/providerRegistry.test.ts` collects 24 to 36 tests per run (5 or 10 suites), all skipped
+  (DEF-65).
+- `tests/cache.test.ts` timed out at 120 s only in the hermetic pass.
+- The 4 `syncEngine.*` files (`integration`) skip themselves when the services are down instead of
+  failing (6 to 11 skips each in the hermetic pass).
+
+**Per-file table** (98 rows; `FAIL f<n> c<n>` = failed and cancelled test counts; hermetic is the
+status under `unshare -n`; seconds = wall time of the owner pass, node start included).
+
+| file                                                               | owner      | app-role   | hermetic    | measured tier       | seconds | note                                                              |
+| ------------------------------------------------------------------ | ---------- | ---------- | ----------- | ------------------- | ------- | ----------------------------------------------------------------- |
+| ---                                                                | ---        | ---        | ---         | ---                 | ---     |                                                                   |
+| accountLifecycle.test.ts                                           | pass 15/15 | pass 15/15 | FAIL c15    | integration         | 1.4     |                                                                   |
+| adapters.test.ts                                                   | pass 14/14 | pass 14/14 | FAIL f7     | integration         | 1.2     |                                                                   |
+| analytics.flow.test.ts                                             | pass 12/12 | pass 12/12 | FAIL f7     | integration         | 1.2     |                                                                   |
+| audit.test.ts                                                      | pass 7/7   | pass 7/7   | FAIL f7     | integration         | 1.3     |                                                                   |
+| auth.test.ts                                                       | pass 15/15 | pass 15/15 | FAIL f7 c8  | integration         | 2.1     |                                                                   |
+| cache.test.ts                                                      | pass 27/27 | pass 27/27 | TIMEOUT     | integration         | 8.1     | hermetic pass timed out at 120 s; FLUSHDB per test                |
+| chaos/saga-step-retry-recovery.test.ts                             | pass 1/1   | pass 1/1   | pass 1/1    | integration         | 1.2     | passes with services down                                         |
+| chaos/sagaWaitAmplification.test.ts                                | pass 2/2   | pass 2/2   | pass 2/2    | integration         | 1.3     | passes with services down                                         |
+| integration/adminPasswordResetClaim.integration.test.ts            | pass 11/11 | pass 11/11 | FAIL c11    | integration         | 2.1     |                                                                   |
+| integration/adminRefreshRotationClaim.integration.test.ts          | pass 5/5   | pass 5/5   | FAIL c5     | integration         | 1.6     |                                                                   |
+| integration/aiLocalizedRoutes.test.ts                              | FAIL c6    | FAIL c6    | FAIL c6     | live                | 0.9     | before hook: API not reachable at :3000                           |
+| integration/analyticsPremiumRoutes.test.ts                         | FAIL c8    | FAIL c8    | FAIL c8     | live                | 0.9     | before hook: API not reachable at :3000                           |
+| integration/analyticsStreamRoutes.test.ts                          | FAIL c3    | FAIL c3    | FAIL c3     | live                | 0.9     | before hook: API not reachable at :3000                           |
+| integration/auditActorPolymorphism.integration.test.ts             | pass 6/6   | pass 6/6   | FAIL c6     | integration         | 1.1     |                                                                   |
+| integration/backfillAdminMfaBackupCodes.integration.test.ts        | pass 7/7   | pass 7/7   | FAIL c7     | integration         | 0.4     |                                                                   |
+| integration/bulkScheduleMediaPath.integration.test.ts              | pass 1/1   | pass 1/1   | FAIL c1     | integration         | 1.1     |                                                                   |
+| integration/bulkScheduleOutboxSmoke.test.ts                        | pass 3/3   | pass 3/3   | FAIL c3     | integration         | 1.1     |                                                                   |
+| integration/bulkScheduleReconciliation.integration.test.ts         | pass 2/2   | pass 2/2   | FAIL f2     | integration         | 1.1     |                                                                   |
+| integration/bulkScheduleRelayRetry.integration.test.ts             | pass 1/1   | pass 1/1   | FAIL c1     | integration         | 1.1     |                                                                   |
+| integration/bulkScheduling.test.ts                                 | pass 3/3   | pass 3/3   | FAIL c3     | integration         | 1.1     |                                                                   |
+| integration/campaignTenantIsolation.test.ts                        | pass 13/13 | pass 13/13 | FAIL c13    | integration         | 1.2     |                                                                   |
+| integration/channelTenantIsolation.test.ts                         | pass 19/19 | pass 19/19 | FAIL c19    | integration         | 1.4     |                                                                   |
+| integration/compositionRootTenantBinding.test.ts                   | pass 2/2   | pass 2/2   | FAIL c2     | integration         | 1.0     |                                                                   |
+| integration/consumers/workerConnection.integration.test.ts         | pass 3/3   | pass 3/3   | FAIL c2     | integration         | 0.9     |                                                                   |
+| integration/crisisRoutes.test.ts                                   | skip 10/10 | skip 10/10 | skip 10/10  | live                | 0.9     | t.skip: API not available                                         |
+| integration/customerLoginMfa.integration.test.ts                   | pass 3/3   | pass 3/3   | FAIL f3     | integration         | 2.1     |                                                                   |
+| integration/customerLoginMfaE2e.integration.test.ts                | FAIL c3    | FAIL c3    | FAIL c3     | live                | 0.9     | before hook: API not reachable at :3000                           |
+| integration/customerPasswordReset.integration.test.ts              | pass 13/13 | pass 13/13 | FAIL c13    | integration         | 2.8     |                                                                   |
+| integration/data-retention.integration.test.ts                     | pass 2/2   | pass 2/2   | FAIL c2     | integration         | 1.0     |                                                                   |
+| integration/deletionRecordDegradation.test.ts                      | pass 5/5   | pass 5/5   | FAIL f5     | integration         | 0.4     |                                                                   |
+| integration/deletionRecordRetentionFloor.test.ts                   | pass 5/5   | pass 5/5   | FAIL f5     | integration         | 0.4     |                                                                   |
+| integration/externalNotificationTenantIsolation.test.ts            | pass 10/10 | pass 10/10 | FAIL c10    | integration         | 1.3     |                                                                   |
+| integration/generatedImageTenantIsolation.test.ts                  | pass 8/8   | pass 8/8   | FAIL c8     | integration         | 1.3     |                                                                   |
+| integration/hardDeleteSerializableRace.test.ts                     | pass 2/2   | pass 2/2   | FAIL f2     | integration         | 1.4     |                                                                   |
+| integration/inboxRoutes.test.ts                                    | FAIL c5    | FAIL c5    | FAIL c5     | live                | 0.9     | before hook: API not reachable at :3000                           |
+| integration/linkRoutes.test.ts                                     | skip 12/12 | skip 12/12 | skip 12/12  | live                | 0.9     | t.skip: API not available                                         |
+| integration/mentionIngest.test.ts                                  | pass 4/4   | pass 4/4   | FAIL c4     | integration         | 0.4     |                                                                   |
+| integration/mfaBackupCodeSingleUse.integration.test.ts             | pass 4/4   | pass 4/4   | FAIL c4     | integration         | 2.0     |                                                                   |
+| integration/mfaCustomer.integration.test.ts                        | FAIL c8    | FAIL c8    | FAIL c8     | live                | 1.0     | before hook: API not reachable at :3000                           |
+| integration/mfaTotpSingleUse.integration.test.ts                   | pass 4/4   | pass 4/4   | FAIL c4     | integration         | 1.1     |                                                                   |
+| integration/outbox/OutboxRelay.integration.test.ts                 | pass 1/1   | pass 1/1   | FAIL c1     | integration         | 0.4     |                                                                   |
+| integration/post-trio-tenant-isolation.test.ts                     | pass 32/32 | pass 32/32 | FAIL f1 c31 | integration         | 3.7     |                                                                   |
+| integration/postDeleteOwnership.test.ts                            | pass 4/4   | pass 4/4   | FAIL c4     | integration         | 3.6     |                                                                   |
+| integration/postHardDeleteCascade.test.ts                          | pass 3/3   | pass 3/3   | FAIL f3     | integration         | 0.4     |                                                                   |
+| integration/postReadOwnership.test.ts                              | pass 6/6   | pass 6/6   | FAIL c6     | integration         | 3.6     |                                                                   |
+| integration/preAuthBillingTenantIsolation.test.ts                  | pass 1/1   | pass 1/1   | FAIL f1     | integration         | 0.5     |                                                                   |
+| integration/preAuthInboundWebhookTenantIsolation.test.ts           | pass 1/1   | pass 1/1   | FAIL f1     | integration         | 1.1     |                                                                   |
+| integration/preAuthIntegrationTenantIsolation.test.ts              | pass 3/3   | pass 3/3   | FAIL c3     | integration         | 1.2     |                                                                   |
+| integration/preAuthSsoTenantIsolation.test.ts                      | pass 12/12 | pass 12/12 | FAIL c12    | integration         | 1.1     |                                                                   |
+| integration/projectMemberTenantIsolation.test.ts                   | pass 7/7   | pass 7/7   | FAIL c7     | integration         | 1.1     |                                                                   |
+| integration/publishWorkerTenantIsolation.test.ts                   | pass 9/9   | pass 9/9   | FAIL c9     | integration         | 1.2     |                                                                   |
+| integration/publishing/failedWrite.smoke.test.ts                   | pass 2/2   | pass 2/2   | pass 2/2    | integration         | 5.0     | passes with services down                                         |
+| integration/recurringPostTenantIsolation.test.ts                   | pass 14/14 | pass 14/14 | FAIL c14    | integration         | 1.3     |                                                                   |
+| integration/redisTokenBucketRateLimiter.test.ts                    | pass 4/4   | pass 4/4   | FAIL f4     | integration         | 0.2     |                                                                   |
+| integration/repositories/AccountQueryRepository.test.ts            | pass 24/24 | pass 24/24 | FAIL c23    | integration         | 1.1     |                                                                   |
+| integration/repositories/AnalyticsRepository.basic.test.ts         | pass 17/17 | pass 17/17 | FAIL c16    | integration         | 0.5     |                                                                   |
+| integration/repositories/AnalyticsRepository.channel.test.ts       | pass 10/10 | pass 10/10 | FAIL c10    | integration         | 0.5     |                                                                   |
+| integration/repositories/AnalyticsRepository.timeseries.test.ts    | pass 14/14 | pass 14/14 | FAIL c14    | integration         | 0.5     |                                                                   |
+| integration/repositories/ConversionRepository.test.ts              | pass 6/6   | pass 6/6   | FAIL c6     | integration         | 1.1     |                                                                   |
+| integration/repositories/PrismaPostRepository.test.ts              | pass 22/22 | pass 22/22 | FAIL c17    | integration         | 1.2     |                                                                   |
+| integration/repositories/ProjectRepository.test.ts                 | pass 21/21 | pass 21/21 | FAIL c20    | integration         | 0.6     |                                                                   |
+| integration/repositories/UserRepository.test.ts                    | pass 39/39 | pass 39/39 | FAIL c38    | integration         | 1.2     |                                                                   |
+| integration/repositories/sagaAccountIdBackfill.integration.test.ts | pass 10/10 | pass 10/10 | FAIL f9     | integration         | 0.4     |                                                                   |
+| integration/repurposeRoutes.test.ts                                | FAIL c5    | FAIL c5    | FAIL c5     | live                | 0.9     | before hook: API not reachable at :3000                           |
+| integration/rls-tenant-isolation.test.ts                           | pass 31/31 | pass 31/31 | FAIL c31    | integration         | 0.5     |                                                                   |
+| integration/sagaCompensationRecovery.test.ts                       | pass 2/2   | pass 2/2   | FAIL c2     | integration         | 1.8     |                                                                   |
+| integration/sagaCrashRecovery.test.ts                              | pass 17/17 | pass 17/17 | FAIL c17    | integration         | 4.9     |                                                                   |
+| integration/sagaCustomerFlow.test.ts                               | FAIL c14   | FAIL c14   | FAIL c14    | live                | 1.4     | before hook: API not reachable at :3000                           |
+| integration/sagaPublishNowPromotion.test.ts                        | pass 14/14 | pass 14/14 | FAIL c14    | integration         | 2.1     |                                                                   |
+| integration/sagaTenantIsolation.test.ts                            | pass 20/20 | pass 20/20 | FAIL c20    | integration         | 1.6     |                                                                   |
+| integration/scheduledReportTenantIsolation.test.ts                 | pass 11/11 | pass 11/11 | FAIL c11    | integration         | 1.3     |                                                                   |
+| integration/security-endpoints.test.ts                             | skip 11/11 | skip 11/11 | skip 11/11  | live                | 0.9     | t.skip: API not available                                         |
+| integration/sendReplyGuardrail.integration.test.ts                 | FAIL c2    | FAIL c2    | FAIL c2     | live                | 1.0     | before hook: API not reachable at :3000                           |
+| integration/shareOfVoice.test.ts                                   | pass 4/4   | pass 4/4   | FAIL c4     | integration         | 0.4     |                                                                   |
+| integration/syncEngine/syncEngine.conflicts.test.ts                | pass 6/6   | pass 6/6   | skip 6/6    | integration         | 1.4     | self-skips without services                                       |
+| integration/syncEngine/syncEngine.init.test.ts                     | pass 10/10 | pass 10/10 | skip 10/10  | integration         | 1.4     | self-skips without services                                       |
+| integration/syncEngine/syncEngine.monitoring.test.ts               | pass 11/11 | pass 11/11 | skip 11/11  | integration         | 1.4     | self-skips without services                                       |
+| integration/syncEngine/syncEngine.sync.test.ts                     | pass 9/9   | pass 9/9   | skip 9/9    | integration         | 1.4     | self-skips without services                                       |
+| integration/tenant-composite-fk.test.ts                            | pass 18/18 | pass 18/18 | FAIL c18    | integration         | 0.4     |                                                                   |
+| integration/tenantGucTransactionBinding.test.ts                    | pass 7/7   | pass 7/7   | FAIL c6     | integration         | 1.3     |                                                                   |
+| integration/trackedLinkTenantIsolation.test.ts                     | pass 13/13 | pass 13/13 | FAIL c13    | integration         | 1.4     |                                                                   |
+| integration/trendRadarRoutes.test.ts                               | FAIL c5    | FAIL c5    | FAIL c5     | live                | 0.9     | before hook: API not reachable at :3000                           |
+| media.flow.test.ts                                                 | pass 7/7   | pass 7/7   | FAIL f5     | integration         | 1.2     |                                                                   |
+| mfa.test.ts                                                        | pass 21/21 | pass 21/21 | FAIL f18 c3 | integration         | 7.4     |                                                                   |
+| multiproject.flow.test.ts                                          | skip 20/20 | skip 20/20 | skip 20/20  | live                | 1.0     | t.skip: API not available                                         |
+| planPublication.test.ts                                            | pass 12/12 | pass 12/12 | pass 12/12  | integration         | 1.0     | passes with services down                                         |
+| production.integration.test.ts                                     | skip 25/25 | skip 25/25 | skip 25/25  | live                | 1.0     | t.skip: API not available; Workers metrics not available          |
+| providerRegistry.test.ts                                           | skip 36/36 | skip 33/33 | skip 24/24  | live                | 1.0     | 24-36 tests per run, all skipped                                  |
+| publish.flow.test.ts                                               | pass 5/5   | pass 5/5   | FAIL f5     | integration (flaky) | 1.2     | flaky 7/10 owner runs clean; runner "Unable to deserialize" crash |
+| rbac.test.ts                                                       | pass 23/23 | pass 23/23 | FAIL f8 c12 | integration         | 1.7     |                                                                   |
+| schedule.flow.test.ts                                              | pass 10/10 | pass 10/10 | FAIL f7     | integration (flaky) | 1.2     | flaky 9/10 owner runs clean; runner "Unable to deserialize" crash |
+| schemaUtils.test.ts                                                | pass 22/22 | pass 22/22 | pass 22/22  | integration         | 0.2     | passes with services down                                         |
+| security.test.ts                                                   | FAIL c18   | FAIL c18   | FAIL c18    | live                | 1.0     | before hook: no API answering at :3000                            |
+| threading.canonical.test.ts                                        | pass 10/10 | pass 10/10 | pass 10/10  | integration         | 1.1     | passes with services down                                         |
+| threading.planner.test.ts                                          | pass 15/15 | pass 15/15 | pass 15/15  | integration         | 0.8     | passes with services down                                         |
+| threading.xprovider.test.ts                                        | pass 26/26 | pass 26/26 | pass 26/26  | integration         | 1.0     | passes with services down                                         |
+| trialPeriod.test.ts                                                | pass 9/9   | pass 9/9   | FAIL c9     | integration         | 1.3     |                                                                   |
+| universal-client-dashboard.integration.test.ts                     | skip 9/9   | skip 9/9   | skip 9/9    | live                | 1.0     | t.skip: API not available; Client not available                   |
 
 ### Phase 2 — Demolition
 
