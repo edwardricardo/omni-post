@@ -32,12 +32,14 @@
  *              alias map and the standard node/forks defaults while keeping their own `include`
  *              globs, setup files, and coverage settings. Apps (`apps/api`, `apps/client`,
  *              `apps/admin`) import `findMonorepoRoot` + `buildWorkspaceAliases` directly and
- *              compose the derived workspace map with their own app-local aliases.
+ *              compose the derived workspace map with their own app-local aliases; they and
+ *              `apps/workers` spread `RESERVED_TIER_EXCLUDES` into their own `exclude`, since none
+ *              of the four goes through the factory.
  * @layer infrastructure
  */
 import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
-import { defineConfig, mergeConfig, type ViteUserConfig } from "vitest/config";
+import { configDefaults, defineConfig, mergeConfig, type ViteUserConfig } from "vitest/config";
 import type { BuiltinReporters } from "vitest/reporters";
 
 /**
@@ -124,6 +126,34 @@ export function buildWorkspaceAliases(root: string): { find: string; replacement
 }
 
 /**
+ * The test-file suffixes another collector owns, as `exclude` globs vitest must never collect.
+ * The suffix names the tier, and each tier has exactly one collector:
+ *
+ * - `*.integration.test.*`: the node:test integration tier, `apps/api/scripts/run-tests.sh`
+ *   over `apps/api/tests`.
+ * - `*.live.test.*`: reserved for the live tier of that same collector, which runs with the API
+ *   and the workers up.
+ * - `*.spec.*`: Playwright, through each portal's own config.
+ * - `*.k6.js`: k6, through the performance workflow (`performance/k6/scenarios/`).
+ *
+ * vitest's default `include` (`**\/*.{test,spec}.?(c|m)[jt]s?(x)`) matches the first three, so a
+ * config that only names its `include` still collects a file meant for another runner: it runs
+ * twice, or under the wrong environment, and a green vitest run then says nothing about the tier
+ * the file was written for. `*.k6.js` is outside that default and is reserved all the same, so an
+ * `include` that reaches `.js` files cannot pick up a load scenario.
+ *
+ * {@link defineWorkspaceVitestConfig} applies the list to every package that goes through it; the
+ * four app configs (`apps/api`, `apps/workers`, `apps/admin`, `apps/client`), which compose their
+ * own config, spread it into their `exclude` by hand.
+ */
+export const RESERVED_TIER_EXCLUDES = [
+  "**/*.integration.test.*",
+  "**/*.live.test.*",
+  "**/*.spec.*",
+  "**/*.k6.js",
+] as const;
+
+/**
  * The reporters this workspace installs, by name: the one typed source for them. vitest's own
  * `reporters` option accepts any string, so a misspelled name there type-checks and then loads
  * nothing. Every value here must instead be one of the names vitest exports as `BuiltinReporters`,
@@ -182,6 +212,11 @@ export function workspaceReporters(env: ReporterSignals = process.env): Workspac
 /**
  * Builds a Vitest config that resolves workspace specifiers to source.
  *
+ * It also sets `test.exclude` to vitest's own defaults plus {@link RESERVED_TIER_EXCLUDES}.
+ * `mergeConfig` concatenates arrays, so an override that names its own `exclude` ADDS to that
+ * list rather than replacing it: no package can hand another tier's file back to vitest by
+ * declaring exclusions of its own.
+ *
  * @param packageDir - The calling package directory (used to locate the monorepo root).
  * @param overrides - Package-specific config merged on top of the shared defaults.
  * @returns A Vitest `ViteUserConfig` with workspace source aliases applied.
@@ -205,6 +240,10 @@ export function defineWorkspaceVitestConfig(packageDir: string, overrides: ViteU
       environment: "node",
       globals: true,
       pool: "forks",
+      // Setting `exclude` replaces vitest's default list, so the defaults are spread back in
+      // first; the reserved suffixes follow, and an override's own `exclude` is appended after
+      // both by `mergeConfig`.
+      exclude: [...configDefaults.exclude, ...RESERVED_TIER_EXCLUDES],
       // Named reporters for every package, derived from the environment rather than from a flag
       // at one call site — but written ONLY when the caller named none, so a package that asks
       // for `["junit"]` gets exactly that instead of `["default", "junit"]`. Replacement, not

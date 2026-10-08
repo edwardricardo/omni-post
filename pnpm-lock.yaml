@@ -1465,6 +1465,9 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
+      '@packages/vitest-shared':
+        specifier: workspace:*
+        version: link:../../packages/vitest-shared
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

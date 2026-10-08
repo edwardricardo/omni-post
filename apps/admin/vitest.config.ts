@@ -14,7 +14,11 @@
 import path from "node:path";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
-import { buildWorkspaceAliases, findMonorepoRoot } from "@packages/vitest-shared";
+import {
+  RESERVED_TIER_EXCLUDES,
+  buildWorkspaceAliases,
+  findMonorepoRoot,
+} from "@packages/vitest-shared";
 
 const root = findMonorepoRoot(import.meta.dirname);
 
@@ -48,12 +52,16 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/unit/setup.ts"],
     globals: true,
+    // Named rather than left to vitest's default, which also matches `*.spec.*`: that suffix
+    // belongs to Playwright, and the reserved suffixes below exclude it a second time.
+    include: ["**/*.test.{ts,tsx}"],
     exclude: [
       "**/node_modules/**",
       "**/e2e/**",
       // Plain fetch scripts with no vitest syntax
       "tests/apiClient.smoke.test.ts",
       "tests/posts.flow.test.ts",
+      ...RESERVED_TIER_EXCLUDES,
     ],
   },
 });

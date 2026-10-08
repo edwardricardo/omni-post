@@ -1,21 +1,62 @@
 /**
  * @file defineWorkspaceVitestConfig.test.ts
- * @description Pins the ONE key whose merge semantics are wrong by default. `mergeConfig`
- *              concatenates arrays, so a factory that always writes `test.reporters` would hand a
- *              caller who asked for `["junit"]` the list `["default", "junit"]` — a reporter it
- *              never requested, installed silently. The factory therefore writes its own selection
- *              only when the caller named none, and these tests are what keeps that true. Both
- *              signals the selection reads are stubbed in every case, so the expected lists hold on
- *              a laptop and on a GitHub Actions runner alike.
+ * @description Pins the two array keys of the factory, whose merge semantics point in opposite
+ *              directions. `mergeConfig` concatenates arrays. For `test.reporters` that is wrong
+ *              by default: a factory that always wrote its selection would hand a caller who asked
+ *              for `["junit"]` the list `["default", "junit"]`, a reporter it never requested,
+ *              installed silently, so the factory writes its own selection only when the caller
+ *              named none. Both signals the selection reads are stubbed in every case, so the
+ *              expected lists hold on a laptop and on a GitHub Actions runner alike. For
+ *              `test.exclude` concatenation is the point: the reserved tier suffixes must survive
+ *              a caller that names its own exclusions, or a package could hand a node:test,
+ *              Playwright or k6 file to vitest by adding one glob.
  * @layer infrastructure
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { defineWorkspaceVitestConfig, workspaceReporters } from "../src/index.js";
+import { configDefaults } from "vitest/config";
+import {
+  RESERVED_TIER_EXCLUDES,
+  defineWorkspaceVitestConfig,
+  workspaceReporters,
+} from "../src/index.js";
 
 describe("defineWorkspaceVitestConfig", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  describe("RESERVED_TIER_EXCLUDES", () => {
+    it("names exactly the suffixes another collector owns", () => {
+      expect(RESERVED_TIER_EXCLUDES).toEqual([
+        "**/*.integration.test.*",
+        "**/*.live.test.*",
+        "**/*.spec.*",
+        "**/*.k6.js",
+      ]);
+    });
+  });
+
+  describe("test.exclude", () => {
+    it("yields vitest's default exclusions and every reserved suffix when the caller names none", () => {
+      const config = defineWorkspaceVitestConfig(import.meta.dirname, {
+        test: { include: ["tests/**/*.test.ts"] },
+      });
+
+      expect(config.test?.exclude).toEqual([...configDefaults.exclude, ...RESERVED_TIER_EXCLUDES]);
+    });
+
+    it("adds the caller's exclusions to the reserved suffixes instead of replacing them", () => {
+      const config = defineWorkspaceVitestConfig(import.meta.dirname, {
+        test: { include: ["tests/**/*.test.ts"], exclude: ["tests/fixtures/**"] },
+      });
+
+      expect(config.test?.exclude).toEqual([
+        ...configDefaults.exclude,
+        ...RESERVED_TIER_EXCLUDES,
+        "tests/fixtures/**",
+      ]);
+    });
   });
 
   describe("test.reporters", () => {

@@ -9,6 +9,10 @@ export default defineConfig({
   // Look for test files in the tests/e2e directory
   testDir: "./tests/e2e",
 
+  // Only the Playwright suffix. The default also matches `*.test.*`, the vitest suffix, so a
+  // unit test placed under tests/e2e would otherwise run in a browser project as well.
+  testMatch: "**/*.spec.ts",
+
   // Maximum time one test can run for
   timeout: 60 * 1000,
 
