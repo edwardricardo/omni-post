@@ -86,11 +86,11 @@ For all new HTTP-based test work in `apps/admin/tests/` y `apps/client/tests/`:
    - `afterAll(() => server.close())`
 5. **Per-test overrides** via `server.use(http.X(path, resolver))` inside the failing-case `it()` block. Reset by `afterEach` automatically.
 6. **Default handler responses** match the canon envelope `{ ok: boolean; data?: T }` (matches `BaseRouteHandler.sendSuccess` from `apps/api/src/lib/route-handler/`). Error case: `HttpResponse.json({ ok: false, error: '...' }, { status: 4xx|5xx })`.
-7. **QueryClient in tests**: keep current pattern from `useMarkMessageRead.integration.test.tsx` — `retry: false`, `staleTime: Infinity`, fresh client per test via `makeClient()` helper. Already canon-aligned per tkdodo.
+7. **QueryClient in tests**: keep current pattern from `useMarkMessageRead.test.tsx` — `retry: false`, `staleTime: Infinity`, fresh client per test via `makeClient()` helper. Already canon-aligned per tkdodo.
 
 ### Recommendation: MIGRATE — replace `vi.stubGlobal('fetch', mockFetch)` with MSW handlers when the test file has ≥3 endpoints OR is naturally being touched
 
-PR-51.A's test `useSchedulingDashboardSidebar.integration.test.tsx` currently uses `vi.stubGlobal('fetch', mockFetch)` — migration target. Demonstrates the new pattern + leaves an in-tree reference for future tests. Other existing tests using `vi.stubGlobal('fetch')` stay until each is naturally touched (no bulk rewrite — same incremental policy as the TanStack canon).
+PR-51.A's test `useSchedulingDashboardSidebar.test.tsx` currently uses `vi.stubGlobal('fetch', mockFetch)` — migration target. Demonstrates the new pattern + leaves an in-tree reference for future tests. Other existing tests using `vi.stubGlobal('fetch')` stay until each is naturally touched (no bulk rewrite — same incremental policy as the TanStack canon).
 
 ### Recommendation: AVOID
 
@@ -128,7 +128,7 @@ PR-51.A's test `useSchedulingDashboardSidebar.integration.test.tsx` currently us
   "area": "Testing · MSW + Vitest",
   "summary": "Canonical MSW v2 wiring for unit/integration tests in apps/admin and apps/client. Per-domain handler files at tests/mocks/handlers/<domain>.ts (each exports HttpHandler[]); barrel at handlers/index.ts; setupServer instance at tests/mocks/server.ts per app. Vitest setup file (tests/setup.ts wired via vitest.config.ts setupFiles) calls beforeAll(server.listen({ onUnhandledRequest: 'error' })) / afterEach(server.resetHandlers()) / afterAll(server.close()). Strict 'error' onUnhandledRequest forces every endpoint touched in tests to be declared. Per-test overrides via server.use(http.X(...)) inside individual it() blocks; reset automatically by afterEach. Handler responses match the canon envelope { ok, data } shape from BaseRouteHandler.sendSuccess. Migration target: replace vi.stubGlobal('fetch', mockFetch) when test file has ≥3 endpoints or is naturally touched (no bulk rewrite).",
   "keyTakeaway": "MSW v2 = source of truth for mocked HTTP across unit/integration/E2E. setupServer in Node mode (msw/node) + onUnhandledRequest: 'error' + per-domain handler files + vitest setup file with beforeAll/afterEach/afterAll lifecycle. Handler envelope matches { ok, data } from BaseRouteHandler. Per-test overrides via server.use() inside it(). Migrate from vi.stubGlobal('fetch') incrementally — when file is touched or has ≥3 endpoints. Each app (admin, client) has its own server.ts + handlers/* — independent.",
-  "patternAdopted": "For new test work in apps/<app>/tests/: (1) tests/mocks/handlers/<domain>.ts per-domain handler files exporting HttpHandler[] arrays. (2) tests/mocks/handlers/index.ts barrel re-exporting all domain handlers as a flat `handlers` array. (3) tests/mocks/server.ts: `import { setupServer } from 'msw/node'; import { handlers } from './handlers'; export const server = setupServer(...handlers)`. (4) tests/setup.ts: `import { beforeAll, afterEach, afterAll } from 'vitest'; import { server } from './mocks/server'; beforeAll(() => server.listen({ onUnhandledRequest: 'error' })); afterEach(() => server.resetHandlers()); afterAll(() => server.close());`. (5) vitest.config.ts: `test: { setupFiles: ['./tests/setup.ts'] }`. (6) Default handlers return canon envelope { ok: true, data: T }; error handlers return { ok: false, error, message }, { status: 4xx|5xx }. (7) Per-test scenarios via server.use(http.X(...)) inside specific it() blocks. (8) PR-51.A test (useSchedulingDashboardSidebar.integration.test.tsx) is the migration POC — replaces vi.stubGlobal('fetch') with MSW handlers in apps/client/tests/mocks/handlers/scheduling.ts.",
+  "patternAdopted": "For new test work in apps/<app>/tests/: (1) tests/mocks/handlers/<domain>.ts per-domain handler files exporting HttpHandler[] arrays. (2) tests/mocks/handlers/index.ts barrel re-exporting all domain handlers as a flat `handlers` array. (3) tests/mocks/server.ts: `import { setupServer } from 'msw/node'; import { handlers } from './handlers'; export const server = setupServer(...handlers)`. (4) tests/setup.ts: `import { beforeAll, afterEach, afterAll } from 'vitest'; import { server } from './mocks/server'; beforeAll(() => server.listen({ onUnhandledRequest: 'error' })); afterEach(() => server.resetHandlers()); afterAll(() => server.close());`. (5) vitest.config.ts: `test: { setupFiles: ['./tests/setup.ts'] }`. (6) Default handlers return canon envelope { ok: true, data: T }; error handlers return { ok: false, error, message }, { status: 4xx|5xx }. (7) Per-test scenarios via server.use(http.X(...)) inside specific it() blocks. (8) PR-51.A test (useSchedulingDashboardSidebar.test.tsx) is the migration POC — replaces vi.stubGlobal('fetch') with MSW handlers in apps/client/tests/mocks/handlers/scheduling.ts.",
   "usedIn": "Phase 2 audit-toolkit activation (2026-05-07) — MSW wiring + canon. PR-51.A test migration as POC of the pattern.",
   "date": "2026-05-07",
   "sources": [
@@ -177,12 +177,12 @@ PR-51.A's test `useSchedulingDashboardSidebar.integration.test.tsx` currently us
 
 **Files MODIFY (POC migration)**:
 
-- `apps/client/tests/integration/useSchedulingDashboardSidebar.integration.test.tsx` — remove `vi.stubGlobal('fetch', mockFetch)`, use `server.use(http.X(...))` para los casos de error/edge inside individual it() blocks. Default success case lo cubre el handler global.
+- `apps/client/tests/integration/useSchedulingDashboardSidebar.test.tsx` — remove `vi.stubGlobal('fetch', mockFetch)`, use `server.use(http.X(...))` para los casos de error/edge inside individual it() blocks. Default success case lo cubre el handler global.
 
 **Files NOT touched** (until naturally opened):
 
-- `apps/client/tests/integration/useMarkMessageRead.integration.test.tsx` — still on vi.stubGlobal. Migra cuando se toque por otra razón.
-- `apps/client/tests/integration/*.integration.test.tsx` — same.
+- `apps/client/tests/integration/useMarkMessageRead.test.tsx` — still on vi.stubGlobal. Migra cuando se toque por otra razón.
+- `apps/client/tests/integration/*.test.tsx` — same.
 - `apps/admin/tests/` — admin app no se incluye en este POC; sigue patrón propio. Same canon aplica cuando se inicie su MSW wiring.
 
 **Dependencies**:

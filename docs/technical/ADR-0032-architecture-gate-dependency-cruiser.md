@@ -249,6 +249,48 @@ decisions stand as written; these notes record where the code differs from their
   `routes-no-container`, 23 `routes-no-prisma`, 17 `routes-no-repositories`, 8
   `routes-domain-types-only` and 1 `routes-no-adapters-or-providers`.
 
+## Gate red proofs, dated
+
+The dated red and green proofs of `pnpm check:architecture`, moved out of the Red proof cell of the
+Architecture row of `### Gates` in `docs/development/TESTING_REFOUNDATION.md`, which now keeps the
+current proof only. Oldest first; each bullet is the fact as it was recorded.
+
+- **2026-10-05, resolution control.** With `packages/shared/dist/` built the command still cruises
+  7325 dependencies; a config copy without `webpackConfig` cruises 7252, the 73 `@shared/types` edges
+  that `.dependency-cruiser-resolve.cjs` keeps. The complete command then cruised 1684 modules and
+  7325 dependencies.
+- **2026-10-05, in the battery.** The `architecture` step of `scripts/testing/battery.sh`, run alone
+  via its `step` function, then `battery-state.mjs --expected-steps 1`, exits 0, GREEN, with no warning
+  line; plant (1) of the 2026-10-07 list below makes it exit 1, RED, `step architecture exit 1`.
+- **2026-10-05, layer rules hard (`PR v-b`).** The command adds `apps/workers/src` and
+  `--ignore-known`, and exits 0 with 1711 modules, 7488 dependencies and 138 known violations (77
+  `routes-no-container`, 25 `routes-no-prisma`, 17 `routes-no-repositories`, 8
+  `routes-domain-types-only`, 6 `core-application-no-infrastructure`, 5
+  `routes-no-adapters-or-providers`). Thirteen probes, one per new or changed rule, each exit 1 naming
+  it; a `TOKENS` import added to `queueRoutes.ts` (a listed rule's new violation) exits 1; deleting the
+  `@observability/logger` import of `DlqArchivalService.ts` exits 1, `1 stale known violations`;
+  `check:architecture:update-baseline` with both planted drops the stale entry, adds nothing, 138 to 137. Each file restored, `sha256sum` matching. The unanchored `reports/` exclusion, hiding
+  `apps/api/src/reports` and `packages/core/reports`, is narrowed to `reports/mutation/`.
+- **2026-10-05, `PR v-c`.** Retires `eslint-plugin-boundaries`: `pnpm lint --max-warnings 0` exits 0
+  without it.
+- **2026-10-07, the green.** `pnpm check:architecture` exits 0, `no dependency violations found (1721
+modules, 7497 dependencies cruised)`, 124 known violations ignored, 0 unresolved imports or edges
+  into a workspace `dist/`.
+- **2026-10-07, plants, on 18.4.0 and 18.5.0 alike.** (1) Two `apps/api/src` files importing each
+  other exit 1 on `no-circular` (`redProofCycleA.ts` to `redProofCycleB.ts` and back). (2)
+  `@packages/api-common` and `@adapters/cache-redis` in
+  `packages/core/application/src/hardDeletePolicy.ts` exit 2: `not-to-unresolvable` for the first,
+  `core-application-no-infrastructure` for the adapter (only its resolved-path pattern matches). (3)
+  The D43(e) plant, `@core/accounts` in
+  `packages/core/domain/src/repositories/AccountRepository.ts`, exits 7: six `no-circular` errors
+  (madge exited 0) and one `core-domain-no-application`, a rule `PR v-b` added after its 2026-10-05
+  run (exit 6), not by 18.5.0. (4) `bullmq` there exits 1 on `not-to-unresolvable` too, so a
+  layer-rule plant must resolve; (4b) a relative import of
+  `packages/adapters/cache-redis/src/index.js` exits 1 on `core-domain-no-framework`.
+- **2026-10-07, baseline reds, on 18.5.0.** A baseline short one entry exits 1 naming its rule; a
+  stale entry exits 1, `1 stale known violations`. After each plant, `sha256sum` and
+  `git status --short` match their snapshots.
+
 ## References
 
 - Alistair Cockburn, "Hexagonal architecture" — https://alistair.cockburn.us/hexagonal-architecture

@@ -122,7 +122,11 @@
 | SB-101 | same                                                                                  | R3-002                                                           | `scripts/support/non-features.mjs:103-113` (the scope-error return, which carries the classification's own problems)                        | test coverage                | implemented (SB follow-up, `workstream/support-sb-followup`)                                                                                                    |
 | SB-102 | SUP-1 non-features unit (`workstream/support-sup1-nonfeatures`, ce84d6c2)             | R3-generator-counts-whitespace-tie                               | `scripts/support/non-features.mjs:40-48` (the route rule: a path literal on any receiver)                                                   | test coverage                | implemented (SB follow-up, `workstream/support-sb-followup`)                                                                                                    |
 | SB-103 | SUP-1 non-features unit (`workstream/support-sup1-nonfeatures`, d0cedc55)             | R3-real-tree-case-nondeterministic                               | `apps/api/tests/unit/scripts/supportNonFeatures.test.ts:192-197` (the real-tree case compares the committed page)                           | test design                  | deferred: decide once, across the six suites that compare a committed page, and apply it in one pass                                                            |
-| SB-104 | dependency-cruiser 18.5.0 hold bump (`workstream/hold-cruiser-18-5`, f6554165)        | R2-testing-row-dense-run-on                                      | `docs/development/TESTING_REFOUNDATION.md:389` (the Red proof cell of the Architecture row of `### Gates`)                                  | doc structure                | deferred: a table cell takes no paragraph break and this one sits at its column's 2871-character cap; move the history to ADR-0032                              |
+| SB-104 | dependency-cruiser 18.5.0 hold bump (`workstream/hold-cruiser-18-5`, f6554165)        | R2-testing-row-dense-run-on                                      | `docs/development/TESTING_REFOUNDATION.md:389` (the Red proof cell of the Architecture row of `### Gates`)                                  | doc structure                | implemented (docs touch, `workstream/docs-touch-oct08`)                                                                                                         |
+| SB-105 | Phase 1 U2 (`workstream/phase1-u2-reserved-suffixes`, a88b8509)                       | R3-app-config-exclude-untested                                   | `apps/{api,workers,admin,client}/vitest.config.ts` (each spreads `RESERVED_TIER_EXCLUDES` by hand)                                          | test coverage                | deferred: the planted-file reds proved it at landing; the reach gate (WU-1.9, WU-1.10) counts structurally                                                      |
+| SB-106 | Phase 1 U1 (`workstream/phase1-u1-suffixes`, d75aba0f)                                | R2-stale-docstring-filename-descriptions                         | `@description` lines of the renamed `apps/client/tests/integration` suites                                                                  | docstring wording            | closed: the lines say what the suites exercise; U1 freed a collector suffix only                                                                                |
+| SB-107 | same                                                                                  | R2-doc-stale-authContext-citation                                | `docs/development/TESTING_REFOUNDATION.md` (names cited by their old suffix)                                                                | doc accuracy                 | closed: no renamed file is cited by its old name (measured with `rg -o`)                                                                                        |
+| SB-108 | Phase 1 U2 (`workstream/phase1-u2-reserved-suffixes`, a88b8509)                       | R3-spec-glob-breadth                                             | `RESERVED_TIER_EXCLUDES` (the `**/*.spec.*` glob)                                                                                           | glob breadth                 | closed: an infix `.spec.` file is never an include candidate, so the exclude cannot hit it                                                                      |
 
 ## Entries — code and prose
 
@@ -980,6 +984,35 @@
 - **Why deferred:** the case is deterministic, not flaky: it goes red only when the tree changes a candidate or the classification without the page being regenerated, and it then names the same remedy as the gate, `pnpm support:index`. Its cost is a second place that goes red for the same reason as `pnpm check:support`. It is the convention of every suite that compares a committed page, six measured with `rg` over `apps/api/tests/unit/scripts/`: the four legal inventory suites (`cookiesAndStorageInventory.test.ts:226`, `oauthScopesInventory.test.ts:302`, `personalDataInventory.test.ts:196`, `subprocessorsInventory.test.ts:190`) and both support suites (`supportIndex.test.ts:158` and this one). Changing only this suite would make it diverge from the other five.
 - **To implement:** decide once, across the six suites, whether the real-tree case keeps the page comparison or asserts only that `problems` is empty (leaving staleness to `pnpm check:legal` and `pnpm check:support`), and apply the decision in one pass.
 
+### SB-105 — no in-process assertion pins that each app config keeps the reserved globs
+
+- **Source:** the native review of Phase 1 U2 (`workstream/phase1-u2-reserved-suffixes`, `a88b8509`), reliability lens, finding `R3-app-config-exclude-untested`.
+- **Location:** `apps/{api,workers,admin,client}/vitest.config.ts`: each spreads `RESERVED_TIER_EXCLUDES` into its own `test.exclude` by hand.
+- **Suggestion:** pin, in a unit case, that each hand-spread app config keeps the reserved globs in its resolved `test.exclude`, so a config that drops the spread fails a test instead of silently collecting a reserved suite.
+- **Why deferred:** the planted-file reds of the unit proved it at landing: five plants were listed before the exclude and absent after. The reach gate (the WU-1.9 engine and the WU-1.10 `test-contracts` job) will count every file's collectors structurally, which closes the class rather than one config.
+- **To implement:** either one vitest case per app that resolves its own config and asserts `test.exclude` contains every entry of `RESERVED_TIER_EXCLUDES`, or nothing if WU-1.10 lands first.
+
+### SB-106 — the renamed client suites still describe themselves as "Integration tests for …"
+
+- **Source:** the native review of Phase 1 U1 (`workstream/phase1-u1-suffixes`, `d75aba0f`), readability lens, finding `R2-stale-docstring-filename-descriptions`.
+- **Location:** the `@description` lines of the client suites renamed from `X.integration.test.tsx` to `X.test.tsx`.
+- **Suggestion:** reword the lines, so a description does not name a suffix the file no longer carries.
+- **Why closed:** the lines describe what the suites exercise, component integration under vitest, and `apps/client/tests/integration/` stays their home. U1 freed a collector suffix; it did not change the nature of the tests.
+
+### SB-107 — the tracker may cite a renamed file by its old name
+
+- **Source:** the native review of Phase 1 U1 (`workstream/phase1-u1-suffixes`, `d75aba0f`), finding `R2-doc-stale-authContext-citation`.
+- **Location:** `docs/development/TESTING_REFOUNDATION.md`, the citations of the renamed `.integration.test.tsx` suites.
+- **Suggestion:** replace any citation of a renamed file by its old name.
+- **Why closed:** measured with `rg -o '[A-Za-z0-9_./-]+\.integration\.test\.tsx?'` over the tracker against the tree, no renamed file is cited by its old name. The three old-suffix names left are `httpSecurityPosture.integration.test.ts`, a file a later unit creates, and the planted-red examples `x.integration.test.ts` and `empty.integration.test.ts`.
+
+### SB-108 — `**/*.spec.*` also matches an infix such as `foo.spec.types.ts`
+
+- **Source:** the native review of Phase 1 U2 (`workstream/phase1-u2-reserved-suffixes`, `a88b8509`), finding `R3-spec-glob-breadth`.
+- **Location:** `RESERVED_TIER_EXCLUDES`, the `**/*.spec.*` glob.
+- **Suggestion:** narrow the glob so it cannot match an infix `.spec.` name.
+- **Why closed:** an exclude only removes files the include would otherwise collect, and vitest's include requires the suffix at the end of the name, so an infix `.spec.` file is never a candidate. The shape mirrors `**/*.integration.test.*`, which must match `.ts` and `.tsx` alike.
+
 ## Implemented
 
 | Id                                                                     | Implemented in                                       | How                                                                                                            |
@@ -1022,6 +1055,7 @@
 | SB-100                                                                 | SB follow-up                                         | the library exports `renderTable` and the Non-features section uses it; the local `table` is deleted           |
 | SB-101                                                                 | SB follow-up                                         | `runGenerators` with a missing root and a noteless non-feature prints both lines and exits 1                   |
 | SB-102                                                                 | SB follow-up                                         | `app.get("/planted"` in `lib/planted.ts` is derived as a route and refused until classified                    |
+| SB-104                                                                 | docs touch (`workstream/docs-touch-oct08`)           | the dated proofs moved to ADR-0032 §Gate red proofs, dated; the row keeps the current proof and a link         |
 
 ## Closed with a reason
 
@@ -1037,3 +1071,6 @@
 | SB-058 | `--output-type err` prints every severity and exits non-zero on errors only: a planted orphan printed a `warn` line and a `(0 errors, 1 warnings)` summary at exit 0, both read as RED by the verdict  |
 | SB-079 | #447 deleted the `storybook` hold row the finding asked to reshape, as D25 decided for the family's move to 10.6.1; no row is left to split or trim                                                    |
 | SB-093 | `apps/admin` holds no story file (0 in PR D and again on 2026-10-06), and the dropped entry excluded only a top-level `apps/admin/stories/` directory, never a colocated story                         |
+| SB-106 | the `@description` lines say what the suites exercise (component integration under vitest), not their suffix; `apps/client/tests/integration/` stays their home                                        |
+| SB-107 | measured with `rg -o` over the tracker against the tree: no renamed file is cited by its old name; the three old-suffix names left are a file a later unit creates and two planted-red examples        |
+| SB-108 | an exclude only removes files the include would collect, and the include needs the suffix at the end of the name, so an infix `.spec.` file is never a candidate                                       |
