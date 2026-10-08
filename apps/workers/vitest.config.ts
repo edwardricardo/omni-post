@@ -3,9 +3,10 @@
  * @description Vitest configuration for apps/workers unit tests.
  * @layer infrastructure
  */
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import path from "node:path";
 import { existsSync } from "node:fs";
+import { RESERVED_TIER_EXCLUDES } from "@packages/vitest-shared";
 
 function findMonorepoRoot(startDir: string): string {
   let dir = path.resolve(startDir);
@@ -60,6 +61,9 @@ export default defineConfig({
     environment: "node",
     globals: true,
     include: ["tests/**/*.test.ts"],
+    // The include also matches `*.integration.test.ts` and `*.live.test.ts`, so the reserved
+    // suffixes keep those files out; setting `exclude` replaces vitest's defaults, spread back first.
+    exclude: [...configDefaults.exclude, ...RESERVED_TIER_EXCLUDES],
     pool: "forks",
     // Loads `.env.test` from repo root before any test's transitive Zod env
     // validation kicks in.

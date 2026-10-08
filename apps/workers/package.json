@@ -54,6 +54,7 @@
     "uuid": "catalog:"
   },
   "devDependencies": {
+    "@packages/vitest-shared": "workspace:*",
     "@types/node": "catalog:",
     "cross-env": "catalog:",
     "tsx": "catalog:",

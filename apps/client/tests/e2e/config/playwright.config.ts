@@ -26,6 +26,11 @@ export default defineConfig({
   // Test directory configuration
   testDir: path.join(__dirname, "../tests"),
 
+  // Only the Playwright suffix. The default also matches `*.test.*`, the vitest suffix, so a
+  // unit test placed under the test directory would otherwise run in every browser project.
+  // A project that sets its own `testMatch` below keeps it: the project value wins.
+  testMatch: "**/*.spec.ts",
+
   // Global test settings
   timeout: 30 * 1000, // 30 seconds per test
   expect: {

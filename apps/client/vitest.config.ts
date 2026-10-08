@@ -11,7 +11,11 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
-import { buildWorkspaceAliases, findMonorepoRoot } from "@packages/vitest-shared";
+import {
+  RESERVED_TIER_EXCLUDES,
+  buildWorkspaceAliases,
+  findMonorepoRoot,
+} from "@packages/vitest-shared";
 
 const root = findMonorepoRoot(import.meta.dirname);
 
@@ -52,7 +56,10 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./lib/api/__tests__/setup.ts"],
     globals: true,
-    exclude: ["**/node_modules/**", "**/dist/**", "**/tests/e2e/**"],
+    // Named rather than left to vitest's default, which also matches `*.spec.*`: that suffix
+    // belongs to Playwright, and the reserved suffixes below exclude it a second time.
+    include: ["**/*.test.{ts,tsx}"],
+    exclude: ["**/node_modules/**", "**/dist/**", "**/tests/e2e/**", ...RESERVED_TIER_EXCLUDES],
     // Cap parallel workers (default is one per CPU). jsdom workers are heavy;
     // running the whole suite that wide OOM-collapses the memory-constrained dev
     // box. Two workers bounds peak memory while keeping some parallelism.

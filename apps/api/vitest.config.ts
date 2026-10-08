@@ -12,6 +12,7 @@
 import { defineConfig } from "vitest/config";
 import { shardedThresholdOverride } from "./vitest.coverage-thresholds.js";
 import {
+  RESERVED_TIER_EXCLUDES,
   buildWorkspaceAliases,
   findMonorepoRoot,
   workspaceReporters,
@@ -51,7 +52,9 @@ export default defineConfig({
     // late to satisfy the fail-fast env contract.
     setupFiles: ["./tests/setup-env.ts"],
     include: ["tests/unit/**/*.test.ts", "tests/eval/**/*.test.ts"],
-    exclude: ["**/node_modules/**"],
+    // The node:test tier lives under this same `tests/` tree, and `*.test.ts` matches
+    // `*.integration.test.ts`: the reserved suffixes keep its files out of this collector.
+    exclude: ["**/node_modules/**", ...RESERVED_TIER_EXCLUDES],
     pool: "forks",
     // Serialize to a single fork. Each fork loads the full monorepo module
     // graph and, under v8 coverage, accumulates raw coverage for every file it

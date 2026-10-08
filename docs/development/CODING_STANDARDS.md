@@ -176,6 +176,18 @@ The story row adds no fourth framework: it is `vitest` in browser mode, with Pla
 
 **A story passes** when that run is green for it: it renders with no page error; it writes nothing to `console.error` or `console.warn` (the console contract of `apps/client/.storybook/vitest.setup.ts`); its `play` function, when it has one, passes; and axe reports zero violations at `error` over the WCAG 2.1 A/AA tags `wcag2a`, `wcag2aa`, `wcag21a` and `wcag21aa` (`parameters.a11y` in `apps/client/.storybook/preview.tsx`). It runs in a real browser because jsdom cannot evaluate colour contrast (axe-core's README: the `color-contrast` rule is known not to work with JSDOM). A component's stories cover its meaningful states — default, disabled, loading, error, empty — not only its first render, and a state the component does not have is named as absent in the story file's header. A failing story is a defect, fixed in the same change or, if large, tracked as its own item: never skipped (`tags: ["!test"]`), never suppressed (an `a11y.test` of `todo` or `off`, or an axe rule switched off). The flow before hand-over and the gate: [REACT_STANDARDS.md](../frontend/REACT_STANDARDS.md).
 
+**The suffix picks the collector.** Every test file has exactly one runner, and its name decides which:
+
+| Suffix                  | Collector                                                   | Where it may live               |
+| ----------------------- | ----------------------------------------------------------- | ------------------------------- |
+| `*.test.ts(x)`          | the package's vitest config                                 | anywhere a vitest config covers |
+| `*.integration.test.ts` | `node:test`, through `apps/api/scripts/run-tests.sh`        | `apps/api/tests/**` only        |
+| `*.live.test.ts`        | reserved for the live tier of that same collector           | `apps/api/tests/**` only        |
+| `*.spec.ts`             | Playwright, through the `testMatch` of each portal's config | `apps/{client,admin}/**/e2e/**` |
+| `*.k6.js`               | k6, through the performance workflow                        | `performance/k6/scenarios/`     |
+
+`RESERVED_TIER_EXCLUDES` (`packages/vitest-shared`) keeps vitest off the last four: `defineWorkspaceVitestConfig` adds it to the `exclude` of every config built through it, and the four app configs (`apps/api`, `apps/workers`, `apps/admin`, `apps/client`), which compose their own config, spread it by hand. A file named for the wrong tier runs under the wrong runner, or under none.
+
 ### Backend Unit Test Pattern (Vitest)
 
 ```typescript
