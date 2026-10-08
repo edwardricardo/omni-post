@@ -1,5 +1,5 @@
 /**
- * @file useSchedulingDashboardSidebar.integration.test.tsx
+ * @file useSchedulingDashboardSidebar.test.tsx
  * @description Integration tests for `useSchedulingDashboardSidebar`.
  *              Verifies that the queryOptions factory is consumed by
  *              `useQuery`, the partial-key hierarchy works, queries are

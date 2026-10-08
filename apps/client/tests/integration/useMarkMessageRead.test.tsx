@@ -1,5 +1,5 @@
 /**
- * @file useMarkMessageRead.integration.test.tsx
+ * @file useMarkMessageRead.test.tsx
  * @description Integration tests for the inbox `useMarkMessageRead` mutation.
  *              Verifies error propagation (mutation throws when fetch returns
  *              !ok) and TanStack cache invalidation (the `["inbox"]` query

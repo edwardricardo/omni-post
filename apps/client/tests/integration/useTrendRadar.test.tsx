@@ -1,5 +1,5 @@
 /**
- * @file useTrendRadar.integration.test.tsx
+ * @file useTrendRadar.test.tsx
  * @description Integration tests for the `useTrendRadar` TanStack Query
  *              hook against MSW v2. Default handler in
  *              `tests/mocks/handlers/trendRadar.ts` serves the happy path;

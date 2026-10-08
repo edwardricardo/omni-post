@@ -1,5 +1,5 @@
 /**
- * @file useAutoSave.integration.test.ts
+ * @file useAutoSave.test.ts
  * @description Integration tests for `useAutoSave` and `usePostDraft` covering
  *              debounce + localStorage offline cache + the canonical Pattern
  *              Lazy server-persistence flow (skip empty body, POST first save,

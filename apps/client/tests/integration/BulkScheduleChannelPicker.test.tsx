@@ -1,5 +1,5 @@
 /**
- * @file BulkScheduleChannelPicker.integration.test.tsx
+ * @file BulkScheduleChannelPicker.test.tsx
  * @description Integration tests for BulkScheduleChannelPicker.
  *              Verifies: channel list rendering, multi-select, two same-provider
  *              channels selectable independently, confirm button disabled state,

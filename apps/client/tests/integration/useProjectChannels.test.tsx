@@ -1,5 +1,5 @@
 /**
- * @file useProjectChannels.integration.test.tsx
+ * @file useProjectChannels.test.tsx
  * @description Integration tests for the project-scoped channels hook module —
  *              covers the query (enabled gating, payload unwrapping, error path)
  *              and the `useSetPrimaryChannel` mutation including the canonical

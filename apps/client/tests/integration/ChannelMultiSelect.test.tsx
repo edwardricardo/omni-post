@@ -1,5 +1,5 @@
 /**
- * @file ChannelMultiSelect.integration.test.tsx
+ * @file ChannelMultiSelect.test.tsx
  * @description Integration tests for the shared ChannelMultiSelect component
  *              (lives in `packages/ui`). Verifies the smart-default pre-selection,
  *              the override (toggle on/off), the WAI-ARIA fieldset/legend

@@ -1,5 +1,5 @@
 /**
- * @file useProviders.integration.test.ts
+ * @file useProviders.test.ts
  * @description Integration tests for useProviders hook — provider fetching, config access.
  * @layer infrastructure
  */

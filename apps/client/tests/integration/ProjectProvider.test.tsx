@@ -1,5 +1,5 @@
 /**
- * @file ProjectProvider.integration.test.tsx
+ * @file ProjectProvider.test.tsx
  * @description Integration tests for `ProjectProvider`. Verifies TanStack
  *              Query integration (loading, error+refetch, empty state,
  *              localStorage persistence, account/project resolution).

@@ -1,5 +1,5 @@
 /**
- * @file EventService.integration.test.ts
+ * @file EventService.test.ts
  * @description Tests for Integration Tests
  * @layer infrastructure
  */

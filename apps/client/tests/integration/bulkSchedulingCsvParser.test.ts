@@ -1,5 +1,5 @@
 /**
- * @file bulkSchedulingCsvParser.integration.test.ts
+ * @file bulkSchedulingCsvParser.test.ts
  * @description Tests for the client-side bulk scheduling CSV parser.
  *              Validates that it converges with the shared server-side schema:
  *              same required headers, same media-type extension table,

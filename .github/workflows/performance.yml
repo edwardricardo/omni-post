@@ -221,7 +221,7 @@ jobs:
             -e API_BASE_URL=http://localhost:3000 \
             grafana/k6 run \
               --out json=/scripts/results/results.json \
-              /scripts/scenarios/${SCENARIO}.js
+              /scripts/scenarios/${SCENARIO}.k6.js
         # k6's exit code IS the threshold verdict. Swallowing it made a breached
         # p95 and a clean run report the same result, so the scenario's
         # thresholds asserted nothing.

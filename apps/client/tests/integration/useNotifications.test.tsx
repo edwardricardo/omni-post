@@ -1,5 +1,5 @@
 /**
- * @file useNotifications.integration.test.tsx
+ * @file useNotifications.test.tsx
  * @description Integration tests for the notifications hooks
  *              (`useNotificationsApi/{queries,mutations}`). Verifies
  *              that the queryOptions factory is consumed by `useQuery`,

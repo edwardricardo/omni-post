@@ -35,7 +35,7 @@
     "db:app-role": "bash scripts/db/enable-app-role-login.sh",
     "prepare": "husky",
     "perf:test": "bash performance/scripts/run-performance-tests.sh",
-    "perf:api": "k6 run performance/k6/scenarios/api-performance.js",
+    "perf:api": "k6 run performance/k6/scenarios/api-performance.k6.js",
     "perf:db": "tsx performance/database/postgres-stress.test.ts",
     "perf:memory": "tsx performance/monitoring/memory-leak-detector.ts",
     "perf:baseline": "tsx performance/scripts/baseline-capture.ts",

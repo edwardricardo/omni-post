@@ -1,5 +1,5 @@
 /**
- * @file useBulkScheduleParse.integration.test.tsx
+ * @file useBulkScheduleParse.test.tsx
  * @description Integration tests for the useBulkScheduleParse + useBulkScheduleConfirm hooks.
  *              Covers: parse success, parse error (forbidden provider column, row cap, missing header),
  *              confirm success, confirm 403 (foreign channelId), confirm error recovery.
