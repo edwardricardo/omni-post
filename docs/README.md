@@ -259,13 +259,14 @@ Results are uploaded as artifacts (30-day retention) and can be downloaded from 
 
 Located in `performance/k6/scenarios/`:
 
-| Scenario                 | Description                      |
-| ------------------------ | -------------------------------- |
-| `api-performance.js`     | General API endpoint performance |
-| `auth-flow.js`           | Authentication and session flows |
-| `posting-workflow.js`    | Post creation and publishing     |
-| `analytics-dashboard.js` | Analytics data retrieval         |
-| `stress-test.js`         | High-concurrency stress test     |
+| Scenario                     | Description                                                                              |
+| ---------------------------- | ---------------------------------------------------------------------------------------- |
+| `analytics-dashboard.k6.js`  | Analytics dashboard load: dashboard, complex and aggregation queries, export operations  |
+| `api-performance.k6.js`      | General API performance: endpoints, authentication, concurrent operations and caching    |
+| `auth-flow.k6.js`            | Authentication flows: login, token validation and MFA setup                              |
+| `posting-workflow.k6.js`     | Post creation and publishing: media upload, scheduling and bulk operations               |
+| `provider-integration.k6.js` | Provider connections: response times, rate-limit compliance, circuit breakers, publishes |
+| `user-journey.k6.js`         | End-to-end journeys for the content creator, social manager and analyst roles            |
 
 ## License
 
