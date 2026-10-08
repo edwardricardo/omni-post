@@ -291,6 +291,20 @@
       },
       "milestones": { "maturity": "2026-10-13", "final": "2026-10-20" },
       "reviews": {}
+    },
+    {
+      "kind": "package",
+      "name": "handlebars",
+      "version": "4.7.10",
+      "published": "2026-10-05T22:37:37.837Z",
+      "entered": {
+        "date": "2026-10-08",
+        "commit": "ca30b066",
+        "pr": 492,
+        "via": "the catalog CVE floor, 2.9 days after publication and about 4.1 days before the 2026-10-12T22:37Z maturity: 4.7.9 is inside the range >=4.0.0 <=4.7.9 of GHSA-8r5x-fm3f-whwj and GHSA-p8wg-vrv2-v86f (critical) and GHSA-xw65-4hp5-5hc7 (moderate), published to the GitHub global database on 2026-10-08T17:52Z, and 4.7.10 is the minimal patched version and latest; production, packages/shared BaseTemplateEngine under the API's tenant template compile route and the client preview"
+      },
+      "milestones": { "maturity": "2026-10-12", "final": "2026-10-19" },
+      "reviews": {}
     }
   ]
 }
