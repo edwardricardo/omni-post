@@ -47,6 +47,15 @@ import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { toAdminActorId, type AdminActorId } from "@core/domain/value-objects/AdminActorId.js";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
+/**
+ * Budget for every test and hook in this file, passed to each call: the runner's
+ * `--test-timeout` binds every test and every hook, and a `describe` option would neither raise
+ * that limit nor leave the suite's total duration uncapped. 120 s: each case holds a racing
+ * transaction whose own budget is 60 s and a lock wait bounded at 20 s, around a hard delete
+ * that may retry.
+ */
+const TIMING = { timeout: 120_000 } as const;
+
 /** The deleting connection. */
 let prisma: ReturnType<typeof createSeedPrismaClient>;
 /** The racing connection — a genuinely separate client, not a second call on the same one. */
@@ -134,12 +143,12 @@ describe("hard delete under a concurrent project insert (real DB, two connection
     const actor = toAdminActorId("hard-delete-race-suite");
     if (!actor.ok) throw new Error("test setup: invalid admin actor id");
     admin = actor.value;
-  });
+  }, TIMING);
 
   after(async () => {
     await prisma.$disconnect();
     await racer.$disconnect();
-  });
+  }, TIMING);
 
   beforeEach(async () => {
     const account = await prisma.account.create({
@@ -158,14 +167,14 @@ describe("hard delete under a concurrent project insert (real DB, two connection
     });
     accountId = account.id;
     await prisma.project.create({ data: { accountId, name: `pre-${randomUUID()}` } });
-  });
+  }, TIMING);
 
   afterEach(async () => {
     await prisma.deletionRecord.deleteMany({ where: { accountId } });
     await prisma.account.deleteMany({ where: { id: accountId } });
-  });
+  }, TIMING);
 
-  it("never destroys a project the tombstone snapshot did not see", async () => {
+  it("never destroys a project the tombstone snapshot did not see", TIMING, async () => {
     const useCase = composeUseCase();
     const { racedProjectId, result } = await raceAgainstAProjectInsert(() =>
       withSystemContext("integration: hard delete race", () =>
@@ -204,46 +213,50 @@ describe("hard delete under a concurrent project insert (real DB, two connection
     }
   });
 
-  it("reports an exhausted write conflict as TRANSIENT_FAILURE and a 503, from a REAL P2034", async () => {
-    // Same composition, one bound changed: a single attempt, so the conflict the retry
-    // would otherwise absorb reaches the caller. Everything else — the Serializable
-    // Unit of Work, the real repository, the real driver — is the production path, so
-    // the error being classified here is a genuine PostgreSQL serialization failure
-    // rather than an `Object.assign(new Error(), { code })` a test wrote for itself.
-    const useCase = new HardDeleteAccountUseCase(
-      new PrismaAccountRepository(prisma),
-      new PrismaUnitOfWork(prisma, ambientTenantContextProvider, HARD_DELETE_TX_OPTIONS),
-      { attempts: 1 }
-    );
+  it(
+    "reports an exhausted write conflict as TRANSIENT_FAILURE and a 503, from a REAL P2034",
+    TIMING,
+    async () => {
+      // Same composition, one bound changed: a single attempt, so the conflict the retry
+      // would otherwise absorb reaches the caller. Everything else — the Serializable
+      // Unit of Work, the real repository, the real driver — is the production path, so
+      // the error being classified here is a genuine PostgreSQL serialization failure
+      // rather than an `Object.assign(new Error(), { code })` a test wrote for itself.
+      const useCase = new HardDeleteAccountUseCase(
+        new PrismaAccountRepository(prisma),
+        new PrismaUnitOfWork(prisma, ambientTenantContextProvider, HARD_DELETE_TX_OPTIONS),
+        { attempts: 1 }
+      );
 
-    const { result } = await raceAgainstAProjectInsert(() =>
-      withSystemContext("integration: hard delete race, no retry", () =>
-        useCase.execute({
-          accountId,
-          caller: { type: "admin", adminUserId: admin, reason: "serializable race proof" },
-        })
-      )
-    );
+      const { result } = await raceAgainstAProjectInsert(() =>
+        withSystemContext("integration: hard delete race, no retry", () =>
+          useCase.execute({
+            accountId,
+            caller: { type: "admin", adminUserId: admin, reason: "serializable race proof" },
+          })
+        )
+      );
 
-    assert.ok(!result.ok, "a single attempt that loses the race must not report success");
-    assert.strictEqual(
-      result.error?.code,
-      USE_CASE_ERRORS.TRANSIENT_FAILURE,
-      `expected a serialization failure to classify as TRANSIENT_FAILURE, got ${result.error?.code}`
-    );
+      assert.ok(!result.ok, "a single attempt that loses the race must not report success");
+      assert.strictEqual(
+        result.error?.code,
+        USE_CASE_ERRORS.TRANSIENT_FAILURE,
+        `expected a serialization failure to classify as TRANSIENT_FAILURE, got ${result.error?.code}`
+      );
 
-    // And the route's mapping turns that into the retryable status, not a 500.
-    const mapped = mapHardDeleteError(
-      result.error?.code ?? "",
-      result.error?.message ?? "",
-      "account"
-    );
-    assert.strictEqual(mapped.status, 503);
+      // And the route's mapping turns that into the retryable status, not a 500.
+      const mapped = mapHardDeleteError(
+        result.error?.code ?? "",
+        result.error?.message ?? "",
+        "account"
+      );
+      assert.strictEqual(mapped.status, 503);
 
-    // Nothing was destroyed: the account and both projects survive, tombstone-free.
-    const survivingAccount = await prisma.account.findFirst({ where: { id: accountId } });
-    assert.notStrictEqual(survivingAccount, null);
-    const tombstones = await prisma.deletionRecord.findMany({ where: { accountId } });
-    assert.strictEqual(tombstones.length, 0);
-  });
+      // Nothing was destroyed: the account and both projects survive, tombstone-free.
+      const survivingAccount = await prisma.account.findFirst({ where: { id: accountId } });
+      assert.notStrictEqual(survivingAccount, null);
+      const tombstones = await prisma.deletionRecord.findMany({ where: { accountId } });
+      assert.strictEqual(tombstones.length, 0);
+    }
+  );
 });

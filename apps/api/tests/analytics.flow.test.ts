@@ -7,15 +7,27 @@ import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { setupTest, TestContext, makeFlowCleanup } from "./setup.js";
 
+/**
+ * Budget for every test and hook in this file, passed to each call: the runner's
+ * `--test-timeout` binds every test and every hook, and a `describe` option would neither raise
+ * that limit nor leave the suite's total duration uncapped. 60 s: every case finishes well under
+ * a second against real Postgres and Redis, so the budget is headroom for a cold connection or a
+ * loaded runner, not a need of the cases.
+ */
+const TIMING = { timeout: 60_000 } as const;
+
 describe("Analytics Flow", { concurrency: 1 }, () => {
   let ctx: TestContext;
   const createdAccounts: string[] = [];
   const createdProjects: string[] = [];
   const createdPosts: string[] = [];
 
-  afterEach(makeFlowCleanup(() => ctx, createdPosts, createdProjects, createdAccounts));
+  afterEach(
+    makeFlowCleanup(() => ctx, createdPosts, createdProjects, createdAccounts),
+    TIMING
+  );
 
-  it("should create account and project for analytics", async () => {
+  it("should create account and project for analytics", TIMING, async () => {
     ctx = await setupTest();
 
     const accountResult = await ctx.repo.createAccount({
@@ -45,7 +57,7 @@ describe("Analytics Flow", { concurrency: 1 }, () => {
     assert.strictEqual(projectResult.value.accountId, accountResult.value.id);
   });
 
-  it("should create post for analytics tracking", async () => {
+  it("should create post for analytics tracking", TIMING, async () => {
     ctx = await setupTest();
 
     const accountResult = await ctx.repo.createAccount({
@@ -85,7 +97,7 @@ describe("Analytics Flow", { concurrency: 1 }, () => {
     assert.strictEqual(createResult.value.body, "Test post for analytics");
   });
 
-  it("should list analytics data", async () => {
+  it("should list analytics data", TIMING, async () => {
     ctx = await setupTest();
 
     const analyticsQuery = { limit: 10 };
@@ -98,7 +110,7 @@ describe("Analytics Flow", { concurrency: 1 }, () => {
     assert.ok(Array.isArray(analyticsResult.value), "Analytics result should be an array");
   });
 
-  it("should verify post exists for analytics tracking", async () => {
+  it("should verify post exists for analytics tracking", TIMING, async () => {
     ctx = await setupTest();
 
     const accountResult = await ctx.repo.createAccount({
@@ -138,7 +150,7 @@ describe("Analytics Flow", { concurrency: 1 }, () => {
     assert.strictEqual(retrieveResult.value.id, postId);
   });
 
-  it("should validate analytics data structure", async () => {
+  it("should validate analytics data structure", TIMING, async () => {
     ctx = await setupTest();
 
     const accountResult = await ctx.repo.createAccount({
@@ -190,7 +202,7 @@ describe("Analytics Flow", { concurrency: 1 }, () => {
     assert.strictEqual(mockAnalytics.shares, 2);
   });
 
-  it("should handle analytics listing with custom limits", async () => {
+  it("should handle analytics listing with custom limits", TIMING, async () => {
     ctx = await setupTest();
 
     // Test different limit values
@@ -203,7 +215,7 @@ describe("Analytics Flow", { concurrency: 1 }, () => {
     assert.ok(analyticsResult2.value.length <= 20);
   });
 
-  it("should validate analytics metrics types", async () => {
+  it("should validate analytics metrics types", TIMING, async () => {
     ctx = await setupTest();
 
     const mockAnalytics = {
@@ -233,7 +245,7 @@ describe("Analytics Flow", { concurrency: 1 }, () => {
     assert.ok(mockAnalytics.shares >= 0);
   });
 
-  it("should handle analytics for multiple providers", async () => {
+  it("should handle analytics for multiple providers", TIMING, async () => {
     ctx = await setupTest();
 
     const providers = ["X", "Instagram", "Facebook", "LinkedIn"] as const;
@@ -255,7 +267,7 @@ describe("Analytics Flow", { concurrency: 1 }, () => {
     }
   });
 
-  it("should handle zero analytics metrics", async () => {
+  it("should handle zero analytics metrics", TIMING, async () => {
     ctx = await setupTest();
 
     const mockAnalytics = {
@@ -275,7 +287,7 @@ describe("Analytics Flow", { concurrency: 1 }, () => {
     assert.strictEqual(mockAnalytics.shares, 0);
   });
 
-  it("should complete full analytics workflow", async () => {
+  it("should complete full analytics workflow", TIMING, async () => {
     ctx = await setupTest();
 
     // Create account
@@ -335,7 +347,7 @@ describe("Analytics Flow", { concurrency: 1 }, () => {
     assert.ok(retrieveResult.value.id === postId);
   });
 
-  it("should handle analytics retrieval errors gracefully", async () => {
+  it("should handle analytics retrieval errors gracefully", TIMING, async () => {
     ctx = await setupTest();
 
     // Try to get analytics for non-existent post
@@ -345,7 +357,7 @@ describe("Analytics Flow", { concurrency: 1 }, () => {
     assert.ok(!retrieveResult.ok, "Expected post retrieval to fail with invalid ID");
   });
 
-  it("should validate engagement rate calculations", async () => {
+  it("should validate engagement rate calculations", TIMING, async () => {
     ctx = await setupTest();
 
     const mockAnalytics = {

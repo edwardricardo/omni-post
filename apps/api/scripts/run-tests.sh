@@ -64,6 +64,9 @@ run_batch() {
   local name="$1"
   shift
   local concurrency="${CONCURRENCY:-4}"
+  # The per-test budget node:test applies to every test and hook. It is the only time
+  # bound a batch has; a suite that needs longer passes `{ timeout }` to its own tests
+  # and hooks, which overrides it (a `describe` option does not).
   local timeout="${TIMEOUT:-30000}"
 
   local extra_flags="${EXTRA_FLAGS:-}"
@@ -242,7 +245,7 @@ CONCURRENCY=1 run_batch "integration:retention" \
 # on a row lock while polling `pg_blocking_pids`. Sharing a batch would let a sibling
 # suite's lock wait satisfy that poll, and the interleaving the proof depends on would
 # stop being the one under test. CONCURRENCY=1 is not optional here.
-CONCURRENCY=1 TIMEOUT=120000 run_batch "integration:hard-delete-race" \
+CONCURRENCY=1 run_batch "integration:hard-delete-race" \
   tests/integration/hardDeleteSerializableRace.test.ts
 
 CONCURRENCY=1 run_batch "integration:sync" \
@@ -327,13 +330,13 @@ CONCURRENCY=1 run_batch "integration:admin-single-use-claims" \
 # Saga recovery + promotion proofs. DB-only by dependency (Postgres + Redis; the
 # crash suite also owns a real BullMQ queue and worker), so they belong to the
 # tier that also runs on pull requests — a merge-blocking gate that only ran
-# after the merge would gate nothing. The raised timeout is for the CRASH suite,
-# which drives a real queue round trip and walks a retry envelope; the
-# compensation and promotion suites are quick but share the batch because all
+# after the merge would gate nothing. The crash suite, which drives a real queue
+# round trip and walks a retry envelope, is the slow one; the compensation and
+# promotion suites are quick. The three share one batch because all
 # three boot real managers, and a boot loads and dispatches every non-terminal
 # row in the table — running them in one serialized batch is what keeps that
 # from being three suites executing each other's sagas.
-CONCURRENCY=1 TIMEOUT=120000 run_batch "integration:saga-recovery" \
+CONCURRENCY=1 run_batch "integration:saga-recovery" \
   tests/integration/sagaCrashRecovery.test.ts \
   tests/integration/sagaCompensationRecovery.test.ts \
   tests/integration/sagaPublishNowPromotion.test.ts
@@ -390,15 +393,13 @@ assert_publish_consumers() {
 }
 assert_publish_consumers
 
-# Saga customer flow against the live API. Its own batch because the file's
-# worst case is ~110s+ (one 60s horizon plus one 90s horizon plus the short
-# tests) and the default 30000 test timeout would cancel them. Listed here to
-# close a blind spot: this suite existed on disk but belonged to no batch, so
-# `test:all` never ran it.
-CONCURRENCY=1 TIMEOUT=180000 run_batch "integration:saga-live" \
+# Saga customer flow against the live API. Listed here to close a blind spot:
+# this suite existed on disk but belonged to no batch, so `test:all` never ran
+# it.
+CONCURRENCY=1 run_batch "integration:saga-live" \
   tests/integration/sagaCustomerFlow.test.ts
 
-CONCURRENCY=1 TIMEOUT=60000 run_batch "flow" \
+CONCURRENCY=1 run_batch "flow" \
   tests/publish.flow.test.ts tests/analytics.flow.test.ts tests/media.flow.test.ts tests/schedule.flow.test.ts
 
 CONCURRENCY=1 run_batch "remaining" \
@@ -409,10 +410,11 @@ CONCURRENCY=1 run_batch "remaining" \
   tests/schemaUtils.test.ts
 
 # The rate-limiting suite in `integration:flows` deliberately exhausts the
-# /health window, so the last live batch has to wait for it to reopen. That
-# batch asserts on real response bodies: run it against a still-limited API and
-# every assertion fails on a 429 body, which reads as a broken API rather than
-# as a window that never reopened.
+# /health window and waits in its own `after()` for it to reopen; this check
+# confirms /health answers 200 again before the last live batch. That batch
+# asserts on real response bodies: run it against a still-limited API and every
+# assertion fails on a 429 body, which reads as a broken API rather than as a
+# window that never reopened.
 API_READY_MAX_ATTEMPTS=30
 API_READY_INTERVAL_S=2
 

@@ -3,9 +3,10 @@
  * @description Tests for Security Features
  * @layer infrastructure
  */
-import { describe, it, before } from "node:test";
+import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { signCustomerAccessToken } from "../src/auth/customerJwt.js";
+import { parseRetryAfterMs } from "../src/lib/retry/retryAfter.js";
 import { checkApiAvailable, getBaseUrl } from "./testUtils.js";
 
 /**
@@ -43,6 +44,87 @@ async function sleep(ms: number): Promise<void> {
   });
 }
 
+/** Longest the rate-limiting block waits for `/health` to answer 200 again. */
+const WINDOW_REOPEN_CAP_MS = 90_000;
+/** How long past the limiter's announced reopening `/health` may still refuse. */
+const WINDOW_REOPEN_SLACK_MS = 5_000;
+/** Pause between two `/health` polls while the window is still closed. */
+const WINDOW_POLL_INTERVAL_MS = 250;
+/** Bound on one poll, so an API that hangs cannot hold the wait past its deadline. */
+const WINDOW_POLL_REQUEST_MS = 5_000;
+/** Hook budget above the cap: the last poll may start at the deadline and run its own bound. */
+const WINDOW_HOOK_MARGIN_MS = 15_000;
+/** How far behind now a reset instant may sit and still read as the clock of the same host. */
+const RESET_CLOCK_TOLERANCE_MS = 1_000;
+
+/**
+ * The instant a limited response says the window reopens: `X-RateLimit-Reset` (epoch
+ * milliseconds of a full bucket) when present, else `Retry-After`, else nothing. A reset
+ * header that is not an epoch-milliseconds instant inside the next cap throws: read in
+ * another unit it would collapse the wait into one poll, so a changed header contract
+ * fails here, naming the value, instead of quietly handing the next caller an empty bucket.
+ */
+function announcedReopening(response: Response): number | undefined {
+  const resetHeader = response.headers.get("X-RateLimit-Reset");
+  if (resetHeader !== null) {
+    const resetAtMs = Number(resetHeader);
+    const now = Date.now();
+    if (
+      !Number.isFinite(resetAtMs) ||
+      resetAtMs < now - RESET_CLOCK_TOLERANCE_MS ||
+      resetAtMs > now + WINDOW_REOPEN_CAP_MS
+    ) {
+      throw new Error(
+        `X-RateLimit-Reset "${resetHeader}" is not an epoch-milliseconds instant within ` +
+          `${WINDOW_REOPEN_CAP_MS / 1000} s of now; the rate-limit window wait cannot read it.`
+      );
+    }
+    return resetAtMs;
+  }
+  const retryAfterMs = parseRetryAfterMs(response.headers.get("Retry-After"));
+  return retryAfterMs === null ? undefined : Date.now() + retryAfterMs;
+}
+
+/**
+ * Waits for the announced reopening, then polls `/health` until it answers 200, and throws
+ * naming the last answer once the reopening plus slack has passed. With no announcement the
+ * window was never closed, so polling starts at once and only the cap bounds it.
+ */
+async function waitForHealthWindow(announcedReopenAtMs: number | undefined): Promise<void> {
+  const startedAt = Date.now();
+  const capAt = startedAt + WINDOW_REOPEN_CAP_MS;
+  const reopenAt =
+    announcedReopenAtMs === undefined ? startedAt : Math.min(announcedReopenAtMs, capAt);
+  const deadline =
+    announcedReopenAtMs === undefined
+      ? capAt
+      : Math.min(announcedReopenAtMs + WINDOW_REOPEN_SLACK_MS, capAt);
+  // A poll that gets 200 spends the permit it found, so polling while the bucket refills would
+  // hand the next caller an empty one: nothing polls before the announced reopening.
+  await sleep(Math.max(0, reopenAt - Date.now()));
+  let lastAnswer = "no answer";
+  for (;;) {
+    try {
+      const response = await fetch(`${BASE_URL}/health`, {
+        signal: AbortSignal.timeout(WINDOW_POLL_REQUEST_MS),
+      });
+      await response.body?.cancel();
+      if (response.status === 200) return;
+      lastAnswer = `HTTP ${response.status}`;
+    } catch (error: unknown) {
+      lastAnswer = error instanceof Error ? error.message : String(error);
+    }
+    if (Date.now() >= deadline) {
+      const waitedS = Math.ceil(Math.max(0, deadline - startedAt) / 1000);
+      throw new Error(
+        `The /health rate-limit window did not reopen within ${waitedS} s: ` +
+          `the last poll got ${lastAnswer}.`
+      );
+    }
+    await sleep(WINDOW_POLL_INTERVAL_MS);
+  }
+}
+
 describe("Security Features", { concurrency: 1 }, () => {
   // Fail loud, naming the missing thing. Skipping instead left every case in
   // this suite reported as "passing" while none of them had ever executed, which
@@ -61,12 +143,34 @@ describe("Security Features", { concurrency: 1 }, () => {
   });
 
   describe("Advanced Rate Limiting", { concurrency: 1 }, () => {
+    // Measured: the limiter keys a token bucket by client IP and exact URL, so the burst drains
+    // only `/health`, the bucket every later `/health` caller shares; `X-RateLimit-Reset` is the
+    // epoch milliseconds of a full bucket, `Retry-After` whole seconds until a single permit.
+    let announcedReopenAtMs: number | undefined;
+
+    /** Keeps the latest reopening a limited `/health` response announced. */
+    function noteLimited(response: Response): void {
+      if (response.status !== 429) return;
+      const reopenAtMs = announcedReopening(response);
+      if (reopenAtMs !== undefined && reopenAtMs > (announcedReopenAtMs ?? 0)) {
+        announcedReopenAtMs = reopenAtMs;
+      }
+    }
+
+    // The burst leaves `/health` refusing whoever calls it next, so the block waits for the
+    // window it closed to reopen rather than leaving that wait to a later suite or the runner.
+    // Its own budget sits above the cap: the default per-hook budget would cut the wait short.
+    after(() => waitForHealthWindow(announcedReopenAtMs), {
+      timeout: WINDOW_REOPEN_CAP_MS + WINDOW_HOOK_MARGIN_MS,
+    });
+
     it("should accept requests within rate limit", async () => {
       // Send a small batch of requests with delay to test rate limiting behavior.
       // If rate limit is already exhausted (from previous tests), we accept 429 too.
       const responses: Response[] = [];
       for (let i = 0; i < 5; i++) {
         const response = await fetch(`${BASE_URL}/health`);
+        noteLimited(response);
         responses.push(response);
         await sleep(100);
       }
@@ -88,6 +192,7 @@ describe("Security Features", { concurrency: 1 }, () => {
           batchPromises.push(fetch(`${BASE_URL}/health`));
         }
         const batchResponses = await Promise.all(batchPromises);
+        batchResponses.forEach(noteLimited);
         responses.push(...batchResponses);
 
         if (batch < totalRequests / batchSize - 1) {
@@ -105,6 +210,7 @@ describe("Security Features", { concurrency: 1 }, () => {
 
     it("should include rate limit headers in responses", async () => {
       const response = await fetch(`${BASE_URL}/health`);
+      noteLimited(response);
 
       const hasRemainingHeader = response.headers.has("X-RateLimit-Remaining");
       const hasResetHeader = response.headers.has("X-RateLimit-Reset");
