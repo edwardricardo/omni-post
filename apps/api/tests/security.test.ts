@@ -143,7 +143,7 @@ describe("Security Features", { concurrency: 1 }, () => {
   });
 
   describe("Advanced Rate Limiting", { concurrency: 1 }, () => {
-    // Measured: the limiter keys a token bucket by client IP and exact URL, so the burst drains
+    // Measured: the limiter keys a token bucket by client IP and resource path, so the burst drains
     // only `/health`, the bucket every later `/health` caller shares; `X-RateLimit-Reset` is the
     // epoch milliseconds of a full bucket, `Retry-After` whole seconds until a single permit.
     let announcedReopenAtMs: number | undefined;

@@ -2,9 +2,9 @@
  * @file httpRateLimitPreHandler.ts
  * @description Fastify preHandler that enforces inbound HTTP rate limiting
  *              through the technology-free `RateLimiterPort` (token bucket).
- *              Holds the per-path rule table, matches a request URL to its
- *              rule (first `startsWith` match wins, else the default), keys the
- *              bucket by client IP + URL, and translates the port decision into
+ *              Holds the per-path rule table, matches the route pattern to its
+ *              rule (first `startsWith` wins, else the default), keys the bucket
+ *              by client IP + resource path, and translates the port decision into
  *              `X-RateLimit-*` headers + a 429 with `Retry-After`. The port
  *              stays framework-free; this module is the Fastify adapter.
  *              Fail-open: a limiter error lets the request through.
@@ -114,34 +114,103 @@ export interface HttpRateLimitOptions {
   readonly rules: readonly HttpRateLimitRule[];
 }
 
+/** The rule input and key of a request no route matched. Every registered
+ *  pattern begins with `/`, so it cannot collide with one, and every unmatched
+ *  URL from one IP shares its bucket: a 404 is the cheapest request to vary. */
+const UNROUTED = "!unrouted";
+
+/** A route pattern's named parameter (`:id`) or its wildcard tail (`*`). */
+const ROUTE_PARAM = /:(\w+)|\*/g;
+
+/**
+ * @function resourcePath
+ * @description Rebuilds the path a request names from its matched route pattern
+ *   and the parameter values Fastify parsed for it, so every spelling the router
+ *   resolves to one resource yields one string. A parameter without a scalar
+ *   value keeps its token, which widens the key to the route, never narrows it.
+ * @param pattern - The matched route pattern (`req.routeOptions.url`).
+ * @param params - The parsed route parameters (`req.params`).
+ * @returns The pattern with each parameter replaced by its parsed value.
+ */
+function resourcePath(pattern: string, params: unknown): string {
+  const values: Readonly<Record<string, unknown>> =
+    typeof params === "object" && params !== null ? (params as Record<string, unknown>) : {};
+  return pattern.replace(ROUTE_PARAM, (token: string, name: string | undefined) => {
+    const value = values[name ?? "*"];
+    return typeof value === "string" || typeof value === "number" ? String(value) : token;
+  });
+}
+
 function findConfig(
-  url: string,
+  route: string,
   rules: readonly HttpRateLimitRule[],
   defaultConfig: RateLimitConfig
 ): RateLimitConfig {
   for (const rule of rules) {
-    if (url.startsWith(rule.path)) return rule.config;
+    if (route.startsWith(rule.path)) return rule.config;
   }
   return defaultConfig;
 }
 
 type PreHandler = (req: FastifyRequest, reply: FastifyReply) => Promise<unknown>;
 
+/** The bucket one request is charged to: its key and the capacity/window it carries. */
+interface RateLimitBucket {
+  readonly key: string;
+  readonly config: RateLimitConfig;
+}
+
 /**
- * @function createHttpRateLimitPreHandler
- * @description Builds a Fastify preHandler bound to a `RateLimiterPort` and a
- *   rule table. Each request consumes one permit from a `ip:url`-keyed bucket
- *   whose capacity/window come from the matched rule.
+ * @function createBucketPreHandler
+ * @description Builds the preHandler both public factories share: it charges one
+ *   permit to the bucket `bucketFor` derives, emits the `X-RateLimit-*` headers,
+ *   and answers a denial with a 429 carrying `Retry-After`. The bucket is derived
+ *   inside the guarded block, so an error deriving it fails open like a limiter
+ *   error does.
  * @param rateLimiter - The injected token-bucket port (HTTP-scoped instance).
- * @param options - Default config + ordered rule table.
+ * @param bucketFor - Derives the bucket a request is charged to.
  * @returns A Fastify preHandler hook.
  */
+function createBucketPreHandler(
+  rateLimiter: RateLimiterPort,
+  bucketFor: (req: FastifyRequest) => RateLimitBucket
+): PreHandler {
+  return async (req: FastifyRequest, reply: FastifyReply): Promise<unknown> => {
+    try {
+      const { key, config } = bucketFor(req);
+      const decision = await rateLimiter.tryConsume(key, {
+        capacity: config.maxRequests,
+        refillWindowMs: config.windowMs,
+      });
+
+      reply.header("X-RateLimit-Remaining", decision.remaining.toString());
+      reply.header("X-RateLimit-Reset", decision.resetAtMs.toString());
+
+      if (!decision.allowed) {
+        reply.header("Retry-After", Math.ceil((decision.retryAfterMs ?? 0) / 1000).toString());
+        reply.code(429);
+        return reply.send({
+          ok: false,
+          error: "RATE_LIMIT_EXCEEDED",
+          message: "Too many requests. Please try again later.",
+          retryAfter: new Date(decision.resetAtMs).toISOString(),
+        });
+      }
+      return undefined;
+    } catch (error: unknown) {
+      // Fail-open: a limiter outage must not block traffic.
+      logger.error({ err: error }, "Rate limiting error");
+      return undefined;
+    }
+  };
+}
+
 /**
  * @function createNamespacedRateLimitPreHandler
  * @description Builds a Fastify preHandler that keys the bucket by a FIXED
  *   namespace + client IP — deliberately IGNORING the request URL. Unlike the
- *   per-path limiter (which keys by `ip:url`), this shares one bucket across
- *   every URL under the namespace, so a path whose final segment is a
+ *   per-path limiter (which keys by `ip:<resource path>`), this shares one bucket
+ *   across every URL under the namespace, so a path whose final segment is a
  *   caller-controlled identifier (e.g. the public redirect `/r/:shortCode`)
  *   cannot be enumerated one fresh bucket per guessed value. This is the
  *   mandatory anti-enumeration control for the capability-URL redirect
@@ -157,68 +226,36 @@ export function createNamespacedRateLimitPreHandler(
   namespace: string,
   config: RateLimitConfig
 ): PreHandler {
-  return async (req: FastifyRequest, reply: FastifyReply): Promise<unknown> => {
-    try {
-      const key = `${namespace}:${resolveClientIp(req)}`;
-      const decision = await rateLimiter.tryConsume(key, {
-        capacity: config.maxRequests,
-        refillWindowMs: config.windowMs,
-      });
-
-      reply.header("X-RateLimit-Remaining", decision.remaining.toString());
-      reply.header("X-RateLimit-Reset", decision.resetAtMs.toString());
-
-      if (!decision.allowed) {
-        reply.header("Retry-After", Math.ceil((decision.retryAfterMs ?? 0) / 1000).toString());
-        reply.code(429);
-        return reply.send({
-          ok: false,
-          error: "RATE_LIMIT_EXCEEDED",
-          message: "Too many requests. Please try again later.",
-          retryAfter: new Date(decision.resetAtMs).toISOString(),
-        });
-      }
-      return undefined;
-    } catch (error: unknown) {
-      // Fail-open: a limiter outage must not block traffic.
-      logger.error({ err: error }, "Rate limiting error");
-      return undefined;
-    }
-  };
+  return createBucketPreHandler(rateLimiter, (req) => ({
+    key: `${namespace}:${resolveClientIp(req)}`,
+    config,
+  }));
 }
 
+/**
+ * @function createHttpRateLimitPreHandler
+ * @description Builds a Fastify preHandler bound to a `RateLimiterPort` and a
+ *   rule table. Each request consumes one permit from an `ip:<resource path>`
+ *   bucket whose capacity/window come from the rule its route pattern matches.
+ *   Measured: a query string, fragment, percent-encoding or absolute-form target
+ *   reaches one handler under many `req.url`s, so neither input reads `req.url`;
+ *   the key keeps the resource because a pattern-only key put every saga's
+ *   status polling (`GET /sagas/:sagaId`) in one bucket and 429'd it.
+ * @param rateLimiter - The injected token-bucket port (HTTP-scoped instance).
+ * @param options - Default config + ordered rule table.
+ * @returns A Fastify preHandler hook.
+ */
 export function createHttpRateLimitPreHandler(
   rateLimiter: RateLimiterPort,
   options: HttpRateLimitOptions
 ): PreHandler {
   const { defaultConfig, rules } = options;
-  return async (req: FastifyRequest, reply: FastifyReply): Promise<unknown> => {
-    try {
-      const config = findConfig(req.url, rules, defaultConfig);
-      const key = `${resolveClientIp(req)}:${req.url}`;
-      const decision = await rateLimiter.tryConsume(key, {
-        capacity: config.maxRequests,
-        refillWindowMs: config.windowMs,
-      });
-
-      reply.header("X-RateLimit-Remaining", decision.remaining.toString());
-      reply.header("X-RateLimit-Reset", decision.resetAtMs.toString());
-
-      if (!decision.allowed) {
-        reply.header("Retry-After", Math.ceil((decision.retryAfterMs ?? 0) / 1000).toString());
-        reply.code(429);
-        return reply.send({
-          ok: false,
-          error: "RATE_LIMIT_EXCEEDED",
-          message: "Too many requests. Please try again later.",
-          retryAfter: new Date(decision.resetAtMs).toISOString(),
-        });
-      }
-      return undefined;
-    } catch (error: unknown) {
-      // Fail-open: a limiter outage must not block traffic.
-      logger.error({ err: error }, "Rate limiting error");
-      return undefined;
-    }
-  };
+  return createBucketPreHandler(rateLimiter, (req) => {
+    const pattern = req.routeOptions.url;
+    const resource = pattern === undefined ? UNROUTED : resourcePath(pattern, req.params);
+    return {
+      key: `${resolveClientIp(req)}:${resource}`,
+      config: findConfig(pattern ?? UNROUTED, rules, defaultConfig),
+    };
+  });
 }

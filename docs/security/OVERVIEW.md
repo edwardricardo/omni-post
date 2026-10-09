@@ -127,7 +127,8 @@ Redis), enforced as a global Fastify preHandler with per-path rules:
 
 **Behaviour**:
 
-- Per-IP + per-URL bucket; capacity/window from the matched rule.
+- Per-IP + per-resource-path bucket (the matched route pattern with its parsed parameters,
+  never the raw URL); capacity/window from the rule that route pattern matches.
 - `X-RateLimit-Remaining` / `X-RateLimit-Reset` headers + `Retry-After` on 429.
 - Fail-open: a limiter outage allows traffic rather than hard-blocking.
 

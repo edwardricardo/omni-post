@@ -1313,19 +1313,19 @@ installed → a new `Test Contracts` job in `fitness.yml`.
   sleeps until the full bucket the limiter announces in `X-RateLimit-Reset` (epoch milliseconds;
   `Retry-After`, whole seconds to a single permit, is the fallback), then polls `${BASE_URL}/health`
   until 200, deadline that instant plus 5 s (cap 90 s), and throws naming its last answer; it adds
-  about 60 s to the batch. Measured, the limiter is a token bucket keyed by client IP and exact URL
-  (120 per 60 s on `/health`), so a poll that gets 200 spends the permit it finds: polling while the
-  bucket refills hands the next caller an empty one. Acceptance, met 2026-10-09: the full-integration
-  tier ran 939 tests before and after, every batch with the same count, 0 skipped, 0 cancelled. Reds
-  as run: (a) a planted `sleep(45_000)` passes with `TIMING` under `--test-timeout=30000`, and is
-  cancelled with `testTimeoutFailure` without it and with the option on the `describe` only; (b) a
-  planted probe asserting the next `/health` caller gets 200 fails with 429 without the `after()`
-  and passes with it; (c) the poll pointed at a path that never answers 200 fails the hook with its
-  message. The planned red, "`production` right after `integration:flows` fails with 429 without the
-  `after()`", does not hold: measured, it passes 81 of 81 with no 429 either way, because the bucket
-  refills about 2 permits a second while the next files start; WU-1.8's red (a) rests on the same
-  premise. CODE ~35 planned, 314 measured (one argument per call, and the 19 long-named tests that
-  prettier then breaks out). PR R4.
+  about 60 s to the batch. Measured, the limiter is a token bucket keyed by client IP and the
+  request's resource path (120 per 60 s on `/health`), so a poll that gets 200 spends the permit it
+  finds: polling while the bucket refills hands the next caller an empty one. Acceptance, met
+  2026-10-09: the full-integration tier ran 939 tests before and after, every batch with the same
+  count, 0 skipped, 0 cancelled. Reds as run: (a) a planted `sleep(45_000)` passes with `TIMING`
+  under `--test-timeout=30000`, and is cancelled with `testTimeoutFailure` without it and with the
+  option on the `describe` only; (b) a planted probe asserting the next `/health` caller gets 200
+  fails with 429 without the `after()` and passes with it; (c) the poll pointed at a path that never
+  answers 200 fails the hook with its message. The planned red, "`production` right after
+  `integration:flows` fails with 429 without the `after()`", does not hold: measured, it passes 81
+  of 81 with no 429 either way, because the bucket refills about 2 permits a second while the next
+  files start; WU-1.8's red (a) rests on the same premise. CODE ~35 planned, 314 measured (one
+  argument per call, and the 19 long-named tests that prettier then breaks out). PR R4.
 - **WU-1.5** Rename the node:test population by MEASURED tier: run each of the 98 files (under
   `apps/api/tests` outside unit/eval, the 2 under `tests/chaos` included; the earlier 100 double-counted
   chaos or counted the two tracked non-test files `.disabled` and `.old`) alone, with Postgres and Redis up and
