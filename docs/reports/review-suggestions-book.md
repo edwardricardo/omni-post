@@ -128,6 +128,10 @@
 | SB-107 | same                                                                                  | R2-doc-stale-authContext-citation                                | `docs/development/TESTING_REFOUNDATION.md` (names cited by their old suffix)                                                                | doc accuracy                 | closed: no renamed file is cited by its old name (measured with `rg -o`)                                                                                        |
 | SB-108 | Phase 1 U2 (`workstream/phase1-u2-reserved-suffixes`, a88b8509)                       | R3-spec-glob-breadth                                             | `RESERVED_TIER_EXCLUDES` (the `**/*.spec.*` glob)                                                                                           | glob breadth                 | closed: an infix `.spec.` file is never an include candidate, so the exclude cannot hit it                                                                      |
 | SB-109 | Phase 1 U3 (`workstream/phase1-u3-double-collection`, 93d835fa)                       | R2-dense-progress-paragraph                                      | `docs/development/TESTING_REFOUNDATION.md:3-17` (the as-of paragraph and its `Previous:` chain)                                             | doc structure                | deferred: the chain is the tracker's convention for every unit; restructuring it is its own docs unit                                                           |
+| SB-110 | Test Redis isolation (`workstream/fix-test-redis-isolation`, 652fee83)                | R3-001                                                           | `apps/api/tests/cache.test.ts` (`assertDisposableRedis`, called first in `beforeEach`)                                                      | test setup                   | deferred: the per-case call costs one `new URL` parse and changes no outcome; move it with the next change to the suite                                         |
+| SB-111 | same                                                                                  | R3-003                                                           | `apps/api/tests/cache.test.ts` (`assertDisposableRedis`, the `new URL` call)                                                                | error wording                | deferred: the suite still fails loudly before any connection; only the wording of the failure differs                                                           |
+| SB-112 | same                                                                                  | R3-004                                                           | `apps/api/tests/cache.test.ts` (`assertDisposableRedis`)                                                                                    | test coverage                | deferred: the red was proven by hand at landing; a unit test needs a helper module and a new file, which moves the M1 pin                                       |
+| SB-113 | Phase 1 U4 (`workstream/phase1-u4-timing-in-tests`, 3e2e0c60)                         | R2-001                                                           | the `TIMING` constant in nine node:test suites under `apps/api/tests` (integration and `*.flow`)                                            | naming                       | deferred: each constant carries a JSDoc; a longer name re-indents more three-argument `it` calls, so the rename is its own pass                                 |
 
 ## Entries — code and prose
 
@@ -1021,6 +1025,38 @@
 - **Location:** `RESERVED_TIER_EXCLUDES`, the `**/*.spec.*` glob.
 - **Suggestion:** narrow the glob so it cannot match an infix `.spec.` name.
 - **Why closed:** an exclude only removes files the include would otherwise collect, and vitest's include requires the suffix at the end of the name, so an infix `.spec.` file is never a candidate. The shape mirrors `**/*.integration.test.*`, which must match `.ts` and `.tsx` alike.
+
+### SB-110 — the Redis guard runs before every case
+
+- **Source:** the native review of `workstream/fix-test-redis-isolation` (DEF-63, `652fee83`), finding `R3-001`.
+- **Location:** `apps/api/tests/cache.test.ts`, the `assertDisposableRedis` guard, called first in `beforeEach`.
+- **Suggestion:** run the guard once in the node:test `before` hook instead of in every `beforeEach`; the host does not change between cases.
+- **Why deferred:** the per-case call costs one `new URL` parse and changes no outcome. Moving it belongs to the next change that touches the suite.
+- **To implement:** move one call from `beforeEach` to a `before` hook.
+
+### SB-111 — a malformed `REDIS_URL` fails before the guard's guidance is printed
+
+- **Source:** the same review, finding `R3-003`.
+- **Location:** `apps/api/tests/cache.test.ts`, the `assertDisposableRedis` guard.
+- **Suggestion:** a malformed or empty `REDIS_URL` throws `TypeError [ERR_INVALID_URL]` from `new URL` before the guard's guidance message is printed. Catch that error and rethrow it naming `.env.test.example`.
+- **Why deferred:** the suite still fails loudly, before any connection; only the wording of the failure differs.
+- **To implement:** wrap the `new URL` call and rethrow with the guidance message.
+
+### SB-112 — the Redis guard has no unit test of its own
+
+- **Source:** the same review, finding `R3-004`.
+- **Location:** `apps/api/tests/cache.test.ts`, the `assertDisposableRedis` guard.
+- **Suggestion:** add a unit test of the guard.
+- **Why deferred:** its red was proven by hand when it landed. With `REDIS_URL=redis://example.invalid:6379`, every case failed with the guard's message before any connection. A unit test needs the guard moved to a helper module plus a new test file, which moves the M1 metric pin.
+- **To implement:** extract the guard to a helper under `apps/api/tests/`, test it, and update the tracker's M1 `Now` cell.
+
+### SB-113 — the `TIMING` constant is not self-describing at its call sites
+
+- **Source:** the native review of Phase 1 U4 (`workstream/phase1-u4-timing-in-tests`, `3e2e0c60`), finding `R2-001`.
+- **Location:** the `TIMING` constant in nine node:test suites under `apps/api`: `tests/integration/hardDeleteSerializableRace`, `sagaCrashRecovery`, `sagaCompensationRecovery`, `sagaPublishNowPromotion`, `sagaCustomerFlow`, and `tests/{publish,analytics,media,schedule}.flow`.
+- **Suggestion:** a name such as `TEST_TIMEOUT` would make the call sites (`it("…", TIMING, async () => {…})`) self-describing.
+- **Why deferred:** each constant carries a JSDoc stating its value and why. A longer name pushes more three-argument `it` calls past the print width, and prettier re-indents their bodies again; most of that unit's raw diff was already this re-indent.
+- **To implement:** rename in the nine files in one change, with `prettier --write`.
 
 ## Implemented
 
