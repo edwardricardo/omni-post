@@ -205,7 +205,7 @@ The racing interleaving SHALL be pinned to occur BEFORE either attempt's blackli
 Otherwise the cache answers the second attempt and the race the proof exists to exercise never
 happens — the proof would be green on the defect.
 
-Construction is NOT from zero on this side: `apps/api/tests/auth.test.ts` already builds a real
+Construction is NOT from zero on this side: `apps/api/tests/auth.integration.test.ts` already builds a real
 `AuthService` over real adapters and already calls `refreshTokens`, and that recipe SHALL be
 reused rather than re-derived. Unit coverage for the rotation SHALL join the existing
 `apps/api/tests/unit/authService.test.ts` over a stateful Prisma-client fake.

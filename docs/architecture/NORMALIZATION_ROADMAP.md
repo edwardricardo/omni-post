@@ -366,7 +366,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 ✅ **Phase A1 closure:** L1 simulated chaos railroad + 1 scenario verde:
 
 - `apps/api/tests/chaos/chaos-helpers.ts` — harness con NoopBackgroundTaskScheduler + `TransientFailingStep` + `waitForSagaStatus`.
-- `apps/api/tests/chaos/saga-step-retry-recovery.test.ts` — 1 scenario (saga step transient failure → recovery scheduler retries → COMPLETED). 3 runs consecutivas verde @ 150ms cada, sin flakes.
+- `apps/api/tests/chaos/saga-step-retry-recovery.integration.test.ts` — 1 scenario (saga step transient failure → recovery scheduler retries → COMPLETED). 3 runs consecutivas verde @ 150ms cada, sin flakes.
 - `docs/runbooks/chaos-saga-step-retry.md` — runbook con invariante validada + diagnóstico paso-a-paso si falla.
 - `docs/architecture/chaos-testing.md` — framework canon (3 niveles L1/L2/L3) + scenario backlog + recipe.
 

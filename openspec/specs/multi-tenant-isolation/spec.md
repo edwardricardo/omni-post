@@ -71,7 +71,7 @@
 > path. Outside the model-scoped requirement, Slice 5 also wired the
 > rollout-wide `integration:tenant-isolation` run-tests.sh batch (the 6 prior
 > slices' MERGE-BLOCKING suites had never run under `test:all`) and converted
-> the RLS policy-count assertion in `rls-tenant-isolation.test.ts` from a
+> the RLS policy-count assertion in `rls-tenant-isolation.integration.test.ts` from a
 > literal to a count derived from `getTenantScopedModels().size`.
 >
 > **Extended by Slice 7** — change `channel-tenant-guard`, archived 2026-07-28,
@@ -94,8 +94,8 @@
 > transaction. Leg 3/RLS is INERT deployment-wide today (the app AND worker role
 > is superuser / BYPASSRLS, verified against the live DB), so layer 1 and the
 > app-layer scoping are the ACTIVE enforcement. The MERGE-BLOCKING isolation
-> proofs are `apps/api/tests/integration/channelTenantIsolation.test.ts` (API,
-> two tenants) and `apps/api/tests/integration/publishWorkerTenantIsolation.test.ts`
+> proofs are `apps/api/tests/integration/channelTenantIsolation.integration.test.ts` (API,
+> two tenants) and `apps/api/tests/integration/publishWorkerTenantIsolation.integration.test.ts`
 > (worker publish regression).
 >
 > Scope note: this capability covers isolation **by construction at the data layer**.

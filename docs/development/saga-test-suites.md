@@ -12,12 +12,12 @@
 
 | Suite                                                                      | Services                                 | Runner batch                   |
 | -------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------ |
-| `tests/integration/sagaCrashRecovery.test.ts`                              | Postgres + Redis (owns its BullMQ queue) | `integration:saga-recovery`    |
-| `tests/integration/sagaPublishNowPromotion.test.ts`                        | Postgres + Redis (queue is a double)     | `integration:saga-recovery`    |
-| `tests/integration/sagaTenantIsolation.test.ts`                            | Postgres                                 | `integration:tenant-isolation` |
+| `tests/integration/sagaCrashRecovery.integration.test.ts`                  | Postgres + Redis (owns its BullMQ queue) | `integration:saga-recovery`    |
+| `tests/integration/sagaPublishNowPromotion.integration.test.ts`            | Postgres + Redis (queue is a double)     | `integration:saga-recovery`    |
+| `tests/integration/sagaTenantIsolation.integration.test.ts`                | Postgres                                 | `integration:tenant-isolation` |
 | `tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts` | Postgres                                 | `integration:tenant-isolation` |
-| `tests/chaos/saga-step-retry-recovery.test.ts`                             | none (in-memory doubles)                 | `chaos`                        |
-| `tests/integration/sagaCustomerFlow.test.ts`                               | Postgres + Redis + a LIVE API server     | `integration:saga-live`        |
+| `tests/chaos/saga-step-retry-recovery.integration.test.ts`                 | none (in-memory doubles)                 | `chaos`                        |
+| `tests/integration/sagaCustomerFlow.live.test.ts`                          | Postgres + Redis + a LIVE API server     | `integration:saga-live`        |
 
 Unit suites under `tests/unit/saga/` are collected by the Vitest phase and need
 nothing. A static invariant asserts that every node:test saga suite on disk appears

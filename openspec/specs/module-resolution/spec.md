@@ -38,7 +38,7 @@ This applies to the consumers the production decision (ADR-0017's unconditional
 
 - **Given** `infra/prisma`'s `dist` directory is absent (unbuilt tree)
 - **And** `apps/api/src/security/tenantContext.ts` imports `@infra/prisma/extensions/tenantGuard.js` (a written `.js` specifier over `.ts` source)
-- **And** that module is loaded transitively by `tests/auth.test.ts`, `tests/rbac.test.ts`, and `tests/security.test.ts`
+- **And** that module is loaded transitively by `tests/auth.integration.test.ts`, `tests/rbac.integration.test.ts`, and `tests/security.live.test.ts`
 - **When** the security suite runs as the source consumer (`node --import tsx --test` via the `test:auth` / `test:rbac` / `test:security` scripts)
 - **Then** `@infra/prisma/extensions/tenantGuard.js` resolves through the package's `extensions` subpath to the `.ts` source in `src`
 - **And** the run reports **0 cancelled** tests (the RCA observed `tests 18 / cancelled 0`)

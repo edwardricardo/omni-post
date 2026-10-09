@@ -106,7 +106,7 @@ nothing about preservation.
 #### Scenario: the GUC binding and tenant isolation are unchanged [integration]
 
 - **GIVEN** the change is applied and the API composition root injects `ambientTenantContextProvider`
-- **WHEN** `tenantGucTransactionBinding.test.ts` and `post-trio-tenant-isolation.test.ts` are run
+- **WHEN** `tenantGucTransactionBinding.integration.test.ts` and `post-trio-tenant-isolation.integration.test.ts` are run
 - **THEN** both are green, and their diff against base contains only import-specifier and constructor-argument edits — **no assertion change**
 
 #### Scenario: a system-context call still binds `__system__` [integration]
@@ -134,7 +134,7 @@ purpose.
 #### Scenario: the Serializable hard-delete path still gets its options [integration]
 
 - **GIVEN** the hard-delete use case constructed with its transaction options in the third position
-- **WHEN** `hardDeleteSerializableRace.test.ts` is run
+- **WHEN** `hardDeleteSerializableRace.integration.test.ts` is run
 - **THEN** it is green, and the transaction still runs at the isolation level and timeout those options name
 
 #### Scenario: omitting the tenant provider does not compile [static]

@@ -1,7 +1,7 @@
 # Runbook — Chaos scenario: saga step transient failure
 
-> Tests: `apps/api/tests/chaos/saga-step-retry-recovery.test.ts` (retry recovery)
-> and `apps/api/tests/chaos/sagaWaitAmplification.test.ts` (the three-state outcome).
+> Tests: `apps/api/tests/chaos/saga-step-retry-recovery.integration.test.ts` (retry recovery)
+> and `apps/api/tests/chaos/sagaWaitAmplification.integration.test.ts` (the three-state outcome).
 
 ## Invariante validada
 
@@ -36,14 +36,14 @@ Consecuencias operativas que hay que tener presentes al diagnosticar:
 ```bash
 cd apps/api
 NODE_OPTIONS="--max-old-space-size=3072" node --import tsx --conditions development --test \
-  --test-force-exit tests/chaos/saga-step-retry-recovery.test.ts
+  --test-force-exit tests/chaos/saga-step-retry-recovery.integration.test.ts
 ```
 
 Resultado esperado: 1 suite + 1 test verde en ~150ms.
 
 NO requiere DB/Redis up — usa mocks del `tests/unit/sagaManager.test-helpers.ts`. La "chaos" aquí es ejercer el ciclo de retry-recovery con un step que falla deterministicamente N veces.
 
-El segundo test chaos, `sagaWaitAmplification.test.ts`, corre igual (sin servicios) y pinea la aritmética del fan-out: cuatro canales que publican bien llegan a `COMPLETED` sin gastar un solo retry, y un canal que falla de verdad sigue gastando presupuesto y terminando en `FAILED`.
+El segundo test chaos, `sagaWaitAmplification.integration.test.ts`, corre igual (sin servicios) y pinea la aritmética del fan-out: cuatro canales que publican bien llegan a `COMPLETED` sin gastar un solo retry, y un canal que falla de verdad sigue gastando presupuesto y terminando en `FAILED`.
 
 ## Qué hacer si falla
 
@@ -71,7 +71,7 @@ Indica que el saga COMPLETÓ pero `nextRetryAt` no se limpió. Posibles causas:
 
 ### Caso 4: la amplificación volvió (el test de fan-out se pone rojo)
 
-`sagaWaitAmplification.test.ts` en rojo con `retryCount > 0` significa que el step de espera volvió a reportar "todavía no terminó" como una falla, o que el engine dejó de eximir `waiting` del presupuesto. Ese fue el defecto que hacía que un publish de 4 canales terminara `FAILED` con los 4 canales publicados: no lo parchees en el test.
+`sagaWaitAmplification.integration.test.ts` en rojo con `retryCount > 0` significa que el step de espera volvió a reportar "todavía no terminó" como una falla, o que el engine dejó de eximir `waiting` del presupuesto. Ese fue el defecto que hacía que un publish de 4 canales terminara `FAILED` con los 4 canales publicados: no lo parchees en el test.
 
 ## Referencias
 
