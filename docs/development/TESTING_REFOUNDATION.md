@@ -176,7 +176,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 983 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR R9a   |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 984 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR R9a   |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -294,7 +294,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ⬜     | —                             | —                                       | —          |
 | 1     | 1.7    | Collect the services tier by convention                                     | ⬜     | —                             | —                                       | —          |
 | 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
-| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a`                         | `phase1-u9a-reach-engine` · 715         | 2026-10-09 |
+| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a`                         | `phase1-u9a-reach-engine` · 986         | 2026-10-09 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
 | 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.12   | #36 over resolved configs, in all 86                                        | ⬜     | —                             | —                                       | —          |
