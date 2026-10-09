@@ -33,12 +33,9 @@ export interface HttpRateLimitRule {
 export const RateLimitConfigs = {
   STANDARD: { windowMs: 60_000, maxRequests: 100 },
   HEALTH: { windowMs: 60_000, maxRequests: 120 },
-  STRICT: { windowMs: 60_000, maxRequests: 10 },
   AUTH: { windowMs: 900_000, maxRequests: 5 },
-  UPLOAD: { windowMs: 300_000, maxRequests: 20 },
   CRITICAL_EXPENSIVE: { windowMs: 60_000, maxRequests: 5 },
   HEAVY_EXPENSIVE: { windowMs: 60_000, maxRequests: 10 },
-  MODERATE_EXPENSIVE: { windowMs: 60_000, maxRequests: 20 },
   // Public short-link redirect. Sized to resist shortCode enumeration: the
   // per-IP bucket is shared across ALL /r/* paths (see the namespaced
   // pre-handler below), so a scanner cannot get a fresh 100/min budget per
@@ -51,35 +48,21 @@ export const RateLimitConfigs = {
  * Expensive endpoints needing stricter caps than STANDARD (DoS prevention).
  * `contains` is retained as provenance metadata only — matching is by `path`
  * prefix, first match wins, as the limiter has always behaved.
+ * A `path` is a prefix of the registered route pattern, not of the request URL,
+ * so a parameter segment is spelled as the route declares it (`:threadId`).
+ * Every rule of both tables must govern at least one registered route:
+ * `httpRateLimitRuleCoverage.test.ts` fails on a rule that matches no route, or
+ * whose every route an earlier rule takes, since such a rule caps nothing.
  */
 export const EXPENSIVE_ENDPOINT_RULES: readonly HttpRateLimitRule[] = [
   { path: "/analytics/project/", config: RateLimitConfigs.CRITICAL_EXPENSIVE, contains: "/full" },
   { path: "/analytics/cross-platform", config: RateLimitConfigs.CRITICAL_EXPENSIVE },
-  { path: "/analytics/roi/calculate", config: RateLimitConfigs.CRITICAL_EXPENSIVE },
-  { path: "/analytics/engagement/predictions", config: RateLimitConfigs.CRITICAL_EXPENSIVE },
+  { path: "/analytics/roi", config: RateLimitConfigs.CRITICAL_EXPENSIVE },
   { path: "/admin/accounts/export", config: RateLimitConfigs.CRITICAL_EXPENSIVE },
   { path: "/admin/audit/export", config: RateLimitConfigs.CRITICAL_EXPENSIVE },
-  { path: "/ml/content/optimize", config: RateLimitConfigs.CRITICAL_EXPENSIVE },
-  { path: "/ml/hashtag/suggestions", config: RateLimitConfigs.CRITICAL_EXPENSIVE },
-  { path: "/ml/sentiment/analyze", config: RateLimitConfigs.CRITICAL_EXPENSIVE },
-  { path: "/posts/search", config: RateLimitConfigs.HEAVY_EXPENSIVE },
-  { path: "/analytics/project/", config: RateLimitConfigs.HEAVY_EXPENSIVE, contains: "/reports" },
-  { path: "/analytics/realtime/dashboard", config: RateLimitConfigs.HEAVY_EXPENSIVE },
-  { path: "/analytics/geo/heatmap", config: RateLimitConfigs.HEAVY_EXPENSIVE },
-  {
-    path: "/analytics/threads/",
-    config: RateLimitConfigs.HEAVY_EXPENSIVE,
-    contains: "/performance",
-  },
+  { path: "/engagement/geographic", config: RateLimitConfigs.HEAVY_EXPENSIVE },
+  { path: "/threads/:threadId/performance", config: RateLimitConfigs.HEAVY_EXPENSIVE },
   { path: "/admin/accounts/", config: RateLimitConfigs.HEAVY_EXPENSIVE, contains: "/usage" },
-  { path: "/webhooks/events/search", config: RateLimitConfigs.HEAVY_EXPENSIVE },
-  { path: "/analytics/project/", config: RateLimitConfigs.MODERATE_EXPENSIVE },
-  { path: "/analytics/post/", config: RateLimitConfigs.MODERATE_EXPENSIVE },
-  { path: "/analytics/channel/", config: RateLimitConfigs.MODERATE_EXPENSIVE },
-  { path: "/admin/dashboard/metrics", config: RateLimitConfigs.MODERATE_EXPENSIVE },
-  { path: "/ml/content/analyze", config: RateLimitConfigs.MODERATE_EXPENSIVE },
-  { path: "/webhooks/logs", config: RateLimitConfigs.MODERATE_EXPENSIVE },
-  { path: "/audit/logs/search", config: RateLimitConfigs.MODERATE_EXPENSIVE },
 ] as const;
 
 /** Standard route rules applied before the expensive ones (first match wins).
@@ -101,8 +84,6 @@ export const EXPENSIVE_ENDPOINT_RULES: readonly HttpRateLimitRule[] = [
  *  Each prefix stays scoped to its own endpoint (no cross-shadowing). */
 export const STANDARD_ROUTE_RULES: readonly HttpRateLimitRule[] = [
   { path: "/health", config: RateLimitConfigs.HEALTH },
-  { path: "/publish/", config: RateLimitConfigs.STRICT },
-  { path: "/media/", config: RateLimitConfigs.UPLOAD },
   { path: "/auth/login", config: RateLimitConfigs.AUTH },
   { path: "/auth/refresh", config: RateLimitConfigs.AUTH },
   { path: "/auth/customer/login", config: RateLimitConfigs.AUTH },
@@ -141,15 +122,21 @@ function resourcePath(pattern: string, params: unknown): string {
   });
 }
 
-function findConfig(
+/**
+ * @function selectHttpRateLimitRule
+ * @description Picks the rule that governs a route pattern: the first rule, in
+ *   table order, whose `path` prefixes the pattern. It is the one matcher the
+ *   preHandler uses, exported so a test can hold the rule tables to the route
+ *   patterns the API registers.
+ * @param route - The matched route pattern (`req.routeOptions.url`).
+ * @param rules - The ordered rule table.
+ * @returns The first matching rule, or `undefined` when the default applies.
+ */
+export function selectHttpRateLimitRule(
   route: string,
-  rules: readonly HttpRateLimitRule[],
-  defaultConfig: RateLimitConfig
-): RateLimitConfig {
-  for (const rule of rules) {
-    if (route.startsWith(rule.path)) return rule.config;
-  }
-  return defaultConfig;
+  rules: readonly HttpRateLimitRule[]
+): HttpRateLimitRule | undefined {
+  return rules.find((rule) => route.startsWith(rule.path));
 }
 
 type PreHandler = (req: FastifyRequest, reply: FastifyReply) => Promise<unknown>;
@@ -255,7 +242,7 @@ export function createHttpRateLimitPreHandler(
     const resource = pattern === undefined ? UNROUTED : resourcePath(pattern, req.params);
     return {
       key: `${resolveClientIp(req)}:${resource}`,
-      config: findConfig(pattern ?? UNROUTED, rules, defaultConfig),
+      config: selectHttpRateLimitRule(pattern ?? UNROUTED, rules)?.config ?? defaultConfig,
     };
   });
 }
