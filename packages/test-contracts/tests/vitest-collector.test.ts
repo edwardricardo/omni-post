@@ -24,6 +24,13 @@ import {
   type PlantedTree,
 } from "./fixtures/tree.js";
 
+/**
+ * Budget for a case that spawns a real `vitest list`. Each spawn cold-starts Vite and loads the
+ * config: about 0.35 s alone, but 5.4 s was measured on a CI runner while turbo ran the other
+ * packages' suites, past vitest's 5 s default. The CLI fallback's own cap is 120 s.
+ */
+const CLI_SPAWN_TIMEOUT_MS = 60_000;
+
 const planted: PlantedTree[] = [];
 
 /** Plants a tree and schedules its removal. */
@@ -125,21 +132,25 @@ describe("vitest collector", () => {
     ]);
   });
 
-  it("returns the CLI listing when the node API fails", async () => {
-    const tree = twoPackages();
-    const collector = createVitestCollector({
-      floor: 2,
-      strategies: { programmatic: failingListing("planted"), cli: listWithCli },
-    });
+  it(
+    "returns the CLI listing when the node API fails",
+    { timeout: CLI_SPAWN_TIMEOUT_MS },
+    async () => {
+      const tree = twoPackages();
+      const collector = createVitestCollector({
+        floor: 2,
+        strategies: { programmatic: failingListing("planted"), cli: listWithCli },
+      });
 
-    const outcome = await collector.collect(tree);
+      const outcome = await collector.collect(tree);
 
-    expect(outcome.failures).toEqual([]);
-    expect(outcome.collections.flatMap((collection) => collection.files)).toEqual([
-      "pkg-a/one.test.ts",
-      "pkg-b/tests/two.test.ts",
-    ]);
-  });
+      expect(outcome.failures).toEqual([]);
+      expect(outcome.collections.flatMap((collection) => collection.files)).toEqual([
+        "pkg-a/one.test.ts",
+        "pkg-b/tests/two.test.ts",
+      ]);
+    }
+  );
 
   it("returns both reasons when the CLI fallback fails too", async () => {
     const tree = plant({ "pkg/vitest.config.mjs": configCollecting(["*.test.ts"]) });
@@ -155,20 +166,24 @@ describe("vitest collector", () => {
     ]);
   });
 
-  it("returns a failure naming a config vitest cannot load, through both listings", async () => {
-    const tree = plant({
-      "pkg/vitest.config.mjs": "export default {\n",
-      "pkg/x.test.ts": TEST_BODY,
-    });
+  it(
+    "returns a failure naming a config vitest cannot load, through both listings",
+    { timeout: CLI_SPAWN_TIMEOUT_MS },
+    async () => {
+      const tree = plant({
+        "pkg/vitest.config.mjs": "export default {\n",
+        "pkg/x.test.ts": TEST_BODY,
+      });
 
-    const outcome = await createVitestCollector({ floor: 1 }).collect(tree);
+      const outcome = await createVitestCollector({ floor: 1 }).collect(tree);
 
-    expect(outcome.collections).toEqual([]);
-    expect(outcome.failures.map((failure) => failure.source)).toEqual(["pkg/vitest.config.mjs"]);
-    expect(outcome.failures[0]?.message).toMatch(
-      /^vitest\/node: .*the CLI fallback failed too: vitest list exited 1/s
-    );
-  });
+      expect(outcome.collections).toEqual([]);
+      expect(outcome.failures.map((failure) => failure.source)).toEqual(["pkg/vitest.config.mjs"]);
+      expect(outcome.failures[0]?.message).toMatch(
+        /^vitest\/node: .*the CLI fallback failed too: vitest list exited 1/s
+      );
+    }
+  );
 
   it("returns a failure naming a root that does not resolve", async () => {
     const tree = plant({ "pkg/vitest.config.mjs": configCollecting(["*.test.ts"]) });
@@ -193,25 +208,33 @@ describe("vitest list fallback", () => {
     return { directory, config: path.join(directory, "vitest.config.mjs") };
   }
 
-  it("returns a failure naming how stdout begins when it does not open with the JSON array", async () => {
-    const { directory, config } = plantConfig(
-      `console.log("preamble from the config");\n${configCollecting(["*.test.ts"])}`
-    );
+  it(
+    "returns a failure naming how stdout begins when it does not open with the JSON array",
+    { timeout: CLI_SPAWN_TIMEOUT_MS },
+    async () => {
+      const { directory, config } = plantConfig(
+        `console.log("preamble from the config");\n${configCollecting(["*.test.ts"])}`
+      );
 
-    const listed = await listWithCli(directory, config);
+      const listed = await listWithCli(directory, config);
 
-    expect(listed.ok ? "" : listed.error).toMatch(
-      /^vitest list printed no JSON array on stdout; it begins "preamble from the config\\n\[/
-    );
-  });
+      expect(listed.ok ? "" : listed.error).toMatch(
+        /^vitest list printed no JSON array on stdout; it begins "preamble from the config\\n\[/
+      );
+    }
+  );
 
-  it("returns a failure when vitest list exits cleanly with nothing on stdout", async () => {
-    const { directory, config } = plantConfig("process.exit(0);\nexport default {};\n");
+  it(
+    "returns a failure when vitest list exits cleanly with nothing on stdout",
+    { timeout: CLI_SPAWN_TIMEOUT_MS },
+    async () => {
+      const { directory, config } = plantConfig("process.exit(0);\nexport default {};\n");
 
-    const listed = await listWithCli(directory, config);
+      const listed = await listWithCli(directory, config);
 
-    expect(listed).toEqual({ ok: false, error: "vitest list printed nothing on stdout" });
-  });
+      expect(listed).toEqual({ ok: false, error: "vitest list printed nothing on stdout" });
+    }
+  );
 
   it("returns a failure naming the config and the cap when vitest list times out", async () => {
     const { directory, config } = plantConfig(configCollecting(["*.test.ts"]));
