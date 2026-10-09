@@ -1,5 +1,5 @@
 /**
- * @file postReadOwnership.test.ts
+ * @file postReadOwnership.integration.test.ts
  * @description Two-tenant real-DB integration test proving the post READ ownership
  *              gate (CWE-639) across all four mounted customer read surfaces. Account
  *              A cannot get/thread account B's post (NOT_FOUND, byte-identical to a
@@ -39,7 +39,7 @@ const bearerFor = (accountId: string): string =>
  */
 const seedPost = async (prisma: PrismaClient, projectId: string, body: string): Promise<string> => {
   // Tenant read from the project, not taken as an argument — see the note in
-  // postDeleteOwnership.test.ts's seed helper.
+  // postDeleteOwnership.integration.test.ts's seed helper.
   const project = await prisma.project.findUniqueOrThrow({
     where: { id: projectId },
     select: { accountId: true },

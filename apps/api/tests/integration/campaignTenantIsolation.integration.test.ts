@@ -1,5 +1,5 @@
 /**
- * @file campaignTenantIsolation.test.ts
+ * @file campaignTenantIsolation.integration.test.ts
  * @description MERGE-BLOCKING two-tenant integration test for the `Campaign`
  *   tenant-guard enrollment. Exercises the live campaign routes THROUGH HTTP
  *   (`app.inject`) against a REAL database with two tenants (A, B), proving the

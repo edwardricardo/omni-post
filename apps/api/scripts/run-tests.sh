@@ -275,28 +275,28 @@ CONCURRENCY=1 run_batch "chaos" \
 # here because these MERGE-BLOCKING suites were previously unlisted in any
 # batch and therefore never executed under test:all / test:integration.
 CONCURRENCY=1 run_batch "integration:tenant-isolation" \
-  tests/integration/postDeleteOwnership.test.ts \
-  tests/integration/postReadOwnership.test.ts \
-  tests/integration/externalNotificationTenantIsolation.test.ts \
-  tests/integration/scheduledReportTenantIsolation.test.ts \
-  tests/integration/campaignTenantIsolation.test.ts \
-  tests/integration/recurringPostTenantIsolation.test.ts \
-  tests/integration/channelTenantIsolation.test.ts \
-  tests/integration/publishWorkerTenantIsolation.test.ts \
-  tests/integration/trackedLinkTenantIsolation.test.ts \
-  tests/integration/generatedImageTenantIsolation.test.ts \
-  tests/integration/projectMemberTenantIsolation.test.ts \
-  tests/integration/preAuthIntegrationTenantIsolation.test.ts \
-  tests/integration/preAuthSsoTenantIsolation.test.ts \
-  tests/integration/preAuthBillingTenantIsolation.test.ts \
-  tests/integration/preAuthInboundWebhookTenantIsolation.test.ts \
+  tests/integration/postDeleteOwnership.integration.test.ts \
+  tests/integration/postReadOwnership.integration.test.ts \
+  tests/integration/externalNotificationTenantIsolation.integration.test.ts \
+  tests/integration/scheduledReportTenantIsolation.integration.test.ts \
+  tests/integration/campaignTenantIsolation.integration.test.ts \
+  tests/integration/recurringPostTenantIsolation.integration.test.ts \
+  tests/integration/channelTenantIsolation.integration.test.ts \
+  tests/integration/publishWorkerTenantIsolation.integration.test.ts \
+  tests/integration/trackedLinkTenantIsolation.integration.test.ts \
+  tests/integration/generatedImageTenantIsolation.integration.test.ts \
+  tests/integration/projectMemberTenantIsolation.integration.test.ts \
+  tests/integration/preAuthIntegrationTenantIsolation.integration.test.ts \
+  tests/integration/preAuthSsoTenantIsolation.integration.test.ts \
+  tests/integration/preAuthBillingTenantIsolation.integration.test.ts \
+  tests/integration/preAuthInboundWebhookTenantIsolation.integration.test.ts \
   tests/integration/sagaTenantIsolation.test.ts \
   tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts \
   tests/integration/rls-tenant-isolation.test.ts \
   tests/integration/tenantGucTransactionBinding.test.ts \
   tests/integration/compositionRootTenantBinding.test.ts \
   tests/integration/tenant-composite-fk.test.ts \
-  tests/integration/post-trio-tenant-isolation.test.ts
+  tests/integration/post-trio-tenant-isolation.integration.test.ts
 
 # Customer pre-identity auth proofs. DB-only: the suite drives the four bare
 # `/auth/customer/*` handlers over `app.inject` against the guarded client, so it

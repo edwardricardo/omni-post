@@ -1,5 +1,5 @@
 /**
- * @file channelTenantIsolation.test.ts
+ * @file channelTenantIsolation.integration.test.ts
  * @description MERGE-BLOCKING two-tenant integration test for the `Channel`
  *   tenant-guard enrollment. Exercises the live channel routes THROUGH HTTP
  *   (`app.inject`) against a REAL database with two tenants (A, B), proving

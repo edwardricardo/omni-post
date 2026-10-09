@@ -1,5 +1,5 @@
 /**
- * @file preAuthBillingTenantIsolation.test.ts
+ * @file preAuthBillingTenantIsolation.integration.test.ts
  * @description MERGE-BLOCKING integration proof for the billing webhook boundary
  *   (A5). Drives the live `billingWebhookRoutes` THROUGH HTTP (`app.inject`)
  *   against a REAL database, proving the declared system-context seam:

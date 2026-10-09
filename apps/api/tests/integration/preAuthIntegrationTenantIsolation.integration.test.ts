@@ -1,5 +1,5 @@
 /**
- * @file preAuthIntegrationTenantIsolation.test.ts
+ * @file preAuthIntegrationTenantIsolation.integration.test.ts
  * @description MERGE-BLOCKING two-tenant integration proof for the integration
  *   API-key auth boundary (Zapier/Make). Drives the real two-hook seam
  *   (`integrationAuthResolve` onRequest + `integrationAuthBind` preHandler)

@@ -1,5 +1,5 @@
 /**
- * @file preAuthSsoTenantIsolation.test.ts
+ * @file preAuthSsoTenantIsolation.integration.test.ts
  * @layer infrastructure
  * @description MERGE-BLOCKING two-tenant integration proof for the FIVE public
  *   SSO routes that derive their tenant from the `:accountId` path param via

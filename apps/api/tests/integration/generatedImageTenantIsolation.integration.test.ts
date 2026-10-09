@@ -1,5 +1,5 @@
 /**
- * @file generatedImageTenantIsolation.test.ts
+ * @file generatedImageTenantIsolation.integration.test.ts
  * @description MERGE-BLOCKING two-tenant integration test for the `GeneratedImage`
  *   tenant-guard enrollment (Slice 4). Exercises the live AI-image routes THROUGH
  *   HTTP (`app.inject`) against a REAL database with two tenants (A, B), proving:

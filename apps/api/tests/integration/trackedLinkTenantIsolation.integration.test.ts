@@ -1,5 +1,5 @@
 /**
- * @file trackedLinkTenantIsolation.test.ts
+ * @file trackedLinkTenantIsolation.integration.test.ts
  * @description MERGE-BLOCKING two-tenant integration test for the `TrackedLink`
  *   tenant-guard enrollment (Slice 3). Exercises the live link routes THROUGH
  *   HTTP (`app.inject`) against a REAL database with two tenants (A, B). Proves:

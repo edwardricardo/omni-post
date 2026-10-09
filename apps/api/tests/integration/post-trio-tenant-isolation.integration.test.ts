@@ -1,12 +1,12 @@
 /**
- * @file post-trio-tenant-isolation.test.ts
+ * @file post-trio-tenant-isolation.integration.test.ts
  * @description Two-tenant real-database proof that `Post`, `PostContent` and
  *   `PostMedia` are isolated at the DATA LAYER — through the Prisma tenant
  *   guard itself, not only through the application's ownership checks.
  *
  *   ## Why this suite exists alongside the ownership suites
  *
- *   `postReadOwnership.test.ts` and `postDeleteOwnership.test.ts` already prove
+ *   `postReadOwnership.integration.test.ts` and `postDeleteOwnership.integration.test.ts` already prove
  *   the HTTP surfaces refuse a foreign caller. Those gates are application code:
  *   they hold exactly as far as every route remembers to apply them, and they
  *   say nothing about a repository, worker, saga or script that reaches the

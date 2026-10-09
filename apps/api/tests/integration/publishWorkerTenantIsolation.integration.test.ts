@@ -1,5 +1,5 @@
 /**
- * @file publishWorkerTenantIsolation.test.ts
+ * @file publishWorkerTenantIsolation.integration.test.ts
  * @description MERGE-BLOCKING two-tenant publish regression for the worker
  *   tenant scoping, exercised against a REAL database with the REAL worker
  *   collaborators (`CredentialResolver`, `ChannelAuthFailureRecorder`,

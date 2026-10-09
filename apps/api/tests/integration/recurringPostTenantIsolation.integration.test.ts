@@ -1,5 +1,5 @@
 /**
- * @file recurringPostTenantIsolation.test.ts
+ * @file recurringPostTenantIsolation.integration.test.ts
  * @description MERGE-BLOCKING two-tenant integration test for the `RecurringPost`
  *   tenant-guard enrollment (Slice 3). Exercises the live recurring-post routes
  *   THROUGH HTTP (`app.inject`) against a REAL database with two tenants (A, B),

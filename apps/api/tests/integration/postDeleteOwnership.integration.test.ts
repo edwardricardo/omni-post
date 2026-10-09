@@ -1,5 +1,5 @@
 /**
- * @file postDeleteOwnership.test.ts
+ * @file postDeleteOwnership.integration.test.ts
  * @description Two-tenant real-DB integration test proving the DELETE /posts/:id
  *              ownership gate (CWE-639). A caller cannot delete a post owned by
  *              another account, a foreign id is byte-indistinguishable from a

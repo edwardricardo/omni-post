@@ -1,5 +1,5 @@
 /**
- * @file projectMemberTenantIsolation.test.ts
+ * @file projectMemberTenantIsolation.integration.test.ts
  * @description MERGE-BLOCKING two-tenant integration test for the `ProjectMember`
  *   tenant-guard enrollment. `ProjectMember` has NO live HTTP route (its single
  *   reader `findByProjectId` is a dead adapter method), so isolation is proven at

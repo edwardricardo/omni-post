@@ -1,5 +1,5 @@
 /**
- * @file externalNotificationTenantIsolation.test.ts
+ * @file externalNotificationTenantIsolation.integration.test.ts
  * @description MERGE-BLOCKING two-tenant integration test for the
  *   `ExternalNotificationConfig` tenant-guard enrollment (Slice 1 of the
  *   project-scoped tenant-guard rollout). Exercises the four live routes

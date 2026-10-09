@@ -1,5 +1,5 @@
 /**
- * @file preAuthInboundWebhookTenantIsolation.test.ts
+ * @file preAuthInboundWebhookTenantIsolation.integration.test.ts
  * @description MERGE-BLOCKING integration proof for the inbound webhook worker
  *   boundary (A7). The BullMQ pipeline is currently wired into no composition
  *   root (verified: `WebhookManager` is constructed nowhere), so the seam is
