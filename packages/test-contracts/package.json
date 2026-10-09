@@ -1,0 +1,23 @@
+{
+  "name": "@packages/test-contracts",
+  "private": true,
+  "engines": {
+    "node": ">=24.15.0 <25"
+  },
+  "version": "0.1.0",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@packages/vitest-shared": "workspace:*",
+    "@shared/types": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
