@@ -1,9 +1,26 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-09, the timing unit (`workstream/phase1-u4-timing-in-tests`, PR R4, WU-1.4)
-moved the per-batch timeouts of `run-tests.sh` into the nine suites that needed them: each declares
-one `TIMING = { timeout }` and passes it to every test and hook (83 tests, 26 hooks), because on
+**As of:** 2026-10-09, the reach engine unit (PR R9a, the first half of WU-1.9, in four stacked
+pull requests: the scaffold, registry and disk scan; the vitest collector; the R1/R3 rules; the
+CLI) added `packages/test-contracts`, not yet wired into CI. Its `reach` script lists
+the tracked test-shaped files (`git ls-files` through the M1 expression, failing closed below 800),
+asks vitest what each tracked `vitest.config.*` collects (`createVitest` plus
+`globTestSpecifications()`, falling back to `vitest list --filesOnly --json` for that config alone;
+failing closed below 80 configs and on a config that collects nothing), and holds R1 (each file
+collected exactly once, or quarantined) and R3 (every quarantine entry tracked, none collected, the
+head a subset of the base). Its 71 self-tests plant each violation in a tree under `os.tmpdir()` and
+assert the non-zero exit naming the file; 23 planted mutants of the engine each turn the suite red.
+Over the tree of `78f40bc5` it read 994 test-shaped files and 870 files collected by the 91 configs
+in about 1.8 s (the CLI fallback alone, forced for every config, lists the same 870 in 18.9 s), found
+none collected twice, and printed 124 unreached files, the quarantine seed until PR R9b adds the
+node, Playwright and k6 collectors and R2: 98 under `apps/api/tests` (20 `*.integration.test.ts`),
+7 `security/tests`, 6 `*.k6.js`, 9 Playwright `*.spec.ts`, the 2 admin fetch scripts,
+`performance/database/postgres-stress.test.ts` and the provider template's sandbox test. It moved M1
+`980 + 14` → `985 + 14` (its five suites) and M8 `1/91` → `1/92` (its config), and left M7 at
+`24/24`: it adds no gate. Previous: the timing unit (`workstream/phase1-u4-timing-in-tests`, PR R4,
+WU-1.4) moved the per-batch timeouts of `run-tests.sh` into the nine suites that needed them: each
+declares one `TIMING = { timeout }` and passes it to every test and hook (83 tests, 26 hooks), because on
 Node 24.15.0 the runner's `--test-timeout` binds each test and hook, and a `describe` option neither
 raises that nor leaves the suite's total uncapped. The four `TIMEOUT=` prefixes left the runner. The
 "Advanced Rate Limiting" block of `tests/security.test.ts` gained an `after()` that waits for the
@@ -176,7 +193,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 984 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR R9a   |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 985 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR R9a   |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -294,7 +311,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ⬜     | —                             | —                                       | —          |
 | 1     | 1.7    | Collect the services tier by convention                                     | ⬜     | —                             | —                                       | —          |
 | 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
-| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a`                         | `phase1-u9a-reach-engine` · 986         | 2026-10-09 |
+| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a`                         | `phase1-u9a-reach-engine` · 1327        | 2026-10-09 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
 | 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.12   | #36 over resolved configs, in all 86                                        | ⬜     | —                             | —                                       | —          |
