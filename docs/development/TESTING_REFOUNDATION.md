@@ -1320,6 +1320,18 @@ installed → a new `Test Contracts` job in `fitness.yml`.
   restore): (a) an empty `tests/integration/empty.integration.test.ts` → exit 1 for zero tests;
   (b) a `before` that throws → exit 1 for a cancel; (c) `t.skip()` → exit 1 under TIER; (d) interim
   #30: `tests/integration/orphan.test.ts` with no suffix → above baseline → exit 1. CODE ~290. PR R7.
+  **Owner decision (d), 2026-10-09 — the interim #30 is accepted, with its exit written down.**
+  _Where it lives:_ the `#30` step of `fitness.yml` and the `# 30.` block of CLAUDE.md §Automated
+  Compliance Checks, both rewritten by this unit, plus this paragraph. Its count is the files that
+  `run-tests.sh --list` collects and that do not run green yet — the dark-live files (18 measured by
+  U5a on 2026-10-08) plus every `quarantine.json` entry, each with its reason and owner — and it is a
+  ratchet: it may fall and must never rise. The `# 30.` block states that it is interim and names
+  WU-1.10 as its retirement. _When it is retired:_ by WU-1.10 (PR R10), which lands after WU-1.9
+  (the reach engine, PRs R9a/R9b) and WU-1.8 (the live collector, PR R8); no later. _How:_ WU-1.10
+  adds the `test-contracts` job, whose `#30` step derives reach from the collectors themselves —
+  every test file has exactly one collector and the unreached files outside the quarantine are 0, a
+  hard zero — and deletes the interim step, its baseline and the interim wording of the `# 30.` block
+  in the same PR; its five reds (`:1266-1270`) prove the new gate before the old one leaves.
 - **WU-1.8** Collect the live tier by convention: loop over `collect live`; `probe_live` before each
   file (`curl -fsS "$TEST_API_URL/health"` and `"$TEST_WORKERS_READY_URL"` — workers ready only with
   the publish consumer registered, `ci.yml:498-504`); on failure it records
