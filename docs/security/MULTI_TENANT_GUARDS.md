@@ -44,7 +44,7 @@ enrolled model (8 as of `20260723000100_add_rls_channel`). The base migration is
 edited in place.
 
 **61 is the RLS-policy count AND the Prisma `$extends` guard membership** — the two
-are kept at parity by construction: `tests/integration/rls-tenant-isolation.test.ts`
+are kept at parity by construction: `tests/integration/rls-tenant-isolation.integration.test.ts`
 fails when any model in `TENANT_SCOPED_MODELS` lacks a `tenant_isolation` policy, or
 when the counts diverge.
 
@@ -175,7 +175,7 @@ resolves the project via `ProjectRepositoryPort.findById` before `doWork`,
 returns `USE_CASE_ERRORS.NOT_FOUND` on miss, and threads `project.accountId`
 into the saved row; the create route maps `NOT_FOUND → 404`. Enforcement is the
 MERGE-BLOCKING two-tenant integration test
-(`apps/api/tests/integration/externalNotificationTenantIsolation.test.ts`),
+(`apps/api/tests/integration/externalNotificationTenantIsolation.integration.test.ts`),
 which asserts a foreign-project create returns **404, never 500/403**, and
 persists no row. There is no static/fitness guard for this invariant — the
 per-slice integration test is the enforcement.
@@ -285,7 +285,7 @@ the `Channel` pair is the template (`20260723000000_add_channel_account_id`, the
    migration A, whose column the policy references.
 4. **The Set** — append the lowerCamel accessor to `TENANT_SCOPED_MODELS`.
 
-Steps 3 and 4 are not independently landable: `rls-tenant-isolation.test.ts`
+Steps 3 and 4 are not independently landable: `rls-tenant-isolation.integration.test.ts`
 asserts a strict 1:1 between `getTenantScopedModels()` and the `tenant_isolation`
 rows in `pg_policies`, in BOTH directions, so the Set and the policies move in the
 same change or the suite goes red.
@@ -334,7 +334,7 @@ transitively-scoped list above and are protected by the explicit
 >    publish targeting. `CreateTrackedLinkUseCase` applies the single-parent
 >    `projectId` recipe. The PATCH channel-repoint path re-applies the channel
 >    membership check. Enforcement is the two MERGE-BLOCKING integration suites
->    (`recurringPostTenantIsolation.test.ts`, `trackedLinkTenantIsolation.test.ts`).
+>    (`recurringPostTenantIsolation.integration.test.ts`, `trackedLinkTenantIsolation.integration.test.ts`).
 > 2. **The rollout's FIRST `withSystemContext()` wraps** — three genuine
 >    out-of-tenant-context callers now declare their context explicitly (see the
 >    precedent table below).
@@ -362,7 +362,7 @@ transitively-scoped list above and are protected by the explicit
 > also strips `accountId` from every response (single DTO destructure + list `.map`
 > array strip) so the server-only field never crosses HTTP. Enforcement is the
 > MERGE-BLOCKING two-tenant integration suite
-> (`apps/api/tests/integration/generatedImageTenantIsolation.test.ts`), which asserts
+> (`apps/api/tests/integration/generatedImageTenantIsolation.integration.test.ts`), which asserts
 > the foreign generate is 404 with the AI provider sentinel NEVER invoked, no row
 > persisted, no `accountId` in any response, and the billing attribution is
 > server-derived.
@@ -390,7 +390,7 @@ transitively-scoped list above and are protected by the explicit
 >    production callers), seed-only writer. The all-routes HTTP proof rule is therefore
 >    vacuously satisfied; the MERGE-BLOCKING isolation proof runs at the
 >    repository/guarded-client layer
->    (`apps/api/tests/integration/projectMemberTenantIsolation.test.ts`), asserting the
+>    (`apps/api/tests/integration/projectMemberTenantIsolation.integration.test.ts`), asserting the
 >    foreign-projectId read resolves to `[]` (non-vacuous — B's project HAS a member), the
 >    no-context read throws `TenantContextMissingError`, and a guarded create is consistent
 >    across BOTH parents (`accountId == Project.accountId == CustomerUser.accountId`). The
@@ -436,7 +436,7 @@ transitively-scoped list above and are protected by the explicit
 > both 58**: the `Channel` policy shipped in PR1 as `20260723000100_add_rls_channel`
 > (verbatim `20260527000000` shape, timestamped after Migration A; `down.sql` drops the
 > policy + disables RLS). It was pulled forward from PR2 because the MERGE-BLOCKING parity
-> suite `tests/integration/rls-tenant-isolation.test.ts` asserts guard↔RLS parity by
+> suite `tests/integration/rls-tenant-isolation.integration.test.ts` asserts guard↔RLS parity by
 > construction — it exists precisely to block an enrollment without a policy, so honouring
 > the original seam would have required weakening the invariant instead of the plan.
 > Pulling it forward is behaviour-neutral: the RLS leg is **INERT deployment-wide today**: the app AND
@@ -489,7 +489,7 @@ transitively-scoped list above and are protected by the explicit
 > untouched); (2) the `Channel` `tenant_isolation` policy via the forward migration
 > `20260723000100_add_rls_channel` — both **done in PR1**; (3) documented here (promoted to
 > the tenant-scoped list + this note). Enforcement is the MERGE-BLOCKING two-tenant integration
-> suite `apps/api/tests/integration/channelTenantIsolation.test.ts` (16 tests): cross-tenant
+> suite `apps/api/tests/integration/channelTenantIsolation.integration.test.ts` (16 tests): cross-tenant
 > read/list/update/delete → 404 with no decrypted credential crossing the boundary; both
 > create paths reject a foreign `projectId` (Bluesky literal 404, OAuth error redirect) and
 > persist no row; own create is parent-consistent (`accountId == Project.accountId`);
@@ -539,10 +539,10 @@ forward-only and must never be reported as covering history.
 
 **Enforcement** is two MERGE-BLOCKING integration suites, both wired into the
 `integration:tenant-isolation` batch in `apps/api/scripts/run-tests.sh`:
-`tenant-composite-fk.test.ts` (18 tests — engine-level refusal via the client, an
+`tenant-composite-fk.integration.test.ts` (18 tests — engine-level refusal via the client, an
 explicit transaction and direct SQL; the `NOT NULL` arm that keeps the `MATCH SIMPLE`
 escape closed; refusal holding while the connecting role has `BYPASSRLS`) and
-`post-trio-tenant-isolation.test.ts` (28 tests — the guarded-client access matrix
+`post-trio-tenant-isolation.integration.test.ts` (28 tests — the guarded-client access matrix
 including the two direct child-read paths, the create-path 404, and child tenant
 inheritance).
 
@@ -840,7 +840,7 @@ overclaim:
 - **Post already promoted out of `DRAFT`** → the pivot's own `RereadCheck`
   countermeasure aborts BEFORE the enqueue. This one is retention-independent: it holds
   even after the queue evicted the original job. Measured in
-  `apps/api/tests/integration/sagaCrashRecovery.test.ts` ("an inherited pivot-step retry
+  `apps/api/tests/integration/sagaCrashRecovery.integration.test.ts` ("an inherited pivot-step retry
   claimed by the retry checker"), and the composition that supplies the countermeasure
   is pinned by a static invariant (it only exists when `SagaIntegration` passes the
   reread implementation).
@@ -1045,7 +1045,7 @@ decision the engine takes correctly, and a series that mixes the two makes any
 unfiltered sum report a designed outcome as a malfunction.
 
 The decision is empirical, measured end to end against a real Postgres, a real Redis and
-a real BullMQ queue in `apps/api/tests/integration/sagaCrashRecovery.test.ts`:
+a real BullMQ queue in `apps/api/tests/integration/sagaCrashRecovery.integration.test.ts`:
 
 | Property of an automatic pivot replay              | Measured outcome                                                                                                                                                                                              |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1692,7 +1692,7 @@ exception and an ADR.
 > (they must stay byte-identical) plus a documented baseline for the seven hits.
 
 **Enforcement:** the MERGE-BLOCKING two-tenant regression
-`apps/api/tests/integration/publishWorkerTenantIsolation.test.ts` drives the real
+`apps/api/tests/integration/publishWorkerTenantIsolation.integration.test.ts` drives the real
 worker collaborators over a real database: an own-tenant job publishes with its
 own credentials; a job pairing a channel with a foreign `accountId` fails AUTH
 with the provider never invoked, **nothing decrypted**, no plaintext in the error

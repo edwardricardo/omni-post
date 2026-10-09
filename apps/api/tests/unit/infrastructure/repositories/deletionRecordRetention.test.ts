@@ -82,7 +82,7 @@ describe("computeRetainUntil", () => {
   // variable a unit test has no access to at all.
   //
   // It now lives where the answer comes from the database instead of from a
-  // literal: tests/integration/deletionRecordRetentionFloor.test.ts sweeps a
+  // literal: tests/integration/deletionRecordRetentionFloor.integration.test.ts sweeps a
   // multi-year range against real Postgres, under a session deliberately
   // started on a hostile time zone, and proves the connection pin overrides it.
 

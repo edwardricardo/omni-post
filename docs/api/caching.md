@@ -353,7 +353,7 @@ CACHE_L1_MAX_MEMORY=52428800  # 50MB
 ### Run Cache Tests
 
 ```bash
-pnpm --filter @apps/api test tests/cache.test.ts
+pnpm --filter @apps/api test tests/cache.integration.test.ts
 ```
 
 ### Test Coverage

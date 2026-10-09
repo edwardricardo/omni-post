@@ -105,7 +105,7 @@ NULL `accountId` rows.
 
 Runs through a non-superuser role in production. Superusers and
 BYPASSRLS roles skip RLS entirely; the integration test
-(`apps/api/tests/integration/rls-tenant-isolation.test.ts`) creates a
+(`apps/api/tests/integration/rls-tenant-isolation.integration.test.ts`) creates a
 non-superuser `rls_test_role` and `SET LOCAL ROLE` to exercise the
 production code path.
 

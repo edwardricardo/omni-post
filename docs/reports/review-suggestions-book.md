@@ -128,11 +128,17 @@
 | SB-107 | same                                                                                  | R2-doc-stale-authContext-citation                                | `docs/development/TESTING_REFOUNDATION.md` (names cited by their old suffix)                                                                | doc accuracy                 | closed: no renamed file is cited by its old name (measured with `rg -o`)                                                                                        |
 | SB-108 | Phase 1 U2 (`workstream/phase1-u2-reserved-suffixes`, a88b8509)                       | R3-spec-glob-breadth                                             | `RESERVED_TIER_EXCLUDES` (the `**/*.spec.*` glob)                                                                                           | glob breadth                 | closed: an infix `.spec.` file is never an include candidate, so the exclude cannot hit it                                                                      |
 | SB-109 | Phase 1 U3 (`workstream/phase1-u3-double-collection`, 93d835fa)                       | R2-dense-progress-paragraph                                      | `docs/development/TESTING_REFOUNDATION.md:3-17` (the as-of paragraph and its `Previous:` chain)                                             | doc structure                | deferred: the chain is the tracker's convention for every unit; restructuring it is its own docs unit                                                           |
-| SB-110 | Test Redis isolation (`workstream/fix-test-redis-isolation`, 652fee83)                | R3-001                                                           | `apps/api/tests/cache.test.ts` (`assertDisposableRedis`, called first in `beforeEach`)                                                      | test setup                   | deferred: the per-case call costs one `new URL` parse and changes no outcome; move it with the next change to the suite                                         |
-| SB-111 | same                                                                                  | R3-003                                                           | `apps/api/tests/cache.test.ts` (`assertDisposableRedis`, the `new URL` call)                                                                | error wording                | deferred: the suite still fails loudly before any connection; only the wording of the failure differs                                                           |
-| SB-112 | same                                                                                  | R3-004                                                           | `apps/api/tests/cache.test.ts` (`assertDisposableRedis`)                                                                                    | test coverage                | deferred: the red was proven by hand at landing; a unit test needs a helper module and a new file, which moves the M1 pin                                       |
+| SB-110 | Test Redis isolation (`workstream/fix-test-redis-isolation`, 652fee83)                | R3-001                                                           | `apps/api/tests/cache.integration.test.ts` (`assertDisposableRedis`, called first in `beforeEach`)                                          | test setup                   | deferred: the per-case call costs one `new URL` parse and changes no outcome; move it with the next change to the suite                                         |
+| SB-111 | same                                                                                  | R3-003                                                           | `apps/api/tests/cache.integration.test.ts` (`assertDisposableRedis`, the `new URL` call)                                                    | error wording                | deferred: the suite still fails loudly before any connection; only the wording of the failure differs                                                           |
+| SB-112 | same                                                                                  | R3-004                                                           | `apps/api/tests/cache.integration.test.ts` (`assertDisposableRedis`)                                                                        | test coverage                | deferred: the red was proven by hand at landing; a unit test needs a helper module and a new file, which moves the M1 pin                                       |
 | SB-113 | Phase 1 U4 (`workstream/phase1-u4-timing-in-tests`, 3e2e0c60)                         | R2-001                                                           | the `TIMING` constant in nine node:test suites under `apps/api/tests` (integration and `*.flow`)                                            | naming                       | deferred: each constant carries a JSDoc; a longer name re-indents more three-argument `it` calls, so the rename is its own pass                                 |
-| SB-114 | Phase 1 U4 (`workstream/phase1-u4-timing-in-tests`, 9c502519)                         | R2-poll-timeout-mismatch                                         | `apps/api/tests/integration/sagaCustomerFlow.test.ts` (`TIMING`)                                                                            | budget legibility            | deferred: the move kept every case's budget identical; splitting it changes per-case limits                                                                     |
+| SB-114 | Phase 1 U4 (`workstream/phase1-u4-timing-in-tests`, 9c502519)                         | R2-poll-timeout-mismatch                                         | `apps/api/tests/integration/sagaCustomerFlow.live.test.ts` (`TIMING`)                                                                       | budget legibility            | deferred: the move kept every case's budget identical; splitting it changes per-case limits                                                                     |
+| SB-115 | Phase 1 U9a (`workstream/phase1-u9a-l4-cli`, afdf3dff)                                | R2-reach-prose-stacked-pr-note                                   | `packages/test-contracts/src/reach.ts` (file header)                                                                                        | doc structure                | deferred: the imports name every module the entry delegates to                                                                                                  |
+| SB-116 | Phase 1 U9a (`workstream/phase1-u9a-l4-cli`, afdf3dff)                                | R3-001                                                           | `packages/test-contracts/tests/reach.test.ts` (`--base` read failure)                                                                       | test coverage                | deferred: `--base` shares the tested `readQuarantine` with `--quarantine`                                                                                       |
+| SB-117 | Phase 1 U9a (`workstream/phase1-u9a-l4-cli`, afdf3dff)                                | R3-002                                                           | `packages/test-contracts/src/reach.ts` (`parseArguments`)                                                                                   | CLI edge case                | deferred: internal CLI; a value starting with `--` is refused, never misread                                                                                    |
+| SB-118 | DEF-68 (`workstream/fix-ratelimit-query-key`, 40434165)                               | R2-001                                                           | `apps/api/tests/unit/security/httpRateLimitPreHandler.test.ts` (`!unrouted`)                                                                | test coupling                | deferred: one literal in one suite; exporting the constant widens the module                                                                                    |
+| SB-119 | DEF-68 (`workstream/fix-ratelimit-query-key`, 40434165)                               | R2-002                                                           | `apps/api/src/security/httpRateLimitPreHandler.ts` (`resourcePath`)                                                                         | readability                  | deferred: both branches are pinned by unit cases; the split is a refactor                                                                                       |
+| SB-120 | DEF-68 (`workstream/fix-ratelimit-query-key`, 40434165)                               | R2-003                                                           | `apps/api/src/security/httpRateLimitPreHandler.ts` (no-route fallback)                                                                      | readability                  | deferred: both expressions are pinned by the unrouted case                                                                                                      |
 
 ## Entries — code and prose
 
@@ -697,6 +703,46 @@
 - **Why deferred:** the chain is the tracker's convention for every unit since Phase 0, and every unit edits it; restructuring it inside a unit that edits it would conflict with the next one.
 - **To implement:** one docs unit that moves the dated layers below the current sentence into a short dated list and states the convention once.
 
+### SB-115 — the reach entry's header does not map the modules it delegates to
+
+- **Source:** the native review of Phase 1 U9a L4 (`workstream/phase1-u9a-l4-cli`, `afdf3dff`), finding `R2-reach-prose-stacked-pr-note`.
+- **Location:** `packages/test-contracts/src/reach.ts`, the file header.
+- **Suggestion:** add a one-line map in the header naming where the floors (`lib/disk.ts`, `lib/vitest-collector.ts`), the R1/R3 semantics and the quarantine schema (`lib/rules.ts`) and the collector contract (`lib/registry.ts`) live.
+- **Why deferred:** the imports name each module and each module's own header states its contract; the map is navigation help only.
+- **To implement:** one sentence in the header.
+
+### SB-117 — `parseArguments` refuses a flag value that starts with `--`
+
+- **Source:** the native review of Phase 1 U9a L4 (`workstream/phase1-u9a-l4-cli`, `afdf3dff`), finding `R3-002`.
+- **Location:** `packages/test-contracts/src/reach.ts`, `parseArguments`.
+- **Suggestion:** treat only a missing next argument as a missing value, or accept `--flag=value`, so a path beginning with `--` is not refused.
+- **Why deferred:** the CLI is internal and called by the package script and a future CI step with fixed paths; such a value is refused with a usage error, never misread.
+- **To implement:** accept `--flag=value` and keep the refusal for a missing value; add a case.
+
+### SB-118 — the unit suite repeats the `!unrouted` sentinel literal
+
+- **Source:** the native review of DEF-68 (`workstream/fix-ratelimit-query-key`, `40434165`), finding `R2-001`.
+- **Location:** `apps/api/tests/unit/security/httpRateLimitPreHandler.test.ts`, the unrouted case.
+- **Suggestion:** reference the sentinel by name instead of repeating `"127.0.0.1:!unrouted"`.
+- **Why deferred:** the constant is module-private; exporting it only for a test widens the module's surface, and the case pins the observable key, which is what callers and Redis see.
+- **To implement:** export the constant, or derive the expected key from a helper the module already exports.
+
+### SB-119 — `resourcePath` folds the named and wildcard parameter branches into one lookup
+
+- **Source:** the native review of DEF-68 (`workstream/fix-ratelimit-query-key`, `40434165`), finding `R2-002`.
+- **Location:** `apps/api/src/security/httpRateLimitPreHandler.ts`, `resourcePath`.
+- **Suggestion:** split the replacer on whether the capture names a parameter or is the bare `*`, instead of `values[name ?? "*"]`.
+- **Why deferred:** both branches are pinned by unit cases (a named parameter and a wildcard); the change is a readability refactor of security code that earns its own review.
+- **To implement:** two branches in the replacer, same cases green.
+
+### SB-120 — the no-route fallback is written twice
+
+- **Source:** the native review of DEF-68 (`workstream/fix-ratelimit-query-key`, `40434165`), finding `R2-003`.
+- **Location:** `apps/api/src/security/httpRateLimitPreHandler.ts`, `createHttpRateLimitPreHandler`.
+- **Suggestion:** derive the rule input and the resource key from one `const route = pattern ?? UNROUTED`.
+- **Why deferred:** both expressions are pinned by the unrouted case, so a drift between them fails a test; the intermediate is readability only.
+- **To implement:** one intermediate, same cases green.
+
 ## Entries — tests
 
 ### SB-T01 — a bare repository's `--git-common-dir` is not named `.git`
@@ -1030,7 +1076,7 @@
 ### SB-110 — the Redis guard runs before every case
 
 - **Source:** the native review of `workstream/fix-test-redis-isolation` (DEF-63, `652fee83`), finding `R3-001`.
-- **Location:** `apps/api/tests/cache.test.ts`, the `assertDisposableRedis` guard, called first in `beforeEach`.
+- **Location:** `apps/api/tests/cache.integration.test.ts`, the `assertDisposableRedis` guard, called first in `beforeEach`.
 - **Suggestion:** run the guard once in the node:test `before` hook instead of in every `beforeEach`; the host does not change between cases.
 - **Why deferred:** the per-case call costs one `new URL` parse and changes no outcome. Moving it belongs to the next change that touches the suite.
 - **To implement:** move one call from `beforeEach` to a `before` hook.
@@ -1038,7 +1084,7 @@
 ### SB-111 — a malformed `REDIS_URL` fails before the guard's guidance is printed
 
 - **Source:** the same review, finding `R3-003`.
-- **Location:** `apps/api/tests/cache.test.ts`, the `assertDisposableRedis` guard.
+- **Location:** `apps/api/tests/cache.integration.test.ts`, the `assertDisposableRedis` guard.
 - **Suggestion:** a malformed or empty `REDIS_URL` throws `TypeError [ERR_INVALID_URL]` from `new URL` before the guard's guidance message is printed. Catch that error and rethrow it naming `.env.test.example`.
 - **Why deferred:** the suite still fails loudly, before any connection; only the wording of the failure differs.
 - **To implement:** wrap the `new URL` call and rethrow with the guidance message.
@@ -1046,7 +1092,7 @@
 ### SB-112 — the Redis guard has no unit test of its own
 
 - **Source:** the same review, finding `R3-004`.
-- **Location:** `apps/api/tests/cache.test.ts`, the `assertDisposableRedis` guard.
+- **Location:** `apps/api/tests/cache.integration.test.ts`, the `assertDisposableRedis` guard.
 - **Suggestion:** add a unit test of the guard.
 - **Why deferred:** its red was proven by hand when it landed. With `REDIS_URL=redis://example.invalid:6379`, every case failed with the guard's message before any connection. A unit test needs the guard moved to a helper module plus a new test file, which moves the M1 metric pin.
 - **To implement:** extract the guard to a helper under `apps/api/tests/`, test it, and update the tracker's M1 `Now` cell.
@@ -1062,10 +1108,18 @@
 ### SB-114 — one 180 s budget for every case of the saga customer flow
 
 - **Source:** the native review of Phase 1 U4 (`workstream/phase1-u4-timing-in-tests`, `9c502519`), finding `R2-poll-timeout-mismatch`.
-- **Location:** `apps/api/tests/integration/sagaCustomerFlow.test.ts`, the `TIMING` constant.
+- **Location:** `apps/api/tests/integration/sagaCustomerFlow.live.test.ts`, the `TIMING` constant.
 - **Suggestion:** give the publish-now cases, which poll up to 120 s for a terminal state, their own budget and the quick cases (missing auth, the XOR refinement, cross-tenant 404s) a shorter one, so each call site states its real cost.
 - **Why deferred:** the unit moved each batch's timeout into its suites with every case's budget unchanged, which is what its same-count acceptance measured; shortening some cases' limits is a behaviour change of its own.
 - **To implement:** a second constant for the quick cases, measured against their slowest `duration_ms` in CI.
+
+### SB-116 — no case plants an unreadable `--base` quarantine
+
+- **Source:** the native review of Phase 1 U9a L4 (`workstream/phase1-u9a-l4-cli`, `afdf3dff`), finding `R3-001`.
+- **Location:** `packages/test-contracts/tests/reach.test.ts`.
+- **Suggestion:** plant a missing or malformed base file and assert exit 1 with an error line naming it.
+- **Why deferred:** `--base` and `--quarantine` both go through `readQuarantine`, whose failure path the `--quarantine` cases already pin end to end.
+- **To implement:** one CLI case with a missing base path.
 
 ## Implemented
 

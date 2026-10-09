@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const apiRoot = join(currentDir, "..", "..", "..");
-const suitePath = join(apiRoot, "tests", "integration", "sagaCustomerFlow.test.ts");
+const suitePath = join(apiRoot, "tests", "integration", "sagaCustomerFlow.live.test.ts");
 const runnerPath = join(apiRoot, "scripts", "run-tests.sh");
 
 const suite = readFileSync(suitePath, "utf8");

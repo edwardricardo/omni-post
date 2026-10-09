@@ -222,23 +222,23 @@ if run_db_batches; then
 # against Postgres — DB-only, so it belongs here (not a live-API batch). CONCURRENCY=1
 # keeps its whole-table runBackfill/runCleanup from racing sibling files.
 CONCURRENCY=1 run_batch "integration:repositories" \
-  tests/integration/repositories/UserRepository.test.ts \
-  tests/integration/repositories/AccountQueryRepository.test.ts \
-  tests/integration/repositories/ProjectRepository.test.ts \
-  tests/integration/repositories/PrismaPostRepository.test.ts \
-  tests/integration/repositories/AnalyticsRepository.basic.test.ts \
-  tests/integration/repositories/AnalyticsRepository.channel.test.ts \
-  tests/integration/repositories/AnalyticsRepository.timeseries.test.ts \
-  tests/integration/repositories/ConversionRepository.test.ts \
+  tests/integration/repositories/UserRepository.integration.test.ts \
+  tests/integration/repositories/AccountQueryRepository.integration.test.ts \
+  tests/integration/repositories/ProjectRepository.integration.test.ts \
+  tests/integration/repositories/PrismaPostRepository.integration.test.ts \
+  tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts \
+  tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts \
+  tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts \
+  tests/integration/repositories/ConversionRepository.integration.test.ts \
   tests/integration/backfillAdminMfaBackupCodes.integration.test.ts \
-  tests/integration/postHardDeleteCascade.test.ts
+  tests/integration/postHardDeleteCascade.integration.test.ts
 
 # Retention-floor sweep. DB-only, and deliberately its OWN batch: it holds a second
 # PrismaClient opened on a hostile session time zone, so folding it into a batch that
 # shares the singleton would make which client a failure belongs to ambiguous.
 CONCURRENCY=1 run_batch "integration:retention" \
-  tests/integration/deletionRecordRetentionFloor.test.ts \
-  tests/integration/deletionRecordDegradation.test.ts
+  tests/integration/deletionRecordRetentionFloor.integration.test.ts \
+  tests/integration/deletionRecordDegradation.integration.test.ts
 
 # Serializable hard-delete race. Its OWN batch for the same reason as the retention
 # sweep, and one more: it holds TWO PrismaClients and deliberately parks one of them
@@ -246,18 +246,18 @@ CONCURRENCY=1 run_batch "integration:retention" \
 # suite's lock wait satisfy that poll, and the interleaving the proof depends on would
 # stop being the one under test. CONCURRENCY=1 is not optional here.
 CONCURRENCY=1 run_batch "integration:hard-delete-race" \
-  tests/integration/hardDeleteSerializableRace.test.ts
+  tests/integration/hardDeleteSerializableRace.integration.test.ts
 
 CONCURRENCY=1 run_batch "integration:sync" \
-  tests/integration/syncEngine/syncEngine.init.test.ts \
-  tests/integration/syncEngine/syncEngine.sync.test.ts \
-  tests/integration/syncEngine/syncEngine.conflicts.test.ts \
-  tests/integration/syncEngine/syncEngine.monitoring.test.ts
+  tests/integration/syncEngine/syncEngine.init.integration.test.ts \
+  tests/integration/syncEngine/syncEngine.sync.integration.test.ts \
+  tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts \
+  tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts
 
 CONCURRENCY=1 run_batch "integration:outbox" \
   tests/integration/outbox/OutboxRelay.integration.test.ts \
-  tests/integration/bulkScheduleOutboxSmoke.test.ts \
-  tests/integration/bulkScheduling.test.ts
+  tests/integration/bulkScheduleOutboxSmoke.integration.test.ts \
+  tests/integration/bulkScheduling.integration.test.ts
 
 CONCURRENCY=1 run_batch "integration:consumers" \
   tests/integration/consumers/workerConnection.integration.test.ts
@@ -266,8 +266,8 @@ CONCURRENCY=1 run_batch "integration:consumers" \
 # service is required, but they are node:test files and therefore belong to a
 # batch — a suite that no batch lists is a suite that never runs.
 CONCURRENCY=1 run_batch "chaos" \
-  tests/chaos/saga-step-retry-recovery.test.ts \
-  tests/chaos/sagaWaitAmplification.test.ts
+  tests/chaos/saga-step-retry-recovery.integration.test.ts \
+  tests/chaos/sagaWaitAmplification.integration.test.ts
 
 # Two-tenant isolation proofs for the tenant-guard rollout. Each suite seeds
 # two tenants against the real DB and drives the guarded client / in-process
@@ -275,28 +275,28 @@ CONCURRENCY=1 run_batch "chaos" \
 # here because these MERGE-BLOCKING suites were previously unlisted in any
 # batch and therefore never executed under test:all / test:integration.
 CONCURRENCY=1 run_batch "integration:tenant-isolation" \
-  tests/integration/postDeleteOwnership.test.ts \
-  tests/integration/postReadOwnership.test.ts \
-  tests/integration/externalNotificationTenantIsolation.test.ts \
-  tests/integration/scheduledReportTenantIsolation.test.ts \
-  tests/integration/campaignTenantIsolation.test.ts \
-  tests/integration/recurringPostTenantIsolation.test.ts \
-  tests/integration/channelTenantIsolation.test.ts \
-  tests/integration/publishWorkerTenantIsolation.test.ts \
-  tests/integration/trackedLinkTenantIsolation.test.ts \
-  tests/integration/generatedImageTenantIsolation.test.ts \
-  tests/integration/projectMemberTenantIsolation.test.ts \
-  tests/integration/preAuthIntegrationTenantIsolation.test.ts \
-  tests/integration/preAuthSsoTenantIsolation.test.ts \
-  tests/integration/preAuthBillingTenantIsolation.test.ts \
-  tests/integration/preAuthInboundWebhookTenantIsolation.test.ts \
-  tests/integration/sagaTenantIsolation.test.ts \
+  tests/integration/postDeleteOwnership.integration.test.ts \
+  tests/integration/postReadOwnership.integration.test.ts \
+  tests/integration/externalNotificationTenantIsolation.integration.test.ts \
+  tests/integration/scheduledReportTenantIsolation.integration.test.ts \
+  tests/integration/campaignTenantIsolation.integration.test.ts \
+  tests/integration/recurringPostTenantIsolation.integration.test.ts \
+  tests/integration/channelTenantIsolation.integration.test.ts \
+  tests/integration/publishWorkerTenantIsolation.integration.test.ts \
+  tests/integration/trackedLinkTenantIsolation.integration.test.ts \
+  tests/integration/generatedImageTenantIsolation.integration.test.ts \
+  tests/integration/projectMemberTenantIsolation.integration.test.ts \
+  tests/integration/preAuthIntegrationTenantIsolation.integration.test.ts \
+  tests/integration/preAuthSsoTenantIsolation.integration.test.ts \
+  tests/integration/preAuthBillingTenantIsolation.integration.test.ts \
+  tests/integration/preAuthInboundWebhookTenantIsolation.integration.test.ts \
+  tests/integration/sagaTenantIsolation.integration.test.ts \
   tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts \
-  tests/integration/rls-tenant-isolation.test.ts \
-  tests/integration/tenantGucTransactionBinding.test.ts \
-  tests/integration/compositionRootTenantBinding.test.ts \
-  tests/integration/tenant-composite-fk.test.ts \
-  tests/integration/post-trio-tenant-isolation.test.ts
+  tests/integration/rls-tenant-isolation.integration.test.ts \
+  tests/integration/tenantGucTransactionBinding.integration.test.ts \
+  tests/integration/compositionRootTenantBinding.integration.test.ts \
+  tests/integration/tenant-composite-fk.integration.test.ts \
+  tests/integration/post-trio-tenant-isolation.integration.test.ts
 
 # Customer pre-identity auth proofs. DB-only: the suite drives the four bare
 # `/auth/customer/*` handlers over `app.inject` against the guarded client, so it
@@ -337,9 +337,9 @@ CONCURRENCY=1 run_batch "integration:admin-single-use-claims" \
 # row in the table — running them in one serialized batch is what keeps that
 # from being three suites executing each other's sagas.
 CONCURRENCY=1 run_batch "integration:saga-recovery" \
-  tests/integration/sagaCrashRecovery.test.ts \
-  tests/integration/sagaCompensationRecovery.test.ts \
-  tests/integration/sagaPublishNowPromotion.test.ts
+  tests/integration/sagaCrashRecovery.integration.test.ts \
+  tests/integration/sagaCompensationRecovery.integration.test.ts \
+  tests/integration/sagaPublishNowPromotion.integration.test.ts
 
 fi # run_db_batches
 
@@ -348,13 +348,13 @@ fi # run_db_batches
 if run_live_api_batches; then
 
 CONCURRENCY=1 run_batch "integration:routes" \
-  tests/integration/crisisRoutes.test.ts tests/integration/linkRoutes.test.ts \
-  tests/integration/security-endpoints.test.ts
+  tests/integration/crisisRoutes.live.test.ts tests/integration/linkRoutes.live.test.ts \
+  tests/integration/security-endpoints.live.test.ts
 
 CONCURRENCY=1 run_batch "integration:flows" \
-  tests/auth.test.ts tests/audit.test.ts tests/cache.test.ts \
-  tests/security.test.ts \
-  tests/integration/publishing/failedWrite.smoke.test.ts
+  tests/auth.integration.test.ts tests/audit.integration.test.ts tests/cache.integration.test.ts \
+  tests/security.live.test.ts \
+  tests/integration/publishing/failedWrite.smoke.integration.test.ts
 
 # Early warning for the batch that follows. The saga suite carries its own
 # authoritative precondition (assertPublishConsumers in tests/testUtils.ts); this
@@ -397,17 +397,17 @@ assert_publish_consumers
 # this suite existed on disk but belonged to no batch, so `test:all` never ran
 # it.
 CONCURRENCY=1 run_batch "integration:saga-live" \
-  tests/integration/sagaCustomerFlow.test.ts
+  tests/integration/sagaCustomerFlow.live.test.ts
 
 CONCURRENCY=1 run_batch "flow" \
-  tests/publish.flow.test.ts tests/analytics.flow.test.ts tests/media.flow.test.ts tests/schedule.flow.test.ts
+  tests/publish.flow.integration.test.ts tests/analytics.flow.integration.test.ts tests/media.flow.integration.test.ts tests/schedule.flow.integration.test.ts
 
 CONCURRENCY=1 run_batch "remaining" \
-  tests/accountLifecycle.test.ts tests/trialPeriod.test.ts \
-  tests/mfa.test.ts tests/rbac.test.ts \
-  tests/threading.canonical.test.ts tests/threading.planner.test.ts \
-  tests/threading.xprovider.test.ts tests/planPublication.test.ts tests/adapters.test.ts \
-  tests/schemaUtils.test.ts
+  tests/accountLifecycle.integration.test.ts tests/trialPeriod.integration.test.ts \
+  tests/mfa.integration.test.ts tests/rbac.integration.test.ts \
+  tests/threading.canonical.integration.test.ts tests/threading.planner.integration.test.ts \
+  tests/threading.xprovider.integration.test.ts tests/planPublication.integration.test.ts tests/adapters.integration.test.ts \
+  tests/schemaUtils.integration.test.ts
 
 # The rate-limiting suite in `integration:flows` deliberately exhausts the
 # /health window and waits in its own `after()` for it to reopen; this check
@@ -443,8 +443,8 @@ wait_for_api() {
 # window on a process that is not running.
 if wait_for_api; then
   CONCURRENCY=1 run_batch "production" \
-    tests/production.integration.test.ts tests/multiproject.flow.test.ts \
-    tests/providerRegistry.test.ts
+    tests/production.live.test.ts tests/multiproject.flow.live.test.ts \
+    tests/providerRegistry.live.test.ts
 else
   echo "  api-ready  /health never returned 200 in $((API_READY_MAX_ATTEMPTS * API_READY_INTERVAL_S))s  [FAIL]"
   echo "       The 'production' batch was NOT run: against a rate-limited or absent"

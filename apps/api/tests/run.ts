@@ -17,40 +17,44 @@ interface TestModule {
 
 const TEST_MODULES: TestModule[] = [
   // Core API Tests (only include tests that actually exist)
-  { name: "Plan Publication", path: "./planPublication.test.ts", enabled: true },
-  { name: "Adapters", path: "./adapters.test.ts", enabled: true },
-  { name: "Media Flow", path: "./media.flow.test.ts", enabled: true },
-  { name: "Schedule Flow", path: "./schedule.flow.test.ts", enabled: true },
-  { name: "Analytics Flow", path: "./analytics.flow.test.ts", enabled: true },
+  { name: "Plan Publication", path: "./planPublication.integration.test.ts", enabled: true },
+  { name: "Adapters", path: "./adapters.integration.test.ts", enabled: true },
+  { name: "Media Flow", path: "./media.flow.integration.test.ts", enabled: true },
+  { name: "Schedule Flow", path: "./schedule.flow.integration.test.ts", enabled: true },
+  { name: "Analytics Flow", path: "./analytics.flow.integration.test.ts", enabled: true },
   { name: "Rate Limit Smoke", path: "./rateLimit.smoke.test.ts", enabled: true },
 
   // Threading Tests
-  { name: "Threading Planner", path: "./threading.planner.test.ts", enabled: true },
-  { name: "Threading X Provider", path: "./threading.xprovider.test.ts", enabled: true },
-  { name: "Threading Canonical", path: "./threading.canonical.test.ts", enabled: true },
+  { name: "Threading Planner", path: "./threading.planner.integration.test.ts", enabled: true },
+  {
+    name: "Threading X Provider",
+    path: "./threading.xprovider.integration.test.ts",
+    enabled: true,
+  },
+  { name: "Threading Canonical", path: "./threading.canonical.integration.test.ts", enabled: true },
 
   // Multi-Project Tests
-  { name: "Multi-Project Flow", path: "./multiproject.flow.test.ts", enabled: true },
+  { name: "Multi-Project Flow", path: "./multiproject.flow.live.test.ts", enabled: true },
 
   // Security & Auth Tests (restored files)
-  { name: "Security", path: "./security.test.ts", enabled: true },
-  { name: "Authentication", path: "./auth.test.ts", enabled: true },
-  { name: "MFA", path: "./mfa.test.ts", enabled: true },
-  { name: "RBAC", path: "./rbac.test.ts", enabled: true },
+  { name: "Security", path: "./security.live.test.ts", enabled: true },
+  { name: "Authentication", path: "./auth.integration.test.ts", enabled: true },
+  { name: "MFA", path: "./mfa.integration.test.ts", enabled: true },
+  { name: "RBAC", path: "./rbac.integration.test.ts", enabled: true },
 
   // Account Management Tests (restored files)
-  { name: "Account Lifecycle", path: "./accountLifecycle.test.ts", enabled: true },
-  { name: "Trial Period", path: "./trialPeriod.test.ts", enabled: true },
+  { name: "Account Lifecycle", path: "./accountLifecycle.integration.test.ts", enabled: true },
+  { name: "Trial Period", path: "./trialPeriod.integration.test.ts", enabled: true },
 
   // Infrastructure Tests (restored files)
-  { name: "Audit", path: "./audit.test.ts", enabled: true },
-  { name: "Schema Utils", path: "./schemaUtils.test.ts", enabled: true },
-  { name: "Provider Registry", path: "./providerRegistry.test.ts", enabled: true },
+  { name: "Audit", path: "./audit.integration.test.ts", enabled: true },
+  { name: "Schema Utils", path: "./schemaUtils.integration.test.ts", enabled: true },
+  { name: "Provider Registry", path: "./providerRegistry.live.test.ts", enabled: true },
 
   // Integration Tests (restored files)
   {
     name: "Universal Client Dashboard Integration",
-    path: "./universal-client-dashboard.integration.test.ts",
+    path: "./universal-client-dashboard.live.test.ts",
     enabled: true,
   },
 ];

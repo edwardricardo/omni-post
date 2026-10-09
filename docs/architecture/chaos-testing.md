@@ -56,7 +56,7 @@ describe("Chaos: <scenario>", () => {
 
 ### Phase A1 (DONE — 1 scenario)
 
-- ✅ **Saga step transient failure → recovery scheduler retries**: `tests/chaos/saga-step-retry-recovery.test.ts`. Runbook: `docs/runbooks/chaos-saga-step-retry.md`.
+- ✅ **Saga step transient failure → recovery scheduler retries**: `tests/chaos/saga-step-retry-recovery.integration.test.ts`. Runbook: `docs/runbooks/chaos-saga-step-retry.md`.
 
 ### Phase B / §4.1.b (PENDING — 2 scenarios)
 

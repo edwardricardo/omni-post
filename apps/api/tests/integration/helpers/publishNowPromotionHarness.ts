@@ -1,6 +1,6 @@
 /**
  * @file publishNowPromotionHarness.ts
- * @description The production composition `sagaPublishNowPromotion.test.ts`
+ * @description The production composition `sagaPublishNowPromotion.integration.test.ts`
  *   drives, plus the fixtures and row readers its assertions need. It lives
  *   beside the suite rather than inside it so the suite reads as the PROOF —
  *   one case per requirement — instead of as a setup file with assertions at

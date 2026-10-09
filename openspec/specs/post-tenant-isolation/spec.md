@@ -26,8 +26,8 @@
 >
 > Verification method: the MERGE-BLOCKING requirements are proven by real-DB two-tenant
 > INTEGRATION tests through HTTP — the DELETE gate by
-> `apps/api/tests/integration/postDeleteOwnership.test.ts`, the read gate by
-> `apps/api/tests/integration/postReadOwnership.test.ts`. A mocked unit test cannot detect
+> `apps/api/tests/integration/postDeleteOwnership.integration.test.ts`, the read gate by
+> `apps/api/tests/integration/postReadOwnership.integration.test.ts`. A mocked unit test cannot detect
 > a missing ownership filter.
 >
 > **Scope note.** This capability covers the customer-facing post **read** surfaces

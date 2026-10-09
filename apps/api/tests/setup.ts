@@ -16,7 +16,7 @@ import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.j
  * project and channel a suite starts from, and it is also the client behind the repository
  * adapter the flow then drives. The flow suites prove the publish path's behaviour, not the
  * role it runs as; the role is proved on the application channel by the
- * `integration:tenant-isolation` batch, `publishWorkerTenantIsolation.test.ts` included.
+ * `integration:tenant-isolation` batch, `publishWorkerTenantIsolation.integration.test.ts` included.
  */
 const prisma = createSeedPrismaClient();
 

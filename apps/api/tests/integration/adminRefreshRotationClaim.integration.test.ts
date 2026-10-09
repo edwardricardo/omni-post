@@ -60,7 +60,7 @@ const mfaService = new MfaService(
   new PrismaAuditLogRepository(prisma)
 );
 
-/** The real-adapter recipe `auth.test.ts` already uses, reused rather than re-derived. */
+/** The real-adapter recipe `auth.integration.test.ts` already uses, reused rather than re-derived. */
 const authService = new AuthService(
   prisma,
   new PrismaAdminUserRepository(prisma),

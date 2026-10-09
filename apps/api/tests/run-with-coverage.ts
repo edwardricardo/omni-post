@@ -26,23 +26,38 @@ interface TestModule {
 
 const TEST_MODULES: TestModule[] = [
   // Core API Tests
-  { name: "Plan Publication", path: "./planPublication.test.ts", enabled: true, category: "core" },
-  { name: "Adapters", path: "./adapters.test.ts", enabled: true, category: "core" },
-  { name: "Media Flow", path: "./media.flow.test.ts", enabled: true, category: "core" },
-  { name: "Schedule Flow", path: "./schedule.flow.test.ts", enabled: true, category: "core" },
-  { name: "Analytics Flow", path: "./analytics.flow.test.ts", enabled: true, category: "core" },
+  {
+    name: "Plan Publication",
+    path: "./planPublication.integration.test.ts",
+    enabled: true,
+    category: "core",
+  },
+  { name: "Adapters", path: "./adapters.integration.test.ts", enabled: true, category: "core" },
+  { name: "Media Flow", path: "./media.flow.integration.test.ts", enabled: true, category: "core" },
+  {
+    name: "Schedule Flow",
+    path: "./schedule.flow.integration.test.ts",
+    enabled: true,
+    category: "core",
+  },
+  {
+    name: "Analytics Flow",
+    path: "./analytics.flow.integration.test.ts",
+    enabled: true,
+    category: "core",
+  },
   { name: "Rate Limit Smoke", path: "./rateLimit.smoke.test.ts", enabled: true, category: "core" },
 
   // Threading Tests
   {
     name: "Threading Planner",
-    path: "./threading.planner.test.ts",
+    path: "./threading.planner.integration.test.ts",
     enabled: true,
     category: "threading",
   },
   {
     name: "Threading X Provider",
-    path: "./threading.xprovider.test.ts",
+    path: "./threading.xprovider.integration.test.ts",
     enabled: true,
     category: "threading",
   },
@@ -56,42 +71,47 @@ const TEST_MODULES: TestModule[] = [
   // Multi-Project Tests
   {
     name: "Multi-Project Flow",
-    path: "./multiproject.flow.test.ts",
+    path: "./multiproject.flow.live.test.ts",
     enabled: true,
     category: "core",
   },
 
   // Security & Auth Tests
-  { name: "Security", path: "./security.test.ts", enabled: true, category: "security" },
-  { name: "Authentication", path: "./auth.test.ts", enabled: true, category: "security" },
-  { name: "MFA", path: "./mfa.test.ts", enabled: true, category: "security" },
-  { name: "RBAC", path: "./rbac.test.ts", enabled: true, category: "security" },
+  { name: "Security", path: "./security.live.test.ts", enabled: true, category: "security" },
+  {
+    name: "Authentication",
+    path: "./auth.integration.test.ts",
+    enabled: true,
+    category: "security",
+  },
+  { name: "MFA", path: "./mfa.integration.test.ts", enabled: true, category: "security" },
+  { name: "RBAC", path: "./rbac.integration.test.ts", enabled: true, category: "security" },
 
   // Account Management Tests
   {
     name: "Account Lifecycle",
-    path: "./accountLifecycle.test.ts",
+    path: "./accountLifecycle.integration.test.ts",
     enabled: true,
     category: "infrastructure",
   },
   {
     name: "Trial Period",
-    path: "./trialPeriod.test.ts",
+    path: "./trialPeriod.integration.test.ts",
     enabled: true,
     category: "infrastructure",
   },
 
   // Infrastructure Tests
-  { name: "Audit", path: "./audit.test.ts", enabled: true, category: "infrastructure" },
+  { name: "Audit", path: "./audit.integration.test.ts", enabled: true, category: "infrastructure" },
   {
     name: "Schema Utils",
-    path: "./schemaUtils.test.ts",
+    path: "./schemaUtils.integration.test.ts",
     enabled: true,
     category: "infrastructure",
   },
   {
     name: "Provider Registry",
-    path: "./providerRegistry.test.ts",
+    path: "./providerRegistry.live.test.ts",
     enabled: true,
     category: "infrastructure",
   },
@@ -99,7 +119,7 @@ const TEST_MODULES: TestModule[] = [
   // Integration Tests
   {
     name: "Universal Client Dashboard Integration",
-    path: "./universal-client-dashboard.integration.test.ts",
+    path: "./universal-client-dashboard.live.test.ts",
     enabled: true,
     category: "integration",
   },

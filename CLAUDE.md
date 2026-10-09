@@ -1472,7 +1472,7 @@ echo "$BCOUNT"   # expect 0
 # — that one is structural instead, because `getAmbientGucScope()` and the guard read the same
 # exported `ambientTenantContextProvider` object; at the relocated sites the provider's identity
 # is a property of the composition root instead, proven by `setupRepositories.test.ts` and
-# `tenantGucTransactionBinding.test.ts`. (3) A whole-file seam exemption exempts
+# `tenantGucTransactionBinding.integration.test.ts`. (3) A whole-file seam exemption exempts
 # future calls in that file; the exempt list is `sagaTenant.ts` alone and may only shrink.
 # (4) The FLAT `packages/adapters/db-prisma` files are in Part A's scope but not Part B's: they
 # have no ambient request to derive from, and their explicit-scope convention is the shipped
@@ -1979,7 +1979,7 @@ complete rather than silently short by one:
 
 | Field            | Value                                                                                                                                                                              |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Suite            | `apps/api/tests/integration/rls-tenant-isolation.test.ts` — `describe("pg_catalog coverage gate")`                                                                                 |
+| Suite            | `apps/api/tests/integration/rls-tenant-isolation.integration.test.ts` — `describe("pg_catalog coverage gate")`                                                                     |
 | Batch            | `integration:tenant-isolation` in `apps/api/scripts/run-tests.sh` (fitness #30's reachability rule: a suite no `run_batch` names never executes)                                   |
 | CI job           | `Integration Tests` in `.github/workflows/ci.yml`, on every `pull_request`, against the migrated Postgres service                                                                  |
 | Passes only when | for every model in `getTenantScopedModels()`: `relrowsecurity` is true **and** ≥1 policy exists **and** (the app role does not own the table **or** `relforcerowsecurity` is true) |

@@ -15,12 +15,12 @@
  *                  contract (status codes, the byte-identical anti-oracle 401,
  *                  the fail-closed 503 + WARN, forensic-IP derivation) with the
  *                  use cases STUBBED (no real DI, no JWT).
- *                - `tests/integration/mfaCustomer.integration.test.ts` — the five
+ *                - `tests/integration/mfaCustomer.live.test.ts` — the five
  *                  self-service MFA routes (setup / verify-setup / disable /
  *                  status / regenerate) against a live API; it does NOT drive the
  *                  `/auth/customer/login` → `/auth/customer/login/mfa` challenge
  *                  cycle.
- *                - `tests/integration/customerLoginMfaE2e.integration.test.ts` —
+ *                - `tests/integration/customerLoginMfaE2e.live.test.ts` —
  *                  the ONLY end-to-end proof of the full enroll → login →
  *                  challenge → complete cycle through the REAL composition root:
  *                  real DI wiring, real challenge-token sign/verify (audience +
