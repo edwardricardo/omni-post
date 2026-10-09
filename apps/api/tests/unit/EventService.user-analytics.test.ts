@@ -3,9 +3,9 @@
  * @description Tests for createUserActionEvent
  * @layer infrastructure
  */
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { createUserActionEvent, createAnalyticsEvent } from "../../src/events/EventService.js";
-import { EVENT_TYPES, validateEvent } from "@shared/types/events.js";
+import { AnalyticsCollectedEventSchema, EVENT_TYPES, validateEvent } from "@shared/types/events.js";
 
 // ============================================================================
 // createUserActionEvent Tests
@@ -260,6 +260,11 @@ describe("createAnalyticsEvent", () => {
   });
 
   describe("Period Calculation - 24 Hour Window", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
     it("should calculate period with 24-hour lookback", () => {
       const beforeCreation = Date.now();
       const event = createAnalyticsEvent("post-123", "ch-456", "twitter", {
@@ -293,6 +298,24 @@ describe("createAnalyticsEvent", () => {
       const expectedDuration = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
       expect(duration).toBe(expectedDuration);
+    });
+
+    it("returns a period of exactly 24 hours when the clock ticks between reads", () => {
+      // The fake clock stands at T while Date.now() already answers T + 1: a millisecond boundary
+      // crossed between two reads of the clock. A window built from one read stays exactly 24 h.
+      const instant = new Date("2026-10-08T23:00:00.000Z").getTime();
+      vi.useFakeTimers({ now: instant });
+      vi.spyOn(Date, "now").mockReturnValueOnce(instant + 1);
+
+      const event = createAnalyticsEvent("post-123", "ch-456", "instagram", {
+        views: 500,
+        likes: 25,
+        comments: 10,
+        shares: 5,
+      });
+      const { period } = AnalyticsCollectedEventSchema.parse(event.data);
+
+      expect(period.end.getTime() - period.start.getTime()).toBe(24 * 60 * 60 * 1000);
     });
 
     it("should create different periods for events created at different times", async () => {
