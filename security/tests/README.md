@@ -82,10 +82,10 @@ suites, driven by `.github/workflows/security-testing.yml` and
 `security/scripts/security-scan.sh`:
 
 ```bash
-pnpm --filter @apps/api test:auth        # tests/auth.test.ts
-pnpm --filter @apps/api test:rbac        # tests/rbac.test.ts
-pnpm --filter @apps/api test:security    # tests/security.test.ts
-pnpm --filter @apps/api test:mfa         # tests/mfa.test.ts
+pnpm --filter @apps/api test:auth        # tests/auth.integration.test.ts
+pnpm --filter @apps/api test:rbac        # tests/rbac.integration.test.ts
+pnpm --filter @apps/api test:security    # tests/security.live.test.ts
+pnpm --filter @apps/api test:mfa         # tests/mfa.integration.test.ts
 pnpm --filter @apps/api exec vitest run tests/unit/security/httpRateLimitPreHandler.test.ts tests/unit/authRateLimit.test.ts   # the two vitest rate-limit unit suites
 ```
 

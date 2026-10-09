@@ -1,5 +1,5 @@
 /**
- * @file auth.test.ts
+ * @file auth.integration.test.ts
  * @description Tests for Authentication Service
  * @layer infrastructure
  */

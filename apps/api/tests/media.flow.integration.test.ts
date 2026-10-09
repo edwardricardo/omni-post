@@ -1,5 +1,5 @@
 /**
- * @file media.flow.test.ts
+ * @file media.flow.integration.test.ts
  * @description Tests for Media Flow
  * @layer infrastructure
  */

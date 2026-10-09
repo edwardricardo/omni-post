@@ -1,5 +1,5 @@
 /**
- * @file rbac.test.ts
+ * @file rbac.integration.test.ts
  * @description Tests for RBAC System
  * @layer infrastructure
  */

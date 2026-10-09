@@ -8,7 +8,7 @@
  * - Media handling for tweets
  * - Provider capabilities and limits
  *
- * @file threading.xprovider.test.ts
+ * @file threading.xprovider.integration.test.ts
  * @description Tests for X/Twitter Provider Threading
  * @layer infrastructure
  */

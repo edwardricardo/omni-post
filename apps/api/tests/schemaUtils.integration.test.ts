@@ -6,7 +6,7 @@
  * - Fastify schema creation
  * - Schema validation behavior
  *
- * @file schemaUtils.test.ts
+ * @file schemaUtils.integration.test.ts
  * @description Tests for Schema Utilities
  * @layer infrastructure
  */

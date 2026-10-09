@@ -1,5 +1,5 @@
 /**
- * @file analytics.flow.test.ts
+ * @file analytics.flow.integration.test.ts
  * @description Tests for Analytics Flow
  * @layer infrastructure
  */

@@ -6,7 +6,7 @@
  * - Repository pattern database operations
  * - Adapter integration with services
  *
- * @file adapters.test.ts
+ * @file adapters.integration.test.ts
  * @description Tests for Infrastructure Adapters
  * @layer infrastructure
  */

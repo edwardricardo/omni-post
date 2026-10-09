@@ -7,7 +7,7 @@
  * Uses real PostgreSQL + Redis (via setupTest) with mock provider adapters
  * from the workers test helpers.
  *
- * @file publish.flow.test.ts
+ * @file publish.flow.integration.test.ts
  * @description Tests for Publish Flow
  * @layer infrastructure
  */

@@ -34,7 +34,7 @@
  *   It lives under `apps/api/tests/integration/` (node:test, real DB) rather
  *   than `apps/workers/tests/` because the worker vitest suite runs in CI
  *   without database services, and it drives worker code through the same
- *   relative-import seam `publish.flow.test.ts` already uses.
+ *   relative-import seam `publish.flow.integration.test.ts` already uses.
  *
  * @layer infrastructure
  */

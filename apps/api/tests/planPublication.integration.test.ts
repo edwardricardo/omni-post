@@ -7,7 +7,7 @@
  * - Rendered content validation
  * - Multi-channel planning
  *
- * @file planPublication.test.ts
+ * @file planPublication.integration.test.ts
  * @description Tests for Publication Planning
  * @layer infrastructure
  */

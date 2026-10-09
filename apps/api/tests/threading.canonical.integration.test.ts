@@ -8,7 +8,7 @@
  *
  * This validates the ports & adapters pattern for threading.
  *
- * @file threading.canonical.test.ts
+ * @file threading.canonical.integration.test.ts
  * @description Tests for Threading Canonical Flow
  * @layer infrastructure
  */

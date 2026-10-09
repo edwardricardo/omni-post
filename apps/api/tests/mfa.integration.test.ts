@@ -1,5 +1,5 @@
 /**
- * @file mfa.test.ts
+ * @file mfa.integration.test.ts
  * @description Tests for MFA System
  * @layer infrastructure
  */

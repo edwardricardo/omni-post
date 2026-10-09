@@ -352,9 +352,9 @@ CONCURRENCY=1 run_batch "integration:routes" \
   tests/integration/security-endpoints.test.ts
 
 CONCURRENCY=1 run_batch "integration:flows" \
-  tests/auth.test.ts tests/audit.test.ts tests/cache.test.ts \
-  tests/security.test.ts \
-  tests/integration/publishing/failedWrite.smoke.test.ts
+  tests/auth.integration.test.ts tests/audit.integration.test.ts tests/cache.integration.test.ts \
+  tests/security.live.test.ts \
+  tests/integration/publishing/failedWrite.smoke.integration.test.ts
 
 # Early warning for the batch that follows. The saga suite carries its own
 # authoritative precondition (assertPublishConsumers in tests/testUtils.ts); this
@@ -400,14 +400,14 @@ CONCURRENCY=1 run_batch "integration:saga-live" \
   tests/integration/sagaCustomerFlow.live.test.ts
 
 CONCURRENCY=1 run_batch "flow" \
-  tests/publish.flow.test.ts tests/analytics.flow.test.ts tests/media.flow.test.ts tests/schedule.flow.test.ts
+  tests/publish.flow.integration.test.ts tests/analytics.flow.integration.test.ts tests/media.flow.integration.test.ts tests/schedule.flow.integration.test.ts
 
 CONCURRENCY=1 run_batch "remaining" \
-  tests/accountLifecycle.test.ts tests/trialPeriod.test.ts \
-  tests/mfa.test.ts tests/rbac.test.ts \
-  tests/threading.canonical.test.ts tests/threading.planner.test.ts \
-  tests/threading.xprovider.test.ts tests/planPublication.test.ts tests/adapters.test.ts \
-  tests/schemaUtils.test.ts
+  tests/accountLifecycle.integration.test.ts tests/trialPeriod.integration.test.ts \
+  tests/mfa.integration.test.ts tests/rbac.integration.test.ts \
+  tests/threading.canonical.integration.test.ts tests/threading.planner.integration.test.ts \
+  tests/threading.xprovider.integration.test.ts tests/planPublication.integration.test.ts tests/adapters.integration.test.ts \
+  tests/schemaUtils.integration.test.ts
 
 # The rate-limiting suite in `integration:flows` deliberately exhausts the
 # /health window and waits in its own `after()` for it to reopen; this check

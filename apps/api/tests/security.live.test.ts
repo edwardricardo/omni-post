@@ -1,5 +1,5 @@
 /**
- * @file security.test.ts
+ * @file security.live.test.ts
  * @description Tests for Security Features
  * @layer infrastructure
  */

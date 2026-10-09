@@ -3,7 +3,7 @@
  *
  * Tests the cache middleware, decorators, and configuration
  *
- * @file cache.test.ts
+ * @file cache.integration.test.ts
  * @description Tests for API Response Caching
  * @layer infrastructure
  */
@@ -53,7 +53,7 @@ function assertDisposableRedis(url: string | undefined): void {
   const host = new URL(url ?? "redis://localhost:6379").hostname;
   if (!LOOPBACK_HOSTS.has(host)) {
     throw new Error(
-      `cache.test.ts empties its Redis database before every case, and REDIS_URL points at "${host}", ` +
+      `cache.integration.test.ts empties its Redis database before every case, and REDIS_URL points at "${host}", ` +
         "which is not this machine. Point REDIS_URL at a local Redis (see .env.test.example)."
     );
   }

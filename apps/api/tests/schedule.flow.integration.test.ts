@@ -1,5 +1,5 @@
 /**
- * @file schedule.flow.test.ts
+ * @file schedule.flow.integration.test.ts
  * @description Tests for Schedule Flow
  * @layer infrastructure
  */

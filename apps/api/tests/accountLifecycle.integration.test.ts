@@ -1,5 +1,5 @@
 /**
- * @file accountLifecycle.test.ts
+ * @file accountLifecycle.integration.test.ts
  * @description Tests for Account Lifecycle Management
  * @layer infrastructure
  */

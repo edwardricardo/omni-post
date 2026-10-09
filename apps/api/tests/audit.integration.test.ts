@@ -1,5 +1,5 @@
 /**
- * @file audit.test.ts
+ * @file audit.integration.test.ts
  * @description Tests for Audit System
  * @layer infrastructure
  */

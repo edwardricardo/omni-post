@@ -1,5 +1,5 @@
 /**
- * @file failedWrite.smoke.test.ts
+ * @file failedWrite.smoke.integration.test.ts
  * @description E2E smoke — circuit-breaker write fail-fast policy (PR3).
  *
  *   PR2 proved each provider's apiClient rejects on HTTP failure at the

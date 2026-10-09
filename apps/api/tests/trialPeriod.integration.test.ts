@@ -1,5 +1,5 @@
 /**
- * @file trialPeriod.test.ts
+ * @file trialPeriod.integration.test.ts
  * @description Tests for Trial Period Management
  * @layer infrastructure
  */
