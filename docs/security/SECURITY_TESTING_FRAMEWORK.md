@@ -72,10 +72,10 @@ repo root fails with `Command "…" not found`.
 
 ```bash
 # One security suite at a time (CI runs these files in the run-tests.sh batches)
-pnpm --filter @apps/api test:auth        # tests/auth.test.ts
-pnpm --filter @apps/api test:rbac        # tests/rbac.test.ts
-pnpm --filter @apps/api test:security    # tests/security.test.ts
-pnpm --filter @apps/api test:mfa         # tests/mfa.test.ts
+pnpm --filter @apps/api test:auth        # tests/auth.integration.test.ts
+pnpm --filter @apps/api test:rbac        # tests/rbac.integration.test.ts
+pnpm --filter @apps/api test:security    # tests/security.live.test.ts
+pnpm --filter @apps/api test:mfa         # tests/mfa.integration.test.ts
 
 # The two rate-limit unit suites run in the Vitest collector; naming their paths
 # fails loudly ("No test files found") if either file is renamed or moved
@@ -449,7 +449,7 @@ NODE_ENV=test DEBUG=* pnpm --filter @apps/api test:auth
 pnpm --filter @apps/api test:unit:coverage
 
 # Specific node:test file
-cd apps/api && NODE_ENV=test node --conditions development --import tsx --test tests/auth.test.ts
+cd apps/api && NODE_ENV=test node --conditions development --import tsx --test tests/auth.integration.test.ts
 ```
 
 > There is deliberately no debug recipe for `security/tests/*` here. Running one

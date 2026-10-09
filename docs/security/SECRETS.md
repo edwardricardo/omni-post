@@ -142,7 +142,7 @@ boot with an error naming the missing version.
    an earlier generation still verifies under **its own** pin.
 
 **What of this is actually tested, stated plainly.** Steps 2, 3 and 5 are
-executed by `apps/api/tests/integration/deletionRecordDegradation.test.ts`
+executed by `apps/api/tests/integration/deletionRecordDegradation.integration.test.ts`
 ("round-trips a rotation"), so the procedure above is not a prescription with no
 runnable implementation. Steps 1 and 4 are operator actions — key generation and
 a process restart — and are **not** test-covered.

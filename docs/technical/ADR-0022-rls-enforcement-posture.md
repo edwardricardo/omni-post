@@ -51,7 +51,7 @@ No `FORCE ROW LEVEL SECURITY` anywhere.**
    run without `OMNIPOST_APP_DB_PASSWORD` rather than inventing a default.
 3. `omnipost_app` owns nothing. Ownership stays with the migration role.
 4. The three properties are permanently gated by
-   `apps/api/tests/integration/rls-tenant-isolation.test.ts`, which runs as
+   `apps/api/tests/integration/rls-tenant-isolation.integration.test.ts`, which runs as
    `omnipost_app` on every PR in the Integration Tests job.
 
 ## Rationale — why non-owner instead of `FORCE`
@@ -166,7 +166,7 @@ tenant-scoped read while no tenant index was involved.
 The role posture above answers "can the app role bypass row security?". It does
 not answer "is row security actually covering every table the guard enrolls?",
 and those are different questions with three independent failure axes. The
-`pg_catalog` coverage gate — `apps/api/tests/integration/rls-tenant-isolation.test.ts`,
+`pg_catalog` coverage gate — `apps/api/tests/integration/rls-tenant-isolation.integration.test.ts`,
 `describe("pg_catalog coverage gate")` — reads `relrowsecurity`,
 `relforcerowsecurity`, the table owner, and the policy count for every model in
 `getTenantScopedModels()`, and passes a table only when row security is on AND
@@ -572,5 +572,5 @@ asserted here.
 - [`docs/security/MULTI_TENANT_GUARDS.md`](../security/MULTI_TENANT_GUARDS.md) — the three-layer isolation strategy this posture is layer 2 of
 - [ADR-0014](ADR-0014-multi-tenant-isolation-guards.md) — the guard model that layer 1 implements
 - `infra/prisma/migrations/20260527000000_add_rls_tenant_isolation` — the policies whose enforcement this ADR restores
-- `apps/api/tests/integration/rls-tenant-isolation.test.ts` — the permanent gate
+- `apps/api/tests/integration/rls-tenant-isolation.integration.test.ts` — the permanent gate
 - PostgreSQL docs, _Row Security Policies_: superusers and roles with `BYPASSRLS` always bypass; table owners bypass unless `FORCE ROW LEVEL SECURITY` is set
