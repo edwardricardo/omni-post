@@ -650,11 +650,12 @@ target project resolves inside the caller's scope and let the repository derive 
 **MANDATORY compensating control for the public redirect (D7):** the `/r/:shortCode`
 route carries a dedicated NAMESPACE-keyed rate limiter
 (`createNamespacedRateLimitPreHandler(httpRateLimiter, "redirect", RateLimitConfigs.REDIRECT)`)
-that keys the bucket by `redirect:{clientIp}` — NOT the global limiter's `ip:url`
-key. The global limiter keys by URL, so every guessed shortCode would hit a fresh
-bucket and NOT throttle enumeration; the per-IP namespace bucket makes ALL `/r/*`
-hits from one IP share one bucket (true anti-enumeration for both auto-generated
-shortCodes and user-chosen vanity slugs). See SMELL-57 in the roadmap backlog for
+that keys the bucket by `redirect:{clientIp}` — NOT the global limiter's
+`ip:<resource path>` key. The global limiter keys by the resource path, so every
+guessed shortCode would hit a fresh bucket and NOT throttle enumeration; the
+per-IP namespace bucket makes ALL `/r/*` hits from one IP share one bucket (true
+anti-enumeration for both auto-generated shortCodes and user-chosen vanity
+slugs). See SMELL-57 in the roadmap backlog for
 the pre-existing, out-of-scope `vanitySlug` non-uniqueness issue.
 
 **S2.1d will audit every adapter touching these tables and add the

@@ -96,6 +96,16 @@ hop < N` type-checks, keeps every test green, and deliberately restores the
 - **Prefer an authenticated principal over IP when one exists.** For
   authenticated endpoints, key by user / account id; reserve IP-based keys for
   unauthenticated traffic (OWASP).
+- **The bucket key and the rule derive from the matched route, never from the
+  raw URL.** `createHttpRateLimitPreHandler`
+  (`apps/api/src/security/httpRateLimitPreHandler.ts`) selects the rule from the
+  route pattern the router matched (`request.routeOptions.url`) and keys by
+  client IP + that pattern with the parameter values Fastify parsed (the
+  resource path); a request no route matched shares one per-IP `!unrouted`
+  bucket. `request.url` keeps the query string, a fragment, percent-encoding
+  and an absolute-form target, all of which reach the same handler, so a key or
+  rule read from it lets each variant mint a fresh bucket or fall to the
+  default rule.
 
 ### The two trust models
 

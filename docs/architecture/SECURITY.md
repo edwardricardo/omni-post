@@ -204,8 +204,10 @@ throttles outbound AI provider calls (one rate-limiting canon, two instances).
   (no read-modify-write race across pods).
 - **Per-path rules**: STANDARD default + HEALTH / STRICT / UPLOAD + an expensive
   DoS tier (5–20 req/min); capacity + window passed per call from the matched rule.
-- **Per-IP + per-URL bucket**; `X-RateLimit-Remaining` / `X-RateLimit-Reset`
-  headers + `Retry-After` on 429.
+- **Per-IP + per-resource-path bucket** (the matched route pattern with its parsed
+  parameters, never the raw URL, so a query string or URL variant does not mint a
+  fresh bucket); `X-RateLimit-Remaining` / `X-RateLimit-Reset` headers +
+  `Retry-After` on 429.
 - **Fail-open**: a limiter outage allows traffic rather than hard-blocking.
 
 ```typescript
