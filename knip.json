@@ -132,6 +132,7 @@
       "ignoreDependencies": ["@opentelemetry/instrumentation", "@opentelemetry/propagation-utils"]
     },
     "packages/test-contracts": {
+      "entry": ["src/reach.ts"],
       "project": ["src/**/*.ts", "tests/**/*.ts"]
     },
     "infra/prisma": {

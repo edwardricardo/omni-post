@@ -10,6 +10,7 @@
     "src"
   ],
   "scripts": {
+    "reach": "node --conditions development --import tsx src/reach.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -17,6 +18,7 @@
     "@packages/vitest-shared": "workspace:*",
     "@shared/types": "workspace:*",
     "@types/node": "catalog:",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
