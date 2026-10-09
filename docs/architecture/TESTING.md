@@ -120,42 +120,24 @@ cp apps/client/.env.example apps/client/.env
 #### API Tests (Backend)
 
 ```bash
-# Complete API test suite using tsx runner
-pnpm --filter @apps/api test            # Run all API tests
+# Unit and eval suites (Vitest): every file under tests/unit/** and tests/eval/**,
+# the rate-limit suites included
+pnpm --filter @apps/api test
 
-# Individual test categories
-pnpm --filter @apps/api test:plan       # Publication planning tests
-pnpm --filter @apps/api test:adapters   # Provider adapter tests
-pnpm --filter @apps/api test:media      # Media handling tests
-pnpm --filter @apps/api test:schedule   # Scheduling flow tests
-pnpm --filter @apps/api test:analytics  # Analytics collection tests
-pnpm --filter @apps/api test:ratelimit  # Rate limiting tests
+# Integration and flow suites (node:test): scripts/run-tests.sh, which with TIER
+# unset runs the Vitest phase and then every node:test batch (planning, adapters,
+# media/schedule/analytics flows, threading, multi-project, account lifecycle,
+# trial period, audit, schema utils, provider registry, cache, production flows).
+# Needs PostgreSQL and Redis (pnpm db:up); the live-API batches need a running API.
+pnpm --filter @apps/api test:integration
 
-# Threading system tests
-pnpm --filter @apps/api test:threading-planner    # Thread planning logic
-pnpm --filter @apps/api test:threading-xprovider  # X/Twitter provider threading
-pnpm --filter @apps/api test:threading-flow       # End-to-end threading
-
-# Multi-project tests
-pnpm --filter @apps/api test:multiproject         # Project isolation tests
-
-# Security & Authentication tests
+# Security & Authentication suites one file at a time (the same files run in
+# test:integration; security/scripts/security-scan.sh and vulnerability-report.ts
+# call these scripts)
 pnpm --filter @apps/api test:security             # Security validation
 pnpm --filter @apps/api test:auth                 # Authentication flows
 pnpm --filter @apps/api test:mfa                  # Multi-factor authentication
 pnpm --filter @apps/api test:rbac                 # Role-based access control
-
-# Account management tests
-pnpm --filter @apps/api test:account-lifecycle    # Account creation/deletion
-pnpm --filter @apps/api test:trial-period         # Trial period management
-
-# Infrastructure tests
-pnpm --filter @apps/api test:audit                # Audit logging
-pnpm --filter @apps/api test:schema-utils         # Schema validation
-pnpm --filter @apps/api test:provider-registry    # Provider registration
-
-# Integration tests
-pnpm --filter @apps/api test:category:integration # Multi-project + production API flows
 ```
 
 #### Client Tests (Frontend)

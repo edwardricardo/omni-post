@@ -71,15 +71,19 @@ Every command below is a script that exists. They are all workspace-scoped —
 repo root fails with `Command "…" not found`.
 
 ```bash
-# The security suites that actually execute (same ones CI runs)
+# One security suite at a time (CI runs these files in the run-tests.sh batches)
 pnpm --filter @apps/api test:auth        # tests/auth.test.ts
 pnpm --filter @apps/api test:rbac        # tests/rbac.test.ts
 pnpm --filter @apps/api test:security    # tests/security.test.ts
 pnpm --filter @apps/api test:mfa         # tests/mfa.test.ts
-pnpm --filter @apps/api test:ratelimit   # rate-limit unit suites (vitest)
 
-# The four above minus ratelimit, as one batch
-pnpm --filter @apps/api test:category:security
+# The two rate-limit unit suites run in the Vitest collector; naming their paths
+# fails loudly ("No test files found") if either file is renamed or moved
+pnpm --filter @apps/api exec vitest run tests/unit/security/httpRateLimitPreHandler.test.ts tests/unit/authRateLimit.test.ts
+
+# The four node:test suites above, with every other node:test batch
+# (scripts/run-tests.sh; needs pnpm db:up)
+pnpm --filter @apps/api test:integration
 
 # Comprehensive scan (SAST + deps + container + DAST, per scan type)
 pnpm --filter @apps/api security:scan
@@ -249,10 +253,10 @@ intent for the SMELL-83 rewrite.
   - API security testing
   - Authenticated endpoint scanning
 
-- **Custom Security Tests**
-  - Authentication security validation
-  - RBAC testing
-  - Input validation testing
+- **Authentication, RBAC, input validation and MFA suites** are not a job of this
+  workflow: `tests/{auth,rbac,security,mfa}.test.ts` run in the node:test batches of
+  `apps/api/scripts/run-tests.sh` (the Integration Tests job of `ci.yml`), and the
+  rate-limit suites under `apps/api/tests/unit` run in the Vitest shards
 
 #### 2. Container Security (`container-security.yml`)
 
@@ -431,8 +435,8 @@ pnpm --filter @apps/api test:security
 # MFA
 pnpm --filter @apps/api test:mfa
 
-# Rate limiting
-pnpm --filter @apps/api test:ratelimit
+# Rate limiting (the two Vitest unit suites, named by path)
+pnpm --filter @apps/api exec vitest run tests/unit/security/httpRateLimitPreHandler.test.ts tests/unit/authRateLimit.test.ts
 ```
 
 ### Debugging Tests

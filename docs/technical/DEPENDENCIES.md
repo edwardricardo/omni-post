@@ -377,7 +377,7 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | MinIO      | minio/minio:latest          | 9000, 9001 | S3-compatible media storage (API, console)                        |
 | MinIO init | minio/mc:latest             | —          | Creates the `omni-post-media` bucket once MinIO is up, then exits |
 
-### GitHub Actions Workflows (13)
+### GitHub Actions Workflows (12)
 
 1. **ci.yml** — Main CI: lint, test, build, security, provider tests, frontend tests
 2. **security-testing.yml** — SAST (CodeQL), DAST, dependency scanning (daily at 2 AM UTC)
@@ -388,10 +388,9 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 7. **cleanup.yml** — Cleanup tasks
 8. **audit.yml** — Pre-merge audit toolkit: one job per tool on every push and PR, SARIF to Code Scanning where supported (also daily at 3 AM UTC)
 9. **fitness.yml** — Architectural fitness functions: the greps of CLAUDE.md §Automated Compliance Checks
-10. **eval.yml** — AI trajectory evals for the repurpose, triage and trends slices; a regression blocks the merge
-11. **chaos.yml** — Saga and outbox chaos scenarios, nightly (3:30 AM UTC), through the same test runner CI uses
-12. **cache-divergence.yml** — Daily probe for a Turborepo cache hit that replays artifacts not built from the commit (4:17 AM UTC)
-13. **maturity-reminder.yml** — Opens, or comments on, the issue of each maturity watchlist review due that day (1 PM, 5 PM and 9 PM UTC), and carries a review still unrecorded after its day over daily on the same issue, reopening it when it was closed on an earlier day
+10. **chaos.yml** — Saga and outbox chaos scenarios, nightly (3:30 AM UTC), through the same test runner CI uses
+11. **cache-divergence.yml** — Daily probe for a Turborepo cache hit that replays artifacts not built from the commit (4:17 AM UTC)
+12. **maturity-reminder.yml** — Opens, or comments on, the issue of each maturity watchlist review due that day (1 PM, 5 PM and 9 PM UTC), and carries a review still unrecorded after its day over daily on the same issue, reopening it when it was closed on an earlier day
 
 ### Required External Services
 

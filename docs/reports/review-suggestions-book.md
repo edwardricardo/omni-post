@@ -127,6 +127,7 @@
 | SB-106 | Phase 1 U1 (`workstream/phase1-u1-suffixes`, d75aba0f)                                | R2-stale-docstring-filename-descriptions                         | `@description` lines of the renamed `apps/client/tests/integration` suites                                                                  | docstring wording            | closed: the lines say what the suites exercise; U1 freed a collector suffix only                                                                                |
 | SB-107 | same                                                                                  | R2-doc-stale-authContext-citation                                | `docs/development/TESTING_REFOUNDATION.md` (names cited by their old suffix)                                                                | doc accuracy                 | closed: no renamed file is cited by its old name (measured with `rg -o`)                                                                                        |
 | SB-108 | Phase 1 U2 (`workstream/phase1-u2-reserved-suffixes`, a88b8509)                       | R3-spec-glob-breadth                                             | `RESERVED_TIER_EXCLUDES` (the `**/*.spec.*` glob)                                                                                           | glob breadth                 | closed: an infix `.spec.` file is never an include candidate, so the exclude cannot hit it                                                                      |
+| SB-109 | Phase 1 U3 (`workstream/phase1-u3-double-collection`, 93d835fa)                       | R2-dense-progress-paragraph                                      | `docs/development/TESTING_REFOUNDATION.md:3-17` (the as-of paragraph and its `Previous:` chain)                                             | doc structure                | deferred: the chain is the tracker's convention for every unit; restructuring it is its own docs unit                                                           |
 
 ## Entries — code and prose
 
@@ -682,6 +683,14 @@
 - **Suggestion:** split the dated history out of the cell, so a reader cannot attribute plant (3)'s 2026-10-05 `exit 6` to 18.5.0.
 - **Why deferred:** a table cell cannot carry a paragraph break, and the cap leaves no room: a longer cell re-pads every row of the Gates table. The cell already dates each proof and says the seventh error of plant (3) is the rule `PR v-b` added, not 18.5.0, and ADR-0032's Consequences records the same.
 - **To implement:** a docs unit that touches only `docs/development/TESTING_REFOUNDATION.md` and `docs/technical/ADR-0032-architecture-gate-dependency-cruiser.md` (or a `docs/reports/` note in place of the ADR section): move the gate's dated proof history to a short section of ADR-0032, and leave the row with the current proof and a link to that section.
+
+### SB-109 — the as-of paragraph stacks three dated layers
+
+- **Source:** the native review of Phase 1 U3 (`workstream/phase1-u3-double-collection`, `93d835fa`), readability lens, `R2-dense-progress-paragraph`.
+- **Location:** `docs/development/TESTING_REFOUNDATION.md:3-17`, the as-of paragraph: each unit prepends its sentence, the previous head becomes `Previous:` and the one before it `Before it,`.
+- **Suggestion:** split the paragraph so a reader scanning for the current state does not parse three layers of history in one block.
+- **Why deferred:** the chain is the tracker's convention for every unit since Phase 0, and every unit edits it; restructuring it inside a unit that edits it would conflict with the next one.
+- **To implement:** one docs unit that moves the dated layers below the current sentence into a short dated list and states the convention once.
 
 ## Entries — tests
 

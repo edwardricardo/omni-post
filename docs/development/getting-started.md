@@ -115,11 +115,10 @@ pnpm db:seed       # Seed test data
 ### Test Commands
 
 ```bash
-pnpm --filter @apps/api test                    # Run all tests
-pnpm --filter @apps/api test:watch              # Watch mode
-pnpm --filter @apps/api test:coverage           # With coverage
-pnpm --filter @apps/api test:category:core      # Core tests
-pnpm --filter @apps/api test:category:security  # Security tests
+pnpm --filter @apps/api test                    # Unit and eval suites (Vitest)
+pnpm --filter @apps/api test:unit:watch         # Watch mode
+pnpm --filter @apps/api test:unit:coverage      # With coverage
+pnpm --filter @apps/api test:integration        # node:test batches of scripts/run-tests.sh (needs pnpm db:up)
 ```
 
 ## Verify Installation
